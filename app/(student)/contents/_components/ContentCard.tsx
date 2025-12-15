@@ -39,7 +39,7 @@ function ContentCardComponent({
   const secondaryInfo = detailRows.slice(3);
 
   return (
-    <li className={`rounded-lg border bg-white p-4 shadow-sm ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+    <li className={`rounded-lg border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
       <div className="flex items-start justify-between gap-4">
         {/* 체크박스 */}
         {onSelect && (
@@ -56,30 +56,30 @@ function ContentCardComponent({
         <div className="flex-1">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-lg font-semibold text-gray-900">{item.title}</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{item.title}</p>
               {item.master_content_id && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   📦 마스터에서 가져옴
                 </span>
               )}
               {linkedBook && (
                 <Link
                   href={`/contents/books/${linkedBook.id}`}
-                  className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+                  className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   📚 {linkedBook.title}
                 </Link>
               )}
             </div>
-            <p className="text-sm text-gray-500">{subText}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{subText}</p>
 
             {/* 주요 정보 (항상 표시) */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
               {primaryInfo.map((row) => (
                 <span key={row.label} className="flex items-center gap-1">
-                  <span className="font-medium text-gray-500">{row.label}:</span>
-                  <span className="text-gray-900">{row.value ?? "—"}</span>
+                  <span className="font-medium text-gray-500 dark:text-gray-500">{row.label}:</span>
+                  <span className="text-gray-900 dark:text-gray-100">{row.value ?? "—"}</span>
                 </span>
               ))}
             </div>
@@ -90,16 +90,16 @@ function ContentCardComponent({
                 <button
                   type="button"
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 transition"
+                  className="text-xs text-indigo-600 hover:text-indigo-700 transition dark:text-indigo-400 dark:hover:text-indigo-300"
                 >
                   {isExpanded ? "▲ 상세 정보 접기" : "▼ 상세 정보 보기"}
                 </button>
                 {isExpanded && (
-                  <dl className="grid gap-y-1 text-xs text-gray-600 sm:grid-cols-2">
+                  <dl className="grid gap-y-1 text-xs text-gray-600 sm:grid-cols-2 dark:text-gray-400">
                     {secondaryInfo.map((row) => (
                       <Fragment key={row.label}>
-                        <dt className="font-medium text-gray-500">{row.label}</dt>
-                        <dd className="text-gray-900">{row.value ?? "—"}</dd>
+                        <dt className="font-medium text-gray-500 dark:text-gray-500">{row.label}</dt>
+                        <dd className="text-gray-900 dark:text-gray-100">{row.value ?? "—"}</dd>
                       </Fragment>
                     ))}
                   </dl>

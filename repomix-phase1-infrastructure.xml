@@ -1,0 +1,3537 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+admin.ts
+authErrorMessages.ts
+client.ts
+clientSelector.ts
+database.types.ts
+getCurrentUser.ts
+getCurrentUserRole.ts
+getTenantInfo.ts
+guards.ts
+isAdminRole.ts
+planGroupAuth.ts
+queryHelpers.ts
+rateLimitHandler.ts
+requireAdminAuth.ts
+requireStudentAuth.ts
+server.ts
+sessionManager.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="admin.ts">
+import { createClient } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
+
+/**
+ * Service Role Key를 사용하는 Supabase Admin 클라이언트
+ * 주의: 이 클라이언트는 RLS를 우회하므로 서버 사이드에서만 사용해야 합니다.
+ */
+export function createSupabaseAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceRoleKey) {
+    // Service Role Key가 없으면 null 반환 (에러를 던지지 않음)
+    // 호출하는 쪽에서 null 체크 후 처리
+    return null;
+  }
+
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
+</file>
+
+<file path="client.ts">
+import { createBrowserClient } from "@supabase/ssr";
+import { env } from "@/lib/env";
+
+/**
+ * Supabase Browser Client 생성
+ * 브라우저에서 쿠키를 자동으로 관리합니다.
+ */
+export function createSupabaseBrowserClient() {
+  return createBrowserClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
+
+// 기본 export (기존 코드 호환성 유지)
+export const supabase = createSupabaseBrowserClient();
+</file>
+
+<file path="clientSelector.ts">
+import { AppError, ErrorCode } from "@/lib/errors";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
+
+export type SupabaseClientForStudentQuery =
+  | SupabaseServerClient
+  | SupabaseAdminClient;
+
+/**
+ * Service Role Key 기반 Admin 클라이언트를 보장합니다.
+ */
+export function ensureAdminClient(): SupabaseAdminClient {
+  const adminClient = createSupabaseAdminClient();
+
+  if (!adminClient) {
+    throw new AppError(
+      "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      false
+    );
+  }
+
+  return adminClient;
+}
+
+/**
+ * 학생 데이터 조회 시 사용할 Supabase 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생 데이터를 조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForStudentQuery(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 플랜 생성 작업에 필요한 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 플랜을 생성할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForPlanGeneration(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 콘텐츠(교재/강의) 조회 시 사용할 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForContentQuery(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 블록 세트 조회 시 사용할 클라이언트를 선택합니다.
+ * - 관리자/컨설턴트가 다른 학생의 블록 세트를 조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function selectClientForBlockSetQuery(
+  studentId: string,
+  currentUserId: string,
+  isAdminOrConsultant: boolean
+): Promise<SupabaseClientForStudentQuery> {
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * RLS 우회가 필요한 작업을 위한 클라이언트 선택
+ * 
+ * @param options - 클라이언트 선택 옵션
+ * @param options.forceAdmin - Admin 클라이언트 강제 사용 (기본값: true)
+ * @param options.fallbackToServer - Admin 클라이언트가 없을 때 서버 클라이언트 사용 (기본값: true)
+ * @returns Supabase 클라이언트 (Admin 우선, 없으면 서버 클라이언트)
+ * 
+ * @example
+ * // SMS 로그 생성 시 (RLS 우회 필수)
+ * const client = await getSupabaseClientForRLSBypass({
+ *   forceAdmin: true,
+ *   fallbackToServer: false
+ * });
+ * 
+ * @example
+ * // 일반적인 RLS 우회 (Admin 우선, 없으면 서버 클라이언트)
+ * const client = await getSupabaseClientForRLSBypass();
+ */
+export async function getSupabaseClientForRLSBypass(
+  options?: {
+    forceAdmin?: boolean;
+    fallbackToServer?: boolean;
+  }
+): Promise<SupabaseClientForStudentQuery> {
+  const { forceAdmin = true, fallbackToServer = true } = options || {};
+
+  if (forceAdmin) {
+    const adminClient = createSupabaseAdminClient();
+    if (adminClient) {
+      return adminClient;
+    }
+
+    if (!fallbackToServer) {
+      throw new AppError(
+        "Admin 클라이언트를 생성할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY 환경 변수를 확인해주세요.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        false
+      );
+    }
+  }
+
+  return await createSupabaseServerClient();
+}
+
+/**
+ * 학생이 자신의 데이터를 생성/수정할 때 사용하는 클라이언트 선택
+ * 
+ * RLS 정책이 학생의 INSERT/UPDATE를 허용하는 경우 서버 클라이언트 사용,
+ * 그렇지 않은 경우 Admin 클라이언트 사용
+ * 
+ * @param studentId - 대상 학생 ID
+ * @param currentUserId - 현재 로그인한 사용자 ID
+ * @param operation - 작업 유형 ('insert' | 'update' | 'delete')
+ * @param tableName - 테이블 이름 (RLS 정책 확인용)
+ * @returns Supabase 클라이언트
+ * 
+ * @example
+ * // 학생이 자신의 출석 기록 생성
+ * const client = await getSupabaseClientForStudentOperation(
+ *   studentId,
+ *   currentUserId,
+ *   'insert',
+ *   'attendance_records'
+ * );
+ */
+export async function getSupabaseClientForStudentOperation(
+  studentId: string,
+  currentUserId: string,
+  operation: "insert" | "update" | "delete",
+  tableName: string
+): Promise<SupabaseClientForStudentQuery> {
+  // 학생이 자신의 데이터를 수정하는 경우
+  if (studentId === currentUserId) {
+    // RLS 정책이 학생의 INSERT/UPDATE를 허용하는 테이블 목록
+    // student_plan은 이미 정책이 있으므로 서버 클라이언트 사용 가능
+    const tablesWithStudentPolicy = [
+      "student_plan",
+      // 향후 추가될 수 있는 테이블들
+    ];
+
+    // RLS 정책이 있는 테이블은 서버 클라이언트 사용
+    if (tablesWithStudentPolicy.includes(tableName)) {
+      return await createSupabaseServerClient();
+    }
+
+    // RLS 정책이 없는 테이블은 Admin 클라이언트 사용
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      // Admin 클라이언트가 없으면 서버 클라이언트로 시도
+      // (RLS 정책이 추가되면 작동할 수 있음)
+      return await createSupabaseServerClient();
+    }
+    return adminClient;
+  }
+
+  // 다른 학생의 데이터를 수정하는 경우 (관리자만 가능)
+  return ensureAdminClient();
+}
+
+/**
+ * 간단한 RLS 우회 클라이언트 선택 (Admin 우선, 없으면 서버)
+ * 중복 패턴 통합용 헬퍼 함수
+ * 
+ * @returns Supabase 클라이언트
+ * 
+ * @example
+ * // 중복 패턴 통합용
+ * const supabase = await getClientForRLSBypass();
+ */
+export async function getClientForRLSBypass(): Promise<
+  SupabaseClientForStudentQuery
+> {
+  return getSupabaseClientForRLSBypass({
+    forceAdmin: false,
+    fallbackToServer: true,
+  });
+}
+</file>
+
+<file path="database.types.ts">
+/**
+ * Supabase Database Types
+ *
+ * 이 파일은 Supabase 데이터베이스 스키마를 기반으로 생성된 타입 정의입니다.
+ * 마이그레이션 파일을 분석하여 수동으로 생성되었습니다.
+ *
+ * 자동 생성 방법:
+ * npx supabase gen types typescript --project-id <project-id> > lib/supabase/database.types.ts
+ */
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      // ============================================
+      // 지역 테이블
+      // ============================================
+      regions: {
+        Row: {
+          id: string;
+          name: string;
+          parent_id: string | null;
+          level: number; // 1: 시/도, 2: 시/군/구, 3: 읍/면/동
+          code: string | null;
+          display_order: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          parent_id?: string | null;
+          level?: number;
+          code?: string | null;
+          display_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          parent_id?: string | null;
+          level?: number;
+          code?: string | null;
+          display_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 중·고등학교 테이블 (school_info)
+      // ============================================
+      school_info: {
+        Row: {
+          id: number;
+          district_id: number | null;
+          region: string | null;
+          school_code: string;
+          school_name: string;
+          school_level: "중" | "고";
+          establishment_type: string | null;
+          school_property: string | null;
+          branch_flag: string | null;
+          establishment_form: string | null;
+          postal_code: string | null;
+          addr_road: string | null;
+          addr_detail: string | null;
+          address_full: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          phone_number: string | null;
+          fax_number: string | null;
+          homepage_url: string | null;
+          coeducation_type: string | null;
+          closed_flag: string | null;
+          closed_date: string | null;
+          temporary_close_flag: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          district_id?: number | null;
+          region?: string | null;
+          school_code: string;
+          school_name: string;
+          school_level: "중" | "고";
+          establishment_type?: string | null;
+          school_property?: string | null;
+          branch_flag?: string | null;
+          establishment_form?: string | null;
+          postal_code?: string | null;
+          addr_road?: string | null;
+          addr_detail?: string | null;
+          address_full?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          homepage_url?: string | null;
+          coeducation_type?: string | null;
+          closed_flag?: string | null;
+          closed_date?: string | null;
+          temporary_close_flag?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          district_id?: number | null;
+          region?: string | null;
+          school_code?: string;
+          school_name?: string;
+          school_level?: "중" | "고";
+          establishment_type?: string | null;
+          school_property?: string | null;
+          branch_flag?: string | null;
+          establishment_form?: string | null;
+          postal_code?: string | null;
+          addr_road?: string | null;
+          addr_detail?: string | null;
+          address_full?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          homepage_url?: string | null;
+          coeducation_type?: string | null;
+          closed_flag?: string | null;
+          closed_date?: string | null;
+          temporary_close_flag?: string | null;
+          created_at?: string;
+        };
+      };
+
+      // ============================================
+      // 대학교 테이블 (universities)
+      // ============================================
+      universities: {
+        Row: {
+          id: number;
+          university_code: string;
+          name_kor: string;
+          name_eng: string | null;
+          name_chi: string | null;
+          establishment_type: string | null;
+          corporation_name: string | null;
+          legal_basis: string | null;
+          university_type: string | null;
+          status: string | null;
+          homepage_url: string | null;
+          president_name: string | null;
+          founded_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          university_code: string;
+          name_kor: string;
+          name_eng?: string | null;
+          name_chi?: string | null;
+          establishment_type?: string | null;
+          corporation_name?: string | null;
+          legal_basis?: string | null;
+          university_type?: string | null;
+          status?: string | null;
+          homepage_url?: string | null;
+          president_name?: string | null;
+          founded_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          university_code?: string;
+          name_kor?: string;
+          name_eng?: string | null;
+          name_chi?: string | null;
+          establishment_type?: string | null;
+          corporation_name?: string | null;
+          legal_basis?: string | null;
+          university_type?: string | null;
+          status?: string | null;
+          homepage_url?: string | null;
+          president_name?: string | null;
+          founded_date?: string | null;
+          created_at?: string;
+        };
+      };
+
+      // ============================================
+      // 대학교 캠퍼스 테이블 (university_campuses)
+      // ============================================
+      university_campuses: {
+        Row: {
+          id: number;
+          university_id: number;
+          campus_type: string | null;
+          campus_name: string;
+          region: string | null;
+          address_kor: string | null;
+          address_eng: string | null;
+          address_chi: string | null;
+          postal_code: string | null;
+          phone_number: string | null;
+          fax_number: string | null;
+          campus_status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          university_id: number;
+          campus_type?: string | null;
+          campus_name: string;
+          region?: string | null;
+          address_kor?: string | null;
+          address_eng?: string | null;
+          address_chi?: string | null;
+          postal_code?: string | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          campus_status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          university_id?: number;
+          campus_type?: string | null;
+          campus_name?: string;
+          region?: string | null;
+          address_kor?: string | null;
+          address_eng?: string | null;
+          address_chi?: string | null;
+          postal_code?: string | null;
+          phone_number?: string | null;
+          fax_number?: string | null;
+          campus_status?: string | null;
+          created_at?: string;
+        };
+      };
+
+      // ============================================
+      // 테넌트 테이블
+      // ============================================
+      tenants: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 학생 테이블
+      // ============================================
+      students: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          user_id: string;
+          name: string;
+          school_id: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
+          school_type: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          grade: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          user_id: string;
+          name: string;
+          school_id?: string | null;
+          school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          grade?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          user_id?: string;
+          name?: string;
+          school_id?: string | null;
+          school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          grade?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 교과 그룹 테이블
+      // ============================================
+      subject_groups: {
+        Row: {
+          id: string;
+          tenant_id: string | null; // null이면 전역
+          name: string;
+          display_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          name: string;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          name?: string;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 과목 테이블
+      // ============================================
+      subjects: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          subject_group_id: string;
+          name: string;
+          display_order: number;
+          subject_type: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          subject_group_id: string;
+          name: string;
+          display_order?: number;
+          subject_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          subject_group_id?: string;
+          name?: string;
+          display_order?: number;
+          subject_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 과목 구분 테이블
+      // ============================================
+      subject_types: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          name: string;
+          display_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          name: string;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          name?: string;
+          display_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 학생-학기 테이블 (student_terms)
+      // ============================================
+      student_terms: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          school_year: number; // 학년도 (예: 2024)
+          grade: number; // 학년 (1~3)
+          semester: number; // 학기 (1~2)
+          curriculum_revision_id: string; // FK → curriculum_revisions
+          class_name: string | null; // 반 이름 (예: "1반", "A반")
+          homeroom_teacher: string | null; // 담임교사 이름
+          notes: string | null; // 비고
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          school_year: number;
+          grade: number;
+          semester: number;
+          curriculum_revision_id: string;
+          class_name?: string | null;
+          homeroom_teacher?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          school_year?: number;
+          grade?: number;
+          semester?: number;
+          curriculum_revision_id?: string;
+          class_name?: string | null;
+          homeroom_teacher?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 내신 성적 테이블 (정규화 버전)
+      // ============================================
+      student_internal_scores: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          student_term_id: string; // FK → student_terms.id
+          curriculum_revision_id: string;
+          subject_group_id: string;
+          subject_type_id: string;
+          subject_id: string;
+          grade: number;
+          semester: number;
+          credit_hours: number;
+          raw_score: number | null;
+          avg_score: number | null;
+          std_dev: number | null;
+          rank_grade: number | null;
+          total_students: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          student_term_id: string; // FK → student_terms.id
+          curriculum_revision_id: string;
+          subject_group_id: string;
+          subject_type_id: string;
+          subject_id: string;
+          grade: number;
+          semester: number;
+          credit_hours: number;
+          raw_score?: number | null;
+          avg_score?: number | null;
+          std_dev?: number | null;
+          rank_grade?: number | null;
+          total_students?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          student_term_id?: string;
+          curriculum_revision_id?: string;
+          subject_group_id?: string;
+          subject_type_id?: string;
+          subject_id?: string;
+          grade?: number;
+          semester?: number;
+          credit_hours?: number;
+          raw_score?: number | null;
+          avg_score?: number | null;
+          std_dev?: number | null;
+          rank_grade?: number | null;
+          total_students?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 내신 성적 테이블 (레거시 - deprecated)
+      // @deprecated student_internal_scores를 사용하세요
+      // ============================================
+      student_school_scores: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          student_id: string;
+          grade: number;
+          semester: number;
+          // FK 필드
+          subject_group_id: string | null;
+          subject_id: string | null;
+          subject_type_id: string | null;
+          // deprecated 텍스트 필드
+          subject_group: string | null;
+          subject_type: string | null;
+          subject_name: string | null;
+          // 성적 정보
+          credit_hours: number | null;
+          raw_score: number | null;
+          subject_average: number | null;
+          standard_deviation: number | null;
+          grade_score: number | null; // 등급 (1-9)
+          total_students: number | null;
+          rank_grade: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id: string;
+          grade: number;
+          semester: number;
+          subject_group_id?: string | null;
+          subject_id?: string | null;
+          subject_type_id?: string | null;
+          subject_group?: string | null;
+          subject_type?: string | null;
+          subject_name?: string | null;
+          credit_hours?: number | null;
+          raw_score?: number | null;
+          subject_average?: number | null;
+          standard_deviation?: number | null;
+          grade_score?: number | null;
+          total_students?: number | null;
+          rank_grade?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string;
+          grade?: number;
+          semester?: number;
+          subject_group_id?: string | null;
+          subject_id?: string | null;
+          subject_type_id?: string | null;
+          subject_group?: string | null;
+          subject_type?: string | null;
+          subject_name?: string | null;
+          credit_hours?: number | null;
+          raw_score?: number | null;
+          subject_average?: number | null;
+          standard_deviation?: number | null;
+          grade_score?: number | null;
+          total_students?: number | null;
+          rank_grade?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 모의고사 성적 테이블 (정규화 버전)
+      // ============================================
+      student_mock_scores: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          student_term_id: string | null; // FK → student_terms.id (nullable - 학기 정보를 찾지 못한 경우)
+          exam_date: string; // date 타입
+          exam_title: string;
+          grade: number;
+          subject_id: string;
+          subject_group_id: string;
+          standard_score: number | null;
+          percentile: number | null;
+          grade_score: number | null; // 등급 (1-9)
+          raw_score: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          student_term_id?: string | null; // FK → student_terms.id (nullable - 학기 정보를 찾지 못한 경우)
+          exam_date: string; // date 타입
+          exam_title: string;
+          grade: number;
+          subject_id: string;
+          subject_group_id: string;
+          standard_score?: number | null;
+          percentile?: number | null;
+          grade_score?: number | null;
+          raw_score?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          student_term_id?: string | null;
+          exam_date?: string;
+          exam_title?: string;
+          grade?: number;
+          subject_id?: string;
+          subject_group_id?: string;
+          standard_score?: number | null;
+          percentile?: number | null;
+          grade_score?: number | null;
+          raw_score?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 플랜 그룹 테이블
+      // ============================================
+      plan_groups: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          name: string | null;
+          plan_purpose: string | null;
+          scheduler_type: string | null;
+          scheduler_options: Json | null;
+          period_start: string;
+          period_end: string;
+          target_date: string | null;
+          block_set_id: string | null;
+          status: string;
+          deleted_at: string | null;
+          daily_schedule: Json | null;
+          subject_constraints: Json | null;
+          additional_period_reallocation: Json | null;
+          non_study_time_blocks: Json | null;
+          study_hours: Json | null;
+          self_study_hours: Json | null;
+          // 캠프 관련
+          plan_type: "individual" | "integrated" | "camp" | null;
+          camp_template_id: string | null;
+          camp_invitation_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          name?: string | null;
+          plan_purpose?: string | null;
+          scheduler_type?: string | null;
+          scheduler_options?: Json | null;
+          period_start: string;
+          period_end: string;
+          target_date?: string | null;
+          block_set_id?: string | null;
+          status?: string;
+          deleted_at?: string | null;
+          daily_schedule?: Json | null;
+          subject_constraints?: Json | null;
+          additional_period_reallocation?: Json | null;
+          non_study_time_blocks?: Json | null;
+          study_hours?: Json | null;
+          self_study_hours?: Json | null;
+          plan_type?: "individual" | "integrated" | "camp" | null;
+          camp_template_id?: string | null;
+          camp_invitation_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          name?: string | null;
+          plan_purpose?: string | null;
+          scheduler_type?: string | null;
+          scheduler_options?: Json | null;
+          period_start?: string;
+          period_end?: string;
+          target_date?: string | null;
+          block_set_id?: string | null;
+          status?: string;
+          deleted_at?: string | null;
+          daily_schedule?: Json | null;
+          subject_constraints?: Json | null;
+          additional_period_reallocation?: Json | null;
+          non_study_time_blocks?: Json | null;
+          study_hours?: Json | null;
+          self_study_hours?: Json | null;
+          plan_type?: "individual" | "integrated" | "camp" | null;
+          camp_template_id?: string | null;
+          camp_invitation_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 학생 플랜 테이블
+      // ============================================
+      student_plan: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          student_id: string;
+          plan_group_id: string | null;
+          plan_date: string;
+          block_index: number;
+          content_type: "book" | "lecture" | "custom";
+          content_id: string;
+          chapter: string | null;
+          planned_start_page_or_time: number | null;
+          planned_end_page_or_time: number | null;
+          completed_amount: number | null;
+          progress: number | null;
+          is_reschedulable: boolean;
+          start_time: string | null;
+          end_time: string | null;
+          actual_start_time: string | null;
+          actual_end_time: string | null;
+          total_duration_seconds: number | null;
+          paused_duration_seconds: number | null;
+          pause_count: number | null;
+          plan_number: number | null;
+          sequence: number | null;
+          memo: string | null;
+          day_type: string | null;
+          week: number | null;
+          day: number | null;
+          is_partial: boolean | null;
+          is_continued: boolean | null;
+          // denormalized 필드
+          content_title: string | null;
+          content_subject: string | null;
+          content_subject_category: string | null;
+          content_category: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id: string;
+          plan_group_id?: string | null;
+          plan_date: string;
+          block_index?: number;
+          content_type: "book" | "lecture" | "custom";
+          content_id: string;
+          chapter?: string | null;
+          planned_start_page_or_time?: number | null;
+          planned_end_page_or_time?: number | null;
+          completed_amount?: number | null;
+          progress?: number | null;
+          is_reschedulable?: boolean;
+          start_time?: string | null;
+          end_time?: string | null;
+          actual_start_time?: string | null;
+          actual_end_time?: string | null;
+          total_duration_seconds?: number | null;
+          paused_duration_seconds?: number | null;
+          pause_count?: number | null;
+          plan_number?: number | null;
+          sequence?: number | null;
+          memo?: string | null;
+          day_type?: string | null;
+          week?: number | null;
+          day?: number | null;
+          is_partial?: boolean | null;
+          is_continued?: boolean | null;
+          content_title?: string | null;
+          content_subject?: string | null;
+          content_subject_category?: string | null;
+          content_category?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string;
+          plan_group_id?: string | null;
+          plan_date?: string;
+          block_index?: number;
+          content_type?: "book" | "lecture" | "custom";
+          content_id?: string;
+          chapter?: string | null;
+          planned_start_page_or_time?: number | null;
+          planned_end_page_or_time?: number | null;
+          completed_amount?: number | null;
+          progress?: number | null;
+          is_reschedulable?: boolean;
+          start_time?: string | null;
+          end_time?: string | null;
+          actual_start_time?: string | null;
+          actual_end_time?: string | null;
+          total_duration_seconds?: number | null;
+          paused_duration_seconds?: number | null;
+          pause_count?: number | null;
+          plan_number?: number | null;
+          sequence?: number | null;
+          memo?: string | null;
+          day_type?: string | null;
+          week?: number | null;
+          day?: number | null;
+          is_partial?: boolean | null;
+          is_continued?: boolean | null;
+          content_title?: string | null;
+          content_subject?: string | null;
+          content_subject_category?: string | null;
+          content_category?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 플랜 콘텐츠 테이블
+      // ============================================
+      plan_contents: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          plan_group_id: string;
+          content_type: "book" | "lecture" | "custom";
+          content_id: string;
+          master_content_id: string | null;
+          start_range: number;
+          end_range: number;
+          start_detail_id: string | null;
+          end_detail_id: string | null;
+          display_order: number;
+          is_auto_recommended: boolean | null;
+          recommendation_source: "auto" | "admin" | "template" | null;
+          recommendation_reason: string | null;
+          recommendation_metadata: Json | null;
+          recommended_at: string | null;
+          recommended_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          plan_group_id: string;
+          content_type: "book" | "lecture" | "custom";
+          content_id: string;
+          master_content_id?: string | null;
+          start_range: number;
+          end_range: number;
+          start_detail_id?: string | null;
+          end_detail_id?: string | null;
+          display_order?: number;
+          is_auto_recommended?: boolean | null;
+          recommendation_source?: "auto" | "admin" | "template" | null;
+          recommendation_reason?: string | null;
+          recommendation_metadata?: Json | null;
+          recommended_at?: string | null;
+          recommended_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          plan_group_id?: string;
+          content_type?: "book" | "lecture" | "custom";
+          content_id?: string;
+          master_content_id?: string | null;
+          start_range?: number;
+          end_range?: number;
+          start_detail_id?: string | null;
+          end_detail_id?: string | null;
+          display_order?: number;
+          is_auto_recommended?: boolean | null;
+          recommendation_source?: "auto" | "admin" | "template" | null;
+          recommendation_reason?: string | null;
+          recommendation_metadata?: Json | null;
+          recommended_at?: string | null;
+          recommended_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 플랜 제외일 테이블
+      // ============================================
+      plan_exclusions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          student_id: string;
+          exclusion_date: string;
+          exclusion_type: string;
+          reason: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          student_id: string;
+          exclusion_date: string;
+          exclusion_type: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          student_id?: string;
+          exclusion_date?: string;
+          exclusion_type?: string;
+          reason?: string | null;
+          created_at?: string;
+        };
+      };
+
+      // ============================================
+      // 캠프 템플릿 테이블
+      // ============================================
+      camp_templates: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          description: string | null;
+          program_type: "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타" | null;
+          template_data: Json;
+          status: "draft" | "active" | "archived";
+          camp_start_date: string | null;
+          camp_end_date: string | null;
+          camp_location: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          description?: string | null;
+          program_type?: "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타" | null;
+          template_data: Json;
+          status?: "draft" | "active" | "archived";
+          camp_start_date?: string | null;
+          camp_end_date?: string | null;
+          camp_location?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          name?: string;
+          description?: string | null;
+          program_type?: "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타" | null;
+          template_data?: Json;
+          status?: "draft" | "active" | "archived";
+          camp_start_date?: string | null;
+          camp_end_date?: string | null;
+          camp_location?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 캠프 초대 테이블
+      // ============================================
+      camp_invitations: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          camp_template_id: string;
+          student_id: string;
+          status: "pending" | "accepted" | "declined";
+          invited_at: string;
+          accepted_at: string | null;
+          declined_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          camp_template_id: string;
+          student_id: string;
+          status?: "pending" | "accepted" | "declined";
+          invited_at?: string;
+          accepted_at?: string | null;
+          declined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          camp_template_id?: string;
+          student_id?: string;
+          status?: "pending" | "accepted" | "declined";
+          invited_at?: string;
+          accepted_at?: string | null;
+          declined_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 블록 세트 테이블
+      // ============================================
+      block_sets: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          student_id: string | null;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string | null;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string | null;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 블록 테이블
+      // ============================================
+      blocks: {
+        Row: {
+          id: string;
+          block_set_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          block_set_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          block_set_id?: string;
+          day_of_week?: number;
+          start_time?: string;
+          end_time?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 학원 테이블
+      // ============================================
+      academies: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          student_id: string;
+          name: string;
+          travel_time: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id: string;
+          name: string;
+          travel_time?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string;
+          name?: string;
+          travel_time?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+
+      // ============================================
+      // 학원 일정 테이블
+      // ============================================
+      academy_schedules: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          student_id: string;
+          academy_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          subject: string | null;
+          // deprecated 필드
+          academy_name: string | null;
+          travel_time: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id: string;
+          academy_id: string;
+          day_of_week: number;
+          start_time: string;
+          end_time: string;
+          subject?: string | null;
+          academy_name?: string | null;
+          travel_time?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          student_id?: string;
+          academy_id?: string;
+          day_of_week?: number;
+          start_time?: string;
+          end_time?: string;
+          subject?: string | null;
+          academy_name?: string | null;
+          travel_time?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+    };
+
+    Views: {
+      [_ in never]: never;
+    };
+
+    Functions: {
+      [_ in never]: never;
+    };
+
+    Enums: {
+      // 학교 유형 (통합)
+      school_type_unified: "MIDDLE" | "HIGH" | "UNIVERSITY";
+      // 중·고등학교 레벨
+      school_level: "중" | "고";
+      content_type: "book" | "lecture" | "custom";
+      plan_type: "individual" | "integrated" | "camp";
+      camp_program_type: "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타";
+      camp_template_status: "draft" | "active" | "archived";
+      camp_invitation_status: "pending" | "accepted" | "declined";
+    };
+  };
+};
+
+// ============================================
+// 헬퍼 타입
+// ============================================
+
+/**
+ * 테이블 Row 타입 추출
+ */
+export type Tables<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Row"];
+
+/**
+ * 테이블 Insert 타입 추출
+ */
+export type TablesInsert<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Insert"];
+
+/**
+ * 테이블 Update 타입 추출
+ */
+export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Update"];
+
+/**
+ * Enum 타입 추출
+ */
+export type Enums<T extends keyof Database["public"]["Enums"]> =
+  Database["public"]["Enums"][T];
+</file>
+
+<file path="queryHelpers.ts">
+/**
+ * Supabase 쿼리 헬퍼 함수
+ * 42703 에러 코드 처리 및 일반적인 쿼리 패턴 통합
+ */
+
+import type { PostgrestError } from "@supabase/supabase-js";
+import type { createSupabaseServerClient } from "../supabase/server";
+
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
+
+/**
+ * Supabase 쿼리 결과 타입
+ */
+export type SupabaseQueryResult<T> = {
+  data: T | null;
+  error: PostgrestError | null;
+};
+
+/**
+ * 42703 에러 코드를 처리하는 안전한 쿼리 실행
+ * 
+ * @param queryFn - 메인 쿼리 함수
+ * @param fallbackQueryFn - 42703 에러 발생 시 실행할 대체 쿼리 함수
+ * @returns 쿼리 결과 데이터 또는 null
+ */
+export async function safeQuery<T>(
+  queryFn: () => Promise<SupabaseQueryResult<T>>,
+  fallbackQueryFn?: () => Promise<SupabaseQueryResult<T>>
+): Promise<T | null> {
+  const result = await queryFn();
+
+  // 42703 에러는 컬럼이 존재하지 않을 때 발생 (마이그레이션 중간 상태)
+  if (result.error?.code === "42703" && fallbackQueryFn) {
+    const fallback = await fallbackQueryFn();
+    if (fallback.error && fallback.error.code !== "PGRST116") {
+      // PGRST116은 "no rows returned" 에러이므로 정상적인 경우
+      throw fallback.error;
+    }
+    return fallback.data;
+  }
+
+  // PGRST116은 "no rows returned" 에러이므로 정상적인 경우
+  if (result.error && result.error.code !== "PGRST116") {
+    throw result.error;
+  }
+
+  return result.data;
+}
+
+/**
+ * 여러 쿼리를 병렬로 실행하고 에러를 안전하게 처리
+ */
+export async function safeQueryAll<T>(
+  queries: Array<() => Promise<SupabaseQueryResult<T>>>
+): Promise<Array<T | null>> {
+  const results = await Promise.allSettled(
+    queries.map((queryFn) => safeQuery(queryFn))
+  );
+
+  return results.map((result) =>
+    result.status === "fulfilled" ? result.value : null
+  );
+}
+
+/**
+ * 쿼리 결과를 변환하는 헬퍼
+ */
+export function mapQueryResult<T, R>(
+  result: SupabaseQueryResult<T>,
+  mapper: (data: T) => R
+): R | null {
+  if (result.error || !result.data) {
+    return null;
+  }
+  return mapper(result.data);
+}
+
+/**
+ * 단일 레코드 조회 헬퍼
+ */
+export async function safeSingle<T>(
+  queryFn: () => Promise<SupabaseQueryResult<T[]>>
+): Promise<T | null> {
+  const data = await safeQuery(queryFn);
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return null;
+  }
+  return data[0];
+}
+
+/**
+ * 존재 여부 확인 헬퍼
+ */
+export async function safeExists(
+  queryFn: () => Promise<SupabaseQueryResult<unknown[]>>
+): Promise<boolean> {
+  const data = await safeQuery(queryFn);
+  return Array.isArray(data) && data.length > 0;
+}
+</file>
+
+<file path="server.ts">
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { env } from "@/lib/env";
+import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
+
+type ReadonlyRequestCookies = Awaited<ReturnType<typeof cookies>>;
+
+/**
+ * Rate limit을 고려한 fetch wrapper
+ */
+async function rateLimitedFetch(...args: Parameters<typeof fetch>): Promise<Response> {
+  return retryWithBackoff(
+    async () => {
+      const response = await fetch(...args);
+      
+      // Rate limit 응답 처리
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after");
+        const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        throw new Error("Rate limit reached");
+      }
+      
+      return response;
+    },
+    2, // 최대 2번 재시도
+    2000, // 초기 2초 대기
+    false // 일반 fetch 요청
+  );
+}
+
+/**
+ * Supabase Server Client 생성
+ * 
+ * Next.js 15에서는 쿠키 수정이 Server Action이나 Route Handler에서만 가능합니다.
+ * 일반 Server Component에서는 쿠키를 읽기 전용으로만 사용합니다.
+ */
+export async function createSupabaseServerClient(
+  cookieStore?: ReadonlyRequestCookies,
+  options?: { rememberMe?: boolean }
+) {
+  try {
+    const store = cookieStore ?? await cookies();
+    const rememberMe = options?.rememberMe ?? false;
+
+    // 환경 변수 검증
+    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error("[supabase/server] 환경 변수가 설정되지 않았습니다", {
+        hasUrl: !!env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      });
+      // 환경 변수가 없어도 클라이언트는 생성하되, 사용 시 에러가 발생할 수 있음
+    }
+
+    return createServerClient(
+      env.NEXT_PUBLIC_SUPABASE_URL || "",
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      {
+      auth: {
+        autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+        persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+      },
+      global: {
+        fetch: rateLimitedFetch, // Rate limit 처리된 fetch 사용
+      },
+      cookies: {
+        get(name: string) {
+          return store.get(name)?.value;
+        },
+        set(name: string, value: string, cookieOptions: CookieOptions) {
+          // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
+          // 쿠키 설정은 Server Action이나 Route Handler에서만 가능합니다.
+          // 인증 토큰 갱신은 클라이언트 사이드에서 처리되므로, 
+          // Server Component에서는 쿠키 설정을 건너뜁니다.
+          try {
+            // Supabase 인증 관련 쿠키인 경우 자동로그인 옵션 적용
+            // Supabase는 보통 'sb-*-auth-token' 형식의 쿠키를 사용합니다
+            const isAuthCookie = name.includes('auth-token') || name.includes('auth-token-code-verifier');
+            
+            // 자동로그인 옵션이 있고 인증 쿠키인 경우 쿠키 만료 시간을 길게 설정 (30일)
+            const finalCookieOptions = rememberMe && isAuthCookie
+              ? {
+                  ...cookieOptions,
+                  maxAge: 60 * 60 * 24 * 30, // 30일 (초 단위)
+                  expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000), // 30일 후
+                }
+              : cookieOptions;
+            
+            // 디버깅: 자동로그인 쿠키 설정 로그
+            if (rememberMe && isAuthCookie) {
+              console.log("[auth] 자동로그인 쿠키 설정:", {
+                cookieName: name,
+                maxAge: finalCookieOptions.maxAge,
+                expires: finalCookieOptions.expires,
+              });
+            }
+            
+            // 쿠키 설정 시도 (Server Action이나 Route Handler에서만 성공)
+            store.set(name, value, finalCookieOptions);
+          } catch (error) {
+            // Server Component에서는 쿠키를 수정할 수 없으므로 조용히 무시
+            // 이는 정상적인 동작이며, 인증 토큰 갱신은 클라이언트에서 처리됩니다
+            // 에러를 무시하여 unhandled rejection을 방지합니다
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          // Next.js 15에서는 Server Component에서 쿠키를 수정할 수 없습니다.
+          try {
+            store.set(name, "", { ...options, maxAge: 0 });
+          } catch (error) {
+            // Server Component에서는 쿠키를 수정할 수 없으므로 조용히 무시
+            // 에러를 무시하여 unhandled rejection을 방지합니다
+          }
+        },
+      },
+    }
+    );
+  } catch (error) {
+    // Supabase 클라이언트 생성 실패 시 에러 로깅
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : undefined;
+    
+    console.error("[supabase/server] 클라이언트 생성 실패", {
+      message: errorMessage,
+      name: errorName,
+      stack: errorStack,
+      errorType: error?.constructor?.name,
+      errorString: String(error),
+    });
+    // 에러가 발생해도 기본 클라이언트를 반환 (사용 시 에러 발생 가능)
+    // 이렇게 하면 서버 컴포넌트 렌더링이 중단되지 않음
+    try {
+      return createServerClient(
+        env.NEXT_PUBLIC_SUPABASE_URL || "",
+        env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+        {
+          auth: {
+            autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+            persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+          },
+          cookies: {
+            get() { return undefined; },
+            set() {},
+            remove() {},
+          },
+        }
+      );
+    } catch (fallbackError) {
+      // fallback 클라이언트 생성도 실패한 경우
+      console.error("[supabase/server] Fallback 클라이언트 생성도 실패", fallbackError);
+      // 최후의 수단: 빈 URL과 키로 클라이언트 생성 (사용 시 에러 발생)
+      return createServerClient("", "", {
+        auth: {
+          autoRefreshToken: false, // 자동 토큰 갱신 비활성화 (서버에서는 불필요)
+          persistSession: false,   // 서버에서는 세션을 쿠키에 저장하지 않음
+        },
+        cookies: {
+          get() { return undefined; },
+          set() {},
+          remove() {},
+        },
+      });
+    }
+  }
+}
+
+/**
+ * 공개 데이터용 Supabase 클라이언트 생성 (쿠키 불필요)
+ * unstable_cache 내부에서 사용 가능
+ */
+export function createSupabasePublicClient() {
+  return createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        fetch: (...args) => fetch(...args),
+      },
+    }
+  );
+}
+
+/**
+ * Admin 권한을 가진 Supabase 클라이언트 생성 (Service Role Key 사용)
+ * 주의: 서버 사이드에서만 사용해야 하며, 절대 클라이언트에 노출되면 안 됨
+ */
+export function createSupabaseAdminClient() {
+  // Service Role Key가 없는 경우 에러 처리하거나 Anon Key로 대체 (보안상 취약할 수 있음)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("[supabase/server] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. 권한 문제가 발생할 수 있습니다.");
+  }
+
+  return createClient(
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+      global: {
+         fetch: (...args) => fetch(...args),
+      }
+    }
+  );
+}
+</file>
+
+<file path="authErrorMessages.ts">
+/**
+ * Supabase 인증 에러 메시지 매핑 유틸리티
+ * 
+ * Supabase 인증 에러를 사용자 친화적인 한국어 메시지로 변환합니다.
+ */
+
+type AuthError = {
+  message?: string | null;
+  status?: number | null;
+  code?: string | null;
+  name?: string | null;
+};
+
+/**
+ * Supabase 인증 에러를 사용자 친화적인 메시지로 변환
+ * 
+ * @param error - Supabase 인증 에러 객체
+ * @returns 사용자에게 표시할 에러 메시지
+ */
+export function getAuthErrorMessage(error: AuthError | null | undefined): string {
+  if (!error) {
+    return "인증 처리 중 오류가 발생했습니다.";
+  }
+
+  const errorMessage = error.message?.toLowerCase() || "";
+  const errorCode = error.code?.toLowerCase() || "";
+  const errorStatus = error.status;
+
+  // PKCE 관련 오류 (가장 구체적인 에러를 먼저 체크)
+  const pkcePatterns = [
+    "code verifier",
+    "code_verifier",
+    "code verifier should be non-empty",
+    "both auth code and code verifier should be non-empty",
+    "validation_failed",
+  ];
+  if (
+    pkcePatterns.some((pattern) => errorMessage.includes(pattern)) ||
+    errorCode === "validation_failed"
+  ) {
+    return "인증 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  // 만료된 코드
+  const expiredPatterns = [
+    "expired",
+    "만료",
+    "expiration",
+    "timeout",
+    "timed out",
+    "invalid code",
+    "code expired",
+  ];
+  if (expiredPatterns.some((pattern) => errorMessage.includes(pattern))) {
+    return "인증 링크가 만료되었습니다. 새로운 인증 링크를 요청해주세요.";
+  }
+
+  // 이미 사용된 코드
+  const alreadyUsedPatterns = [
+    "already used",
+    "이미 사용",
+    "already redeemed",
+    "already exchanged",
+    "code already used",
+  ];
+  if (alreadyUsedPatterns.some((pattern) => errorMessage.includes(pattern))) {
+    return "이미 사용된 인증 링크입니다.";
+  }
+
+  // 유효하지 않은 코드
+  const invalidPatterns = [
+    "invalid",
+    "유효하지",
+    "invalid code",
+    "invalid token",
+    "malformed",
+    "잘못된",
+    "code not found",
+    "token not found",
+  ];
+  if (invalidPatterns.some((pattern) => errorMessage.includes(pattern))) {
+    return "유효하지 않은 인증 링크입니다.";
+  }
+
+  // 네트워크/연결 오류
+  const networkPatterns = [
+    "network",
+    "network error",
+    "connection",
+    "연결",
+    "fetch",
+    "failed to fetch",
+    "timeout",
+    "econnrefused",
+    "enotfound",
+  ];
+  if (
+    networkPatterns.some((pattern) => errorMessage.includes(pattern)) ||
+    errorCode === "08000" ||
+    errorCode === "08003" ||
+    errorCode === "08006"
+  ) {
+    return "연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  // Rate limit 오류
+  const rateLimitPatterns = [
+    "rate limit",
+    "too many requests",
+    "429",
+    "rate_limit",
+  ];
+  if (
+    rateLimitPatterns.some((pattern) => errorMessage.includes(pattern)) ||
+    errorStatus === 429
+  ) {
+    return "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  // 권한 오류
+  const forbiddenPatterns = [
+    "forbidden",
+    "권한",
+    "unauthorized",
+    "access denied",
+    "permission",
+  ];
+  if (
+    forbiddenPatterns.some((pattern) => errorMessage.includes(pattern)) ||
+    errorStatus === 403 ||
+    errorStatus === 401
+  ) {
+    return "인증 권한이 없습니다.";
+  }
+
+  // 서버 오류
+  if (errorStatus && errorStatus >= 500) {
+    return "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+  }
+
+  // 기본 메시지
+  return "인증 처리 중 오류가 발생했습니다.";
+}
+
+/**
+ * 인증 에러가 코드 없음 에러인지 확인
+ * 
+ * @param error - 에러 객체 또는 null
+ * @returns 코드 없음 에러인지 여부
+ */
+export function isNoCodeError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+  
+  if (typeof error === "string") {
+    return error.toLowerCase().includes("code") && error.toLowerCase().includes("missing");
+  }
+  
+  return false;
+}
+</file>
+
+<file path="getCurrentUser.ts">
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUserRole, type CurrentUserRole } from "./getCurrentUserRole";
+import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
+
+export type CurrentUser = {
+  userId: string;
+  role: NonNullable<CurrentUserRole["role"]>;
+  tenantId: string | null;
+  email?: string | null;
+};
+
+/**
+ * 현재 로그인한 사용자 정보를 조회합니다.
+ * getCurrentUserRole을 확장하여 이메일 정보도 포함합니다.
+ */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    
+    // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
+    // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
+    const initialResult = await supabase.auth.getUser();
+    
+    // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+    if (initialResult.error) {
+      const errorMessage = initialResult.error.message?.toLowerCase() || "";
+      const errorCode = initialResult.error.code?.toLowerCase() || "";
+      
+      const isRefreshTokenError = 
+        errorMessage.includes("refresh token") ||
+        errorMessage.includes("refresh_token") ||
+        errorMessage.includes("session") ||
+        errorCode === "refresh_token_not_found";
+      
+      if (isRefreshTokenError) {
+        // Refresh token 에러는 조용히 처리하고 null 반환
+        return null;
+      }
+      
+      // Rate limit 에러인 경우에만 재시도
+      if (isRateLimitError(initialResult.error)) {
+        const {
+          data: { user },
+          error: authError,
+        } = await retryWithBackoff(
+          async () => {
+            const result = await supabase.auth.getUser();
+            if (result.error && isRateLimitError(result.error)) {
+              throw result.error;
+            }
+            return result;
+          },
+          2,
+          2000,
+          true // 인증 요청 플래그
+        );
+        
+        if (authError) {
+          // Rate limit 에러 처리
+          if (isRateLimitError(authError)) {
+            console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
+              status: authError.status,
+              code: authError.code,
+            });
+            return null;
+          }
+          
+          // 다른 에러 처리
+          const errorMessage = authError.message?.toLowerCase() || "";
+          const errorCode = authError.code?.toLowerCase() || "";
+          
+          const isUserNotFound =
+            errorCode === "user_not_found" ||
+            errorMessage.includes("user from sub claim") ||
+            errorMessage.includes("user from sub claim in jwt does not exist") ||
+            (authError.status === 403 && errorMessage.includes("does not exist"));
+          
+          if (!isUserNotFound) {
+            console.error("[auth] getCurrentUser: getUser 실패", {
+              message: authError.message,
+              status: authError.status,
+              code: authError.code,
+            });
+          }
+          return null;
+        }
+        
+        if (!user) {
+          return null;
+        }
+        
+        // user가 있으면 아래 로직 계속
+      } else {
+        // Rate limit이 아닌 다른 에러 처리
+        const errorMessage = initialResult.error.message?.toLowerCase() || "";
+        const errorCode = initialResult.error.code?.toLowerCase() || "";
+        
+        const isUserNotFound =
+          errorCode === "user_not_found" ||
+          errorMessage.includes("user from sub claim") ||
+          errorMessage.includes("user from sub claim in jwt does not exist") ||
+          (initialResult.error.status === 403 && errorMessage.includes("does not exist"));
+        
+        if (!isUserNotFound) {
+          console.error("[auth] getCurrentUser: getUser 실패", {
+            message: initialResult.error.message,
+            status: initialResult.error.status,
+            code: initialResult.error.code,
+          });
+        }
+        return null;
+      }
+    }
+    
+    // 정상적인 경우 계속 진행
+    const { user } = initialResult.data;
+
+    if (!user) {
+      return null;
+    }
+
+    const { userId, role, tenantId } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
+        userId,
+        role,
+        userEmail: user.email,
+        userIdFromAuth: user.id,
+      });
+      return null;
+    }
+
+    return {
+      userId,
+      role,
+      tenantId,
+      email: user.email ?? null,
+    };
+  } catch (error) {
+    // refresh token 에러는 조용히 처리
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isRefreshTokenError = 
+      errorMessage.toLowerCase().includes("refresh token") ||
+      errorMessage.toLowerCase().includes("refresh_token") ||
+      errorMessage.toLowerCase().includes("session");
+    
+    if (!isRefreshTokenError) {
+      console.error("[auth] getCurrentUser 실패", error);
+    }
+    return null;
+  }
+}
+</file>
+
+<file path="getCurrentUserRole.ts">
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  isRateLimitError,
+  retryWithBackoff,
+} from "@/lib/auth/rateLimitHandler";
+
+export type UserRole =
+  | "student"
+  | "consultant"
+  | "admin"
+  | "parent"
+  | "superadmin"
+  | null;
+
+/**
+ * 회원가입 시 선택한 역할 타입
+ */
+export type SignupRole = "student" | "parent";
+
+export type CurrentUserRole = {
+  userId: string | null;
+  role: UserRole;
+  tenantId: string | null;
+  /**
+   * 회원가입 시 선택한 역할 (옵셔널)
+   * Phase 1 fallback 로직에서 사용됨
+   */
+  signupRole?: SignupRole;
+};
+
+/**
+ * 현재 로그인한 사용자의 역할(role)을 조회합니다.
+ * 우선순위: admin/consultant (admin_users) > parent > student
+ * @returns {Promise<CurrentUserRole>} userId와 role을 포함한 객체
+ */
+export async function getCurrentUserRole(): Promise<CurrentUserRole> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
+    // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
+    const initialResult = await supabase.auth.getUser();
+
+    // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+    if (initialResult.error) {
+      const errorMessage = initialResult.error.message?.toLowerCase() || "";
+      const errorCode = initialResult.error.code?.toLowerCase() || "";
+
+      const isRefreshTokenError =
+        errorMessage.includes("refresh token") ||
+        errorMessage.includes("refresh_token") ||
+        errorMessage.includes("session") ||
+        errorCode === "refresh_token_not_found";
+
+      if (isRefreshTokenError) {
+        // Refresh token 에러는 조용히 처리하고 null 반환
+        return { userId: null, role: null, tenantId: null };
+      }
+
+      // Rate limit 에러인 경우에만 재시도
+      if (isRateLimitError(initialResult.error)) {
+        const {
+          data: { user },
+          error: authError,
+        } = await retryWithBackoff(
+          async () => {
+            const result = await supabase.auth.getUser();
+            if (result.error && isRateLimitError(result.error)) {
+              throw result.error;
+            }
+            return result;
+          },
+          2,
+          2000,
+          true // 인증 요청 플래그
+        );
+
+        if (authError) {
+          // Rate limit 에러 처리
+          if (isRateLimitError(authError)) {
+            console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
+              status: authError.status,
+              code: authError.code,
+            });
+            return { userId: null, role: null, tenantId: null };
+          }
+
+          // 다른 에러는 아래 로직에서 처리
+          const errorMessage = authError.message?.toLowerCase() || "";
+          const errorName = authError.name?.toLowerCase() || "";
+          const errorCode = authError.code?.toLowerCase() || "";
+
+          const isSessionMissing =
+            errorMessage.includes("session") ||
+            errorMessage.includes("refresh token") ||
+            errorMessage.includes("refresh_token") ||
+            errorName === "authsessionmissingerror" ||
+            (errorName === "authapierror" &&
+              (errorMessage.includes("refresh token not found") ||
+                errorMessage.includes("invalid refresh token") ||
+                errorMessage.includes("refresh token expired")));
+
+          const isUserNotFound =
+            errorCode === "user_not_found" ||
+            errorMessage.includes("user from sub claim") ||
+            errorMessage.includes(
+              "user from sub claim in jwt does not exist"
+            ) ||
+            (authError.status === 403 &&
+              errorMessage.includes("does not exist"));
+
+          if (!isSessionMissing && !isUserNotFound) {
+            const errorDetails = {
+              message: authError.message,
+              status: authError.status,
+              code: authError.code,
+              name: authError.name,
+            };
+            console.error("[auth] getUser 실패", errorDetails);
+          }
+
+          return { userId: null, role: null, tenantId: null };
+        }
+
+        if (!user) {
+          return { userId: null, role: null, tenantId: null };
+        }
+
+        // user가 있으면 아래 로직 계속
+      } else {
+        // Rate limit이 아닌 다른 에러는 아래 로직에서 처리
+        const errorMessage = initialResult.error.message?.toLowerCase() || "";
+        const errorName = initialResult.error.name?.toLowerCase() || "";
+        const errorCode = initialResult.error.code?.toLowerCase() || "";
+
+        const isSessionMissing =
+          errorMessage.includes("session") ||
+          errorMessage.includes("refresh token") ||
+          errorMessage.includes("refresh_token") ||
+          errorName === "authsessionmissingerror" ||
+          (errorName === "authapierror" &&
+            (errorMessage.includes("refresh token not found") ||
+              errorMessage.includes("invalid refresh token") ||
+              errorMessage.includes("refresh token expired")));
+
+        const isUserNotFound =
+          errorCode === "user_not_found" ||
+          errorMessage.includes("user from sub claim") ||
+          errorMessage.includes("user from sub claim in jwt does not exist") ||
+          (initialResult.error.status === 403 &&
+            errorMessage.includes("does not exist"));
+
+        if (!isSessionMissing && !isUserNotFound) {
+          const errorDetails = {
+            message: initialResult.error.message,
+            status: initialResult.error.status,
+            code: initialResult.error.code,
+            name: initialResult.error.name,
+          };
+          console.error("[auth] getUser 실패", errorDetails);
+        }
+
+        return { userId: null, role: null, tenantId: null };
+      }
+    }
+
+    // 정상적인 경우 계속 진행
+    const { user } = initialResult.data;
+
+    if (!user) {
+      return { userId: null, role: null, tenantId: null };
+    }
+
+    // user_metadata에서 signup_role과 tenant_id 미리 추출 (재사용)
+    const signupRole = user.user_metadata?.signup_role as
+      | string
+      | null
+      | undefined;
+    const tenantIdFromMetadata = user.user_metadata?.tenant_id as
+      | string
+      | null
+      | undefined;
+
+    // 1. admin_users 테이블에서 조회 (최우선)
+    const selectAdmin = () =>
+      supabase
+        .from("admin_users")
+        .select("id,role,tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    let { data: admin, error: adminError } = await selectAdmin();
+
+    if (adminError && adminError.code === "42703") {
+      ({ data: admin, error: adminError } = await selectAdmin());
+    }
+
+    if (adminError && adminError.code !== "PGRST116") {
+      // 에러 객체를 안전하게 직렬화하여 로깅
+      const errorDetails = {
+        code: adminError.code,
+        message: adminError.message,
+        details: adminError.details,
+        hint: adminError.hint,
+      };
+      console.error("[auth] admin_users 조회 실패", errorDetails);
+    }
+
+    // admin_users에 레코드가 있으면 admin/consultant/superadmin 반환
+    if (admin) {
+      // 디버깅: admin_users에서 조회된 role 값 확인
+      console.log("[getCurrentUserRole] admin_users 조회 결과:", {
+        id: admin.id,
+        role: admin.role,
+        tenant_id: (admin as { tenant_id?: string | null })?.tenant_id,
+      });
+
+      // superadmin인 경우 tenant_id는 null이어야 함
+      if (admin.role === "superadmin") {
+        console.log("[getCurrentUserRole] superadmin으로 인식");
+        return {
+          userId: user.id,
+          role: "superadmin",
+          tenantId: null,
+        };
+      }
+      console.log("[getCurrentUserRole] admin/consultant로 인식:", admin.role);
+      return {
+        userId: user.id,
+        role:
+          admin.role === "admin" || admin.role === "consultant"
+            ? admin.role
+            : "admin",
+        tenantId: admin.tenant_id ?? null,
+      };
+    }
+
+    // 2. parent_users 테이블에서 조회
+    const selectParent = () =>
+      supabase
+        .from("parent_users")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    let { data: parent, error: parentError } = await selectParent();
+
+    if (parentError && parentError.code === "42703") {
+      ({ data: parent, error: parentError } = await selectParent());
+    }
+
+    if (parentError && parentError.code !== "PGRST116") {
+      // 에러 객체를 안전하게 직렬화하여 로깅
+      const errorDetails = {
+        code: parentError.code,
+        message: parentError.message,
+        details: parentError.details,
+        hint: parentError.hint,
+      };
+      console.error("[auth] parent_users 조회 실패", errorDetails);
+    }
+
+    // parent_users에 레코드가 있으면 parent 반환
+    if (parent) {
+      return {
+        userId: user.id,
+        role: "parent",
+        tenantId: null,
+      };
+    }
+
+    // 3. students 테이블에서 조회 (tenant_id 포함)
+    const selectStudent = () =>
+      supabase
+        .from("students")
+        .select("id,tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    let { data: student, error: studentError } = await selectStudent();
+
+    if (studentError && studentError.code === "42703") {
+      ({ data: student, error: studentError } = await selectStudent());
+    }
+
+    if (studentError && studentError.code !== "PGRST116") {
+      // 에러 객체를 안전하게 직렬화하여 로깅
+      const errorDetails = {
+        code: studentError.code,
+        message: studentError.message,
+        details: studentError.details,
+        hint: studentError.hint,
+      };
+      console.error("[auth] students 조회 실패", errorDetails);
+    }
+
+    // students에 레코드가 있으면 student 반환
+    if (student) {
+      return {
+        userId: user.id,
+        role: "student",
+        tenantId: student.tenant_id ?? null,
+      };
+    }
+
+    // 모든 테이블 조회 실패 시 user_metadata의 signup_role 확인 (fallback)
+    if (!admin && !parent && !student) {
+      if (signupRole === "student" || signupRole === "parent") {
+        console.log("[auth] 테이블 레코드 없음, signup_role fallback 사용", {
+          userId: user.id,
+          signupRole,
+          tenantIdFromMetadata,
+        });
+        return {
+          userId: user.id,
+          role: signupRole as "student" | "parent",
+          tenantId: tenantIdFromMetadata ?? null,
+          signupRole: signupRole as SignupRole,
+        };
+      }
+    }
+
+    // 어떤 테이블에도 없고 signup_role도 없으면 null 반환
+    console.warn("[auth] 사용자 역할을 찾을 수 없음", {
+      userId: user.id,
+      email: user.email,
+      adminFound: !!admin,
+      parentFound: !!parent,
+      studentFound: !!student,
+      signupRole,
+      studentError: studentError
+        ? {
+            code: studentError.code,
+            message: studentError.message,
+          }
+        : null,
+    });
+    return { userId: user.id, role: null, tenantId: null };
+  } catch (error) {
+    // refresh token 에러는 조용히 처리
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isRefreshTokenError =
+      errorMessage.toLowerCase().includes("refresh token") ||
+      errorMessage.toLowerCase().includes("refresh_token") ||
+      errorMessage.toLowerCase().includes("session") ||
+      (error instanceof Error &&
+        "code" in error &&
+        String(error.code).toLowerCase() === "refresh_token_not_found");
+
+    if (!isRefreshTokenError) {
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      console.error("[auth] getCurrentUserRole 실패", {
+        message: errorMessage,
+        stack: errorStack,
+      });
+    }
+
+    return { userId: null, role: null, tenantId: null };
+  }
+}
+</file>
+
+<file path="getTenantInfo.ts">
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+/**
+ * 현재 로그인한 사용자의 tenant 정보를 조회합니다.
+ * 
+ * @returns {Promise<{ name: string; type?: string } | null>} tenant 정보 (name, type) 또는 null
+ * 
+ * 규칙:
+ * - Super Admin: null 반환 (tenant_id가 null)
+ * - Admin/Consultant: 해당 기관 정보 반환
+ * - Parent: 해당 기관 정보 반환
+ * - Student: 해당 기관 정보 반환
+ * - 로그인하지 않은 사용자: null 반환
+ */
+export async function getTenantInfo(): Promise<{
+  name: string;
+  type?: string;
+} | null> {
+  try {
+    const tenantContext = await getTenantContext();
+
+    // tenant_id가 없으면 null 반환 (Super Admin 또는 로그인하지 않은 사용자)
+    if (!tenantContext?.tenantId) {
+      return null;
+    }
+
+    // tenants 테이블에서 기관 정보 조회
+    const supabase = await createSupabaseServerClient();
+    const { data: tenant, error } = await supabase
+      .from("tenants")
+      .select("name, type")
+      .eq("id", tenantContext.tenantId)
+      .maybeSingle();
+
+    if (error) {
+      // PGRST116은 레코드가 없는 경우이므로 null 반환
+      if (error.code === "PGRST116") {
+        return null;
+      }
+      console.error("[auth] tenant 정보 조회 실패", {
+        tenantId: tenantContext.tenantId,
+        error: error.message,
+        code: error.code,
+      });
+      return null;
+    }
+
+    if (!tenant) {
+      return null;
+    }
+
+    return {
+      name: tenant.name,
+      type: tenant.type || undefined,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[auth] getTenantInfo 실패", {
+      message: errorMessage,
+      error,
+    });
+    return null;
+  }
+}
+</file>
+
+<file path="guards.ts">
+import { getCurrentUserRole } from "./getCurrentUserRole";
+import { AppError, ErrorCode } from "@/lib/errors";
+
+type AdminGuardOptions = {
+  /**
+   * tenantId가 반드시 있어야 하는 경우 true.
+   * 기본값은 false이며, 필요한 경우 호출부에서 별도로 tenantContext를 조회할 수 있습니다.
+   */
+  requireTenant?: boolean;
+};
+
+export type AdminGuardResult = {
+  userId: string;
+  role: "admin" | "consultant";
+  tenantId: string | null;
+};
+
+/**
+ * 관리자/컨설턴트 권한을 검증하고 사용자 정보를 반환합니다.
+ */
+export async function requireAdminOrConsultant(
+  options: AdminGuardOptions = {}
+): Promise<AdminGuardResult> {
+  const { requireTenant = false } = options;
+  const { userId, role, tenantId } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (role !== "admin" && role !== "consultant") {
+    const errorMessage =
+      role === null
+        ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
+        : "관리자 또는 컨설턴트 권한이 필요합니다.";
+
+    throw new AppError(errorMessage, ErrorCode.FORBIDDEN, 403, true);
+  }
+
+  if (requireTenant && !tenantId) {
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  return { userId, role, tenantId };
+}
+</file>
+
+<file path="isAdminRole.ts">
+/**
+ * 관리자 역할인지 확인하는 유틸리티 함수
+ * admin, consultant, superadmin을 모두 관리자로 인식
+ */
+export function isAdminRole(role: string | null): boolean {
+  return role === "admin" || role === "consultant" || role === "superadmin";
+}
+
+/**
+ * Super Admin인지 확인하는 유틸리티 함수
+ */
+export function isSuperAdmin(role: string | null): boolean {
+  return role === "superadmin";
+}
+</file>
+
+<file path="planGroupAuth.ts">
+import { AppError, ErrorCode } from "@/lib/errors";
+import { getCurrentUser, type CurrentUser } from "@/lib/auth/getCurrentUser";
+import {
+  getPlanGroupWithDetails,
+  getPlanGroupWithDetailsForAdmin,
+} from "@/lib/data/planGroups";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import type {
+  PlanGroup,
+  PlanContent,
+  PlanExclusion,
+  AcademySchedule,
+} from "@/lib/types/plan";
+import {
+  selectClientForStudentQuery,
+  ensureAdminClient,
+  type SupabaseClientForStudentQuery,
+} from "@/lib/supabase/clientSelector";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export type PlanGroupAllowedRole = "student" | "admin" | "consultant";
+
+export type PlanGroupAccessContext = {
+  user: CurrentUser;
+  role: PlanGroupAllowedRole;
+  tenantId: string | null;
+};
+
+const allowedRoles: PlanGroupAllowedRole[] = ["student", "admin", "consultant"];
+
+/**
+ * 플랜 그룹 관련 액션을 실행할 수 있는 권한을 검증합니다.
+ */
+export async function verifyPlanGroupAccess(): Promise<PlanGroupAccessContext> {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (!allowedRoles.includes(user.role as PlanGroupAllowedRole)) {
+    throw new AppError(
+      "학생 권한이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      403,
+      true
+    );
+  }
+
+  return {
+    user,
+    role: user.role as PlanGroupAllowedRole,
+    tenantId: user.tenantId ?? null,
+  };
+}
+
+/**
+ * 역할에 따라 적절한 플랜 그룹 데이터를 조회합니다.
+ */
+export async function getPlanGroupWithDetailsByRole(
+  groupId: string,
+  userId: string,
+  role: PlanGroupAllowedRole,
+  tenantId?: string | null
+): Promise<{
+  group: PlanGroup | null;
+  contents: PlanContent[];
+  exclusions: PlanExclusion[];
+  academySchedules: AcademySchedule[];
+}> {
+  if (role === "admin" || role === "consultant") {
+    const resolvedTenantId =
+      tenantId ?? (await requireTenantContext()).tenantId;
+
+    if (!resolvedTenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    return getPlanGroupWithDetailsForAdmin(groupId, resolvedTenantId);
+  }
+
+  return getPlanGroupWithDetails(groupId, userId);
+}
+
+/**
+ * 역할에 따라 실제 사용할 studentId를 반환합니다.
+ */
+export function getStudentIdForPlanGroup(
+  group: PlanGroup,
+  userId: string,
+  role: PlanGroupAllowedRole
+): string {
+  if (role === "admin" || role === "consultant") {
+    return group.student_id;
+  }
+  return userId;
+}
+
+/**
+ * 상태 체크를 우회해야 하는지 여부를 반환합니다.
+ */
+export function shouldBypassStatusCheck(
+  role: PlanGroupAllowedRole,
+  planType: string | null
+): boolean {
+  return role === "admin" || role === "consultant" || planType === "camp";
+}
+
+/**
+ * 학생 데이터를 조회할 때 사용할 Supabase 클라이언트를 반환합니다.
+ * 관리자/컨설턴트가 다른 학생 데이터를 조회할 경우 Admin 클라이언트를 사용합니다.
+ */
+export async function getSupabaseClientForStudent(
+  studentId: string,
+  currentUserId: string,
+  role: PlanGroupAllowedRole
+) {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  return selectClientForStudentQuery(
+    studentId,
+    currentUserId,
+    isAdminOrConsultant
+  );
+}
+
+/**
+ * 플랜 생성/조회 작업에 필요한 클라이언트를 반환합니다.
+ * - 관리자/컨설턴트가 다른 학생의 플랜을 생성/조회할 경우 Admin 클라이언트 사용
+ * - 그 외에는 기본 서버 클라이언트 사용
+ */
+export async function getClientForPlanOperation(
+  studentId: string,
+  currentUserId: string,
+  role: PlanGroupAllowedRole
+): Promise<SupabaseClientForStudentQuery> {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isOtherStudent = isAdminOrConsultant && studentId !== currentUserId;
+
+  if (isOtherStudent) {
+    return ensureAdminClient();
+  }
+
+  return createSupabaseServerClient();
+}
+
+/**
+ * 상태 체크를 우회해야 하는지 여부를 반환합니다.
+ * 캠프 모드이거나 관리자/컨설턴트 권한인 경우 상태 체크를 우회합니다.
+ */
+export function canBypassStatusCheck(
+  role: PlanGroupAllowedRole,
+  planType: string | null | undefined
+): boolean {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const isCampMode = planType === "camp";
+  return isAdminOrConsultant || isCampMode;
+}
+
+/**
+ * 다른 학생의 데이터를 조회하는지 여부를 반환합니다.
+ */
+export function isOtherStudent(
+  studentId: string,
+  currentUserId: string,
+  role: PlanGroupAllowedRole
+): boolean {
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  return isAdminOrConsultant && studentId !== currentUserId;
+}
+</file>
+
+<file path="rateLimitHandler.ts">
+/**
+ * Rate limit 에러 처리 유틸리티
+ */
+
+interface ErrorWithCode {
+  code?: string;
+  status?: number;
+  message?: string;
+}
+
+/**
+ * Rate limit 에러 체크
+ */
+export function isRateLimitError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  
+  const err = error as ErrorWithCode;
+  return (
+    err.code === "over_request_rate_limit" ||
+    err.status === 429 ||
+    (err.message?.toLowerCase().includes("rate limit") ?? false)
+  );
+}
+
+/**
+ * Refresh token 에러 체크 (재시도 불가능)
+ */
+export function isRefreshTokenError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  
+  const err = error as ErrorWithCode;
+  const errorMessage = err.message?.toLowerCase() || "";
+  const errorCode = err.code?.toLowerCase() || "";
+  
+  return (
+    errorMessage.includes("refresh token") ||
+    errorMessage.includes("refresh_token") ||
+    errorMessage.includes("session") ||
+    errorCode === "refresh_token_not_found"
+  );
+}
+
+/**
+ * 재시도 가능한 에러 체크
+ */
+export function isRetryableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  
+  // Refresh token 에러는 재시도 불가능
+  if (isRefreshTokenError(error)) {
+    return false;
+  }
+  
+  const err = error as ErrorWithCode;
+  return (
+    isRateLimitError(error) ||
+    err.code === "ECONNRESET" ||
+    err.code === "ETIMEDOUT" ||
+    err.status === 503 ||
+    err.status === 502
+  );
+}
+
+/**
+ * 지수 백오프를 사용한 재시도 유틸리티
+ * @param fn 재시도할 함수
+ * @param maxRetries 최대 재시도 횟수 (기본값: 2)
+ * @param initialDelay 초기 지연 시간 (밀리초, 기본값: 2000)
+ * @param isAuthRequest 인증 요청 여부 (true면 더 긴 대기 시간)
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 2,
+  initialDelay: number = 2000,
+  isAuthRequest: boolean = false
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Refresh token 에러는 즉시 반환 (재시도 불가능)
+      if (isRefreshTokenError(error)) {
+        throw error;
+      }
+
+      // Rate limit 에러인 경우 더 긴 대기 시간
+      if (isRateLimitError(error) && attempt < maxRetries) {
+        // 인증 요청인 경우 더 긴 대기 시간 (5초, 10초, 15초)
+        const baseDelay = isAuthRequest 
+          ? initialDelay * (attempt + 1) * 2.5 
+          : initialDelay * Math.pow(2, attempt);
+        
+        // jitter 추가 (0~1초 랜덤)
+        const delay = baseDelay + Math.random() * 1000;
+        
+        console.warn(`[rateLimit] 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 후)`, {
+          code: (error as any).code,
+          status: (error as any).status,
+        });
+        
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // 재시도 가능한 에러가 아니면 즉시 실패
+      if (!isRetryableError(error) || attempt >= maxRetries) {
+        throw error;
+      }
+
+      // 재시도 가능한 에러인 경우 백오프 후 재시도
+      const delay = initialDelay * Math.pow(2, attempt);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * 요청 간격 제어 (throttling)
+ */
+class RequestThrottler {
+  private lastRequestTime: number = 0;
+  private minInterval: number;
+
+  constructor(minIntervalMs: number = 100) {
+    this.minInterval = minIntervalMs;
+  }
+
+  async throttle<T>(fn: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.minInterval) {
+      const waitTime = this.minInterval - timeSinceLastRequest;
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+    }
+    
+    this.lastRequestTime = Date.now();
+    return fn();
+  }
+}
+
+// 인증 요청용 throttler (100ms 간격)
+export const authRequestThrottler = new RequestThrottler(100);
+</file>
+
+<file path="requireAdminAuth.ts">
+/**
+ * 관리자 인증 요구 헬퍼
+ * Server Actions에서 관리자(superadmin 또는 admin) 권한이 필요한 경우 사용
+ */
+
+import { getCurrentUserRole } from "./getCurrentUserRole";
+import { AppError, ErrorCode } from "@/lib/errors";
+
+/**
+ * 현재 사용자가 관리자(superadmin 또는 admin)인지 확인하고, 사용자 정보를 반환합니다.
+ * 관리자가 아니면 에러를 throw합니다.
+ * 
+ * @returns 관리자 사용자 정보
+ * @throws AppError - 관리자가 아닌 경우 또는 로그인되지 않은 경우
+ */
+export async function requireAdminAuth(): Promise<{
+  userId: string;
+  role: "admin" | "superadmin";
+  tenantId: string | null;
+}> {
+  const { userId, role, tenantId } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다. 세션이 만료되었거나 사용자 정보를 찾을 수 없습니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (role !== "admin" && role !== "superadmin") {
+    const errorMessage =
+      role === null
+        ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
+        : role === "consultant"
+        ? "관리자 권한이 필요합니다. 컨설턴트 권한으로는 이 작업을 수행할 수 없습니다."
+        : "관리자 권한이 필요합니다.";
+
+    throw new AppError(errorMessage, ErrorCode.FORBIDDEN, 403, true);
+  }
+
+  return {
+    userId,
+    role,
+    tenantId,
+  };
+}
+</file>
+
+<file path="requireStudentAuth.ts">
+/**
+ * 학생 인증 요구 헬퍼
+ * Server Actions에서 학생 권한이 필요한 경우 사용
+ */
+
+import { getCurrentUser } from "./getCurrentUser";
+import { AppError, ErrorCode } from "@/lib/errors";
+
+/**
+ * 현재 사용자가 학생인지 확인하고, 학생 정보를 반환합니다.
+ * 학생이 아니면 에러를 throw합니다.
+ * 
+ * @returns 학생 사용자 정보
+ * @throws AppError - 학생이 아닌 경우 또는 로그인되지 않은 경우
+ */
+export async function requireStudentAuth(): Promise<{
+  userId: string;
+  role: "student";
+  tenantId: string | null;
+  email?: string | null;
+}> {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError(
+      "로그인이 필요합니다. 세션이 만료되었거나 사용자 정보를 찾을 수 없습니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (user.role !== "student") {
+    throw new AppError(
+      "학생 권한이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      403,
+      true
+    );
+  }
+
+  return {
+    userId: user.userId,
+    role: "student",
+    tenantId: user.tenantId,
+    email: user.email,
+  };
+}
+</file>
+
+<file path="sessionManager.ts">
+"use server";
+
+import { headers } from "next/headers";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export interface UserSession {
+  id: string;
+  device_name: string | null;
+  user_agent: string | null;
+  ip_address: string | null;
+  location: string | null;
+  is_current_session: boolean;
+  last_active_at: string;
+  created_at: string;
+  expires_at: string | null;
+}
+
+/**
+ * User-Agent에서 기기 정보 파싱
+ */
+function parseDeviceName(userAgent: string | null): string {
+  if (!userAgent) return "Unknown Device";
+
+  let browser = "Unknown Browser";
+  let os = "Unknown OS";
+
+  // 브라우저 감지
+  if (userAgent.includes("Chrome") && !userAgent.includes("Edg")) {
+    browser = "Chrome";
+  } else if (userAgent.includes("Safari") && !userAgent.includes("Chrome")) {
+    browser = "Safari";
+  } else if (userAgent.includes("Firefox")) {
+    browser = "Firefox";
+  } else if (userAgent.includes("Edg")) {
+    browser = "Edge";
+  } else if (userAgent.includes("Opera") || userAgent.includes("OPR")) {
+    browser = "Opera";
+  }
+
+  // OS 감지
+  if (userAgent.includes("Windows")) {
+    os = "Windows";
+  } else if (
+    userAgent.includes("Mac OS X") ||
+    userAgent.includes("Macintosh")
+  ) {
+    os = "macOS";
+  } else if (userAgent.includes("Linux") && !userAgent.includes("Android")) {
+    os = "Linux";
+  } else if (userAgent.includes("Android")) {
+    os = "Android";
+  } else if (userAgent.includes("iPhone")) {
+    os = "iPhone";
+  } else if (userAgent.includes("iPad")) {
+    os = "iPad";
+  }
+
+  return `${browser} on ${os}`;
+}
+
+/**
+ * headers에서 안전하게 헤더 값 추출
+ */
+async function getHeaderValue(name: string): Promise<string | null> {
+  try {
+    const headersList = await headers();
+    if (!headersList || typeof headersList.get !== "function") {
+      return null;
+    }
+    return headersList.get(name);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * IP 주소 추출 (Next.js headers에서)
+ */
+async function getClientIP(): Promise<string | null> {
+  // Vercel, Cloudflare 등 다양한 플랫폼 지원
+  const cfConnectingIP = await getHeaderValue("cf-connecting-ip");
+  const realIP = await getHeaderValue("x-real-ip");
+  const forwardedFor = await getHeaderValue("x-forwarded-for");
+
+  if (cfConnectingIP) return cfConnectingIP;
+  if (realIP) return realIP;
+  if (forwardedFor) {
+    // x-forwarded-for는 여러 IP를 포함할 수 있음 (프록시 체인)
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  return null;
+}
+
+/**
+ * 로그인 시 세션 정보 저장
+ */
+export async function saveUserSession(
+  userId: string,
+  sessionToken: string,
+  expiresAt?: Date
+): Promise<void> {
+  try {
+    const userAgent = await getHeaderValue("user-agent");
+    const ipAddress = await getClientIP();
+    const deviceName = parseDeviceName(userAgent);
+
+    const supabase = await createSupabaseServerClient();
+
+    // 기존 세션의 is_current_session을 false로 업데이트
+    await supabase
+      .from("user_sessions")
+      .update({ is_current_session: false })
+      .eq("user_id", userId)
+      .eq("is_current_session", true);
+
+    // 새 세션 저장
+    const { error } = await supabase.from("user_sessions").insert({
+      user_id: userId,
+      session_token: sessionToken,
+      device_name: deviceName,
+      user_agent: userAgent,
+      ip_address: ipAddress,
+      is_current_session: true,
+      expires_at: expiresAt?.toISOString() || null,
+    });
+
+    if (error) {
+      console.error("[session] 세션 저장 실패:", error);
+    }
+  } catch (error) {
+    console.error("[session] 세션 저장 예외:", error);
+  }
+}
+
+/**
+ * 활성 세션 목록 조회
+ * 현재 세션이 없으면 자동으로 현재 세션을 등록합니다.
+ */
+export async function getUserSessions(): Promise<UserSession[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return [];
+    }
+
+    // 세션 정보 가져오기 (에러 발생 시 빈 배열 반환)
+    let session = null;
+    try {
+      const {
+        data: { session: currentSession },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        // 세션이 없는 것은 정상적인 상황일 수 있음
+        const isSessionMissing =
+          sessionError.message?.includes("session") ||
+          sessionError.message?.includes("Session") ||
+          sessionError.name === "AuthSessionMissingError";
+
+        if (!isSessionMissing) {
+          console.warn("[session] getSession 실패:", sessionError.message);
+        }
+      } else {
+        session = currentSession;
+      }
+    } catch (error) {
+      // getSession 실패 시 조용히 처리
+      console.warn("[session] getSession 예외:", error);
+    }
+
+    // 현재 세션 조회
+    const { data: existingSessions, error: fetchError } = await supabase
+      .from("user_sessions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("last_active_at", { ascending: false });
+
+    if (fetchError) {
+      console.error("[session] 세션 조회 실패:", fetchError);
+      return [];
+    }
+
+    const sessions = (existingSessions || []) as UserSession[];
+    const hasCurrentSession = sessions.some((s) => s.is_current_session);
+
+    // 현재 세션이 없고 Supabase 세션이 있으면 현재 세션 등록
+    if (!hasCurrentSession && session) {
+      try {
+        const userAgent = await getHeaderValue("user-agent");
+        const ipAddress = await getClientIP();
+        const deviceName = parseDeviceName(userAgent);
+
+        // 기존 세션의 is_current_session을 false로 업데이트
+        if (sessions.length > 0) {
+          await supabase
+            .from("user_sessions")
+            .update({ is_current_session: false })
+            .eq("user_id", user.id)
+            .eq("is_current_session", true);
+        }
+
+        // 현재 세션 저장
+        const expiresAt = session.expires_at
+          ? new Date(session.expires_at * 1000)
+          : null;
+
+        const { data: newSession, error: insertError } = await supabase
+          .from("user_sessions")
+          .insert({
+            user_id: user.id,
+            session_token: session.access_token,
+            device_name: deviceName,
+            user_agent: userAgent,
+            ip_address: ipAddress,
+            is_current_session: true,
+            expires_at: expiresAt?.toISOString() || null,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("[session] 현재 세션 자동 등록 실패:", insertError);
+        } else if (newSession) {
+          // 새로 등록된 세션을 목록에 추가
+          sessions.unshift(newSession as UserSession);
+        }
+      } catch (error) {
+        console.error("[session] 현재 세션 자동 등록 예외:", error);
+      }
+    }
+
+    return sessions;
+  } catch (error) {
+    console.error("[session] 세션 조회 예외:", error);
+    return [];
+  }
+}
+
+/**
+ * 특정 세션 로그아웃 (삭제)
+ */
+export async function revokeSession(sessionId: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    // 세션이 해당 사용자의 것인지 확인
+    const { data: session, error: fetchError } = await supabase
+      .from("user_sessions")
+      .select("id, is_current_session, session_token")
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (fetchError || !session) {
+      return { success: false, error: "세션을 찾을 수 없습니다." };
+    }
+
+    // 현재 세션인 경우 Supabase에서도 로그아웃
+    if (session.is_current_session) {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        console.error("[session] 현재 세션 로그아웃 실패:", signOutError);
+      }
+    }
+
+    // 세션 삭제
+    const { error: deleteError } = await supabase
+      .from("user_sessions")
+      .delete()
+      .eq("id", sessionId)
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      return { success: false, error: "세션 삭제에 실패했습니다." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[session] 세션 삭제 예외:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * 모든 다른 세션 로그아웃 (현재 세션 제외)
+ */
+export async function revokeAllOtherSessions(): Promise<{
+  success: boolean;
+  error?: string;
+  revokedCount?: number;
+}> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+
+    // 현재 세션 제외한 모든 세션 삭제
+    const { data, error } = await supabase
+      .from("user_sessions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("is_current_session", false)
+      .select("id");
+
+    if (error) {
+      return { success: false, error: "세션 삭제에 실패했습니다." };
+    }
+
+    return { success: true, revokedCount: data?.length || 0 };
+  } catch (error) {
+    console.error("[session] 세션 일괄 삭제 예외:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "세션 삭제에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * 마지막 활동 시간 업데이트
+ */
+export async function updateLastActive(): Promise<void> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    // 현재 세션의 last_active_at 업데이트
+    await supabase
+      .from("user_sessions")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .eq("is_current_session", true);
+  } catch (error) {
+    // 조용히 실패 (선택적 기능)
+    console.error("[session] 활동 시간 업데이트 실패:", error);
+  }
+}
+</file>
+
+</files>

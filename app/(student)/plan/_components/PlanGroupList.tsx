@@ -88,11 +88,11 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
     <>
       {/* 다중 선택 헤더 */}
       {groups.length > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
           <button
             type="button"
             onClick={handleSelectAll}
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
             title={allSelected ? "전체 해제" : "전체 선택"}
             aria-label={allSelected ? "전체 해제" : "전체 선택"}
           >
@@ -106,13 +106,13 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
 
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {selectedIds.size}개 선택됨
               </span>
               <button
                 type="button"
                 onClick={handleBulkDelete}
-                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+                className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 dark:border-red-700 dark:bg-red-700 dark:hover:bg-red-600"
                 title="선택 삭제"
                 aria-label="선택한 플랜 그룹 삭제"
               >

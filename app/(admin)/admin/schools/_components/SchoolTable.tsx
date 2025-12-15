@@ -69,14 +69,14 @@ export default function SchoolTable({
 
   if (schools.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center dark:border-gray-600 dark:bg-gray-800">
         <div className="mx-auto flex max-w-md flex-col gap-6">
           <div className="text-6xl">🏫</div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               검색 결과가 없습니다
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               다른 검색 조건으로 시도해보세요.
             </p>
           </div>
@@ -88,73 +88,73 @@ export default function SchoolTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white">
-          <thead className="bg-gray-50">
+        <table className="w-full border-collapse rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 순서
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 학교명
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 타입
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 유형
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 지역
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 주소
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 전화번호
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 등록일
               </th>
-              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
+              <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:border-gray-700 dark:text-gray-100">
                 작업
               </th>
             </tr>
           </thead>
           <tbody>
             {schools.map((school, index) => (
-              <tr key={school.id} className="hover:bg-gray-50">
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+              <tr key={school.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {index + 1}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900 dark:border-gray-700 dark:text-gray-100">
                   {school.name}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {school.type}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {getTypeAttribute(school)}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {school.region || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {school.address || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {school.phone || "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                   {school.created_at
                     ? new Date(school.created_at).toLocaleDateString("ko-KR")
                     : "—"}
                 </td>
-                <td className="border-b border-gray-100 px-4 py-3 text-sm">
+                <td className="border-b border-gray-100 px-4 py-3 text-sm dark:border-gray-700">
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => onEdit(school)}
-                      className="text-indigo-600 hover:text-indigo-800"
+                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
                     >
                       수정
                     </button>
@@ -162,7 +162,7 @@ export default function SchoolTable({
                       type="button"
                       onClick={() => handleDeleteClick(school)}
                       disabled={deletingId === school.id}
-                      className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                      className="text-red-600 hover:text-red-800 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
                     >
                       삭제
                     </button>
@@ -185,7 +185,7 @@ export default function SchoolTable({
           maxWidth="md"
         >
           <div className="py-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               이 작업은 되돌릴 수 없으며, 학교의 모든 정보가 삭제됩니다.
             </p>
           </div>
@@ -193,7 +193,7 @@ export default function SchoolTable({
             <button
               type="button"
               onClick={() => setShowDeleteDialog(false)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
               취소
             </button>

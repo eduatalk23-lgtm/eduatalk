@@ -28,11 +28,13 @@ function SidebarContent({
   dashboardHref,
   roleLabel,
   tenantInfo,
+  onNavigate,
 }: {
   role: RoleBasedLayoutProps["role"];
   dashboardHref: string;
   roleLabel: string;
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
+  onNavigate?: () => void;
 }) {
   const { isCollapsed, toggleCollapse } = useSidebar();
 
@@ -53,8 +55,9 @@ function SidebarContent({
             {/* 확장 버튼 - 더 크고 눈에 띄게 */}
             <button
               onClick={toggleCollapse}
-              className="group relative w-full flex items-center justify-center p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 transition-colors border border-indigo-200 dark:border-indigo-800"
+              className="group relative w-full flex items-center justify-center p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 transition-colors border border-indigo-200 dark:border-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
               aria-label="메뉴 펼치기"
+              aria-expanded={false}
               title="메뉴 펼치기"
             >
               <ChevronRight className="w-6 h-6 flex-shrink-0 text-indigo-700 dark:text-indigo-300" strokeWidth={2.5} />
@@ -79,11 +82,12 @@ function SidebarContent({
             </a>
             <button
               onClick={toggleCollapse}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-              aria-label="축소"
-              title="축소"
+              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+              aria-label="메뉴 축소"
+              aria-expanded={true}
+              title="메뉴 축소"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -112,6 +116,7 @@ function SidebarContent({
       <div className="p-4">
         <CategoryNav
           role={mapRoleForNavigation(role)}
+          onNavigate={onNavigate}
         />
       </div>
 
@@ -146,10 +151,12 @@ function MobileSidebar({
       {/* 햄버거 버튼 */}
       <button
         onClick={toggleMobile}
-        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors md:hidden"
+        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors md:hidden focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
         aria-label="메뉴 열기"
+        aria-expanded={isMobileOpen}
+        aria-controls="mobile-sidebar"
       >
-        <Menu className="w-6 h-6" />
+        <Menu className="w-6 h-6" aria-hidden="true" />
       </button>
 
       {/* 오버레이 */}
@@ -163,10 +170,13 @@ function MobileSidebar({
 
       {/* 드로어 */}
       <aside
+        id="mobile-sidebar"
         className={cn(
-          "fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 transform transition-transform duration-300 ease-in-out md:hidden overflow-y-auto",
+          "fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-50 transform transition-transform duration-300 ease-in-out motion-reduce:duration-0 md:hidden overflow-y-auto",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
+        role="navigation"
+        aria-label="모바일 메뉴"
       >
         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4 z-10">
           <div className="flex items-center justify-between gap-2">
@@ -180,10 +190,10 @@ function MobileSidebar({
               </a>
             <button
               onClick={closeMobile}
-              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
               aria-label="메뉴 닫기"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
             </div>
@@ -206,6 +216,7 @@ function MobileSidebar({
             <div className="p-4">
           <CategoryNav
             role={mapRoleForNavigation(role)}
+            onNavigate={closeMobile}
           />
             </div>
 

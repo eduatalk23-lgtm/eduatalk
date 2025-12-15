@@ -361,25 +361,25 @@ function PlanCardComponent({
         {/* 헤더 */}
         <div className="flex flex-col items-center gap-3 text-center">
           {planTimeRange && (
-            <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1 text-sm font-semibold text-indigo-900 shadow-sm">
-              <Clock className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+            <div className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-1 text-sm font-semibold text-indigo-900 shadow-sm dark:bg-gray-800 dark:text-indigo-300">
+              <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
           )}
           <div className="text-4xl">{contentInfo.icon}</div>
-          <h2 className="text-2xl font-bold text-gray-900">{contentInfo.title}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{contentInfo.title}</h2>
           <div className="flex items-center gap-3">
             <span className="text-4xl" aria-hidden="true">
               {planChapterIcon}
             </span>
             <div className="flex flex-col gap-1">
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {group.plan.chapter || "챕터 정보 없음"}
               </span>
             </div>
           </div>
           {planRangeLabel && (
-            <div className="text-sm text-gray-600">{planRangeLabel}</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{planRangeLabel}</div>
           )}
         </div>
 
@@ -414,25 +414,25 @@ function PlanCardComponent({
 
   // 일일 뷰 - 모바일 친화적 카드 레이아웃
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md sm:p-5 dark:border-gray-700 dark:bg-gray-800">
       <div className="flex flex-col gap-4 sm:gap-5">
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
           {planTimeRange && (
-            <div className="inline-flex items-center justify-center gap-2 self-center rounded-md bg-white px-3 py-1 text-xs font-semibold text-indigo-900 shadow-sm sm:self-start">
-              <Clock className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+            <div className="inline-flex items-center justify-center gap-2 self-center rounded-md bg-white px-3 py-1 text-xs font-semibold text-indigo-900 shadow-sm sm:self-start dark:bg-gray-700 dark:text-indigo-300">
+              <Clock className="h-4 w-4 text-indigo-500 dark:text-indigo-400" aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
           )}
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-lg">
               <span>{contentInfo.icon}</span>
-              <h3 className="font-semibold text-gray-900">{contentInfo.title}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{contentInfo.title}</h3>
             </div>
             {onViewDetail && (
               <button
                 onClick={() => onViewDetail(group.planNumber)}
-                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
               >
                 상세보기 →
               </button>
@@ -443,12 +443,12 @@ function PlanCardComponent({
               <span className="text-3xl" aria-hidden="true">
                 {planChapterIcon}
               </span>
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                 {group.plan.chapter || "챕터 정보 없음"}
               </span>
             </div>
             {planRangeLabel && (
-              <div className="text-sm text-gray-600">{planRangeLabel}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{planRangeLabel}</div>
             )}
           </div>
         </div>

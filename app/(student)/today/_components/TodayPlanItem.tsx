@@ -70,18 +70,18 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
               <Badge variant={statusVariant} size="sm">
                 {statusLabel}
               </Badge>
-              <span className="text-xs text-gray-500">{contentType}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{contentType}</span>
             </div>
-            <h3 className="font-semibold text-gray-900">{contentTitle}</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{contentTitle}</h3>
             {plan.chapter && (
-              <p className="text-sm text-gray-600">챕터: {plan.chapter}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">챕터: {plan.chapter}</p>
             )}
           </div>
         </div>
 
         {plan.progress !== null && plan.progress !== undefined && plan.progress > 0 && (
           <div className="flex flex-col gap-1">
-            <div className="flex items-center justify-between text-xs text-gray-600">
+            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
               <span>진행률</span>
               <span>{plan.progress}%</span>
             </div>
@@ -90,7 +90,7 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
         )}
 
         <div className="flex items-center justify-between">
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-gray-400">
             {plan.planned_start_page_or_time !== null &&
               plan.planned_end_page_or_time !== null && (
                 <span>
@@ -101,7 +101,7 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
           </div>
           <Link
             href={buildPlanExecutionUrl(plan.id, campMode)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
           >
             {status === "completed" ? "보기" : "시작하기"}
           </Link>

@@ -90,7 +90,7 @@ export function CheckInPageContent({
   if (loading) {
     return (
       <div className="p-6">
-        <div className="text-sm text-gray-500">로딩 중...</div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">로딩 중...</div>
       </div>
     );
   }
@@ -102,8 +102,8 @@ export function CheckInPageContent({
     <div className="p-6 md:p-10">
       <div className="flex flex-col gap-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-h1 text-gray-900">출석 체크</h1>
-          <p className="text-sm text-gray-600">
+          <h1 className="text-h1 text-gray-900 dark:text-gray-100">출석 체크</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             QR 코드 또는 위치로 출석을 체크하세요.
           </p>
         </div>
@@ -121,13 +121,13 @@ export function CheckInPageContent({
               <div className="grid gap-4 md:grid-cols-2">
                 <button
                   onClick={() => setCheckInMethod("qr")}
-                  className="rounded-lg border-2 border-gray-200 bg-white p-6 text-left transition hover:border-indigo-500 hover:bg-indigo-50"
+                  className="rounded-lg border-2 border-gray-200 bg-white p-6 text-left transition hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-400 dark:hover:bg-indigo-900/30"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="text-2xl">📱</div>
                     <div className="flex flex-col gap-1">
-                      <h3 className="font-semibold text-gray-900">QR 코드</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">QR 코드</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         학원의 QR 코드를 스캔하여 출석 체크
                       </p>
                     </div>
@@ -135,13 +135,13 @@ export function CheckInPageContent({
                 </button>
                 <button
                   onClick={() => setCheckInMethod("location")}
-                  className="rounded-lg border-2 border-gray-200 bg-white p-6 text-left transition hover:border-indigo-500 hover:bg-indigo-50"
+                  className="rounded-lg border-2 border-gray-200 bg-white p-6 text-left transition hover:border-indigo-500 hover:bg-indigo-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-400 dark:hover:bg-indigo-900/30"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="text-2xl">📍</div>
                     <div className="flex flex-col gap-1">
-                      <h3 className="font-semibold text-gray-900">위치 기반</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">위치 기반</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         현재 위치를 확인하여 출석 체크
                       </p>
                     </div>

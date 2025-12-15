@@ -65,8 +65,8 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
         <CardHeader title="오늘 출석 상태" />
         <CardContent>
           <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-gray-300" />
-            <span className="text-sm font-medium text-gray-700">
+            <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               출석 체크 전
             </span>
           </div>
@@ -159,15 +159,15 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
           <div className="flex items-center gap-3">
             {hasCheckedIn ? (
               <>
-                <div className="h-3 w-3 rounded-full bg-green-500" />
-                <span className="text-sm font-medium text-green-700">
+                <div className="h-3 w-3 rounded-full bg-green-500 dark:bg-green-400" />
+                <span className="text-sm font-medium text-green-700 dark:text-green-400">
                   출석 완료
                 </span>
               </>
             ) : (
               <>
-                <div className="h-3 w-3 rounded-full bg-gray-300" />
-                <span className="text-sm font-medium text-gray-700">
+                <div className="h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   미체크
                 </span>
               </>
@@ -176,40 +176,40 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
 
           {/* 입실 정보 */}
           {hasCheckedIn && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">입실</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">입실</span>
                   {smsStatus?.checkInSMS && (
                     <div className="flex items-center gap-1">
                       {getSMSStatusIcon(smsStatus.checkInSMS.status)}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {getSMSStatusLabel(smsStatus.checkInSMS.status)}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold text-gray-900">
+                  <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {formatTime(attendance.check_in_time)}
                   </span>
                   <div className="flex items-center gap-2">
                     {getMethodIcon(attendance.check_in_method) && (
-                      <div className="text-gray-500">
+                      <div className="text-gray-500 dark:text-gray-400">
                         {(() => {
                           const Icon = getMethodIcon(attendance.check_in_method);
                           return Icon ? <Icon size={16} /> : null;
                         })()}
                       </div>
                     )}
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {getMethodLabel(attendance.check_in_method)}
                     </span>
                   </div>
                 </div>
                 {smsStatus?.checkInSMS?.status === "failed" &&
                   smsStatus.checkInSMS.errorMessage && (
-                    <div className="text-xs text-red-600">
+                    <div className="text-xs text-red-600 dark:text-red-400">
                       {smsStatus.checkInSMS.errorMessage}
                     </div>
                   )}
@@ -219,10 +219,10 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
 
           {/* QR 스캔 필요 안내 */}
           {requiresQRCheckOut && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/30">
               <div className="flex items-center gap-2">
-                <QrCode size={16} className="text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">
+                <QrCode size={16} className="text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                   퇴실 시 QR 코드 스캔이 필요합니다
                 </span>
               </div>
@@ -231,40 +231,40 @@ export function AttendanceStatus({ attendance }: AttendanceStatusProps) {
 
           {/* 퇴실 정보 */}
           {hasCheckedOut && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-gray-600">퇴실</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">퇴실</span>
                   {smsStatus?.checkOutSMS && (
                     <div className="flex items-center gap-1">
                       {getSMSStatusIcon(smsStatus.checkOutSMS.status)}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {getSMSStatusLabel(smsStatus.checkOutSMS.status)}
                       </span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold text-gray-900">
+                  <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {formatTime(attendance.check_out_time)}
                   </span>
                   <div className="flex items-center gap-2">
                     {getMethodIcon(attendance.check_out_method) && (
-                      <div className="text-gray-500">
+                      <div className="text-gray-500 dark:text-gray-400">
                         {(() => {
                           const Icon = getMethodIcon(attendance.check_out_method);
                           return Icon ? <Icon size={16} /> : null;
                         })()}
                       </div>
                     )}
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {getMethodLabel(attendance.check_out_method)}
                     </span>
                   </div>
                 </div>
                 {smsStatus?.checkOutSMS?.status === "failed" &&
                   smsStatus.checkOutSMS.errorMessage && (
-                    <div className="text-xs text-red-600">
+                    <div className="text-xs text-red-600 dark:text-red-400">
                       {smsStatus.checkOutSMS.errorMessage}
                     </div>
                   )}

@@ -35,7 +35,7 @@ function EmptyStateComponent({
   return (
     <div
       className={cn(
-        "rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center",
+        "rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center dark:border-gray-600 dark:bg-gray-800",
         isCompact ? "p-6" : "p-12",
         className
       )}
@@ -49,7 +49,7 @@ function EmptyStateComponent({
         <div className="flex flex-col gap-1">
           <HeadingTag
             className={cn(
-              "font-semibold text-gray-900",
+              "font-semibold text-gray-900 dark:text-gray-100",
               isCompact ? "text-base" : "text-lg"
             )}
           >
@@ -58,7 +58,7 @@ function EmptyStateComponent({
           {description && (
             <p
               className={cn(
-                "text-gray-500",
+                "text-gray-500 dark:text-gray-400",
                 isCompact ? "text-xs" : "text-sm"
               )}
             >

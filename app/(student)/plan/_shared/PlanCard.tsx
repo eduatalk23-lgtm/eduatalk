@@ -71,14 +71,14 @@ export const PlanCard = memo(function PlanCard({
 
       {/* Title & Subtitle */}
       <div className="flex flex-col gap-1">
-        <h3 className="break-words text-base font-semibold text-gray-900">
+        <h3 className="break-words text-base font-semibold text-gray-900 dark:text-gray-100">
           {title}
         </h3>
         {subtitle && (
-          <p className="text-sm text-gray-600">{subtitle}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{subtitle}</p>
         )}
         {description && (
-          <p className="text-sm text-gray-500 line-clamp-2">{description}</p>
+          <p className="text-sm text-gray-500 line-clamp-2 dark:text-gray-400">{description}</p>
         )}
       </div>
 
@@ -94,9 +94,9 @@ export const PlanCard = memo(function PlanCard({
       {metadata.length > 0 && (
         <div className="flex flex-col gap-2">
           {metadata.map((item, index) => (
-            <div key={index} className="break-words text-sm text-gray-600">
-              <span className="text-gray-500">{item.label}: </span>
-              <span className="font-medium text-gray-900">{item.value}</span>
+            <div key={index} className="break-words text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-gray-500 dark:text-gray-500">{item.label}: </span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">{item.value}</span>
             </div>
           ))}
         </div>
@@ -107,8 +107,8 @@ export const PlanCard = memo(function PlanCard({
 
       {/* Footer: created date */}
       {createdAt && (
-        <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-          <p className="text-xs text-gray-500">
+        <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {typeof createdAt === "string"
               ? new Date(createdAt).toLocaleDateString("ko-KR", {
                   year: "numeric",
@@ -127,10 +127,10 @@ export const PlanCard = memo(function PlanCard({
   );
 
   const baseClasses = cn(
-    "rounded-xl border bg-white p-4 shadow-sm transition-all duration-200",
+    "rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 dark:bg-gray-800",
     isSelected
-      ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200"
-      : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5",
+      ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200 dark:bg-blue-900/30 dark:border-blue-400 dark:ring-blue-800"
+      : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5 dark:border-gray-700 dark:hover:border-gray-600",
     onClick && "cursor-pointer",
     className
   );
