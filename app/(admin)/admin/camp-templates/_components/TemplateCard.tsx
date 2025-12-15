@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
 import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
+import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { MoreVertical } from "lucide-react";
 
 type TemplateCardProps = {
@@ -20,8 +21,6 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
 
   const confirmDelete = async () => {
@@ -46,31 +45,13 @@ export function TemplateCard({ template }: TemplateCardProps) {
     }
   };
 
-  // 외부 클릭 시 드롭다운 닫기
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    }
-
-    if (showDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showDropdown]);
 
   const handleStatusChange = async (newStatus: "draft" | "active" | "archived") => {
     if (currentStatus === newStatus) {
-      setShowDropdown(false);
       return;
     }
     
     setIsChangingStatus(true);
-    setShowDropdown(false);
     try {
       const result = await updateCampTemplateStatusAction(template.id, newStatus);
       if (result.success) {
@@ -97,7 +78,6 @@ export function TemplateCard({ template }: TemplateCardProps) {
   };
 
   const handleDeleteClick = () => {
-    setShowDropdown(false);
     setShowDeleteDialog(true);
   };
 
@@ -168,95 +148,84 @@ export function TemplateCard({ template }: TemplateCardProps) {
             {getStatusBadge()}
             
             {/* 드롭다운 메뉴 */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={(e) => {
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  setShowDropdown(!showDropdown);
                 }}
-                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                 title="더보기"
               >
                 <MoreVertical className="h-5 w-5" />
-              </button>
-
-              {/* 드롭다운 메뉴 */}
-              {showDropdown && (
-                <div className="absolute right-0 top-full z-10 w-48 rounded-lg border border-gray-200 bg-white shadow-lg">
-                  <div className="flex flex-col gap-1 py-1">
-                    {/* 상태 변경 옵션 */}
-                    {currentStatus === "draft" && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleStatusChange("active");
-                        }}
-                        disabled={isChangingStatus}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isChangingStatus ? "변경 중..." : "활성화"}
-                      </button>
-                    )}
-                    {currentStatus === "active" && (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleStatusChange("draft");
-                          }}
-                          disabled={isChangingStatus}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isChangingStatus ? "변경 중..." : "초안으로 변경"}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleStatusChange("archived");
-                          }}
-                          disabled={isChangingStatus}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {isChangingStatus ? "변경 중..." : "보관"}
-                        </button>
-                      </>
-                    )}
-                    {currentStatus === "archived" && (
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleStatusChange("draft");
-                        }}
-                        disabled={isChangingStatus}
-                        className="w-full px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isChangingStatus ? "변경 중..." : "초안으로 복원"}
-                      </button>
-                    )}
-
-                    {/* 구분선 */}
-                    <div className="border-t border-gray-200" />
-
-                    {/* 삭제 옵션 */}
-                    <button
-                      onClick={(e) => {
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end">
+                {/* 상태 변경 옵션 */}
+                {currentStatus === "draft" && (
+                  <DropdownMenu.Item
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStatusChange("active");
+                    }}
+                    disabled={isChangingStatus}
+                  >
+                    {isChangingStatus ? "변경 중..." : "활성화"}
+                  </DropdownMenu.Item>
+                )}
+                {currentStatus === "active" && (
+                  <>
+                    <DropdownMenu.Item
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        handleDeleteClick();
+                        handleStatusChange("draft");
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+                      disabled={isChangingStatus}
                     >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                      {isChangingStatus ? "변경 중..." : "초안으로 변경"}
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleStatusChange("archived");
+                      }}
+                      disabled={isChangingStatus}
+                    >
+                      {isChangingStatus ? "변경 중..." : "보관"}
+                    </DropdownMenu.Item>
+                  </>
+                )}
+                {currentStatus === "archived" && (
+                  <DropdownMenu.Item
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleStatusChange("draft");
+                    }}
+                    disabled={isChangingStatus}
+                  >
+                    {isChangingStatus ? "변경 중..." : "초안으로 복원"}
+                  </DropdownMenu.Item>
+                )}
+
+                {/* 구분선 */}
+                <DropdownMenu.Separator />
+
+                {/* 삭제 옵션 */}
+                <DropdownMenu.Item
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDeleteClick();
+                  }}
+                  className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 focus:bg-red-50 dark:focus:bg-red-900/20"
+                >
+                  삭제
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
           </div>
         </div>
       </div>
