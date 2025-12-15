@@ -389,26 +389,20 @@ export async function getTodayPlans(
   // - fullDaySessions (only if includeProgress) - for todayStudyMinutes calculation
   const planIds = plans.map((p) => p.id);
   const [activeSessionsResult, fullDaySessionsResult] = await Promise.all([
-    // Query 1: Active sessions for plan execution state (narrowed to plan IDs)
+    // Query 1: Active sessions for plan execution state (narrowed to plan IDs) - 공통 함수 사용
     (async () => {
-      let sessions: Array<{
-        plan_id: string | null;
-        started_at: string | null;
-        paused_at: string | null;
-        resumed_at: string | null;
-        paused_duration_seconds: number | null;
-      }> = [];
-      
-      if (planIds.length > 0) {
-        const { data } = await supabase
-          .from("student_study_sessions")
-          .select("plan_id,started_at,paused_at,resumed_at,paused_duration_seconds")
-          .eq("student_id", studentId)
-          .in("plan_id", planIds.length > 0 ? planIds : ['dummy-id'])
-          .is("ended_at", null);
-        sessions = data ?? [];
+      if (planIds.length === 0) {
+        return [];
       }
-      return sessions;
+      const activeSessions = await getActiveSessionsForPlans(planIds, studentId, tenantId);
+      // 기존 형식에 맞게 변환
+      return activeSessions.map((session) => ({
+        plan_id: session.plan_id,
+        started_at: session.started_at,
+        paused_at: session.paused_at,
+        resumed_at: session.resumed_at,
+        paused_duration_seconds: session.paused_duration_seconds,
+      }));
     })(),
     // Query 2: Full-day sessions for todayProgress calculation (only if includeProgress)
     includeProgress && plans.length > 0
