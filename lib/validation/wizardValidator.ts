@@ -1,18 +1,36 @@
 /**
  * 플랜 그룹 위저드 단계별 검증 로직 통합
  * PlanValidator를 확장하여 위저드 특화 검증 제공
+ * 
+ * 검증 전략:
+ * 1. Zod 스키마로 기본 타입 및 형식 검증
+ * 2. WizardValidator로 비즈니스 로직 검증
  */
 
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { PlanValidator } from "./planValidator";
 import { validateSubjectConstraints } from "@/lib/plan/1730TimetableLogic";
 import type { ValidationResult } from "./planValidator";
+import {
+  step1Schema,
+  step2Schema,
+  step3Schema,
+  step4Schema,
+  step5Schema,
+  step6Schema,
+  step7Schema,
+  validatePartialWizardDataSafe,
+} from "@/lib/schemas/planWizardSchema";
 
 type WizardStep = 1 | 2 | 2.5 | 3 | 4 | 5 | 6 | 7;
 
 export class WizardValidator {
   /**
    * 특정 단계의 검증 수행
+   * 
+   * 검증 순서:
+   * 1. Zod 스키마로 기본 검증 (타입, 형식)
+   * 2. 비즈니스 로직 검증 (WizardValidator)
    */
   static validateStep(
     step: WizardStep,
@@ -21,26 +39,114 @@ export class WizardValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    // Zod 스키마로 기본 검증 수행
+    const zodValidation = this.validateStepWithZod(step, wizardData);
+    if (!zodValidation.valid) {
+      errors.push(...zodValidation.errors);
+      warnings.push(...zodValidation.warnings);
+    }
+
+    // 비즈니스 로직 검증 수행
+    let businessValidation: ValidationResult;
     switch (step) {
       case 1:
-        return this.validateStep1(wizardData);
+        businessValidation = this.validateStep1(wizardData);
+        break;
       case 2:
-        return this.validateStep2(wizardData);
+        businessValidation = this.validateStep2(wizardData);
+        break;
       case 2.5:
-        return this.validateStep2_5(wizardData);
+        businessValidation = this.validateStep2_5(wizardData);
+        break;
       case 3:
-        return this.validateStep3(wizardData);
+        businessValidation = this.validateStep3(wizardData);
+        break;
       case 4:
-        return this.validateStep4(wizardData);
+        businessValidation = this.validateStep4(wizardData);
+        break;
       case 5:
-        return this.validateStep5(wizardData);
+        businessValidation = this.validateStep5(wizardData);
+        break;
       case 6:
-        return this.validateStep6(wizardData);
+        businessValidation = this.validateStep6(wizardData);
+        break;
       case 7:
-        return this.validateStep7(wizardData);
+        businessValidation = this.validateStep7(wizardData);
+        break;
+      default:
+        businessValidation = { valid: true, errors: [], warnings: [] };
+    }
+
+    errors.push(...businessValidation.errors);
+    warnings.push(...businessValidation.warnings);
+
+    return {
+      valid: errors.length === 0,
+      errors: [...new Set(errors)], // 중복 제거
+      warnings: [...new Set(warnings)],
+    };
+  }
+
+  /**
+   * Zod 스키마로 단계별 기본 검증 수행
+   */
+  private static validateStepWithZod(
+    step: WizardStep,
+    wizardData: WizardData
+  ): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    let schema;
+    switch (step) {
+      case 1:
+        schema = step1Schema;
+        break;
+      case 2:
+        schema = step2Schema;
+        break;
+      case 2.5:
+        schema = step3Schema; // Step 2.5는 Step 3 스키마 사용
+        break;
+      case 3:
+        schema = step3Schema;
+        break;
+      case 4:
+        schema = step4Schema;
+        break;
+      case 5:
+        schema = step5Schema;
+        break;
+      case 6:
+        schema = step6Schema;
+        break;
+      case 7:
+        schema = step7Schema;
+        break;
       default:
         return { valid: true, errors: [], warnings: [] };
     }
+
+    // 부분 스키마로 검증 (일부 필드만 있을 수 있음)
+    const validation = validatePartialWizardDataSafe(wizardData);
+    if (!validation.success) {
+      // Zod 에러를 사용자 친화적인 메시지로 변환
+      validation.error.errors.forEach((err) => {
+        const path = err.path.join(".");
+        const message = err.message;
+        // 해당 단계의 필드인지 확인
+        const stepFields = Object.keys(schema.shape);
+        if (stepFields.some((field) => path.startsWith(field))) {
+          errors.push(`${path}: ${message}`);
+        }
+      });
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+    };
   }
 
   /**

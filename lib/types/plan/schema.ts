@@ -116,3 +116,60 @@ export type CampInvitationInsert = TablesInsert<"camp_invitations">;
  */
 export type CampInvitationUpdate = TablesUpdate<"camp_invitations">;
 
+/**
+ * Supabase 조회 결과 타입 헬퍼
+ * 
+ * Supabase에서 조회한 데이터의 타입을 명시적으로 지정하기 위한 헬퍼 타입입니다.
+ * 이 타입들을 사용하여 조회 결과의 타입 안전성을 보장합니다.
+ */
+
+/**
+ * plan_groups 조회 결과 타입 (단일)
+ */
+export type PlanGroupQueryResult = PlanGroupRow;
+
+/**
+ * plan_groups 조회 결과 타입 (배열)
+ */
+export type PlanGroupQueryResults = PlanGroupRow[];
+
+/**
+ * plan_contents 조회 결과 타입 (단일)
+ */
+export type PlanContentQueryResult = PlanContentRow;
+
+/**
+ * plan_contents 조회 결과 타입 (배열)
+ */
+export type PlanContentQueryResults = PlanContentRow[];
+
+/**
+ * plan_exclusions 조회 결과 타입 (단일)
+ */
+export type PlanExclusionQueryResult = PlanExclusionRow;
+
+/**
+ * plan_exclusions 조회 결과 타입 (배열)
+ */
+export type PlanExclusionQueryResults = PlanExclusionRow[];
+
+/**
+ * academy_schedules 조회 결과 타입 (단일)
+ */
+export type AcademyScheduleQueryResult = AcademyScheduleRow;
+
+/**
+ * academy_schedules 조회 결과 타입 (배열)
+ */
+export type AcademyScheduleQueryResults = AcademyScheduleRow[];
+
+/**
+ * plan_groups와 관련 데이터를 함께 조회한 결과 타입
+ */
+export type PlanGroupWithDetails = {
+  group: PlanGroupRow;
+  contents: PlanContentRow[];
+  exclusions: PlanExclusionRow[];
+  academySchedules: AcademyScheduleRow[];
+};
+

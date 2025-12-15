@@ -1,7 +1,22 @@
 /**
  * 플랜 그룹 위저드 관련 타입 정의
  * 타입 안전성 강화를 위한 중앙화된 타입 정의
+ * 
+ * WizardData 타입은 lib/schemas/planWizardSchema.ts에서 추론됩니다.
  */
+
+// WizardData 타입을 스키마에서 re-export
+export type {
+  WizardData,
+  PartialWizardData,
+  Step1Data,
+  Step2Data,
+  Step3Data,
+  Step4Data,
+  Step5Data,
+  Step6Data,
+  Step7Data,
+} from "@/lib/schemas/planWizardSchema";
 
 /**
  * 위저드 콘텐츠 타입 (타입 안전성 강화)

@@ -38,29 +38,14 @@ import { Step7ScheduleResult } from "./Step7ScheduleResult";
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-/**
- * 템플릿 고정 필드 타입
- */
-export type TemplateLockedFields = {
-  step1?: {
-    allow_student_name?: boolean;
-    allow_student_plan_purpose?: boolean;
-    allow_student_scheduler_type?: boolean;
-    allow_student_period?: boolean;
-    allow_student_block_set_id?: boolean;
-    allow_student_student_level?: boolean;
-    allow_student_subject_allocations?: boolean;
-    allow_student_study_review_cycle?: boolean;
-    allow_student_additional_period_reallocation?: boolean;
-  };
-  // 향후 확장 가능
-  step2?: Record<string, boolean>;
-  step3?: Record<string, boolean>;
-  step4?: Record<string, boolean>;
-  step5?: Record<string, boolean>;
-  step6?: Record<string, boolean>;
-};
+// WizardData 타입을 스키마에서 import (타입 정의 통합)
+import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
 
+// 타입 re-export (하위 호환성 유지)
+export type { WizardData, TemplateLockedFields };
+
+// 기존 타입 정의는 주석 처리 (스키마에서 추론됨)
+/*
 export type WizardData = {
   // Step 1
   name: string;
