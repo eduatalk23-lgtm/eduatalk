@@ -8,16 +8,21 @@ import type {
   ScoreDashboardResponse,
   ScoreDashboardParams,
 } from "@/lib/types/scoreDashboard";
+import { cookies } from "next/headers";
 
 /**
  * 성적 대시보드 데이터를 가져옵니다.
  * 
  * @param params - API 호출 파라미터
+ * @param options - 추가 옵션 (서버 컴포넌트에서 쿠키 전달용)
  * @returns 성적 대시보드 응답 데이터
  * @throws {Error} API 호출 실패 시 에러
  */
 export async function fetchScoreDashboard(
-  params: ScoreDashboardParams
+  params: ScoreDashboardParams,
+  options?: {
+    cookies?: Awaited<ReturnType<typeof cookies>>;
+  }
 ): Promise<ScoreDashboardResponse> {
   const { studentId, tenantId, termId, grade, semester } = params;
 
@@ -37,12 +42,28 @@ export async function fetchScoreDashboard(
     url.searchParams.set("semester", semester.toString());
   }
 
+  // 헤더 설정
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  // 서버 컴포넌트에서 쿠키 전달 (서버 환경에서만)
+  if (typeof window === "undefined" && options?.cookies) {
+    const cookieStore = options.cookies;
+    const cookieHeader = cookieStore
+      .getAll()
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .join("; ");
+    
+    if (cookieHeader) {
+      headers["Cookie"] = cookieHeader;
+    }
+  }
+
   // API 호출
   const response = await fetch(url.toString(), {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     cache: "no-store", // 항상 최신 데이터 가져오기
   });
 

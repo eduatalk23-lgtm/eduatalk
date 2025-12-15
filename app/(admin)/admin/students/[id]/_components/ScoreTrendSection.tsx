@@ -3,13 +3,32 @@
  *
  * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
  */
+import { cookies } from "next/headers";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import {
+  getStudentWithTenant,
+  getEffectiveTenantId,
+  validateTenantIdMismatch,
+  handleScoreDashboardError,
+  hasScoreDashboardData,
+} from "@/lib/api/scoreDashboardUtils";
 
 export async function ScoreTrendSection({ studentId }: { studentId: string }) {
+  const supabase = await createSupabaseServerClient();
   const tenantContext = await getTenantContext();
 
-  if (!tenantContext?.tenantId) {
+  // 학생 정보 조회 - 공통 유틸리티 사용
+  const student = await getStudentWithTenant(supabase, studentId);
+
+  // effectiveTenantId 결정 - 공통 유틸리티 사용
+  const effectiveTenantId = getEffectiveTenantId(
+    tenantContext,
+    student?.tenant_id || null
+  );
+
+  if (!effectiveTenantId) {
     return (
       <div className="flex flex-col gap-1 rounded-lg border border-dashed border-yellow-300 bg-yellow-50 p-6">
         <p className="text-sm font-medium text-yellow-700">
@@ -22,19 +41,32 @@ export async function ScoreTrendSection({ studentId }: { studentId: string }) {
     );
   }
 
-  try {
-    // 새로운 통합 대시보드 API 사용
-    const dashboardData = await fetchScoreDashboard({
+  // tenantId 불일치 검증 - 공통 유틸리티 사용
+  if (student) {
+    validateTenantIdMismatch(
+      tenantContext,
+      student.tenant_id,
       studentId,
-      tenantId: tenantContext.tenantId,
-    });
+      "ScoreTrendSection"
+    );
+  }
+
+  try {
+    // 새로운 통합 대시보드 API 사용 (쿠키 전달)
+    const cookieStore = await cookies();
+    const dashboardData = await fetchScoreDashboard(
+      {
+        studentId,
+        tenantId: effectiveTenantId,
+      },
+      {
+        cookies: cookieStore,
+      }
+    );
 
     const { internalAnalysis, mockAnalysis, strategyResult } = dashboardData;
 
-    const hasData =
-      internalAnalysis.totalGpa !== null ||
-      mockAnalysis.avgPercentile !== null ||
-      Object.keys(internalAnalysis.subjectStrength).length > 0;
+    const hasData = hasScoreDashboardData(internalAnalysis, mockAnalysis);
 
     return (
       <div className="flex flex-col gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -141,11 +173,7 @@ export async function ScoreTrendSection({ studentId }: { studentId: string }) {
       </div>
     );
   } catch (error) {
-    console.error("[ScoreTrendSection] 성적 변화 조회 실패", error);
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "알 수 없는 오류가 발생했습니다.";
+    const errorMessage = handleScoreDashboardError(error, "ScoreTrendSection");
     return (
       <div className="rounded-lg border border-dashed border-red-300 bg-red-50 p-6">
         <p className="text-sm font-medium text-red-700">

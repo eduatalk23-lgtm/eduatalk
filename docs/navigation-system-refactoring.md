@@ -21,6 +21,7 @@
 ### 2. 카테고리 설정 파일 분리
 
 **새로운 구조**:
+
 ```
 components/navigation/global/
 ├── types.ts                    # 타입 정의
@@ -33,6 +34,7 @@ components/navigation/global/
 ```
 
 **효과**:
+
 - 단일 파일 669줄 → 역할별 파일로 분리 (가독성 향상)
 - 역할별 독립적 수정 가능
 - 파일 크기 감소로 유지보수 용이
@@ -46,21 +48,25 @@ components/navigation/global/
 - 단일 소스에서 카테고리 정보 관리
 
 **변경된 파일**:
+
 - `app/(student)/dashboard/page.tsx`: `studentCategories.ts` 대신 `getDashboardCategories()` 사용
 
 ### 4. 미사용 컴포넌트 삭제
 
 **삭제된 파일**:
+
 - `components/navigation/student/StudentCategoryNav.tsx` (어디서도 사용되지 않음)
 - `components/navigation/student/studentCategories.ts` (대시보드에서만 사용, 통합 완료)
 
 **효과**:
+
 - 코드베이스 정리
 - 혼란 제거 (어느 파일을 수정해야 할지 명확해짐)
 
 ## 변경된 파일 목록
 
 ### 신규 생성
+
 - `components/navigation/global/types.ts`
 - `components/navigation/global/configs/studentCategories.ts`
 - `components/navigation/global/configs/adminCategories.ts`
@@ -69,26 +75,31 @@ components/navigation/global/
 - `lib/navigation/dashboardUtils.ts`
 
 ### 수정
+
 - `components/navigation/global/categoryConfig.ts` (리팩토링)
 - `app/(student)/dashboard/page.tsx` (import 변경)
 
 ### 삭제
+
 - `components/navigation/student/StudentCategoryNav.tsx`
 - `components/navigation/student/studentCategories.ts`
 
 ## 개선 효과
 
 ### 코드 품질
+
 - ✅ 중복 코드 제거 (카테고리 정의 통합)
 - ✅ 타입 안전성 향상 (명확한 타입 정의)
 - ✅ 파일 구조 개선 (역할별 분리)
 
 ### 유지보수성
+
 - ✅ 역할별 독립적 수정 가능
 - ✅ 단일 소스 원칙 준수 (카테고리 정보)
 - ✅ 명확한 파일 구조
 
 ### 확장성
+
 - ✅ 새로운 역할 추가 용이
 - ✅ 카테고리 수정 시 영향 범위 명확
 - ✅ 타입 기반 개발 지원
@@ -109,4 +120,3 @@ components/navigation/global/
 ---
 
 **작업 완료**: 모든 Phase 완료 ✅
-

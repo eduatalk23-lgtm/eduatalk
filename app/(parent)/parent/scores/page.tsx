@@ -6,10 +6,15 @@ export const dynamic = 'force-dynamic';
  * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
  */
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "../../_utils";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
+import {
+  getStudentWithTenant,
+  handleScoreDashboardError,
+} from "@/lib/api/scoreDashboardUtils";
 import { StudentSelector } from "../_components/StudentSelector";
 import Link from "next/link";
 
@@ -68,10 +73,25 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
     );
   }
 
-  // 학생 정보 조회
+  // 학생 정보 조회 - 공통 유틸리티 사용
+  const studentWithTenant = await getStudentWithTenant(supabase, selectedStudentId);
+
+  if (!studentWithTenant) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
+            학생 정보를 찾을 수 없습니다
+          </h2>
+        </div>
+      </section>
+    );
+  }
+
+  // 학생의 추가 정보 조회 (name, grade, class)
   const { data: student } = await supabase
     .from("students")
-    .select("id, name, grade, class, tenant_id")
+    .select("id, name, grade, class")
     .eq("id", selectedStudentId)
     .maybeSingle();
 
@@ -87,17 +107,35 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
     );
   }
 
-  // 새로운 통합 대시보드 API 사용
+  // tenantId가 없으면 에러 반환
+  if (!studentWithTenant.tenant_id) {
+    return (
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <h2 className="text-xl font-semibold text-red-900">
+            기관 정보를 찾을 수 없습니다
+          </h2>
+        </div>
+      </section>
+    );
+  }
+
+  // 새로운 통합 대시보드 API 사용 (쿠키 전달)
   let dashboardData = null;
+  let error: string | null = null;
   try {
-    if (student.tenant_id) {
-      dashboardData = await fetchScoreDashboard({
+    const cookieStore = await cookies();
+    dashboardData = await fetchScoreDashboard(
+      {
         studentId: selectedStudentId,
-        tenantId: student.tenant_id,
-      });
-    }
-  } catch (error) {
-    console.error("[parent/scores] 성적 대시보드 API 호출 실패", error);
+        tenantId: studentWithTenant.tenant_id,
+      },
+      {
+        cookies: cookieStore,
+      }
+    );
+  } catch (err) {
+    error = handleScoreDashboardError(err, "parent/scores");
   }
 
   return (
@@ -125,7 +163,14 @@ export default async function ParentScoresPage({ searchParams }: PageProps) {
         />
       </div>
 
-      {!dashboardData ? (
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <p className="text-sm font-medium text-red-700">
+            성적 정보를 불러오는 중 오류가 발생했습니다.
+          </p>
+          <p className="mt-2 text-xs text-red-600">{error}</p>
+        </div>
+      ) : !dashboardData ? (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
           <p className="text-sm text-gray-500">등록된 성적이 없습니다.</p>
         </div>

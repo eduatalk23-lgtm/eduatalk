@@ -3,19 +3,31 @@
  * 
  * 새로운 통합 대시보드 API(/api/students/[id]/score-dashboard)를 사용합니다.
  */
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import {
+  getStudentWithTenant,
+  getEffectiveTenantId,
+  validateTenantIdMismatch,
+  handleScoreDashboardError,
+} from "@/lib/api/scoreDashboardUtils";
 
 export async function ScoreSummarySection({ studentId }: { studentId: string }) {
   const supabase = await createSupabaseServerClient();
   const tenantContext = await getTenantContext();
 
-  if (!tenantContext?.tenantId) {
+  // 학생 정보 조회 - 공통 유틸리티 사용
+  const student = await getStudentWithTenant(supabase, studentId);
+
+  // effectiveTenantId 결정 - 공통 유틸리티 사용
+  const effectiveTenantId = getEffectiveTenantId(
+    tenantContext,
+    student?.tenant_id || null
+  );
+
+  if (!effectiveTenantId) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-gray-500">기관 정보를 찾을 수 없습니다.</p>
@@ -23,12 +35,28 @@ export async function ScoreSummarySection({ studentId }: { studentId: string }) 
     );
   }
 
-  try {
-    // 새로운 통합 대시보드 API 사용
-    const dashboardData = await fetchScoreDashboard({
+  // tenantId 불일치 검증 - 공통 유틸리티 사용
+  if (student) {
+    validateTenantIdMismatch(
+      tenantContext,
+      student.tenant_id,
       studentId,
-      tenantId: tenantContext.tenantId,
-    });
+      "ScoreSummarySection"
+    );
+  }
+
+  try {
+    // 새로운 통합 대시보드 API 사용 (쿠키 전달)
+    const cookieStore = await cookies();
+    const dashboardData = await fetchScoreDashboard(
+      {
+        studentId,
+        tenantId: effectiveTenantId,
+      },
+      {
+        cookies: cookieStore,
+      }
+    );
 
     const { internalAnalysis, mockAnalysis } = dashboardData;
 
@@ -123,11 +151,11 @@ export async function ScoreSummarySection({ studentId }: { studentId: string }) 
       </div>
     );
   } catch (error) {
-    console.error("[ScoreSummarySection] 성적 대시보드 API 호출 실패", error);
+    const errorMessage = handleScoreDashboardError(error, "ScoreSummarySection");
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-gray-500">
-          성적 정보를 불러오는 중 오류가 발생했습니다.
+          성적 정보를 불러오는 중 오류가 발생했습니다: {errorMessage}
         </p>
       </div>
     );

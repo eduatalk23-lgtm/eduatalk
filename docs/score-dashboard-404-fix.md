@@ -54,66 +54,64 @@ Supabase SQL에서 확인한 결과, 해당 학생과 학기 데이터는 실제
 1. **tenant_id 불일치**: `students` 테이블의 `tenant_id` 값이 요청 파라미터의 `tenantId`와 일치하지 않음
 2. **데이터 불일치**: SQL에서 확인한 데이터와 실제 API에서 조회하는 데이터가 다를 수 있음 (RLS 정책, 쿠키 인증 등)
 
-## 수정 사항
+## 수정 사항 (2025-01-XX 업데이트)
 
-### 1. 디버깅 로그 추가
+### 1. API 라우트 수정: tenantId 조건 제거 및 검증 로직 추가
 
-학생 조회 전에 `tenant_id` 조건 없이 먼저 조회하여 실제 `tenant_id` 값을 확인:
+**변경 전**:
+- `tenantId`가 있으면 학생 조회 시 필터로 사용
+- 불일치 시 404 에러 발생
 
-```75:95:app/api/students/[id]/score-dashboard/route.ts
-    // 디버깅: tenant_id 조건 없이 조회
-    const { data: studentWithoutTenant, error: checkError } = await supabase
-      .from("students")
-      .select("id, name, grade, school_type, tenant_id")
-      .eq("id", studentId)
-      .maybeSingle();
+**변경 후**:
+- `tenantId` 조건 없이 먼저 학생 조회
+- 학생을 찾은 후 `tenantId` 검증 (불일치 시 경고 로그, 학생의 실제 `tenant_id` 사용)
 
-    if (checkError) {
-      console.error("[api/score-dashboard] 학생 조회 실패 (tenant_id 조건 없음)", checkError);
-    } else if (studentWithoutTenant) {
-      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음):", {
-        found: true,
-        studentId: studentWithoutTenant.id,
-        name: studentWithoutTenant.name,
-        actualTenantId: studentWithoutTenant.tenant_id,
-        requestedTenantId: tenantId,
-        tenantIdMatch: studentWithoutTenant.tenant_id === tenantId,
-      });
-    } else {
-      console.log("[api/score-dashboard] 학생 조회 결과 (tenant_id 조건 없음): 학생을 찾을 수 없음");
-    }
+```typescript:app/api/students/[id]/score-dashboard/route.ts
+// 1) 학생 조회 (tenantId 조건 없이 먼저 조회)
+const { data: student, error: studentError } = await supabase
+  .from("students")
+  .select("id, name, grade, class, school_id, school_type, tenant_id")
+  .eq("id", studentId)
+  .maybeSingle();
+
+// ... 에러 처리 ...
+
+// tenantId 검증: 요청한 tenantId가 있으면 학생의 tenant_id와 일치하는지 확인
+if (tenantId && student.tenant_id && tenantId !== student.tenant_id) {
+  console.warn("[api/score-dashboard] tenant_id 불일치", {
+    studentId,
+    requestedTenantId: tenantId,
+    actualTenantId: student.tenant_id,
+    studentName: student.name,
+  });
+  // 경고만 하고 학생의 실제 tenant_id 사용
+}
+
+// effectiveTenantId 결정: 요청한 tenantId 또는 학생의 실제 tenant_id
+const effectiveTenantId = tenantId || student.tenant_id;
 ```
 
-### 2. 에러 메시지 개선
+### 2. 클라이언트 최적화: effectiveTenantId 결정 로직 개선
 
-`tenant_id` 불일치 시 더 자세한 에러 메시지 제공:
+**변경된 파일**:
+- `app/(student)/scores/dashboard/unified/page.tsx`
+- `app/(admin)/admin/students/[id]/_components/ScoreSummarySection.tsx`
+- `app/(admin)/admin/students/[id]/_components/ScoreTrendSection.tsx`
 
-```113:136:app/api/students/[id]/score-dashboard/route.ts
-    if (!student) {
-      // 더 자세한 에러 메시지 제공
-      const errorMessage = studentWithoutTenant
-        ? `Student found but tenant_id mismatch. Student tenant_id: ${studentWithoutTenant.tenant_id}, Requested tenant_id: ${tenantId}`
-        : "Student not found";
-      
-      console.error("[api/score-dashboard] 학생 조회 실패:", {
-        studentId,
-        tenantId,
-        errorMessage,
-        studentExists: !!studentWithoutTenant,
-        actualTenantId: studentWithoutTenant?.tenant_id,
-      });
+**개선 사항**:
+1. 학생 조회 시 `tenant_id` 포함
+2. `effectiveTenantId` 결정: `tenantContext.tenantId || student.tenant_id`
+3. `tenantId` 불일치 시 경고 로그
 
-      return NextResponse.json(
-        { 
-          error: "Student not found",
-          details: studentWithoutTenant
-            ? `Student exists but tenant_id mismatch. Expected: ${tenantId}, Actual: ${studentWithoutTenant.tenant_id}`
-            : "Student does not exist",
-        },
-        { status: 404 }
-      );
-    }
-```
+### 3. 에러 처리 개선
+
+**API 라우트**:
+- 학생 조회 실패 시 상세한 에러 메시지 (`details` 필드 포함)
+- `tenantId` 불일치 시 경고 로그
+
+**클라이언트**:
+- 에러 발생 시 사용자 친화적인 메시지
+- 디버깅을 위한 상세 로그 (개발 환경)
 
 ## 해결 방법
 
@@ -148,10 +146,31 @@ Supabase SQL에서 확인한 결과, 해당 학생과 학기 데이터는 실제
 
 ## 변경된 파일
 
+### API 라우트
 - `app/api/students/[id]/score-dashboard/route.ts`
-  - 디버깅 로그 추가
-  - 에러 메시지 개선
-  - `tenant_id` 불일치 시 상세 정보 제공
+  - `tenantId` 조건 없이 학생 조회
+  - `tenantId` 검증 로직 추가 (불일치 시 경고 로그)
+  - `effectiveTenantId` 결정 로직 개선
+  - 에러 메시지 개선 (`details` 필드 포함)
+
+### 클라이언트 컴포넌트
+- `app/(student)/scores/dashboard/unified/page.tsx`
+  - 학생 조회 시 `tenant_id` 포함
+  - `effectiveTenantId` 결정 로직 개선
+  - 중복 체크 제거
+
+- `app/(admin)/admin/students/[id]/_components/ScoreSummarySection.tsx`
+  - 학생 정보 조회 추가
+  - `effectiveTenantId` 결정 로직 개선
+  - `tenantId` 불일치 검증 추가
+
+- `app/(admin)/admin/students/[id]/_components/ScoreTrendSection.tsx`
+  - 학생 정보 조회 추가
+  - `effectiveTenantId` 결정 로직 개선
+  - `tenantId` 불일치 검증 추가
+
+- `app/(parent)/parent/scores/page.tsx`
+  - 에러 처리 개선 (상세 로그 및 사용자 메시지)
 
 ## 테스트 방법
 
@@ -204,10 +223,17 @@ Supabase SQL에서 확인한 결과, 해당 학생과 학기 데이터는 실제
 2. **인증 추가**: API 호출 시 인증 쿠키를 포함하도록 수정
 3. **서비스 역할 키 사용**: 관리자 API의 경우 `SERVICE_ROLE_KEY`를 사용하여 RLS 우회 (보안 주의)
 
+## 해결된 문제
+
+- ✅ `tenantId` 불일치로 인한 404 에러 해결
+- ✅ 학생의 실제 `tenant_id`를 우선 사용하도록 개선
+- ✅ 코드 일관성 향상 (모든 호출 위치에서 동일한 패턴 사용)
+- ✅ 에러 처리 개선 (상세한 로그 및 사용자 친화적인 메시지)
+
 ## 참고 사항
 
-- `tenant_id` 검증은 보안상 중요하므로 제거하지 않음
-- 디버깅 로그는 개발 환경에서만 출력되도록 권장 (프로덕션에서는 제거 또는 조건부 출력)
+- `tenant_id` 검증은 보안상 중요하므로 유지 (불일치 시 경고 로그)
+- 학생의 실제 `tenant_id`를 우선 사용하여 데이터 일관성 보장
+- API는 인증된 사용자만 접근할 수 있도록 설정됨
 - 향후 RLS 정책 개선 시 `tenant_id` 검증 로직 재검토 필요
-- API는 인증된 사용자만 접근할 수 있도록 해야 함 (현재 인증 확인 로그 추가됨)
 

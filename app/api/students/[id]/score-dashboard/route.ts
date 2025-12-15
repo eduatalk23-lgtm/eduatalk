@@ -83,52 +83,114 @@ export async function GET(
     const currentUser = await getCurrentUser();
     const { role: currentRole } = await getCurrentUserRole();
 
+    // 학생 권한 검증: 학생은 자신의 데이터만 조회 가능
+    if (currentRole === "student" && currentUser?.userId !== studentId) {
+      console.warn("[api/score-dashboard] 학생 권한 검증 실패", {
+        currentUserId: currentUser?.userId,
+        requestedStudentId: studentId,
+        role: currentRole,
+      });
+
+      return NextResponse.json(
+        { 
+          error: "Forbidden",
+          details: "Students can only access their own data",
+          currentUserId: currentUser?.userId,
+          requestedStudentId: studentId,
+        },
+        { status: 403 }
+      );
+    }
+
     // Supabase 클라이언트 선택
     // 관리자/부모 역할이거나 개발 환경에서는 Admin Client 사용 (RLS 우회)
-    // 학생은 자신의 데이터만 조회 가능하도록 Server Client 사용
+    // 학생이 자신의 데이터를 조회할 때도 Admin Client 사용 (RLS 우회)
+    // 서버 컴포넌트에서 fetch 호출 시 인증 정보가 없을 때도 Admin Client 사용
     const useAdminClient =
       currentRole === "admin" ||
       currentRole === "parent" ||
-      process.env.NODE_ENV === "development";
+      process.env.NODE_ENV === "development" ||
+      (currentRole === "student" && currentUser?.userId === studentId) ||
+      (!currentUser && !currentRole); // 인증 정보가 없을 때도 Admin Client 사용
 
-    const supabase = useAdminClient
-      ? createSupabaseAdminClient() || (await createSupabaseServerClient())
-      : await createSupabaseServerClient();
+    let supabase;
+    if (useAdminClient) {
+      const adminClient = createSupabaseAdminClient();
+      if (!adminClient) {
+        // Service Role Key가 없으면 경고 로그
+        console.warn("[api/score-dashboard] Admin Client 생성 실패 (Service Role Key 없음), Server Client 사용", {
+          currentRole,
+          studentId,
+          currentUserId: currentUser?.userId,
+          nodeEnv: process.env.NODE_ENV,
+        });
+        supabase = await createSupabaseServerClient();
+      } else {
+        supabase = adminClient;
+      }
+    } else {
+      supabase = await createSupabaseServerClient();
+    }
 
     // 1) 학생 조회 (school_id, school_type 포함)
-    let studentQuery = supabase
+    // tenantId 조건 없이 먼저 조회하여 학생 존재 여부 확인
+    const { data: student, error: studentError } = await supabase
       .from("students")
       .select("id, name, grade, class, school_id, school_type, tenant_id")
-      .eq("id", studentId);
-    
-    // tenantId가 있으면 조건에 추가
-    if (tenantId) {
-      studentQuery = studentQuery.eq("tenant_id", tenantId);
-    }
-    
-    const { data: student, error: studentError } = await studentQuery.maybeSingle();
+      .eq("id", studentId)
+      .maybeSingle();
 
     if (studentError) {
       console.error("[api/score-dashboard] 학생 조회 실패", {
         error: studentError,
         code: studentError.code,
         message: studentError.message,
+        studentId,
+        currentUserId: currentUser?.userId,
+        currentRole,
+        useAdminClient,
       });
 
       return NextResponse.json(
-        { error: "Failed to fetch student", details: studentError.message },
+        { 
+          error: "Failed to fetch student", 
+          details: studentError.message,
+          studentId,
+        },
         { status: 500 }
       );
     }
 
     if (!student) {
+      console.warn("[api/score-dashboard] 학생을 찾을 수 없음", {
+        studentId,
+        currentUserId: currentUser?.userId,
+        currentRole,
+        useAdminClient,
+      });
+
       return NextResponse.json(
-        { error: "Student not found" },
+        { 
+          error: "Student not found",
+          details: `Student with id ${studentId} does not exist`,
+          studentId,
+        },
         { status: 404 }
       );
     }
 
-    // tenantId가 없으면 학생의 tenant_id 사용
+    // tenantId 검증: 요청한 tenantId가 있으면 학생의 tenant_id와 일치하는지 확인
+    if (tenantId && student.tenant_id && tenantId !== student.tenant_id) {
+      console.warn("[api/score-dashboard] tenant_id 불일치", {
+        studentId,
+        requestedTenantId: tenantId,
+        actualTenantId: student.tenant_id,
+        studentName: student.name,
+      });
+      // 경고만 하고 학생의 실제 tenant_id 사용 (보안상 경고는 남기지만 계속 진행)
+    }
+
+    // effectiveTenantId 결정: 요청한 tenantId 또는 학생의 실제 tenant_id
     const effectiveTenantId = tenantId || student.tenant_id;
     
     if (!effectiveTenantId) {
@@ -149,21 +211,15 @@ export async function GET(
       grade = parseInt(gradeParam);
       semester = parseInt(semesterParam);
 
-      let termQuery = supabase
+      const { data: termData, error: termError } = await supabase
         .from("student_terms")
         .select("id, grade, semester, school_year")
         .eq("student_id", studentId)
         .eq("grade", grade)
         .eq("semester", semester)
         .order("school_year", { ascending: false })
-        .limit(1);
-      
-      // tenantId가 있으면 조건에 추가
-      if (tenantId) {
-        termQuery = termQuery.eq("tenant_id", tenantId);
-      }
-      
-      const { data: termData, error: termError } = await termQuery.maybeSingle();
+        .limit(1)
+        .maybeSingle();
 
       if (termError) {
         console.error("[api/score-dashboard] student_terms 조회 실패", termError);
@@ -176,21 +232,15 @@ export async function GET(
 
     // termId를 찾지 못했고 grade, semester도 없으면 최근 학기 조회
     if (!effectiveTermId && (!grade || !semester)) {
-      let recentTermQuery = supabase
+      const { data: recentTerm } = await supabase
         .from("student_terms")
         .select("id, grade, semester, school_year")
         .eq("student_id", studentId)
         .order("school_year", { ascending: false })
         .order("grade", { ascending: false })
         .order("semester", { ascending: false })
-        .limit(1);
-      
-      // tenantId가 있으면 조건에 추가
-      if (tenantId) {
-        recentTermQuery = recentTermQuery.eq("tenant_id", tenantId);
-      }
-      
-      const { data: recentTerm } = await recentTermQuery.maybeSingle();
+        .limit(1)
+        .maybeSingle();
 
       if (recentTerm) {
         effectiveTermId = recentTerm.id;

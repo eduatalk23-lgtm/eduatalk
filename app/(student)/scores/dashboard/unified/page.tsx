@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import {
+  getStudentWithTenant,
+  getEffectiveTenantId,
+  validateTenantIdMismatch,
+  handleScoreDashboardError,
+} from "@/lib/api/scoreDashboardUtils";
 import { StudentProfileCard } from "./_components/StudentProfileCard";
 import { InternalAnalysisCard } from "./_components/InternalAnalysisCard";
 import { MockAnalysisCard } from "./_components/MockAnalysisCard";
@@ -49,32 +56,8 @@ export default async function UnifiedScoreDashboardPage() {
     );
   }
 
-  const tenantId = tenantContext.tenantId;
-
-  // tenantId가 없으면 에러 반환
-  if (!tenantId) {
-    return (
-      <section className={getContainerClass("DASHBOARD", "md")}>
-        <Card>
-          <div className="flex flex-col items-center gap-4 p-8 text-center">
-            <div className="text-lg font-semibold text-red-600">
-              테넌트 정보를 찾을 수 없습니다
-            </div>
-            <p className="text-sm text-gray-600">
-              다시 로그인해주세요.
-            </p>
-          </div>
-        </Card>
-      </section>
-    );
-  }
-
-  // 학생 ID 조회
-  const { data: student } = await supabase
-    .from("students")
-    .select("id, grade")
-    .eq("id", user.id)
-    .maybeSingle();
+  // 학생 정보 조회 (tenant_id 포함) - 공통 유틸리티 사용
+  const student = await getStudentWithTenant(supabase, user.id);
 
   if (!student) {
     return (
@@ -99,20 +82,61 @@ export default async function UnifiedScoreDashboardPage() {
     );
   }
 
-  // 성적 대시보드 데이터 가져오기
+  // 학생의 grade 정보 조회 (추가)
+  const { data: studentWithGrade } = await supabase
+    .from("students")
+    .select("grade")
+    .eq("id", student.id)
+    .maybeSingle();
+
+  // effectiveTenantId 결정 - 공통 유틸리티 사용
+  const effectiveTenantId = getEffectiveTenantId(tenantContext, student.tenant_id);
+
+  // tenantId가 없으면 에러 반환
+  if (!effectiveTenantId) {
+    return (
+      <section className={getContainerClass("DASHBOARD", "md")}>
+        <Card>
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="text-lg font-semibold text-red-600">
+              테넌트 정보를 찾을 수 없습니다
+            </div>
+            <p className="text-sm text-gray-600">
+              학생 정보를 불러올 수 없습니다. 관리자에게 문의하세요.
+            </p>
+          </div>
+        </Card>
+      </section>
+    );
+  }
+
+  // tenantId 불일치 검증 - 공통 유틸리티 사용
+  validateTenantIdMismatch(
+    tenantContext,
+    student.tenant_id,
+    student.id,
+    "unified-dashboard"
+  );
+
+  // 성적 대시보드 데이터 가져오기 (쿠키 전달)
   let dashboardData;
   let error: string | null = null;
 
   try {
-    dashboardData = await fetchScoreDashboard({
-      studentId: student.id,
-      tenantId,
-      grade: student.grade || undefined,
-      semester: 1, // 기본값: 1학기
-    });
+    const cookieStore = await cookies();
+    dashboardData = await fetchScoreDashboard(
+      {
+        studentId: student.id,
+        tenantId: effectiveTenantId,
+        grade: studentWithGrade?.grade || undefined,
+        semester: 1, // 기본값: 1학기
+      },
+      {
+        cookies: cookieStore,
+      }
+    );
   } catch (err) {
-    console.error("[unified-dashboard] 성적 대시보드 조회 실패", err);
-    error = err instanceof Error ? err.message : "알 수 없는 오류";
+    error = handleScoreDashboardError(err, "unified-dashboard");
   }
 
   // 에러 처리
