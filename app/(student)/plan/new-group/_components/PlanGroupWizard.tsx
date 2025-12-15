@@ -233,6 +233,7 @@ export type WizardData = {
   // Step 6 - 전략/취약 설정 모드 ("subject" | "content")
   allocation_mode?: "subject" | "content";
 };
+*/
 
 type ExtendedInitialData = Partial<WizardData> & {
   groupId?: string;

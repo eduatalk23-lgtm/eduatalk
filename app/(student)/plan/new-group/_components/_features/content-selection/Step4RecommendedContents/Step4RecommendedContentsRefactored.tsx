@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "../../../PlanGroupWizard";
-import { ContentSelectionProgress } from "../../_components/ContentSelectionProgress";
+import { ContentSelectionProgress } from "../../../_components/ContentSelectionProgress";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
 import { getSubjectGroupsAction, getCurriculumRevisionsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup } from "@/lib/data/subjects";
@@ -15,7 +15,7 @@ import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 // Hooks
 import { useRecommendations } from "./hooks/useRecommendations";
-import { useContentSelection } from "./hooks/useContentSelection";
+import { useRecommendedContentSelection } from "../hooks/useRecommendedContentSelection";
 import { useRangeEditor } from "./hooks/useRangeEditor";
 import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 
@@ -65,7 +65,7 @@ export default function Step4RecommendedContents({
     addSelectedContents,
     removeContent,
     setSelectedContentIds,
-  } = useContentSelection({
+  } = useRecommendedContentSelection({
     data,
     recommendedContents,
     allRecommendedContents,

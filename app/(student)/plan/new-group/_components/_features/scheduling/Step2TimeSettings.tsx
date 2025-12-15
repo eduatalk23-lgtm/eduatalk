@@ -58,7 +58,9 @@ export function Step2TimeSettings({
   const periodStart = periodStartProp ?? contextData.period_start;
   const periodEnd = periodEndProp ?? contextData.period_end;
   const finalGroupId = groupId ?? draftGroupId ?? undefined;
-  const finalOnNavigateToStep = onNavigateToStep ?? setStep;
+  const finalOnNavigateToStep = onNavigateToStep 
+    ? (step: number | WizardStep) => onNavigateToStep(step as WizardStep)
+    : (step: number | WizardStep) => setStep(step as WizardStep);
 
   return (
     <div className="flex flex-col gap-6">

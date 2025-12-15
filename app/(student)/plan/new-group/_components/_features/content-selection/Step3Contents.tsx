@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { useBatchContentDetails } from "./hooks/useBatchContentDetails";
-import { useContentSelection } from "./hooks/useContentSelection";
+import { useContentSelection } from "./hooks/useStudentContentSelection";
 import { ContentList } from "./components/ContentList";
 import { SelectionProgress } from "./components/SelectionProgress";
 import { AddedContentList } from "./components/AddedContentList";

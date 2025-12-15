@@ -53,17 +53,14 @@ export function StudentContentsPanel({
   // 메타데이터 업데이트 헬퍼 함수
   const updateContentMetadata = useCallback(
     (contentId: string, updater: (content: SelectedContent) => SelectedContent) => {
-      onUpdate((prevContents: SelectedContent[]) => {
-        const index = prevContents.findIndex((c: SelectedContent) => c.content_id === contentId);
-        if (index >= 0) {
-          const newContents = [...prevContents];
-          newContents[index] = updater(newContents[index]);
-          return newContents;
-        }
-        return prevContents;
-      });
+      const index = selectedContents.findIndex((c: SelectedContent) => c.content_id === contentId);
+      if (index >= 0) {
+        const newContents = [...selectedContents];
+        newContents[index] = updater(newContents[index]);
+        onUpdate(newContents);
+      }
     },
-    [onUpdate]
+    [selectedContents, onUpdate]
   );
 
   // 콘텐츠 선택/해제

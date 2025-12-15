@@ -5,8 +5,16 @@
 
 import { useState, useCallback } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { RecommendedContent, UseContentSelectionReturn } from "../types";
-import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
+import { RecommendedContent } from "@/lib/types/content-selection";
+import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../Step4RecommendedContents/constants";
+
+export type UseContentSelectionReturn = {
+  selectedContentIds: Set<string>;
+  toggleContentSelection: (contentId: string) => void;
+  addSelectedContents: () => Promise<void>;
+  removeContent: (index: number, type?: "recommended" | "student") => void;
+  setSelectedContentIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+};
 
 type UseContentSelectionProps = {
   data: WizardData;
@@ -15,7 +23,7 @@ type UseContentSelectionProps = {
   onUpdate: (updates: Partial<WizardData>) => void;
 };
 
-export function useContentSelection({
+export function useRecommendedContentSelection({
   data,
   recommendedContents,
   allRecommendedContents,

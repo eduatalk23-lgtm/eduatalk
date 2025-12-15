@@ -19,7 +19,7 @@ import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 // Hooks
 import { useRecommendations } from "./_features/content-selection/Step4RecommendedContents/hooks/useRecommendations";
-import { useContentSelection } from "./_features/content-selection/hooks/useRecommendedContentSelection";
+import { useRecommendedContentSelection } from "./_features/content-selection/hooks/useRecommendedContentSelection";
 import { useRangeEditor } from "./_features/content-selection/Step4RecommendedContents/hooks/useRangeEditor";
 import { useRequiredSubjects } from "./_features/content-selection/Step4RecommendedContents/hooks/useRequiredSubjects";
 
@@ -74,7 +74,7 @@ export default function Step4RecommendedContents({
     addSelectedContents,
     removeContent,
     setSelectedContentIds,
-  } = useContentSelection({
+  } = useRecommendedContentSelection({
     data,
     recommendedContents,
     allRecommendedContents,

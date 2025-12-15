@@ -15,7 +15,7 @@ type TimeSettingsPanelProps = {
   periodStart: string;
   periodEnd: string;
   groupId?: string;
-  onNavigateToStep?: (step: number) => void;
+  onNavigateToStep?: (step: number | import("../../../PlanGroupWizard").WizardStep) => void;
   campMode?: boolean;
   isTemplateMode?: boolean;
   templateExclusions?: Array<{

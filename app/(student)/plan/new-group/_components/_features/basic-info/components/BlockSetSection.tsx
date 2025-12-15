@@ -4,7 +4,7 @@ import { CollapsibleSection } from "../../../_summary/CollapsibleSection";
 import { BlockSetTimeline } from "../../../_components/BlockSetTimeline";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { Dialog } from "@/components/ui/Dialog";
-import { useBlockSetManagement } from "../../hooks/useBlockSetManagement";
+import { useBlockSetManagement } from "../hooks/useBlockSetManagement";
 import { WeekdaySelector } from "./WeekdaySelector";
 
 type BlockSetSectionProps = {
