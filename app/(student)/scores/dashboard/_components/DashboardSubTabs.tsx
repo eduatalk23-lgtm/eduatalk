@@ -6,7 +6,7 @@
  */
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 
 const dashboardTabs = [
   { value: "integrated", label: "통합", href: "/scores/dashboard/unified" },
@@ -43,6 +43,15 @@ export function DashboardSubTabs() {
     },
     [pathname, router]
   );
+
+  // cleanup: 컴포넌트 언마운트 시 timeout 정리
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex gap-2 border-b border-gray-200">

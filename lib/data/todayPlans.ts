@@ -99,11 +99,14 @@ export async function getTodayPlans(
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
 
+  // Supabase 클라이언트를 함수 시작 부분에서 한 번만 생성하여 재사용
+  // 모든 블록(캐시 조회, 진행률 조회, 캐시 저장)에서 동일한 클라이언트 사용
+  const supabase = await createSupabaseServerClient();
+
   // Cache lookup (if enabled) - 디버그 모드에서만
   if (useCache) {
     const lookupTimer = perfTime("[todayPlans] cache - lookup");
     try {
-      const supabase = await createSupabaseServerClient();
       
       // Build cache query with tenant_id handling (NULL-safe)
       // Use partial index: one for NULL tenant_id, one for non-NULL
@@ -319,9 +322,6 @@ export async function getTodayPlans(
   let progressData: Array<{ content_type: string; content_id: string; progress: number | null }> = [];
   
   if (contentKeys.size > 0) {
-    // Supabase 클라이언트 생성
-    const supabase = await createSupabaseServerClient();
-    
     // 각 content_type별로 그룹화하여 쿼리
     const bookProgressIds: string[] = [];
     const lectureProgressIds: string[] = [];
@@ -572,7 +572,6 @@ export async function getTodayPlans(
   if (useCache && result) {
     const storeTimer = perfTime("[todayPlans] cache - store");
     try {
-      const supabase = await createSupabaseServerClient();
       const now = new Date();
       const expiresAt = new Date(now.getTime() + (cacheTtlSeconds * 1000));
       

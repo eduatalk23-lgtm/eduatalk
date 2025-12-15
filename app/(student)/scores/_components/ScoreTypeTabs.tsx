@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef, type KeyboardEvent } from "react";
+import { useCallback, useRef, useEffect, type KeyboardEvent } from "react";
 
 const scoreTypes = [
   { value: "dashboard", label: "대시보드", href: "/scores/dashboard/unified" },
@@ -32,6 +32,15 @@ export function ScoreTypeTabs() {
       router.push(href);
     }, 150);
   }, [pathname, router]);
+
+  // cleanup: 컴포넌트 언마운트 시 timeout 정리
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (e.key === "ArrowLeft") {

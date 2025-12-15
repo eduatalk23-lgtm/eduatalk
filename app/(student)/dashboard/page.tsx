@@ -10,7 +10,7 @@ import {
 } from "./_utils";
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
-import { studentCategories } from "@/components/navigation/student/studentCategories";
+import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type StudentRow = {
@@ -94,61 +94,53 @@ export default async function DashboardPage() {
           <div className="flex flex-col gap-4 md:gap-6">
             <h2 className="text-h2 text-gray-900">주요 기능</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
-              {studentCategories
-                .filter((category) => category.href !== "/dashboard")
-                .map((category) => {
-                  let description = "";
-                  let color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky" = "indigo";
+              {getDashboardCategories().map((category) => {
+                let description = "";
+                let color: "indigo" | "blue" | "purple" | "orange" | "green" | "red" | "teal" | "cyan" | "amber" | "pink" | "violet" | "emerald" | "sky" = "indigo";
+                let iconEmoji = "🔗";
 
-                  // 카테고리별 설명 및 색상 설정
-                  switch (category.href) {
-                    case "/today":
-                      description = "오늘의 학습 계획을 확인하고 실행하세요";
-                      color = "indigo";
-                      break;
-                    case "/plan":
-                      description = "학습 계획을 조회하고 관리하세요";
-                      color = "blue";
-                      break;
-                    case "/contents":
-                      description = "책, 강의, 커스텀 콘텐츠를 등록하고 관리하세요";
-                      color = "green";
-                      break;
-                    case "/camp":
-                      description = "캠프에 참여하고 학습을 관리하세요";
-                      color = "purple";
-                      break;
-                    case "/attendance/check-in":
-                      description = "출석을 체크하고 기록을 확인하세요";
-                      color = "cyan";
-                      break;
-                    default:
-                      description = "기능을 이용하세요";
-                  }
+                // 카테고리별 설명 및 색상 설정
+                switch (category.href) {
+                  case "/today":
+                    description = "오늘의 학습 계획을 확인하고 실행하세요";
+                    color = "indigo";
+                    iconEmoji = "📅";
+                    break;
+                  case "/plan":
+                    description = "학습 계획을 조회하고 관리하세요";
+                    color = "blue";
+                    iconEmoji = "📋";
+                    break;
+                  case "/contents":
+                    description = "책, 강의, 커스텀 콘텐츠를 등록하고 관리하세요";
+                    color = "green";
+                    iconEmoji = "📚";
+                    break;
+                  case "/camp":
+                    description = "캠프에 참여하고 학습을 관리하세요";
+                    color = "purple";
+                    iconEmoji = "🏕️";
+                    break;
+                  case "/attendance/check-in":
+                    description = "출석을 체크하고 기록을 확인하세요";
+                    color = "cyan";
+                    iconEmoji = "✅";
+                    break;
+                  default:
+                    description = "기능을 이용하세요";
+                }
 
-                  return (
-                    <QuickActionCard
-                      key={category.href}
-                      href={category.href}
-                      title={category.label}
-                      description={description}
-                      icon={
-                        category.href === "/today"
-                          ? "📅"
-                          : category.href === "/plan"
-                          ? "📋"
-                          : category.href === "/contents"
-                          ? "📚"
-                          : category.href === "/camp"
-                          ? "🏕️"
-                          : category.href === "/attendance/check-in"
-                          ? "✅"
-                          : "🔗"
-                      }
-                      color={color}
-                    />
-                  );
-                })}
+                return (
+                  <QuickActionCard
+                    key={category.href}
+                    href={category.href}
+                    title={category.label}
+                    description={description}
+                    icon={iconEmoji}
+                    color={color}
+                  />
+                );
+              })}
               <QuickActionCard
                 href="/scores/dashboard/unified"
                 title="성적 관리"

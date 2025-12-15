@@ -40,7 +40,7 @@ export function perfLog(label: string, msOrFn?: number | (() => void)) {
 
 /**
  * 성능 타이머 (디버그 모드에서만)
- * 중복 라벨 호출을 방지하기 위해 타이머 상태를 추적합니다.
+ * 서버 컴포넌트 환경에서도 안전하게 동작하도록 항상 고유한 라벨을 생성합니다.
  * @param label 타이머 레이블
  * @returns end() 메서드를 가진 객체
  */
@@ -53,16 +53,12 @@ export function perfTime(label: string) {
     };
   }
 
-  // 이미 활성화된 타이머가 있는지 확인
-  const activeCount = activeTimers.get(label) || 0;
-  
-  // 중복 호출 방지: 같은 라벨로 이미 시작된 타이머가 있으면 고유한 라벨 생성
-  const uniqueLabel = activeCount > 0 
-    ? `${label}_${activeCount + 1}`
-    : label;
-
-  // 타이머 카운트 증가
-  activeTimers.set(label, activeCount + 1);
+  // 항상 고유한 라벨 생성 (타임스탬프 + 랜덤 문자열)
+  // 서버 컴포넌트에서 각 요청마다 새로운 컨텍스트가 생성되므로
+  // activeTimers Map에 의존하지 않고 항상 고유한 라벨을 생성
+  const timestamp = Date.now();
+  const randomStr = Math.random().toString(36).substring(2, 9);
+  const uniqueLabel = `${label}_${timestamp}_${randomStr}`;
 
   let timerStarted = false;
   try {
@@ -71,7 +67,6 @@ export function perfTime(label: string) {
   } catch (error) {
     // console.time이 실패해도 계속 진행
     console.warn(`[perfTime] Failed to start timer for "${uniqueLabel}":`, error);
-    activeTimers.set(label, activeCount); // 실패 시 카운트 복원
   }
 
   return {
@@ -88,22 +83,6 @@ export function perfTime(label: string) {
               error
             );
           }
-        } finally {
-          // 타이머 종료 시 카운트 감소
-          const currentCount = activeTimers.get(label) || 0;
-          if (currentCount > 0) {
-            activeTimers.set(label, currentCount - 1);
-          } else {
-            activeTimers.delete(label);
-          }
-        }
-      } else {
-        // 타이머가 시작되지 않았어도 카운트 감소
-        const currentCount = activeTimers.get(label) || 0;
-        if (currentCount > 0) {
-          activeTimers.set(label, currentCount - 1);
-        } else {
-          activeTimers.delete(label);
         }
       }
     },

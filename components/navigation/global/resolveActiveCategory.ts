@@ -33,7 +33,7 @@ function isPathActive(
 /**
  * 특정 아이템이 현재 경로와 활성 상태인지 확인
  */
-function isItemActive(pathname: string, item: NavigationItem): boolean {
+export function isItemActive(pathname: string, item: NavigationItem): boolean {
   // 정확히 일치해야 하는 경우
   if (item.exactMatch) {
     return pathname === item.href;

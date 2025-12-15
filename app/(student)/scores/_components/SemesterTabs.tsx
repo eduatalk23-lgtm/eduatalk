@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 
 const semesters = [
   { value: "1", label: "1학기" },
@@ -46,6 +46,15 @@ export function SemesterTabs({
       router.push(buildHref(semester));
     }, 150);
   }, [basePath, currentSemester, subjectGroup, router]);
+
+  // cleanup: 컴포넌트 언마운트 시 timeout 정리
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex gap-2 border-b border-gray-200">
