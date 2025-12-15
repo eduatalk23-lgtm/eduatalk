@@ -6,36 +6,28 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { WizardData } from "./PlanGroupWizard";
-import { ContentSelectionProgress } from "./_components/ContentSelectionProgress";
+import { WizardData } from "../../../PlanGroupWizard";
+import { ContentSelectionProgress } from "../../_components/ContentSelectionProgress";
 import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
-import {
-  getCurriculumRevisionsAction,
-  getSubjectGroupsAction,
-  getSubjectsByGroupAction,
-} from "@/app/(student)/actions/contentMetadataActions";
+import { getSubjectGroupsAction, getCurriculumRevisionsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 // Hooks
-import { useRecommendations } from "./_features/content-selection/Step4RecommendedContents/hooks/useRecommendations";
-import { useContentSelection } from "./_features/content-selection/hooks/useRecommendedContentSelection";
-import { useRangeEditor } from "./_features/content-selection/Step4RecommendedContents/hooks/useRangeEditor";
-import { useRequiredSubjects } from "./_features/content-selection/Step4RecommendedContents/hooks/useRequiredSubjects";
+import { useRecommendations } from "./hooks/useRecommendations";
+import { useContentSelection } from "./hooks/useContentSelection";
+import { useRangeEditor } from "./hooks/useRangeEditor";
+import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 
 // Components
-import RecommendationRequestForm from "./_features/content-selection/Step4RecommendedContents/components/RecommendationRequestForm";
-import RecommendedContentsList from "./_features/content-selection/Step4RecommendedContents/components/RecommendedContentsList";
-import AddedContentsList from "./_features/content-selection/Step4RecommendedContents/components/AddedContentsList";
-import RequiredSubjectsSection from "./_features/content-selection/Step4RecommendedContents/components/RequiredSubjectsSection";
+import RecommendationRequestForm from "./components/RecommendationRequestForm";
+import RecommendedContentsList from "./components/RecommendedContentsList";
+import AddedContentsList from "./components/AddedContentsList";
+import RequiredSubjectsSection from "./components/RequiredSubjectsSection";
 
 // Types & Constants
-import { Step4RecommendedContentsProps } from "./_features/content-selection/Step4RecommendedContents/types";
-import {
-  AVAILABLE_SUBJECTS,
-  ERROR_MESSAGES,
-  CONFIRM_MESSAGES,
-} from "./_features/content-selection/Step4RecommendedContents/constants";
+import { Step4RecommendedContentsProps } from "./types";
+import { ERROR_MESSAGES, CONFIRM_MESSAGES } from "./constants";
 
 export default function Step4RecommendedContents({
   data,
@@ -43,7 +35,6 @@ export default function Step4RecommendedContents({
   isEditMode = false,
   isCampMode = false,
   studentId,
-  isAdminContinueMode = false,
 }: Step4RecommendedContentsProps) {
   // ============================================================================
   // 추천 콘텐츠 관리
@@ -89,9 +80,9 @@ export default function Step4RecommendedContents({
     editingRange,
     contentDetails,
     loadingDetails,
+    contentTotals,
     startDetailId,
     endDetailId,
-    contentTotals,
     startEditingRange,
     cancelEditingRange,
     saveEditingRange,
@@ -101,7 +92,6 @@ export default function Step4RecommendedContents({
   } = useRangeEditor({
     data,
     onUpdate,
-    studentId,
   });
 
   // ============================================================================
@@ -135,82 +125,60 @@ export default function Step4RecommendedContents({
   // ============================================================================
   // 필수 교과 설정 관리
   // ============================================================================
-  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<
-    SubjectGroup[]
-  >([]);
-  const [curriculumRevisions, setCurriculumRevisions] = useState<
-    CurriculumRevision[]
-  >([]);
+  const [availableSubjectGroups, setAvailableSubjectGroups] = useState<SubjectGroup[]>([]);
+  const [curriculumRevisions, setCurriculumRevisions] = useState<CurriculumRevision[]>([]);
   const [loadingSubjectGroups, setLoadingSubjectGroups] = useState(false);
-  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const [loadingCurriculumRevisions, setLoadingCurriculumRevisions] = useState(false);
 
-  // 교과 그룹 목록 조회
+  // ============================================================================
+  // 필수 교과 데이터 로드
+  // ============================================================================
   useEffect(() => {
-    setLoadingSubjectGroups(true);
-    getSubjectGroupsAction()
-      .then((groups) => {
-        setAvailableSubjectGroups(groups || []);
-      })
-      .catch((error) => {
+    const loadSubjectGroups = async () => {
+      setLoadingSubjectGroups(true);
+      try {
+        const groups = await getSubjectGroupsAction();
+        setAvailableSubjectGroups(groups);
+      } catch (error) {
         console.error("교과 그룹 조회 실패:", error);
-      })
-      .finally(() => {
+      } finally {
         setLoadingSubjectGroups(false);
-      });
-  }, []);
+      }
+    };
 
-  // 개정교육과정 목록 조회
-  useEffect(() => {
-    setLoadingRevisions(true);
-    getCurriculumRevisionsAction()
-      .then((revisions) => {
-        setCurriculumRevisions(revisions || []);
-      })
-      .catch((error) => {
+    const loadCurriculumRevisions = async () => {
+      setLoadingCurriculumRevisions(true);
+      try {
+        const revisions = await getCurriculumRevisionsAction();
+        setCurriculumRevisions(revisions);
+      } catch (error) {
         console.error("개정교육과정 조회 실패:", error);
-      })
-      .finally(() => {
-        setLoadingRevisions(false);
-      });
+      } finally {
+        setLoadingCurriculumRevisions(false);
+      }
+    };
+
+    loadSubjectGroups();
+    loadCurriculumRevisions();
   }, []);
 
   // ============================================================================
   // 필수 교과 핸들러
   // ============================================================================
   const handleLoadSubjects = useCallback(
-    async (
-      subjectGroupId: string,
-      curriculumRevisionId: string
-    ): Promise<Array<{ id: string; name: string }>> => {
+    async (subjectGroupId: string, curriculumRevisionId: string): Promise<Array<{ id: string; name: string }>> => {
       try {
-        // 해당 개정교육과정의 교과 그룹 찾기
-        const selectedGroup = availableSubjectGroups.find(
-          (g) => g.id === subjectGroupId
-        );
-        if (!selectedGroup) {
-          return [];
-        }
-
-        // 같은 이름의 교과 그룹 중 해당 개정교육과정의 것 찾기
-        const curriculumGroup = availableSubjectGroups.find(
-          (g) =>
-            g.name === selectedGroup.name &&
-            g.curriculum_revision_id === curriculumRevisionId
-        );
-
-        if (!curriculumGroup) {
-          return [];
-        }
-
-        // 해당 교과 그룹의 과목 조회
-        const subjects = await getSubjectsByGroupAction(curriculumGroup.id);
-        return subjects.map((s) => ({ id: s.id, name: s.name }));
+        const subjects = await getSubjectsByGroupAction(subjectGroupId);
+        return subjects.map((subject) => ({
+          id: subject.id,
+          name: subject.name,
+        }));
       } catch (error) {
-        console.error("세부 과목 조회 실패:", error);
+        console.error("과목 조회 실패:", error);
         return [];
       }
     },
-    [availableSubjectGroups]
+    []
   );
 
   const handleAddRequiredSubject = useCallback(() => {
@@ -235,14 +203,9 @@ export default function Step4RecommendedContents({
     (
       index: number,
       updated: Partial<{
-        subject_group_id: string;
         subject_category: string;
+        subject?: string;
         min_count: number;
-        subjects_by_curriculum?: Array<{
-          curriculum_revision_id: string;
-          subject_id?: string;
-          subject_name?: string;
-        }>;
       }>
     ) => {
       if (!data.subject_constraints) return;
@@ -267,7 +230,7 @@ export default function Step4RecommendedContents({
 
       const currentConstraints = data.subject_constraints;
       const newRequirements = currentConstraints.required_subjects!.filter(
-        (_: any, i: number) => i !== index
+        (_, i) => i !== index
       );
 
       onUpdate({
@@ -329,12 +292,6 @@ export default function Step4RecommendedContents({
   }, []);
 
   const handleSubmitRecommendation = useCallback(async () => {
-    console.log("[Step4RecommendedContents] 추천 요청 시작:", {
-      selectedSubjects: Array.from(selectedSubjects),
-      recommendationCounts: Object.fromEntries(recommendationCounts),
-      autoAssignContents,
-    });
-
     // 최소 제약 검증
     if (selectedSubjects.size === 0) {
       alert(ERROR_MESSAGES.NO_SUBJECTS_SELECTED);
@@ -359,15 +316,6 @@ export default function Step4RecommendedContents({
       );
       return;
     }
-
-    console.log(
-      "[Step4RecommendedContents] fetchRecommendationsWithSubjects 호출:",
-      {
-        subjects: Array.from(selectedSubjects),
-        counts: Object.fromEntries(recommendationCounts),
-        autoAssign: autoAssignContents,
-      }
-    );
 
     // 교과별 추천 개수 정보를 포함하여 추천 요청
     await fetchRecommendationsWithSubjects(
@@ -417,79 +365,28 @@ export default function Step4RecommendedContents({
   const totalCount = studentCount + recommendedCount;
   const canAddMore = totalCount < 9;
 
-  // 추천 요청 폼 표시 조건: 관리자 모드일 때는 항상 표시, 그 외에는 추천을 받기 전이거나, 추천을 받았지만 목록이 비어있을 때
-  const shouldShowRecommendationForm =
-    isAdminContinueMode || // 관리자 모드일 때는 항상 표시
-    !hasRequestedRecommendations ||
-    (hasRequestedRecommendations &&
-      recommendedContents.length === 0 &&
-      !loading);
-
-  // 디버깅: 추천 요청 폼 표시 조건 확인
-  console.log("[Step4RecommendedContents] 추천 요청 폼 표시 조건:", {
-    hasRequestedRecommendations,
-    recommendedContentsLength: recommendedContents.length,
-    loading,
-    shouldShowRecommendationForm,
-    autoAssignContents,
-  });
-
   // ============================================================================
   // Render
   // ============================================================================
   return (
     <div className="space-y-6">
-      {/* 필수 교과 설정 섹션 - 캠프 모드가 아닐 때만 표시 */}
-      {!isCampMode && (
-        <RequiredSubjectsSection
-          data={data}
-          availableSubjectGroups={availableSubjectGroups}
-          curriculumRevisions={curriculumRevisions}
-          onLoadSubjects={handleLoadSubjects}
-          onUpdate={onUpdate}
-          onAddRequiredSubject={handleAddRequiredSubject}
-          onUpdateRequiredSubject={handleRequiredSubjectUpdate}
-          onRemoveRequiredSubject={handleRequiredSubjectRemove}
-          onConstraintHandlingChange={handleConstraintHandlingChange}
-          isTemplateMode={false}
-          isCampMode={isCampMode}
-          studentId={studentId}
-        />
-      )}
+      {/* 필수 교과 설정 섹션 */}
+      <RequiredSubjectsSection
+        data={data}
+        availableSubjectGroups={availableSubjectGroups}
+        curriculumRevisions={curriculumRevisions}
+        onUpdate={onUpdate}
+        onLoadSubjects={handleLoadSubjects}
+        onAddRequiredSubject={handleAddRequiredSubject}
+        onUpdateRequiredSubject={handleRequiredSubjectUpdate}
+        onRemoveRequiredSubject={handleRequiredSubjectRemove}
+        onConstraintHandlingChange={handleConstraintHandlingChange}
+        isTemplateMode={false}
+        isCampMode={isCampMode}
+        studentId={studentId}
+      />
 
       <div className="flex flex-col gap-6">
-        {/* 학생 콘텐츠 섹션 (관리자 모드에서만 표시) */}
-        {isCampMode && data.student_contents && data.student_contents.length > 0 && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-xl font-semibold text-gray-900">
-                학생이 등록한 콘텐츠
-              </h2>
-              <p className="text-sm text-gray-500">
-                학생이 등록한 콘텐츠를 확인하고 관리하세요.
-              </p>
-            </div>
-            <AddedContentsList
-              contents={data.student_contents}
-              allRecommendedContents={[]} // 학생 콘텐츠는 추천 콘텐츠 목록이 없음
-              editingRangeIndex={editingRangeIndex}
-              editingRange={editingRange}
-              contentDetails={contentDetails}
-              startDetailId={startDetailId}
-              endDetailId={endDetailId}
-              contentTotals={contentTotals}
-              loadingDetails={loadingDetails}
-              onStartEditing={(index) => startEditingRange(index, "student")}
-              onSaveRange={saveEditingRange}
-              onCancelEditing={cancelEditingRange}
-              onRemove={(index) => removeContent(index, "student")}
-              onStartDetailChange={setStartRange}
-              onEndDetailChange={setEndRange}
-              onRangeChange={(start, end) => setEditingRange({ start, end })}
-            />
-          </div>
-        )}
-
         <div className="flex flex-col gap-2">
           <h2 className="text-xl font-semibold text-gray-900">
             서비스 추천 콘텐츠
@@ -501,22 +398,24 @@ export default function Step4RecommendedContents({
         </div>
 
         {/* 콘텐츠 선택 진행률 */}
-        <ContentSelectionProgress
-          current={totalCount}
-          max={9}
-          requiredSubjects={progressRequiredSubjects}
-          showWarning={missingRequiredSubjects.length > 0}
-          warningMessage={
-            missingRequiredSubjects.length > 0
-              ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
-                  .map(
-                    (m: any) =>
-                      `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
-                  )
-                  .join(", ")}`
-              : undefined
-          }
-        />
+        <div>
+          <ContentSelectionProgress
+            current={totalCount}
+            max={9}
+            requiredSubjects={progressRequiredSubjects}
+            showWarning={missingRequiredSubjects.length > 0}
+            warningMessage={
+              missingRequiredSubjects.length > 0
+                ? `다음 필수 과목의 최소 개수 조건을 만족하지 않습니다: ${missingRequiredSubjects
+                    .map(
+                      (m) =>
+                        `${m.name} (현재 ${m.current}개 / 필요 ${m.required}개)`
+                    )
+                    .join(", ")}`
+                : undefined
+            }
+          />
+        </div>
 
         {/* 이미 추가된 추천 콘텐츠 목록 */}
         <AddedContentsList
@@ -525,22 +424,23 @@ export default function Step4RecommendedContents({
           editingRangeIndex={editingRangeIndex}
           editingRange={editingRange}
           contentDetails={contentDetails}
+          contentTotals={contentTotals}
+          onRangeChange={(start, end) => {
+            setEditingRange({ start, end });
+          }}
           startDetailId={startDetailId}
           endDetailId={endDetailId}
-          contentTotals={contentTotals}
           loadingDetails={loadingDetails}
-          onStartEditing={(index) => startEditingRange(index, "recommended")}
+          onStartEditing={startEditingRange}
           onSaveRange={saveEditingRange}
           onCancelEditing={cancelEditingRange}
-          onRemove={(index) => removeContent(index, "recommended")}
+          onRemove={removeContent}
           onStartDetailChange={setStartRange}
           onEndDetailChange={setEndRange}
-          onRangeChange={(start, end) => setEditingRange({ start, end })}
         />
 
         {/* 추천 요청 폼 (추천을 받기 전 또는 추가 추천을 받을 때) */}
-        {/* 편집 모드에서 저장 후 다시 로드할 때 recommendedContents가 비어있으면 추천 요청 폼을 다시 표시 */}
-        {shouldShowRecommendationForm && (
+        {!hasRequestedRecommendations && (
           <RecommendationRequestForm
             selectedSubjects={selectedSubjects}
             recommendationCounts={recommendationCounts}
@@ -562,12 +462,11 @@ export default function Step4RecommendedContents({
           </div>
         )}
 
-        {/* 추천 결과가 없을 때 (추천 요청 폼이 표시되지 않을 때만) */}
+        {/* 추천 결과가 없을 때 */}
         {hasRequestedRecommendations &&
           !loading &&
-          recommendedContents.length === 0 &&
-          !shouldShowRecommendationForm && (
-            <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
+          recommendedContents.length === 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center">
               <p className="text-sm font-medium text-amber-800">
                 추천할 콘텐츠가 없습니다.
               </p>
@@ -601,3 +500,4 @@ export default function Step4RecommendedContents({
     </div>
   );
 }
+

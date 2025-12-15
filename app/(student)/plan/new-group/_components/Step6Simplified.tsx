@@ -11,7 +11,7 @@ import {
   SubjectAllocationSummary,
 } from "./_summary";
 import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
-import { usePlanWizard } from "./PlanWizardContext";
+import { usePlanWizard } from "./_context/PlanWizardContext";
 
 /**
  * Step6Simplified - 최종 확인 (간소화)

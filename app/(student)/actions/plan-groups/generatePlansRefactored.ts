@@ -323,18 +323,45 @@ async function _generatePlansFromGroupRefactored(
   );
 
   // 10. 스케줄러 호출 (플랜 생성)
-  const scheduledPlans = generatePlansFromGroup(
-    group,
-    contents,
-    exclusions,
-    academySchedules,
-    [],
-    undefined,
-    undefined,
-    dateAvailableTimeRanges,
-    dateTimeSlots,
-    contentDurationMap
-  );
+  let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
+  try {
+    scheduledPlans = await generatePlansFromGroup(
+      group,
+      contents,
+      exclusions,
+      academySchedules,
+      [],
+      undefined,
+      undefined,
+      dateAvailableTimeRanges,
+      dateTimeSlots,
+      contentDurationMap
+    );
+  } catch (error) {
+    // PlanGroupError인 경우 failureReason을 사용하여 구체적인 메시지 전달
+    const { PlanGroupError, PlanGroupErrorCodes } = await import(
+      "@/lib/errors/planGroupErrors"
+    );
+    
+    if (error instanceof PlanGroupError) {
+      const userMessage = error.userMessage || error.message;
+      
+      throw new AppError(
+        userMessage,
+        ErrorCode.BUSINESS_LOGIC_ERROR,
+        400,
+        true,
+        {
+          originalError: error.message,
+          failureReason: error.failureReason,
+          code: error.code,
+        }
+      );
+    }
+    
+    // 기타 에러는 그대로 throw
+    throw error;
+  }
 
   console.log("[_generatePlansFromGroupRefactored] 스케줄러 결과:", {
     scheduledPlansCount: scheduledPlans.length,

@@ -72,7 +72,7 @@ export type ContentDurationInfo = {
 
 export type ContentDurationMap = Map<string, ContentDurationInfo>;
 
-export function generatePlansFromGroup(
+export async function generatePlansFromGroup(
   group: PlanGroup,
   contents: PlanContent[],
   exclusions: PlanExclusion[],
@@ -98,7 +98,26 @@ export function generatePlansFromGroup(
   );
 
   if (availableDates.length === 0) {
-    throw new Error("학습 가능한 날짜가 없습니다. 기간과 제외일을 확인해주세요.");
+    const { PlanGroupError, PlanGroupErrorCodes } = await import(
+      "@/lib/errors/planGroupErrors"
+    );
+    throw new PlanGroupError(
+      "학습 가능한 날짜가 없습니다.",
+      PlanGroupErrorCodes.PLAN_GENERATION_FAILED,
+      "학습 가능한 날짜가 없습니다. 기간과 제외일을 확인해주세요.",
+      false,
+      {
+        periodStart: startDate,
+        periodEnd: endDate,
+        exclusionsCount: exclusions.length,
+      },
+      {
+        type: "no_study_days",
+        period: `${startDate} ~ ${endDate}`,
+        totalDays: 0,
+        excludedDays: exclusions.length,
+      }
+    );
   }
 
   // 2. 콘텐츠 정보 변환 (과목 정보 포함)
@@ -117,9 +136,11 @@ export function generatePlansFromGroup(
 
   // 3. 스케줄러 유형별로 플랜 생성
   let plans: ScheduledPlan[] = [];
+  let failureReasons: import("@/lib/errors/planGenerationErrors").PlanGenerationFailureReason[] = [];
+  
   switch (group.scheduler_type) {
-    case "1730_timetable":
-      plans = generate1730TimetablePlans(
+    case "1730_timetable": {
+      const result = generate1730TimetablePlans(
         availableDates,
         contentInfos,
         blocks,
@@ -129,9 +150,14 @@ export function generatePlansFromGroup(
         riskIndexMap,
         dateAvailableTimeRanges,
         dateTimeSlots,
-        contentDurationMap
+        contentDurationMap,
+        contentSubjects,
+        startDate
       );
+      plans = result.plans;
+      failureReasons = result.failureReasons;
       break;
+    }
     default:
       plans = generateDefaultPlans(
         availableDates,
@@ -173,6 +199,49 @@ export function generatePlansFromGroup(
       contentDurationMap
     );
     plans = [...plans, ...reallocatedPlans];
+  }
+
+  // 5. 플랜이 비어있고 실패 원인이 있는 경우 에러 throw
+  if (plans.length === 0 && failureReasons.length > 0) {
+    const { PlanGroupError, PlanGroupErrorCodes } = await import(
+      "@/lib/errors/planGroupErrors"
+    );
+    const { combineFailureReasons } = await import(
+      "@/lib/errors/planGenerationErrors"
+    );
+    
+    throw new PlanGroupError(
+      "플랜 생성에 실패했습니다.",
+      PlanGroupErrorCodes.PLAN_GENERATION_FAILED,
+      combineFailureReasons(failureReasons),
+      false,
+      {
+        plansCount: 0,
+        failureReasonsCount: failureReasons.length,
+      },
+      failureReasons
+    );
+  }
+
+  // 플랜이 비어있지만 실패 원인이 없는 경우 (기본 스케줄러 등)
+  if (plans.length === 0) {
+    const { PlanGroupError, PlanGroupErrorCodes } = await import(
+      "@/lib/errors/planGroupErrors"
+    );
+    throw new PlanGroupError(
+      "플랜이 생성되지 않았습니다.",
+      PlanGroupErrorCodes.PLAN_GENERATION_FAILED,
+      "플랜이 생성되지 않았습니다. 기간, 제외일, 블록 설정을 확인해주세요.",
+      false,
+      {
+        plansCount: 0,
+        schedulerType: group.scheduler_type,
+      },
+      {
+        type: "no_plans_generated",
+        reason: "플랜이 생성되지 않았습니다. 설정을 확인해주세요.",
+      }
+    );
   }
 
   return plans;
@@ -823,19 +892,20 @@ function generate1730TimetablePlans(
   dateAvailableTimeRanges?: DateAvailableTimeRanges,
   dateTimeSlots?: DateTimeSlots,
   contentDurationMap?: ContentDurationMap,
-  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>
-): ScheduledPlan[] {
+  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>,
+  periodStart?: string
+): { plans: ScheduledPlan[]; failureReasons: import("@/lib/errors/planGenerationErrors").PlanGenerationFailureReason[] } {
   // dates 배열에서 periodStart와 periodEnd 추출
-  const periodStart = dates[0];
+  const actualPeriodStart = periodStart || dates[0];
   const periodEnd = dates[dates.length - 1];
 
-  if (!periodStart || !periodEnd) {
+  if (!actualPeriodStart || !periodEnd) {
     throw new Error("학습 가능한 날짜가 없습니다. 기간과 제외일을 확인해주세요.");
   }
 
   // SchedulerEngine 컨텍스트 구성
   const context: SchedulerContext = {
-    periodStart,
+    periodStart: actualPeriodStart,
     periodEnd,
     exclusions,
     blocks,
@@ -851,7 +921,10 @@ function generate1730TimetablePlans(
 
   // SchedulerEngine을 사용하여 플랜 생성
   const engine = new SchedulerEngine(context);
-  return engine.generate();
+  const plans = engine.generate();
+  const failureReasons = engine.getFailureReasons();
+
+  return { plans, failureReasons };
 }
 
 /**

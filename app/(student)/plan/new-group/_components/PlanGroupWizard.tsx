@@ -8,7 +8,7 @@ import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { scrollToTop, scrollToField } from "@/lib/utils/scroll";
 import { getFirstErrorFieldId } from "./hooks/useWizardValidation";
-import { PlanWizardProvider, usePlanWizard } from "./PlanWizardContext";
+import { PlanWizardProvider, usePlanWizard } from "./_context/PlanWizardContext";
 import {
   createPlanGroupAction,
   savePlanGroupDraftAction,
@@ -28,13 +28,13 @@ import { usePlanSubmission } from "./hooks/usePlanSubmission";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import type { SchedulerOptions } from "@/lib/types/plan";
 import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
-import { Step1BasicInfo } from "./Step1BasicInfo";
-import { Step2TimeSettings } from "./Step2TimeSettings";
-import { Step3SchedulePreview } from "./Step3SchedulePreview";
-import { Step3ContentSelection } from "./Step3ContentSelection";
-import { Step6FinalReview } from "./Step6FinalReview";
+import { Step1BasicInfo } from "./_features/basic-info/Step1BasicInfo";
+import { Step2TimeSettings } from "./_features/scheduling/Step2TimeSettings";
+import { Step3SchedulePreview } from "./_features/scheduling/Step3SchedulePreview";
+import { Step3ContentSelection } from "./_features/content-selection/Step3ContentSelection";
+import { Step6FinalReview } from "./_features/content-selection/Step6FinalReview";
 import { Step6Simplified } from "./Step6Simplified";
-import { Step7ScheduleResult } from "./Step7ScheduleResult";
+import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult";
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -414,94 +414,6 @@ function PlanGroupWizardInner({
   }), [isCampMode, isTemplateMode, isAdminMode, isAdminContinueMode, isEditMode]);
   
   const [blockSets, setBlockSets] = useState(initialBlockSets);
-    name: initialData?.name || "",
-    // plan_purpose 정규화 처리
-    plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
-    scheduler_type: (initialData?.scheduler_type as "1730_timetable" | "") || "1730_timetable",
-    period_start: initialData?.period_start || "",
-    period_end: initialData?.period_end || "",
-    target_date: initialData?.target_date || undefined,
-    block_set_id: initialData?.block_set_id || "",
-    // scheduler_options 초기화
-    scheduler_options: {
-      ...(initialData?.scheduler_options || {}),
-      study_days:
-        (initialData?.scheduler_options as SchedulerOptions | undefined)?.study_days ||
-        initialData?.study_review_cycle?.study_days ||
-        6,
-      review_days:
-        (initialData?.scheduler_options as SchedulerOptions | undefined)?.review_days ||
-        initialData?.study_review_cycle?.review_days ||
-        1,
-      student_level:
-        initialData?.student_level ||
-        (initialData?.scheduler_options as SchedulerOptions | undefined)?.student_level,
-    },
-    exclusions:
-      initialData?.exclusions?.map((e) => ({
-        exclusion_date: e.exclusion_date,
-        exclusion_type: e.exclusion_type,
-        reason: e.reason,
-        source: e.source,
-        is_locked: e.is_locked,
-      })) || [],
-    academy_schedules:
-      initialData?.academy_schedules?.map((s) => ({
-        day_of_week: s.day_of_week,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        academy_name: s.academy_name,
-        subject: s.subject,
-        travel_time: s.travel_time,
-        source: s.source,
-        is_locked: s.is_locked,
-      })) || [],
-    time_settings: initialData?.time_settings,
-    student_contents: initialContentsState.student_contents,
-    recommended_contents: initialContentsState.recommended_contents,
-    // 1730 Timetable 추가 필드
-    study_review_cycle: initialData?.study_review_cycle || {
-      study_days: (initialData?.scheduler_options as SchedulerOptions | undefined)?.study_days || 6,
-      review_days: (initialData?.scheduler_options as SchedulerOptions | undefined)?.review_days || 1,
-    },
-    student_level:
-      initialData?.student_level ||
-      (initialData?.scheduler_options as SchedulerOptions | undefined)?.student_level,
-    subject_allocations:
-      initialData?.subject_allocations ||
-      (initialData?.scheduler_options as SchedulerOptions | undefined)?.subject_allocations,
-    content_allocations: (initialData?.scheduler_options as SchedulerOptions | undefined)
-      ?.content_allocations,
-    subject_constraints: initialData?.subject_constraints,
-    additional_period_reallocation:
-      initialData?.additional_period_reallocation,
-    non_study_time_blocks: initialData?.non_study_time_blocks,
-    // 일별 스케줄 정보
-    daily_schedule: initialData?.daily_schedule,
-    // 캠프 정보 (초기 데이터에서)
-    plan_type: initialData?.plan_type,
-    camp_template_id: initialData?.camp_template_id,
-    camp_invitation_id: initialData?.camp_invitation_id,
-    templateLockedFields: initialData?.templateLockedFields || (isTemplateMode ? {
-      step1: {
-        allow_student_name: false,
-        allow_student_plan_purpose: false,
-        allow_student_scheduler_type: false,
-        allow_student_period: false,
-        allow_student_block_set_id: false,
-        allow_student_student_level: false,
-        allow_student_subject_allocations: false,
-        allow_student_study_review_cycle: false,
-        allow_student_additional_period_reallocation: false,
-      },
-      step2: {
-        allow_student_exclusions: false,
-        allow_student_academy_schedules: false,
-        allow_student_time_settings: false,
-        allow_student_non_study_time_blocks: false,
-      },
-    } : undefined),
-  }));
 
   const templateId = initialData?.templateId;
   const templateProgramType = initialData?.templateProgramType || "기타";

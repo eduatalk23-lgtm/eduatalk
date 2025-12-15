@@ -33,6 +33,11 @@ import type {
   DateTimeSlots,
   ContentDurationMap,
 } from "@/lib/plan/scheduler";
+import type { PlanGenerationFailureReason } from "@/lib/errors/planGenerationErrors";
+import {
+  calculateWeekNumber,
+  getDayOfWeekName,
+} from "@/lib/errors/planGenerationErrors";
 
 /**
  * SchedulerEngine 컨텍스트 타입
@@ -132,9 +137,24 @@ export class SchedulerEngine {
     Map<string, { start: number; end: number }>
   > | null = null;
   private filteredContents: ContentInfo[] | null = null;
+  private failureReasons: PlanGenerationFailureReason[] = [];
 
   constructor(context: SchedulerContext) {
     this.context = context;
+  }
+
+  /**
+   * 수집된 실패 원인 반환
+   */
+  public getFailureReasons(): PlanGenerationFailureReason[] {
+    return [...this.failureReasons];
+  }
+
+  /**
+   * 실패 원인 추가
+   */
+  private addFailureReason(reason: PlanGenerationFailureReason): void {
+    this.failureReasons.push(reason);
   }
 
   /**
@@ -264,6 +284,19 @@ export class SchedulerEngine {
       );
 
       if (validAllocatedDates.length === 0) {
+        const reason = allocation.subject_type === "strategy"
+          ? "전략과목 설정에 따라 학습일이 배정되지 않았습니다"
+          : allocation.subject_type === "weakness"
+            ? "취약과목 설정에 따라 학습일이 배정되지 않았습니다"
+            : "학습일이 배정되지 않았습니다";
+
+        this.addFailureReason({
+          type: "content_allocation_failed",
+          contentId: content.content_id,
+          contentType: content.content_type,
+          reason,
+        });
+
         console.warn("[SchedulerEngine] 학습일 배정 실패:", {
           content_id: content.content_id,
           content_type: content.content_type,
@@ -326,6 +359,14 @@ export class SchedulerEngine {
       );
 
       if (rangeMap.size === 0) {
+        this.addFailureReason({
+          type: "range_division_failed",
+          contentId: content.content_id,
+          contentType: content.content_type,
+          totalAmount: content.total_amount,
+          allocatedDates: allocatedDates.length,
+        });
+
         console.warn("[SchedulerEngine] 학습 범위 분할 결과 없음:", {
           content_id: content.content_id,
           allocatedDatesCount: allocatedDates.length,
@@ -490,9 +531,17 @@ export class SchedulerEngine {
         );
 
         let remainingMinutes = requiredMinutes;
+        let totalAvailableMinutes = 0;
 
         // 학습시간 슬롯이 있으면 사용, 없으면 available_time_ranges 사용
         if (studyTimeSlots.length > 0) {
+          // 사용 가능한 총 시간 계산
+          studyTimeSlots.forEach((slot) => {
+            const slotStart = timeToMinutes(slot.start);
+            const slotEnd = timeToMinutes(slot.end);
+            totalAvailableMinutes += slotEnd - slotStart;
+          });
+
           while (remainingMinutes > 0 && slotIndex < studyTimeSlots.length) {
             const slot = studyTimeSlots[slotIndex];
             const slotStart = timeToMinutes(slot.start);
@@ -528,11 +577,34 @@ export class SchedulerEngine {
               currentSlotPosition = 0;
             }
           }
+
+          // 시간 부족 감지
+          if (remainingMinutes > 0) {
+            const week = calculateWeekNumber(date, this.context.periodStart);
+            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+            this.addFailureReason({
+              type: "insufficient_time",
+              week,
+              dayOfWeek,
+              date,
+              requiredMinutes: requiredMinutes,
+              availableMinutes: totalAvailableMinutes,
+            });
+          }
         } else {
           // 학습시간 슬롯이 없으면 available_time_ranges 사용
           if (slotIndex >= availableRanges.length) {
             slotIndex = availableRanges.length - 1;
           }
+
+          // 사용 가능한 총 시간 계산
+          availableRanges.forEach((range) => {
+            const startMinutes = timeToMinutes(range.start);
+            const endMinutes = timeToMinutes(range.end);
+            totalAvailableMinutes +=
+              endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+          });
 
           const timeRange = availableRanges[slotIndex] || {
             start: "10:00",
@@ -542,7 +614,7 @@ export class SchedulerEngine {
           const endMinutes = timeToMinutes(timeRange.end);
           const rangeDuration =
             endMinutes > startMinutes ? endMinutes - startMinutes : 60;
-          const actualDuration = Math.min(requiredMinutes, rangeDuration);
+          const actualDuration = Math.min(remainingMinutes, rangeDuration);
           const planStartTime = minutesToTime(
             startMinutes + currentSlotPosition
           );
@@ -562,12 +634,28 @@ export class SchedulerEngine {
             end_time: planEndTime,
           });
 
+          remainingMinutes -= actualDuration;
           currentSlotPosition += actualDuration;
           blockIndex++;
 
           if (currentSlotPosition >= rangeDuration) {
             slotIndex++;
             currentSlotPosition = 0;
+          }
+
+          // 시간 부족 감지
+          if (remainingMinutes > 0) {
+            const week = calculateWeekNumber(date, this.context.periodStart);
+            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+            this.addFailureReason({
+              type: "insufficient_time",
+              week,
+              dayOfWeek,
+              date,
+              requiredMinutes: requiredMinutes,
+              availableMinutes: totalAvailableMinutes,
+            });
           }
         }
       });
@@ -770,8 +858,32 @@ export class SchedulerEngine {
   /**
    * 최종 실행
    * 모든 단계를 순차적으로 실행하여 최종 플랜을 생성합니다.
+   * 
+   * @returns 생성된 플랜 배열
    */
   public generate(): ScheduledPlan[] {
-    return this.assignTimeSlots();
+    const plans = this.assignTimeSlots();
+
+    // 플랜이 생성되지 않은 경우 원인 분석
+    if (plans.length === 0) {
+      const cycleDays = this.calculateCycle();
+      const studyDays = cycleDays.filter((d) => d.day_type === "study");
+      
+      if (studyDays.length === 0) {
+        this.addFailureReason({
+          type: "no_study_days",
+          period: `${this.context.periodStart} ~ ${this.context.periodEnd}`,
+          totalDays: cycleDays.length,
+          excludedDays: this.context.exclusions.length,
+        });
+      } else {
+        this.addFailureReason({
+          type: "no_plans_generated",
+          reason: "플랜이 생성되지 않았습니다. 콘텐츠 배정 또는 시간 슬롯 설정을 확인해주세요.",
+        });
+      }
+    }
+
+    return plans;
   }
 }

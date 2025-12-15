@@ -8,9 +8,9 @@ import {
 } from "@/app/(admin)/actions/campTemplateActions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Step1BasicInfo } from "@/app/(student)/plan/new-group/_components/Step1BasicInfo";
-import { Step2TimeSettings } from "@/app/(student)/plan/new-group/_components/Step2TimeSettings";
-import { Step3ContentSelection } from "@/app/(student)/plan/new-group/_components/Step3ContentSelection";
+import { Step1BasicInfo } from "@/app/(student)/plan/new-group/_components/_features/basic-info/Step1BasicInfo";
+import { Step2TimeSettings } from "@/app/(student)/plan/new-group/_components/_features/scheduling/Step2TimeSettings";
+import { Step3ContentSelection } from "@/app/(student)/plan/new-group/_components/_features/content-selection/Step3ContentSelection";
 import { planGroupToWizardData } from "@/lib/utils/planGroupAdapters";
 import { planPurposeLabels, schedulerTypeLabels } from "@/lib/constants/planLabels";
 

@@ -2,13 +2,16 @@
  * 플랜 그룹 관련 에러 클래스 및 에러 코드 정의
  */
 
+import type { PlanGenerationFailureReason } from "./planGenerationErrors";
+
 export class PlanGroupError extends Error {
   constructor(
     message: string,
     public code: string,
     public userMessage: string,
     public recoverable: boolean = false,
-    public context?: Record<string, unknown>
+    public context?: Record<string, unknown>,
+    public failureReason?: PlanGenerationFailureReason | PlanGenerationFailureReason[]
   ) {
     super(message);
     this.name = 'PlanGroupError';

@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkApplyRecommendedContents } from "@/app/(admin)/actions/campTemplateActions";
-import { AVAILABLE_SUBJECTS } from "@/app/(student)/plan/new-group/_components/Step4RecommendedContents/constants";
+import { AVAILABLE_SUBJECTS } from "@/app/(student)/plan/new-group/_components/_features/content-selection/Step4RecommendedContents/constants";
 import { Minus, Plus, Users, BookOpen, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type Participant = {

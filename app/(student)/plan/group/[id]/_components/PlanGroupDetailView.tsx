@@ -4,26 +4,26 @@ import { useState, useRef, useMemo, useCallback, lazy, Suspense, memo } from "re
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
-import { ErrorBoundary } from "./ErrorBoundary";
+import { ErrorBoundary } from "@/components/errors/ErrorBoundary";
 import type { PlanGroup, PlanContent, PlanExclusion, AcademySchedule, PlanStatus } from "@/lib/types/plan";
 import type { PlanScheduleViewRef } from "./PlanScheduleView";
 import { planGroupToWizardData, contentsToWizardFormat } from "@/lib/utils/planGroupAdapters";
 
 // 동적 임포트로 레이지 로딩 - 새로운 Step 컴포넌트 사용
 const Step1BasicInfo = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step1BasicInfo").then(module => ({ default: module.Step1BasicInfo }))
+  import("@/app/(student)/plan/new-group/_components/_features/basic-info/Step1BasicInfo").then(module => ({ default: module.Step1BasicInfo }))
 );
 const Step2TimeSettings = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step2TimeSettings").then(module => ({ default: module.Step2TimeSettings }))
+  import("@/app/(student)/plan/new-group/_components/_features/scheduling/Step2TimeSettings").then(module => ({ default: module.Step2TimeSettings }))
 );
 const Step3ContentSelection = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step3ContentSelection").then(module => ({ default: module.Step3ContentSelection }))
+  import("@/app/(student)/plan/new-group/_components/_features/content-selection/Step3ContentSelection").then(module => ({ default: module.Step3ContentSelection }))
 );
 const Step6Simplified = lazy(() => 
   import("@/app/(student)/plan/new-group/_components/Step6Simplified").then(module => ({ default: module.Step6Simplified }))
 );
 const Step7ScheduleResult = lazy(() => 
-  import("@/app/(student)/plan/new-group/_components/Step7ScheduleResult").then(module => ({ default: module.Step7ScheduleResult }))
+  import("@/app/(student)/plan/new-group/_components/_features/scheduling/Step7ScheduleResult").then(module => ({ default: module.Step7ScheduleResult }))
 );
 
 
