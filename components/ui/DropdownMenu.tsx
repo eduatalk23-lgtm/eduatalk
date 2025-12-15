@@ -92,6 +92,7 @@ type DropdownMenuContentProps = {
   sideOffset?: number;
 };
 
+
 function DropdownMenuContent({ 
   children, 
   align = "end", 
@@ -209,24 +210,31 @@ function DropdownMenuContent({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange, focusedIndex]);
 
-  // 메뉴가 열릴 때 첫 번째 항목에 포커스
+  // DOM에서 focusable items 수집
   useEffect(() => {
     if (open && contentRef.current) {
-      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 포커스
-      setTimeout(() => {
+      const updateItemsRef = () => {
+        const menuItems = contentRef.current?.querySelectorAll('[role="menuitem"]') || [];
+        itemsRef.current = Array.from(menuItems) as (HTMLAnchorElement | HTMLButtonElement)[];
+        
+        // 첫 번째 항목에 포커스
         const focusableItems = itemsRef.current.filter(item => {
           if (!item || item.offsetParent === null) return false;
-          // HTMLButtonElement인 경우에만 disabled 체크
           if (item instanceof HTMLButtonElement && item.disabled) return false;
           return true;
         });
+        
         if (focusableItems.length > 0) {
           setFocusedIndex(0);
           focusableItems[0]?.focus();
         }
-      }, 0);
+      };
+      
+      // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 실행
+      setTimeout(updateItemsRef, 0);
     } else {
       setFocusedIndex(null);
+      itemsRef.current = [];
     }
   }, [open]);
 
@@ -253,29 +261,7 @@ function DropdownMenuContent({
       )}
       style={{ marginTop: side === "bottom" ? sideOffset : undefined, marginBottom: side === "top" ? sideOffset : undefined }}
     >
-      {React.Children.map(children, (child, index) => {
-        if (React.isValidElement(child)) {
-          // Item에 ref 등록을 위해 cloneElement 사용
-          const childType = child.type as any;
-          if (childType === DropdownMenuItem || childType?.displayName === "DropdownMenuItem") {
-            return React.cloneElement(child as React.ReactElement<any>, {
-              ref: (el: HTMLAnchorElement | HTMLButtonElement | null) => {
-                if (el) {
-                  itemsRef.current[index] = el;
-                }
-                // 원본 ref가 있다면 호출
-                const originalRef = (child as any).ref;
-                if (typeof originalRef === "function") {
-                  originalRef(el);
-                } else if (originalRef && typeof originalRef === "object") {
-                  originalRef.current = el;
-                }
-              },
-            });
-          }
-        }
-        return child;
-      })}
+      {children}
     </div>
   );
 
