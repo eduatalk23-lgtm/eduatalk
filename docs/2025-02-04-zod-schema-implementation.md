@@ -150,11 +150,31 @@ const schedulerOptionsRecord = schedulerOptions && typeof schedulerOptions === "
 const studyDays = schedulerOptionsRecord.study_days as number | undefined;
 ```
 
+## 완료된 추가 작업
+
+### WizardValidator와 Zod 스키마 통합
+
+- ✅ `WizardValidator.validateStep`에 Zod 스키마 기본 검증 추가
+- ✅ 검증 순서: Zod 스키마 (타입/형식) → 비즈니스 로직 검증
+- ✅ 단계별 스키마 매핑 (Step 1-7)
+
+### 타입 정의 통합
+
+- ✅ `WizardData` 타입을 스키마에서 추론하도록 변경
+- ✅ `lib/types/wizard.ts`에서 스키마 타입 re-export
+- ✅ `PlanGroupWizard.tsx`에서 스키마 타입 import
+
+### Supabase 응답 타입 정의
+
+- ✅ `lib/types/plan/schema.ts`에 조회 결과 타입 헬퍼 추가
+- ✅ `PlanGroupQueryResult`, `PlanContentQueryResults` 등 명시적 타입 정의
+- ✅ `PlanGroupWithDetails` 타입 추가 (관련 데이터 포함)
+
 ## 향후 개선 사항
 
-### 남은 작업
+### 선택적 개선 작업
 
-1. **기타 파일의 강제 형변환 제거**
+1. **기타 파일의 강제 형변환 제거** (낮은 우선순위)
    - `RangeSettingModal.tsx`
    - `StudentContentsPanel.tsx`
    - `Step3ContentSelection.tsx`
@@ -162,21 +182,6 @@ const studyDays = schedulerOptionsRecord.study_days as number | undefined;
    - `RecommendedContentsPanel.tsx`
    - `NonStudyTimeBlocksPanel.tsx`
    - `usePlanPayloadBuilder.ts` (일부 `as unknown as`는 타입 정의 확장 필요)
-
-2. **WizardValidator와 Zod 스키마 통합**
-   - Zod 스키마를 기본 검증으로 사용
-   - 비즈니스 로직 검증은 `WizardValidator`에서 처리
-
-3. **중복 코드 최적화**
-   - 타입 정의 통합
-   - 검증 로직 통합
-   - 데이터 변환 로직 최적화
-
-4. **Supabase 응답 타입 정의**
-   - `plan_groups` 테이블 조회 결과 타입 정의
-   - `plan_contents` 테이블 조회 결과 타입 정의
-   - `plan_exclusions` 테이블 조회 결과 타입 정의
-   - `academy_schedules` 테이블 조회 결과 타입 정의
 
 ## 테스트 권장 사항
 
