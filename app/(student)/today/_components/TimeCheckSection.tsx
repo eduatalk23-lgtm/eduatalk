@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, memo } from "react";
 import { Clock, CheckCircle, RotateCcw } from "lucide-react";
 import { formatTimestamp, type TimeStats } from "../_utils/planGroupUtils";
 import { TimerControlButtons } from "./TimerControlButtons";
@@ -23,7 +23,7 @@ type TimeCheckSectionProps = {
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function TimeCheckSection({
+function TimeCheckSectionComponent({
   timeStats,
   isPaused,
   activePlanStartTime,
@@ -215,4 +215,26 @@ export function TimeCheckSection({
     </div>
   );
 }
+
+export const TimeCheckSection = memo(TimeCheckSectionComponent, (prevProps, nextProps) => {
+  // 핵심 props만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.planId === nextProps.planId &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.isPaused === nextProps.isPaused &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.hasOtherActivePlan === nextProps.hasOtherActivePlan &&
+    prevProps.campMode === nextProps.campMode &&
+    prevProps.planNumber === nextProps.planNumber &&
+    prevProps.planDate === nextProps.planDate &&
+    // timeStats 객체의 주요 속성 비교
+    prevProps.timeStats.isCompleted === nextProps.timeStats.isCompleted &&
+    prevProps.timeStats.firstStartTime === nextProps.timeStats.firstStartTime &&
+    prevProps.timeStats.lastEndTime === nextProps.timeStats.lastEndTime &&
+    prevProps.timeStats.currentPausedAt === nextProps.timeStats.currentPausedAt &&
+    prevProps.timeStats.lastPausedAt === nextProps.timeStats.lastPausedAt &&
+    prevProps.timeStats.lastResumedAt === nextProps.timeStats.lastResumedAt &&
+    prevProps.activePlanStartTime === nextProps.activePlanStartTime
+  );
+});
 

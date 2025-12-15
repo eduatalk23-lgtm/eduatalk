@@ -1,10 +1,11 @@
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
+import { getContentsByIds } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { getSessionsInRange } from "@/lib/data/studentSessions";
+import { getSessionsInRange, getActiveSessionsForPlans } from "@/lib/data/studentSessions";
 import {
   calculatePlanStudySeconds,
   buildActiveSessionMap,
@@ -272,7 +273,6 @@ export async function getTodayPlans(
   // 콘텐츠 정보 조회 (최적화: 필요한 ID만 조회)
   // Note: First run can be slow (~59s) due to cold start, connection pooling, or index warmup.
   // Subsequent runs should be ~190ms. This code is hardened to prevent large IN clauses and malformed queries.
-  const supabase = await createSupabaseServerClient();
   
   // Extract and deduplicate content IDs (defensive: filter out null/undefined/empty)
   const bookIds = [...new Set(
@@ -291,86 +291,14 @@ export async function getTodayPlans(
       .map((p) => p.content_id as string)
   )];
 
-  // Defensive: Limit IN clause size to prevent extremely large queries
-  // Supabase typically handles up to 1000 items, but we cap at 500 for safety
-  const MAX_IN_CLAUSE_SIZE = 500;
-  const safeBookIds = bookIds.slice(0, MAX_IN_CLAUSE_SIZE);
-  const safeLectureIds = lectureIds.slice(0, MAX_IN_CLAUSE_SIZE);
-  const safeCustomIds = customIds.slice(0, MAX_IN_CLAUSE_SIZE);
-
-  if (bookIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/todayPlans] bookIds truncated from ${bookIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
-  }
-  if (lectureIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/todayPlans] lectureIds truncated from ${lectureIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
-  }
-  if (customIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/todayPlans] customIds truncated from ${customIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
-  }
-
-  // 필요한 콘텐츠만 직접 조회 (전체 조회 대신)
-  const [booksResult, lecturesResult, customContentsResult] = await Promise.all([
-    safeBookIds.length > 0
-      ? (async () => {
-          try {
-            const { data, error } = await supabase
-              .from("books")
-              .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,notes,created_at,updated_at")
-              .eq("student_id", studentId)
-              .in("id", safeBookIds);
-            if (error) {
-              console.error("[data/todayPlans] 책 조회 실패", error);
-              return [];
-            }
-            return (data as Book[]) ?? [];
-          } catch (err) {
-            console.error("[data/todayPlans] 책 조회 예외", err);
-            return [];
-          }
-        })()
-      : Promise.resolve([]),
-    safeLectureIds.length > 0
-      ? (async () => {
-          try {
-            const { data, error } = await supabase
-              .from("lectures")
-              .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
-              .eq("student_id", studentId)
-              .in("id", safeLectureIds);
-            if (error) {
-              console.error("[data/todayPlans] 강의 조회 실패", error);
-              return [];
-            }
-            return (data as Lecture[]) ?? [];
-          } catch (err) {
-            console.error("[data/todayPlans] 강의 조회 예외", err);
-            return [];
-          }
-        })()
-      : Promise.resolve([]),
-    safeCustomIds.length > 0
-      ? (async () => {
-          try {
-            const { data, error } = await supabase
-              .from("student_custom_contents")
-              .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
-              .eq("student_id", studentId)
-              .in("id", safeCustomIds);
-            if (error) {
-              console.error("[data/todayPlans] 커스텀 콘텐츠 조회 실패", error);
-              return [];
-            }
-            return (data as CustomContent[]) ?? [];
-          } catch (err) {
-            console.error("[data/todayPlans] 커스텀 콘텐츠 조회 예외", err);
-            return [];
-          }
-        })()
-      : Promise.resolve([]),
-  ]);
-  const books = booksResult;
-  const lectures = lecturesResult;
-  const customContents = customContentsResult;
+  // 공통 함수 사용하여 콘텐츠 조회
+  const { books, lectures, customContents } = await getContentsByIds(
+    bookIds,
+    lectureIds,
+    customIds,
+    studentId,
+    tenantId
+  );
 
   // 데이터 enrich 시작 (메모리 연산만 측정, DB 쿼리는 별도 측정)
   // Step 1: Build maps (O(n) where n = content count)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { SchoolScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCard } from "./ScoreCard";
@@ -22,7 +22,7 @@ type ScoreCardGridProps = {
 type SortField = "grade" | "semester" | "grade_score" | "raw_score" | "subject_name";
 type SortOrder = "asc" | "desc";
 
-export function ScoreCardGrid({
+function ScoreCardGridComponent({
   initialGrade,
   initialSemester,
   scores,
@@ -394,4 +394,33 @@ export function ScoreCardGrid({
     </div>
   );
 }
+
+export const ScoreCardGrid = memo(ScoreCardGridComponent, (prevProps, nextProps) => {
+  // scores 배열의 길이와 주요 속성 비교
+  if (prevProps.scores.length !== nextProps.scores.length) {
+    return false;
+  }
+  
+  // scores 배열의 각 항목 비교 (id와 주요 속성만)
+  for (let i = 0; i < prevProps.scores.length; i++) {
+    const prev = prevProps.scores[i];
+    const next = nextProps.scores[i];
+    if (
+      prev.id !== next.id ||
+      prev.grade !== next.grade ||
+      prev.semester !== next.semester ||
+      prev.raw_score !== next.raw_score ||
+      prev.grade_score !== next.grade_score
+    ) {
+      return false;
+    }
+  }
+  
+  return (
+    prevProps.initialGrade === nextProps.initialGrade &&
+    prevProps.initialSemester === nextProps.initialSemester &&
+    prevProps.subjectGroups.length === nextProps.subjectGroups.length &&
+    prevProps.subjectTypes.length === nextProps.subjectTypes.length
+  );
+});
 

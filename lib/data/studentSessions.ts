@@ -127,6 +127,68 @@ export async function getActiveSession(
 }
 
 /**
+ * 플랜 ID 배열로 활성 세션만 조회 (최적화된 함수)
+ * @param planIds 플랜 ID 배열
+ * @param studentId 학생 ID
+ * @param tenantId 테넌트 ID (선택)
+ * @returns 활성 세션 배열
+ */
+export async function getActiveSessionsForPlans(
+  planIds: string[],
+  studentId: string,
+  tenantId?: string | null
+): Promise<StudySession[]> {
+  if (planIds.length === 0) {
+    return [];
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // Defensive: Limit IN clause size
+  const MAX_IN_CLAUSE_SIZE = 500;
+  const safePlanIds = planIds.slice(0, MAX_IN_CLAUSE_SIZE);
+
+  if (planIds.length > MAX_IN_CLAUSE_SIZE) {
+    console.warn(`[data/studentSessions] planIds truncated from ${planIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+  }
+
+  let query = supabase
+    .from("student_study_sessions")
+    .select(
+      "id,tenant_id,student_id,plan_id,content_type,content_id,started_at,ended_at,duration_seconds,paused_at,resumed_at,paused_duration_seconds,created_at"
+    )
+    .eq("student_id", studentId)
+    .in("plan_id", safePlanIds)
+    .is("ended_at", null); // 활성 세션만
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  query = query.order("started_at", { ascending: false });
+
+  let { data, error } = await query;
+
+  if (error && error.code === "42703") {
+    // fallback: tenant_id, student_id 컬럼이 없는 경우
+    const fallbackQuery = supabase
+      .from("student_study_sessions")
+      .select("*")
+      .in("plan_id", safePlanIds)
+      .is("ended_at", null);
+
+    ({ data, error } = await fallbackQuery.order("started_at", { ascending: false }));
+  }
+
+  if (error) {
+    console.error("[data/studentSessions] 활성 세션 조회 실패", error);
+    return [];
+  }
+
+  return (data as StudySession[] | null) ?? [];
+}
+
+/**
  * 세션 ID로 세션 조회
  */
 export async function getSessionById(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import { useState, useRef, useMemo, useCallback, lazy, Suspense, memo } from "react";
 import { PlanGroupDetailTabs } from "./PlanGroupDetailTabs";
 import { GeneratePlansButton } from "./GeneratePlansButton";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
@@ -63,7 +63,7 @@ type PlanGroupDetailViewProps = {
 
 };
 
-export function PlanGroupDetailView({
+function PlanGroupDetailViewComponent({
   group,
   contents,
   exclusions,
@@ -392,4 +392,31 @@ export function PlanGroupDetailView({
     </div>
   );
 }
+
+export const PlanGroupDetailView = memo(PlanGroupDetailViewComponent, (prevProps, nextProps) => {
+  // group의 주요 속성 비교
+  const prevGroup = prevProps.group;
+  const nextGroup = nextProps.group;
+  
+  return (
+    prevProps.groupId === nextProps.groupId &&
+    prevGroup.id === nextGroup.id &&
+    prevGroup.name === nextGroup.name &&
+    prevGroup.status === nextGroup.status &&
+    prevGroup.plan_purpose === nextGroup.plan_purpose &&
+    prevGroup.scheduler_type === nextGroup.scheduler_type &&
+    prevProps.canEdit === nextProps.canEdit &&
+    prevProps.hasPlans === nextProps.hasPlans &&
+    prevProps.campSubmissionMode === nextProps.campSubmissionMode &&
+    prevProps.contents.length === nextProps.contents.length &&
+    prevProps.exclusions.length === nextProps.exclusions.length &&
+    prevProps.academySchedules.length === nextProps.academySchedules.length &&
+    prevProps.contentsWithDetails.length === nextProps.contentsWithDetails.length &&
+    prevProps.blockSets.length === nextProps.blockSets.length &&
+    prevProps.templateBlocks.length === nextProps.templateBlocks.length &&
+    prevProps.templateBlockSetId === nextProps.templateBlockSetId &&
+    prevProps.templateBlockSetName === nextProps.templateBlockSetName &&
+    prevProps.campTemplateId === nextProps.campTemplateId
+  );
+});
 

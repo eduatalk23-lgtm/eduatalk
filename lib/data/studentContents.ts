@@ -570,3 +570,127 @@ export async function deleteCustomContent(
   return { success: true };
 }
 
+/**
+ * ID 배열로 콘텐츠를 병렬 조회 (공통 함수)
+ * @param bookIds 책 ID 배열
+ * @param lectureIds 강의 ID 배열
+ * @param customIds 커스텀 콘텐츠 ID 배열
+ * @param studentId 학생 ID
+ * @param tenantId 테넌트 ID (선택)
+ * @returns 조회된 콘텐츠 객체
+ */
+export async function getContentsByIds(
+  bookIds: string[],
+  lectureIds: string[],
+  customIds: string[],
+  studentId: string,
+  tenantId?: string | null
+): Promise<{
+  books: Book[];
+  lectures: Lecture[];
+  customContents: CustomContent[];
+}> {
+  const supabase = await createSupabaseServerClient();
+  
+  // Defensive: Limit IN clause size to prevent extremely large queries
+  const MAX_IN_CLAUSE_SIZE = 500;
+  const safeBookIds = bookIds.slice(0, MAX_IN_CLAUSE_SIZE);
+  const safeLectureIds = lectureIds.slice(0, MAX_IN_CLAUSE_SIZE);
+  const safeCustomIds = customIds.slice(0, MAX_IN_CLAUSE_SIZE);
+
+  if (bookIds.length > MAX_IN_CLAUSE_SIZE) {
+    console.warn(`[data/studentContents] bookIds truncated from ${bookIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+  }
+  if (lectureIds.length > MAX_IN_CLAUSE_SIZE) {
+    console.warn(`[data/studentContents] lectureIds truncated from ${lectureIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+  }
+  if (customIds.length > MAX_IN_CLAUSE_SIZE) {
+    console.warn(`[data/studentContents] customIds truncated from ${customIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+  }
+
+  // 병렬 조회
+  const [booksResult, lecturesResult, customContentsResult] = await Promise.all([
+    safeBookIds.length > 0
+      ? (async () => {
+          try {
+            let query = supabase
+              .from("books")
+              .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,publisher,difficulty_level,total_pages,notes,created_at,updated_at")
+              .eq("student_id", studentId)
+              .in("id", safeBookIds);
+            
+            if (tenantId) {
+              query = query.eq("tenant_id", tenantId);
+            }
+            
+            const { data, error } = await query;
+            if (error) {
+              console.error("[data/studentContents] 책 조회 실패", error);
+              return [];
+            }
+            return (data as Book[]) ?? [];
+          } catch (err) {
+            console.error("[data/studentContents] 책 조회 예외", err);
+            return [];
+          }
+        })()
+      : Promise.resolve([]),
+    safeLectureIds.length > 0
+      ? (async () => {
+          try {
+            let query = supabase
+              .from("lectures")
+              .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
+              .eq("student_id", studentId)
+              .in("id", safeLectureIds);
+            
+            if (tenantId) {
+              query = query.eq("tenant_id", tenantId);
+            }
+            
+            const { data, error } = await query;
+            if (error) {
+              console.error("[data/studentContents] 강의 조회 실패", error);
+              return [];
+            }
+            return (data as Lecture[]) ?? [];
+          } catch (err) {
+            console.error("[data/studentContents] 강의 조회 예외", err);
+            return [];
+          }
+        })()
+      : Promise.resolve([]),
+    safeCustomIds.length > 0
+      ? (async () => {
+          try {
+            let query = supabase
+              .from("student_custom_contents")
+              .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
+              .eq("student_id", studentId)
+              .in("id", safeCustomIds);
+            
+            if (tenantId) {
+              query = query.eq("tenant_id", tenantId);
+            }
+            
+            const { data, error } = await query;
+            if (error) {
+              console.error("[data/studentContents] 커스텀 콘텐츠 조회 실패", error);
+              return [];
+            }
+            return (data as CustomContent[]) ?? [];
+          } catch (err) {
+            console.error("[data/studentContents] 커스텀 콘텐츠 조회 예외", err);
+            return [];
+          }
+        })()
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    books: booksResult,
+    lectures: lecturesResult,
+    customContents: customContentsResult,
+  };
+}
+

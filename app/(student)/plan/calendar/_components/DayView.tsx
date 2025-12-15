@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
@@ -29,7 +29,7 @@ type DayViewProps = {
   showOnlyStudyTime?: boolean;
 };
 
-export function DayView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: DayViewProps) {
+function DayViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: DayViewProps) {
   const dateStr = formatDateString(currentDate);
   const dayTypeInfo = dayTypes.get(dateStr);
   const dayType = dayTypeInfo?.type || "normal";
@@ -585,3 +585,31 @@ export function DayView({ plans, currentDate, exclusions, academySchedules, dayT
     </div>
   );
 }
+
+export const DayView = memo(DayViewComponent, (prevProps, nextProps) => {
+  // currentDate 비교 (날짜 문자열로 변환하여 비교)
+  const prevDateStr = prevProps.currentDate.toISOString().slice(0, 10);
+  const nextDateStr = nextProps.currentDate.toISOString().slice(0, 10);
+  
+  // plans 배열의 길이 비교
+  if (prevProps.plans.length !== nextProps.plans.length) {
+    return false;
+  }
+  
+  // 해당 날짜의 플랜만 비교
+  const prevDayPlans = prevProps.plans.filter(p => p.plan_date === prevDateStr);
+  const nextDayPlans = nextProps.plans.filter(p => p.plan_date === nextDateStr);
+  
+  if (prevDayPlans.length !== nextDayPlans.length) {
+    return false;
+  }
+  
+  return (
+    prevDateStr === nextDateStr &&
+    prevProps.showOnlyStudyTime === nextProps.showOnlyStudyTime &&
+    prevProps.exclusions.length === nextProps.exclusions.length &&
+    prevProps.academySchedules.length === nextProps.academySchedules.length &&
+    prevProps.dayTypes.size === nextProps.dayTypes.size &&
+    prevProps.dailyScheduleMap.size === nextProps.dailyScheduleMap.size
+  );
+});

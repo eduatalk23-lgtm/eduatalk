@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
@@ -27,7 +27,7 @@ type PlanConnection = {
   groupKey: string;
 };
 
-export function WeekView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: WeekViewProps) {
+function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: WeekViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -430,4 +430,24 @@ export function WeekView({ plans, currentDate, exclusions, academySchedules, day
     </>
   );
 }
+
+export const WeekView = memo(WeekViewComponent, (prevProps, nextProps) => {
+  // currentDate 비교 (날짜 문자열로 변환하여 비교)
+  const prevDateStr = prevProps.currentDate.toISOString().slice(0, 10);
+  const nextDateStr = nextProps.currentDate.toISOString().slice(0, 10);
+  
+  // plans 배열의 길이 비교
+  if (prevProps.plans.length !== nextProps.plans.length) {
+    return false;
+  }
+  
+  return (
+    prevDateStr === nextDateStr &&
+    prevProps.showOnlyStudyTime === nextProps.showOnlyStudyTime &&
+    prevProps.exclusions.length === nextProps.exclusions.length &&
+    prevProps.academySchedules.length === nextProps.academySchedules.length &&
+    prevProps.dayTypes.size === nextProps.dayTypes.size &&
+    prevProps.dailyScheduleMap.size === nextProps.dailyScheduleMap.size
+  );
+});
 

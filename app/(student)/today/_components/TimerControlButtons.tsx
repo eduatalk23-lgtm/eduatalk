@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Play, Pause, Square, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
@@ -19,7 +20,7 @@ type TimerControlButtonsProps = {
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function TimerControlButtons({
+function TimerControlButtonsComponent({
   planId,
   isActive,
   isPaused,
@@ -129,4 +130,24 @@ export function TimerControlButtons({
 
   return null;
 }
+
+export const TimerControlButtons = memo(TimerControlButtonsComponent, (prevProps, nextProps) => {
+  // 핵심 props만 비교하여 불필요한 리렌더링 방지
+  // 함수 props는 참조 동일성으로 비교 (useCallback으로 메모이제이션 필요)
+  return (
+    prevProps.planId === nextProps.planId &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.isPaused === nextProps.isPaused &&
+    prevProps.isCompleted === nextProps.isCompleted &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.hasOtherActivePlan === nextProps.hasOtherActivePlan &&
+    prevProps.campMode === nextProps.campMode &&
+    prevProps.className === nextProps.className &&
+    // 함수 props는 참조 동일성으로 비교 (부모에서 useCallback 사용 필요)
+    prevProps.onStart === nextProps.onStart &&
+    prevProps.onPause === nextProps.onPause &&
+    prevProps.onResume === nextProps.onResume &&
+    prevProps.onComplete === nextProps.onComplete
+  );
+});
 

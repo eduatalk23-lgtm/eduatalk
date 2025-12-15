@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms";
@@ -32,7 +32,7 @@ type ScoreListTableProps = {
 type SortField = "grade" | "semester" | "grade_score" | "raw_score" | "class_rank";
 type SortOrder = "asc" | "desc";
 
-export function ScoreListTable({
+function ScoreListTableComponent({
   scores,
   grade,
   semester,
@@ -337,4 +337,34 @@ export function ScoreListTable({
     </div>
   );
 }
+
+export const ScoreListTable = memo(ScoreListTableComponent, (prevProps, nextProps) => {
+  // scores 배열의 길이와 주요 속성 비교
+  if (prevProps.scores.length !== nextProps.scores.length) {
+    return false;
+  }
+  
+  // scores 배열의 각 항목 비교 (id와 주요 속성만)
+  for (let i = 0; i < prevProps.scores.length; i++) {
+    const prev = prevProps.scores[i];
+    const next = nextProps.scores[i];
+    if (
+      prev.id !== next.id ||
+      prev.grade !== next.grade ||
+      prev.semester !== next.semester ||
+      prev.raw_score !== next.raw_score ||
+      prev.grade_score !== next.grade_score
+    ) {
+      return false;
+    }
+  }
+  
+  return (
+    prevProps.grade === nextProps.grade &&
+    prevProps.semester === nextProps.semester &&
+    prevProps.subjectGroup === nextProps.subjectGroup &&
+    prevProps.type === nextProps.type &&
+    prevProps.DeleteButton === nextProps.DeleteButton
+  );
+});
 
