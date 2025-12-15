@@ -54,16 +54,16 @@ export function CalendarPlanCard({
       : "rounded-md";
     
     const borderColorClass = isCompleted
-      ? "border-green-300"
+      ? "border-green-300 dark:border-green-700"
       : isActive
-      ? "border-blue-300"
-      : "border-gray-200";
+      ? "border-blue-300 dark:border-blue-700"
+      : "border-gray-200 dark:border-gray-700";
     
     const bgColorClass = isCompleted
-      ? "bg-green-50"
+      ? "bg-green-50 dark:bg-green-900/30"
       : isActive
-      ? "bg-blue-50"
-      : "bg-white";
+      ? "bg-blue-50 dark:bg-blue-900/30"
+      : "bg-white dark:bg-gray-800";
     
     // 연결된 경우 border 조정
     const borderClasses = isConnected
@@ -81,16 +81,16 @@ export function CalendarPlanCard({
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
           <div 
-            className={`absolute left-0 right-0 bottom-0 h-[3px] translate-y-[6px] z-10 ${isCompleted ? "bg-green-300" : isActive ? "bg-blue-300" : "bg-gray-200"}`} 
+            className={`absolute left-0 right-0 bottom-0 h-[3px] translate-y-[6px] z-10 ${isCompleted ? "bg-green-300 dark:bg-green-700" : isActive ? "bg-blue-300 dark:bg-blue-700" : "bg-gray-200 dark:bg-gray-700"}`} 
           />
         )}
         <div className="flex items-center gap-0.5 min-w-0">
           <span className="text-xs shrink-0">{contentTypeIcon}</span>
-          <span className="truncate font-medium text-gray-900 min-w-0 flex-1 text-[10px] leading-tight">
+          <span className="truncate font-medium text-gray-900 dark:text-gray-100 min-w-0 flex-1 text-[10px] leading-tight">
             {plan.contentSubjectCategory || plan.contentSubject || "-"}
           </span>
           {plan.contentEpisode && (
-            <span className="shrink-0 text-[10px] text-gray-600">
+            <span className="shrink-0 text-[10px] text-gray-600 dark:text-gray-400">
               {plan.contentEpisode}
             </span>
           )}
@@ -113,10 +113,10 @@ export function CalendarPlanCard({
     <div
       className={`group rounded-lg border-2 p-4 md:p-5 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg relative ${
         isCompleted
-          ? "border-green-300 bg-green-50"
+          ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
           : isActive
-          ? "border-blue-300 bg-blue-50"
-          : "border-gray-200 bg-white"
+          ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30"
+          : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -149,12 +149,12 @@ export function CalendarPlanCard({
             )}
             {/* 교과 과목 */}
             {plan.contentSubjectCategory && (
-              <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+              <span className="shrink-0 rounded-full bg-gray-100 dark:bg-gray-800 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-300">
                 {plan.contentSubjectCategory}
               </span>
             )}
             {plan.contentSubject && (
-              <span className="shrink-0 text-xs font-medium text-gray-600">
+              <span className="shrink-0 text-xs font-medium text-gray-600 dark:text-gray-400">
                 {plan.contentSubject}
               </span>
             )}
@@ -163,9 +163,9 @@ export function CalendarPlanCard({
           {/* 2행: 교재명(또는 강의명) 회차 */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="text-xl md:text-2xl shrink-0">{contentTypeIcon}</span>
-            <h3 className="truncate text-base md:text-lg font-semibold text-gray-900 min-w-0 flex-1">{plan.contentTitle}</h3>
+            <h3 className="truncate text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 min-w-0 flex-1">{plan.contentTitle}</h3>
             {plan.contentEpisode && (
-              <span className="shrink-0 text-sm font-medium text-gray-600">
+              <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-400">
                 {plan.contentEpisode}
               </span>
             )}
@@ -173,7 +173,7 @@ export function CalendarPlanCard({
 
           {/* 3행: 학습 범위 */}
           {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
-            <div className="text-xs md:text-sm text-gray-500">
+            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
               {plan.content_type === "book" ? (
                 <>📖 {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</>
               ) : (
@@ -188,7 +188,7 @@ export function CalendarPlanCard({
         {showProgress && progressPercentage !== null && (
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <span className={`text-base md:text-lg font-bold ${
-              isCompleted ? "text-green-600" : isActive ? "text-blue-600" : "text-gray-600"
+              isCompleted ? "text-green-600 dark:text-green-400" : isActive ? "text-blue-600 dark:text-blue-400" : "text-gray-600 dark:text-gray-400"
             }`}>
               {progressPercentage}%
             </span>

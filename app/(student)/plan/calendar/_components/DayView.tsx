@@ -13,6 +13,7 @@ import { StatCard } from "./StatCard";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { getDayTypeColor } from "@/lib/constants/colors";
 
 type PlanConnection = {
   planIds: string[];
@@ -153,39 +154,18 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
 
   // dayType 기반으로 스타일 결정
   const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-  const isStudyDay = dayType === "학습일";
-  const isReviewDay = dayType === "복습일";
   const isTodayDate = isToday(currentDate);
 
-  // 배경색 결정
-  const bgColorClass = isHoliday
-    ? "border-red-300 bg-red-50"
-    : isTodayDate
-    ? "border-indigo-300 bg-indigo-50"
-    : isStudyDay
-    ? "border-blue-300 bg-blue-50"
-    : isReviewDay
-    ? "border-amber-300 bg-amber-50"
-    : "border-gray-200 bg-white";
+  // 날짜 타입 색상 가져오기 (다크 모드 지원)
+  const dayTypeColor = getDayTypeColor(
+    isHoliday ? "지정휴일" : dayType,
+    isTodayDate
+  );
 
-  // 텍스트 색상 결정
-  const textColorClass = isHoliday
-    ? "text-red-900"
-    : isTodayDate
-    ? "text-indigo-900"
-    : isStudyDay
-    ? "text-blue-900"
-    : isReviewDay
-    ? "text-amber-900"
-    : "text-gray-900";
-
-  const subtitleColorClass = isHoliday
-    ? "text-red-700"
-    : isStudyDay
-    ? "text-blue-700"
-    : isReviewDay
-    ? "text-amber-700"
-    : "text-gray-700";
+  const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
+  const textColorClass = dayTypeColor.boldText;
+  const subtitleColorClass = dayTypeColor.text;
+  const dayTypeBadgeClass = dayTypeColor.badge;
 
   // 플랜 통계 계산
   const totalPlans = dayPlans.length;
@@ -196,15 +176,6 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
         dayPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans
       )
     : 0;
-
-  // 날짜 타입 배지 스타일
-  const dayTypeBadgeClass = isHoliday
-    ? "bg-red-100 text-red-800"
-    : isStudyDay
-    ? "bg-blue-100 text-blue-800"
-    : isReviewDay
-    ? "bg-amber-100 text-amber-800"
-    : "bg-gray-100 text-gray-800";
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -257,13 +228,13 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
       </div>
 
       {/* 타임라인 뷰 (시간 순서대로) */}
-      <div className="rounded-xl border-2 border-gray-200 bg-white shadow-md">
-        <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 py-4">
-          <h3 className="text-xl font-bold text-gray-900">학습 플랜 타임라인</h3>
+      <div className="rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md">
+        <div className="border-b-2 border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 px-6 py-4">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">학습 플랜 타임라인</h3>
         </div>
         <div className="p-6">
           {TIME_BLOCKS.length === 0 ? (
-            <div className="flex flex-col gap-2 py-12 text-center text-gray-400">
+            <div className="flex flex-col gap-2 py-12 text-center text-gray-400 dark:text-gray-500">
               <div className="text-4xl">📅</div>
               <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
             </div>
@@ -568,14 +539,14 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
 
       {/* 플랜이 없는 경우 */}
       {dayPlans.length === 0 && dayAcademySchedules.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+        <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-12 text-center">
           <div className="flex flex-col gap-4">
             <div className="text-4xl">📅</div>
             <div className="flex flex-col gap-2">
-              <div className="text-lg font-semibold text-gray-900">
+              <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 이 날짜에는 플랜이 없습니다
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 다른 날짜를 선택하거나 새로운 플랜을 추가해주세요
               </div>
             </div>

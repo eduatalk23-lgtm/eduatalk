@@ -3,12 +3,13 @@
 import { Dialog } from "@/components/ui/Dialog";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
-import { formatDateFull, formatDateString } from "@/lib/date/calendarUtils";
+import { formatDateFull, formatDateString, isToday } from "@/lib/date/calendarUtils";
 import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { StatCard } from "./StatCard";
 import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
+import { getDayTypeColor } from "@/lib/constants/colors";
 
 type DayTimelineModalProps = {
   open: boolean;
@@ -71,24 +72,16 @@ export function DayTimelineModal({
 
   const dayType = dayTypeInfo?.type || "normal";
   const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-  const isStudyDay = dayType === "학습일";
-  const isReviewDay = dayType === "복습일";
+  const isTodayDate = isToday(date);
 
-  const bgColorClass = isHoliday
-    ? "border-red-300 bg-red-50"
-    : isStudyDay
-    ? "border-blue-300 bg-blue-50"
-    : isReviewDay
-    ? "border-amber-300 bg-amber-50"
-    : "border-gray-200 bg-white";
+  // 날짜 타입 색상 가져오기 (다크 모드 지원)
+  const dayTypeColor = getDayTypeColor(
+    isHoliday ? "지정휴일" : dayType,
+    isTodayDate
+  );
 
-  const dayTypeBadgeClass = isHoliday
-    ? "bg-red-100 text-red-800"
-    : isStudyDay
-    ? "bg-blue-100 text-blue-800"
-    : isReviewDay
-    ? "bg-amber-100 text-amber-800"
-    : "bg-gray-100 text-gray-800";
+  const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
+  const dayTypeBadgeClass = dayTypeColor.badge;
 
   const description = dayTypeInfo && dayType !== "normal" ? (
     <div className="flex items-center gap-2">
@@ -96,7 +89,7 @@ export function DayTimelineModal({
         {dayTypeInfo.icon} {dayTypeInfo.label}
       </span>
       {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
-        <span className="text-sm text-gray-700">
+        <span className="text-sm text-gray-700 dark:text-gray-300">
           ({dayExclusions[0].exclusion_type})
         </span>
       )}
@@ -137,7 +130,7 @@ export function DayTimelineModal({
             <div className="flex flex-col gap-3">
               {sortedSlots.length === 0 ? (
                 plans.length === 0 ? (
-                  <div className="flex flex-col gap-2 py-12 text-center text-gray-400">
+                  <div className="flex flex-col gap-2 py-12 text-center text-gray-400 dark:text-gray-500">
                     <div className="text-4xl">📅</div>
                     <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
                   </div>
@@ -170,14 +163,14 @@ export function DayTimelineModal({
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{icon}</span>
                           <div className="flex flex-1 flex-col gap-1">
-                            <div className="font-semibold text-gray-900">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100">
                               {slot.academy.academy_name || "학원"}
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
                               {slot.start} ~ {slot.end}
                             </div>
                             {slot.academy.subject && (
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 dark:text-gray-400">
                                 {slot.academy.subject}
                               </div>
                             )}
@@ -193,13 +186,13 @@ export function DayTimelineModal({
                       return (
                         <div
                           key={`slot-${index}-study`}
-                          className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4"
+                          className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="font-semibold text-gray-900">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100">
                               {slot.start} ~ {slot.end}
                             </div>
-                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                            <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 px-3 py-1 text-xs font-medium text-blue-800 dark:text-blue-300">
                               학습시간
                             </span>
                           </div>
@@ -222,13 +215,13 @@ export function DayTimelineModal({
                       return (
                         <div
                           key={`slot-${index}-study-empty`}
-                          className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-4"
                         >
                           <div className="flex items-center justify-between">
-                            <div className="font-medium text-gray-700">
+                            <div className="font-medium text-gray-700 dark:text-gray-300">
                               {slot.start} ~ {slot.end}
                             </div>
-                            <span className="text-sm text-gray-400">플랜 없음</span>
+                            <span className="text-sm text-gray-400 dark:text-gray-500">플랜 없음</span>
                           </div>
                         </div>
                       );
