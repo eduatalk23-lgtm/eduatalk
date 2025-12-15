@@ -829,6 +829,85 @@ export const inputFieldBase = cn(
 );
 
 /**
+ * 폼 라벨 텍스트 스타일
+ * CSS 변수 기반으로 다크 모드를 자동 지원
+ */
+export function getFormLabelClasses(className?: string): string {
+  return cn("text-sm font-medium", textSecondaryVar, className);
+}
+
+/**
+ * 폼 입력 필드 스타일
+ * 에러 상태, 초기 설정 하이라이트 등을 지원
+ * @param hasError 에러 상태 여부
+ * @param isInitialHighlight 초기 설정 하이라이트 여부 (기본값: false)
+ * @param disabled 비활성화 여부 (기본값: false)
+ * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getFormInputClasses(
+  hasError: boolean = false,
+  isInitialHighlight: boolean = false,
+  disabled: boolean = false,
+  className?: string
+): string {
+  const baseClasses = cn(
+    "rounded-lg border px-3 py-2",
+    textPrimaryVar,
+    "placeholder:" + textPlaceholderVar,
+    "focus:outline-none focus:ring-2"
+  );
+
+  if (hasError) {
+    return cn(
+      baseClasses,
+      "border-red-500 dark:border-red-600",
+      "focus:border-red-500 dark:focus:border-red-600",
+      "focus:ring-red-200 dark:focus:ring-red-800",
+      className
+    );
+  }
+
+  if (isInitialHighlight) {
+    return cn(
+      baseClasses,
+      "border-indigo-400 dark:border-indigo-600",
+      "bg-indigo-50 dark:bg-indigo-900/30",
+      "focus:border-indigo-500 dark:focus:border-indigo-400",
+      "focus:ring-indigo-200 dark:focus:ring-indigo-800",
+      className
+    );
+  }
+
+  if (disabled) {
+    return cn(
+      baseClasses,
+      "border-gray-300 dark:border-gray-700",
+      "bg-gray-100 dark:bg-gray-800",
+      "text-gray-500 dark:text-gray-400",
+      "cursor-not-allowed",
+      className
+    );
+  }
+
+  return cn(
+    baseClasses,
+    "border-gray-300 dark:border-gray-700",
+    "focus:border-indigo-500 dark:focus:border-indigo-400",
+    "focus:ring-indigo-200 dark:focus:ring-indigo-800",
+    className
+  );
+}
+
+/**
+ * 폼 에러 메시지 스타일
+ * 다크 모드를 포함한 에러 메시지 텍스트 색상
+ */
+export function getFormErrorClasses(className?: string): string {
+  return cn("text-sm text-red-500 dark:text-red-400", className);
+}
+
+/**
  * 빠른 조정 버튼 스타일
  * 모달 내부의 빠른 액션 버튼에 사용
  */

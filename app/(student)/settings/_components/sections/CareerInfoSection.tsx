@@ -5,6 +5,10 @@ import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import SchoolMultiSelect from "@/components/ui/SchoolMultiSelect";
 import { CAREER_FIELD_OPTIONS } from "@/lib/utils/studentProfile";
+import {
+  getFormLabelClasses,
+  getFormInputClasses,
+} from "@/lib/utils/darkMode";
 
 function CareerInfoSection() {
   const { formData, updateFormData } = useSettings();
@@ -23,10 +27,10 @@ function CareerInfoSection() {
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label className={getFormLabelClasses()}>
             진학 희망 대학교 (1순위, 2순위, 3순위)
           </label>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             최대 3개까지 선택 가능하며, 선택한 순서대로 1순위, 2순위, 3순위로 표시됩니다.
           </p>
           <SchoolMultiSelect
@@ -41,7 +45,7 @@ function CareerInfoSection() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label className={getFormLabelClasses()}>
             희망 진로 계열
           </label>
           <select
@@ -49,7 +53,7 @@ function CareerInfoSection() {
             onChange={(e) =>
               handleFieldChange("desired_career_field")(e.target.value)
             }
-            className="rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className={getFormInputClasses(false, false, false)}
           >
             <option value="">선택하세요</option>
             {CAREER_FIELD_OPTIONS.map((option) => (

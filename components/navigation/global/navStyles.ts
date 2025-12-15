@@ -56,9 +56,35 @@ export const sidebarWidths = {
 
 /**
  * 디자인 시스템 컬러 토큰
+ *
+ * 네비게이션 컴포넌트에서 사용하는 색상 토큰을 중앙 집중식으로 관리합니다.
+ *
+ * @remarks
+ * 텍스트 색상과 배경 색상을 명확히 구분하여 정의합니다:
+ * - `bg*` 접두사: 배경 색상 (예: bg50, bg100, bg800, bg900)
+ * - `text*` 접두사: 텍스트 색상 (예: text400, text600, text700, text900)
+ * - `hover*` 접두사: 호버 상태 색상 (예: hoverBg, hoverText, hoverBgLight)
+ *
+ * 레거시 숫자 키(50, 100, 400 등)는 하위 호환성을 위해 유지되지만 deprecated 상태입니다.
+ * 새로운 코드에서는 명시적 네이밍(bg50, text400 등)을 사용하세요.
+ *
+ * @example
+ * ```tsx
+ * // 올바른 사용법
+ * <div className={designTokens.colors.gray.bg50}>
+ *   <span className={designTokens.colors.gray.text700}>텍스트</span>
+ * </div>
+ *
+ * // 레거시 키 사용 (deprecated)
+ * <div className={designTokens.colors.gray[50]}>...</div>
+ * ```
  */
 export const designTokens = {
   colors: {
+    /**
+     * Primary 색상 토큰 (Indigo 계열)
+     * 네비게이션 활성 상태 등에 사용
+     */
     primary: {
       50: "bg-indigo-50 dark:bg-indigo-900/30",
       100: "bg-indigo-100 dark:bg-indigo-900/50",
@@ -68,19 +94,55 @@ export const designTokens = {
       border: "border-indigo-500",
       borderLight: "border-indigo-200 dark:border-indigo-800",
     },
+    /**
+     * Gray 색상 토큰
+     *
+     * 텍스트와 배경 색상을 명확히 구분하여 정의합니다.
+     * - 배경 색상: bg50, bg100, bg800, bg900
+     * - 텍스트 색상: text200, text400, text500, text600, text700, text900
+     * - 호버 색상: hoverBg, hoverText, hoverBgLight
+     *
+     * 레거시 숫자 키는 deprecated 상태입니다.
+     */
     gray: {
-      50: "bg-gray-50 dark:bg-gray-800",
-      100: "bg-gray-100 dark:bg-gray-800",
-      200: "text-gray-200 dark:text-gray-200",
-      400: "text-gray-400 dark:text-gray-400",
-      500: "text-gray-500 dark:text-gray-400",
-      600: "text-gray-600 dark:text-gray-400",
-      700: "text-gray-700 dark:text-gray-200",
-      800: "bg-gray-800 dark:bg-gray-700",
-      900: "bg-gray-900 dark:bg-gray-100",
+      // 배경 색상
+      bg50: "bg-gray-50 dark:bg-gray-800",
+      bg100: "bg-gray-100 dark:bg-gray-800",
+      bg800: "bg-gray-800 dark:bg-gray-700",
+      bg900: "bg-gray-900 dark:bg-gray-100",
+
+      // 텍스트 색상
+      text200: "text-gray-200 dark:text-gray-200",
+      text400: "text-gray-400 dark:text-gray-400",
+      text500: "text-gray-500 dark:text-gray-400",
+      text600: "text-gray-600 dark:text-gray-400",
+      text700: "text-gray-700 dark:text-gray-200",
+      text900: "text-gray-900 dark:text-gray-100",
+
+      // 호버 색상
       hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-800",
       hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
       hoverBgLight: "hover:bg-gray-50 dark:hover:bg-gray-800",
+
+      // 하위 호환성을 위한 레거시 키 (deprecated)
+      // @deprecated bg50 사용
+      50: "bg-gray-50 dark:bg-gray-800",
+      // @deprecated bg100 사용
+      100: "bg-gray-100 dark:bg-gray-800",
+      // @deprecated text200 사용
+      200: "text-gray-200 dark:text-gray-200",
+      // @deprecated text400 사용
+      400: "text-gray-400 dark:text-gray-400",
+      // @deprecated text500 사용
+      500: "text-gray-500 dark:text-gray-400",
+      // @deprecated text600 사용
+      600: "text-gray-600 dark:text-gray-400",
+      // @deprecated text700 사용
+      700: "text-gray-700 dark:text-gray-200",
+      // @deprecated bg800 사용
+      800: "bg-gray-800 dark:bg-gray-700",
+      // @deprecated bg900 사용
+      900: "bg-gray-900 dark:bg-gray-100",
     },
   },
   focus: {
@@ -89,32 +151,21 @@ export const designTokens = {
 };
 
 /**
- * 공통 활성 상태 스타일 (중복 제거)
- * border-l을 위한 padding-left와 border 스타일을 통합
- */
-const activeBorderStyle = "pl-3 border-l-2";
-
-/**
- * 하위 메뉴용 활성 상태 스타일
- * 하위 메뉴는 이미 들여쓰기가 있어 패딩을 조정
- */
-const activeBorderStyleSubMenu = "pl-3 border-l-2";
-
-/**
  * 네비게이션 아이템 기본 스타일
+ * 모든 아이템에 border-l-2를 기본으로 두어 활성/비활성 전환 시 레이아웃 시프트 방지
  */
 export const navItemStyles = {
-  // 기본 스타일
-  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
+  // 기본 스타일 - border-l-2를 기본으로 두어 레이아웃 시프트 방지
+  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition border-l-2",
 
   // 포커스 스타일
   focus: designTokens.focus.ring,
 
-  // 활성 상태 - border-l을 위한 padding-left 추가
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+  // 활성 상태
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${designTokens.colors.primary.border}`,
 
-  // 비활성 상태
-  inactive: `${designTokens.colors.gray[700]} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText}`,
+  // 비활성 상태 - 투명 보더로 레이아웃 유지
+  inactive: `${designTokens.colors.gray.text700} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText} border-transparent`,
 
   // 축소 모드
   collapsed: "justify-center px-2",
@@ -127,7 +178,7 @@ export const navItemStyles = {
  * 카테고리 헤더 스타일
  */
 export const categoryHeaderStyles = {
-  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
+  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition border-l-2",
   focus: navItemStyles.focus,
   active: navItemStyles.active,
   inactive: navItemStyles.inactive,
@@ -138,20 +189,20 @@ export const categoryHeaderStyles = {
  * 하위 메뉴 아이템 스타일
  */
 export const subItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition border-l-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
-  inactive: navItemStyles.inactive,
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${designTokens.colors.primary.border}`,
+  inactive: `${designTokens.colors.gray.text700} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText} border-transparent`,
 };
 
 /**
  * 자식 메뉴 아이템 스타일 (3단계)
  */
 export const childItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition border-l-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
-  inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,
+  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${designTokens.colors.primary.border}`,
+  inactive: `${designTokens.colors.gray.text600} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText} border-transparent`,
 };
 
 /**
@@ -233,23 +284,51 @@ export function getChildItemClasses({
 }
 
 /**
- * 툴팁 스타일 (Breadcrumbs 등에서 사용)
+ * 툴팁 스타일 (Breadcrumbs, CategoryNav 등에서 사용)
+ *
+ * @remarks
+ * - `base`: 기본 툴팁 (Breadcrumbs 등에서 사용 - 위쪽에 표시)
+ * - `side`: 사이드 툴팁 (CategoryNav collapsed 모드에서 사용 - 오른쪽에 표시, hover 시 표시)
+ * - `arrow`: 툴팁 화살표 스타일
+ *
+ * @example
+ * ```tsx
+ * // Breadcrumbs에서 사용
+ * <span className={tooltipStyles.base} role="tooltip">툴팁 내용</span>
+ *
+ * // CategoryNav collapsed 모드에서 사용
+ * <span className={tooltipStyles.side} role="tooltip">카테고리 이름</span>
+ * ```
  */
 export const tooltipStyles = {
+  /** 기본 툴팁 (Breadcrumbs 등에서 사용 - 위쪽에 표시) */
   base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-[50] pointer-events-none",
+  /** 사이드 툴팁 (CategoryNav collapsed 모드에서 사용 - 오른쪽에 표시, hover 시 표시) */
+  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
+  /** 툴팁 화살표 스타일 */
   arrow:
     "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",
 };
 
 /**
  * Breadcrumbs 스타일
+ *
+ * @remarks
+ * 브레드크럼 네비게이션 컴포넌트에서 사용하는 스타일을 정의합니다.
+ * - `container`: 브레드크럼 컨테이너 (배경, 텍스트, 테두리 포함)
+ * - `list`: 브레드크럼 리스트 레이아웃
+ * - `separator`: 구분자 스타일
+ * - `link`: 링크 항목 스타일 (hover 효과 포함)
+ * - `current`: 현재 페이지 항목 스타일 (강조 표시)
+ *
+ * 모든 스타일은 다크 모드를 지원합니다.
  */
 export const breadcrumbStyles = {
-  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray[600]} ${designTokens.colors.gray[50]} border-b border-gray-100 dark:border-gray-700`,
+  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray.text600} ${designTokens.colors.gray.bg50} border-b border-gray-100 dark:border-gray-700`,
   list: "flex items-center gap-1 flex-wrap max-w-full",
-  separator: designTokens.colors.gray[400],
+  separator: designTokens.colors.gray.text400,
   link: `${designTokens.colors.gray.hoverText} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition`,
-  current: `font-medium ${designTokens.colors.gray[900]} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]`,
+  current: `font-medium text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]`,
 };
 
 /**

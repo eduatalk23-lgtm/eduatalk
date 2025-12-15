@@ -5,6 +5,11 @@ import { useSettings } from "../SettingsContext";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { usePhoneValidation } from "../../_hooks/usePhoneValidation";
 import { cn } from "@/lib/cn";
+import {
+  getFormLabelClasses,
+  getFormInputClasses,
+  getFormErrorClasses,
+} from "@/lib/utils/darkMode";
 
 function ContactInfoSection() {
   const { formData, errors, updateFormData, setErrors } = useSettings();
@@ -17,7 +22,7 @@ function ContactInfoSection() {
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label className={getFormLabelClasses()}>
             본인 연락처
           </label>
           <input
@@ -29,41 +34,36 @@ function ContactInfoSection() {
                 setErrors((prev) => ({ ...prev, phone: undefined }));
               }
             }}
-            className={cn(
-              "rounded-lg border px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:outline-none focus:ring-2",
-              errors.phone
-                ? "border-red-500 focus:border-red-500 focus:ring-red-200"
-                : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
-            )}
+            className={getFormInputClasses(!!errors.phone, false, false)}
             placeholder="010-1234-5678"
           />
           {errors.phone && (
-            <p className="text-sm text-red-500">{errors.phone}</p>
+            <p className={getFormErrorClasses()}>{errors.phone}</p>
           )}
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label className={getFormLabelClasses()}>
             모 연락처
           </label>
           <input
             type="tel"
             value={formData.mother_phone}
             onChange={handlePhoneChange("mother_phone")}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className={getFormInputClasses(false, false, false)}
             placeholder="010-1234-5678"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">
+          <label className={getFormLabelClasses()}>
             부 연락처
           </label>
           <input
             type="tel"
             value={formData.father_phone}
             onChange={handlePhoneChange("father_phone")}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            className={getFormInputClasses(false, false, false)}
             placeholder="010-1234-5678"
           />
         </div>

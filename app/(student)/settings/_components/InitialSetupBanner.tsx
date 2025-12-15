@@ -25,21 +25,21 @@ export function InitialSetupBanner({ formData }: InitialSetupBannerProps) {
   const progress = (completedCount / totalCount) * 100;
 
   return (
-    <div className="rounded-xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 md:p-8">
+    <div className="rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-6 md:p-8">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold text-indigo-900">
+          <h2 className="text-lg font-semibold text-indigo-900 dark:text-indigo-100">
             환영합니다! 👋
           </h2>
-          <p className="text-sm text-indigo-700">
+          <p className="text-sm text-indigo-700 dark:text-indigo-300">
             학습 계획을 시작하기 위해 기본 정보를 입력해주세요.
           </p>
         </div>
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-indigo-900">진행 상황</span>
-            <span className="text-indigo-700">
+            <span className="font-medium text-indigo-900 dark:text-indigo-100">진행 상황</span>
+            <span className="text-indigo-700 dark:text-indigo-300">
               {completedCount}/{totalCount}
             </span>
           </div>
@@ -47,7 +47,7 @@ export function InitialSetupBanner({ formData }: InitialSetupBannerProps) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-indigo-900">필수 항목</p>
+          <p className="text-xs font-medium text-indigo-900 dark:text-indigo-100">필수 항목</p>
           <div className="flex flex-col gap-2">
             {requiredFields.map((field) => (
               <div
@@ -58,8 +58,8 @@ export function InitialSetupBanner({ formData }: InitialSetupBannerProps) {
                   className={cn(
                     "h-4 w-4 rounded-full border-2 flex items-center justify-center",
                     field.value
-                      ? "border-indigo-600 bg-indigo-600"
-                      : "border-indigo-300 bg-white"
+                      ? "border-indigo-600 dark:border-indigo-500 bg-indigo-600 dark:bg-indigo-500"
+                      : "border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800"
                   )}
                 >
                   {field.value && (
@@ -80,7 +80,7 @@ export function InitialSetupBanner({ formData }: InitialSetupBannerProps) {
                 </div>
                 <span
                   className={cn(
-                    field.value ? "text-indigo-900" : "text-indigo-600"
+                    field.value ? "text-indigo-900 dark:text-indigo-100" : "text-indigo-600 dark:text-indigo-400"
                   )}
                 >
                   {field.label}

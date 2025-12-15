@@ -337,7 +337,7 @@ export default function SettingsPageClient({
     return (
       <PageContainer widthType="FORM">
         <div className="flex flex-col gap-6">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
           <SkeletonForm />
         </div>
       </PageContainer>

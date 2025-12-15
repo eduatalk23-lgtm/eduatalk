@@ -4,6 +4,11 @@ import { useState, useTransition } from "react";
 import { updateNotificationSettings } from "../actions/notificationActions";
 import { cn } from "@/lib/cn";
 import { SectionCard } from "@/components/ui/SectionCard";
+import {
+  getFormLabelClasses,
+  getFormInputClasses,
+  textPrimaryVar,
+} from "@/lib/utils/darkMode";
 
 type NotificationSettings = {
   plan_start_enabled: boolean;
@@ -93,8 +98,8 @@ export function NotificationSettingsView({
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <div className="font-medium text-gray-900">학습 시작 알림</div>
-                <div className="text-sm text-gray-500">
+                <div className={cn("font-medium", textPrimaryVar)}>학습 시작 알림</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   플랜을 시작할 때 알림을 받습니다
                 </div>
               </div>
@@ -103,7 +108,7 @@ export function NotificationSettingsView({
               onClick={() => handleToggle("plan_start_enabled")}
               className={cn(
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                settings.plan_start_enabled ? "bg-indigo-600" : "bg-gray-200"
+                settings.plan_start_enabled ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
               )}
             >
               <span
@@ -222,9 +227,9 @@ export function NotificationSettingsView({
           </div>
 
             {settings.plan_delay_enabled && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className={getFormLabelClasses()}>
                     지연 임계값 (분)
                   </label>
                   <input
@@ -239,9 +244,9 @@ export function NotificationSettingsView({
                         parseInt(e.target.value) || 30
                       )
                     }
-                    className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    className={cn(getFormInputClasses(false, false, false), "w-32")}
                   />
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     예정 시간보다 이 시간만큼 늦으면 알림을 받습니다
                   </p>
                 </div>
@@ -254,7 +259,7 @@ export function NotificationSettingsView({
       <SectionCard title="알림 시간">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
-            <label className="w-32 text-sm font-medium text-gray-700">
+            <label className={cn("w-32", getFormLabelClasses())}>
               알림 시작 시간
             </label>
             <input
@@ -263,13 +268,13 @@ export function NotificationSettingsView({
               onChange={(e) =>
                 handleChange("notification_time_start", e.target.value)
               }
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className={cn(getFormInputClasses(false, false, false), "text-sm")}
             />
-            <span className="text-sm text-gray-500">부터</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">부터</span>
           </div>
 
           <div className="flex items-center gap-4">
-            <label className="w-32 text-sm font-medium text-gray-700">
+            <label className={cn("w-32", getFormLabelClasses())}>
               알림 종료 시간
             </label>
             <input
@@ -278,9 +283,9 @@ export function NotificationSettingsView({
               onChange={(e) =>
                 handleChange("notification_time_end", e.target.value)
               }
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className={cn(getFormInputClasses(false, false, false), "text-sm")}
             />
-            <span className="text-sm text-gray-500">까지</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400">까지</span>
           </div>
         </div>
       </SectionCard>
@@ -313,7 +318,7 @@ export function NotificationSettingsView({
         {settings.quiet_hours_enabled && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
-              <label className="w-32 text-sm font-medium text-gray-700">
+              <label className={cn("w-32", getFormLabelClasses())}>
                 시작 시간
               </label>
               <input
@@ -322,12 +327,12 @@ export function NotificationSettingsView({
                 onChange={(e) =>
                   handleChange("quiet_hours_start", e.target.value)
                 }
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className={cn(getFormInputClasses(false, false, false), "text-sm")}
               />
             </div>
 
             <div className="flex items-center gap-4">
-              <label className="w-32 text-sm font-medium text-gray-700">
+              <label className={cn("w-32", getFormLabelClasses())}>
                 종료 시간
               </label>
               <input
@@ -336,7 +341,7 @@ export function NotificationSettingsView({
                 onChange={(e) =>
                   handleChange("quiet_hours_end", e.target.value)
                 }
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className={cn(getFormInputClasses(false, false, false), "text-sm")}
               />
             </div>
             </div>
@@ -365,7 +370,7 @@ export function NotificationSettingsView({
                   ? "bg-indigo-600"
                   : settings.attendance_check_in_enabled === false
                   ? "bg-gray-200"
-                  : "bg-gray-100"
+                  : "bg-gray-100 dark:bg-gray-800"
               )}
             >
               <span
@@ -395,7 +400,7 @@ export function NotificationSettingsView({
                   ? "bg-indigo-600"
                   : settings.attendance_check_out_enabled === false
                   ? "bg-gray-200"
-                  : "bg-gray-100"
+                  : "bg-gray-100 dark:bg-gray-800"
               )}
             >
               <span
@@ -425,7 +430,7 @@ export function NotificationSettingsView({
                   ? "bg-indigo-600"
                   : settings.attendance_absent_enabled === false
                   ? "bg-gray-200"
-                  : "bg-gray-100"
+                  : "bg-gray-100 dark:bg-gray-800"
               )}
             >
               <span
@@ -455,7 +460,7 @@ export function NotificationSettingsView({
                   ? "bg-indigo-600"
                   : settings.attendance_late_enabled === false
                   ? "bg-gray-200"
-                  : "bg-gray-100"
+                  : "bg-gray-100 dark:bg-gray-800"
               )}
             >
               <span
@@ -472,9 +477,9 @@ export function NotificationSettingsView({
       </SectionCard>
 
       {/* 저장 버튼 */}
-      <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">
+      <div className="flex items-center justify-end gap-3 border-t border-gray-200 dark:border-gray-700 pt-6">
         {hasChanges && (
-          <p className="flex-1 text-sm text-gray-500">
+          <p className="flex-1 text-sm text-gray-500 dark:text-gray-400">
             변경사항이 있습니다. 저장하지 않으면 변경사항이 사라집니다.
           </p>
         )}
