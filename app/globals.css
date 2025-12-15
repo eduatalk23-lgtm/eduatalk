@@ -4,6 +4,8 @@
   Tailwind CSS 4 Dark Mode Variant
   - Supports class-based dark mode via next-themes (.dark class)
   - System preference is handled by next-themes enableSystem option
+  - Uses &:where(.dark, .dark) pattern for optimal performance and compatibility
+  - This pattern ensures dark mode works with both manual class switching and system preference
 */
 @variant dark (&:where(.dark, .dark));
 

@@ -160,10 +160,19 @@ export function getGradeColorHex(grade: number | null | undefined): string {
 // Day Type Colors (날짜 타입별 색상)
 // ============================================
 
+import { getDayTypeColorObject } from "@/lib/utils/darkMode";
+
 export type DayType = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정" | "normal";
 
 /**
  * 날짜 타입별 색상 반환
+ * 
+ * @deprecated 이 함수는 하위 호환성을 위해 유지됩니다.
+ * 새로운 코드에서는 `getDayTypeColorObject()`를 직접 사용하세요.
+ * 
+ * @param dayType 날짜 타입
+ * @param isToday 오늘 날짜 여부
+ * @returns 색상 객체 (bg, border, text, boldText, badge)
  */
 export function getDayTypeColor(
   dayType: DayType | string,
@@ -175,70 +184,25 @@ export function getDayTypeColor(
   boldText: string;
   badge: string;
 } {
-  // 오늘 날짜는 최우선
-  if (isToday) {
-    return {
-      bg: "bg-primary-50 dark:bg-primary-900/30",
-      border: "border-primary-300 dark:border-primary-700",
-      text: "text-primary-600 dark:text-primary-400",
-      boldText: "text-primary-900 dark:text-primary-100",
-      badge: "bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200",
-    };
-  }
-
-  // 휴일 처리
-  if (
-    dayType === "지정휴일" ||
-    dayType === "휴가" ||
-    dayType === "개인일정"
-  ) {
-    return {
-      bg: "bg-error-50 dark:bg-error-900/30",
-      border: "border-error-300 dark:border-error-700",
-      text: "text-error-600 dark:text-error-400",
-      boldText: "text-error-900 dark:text-error-100",
-      badge: "bg-error-100 dark:bg-error-800 text-error-800 dark:text-error-200",
-    };
-  }
-
-  // 학습일
-  if (dayType === "학습일") {
-    return {
-      bg: "bg-info-50 dark:bg-info-900/30",
-      border: "border-info-300 dark:border-info-700",
-      text: "text-info-600 dark:text-info-400",
-      boldText: "text-info-900 dark:text-info-100",
-      badge: "bg-info-100 dark:bg-info-800 text-info-800 dark:text-info-200",
-    };
-  }
-
-  // 복습일
-  if (dayType === "복습일") {
-    return {
-      bg: "bg-warning-50 dark:bg-warning-900/30",
-      border: "border-warning-300 dark:border-warning-700",
-      text: "text-warning-600 dark:text-warning-400",
-      boldText: "text-warning-900 dark:text-warning-100",
-      badge: "bg-warning-100 dark:bg-warning-800 text-warning-800 dark:text-warning-200",
-    };
-  }
-
-  // 일반 날짜
-  return {
-    bg: "bg-white dark:bg-gray-800",
-    border: "border-secondary-200 dark:border-secondary-700",
-    text: "text-secondary-600 dark:text-secondary-400",
-    boldText: "text-secondary-900 dark:text-secondary-100",
-    badge: "bg-secondary-100 dark:bg-secondary-800 text-secondary-800 dark:text-secondary-200",
-  };
+  // darkMode.ts의 getDayTypeColorObject를 활용하여 일관성 유지
+  return getDayTypeColorObject(dayType, isToday);
 }
 
 // ============================================
 // Risk Colors (위험도 색상)
 // ============================================
 
+import { getRiskColorClasses } from "@/lib/utils/darkMode";
+
 /**
  * 위험도 점수에 따른 색상 반환
+ * 
+ * @deprecated 이 함수는 하위 호환성을 위해 유지됩니다.
+ * 새로운 코드에서는 `getRiskColorClasses()`를 직접 사용하거나,
+ * hex 값이 필요한 경우에만 이 함수를 사용하세요.
+ * 
+ * @param riskScore 위험도 점수 (0-100)
+ * @returns 색상 객체 (text, bg, border, badge, hex)
  */
 export function getRiskColor(riskScore: number): {
   text: string;
@@ -247,43 +211,51 @@ export function getRiskColor(riskScore: number): {
   badge: string;
   hex: string; // 차트 라이브러리용
 } {
+  // darkMode.ts의 getRiskColorClasses를 활용하여 일관성 유지
+  const classes = getRiskColorClasses(riskScore);
+  const classArray = classes.split(" ");
+  
+  // 클래스에서 색상 정보 추출 (다크 모드 포함)
+  const extractClass = (prefix: string): string => {
+    const lightClass = classArray.find(c => c.startsWith(prefix) && !c.includes("dark:"));
+    const darkClass = classArray.find(c => c.startsWith(`dark:${prefix}`));
+    return lightClass ? (darkClass ? `${lightClass} ${darkClass}` : lightClass) : "";
+  };
+  
+  const bg = extractClass("bg-");
+  const text = extractClass("text-");
+  const border = extractClass("border-");
+  
+  // hex 값은 차트 라이브러리용으로 유지
+  let hex: string;
   if (riskScore >= 70) {
-    // 매우 위험
-    return {
-      text: "text-error-700 dark:text-error-400",
-      bg: "bg-error-50 dark:bg-error-900/30",
-      border: "border-error-300 dark:border-error-700",
-      badge: "bg-error-600 dark:bg-error-500 text-white",
-      hex: "#ef4444", // red-500
-    };
+    hex = "#ef4444"; // red-500
+  } else if (riskScore >= 50) {
+    hex = "#f59e0b"; // amber-500
+  } else if (riskScore >= 30) {
+    hex = "#eab308"; // yellow-500
+  } else {
+    hex = "#10b981"; // emerald-500
   }
-  if (riskScore >= 50) {
-    // 위험
-    return {
-      text: "text-warning-700 dark:text-warning-400",
-      bg: "bg-warning-50 dark:bg-warning-900/30",
-      border: "border-warning-300 dark:border-warning-700",
-      badge: "bg-warning-500 dark:bg-warning-600 text-white",
-      hex: "#f59e0b", // amber-500
-    };
+  
+  // badge 색상 결정
+  let badge: string;
+  if (riskScore >= 70) {
+    badge = "bg-error-600 dark:bg-error-500 text-white";
+  } else if (riskScore >= 50) {
+    badge = "bg-warning-500 dark:bg-warning-600 text-white";
+  } else if (riskScore >= 30) {
+    badge = "bg-warning-400 dark:bg-warning-500 text-white";
+  } else {
+    badge = "bg-success-500 dark:bg-success-600 text-white";
   }
-  if (riskScore >= 30) {
-    // 주의
-    return {
-      text: "text-warning-600 dark:text-warning-400",
-      bg: "bg-warning-50 dark:bg-warning-900/30",
-      border: "border-warning-200 dark:border-warning-700",
-      badge: "bg-warning-400 dark:bg-warning-500 text-white",
-      hex: "#eab308", // yellow-500
-    };
-  }
-  // 양호
+  
   return {
-    text: "text-success-700 dark:text-success-400",
-    bg: "bg-success-50 dark:bg-success-900/30",
-    border: "border-success-200 dark:border-success-700",
-    badge: "bg-success-500 dark:bg-success-600 text-white",
-    hex: "#10b981", // emerald-500
+    text: text || "text-gray-700 dark:text-gray-200",
+    bg: bg || "bg-gray-50 dark:bg-gray-900",
+    border: border || "border-gray-200 dark:border-gray-700",
+    badge,
+    hex,
   };
 }
 

@@ -35,6 +35,10 @@ import { cn } from "@/lib/cn";
  * globals.css에 정의된 CSS 변수를 활용하여 더 유연한 테마 관리
  * 
  * @note Tailwind CSS 4의 @theme 시스템과 연동
+ * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
+ * 
+ * @deprecated 새로운 코드에서는 CSS 변수 기반 유틸리티를 우선 사용하세요.
+ * 기존 Tailwind 클래스 기반 유틸리티는 하위 호환성을 위해 유지됩니다.
  */
 export const textPrimaryVar = "text-[var(--text-primary)]";
 export const textSecondaryVar = "text-[var(--text-secondary)]";
@@ -44,6 +48,22 @@ export const textDisabledVar = "text-[var(--text-disabled)]";
 export const bgSurfaceVar = "bg-[var(--background)]";
 export const bgPageVar = "bg-[var(--background)]";
 export const textForegroundVar = "text-[var(--foreground)]";
+
+/**
+ * CSS 변수 기반 배경색 유틸리티
+ * 
+ * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
+ */
+export const bgSurfaceVarNew = "bg-[var(--background)]";
+export const bgPageVarNew = "bg-[var(--background)]";
+
+/**
+ * CSS 변수 기반 테두리 색상 유틸리티
+ * 
+ * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
+ */
+export const borderDefaultVar = "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]";
+export const borderInputVar = "border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))]";
 
 // ============================================
 // 제네릭 색상 클래스 유틸리티
@@ -79,6 +99,7 @@ export function getColorClasses<T extends string>(
 // ============================================
 
 // 배경색
+// @deprecated 새로운 코드에서는 bgSurfaceVar, bgPageVar 등을 사용하세요.
 export const bgSurface = "bg-white dark:bg-gray-800";
 export const bgPage = "bg-gray-50 dark:bg-gray-900";
 export const bgHover = "hover:bg-gray-50 dark:hover:bg-gray-800";
@@ -182,12 +203,14 @@ export function getDisabledColorClasses(variant: "opacity" | "muted" | "full" = 
 }
 
 // 텍스트 색상
+// @deprecated 새로운 코드에서는 textPrimaryVar, textSecondaryVar 등을 사용하세요.
 export const textPrimary = "text-gray-900 dark:text-gray-100";
 export const textSecondary = "text-gray-700 dark:text-gray-200";
 export const textTertiary = "text-gray-600 dark:text-gray-400";
 export const textMuted = "text-gray-500 dark:text-gray-400";
 
 // 테두리
+// @deprecated 새로운 코드에서는 borderDefaultVar, borderInputVar 등을 사용하세요.
 export const borderDefault = "border-gray-200 dark:border-gray-700";
 export const borderInput = "border-gray-300 dark:border-gray-700";
 export const divideDefault = "divide-gray-200 dark:divide-gray-700";
@@ -1103,6 +1126,94 @@ export function getDayTypeBadgeClasses(type: DayTypeBadge | string): string {
   }
   // 기본값: 학습일 색상
   return dayTypeBadgeColorMap["학습일"];
+}
+
+/**
+ * 날짜 타입별 전체 색상 객체 반환
+ * 
+ * 날짜 타입에 따라 배경, 테두리, 텍스트, 배지 색상을 포함한 전체 색상 객체를 반환합니다.
+ * 캘린더 뷰 등에서 사용됩니다.
+ * 
+ * @param type 날짜 타입
+ * @param isToday 오늘 날짜 여부
+ * @returns 색상 객체 (bg, border, text, boldText, badge)
+ * 
+ * @example
+ * ```tsx
+ * import { getDayTypeColorObject } from "@/lib/utils/darkMode";
+ * 
+ * const colors = getDayTypeColorObject("학습일", false);
+ * <div className={cn("rounded-lg border p-4", colors.bg, colors.border)}>
+ *   <h3 className={colors.boldText}>제목</h3>
+ * </div>
+ * ```
+ */
+export function getDayTypeColorObject(
+  type: DayTypeBadge | string,
+  isToday: boolean = false
+): {
+  bg: string;
+  border: string;
+  text: string;
+  boldText: string;
+  badge: string;
+} {
+  // 오늘 날짜는 최우선
+  if (isToday) {
+    return {
+      bg: "bg-primary-50 dark:bg-primary-900/30",
+      border: "border-primary-300 dark:border-primary-700",
+      text: "text-primary-600 dark:text-primary-400",
+      boldText: "text-primary-900 dark:text-primary-100",
+      badge: "bg-primary-100 dark:bg-primary-800 text-primary-800 dark:text-primary-200",
+    };
+  }
+
+  // 날짜 타입별 색상 매핑
+  const typeMap: Record<string, { bg: string; border: string; text: string; boldText: string }> = {
+    "학습일": {
+      bg: "bg-info-50 dark:bg-info-900/30",
+      border: "border-info-300 dark:border-info-700",
+      text: "text-info-600 dark:text-info-400",
+      boldText: "text-info-900 dark:text-info-100",
+    },
+    "복습일": {
+      bg: "bg-warning-50 dark:bg-warning-900/30",
+      border: "border-warning-300 dark:border-warning-700",
+      text: "text-warning-600 dark:text-warning-400",
+      boldText: "text-warning-900 dark:text-warning-100",
+    },
+    "지정휴일": {
+      bg: "bg-yellow-50 dark:bg-yellow-900/30",
+      border: "border-yellow-300 dark:border-yellow-700",
+      text: "text-yellow-600 dark:text-yellow-400",
+      boldText: "text-yellow-900 dark:text-yellow-100",
+    },
+    "휴가": {
+      bg: "bg-gray-100 dark:bg-gray-800",
+      border: "border-gray-200 dark:border-gray-700",
+      text: "text-gray-600 dark:text-gray-400",
+      boldText: "text-gray-900 dark:text-gray-100",
+    },
+    "개인일정": {
+      bg: "bg-purple-50 dark:bg-purple-900/30",
+      border: "border-purple-300 dark:border-purple-700",
+      text: "text-purple-600 dark:text-purple-400",
+      boldText: "text-purple-900 dark:text-purple-100",
+    },
+  };
+
+  const baseColors = typeMap[type] || {
+    bg: bgSurface,
+    border: borderDefault,
+    text: textSecondary,
+    boldText: textPrimary,
+  };
+
+  return {
+    ...baseColors,
+    badge: getDayTypeBadgeClasses(type),
+  };
 }
 
 // ============================================

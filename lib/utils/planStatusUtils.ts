@@ -155,16 +155,19 @@ export function getStatusLabel(status: PlanStatus): string {
 /**
  * 상태에 따른 색상 클래스 반환 (Tailwind CSS)
  * 
+ * @deprecated 이 함수는 하위 호환성을 위해 유지됩니다.
+ * 새로운 코드에서는 `darkMode.ts`의 `getStatusBadgeColorClasses()`를 사용하세요.
+ * 
  * @param status 플랜 상태
- * @returns 색상 클래스
+ * @returns 다크 모드를 포함한 색상 클래스
  */
 export function getStatusColorClass(status: PlanStatus): string {
   const colors: Record<PlanStatus, string> = {
-    pending: 'text-gray-600 bg-gray-100',
-    in_progress: 'text-blue-600 bg-blue-100',
-    completed: 'text-green-600 bg-green-100',
-    canceled: 'text-red-600 bg-red-100',
+    pending: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800',
+    in_progress: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30',
+    completed: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30',
+    canceled: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30',
   };
-  return colors[status] || 'text-gray-600 bg-gray-100';
+  return colors[status] || 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
 }
 
