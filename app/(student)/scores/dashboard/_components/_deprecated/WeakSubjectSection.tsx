@@ -5,7 +5,7 @@
 "use client";
 
 import React from "react";
-import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import type { SchoolScoreRow, MockScoreRow } from "../../_utils/scoreQueries";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
 type WeakSubjectSectionProps = {

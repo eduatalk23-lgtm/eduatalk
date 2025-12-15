@@ -9,7 +9,7 @@ import {
   useRecharts,
   ChartLoadingSkeleton,
 } from "@/components/charts/LazyRecharts";
-import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
+import type { SchoolScoreRow, MockScoreRow } from "../../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 
 type CompareSectionProps = {
