@@ -13,6 +13,21 @@ import { StudentActions } from "./_components/StudentActions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { getWeekRange } from "@/lib/date/weekRange";
+import { cn } from "@/lib/cn";
+import {
+  bgSurface,
+  bgPage,
+  bgHover,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  borderDefault,
+  borderInput,
+  tableHeaderBase,
+  tableCellBase,
+  tableContainer,
+  tableRowBase,
+} from "@/lib/utils/darkMode";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -290,7 +305,7 @@ export default async function AdminStudentsPage({
           >
             {/* 검색 */}
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={cn("text-sm font-medium", textSecondary)}>
                 이름 검색
               </label>
               <input
@@ -298,13 +313,19 @@ export default async function AdminStudentsPage({
                 name="search"
                 placeholder="이름으로 검색..."
                 defaultValue={searchQuery}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className={cn(
+                  "w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                  borderInput,
+                  bgSurface,
+                  textPrimary,
+                  "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                )}
               />
             </div>
 
             {/* 학년 필터 */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={cn("text-sm font-medium", textSecondary)}>
                 학년
               </label>
               <input
@@ -312,13 +333,19 @@ export default async function AdminStudentsPage({
                 name="grade"
                 placeholder="전체"
                 defaultValue={gradeFilter}
-                className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className={cn(
+                  "w-24 rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                  borderInput,
+                  bgSurface,
+                  textPrimary,
+                  "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                )}
               />
             </div>
 
             {/* 반 필터 */}
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
+              <label className={cn("text-sm font-medium", textSecondary)}>
                 반
               </label>
               <input
@@ -326,47 +353,69 @@ export default async function AdminStudentsPage({
                 name="class"
                 placeholder="전체"
                 defaultValue={classFilter}
-                className="w-24 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className={cn(
+                  "w-24 rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                  borderInput,
+                  bgSurface,
+                  textPrimary,
+                  "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                )}
               />
             </div>
 
           {/* 성적 입력 여부 필터 */}
           <div className="flex items-end">
-            <label className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
+            <label className={cn(
+              "flex items-center gap-2 rounded-lg border px-4 py-2 transition",
+              borderInput,
+              bgSurface,
+              bgHover
+            )}>
               <input
                 type="checkbox"
                 name="has_score"
                 value="true"
                 defaultChecked={hasScoreFilter}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
               />
-              <span className="text-sm text-gray-700">성적 입력 학생만</span>
+              <span className={cn("text-sm", textSecondary)}>성적 입력 학생만</span>
             </label>
           </div>
 
           {/* 비활성화 학생 표시 필터 */}
           <div className="flex items-end">
-            <label className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 hover:bg-gray-50">
+            <label className={cn(
+              "flex items-center gap-2 rounded-lg border px-4 py-2 transition",
+              borderInput,
+              bgSurface,
+              bgHover
+            )}>
               <input
                 type="checkbox"
                 name="show_inactive"
                 value="true"
                 defaultChecked={showInactiveFilter}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600"
               />
-              <span className="text-sm text-gray-700">비활성화 포함</span>
+              <span className={cn("text-sm", textSecondary)}>비활성화 포함</span>
             </label>
           </div>
 
           {/* 정렬 */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">
+            <label className={cn("text-sm font-medium", textSecondary)}>
               정렬
             </label>
             <select
               name="sort"
               defaultValue={sortBy}
-              className="rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className={cn(
+                "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                borderInput,
+                bgSurface,
+                textPrimary,
+                "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+              )}
             >
               <option value="name">이름순</option>
               <option value="created_at">최근 생성일</option>
@@ -377,7 +426,7 @@ export default async function AdminStudentsPage({
           {/* 검색 버튼 */}
           <button
             type="submit"
-            className="rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className="rounded-lg bg-indigo-600 dark:bg-indigo-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
           >
             검색
           </button>
@@ -390,7 +439,13 @@ export default async function AdminStudentsPage({
             sortBy !== "name") && (
             <Link
               href="/admin/students"
-              className="rounded-lg border border-gray-300 bg-white px-6 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className={cn(
+                "rounded-lg border px-6 py-2 text-sm font-semibold transition",
+                borderInput,
+                bgSurface,
+                textSecondary,
+                bgHover
+              )}
             >
               초기화
             </Link>
@@ -405,55 +460,37 @@ export default async function AdminStudentsPage({
             description="아직 등록된 학생이 없습니다."
           />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className={cn("overflow-x-auto rounded-lg shadow-sm", tableContainer)}>
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  이름
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  학년
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  반
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  이번주 학습시간
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  이번주 플랜 실행률
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  최근 학습일
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  성적 입력
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  상태
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  작업
-                </th>
+                <th className={tableHeaderBase}>이름</th>
+                <th className={tableHeaderBase}>학년</th>
+                <th className={tableHeaderBase}>반</th>
+                <th className={tableHeaderBase}>이번주 학습시간</th>
+                <th className={tableHeaderBase}>이번주 플랜 실행률</th>
+                <th className={tableHeaderBase}>최근 학습일</th>
+                <th className={tableHeaderBase}>성적 입력</th>
+                <th className={tableHeaderBase}>상태</th>
+                <th className={tableHeaderBase}>작업</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className={cn("divide-y", "divide-gray-200 dark:divide-gray-700", bgSurface)}>
               {studentsWithStats.map((student) => (
-                <tr key={student.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+                <tr key={student.id} className={tableRowBase}>
+                  <td className={cn(tableCellBase, "font-medium", textPrimary)}>
                     {student.name ?? "이름 없음"}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.grade ?? "-"}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.class ?? "-"}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.studyTimeMinutes}분
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     <div className="flex items-center gap-2">
                       <ProgressBar
                         value={student.planCompletionRate}
@@ -465,40 +502,40 @@ export default async function AdminStudentsPage({
                       <span>{student.planCompletionRate}%</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.lastActivity
                       ? new Date(student.lastActivity).toLocaleDateString(
                           "ko-KR"
                         )
                       : "-"}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.hasScore ? (
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
+                      <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-semibold text-green-700 dark:text-green-300">
                         입력됨
                       </span>
                     ) : (
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                      <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
                         미입력
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     {student.is_active === false ? (
-                      <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                      <span className="rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-1 text-xs font-semibold text-red-700 dark:text-red-300">
                         비활성화
                       </span>
                     ) : (
-                      <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
+                      <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-1 text-xs font-semibold text-green-700 dark:text-green-300">
                         활성
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                  <td className={cn(tableCellBase, textMuted)}>
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/admin/students/${student.id}`}
-                        className="text-indigo-600 hover:text-indigo-900"
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300"
                       >
                         상세 보기
                       </Link>
@@ -526,12 +563,18 @@ export default async function AdminStudentsPage({
                   ...params,
                   page: String(page - 1),
                 }).toString()}`}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={cn(
+                  "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+                  borderInput,
+                  bgSurface,
+                  textSecondary,
+                  bgHover
+                )}
               >
                 이전
               </Link>
             )}
-            <span className="text-sm text-gray-600">
+            <span className={cn("text-sm", textSecondary)}>
               {page} / {totalPages}
             </span>
             {page < totalPages && (
@@ -540,7 +583,13 @@ export default async function AdminStudentsPage({
                   ...params,
                   page: String(page + 1),
                 }).toString()}`}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                className={cn(
+                  "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+                  borderInput,
+                  bgSurface,
+                  textSecondary,
+                  bgHover
+                )}
               >
                 다음
               </Link>

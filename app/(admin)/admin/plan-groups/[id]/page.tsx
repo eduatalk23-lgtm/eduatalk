@@ -14,6 +14,15 @@ import {
 } from "@/lib/constants/planLabels";
 import { getCampTemplateImpactSummary, getCampTemplate } from "@/lib/data/campTemplates";
 import { parseCampConfiguration } from "@/lib/camp/campAdapter";
+import { cn } from "@/lib/cn";
+import {
+  bgSurface,
+  bgHover,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  borderDefault,
+} from "@/lib/utils/darkMode";
 
 type AdminPlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -201,14 +210,22 @@ export default async function AdminPlanGroupDetailPage({
     <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
       <div className="flex flex-col gap-6">
         {/* 상단 액션 바 */}
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+        <div className={cn(
+          "flex items-center justify-between rounded-lg border px-4 py-3 shadow-sm",
+          borderDefault,
+          bgSurface
+        )}>
           <Link
             href={
               isCampMode && group.camp_template_id
                 ? `/admin/camp-templates/${group.camp_template_id}/participants`
                 : "/admin/dashboard"
             }
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition",
+              textSecondary,
+              bgHover
+            )}
           >
             <svg
               className="h-4 w-4"
@@ -231,13 +248,17 @@ export default async function AdminPlanGroupDetailPage({
 
         {/* 학생 정보 카드 */}
         {studentInfo && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <div className={cn(
+            "rounded-lg border p-4",
+            "border-blue-200 dark:border-blue-800",
+            "bg-blue-50 dark:bg-blue-900/30"
+          )}>
             <div className="flex items-center gap-3">
               <div>
-                <p className="text-sm font-semibold text-blue-900">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
                   {studentInfo.name || "이름 없음"}
                 </p>
-                <p className="text-xs text-blue-700">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   {studentInfo.grade && studentInfo.class
                     ? `${studentInfo.grade}학년 ${studentInfo.class}반`
                     : studentInfo.grade
@@ -250,12 +271,16 @@ export default async function AdminPlanGroupDetailPage({
         )}
 
         {/* 헤더 정보 카드 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className={cn(
+          "rounded-xl border p-6 shadow-sm",
+          borderDefault,
+          bgSurface
+        )}>
           <div className="flex flex-col gap-4">
             {/* 상태 뱃지들 */}
             <div className="flex flex-wrap items-center gap-2">
               {hasPlans && (
-                <span className="inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
+                <span className="inline-block rounded-full bg-blue-100 dark:bg-blue-900/30 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
                   플랜 생성 완료
                 </span>
               )}
@@ -270,16 +295,19 @@ export default async function AdminPlanGroupDetailPage({
 
             {/* 플랜 그룹 이름 */}
             <div>
-              <h1 className="text-3xl font-semibold text-gray-900">
+              <h1 className={cn("text-3xl font-semibold", textPrimary)}>
                 {group.name || "플랜 그룹"}
               </h1>
             </div>
 
             {/* 핵심 정보 */}
-            <div className="grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className={cn(
+              "grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3",
+              "border-gray-100 dark:border-gray-800"
+            )}>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-medium text-gray-500">플랜 목적</dt>
-                <dd className="text-sm font-semibold text-gray-900">
+                <dt className={cn("text-xs font-medium", textMuted)}>플랜 목적</dt>
+                <dd className={cn("text-sm font-semibold", textPrimary)}>
                   {group.plan_purpose
                     ? planPurposeLabels[group.plan_purpose] ||
                       group.plan_purpose
@@ -287,10 +315,10 @@ export default async function AdminPlanGroupDetailPage({
                 </dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-medium text-gray-500">
+                <dt className={cn("text-xs font-medium", textMuted)}>
                   스케줄러 유형
                 </dt>
-                <dd className="text-sm font-semibold text-gray-900">
+                <dd className={cn("text-sm font-semibold", textPrimary)}>
                   {group.scheduler_type
                     ? schedulerTypeLabels[group.scheduler_type] ||
                       group.scheduler_type
@@ -298,8 +326,8 @@ export default async function AdminPlanGroupDetailPage({
                 </dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-medium text-gray-500">학습 기간</dt>
-                <dd className="text-sm font-semibold text-gray-900">
+                <dt className={cn("text-xs font-medium", textMuted)}>학습 기간</dt>
+                <dd className={cn("text-sm font-semibold", textPrimary)}>
                   {group.period_start && group.period_end
                     ? `${new Date(group.period_start).toLocaleDateString(
                         "ko-KR",
@@ -319,10 +347,10 @@ export default async function AdminPlanGroupDetailPage({
               </div>
               {group.target_date && (
                 <div className="flex flex-col gap-1">
-                  <dt className="text-xs font-medium text-gray-500">
+                  <dt className={cn("text-xs font-medium", textMuted)}>
                     목표 날짜
                   </dt>
-                  <dd className="text-sm font-semibold text-gray-900">
+                  <dd className={cn("text-sm font-semibold", textPrimary)}>
                     {new Date(group.target_date).toLocaleDateString("ko-KR")}
                   </dd>
                 </div>
@@ -333,10 +361,15 @@ export default async function AdminPlanGroupDetailPage({
 
         {/* 템플릿 통계 (캠프 모드일 때만 표시) */}
         {isCampMode && group.camp_template_id && templateImpactSummary && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <div className={cn(
+            "rounded-lg border p-5 text-sm",
+            "border-amber-200 dark:border-amber-800",
+            "bg-amber-50 dark:bg-amber-900/30",
+            "text-amber-900 dark:text-amber-200"
+          )}>
             <div className="flex flex-wrap items-center gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wide text-amber-700">
+                <p className="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-300">
                   초대 현황
                 </p>
                 <p className="text-base font-semibold">
@@ -345,9 +378,9 @@ export default async function AdminPlanGroupDetailPage({
                   {templateImpactSummary.invitationStats.declined}
                 </p>
               </div>
-              <div className="h-6 w-px bg-amber-200" aria-hidden="true" />
+              <div className="h-6 w-px bg-amber-200 dark:bg-amber-800" aria-hidden="true" />
               <div>
-                <p className="text-xs uppercase tracking-wide text-amber-700">
+                <p className="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-300">
                   플랜 진행
                 </p>
                 <p className="text-base font-semibold">
@@ -362,17 +395,21 @@ export default async function AdminPlanGroupDetailPage({
 
         {/* 진행 상황 카드 */}
         {hasPlans && (
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className={cn(
+            "rounded-xl border p-6 shadow-sm",
+            borderDefault,
+            bgSurface
+          )}>
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-gray-500">진행 상황</p>
-                <p className="text-2xl font-semibold text-gray-900">
+                <p className={cn("text-sm font-medium", textMuted)}>진행 상황</p>
+                <p className={cn("text-2xl font-semibold", textPrimary)}>
                   {completedCount} / {planCount}
                 </p>
               </div>
               <div className="flex flex-col gap-1 text-right">
-                <p className="text-sm font-medium text-gray-500">완료율</p>
-                <p className="text-2xl font-semibold text-gray-900">
+                <p className={cn("text-sm font-medium", textMuted)}>완료율</p>
+                <p className={cn("text-2xl font-semibold", textPrimary)}>
                   {planCount > 0
                     ? Math.round((completedCount / planCount) * 100)
                     : 0}
@@ -384,7 +421,11 @@ export default async function AdminPlanGroupDetailPage({
         )}
 
         {/* 탭 컨텐츠 영역 */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className={cn(
+          "rounded-xl border p-6 shadow-sm",
+          borderDefault,
+          bgSurface
+        )}>
           <PlanGroupDetailView
             group={group}
             contents={contents}

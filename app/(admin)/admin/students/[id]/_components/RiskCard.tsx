@@ -12,6 +12,9 @@ export async function RiskCard({ studentId }: RiskCardProps) {
   const supabase = await createSupabaseServerClient();
   const risk = await getStudentRiskScore(supabase, studentId);
 
+  // levelColors는 유틸리티 함수로 대체 가능하지만, 
+  // 현재 구조상 border와 bg가 함께 필요한 경우이므로 유지
+  // 다만 다크 모드 클래스는 이미 포함되어 있음
   const levelColors = {
     high: "border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/30",
     medium: "border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30",
