@@ -535,3 +535,134 @@ export const adminLevelColors: Record<string, string> = {
   low: "bg-green-500 dark:bg-green-600 text-white",
 };
 
+// ============================================
+// 모달 및 폼 스타일 유틸리티
+// ============================================
+
+/**
+ * 모달 섹션 컨테이너 스타일
+ * 모달 내부의 섹션 구분에 사용
+ */
+export const modalSectionContainer = cn(
+  "rounded-lg border p-4",
+  borderDefault,
+  bgSurface
+);
+
+/**
+ * 모달 섹션 헤더 스타일
+ */
+export const modalSectionHeader = cn(
+  "text-sm font-semibold",
+  textPrimary
+);
+
+/**
+ * 모달 섹션 설명 스타일
+ */
+export const modalSectionDescription = cn(
+  "text-xs",
+  textMuted
+);
+
+/**
+ * 입력 필드 기본 스타일
+ * 다크모드를 포함한 일관된 입력 필드 스타일
+ */
+export const inputFieldBase = cn(
+  "w-full rounded-lg border px-3 py-2 text-sm",
+  "focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
+  borderInput,
+  textPrimary
+);
+
+/**
+ * 빠른 조정 버튼 스타일
+ * 모달 내부의 빠른 액션 버튼에 사용
+ */
+export const quickActionButton = cn(
+  "flex flex-1 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition",
+  borderInput,
+  bgSurface,
+  textSecondary,
+  "hover:bg-gray-50 dark:hover:bg-gray-700"
+);
+
+/**
+ * 미리보기 카드 스타일
+ * 정보 미리보기 섹션에 사용
+ */
+export const previewCardStyles = cn(
+  "rounded-lg border p-4 flex flex-col gap-3",
+  "border-blue-200 dark:border-blue-800",
+  "bg-blue-50 dark:bg-blue-900/30"
+);
+
+/**
+ * 상태별 카드 스타일
+ * 완료/진행중/대기 상태에 따른 카드 스타일
+ */
+export const statusCardStyles = {
+  completed: cn(
+    "border-green-200 dark:border-green-800",
+    "bg-green-50/50 dark:bg-green-900/30"
+  ),
+  inProgress: cn(
+    "border-indigo-300 dark:border-indigo-700",
+    "bg-indigo-50 dark:bg-indigo-900/30",
+    "shadow-md"
+  ),
+  pending: cn(
+    borderDefault,
+    bgSurface
+  ),
+};
+
+/**
+ * 상태별 텍스트 색상
+ */
+export const statusTextStyles = {
+  completed: "text-green-900 dark:text-green-200",
+  inProgress: "text-indigo-900 dark:text-indigo-200",
+  pending: textPrimary,
+  completedSubtext: "text-green-700 dark:text-green-300",
+  inProgressSubtext: "text-indigo-700 dark:text-indigo-300",
+  pendingSubtext: textSecondary,
+};
+
+/**
+ * 상태별 배지 색상
+ */
+export const statusBadgeStyles = {
+  completed: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+  inProgress: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
+  pending: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+};
+
+/**
+ * 모달 내부 구분선 스타일
+ */
+export const modalDivider = cn(
+  "border-t",
+  "border-gray-300 dark:border-gray-600"
+);
+
+/**
+ * 모달 내부 라벨 스타일
+ */
+export const modalLabel = cn(
+  "block text-xs font-medium",
+  textSecondary
+);
+
+/**
+ * 모달 취소 버튼 스타일
+ */
+export const modalCancelButton = cn(
+  "rounded-lg border px-4 py-2 text-sm font-medium transition",
+  borderInput,
+  bgSurface,
+  textSecondary,
+  "hover:bg-gray-50 dark:hover:bg-gray-700"
+);
+

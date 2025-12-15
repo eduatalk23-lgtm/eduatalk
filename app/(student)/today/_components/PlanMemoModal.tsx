@@ -4,6 +4,16 @@ import { useState, useEffect } from "react";
 import { Save } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { PlanGroup } from "../_utils/planGroupUtils";
+import { cn } from "@/lib/cn";
+import {
+  inputFieldBase,
+  modalLabel,
+  modalCancelButton,
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  inlineButtonBase,
+} from "@/lib/utils/darkMode";
 
 type PlanMemoModalProps = {
   group: PlanGroup;
@@ -93,7 +103,7 @@ export function PlanMemoModal({
           <div className="flex flex-col gap-6">
             {/* 메모 입력 영역 */}
             <div className="flex flex-col gap-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className={modalLabel}>
                 메모 입력
               </label>
               <textarea
@@ -106,11 +116,14 @@ export function PlanMemoModal({
                 }}
                 placeholder="메모를 입력하세요..."
                 rows={8}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className={cn(
+                  inputFieldBase,
+                  "py-3 placeholder-gray-400 dark:placeholder-gray-500"
+                )}
               />
-              <div className="flex items-center justify-between text-xs text-gray-600">
+              <div className={cn("flex items-center justify-between text-xs", textTertiary)}>
                 <span>줄바꿈 및 특수 문자 허용</span>
-                <span className={memo.length > MAX_MEMO_LENGTH * 0.9 ? "text-amber-600" : ""}>
+                <span className={memo.length > MAX_MEMO_LENGTH * 0.9 ? "text-amber-600 dark:text-amber-500" : ""}>
                   {memo.length}/{MAX_MEMO_LENGTH}자
                 </span>
               </div>
@@ -120,17 +133,21 @@ export function PlanMemoModal({
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg">💡</span>
-                <h3 className="text-sm font-semibold text-gray-900">추천 메모</h3>
+                <h3 className={cn("text-sm font-semibold", textPrimary)}>추천 메모</h3>
               </div>
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs text-gray-700">템플릿:</p>
+                  <p className={cn("text-xs", textSecondary)}>템플릿:</p>
                   <div className="flex flex-wrap gap-2">
                     {MEMO_TEMPLATES.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => handleTemplateClick(item.template)}
-                        className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600"
+                        className={cn(
+                          inlineButtonBase(),
+                          "hover:border-indigo-300 dark:hover:border-indigo-600",
+                          "hover:text-indigo-600 dark:hover:text-indigo-400"
+                        )}
                         aria-label={`${item.label} 템플릿 추가`}
                       >
                         <span>{item.icon}</span>
@@ -140,13 +157,17 @@ export function PlanMemoModal({
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs text-gray-700">빠른 입력:</p>
+                  <p className={cn("text-xs", textSecondary)}>빠른 입력:</p>
                   <div className="flex flex-wrap gap-2">
                     {QUICK_INPUTS.map((item, index) => (
                       <button
                         key={index}
                         onClick={() => handleQuickInputClick(item.template)}
-                        className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 hover:border-indigo-300 hover:text-indigo-600"
+                        className={cn(
+                          inlineButtonBase(),
+                          "hover:border-indigo-300 dark:hover:border-indigo-600",
+                          "hover:text-indigo-600 dark:hover:text-indigo-400"
+                        )}
                         aria-label={`${item.label} 빠른 입력 추가`}
                       >
                         <span>{item.icon}</span>
@@ -163,7 +184,7 @@ export function PlanMemoModal({
       <DialogFooter>
         <button
           onClick={onClose}
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+          className={modalCancelButton}
         >
           취소
         </button>

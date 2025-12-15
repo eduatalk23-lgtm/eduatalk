@@ -5,6 +5,11 @@ import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
 import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
+import { cn } from "@/lib/cn";
+import {
+  cardBase,
+  textMuted,
+} from "@/lib/utils/darkMode";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -81,15 +86,20 @@ export function PlanTimer({
         )}
 
         {showCompletionMeta && (
-          <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
-            <div className="font-semibold text-indigo-950">학습 완료 기록</div>
+          <div className={cn(
+            "flex flex-col gap-2 rounded-lg border p-3 text-xs",
+            "border-indigo-100 dark:border-indigo-800",
+            "bg-indigo-50 dark:bg-indigo-900/30",
+            "text-indigo-900 dark:text-indigo-200"
+          )}>
+            <div className={cn("font-semibold", "text-indigo-950 dark:text-indigo-100")}>학습 완료 기록</div>
             <dl className="grid grid-cols-[92px,1fr] gap-1">
-              <dt className="text-indigo-700">시작 시간</dt>
+              <dt className="text-indigo-700 dark:text-indigo-300">시작 시간</dt>
               <dd className="text-right font-medium">{formattedStartTime}</dd>
-              <dt className="text-indigo-700">종료 시간</dt>
+              <dt className="text-indigo-700 dark:text-indigo-300">종료 시간</dt>
               <dd className="text-right font-medium">{formattedEndTime}</dd>
-              <dt className="text-indigo-700">총 학습</dt>
-              <dd className="text-right font-semibold text-indigo-950">{formattedPureStudyTime}</dd>
+              <dt className="text-indigo-700 dark:text-indigo-300">총 학습</dt>
+              <dd className={cn("text-right font-semibold", "text-indigo-950 dark:text-indigo-100")}>{formattedPureStudyTime}</dd>
             </dl>
           </div>
         )}
@@ -108,7 +118,7 @@ export function PlanTimer({
         />
 
         {timeStats.pauseCount > 0 && showTimer && (
-          <div className="text-xs text-gray-500">
+          <div className={cn("text-xs", textMuted)}>
             일시정지: {timeStats.pauseCount}회
             {timeStats.pausedDuration > 0 && <span> ({formatTime(timeStats.pausedDuration)})</span>}
           </div>
@@ -119,7 +129,7 @@ export function PlanTimer({
 
   // 전체 뷰
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div className={cn(cardBase, "p-6")}>
       <div className="flex flex-col gap-4">
         {showTimer && (
           <TimerDisplay
@@ -132,27 +142,31 @@ export function PlanTimer({
         )}
 
         {showCompletionMeta && (
-          <div className="flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50 p-4">
-            <h4 className="text-sm font-semibold text-indigo-900">학습 완료 기록</h4>
-            <div className="grid gap-3 text-sm text-indigo-950 md:grid-cols-3">
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">시작 시간</span>
+          <div className={cn(
+            "flex flex-col gap-3 rounded-lg border p-4",
+            "border-indigo-100 dark:border-indigo-800",
+            "bg-indigo-50 dark:bg-indigo-900/30"
+          )}>
+            <h4 className={cn("text-sm font-semibold", "text-indigo-900 dark:text-indigo-200")}>학습 완료 기록</h4>
+            <div className={cn("grid gap-3 text-sm md:grid-cols-3", "text-indigo-950 dark:text-indigo-100")}>
+              <div className={cn("flex flex-col gap-1 rounded-md p-3", "bg-white/60 dark:bg-white/10")}>
+                <span className={cn("text-xs", "text-indigo-600 dark:text-indigo-300")}>시작 시간</span>
                 <span className="text-sm font-semibold">{formattedStartTime}</span>
               </div>
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">종료 시간</span>
+              <div className={cn("flex flex-col gap-1 rounded-md p-3", "bg-white/60 dark:bg-white/10")}>
+                <span className={cn("text-xs", "text-indigo-600 dark:text-indigo-300")}>종료 시간</span>
                 <span className="text-sm font-semibold">{formattedEndTime}</span>
               </div>
-              <div className="flex flex-col gap-1 rounded-md bg-white/60 p-3">
-                <span className="text-xs text-indigo-600">총 학습 시간 (일시정지 제외)</span>
-                <span className="text-lg font-bold text-indigo-900">{formattedPureStudyTime}</span>
+              <div className={cn("flex flex-col gap-1 rounded-md p-3", "bg-white/60 dark:bg-white/10")}>
+                <span className={cn("text-xs", "text-indigo-600 dark:text-indigo-300")}>총 학습 시간 (일시정지 제외)</span>
+                <span className={cn("text-lg font-bold", "text-indigo-900 dark:text-indigo-200")}>{formattedPureStudyTime}</span>
               </div>
             </div>
           </div>
         )}
 
         {timeStats.pauseCount > 0 && showTimer && (
-          <div className="text-xs text-gray-500">
+          <div className={cn("text-xs", textMuted)}>
             일시정지: {timeStats.pauseCount}회
             {timeStats.pausedDuration > 0 && <span> ({formatTime(timeStats.pausedDuration)})</span>}
           </div>

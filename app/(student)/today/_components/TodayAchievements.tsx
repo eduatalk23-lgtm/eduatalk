@@ -6,6 +6,14 @@ import {
   formatKoreanDateWithDay,
   getRelativeDateLabel,
 } from "../_utils/dateDisplay";
+import { cn } from "@/lib/cn";
+import {
+  cardBase,
+  textPrimary,
+  textSecondary,
+  textMuted,
+  textTertiary,
+} from "@/lib/utils/darkMode";
 
 type TodayAchievementsProps = {
   todayProgress: TodayProgress;
@@ -37,13 +45,13 @@ export function TodayAchievements({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className={cn(cardBase, "p-4")}>
         <div className="flex flex-col gap-4 animate-pulse">
-          <div className="h-5 w-28 rounded bg-gray-200" />
-          <div className="h-4 w-40 rounded bg-gray-100" />
-          <div className="h-4 w-full rounded bg-gray-100" />
-          <div className="h-4 w-3/4 rounded bg-gray-100" />
-          <div className="h-4 w-2/3 rounded bg-gray-100" />
+          <div className="h-5 w-28 rounded bg-gray-200 dark:bg-gray-700" />
+          <div className="h-4 w-40 rounded bg-gray-100 dark:bg-gray-800" />
+          <div className="h-4 w-full rounded bg-gray-100 dark:bg-gray-800" />
+          <div className="h-4 w-3/4 rounded bg-gray-100 dark:bg-gray-800" />
+          <div className="h-4 w-2/3 rounded bg-gray-100 dark:bg-gray-800" />
         </div>
       </div>
     );
@@ -51,34 +59,42 @@ export function TodayAchievements({
 
   if (errorMessage) {
     return (
-      <div className="rounded-xl border border-dashed border-red-200 bg-red-50 p-4">
+      <div className={cn(
+        "rounded-xl border border-dashed p-4",
+        "border-red-200 dark:border-red-800",
+        "bg-red-50 dark:bg-red-900/30"
+      )}>
         <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">학습 성취도 요약</h2>
-          <p className="text-sm text-red-700">{errorMessage}</p>
+          <h2 className={cn("text-lg font-semibold", textPrimary)}>학습 성취도 요약</h2>
+          <p className="text-sm text-red-700 dark:text-red-300">{errorMessage}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4">
+    <div className={cn(cardBase, "p-4")}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">학습 성취도 요약</h2>
-            <p className="text-xs text-gray-500">
+            <h2 className={cn("text-lg font-semibold", textPrimary)}>학습 성취도 요약</h2>
+            <p className={cn("text-xs", textMuted)}>
               {relativeLabel} · {formattedDate}
             </p>
           </div>
-          <div className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+          <div className={cn(
+            "rounded-full px-3 py-1 text-xs font-semibold",
+            "bg-indigo-50 dark:bg-indigo-900/30",
+            "text-indigo-700 dark:text-indigo-300"
+          )}>
             {selectedDate || "-"}
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">학습 시간</span>
-            <span className="font-semibold text-gray-900">
+            <span className={textTertiary}>학습 시간</span>
+            <span className={cn("font-semibold", textPrimary)}>
               {Math.floor(todayProgress.todayStudyMinutes / 60)}시간{" "}
               {todayProgress.todayStudyMinutes % 60}분
             </span>
@@ -86,14 +102,14 @@ export function TodayAchievements({
 
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">완료한 플랜</span>
+              <span className={textTertiary}>완료한 플랜</span>
               {hasPlans ? (
-                <span className="font-semibold text-gray-900">
+                <span className={cn("font-semibold", textPrimary)}>
                   {todayProgress.planCompletedCount} /{" "}
                   {todayProgress.planTotalCount}
                 </span>
               ) : (
-                <span className="text-gray-400">플랜 없음</span>
+                <span className={textMuted}>플랜 없음</span>
               )}
             </div>
             <ProgressBar
@@ -105,8 +121,8 @@ export function TodayAchievements({
 
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">학습 효율 점수</span>
-              <span className="font-semibold text-blue-600">
+              <span className={textTertiary}>학습 효율 점수</span>
+              <span className="font-semibold text-blue-600 dark:text-blue-400">
                 {todayProgress.achievementScore}점
               </span>
             </div>

@@ -3,6 +3,12 @@
 import { cn } from "@/lib/cn";
 import { CheckCircle, Circle, Clock } from "lucide-react";
 import { formatTime } from "../_utils/planGroupUtils";
+import {
+  statusCardStyles,
+  statusTextStyles,
+  statusBadgeStyles,
+  textTertiary,
+} from "@/lib/utils/darkMode";
 
 type TimelineItem = {
   id: string;
@@ -39,23 +45,24 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
             {/* 타임라인 마커 */}
             <div
               className={cn(
-                "relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all",
-                isCompleted && "border-green-500 bg-green-50",
-                isInProgress && "border-indigo-600 bg-indigo-50 shadow-lg shadow-indigo-200",
-                isPending && "border-gray-300 bg-gray-50"
+                "relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all",
+                "bg-white dark:bg-gray-800",
+                isCompleted && "border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/30",
+                isInProgress && "border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50",
+                isPending && "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
               )}
               aria-label={
                 isCompleted ? "완료됨" : isInProgress ? "진행 중" : "대기 중"
               }
             >
               {isCompleted && (
-                <CheckCircle className="h-4 w-4 text-green-600" aria-hidden="true" />
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" aria-hidden="true" />
               )}
               {isInProgress && (
-                <Clock className="h-4 w-4 text-indigo-600 animate-pulse" aria-hidden="true" />
+                <Clock className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-pulse" aria-hidden="true" />
               )}
               {isPending && (
-                <Circle className="h-3 w-3 text-gray-400" aria-hidden="true" />
+                <Circle className="h-3 w-3 text-gray-400 dark:text-gray-500" aria-hidden="true" />
               )}
             </div>
 
@@ -63,9 +70,9 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
             <div
               className={cn(
                 "flex flex-1 flex-col gap-2 rounded-lg border p-4 transition-all",
-                isCompleted && "border-green-200 bg-green-50/50",
-                isInProgress && "border-indigo-300 bg-indigo-50 shadow-md",
-                isPending && "border-gray-200 bg-white"
+                isCompleted && statusCardStyles.completed,
+                isInProgress && statusCardStyles.inProgress,
+                isPending && statusCardStyles.pending
               )}
             >
               {/* 제목 영역 */}
@@ -74,9 +81,9 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                   <h3
                     className={cn(
                       "text-sm font-semibold",
-                      isCompleted && "text-green-900",
-                      isInProgress && "text-indigo-900",
-                      isPending && "text-gray-900"
+                      isCompleted && statusTextStyles.completed,
+                      isInProgress && statusTextStyles.inProgress,
+                      isPending && statusTextStyles.pending
                     )}
                   >
                     {item.title}
@@ -85,9 +92,9 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                     <p
                       className={cn(
                         "text-xs",
-                        isCompleted && "text-green-700",
-                        isInProgress && "text-indigo-700",
-                        isPending && "text-gray-600"
+                        isCompleted && statusTextStyles.completedSubtext,
+                        isInProgress && statusTextStyles.inProgressSubtext,
+                        isPending && statusTextStyles.pendingSubtext
                       )}
                     >
                       {item.subtitle}
@@ -99,9 +106,9 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-medium",
-                    isCompleted && "bg-green-100 text-green-700",
-                    isInProgress && "bg-indigo-100 text-indigo-700",
-                    isPending && "bg-gray-100 text-gray-600"
+                    isCompleted && statusBadgeStyles.completed,
+                    isInProgress && statusBadgeStyles.inProgress,
+                    isPending && statusBadgeStyles.pending
                   )}
                 >
                   {isCompleted && "완료"}
@@ -114,7 +121,7 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
               {(item.startTime || item.endTime || item.duration !== undefined) && (
                 <div className="flex flex-wrap items-center gap-3 text-xs">
                   {item.startTime && (
-                    <div className="flex items-center gap-1 text-gray-600">
+                    <div className={cn("flex items-center gap-1", textTertiary)}>
                       <span className="font-medium">시작:</span>
                       <span>{new Date(item.startTime).toLocaleTimeString('ko-KR', { 
                         hour: '2-digit', 
@@ -123,7 +130,7 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                     </div>
                   )}
                   {item.endTime && (
-                    <div className="flex items-center gap-1 text-gray-600">
+                    <div className={cn("flex items-center gap-1", textTertiary)}>
                       <span className="font-medium">종료:</span>
                       <span>{new Date(item.endTime).toLocaleTimeString('ko-KR', { 
                         hour: '2-digit', 
@@ -135,9 +142,9 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                     <div
                       className={cn(
                         "ml-auto flex items-center gap-1 font-semibold",
-                        isCompleted && "text-green-700",
-                        isInProgress && "text-indigo-700",
-                        isPending && "text-gray-600"
+                        isCompleted && statusTextStyles.completedSubtext,
+                        isInProgress && statusTextStyles.inProgressSubtext,
+                        isPending && textTertiary
                       )}
                     >
                       <Clock className="h-3 w-3" aria-hidden="true" />
