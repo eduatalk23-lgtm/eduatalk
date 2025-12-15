@@ -396,7 +396,7 @@ async function _getReschedulePreview(
 
     // 9. 실제 플랜 생성 (미진행 범위가 적용된 콘텐츠 사용)
     // 재조정 시에는 adjustedPeriod를 직접 전달하여 기간 일관성 보장
-    const generatedPlans = generatePlansFromGroup(
+    const generatedPlans = await generatePlansFromGroup(
       group,
       contentsWithUncompleted,
       exclusions,

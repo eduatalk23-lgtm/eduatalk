@@ -137,7 +137,7 @@ export function syncWizardDataToCreationData(
     // plan_purpose 변환: 빈 문자열은 null, "모의고사(수능)"은 "모의고사"로 변환
     const wizardPlanPurpose = validatedData.plan_purpose;
     const normalizedPlanPurpose: PlanPurpose | null =
-      !wizardPlanPurpose || wizardPlanPurpose === ""
+      !wizardPlanPurpose || wizardPlanPurpose === "" || wizardPlanPurpose === null
         ? null
         : wizardPlanPurpose === "모의고사(수능)"
           ? "모의고사"
@@ -165,7 +165,7 @@ export function syncWizardDataToCreationData(
         // master_content_id 설정
         let masterContentId: string | null = null;
         // 1. WizardData에서 명시적으로 설정된 경우 우선 사용
-        if (c.master_content_id) {
+        if ("master_content_id" in c && c.master_content_id) {
           masterContentId = c.master_content_id;
         } else {
           // 2. 추천 콘텐츠인 경우: content_id 자체가 마스터 콘텐츠 ID
@@ -199,7 +199,7 @@ export function syncWizardDataToCreationData(
         if ("is_auto_recommended" in c && c.is_auto_recommended !== undefined) {
           contentItem.is_auto_recommended = c.is_auto_recommended;
         }
-        if (c.recommendation_source) {
+        if ("recommendation_source" in c && c.recommendation_source) {
           contentItem.recommendation_source = c.recommendation_source;
         }
         if ("recommendation_reason" in c && c.recommendation_reason) {
@@ -329,24 +329,24 @@ export function syncCreationDataToWizardData(data: {
       ? group.scheduler_options as Record<string, unknown>
       : {};
     const timeSettings: WizardData["time_settings"] = {
-      lunch_time: schedulerOptions.lunch_time,
-      camp_study_hours: schedulerOptions.camp_study_hours,
-      camp_self_study_hours: schedulerOptions.camp_self_study_hours,
-      designated_holiday_hours: schedulerOptions.designated_holiday_hours,
-      use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks,
-      enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays,
-      enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days,
+      lunch_time: schedulerOptions.lunch_time as { start: string; end: string } | undefined,
+      camp_study_hours: schedulerOptions.camp_study_hours as { start: string; end: string } | undefined,
+      camp_self_study_hours: schedulerOptions.camp_self_study_hours as { start: string; end: string } | undefined,
+      designated_holiday_hours: schedulerOptions.designated_holiday_hours as { start: string; end: string } | undefined,
+      use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks as boolean | undefined,
+      enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays as boolean | undefined,
+      enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days as boolean | undefined,
     };
 
     // time_settings 필드 중 하나라도 값이 있으면 포함
     const hasTimeSettings =
-      timeSettings.lunch_time !== undefined ||
-      timeSettings.camp_study_hours !== undefined ||
-      timeSettings.camp_self_study_hours !== undefined ||
-      timeSettings.designated_holiday_hours !== undefined ||
-      timeSettings.use_self_study_with_blocks !== undefined ||
-      timeSettings.enable_self_study_for_holidays !== undefined ||
-      timeSettings.enable_self_study_for_study_days !== undefined;
+      (timeSettings && timeSettings.lunch_time !== undefined) ||
+      (timeSettings && timeSettings.camp_study_hours !== undefined) ||
+      (timeSettings && timeSettings.camp_self_study_hours !== undefined) ||
+      (timeSettings && timeSettings.designated_holiday_hours !== undefined) ||
+      (timeSettings && timeSettings.use_self_study_with_blocks !== undefined) ||
+      (timeSettings && timeSettings.enable_self_study_for_holidays !== undefined) ||
+      (timeSettings && timeSettings.enable_self_study_for_study_days !== undefined);
 
     // scheduler_options에서 time_settings 필드 제거
     const {
@@ -455,15 +455,25 @@ export function syncCreationDataToWizardData(data: {
       recommended_contents: recommendedContents,
       // 1730 Timetable 추가 필드
       study_review_cycle:
-        study_days || review_days
+        (typeof study_days === "number" || typeof review_days === "number")
           ? {
-              study_days: study_days || 6,
-              review_days: review_days || 1,
+              study_days: typeof study_days === "number" ? study_days : 6,
+              review_days: typeof review_days === "number" ? review_days : 1,
             }
           : undefined,
-      student_level: student_level,
-      subject_allocations: subject_allocations,
-      content_allocations: content_allocations,
+      student_level: student_level as "high" | "medium" | "low" | undefined,
+      subject_allocations: subject_allocations as Array<{
+        subject_id: string;
+        subject_name: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }> | undefined,
+      content_allocations: content_allocations as Array<{
+        content_type: "book" | "lecture";
+        content_id: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }> | undefined,
       subject_constraints: group.subject_constraints || undefined,
       additional_period_reallocation: group.additional_period_reallocation || undefined,
       non_study_time_blocks: group.non_study_time_blocks || undefined,

@@ -4,6 +4,7 @@ import {
   PlanExclusion,
   AcademySchedule,
   SchedulerType,
+  SchedulerOptions,
 } from "@/lib/types/plan";
 import {
   getContentAllocation,
@@ -85,7 +86,7 @@ export async function generatePlansFromGroup(
   contentDurationMap?: ContentDurationMap, // 콘텐츠 소요시간 정보
   periodStart?: string, // 재조정 시 사용할 기간 시작일 (선택사항)
   periodEnd?: string // 재조정 시 사용할 기간 종료일 (선택사항)
-): ScheduledPlan[] {
+): Promise<ScheduledPlan[]> {
   // 1. 학습 가능한 날짜 목록 생성 (제외일 제외)
   // 재조정 시에는 전달된 periodStart/periodEnd 사용, 아니면 group의 기간 사용
   const startDate = periodStart || group.period_start;

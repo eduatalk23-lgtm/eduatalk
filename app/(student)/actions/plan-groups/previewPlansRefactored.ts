@@ -238,7 +238,7 @@ async function _previewPlansFromGroupRefactored(
     });
 
     // 9. 스케줄러 호출 (플랜 생성)
-    const scheduledPlans = generatePlansFromGroup(
+    const scheduledPlans = await generatePlansFromGroup(
       group,
       contents,
       safeExclusions,

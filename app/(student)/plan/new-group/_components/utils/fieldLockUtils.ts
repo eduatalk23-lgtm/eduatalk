@@ -161,7 +161,7 @@ export function getAllFieldInputPermissions(
   ];
 
   for (const fieldName of fieldNames) {
-    permissions[fieldName] = canStudentInput(fieldName, lockedFields, editable, isCampMode);
+    permissions[fieldName as string] = canStudentInput(fieldName, lockedFields, editable, isCampMode);
   }
 
   return permissions;

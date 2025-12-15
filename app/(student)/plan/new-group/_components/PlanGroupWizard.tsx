@@ -245,7 +245,7 @@ type ExtendedInitialData = Partial<WizardData> & {
   contents?: WizardData["student_contents"]; // 기존 구조 호환성
 };
 
-type PlanGroupWizardProps = {
+export type PlanGroupWizardProps = {
   initialBlockSets?: Array<{ id: string; name: string }>;
   initialContents?: {
     books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
@@ -436,11 +436,8 @@ function PlanGroupWizardInner({
       currentStep,
       setCurrentStep: setStep,
       setValidationErrors: setErrors,
-      isCampMode,
       campInvitationId,
       initialData,
-      isAdminContinueMode,
-      isAdminMode: isAdminMode || false,
       onSaveRequest,
       mode,
   });
@@ -621,13 +618,13 @@ function PlanGroupWizardInner({
           }
         } else {
           const errorMessage = result.error || "플랜 생성에 실패했습니다.";
-          setValidationErrors([errorMessage]);
+          setErrors([errorMessage]);
           toast.showError(errorMessage);
         }
       } catch (error) {
         console.error("[PlanGroupWizard] 관리자 캠프 플랜 생성 실패:", error);
         const errorMessage = error instanceof Error ? error.message : "플랜 생성에 실패했습니다.";
-        setValidationErrors([errorMessage]);
+        setErrors([errorMessage]);
         toast.showError(errorMessage);
       }
       return;
@@ -691,7 +688,7 @@ function PlanGroupWizardInner({
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       }
     }
-  }, [draftGroupId, isAdminContinueMode, wizardData, currentStep, initialData, toast, setValidationErrors, router]);
+  }, [draftGroupId, isAdminContinueMode, wizardData, currentStep, initialData, toast, setErrors, router]);
 
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);
@@ -822,7 +819,7 @@ function PlanGroupWizardInner({
             periodStart={wizardData.period_start}
             periodEnd={wizardData.period_end}
             groupId={draftGroupId || undefined}
-            onNavigateToStep={(step) => setCurrentStep(step as WizardStep)}
+            onNavigateToStep={(step) => setStep(step as WizardStep)}
             campMode={isCampMode}
             isTemplateMode={isTemplateMode}
             templateExclusions={isCampMode ? wizardData.exclusions : undefined}
@@ -840,7 +837,7 @@ function PlanGroupWizardInner({
             isTemplateMode={isTemplateMode}
             campMode={isCampMode}
             campTemplateId={isCampMode ? initialData?.templateId : undefined}
-            onNavigateToStep={(step) => setCurrentStep(step as WizardStep)}
+            onNavigateToStep={(step) => setStep(step as WizardStep)}
           />
         )}
         {currentStep === 4 && (

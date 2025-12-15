@@ -18,11 +18,8 @@ type UsePlanSubmissionProps = {
   currentStep: WizardStep;
   setCurrentStep: (step: WizardStep) => void;
   setValidationErrors: (errors: string[]) => void;
-  isCampMode: boolean;
   campInvitationId?: string;
   initialData?: any;
-  isAdminContinueMode: boolean;
-  isAdminMode: boolean;
   onSaveRequest?: (saveFn: () => Promise<void>) => void;
   mode: {
     isCampMode: boolean;
@@ -40,11 +37,8 @@ export function usePlanSubmission({
   currentStep,
   setCurrentStep,
   setValidationErrors,
-  isCampMode,
   campInvitationId,
   initialData,
-  isAdminContinueMode,
-  isAdminMode,
   mode,
 }: UsePlanSubmissionProps) {
   // 분리된 훅들 사용
@@ -52,7 +46,7 @@ export function usePlanSubmission({
     wizardData,
     currentStep,
     isTemplateMode: mode.isTemplateMode,
-    isCampMode,
+    isCampMode: mode.isCampMode,
   });
 
   const { saveDraft, isSaving } = usePlanDraft({
@@ -60,7 +54,7 @@ export function usePlanSubmission({
     draftGroupId,
     setDraftGroupId,
     setValidationErrors,
-    isCampMode,
+    isCampMode: mode.isCampMode,
     campInvitationId,
     initialData,
   });
@@ -70,11 +64,11 @@ export function usePlanSubmission({
     draftGroupId,
     setDraftGroupId,
     setValidationErrors,
-    isCampMode,
+    isCampMode: mode.isCampMode,
     campInvitationId,
     initialData,
-    isAdminContinueMode,
-    isAdminMode,
+    isAdminContinueMode: mode.isAdminContinueMode,
+    isAdminMode: mode.isAdminMode,
     currentStep,
   });
 

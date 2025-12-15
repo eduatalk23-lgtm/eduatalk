@@ -267,9 +267,10 @@ export const schedulerOptionsSchema = z.object({
 }).passthrough(); // 추가 필드 허용 (subject_allocations, content_allocations 등)
 
 /**
- * Plan Wizard 데이터 전체 스키마
+ * Plan Wizard 데이터 전체 스키마 (refine 전 object 스키마)
+ * refine 전 스키마를 별도로 저장하여 partial/pick 메서드 사용 가능하도록 함
  */
-export const planWizardSchema = z.object({
+const planWizardSchemaObject = z.object({
   // Step 1
   name: z.string().min(1, "플랜 이름을 입력해주세요."),
   plan_purpose: z.enum(["내신대비", "모의고사(수능)", ""]),
@@ -321,7 +322,12 @@ export const planWizardSchema = z.object({
   
   // Step 6 - 전략/취약 설정 모드
   allocation_mode: z.enum(["subject", "content"]).optional(),
-}).refine((data) => {
+});
+
+/**
+ * Plan Wizard 데이터 전체 스키마 (refine 포함)
+ */
+export const planWizardSchema = planWizardSchemaObject.refine((data) => {
   if (data.period_start && data.period_end) {
     const start = new Date(data.period_start);
     const end = new Date(data.period_end);
@@ -336,12 +342,12 @@ export const planWizardSchema = z.object({
 /**
  * 부분 WizardData 스키마 (Partial)
  */
-export const partialPlanWizardSchema = planWizardSchema.partial();
+export const partialPlanWizardSchema = planWizardSchemaObject.partial();
 
 /**
  * Step별 부분 스키마
  */
-export const step1Schema = planWizardSchema.pick({
+export const step1Schema = planWizardSchemaObject.pick({
   name: true,
   plan_purpose: true,
   scheduler_type: true,
@@ -356,7 +362,7 @@ export const step1Schema = planWizardSchema.pick({
   templateLockedFields: true,
 });
 
-export const step2Schema = planWizardSchema.pick({
+export const step2Schema = planWizardSchemaObject.pick({
   exclusions: true,
   academy_schedules: true,
   time_settings: true,
@@ -364,19 +370,19 @@ export const step2Schema = planWizardSchema.pick({
   templateLockedFields: true,
 });
 
-export const step3Schema = planWizardSchema.pick({
+export const step3Schema = planWizardSchemaObject.pick({
   schedule_summary: true,
   daily_schedule: true,
 });
 
-export const step4Schema = planWizardSchema.pick({
+export const step4Schema = planWizardSchemaObject.pick({
   student_contents: true,
   recommended_contents: true,
   show_required_subjects_ui: true,
   templateLockedFields: true,
 });
 
-export const step5Schema = planWizardSchema.pick({
+export const step5Schema = planWizardSchemaObject.pick({
   student_contents: true,
   recommended_contents: true,
   subject_allocations: true,
@@ -386,14 +392,14 @@ export const step5Schema = planWizardSchema.pick({
   allocation_mode: true,
 });
 
-export const step6Schema = planWizardSchema.pick({
+export const step6Schema = planWizardSchemaObject.pick({
   student_contents: true,
   recommended_contents: true,
   content_allocations: true,
   allocation_mode: true,
 });
 
-export const step7Schema = planWizardSchema.pick({
+export const step7Schema = planWizardSchemaObject.pick({
   plan_type: true,
   camp_template_id: true,
   camp_invitation_id: true,

@@ -717,7 +717,7 @@ export function Step6Simplified({
             data.subject_allocations &&
             data.subject_allocations.length > 0)) && (
             <CollapsibleSection title="전략과목/취약과목" defaultOpen={false}>
-            {isAdminContinueMode && onUpdate && contents ? (
+            {isAdminContinueMode && typeof onUpdate === "function" && contents ? (
               <SubjectAllocationEditor
                 data={data}
                 onUpdate={onUpdate}
