@@ -1,19 +1,14 @@
 export const dynamic = 'force-dynamic';
 
 import { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
+/**
+ * SuperAdmin Layout
+ * - 인증 및 역할 검증은 middleware에서 처리
+ * - layout은 UI 렌더링에만 집중
+ */
 export default async function SuperAdminLayout({ children }: { children: ReactNode }) {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin만 접근 가능
-  if (!userId || role !== "superadmin") {
-    redirect("/login");
-  }
-
   return (
     <RoleBasedLayout
       role="superadmin"

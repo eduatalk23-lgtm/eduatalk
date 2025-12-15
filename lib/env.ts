@@ -55,19 +55,6 @@ export const env = (() => {
       process.env.NEXT_PHASE === "phase-development-server" ||
       !process.env.VERCEL_ENV; // Vercel이 아닌 환경에서 빌드 시
 
-    // 디버깅: 개발 환경에서만 환경 변수 값 확인
-    if (process.env.NODE_ENV === "development" && !isBuildTime) {
-      console.log("[env.ts] 환경 변수 확인:");
-      console.log(
-        "  NEXT_PUBLIC_SUPABASE_URL:",
-        envValues.NEXT_PUBLIC_SUPABASE_URL ? "✓ 설정됨" : "✗ 없음"
-      );
-      console.log(
-        "  NEXT_PUBLIC_SUPABASE_ANON_KEY:",
-        envValues.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✓ 설정됨" : "✗ 없음"
-      );
-    }
-
     // 빌드 시점에는 환경 변수가 없어도 빌드는 진행 (런타임에 검증)
     if (
       isBuildTime &&

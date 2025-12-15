@@ -14,11 +14,17 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const error = searchParams.get("error"); // Supabase가 전달한 에러 파라미터
   const errorCode = searchParams.get("error_code"); // Supabase가 전달한 에러 코드 (예: otp_expired)
+  const type = searchParams.get("type"); // 인증 타입 (recovery, signup 등)
   let next = searchParams.get("next") ?? "/";
 
   // 상대 경로가 아닌 경우 기본값 사용 (보안)
   if (!next.startsWith("/")) {
     next = "/";
+  }
+
+  // 비밀번호 리셋 플로우: recovery 타입인 경우 비밀번호 변경 페이지로 리다이렉트
+  if (type === "recovery") {
+    next = "/reset-password?from_callback=true";
   }
 
   // 리다이렉트 헬퍼 함수
@@ -35,9 +41,89 @@ export async function GET(request: Request) {
     }
   };
 
-  // 코드가 있으면 Supabase SSR이 자동으로 세션을 처리하므로 에러 무시하고 리다이렉트
-  // 타이밍 문제나 일시적인 에러는 무시 (흐름에 문제 없음)
+  // 코드가 있으면 세션으로 교환 후 리다이렉트
   if (code) {
+    const supabase = await createSupabaseServerClient();
+    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (exchangeError) {
+      // 개발 환경에서 디버깅용 로그
+      if (process.env.NODE_ENV === "development") {
+        console.log("[auth/callback] 코드 교환 실패:", {
+          error: exchangeError.message,
+          code: exchangeError.name,
+        });
+      }
+
+      // PKCE code_verifier 누락 에러인 경우 (다른 브라우저에서 이메일 링크 클릭)
+      // 이메일은 확인되었으므로 로그인 페이지로 성공 메시지와 함께 리다이렉트
+      const isPKCEError = exchangeError.message?.includes("code verifier") ||
+        exchangeError.message?.includes("code_verifier");
+
+      if (isPKCEError) {
+        const successMessage = encodeURIComponent("이메일 인증이 완료되었습니다. 로그인해주세요.");
+        const forwardedHost = request.headers.get("x-forwarded-host");
+        const isLocalEnv = process.env.NODE_ENV === "development";
+
+        if (isLocalEnv) {
+          return NextResponse.redirect(`${origin}/login?message=${successMessage}`);
+        } else if (forwardedHost) {
+          return NextResponse.redirect(`https://${forwardedHost}/login?message=${successMessage}`);
+        } else {
+          return NextResponse.redirect(`${origin}/login?message=${successMessage}`);
+        }
+      }
+
+      // 다른 에러의 경우 세션이 이미 있을 수 있으므로 리다이렉트 시도
+    } else {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[auth/callback] 코드 교환 성공, 세션 생성됨");
+      }
+
+      // 세션 정보를 확인하여 recovery 여부 판단
+      const session = data?.session;
+      if (process.env.NODE_ENV === "development") {
+        console.log("[auth/callback] 세션 정보:", {
+          user_id: session?.user?.id,
+          user_amr: (session?.user as { amr?: unknown } | undefined)?.amr,
+          session_amr: (session as { amr?: unknown })?.amr,
+          aal: (session as { aal?: unknown })?.aal,
+          app_metadata: session?.user?.app_metadata,
+          user_metadata: session?.user?.user_metadata,
+        });
+      }
+
+      // Supabase는 password recovery 시 user.app_metadata.provider = 'email'
+      // 그리고 user.recovery_sent_at이 최근인지 확인
+      // 또는 session.amr 배열에 recovery 메서드가 있는지 확인
+      const sessionAny = session as { amr?: Array<{ method: string }> };
+      const userAny = session?.user as { amr?: Array<{ method: string }> };
+
+      const amr = sessionAny?.amr || userAny?.amr;
+      const isRecoveryAmr = amr?.some(
+        (method) => method.method === "recovery" || method.method === "otp"
+      );
+
+      // recovery_sent_at이 최근 10분 이내인지 확인 (fallback)
+      const recoverySentAt = session?.user?.recovery_sent_at;
+      const isRecentRecovery = recoverySentAt &&
+        (Date.now() - new Date(recoverySentAt).getTime()) < 10 * 60 * 1000;
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[auth/callback] Recovery 확인:", {
+          amr,
+          isRecoveryAmr,
+          recoverySentAt,
+          isRecentRecovery
+        });
+      }
+
+      // recovery 플로우인 경우 비밀번호 변경 페이지로 리다이렉트
+      if (isRecoveryAmr || isRecentRecovery) {
+        next = "/reset-password";
+      }
+    }
+
     return redirectToNext();
   }
 

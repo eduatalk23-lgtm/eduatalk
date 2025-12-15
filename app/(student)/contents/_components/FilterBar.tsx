@@ -89,6 +89,7 @@ export function FilterBar({
           name="revision"
           defaultValue={revisionFilter ?? ""}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="개정교육과정 선택"
         >
           <option value="">전체</option>
           {allRevisions.map((rev) => (
@@ -106,6 +107,7 @@ export function FilterBar({
           name="semester"
           defaultValue={semesterFilter ?? ""}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="학년/학기 선택"
         >
           <option value="">전체</option>
           {allSemesters.map((sem) => (
@@ -123,6 +125,7 @@ export function FilterBar({
           name="subject_category"
           defaultValue={subjectCategoryFilter ?? ""}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="교과 선택"
         >
           <option value="">전체</option>
           {allSubjectCategories.map((cat) => (
@@ -140,6 +143,7 @@ export function FilterBar({
           name="subject"
           defaultValue={subjectFilter ?? ""}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="과목 선택"
         >
           <option value="">전체</option>
           {allSubjects.map((subject) => (
@@ -158,6 +162,7 @@ export function FilterBar({
             name="publisher"
             defaultValue={publisherFilter ?? ""}
             className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+            aria-label="출판사 선택"
           >
             <option value="">전체</option>
             {allPublishers.map((pub) => (
@@ -177,6 +182,7 @@ export function FilterBar({
             name="platform"
             defaultValue={platformFilter ?? ""}
             className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+            aria-label="플랫폼 선택"
           >
             <option value="">전체</option>
             {allPlatforms.map((plat) => (
@@ -195,6 +201,7 @@ export function FilterBar({
           name="difficulty"
           defaultValue={difficultyFilter ?? ""}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="난이도 선택"
         >
           <option value="">전체</option>
           {allDifficulties.map((diff) => (
@@ -212,6 +219,7 @@ export function FilterBar({
           name="sort"
           defaultValue={sortBy}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-gray-900 focus:outline-none"
+          aria-label="정렬 순서 선택"
         >
           <option value="created_at_desc">최신순</option>
           <option value="created_at_asc">오래된순</option>

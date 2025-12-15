@@ -118,7 +118,7 @@
 #### 구현 내용
 - **서버 액션 추가**: `getSubjectGroupsWithSubjectsAction` 추가 (`app/(admin)/actions/subjectActions.ts`)
 - **동적 로딩**: 개정교육과정 선택 시 해당 개정교육과정의 교과 그룹을 서버에서 동적으로 조회
-- **상태 관리**: 
+- **상태 관리**:
   - `selectedRevisionId`: 선택된 개정교육과정 ID 추적
   - `subjectGroups`: 현재 선택된 개정교육과정의 교과 그룹 목록
   - `loadingGroups`: 교과 그룹 로딩 상태

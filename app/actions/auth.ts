@@ -2,14 +2,35 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { saveUserSession } from "@/lib/auth/sessionManager";
 import { getDefaultTenant } from "@/lib/data/tenants";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
-import type { SignupRole, SignupMetadata, UserWithSignupMetadata } from "@/lib/types/auth";
+import type { UserWithSignupMetadata } from "@/lib/types/auth";
 import { z } from "zod";
 import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
 import { saveUserConsents } from "@/lib/data/userConsents";
+
+/**
+ * Admin 클라이언트 생성 및 null 체크 헬퍼
+ * 회원가입 시 RLS 우회가 필요한 경우 사용
+ */
+function getAdminClientOrError():
+  | { success: true; client: NonNullable<ReturnType<typeof createSupabaseAdminClient>> }
+  | { success: false; error: string } {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    console.error("[auth] Admin 클라이언트 생성 실패: SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
+    return {
+      success: false,
+      error: "서버 설정 오류입니다. 관리자에게 문의하세요.",
+    };
+  }
+
+  return { success: true, client: supabase };
+}
 
 const signInSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
@@ -45,7 +66,7 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
     const expiresAt = data.session.expires_at
       ? new Date(data.session.expires_at * 1000)
       : undefined;
-    
+
     // 세션 정보 저장 (비동기, 실패해도 로그인은 계속 진행)
     saveUserSession(
       data.user.id,
@@ -72,7 +93,7 @@ async function _signIn(formData: FormData): Promise<{ error?: string; needsEmail
       "email address not confirmed",
       "user email not confirmed",
     ];
-    
+
     const isEmailNotConfirmed = emailNotConfirmedMessages.some(
       (msg) => errorMessage.includes(msg)
     );
@@ -132,7 +153,7 @@ async function ensureUserRecord(
   try {
     const metadata = user.user_metadata;
     const signupRole = metadata?.signup_role;
-    
+
     // signup_role이 없으면 레코드 생성 시도하지 않음
     if (!signupRole || (signupRole !== "student" && signupRole !== "parent")) {
       return;
@@ -230,7 +251,12 @@ async function createStudentRecord(
   displayName?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 회원가입 시에는 세션이 없으므로 Admin 클라이언트 사용 (RLS 우회)
+    const adminResult = getAdminClientOrError();
+    if (!adminResult.success) {
+      return { success: false, error: adminResult.error };
+    }
+    const supabase = adminResult.client;
 
     // tenant_id가 없으면 기본 tenant 조회
     let finalTenantId = tenantId;
@@ -312,7 +338,12 @@ async function createParentRecord(
   displayName?: string | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 회원가입 시에는 세션이 없으므로 Admin 클라이언트 사용 (RLS 우회)
+    const adminResult = getAdminClientOrError();
+    if (!adminResult.success) {
+      return { success: false, error: adminResult.error };
+    }
+    const supabase = adminResult.client;
 
     // tenant_id가 없으면 기본 tenant 조회 (nullable이므로 선택사항)
     let finalTenantId = tenantId;
@@ -383,7 +414,7 @@ async function createParentRecord(
 
 const signUpSchema = z.object({
   email: z.string().email("올바른 이메일 형식이 아닙니다.").min(1, "이메일을 입력해주세요."),
-  password: z.string().min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
+  password: z.string().min(8, "비밀번호는 최소 8자 이상이어야 합니다."),
   displayName: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
   tenantId: z.string().min(1, "기관을 선택해주세요.").optional(),
   role: z.enum(["student", "parent"]).optional(),
@@ -456,14 +487,16 @@ export async function signUp(
         }
       }
 
-      // 약관 동의 정보 저장
+      // 약관 동의 정보 저장 (회원가입 시에는 세션이 없으므로 Admin 클라이언트 사용)
       const consentResult = await saveUserConsents(
         authData.user.id,
         {
           terms: consentTerms,
           privacy: consentPrivacy,
           marketing: consentMarketing,
-        }
+        },
+        undefined, // metadata
+        true // useAdmin - 회원가입 시 RLS 우회
       );
 
       if (!consentResult.success) {
@@ -472,11 +505,10 @@ export async function signUp(
       }
     }
 
-    // 회원가입 성공 - 이메일 확인 안내와 함께 리다이렉트
+    // 회원가입 성공 - 이메일 확인 대기 페이지로 리다이렉트
     return {
-      message:
-        "회원가입이 완료되었습니다. 가입하신 이메일 주소로 인증 메일을 발송했습니다. 이메일을 확인하여 계정을 활성화해주세요.",
-      redirect: "/login",
+      message: "회원가입이 완료되었습니다.",
+      redirect: `/signup/verify-email?email=${encodeURIComponent(validation.data.email)}`,
     };
   } catch (error) {
     return {
@@ -494,8 +526,10 @@ export async function resendConfirmationEmail(
   try {
     const supabase = await createSupabaseServerClient();
     const emailRedirectTo = await getEmailRedirectUrl();
-    
-    console.log("[auth] 이메일 재발송 요청:", email, "redirectTo:", emailRedirectTo);
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[auth] 이메일 재발송 요청");
+    }
 
     // 이메일 재발송 시도
     const { data, error } = await supabase.auth.resend({
@@ -558,3 +592,75 @@ async function _signOut(): Promise<void> {
 
 // 에러 핸들링 래퍼 적용
 export const signOut = withErrorHandling(_signOut);
+
+/**
+ * 비밀번호 재설정 이메일 발송
+ */
+export async function sendPasswordResetEmail(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const emailRedirectTo = await getEmailRedirectUrl();
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: emailRedirectTo,
+    });
+
+    if (error) {
+      console.error("[auth] 비밀번호 재설정 이메일 발송 실패:", error);
+      return {
+        success: false,
+        error: error.message || "비밀번호 재설정 이메일 발송에 실패했습니다.",
+      };
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[auth] 비밀번호 재설정 이메일 발송 성공");
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("[auth] 비밀번호 재설정 이메일 발송 예외:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "비밀번호 재설정 이메일 발송에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * 비밀번호 업데이트 (비밀번호 재설정 플로우에서 사용)
+ */
+export async function updatePassword(
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error("[auth] 비밀번호 업데이트 실패:", error);
+      return {
+        success: false,
+        error: error.message || "비밀번호 변경에 실패했습니다.",
+      };
+    }
+
+    // 비밀번호 변경 후 로그아웃 (새 비밀번호로 다시 로그인하도록)
+    await supabase.auth.signOut();
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[auth] 비밀번호 업데이트 성공");
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("[auth] 비밀번호 업데이트 예외:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.",
+    };
+  }
+}

@@ -14,6 +14,8 @@ export type EmptyStateProps = {
   onAction?: () => void;
   className?: string;
   variant?: "default" | "compact";
+  /** 헤딩 레벨을 지정합니다. 접근성을 위해 페이지 구조에 맞는 레벨을 사용하세요. */
+  headingLevel?: "h2" | "h3" | "h4" | "p";
 };
 
 function EmptyStateComponent({
@@ -25,8 +27,10 @@ function EmptyStateComponent({
   onAction,
   className,
   variant = "default",
+  headingLevel = "h2",
 }: EmptyStateProps) {
   const isCompact = variant === "compact";
+  const HeadingTag = headingLevel;
 
   return (
     <div
@@ -43,14 +47,14 @@ function EmptyStateComponent({
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <h3
+          <HeadingTag
             className={cn(
               "font-semibold text-gray-900",
               isCompact ? "text-base" : "text-lg"
             )}
           >
             {title}
-          </h3>
+          </HeadingTag>
           {description && (
             <p
               className={cn(
