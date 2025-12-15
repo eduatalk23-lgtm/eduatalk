@@ -18,6 +18,7 @@
 **파일**: `app/(admin)/admin/content-metadata/_components/SubjectCategoriesManager.tsx`
 
 **수정 내용**:
+
 - `text-gray-700`, `text-gray-900` → `textSecondary`, `textPrimary` 유틸리티 함수 사용
 - `bg-white` → `bgSurface` 유틸리티 함수 사용
 - `border-gray-200`, `border-gray-300` → `borderDefault`, `borderInput` 유틸리티 함수 사용
@@ -26,6 +27,7 @@
 - 테이블 헤더/셀 스타일은 `tableHeaderBase`, `tableCellBase` 사용
 
 **주요 변경 사항**:
+
 ```tsx
 // Before
 <div className="text-center py-8 text-gray-700">로딩 중...</div>
@@ -43,12 +45,14 @@
 **파일**: `app/(student)/scores/_components/MockScoreListTable.tsx`
 
 **수정 내용**:
+
 - 모바일 뷰의 하드코딩된 색상 클래스에 다크 모드 클래스 추가
 - 필터 및 정렬 컨트롤의 하드코딩된 색상 교체
 - 테이블 헤더 스타일 통합
 - 모바일 카드 뷰의 모든 색상 클래스를 유틸리티 함수로 교체
 
 **주요 변경 사항**:
+
 ```tsx
 // Before
 <span className="text-sm font-semibold text-gray-900">
@@ -64,6 +68,7 @@
 **파일**: `app/(student)/scores/_components/ScoreListTable.tsx`
 
 **수정 내용**:
+
 - MockScoreListTable.tsx와 동일한 패턴으로 수정
 - 필터 및 정렬 컨트롤의 하드코딩된 색상 교체
 - 테이블 헤더 스타일 통합
@@ -76,6 +81,7 @@
 #### 2.1 하드코딩 색상 패턴 검색 결과
 
 **대상 패턴**:
+
 - `bg-white` (다크 모드 클래스 없음)
 - `text-gray-900` (다크 모드 클래스 없음)
 - `text-gray-700` (다크 모드 클래스 없음)
@@ -83,11 +89,13 @@
 - `bg-gray-50` (다크 모드 클래스 없음)
 
 **검색 결과**:
+
 - Admin 페이지: 20개 파일 발견
 - Student 페이지: 20개 파일 발견
 - 공통 컴포넌트: 25개 파일 발견
 
 **우선순위 파일**:
+
 1. ✅ `app/(admin)/admin/content-metadata/_components/SubjectCategoriesManager.tsx` (완료)
 2. ✅ `app/(student)/scores/_components/MockScoreListTable.tsx` (완료)
 3. ✅ `app/(student)/scores/_components/ScoreListTable.tsx` (완료)
@@ -104,10 +112,12 @@
 #### 3.1 색상 객체 패턴 통합
 
 **현재 상태**:
+
 - `lib/utils/darkMode.ts`: 중앙화된 유틸리티 함수 존재
 - `lib/constants/planLabels.ts`: `statusColors`가 이미 `planStatusColors`를 사용하도록 통합됨 (deprecated 표시)
 
 **검색 결과**:
+
 - `colorClasses` 패턴: 발견되지 않음
 - `levelColors` 패턴: `lib/utils/darkMode.ts`에 `riskLevelColors`로 통합됨
 - `statusColors` 패턴: `lib/constants/planLabels.ts`에서 `planStatusColors`를 사용하도록 통합됨
@@ -123,6 +133,7 @@
 **파일**: `lib/providers/ThemeProvider.tsx`
 
 **현재 설정**:
+
 - ✅ `attribute="class"` - 클래스 기반 다크 모드
 - ✅ `defaultTheme="light"` - 기본 테마는 라이트 모드
 - ✅ `enableSystem={true}` - 시스템 설정 감지 활성화
@@ -135,6 +146,7 @@
 **파일**: `app/globals.css`
 
 **현재 상태**:
+
 - ✅ `@media (prefers-color-scheme: dark)` - 시스템 설정 기반 다크 모드 지원
 - ✅ `.dark` 클래스 정의 - 클래스 기반 다크 모드 지원
 - ✅ CSS 변수 시스템 - 색상 팔레트가 CSS 변수로 정의됨
@@ -146,6 +158,7 @@
 **파일**: `app/layout.tsx`
 
 **현재 상태**:
+
 - ✅ `suppressHydrationWarning` 적용 - next-themes와의 호환성 보장
 
 **검증 결과**: 모든 설정이 올바르게 구성되어 있습니다.
@@ -157,6 +170,7 @@
 #### 5.1 타입 안전성
 
 **현재 상태**:
+
 - ✅ `lib/utils/darkMode.ts`의 모든 함수에 명시적 반환 타입 정의
 - ✅ 색상 타입을 union type으로 제한 (예: `getStatCardColorClasses`)
 
@@ -303,4 +317,3 @@ import {
 **작업 완료일**: 2025-02-05  
 **작업자**: AI Assistant  
 **검토 상태**: 완료
-

@@ -18,6 +18,7 @@ import {
   borderDefault,
   borderInput,
   bgStyles,
+  bgHover,
   tableHeaderBase,
 } from "@/lib/utils/darkMode";
 
@@ -161,8 +162,8 @@ function ScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "grade"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             학년 <SortIcon field="grade" />
@@ -172,8 +173,8 @@ function ScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "semester"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             학기 <SortIcon field="semester" />
@@ -183,8 +184,8 @@ function ScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "grade_score"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             등급 <SortIcon field="grade_score" />
@@ -194,8 +195,8 @@ function ScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "raw_score"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             원점수 <SortIcon field="raw_score" />
@@ -218,7 +219,7 @@ function ScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("raw_score")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     원점수 <SortIcon field="raw_score" />
                   </button>
@@ -226,7 +227,7 @@ function ScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("grade_score")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     등급 <SortIcon field="grade_score" />
                   </button>
@@ -234,7 +235,7 @@ function ScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("class_rank")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     반 석차 <SortIcon field="class_rank" />
                   </button>
@@ -306,7 +307,7 @@ function ScoreListTableComponent({
                         {score.subject_name || "-"}
                       </span>
                       {score.subject_type && (
-                        <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-400">
+                        <span className={cn("rounded-full px-2 py-0.5 text-xs", bgStyles.gray, textTertiary)}>
                           {score.subject_type}
                         </span>
                       )}

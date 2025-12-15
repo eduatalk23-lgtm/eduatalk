@@ -15,7 +15,7 @@ import {
   planPurposeLabels,
   schedulerTypeLabels,
   statusLabels,
-  statusColors,
+  planStatusColors,
 } from "@/lib/constants/planLabels";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -142,14 +142,14 @@ export default async function PlanGroupDetailPage({
   const getDisplayStatus = () => {
     // 완료 상태는 우선 표시
     if (isCompleted || group.status === "completed") {
-      return { label: "완료", color: statusColors.completed };
+      return { label: "완료", color: planStatusColors.completed };
     }
 
     // 활성/일시정지/중단 상태만 표시 (저장됨/초안 제외)
     if (statusLabels[group.status]) {
       return {
         label: statusLabels[group.status],
-        color: statusColors[group.status],
+        color: planStatusColors[group.status],
       };
     }
 

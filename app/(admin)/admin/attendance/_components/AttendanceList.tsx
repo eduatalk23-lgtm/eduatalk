@@ -6,6 +6,15 @@ import {
   ATTENDANCE_STATUS_LABELS,
   CHECK_METHOD_LABELS,
 } from "@/lib/domains/attendance/types";
+import { cn } from "@/lib/cn";
+import {
+  bgSurface,
+  borderDefault,
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  textMuted,
+} from "@/lib/utils/darkMode";
 
 type AttendanceListProps = {
   records: AttendanceRecord[];
@@ -37,8 +46,8 @@ export function AttendanceList({
 
   if (records.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-800">
-        <p className="text-sm text-gray-500 dark:text-gray-400">출석 기록이 없습니다.</p>
+      <div className={cn("rounded-lg border p-8 text-center", borderDefault, bgSurface)}>
+        <p className={cn("text-sm", textMuted)}>출석 기록이 없습니다.</p>
       </div>
     );
   }
@@ -50,7 +59,7 @@ export function AttendanceList({
         return (
           <div
             key={record.id}
-            className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+            className={cn("flex flex-col gap-3 rounded-lg border p-6 shadow-sm", borderDefault, bgSurface)}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -60,7 +69,7 @@ export function AttendanceList({
                 >
                   {studentName}
                 </Link>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className={cn("text-sm", textMuted)}>
                   {record.attendance_date}
                 </span>
                 <span
@@ -86,7 +95,7 @@ export function AttendanceList({
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-400">
+            <div className={cn("flex flex-col gap-1 text-sm", textTertiary)}>
               {record.check_in_time && (
                 <div>
                   입실: {new Date(record.check_in_time).toLocaleTimeString("ko-KR")}
@@ -102,7 +111,7 @@ export function AttendanceList({
                 </div>
               )}
               {record.notes && (
-                <div className="text-gray-700 dark:text-gray-300">{record.notes}</div>
+                <div className={textSecondary}>{record.notes}</div>
               )}
             </div>
           </div>

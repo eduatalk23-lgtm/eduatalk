@@ -8,6 +8,10 @@ import {
   statusTextStyles,
   statusBadgeStyles,
   textTertiary,
+  textMuted,
+  bgSurface,
+  borderDefault,
+  bgStyles,
 } from "@/lib/utils/darkMode";
 
 type TimelineItem = {
@@ -46,10 +50,10 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
             <div
               className={cn(
                 "relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all",
-                "bg-white dark:bg-gray-800",
+                bgSurface,
                 isCompleted && "border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/30",
                 isInProgress && "border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 shadow-lg shadow-indigo-200 dark:shadow-indigo-900/50",
-                isPending && "border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800"
+                isPending && cn(borderDefault, bgStyles.gray)
               )}
               aria-label={
                 isCompleted ? "완료됨" : isInProgress ? "진행 중" : "대기 중"
@@ -62,7 +66,7 @@ export function PlanTimeline({ items, className }: PlanTimelineProps) {
                 <Clock className="h-4 w-4 text-indigo-600 dark:text-indigo-400 animate-pulse" aria-hidden="true" />
               )}
               {isPending && (
-                <Circle className="h-3 w-3 text-gray-400 dark:text-gray-500" aria-hidden="true" />
+                <Circle className={cn("h-3 w-3", textMuted)} aria-hidden="true" />
               )}
             </div>
 

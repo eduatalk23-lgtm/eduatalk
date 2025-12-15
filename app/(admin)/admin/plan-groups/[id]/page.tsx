@@ -10,7 +10,7 @@ import {
   planPurposeLabels,
   schedulerTypeLabels,
   statusLabels,
-  statusColors,
+  planStatusColors,
 } from "@/lib/constants/planLabels";
 import { getCampTemplateImpactSummary, getCampTemplate } from "@/lib/data/campTemplates";
 import { parseCampConfiguration } from "@/lib/camp/campAdapter";
@@ -119,13 +119,13 @@ export default async function AdminPlanGroupDetailPage({
   // 표시할 상태 결정
   const getDisplayStatus = () => {
     if (isCompleted || group.status === "completed") {
-      return { label: "완료", color: statusColors.completed };
+      return { label: "완료", color: planStatusColors.completed };
     }
 
     if (statusLabels[group.status]) {
       return {
         label: statusLabels[group.status],
-        color: statusColors[group.status],
+        color: planStatusColors[group.status],
       };
     }
 

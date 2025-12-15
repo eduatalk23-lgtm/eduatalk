@@ -18,6 +18,7 @@ import {
   borderDefault,
   borderInput,
   bgStyles,
+  bgHover,
   tableHeaderBase,
 } from "@/lib/utils/darkMode";
 
@@ -157,8 +158,8 @@ function MockScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "grade"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             학년 <SortIcon field="grade" />
@@ -168,8 +169,8 @@ function MockScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "exam_round"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             회차 <SortIcon field="exam_round" />
@@ -179,8 +180,8 @@ function MockScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "grade_score"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             등급 <SortIcon field="grade_score" />
@@ -190,8 +191,8 @@ function MockScoreListTableComponent({
             className={cn(
               "rounded px-2 py-1 text-xs transition",
               sortField === "percentile"
-                ? "bg-gray-100 dark:bg-gray-800 font-medium"
-                : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                ? cn("font-medium", bgStyles.gray)
+                : bgHover
             )}
           >
             백분위 <SortIcon field="percentile" />
@@ -214,7 +215,7 @@ function MockScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("raw_score")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     원점수 <SortIcon field="raw_score" />
                   </button>
@@ -222,7 +223,7 @@ function MockScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("percentile")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     백분위 <SortIcon field="percentile" />
                   </button>
@@ -230,7 +231,7 @@ function MockScoreListTableComponent({
                 <th className={cn(tableHeaderBase, "px-4")}>
                   <button
                     onClick={() => handleSort("grade_score")}
-                    className={cn("flex items-center gap-1", "hover:text-gray-900 dark:hover:text-gray-100")}
+                    className={cn("flex items-center gap-1", "hover:text-primary")}
                   >
                     등급 <SortIcon field="grade_score" />
                   </button>
@@ -266,7 +267,7 @@ function MockScoreListTableComponent({
                           {score.grade_score}등급
                         </Badge>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500">-</span>
+                        <span className={textMuted}>-</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm">

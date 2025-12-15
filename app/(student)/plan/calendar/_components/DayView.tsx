@@ -14,6 +14,16 @@ import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { getDayTypeColor } from "@/lib/constants/colors";
+import { cn } from "@/lib/cn";
+import {
+  textPrimary,
+  textSecondary,
+  textTertiary,
+  textMuted,
+  bgSurface,
+  borderDefault,
+  bgStyles,
+} from "@/lib/utils/darkMode";
 
 type PlanConnection = {
   planIds: string[];
@@ -193,12 +203,12 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                   {dayTypeInfo.icon} {dayTypeInfo.label}
                 </span>
                 {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
-                  <span className="text-sm font-medium text-gray-600">
+                  <span className={cn("text-sm font-medium", textTertiary)}>
                     ({dayExclusions[0].exclusion_type})
                   </span>
                 )}
                 {dayExclusions.length > 0 && dayExclusions[0].reason && (
-                  <span className="text-sm font-medium text-gray-600">- {dayExclusions[0].reason}</span>
+                  <span className={cn("text-sm font-medium", textTertiary)}>- {dayExclusions[0].reason}</span>
                 )}
               </div>
             )}
@@ -228,13 +238,13 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
       </div>
 
       {/* 타임라인 뷰 (시간 순서대로) */}
-      <div className="rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md">
-        <div className="border-b-2 border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 px-6 py-4">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">학습 플랜 타임라인</h3>
+      <div className={cn("rounded-xl border-2 shadow-md", borderDefault, bgSurface)}>
+        <div className={cn("border-b-2 px-6 py-4 bg-gradient-to-r", borderDefault, bgStyles.gray, "to-white dark:to-gray-800")}>
+          <h3 className={cn("text-xl font-bold", textPrimary)}>학습 플랜 타임라인</h3>
         </div>
         <div className="p-6">
           {TIME_BLOCKS.length === 0 ? (
-            <div className="flex flex-col gap-2 py-12 text-center text-gray-400 dark:text-gray-500">
+            <div className={cn("flex flex-col gap-2 py-12 text-center", textMuted)}>
               <div className="text-4xl">📅</div>
               <div className="text-lg font-medium">이 날짜에는 플랜이 없습니다</div>
             </div>
@@ -386,11 +396,11 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                               <div className="flex items-center gap-2">
                                 <span className="text-base">{contentTypeIcon}</span>
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="font-medium text-gray-900">
+                                  <span className={cn("font-medium", textPrimary)}>
                                     {plan.contentTitle}
                                   </span>
                                   {plan.contentCategory && (
-                                    <span className="text-xs text-gray-500">
+                                    <span className={cn("text-xs", textMuted)}>
                                       {plan.contentCategory}
                                     </span>
                                   )}
@@ -398,25 +408,25 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                               </div>
                             </td>
                             {/* 교과/과목 */}
-                            <td className="px-4 py-3 align-top text-sm text-gray-700">
+                            <td className={cn("px-4 py-3 align-top text-sm", textSecondary)}>
                               <div className="flex flex-col gap-1">
                                 {plan.contentSubjectCategory && (
-                                  <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                  <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-medium", bgStyles.gray, textSecondary)}>
                                     {plan.contentSubjectCategory}
                                   </span>
                                 )}
                                 {plan.contentSubject && (
-                                  <span className="text-xs text-gray-600">
+                                  <span className={cn("text-xs", textTertiary)}>
                                     {plan.contentSubject}
                                   </span>
                                 )}
                                 {!plan.contentSubjectCategory && !plan.contentSubject && (
-                                  <span className="text-xs text-gray-400">-</span>
+                                  <span className={cn("text-xs", textMuted)}>-</span>
                                 )}
                               </div>
                             </td>
                             {/* 범위 */}
-                            <td className="px-4 py-3 align-top text-sm text-gray-700">
+                            <td className={cn("px-4 py-3 align-top text-sm", textSecondary)}>
                               <div className="flex flex-col gap-1">
                                 {plan.planned_start_page_or_time !== null &&
                                 plan.planned_end_page_or_time !== null ? (
@@ -427,23 +437,23 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                                       <span>🎧 {plan.planned_start_page_or_time}강</span>
                                     )}
                                     {plan.chapter && (
-                                      <span className="text-xs text-gray-500">
+                                      <span className={cn("text-xs", textMuted)}>
                                         챕터: {plan.chapter}
                                       </span>
                                     )}
                                   </>
                                 ) : (
-                                  <span className="text-xs text-gray-400">-</span>
+                                  <span className={cn("text-xs", textMuted)}>-</span>
                                 )}
                                 {/* 시간 정보 */}
                                 {plan.start_time && plan.end_time && (
-                                  <div className="flex items-center gap-1 text-xs text-blue-600">
+                                  <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
                                     <span>⏰</span>
                                     <span>{plan.start_time} ~ {plan.end_time}</span>
                                   </div>
                                 )}
                                 {/* 블록 인덱스 */}
-                                <div className="text-xs text-gray-400">
+                                <div className={cn("text-xs", textMuted)}>
                                   블록 {plan.block_index}
                                 </div>
                               </div>
@@ -462,7 +472,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                                   </span>
                                 )}
                                 {!isCompleted && !isActive && (
-                                  <span className="text-xs text-gray-400">대기</span>
+                                  <span className={cn("text-xs", textMuted)}>대기</span>
                                 )}
                               </div>
                             </td>
@@ -471,7 +481,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                               <div className="flex flex-col gap-1">
                                 {progressPercentage !== null ? (
                                   <>
-                                    <span className="text-sm font-medium text-gray-700">
+                                    <span className={cn("text-sm font-medium", textSecondary)}>
                                       {progressPercentage}%
                                     </span>
                                     <div className="w-20">
@@ -484,28 +494,28 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                                     </div>
                                   </>
                                 ) : (
-                                  <span className="text-xs text-gray-400">-</span>
+                                  <span className={cn("text-xs", textMuted)}>-</span>
                                 )}
                                 {/* 완료량 */}
                                 {plan.completed_amount !== null && plan.planned_end_page_or_time !== null && (
-                                  <div className="text-xs text-gray-500">
+                                  <div className={cn("text-xs", textMuted)}>
                                     완료: {plan.completed_amount} / {plan.planned_end_page_or_time}
                                   </div>
                                 )}
                                 {/* 실제 시간 정보 */}
                                 {plan.actual_start_time && (
-                                  <div className="text-xs text-gray-500">
+                                  <div className={cn("text-xs", textMuted)}>
                                     시작: {new Date(plan.actual_start_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                                   </div>
                                 )}
                                 {plan.actual_end_time && (
-                                  <div className="text-xs text-gray-500">
+                                  <div className={cn("text-xs", textMuted)}>
                                     종료: {new Date(plan.actual_end_time).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                                   </div>
                                 )}
                                 {/* 소요 시간 */}
                                 {plan.total_duration_seconds != null && (
-                                  <div className="text-xs text-gray-500">
+                                  <div className={cn("text-xs", textMuted)}>
                                     소요: {Math.floor(plan.total_duration_seconds / 60)}분
                                   </div>
                                 )}
@@ -539,14 +549,14 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
 
       {/* 플랜이 없는 경우 */}
       {dayPlans.length === 0 && dayAcademySchedules.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 p-12 text-center">
+        <div className={cn("rounded-lg border-2 border-dashed p-12 text-center", borderDefault, bgStyles.gray)}>
           <div className="flex flex-col gap-4">
             <div className="text-4xl">📅</div>
             <div className="flex flex-col gap-2">
-              <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <div className={cn("text-lg font-semibold", textPrimary)}>
                 이 날짜에는 플랜이 없습니다
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+              <div className={cn("text-sm", textTertiary)}>
                 다른 날짜를 선택하거나 새로운 플랜을 추가해주세요
               </div>
             </div>

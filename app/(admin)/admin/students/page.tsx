@@ -515,7 +515,7 @@ export default async function AdminStudentsPage({
                         입력됨
                       </span>
                     ) : (
-                      <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                      <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", bgStyles.gray, textTertiary)}>
                         미입력
                       </span>
                     )}
