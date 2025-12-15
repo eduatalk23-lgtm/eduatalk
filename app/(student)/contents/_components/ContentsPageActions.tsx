@@ -21,17 +21,17 @@ export function ContentsPageActions({ activeTab }: ContentsPageActionsProps) {
           <ChevronDown size={16} aria-hidden="true" className="opacity-70" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end">
-          <DropdownMenu.Item href="/contents/master-books">
+          <DropdownMenu.Item href="/contents/master-books" aria-label="서비스 마스터 교재 페이지로 이동">
             <BookOpen size={16} aria-hidden="true" />
-            <span>서비스 마스터 교재</span>
+            <span>교재</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item href="/contents/master-lectures">
+          <DropdownMenu.Item href="/contents/master-lectures" aria-label="서비스 마스터 강의 페이지로 이동">
             <Headphones size={16} aria-hidden="true" />
-            <span>서비스 마스터 강의</span>
+            <span>강의</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item href="/contents/master-custom-contents">
+          <DropdownMenu.Item href="/contents/master-custom-contents" aria-label="서비스 마스터 커스텀 콘텐츠 페이지로 이동">
             <FileText size={16} aria-hidden="true" />
-            <span>서비스 마스터 커스텀 콘텐츠</span>
+            <span>커스텀 콘텐츠</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
