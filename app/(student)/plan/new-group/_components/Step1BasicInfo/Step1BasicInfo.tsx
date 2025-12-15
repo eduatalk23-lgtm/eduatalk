@@ -26,10 +26,11 @@ import { getFieldErrorClasses } from "../_shared/fieldErrorUtils";
 import { cn } from "@/lib/cn";
 import { isFieldLocked, canStudentInput, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../utils/fieldLockUtils";
 import type { TemplateLockedFields } from "../PlanGroupWizard";
+import { usePlanWizard } from "../PlanWizardContext";
 
 type Step1BasicInfoProps = {
-  data: WizardData;
-  onUpdate: (updates: Partial<WizardData>) => void;
+  data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
+  onUpdate?: (updates: Partial<WizardData>) => void; // Optional: usePlanWizard에서 가져올 수 있음
   blockSets: Array<{
     id: string;
     name: string;
@@ -77,8 +78,8 @@ const schedulerTypes = [
 ] as const;
 
 export function Step1BasicInfo({
-  data,
-  onUpdate,
+  data: dataProp,
+  onUpdate: onUpdateProp,
   blockSets,
   onBlockSetCreated,
   onBlockSetsLoaded,
@@ -87,9 +88,20 @@ export function Step1BasicInfo({
   isTemplateMode = false,
   templateId,
   isCampMode = false,
-  fieldErrors,
+  fieldErrors: fieldErrorsProp,
 }: Step1BasicInfoProps) {
   const { showError } = useToast();
+  
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData, fieldErrors: contextFieldErrors },
+    updateData: contextUpdateData,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
 
   // 템플릿 고정 필드 확인
   // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)

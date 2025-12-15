@@ -28,6 +28,7 @@ import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredS
 import { FieldErrors } from "./hooks/useWizardValidation";
 import { FieldError } from "./_shared/FieldError";
 import { createWizardMode, isStudentMode } from "./utils/modeUtils";
+import { usePlanWizard } from "./PlanWizardContext";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -37,8 +38,8 @@ import { createWizardMode, isStudentMode } from "./utils/modeUtils";
  * 탭 UI로 학생 콘텐츠와 추천 콘텐츠를 한 화면에서 관리
  */
 export function Step3ContentSelection({
-  data,
-  onUpdate,
+  data: dataProp,
+  onUpdate: onUpdateProp,
   contents,
   isEditMode = false,
   isCampMode = false,
@@ -46,12 +47,23 @@ export function Step3ContentSelection({
   studentId,
   editable = true,
   isAdminContinueMode = false,
-  fieldErrors,
+  fieldErrors: fieldErrorsProp,
 }: Step3ContentSelectionProps & { 
   isTemplateMode?: boolean; 
   isAdminContinueMode?: boolean;
   fieldErrors?: FieldErrors;
 }) {
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData, fieldErrors: contextFieldErrors },
+    updateData: contextUpdateData,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
+
   // 모드 통합 관리
   const mode = useMemo(() => createWizardMode({
     isCampMode,

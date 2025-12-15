@@ -11,6 +11,7 @@ import {
   SubjectAllocationSummary,
 } from "./_summary";
 import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
+import { usePlanWizard } from "./PlanWizardContext";
 
 /**
  * Step6Simplified - 최종 확인 (간소화)
@@ -25,8 +26,8 @@ import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
  */
 
 export type Step6SimplifiedProps = {
-  data: WizardData;
-  onEditStep: (step: 1 | 2 | 4) => void;
+  data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
+  onEditStep?: (step: 1 | 2 | 4) => void; // Optional: usePlanWizard에서 가져올 수 있음
   isCampMode?: boolean;
   isAdminContinueMode?: boolean;
   onUpdate?: (updates: Partial<WizardData>) => void;
@@ -639,16 +640,28 @@ function SubjectAllocationEditor({
 }
 
 export function Step6Simplified({
-  data,
-  onEditStep,
+  data: dataProp,
+  onEditStep: onEditStepProp,
   isCampMode = false,
   isAdminContinueMode = false,
-  onUpdate,
+  onUpdate: onUpdateProp,
   contents,
   studentId,
   editable = true,
   isTemplateMode = false,
 }: Step6SimplifiedProps) {
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData },
+    updateData: contextUpdateData,
+    setStep,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const onEditStep = onEditStepProp ?? setStep;
+
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}

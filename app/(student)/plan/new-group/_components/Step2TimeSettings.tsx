@@ -3,12 +3,13 @@
 import React from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { TimeSettingsPanel } from "./_panels/TimeSettingsPanel";
+import { usePlanWizard } from "./PlanWizardContext";
 
 type Step2TimeSettingsProps = {
-  data: WizardData;
-  onUpdate: (updates: Partial<WizardData>) => void;
-  periodStart: string;
-  periodEnd: string;
+  data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
+  onUpdate?: (updates: Partial<WizardData>) => void; // Optional: usePlanWizard에서 가져올 수 있음
+  periodStart?: string; // Optional: usePlanWizard에서 가져올 수 있음
+  periodEnd?: string; // Optional: usePlanWizard에서 가져올 수 있음
   groupId?: string;
   onNavigateToStep?: (step: number) => void;
   campMode?: boolean;
@@ -30,10 +31,10 @@ type Step2TimeSettingsProps = {
  * 시간 설정 전용 단계 (미리보기는 Step 3으로 분리)
  */
 export function Step2TimeSettings({
-  data,
-  onUpdate,
-  periodStart,
-  periodEnd,
+  data: dataProp,
+  onUpdate: onUpdateProp,
+  periodStart: periodStartProp,
+  periodEnd: periodEndProp,
   groupId,
   onNavigateToStep,
   campMode = false,
@@ -44,6 +45,21 @@ export function Step2TimeSettings({
   isAdminMode = false,
   isAdminContinueMode = false,
 }: Step2TimeSettingsProps) {
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData, draftGroupId },
+    updateData: contextUpdateData,
+    setStep,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const periodStart = periodStartProp ?? contextData.period_start;
+  const periodEnd = periodEndProp ?? contextData.period_end;
+  const finalGroupId = groupId ?? draftGroupId ?? undefined;
+  const finalOnNavigateToStep = onNavigateToStep ?? setStep;
+
   return (
     <div className="flex flex-col gap-6">
       {/* 설정 패널 */}
@@ -52,8 +68,8 @@ export function Step2TimeSettings({
         onUpdate={onUpdate}
         periodStart={periodStart}
         periodEnd={periodEnd}
-        groupId={groupId}
-        onNavigateToStep={onNavigateToStep}
+        groupId={finalGroupId}
+        onNavigateToStep={finalOnNavigateToStep}
         campMode={campMode}
         isTemplateMode={isTemplateMode}
         templateExclusions={templateExclusions}

@@ -4,10 +4,11 @@ import React from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { SchedulePreviewPanel } from "./_panels/SchedulePreviewPanel";
 import { ArrowLeft } from "lucide-react";
+import { usePlanWizard } from "./PlanWizardContext";
 
 type Step3SchedulePreviewProps = {
-  data: WizardData;
-  onUpdate: (updates: Partial<WizardData>) => void;
+  data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
+  onUpdate?: (updates: Partial<WizardData>) => void; // Optional: usePlanWizard에서 가져올 수 있음
   blockSets?: Array<{
     id: string;
     name: string;
@@ -32,14 +33,26 @@ type Step3SchedulePreviewProps = {
  * - 편집 버튼으로 Step 2로 이동
  */
 export function Step3SchedulePreview({
-  data,
-  onUpdate,
+  data: dataProp,
+  onUpdate: onUpdateProp,
   blockSets,
   isTemplateMode = false,
   campMode = false,
   campTemplateId,
-  onNavigateToStep,
+  onNavigateToStep: onNavigateToStepProp,
 }: Step3SchedulePreviewProps) {
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData },
+    updateData: contextUpdateData,
+    setStep,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const onNavigateToStep = onNavigateToStepProp ?? setStep;
+
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}

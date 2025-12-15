@@ -17,14 +17,25 @@ import { SubjectAllocationUI } from "./SubjectAllocationUI";
 import { ContentAllocationUI } from "./ContentAllocationUI";
 import { ContentList } from "./ContentList";
 import { ComparisonTable } from "./ComparisonTable";
+import { usePlanWizard } from "../PlanWizardContext";
 
 export function Step6FinalReview({
-  data,
-  onUpdate,
+  data: dataProp,
+  onUpdate: onUpdateProp,
   contents,
   isCampMode = false,
   studentId,
 }: Step6FinalReviewProps) {
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
+  const {
+    state: { wizardData: contextData },
+    updateData: contextUpdateData,
+  } = usePlanWizard();
+  
+  // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
+  const data = dataProp ?? contextData;
+  const onUpdate = onUpdateProp ?? contextUpdateData;
+
   // Hooks
   const { contentInfos, loading } = useContentInfos({
     data,
