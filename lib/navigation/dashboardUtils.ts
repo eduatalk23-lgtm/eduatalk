@@ -3,13 +3,11 @@
  * NavigationCategory를 대시보드 카드용 형태로 변환
  */
 
-import { getCategoriesForRole } from "@/components/navigation/global/categoryConfig";
 import {
-  LayoutDashboard,
-  Clock,
-  CalendarCheck,
+  CalendarDays,
+  ClipboardList,
   BookOpen,
-  Users,
+  Tent,
   CheckCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -21,37 +19,43 @@ export type DashboardCategory = {
 };
 
 /**
- * 이모지 → LucideIcon 매핑 테이블
+ * href → LucideIcon 매핑 테이블
  */
-const iconMap: Record<string, LucideIcon> = {
-  "📊": LayoutDashboard,
-  "📅": Clock,
-  "📋": CalendarCheck,
-  "📚": BookOpen,
-  "🏕️": Users,
-  "✅": CheckCircle,
+const hrefIconMap: Record<string, LucideIcon> = {
+  "/today": CalendarDays,
+  "/plan": ClipboardList,
+  "/contents": BookOpen,
+  "/camp": Tent,
+  "/attendance/check-in": CheckCircle,
+};
+
+/**
+ * href → label 매핑 테이블 (서버 컴포넌트에서 사용)
+ */
+const hrefLabelMap: Record<string, string> = {
+  "/today": "학습 관리",
+  "/plan": "플랜 관리",
+  "/contents": "콘텐츠 관리",
+  "/camp": "캠프 관리",
+  "/attendance/check-in": "출석 관리",
 };
 
 /**
  * 학생 카테고리를 대시보드 카드용 형태로 변환
+ * 서버 컴포넌트에서 사용 가능하도록 직접 매핑 사용
  */
 export function getDashboardCategories(): DashboardCategory[] {
-  const categories = getCategoriesForRole("student");
   const result: DashboardCategory[] = [];
 
-  for (const category of categories) {
-    for (const item of category.items) {
-      // 대시보드 제외
-      if (item.href === "/dashboard") continue;
-
-      // 아이콘이 있고 매핑이 존재하는 경우만 추가
-      if (item.icon && iconMap[item.icon]) {
-        result.push({
-          label: item.label,
-          href: item.href,
-          icon: iconMap[item.icon],
-        });
-      }
+  // 직접 매핑된 href들만 사용
+  for (const [href, icon] of Object.entries(hrefIconMap)) {
+    const label = hrefLabelMap[href];
+    if (label) {
+      result.push({
+        label,
+        href,
+        icon,
+      });
     }
   }
 

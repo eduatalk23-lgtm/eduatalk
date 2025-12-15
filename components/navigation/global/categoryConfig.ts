@@ -3,6 +3,8 @@
  * 역할별(학생/관리자/학부모) 카테고리 구조를 정의합니다.
  */
 
+"use client";
+
 import type { NavigationRole, NavigationItem, NavigationCategory } from "./types";
 import { studentCategories } from "./configs/studentCategories";
 import { adminCategories } from "./configs/adminCategories";
