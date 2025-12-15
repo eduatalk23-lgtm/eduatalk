@@ -2,6 +2,8 @@
  * 관리자 영역 카테고리 설정
  */
 
+"use client";
+
 import type { NavigationCategory } from "../types";
 import {
   BarChart3,
