@@ -55,17 +55,37 @@
 - `PlanGroupCard`는 이제 `group.plan_type`을 기반으로 캠프 모드를 자동 판단
 - 다른 컴포넌트들(`PlanItem`, `TimerControlButtons` 등)은 여전히 `campMode` prop을 받아서 사용 (하위 호환성 유지)
 
-## 진행 중인 작업
-
 ### 3. 캠프 상태(Status) 관리 통합
-- 다음 단계에서 구현 예정
 
-## 예상 효과
+#### 3-1. 신규 파일 생성: `lib/camp/campStatus.ts`
+- **목적**: 초대 상태와 플랜 그룹 상태를 조합하여 클라이언트가 이해하기 쉬운 단일 상태값 제공
+- **구현 내용**:
+  - `CampStatus` 타입 정의 (PENDING_FORM, WAITING_REVIEW, READY_TO_START, IN_PROGRESS, COMPLETED, PAUSED)
+  - `CampStatusInfo` 타입 정의 (UI 렌더링용 정보)
+  - `getCampStatus()`: 초대 상태와 플랜 그룹 상태를 조합하여 통합 상태 반환
+  - `getCampStatusInfo()`: 상태에 따른 UI 정보 반환 (라벨, 색상, 설명, 링크 등)
+  - `getCampStatusFromInvitation()`: 편의 함수 (초대 정보로부터 직접 상태 정보 반환)
+
+#### 3-2. CampInvitationCard 단순화
+- **파일**: `app/(student)/camp/_components/CampInvitationCard.tsx`
+- **변경 사항**:
+  - 복잡한 상태 표시 로직 제거 (약 100줄)
+  - `getCampStatusFromInvitation()` 사용으로 단순화
+  - 상태별 UI 렌더링 로직 통합
+
+**예상 코드 감소**: 약 100줄 이상 감소
+
+### 4. 타입 안전성 개선
+- `campAdapter.ts`에서 `unknown` 타입 사용 및 타입 가드 적용
+- `campStatus.ts`에서 명시적 타입 정의
+- Null 안전성 강화 (Optional Chaining, Nullish Coalescing 사용)
+
+## 완료된 효과
 
 ### 코드 감소
 - 중복 파싱 로직 제거: 약 550줄 이상
-- 상태 표시 로직 단순화: 예상 약 100줄 (다음 단계)
-- **총 예상 감소: 약 650줄 이상**
+- 상태 표시 로직 단순화: 약 100줄 이상
+- **총 감소: 약 650줄 이상**
 
 ### 유지보수성 향상
 - 단일 책임 원칙 준수
@@ -80,18 +100,11 @@
 
 ## 다음 단계
 
-1. **캠프 상태 관리 통합**
-   - `lib/camp/campStatus.ts` 생성
-   - `CampStatus` 타입 정의 및 상태 결정 로직 구현
-   - `CampInvitationCard` 단순화
-
-2. **타입 안전성 개선**
-   - `any` 타입 제거
-   - Null 안전성 강화
-
-3. **테스트 및 검증**
+1. **테스트 및 검증**
    - 기존 기능 동작 확인
    - 레거시 데이터 호환성 검증
+   - Adapter 함수 단위 테스트 작성 권장
+   - 상태 관리 로직 독립 테스트 작성 권장
 
 ## 참고 사항
 
