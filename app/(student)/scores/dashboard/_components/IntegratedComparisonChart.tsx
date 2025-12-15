@@ -6,17 +6,9 @@
 
 import React, { useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -31,6 +23,7 @@ export function IntegratedComparisonChart({
   schoolScores,
   mockScores,
 }: IntegratedComparisonChartProps) {
+  const { recharts, loading } = useRecharts();
   const [chartType, setChartType] = useState<ChartType>("trend");
 
   // 시간별 추세 비교 데이터
@@ -182,10 +175,28 @@ export function IntegratedComparisonChart({
     return null;
   }
 
+  // Show loading skeleton while recharts is loading
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={400} />;
+  }
+
+  const {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    BarChart,
+    Bar,
+  } = recharts;
+
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
           통합 성적 비교 분석
         </h2>
         <div className="flex gap-2">
@@ -193,8 +204,8 @@ export function IntegratedComparisonChart({
             onClick={() => setChartType("trend")}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               chartType === "trend"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
             시간별 추세
@@ -203,8 +214,8 @@ export function IntegratedComparisonChart({
             onClick={() => setChartType("subject")}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               chartType === "subject"
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
             과목별 비교
@@ -285,27 +296,27 @@ export function IntegratedComparisonChart({
           </ResponsiveContainer>
           
           {/* 차이 분석 테이블 */}
-          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <h3 className="text-sm font-semibold text-gray-900">
+          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-4">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               등급 차이 분석
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 font-semibold text-gray-700">
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-2 px-3 font-semibold text-gray-700 dark:text-gray-300">
                       과목
                     </th>
-                    <th className="text-center py-2 px-3 font-semibold text-gray-700">
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 dark:text-gray-300">
                       내신
                     </th>
-                    <th className="text-center py-2 px-3 font-semibold text-gray-700">
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 dark:text-gray-300">
                       모의고사
                     </th>
-                    <th className="text-center py-2 px-3 font-semibold text-gray-700">
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 dark:text-gray-300">
                       차이
                     </th>
-                    <th className="text-center py-2 px-3 font-semibold text-gray-700">
+                    <th className="text-center py-2 px-3 font-semibold text-gray-700 dark:text-gray-300">
                       분석
                     </th>
                   </tr>
@@ -323,25 +334,25 @@ export function IntegratedComparisonChart({
                         : "비슷함";
                     const analysisColor =
                       diff === null
-                        ? "text-gray-500"
+                        ? "text-gray-500 dark:text-gray-400"
                         : diff < -0.5
-                        ? "text-green-600"
+                        ? "text-green-600 dark:text-green-400"
                         : diff > 0.5
-                        ? "text-orange-600"
-                        : "text-gray-600";
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-gray-600 dark:text-gray-400";
 
                     return (
                       <tr
                         key={item.subject}
-                        className="border-b border-gray-100 hover:bg-white"
+                        className="border-b border-gray-100 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800"
                       >
-                        <td className="py-2 px-3 font-medium text-gray-900">
+                        <td className="py-2 px-3 font-medium text-gray-900 dark:text-gray-100">
                           {item.subject}
                         </td>
-                        <td className="py-2 px-3 text-center text-gray-600">
+                        <td className="py-2 px-3 text-center text-gray-600 dark:text-gray-400">
                           {item.내신 !== null ? `${item.내신}등급` : "-"}
                         </td>
-                        <td className="py-2 px-3 text-center text-gray-600">
+                        <td className="py-2 px-3 text-center text-gray-600 dark:text-gray-400">
                           {item.모의고사 !== null ? `${item.모의고사}등급` : "-"}
                         </td>
                         <td className="py-2 px-3 text-center">
@@ -349,17 +360,17 @@ export function IntegratedComparisonChart({
                             <span
                               className={`font-semibold ${
                                 diff < 0
-                                  ? "text-green-600"
+                                  ? "text-green-600 dark:text-green-400"
                                   : diff > 0
-                                  ? "text-red-600"
-                                  : "text-gray-600"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-gray-600 dark:text-gray-400"
                               }`}
                             >
                               {diff > 0 ? "+" : ""}
                               {diff}등급
                             </span>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 dark:text-gray-500">-</span>
                           )}
                         </td>
                         <td className={`py-2 px-3 text-center font-medium ${analysisColor}`}>

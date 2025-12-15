@@ -7,15 +7,9 @@
 import React from "react";
 import { Card, CardContent } from "@/components/molecules/Card";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow } from "../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -27,6 +21,7 @@ type SemesterChartsSectionProps = {
 export function SemesterChartsSection({
   schoolScores,
 }: SemesterChartsSectionProps) {
+  const { recharts, loading } = useRecharts();
   // 학년·학기별로 데이터 그룹화
   const chartData = React.useMemo(() => {
     const grouped = new Map<string, SchoolScoreRow[]>();
@@ -85,6 +80,18 @@ export function SemesterChartsSection({
       />
     );
   }
+
+  if (loading || !recharts) {
+    return (
+      <Card padding="md">
+        <CardContent className="flex flex-col gap-4">
+          <ChartLoadingSkeleton height={400} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
 
   return (
     <Card padding="md">

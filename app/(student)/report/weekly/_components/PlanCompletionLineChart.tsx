@@ -1,6 +1,9 @@
 "use client";
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 
 type PlanCompletionLineChartProps = {
   data: Array<{
@@ -13,12 +16,20 @@ type PlanCompletionLineChartProps = {
 };
 
 export function PlanCompletionLineChart({ data }: PlanCompletionLineChartProps) {
+  const { recharts, loading } = useRecharts();
+
   const chartData = data.map((d) => ({
     day: d.dayOfWeek,
     rate: d.completionRate,
     completed: d.completedPlans,
     total: d.totalPlans,
   }));
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = recharts;
 
   return (
     <ResponsiveContainer width="100%" height={300}>

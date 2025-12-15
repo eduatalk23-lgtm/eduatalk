@@ -7,15 +7,9 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/molecules/Card";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow } from "../_utils/scoreQueries";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
@@ -29,6 +23,7 @@ const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
 export function SubjectTrendSection({
   schoolScores,
 }: SubjectTrendSectionProps) {
+  const { recharts, loading } = useRecharts();
   const [showAll, setShowAll] = useState(false);
 
   // 교과별로 데이터 그룹화 및 최근 성적 추출
@@ -101,6 +96,18 @@ export function SubjectTrendSection({
       />
     );
   }
+
+  if (loading || !recharts) {
+    return (
+      <Card padding="md">
+        <CardContent className="flex flex-col gap-4">
+          <ChartLoadingSkeleton height={400} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
 
   return (
     <Card padding="md">

@@ -1,6 +1,9 @@
 "use client";
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { TimeDistribution } from "@/lib/domains/attendance/statistics";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -9,6 +12,8 @@ type TimeDistributionChartProps = {
 };
 
 export function TimeDistributionChart({ data }: TimeDistributionChartProps) {
+  const { recharts, loading } = useRecharts();
+
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-sm text-gray-500">
@@ -16,12 +21,18 @@ export function TimeDistributionChart({ data }: TimeDistributionChartProps) {
       </div>
     );
   }
-  
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = recharts;
+
   const chartData = data.map((item) => ({
     hour: `${item.hour}시`,
     count: item.count,
   }));
-  
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <AreaChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -29,12 +40,12 @@ export function TimeDistributionChart({ data }: TimeDistributionChartProps) {
         <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip />
-        <Area 
-          type="monotone" 
-          dataKey="count" 
-          stroke={getChartColor(5)} 
-          fill={getChartColor(5)} 
-          fillOpacity={0.6} 
+        <Area
+          type="monotone"
+          dataKey="count"
+          stroke={getChartColor(5)}
+          fill={getChartColor(5)}
+          fillOpacity={0.6}
         />
       </AreaChart>
     </ResponsiveContainer>

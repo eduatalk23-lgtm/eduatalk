@@ -1,6 +1,9 @@
 "use client";
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 
 type InternalGPAChartProps = {
   data: Array<{
@@ -12,6 +15,8 @@ type InternalGPAChartProps = {
 };
 
 export default function InternalGPAChart({ data }: InternalGPAChartProps) {
+  const { recharts, loading } = useRecharts();
+
   if (data.length === 0) {
     return (
       <div className="h-64 flex items-center justify-center text-gray-500">
@@ -19,6 +24,12 @@ export default function InternalGPAChart({ data }: InternalGPAChartProps) {
       </div>
     );
   }
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = recharts;
 
   return (
     <ResponsiveContainer width="100%" height={300}>

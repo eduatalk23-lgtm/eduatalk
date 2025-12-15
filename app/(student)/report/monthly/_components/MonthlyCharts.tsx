@@ -1,6 +1,9 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { MonthlyReport } from "@/lib/reports/monthly";
 import { createWidthStyle } from "@/lib/utils/cssVariables";
 import { getChartColor } from "@/lib/constants/colors";
@@ -10,6 +13,7 @@ type MonthlyChartsProps = {
 };
 
 export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
+  const { recharts, loading } = useRecharts();
   // 주차별 학습시간 데이터
   const studyTimeData = reportData.studyTimeByWeek.map((week) => ({
     weekNumber: week.weekNumber,
@@ -21,6 +25,20 @@ export function MonthlyCharts({ reportData }: MonthlyChartsProps) {
     weekNumber: week.weekNumber,
     completionRate: week.completionRate,
   }));
+
+  if (loading || !recharts) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartLoadingSkeleton height={300} />
+        <ChartLoadingSkeleton height={300} />
+        <div className="lg:col-span-2">
+          <ChartLoadingSkeleton height={300} />
+        </div>
+      </div>
+    );
+  }
+
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } = recharts;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

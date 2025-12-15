@@ -3,16 +3,9 @@
 import React from "react";
 import { Card, CardContent } from "@/components/molecules/Card";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { getGradeColorHex, getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -24,6 +17,7 @@ type SchoolHeatmapChartProps = {
 export function SchoolHeatmapChart({
   schoolScores,
 }: SchoolHeatmapChartProps) {
+  const { recharts, loading } = useRecharts();
   // 학기별/과목별 등급 히트맵 데이터 생성
   const heatmapData = React.useMemo(() => {
     const semesterMap = new Map<string, Map<string, number[]>>();
@@ -96,6 +90,18 @@ export function SchoolHeatmapChart({
       />
     );
   }
+
+  if (loading || !recharts) {
+    return (
+      <Card padding="md">
+        <CardContent className="flex flex-col gap-4">
+          <ChartLoadingSkeleton height={400} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } = recharts;
 
   // 등급별 색상은 getGradeColorHex 함수 사용
 

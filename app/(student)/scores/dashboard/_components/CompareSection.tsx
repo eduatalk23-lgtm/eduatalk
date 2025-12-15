@@ -6,15 +6,9 @@
 
 import React from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow, MockScoreRow } from "../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -29,6 +23,8 @@ export function CompareSection({
   schoolScores,
   mockScores,
 }: CompareSectionProps) {
+  const { recharts, loading } = useRecharts();
+
   const chartData = React.useMemo(() => {
     const result: Array<{
       subject: string;
@@ -76,14 +72,14 @@ export function CompareSection({
 
   if (chartData.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
         <div className="mx-auto flex max-w-md flex-col gap-4">
           <div className="text-6xl">⚖️</div>
           <div className="flex flex-col gap-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               비교 데이터가 없습니다
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               내신과 모의고사 성적을 모두 등록하면 비교 그래프가 표시됩니다.
             </p>
           </div>
@@ -92,9 +88,25 @@ export function CompareSection({
     );
   }
 
+  // Show loading skeleton while recharts is loading
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={400} />;
+  }
+
+  const {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+  } = recharts;
+
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
         내신 vs 모의고사 비교
       </h2>
       <ResponsiveContainer width="100%" height={400}>

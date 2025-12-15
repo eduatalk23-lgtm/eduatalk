@@ -2,15 +2,9 @@
 
 import React from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -21,6 +15,8 @@ type SchoolGradeDistributionChartProps = {
 export function SchoolGradeDistributionChart({
   schoolScores,
 }: SchoolGradeDistributionChartProps) {
+  const { recharts, loading } = useRecharts();
+
   // 등급별 분포 데이터 생성
   const distributionData = React.useMemo(() => {
     const gradeCount = new Map<number, number>();
@@ -80,13 +76,13 @@ export function SchoolGradeDistributionChart({
 
   if (schoolScores.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
         <div className="mx-auto flex flex-col gap-2 max-w-md">
           <div className="text-6xl">📊</div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             분포 데이터가 없습니다
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             내신 성적을 등록하면 분포 차트가 표시됩니다.
           </p>
         </div>
@@ -94,11 +90,32 @@ export function SchoolGradeDistributionChart({
     );
   }
 
+  // Show loading skeleton while recharts is loading
+  if (loading || !recharts) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartLoadingSkeleton height={300} />
+        <ChartLoadingSkeleton height={300} />
+      </div>
+    );
+  }
+
+  const {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+  } = recharts;
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* 전체 등급 분포 */}
-      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-gray-900">
+      <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           전체 등급 분포
         </h3>
         <ResponsiveContainer width="100%" height={300}>

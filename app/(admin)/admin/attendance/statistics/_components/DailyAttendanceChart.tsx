@@ -1,6 +1,9 @@
 "use client";
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { AttendanceChartData } from "@/lib/domains/attendance/statistics";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -9,6 +12,8 @@ type DailyAttendanceChartProps = {
 };
 
 export function DailyAttendanceChart({ data }: DailyAttendanceChartProps) {
+  const { recharts, loading } = useRecharts();
+
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-sm text-gray-500">
@@ -16,13 +21,19 @@ export function DailyAttendanceChart({ data }: DailyAttendanceChartProps) {
       </div>
     );
   }
-  
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis 
-          dataKey="date" 
+        <XAxis
+          dataKey="date"
           tick={{ fontSize: 12 }}
           angle={-45}
           textAnchor="end"

@@ -1,6 +1,9 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { CourseAverageGrade } from "../_utils";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -9,6 +12,8 @@ type CourseAverageChartProps = {
 };
 
 export function CourseAverageChart({ data }: CourseAverageChartProps) {
+  const { recharts, loading } = useRecharts();
+
   if (data.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-gray-500">
@@ -16,6 +21,12 @@ export function CourseAverageChart({ data }: CourseAverageChartProps) {
       </div>
     );
   }
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={400} />;
+  }
+
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
 
   const chartData = data.map((item) => ({
     name: item.course,

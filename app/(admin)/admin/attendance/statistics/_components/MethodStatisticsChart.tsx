@@ -1,6 +1,9 @@
 "use client";
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { MethodStatistics } from "@/lib/domains/attendance/statistics";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -16,6 +19,8 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export function MethodStatisticsChart({ data }: MethodStatisticsChartProps) {
+  const { recharts, loading } = useRecharts();
+
   if (data.length === 0) {
     return (
       <div className="flex h-[300px] items-center justify-center text-sm text-gray-500">
@@ -23,13 +28,19 @@ export function MethodStatisticsChart({ data }: MethodStatisticsChartProps) {
       </div>
     );
   }
-  
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } = recharts;
+
   const chartData = data.map((item) => ({
     name: METHOD_LABELS[item.method] || item.method,
     value: item.count,
     percentage: item.percentage,
   }));
-  
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>

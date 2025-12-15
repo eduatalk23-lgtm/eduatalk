@@ -7,15 +7,9 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/molecules/Card";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { MockScoreRow } from "../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -29,6 +23,7 @@ type MetricType = "percentile" | "grade_score" | "raw_score";
 export function MockExamTrendSection({
   mockScores,
 }: MockExamTrendSectionProps) {
+  const { recharts, loading } = useRecharts();
   const [metric, setMetric] = useState<MetricType>("percentile");
 
   // exam_round별로 데이터 그룹화
@@ -131,6 +126,18 @@ export function MockExamTrendSection({
       : undefined;
 
   const yAxisReversed = metric === "grade_score";
+
+  if (loading || !recharts) {
+    return (
+      <Card padding="md">
+        <CardContent className="flex flex-col gap-4">
+          <ChartLoadingSkeleton height={400} />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
 
   return (
     <Card padding="md">

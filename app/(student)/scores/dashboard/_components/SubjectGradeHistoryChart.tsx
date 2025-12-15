@@ -2,15 +2,9 @@
 
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { SubjectGradeHistory } from "../_utils";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -21,6 +15,7 @@ type SubjectGradeHistoryChartProps = {
 export function SubjectGradeHistoryChart({
   data,
 }: SubjectGradeHistoryChartProps) {
+  const { recharts, loading } = useRecharts();
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
     data.slice(0, 5).map((d) => `${d.course}:${d.course_detail}`)
   );
@@ -32,6 +27,12 @@ export function SubjectGradeHistoryChart({
       </div>
     );
   }
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={400} />;
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = recharts;
 
   // 모든 시험일 수집
   const allDates = new Set<string>();

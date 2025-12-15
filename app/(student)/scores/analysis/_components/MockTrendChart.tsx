@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import { getChartColor } from "@/lib/constants/colors";
 
 type MockTrendChartProps = {
@@ -9,6 +12,7 @@ type MockTrendChartProps = {
 };
 
 export default function MockTrendChart({ scores }: MockTrendChartProps) {
+  const { recharts, loading } = useRecharts();
   // 과목별로 그룹화하여 차트 데이터 준비
   const chartData = useMemo(() => {
     // 시험일별로 그룹화
@@ -55,6 +59,12 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
       </div>
     );
   }
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = recharts;
 
   return (
     <ResponsiveContainer width="100%" height={300}>

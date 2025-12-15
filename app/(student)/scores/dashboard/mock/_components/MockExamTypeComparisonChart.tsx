@@ -2,20 +2,9 @@
 
 import React, { useState } from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-} from "recharts";
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import type { MockScoreRow } from "../../_utils/scoreQueries";
 import { getChartColor } from "@/lib/constants/colors";
 
@@ -28,6 +17,7 @@ type MetricType = "percentile" | "grade_score";
 export function MockExamTypeComparisonChart({
   mockScores,
 }: MockExamTypeComparisonChartProps) {
+  const { recharts, loading } = useRecharts();
   const [metric, setMetric] = useState<MetricType>("percentile");
   const [chartType, setChartType] = useState<"bar" | "radar">("bar");
 
@@ -137,13 +127,13 @@ export function MockExamTypeComparisonChart({
 
   if (mockScores.length === 0 || comparisonData.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-12 text-center">
         <div className="mx-auto flex flex-col gap-2 max-w-md">
           <div className="text-6xl">📊</div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             비교 데이터가 없습니다
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             모의고사 성적을 등록하면 비교 차트가 표시됩니다.
           </p>
         </div>
@@ -151,14 +141,35 @@ export function MockExamTypeComparisonChart({
     );
   }
 
+  // Show loading skeleton while recharts is loading
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={400} />;
+  }
+
+  const {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    RadarChart,
+    PolarGrid,
+    PolarAngleAxis,
+    PolarRadiusAxis,
+    Radar,
+  } = recharts;
+
   const metricLabel = metric === "percentile" ? "백분위" : "등급";
-  const yAxisDomain = metric === "percentile" ? [0, 100] : [1, 9];
+  const yAxisDomain: [number, number] = metric === "percentile" ? [0, 100] : [1, 9];
   const yAxisReversed = metric === "grade_score";
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
           시험 유형별 비교
         </h2>
         <div className="flex gap-2">
@@ -167,8 +178,8 @@ export function MockExamTypeComparisonChart({
               onClick={() => setMetric("percentile")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 metric === "percentile"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               백분위
@@ -177,8 +188,8 @@ export function MockExamTypeComparisonChart({
               onClick={() => setMetric("grade_score")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 metric === "grade_score"
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-indigo-600 dark:bg-indigo-500 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               등급
@@ -189,8 +200,8 @@ export function MockExamTypeComparisonChart({
               onClick={() => setChartType("bar")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 chartType === "bar"
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-purple-600 dark:bg-purple-500 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               막대
@@ -199,8 +210,8 @@ export function MockExamTypeComparisonChart({
               onClick={() => setChartType("radar")}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                 chartType === "radar"
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-purple-600 dark:bg-purple-500 text-white"
+                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
               레이더

@@ -1,6 +1,9 @@
 "use client";
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import { getChartColor, getChartColorClass } from "@/lib/constants/colors";
 
 type SubjectTimePieChartProps = {
@@ -13,11 +16,19 @@ type SubjectTimePieChartProps = {
 };
 
 export function SubjectTimePieChart({ data }: SubjectTimePieChartProps) {
+  const { recharts, loading } = useRecharts();
+
   const chartData = data.map((d) => ({
     name: d.subject,
     value: d.minutes,
     percentage: d.percentage,
   }));
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } = recharts;
 
   return (
     <div className="flex flex-col gap-4">

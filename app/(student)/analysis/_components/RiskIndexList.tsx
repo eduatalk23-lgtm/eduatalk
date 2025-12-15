@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import { getRiskColorHex, getRiskColor } from "@/lib/constants/colors";
 import { cn } from "@/lib/cn";
 import ProgressBar from "@/components/atoms/ProgressBar";
@@ -35,6 +38,8 @@ const getTrendText = (trend: number): string => {
 };
 
 export function RiskIndexList({ analyses }: RiskIndexListProps) {
+  const { recharts, loading } = useRecharts();
+
   const chartData = analyses.map((a) => ({
     name: a.subject,
     "Risk Index": Math.round(a.risk_score),
@@ -48,31 +53,40 @@ export function RiskIndexList({ analyses }: RiskIndexListProps) {
           <h2 className="text-xl font-semibold text-gray-900">
             과목별 Risk Index
           </h2>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={0}
-              />
-              <YAxis domain={[0, 100]} label={{ value: "Risk Index", angle: -90, position: "insideLeft" }} />
-              <Tooltip
-                formatter={(value: number) => [`${value}점`, "Risk Index"]}
-              />
-              <Legend />
-              <Bar dataKey="Risk Index" name="Risk Index">
-                {chartData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={getRiskColorHex(entry["Risk Index"])}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {loading || !recharts ? (
+            <ChartLoadingSkeleton height={400} />
+          ) : (
+            (() => {
+              const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } = recharts;
+              return (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={0}
+                    />
+                    <YAxis domain={[0, 100]} label={{ value: "Risk Index", angle: -90, position: "insideLeft" }} />
+                    <Tooltip
+                      formatter={(value: number) => [`${value}점`, "Risk Index"]}
+                    />
+                    <Legend />
+                    <Bar dataKey="Risk Index" name="Risk Index">
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={getRiskColorHex(entry["Risk Index"])}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              );
+            })()
+          )}
         </div>
       </div>
 

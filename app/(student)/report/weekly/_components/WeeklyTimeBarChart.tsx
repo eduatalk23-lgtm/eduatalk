@@ -1,6 +1,9 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  useRecharts,
+  ChartLoadingSkeleton,
+} from "@/components/charts/LazyRecharts";
 import { getChartColor } from "@/lib/constants/colors";
 
 type WeeklyTimeBarChartProps = {
@@ -13,10 +16,18 @@ type WeeklyTimeBarChartProps = {
 };
 
 export function WeeklyTimeBarChart({ data }: WeeklyTimeBarChartProps) {
+  const { recharts, loading } = useRecharts();
+
   const chartData = data.map((d) => ({
     day: d.dayOfWeek,
     minutes: d.minutes,
   }));
+
+  if (loading || !recharts) {
+    return <ChartLoadingSkeleton height={300} />;
+  }
+
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } = recharts;
 
   return (
     <ResponsiveContainer width="100%" height={300}>

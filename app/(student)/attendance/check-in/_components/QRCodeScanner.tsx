@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
 import {
   checkInWithQRCode,
   checkOutWithQRCode,
 } from "@/app/(student)/actions/attendanceActions";
 import Button from "@/components/atoms/Button";
+
+// html5-qrcode is dynamically imported to reduce initial bundle size (~379KB)
+type Html5QrcodeType = import("html5-qrcode").Html5Qrcode;
 
 type QRCodeScannerProps = {
   mode?: "check-in" | "check-out";
@@ -18,10 +20,11 @@ export function QRCodeScanner({
   onSuccess,
 }: QRCodeScannerProps) {
   const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [smsFailure, setSmsFailure] = useState<string | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerRef = useRef<Html5QrcodeType | null>(null);
   const scannerId = "qr-reader";
 
   useEffect(() => {
@@ -44,6 +47,12 @@ export function QRCodeScanner({
     try {
       setError(null);
       setSuccess(false);
+      setLoading(true);
+
+      // Dynamic import to reduce initial bundle size
+      const { Html5Qrcode } = await import("html5-qrcode");
+
+      setLoading(false);
       setScanning(true);
 
       const html5QrCode = new Html5Qrcode(scannerId);
@@ -113,6 +122,7 @@ export function QRCodeScanner({
 
       setError(errorMessage);
       setScanning(false);
+      setLoading(false);
       scannerRef.current = null;
     }
   };
@@ -136,8 +146,12 @@ export function QRCodeScanner({
       <div id={scannerId} className="w-full max-w-md mx-auto" />
 
       {!scanning ? (
-        <Button onClick={startScan} className="w-full">
-          {mode === "check-out" ? "퇴실 QR 코드 스캔 시작" : "QR 코드 스캔 시작"}
+        <Button onClick={startScan} className="w-full" disabled={loading}>
+          {loading
+            ? "카메라 준비 중..."
+            : mode === "check-out"
+              ? "퇴실 QR 코드 스캔 시작"
+              : "QR 코드 스캔 시작"}
         </Button>
       ) : (
         <Button onClick={stopScan} variant="outline" className="w-full">
