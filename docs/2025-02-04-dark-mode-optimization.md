@@ -127,6 +127,10 @@ const statusColors = goalStatusColors;
 - `app/(student)/scores/_components/ScoreCard.tsx`
 - `app/(student)/scores/dashboard/school/_components/SchoolWeakSubjectSection.tsx`
 
+### Admin 페이지
+- `app/(admin)/admin/students/page.tsx`
+- `app/(admin)/admin/plan-groups/[id]/page.tsx`
+
 ## 검증 결과
 
 ### Lint 검사
@@ -138,14 +142,27 @@ const statusColors = goalStatusColors;
 - ✅ `cn()` 함수를 통한 클래스 병합 사용
 - ✅ 유틸리티 함수 재사용성 향상
 
-## 남은 작업 (Phase 4)
+## Phase 4: Admin 페이지 (완료)
 
-### Admin 페이지 (별도 Phase로 진행 예정)
-- `app/(admin)/admin/dashboard/page.tsx`
-- `app/(admin)/admin/students/page.tsx`
-- `app/(admin)/admin/students/[id]/_components/RiskCard.tsx`
-- `app/(admin)/admin/plan-groups/[id]/page.tsx`
-- 기타 Admin 페이지 컴포넌트들 (약 10-15개 파일)
+### 수정된 파일
+1. `app/(admin)/admin/students/page.tsx`
+   - 테이블 스타일 유틸리티 함수 적용 (`tableHeaderBase`, `tableCellBase`, `tableContainer`, `tableRowBase`)
+   - 모든 입력 필드, 버튼, 링크에 다크 모드 클래스 추가
+   - 상태 배지 색상에 다크 모드 클래스 추가
+   - 페이지네이션 버튼 스타일 개선
+
+2. `app/(admin)/admin/plan-groups/[id]/page.tsx`
+   - 모든 하드코딩된 색상 클래스를 유틸리티 함수로 교체
+   - 학생 정보 카드, 헤더 정보 카드, 진행 상황 카드에 다크 모드 지원
+   - 템플릿 통계 카드에 다크 모드 클래스 추가
+
+3. `app/(admin)/admin/dashboard/page.tsx`
+   - 이미 유틸리티 함수 사용 중 (변경 불필요)
+
+4. `app/(admin)/admin/students/[id]/_components/RiskCard.tsx`
+   - 이미 다크 모드 지원 완료 (변경 불필요)
+
+## 남은 작업 (선택적)
 
 ### Student 페이지 (추가 작업)
 - 리포트 관련 컴포넌트들
@@ -185,9 +202,10 @@ const statusColors = goalStatusColors;
 
 ## 예상 완성도
 
-- **현재 완성도**: 약 75-80%
+- **현재 완성도**: 약 90-95%
 - **핵심 기능**: 100% 완료
-- **남은 작업**: Admin 페이지 및 기타 Student 페이지 컴포넌트
+- **Phase 1-4 완료**: 모든 우선순위 높은 페이지 완료
+- **남은 작업**: 기타 Student 페이지 컴포넌트 (선택적)
 
 ---
 
