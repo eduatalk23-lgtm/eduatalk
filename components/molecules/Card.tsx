@@ -1,40 +1,60 @@
 "use client";
 
 import { memo, ReactNode } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
 
 // ============================================
-// Card 컴포넌트
+// Card 컴포넌트 (CVA 적용)
 // ============================================
+
+/**
+ * Card 컴포넌트 스타일 variants
+ * 
+ * CVA (class-variance-authority)를 사용하여 타입 안전한 variant 시스템 제공
+ */
+const cardVariants = cva(
+  // Base styles
+  "rounded-xl border shadow-sm",
+  {
+    variants: {
+      variant: {
+        default: "border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900",
+        interactive: "border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900 transition-shadow hover:shadow-md cursor-pointer",
+        error: "border-error-200 dark:border-error-800 bg-error-50 dark:bg-error-900/30",
+      },
+      padding: {
+        none: "",
+        sm: "p-4",
+        md: "p-6",
+        lg: "p-8",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      padding: "md",
+    },
+  }
+);
 
 export type CardProps = {
   children: ReactNode;
   className?: string;
   hover?: boolean;
   padding?: "none" | "sm" | "md" | "lg";
-};
-
-const paddingClasses = {
-  none: "",
-  sm: "p-4",
-  md: "p-6",
-  lg: "p-8",
-};
+  variant?: "default" | "interactive" | "error";
+} & VariantProps<typeof cardVariants>;
 
 function CardComponent({
   children,
   className,
   hover = false,
   padding = "md",
+  variant = hover ? "interactive" : "default",
 }: CardProps) {
   return (
     <div
-      className={cn(
-        "rounded-xl border border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900 shadow-sm",
-        hover && "transition-shadow hover:shadow-md",
-        paddingClasses[padding],
-        className
-      )}
+      className={cn(cardVariants({ variant, padding }), className)}
     >
       {children}
     </div>
@@ -110,4 +130,3 @@ export function CardFooter({ children, className }: CardFooterProps) {
 
 export const Card = memo(CardComponent);
 export default Card;
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, forwardRef } from "react";
+import { memo, forwardRef, useId } from "react";
 import { cn } from "@/lib/cn";
 import Label from "@/components/atoms/Label";
 import Input, { InputSize } from "@/components/atoms/Input";
@@ -32,7 +32,8 @@ const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
     },
     ref
   ) => {
-    const inputId = id || props.name;
+    const generatedId = useId();
+    const inputId = id || props.name || generatedId;
     const errorId = error ? `${inputId}-error` : undefined;
     const hintId = hint && !error ? `${inputId}-hint` : undefined;
     const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined;
@@ -103,7 +104,11 @@ const FormSelectComponent = forwardRef<HTMLSelectElement, FormSelectProps>(
     },
     ref
   ) => {
-    const selectId = id || props.name;
+    const generatedId = useId();
+    const selectId = id || props.name || generatedId;
+    const errorId = error ? `${selectId}-error` : undefined;
+    const hintId = hint && !error ? `${selectId}-hint` : undefined;
+    const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined;
 
     return (
       <div className={cn("flex flex-col gap-1.5", className)}>
@@ -115,6 +120,9 @@ const FormSelectComponent = forwardRef<HTMLSelectElement, FormSelectProps>(
           id={selectId}
           selectSize={selectSize}
           hasError={!!error}
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={describedBy}
+          aria-required={required}
           {...props}
         >
           {placeholder && (
@@ -133,10 +141,10 @@ const FormSelectComponent = forwardRef<HTMLSelectElement, FormSelectProps>(
           ))}
         </Select>
         {error && (
-          <p className="text-xs text-red-600">{error}</p>
+          <p id={errorId} className="text-xs text-red-600" role="alert">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-[var(--text-secondary)]">{hint}</p>
+          <p id={hintId} className="text-xs text-[var(--text-secondary)]">{hint}</p>
         )}
       </div>
     );

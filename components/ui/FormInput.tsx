@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useId } from "react";
 import { cn } from "@/lib/cn";
 
 export interface FormInputProps
@@ -14,7 +14,8 @@ const FormInput = memo(function FormInput({
   id,
   ...props
 }: FormInputProps) {
-  const inputId = id || props.name;
+  const generatedId = useId();
+  const inputId = id || props.name || generatedId;
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy = errorId || undefined;
 
