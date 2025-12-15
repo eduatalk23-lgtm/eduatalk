@@ -319,6 +319,9 @@ export async function getTodayPlans(
   let progressData: Array<{ content_type: string; content_id: string; progress: number | null }> = [];
   
   if (contentKeys.size > 0) {
+    // Supabase 클라이언트 생성
+    const supabase = await createSupabaseServerClient();
+    
     // 각 content_type별로 그룹화하여 쿼리
     const bookProgressIds: string[] = [];
     const lectureProgressIds: string[] = [];
