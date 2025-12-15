@@ -121,29 +121,92 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 
 /**
  * 초기 상태 생성 함수
+ * 
+ * PlanGroupWizard의 초기 데이터 구조를 고려하여 WizardData를 생성합니다.
  */
-function createInitialState(initialData?: Partial<WizardData>): WizardState {
+function createInitialState(
+  initialData?: Partial<WizardData> & {
+    groupId?: string;
+    _startStep?: number;
+    _validationErrors?: string[];
+    contents?: WizardData["student_contents"];
+  },
+  initialStep?: number,
+  initialDraftId?: string | null
+): WizardState {
+  // plan_purpose 정규화 처리 (기존 로직 유지)
+  const denormalizePlanPurpose = (purpose: string | null | undefined): "" | "내신대비" | "모의고사(수능)" => {
+    if (!purpose) return "";
+    if (purpose === "수능" || purpose === "모의고사") return "모의고사(수능)";
+    if (purpose === "내신대비" || purpose === "모의고사(수능)") return purpose as "내신대비" | "모의고사(수능)";
+    return "";
+  };
+
+  // 초기 콘텐츠 상태 처리
+  const initialContentsState = {
+    student_contents: initialData?.student_contents || initialData?.contents || [],
+    recommended_contents: initialData?.recommended_contents || [],
+  };
+
   const defaultWizardData: WizardData = {
-    name: "",
-    plan_purpose: "",
-    scheduler_type: "",
-    period_start: "",
-    period_end: "",
-    block_set_id: "",
-    exclusions: [],
-    academy_schedules: [],
-    student_contents: [],
-    recommended_contents: [],
+    name: initialData?.name || "",
+    plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
+    scheduler_type: (initialData?.scheduler_type as "1730_timetable" | "") || "1730_timetable",
+    period_start: initialData?.period_start || "",
+    period_end: initialData?.period_end || "",
+    target_date: initialData?.target_date || undefined,
+    block_set_id: initialData?.block_set_id || "",
+    scheduler_options: {
+      ...(initialData?.scheduler_options || {}),
+      study_days: (initialData?.scheduler_options as any)?.study_days || initialData?.study_review_cycle?.study_days || 6,
+      review_days: (initialData?.scheduler_options as any)?.review_days || initialData?.study_review_cycle?.review_days || 1,
+      student_level: initialData?.student_level || (initialData?.scheduler_options as any)?.student_level,
+    },
+    exclusions: initialData?.exclusions?.map((e) => ({
+      exclusion_date: e.exclusion_date,
+      exclusion_type: e.exclusion_type,
+      reason: e.reason,
+      source: e.source,
+      is_locked: e.is_locked,
+    })) || [],
+    academy_schedules: initialData?.academy_schedules?.map((s) => ({
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      academy_name: s.academy_name,
+      subject: s.subject,
+      travel_time: s.travel_time,
+      source: s.source,
+      is_locked: s.is_locked,
+    })) || [],
+    time_settings: initialData?.time_settings,
+    student_contents: initialContentsState.student_contents,
+    recommended_contents: initialContentsState.recommended_contents,
+    study_review_cycle: initialData?.study_review_cycle || {
+      study_days: (initialData?.scheduler_options as any)?.study_days || 6,
+      review_days: (initialData?.scheduler_options as any)?.review_days || 1,
+    },
+    student_level: initialData?.student_level || (initialData?.scheduler_options as any)?.student_level,
+    subject_allocations: initialData?.subject_allocations || (initialData?.scheduler_options as any)?.subject_allocations,
+    content_allocations: (initialData?.scheduler_options as any)?.content_allocations,
+    subject_constraints: initialData?.subject_constraints,
+    additional_period_reallocation: initialData?.additional_period_reallocation,
+    non_study_time_blocks: initialData?.non_study_time_blocks,
+    daily_schedule: initialData?.daily_schedule,
+    plan_type: initialData?.plan_type,
+    camp_template_id: initialData?.camp_template_id,
+    camp_invitation_id: initialData?.camp_invitation_id,
+    templateLockedFields: initialData?.templateLockedFields,
     ...initialData,
   };
 
   return {
     wizardData: defaultWizardData,
-    currentStep: 1,
-    validationErrors: [],
+    currentStep: (initialStep || initialData?._startStep || 1) as WizardStep,
+    validationErrors: initialData?._validationErrors || [],
     validationWarnings: [],
     fieldErrors: new Map(),
-    draftGroupId: null,
+    draftGroupId: initialDraftId || initialData?.groupId || null,
     isSubmitting: false,
   };
 }
@@ -193,13 +256,7 @@ export function PlanWizardProvider({
   initialStep = 1,
   initialDraftId = null,
 }: PlanWizardProviderProps) {
-  const initialState = createInitialState(initialData);
-  if (initialStep !== 1) {
-    initialState.currentStep = initialStep;
-  }
-  if (initialDraftId !== null) {
-    initialState.draftGroupId = initialDraftId;
-  }
+  const initialState = createInitialState(initialData, initialStep, initialDraftId);
 
   const [state, dispatch] = useReducer(wizardReducer, initialState);
 

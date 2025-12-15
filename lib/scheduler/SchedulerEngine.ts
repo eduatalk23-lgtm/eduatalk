@@ -1,8 +1,8 @@
 /**
  * SchedulerEngine - 1730 타임테이블 스케줄링 엔진
- * 
+ *
  * 1730 타임테이블 로직을 클래스로 캡슐화하여 응집도를 높이고 유지보수성을 향상시킵니다.
- * 
+ *
  * 주요 기능:
  * - 학습일/복습일 주기 계산
  * - 콘텐츠별 날짜 배정 (전략과목/취약과목 로직 포함)
@@ -49,7 +49,10 @@ export type SchedulerContext = {
   dateAvailableTimeRanges?: DateAvailableTimeRanges;
   dateTimeSlots?: DateTimeSlots;
   contentDurationMap?: ContentDurationMap;
-  contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>;
+  contentSubjects?: Map<
+    string,
+    { subject?: string | null; subject_category?: string | null }
+  >;
 };
 
 /**
@@ -85,7 +88,10 @@ function calculateContentDuration(
     // 강의: duration 정보 사용
     if (durationInfo?.duration) {
       // 전체 강의 시간을 전체 회차로 나눈 값 * 배정된 회차 수
-      return Math.round((durationInfo.duration / (content.end_range - content.start_range)) * amount);
+      return Math.round(
+        (durationInfo.duration / (content.end_range - content.start_range)) *
+          amount
+      );
     }
     // duration 정보가 없으면 기본값: 회차당 30분
     return amount * 30;
@@ -100,7 +106,11 @@ function calculateContentDuration(
         return amount * 2; // 페이지당 2분
       } else {
         // 시간(분)으로 간주: 전체 시간을 전체 범위로 나눈 값 * 배정된 범위
-        return Math.round((durationInfo.total_page_or_time / (content.end_range - content.start_range)) * amount);
+        return Math.round(
+          (durationInfo.total_page_or_time /
+            (content.end_range - content.start_range)) *
+            amount
+        );
       }
     }
     // 정보가 없으면 기본값: 페이지당 2분
@@ -110,14 +120,17 @@ function calculateContentDuration(
 
 /**
  * SchedulerEngine 클래스
- * 
+ *
  * 1730 타임테이블 스케줄링 로직을 캡슐화합니다.
  */
 export class SchedulerEngine {
   private context: SchedulerContext;
   private cycleDays: CycleDayInfo[] | null = null;
   private contentAllocationMap: Map<string, string[]> | null = null;
-  private contentRangeMap: Map<string, Map<string, { start: number; end: number }>> | null = null;
+  private contentRangeMap: Map<
+    string,
+    Map<string, { start: number; end: number }>
+  > | null = null;
   private filteredContents: ContentInfo[] | null = null;
 
   constructor(context: SchedulerContext) {
@@ -154,7 +167,9 @@ export class SchedulerEngine {
     if (this.filteredContents) return this.filteredContents;
 
     const { contents, options, riskIndexMap } = this.context;
-    const weakSubjectFocus = options?.weak_subject_focus === "high" || options?.weak_subject_focus === true;
+    const weakSubjectFocus =
+      options?.weak_subject_focus === "high" ||
+      options?.weak_subject_focus === true;
 
     if (weakSubjectFocus && riskIndexMap) {
       const filtered = contents.filter((content) => {
@@ -202,7 +217,10 @@ export class SchedulerEngine {
       | undefined;
 
     // 데이터 검증
-    const validation = validateAllocations(contentAllocations, subjectAllocations);
+    const validation = validateAllocations(
+      contentAllocations,
+      subjectAllocations
+    );
     if (!validation.valid) {
       console.warn("[SchedulerEngine] 전략과목/취약과목 설정 검증 실패:", {
         errors: validation.errors,
@@ -232,13 +250,18 @@ export class SchedulerEngine {
         weekly_days: allocation.weekly_days,
       };
 
-      const allocatedDates = calculateSubjectAllocationDates(cycleDays, subjectAlloc);
+      const allocatedDates = calculateSubjectAllocationDates(
+        cycleDays,
+        subjectAlloc
+      );
 
       // 학습일 배정 검증
       const studyDatesSet = new Set(
         cycleDays.filter((d) => d.day_type === "study").map((d) => d.date)
       );
-      const validAllocatedDates = allocatedDates.filter((date) => studyDatesSet.has(date));
+      const validAllocatedDates = allocatedDates.filter((date) =>
+        studyDatesSet.has(date)
+      );
 
       if (validAllocatedDates.length === 0) {
         console.warn("[SchedulerEngine] 학습일 배정 실패:", {
@@ -246,7 +269,8 @@ export class SchedulerEngine {
           content_type: content.content_type,
           subject_type: allocation.subject_type,
           weekly_days: allocation.weekly_days,
-          message: "학습일이 배정되지 않았습니다. 이 콘텐츠는 플랜이 생성되지 않습니다.",
+          message:
+            "학습일이 배정되지 않았습니다. 이 콘텐츠는 플랜이 생성되지 않습니다.",
         });
         if (this.contentAllocationMap) {
           this.contentAllocationMap.set(content.content_id, []);
@@ -274,7 +298,10 @@ export class SchedulerEngine {
    * 학습 범위 분할
    * 배정된 날짜에 학습 범위를 분배합니다.
    */
-  private divideContentRanges(): Map<string, Map<string, { start: number; end: number }>> {
+  private divideContentRanges(): Map<
+    string,
+    Map<string, { start: number; end: number }>
+  > {
     if (this.contentRangeMap) return this.contentRangeMap;
 
     const allocationMap = this.allocateContentDates();
@@ -308,7 +335,10 @@ export class SchedulerEngine {
       }
 
       // start_range 오프셋 적용
-      const adjustedRangeMap = new Map<string, { start: number; end: number }>();
+      const adjustedRangeMap = new Map<
+        string,
+        { start: number; end: number }
+      >();
       rangeMap.forEach((range, date) => {
         adjustedRangeMap.set(date, {
           start: content.start_range + range.start,
@@ -373,7 +403,7 @@ export class SchedulerEngine {
 
   /**
    * 학습일 플랜 생성
-   * 
+   *
    * @returns 플랜 배열과 studyPlansByDate 맵을 반환합니다.
    */
   private generateStudyDayPlans(
@@ -386,7 +416,10 @@ export class SchedulerEngine {
     riskIndexMap?: Map<string, { riskScore: number }>
   ): {
     plans: ScheduledPlan[];
-    studyPlansByDate: Map<string, Array<{ content: ContentInfo; start: number; end: number }>>;
+    studyPlansByDate: Map<
+      string,
+      Array<{ content: ContentInfo; start: number; end: number }>
+    >;
   } {
     const plans: ScheduledPlan[] = [];
 
@@ -440,7 +473,9 @@ export class SchedulerEngine {
     studyPlansByDate.forEach((datePlans, date) => {
       const availableRanges = dateAvailableTimeRanges?.get(date) || [];
       const timeSlots = dateTimeSlots?.get(date) || [];
-      const studyTimeSlots = timeSlots.filter((slot) => slot.type === "학습시간");
+      const studyTimeSlots = timeSlots.filter(
+        (slot) => slot.type === "학습시간"
+      );
 
       let slotIndex = 0;
       let blockIndex = 1;
@@ -465,8 +500,12 @@ export class SchedulerEngine {
             const slotAvailable = slotEnd - slotStart - currentSlotPosition;
             const slotUsed = Math.min(remainingMinutes, slotAvailable);
 
-            const planStartTime = minutesToTime(slotStart + currentSlotPosition);
-            const planEndTime = minutesToTime(slotStart + currentSlotPosition + slotUsed);
+            const planStartTime = minutesToTime(
+              slotStart + currentSlotPosition
+            );
+            const planEndTime = minutesToTime(
+              slotStart + currentSlotPosition + slotUsed
+            );
 
             plans.push({
               plan_date: date,
@@ -495,13 +534,21 @@ export class SchedulerEngine {
             slotIndex = availableRanges.length - 1;
           }
 
-          const timeRange = availableRanges[slotIndex] || { start: "10:00", end: "19:00" };
+          const timeRange = availableRanges[slotIndex] || {
+            start: "10:00",
+            end: "19:00",
+          };
           const startMinutes = timeToMinutes(timeRange.start);
           const endMinutes = timeToMinutes(timeRange.end);
-          const rangeDuration = endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+          const rangeDuration =
+            endMinutes > startMinutes ? endMinutes - startMinutes : 60;
           const actualDuration = Math.min(requiredMinutes, rangeDuration);
-          const planStartTime = minutesToTime(startMinutes + currentSlotPosition);
-          const planEndTime = minutesToTime(startMinutes + currentSlotPosition + actualDuration);
+          const planStartTime = minutesToTime(
+            startMinutes + currentSlotPosition
+          );
+          const planEndTime = minutesToTime(
+            startMinutes + currentSlotPosition + actualDuration
+          );
 
           plans.push({
             plan_date: date,
@@ -538,21 +585,33 @@ export class SchedulerEngine {
     contents: ContentInfo[],
     rangeMap: Map<string, Map<string, { start: number; end: number }>>,
     dateAvailableTimeRanges?: DateAvailableTimeRanges,
-    studyPlansByDate?: Map<string, Array<{ content: ContentInfo; start: number; end: number }>>
+    studyPlansByDate?: Map<
+      string,
+      Array<{ content: ContentInfo; start: number; end: number }>
+    >
   ): ScheduledPlan[] {
     const plans: ScheduledPlan[] = [];
 
     // 학습일에 실제로 플랜이 생성되었는지 확인
     const hasStudyPlans = studyPlansByDate && studyPlansByDate.size > 0;
     const studyPlansCount = studyPlansByDate
-      ? Array.from(studyPlansByDate.values()).reduce((sum, plans) => sum + plans.length, 0)
+      ? Array.from(studyPlansByDate.values()).reduce(
+          (sum, plans) => sum + plans.length,
+          0
+        )
       : 0;
 
-    if (reviewDaysList.length > 0 && (!hasStudyPlans || studyPlansCount === 0)) {
-      console.warn("[SchedulerEngine] 복습일 플랜 생성 불가 (학습일 플랜 없음):", {
-        reviewDaysList,
-        studyPlansCount,
-      });
+    if (
+      reviewDaysList.length > 0 &&
+      (!hasStudyPlans || studyPlansCount === 0)
+    ) {
+      console.warn(
+        "[SchedulerEngine] 복습일 플랜 생성 불가 (학습일 플랜 없음):",
+        {
+          reviewDaysList,
+          studyPlansCount,
+        }
+      );
       return plans;
     }
 
@@ -585,18 +644,28 @@ export class SchedulerEngine {
     }
 
     reviewDaysList.forEach((reviewDay) => {
-      if (!reviewDay || weekContentRanges.size === 0 || !hasStudyPlans || studyPlansCount === 0) {
+      if (
+        !reviewDay ||
+        weekContentRanges.size === 0 ||
+        !hasStudyPlans ||
+        studyPlansCount === 0
+      ) {
         return;
       }
 
       // 복습 콘텐츠 목록 생성 (이번 주에 학습한 콘텐츠만)
-      const reviewContents = contents.filter((content) => weekContentRanges.has(content.content_id));
+      const reviewContents = contents.filter((content) =>
+        weekContentRanges.has(content.content_id)
+      );
 
       if (reviewContents.length === 0) {
-        console.warn("[SchedulerEngine] 복습일 플랜 생성 스킵 (복습 콘텐츠 없음):", {
-          reviewDay,
-          weekContentRangesCount: weekContentRanges.size,
-        });
+        console.warn(
+          "[SchedulerEngine] 복습일 플랜 생성 스킵 (복습 콘텐츠 없음):",
+          {
+            reviewDay,
+            weekContentRangesCount: weekContentRanges.size,
+          }
+        );
         return;
       }
 
@@ -612,7 +681,10 @@ export class SchedulerEngine {
           rangeIndex = availableRanges.length - 1;
         }
 
-        const timeRange = availableRanges[rangeIndex] || { start: "10:00", end: "19:00" };
+        const timeRange = availableRanges[rangeIndex] || {
+          start: "10:00",
+          end: "19:00",
+        };
 
         plans.push({
           plan_date: reviewDay,
@@ -668,15 +740,16 @@ export class SchedulerEngine {
       });
 
       // 학습일 플랜 생성
-      const { plans: studyPlans, studyPlansByDate } = this.generateStudyDayPlans(
-        studyDaysList,
-        sortedContents,
-        rangeMap,
-        dateAvailableTimeRanges,
-        dateTimeSlots,
-        contentDurationMap,
-        riskIndexMap
-      );
+      const { plans: studyPlans, studyPlansByDate } =
+        this.generateStudyDayPlans(
+          studyDaysList,
+          sortedContents,
+          rangeMap,
+          dateAvailableTimeRanges,
+          dateTimeSlots,
+          contentDurationMap,
+          riskIndexMap
+        );
       plans.push(...studyPlans);
 
       // 복습일 플랜 생성
@@ -702,4 +775,3 @@ export class SchedulerEngine {
     return this.assignTimeSlots();
   }
 }
-
