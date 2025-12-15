@@ -68,10 +68,10 @@ type Step1BasicInfoProps = {
 
 
 
-const planPurposes = [
+const planPurposes: Array<{ value: "내신대비" | "모의고사(수능)" | ""; label: string }> = [
   { value: "내신대비", label: "내신대비" },
   { value: "모의고사(수능)", label: "모의고사(수능)" },
-] as const;
+];
 
 const schedulerTypes = [
   { value: "1730_timetable", label: "1730 Timetable" },

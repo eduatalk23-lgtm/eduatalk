@@ -342,7 +342,7 @@ export function PeriodSection({
 
                   // 종료일이 시작일보다 빠르면 초기화
                   if (directState.end && start > directState.end) {
-                    setDirectState((prev) => ({ ...prev, end: "" }));
+                    setDirectState((prev: { start: string; end: string }) => ({ ...prev, end: "" }));
                     onUpdate({ period_end: "" });
                   }
                 }}

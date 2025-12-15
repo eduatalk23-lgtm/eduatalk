@@ -282,7 +282,7 @@ export function BlockSetSection({
                           <button
                             type="button"
                             onClick={() =>
-                              setCurrentPage((prev) => Math.max(1, prev - 1))
+                              setCurrentPage((prev: number) => Math.max(1, prev - 1))
                             }
                             disabled={currentPage === 1}
                             className="rounded px-3 py-1 text-xs text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -295,7 +295,7 @@ export function BlockSetSection({
                           <button
                             type="button"
                             onClick={() =>
-                              setCurrentPage((prev) =>
+                              setCurrentPage((prev: number) =>
                                 Math.min(totalPages, prev + 1)
                               )
                             }
@@ -406,7 +406,7 @@ export function BlockSetSection({
                       추가된 블록 ({addedBlocks.length}개)
                     </h3>
                     <div className="space-y-2">
-                    {addedBlocks.map((block, index) => {
+                    {addedBlocks.map((block: { day: number; startTime: string; endTime: string }, index: number) => {
                       const dayNames = [
                         "일",
                         "월",

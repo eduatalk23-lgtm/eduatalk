@@ -13,7 +13,7 @@ export type WizardMode = {
   isTemplateMode: boolean;
   isAdminMode: boolean;
   isAdminContinueMode: boolean;
-  isEditMode?: boolean;
+  isEditMode: boolean;
 };
 
 /**

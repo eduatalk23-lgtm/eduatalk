@@ -36,8 +36,8 @@ export function useContentSelection({
       } else {
         // 중복 확인
         const isDuplicate =
-          data.student_contents.some((c) => c.content_id === contentId) ||
-          data.recommended_contents.some((c) => c.content_id === contentId);
+          data.student_contents.some((c: WizardData["student_contents"][number]) => c.content_id === contentId) ||
+          data.recommended_contents.some((c: WizardData["recommended_contents"][number]) => c.content_id === contentId);
         
         if (isDuplicate) {
           alert(ERROR_MESSAGES.ALREADY_SELECTED);

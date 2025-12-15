@@ -137,7 +137,7 @@ export function syncWizardDataToCreationData(
     // plan_purpose 변환: 빈 문자열은 null, "모의고사(수능)"은 "모의고사"로 변환
     const wizardPlanPurpose = validatedData.plan_purpose;
     const normalizedPlanPurpose: PlanPurpose | null =
-      !wizardPlanPurpose || wizardPlanPurpose === "" || wizardPlanPurpose === null
+      !wizardPlanPurpose || wizardPlanPurpose === null
         ? null
         : wizardPlanPurpose === "모의고사(수능)"
           ? "모의고사"

@@ -169,14 +169,14 @@ function createInitialState(
         student_level: initialData?.student_level || (schedulerOptionsRecord.student_level as "high" | "medium" | "low" | undefined),
       };
     })(),
-    exclusions: initialData?.exclusions?.map((e) => ({
+    exclusions: initialData?.exclusions?.map((e: WizardData["exclusions"][number]) => ({
       exclusion_date: e.exclusion_date,
       exclusion_type: e.exclusion_type,
       reason: e.reason,
       source: e.source,
       is_locked: e.is_locked,
     })) || [],
-    academy_schedules: initialData?.academy_schedules?.map((s) => ({
+    academy_schedules: initialData?.academy_schedules?.map((s: WizardData["academy_schedules"][number]) => ({
       day_of_week: s.day_of_week,
       start_time: s.start_time,
       end_time: s.end_time,

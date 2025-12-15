@@ -8,7 +8,7 @@ import {
   CACHE_STALE_TIME_STABLE,
   CACHE_GC_TIME_STABLE 
 } from "@/lib/constants/queryCache";
-import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/Step7ScheduleResult/ScheduleTableView";
+import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/_features/scheduling/components/ScheduleTableView";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import type {
   ContentData,

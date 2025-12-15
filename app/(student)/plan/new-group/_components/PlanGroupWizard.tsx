@@ -36,13 +36,13 @@ import { Step6FinalReview } from "./_features/content-selection/Step6FinalReview
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult";
 
-export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
 
 // 타입 re-export (하위 호환성 유지)
 export type { WizardData, TemplateLockedFields };
+
+export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // 기존 타입 정의는 주석 처리 (스키마에서 추론됨)
 /*
@@ -245,6 +245,7 @@ type ExtendedInitialData = Partial<WizardData> & {
   contents?: WizardData["student_contents"]; // 기존 구조 호환성
 };
 
+// PlanGroupWizardProps 타입 export
 export type PlanGroupWizardProps = {
   initialBlockSets?: Array<{ id: string; name: string }>;
   initialContents?: {

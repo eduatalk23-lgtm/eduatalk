@@ -249,6 +249,11 @@ export const templateLockedFieldsSchema = z.object({
 });
 
 /**
+ * 템플릿 고정 필드 타입
+ */
+export type TemplateLockedFields = z.infer<typeof templateLockedFieldsSchema>;
+
+/**
  * 콘텐츠 할당 스키마
  */
 export const contentAllocationSchema = z.object({
