@@ -4,7 +4,13 @@
  * Supabase 인증 에러를 사용자 친화적인 한국어 메시지로 변환합니다.
  */
 
-type AuthError = {
+import type { SupabaseErrorLike } from "./rateLimitHandler";
+
+/**
+ * AuthError 타입은 SupabaseErrorLike와 호환되도록 정의
+ * null 허용은 기존 호환성을 위해 유지
+ */
+type AuthError = SupabaseErrorLike & {
   message?: string | null;
   status?: number | null;
   code?: string | null;

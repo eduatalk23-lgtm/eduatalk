@@ -37,60 +37,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         return null;
       }
       
-      // Rate limit 에러인 경우에만 재시도
-      if (isRateLimitError(initialResult.error)) {
-        const {
-          data: { user },
-          error: authError,
-        } = await retryWithBackoff(
-          async () => {
-            const result = await supabase.auth.getUser();
-            if (result.error && isRateLimitError(result.error)) {
-              throw result.error;
-            }
-            return result;
-          },
-          2,
-          2000,
-          true // 인증 요청 플래그
-        );
-        
-        if (authError) {
-          // Rate limit 에러 처리
-          if (isRateLimitError(authError)) {
-            console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
-              status: authError.status,
-              code: authError.code,
-            });
-            return null;
-          }
-          
-          // 다른 에러 처리
-          const errorMessage = authError.message?.toLowerCase() || "";
-          const errorCode = authError.code?.toLowerCase() || "";
-          
-          const isUserNotFound =
-            errorCode === "user_not_found" ||
-            errorMessage.includes("user from sub claim") ||
-            errorMessage.includes("user from sub claim in jwt does not exist") ||
-            (authError.status === 403 && errorMessage.includes("does not exist"));
-          
-          if (!isUserNotFound) {
-            console.error("[auth] getCurrentUser: getUser 실패", {
-              message: authError.message,
-              status: authError.status,
-              code: authError.code,
-            });
-          }
-          return null;
-        }
-        
-        if (!user) {
-          return null;
-        }
-        
-        // user가 있으면 아래 로직 계속
-      } else {
+      // Rate limit 에러인 경우 재시도는 아래에서 처리
+      // (에러가 있어도 user가 없으면 null 반환)
+      if (!isRateLimitError(initialResult.error)) {
         // Rate limit이 아닌 다른 에러 처리
         const errorMessage = initialResult.error.message?.toLowerCase() || "";
         const errorCode = initialResult.error.code?.toLowerCase() || "";
@@ -113,13 +62,69 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     }
     
     // 정상적인 경우 계속 진행
-    const { user } = initialResult.data;
+    let user = initialResult.data.user;
+
+    // Rate limit 재시도로 user를 획득한 경우
+    if (initialResult.error && isRateLimitError(initialResult.error)) {
+      const {
+        data: { user: retriedUser },
+        error: authError,
+      } = await retryWithBackoff(
+        async () => {
+          const result = await supabase.auth.getUser();
+          if (result.error && isRateLimitError(result.error)) {
+            throw result.error;
+          }
+          return result;
+        },
+        2,
+        2000,
+        true // 인증 요청 플래그
+      );
+      
+      if (authError) {
+        // Rate limit 에러 처리
+        if (isRateLimitError(authError)) {
+          console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
+            status: authError.status,
+            code: authError.code,
+          });
+          return null;
+        }
+        
+        // 다른 에러 처리
+        const errorMessage = authError.message?.toLowerCase() || "";
+        const errorCode = authError.code?.toLowerCase() || "";
+        
+        const isUserNotFound =
+          errorCode === "user_not_found" ||
+          errorMessage.includes("user from sub claim") ||
+          errorMessage.includes("user from sub claim in jwt does not exist") ||
+          (authError.status === 403 && errorMessage.includes("does not exist"));
+        
+        if (!isUserNotFound) {
+          console.error("[auth] getCurrentUser: getUser 실패", {
+            message: authError.message,
+            status: authError.status,
+            code: authError.code,
+          });
+        }
+        return null;
+      }
+      
+      if (!retriedUser) {
+        return null;
+      }
+      
+      user = retriedUser;
+    }
 
     if (!user) {
       return null;
     }
 
-    const { userId, role, tenantId } = await getCurrentUserRole();
+    // user 객체를 getCurrentUserRole에 전달하여 중복 getUser 호출 방지
+    const { userId, role, tenantId } = await getCurrentUserRole(user);
 
     if (!userId || !role) {
       console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {

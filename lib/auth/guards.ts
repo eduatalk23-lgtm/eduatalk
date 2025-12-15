@@ -1,4 +1,5 @@
 import { getCurrentUserRole } from "./getCurrentUserRole";
+import { isAdminRole } from "./isAdminRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 
 type AdminGuardOptions = {
@@ -11,7 +12,7 @@ type AdminGuardOptions = {
 
 export type AdminGuardResult = {
   userId: string;
-  role: "admin" | "consultant";
+  role: "admin" | "consultant" | "superadmin";
   tenantId: string | null;
 };
 
@@ -33,7 +34,8 @@ export async function requireAdminOrConsultant(
     );
   }
 
-  if (role !== "admin" && role !== "consultant") {
+  // isAdminRole 유틸리티 사용 (admin, consultant, superadmin 모두 포함)
+  if (!isAdminRole(role)) {
     const errorMessage =
       role === null
         ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
@@ -51,6 +53,12 @@ export async function requireAdminOrConsultant(
     );
   }
 
-  return { userId, role, tenantId };
+  // role이 null이 아니고 admin, consultant, superadmin 중 하나임을 보장
+  // (isAdminRole 체크를 통과했으므로)
+  return { 
+    userId, 
+    role: role as "admin" | "consultant" | "superadmin", 
+    tenantId 
+  };
 }
 

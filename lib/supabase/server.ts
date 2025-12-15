@@ -44,13 +44,21 @@ export async function createSupabaseServerClient(
     const store = cookieStore ?? await cookies();
     const rememberMe = options?.rememberMe ?? false;
 
-    // 환경 변수 검증
+    // 환경 변수 검증 강화
     if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      // 개발 환경에서는 즉시 에러 throw
+      if (process.env.NODE_ENV === "development") {
+        throw new Error(
+          `Supabase 환경 변수가 설정되지 않았습니다. ` +
+          `NEXT_PUBLIC_SUPABASE_URL: ${!!env.NEXT_PUBLIC_SUPABASE_URL}, ` +
+          `NEXT_PUBLIC_SUPABASE_ANON_KEY: ${!!env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        );
+      }
+      // 프로덕션 환경에서는 경고 로그 후 계속 진행 (기존 동작 유지)
       console.error("[supabase/server] 환경 변수가 설정되지 않았습니다", {
         hasUrl: !!env.NEXT_PUBLIC_SUPABASE_URL,
         hasKey: !!env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       });
-      // 환경 변수가 없어도 클라이언트는 생성하되, 사용 시 에러가 발생할 수 있음
     }
 
     return createServerClient(

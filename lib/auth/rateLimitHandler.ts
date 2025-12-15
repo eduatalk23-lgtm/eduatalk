@@ -2,10 +2,16 @@
  * Rate limit 에러 처리 유틸리티
  */
 
-interface ErrorWithCode {
+/**
+ * Supabase 에러 인터페이스 (PostgrestError, AuthError와 호환)
+ */
+export interface SupabaseErrorLike {
   code?: string;
   status?: number;
   message?: string;
+  name?: string;
+  details?: string;
+  hint?: string;
 }
 
 /**
@@ -14,7 +20,7 @@ interface ErrorWithCode {
 export function isRateLimitError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   
-  const err = error as ErrorWithCode;
+  const err = error as SupabaseErrorLike;
   return (
     err.code === "over_request_rate_limit" ||
     err.status === 429 ||
@@ -28,7 +34,7 @@ export function isRateLimitError(error: unknown): boolean {
 export function isRefreshTokenError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   
-  const err = error as ErrorWithCode;
+  const err = error as SupabaseErrorLike;
   const errorMessage = err.message?.toLowerCase() || "";
   const errorCode = err.code?.toLowerCase() || "";
   
@@ -51,7 +57,7 @@ export function isRetryableError(error: unknown): boolean {
     return false;
   }
   
-  const err = error as ErrorWithCode;
+  const err = error as SupabaseErrorLike;
   return (
     isRateLimitError(error) ||
     err.code === "ECONNRESET" ||
@@ -97,9 +103,10 @@ export async function retryWithBackoff<T>(
         // jitter 추가 (0~1초 랜덤)
         const delay = baseDelay + Math.random() * 1000;
         
+        const err = error as SupabaseErrorLike;
         console.warn(`[rateLimit] 재시도 ${attempt + 1}/${maxRetries} (${Math.round(delay)}ms 후)`, {
-          code: (error as any).code,
-          status: (error as any).status,
+          code: err.code,
+          status: err.status,
         });
         
         await new Promise((resolve) => setTimeout(resolve, delay));

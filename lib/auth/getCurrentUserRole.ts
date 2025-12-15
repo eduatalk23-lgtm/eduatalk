@@ -1,7 +1,9 @@
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   isRateLimitError,
   retryWithBackoff,
+  type SupabaseErrorLike,
 } from "@/lib/auth/rateLimitHandler";
 
 export type UserRole =
@@ -31,64 +33,117 @@ export type CurrentUserRole = {
 /**
  * 현재 로그인한 사용자의 역할(role)을 조회합니다.
  * 우선순위: admin/consultant (admin_users) > parent > student
+ * @param prefetchedUser - 미리 조회한 User 객체 (선택적, 전달 시 getUser 호출 건너뜀)
  * @returns {Promise<CurrentUserRole>} userId와 role을 포함한 객체
  */
-export async function getCurrentUserRole(): Promise<CurrentUserRole> {
+export async function getCurrentUserRole(
+  prefetchedUser?: User | null
+): Promise<CurrentUserRole> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
-    // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
-    const initialResult = await supabase.auth.getUser();
+    let user = prefetchedUser;
+    let initialResult: { data: { user: User | null }; error: unknown } | null = null;
 
-    // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
-    if (initialResult.error) {
-      const errorMessage = initialResult.error.message?.toLowerCase() || "";
-      const errorCode = initialResult.error.code?.toLowerCase() || "";
+    // prefetchedUser가 없으면 getUser() 호출
+    if (!user) {
+      // 먼저 직접 getUser()를 호출하여 refresh token 에러를 빠르게 감지
+      // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
+      initialResult = await supabase.auth.getUser();
 
-      const isRefreshTokenError =
-        errorMessage.includes("refresh token") ||
-        errorMessage.includes("refresh_token") ||
-        errorMessage.includes("session") ||
-        errorCode === "refresh_token_not_found";
+      // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+      if (initialResult.error) {
+        const error = initialResult.error as SupabaseErrorLike;
+        const errorMessage = error.message?.toLowerCase() || "";
+        const errorCode = error.code?.toLowerCase() || "";
 
-      if (isRefreshTokenError) {
-        // Refresh token 에러는 조용히 처리하고 null 반환
-        return { userId: null, role: null, tenantId: null };
-      }
+        const isRefreshTokenError =
+          errorMessage.includes("refresh token") ||
+          errorMessage.includes("refresh_token") ||
+          errorMessage.includes("session") ||
+          errorCode === "refresh_token_not_found";
 
-      // Rate limit 에러인 경우에만 재시도
-      if (isRateLimitError(initialResult.error)) {
-        const {
-          data: { user },
-          error: authError,
-        } = await retryWithBackoff(
-          async () => {
-            const result = await supabase.auth.getUser();
-            if (result.error && isRateLimitError(result.error)) {
-              throw result.error;
+        if (isRefreshTokenError) {
+          // Refresh token 에러는 조용히 처리하고 null 반환
+          return { userId: null, role: null, tenantId: null };
+        }
+
+        // Rate limit 에러인 경우에만 재시도
+        if (isRateLimitError(initialResult.error)) {
+          const {
+            data: { user: retriedUser },
+            error: authError,
+          } = await retryWithBackoff(
+            async () => {
+              const result = await supabase.auth.getUser();
+              if (result.error && isRateLimitError(result.error)) {
+                throw result.error;
+              }
+              return result;
+            },
+            2,
+            2000,
+            true // 인증 요청 플래그
+          );
+
+          if (authError) {
+            // Rate limit 에러 처리
+            if (isRateLimitError(authError)) {
+              console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
+                status: authError.status,
+                code: authError.code,
+              });
+              return { userId: null, role: null, tenantId: null };
             }
-            return result;
-          },
-          2,
-          2000,
-          true // 인증 요청 플래그
-        );
 
-        if (authError) {
-          // Rate limit 에러 처리
-          if (isRateLimitError(authError)) {
-            console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
-              status: authError.status,
-              code: authError.code,
-            });
+            // 다른 에러는 아래 로직에서 처리
+            const errorMessage = authError.message?.toLowerCase() || "";
+            const errorName = authError.name?.toLowerCase() || "";
+            const errorCode = authError.code?.toLowerCase() || "";
+
+            const isSessionMissing =
+              errorMessage.includes("session") ||
+              errorMessage.includes("refresh token") ||
+              errorMessage.includes("refresh_token") ||
+              errorName === "authsessionmissingerror" ||
+              (errorName === "authapierror" &&
+                (errorMessage.includes("refresh token not found") ||
+                  errorMessage.includes("invalid refresh token") ||
+                  errorMessage.includes("refresh token expired")));
+
+            const isUserNotFound =
+              errorCode === "user_not_found" ||
+              errorMessage.includes("user from sub claim") ||
+              errorMessage.includes(
+                "user from sub claim in jwt does not exist"
+              ) ||
+              (authError.status === 403 &&
+                errorMessage.includes("does not exist"));
+
+            if (!isSessionMissing && !isUserNotFound) {
+              const errorDetails = {
+                message: authError.message,
+                status: authError.status,
+                code: authError.code,
+                name: authError.name,
+              };
+              console.error("[auth] getUser 실패", errorDetails);
+            }
+
             return { userId: null, role: null, tenantId: null };
           }
 
-          // 다른 에러는 아래 로직에서 처리
-          const errorMessage = authError.message?.toLowerCase() || "";
-          const errorName = authError.name?.toLowerCase() || "";
-          const errorCode = authError.code?.toLowerCase() || "";
+          if (!retriedUser) {
+            return { userId: null, role: null, tenantId: null };
+          }
+
+          user = retriedUser;
+        } else {
+          // Rate limit이 아닌 다른 에러는 아래 로직에서 처리
+          const error = initialResult.error as SupabaseErrorLike;
+          const errorMessage = error.message?.toLowerCase() || "";
+          const errorName = error.name?.toLowerCase() || "";
+          const errorCode = error.code?.toLowerCase() || "";
 
           const isSessionMissing =
             errorMessage.includes("session") ||
@@ -103,69 +158,27 @@ export async function getCurrentUserRole(): Promise<CurrentUserRole> {
           const isUserNotFound =
             errorCode === "user_not_found" ||
             errorMessage.includes("user from sub claim") ||
-            errorMessage.includes(
-              "user from sub claim in jwt does not exist"
-            ) ||
-            (authError.status === 403 &&
+            errorMessage.includes("user from sub claim in jwt does not exist") ||
+            (error.status === 403 &&
               errorMessage.includes("does not exist"));
 
           if (!isSessionMissing && !isUserNotFound) {
             const errorDetails = {
-              message: authError.message,
-              status: authError.status,
-              code: authError.code,
-              name: authError.name,
+              message: error.message,
+              status: error.status,
+              code: error.code,
+              name: error.name,
             };
             console.error("[auth] getUser 실패", errorDetails);
           }
 
           return { userId: null, role: null, tenantId: null };
         }
-
-        if (!user) {
-          return { userId: null, role: null, tenantId: null };
-        }
-
-        // user가 있으면 아래 로직 계속
       } else {
-        // Rate limit이 아닌 다른 에러는 아래 로직에서 처리
-        const errorMessage = initialResult.error.message?.toLowerCase() || "";
-        const errorName = initialResult.error.name?.toLowerCase() || "";
-        const errorCode = initialResult.error.code?.toLowerCase() || "";
-
-        const isSessionMissing =
-          errorMessage.includes("session") ||
-          errorMessage.includes("refresh token") ||
-          errorMessage.includes("refresh_token") ||
-          errorName === "authsessionmissingerror" ||
-          (errorName === "authapierror" &&
-            (errorMessage.includes("refresh token not found") ||
-              errorMessage.includes("invalid refresh token") ||
-              errorMessage.includes("refresh token expired")));
-
-        const isUserNotFound =
-          errorCode === "user_not_found" ||
-          errorMessage.includes("user from sub claim") ||
-          errorMessage.includes("user from sub claim in jwt does not exist") ||
-          (initialResult.error.status === 403 &&
-            errorMessage.includes("does not exist"));
-
-        if (!isSessionMissing && !isUserNotFound) {
-          const errorDetails = {
-            message: initialResult.error.message,
-            status: initialResult.error.status,
-            code: initialResult.error.code,
-            name: initialResult.error.name,
-          };
-          console.error("[auth] getUser 실패", errorDetails);
-        }
-
-        return { userId: null, role: null, tenantId: null };
+        // 정상적인 경우 계속 진행
+        user = initialResult.data.user;
       }
     }
-
-    // 정상적인 경우 계속 진행
-    const { user } = initialResult.data;
 
     if (!user) {
       return { userId: null, role: null, tenantId: null };

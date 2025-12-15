@@ -3,6 +3,31 @@
 import { headers } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+/**
+ * 세션 토큰을 해시하여 저장 (보안 강화)
+ * DB 탈취 시에도 토큰으로 세션을 훔칠 수 없게 함
+ * 
+ * @param token - 원본 세션 토큰
+ * @returns 해시된 토큰 (SHA-256)
+ */
+async function hashSessionToken(token: string): Promise<string> {
+  try {
+    // Node.js 환경에서 crypto 모듈 사용
+    const crypto = await import("crypto");
+    const hash = crypto.createHash("sha256").update(token).digest("hex");
+    // 해시 앞에 "hashed:" 접두사 추가하여 원본과 구분
+    return `hashed:${hash}`;
+  } catch (error) {
+    // crypto 모듈을 사용할 수 없는 경우 마스킹 사용 (fallback)
+    console.warn("[session] 해싱 실패, 마스킹 사용:", error);
+    // 토큰의 앞 8자리 + "..." + 뒤 8자리 형태로 마스킹
+    if (token.length <= 16) {
+      return `masked:${"*".repeat(token.length)}`;
+    }
+    return `masked:${token.substring(0, 8)}...${token.substring(token.length - 8)}`;
+  }
+}
+
 export interface UserSession {
   id: string;
   device_name: string | null;
@@ -114,10 +139,13 @@ export async function saveUserSession(
       .eq("user_id", userId)
       .eq("is_current_session", true);
 
+    // 세션 토큰 해싱 (보안 강화)
+    const hashedToken = await hashSessionToken(sessionToken);
+
     // 새 세션 저장
     const { error } = await supabase.from("user_sessions").insert({
       user_id: userId,
-      session_token: sessionToken,
+      session_token: hashedToken,
       device_name: deviceName,
       user_agent: userAgent,
       ip_address: ipAddress,
@@ -210,11 +238,14 @@ export async function getUserSessions(): Promise<UserSession[]> {
           ? new Date(session.expires_at * 1000)
           : null;
 
+        // 세션 토큰 해싱 (보안 강화)
+        const hashedToken = await hashSessionToken(session.access_token);
+
         const { data: newSession, error: insertError } = await supabase
           .from("user_sessions")
           .insert({
             user_id: user.id,
-            session_token: session.access_token,
+            session_token: hashedToken,
             device_name: deviceName,
             user_agent: userAgent,
             ip_address: ipAddress,
