@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BlockSetSection } from "./components/BlockSetSection";
 import { PeriodSection } from "./components/PeriodSection";
@@ -26,7 +26,7 @@ import { getFieldErrorClasses } from "../../_components/fieldErrorUtils";
 import { cn } from "@/lib/cn";
 import { isFieldLocked, canStudentInput, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
 import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { usePlanWizard } from "../../_context/PlanWizardContext";
+import { PlanWizardContext } from "../../_context/PlanWizardContext";
 
 type Step1BasicInfoProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -92,15 +92,16 @@ export function Step1BasicInfo({
 }: Step1BasicInfoProps) {
   const { showError } = useToast();
   
-  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
-  const {
-    state: { wizardData: contextData, fieldErrors: contextFieldErrors },
-    updateData: contextUpdateData,
-  } = usePlanWizard();
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기) - optional
+  // Context가 없으면 props만 사용
+  const context = useContext(PlanWizardContext);
+  const contextData = context?.state?.wizardData;
+  const contextFieldErrors = context?.state?.fieldErrors;
+  const contextUpdateData = context?.updateData;
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
-  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
 
   // 템플릿 고정 필드 확인

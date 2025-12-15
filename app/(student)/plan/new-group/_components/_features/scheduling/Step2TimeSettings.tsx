@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useContext } from "react";
 import { WizardData, WizardStep } from "../../PlanGroupWizard";
 import { TimeSettingsPanel } from "./components/TimeSettingsPanel";
-import { usePlanWizard } from "../../_context/PlanWizardContext";
+import { PlanWizardContext } from "../../_context/PlanWizardContext";
 
 type Step2TimeSettingsProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -45,22 +45,25 @@ export function Step2TimeSettings({
   isAdminMode = false,
   isAdminContinueMode = false,
 }: Step2TimeSettingsProps) {
-  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
-  const {
-    state: { wizardData: contextData, draftGroupId },
-    updateData: contextUpdateData,
-    setStep,
-  } = usePlanWizard();
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기) - optional
+  // Context가 없으면 props만 사용
+  const context = useContext(PlanWizardContext);
+  const contextData = context?.state?.wizardData;
+  const draftGroupId = context?.state?.draftGroupId;
+  const contextUpdateData = context?.updateData;
+  const setStep = context?.setStep;
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
-  const onUpdate = onUpdateProp ?? contextUpdateData;
-  const periodStart = periodStartProp ?? contextData.period_start;
-  const periodEnd = periodEndProp ?? contextData.period_end;
+  const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
+  const periodStart = periodStartProp ?? contextData?.period_start;
+  const periodEnd = periodEndProp ?? contextData?.period_end;
   const finalGroupId = groupId ?? draftGroupId ?? undefined;
   const finalOnNavigateToStep = onNavigateToStep 
     ? (step: number | WizardStep) => onNavigateToStep(step as WizardStep)
-    : (step: number | WizardStep) => setStep(step as WizardStep);
+    : setStep 
+    ? (step: number | WizardStep) => setStep(step as WizardStep)
+    : () => {}; // fallback to no-op
 
   return (
     <div className="flex flex-col gap-6">

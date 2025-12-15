@@ -264,7 +264,7 @@ type PlanWizardContextType = {
   setSubmitting: (isSubmitting: boolean) => void;
 };
 
-const PlanWizardContext = createContext<PlanWizardContextType | null>(null);
+export const PlanWizardContext = createContext<PlanWizardContextType | null>(null);
 
 /**
  * PlanWizardProvider Props

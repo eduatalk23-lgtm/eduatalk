@@ -28,7 +28,8 @@ import RequiredSubjectItem from "./Step4RecommendedContents/components/RequiredS
 import { FieldErrors } from "../../hooks/useWizardValidation";
 import { FieldError } from "../../_components/FieldError";
 import { createWizardMode, isStudentMode } from "../../utils/modeUtils";
-import { usePlanWizard } from "../../_context/PlanWizardContext";
+import { useContext } from "react";
+import { PlanWizardContext } from "../../_context/PlanWizardContext";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -53,15 +54,16 @@ export function Step3ContentSelection({
   isAdminContinueMode?: boolean;
   fieldErrors?: FieldErrors;
 }) {
-  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
-  const {
-    state: { wizardData: contextData, fieldErrors: contextFieldErrors },
-    updateData: contextUpdateData,
-  } = usePlanWizard();
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기) - optional
+  // Context가 없으면 props만 사용
+  const context = useContext(PlanWizardContext);
+  const contextData = context?.state?.wizardData;
+  const contextFieldErrors = context?.state?.fieldErrors;
+  const contextUpdateData = context?.updateData;
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
-  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
 
   // 모드 통합 관리

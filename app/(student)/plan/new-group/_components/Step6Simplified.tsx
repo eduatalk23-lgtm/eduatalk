@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useContext } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import {
   CollapsibleSection,
@@ -11,7 +11,8 @@ import {
   SubjectAllocationSummary,
 } from "./_summary";
 import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
-import { usePlanWizard } from "./_context/PlanWizardContext";
+import { useContext } from "react";
+import { PlanWizardContext } from "./_context/PlanWizardContext";
 
 /**
  * Step6Simplified - 최종 확인 (간소화)
@@ -650,17 +651,17 @@ export function Step6Simplified({
   editable = true,
   isTemplateMode = false,
 }: Step6SimplifiedProps) {
-  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기)
-  const {
-    state: { wizardData: contextData },
-    updateData: contextUpdateData,
-    setStep,
-  } = usePlanWizard();
+  // usePlanWizard 훅 사용 (Context에서 데이터 가져오기) - optional
+  // Context가 없으면 props만 사용
+  const context = useContext(PlanWizardContext);
+  const contextData = context?.state?.wizardData;
+  const contextUpdateData = context?.updateData;
+  const setStep = context?.setStep;
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
-  const onUpdate = onUpdateProp ?? contextUpdateData;
-  const onEditStep = onEditStepProp ?? setStep;
+  const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
+  const onEditStep = onEditStepProp ?? (setStep ? (step: 1 | 2 | 4) => setStep(step as any) : undefined);
 
   return (
     <div className="flex flex-col gap-6">
