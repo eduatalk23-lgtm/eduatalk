@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CampTemplate, CampPlanConfig } from "@/lib/domains/camp/types";
 import type { PlanGroup } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { Json } from "@/lib/supabase/database.types";
 
 // CampPlanConfig 타입은 lib/domains/camp/types.ts에서 export
 export type { CampPlanConfig };
@@ -275,6 +276,8 @@ export async function parseCampConfiguration(
   template: CampTemplate | null,
   tenantId: string | null
 ): Promise<CampPlanConfig> {
+  // 타입 호환성을 위해 template을 any로 캐스팅하여 처리
+  const templateAny = template as any;
   const defaultConfig: CampPlanConfig = {
     blockSetId: null,
     templateBlocks: [],
@@ -289,9 +292,9 @@ export async function parseCampConfiguration(
   }
 
   try {
-    // template_data 파싱
-    const templateData = template
-      ? parseTemplateData(template.template_data)
+    // template_data 파싱 (타입 호환성을 위해 any로 처리)
+    const templateData = templateAny
+      ? parseTemplateData(templateAny.template_data)
       : null;
 
     // 블록 세트 ID 조회 (3단계 우선순위)

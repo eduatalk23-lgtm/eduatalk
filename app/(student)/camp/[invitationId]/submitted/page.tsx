@@ -202,7 +202,7 @@ export default async function CampSubmissionDetailPage({
       const campConfig = await parseCampConfiguration(
         supabase,
         group,
-        template,
+        template as any,
         tenantContext?.tenantId || null
       );
 

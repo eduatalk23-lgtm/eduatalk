@@ -1,5 +1,8 @@
 import { cn } from "@/lib/cn";
 
+// cn 함수 re-export (다른 파일에서 darkMode.ts에서 import할 수 있도록)
+export { cn };
+
 /**
  * 다크모드 색상 클래스 유틸리티
  * 

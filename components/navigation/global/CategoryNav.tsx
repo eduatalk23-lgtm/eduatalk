@@ -336,7 +336,9 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                   id={`category-items-${category.id}`}
                   className={cn(
                     "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none",
-                    isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                    isExpanded
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0 pointer-events-none"
                   )}
                   role="group"
                   aria-label={`${category.label} 하위 메뉴`}

@@ -20,6 +20,7 @@ import {
   textSecondary,
   textMuted,
   textTertiary,
+  borderDefault,
 } from "@/lib/utils/darkMode";
 
 type PlanRange = {

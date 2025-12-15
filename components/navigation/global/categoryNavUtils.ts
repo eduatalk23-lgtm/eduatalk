@@ -5,7 +5,6 @@
 
 import type { NavigationCategory, NavigationItem, NavigationRole } from "./categoryConfig";
 import { isItemActive } from "./resolveActiveCategory";
-import type { URLSearchParams } from "next/navigation";
 
 /**
  * href에서 쿼리 파라미터를 분리하여 pathname과 queryParams로 반환
@@ -16,7 +15,7 @@ export function parseHref(href: string): { pathname: string; queryParams: Record
   
   if (queryString) {
     const params = new URLSearchParams(queryString);
-    params.forEach((value, key) => {
+    params.forEach((value: string, key: string) => {
       queryParams[key] = value;
     });
   }
