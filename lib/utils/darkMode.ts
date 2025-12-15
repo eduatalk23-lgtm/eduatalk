@@ -666,3 +666,91 @@ export const modalCancelButton = cn(
   "hover:bg-gray-50 dark:hover:bg-gray-700"
 );
 
+// ============================================
+// StatCard 색상 유틸리티
+// ============================================
+
+/**
+ * StatCard용 색상 클래스 반환
+ * @param color StatCard 색상 타입
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getStatCardColorClasses(
+  color: "gray" | "green" | "blue" | "indigo" | "red" | "amber" | "purple"
+): string {
+  const colorMap: Record<
+    "gray" | "green" | "blue" | "indigo" | "red" | "amber" | "purple",
+    string
+  > = {
+    gray: "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
+    green: "bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200",
+    blue: "bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200",
+    indigo: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200",
+    red: "bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200",
+    amber: "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200",
+    purple: "bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200",
+  };
+  return colorMap[color];
+}
+
+/**
+ * 위험도 레벨별 카드 스타일 (border + background)
+ * RiskCard 등에서 사용하는 패턴
+ * @param level 위험도 레벨
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getRiskLevelCardClasses(level: "high" | "medium" | "low"): string {
+  const levelMap: Record<"high" | "medium" | "low", string> = {
+    high: "border-red-500 dark:border-red-600 bg-red-50 dark:bg-red-900/30",
+    medium: "border-yellow-500 dark:border-yellow-600 bg-yellow-50 dark:bg-yellow-900/30",
+    low: "border-green-500 dark:border-green-600 bg-green-50 dark:bg-green-900/30",
+  };
+  return levelMap[level];
+}
+
+/**
+ * MetricCard용 색상 클래스 반환
+ * @param color MetricCard 색상 타입
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열 (배경 + 텍스트)
+ */
+export function getMetricCardColorClasses(
+  color: "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow"
+): string {
+  const colorMap: Record<
+    "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow",
+    string
+  > = {
+    indigo: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300",
+    purple: "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+    blue: "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300",
+    green: "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+    red: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300",
+    orange: "bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300",
+    yellow: "bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
+  };
+  return colorMap[color];
+}
+
+/**
+ * MetricCard용 값 텍스트 색상 클래스 반환
+ * @param color MetricCard 색상 타입
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getMetricCardValueColorClasses(
+  color: "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow"
+): string {
+  const colorMap: Record<
+    "indigo" | "purple" | "blue" | "green" | "red" | "orange" | "yellow",
+    string
+  > = {
+    indigo: "text-indigo-900 dark:text-indigo-200",
+    purple: "text-purple-900 dark:text-purple-200",
+    blue: "text-blue-900 dark:text-blue-200",
+    green: "text-green-900 dark:text-green-200",
+    red: "text-red-900 dark:text-red-200",
+    orange: "text-orange-900 dark:text-orange-200",
+    yellow: "text-yellow-900 dark:text-yellow-200",
+  };
+  return colorMap[color];
+}
+
