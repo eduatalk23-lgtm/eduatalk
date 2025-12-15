@@ -412,8 +412,8 @@ export const PlanGroupDetailView = memo(PlanGroupDetailViewComponent, (prevProps
     prevProps.exclusions.length === nextProps.exclusions.length &&
     prevProps.academySchedules.length === nextProps.academySchedules.length &&
     prevProps.contentsWithDetails.length === nextProps.contentsWithDetails.length &&
-    prevProps.blockSets.length === nextProps.blockSets.length &&
-    prevProps.templateBlocks.length === nextProps.templateBlocks.length &&
+    (prevProps.blockSets ?? []).length === (nextProps.blockSets ?? []).length &&
+    (prevProps.templateBlocks ?? []).length === (nextProps.templateBlocks ?? []).length &&
     prevProps.templateBlockSetId === nextProps.templateBlockSetId &&
     prevProps.templateBlockSetName === nextProps.templateBlockSetName &&
     prevProps.campTemplateId === nextProps.campTemplateId
