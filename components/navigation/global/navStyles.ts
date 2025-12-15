@@ -51,7 +51,7 @@ export const animationDurations = {
  */
 export const sidebarWidths = {
   collapsed: "w-16",
-  expanded: "w-72",
+  expanded: "w-80",
 } as const;
 
 /**
@@ -98,7 +98,7 @@ const activeBorderStyle = "pl-3 border-l-2";
  * 하위 메뉴용 활성 상태 스타일
  * 하위 메뉴는 이미 들여쓰기가 있어 패딩을 조정
  */
-const activeBorderStyleSubMenu = "pl-2.5 border-l-2";
+const activeBorderStyleSubMenu = "pl-3 border-l-2";
 
 /**
  * 네비게이션 아이템 기본 스타일
@@ -305,7 +305,7 @@ export const sidebarStyles = {
   container: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} ${layoutStyles.transitionAll} z-[10]`,
   header: `${layoutStyles.borderBottom} ${layoutStyles.padding4} sticky top-0 z-[20] ${layoutStyles.bgWhite}`,
   tenantInfo: `${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${layoutStyles.padding3}`,
-  navSection: "px-4 py-4",
+  navSection: "px-3 py-4",
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,

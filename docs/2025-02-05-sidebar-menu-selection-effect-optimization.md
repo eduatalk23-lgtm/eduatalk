@@ -6,6 +6,90 @@
 ## 작업 개요
 사이드바 네비게이션 메뉴의 선택 효과가 잘리는 문제를 해결하고, 중복 코드를 제거하여 유지보수성을 향상시켰습니다. shadcn/ui 모범 사례를 참고하여 사이드바 너비 조정, 패딩 최적화, 스타일 중복 제거를 수행했습니다.
 
+## 최종 개선 (통합 개선안)
+
+### 발견된 문제점
+1. **계층적 정보 표현 부족**: 하위 메뉴와 3단계 메뉴의 들여쓰기가 동일하여 계층 구분이 불명확
+2. **효과 잘림 문제**: 사이드바 너비 부족으로 선택 효과가 잘림
+3. **동일 위계 활성 효과 문제**: 카테고리 내 활성 아이템이 있어도 카테고리 자체가 활성화되지 않음
+
+### 해결 방안
+
+#### 1. 사이드바 너비 증가
+```typescript
+// 변경 전: w-72 (288px)
+// 변경 후: w-80 (320px, 32px 증가)
+export const sidebarWidths = {
+  collapsed: "w-16",
+  expanded: "w-80",
+} as const;
+```
+
+#### 2. 네비게이션 섹션 패딩 축소
+```typescript
+// 변경 전: px-4 (16px)
+// 변경 후: px-3 (12px, 4px 절약)
+navSection: "px-3 py-4",
+```
+
+#### 3. 계층적 들여쓰기 개선
+```typescript
+// 하위 메뉴 컨테이너
+// 변경 전: pl-3 (12px)
+// 변경 후: pl-4 (16px)
+className="flex flex-col gap-1 pl-4 -mx-3 ..."
+
+// 3단계 메뉴 컨테이너
+// 변경 전: pl-3 (12px)
+// 변경 후: pl-6 (24px)
+<div className="flex flex-col gap-1 pl-6 ...">
+```
+
+계층 구조:
+- 1단계 (카테고리): 0px
+- 2단계 (하위 메뉴): 16px
+- 3단계 (자식 메뉴): 24px
+
+#### 4. 하위 메뉴 활성 상태 패딩 조정
+```typescript
+// 변경 전: pl-2.5 (10px)
+// 변경 후: pl-3 (12px, 표준 Tailwind 값)
+const activeBorderStyleSubMenu = "pl-3 border-l-2";
+```
+
+#### 5. 동일 위계 활성 효과 개선
+```typescript
+// 변경 전: activeCategoryInfo의 카테고리 ID만 확인
+const isCategoryActive = useCallback((category: NavigationCategory): boolean => {
+  return activeCategoryInfo?.category.id === category.id ?? false;
+}, [activeCategoryInfo]);
+
+// 변경 후: 카테고리 내 모든 아이템 확인
+const isCategoryActive = useCallback((category: NavigationCategory): boolean => {
+  if (activeCategoryInfo?.category.id === category.id) {
+    return true;
+  }
+  
+  // 카테고리 내 활성 아이템이 있는지 확인
+  return category.items.some(item => {
+    if (isItemActive(safePathname, item, searchParams)) return true;
+    if (item.children) {
+      return item.children.some(child => 
+        isItemActive(safePathname, child, searchParams)
+      );
+    }
+    return false;
+  });
+}, [activeCategoryInfo, safePathname, searchParams]);
+```
+
+### 개선 효과
+- **공간 확보**: 사이드바 너비 32px 증가 + 네비게이션 패딩 4px 절약 = 총 36px 추가 공간
+- **계층 구조 명확화**: 0px → 16px → 24px로 명확한 계층 구분
+- **효과 잘림 해결**: 충분한 공간 확보로 선택 효과가 완전히 표시됨
+- **동일 위계 활성 효과 개선**: 카테고리 내 활성 아이템이 있으면 카테고리도 활성화됨
+- **일관성 향상**: 표준 Tailwind 값 사용으로 유지보수성 향상
+
 ## 문제 분석
 
 ### 발견된 문제점

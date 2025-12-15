@@ -109,8 +109,26 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
   }, []);
 
   const isCategoryActive = useCallback((category: NavigationCategory): boolean => {
-    return activeCategoryInfo?.category.id === category.id ?? false;
-  }, [activeCategoryInfo]);
+    // 기존: activeCategoryInfo의 카테고리 ID만 확인
+    if (activeCategoryInfo?.category.id === category.id) {
+      return true;
+    }
+    
+    // 개선: 카테고리 내 모든 아이템 확인 (동일 위계 활성 효과 개선)
+    return category.items.some(item => {
+      // 직접 매칭
+      if (isItemActive(safePathname, item, searchParams)) {
+        return true;
+      }
+      // children 확인
+      if (item.children) {
+        return item.children.some(child => 
+          isItemActive(safePathname, child, searchParams)
+        );
+      }
+      return false;
+    });
+  }, [activeCategoryInfo, safePathname, searchParams]);
 
   const handleLinkClick = useCallback(() => {
     onNavigate?.();
@@ -320,7 +338,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                   }}
                   id={`category-items-${category.id}`}
                   className={cn(
-                    "flex flex-col gap-1 pl-3 -mx-4 overflow-visible transition-all duration-300 ease-in-out motion-reduce:transition-none",
+                    "flex flex-col gap-1 pl-4 -mx-3 overflow-visible transition-all duration-300 ease-in-out motion-reduce:transition-none",
                     isExpanded ? "opacity-100" : "max-h-0 opacity-0",
                     isExpanded && "will-change-[max-height,opacity]"
                   )}
@@ -353,7 +371,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
 
                         {/* Children 아이템 (예: 콘텐츠 > 교재 > 등록) */}
                         {item.children && item.children.length > 0 && (
-                          <div className="flex flex-col gap-1 pl-3" role="group" aria-label={`${item.label} 하위 메뉴`}>
+                          <div className="flex flex-col gap-1 pl-6" role="group" aria-label={`${item.label} 하위 메뉴`}>
                             {item.children.map((child) => {
                               const childActive = isItemActive(safePathname, child, searchParams);
                               return (
