@@ -3,7 +3,7 @@
 import React from "react";
 import type { SchoolScoreRow } from "../../_utils/scoreQueries";
 import { EmptyState } from "@/components/molecules/EmptyState";
-import { getRiskColorClasses, textPrimary, textMuted } from "@/lib/utils/darkMode";
+import { getRiskColorClasses, textPrimary, textMuted, getBadgeStyle } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type SchoolWeakSubjectSectionProps = {
@@ -169,7 +169,7 @@ export function SchoolWeakSubjectSection({
             <div className="flex-1 flex flex-col gap-2">
               <div className="flex items-center gap-3">
                 <h3 className={cn("text-lg font-semibold", textPrimary)}>{item.subject}</h3>
-                <span className="text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300">
+                <span className={getBadgeStyle("subtle")}>
                   내신
                 </span>
                 <span className={cn("text-sm font-bold", textPrimary)}>

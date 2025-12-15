@@ -754,3 +754,15 @@ export function getMetricCardValueColorClasses(
   return colorMap[color];
 }
 
+/**
+ * 배지 스타일 유틸리티 함수
+ * @param variant 배지 변형 (default: 기본 배지, subtle: 반투명 배지)
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function getBadgeStyle(variant: "default" | "subtle" = "default"): string {
+  if (variant === "subtle") {
+    return "text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300";
+  }
+  return "text-xs font-medium px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+}
+

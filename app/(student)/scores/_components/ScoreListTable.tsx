@@ -5,7 +5,7 @@ import { useState, useMemo, memo } from "react";
 import { getGradeColor } from "@/lib/constants/colors";
 import { Card } from "@/components/molecules/Card";
 import { Badge } from "@/components/atoms";
-import { inlineButtonBase, tableRowBase, divideDefault, textSecondary, textPrimary } from "@/lib/utils/darkMode";
+import { inlineButtonBase, tableRowBase, divideDefault, textSecondary, textPrimary, textMuted } from "@/lib/utils/darkMode";
 
 type SchoolScoreRow = {
   id: string;
@@ -236,7 +236,7 @@ function ScoreListTableComponent({
                           {score.grade_score}등급
                         </Badge>
                       ) : (
-                        <span className="text-gray-400 dark:text-gray-500">-</span>
+                        <span className={textMuted}>-</span>
                       )}
                     </td>
                     <td className={`px-4 py-3 text-sm ${textSecondary}`}>
