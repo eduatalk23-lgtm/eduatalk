@@ -2,6 +2,8 @@
 
 import ProgressBar from "@/components/atoms/ProgressBar";
 import { createHeightStyle } from "@/lib/utils/cssVariables";
+import { cardStyle, textPrimary, textSecondary, textTertiary, textMuted, bgSurface } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type DayStats = {
   totalSeconds: number;
@@ -106,7 +108,7 @@ export function PatternAnalysisView({
                     최근 3일간의 평균 학습 시간이 이전 3일 대비 {delayPercentage}% 감소했습니다.
                   </p>
                 </div>
-                <div className="rounded-lg bg-white dark:bg-gray-800 p-3">
+                <div className={cn("rounded-lg p-3", bgSurface)}>
                   <div className="flex flex-col gap-2">
                     <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">💡 제안:</p>
                     <ul className="list-inside list-disc space-y-1 text-sm text-yellow-800 dark:text-yellow-200">
@@ -123,9 +125,9 @@ export function PatternAnalysisView({
       )}
 
       {/* 요일별 학습 분포 */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <div className={cardStyle()}>
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">요일별 학습 분포</h2>
+          <h2 className={cn("text-lg font-semibold", textPrimary)}>요일별 학습 분포</h2>
           <div className="flex flex-col gap-3">
             {weekdays.map((day, index) => {
               const stats = byDayOfWeek[index] || { totalSeconds: 0, planCount: 0 };
@@ -133,10 +135,10 @@ export function PatternAnalysisView({
 
               return (
                 <div key={index} className="flex items-center gap-4">
-                  <div className="w-12 text-sm font-medium text-gray-700 dark:text-gray-300">{day}</div>
+                  <div className={cn("w-12 text-sm font-medium", textSecondary)}>{day}</div>
                   <div className="flex-1">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <div className={cn("flex items-center justify-between text-xs", textTertiary)}>
                         <span>{formatTime(stats.totalSeconds)}</span>
                         <span>{stats.planCount}개 플랜</span>
                       </div>
@@ -156,9 +158,9 @@ export function PatternAnalysisView({
       </div>
 
       {/* 시간대별 학습 분포 */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <div className={cardStyle()}>
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">시간대별 학습 분포</h2>
+          <h2 className={cn("text-lg font-semibold", textPrimary)}>시간대별 학습 분포</h2>
           <div className="grid grid-cols-12 gap-2">
             {Array.from({ length: 24 }, (_, hour) => {
               const seconds = byHour[hour] || 0;
@@ -167,7 +169,7 @@ export function PatternAnalysisView({
 
               return (
                 <div key={hour} className="flex flex-col items-center gap-1">
-                  <div className="text-xs text-gray-600 dark:text-gray-400">{hour}</div>
+                  <div className={cn("text-xs", textTertiary)}>{hour}</div>
                   <div className="relative w-full">
                     <div
                       className="w-full rounded-t bg-indigo-600 transition-all"
@@ -179,28 +181,28 @@ export function PatternAnalysisView({
               );
             })}
           </div>
-          <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+          <div className={cn("text-center text-xs", textMuted)}>
             각 막대는 해당 시간대에 시작한 학습의 총 시간을 나타냅니다
           </div>
         </div>
       </div>
 
       {/* 주간 학습 추이 */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <div className={cardStyle()}>
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">주간 학습 추이</h2>
+          <h2 className={cn("text-lg font-semibold", textPrimary)}>주간 학습 추이</h2>
           <div className="flex flex-col gap-3">
             {weeklyTrend.map((week) => {
               const percentage = (week.totalSeconds / maxWeekSeconds) * 100;
 
               return (
                 <div key={week.week} className="flex items-center gap-4">
-                  <div className="w-20 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <div className={cn("w-20 text-sm font-medium", textSecondary)}>
                     {week.week}주 전
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <div className={cn("flex items-center justify-between text-xs", textTertiary)}>
                         <span>{formatTime(week.totalSeconds)}</span>
                       </div>
                       <ProgressBar
@@ -219,16 +221,16 @@ export function PatternAnalysisView({
       </div>
 
       {/* 학습 히트맵 (최근 4주) */}
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <div className={cardStyle()}>
         <div className="flex flex-col gap-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">학습 강도 히트맵</h2>
+          <h2 className={cn("text-lg font-semibold", textPrimary)}>학습 강도 히트맵</h2>
           <div className="overflow-x-auto">
             <div className="inline-block min-w-full">
               <div className="flex flex-col gap-2">
                 <div className="grid grid-cols-8 gap-1">
-                  <div className="text-xs text-gray-600 dark:text-gray-400"></div>
+                  <div className={cn("text-xs", textTertiary)}></div>
                   {weekdays.map((day) => (
-                    <div key={day} className="text-center text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <div key={day} className={cn("text-center text-xs font-medium", textSecondary)}>
                       {day}
                     </div>
                   ))}
@@ -239,7 +241,7 @@ export function PatternAnalysisView({
 
                   return (
                     <div key={weekIndex} className="grid grid-cols-8 gap-1">
-                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                      <div className={cn("text-xs", textTertiary)}>
                         {4 - weekIndex}주 전
                       </div>
                       {weekdays.map((_, dayIndex) => {
@@ -279,7 +281,7 @@ export function PatternAnalysisView({
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-4 text-xs text-gray-600 dark:text-gray-400">
+          <div className={cn("flex items-center justify-center gap-4 text-xs", textTertiary)}>
           <div className="flex items-center gap-1">
             <div className="h-3 w-3 rounded bg-gray-100 dark:bg-gray-700" />
             <span>낮음</span>

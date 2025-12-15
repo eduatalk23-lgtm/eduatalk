@@ -2,7 +2,28 @@ import { cn } from "@/lib/cn";
 
 /**
  * 다크모드 색상 클래스 유틸리티
- * 하드코딩된 색상을 일관되게 관리하기 위한 헬퍼 함수들
+ * 
+ * 이 모듈은 프로젝트 전반에서 사용되는 다크모드 색상 클래스를 중앙 집중식으로 관리합니다.
+ * 하드코딩된 색상 클래스를 이 유틸리티 함수로 교체하여 일관성과 유지보수성을 향상시킵니다.
+ * 
+ * @example
+ * ```tsx
+ * // 텍스트 색상 사용
+ * import { textPrimary, textSecondary } from "@/lib/utils/darkMode";
+ * <h1 className={textPrimary}>제목</h1>
+ * <p className={textSecondary}>부제목</p>
+ * 
+ * // 카드 스타일 사용
+ * import { cardStyle } from "@/lib/utils/darkMode";
+ * <div className={cardStyle()}>카드 내용</div>
+ * 
+ * // 버튼 스타일 사용
+ * import { inlineButtonPrimary } from "@/lib/utils/darkMode";
+ * <button className={inlineButtonPrimary()}>버튼</button>
+ * ```
+ * 
+ * @see {@link https://tailwindcss.com/docs/dark-mode Tailwind CSS Dark Mode}
+ * @see {@link https://next-themes.vercel.app/ next-themes}
  */
 
 // 배경색
@@ -764,5 +785,44 @@ export function getBadgeStyle(variant: "default" | "subtle" = "default"): string
     return "text-xs font-medium px-2 py-1 rounded bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300";
   }
   return "text-xs font-medium px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300";
+}
+
+// ============================================
+// 타임슬롯 색상 유틸리티
+// ============================================
+
+/**
+ * 타임슬롯 타입
+ * 
+ * 캘린더 타임라인에서 사용되는 시간 슬롯의 종류를 나타냅니다.
+ */
+export type TimeSlotType = "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
+
+/**
+ * 타임슬롯 색상 클래스 반환
+ * 
+ * 타임슬롯 타입에 따라 적절한 다크모드 색상 클래스를 반환합니다.
+ * 
+ * @param type 타임슬롯 타입
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열 (배경 + 테두리 + 텍스트)
+ * 
+ * @example
+ * ```tsx
+ * import { getTimeSlotColorClasses } from "@/lib/utils/darkMode";
+ * 
+ * <div className={getTimeSlotColorClasses("학습시간")}>
+ *   학습 시간
+ * </div>
+ * ```
+ */
+export function getTimeSlotColorClasses(type: TimeSlotType): string {
+  const colorMap: Record<TimeSlotType, string> = {
+    "학습시간": "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
+    "점심시간": "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200",
+    "학원일정": "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200",
+    "이동시간": "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200",
+    "자율학습": "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
+  };
+  return colorMap[type];
 }
 

@@ -10,6 +10,8 @@ import {
   duplicateBlockSet,
 } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
+import { inputFieldBase, inlineButtonPrimary, modalCancelButton, textPrimary, textSecondary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
+import { cn } from "@/lib/cn";
 
 type BlockSet = {
   id: string;
@@ -394,23 +396,23 @@ function BlockSetDuplicateForm({
   }
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <div className={cn("p-4 rounded-lg border", bgSurface, "border-blue-200 dark:border-blue-800")}>
       <form action={formAction} className="flex flex-col gap-3">
         {state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">새 세트 이름</label>
+          <label className={cn("text-sm font-medium", textSecondary)}>새 세트 이름</label>
           <input
             type="text"
             name="name"
             placeholder={`${sourceSet.name} 복사본`}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg text-sm"
+            className={cn(inputFieldBase, "text-sm")}
             required
             maxLength={100}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className={cn("text-xs", textMuted)}>
             원본: {sourceSet.name}
           </p>
         </div>
@@ -419,7 +421,11 @@ function BlockSetDuplicateForm({
           <button
             type="submit"
             disabled={isPending}
-            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className={cn(
+              inlineButtonPrimary(),
+              "flex-1 px-4 py-2 text-sm font-medium disabled:opacity-50",
+              "bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white"
+            )}
           >
             {isPending ? "복제 중..." : "복제"}
           </button>
@@ -427,7 +433,7 @@ function BlockSetDuplicateForm({
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+            className={cn(modalCancelButton, "flex-1 disabled:opacity-50")}
           >
             취소
           </button>

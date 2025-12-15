@@ -5,11 +5,13 @@
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import { getTimeSlotColorClasses, type TimeSlotType } from "@/lib/utils/darkMode";
 
 /**
  * 타임슬롯 타입
+ * @deprecated 이 타입은 @/lib/utils/darkMode에서 re-export됩니다. 직접 import하지 마세요.
  */
-export type TimeSlotType = "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
+export type { TimeSlotType };
 
 export type TimelineSlot = {
   type: TimeSlotType;
@@ -214,22 +216,11 @@ export function buildTimelineSlots(
 
 /**
  * 타임슬롯 색상 클래스 반환
+ * @deprecated 이 함수는 @/lib/utils/darkMode의 getTimeSlotColorClasses로 이동되었습니다.
+ * 하위 호환성을 위해 re-export합니다.
  */
 export function getTimeSlotColorClass(type: TimeSlotType): string {
-  switch (type) {
-    case "학습시간":
-      return "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200";
-    case "점심시간":
-      return "bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800 text-orange-800 dark:text-orange-200";
-    case "학원일정":
-      return "bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800 text-purple-800 dark:text-purple-200";
-    case "이동시간":
-      return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200";
-    case "자율학습":
-      return "bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200";
-    default:
-      return "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200";
-  }
+  return getTimeSlotColorClasses(type);
 }
 
 /**
