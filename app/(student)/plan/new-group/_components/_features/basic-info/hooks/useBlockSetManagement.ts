@@ -17,7 +17,7 @@ import {
   toPlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
-import { WizardData } from "../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 
 type UseBlockSetManagementProps = {
   data: WizardData;

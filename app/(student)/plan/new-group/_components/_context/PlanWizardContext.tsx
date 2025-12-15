@@ -7,7 +7,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import type { WizardData, WizardStep } from "./PlanGroupWizard";
+import type { WizardData, WizardStep } from "../PlanGroupWizard";
 
 /**
  * Wizard 상태 타입

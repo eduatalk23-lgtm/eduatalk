@@ -1,4 +1,4 @@
-import type { BlockData, ContentData } from "../../utils/scheduleTransform";
+import type { BlockData, ContentData } from "../../../utils/scheduleTransform";
 import type { Plan } from "./scheduleTypes";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 

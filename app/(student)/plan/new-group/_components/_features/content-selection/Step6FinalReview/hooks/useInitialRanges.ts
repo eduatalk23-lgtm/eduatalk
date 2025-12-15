@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { WizardData } from "../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { ContentInfo } from "../types";
 
 type UseInitialRangesProps = {

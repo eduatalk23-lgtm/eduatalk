@@ -1,5 +1,5 @@
 import { memo, useMemo } from "react";
-import type { BlockData, ContentData } from "../../utils/scheduleTransform";
+import type { BlockData, ContentData } from "../../../utils/scheduleTransform";
 import type { Plan } from "./scheduleTypes";
 import {
   timeToMinutes,

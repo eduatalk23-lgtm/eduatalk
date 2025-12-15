@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { WizardData } from "../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import {
   PlanGroupError,
   toPlanGroupError,
@@ -58,14 +58,14 @@ export function useRecommendations({
   // data.recommended_contents가 업데이트되면 recommendedContents와 allRecommendedContents에서 제거
   // 의존성을 content_id 배열로 변경하여 정확한 변경 감지
   const recommendedContentIds = useMemo(
-    () => data.recommended_contents.map((c) => c.content_id).sort().join(","),
+    () => data.recommended_contents.map((c: WizardData["recommended_contents"][number]) => c.content_id).sort().join(","),
     [data.recommended_contents]
   );
 
   useEffect(() => {
     if (data.recommended_contents.length > 0) {
       const addedContentIds = new Set(
-        data.recommended_contents.map((c) => c.content_id)
+        data.recommended_contents.map((c: WizardData["recommended_contents"][number]) => c.content_id)
       );
       
       console.log("[useRecommendations] useEffect: 추가된 콘텐츠 감지:", {
@@ -121,7 +121,7 @@ export function useRecommendations({
     const studentMasterIds = new Set<string>();
     
     // WizardData에서 직접 가져오기
-    data.student_contents.forEach((c) => {
+    data.student_contents.forEach((c: WizardData["student_contents"][number]) => {
       const masterContentId = (c as any).master_content_id;
       if (masterContentId) {
         studentMasterIds.add(masterContentId);
@@ -130,7 +130,7 @@ export function useRecommendations({
 
     // master_content_id가 없는 콘텐츠는 DB에서 조회
     const studentContentsWithoutMasterId = data.student_contents.filter(
-      (c) =>
+      (c: WizardData["student_contents"][number]) =>
         (c.content_type === "book" || c.content_type === "lecture") &&
         !(c as any).master_content_id
     ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
@@ -170,8 +170,8 @@ export function useRecommendations({
   const filterDuplicateContents = useCallback(
     (recommendations: RecommendedContent[], studentMasterIds: Set<string>) => {
       const existingIds = new Set([
-        ...data.student_contents.map((c) => c.content_id),
-        ...data.recommended_contents.map((c) => c.content_id),
+        ...data.student_contents.map((c: WizardData["student_contents"][number]) => c.content_id),
+        ...data.recommended_contents.map((c: WizardData["recommended_contents"][number]) => c.content_id),
       ]);
 
       return recommendations.filter((r: RecommendedContent) => {
@@ -184,7 +184,7 @@ export function useRecommendations({
           return false;
         }
         // data.recommended_contents에 이미 있는 콘텐츠 제외
-        if (data.recommended_contents.some((rc) => rc.content_id === r.id)) {
+        if (data.recommended_contents.some((rc: WizardData["recommended_contents"][number]) => rc.content_id === r.id)) {
           return false;
         }
         return true;
@@ -339,7 +339,7 @@ export function useRecommendations({
       console.log("[useRecommendations] 자동 배정 시작 - 함수형 업데이트 호출");
       
       try {
-        onUpdate((prev) => {
+        onUpdate((prev: WizardData) => {
           const currentTotal =
             prev.student_contents.length + prev.recommended_contents.length;
           const toAdd = contentsToAutoAdd.length;

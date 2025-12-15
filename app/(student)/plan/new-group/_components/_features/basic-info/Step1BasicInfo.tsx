@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WizardData } from "../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BlockSetSection } from "./components/BlockSetSection";
 import { PeriodSection } from "./components/PeriodSection";
 import { useBlockSetManagement } from "./hooks/useBlockSetManagement";
@@ -25,7 +25,7 @@ import { FieldError } from "../../_components/FieldError";
 import { getFieldErrorClasses } from "../../_components/fieldErrorUtils";
 import { cn } from "@/lib/cn";
 import { isFieldLocked, canStudentInput, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
-import type { TemplateLockedFields } from "../../PlanGroupWizard";
+import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { usePlanWizard } from "../../_context/PlanWizardContext";
 
 type Step1BasicInfoProps = {

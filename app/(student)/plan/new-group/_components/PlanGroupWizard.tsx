@@ -266,7 +266,7 @@ export type PlanGroupWizardProps = {
 
 
 // Step별 가중치 (진행률 계산용)
-const stepWeights: Record<WizardStep, number> = {
+export const stepWeights: Record<WizardStep, number> = {
   1: 16.67,  // 기본 정보 (1/6)
   2: 16.67,  // 블록 및 제외일 (2/6)
   3: 16.67,  // 스케줄 확인 (3/6)

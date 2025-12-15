@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { VariableSizeList as List } from "react-window";
 import type { DailySchedule, Plan } from "./scheduleTypes";
-import type { ContentData, BlockData } from "../../utils/scheduleTransform";
+import type { ContentData, BlockData } from "../../../utils/scheduleTransform";
 import { MeasureRow } from "./MeasureRow";
 import { WeekSection } from "./WeekSection";
 

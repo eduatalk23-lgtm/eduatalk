@@ -8,7 +8,7 @@ import {
 } from "react";
 import { VariableSizeList as List } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import type { BlockData, ContentData } from "../../utils/scheduleTransform";
+import type { BlockData, ContentData } from "../../../utils/scheduleTransform";
 import type { DailySchedule, Plan } from "./scheduleTypes";
 import { MeasureRow } from "./MeasureRow";
 import { ScheduleItem } from "./ScheduleItem";

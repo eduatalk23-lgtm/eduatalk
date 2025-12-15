@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { WizardData } from "../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import RequiredSubjectItem from "./RequiredSubjectItem";
 import { getCurriculumRevisionsAction, getSubjectGroupsAction } from "@/app/(student)/actions/contentMetadataActions";
 import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
@@ -83,7 +83,8 @@ export default function RequiredSubjectsSection({
 
     // required_subjects에서 사용 중인 개정교육과정 확인
     const usedCurriculumIds = new Set<string>();
-    data.subject_constraints?.required_subjects?.forEach((req) => {
+    const requiredSubjects = data.subject_constraints?.required_subjects || [];
+    requiredSubjects.forEach((req) => {
       req.subjects_by_curriculum?.forEach((subj) => {
         if (subj.curriculum_revision_id) {
           usedCurriculumIds.add(subj.curriculum_revision_id);
@@ -166,7 +167,7 @@ export default function RequiredSubjectsSection({
         {(data.subject_constraints?.required_subjects || []).length > 0 && (
           <div className="flex flex-col gap-3">
             {(data.subject_constraints?.required_subjects || []).map(
-              (req, index) => (
+              (req, index: number) => (
                 <RequiredSubjectItem
                   key={index}
                   requirement={req}

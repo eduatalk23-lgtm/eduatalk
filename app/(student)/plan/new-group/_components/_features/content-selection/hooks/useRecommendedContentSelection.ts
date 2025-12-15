@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { WizardData } from "../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { RecommendedContent, UseContentSelectionReturn } from "../types";
 import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
 

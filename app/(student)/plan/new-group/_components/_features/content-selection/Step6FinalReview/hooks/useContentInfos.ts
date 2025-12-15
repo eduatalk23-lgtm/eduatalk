@@ -5,7 +5,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
-import { WizardData } from "../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { ContentInfo } from "../types";
 import { createBatchRequest, getContentType } from "@/lib/utils/contentDetailsUtils";
 

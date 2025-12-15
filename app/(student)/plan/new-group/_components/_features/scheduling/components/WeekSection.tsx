@@ -3,7 +3,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import type { DailySchedule, Plan } from "./scheduleTypes";
-import type { ContentData, BlockData } from "../../utils/scheduleTransform";
+import type { ContentData, BlockData } from "../../../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { ScheduleItem } from "./ScheduleItem";
 

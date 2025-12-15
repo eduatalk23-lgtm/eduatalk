@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { WizardData } from "../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { useBatchContentDetails } from "./hooks/useBatchContentDetails";
 import { useContentSelection } from "./hooks/useContentSelection";
 import { ContentList } from "./components/ContentList";

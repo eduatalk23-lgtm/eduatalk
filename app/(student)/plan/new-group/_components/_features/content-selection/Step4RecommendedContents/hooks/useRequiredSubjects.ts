@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import { WizardData } from "../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { RecommendedContent } from "../types";
 
 type UseRequiredSubjectsProps = {
@@ -51,7 +51,7 @@ export function useRequiredSubjects({
     const selectedSubjectCategories = new Set<string>();
 
     // 1-1. 이미 추가된 학생 콘텐츠의 subject_category
-    data.student_contents.forEach((sc) => {
+    data.student_contents.forEach((sc: WizardData["student_contents"][number]) => {
       if (sc.subject_category) {
         selectedSubjectCategories.add(sc.subject_category);
       }
@@ -66,7 +66,7 @@ export function useRequiredSubjects({
     });
 
     // 1-3. 이미 추가된 추천 콘텐츠
-    data.recommended_contents.forEach((rc) => {
+    data.recommended_contents.forEach((rc: WizardData["recommended_contents"][number]) => {
       const subjectCategory =
         rc.subject_category ||
         allRecommendedContents.find((c) => c.id === rc.content_id)
@@ -92,7 +92,7 @@ export function useRequiredSubjects({
     const contentCountBySubject = new Map<string, number>();
 
     // 3-1. 학생 콘텐츠 카운트
-    data.student_contents.forEach((sc) => {
+    data.student_contents.forEach((sc: WizardData["student_contents"][number]) => {
       if (sc.subject_category) {
         const key = sc.subject ? `${sc.subject_category}:${sc.subject}` : sc.subject_category;
         contentCountBySubject.set(key, (contentCountBySubject.get(key) || 0) + 1);
@@ -100,7 +100,7 @@ export function useRequiredSubjects({
     });
 
     // 3-2. 추천 콘텐츠 카운트
-    data.recommended_contents.forEach((rc) => {
+    data.recommended_contents.forEach((rc: WizardData["recommended_contents"][number]) => {
       const subjectCategory =
         rc.subject_category ||
         allRecommendedContents.find((c) => c.id === rc.content_id)

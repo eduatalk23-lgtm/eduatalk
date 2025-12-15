@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { WizardData } from "../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { ContentDetailData, BookDetail, LectureEpisode } from "../types";
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 import { getStudentContentMasterIdsAction } from "@/app/(student)/actions/getStudentContentMasterIds";
@@ -158,7 +158,7 @@ export function useContentSelection({
   const addSelectedContents = async () => {
     // 1. Get Master IDs
     const studentContentsForMasterId = data.student_contents.filter(
-      (c) => c.content_type === "book" || c.content_type === "lecture"
+      (c: WizardData["student_contents"][number]) => c.content_type === "book" || c.content_type === "lecture"
     ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
     let studentMasterIds = new Set<string>();
@@ -211,7 +211,7 @@ export function useContentSelection({
 
       // Duplicate Check
       const isDuplicateByContentId = data.student_contents.some(
-        (c) => c.content_type === contentType && c.content_id === contentId
+        (c: WizardData["student_contents"][number]) => c.content_type === contentType && c.content_id === contentId
       );
       const isDuplicateByMasterId =
         content?.master_content_id &&
@@ -271,7 +271,7 @@ export function useContentSelection({
 
   const removeContent = (index: number) => {
     onUpdate({
-      student_contents: data.student_contents.filter((_, i) => i !== index),
+      student_contents: data.student_contents.filter((_: WizardData["student_contents"][number], i: number) => i !== index),
     });
   };
 

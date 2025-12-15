@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { Plan } from "./scheduleTypes";
-import type { ContentData } from "../../utils/scheduleTransform";
+import type { ContentData } from "../../../utils/scheduleTransform";
 import { timeToMinutes } from "./scheduleUtils";
 
 // 플랜 표 컴포넌트

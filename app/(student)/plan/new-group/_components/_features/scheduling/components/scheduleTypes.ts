@@ -1,4 +1,4 @@
-import type { ContentData } from "../../utils/scheduleTransform";
+import type { ContentData } from "../../../utils/scheduleTransform";
 
 export type DailySchedule = {
   date: string;

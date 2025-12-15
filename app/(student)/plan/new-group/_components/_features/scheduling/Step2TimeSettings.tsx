@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { WizardData } from "../../PlanGroupWizard";
+import { WizardData, WizardStep } from "../../PlanGroupWizard";
 import { TimeSettingsPanel } from "./components/TimeSettingsPanel";
 import { usePlanWizard } from "../../_context/PlanWizardContext";
 
@@ -11,7 +11,7 @@ type Step2TimeSettingsProps = {
   periodStart?: string; // Optional: usePlanWizard에서 가져올 수 있음
   periodEnd?: string; // Optional: usePlanWizard에서 가져올 수 있음
   groupId?: string;
-  onNavigateToStep?: (step: number) => void;
+  onNavigateToStep?: (step: WizardStep) => void;
   campMode?: boolean;
   isTemplateMode?: boolean;
   templateExclusions?: Array<{

@@ -1,5 +1,5 @@
 import { CollapsibleSection } from "../../../_summary/CollapsibleSection";
-import { WizardData } from "../../../../PlanGroupWizard";
+import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { usePeriodCalculation } from "../../hooks/usePeriodCalculation";
 import { getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
 import { DateInput } from "../../../_components/DateInput";
