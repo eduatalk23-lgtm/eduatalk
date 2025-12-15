@@ -12,27 +12,27 @@ import { cn } from "@/lib/cn";
 export const zIndexLayers = {
   // 기본 레이어
   base: 0,
-  
+
   // 사이드바 레이어
   sidebar: 10,
   sidebarHeader: 20,
   sidebarFooter: 20,
-  
+
   // 모바일 상단 네비게이션
   mobileNav: 40,
-  
+
   // 오버레이 레이어
   overlay: 45,
-  
+
   // 드로어 레이어
   drawer: 50,
   drawerHeader: 60,
-  
+
   // 모달/팝오버 레이어
   modal: 50,
   popover: 50,
   tooltip: 50,
-  
+
   // 최상위 레이어
   top: 100,
 } as const;
@@ -95,24 +95,30 @@ export const designTokens = {
 const activeBorderStyle = "pl-[9px] border-l-2";
 
 /**
+ * 하위 메뉴용 활성 상태 스타일
+ * 하위 메뉴는 이미 들여쓰기가 있어 패딩을 더 줄임
+ */
+const activeBorderStyleSubMenu = "pl-[7px] border-l-2";
+
+/**
  * 네비게이션 아이템 기본 스타일
  */
 export const navItemStyles = {
   // 기본 스타일
   base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-  
+
   // 포커스 스타일
   focus: designTokens.focus.ring,
-  
+
   // 활성 상태 - border-l을 위한 padding-left 추가
   active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
-  
+
   // 비활성 상태
   inactive: `${designTokens.colors.gray[700]} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText}`,
-  
+
   // 축소 모드
   collapsed: "justify-center px-2",
-  
+
   // 텍스트 숨김 (축소 모드)
   textHidden: "opacity-0 w-0 overflow-hidden",
 };
@@ -132,9 +138,9 @@ export const categoryHeaderStyles = {
  * 하위 메뉴 아이템 스타일
  */
 export const subItemStyles = {
-  base: "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+  base: "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
   inactive: navItemStyles.inactive,
 };
 
@@ -142,9 +148,9 @@ export const subItemStyles = {
  * 자식 메뉴 아이템 스타일 (3단계)
  */
 export const childItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,
 };
 
@@ -231,7 +237,8 @@ export function getChildItemClasses({
  */
 export const tooltipStyles = {
   base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-[50] pointer-events-none",
-  arrow: "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",
+  arrow:
+    "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",
 };
 
 /**
@@ -253,40 +260,40 @@ export const layoutStyles = {
   borderBottom: "border-b border-gray-200 dark:border-gray-700",
   borderTop: "border-t border-gray-200 dark:border-gray-700",
   borderRight: "border-r border-gray-200 dark:border-gray-700",
-  
+
   // Flex 레이아웃
   flexCenter: "flex items-center gap-2",
   flexBetween: "flex items-center justify-between gap-2",
   flexColCenter: "flex flex-col items-center gap-3",
-  
+
   // Padding
   padding4: "p-4",
   padding3: "px-4 py-3",
   padding2: "px-3 py-2",
-  
+
   // Background
   bgGray50: "bg-gray-50 dark:bg-gray-800",
   bgWhite: "bg-white dark:bg-gray-800",
-  
+
   // Text
   textHeading: "text-gray-900 dark:text-gray-100",
   textMuted: "text-gray-500 dark:text-gray-400",
   textSecondary: "text-gray-600 dark:text-gray-400",
-  
+
   // Hover
   hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-700",
   hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
-  
+
   // Transition
   transition: "transition-colors",
   transitionAll: `transition-all ${animationDurations.normal} ease-in-out`,
-  
+
   // Focus
   focusRing: designTokens.focus.ring,
-  
+
   // 스크롤 가능한 컨테이너
   scrollableContainer: "overflow-y-auto",
-  
+
   // 전체 화면 높이
   fullHeight: "h-screen",
 };
@@ -316,4 +323,3 @@ export const mobileNavStyles = {
   closeButton: `p-1.5 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
   tenantCard: `rounded-lg ${layoutStyles.bgGray50} ${layoutStyles.padding2}`,
 };
-

@@ -144,12 +144,64 @@ import { layoutStyles, sidebarStyles, mobileNavStyles, sidebarWidths } from "@/c
 1. `components/navigation/global/navStyles.ts`
    - `sidebarWidths.expanded`를 `w-72`로 변경
    - `activeBorderStyle` 상수 추가
+   - `activeBorderStyleSubMenu` 상수 추가 (하위 메뉴용)
    - 활성 상태 스타일 중복 제거
    - `navSection` 패딩 최적화
+   - 하위 메뉴 아이템 기본 패딩 `px-3` → `px-2`
+   - 하위 메뉴 활성 상태 패딩 `pl-[9px]` → `pl-[7px]`
 
-2. `components/layout/RoleBasedLayout.tsx`
+2. `components/navigation/global/CategoryNav.tsx`
+   - 하위 메뉴 컨테이너 `pl-4` → `pl-3`
+   - 3단계 메뉴 컨테이너 `pl-6` → `pl-4`
+
+3. `components/layout/RoleBasedLayout.tsx`
    - `sidebarWidths` 상수 import 추가
    - 하드코딩된 너비 값을 상수로 대체
+
+## 추가 개선 (하위 메뉴 최적화)
+
+### 문제점
+하위 메뉴 항목들이 여전히 잘리는 문제가 발견되어 추가 최적화를 수행했습니다.
+
+### 해결 방안
+
+**파일**: `components/navigation/global/navStyles.ts`, `components/navigation/global/CategoryNav.tsx`
+
+1. **하위 메뉴용 활성 상태 스타일 추가**
+   ```typescript
+   // 하위 메뉴는 이미 들여쓰기가 있어 패딩을 더 줄임
+   const activeBorderStyleSubMenu = "pl-[7px] border-l-2";
+   ```
+
+2. **하위 메뉴 아이템 패딩 최적화**
+   ```typescript
+   // 변경 전
+   base: "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+   active: `${...} ${activeBorderStyle} ${...}`,  // pl-[9px]
+   
+   // 변경 후
+   base: "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition",
+   active: `${...} ${activeBorderStyleSubMenu} ${...}`,  // pl-[7px]
+   ```
+
+3. **하위 메뉴 컨테이너 들여쓰기 조정**
+   ```typescript
+   // 변경 전: pl-4 (16px)
+   // 변경 후: pl-3 (12px)
+   ```
+
+4. **3단계 메뉴 들여쓰기 조정**
+   ```typescript
+   // 변경 전: pl-6 (24px)
+   // 변경 후: pl-4 (16px)
+   ```
+
+### 개선 효과
+- 하위 메뉴 컨테이너: 16px → 12px (-4px)
+- 하위 메뉴 아이템 기본 패딩: 12px → 8px (-4px)
+- 하위 메뉴 활성 상태 패딩: 9px → 7px (-2px)
+- 3단계 메뉴 들여쓰기: 24px → 16px (-8px)
+- **총 추가 공간**: 약 18px 확보
 
 ## 향후 개선 사항
 
