@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { borderDefault, getIndigoTextClasses, textSecondary } from "@/lib/utils/darkMode";
 
 type TabItem = {
   key: string;
@@ -30,7 +31,7 @@ export function ContentTabs({ tabs, defaultTab, className }: ContentTabsProps) {
   };
 
   return (
-    <div className={cn("border-b border-gray-200", className)}>
+    <div className={cn("border-b", borderDefault, className)}>
       <nav className="-mb-px flex gap-2" aria-label="탭">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -42,8 +43,12 @@ export function ContentTabs({ tabs, defaultTab, className }: ContentTabsProps) {
               className={cn(
                 "whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition",
                 isActive
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                  ? cn("border-indigo-600 dark:border-indigo-400", getIndigoTextClasses("link"))
+                  : cn(
+                      "border-transparent",
+                      textSecondary,
+                      "hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300"
+                    )
               )}
               aria-current={isActive ? "page" : undefined}
             >

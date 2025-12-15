@@ -14,7 +14,8 @@ import { getPublishersForFilter, getPlatformsForFilter, getDifficultiesForMaster
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { inlineButtonBase } from "@/lib/utils/darkMode";
+import { inlineButtonBase, inlineButtonPrimary } from "@/lib/utils/darkMode";
+import { BookOpen, Headphones, FileText, Plus } from "lucide-react";
 
 type TabKey = "books" | "lectures" | "custom";
 
@@ -66,28 +67,36 @@ export default async function ContentsPage({
             <div className="flex gap-2 flex-wrap">
               <Link
                 href="/contents/master-books"
-                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold gap-2")}
+                aria-label="서비스 마스터 교재 페이지로 이동"
               >
-                📚 서비스 마스터 교재
+                <BookOpen size={16} aria-hidden="true" />
+                <span>서비스 마스터 교재</span>
               </Link>
               <Link
                 href="/contents/master-lectures"
-                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold gap-2")}
+                aria-label="서비스 마스터 강의 페이지로 이동"
               >
-                🎧 서비스 마스터 강의
+                <Headphones size={16} aria-hidden="true" />
+                <span>서비스 마스터 강의</span>
               </Link>
               <Link
                 href="/contents/master-custom-contents"
-                className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
+                className={inlineButtonBase("px-4 py-2 text-sm font-semibold gap-2")}
+                aria-label="서비스 마스터 커스텀 콘텐츠 페이지로 이동"
               >
-                📝 서비스 마스터 커스텀 콘텐츠
+                <FileText size={16} aria-hidden="true" />
+                <span>서비스 마스터 커스텀 콘텐츠</span>
               </Link>
               {activeTab !== "custom" && (
                 <Link
                   href={`/contents/${activeTab}/new`}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                  className={inlineButtonPrimary("px-4 py-2 text-sm font-semibold gap-2")}
+                  aria-label={activeTab === "books" ? "새 책 등록" : "새 강의 등록"}
                 >
-                  {activeTab === "books" ? "+ 책 등록" : "+ 강의 등록"}
+                  <Plus size={16} aria-hidden="true" />
+                  <span>{activeTab === "books" ? "책 등록" : "강의 등록"}</span>
                 </Link>
               )}
             </div>
