@@ -105,20 +105,20 @@ const activeBorderStyleSubMenu = "pl-[7px] border-l-2";
  */
 export const navItemStyles = {
   // 기본 스타일
-  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition",
-
+  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition -mx-2",
+  
   // 포커스 스타일
   focus: designTokens.focus.ring,
-
-  // 활성 상태 - border-l을 위한 padding-left 추가
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border}`,
-
+  
+  // 활성 상태 - border-l을 위한 padding-left 추가, margin을 0으로 하여 선택 효과가 전체 너비 사용
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border} mx-0`,
+  
   // 비활성 상태
   inactive: `${designTokens.colors.gray[700]} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText}`,
-
+  
   // 축소 모드
   collapsed: "justify-center px-2",
-
+  
   // 텍스트 숨김 (축소 모드)
   textHidden: "opacity-0 w-0 overflow-hidden",
 };
@@ -127,9 +127,9 @@ export const navItemStyles = {
  * 카테고리 헤더 스타일
  */
 export const categoryHeaderStyles = {
-  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
+  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition -mx-2",
   focus: navItemStyles.focus,
-  active: navItemStyles.active,
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyle} ${designTokens.colors.primary.border} mx-0`,
   inactive: navItemStyles.inactive,
   collapsed: navItemStyles.collapsed,
 };
@@ -138,9 +138,9 @@ export const categoryHeaderStyles = {
  * 하위 메뉴 아이템 스타일
  */
 export const subItemStyles = {
-  base: "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition",
+  base: "flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition -mx-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border} mx-0`,
   inactive: navItemStyles.inactive,
 };
 
@@ -148,9 +148,9 @@ export const subItemStyles = {
  * 자식 메뉴 아이템 스타일 (3단계)
  */
 export const childItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition",
+  base: "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition -mx-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${activeBorderStyleSubMenu} ${designTokens.colors.primary.border} mx-0`,
   inactive: `${designTokens.colors.gray[600]} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText}`,
 };
 
@@ -305,7 +305,7 @@ export const sidebarStyles = {
   container: `${layoutStyles.bgWhite} ${layoutStyles.borderRight} ${layoutStyles.transitionAll} z-[10]`,
   header: `${layoutStyles.borderBottom} ${layoutStyles.padding4} sticky top-0 z-[20] ${layoutStyles.bgWhite}`,
   tenantInfo: `${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${layoutStyles.padding3}`,
-  navSection: "px-3 py-4",
+  navSection: "px-2 py-4",
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
