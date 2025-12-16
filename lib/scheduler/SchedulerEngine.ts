@@ -396,8 +396,220 @@ export class SchedulerEngine {
   }
 
   /**
+   * 전역 배치 조율 (Global Coordination)
+   *
+   * 모든 콘텐츠를 함께 고려하여 전체 기간에 고르게 분산 배정합니다.
+   * 기존의 독립적 배정 방식 대신 Round-Robin 방식으로 분산 배정합니다.
+   *
+   * @param contents - 필터링된 콘텐츠 배열
+   * @param allocationMap - 콘텐츠별 배정 날짜 맵
+   * @returns 콘텐츠별 날짜별 범위 맵
+   */
+  private coordinateGlobalDistribution(
+    contents: ContentInfo[],
+    allocationMap: Map<string, string[]>
+  ): Map<string, Map<string, { start: number; end: number }>> {
+    const { dateTimeSlots, dateAvailableTimeRanges, contentDurationMap, riskIndexMap } = this.context;
+    const result = new Map<string, Map<string, { start: number; end: number }>>();
+
+    // 1. 날짜별 총 capacity 계산
+    const allDates = new Set<string>();
+    allocationMap.forEach((dates) => dates.forEach((d) => allDates.add(d)));
+
+    const dateCapacities = new Map<string, number>();
+    const dateUsage = new Map<string, number>(); // 날짜별 사용량 추적
+
+    allDates.forEach((date) => {
+      let capacity = 0;
+      const timeSlots = dateTimeSlots?.get(date);
+      const studyTimeSlots = timeSlots?.filter((slot) => slot.type === "학습시간");
+
+      if (studyTimeSlots && studyTimeSlots.length > 0) {
+        studyTimeSlots.forEach((slot) => {
+          capacity += timeToMinutes(slot.end) - timeToMinutes(slot.start);
+        });
+      } else {
+        const ranges = dateAvailableTimeRanges?.get(date) || [];
+        ranges.forEach((range) => {
+          capacity += timeToMinutes(range.end) - timeToMinutes(range.start);
+        });
+        if (capacity === 0) capacity = 120; // 기본값: 2시간
+      }
+
+      dateCapacities.set(date, capacity);
+      dateUsage.set(date, 0);
+    });
+
+    // 2. 콘텐츠 우선순위 정렬 (취약과목 우선, Risk Index 높은 순)
+    const sortedContents = [...contents].sort((a, b) => {
+      const aSubject = a.subject?.toLowerCase().trim() || "";
+      const bSubject = b.subject?.toLowerCase().trim() || "";
+      const aRisk = riskIndexMap?.get(aSubject)?.riskScore || 0;
+      const bRisk = riskIndexMap?.get(bSubject)?.riskScore || 0;
+      // Risk Index 내림차순, 같으면 총량 내림차순
+      if (bRisk !== aRisk) return bRisk - aRisk;
+      return b.total_amount - a.total_amount;
+    });
+
+    // 3. 콘텐츠별 단위당 소요시간 계산 헬퍼
+    const getUnitDuration = (
+      content: ContentInfo,
+      unitIndex: number
+    ): number => {
+      const durationInfo = contentDurationMap?.get(content.content_id);
+
+      if (content.content_type === "lecture" && durationInfo?.episodes) {
+        const ep = durationInfo.episodes.find(
+          (e) => e.episode_number === unitIndex
+        );
+        return ep?.duration || 30;
+      } else if (content.content_type === "book") {
+        if (durationInfo?.total_pages && durationInfo?.duration) {
+          return durationInfo.duration / durationInfo.total_pages;
+        }
+        return 2; // 페이지당 기본 2분
+      }
+      return 1; // 커스텀: 단위당 1분
+    };
+
+    // 4. 각 콘텐츠를 전역 조율하여 배정 (Round-Robin 방식)
+    for (const content of sortedContents) {
+      const allocatedDates = allocationMap.get(content.content_id) || [];
+      if (allocatedDates.length === 0) continue;
+
+      const sortedDates = [...allocatedDates].sort();
+
+      let currentUnit = content.start_range;
+      const totalEnd = content.end_range;
+
+      // Round-Robin 분산 배정: 각 날짜에 최소 1단위씩 배정 후, 남은 용량에 맞게 추가 배정
+      const dateAssignments = new Map<string, { start: number; end: number }>();
+
+      // 4.1 먼저 각 날짜에 배정 가능한 단위 수 계산 (사용률 기반)
+      const getDateScore = (date: string): number => {
+        const capacity = dateCapacities.get(date) || 120;
+        const used = dateUsage.get(date) || 0;
+        const remaining = capacity - used;
+        // 남은 용량이 많을수록 높은 점수
+        return remaining;
+      };
+
+      // 4.2 균등 분산을 위해 날짜별로 순환하며 배정
+      let dateIndex = 0;
+      const totalUnits = totalEnd - content.start_range;
+      const unitsPerDate = Math.ceil(totalUnits / sortedDates.length);
+
+      for (const date of sortedDates) {
+        if (currentUnit >= totalEnd) break;
+
+        const isLastDate = dateIndex === sortedDates.length - 1;
+        const dateCapacity = dateCapacities.get(date) || 120;
+        const dateCurrentUsage = dateUsage.get(date) || 0;
+        const remainingCapacity = dateCapacity - dateCurrentUsage;
+
+        // 목표 단위 수: 균등 분산 또는 마지막 날짜는 나머지 전부
+        const targetUnits = isLastDate
+          ? totalEnd - currentUnit
+          : Math.min(unitsPerDate, totalEnd - currentUnit);
+
+        // 용량 제한 확인
+        let usedTime = 0;
+        let actualUnits = 0;
+
+        while (actualUnits < targetUnits && currentUnit + actualUnits < totalEnd) {
+          const unitDuration = getUnitDuration(content, currentUnit + actualUnits);
+
+          if (usedTime + unitDuration <= remainingCapacity || actualUnits === 0) {
+            usedTime += unitDuration;
+            actualUnits++;
+          } else {
+            break;
+          }
+        }
+
+        // 최소 1단위는 배정 (빈 날짜 방지)
+        if (actualUnits === 0 && currentUnit < totalEnd) {
+          actualUnits = 1;
+          usedTime = getUnitDuration(content, currentUnit);
+        }
+
+        if (actualUnits > 0) {
+          dateAssignments.set(date, {
+            start: currentUnit,
+            end: currentUnit + actualUnits,
+          });
+
+          // 사용량 업데이트
+          dateUsage.set(date, dateCurrentUsage + usedTime);
+          currentUnit += actualUnits;
+        }
+
+        dateIndex++;
+      }
+
+      // 4.3 남은 단위가 있으면 용량이 남은 날짜에 추가 배정
+      if (currentUnit < totalEnd) {
+        // 남은 용량이 많은 날짜 순으로 정렬
+        const datesWithCapacity = sortedDates
+          .filter((date) => {
+            const capacity = dateCapacities.get(date) || 120;
+            const used = dateUsage.get(date) || 0;
+            return capacity - used > 0;
+          })
+          .sort((a, b) => getDateScore(b) - getDateScore(a));
+
+        for (const date of datesWithCapacity) {
+          if (currentUnit >= totalEnd) break;
+
+          const existing = dateAssignments.get(date);
+          const dateCapacity = dateCapacities.get(date) || 120;
+          const dateCurrentUsage = dateUsage.get(date) || 0;
+          const remainingCapacity = dateCapacity - dateCurrentUsage;
+
+          let usedTime = 0;
+          let additionalUnits = 0;
+
+          while (currentUnit + additionalUnits < totalEnd) {
+            const unitDuration = getUnitDuration(content, currentUnit + additionalUnits);
+            if (usedTime + unitDuration <= remainingCapacity) {
+              usedTime += unitDuration;
+              additionalUnits++;
+            } else {
+              break;
+            }
+          }
+
+          if (additionalUnits > 0) {
+            if (existing) {
+              // 기존 배정에 추가
+              dateAssignments.set(date, {
+                start: existing.start,
+                end: existing.end + additionalUnits,
+              });
+            } else {
+              dateAssignments.set(date, {
+                start: currentUnit,
+                end: currentUnit + additionalUnits,
+              });
+            }
+
+            dateUsage.set(date, dateCurrentUsage + usedTime);
+            currentUnit += additionalUnits;
+          }
+        }
+      }
+
+      // 4.4 결과 저장
+      result.set(content.content_id, dateAssignments);
+    }
+
+    return result;
+  }
+
+  /**
    * 학습 범위 분할
    * 배정된 날짜에 학습 범위를 분배합니다.
+   * 개선: 전역 배치 조율(Global Coordination)을 사용하여 분산 배정
    */
   private divideContentRanges(): Map<
     string,
@@ -409,6 +621,37 @@ export class SchedulerEngine {
     const contents = this.filterContents();
     const { contentDurationMap } = this.context;
 
+    // 전역 배치 조율 사용 (모든 콘텐츠를 함께 고려)
+    const hasMultipleContents = contents.length > 1;
+    const hasDurationInfo = contents.some(
+      (c) => contentDurationMap?.get(c.content_id)
+    );
+
+    if (hasMultipleContents && hasDurationInfo) {
+      // 전역 배치 조율 사용
+      this.contentRangeMap = this.coordinateGlobalDistribution(
+        contents,
+        allocationMap
+      );
+
+      // 실패한 콘텐츠 체크
+      contents.forEach((content) => {
+        const rangeMap = this.contentRangeMap?.get(content.content_id);
+        if (!rangeMap || rangeMap.size === 0) {
+          this.addFailureReason({
+            type: "range_division_failed",
+            contentId: content.content_id,
+            contentType: content.content_type,
+            totalAmount: content.total_amount,
+            allocatedDates: allocationMap.get(content.content_id)?.length || 0,
+          });
+        }
+      });
+
+      return this.contentRangeMap;
+    }
+
+    // 단일 콘텐츠이거나 duration 정보가 없는 경우 기존 로직 사용
     this.contentRangeMap = new Map();
 
     contents.forEach((content) => {
@@ -423,9 +666,9 @@ export class SchedulerEngine {
 
       // Check if we have duration info for Capacity-Aware Scheduling
       const durationInfo = contentDurationMap?.get(content.content_id);
-      
+
       let rangeMap: Map<string, { start: number; end: number }>;
-      
+
       // Use Capacity-Aware Logic if duration info exists (especially for Lectures)
       if (durationInfo && (content.content_type === "lecture" || content.content_type === "book")) {
          rangeMap = this.distributeContentWithCapacity(content, allocatedDates, durationInfo);
@@ -455,12 +698,12 @@ export class SchedulerEngine {
         { start: number; end: number }
       >();
       rangeMap.forEach((range, date) => {
-        // range.start is 0-based offset from distribute logic? 
-        // divideContentRange returns 0-based offset usually? 
+        // range.start is 0-based offset from distribute logic?
+        // divideContentRange returns 0-based offset usually?
         // checking divideContentRange impl: it uses currentStart=0.
         // distributeContentWithCapacity logic above used currentStart=content.start_range.
         // So for distributeContentWithCapacity, we don't need to add content.start_range again if it already tracked absolute pos.
-        
+
         if (durationInfo && (content.content_type === "lecture" || content.content_type === "book")) {
              // Already absolute
              adjustedRangeMap.set(date, range);

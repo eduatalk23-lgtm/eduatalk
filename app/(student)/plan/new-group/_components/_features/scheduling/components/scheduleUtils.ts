@@ -35,6 +35,12 @@ export function getPlanStartTime(
   date: string,
   blocks: BlockData[]
 ): string | null {
+  // DB에 저장된 start_time이 있으면 우선 사용
+  if (plan.start_time) {
+    return plan.start_time;
+  }
+
+  // 없으면 block_index 기반으로 추정
   if (plan.block_index !== null && plan.block_index !== undefined) {
     const planDate = new Date(date + "T00:00:00");
     const dayOfWeek = planDate.getDay();

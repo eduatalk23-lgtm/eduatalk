@@ -37,4 +37,6 @@ export type Plan = {
   plan_number: number | null;
   sequence: number | null;
   contentEpisode?: string | null; // episode/단원 정보 (강의: episode_title, 교재: major_unit/minor_unit)
+  start_time?: string | null; // DB에 저장된 실제 시작 시간
+  end_time?: string | null; // DB에 저장된 실제 종료 시간
 };

@@ -378,15 +378,45 @@ export function assignPlanTimes(
 }
 
 /**
- * Episode별 duration 기반 시간 배정
- * 
+ * Episode Map 생성 헬퍼 함수
+ * 콘텐츠의 episode 정보를 Map으로 변환하여 빠른 조회 지원
+ */
+function createEpisodeMap(
+  episodes: Array<{ episode_number: number; duration: number | null }> | null | undefined
+): Map<number, number> {
+  const episodeMap = new Map<number, number>();
+  if (!episodes) return episodeMap;
+
+  for (const ep of episodes) {
+    if (
+      ep.duration !== null &&
+      ep.duration !== undefined &&
+      ep.duration > 0 &&
+      ep.episode_number > 0
+    ) {
+      episodeMap.set(ep.episode_number, ep.duration);
+    }
+  }
+
+  return episodeMap;
+}
+
+/**
+ * Episode별 duration 기반 시간 배정 (개선된 버전)
+ *
  * 강의 콘텐츠의 episode별 실제 duration을 반영하여
- * 연속적으로 시간을 배정합니다.
- * 
+ * Best Fit 알고리즘으로 여러 슬롯에 분산 배정합니다.
+ *
+ * 개선 사항:
+ * 1. Precalculated time이 있으면 bypass (SchedulerEngine 결과 사용)
+ * 2. Best Fit 알고리즘으로 여러 슬롯에 분산 배정
+ * 3. Episode별 실제 duration 직접 조회
+ * 4. 학습일/복습일 고려 (복습일은 50% 단축)
+ *
  * @param plansWithInfo - 플랜 정보 배열 (이미 estimatedTime 계산됨)
  * @param studyTimeSlots - 학습 시간 슬롯
  * @param contentDurationMap - 콘텐츠 duration 정보 맵
- * @param dayType - 일 유형
+ * @param dayType - 일 유형 ('학습일' | '복습일')
  * @returns 시간이 배정된 플랜 세그먼트 배열
  */
 function assignEpisodeBasedTimes(
@@ -402,100 +432,214 @@ function assignEpisodeBasedTimes(
   dayType: string
 ): PlanTimeSegment[] {
   const segments: PlanTimeSegment[] = [];
-  let currentSlotIndex = 0;
-  let currentTimeInSlot = 0; // 현재 슬롯 내 누적 시간 (분)
 
-  // Episode별로 순차 배정 (같은 content_id끼리 그룹화)
-  const plansByContent = new Map<string, typeof plansWithInfo>();
-  for (const planInfo of plansWithInfo) {
-    const key = planInfo.plan.content_id;
-    if (!plansByContent.has(key)) {
-      plansByContent.set(key, []);
-    }
-    plansByContent.get(key)!.push(planInfo);
+  // DEBUG: Log input plans to verify precalculated times
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[assignEpisodeBasedTimes] 입력 플랜 분석:`,
+      {
+        totalPlans: plansWithInfo.length,
+        plansDetail: plansWithInfo.map((p) => ({
+          content_id: p.plan.content_id,
+          range: `${p.plan.planned_start_page_or_time}~${p.plan.planned_end_page_or_time}`,
+          precalc_start: p.plan._precalculated_start,
+          precalc_end: p.plan._precalculated_end,
+          has_precalc: !!(p.plan._precalculated_start && p.plan._precalculated_end),
+        })),
+      }
+    );
   }
 
-  // 각 콘텐츠별로 episode 순서대로 배정
-  for (const [contentId, contentPlans] of plansByContent.entries()) {
-    // Episode 번호 순으로 정렬
-    const sortedContentPlans = [...contentPlans].sort((a, b) => {
-      const aEp = a.plan.planned_start_page_or_time;
-      const bEp = b.plan.planned_start_page_or_time;
-      return aEp - bEp;
+  // 0. Precalculated time이 있는 플랜과 없는 플랜 분리
+  const plansWithPrecalc: typeof plansWithInfo = [];
+  const plansWithoutPrecalc: typeof plansWithInfo = [];
+
+  for (const planInfo of plansWithInfo) {
+    if (planInfo.plan._precalculated_start && planInfo.plan._precalculated_end) {
+      plansWithPrecalc.push(planInfo);
+    } else {
+      plansWithoutPrecalc.push(planInfo);
+    }
+  }
+
+  // DEBUG: Log separation results
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[assignEpisodeBasedTimes] Precalculated time 분리 결과:`,
+      {
+        withPrecalc: plansWithPrecalc.length,
+        withoutPrecalc: plansWithoutPrecalc.length,
+        precalcPlans: plansWithPrecalc.map((p) => ({
+          content_id: p.plan.content_id,
+          range: `${p.plan.planned_start_page_or_time}~${p.plan.planned_end_page_or_time}`,
+          start: p.plan._precalculated_start,
+          end: p.plan._precalculated_end,
+        })),
+      }
+    );
+  }
+
+  // 0.1 Precalculated time이 있는 플랜은 바로 세그먼트 생성
+  for (const planInfo of plansWithPrecalc) {
+    segments.push({
+      plan: planInfo.plan,
+      start: planInfo.plan._precalculated_start!,
+      end: planInfo.plan._precalculated_end!,
+      isPartial: false,
+      isContinued: false,
+      originalEstimatedTime: planInfo.originalEstimatedTime,
     });
+  }
 
-    for (const planInfo of sortedContentPlans) {
-      const episodeDuration = planInfo.estimatedTime;
+  // 0.2 Precalculated time이 없는 플랜만 시간 계산 필요
+  if (plansWithoutPrecalc.length === 0) {
+    // 시간 순으로 정렬
+    segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+    return segments;
+  }
 
-      // 현재 슬롯에 공간이 있는지 확인
-      while (currentSlotIndex < studyTimeSlots.length) {
-        const slot = studyTimeSlots[currentSlotIndex];
-        const slotStart = timeToMinutes(slot.start);
-        const slotEnd = timeToMinutes(slot.end);
-        const slotDuration = slotEnd - slotStart;
-        const availableTime = slotDuration - currentTimeInSlot;
+  // 1. 슬롯별 사용 가능한 시간 추적 (Best Fit 알고리즘)
+  // Precalculated 플랜이 사용한 시간 반영
+  const slotAvailability: Array<{
+    slot: StudyTimeSlot;
+    usedTime: number;
+    slotDuration: number;
+  }> = studyTimeSlots.map((slot) => {
+    const slotStart = timeToMinutes(slot.start);
+    const slotEnd = timeToMinutes(slot.end);
+    return {
+      slot,
+      usedTime: 0,
+      slotDuration: slotEnd - slotStart,
+    };
+  });
 
-        if (availableTime >= episodeDuration) {
-          // 현재 슬롯에 배정 가능
-          const segmentStart = slotStart + currentTimeInSlot;
-          segments.push({
-            plan: planInfo.plan,
-            start: minutesToTime(segmentStart),
-            end: minutesToTime(segmentStart + episodeDuration),
-            isPartial: false,
-            isContinued: false,
-            originalEstimatedTime: planInfo.originalEstimatedTime,
-          });
+  // Precalculated 플랜이 사용한 슬롯 시간 업데이트
+  for (const planInfo of plansWithPrecalc) {
+    const planStart = timeToMinutes(planInfo.plan._precalculated_start!);
+    const planEnd = timeToMinutes(planInfo.plan._precalculated_end!);
 
-          currentTimeInSlot += episodeDuration;
+    // 해당 플랜이 속한 슬롯 찾기 및 사용 시간 업데이트
+    for (const slotInfo of slotAvailability) {
+      const slotStart = timeToMinutes(slotInfo.slot.start);
+      const slotEnd = timeToMinutes(slotInfo.slot.end);
+
+      // 플랜이 이 슬롯에 겹치는지 확인
+      if (planStart < slotEnd && planEnd > slotStart) {
+        const overlapStart = Math.max(planStart, slotStart);
+        const overlapEnd = Math.min(planEnd, slotEnd);
+        const overlapDuration = overlapEnd - overlapStart;
+        slotInfo.usedTime += overlapDuration;
+      }
+    }
+  }
+
+  // 2. Episode Map 캐싱 (콘텐츠별로 한 번만 생성)
+  const episodeMapCache = new Map<string, Map<number, number>>();
+
+  // 3. Precalculated 없는 플랜을 block_index → episode 순으로 정렬
+  const sortedPlans = [...plansWithoutPrecalc].sort((a, b) => {
+    // 먼저 block_index 순으로 정렬
+    const blockDiff = (a.blockIndex || 0) - (b.blockIndex || 0);
+    if (blockDiff !== 0) return blockDiff;
+    // 같은 block_index면 episode 번호 순
+    return a.plan.planned_start_page_or_time - b.plan.planned_start_page_or_time;
+  });
+
+  // 4. 각 플랜(episode)별로 Best Fit 배정
+  for (const planInfo of sortedPlans) {
+    const { plan } = planInfo;
+    const contentId = plan.content_id;
+    const episodeNumber = plan.planned_start_page_or_time;
+
+    // 4.1 Episode별 실제 duration 직접 조회
+    let episodeMap = episodeMapCache.get(contentId);
+    if (!episodeMap) {
+      const durationInfo = contentDurationMap.get(contentId);
+      episodeMap = createEpisodeMap(durationInfo?.episodes);
+      episodeMapCache.set(contentId, episodeMap);
+    }
+
+    // Episode 실제 duration 조회 (없으면 기본값 30분)
+    const rawEpisodeDuration = episodeMap.get(episodeNumber) ?? DEFAULT_EPISODE_DURATION_MINUTES;
+
+    // 4.2 학습일/복습일 고려하여 duration 조정
+    const episodeDuration =
+      dayType === "복습일"
+        ? Math.round(rawEpisodeDuration * DEFAULT_REVIEW_TIME_RATIO)
+        : rawEpisodeDuration;
+
+    // 4.3 Best Fit 알고리즘: 가장 적합한 슬롯 찾기
+    // - 플랜이 완전히 들어갈 수 있는 슬롯 중 남은 공간이 가장 적은 슬롯 선택
+    let bestSlotIndex = -1;
+    let bestRemainingSpace = Infinity;
+
+    for (let i = 0; i < slotAvailability.length; i++) {
+      const { usedTime, slotDuration } = slotAvailability[i];
+      const availableTime = slotDuration - usedTime;
+
+      // 플랜이 완전히 들어갈 수 있고, 남은 공간이 가장 적은 슬롯 선택
+      if (availableTime >= episodeDuration && availableTime < bestRemainingSpace) {
+        bestSlotIndex = i;
+        bestRemainingSpace = availableTime;
+      }
+    }
+
+    // 4.4 Best Fit 슬롯을 찾지 못한 경우, First Fit으로 폴백 (부분 배정)
+    if (bestSlotIndex === -1) {
+      for (let i = 0; i < slotAvailability.length; i++) {
+        const { usedTime, slotDuration } = slotAvailability[i];
+        const availableTime = slotDuration - usedTime;
+
+        if (availableTime > 0) {
+          bestSlotIndex = i;
           break;
-        } else if (availableTime > 0) {
-          // 일부만 배정 가능 (다음 슬롯으로 이어짐)
-          const segmentStart = slotStart + currentTimeInSlot;
-          segments.push({
-            plan: planInfo.plan,
-            start: minutesToTime(segmentStart),
-            end: slot.end,
-            isPartial: true,
-            isContinued: false,
-            originalEstimatedTime: planInfo.originalEstimatedTime,
-          });
-
-          // 다음 슬롯으로 이동
-          currentSlotIndex++;
-          currentTimeInSlot = 0;
-
-          // 남은 시간을 다음 슬롯에 배정
-          const remainingTime = episodeDuration - availableTime;
-          if (currentSlotIndex < studyTimeSlots.length) {
-            const nextSlot = studyTimeSlots[currentSlotIndex];
-            const nextSlotStart = timeToMinutes(nextSlot.start);
-            segments.push({
-              plan: planInfo.plan,
-              start: minutesToTime(nextSlotStart),
-              end: minutesToTime(nextSlotStart + remainingTime),
-              isPartial: true,
-              isContinued: true,
-              originalEstimatedTime: planInfo.originalEstimatedTime,
-            });
-            currentTimeInSlot = remainingTime;
-          }
-          break;
-        } else {
-          // 현재 슬롯이 가득 참, 다음 슬롯으로
-          currentSlotIndex++;
-          currentTimeInSlot = 0;
         }
       }
+    }
 
-      // 모든 슬롯이 가득 찬 경우 중단
-      if (currentSlotIndex >= studyTimeSlots.length) {
-        break;
+    // 4.5 플랜 배정
+    if (bestSlotIndex >= 0) {
+      let remainingDuration = episodeDuration;
+      let isFirstSegment = true;
+
+      while (remainingDuration > 0 && bestSlotIndex < slotAvailability.length) {
+        const slotInfo = slotAvailability[bestSlotIndex];
+        const { slot, usedTime, slotDuration } = slotInfo;
+        const slotStart = timeToMinutes(slot.start);
+        const availableTime = slotDuration - usedTime;
+
+        if (availableTime <= 0) {
+          // 현재 슬롯이 가득 참, 다음 슬롯으로
+          bestSlotIndex++;
+          continue;
+        }
+
+        const timeToUse = Math.min(remainingDuration, availableTime);
+        const segmentStart = slotStart + usedTime;
+
+        segments.push({
+          plan: planInfo.plan,
+          start: minutesToTime(segmentStart),
+          end: minutesToTime(segmentStart + timeToUse),
+          isPartial: remainingDuration > timeToUse,
+          isContinued: !isFirstSegment,
+          originalEstimatedTime: planInfo.originalEstimatedTime,
+        });
+
+        remainingDuration -= timeToUse;
+        slotAvailability[bestSlotIndex].usedTime += timeToUse;
+        isFirstSegment = false;
+
+        // 슬롯이 가득 차면 다음 슬롯으로
+        if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
+          bestSlotIndex++;
+        }
       }
     }
   }
 
-  // 시간 순으로 정렬
+  // 5. 시간 순으로 정렬
   segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
   return segments;

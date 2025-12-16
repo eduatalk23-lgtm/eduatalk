@@ -190,6 +190,8 @@ async function _getScheduleResultData(groupId: string): Promise<{
     plan_number: number | null;
     sequence: number | null;
     contentEpisode: string | null;
+    start_time: string | null;
+    end_time: string | null;
   }>;
   periodStart: string;
   periodEnd: string | null;
@@ -355,7 +357,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const plansQuery = queryClient
     .from("student_plan")
     .select(
-      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number,sequence"
+      "id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,plan_number,sequence,start_time,end_time"
     )
     .eq("plan_group_id", groupId)
     .eq("student_id", targetStudentId)
@@ -1094,6 +1096,8 @@ async function _getScheduleResultData(groupId: string): Promise<{
         plan_number: p.plan_number ?? null,
         sequence: p.sequence ?? null,
         contentEpisode,
+        start_time: p.start_time ?? null,
+        end_time: p.end_time ?? null,
       };
     }),
     periodStart: group.period_start || "",

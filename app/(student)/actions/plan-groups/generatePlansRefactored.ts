@@ -616,16 +616,51 @@ async function _generatePlansFromGroupRefactored(
 
     if (process.env.NODE_ENV === "development") {
       const splitCount = splitPlansForAssign.length - plansForAssign.length;
-      if (splitCount > 0) {
-        console.log(
-          `[generatePlansRefactored] ${date} episode별 분할 완료: ${plansForAssign.length}개 → ${splitPlansForAssign.length}개 (${splitCount}개 분할됨)`
-        );
-      }
+
+      // 분할 전후 precalculated time 비교
+      const beforePrecalcCount = plansForAssign.filter(
+        (p) => p._precalculated_start && p._precalculated_end
+      ).length;
+      const afterPrecalcCount = splitPlansForAssign.filter(
+        (p) => p._precalculated_start && p._precalculated_end
+      ).length;
+
+      console.log(
+        `[generatePlansRefactored] ${date} episode별 분할 및 precalc 상태:`,
+        {
+          before: plansForAssign.length,
+          after: splitPlansForAssign.length,
+          splitCount,
+          beforePrecalcCount,
+          afterPrecalcCount,
+          precalcLost: beforePrecalcCount - afterPrecalcCount,
+          // 분할 후 precalculated time 상세
+          afterSplitDetail: splitPlansForAssign.slice(0, 5).map((p) => ({
+            id: p.content_id.substring(0, 8),
+            range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
+            precalc_start: p._precalculated_start,
+            precalc_end: p._precalculated_end,
+          })),
+        }
+      );
     }
 
-    // Pre-calculated time은 episode별 분할 후 재계산 필요
-    // 분할된 플랜들은 모두 재계산하므로 hasPrecalculatedTimes를 false로 설정
-    const hasPrecalculatedTimes = false;
+    // Pre-calculated time이 있으면 사용, 없으면 재계산
+    const hasPrecalculatedTimes = splitPlansForAssign.some(
+      (p) => p._precalculated_start && p._precalculated_end
+    );
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[generatePlansRefactored] ${date} assignPlanTimes 호출 전:`,
+        {
+          totalPlans: splitPlansForAssign.length,
+          hasPrecalculatedTimes,
+          studyTimeSlots: studyTimeSlots.length,
+          dayType,
+        }
+      );
+    }
 
     let timeSegments: import("@/lib/plan/assignPlanTimes").PlanTimeSegment[];
 
@@ -637,6 +672,23 @@ async function _generatePlansFromGroupRefactored(
       dayType,
       totalStudyHours
     );
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[generatePlansRefactored] ${date} assignPlanTimes 결과:`,
+        {
+          totalSegments: timeSegments.length,
+          segmentDetail: timeSegments.slice(0, 5).map((s) => ({
+            content_id: s.plan.content_id.substring(0, 8),
+            range: `${s.plan.planned_start_page_or_time}~${s.plan.planned_end_page_or_time}`,
+            start: s.start,
+            end: s.end,
+            precalc_start: s.plan._precalculated_start,
+            precalc_end: s.plan._precalculated_end,
+          })),
+        }
+      );
+    }
 
     let blockIndex = 1;
     const now = new Date().toISOString();
