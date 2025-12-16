@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, BookOpen } from "lucide-react";
 import { BookDetail } from "@/lib/types/plan";
+import { cn } from "@/lib/cn";
 
 type BookDetailsDisplayProps = {
   details: BookDetail[];
@@ -87,12 +89,20 @@ export function BookDetailsDisplay({ details }: BookDetailsDisplayProps) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.majorUnit)}
-                  className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 px-4 py-2 rounded-md transition"
+                  aria-expanded={isExpanded}
+                  aria-controls={`group-${group.majorUnit}`}
+                  className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 px-4 py-2 rounded-md transition-colors"
                 >
-                  <span className="text-gray-500 text-sm">
-                    {isExpanded ? "▼" : "▶"}
-                  </span>
-                  <span className="font-semibold text-gray-900">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-200" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-gray-500 transition-transform duration-200" aria-hidden="true" />
+                  )}
+                  <BookOpen className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                  <span
+                    id={`group-header-${group.majorUnit}`}
+                    className="font-semibold text-gray-900"
+                  >
                     {group.majorUnit === "(대단원 없음)" ? "기타" : group.majorUnit}
                   </span>
                   {hasMinorUnits && (
@@ -105,7 +115,12 @@ export function BookDetailsDisplay({ details }: BookDetailsDisplayProps) {
 
               {/* 중단원 목록 */}
               {isExpanded && (
-                <div className="divide-y divide-gray-100">
+                <div
+                  id={`group-${group.majorUnit}`}
+                  className="divide-y divide-gray-100"
+                  role="region"
+                  aria-labelledby={`group-header-${group.majorUnit}`}
+                >
                   {group.items.length === 0 ? (
                     <div className="px-4 py-4 text-center text-sm text-gray-500">
                       중단원이 없습니다.
@@ -114,9 +129,9 @@ export function BookDetailsDisplay({ details }: BookDetailsDisplayProps) {
                     group.items.map((item, itemIndex) => (
                       <div
                         key={item.id || itemIndex}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50"
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
                       >
-                        <span className="text-gray-400 text-sm w-6">└</span>
+                        <span className="text-gray-400 text-sm w-6" aria-hidden="true">└</span>
                         <div className="flex-1">
                           <span className="text-sm text-gray-900">
                             {item.minor_unit || "—"}

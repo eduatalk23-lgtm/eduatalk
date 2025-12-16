@@ -10,15 +10,46 @@ type DetailRow = {
   isUrl?: boolean;
 };
 
-type ContentDetailTableProps = {
+type DetailSection = {
+  title?: string;
   rows: DetailRow[];
 };
 
-export function ContentDetailTable({ rows }: ContentDetailTableProps) {
+type ContentDetailTableProps = {
+  sections?: DetailSection[];
+  rows?: DetailRow[]; // 하위 호환성
+};
+
+export function ContentDetailTable({ sections, rows }: ContentDetailTableProps) {
+  // 하위 호환성: rows가 제공되면 sections로 변환
+  const resolvedSections: DetailSection[] = sections
+    ? sections
+    : rows
+      ? [{ rows }]
+      : [];
+
+  if (resolvedSections.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="grid gap-6 sm:grid-cols-2">
-      {rows.map((row) => (
-        <DetailRow key={row.label} label={row.label} value={row.value} isUrl={row.isUrl} />
+    <div className="flex flex-col gap-6">
+      {resolvedSections.map((section, sectionIndex) => (
+        <div key={sectionIndex} className="flex flex-col gap-4">
+          {section.title && (
+            <h3 className="text-base font-semibold text-gray-900">{section.title}</h3>
+          )}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {section.rows.map((row, rowIndex) => (
+              <DetailRow
+                key={row.label || rowIndex}
+                label={row.label}
+                value={row.value}
+                isUrl={row.isUrl}
+              />
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );

@@ -224,9 +224,7 @@ export async function getMasterBooksList(): Promise<
  * 교재 상세 조회 (세부 정보 포함)
  * subject_id, curriculum_revision_id, publisher_id로부터 관련 정보를 JOIN으로 조회
  */
-export async function getMasterBookById(
-  bookId: string
-): Promise<{
+export async function getMasterBookById(bookId: string): Promise<{
   book: MasterBook & {
     subject_category?: string | null;
     subject?: string | null;
@@ -1754,7 +1752,8 @@ export async function updateMasterLecture(
   if (data.platform !== undefined) updateFields.platform = data.platform;
   if (data.platform_name !== undefined)
     updateFields.platform_name = data.platform_name;
-  if (data.platform_id !== undefined) updateFields.platform_id = data.platform_id;
+  if (data.platform_id !== undefined)
+    updateFields.platform_id = data.platform_id;
   if (data.total_episodes !== undefined)
     updateFields.total_episodes = data.total_episodes;
   if (data.total_duration !== undefined)
@@ -1775,7 +1774,8 @@ export async function updateMasterLecture(
     updateFields.overall_difficulty = data.overall_difficulty;
   if (data.instructor_name !== undefined)
     updateFields.instructor_name = data.instructor_name;
-  if (data.grade_level !== undefined) updateFields.grade_level = data.grade_level;
+  if (data.grade_level !== undefined)
+    updateFields.grade_level = data.grade_level;
   if (data.grade_min !== undefined) updateFields.grade_min = data.grade_min;
   if (data.grade_max !== undefined) updateFields.grade_max = data.grade_max;
   if (data.lecture_type !== undefined)
