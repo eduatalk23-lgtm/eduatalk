@@ -207,28 +207,31 @@ export function BookDetailsManager({
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.majorUnit)}
-                    className="flex items-center gap-2 flex-1 text-left hover:bg-gray-100 px-3 py-2 rounded-md transition"
+                    className="flex items-center justify-center w-6 h-6 rounded-md hover:bg-gray-200 transition"
+                    aria-label={isExpanded ? "접기" : "펼치기"}
                   >
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 text-xs">
                       {isExpanded ? "▼" : "▶"}
                     </span>
-                    <input
-                      type="text"
-                      value={group.majorUnit === "(대단원 없음)" ? "" : group.majorUnit}
-                      onChange={(e) => {
-                        const newName = e.target.value || "(대단원 없음)";
-                        updateMajorUnitName(group.majorUnit, newName);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      placeholder="대단원명을 입력하세요"
-                      className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
-                    />
-                    {hasMinorUnits && (
-                      <span className="text-xs text-gray-900">
-                        ({group.items.filter((i) => i.minor_unit).length}개 중단원)
-                      </span>
-                    )}
                   </button>
+                  <input
+                    type="text"
+                    value={group.majorUnit === "(대단원 없음)" ? "" : group.majorUnit}
+                    onChange={(e) => {
+                      const newName = e.target.value || "(대단원 없음)";
+                      updateMajorUnitName(group.majorUnit, newName);
+                    }}
+                    onFocus={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="대단원명을 입력하세요"
+                    className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                  />
+                  {hasMinorUnits && (
+                    <span className="text-xs text-gray-900">
+                      ({group.items.filter((i) => i.minor_unit).length}개 중단원)
+                    </span>
+                  )}
                   <div className="flex gap-1">
                     <button
                       type="button"

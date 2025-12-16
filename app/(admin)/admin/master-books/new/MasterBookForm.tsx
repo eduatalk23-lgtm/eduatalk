@@ -7,6 +7,7 @@ import { addMasterBook } from "@/app/(student)/actions/masterContentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
+import { PublisherSelectField } from "@/components/forms/PublisherSelectField";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -68,6 +69,19 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
+      {/* 필수 입력 항목 안내 */}
+      <div className="rounded-md bg-blue-50 border border-blue-200 p-3 md:col-span-2">
+        <p className="text-sm text-blue-800 font-medium mb-2">필수 입력 항목</p>
+        <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+          <li>교재명</li>
+        </ul>
+        <p className="text-sm text-blue-800 font-medium mt-3 mb-2">권장 입력 항목</p>
+        <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+          <li>개정교육과정, 교과 그룹, 과목</li>
+          <li>출판사</li>
+        </ul>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         {/* 교재명 */}
         <FormField
@@ -93,27 +107,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         />
 
         {/* 출판사 선택 */}
-        <FormSelect
-          label="출판사"
-          name="publisher_id"
-          options={[
-            { value: "", label: "선택하세요" },
-            ...publishers.map((publisher) => ({
-              value: publisher.id,
-              label: publisher.name,
-            })),
-          ]}
-          onChange={(e) => {
-            // publisher_id 변경 시 publisher_name도 자동 설정
-            const selectedPublisher = publishers.find(p => p.id === e.target.value);
-            const publisherNameInput = document.querySelector('input[name="publisher_name"]') as HTMLInputElement;
-            if (publisherNameInput && selectedPublisher) {
-              publisherNameInput.value = selectedPublisher.name;
-            }
-          }}
-        />
-        {/* 출판사명 (숨김 필드, 자동 설정됨) */}
-        <input type="hidden" name="publisher_name" />
+        <PublisherSelectField publishers={publishers} />
 
         {/* 저자 */}
         <FormField

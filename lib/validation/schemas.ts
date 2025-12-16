@@ -127,7 +127,7 @@ export const customContentSchema = contentBaseSchema.extend({
  * 마스터 교재 스키마
  */
 export const masterBookSchema = z.object({
-  title: z.string().min(1, "교재명을 입력해주세요.").max(200),
+  title: z.string().min(1, "교재명을 입력해주세요.").max(200, "교재명은 200자 이하여야 합니다."),
   curriculum_revision_id: z.string().optional().nullable(),
   subject_id: z.string().optional().nullable(),
   subject_group_id: z.string().optional().nullable(),

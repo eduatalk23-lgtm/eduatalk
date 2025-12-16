@@ -77,17 +77,28 @@ export function useSubjectSelection({
     const revisionName = e.target.value;
     const selectedRevision = curriculumRevisions.find(r => r.name === revisionName);
     
-    // 교과 그룹과 과목 선택 초기화
+    // 교과 그룹과 과목 선택 초기화 (먼저 수행)
     setSelectedGroupId("");
     setSelectedSubjectId("");
     setSelectedSubjects([]);
     
     if (selectedRevision) {
+      // 상태를 먼저 업데이트하여 필드 활성화
       setSelectedRevisionId(selectedRevision.id);
-      await loadSubjectGroups(selectedRevision.id);
+      setLoadingGroups(true);
+      
+      try {
+        await loadSubjectGroups(selectedRevision.id);
+      } catch (error) {
+        console.error("교과 그룹 로드 실패:", error);
+        setSubjectGroups([]);
+      } finally {
+        setLoadingGroups(false);
+      }
     } else {
       setSelectedRevisionId("");
       setSubjectGroups([]);
+      setLoadingGroups(false);
     }
   }, [curriculumRevisions, loadSubjectGroups]);
 
