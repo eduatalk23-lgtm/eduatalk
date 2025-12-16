@@ -75,6 +75,11 @@ if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDay
 - `durationInfo.episodes`에서 최대 episode_number를 찾아 범위 제한
 - `end_range`는 exclusive이므로 `maxEpisodeNumber + 1`로 제한
 
+**주차별 범위 사용 수정 (2025-01-02 최종)**:
+- 문제: `rangeMap`은 전체 기간의 모든 학습일에 대해 생성되지만, 주차별로 호출 시 다른 주차의 범위까지 현재 주차에 추가되어 회차 중복 배정 발생
+- 해결: `generateStudyDayPlans`에서 현재 주차의 학습일에 해당하는 `rangeMap` 항목만 사용하도록 수정
+- 다른 주차의 범위는 무시하여 회차 중복 배정 문제 해결
+
 ### 동작 방식
 
 1. **학습일 수 >= 총 회차 수인 경우**

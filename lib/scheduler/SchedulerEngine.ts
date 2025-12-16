@@ -889,28 +889,12 @@ export class SchedulerEngine {
       const unmatchedDates: string[] = [];
       const adjustedDates: Map<string, string> = new Map(); // 원본 날짜 -> 조정된 날짜
 
+      // 현재 주차의 학습일에 해당하는 범위만 사용 (다른 주차 범위 제외)
       contentRangeMap.forEach((range, date) => {
+        // 현재 주차의 학습일이 아니면 무시 (다른 주차는 별도로 처리됨)
         if (!studyDaysList.includes(date)) {
           unmatchedDates.push(date);
-          
-          // 가장 가까운 학습일로 자동 조정
-          const closestDate = findClosestDate(date, studyDaysList);
-          if (closestDate) {
-            adjustedDates.set(date, closestDate);
-            
-            // 조정된 날짜에 플랜 추가
-            if (!studyPlansByDate.has(closestDate)) {
-              studyPlansByDate.set(closestDate, []);
-            }
-            studyPlansByDate.get(closestDate)!.push({
-              content,
-              start: range.start,
-              end: range.end,
-            });
-            
-            matchedDates.push(closestDate);
-          }
-          return;
+          return; // 다른 주차의 범위는 무시
         }
 
         matchedDates.push(date);
