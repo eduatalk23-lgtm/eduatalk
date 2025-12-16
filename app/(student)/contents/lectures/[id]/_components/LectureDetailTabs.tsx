@@ -97,6 +97,7 @@ export function LectureDetailTabs({
           lectureId={lecture.id}
           linkedBook={linkedBook}
           studentBooks={studentBooks}
+          isFromMaster={isFromMaster}
         />
       )}
     </div>

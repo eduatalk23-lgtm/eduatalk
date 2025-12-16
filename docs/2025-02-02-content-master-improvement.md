@@ -142,6 +142,21 @@ CREATE TABLE student_content_customizations (
 4. `app/(student)/contents/lectures/[id]/_components/LectureDetailTabs.tsx`
    - 타입 정의 수정 (`isMaster` 속성 추가)
 
+## 추가 개선 사항
+
+### 3. 마스터 강의 교재 연결 수정 제한 ✅
+
+**문제**: 마스터 강의에서 가져온 강의의 경우 교재 검색 및 등록 기능이 활성화되어 있어 수정이 가능한 상태
+
+**해결**:
+- `LectureLinkedBookSection`에 `isFromMaster` prop 추가
+- 마스터 강의인 경우 교재 검색/등록 버튼 비활성화
+- 안내 메시지 표시: "마스터에서 가져온 강의는 교재 연결 수정이 불가능합니다"
+
+**수정된 파일**:
+- `app/(student)/contents/lectures/[id]/_components/LectureDetailTabs.tsx`: `isFromMaster` prop 전달
+- `app/(student)/contents/lectures/[id]/_components/LectureLinkedBookSection.tsx`: 마스터 강의인 경우 UI 비활성화
+
 ## 향후 작업
 
 1. **데이터 복사 방식 개선 검토**

@@ -11,12 +11,14 @@ type LectureLinkedBookSectionProps = {
   lectureId: string;
   linkedBook: { id: string; title: string; isMaster?: boolean } | null;
   studentBooks: Array<{ id: string; title: string }>;
+  isFromMaster?: boolean;
 };
 
 export function LectureLinkedBookSection({
   lectureId,
   linkedBook,
   studentBooks,
+  isFromMaster = false,
 }: LectureLinkedBookSectionProps) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -311,24 +313,32 @@ export function LectureLinkedBookSection({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">연결된 교재</h3>
-        <div className="flex gap-2">
-          {studentBooks.length > 0 && (
+        {!isFromMaster && (
+          <div className="flex gap-2">
+            {studentBooks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsSearching(true)}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                교재 검색
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setIsSearching(true)}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              onClick={() => setIsCreating(true)}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
             >
-              교재 검색
+              교재 등록
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setIsCreating(true)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            교재 등록
-          </button>
-        </div>
+          </div>
+        )}
+        {isFromMaster && (
+          <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
+            <span>📦</span>
+            <span>마스터에서 가져온 강의는 교재 연결 수정이 불가능합니다</span>
+          </div>
+        )}
       </div>
 
       {linkedBook ? (
@@ -371,24 +381,32 @@ export function LectureLinkedBookSection({
           <p className="text-sm text-gray-500">
             연결된 교재가 없습니다.
           </p>
-          <div className="flex justify-center gap-2">
-            {studentBooks.length > 0 && (
+          {!isFromMaster && (
+            <div className="flex justify-center gap-2">
+              {studentBooks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsSearching(true)}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  교재 검색하여 연결
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setIsSearching(true)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                onClick={() => setIsCreating(true)}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
               >
-                교재 검색하여 연결
+                새 교재 등록하여 연결
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsCreating(true)}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              새 교재 등록하여 연결
-            </button>
-          </div>
+            </div>
+          )}
+          {isFromMaster && (
+            <div className="inline-flex items-center gap-2 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700">
+              <span>📦</span>
+              <span>마스터에서 가져온 강의는 교재 연결 수정이 불가능합니다</span>
+            </div>
+          )}
         </div>
       )}
     </div>
