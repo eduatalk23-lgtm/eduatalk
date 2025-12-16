@@ -21,17 +21,17 @@ import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/d
 /**
  * 기본 소요시간 상수 (분 단위)
  */
-const DEFAULT_BASE_TIME_MINUTES = 60; // 1시간
+export const DEFAULT_BASE_TIME_MINUTES = 60; // 1시간
 
 /**
  * 강의 회차당 기본 소요시간 (분 단위)
  */
-const DEFAULT_EPISODE_DURATION_MINUTES = 30;
+export const DEFAULT_EPISODE_DURATION_MINUTES = 30;
 
 /**
  * 복습일 소요시간 비율 (기본값)
  */
-const DEFAULT_REVIEW_TIME_RATIO = 0.5; // 50%
+export const DEFAULT_REVIEW_TIME_RATIO = 0.5; // 50%
 
 /**
  * 페이지당 기본 소요시간 (분 단위)
@@ -52,6 +52,94 @@ const PAGE_DURATION_BY_DIFFICULTY: Readonly<Record<string, number>> = {
  * 커스텀 콘텐츠 페이지/시간 구분 기준값
  */
 const CUSTOM_CONTENT_PAGE_THRESHOLD = 100;
+
+// ============================================
+// 캐싱 메커니즘
+// ============================================
+
+/**
+ * Duration 계산 결과 캐시
+ * Map 기반 캐싱으로 중복 계산 방지
+ */
+const durationCache = new Map<
+  string,
+  { result: number; timestamp: number }
+>();
+
+/**
+ * 캐시 TTL (Time To Live) - 5분
+ */
+const CACHE_TTL = 5 * 60 * 1000; // 5분
+
+/**
+ * 캐시 키 생성
+ * 
+ * @param contentId - 콘텐츠 ID
+ * @param startRange - 시작 범위
+ * @param endRange - 종료 범위
+ * @param dayType - 일 유형 (선택사항)
+ * @returns 캐시 키 문자열
+ */
+function getCacheKey(
+  contentId: string,
+  startRange: number,
+  endRange: number,
+  dayType?: string
+): string {
+  return `${contentId}:${startRange}~${endRange}:${dayType || "default"}`;
+}
+
+/**
+ * 캐시된 duration 조회 또는 계산
+ * 
+ * @param key - 캐시 키
+ * @param calculateFn - 계산 함수
+ * @returns 계산된 duration (분 단위)
+ */
+function getCachedDuration(key: string, calculateFn: () => number): number {
+  const cached = durationCache.get(key);
+  const now = Date.now();
+
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[calculateContentDuration] 캐시 히트: ${key}`);
+    }
+    return cached.result;
+  }
+
+  const result = calculateFn();
+  durationCache.set(key, { result, timestamp: now });
+
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[calculateContentDuration] 캐시 미스: ${key}, 계산 결과: ${result}분`
+    );
+  }
+
+  return result;
+}
+
+/**
+ * 캐시 무효화 함수 (선택사항)
+ * 특정 콘텐츠의 캐시를 무효화할 때 사용
+ * 
+ * @param contentId - 무효화할 콘텐츠 ID (선택사항, 없으면 전체 캐시 무효화)
+ */
+export function invalidateDurationCache(contentId?: string): void {
+  if (contentId) {
+    // 특정 콘텐츠의 캐시만 무효화
+    const keysToDelete: string[] = [];
+    for (const key of durationCache.keys()) {
+      if (key.startsWith(`${contentId}:`)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => durationCache.delete(key));
+  } else {
+    // 전체 캐시 무효화
+    durationCache.clear();
+  }
+}
 
 /**
  * 콘텐츠 소요시간 계산
@@ -104,9 +192,48 @@ export function calculateContentDuration(
   dayType?: "학습일" | "복습일" | string,
   reviewTimeRatio?: number
 ): number {
+  // 캐시 키 생성
+  const cacheKey = getCacheKey(
+    content.content_id,
+    content.start_range,
+    content.end_range,
+    dayType
+  );
+
+  // 캐시된 결과 조회 또는 계산
+  return getCachedDuration(cacheKey, () => {
+    return calculateContentDurationInternal(
+      content,
+      durationInfo,
+      dayType,
+      reviewTimeRatio
+    );
+  });
+}
+
+/**
+ * 내부 계산 함수 (캐싱 로직 제외)
+ * 
+ * @param content - 콘텐츠 정보
+ * @param durationInfo - 콘텐츠 소요시간 정보
+ * @param dayType - 일 유형
+ * @param reviewTimeRatio - 복습일 소요시간 비율
+ * @returns 예상 소요시간 (분 단위)
+ */
+function calculateContentDurationInternal(
+  content: {
+    content_type: "book" | "lecture" | "custom";
+    content_id: string;
+    start_range: number;
+    end_range: number;
+  },
+  durationInfo: ContentDurationInfo,
+  dayType?: "학습일" | "복습일" | string,
+  reviewTimeRatio?: number
+): number {
   // Range is inclusive, so amount (count) is end - start + 1
   const amount = content.end_range - content.start_range + 1;
-  
+
   // 범위가 유효하지 않은 경우 기본값 반환
   if (amount <= 0) {
     return dayType === "복습일"

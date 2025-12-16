@@ -7,7 +7,12 @@
 
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
-import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import {
+  calculateContentDuration,
+  DEFAULT_BASE_TIME_MINUTES,
+  DEFAULT_EPISODE_DURATION_MINUTES,
+  DEFAULT_REVIEW_TIME_RATIO,
+} from "@/lib/plan/contentDuration";
 import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 // Re-export time utility functions for convenience
@@ -68,24 +73,11 @@ export type PlanEstimateInput = {
  * @returns 예상 소요시간 (분)
  */
 /**
- * 기본 소요시간 상수 (분 단위)
- */
-const DEFAULT_BASE_TIME_MINUTES = 60; // 1시간
-
-/**
- * 강의 회차당 기본 소요시간 (분 단위)
- */
-const DEFAULT_EPISODE_DURATION_MINUTES = 30;
-
-/**
  * 페이지당 기본 소요시간 (분 단위)
+ * Note: contentDuration.ts의 DEFAULT_MINUTES_PER_PAGE와 다를 수 있음
+ * (난이도별 페이지당 시간은 contentDuration.ts에서 관리)
  */
 const DEFAULT_PAGE_DURATION_MINUTES = 2;
-
-/**
- * 복습일 소요시간 비율 (기본값)
- */
-const DEFAULT_REVIEW_TIME_RATIO = 0.5; // 50%
 
 /**
  * duration 정보가 없는 경우 기본값을 계산하는 헬퍼 함수
@@ -264,6 +256,24 @@ export function assignPlanTimes(
     });
   }
 
+  // Episode별 duration 기반 배정이 필요한지 확인
+  // 강의 콘텐츠가 있고 episode별로 분할된 경우 (start === end)
+  const hasLectureEpisodes = plansWithInfo.some(
+    (p) =>
+      p.plan.content_type === "lecture" &&
+      p.plan.planned_start_page_or_time === p.plan.planned_end_page_or_time
+  );
+
+  if (hasLectureEpisodes) {
+    // Episode별 duration 기반 시간 배정
+    return assignEpisodeBasedTimes(
+      plansWithInfo,
+      studyTimeSlots,
+      contentDurationMap,
+      dayType
+    );
+  }
+
   // Best Fit 알고리즘을 위한 정렬: 소요시간 내림차순 (큰 것부터 배치)
   const sortedPlans = [...plansWithInfo].sort((a, b) => {
     // 먼저 block_index 순으로 정렬 (같은 block_index면 소요시간 내림차순)
@@ -357,6 +367,130 @@ export function assignPlanTimes(
         
         planInfo.remainingTime -= timeToUse;
         slotAvailability[bestSlotIndex].usedTime += timeToUse;
+      }
+    }
+  }
+
+  // 시간 순으로 정렬
+  segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  return segments;
+}
+
+/**
+ * Episode별 duration 기반 시간 배정
+ * 
+ * 강의 콘텐츠의 episode별 실제 duration을 반영하여
+ * 연속적으로 시간을 배정합니다.
+ * 
+ * @param plansWithInfo - 플랜 정보 배열 (이미 estimatedTime 계산됨)
+ * @param studyTimeSlots - 학습 시간 슬롯
+ * @param contentDurationMap - 콘텐츠 duration 정보 맵
+ * @param dayType - 일 유형
+ * @returns 시간이 배정된 플랜 세그먼트 배열
+ */
+function assignEpisodeBasedTimes(
+  plansWithInfo: Array<{
+    plan: PlanTimeInput;
+    originalEstimatedTime: number;
+    estimatedTime: number;
+    remainingTime: number;
+    blockIndex: number;
+  }>,
+  studyTimeSlots: StudyTimeSlot[],
+  contentDurationMap: Map<string, ContentDurationInfo>,
+  dayType: string
+): PlanTimeSegment[] {
+  const segments: PlanTimeSegment[] = [];
+  let currentSlotIndex = 0;
+  let currentTimeInSlot = 0; // 현재 슬롯 내 누적 시간 (분)
+
+  // Episode별로 순차 배정 (같은 content_id끼리 그룹화)
+  const plansByContent = new Map<string, typeof plansWithInfo>();
+  for (const planInfo of plansWithInfo) {
+    const key = planInfo.plan.content_id;
+    if (!plansByContent.has(key)) {
+      plansByContent.set(key, []);
+    }
+    plansByContent.get(key)!.push(planInfo);
+  }
+
+  // 각 콘텐츠별로 episode 순서대로 배정
+  for (const [contentId, contentPlans] of plansByContent.entries()) {
+    // Episode 번호 순으로 정렬
+    const sortedContentPlans = [...contentPlans].sort((a, b) => {
+      const aEp = a.plan.planned_start_page_or_time;
+      const bEp = b.plan.planned_start_page_or_time;
+      return aEp - bEp;
+    });
+
+    for (const planInfo of sortedContentPlans) {
+      const episodeDuration = planInfo.estimatedTime;
+
+      // 현재 슬롯에 공간이 있는지 확인
+      while (currentSlotIndex < studyTimeSlots.length) {
+        const slot = studyTimeSlots[currentSlotIndex];
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        const slotDuration = slotEnd - slotStart;
+        const availableTime = slotDuration - currentTimeInSlot;
+
+        if (availableTime >= episodeDuration) {
+          // 현재 슬롯에 배정 가능
+          const segmentStart = slotStart + currentTimeInSlot;
+          segments.push({
+            plan: planInfo.plan,
+            start: minutesToTime(segmentStart),
+            end: minutesToTime(segmentStart + episodeDuration),
+            isPartial: false,
+            isContinued: false,
+            originalEstimatedTime: planInfo.originalEstimatedTime,
+          });
+
+          currentTimeInSlot += episodeDuration;
+          break;
+        } else if (availableTime > 0) {
+          // 일부만 배정 가능 (다음 슬롯으로 이어짐)
+          const segmentStart = slotStart + currentTimeInSlot;
+          segments.push({
+            plan: planInfo.plan,
+            start: minutesToTime(segmentStart),
+            end: slot.end,
+            isPartial: true,
+            isContinued: false,
+            originalEstimatedTime: planInfo.originalEstimatedTime,
+          });
+
+          // 다음 슬롯으로 이동
+          currentSlotIndex++;
+          currentTimeInSlot = 0;
+
+          // 남은 시간을 다음 슬롯에 배정
+          const remainingTime = episodeDuration - availableTime;
+          if (currentSlotIndex < studyTimeSlots.length) {
+            const nextSlot = studyTimeSlots[currentSlotIndex];
+            const nextSlotStart = timeToMinutes(nextSlot.start);
+            segments.push({
+              plan: planInfo.plan,
+              start: minutesToTime(nextSlotStart),
+              end: minutesToTime(nextSlotStart + remainingTime),
+              isPartial: true,
+              isContinued: true,
+              originalEstimatedTime: planInfo.originalEstimatedTime,
+            });
+            currentTimeInSlot = remainingTime;
+          }
+          break;
+        } else {
+          // 현재 슬롯이 가득 참, 다음 슬롯으로
+          currentSlotIndex++;
+          currentTimeInSlot = 0;
+        }
+      }
+
+      // 모든 슬롯이 가득 찬 경우 중단
+      if (currentSlotIndex >= studyTimeSlots.length) {
+        break;
       }
     }
   }

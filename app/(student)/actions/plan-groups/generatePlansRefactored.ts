@@ -8,7 +8,11 @@ import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
 } from "@/lib/data/contentMasters";
-import { assignPlanTimes, calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
+import {
+  assignPlanTimes,
+  calculatePlanEstimatedTime,
+} from "@/lib/plan/assignPlanTimes";
+import { splitPlanTimeInputByEpisodes } from "@/lib/plan/planSplitter";
 import { updatePlanGroupStatus } from "./status";
 import { timeToMinutes } from "./utils";
 import {
@@ -555,17 +559,20 @@ async function _generatePlansFromGroupRefactored(
         block_index: plan.block_index,
         // Preserve pre-calculated times if available (from SchedulerEngine)
         _precalculated_start: plan.start_time,
-        _precalculated_end: plan.end_time, 
+        _precalculated_end: plan.end_time,
       };
     });
 
     if (process.env.NODE_ENV === "development") {
-       console.log(`[generatePlansRefactored] ${date} plans precalc check:`, plansForAssign.map(p => ({
-         id: p.content_id, 
-         range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
-         start: p._precalculated_start,
-         end: p._precalculated_end
-       })));
+      console.log(
+        `[generatePlansRefactored] ${date} plans precalc check:`,
+        plansForAssign.map((p) => ({
+          id: p.content_id,
+          range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
+          start: p._precalculated_start,
+          end: p._precalculated_end,
+        }))
+      );
     }
 
     // Episode 정보 전달 확인 (개발 환경에서만)
@@ -597,44 +604,39 @@ async function _generatePlansFromGroupRefactored(
       }
     }
 
-    // Check if we have pre-calculated times (from SchedulerEngine)
-    // If ANY plan has pre-calculated time, we assume the scheduler provided a complete timeline for this day.
-    const hasPrecalculatedTimes = plansForAssign.some(p => p._precalculated_start && p._precalculated_end);
+    // Episode별 플랜 분할 (Pre-calculated time 여부와 무관하게)
+    // 큰 범위(예: 2~23)를 개별 episode로 분할하여 각 episode의 실제 duration을 정확히 반영
+    const splitPlansForAssign = plansForAssign.flatMap((p) => {
+      // 강의 콘텐츠만 episode별로 분할
+      if (p.content_type === "lecture") {
+        return splitPlanTimeInputByEpisodes(p, contentDurationMap);
+      }
+      return [p];
+    });
+
+    if (process.env.NODE_ENV === "development") {
+      const splitCount = splitPlansForAssign.length - plansForAssign.length;
+      if (splitCount > 0) {
+        console.log(
+          `[generatePlansRefactored] ${date} episode별 분할 완료: ${plansForAssign.length}개 → ${splitPlansForAssign.length}개 (${splitCount}개 분할됨)`
+        );
+      }
+    }
+
+    // Pre-calculated time은 episode별 분할 후 재계산 필요
+    // 분할된 플랜들은 모두 재계산하므로 hasPrecalculatedTimes를 false로 설정
+    const hasPrecalculatedTimes = false;
 
     let timeSegments: import("@/lib/plan/assignPlanTimes").PlanTimeSegment[];
 
-    if (hasPrecalculatedTimes) {
-      // Use pre-calculated times directly
-      timeSegments = plansForAssign.map(p => {
-        // Calculate estimated time for metadata (still useful)
-        const estimatedTime = calculatePlanEstimatedTime(p, contentDurationMap, dayType);
-        
-        return {
-          plan: p,
-          start: p._precalculated_start!,
-          end: p._precalculated_end!,
-          isPartial: false, // SchedulerEngine handles splitting, so partials are pre-split plans
-          isContinued: false,
-          originalEstimatedTime: estimatedTime,
-          estimatedTime: estimatedTime,
-          remainingTime: 0,
-          blockIndex: p.block_index || 0,
-        };
-      });
-      
-      // Sort by start time to match expected order
-      timeSegments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
-      
-    } else {
-      // Fallback to legacy assignment logic
-      timeSegments = assignPlanTimes(
-        plansForAssign,
-        studyTimeSlots,
-        contentDurationMap,
-        dayType,
-        totalStudyHours
-      );
-    }
+    // Episode별 분할 후 시간 재배정 (모든 플랜에 대해)
+    timeSegments = assignPlanTimes(
+      splitPlansForAssign,
+      studyTimeSlots,
+      contentDurationMap,
+      dayType,
+      totalStudyHours
+    );
 
     let blockIndex = 1;
     const now = new Date().toISOString();
