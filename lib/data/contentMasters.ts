@@ -10,6 +10,7 @@ import {
   type SubjectGroup,
   type Subject 
 } from "@/lib/data/subjects";
+import { normalizeError } from "@/lib/errors";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -920,8 +921,12 @@ export async function createMasterCustomContent(
     .single<MasterCustomContent>();
 
   if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 생성 실패", error);
-    throw new Error(error.message || "커스텀 콘텐츠 생성에 실패했습니다.");
+    const normalizedError = normalizeError(error);
+    console.error("[data/contentMasters] 커스텀 콘텐츠 생성 실패", {
+      error: normalizedError,
+      data: { ...data, notes: data.notes ? "[REDACTED]" : null }, // 민감 정보 제외
+    });
+    throw normalizedError;
   }
 
   return content;
@@ -944,8 +949,13 @@ export async function updateMasterCustomContent(
     .single<MasterCustomContent>();
 
   if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 수정 실패", error);
-    throw new Error(error.message || "커스텀 콘텐츠 수정에 실패했습니다.");
+    const normalizedError = normalizeError(error);
+    console.error("[data/contentMasters] 커스텀 콘텐츠 수정 실패", {
+      error: normalizedError,
+      contentId,
+      updates: { ...updates, notes: updates.notes ? "[REDACTED]" : null }, // 민감 정보 제외
+    });
+    throw normalizedError;
   }
 
   return content;
@@ -963,8 +973,12 @@ export async function deleteMasterCustomContent(contentId: string): Promise<void
     .eq("id", contentId);
 
   if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 삭제 실패", error);
-    throw new Error(error.message || "커스텀 콘텐츠 삭제에 실패했습니다.");
+    const normalizedError = normalizeError(error);
+    console.error("[data/contentMasters] 커스텀 콘텐츠 삭제 실패", {
+      error: normalizedError,
+      contentId,
+    });
+    throw normalizedError;
   }
 }
 
@@ -1791,7 +1805,7 @@ export async function createLectureEpisode(
     .insert({
       lecture_id: data.lecture_id,
       episode_number: data.episode_number,
-      title: data.title || null,  // 변경: episode_title → title
+      episode_title: data.episode_title || null,  // 수정: title → episode_title (DB 스키마와 일치)
       duration: data.duration || null,
       display_order: data.display_order,
     })
@@ -1815,14 +1829,15 @@ export async function updateLectureEpisode(
 ): Promise<LectureEpisode> {
   const supabase = await createSupabaseServerClient();
 
+  const updateFields: Record<string, unknown> = {};
+  if (data.episode_number !== undefined) updateFields.episode_number = data.episode_number;
+  if (data.episode_title !== undefined) updateFields.episode_title = data.episode_title;  // 수정: title → episode_title
+  if (data.duration !== undefined) updateFields.duration = data.duration;
+  if (data.display_order !== undefined) updateFields.display_order = data.display_order;
+
   const { data: episode, error } = await supabase
     .from("lecture_episodes")
-    .update({
-      episode_number: data.episode_number,
-      title: data.title,  // 변경: episode_title → title
-      duration: data.duration,
-      display_order: data.display_order,
-    })
+    .update(updateFields)
     .eq("id", episodeId)
     .select()
     .single();

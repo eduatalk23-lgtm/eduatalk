@@ -9,7 +9,6 @@ import {
   LectureEpisode,
 } from "./Step6FinalReview/types";
 import { useContentInfos } from "./Step6FinalReview/hooks/useContentInfos";
-import { useContentTotals } from "./Step6FinalReview/hooks/useContentTotals";
 import { useRecommendedRanges } from "./Step6FinalReview/hooks/useRecommendedRanges";
 import { useContentDetails } from "./Step6FinalReview/hooks/useContentDetails";
 import { useInitialRanges } from "./Step6FinalReview/hooks/useInitialRanges";
@@ -36,17 +35,10 @@ export function Step6FinalReview({
   const data = dataProp ?? contextData;
   const onUpdate = onUpdateProp ?? contextUpdateData;
 
-  // Hooks
-  const { contentInfos, loading } = useContentInfos({
+  // Hooks - contentTotals도 useContentInfos에서 함께 가져옴 (API 호출 통합)
+  const { contentInfos, loading, contentTotals, loadingContentTotals } = useContentInfos({
     data,
     contents,
-    isCampMode,
-    studentId,
-  });
-
-  const { contentTotals, loadingContentTotals } = useContentTotals({
-    data,
-    contentInfos,
     isCampMode,
     studentId,
   });

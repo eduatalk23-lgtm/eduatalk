@@ -117,7 +117,12 @@ export async function addMasterBook(formData: FormData) {
       }
     } catch (error) {
       console.error("상세 정보 추가 실패:", error);
-      // 상세 정보 추가 실패해도 교재는 생성됨
+      // 수정: 에러를 다시 throw하여 사용자에게 알림
+      throw new Error(
+        `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
+          error instanceof Error ? error.message : "알 수 없는 오류"
+        }`
+      );
     }
   }
 
@@ -236,7 +241,12 @@ export async function updateMasterBookAction(
       }
     } catch (error) {
       console.error("상세 정보 업데이트 실패:", error);
-      // 상세 정보 업데이트 실패해도 교재는 수정됨
+      // 수정: 에러를 다시 throw하여 사용자에게 알림
+      throw new Error(
+        `교재는 수정되었지만 상세 정보 저장에 실패했습니다: ${
+          error instanceof Error ? error.message : "알 수 없는 오류"
+        }`
+      );
     }
   }
 
@@ -275,7 +285,7 @@ export async function addMasterLecture(formData: FormData) {
       subject_category: formData.get("subject_category")?.toString() || null,
       subject: formData.get("subject")?.toString() || null,
       title: formData.get("title")?.toString() || "",
-      platform_name: formData.get("platform")?.toString() || null,  // 변경: platform → platform_name
+      platform: formData.get("platform")?.toString() || null,  // 수정: platform_name → platform (DB 스키마와 일치)
       total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
       total_duration: formData.get("total_duration")
         ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
@@ -346,7 +356,12 @@ export async function addMasterLecture(formData: FormData) {
           }
         } catch (error) {
           console.error("교재 상세 정보 추가 실패:", error);
-          // 상세 정보 추가 실패해도 교재는 생성됨
+          // 수정: 에러를 다시 throw하여 사용자에게 알림
+          throw new Error(
+            `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
+              error instanceof Error ? error.message : "알 수 없는 오류"
+            }`
+          );
         }
       }
 
@@ -366,7 +381,7 @@ export async function addMasterLecture(formData: FormData) {
     try {
       const episodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        title?: string | null;  // 변경: episode_title → title
+        episode_title?: string | null;  // 수정: title → episode_title (DB 스키마와 일치)
         duration?: number | null;
         display_order: number;
       }>;
@@ -375,14 +390,19 @@ export async function addMasterLecture(formData: FormData) {
         await createLectureEpisode({
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
-          episode_title: episode.title || null,
+          episode_title: episode.episode_title || null,  // 수정: 직접 사용
           duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });
       }
     } catch (error) {
       console.error("episode 정보 추가 실패:", error);
-      // episode 추가 실패해도 강의는 생성됨
+      // 수정: 에러를 다시 throw하여 사용자에게 알림
+      throw new Error(
+        `강의는 생성되었지만 회차 정보 저장에 실패했습니다: ${
+          error instanceof Error ? error.message : "알 수 없는 오류"
+        }`
+      );
     }
   }
 
@@ -413,7 +433,7 @@ export async function updateMasterLectureAction(
     subject_category: formData.get("subject_category")?.toString() || null,
     subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString(),
-    platform_name: formData.get("platform")?.toString() || null,  // 변경: platform → platform_name
+    platform: formData.get("platform")?.toString() || null,  // 수정: platform_name → platform (DB 스키마와 일치)
     total_episodes: formData.get("total_episodes")
       ? parseInt(formData.get("total_episodes")!.toString())
       : undefined,
@@ -433,7 +453,7 @@ export async function updateMasterLectureAction(
     try {
       const newEpisodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        title?: string | null;  // 변경: episode_title → title
+        episode_title?: string | null;  // 수정: title → episode_title (DB 스키마와 일치)
         duration?: number | null;
         display_order: number;
       }>;
@@ -446,14 +466,19 @@ export async function updateMasterLectureAction(
         await createLectureEpisode({
           lecture_id: lectureId,
           episode_number: episode.episode_number,
-          episode_title: episode.title || null,
+          episode_title: episode.episode_title || null,  // 수정: 직접 사용
           duration: episode.duration ? minutesToSeconds(episode.duration) : null,
           display_order: episode.display_order,
         });
       }
     } catch (error) {
       console.error("episode 정보 업데이트 실패:", error);
-      // episode 업데이트 실패해도 강의는 수정됨
+      // 수정: 에러를 다시 throw하여 사용자에게 알림
+      throw new Error(
+        `강의는 수정되었지만 회차 정보 저장에 실패했습니다: ${
+          error instanceof Error ? error.message : "알 수 없는 오류"
+        }`
+      );
     }
   }
 

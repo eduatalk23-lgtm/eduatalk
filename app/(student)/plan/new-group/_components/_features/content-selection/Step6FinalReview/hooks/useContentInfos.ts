@@ -38,7 +38,9 @@ export function useContentInfos({
   studentId,
 }: UseContentInfosProps) {
   const [contentInfos, setContentInfos] = useState<ContentInfo[]>([]);
+  const [contentTotals, setContentTotals] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [loadingContentTotals, setLoadingContentTotals] = useState(true);
 
   // bookIdSet 생성 (콘텐츠 타입 확인용)
   const bookIdSet = useMemo(() => {
@@ -56,10 +58,24 @@ export function useContentInfos({
     return set;
   }, [data.student_contents, data.recommended_contents]);
 
+  // contentKeyMap 생성 (메모이제이션)
+  const contentKeyMap = useMemo(() => {
+    const map = new Map<string, string>();
+    data.student_contents.forEach((c, idx) => {
+      map.set(c.content_id, `student-${idx}`);
+    });
+    data.recommended_contents.forEach((c, idx) => {
+      map.set(c.content_id, `recommended-${idx}`);
+    });
+    return map;
+  }, [data.student_contents, data.recommended_contents]);
+
   useEffect(() => {
     const fetchContentInfos = async () => {
       setLoading(true);
+      setLoadingContentTotals(true);
       const infos: ContentInfo[] = [];
+      const newTotals = new Map<string, number>();
 
       // 학생 콘텐츠 배치 조회
       if (data.student_contents.length > 0) {
@@ -92,11 +108,46 @@ export function useContentInfos({
             const batchResult = await batchResponse.json();
             const batchData = batchResult.data;
 
-            // 배치 응답에서 메타데이터 추출
+            // 배치 응답에서 메타데이터 및 total 정보 추출
             data.student_contents.forEach((content) => {
               const contentData = batchData[content.content_id];
               if (contentData?.metadata) {
                 batchMetadataMap.set(content.content_id, contentData.metadata);
+              }
+
+              // total 정보 추출 (contentTotals용)
+              const contentKey = contentKeyMap.get(content.content_id);
+              if (contentKey && contentData) {
+                const total = content.content_type === "book"
+                  ? contentData.total_pages
+                  : contentData.total_episodes;
+
+                if (total && total > 0) {
+                  newTotals.set(contentKey, total);
+                } else {
+                  // total이 없으면 상세 정보에서 최대값 추정
+                  if (content.content_type === "book" && contentData.details) {
+                    const details = contentData.details || [];
+                    if (details.length > 0) {
+                      const maxPage = Math.max(
+                        ...details.map((d: { page_number?: number }) => d.page_number || 0)
+                      );
+                      if (maxPage > 0) {
+                        newTotals.set(contentKey, maxPage);
+                      }
+                    }
+                  } else if (content.content_type === "lecture" && contentData.episodes) {
+                    const episodes = contentData.episodes || [];
+                    if (episodes.length > 0) {
+                      const maxEpisode = Math.max(
+                        ...episodes.map((e: { episode_number?: number }) => e.episode_number || 0)
+                      );
+                      if (maxEpisode > 0) {
+                        newTotals.set(contentKey, maxEpisode);
+                      }
+                    }
+                  }
+                }
               }
             });
           }
@@ -175,12 +226,15 @@ export function useContentInfos({
       // 추천 콘텐츠 병렬 조회
       if (data.recommended_contents.length > 0) {
         const recommendedPromises = data.recommended_contents.map(
-          async (content) => {
+          async (content, idx) => {
             let title = content.title;
             let subjectCategory = content.subject_category;
+            const contentKey = `recommended-${idx}`;
 
             // 저장된 정보가 없으면 서버 액션으로 조회 (마스터 콘텐츠)
             let metadata: ContentMetadata | null = null;
+            let totalValue: number | null = null;
+
             if (!title || !subjectCategory) {
               try {
                 const result = await fetchContentMetadataAction(
@@ -204,15 +258,69 @@ export function useContentInfos({
               }
             }
 
-            // 메타데이터가 없으면 상세 정보 API에서 조회
-            if (!metadata) {
+            // 메타데이터가 없으면 상세 정보 API에서 조회 + total 정보 조회
+            try {
+              const apiPath = `/api/master-content-info?content_type=${content.content_type}&content_id=${content.content_id}`;
+              const response = await fetch(apiPath);
+              if (response.ok) {
+                const info = await response.json();
+                totalValue = content.content_type === "book"
+                  ? info.total_pages
+                  : info.total_episodes;
+
+                if (!metadata) {
+                  metadata = {
+                    subject: info.subject,
+                    semester: info.semester,
+                    revision: info.revision,
+                    difficulty_level: info.difficulty_level,
+                    publisher: info.publisher,
+                    platform: info.platform,
+                  };
+                }
+              }
+            } catch (error) {
+              const planGroupError = toPlanGroupError(
+                error,
+                PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
+              );
+              console.error(
+                "[useContentInfos] 마스터 콘텐츠 정보 조회 실패:",
+                planGroupError
+              );
+            }
+
+            // total이 없으면 상세 정보에서 추정
+            if (!totalValue) {
               try {
-                const response = await fetch(
-                  `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}&includeMetadata=true`
-                );
-                if (response.ok) {
-                  const result = await response.json();
-                  metadata = result.metadata;
+                const detailsApiPath = `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`;
+                const detailsResponse = await fetch(detailsApiPath);
+                if (detailsResponse.ok) {
+                  const detailsResult = await detailsResponse.json();
+                  if (!metadata) {
+                    metadata = detailsResult.metadata;
+                  }
+                  if (content.content_type === "book") {
+                    const details = detailsResult.details || [];
+                    if (details.length > 0) {
+                      const maxPage = Math.max(
+                        ...details.map((d: { page_number?: number }) => d.page_number || 0)
+                      );
+                      if (maxPage > 0) {
+                        totalValue = maxPage;
+                      }
+                    }
+                  } else {
+                    const episodes = detailsResult.episodes || [];
+                    if (episodes.length > 0) {
+                      const maxEpisode = Math.max(
+                        ...episodes.map((e: { episode_number?: number }) => e.episode_number || 0)
+                      );
+                      if (maxEpisode > 0) {
+                        totalValue = maxEpisode;
+                      }
+                    }
+                  }
                 }
               } catch (error) {
                 const planGroupError = toPlanGroupError(
@@ -220,10 +328,15 @@ export function useContentInfos({
                   PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
                 );
                 console.error(
-                  "[useContentInfos] 마스터 콘텐츠 메타데이터 조회 실패:",
+                  "[useContentInfos] 마스터 콘텐츠 상세정보 조회 실패:",
                   planGroupError
                 );
               }
+            }
+
+            // total 정보 저장
+            if (totalValue && totalValue > 0) {
+              newTotals.set(contentKey, totalValue);
             }
 
             return {
@@ -254,11 +367,13 @@ export function useContentInfos({
       }
 
       setContentInfos(infos);
+      setContentTotals(newTotals);
       setLoading(false);
+      setLoadingContentTotals(false);
     };
 
     fetchContentInfos();
-  }, [data.student_contents, data.recommended_contents, contents, isCampMode, studentId, bookIdSet]);
+  }, [data.student_contents, data.recommended_contents, contents, isCampMode, studentId, bookIdSet, contentKeyMap]);
 
-  return { contentInfos, loading };
+  return { contentInfos, loading, contentTotals, loadingContentTotals };
 }
