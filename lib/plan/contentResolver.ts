@@ -517,15 +517,23 @@ export async function loadContentDurations(
 
   // 학생 강의 결과 처리
   for (const [finalContentId, { content, studentLecture }] of studentLectureMap) {
-    // 배치 조회한 episode 정보 사용
-    const studentEpisodes = studentEpisodesMap.get(finalContentId) || [];
+    // 배치 조회한 episode 정보 사용 (타입 안전성 개선)
+    const studentEpisodes = studentEpisodesMap.get(finalContentId) ?? [];
     let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
 
     if (studentEpisodes.length > 0) {
-      episodes = studentEpisodes.map((ep) => ({
-        episode_number: ep.episode_number,
-        duration: ep.duration,
-      }));
+      // Episode 정보 변환 (타입 안전성 강화)
+      episodes = studentEpisodes
+        .filter(
+          (ep): ep is { episode_number: number; duration: number | null } =>
+            ep.episode_number !== null &&
+            ep.episode_number !== undefined &&
+            ep.episode_number > 0
+        )
+        .map((ep) => ({
+          episode_number: ep.episode_number,
+          duration: ep.duration ?? null,
+        }));
     }
 
     // 마스터 강의 episode 조회는 나중에 배치로 처리 (masterLectureQueries에 추가)
@@ -615,14 +623,21 @@ export async function loadContentDurations(
 
     // 마스터 강의 결과 처리
     for (const [masterId, { content, masterLecture }] of masterLectureMap) {
-      // 배치 조회한 episode 정보 사용
-      const masterEpisodes = masterEpisodesMap.get(masterId) || [];
+      // 배치 조회한 episode 정보 사용 (타입 안전성 개선)
+      const masterEpisodes = masterEpisodesMap.get(masterId) ?? [];
       const episodes: Array<{ episode_number: number; duration: number | null }> | null =
         masterEpisodes.length > 0
-          ? masterEpisodes.map((ep) => ({
-              episode_number: ep.episode_number,
-              duration: ep.duration,
-            }))
+          ? masterEpisodes
+              .filter(
+                (ep): ep is { episode_number: number; duration: number | null } =>
+                  ep.episode_number !== null &&
+                  ep.episode_number !== undefined &&
+                  ep.episode_number > 0
+              )
+              .map((ep) => ({
+                episode_number: ep.episode_number,
+                duration: ep.duration ?? null,
+              }))
           : null;
 
       if (masterLecture?.total_duration) {

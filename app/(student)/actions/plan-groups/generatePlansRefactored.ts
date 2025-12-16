@@ -345,6 +345,48 @@ async function _generatePlansFromGroupRefactored(
     masterQueryClient
   );
 
+  // Episode 정보 전달 경로 검증 (개발 환경에서만)
+  if (process.env.NODE_ENV === "development") {
+    const lectureContentsWithEpisodes = contents
+      .filter((c) => c.content_type === "lecture")
+      .map((c) => {
+        const durationInfo = contentDurationMap.get(c.content_id);
+        const hasEpisodes = durationInfo?.episodes && durationInfo.episodes.length > 0;
+        const episodeCount = durationInfo?.episodes?.length ?? 0;
+        return {
+          content_id: c.content_id,
+          hasEpisodes,
+          episodeCount,
+          hasDuration: !!durationInfo?.duration,
+          totalEpisodes: durationInfo?.total_episodes ?? null,
+        };
+      });
+
+    const contentsWithEpisodes = lectureContentsWithEpisodes.filter((c) => c.hasEpisodes);
+    const contentsWithoutEpisodes = lectureContentsWithEpisodes.filter((c) => !c.hasEpisodes);
+
+    if (contentsWithEpisodes.length > 0) {
+      console.log(
+        `[generatePlansRefactored] 강의 콘텐츠 episode 정보 확인: ${contentsWithEpisodes.length}개 콘텐츠에 episode 정보 있음`,
+        contentsWithEpisodes.map((c) => ({
+          content_id: c.content_id,
+          episode_count: c.episodeCount,
+        }))
+      );
+    }
+
+    if (contentsWithoutEpisodes.length > 0) {
+      console.warn(
+        `[generatePlansRefactored] 강의 콘텐츠 episode 정보 누락: ${contentsWithoutEpisodes.length}개 콘텐츠에 episode 정보 없음`,
+        contentsWithoutEpisodes.map((c) => ({
+          content_id: c.content_id,
+          has_duration: c.hasDuration,
+          total_episodes: c.totalEpisodes,
+        }))
+      );
+    }
+  }
+
   // 9. 콘텐츠 메타데이터 조회 (새 모듈 사용)
   const contentMetadataMap = await loadContentMetadata(
     contents,
@@ -508,6 +550,31 @@ async function _generatePlansFromGroupRefactored(
         block_index: plan.block_index,
       };
     });
+
+    // Episode 정보 전달 확인 (개발 환경에서만)
+    if (process.env.NODE_ENV === "development") {
+      const lecturePlans = plansForAssign.filter((p) => p.content_type === "lecture");
+      if (lecturePlans.length > 0) {
+        const plansWithEpisodeInfo = lecturePlans
+          .map((p) => {
+            const durationInfo = contentDurationMap.get(p.content_id);
+            return {
+              content_id: p.content_id,
+              has_episodes: !!(durationInfo?.episodes && durationInfo.episodes.length > 0),
+              episode_count: durationInfo?.episodes?.length ?? 0,
+              range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
+            };
+          })
+          .filter((p) => p.has_episodes);
+
+        if (plansWithEpisodeInfo.length > 0) {
+          console.log(
+            `[generatePlansRefactored] assignPlanTimes 호출 전 episode 정보 확인: ${plansWithEpisodeInfo.length}개 강의 플랜에 episode 정보 있음`,
+            plansWithEpisodeInfo
+          );
+        }
+      }
+    }
 
     const timeSegments = assignPlanTimes(
       plansForAssign,

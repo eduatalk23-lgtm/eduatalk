@@ -111,6 +111,14 @@ export type ContentMetadata = {
 export type ContentMetadataMap = Map<string, ContentMetadata>;
 
 /**
+ * Episode 정보 타입
+ */
+export type EpisodeInfo = {
+  episode_number: number;
+  duration: number | null; // 회차별 소요시간 (분)
+};
+
+/**
  * 콘텐츠 소요시간 정보
  */
 export type ContentDurationInfo = {
@@ -121,11 +129,26 @@ export type ContentDurationInfo = {
   total_page_or_time?: number | null;
   total_episodes?: number | null; // 강의 총 회차 수 (정확한 계산용)
   difficulty_level?: string | null; // 난이도 (교재/강의)
-  episodes?: Array<{
-    episode_number: number;
-    duration: number | null; // 회차별 소요시간 (분)
-  }> | null; // 강의 episode별 duration 정보
+  episodes?: EpisodeInfo[] | null; // 강의 episode별 duration 정보
 };
+
+/**
+ * Episode 정보가 유효한지 확인하는 타입 가드
+ */
+export function hasValidEpisodes(
+  episodes: ContentDurationInfo["episodes"]
+): episodes is EpisodeInfo[] {
+  return Array.isArray(episodes) && episodes.length > 0;
+}
+
+/**
+ * ContentDurationInfo가 유효한지 확인하는 타입 가드
+ */
+export function isValidContentDurationInfo(
+  info: ContentDurationInfo | null | undefined
+): info is ContentDurationInfo {
+  return info !== null && info !== undefined && !!info.content_id;
+}
 
 /**
  * 콘텐츠 소요시간 맵

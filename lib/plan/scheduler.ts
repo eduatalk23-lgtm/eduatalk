@@ -734,6 +734,9 @@ function generateDefaultPlans(
         // 콘텐츠 소요시간 계산
         const endPageOrTime = Math.min(start + dailyAmount, content.end_range);
         const durationInfo = contentDurationMap?.get(content.content_id);
+        const amount = endPageOrTime - start;
+        
+        // duration 정보가 있으면 통합 함수 사용, 없으면 기본값 계산
         const requiredMinutes = durationInfo
           ? calculateContentDuration(
               {
@@ -744,7 +747,11 @@ function generateDefaultPlans(
               },
               durationInfo
             )
-          : (endPageOrTime - start) * (content.content_type === "lecture" ? 30 : 2);
+          : amount > 0
+            ? content.content_type === "lecture"
+              ? amount * 30 // 강의: 회차당 30분
+              : amount * 2 // 책/커스텀: 페이지당 2분
+            : 60; // 기본값: 1시간
 
         let remainingMinutes = requiredMinutes;
 

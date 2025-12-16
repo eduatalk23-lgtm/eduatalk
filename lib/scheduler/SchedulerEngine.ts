@@ -460,6 +460,9 @@ export class SchedulerEngine {
       // Best Fit 알고리즘을 위한 플랜 정렬: 소요시간 내림차순 (큰 것부터 배치)
       const plansWithDuration = datePlans.map(({ content, start, end: endAmount }) => {
         const durationInfo = contentDurationMap?.get(content.content_id);
+        const amount = endAmount - start;
+        
+        // duration 정보가 있으면 통합 함수 사용, 없으면 기본값 계산
         const requiredMinutes = durationInfo
           ? calculateContentDuration(
               {
@@ -470,7 +473,11 @@ export class SchedulerEngine {
               },
               durationInfo
             )
-          : (endAmount - start) * (content.content_type === "lecture" ? 30 : 2);
+          : amount > 0
+            ? content.content_type === "lecture"
+              ? amount * 30 // 강의: 회차당 30분
+              : amount * 2 // 책/커스텀: 페이지당 2분
+            : 60; // 기본값: 1시간
         
         return {
           content,

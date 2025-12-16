@@ -8,6 +8,7 @@
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 // Re-export time utility functions for convenience
 export { timeToMinutes, minutesToTime };
@@ -42,21 +43,6 @@ export type StudyTimeSlot = {
 };
 
 /**
- * 콘텐츠 메타데이터 (소요시간 계산용)
- */
-export type ContentDurationInfo = {
-  content_type: ContentType;
-  content_id: string;
-  total_pages?: number | null;
-  duration?: number | null; // 전체 강의 시간 (fallback용)
-  total_page_or_time?: number | null;
-  episodes?: Array<{
-    episode_number: number;
-    duration: number | null; // 회차별 소요시간 (분)
-  }> | null; // 강의 episode별 duration 정보
-};
-
-/**
  * 플랜 예상 소요시간 계산 입력 타입
  */
 export type PlanEstimateInput = {
@@ -79,30 +65,69 @@ export type PlanEstimateInput = {
  * @param dayType - 일 유형 ('학습일' | '복습일' 등)
  * @returns 예상 소요시간 (분)
  */
+/**
+ * 기본 소요시간 상수 (분 단위)
+ */
+const DEFAULT_BASE_TIME_MINUTES = 60; // 1시간
+
+/**
+ * 강의 회차당 기본 소요시간 (분 단위)
+ */
+const DEFAULT_EPISODE_DURATION_MINUTES = 30;
+
+/**
+ * 페이지당 기본 소요시간 (분 단위)
+ */
+const DEFAULT_PAGE_DURATION_MINUTES = 2;
+
+/**
+ * 복습일 소요시간 비율 (기본값)
+ */
+const DEFAULT_REVIEW_TIME_RATIO = 0.5; // 50%
+
+/**
+ * duration 정보가 없는 경우 기본값을 계산하는 헬퍼 함수
+ */
+function calculateDefaultDuration(
+  content_type: ContentType,
+  amount: number,
+  dayType?: string
+): number {
+  const baseTime =
+    amount > 0
+      ? content_type === "lecture"
+        ? amount * DEFAULT_EPISODE_DURATION_MINUTES
+        : amount * DEFAULT_PAGE_DURATION_MINUTES
+      : DEFAULT_BASE_TIME_MINUTES;
+  
+  return dayType === "복습일" ? Math.round(baseTime * DEFAULT_REVIEW_TIME_RATIO) : baseTime;
+}
+
 export function calculatePlanEstimatedTime(
   plan: PlanEstimateInput,
   contentDurationMap: Map<string, ContentDurationInfo>,
   dayType?: string
 ): number {
+  // 입력 검증
   if (
     plan.planned_start_page_or_time === null ||
     plan.planned_end_page_or_time === null ||
     !plan.content_id
   ) {
-    const baseTime = 60; // 기본값 1시간
-    // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
-    return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
+    return dayType === "복습일"
+      ? Math.round(DEFAULT_BASE_TIME_MINUTES * DEFAULT_REVIEW_TIME_RATIO)
+      : DEFAULT_BASE_TIME_MINUTES;
   }
 
   const durationInfo = contentDurationMap.get(plan.content_id);
   
+  // duration 정보가 없으면 기본값 반환
   if (!durationInfo) {
-    // duration 정보가 없으면 기본값 반환
     const amount = plan.planned_end_page_or_time - plan.planned_start_page_or_time;
-    const baseTime = amount > 0 ? (plan.content_type === "lecture" ? amount * 30 : amount * 2) : 60;
-    return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
+    return calculateDefaultDuration(plan.content_type, amount, dayType);
   }
 
+  // 통합 함수 사용
   return calculateContentDuration(
     {
       content_type: plan.content_type,
@@ -165,6 +190,53 @@ export function assignPlanTimes(
 ): PlanTimeSegment[] {
   // 플랜 정보 준비
   const plansWithInfo = plans.map((plan) => {
+    // Episode 정보 전달 확인 (개발 환경에서만, 강의 콘텐츠만)
+    if (process.env.NODE_ENV === "development" && plan.content_type === "lecture") {
+      const durationInfo = contentDurationMap.get(plan.content_id);
+      const hasEpisodes =
+        durationInfo?.episodes !== null &&
+        durationInfo?.episodes !== undefined &&
+        Array.isArray(durationInfo.episodes) &&
+        durationInfo.episodes.length > 0;
+      
+      if (hasEpisodes && durationInfo.episodes) {
+        const episodeCount = durationInfo.episodes.length;
+        const rangeStart = plan.planned_start_page_or_time;
+        const rangeEnd = plan.planned_end_page_or_time;
+        const rangeEpisodes = durationInfo.episodes.filter(
+          (ep) => ep.episode_number >= rangeStart && ep.episode_number <= rangeEnd
+        ).length;
+        
+        console.log(
+          `[assignPlanTimes] 강의 플랜 episode 정보 확인:`,
+          {
+            content_id: plan.content_id,
+            range: `${rangeStart}~${rangeEnd}`,
+            total_episodes: episodeCount,
+            range_episodes: rangeEpisodes,
+            episodes_in_range: durationInfo.episodes
+              .filter((ep) => ep.episode_number >= rangeStart && ep.episode_number <= rangeEnd)
+              .map((ep) => ({
+                episode_number: ep.episode_number,
+                duration: ep.duration,
+              })),
+          }
+        );
+      } else {
+        console.warn(
+          `[assignPlanTimes] 강의 플랜 episode 정보 없음:`,
+          {
+            content_id: plan.content_id,
+            range: `${plan.planned_start_page_or_time}~${plan.planned_end_page_or_time}`,
+            has_duration: !!(durationInfo?.duration && durationInfo.duration > 0),
+            total_episodes: durationInfo?.total_episodes ?? null,
+            episodes_array_exists: Array.isArray(durationInfo?.episodes),
+            episodes_length: durationInfo?.episodes?.length ?? 0,
+          }
+        );
+      }
+    }
+
     const estimatedTime = calculatePlanEstimatedTime(plan, contentDurationMap, dayType);
     return {
       plan,
