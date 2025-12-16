@@ -152,6 +152,12 @@ export function LectureEditForm({ lecture, studentBooks, linkedBookId }: Lecture
           value={selectedBookId}
           onChange={setSelectedBookId}
           studentBooks={studentBooks}
+          onCreateBook={(bookId) => {
+            // 교재 등록 후 목록 새로고침
+            router.refresh();
+            // 새로 등록된 교재를 자동으로 선택
+            setSelectedBookId(bookId);
+          }}
         />
       </div>
 

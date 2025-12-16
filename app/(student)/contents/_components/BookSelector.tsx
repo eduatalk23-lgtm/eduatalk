@@ -5,6 +5,7 @@ import { createBookWithoutRedirect } from "@/app/(student)/actions/contentAction
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { BookDetail } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useBookMetadata } from "@/lib/hooks/useBookMetadata";
 
 type BookSelectorProps = {
   value?: string | null; // 현재 선택된 교재 ID
@@ -28,6 +29,23 @@ export function BookSelector({
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [bookDetails, setBookDetails] = useState<Omit<BookDetail, "id" | "created_at">[]>([]);
+
+  // 메타데이터 로딩 및 관리
+  const {
+    revisions,
+    subjectGroups,
+    subjects,
+    publishers,
+    selectedRevisionId,
+    selectedSubjectGroupId,
+    selectedSubjectId,
+    selectedPublisherId,
+    setSelectedRevisionId,
+    setSelectedSubjectGroupId,
+    setSelectedSubjectId,
+    setSelectedPublisherId,
+    populateFormDataWithMetadata,
+  } = useBookMetadata();
 
   // 검색된 교재 목록
   const filteredBooks = studentBooks.filter((book) =>
@@ -54,6 +72,9 @@ export function BookSelector({
     try {
       const formData = new FormData(e.currentTarget);
 
+      // 메타데이터 추가 (드롭다운에서 선택한 값들을 이름으로 변환)
+      populateFormDataWithMetadata(formData);
+
       // 목차 정보 추가
       if (bookDetails.length > 0) {
         const detailsWithOrder = bookDetails.map((detail, index) => ({
@@ -72,6 +93,11 @@ export function BookSelector({
         onChange(result.bookId);
         setIsCreating(false);
         setBookDetails([]);
+        // 메타데이터 선택 상태 초기화
+        setSelectedRevisionId("");
+        setSelectedSubjectGroupId("");
+        setSelectedSubjectId("");
+        setSelectedPublisherId("");
         if (onCreateBook) {
           onCreateBook(result.bookId);
         }
@@ -115,11 +141,22 @@ export function BookSelector({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 개정교육과정
               </label>
-              <input
-                name="revision"
-                placeholder="예: 2022개정"
+              <select
+                value={selectedRevisionId}
+                onChange={(e) => {
+                  setSelectedRevisionId(e.target.value);
+                  setSelectedSubjectGroupId("");
+                  setSelectedSubjectId("");
+                }}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
+              >
+                <option value="">선택하세요</option>
+                {revisions.map((rev) => (
+                  <option key={rev.id} value={rev.id}>
+                    {rev.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -136,36 +173,60 @@ export function BookSelector({
                 교과
               </label>
               <select
-                name="subject_category"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                value={selectedSubjectGroupId}
+                onChange={(e) => {
+                  setSelectedSubjectGroupId(e.target.value);
+                  setSelectedSubjectId("");
+                }}
+                disabled={!selectedRevisionId}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
               >
-                <option value="">선택하세요</option>
-                <option value="국어">국어</option>
-                <option value="수학">수학</option>
-                <option value="영어">영어</option>
-                <option value="사회">사회</option>
-                <option value="과학">과학</option>
+                <option value="">
+                  {selectedRevisionId ? "선택하세요" : "개정교육과정을 먼저 선택하세요"}
+                </option>
+                {subjectGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 과목
               </label>
-              <input
-                name="subject"
-                placeholder="예: 화법과 작문"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
+              <select
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                disabled={!selectedSubjectGroupId}
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                <option value="">
+                  {selectedSubjectGroupId ? "선택하세요" : "교과를 먼저 선택하세요"}
+                </option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 출판사
               </label>
-              <input
-                name="publisher"
-                placeholder="출판사명을 입력하세요"
+              <select
+                value={selectedPublisherId}
+                onChange={(e) => setSelectedPublisherId(e.target.value)}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
+              >
+                <option value="">선택하세요</option>
+                {publishers.map((publisher) => (
+                  <option key={publisher.id} value={publisher.id}>
+                    {publisher.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex flex-col gap-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">

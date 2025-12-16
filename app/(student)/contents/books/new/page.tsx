@@ -1,126 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addBook } from "@/app/(student)/actions/contentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
-import {
-  getCurriculumRevisionsAction,
-  getPublishersAction,
-} from "@/app/(student)/actions/contentMetadataActions";
-import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
-import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
+import { useBookMetadata } from "@/lib/hooks/useBookMetadata";
 
 export default function NewBookPage() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
 
-  const [revisions, setRevisions] = useState<Array<{ id: string; name: string }>>([]);
-  const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [publishers, setPublishers] = useState<Array<{ id: string; name: string }>>([]);
-
-  const [selectedRevisionId, setSelectedRevisionId] = useState<string>("");
-  const [selectedSubjectGroupId, setSelectedSubjectGroupId] = useState<string>("");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
-  const [selectedPublisherId, setSelectedPublisherId] = useState<string>("");
-
-  useEffect(() => {
-    loadMetadata();
-  }, []);
-
-  useEffect(() => {
-    if (selectedRevisionId) {
-      loadSubjectGroups(selectedRevisionId);
-    } else {
-      setSubjectGroups([]);
-      setSubjects([]);
-    }
-  }, [selectedRevisionId]);
-
-  useEffect(() => {
-    if (selectedSubjectGroupId) {
-      loadSubjects(selectedSubjectGroupId);
-    } else {
-      setSubjects([]);
-    }
-  }, [selectedSubjectGroupId]);
-
-  async function loadMetadata() {
-    try {
-      const [revs, pubs] = await Promise.all([
-        getCurriculumRevisionsAction(),
-        getPublishersAction(),
-      ]);
-      setRevisions(revs.filter((r) => r.is_active));
-      setPublishers(pubs.filter((p) => p.is_active));
-    } catch (error) {
-      console.error("메타데이터 로드 실패:", error);
-    }
-  }
-
-  async function loadSubjectGroups(revisionId: string) {
-    try {
-      const groups = await getSubjectGroupsAction(revisionId);
-      setSubjectGroups(groups);
-      setSelectedSubjectGroupId("");
-      setSubjects([]);
-    } catch (error) {
-      console.error("교과 그룹 로드 실패:", error);
-    }
-  }
-
-  async function loadSubjects(subjectGroupId: string) {
-    try {
-      const subs = await getSubjectsByGroupAction(subjectGroupId);
-      setSubjects(subs);
-      setSelectedSubjectId("");
-    } catch (error) {
-      console.error("과목 로드 실패:", error);
-    }
-  }
+  // 메타데이터 로딩 및 관리
+  const {
+    revisions,
+    subjectGroups,
+    subjects,
+    publishers,
+    selectedRevisionId,
+    selectedSubjectGroupId,
+    selectedSubjectId,
+    selectedPublisherId,
+    setSelectedRevisionId,
+    setSelectedSubjectGroupId,
+    setSelectedSubjectId,
+    setSelectedPublisherId,
+    populateFormDataWithMetadata,
+  } = useBookMetadata();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // 개정교육과정 이름 추가
-    if (selectedRevisionId) {
-      const revision = revisions.find((r) => r.id === selectedRevisionId);
-      if (revision) {
-        formData.set("revision", revision.name);
-      }
-    }
-
-    // 교과 이름 추가
-    if (selectedSubjectGroupId) {
-      const group = subjectGroups.find((g) => g.id === selectedSubjectGroupId);
-      if (group) {
-        formData.set("subject_category", group.name);
-      }
-    }
-
-    // 과목 이름 추가
-    if (selectedSubjectId) {
-      const subject = subjects.find((s) => s.id === selectedSubjectId);
-      if (subject) {
-        formData.set("subject", subject.name);
-      }
-    }
-
-    // 출판사 이름 추가
-    if (selectedPublisherId) {
-      const publisher = publishers.find((p) => p.id === selectedPublisherId);
-      if (publisher) {
-        formData.set("publisher", publisher.name);
-      }
-    }
+    // 메타데이터 추가 (드롭다운에서 선택한 값들을 이름으로 변환)
+    populateFormDataWithMetadata(formData);
 
     startTransition(async () => {
       try {
