@@ -4,6 +4,7 @@ import { memo } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
+import { textPrimaryVar, textTertiaryVar, borderDefaultVar } from "@/lib/utils/darkMode";
 
 export type EmptyStateProps = {
   title: string;
@@ -35,7 +36,9 @@ function EmptyStateComponent({
   return (
     <div
       className={cn(
-        "rounded-xl border border-dashed border-gray-300 bg-gray-50 text-center dark:border-gray-600 dark:bg-gray-800",
+        "rounded-xl border border-dashed text-center",
+        borderDefaultVar,
+        "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
         isCompact ? "p-6" : "p-12",
         className
       )}
@@ -49,7 +52,8 @@ function EmptyStateComponent({
         <div className="flex flex-col gap-1">
           <HeadingTag
             className={cn(
-              "font-semibold text-gray-900 dark:text-gray-100",
+              "font-semibold",
+              textPrimaryVar,
               isCompact ? "text-base" : "text-lg"
             )}
           >
@@ -58,7 +62,7 @@ function EmptyStateComponent({
           {description && (
             <p
               className={cn(
-                "text-gray-500 dark:text-gray-400",
+                textTertiaryVar,
                 isCompact ? "text-xs" : "text-sm"
               )}
             >

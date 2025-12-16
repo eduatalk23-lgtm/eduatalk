@@ -2,6 +2,7 @@
 
 import { memo, forwardRef } from "react";
 import { cn } from "@/lib/cn";
+import { bgSurfaceVar, textPrimaryVar, textPlaceholderVar, borderInputVar } from "@/lib/utils/darkMode";
 
 export type InputSize = "sm" | "md" | "lg";
 
@@ -22,13 +23,18 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         className={cn(
-          "w-full rounded-lg border bg-white dark:bg-gray-800 transition-colors",
-          "text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400",
+          "w-full rounded-lg border transition-colors",
+          bgSurfaceVar,
+          textPrimaryVar,
+          `placeholder:${textPlaceholderVar}`,
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
-          "disabled:cursor-not-allowed disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 dark:disabled:text-gray-500",
+          "disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-50))] dark:disabled:bg-[rgb(var(--color-secondary-900))] disabled:text-[var(--text-disabled)]",
           hasError
             ? "border-red-500 dark:border-red-600 focus:border-red-500 dark:focus:border-red-600 focus:ring-red-500/20 dark:focus:ring-red-600/20"
-            : "border-gray-300 dark:border-gray-700 focus:border-gray-900 dark:focus:border-gray-100 focus:ring-gray-900/20 dark:focus:ring-gray-100/20",
+            : cn(
+                borderInputVar,
+                "focus:border-[var(--text-primary)] dark:focus:border-[var(--text-primary)] focus:ring-[var(--text-primary)]/20 dark:focus:ring-[var(--text-primary)]/20"
+              ),
           sizeClasses[inputSize],
           className
         )}

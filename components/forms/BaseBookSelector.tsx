@@ -31,6 +31,7 @@ function BaseBookSelectorComponent({
   const { showError, showSuccess } = useToast();
   const [isSearching, setIsSearching] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [bookDetails, setBookDetails] = useState<Omit<BookDetail, "id" | "created_at">[]>([]);
   const formRef = useRef<HTMLDivElement>(null);
@@ -81,7 +82,7 @@ function BaseBookSelectorComponent({
   }, [onChange]);
 
   const handleCreateAndSelect = useCallback(async () => {
-    setIsCreating(true);
+    setIsSubmitting(true);
 
     try {
       // form 대신 div를 사용하므로, formRef를 통해 FormData 생성
@@ -93,7 +94,7 @@ function BaseBookSelectorComponent({
       const titleInput = formRef.current.querySelector('input[name="title"]') as HTMLInputElement;
       if (!titleInput || !titleInput.value.trim()) {
         showError(`${bookTypeLabel}명은 필수입니다.`);
-        setIsCreating(false);
+        setIsSubmitting(false);
         return;
       }
 
@@ -147,7 +148,8 @@ function BaseBookSelectorComponent({
           // onCreateBook이 없으면 직접 onChange 호출
           onChange(result.bookId);
         }
-        
+
+        setIsSubmitting(false);
         setIsCreating(false);
       } else {
         throw new Error(result.error || `${bookTypeLabel} 생성에 실패했습니다.`);
@@ -155,7 +157,7 @@ function BaseBookSelectorComponent({
     } catch (error) {
       console.error(`${bookTypeLabel} 생성 실패:`, error);
       showError(error instanceof Error ? error.message : `${bookTypeLabel} 생성에 실패했습니다.`);
-      setIsCreating(false);
+      setIsSubmitting(false);
     }
   }, [
     bookTypeLabel,
@@ -306,7 +308,7 @@ function BaseBookSelectorComponent({
                 난이도
               </label>
               <select
-                name="difficulty"
+                name="difficulty_level"
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="">선택하세요</option>
@@ -352,10 +354,10 @@ function BaseBookSelectorComponent({
             <button
               type="button"
               onClick={handleCreateAndSelect}
-              disabled={isCreating}
+              disabled={isSubmitting}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
             >
-              {isCreating ? "등록 중..." : "등록 및 선택"}
+              {isSubmitting ? "등록 중..." : "등록 및 선택"}
             </button>
           </div>
         </div>

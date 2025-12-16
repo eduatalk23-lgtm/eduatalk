@@ -142,7 +142,7 @@ export function useBookMetadata(): UseBookMetadataReturn {
     if (selectedPublisherId) {
       const publisher = publishers.find((p) => p.id === selectedPublisherId);
       if (publisher) {
-        formData.set("publisher", publisher.name);
+        formData.set("publisher_name", publisher.name);
       }
     }
   }

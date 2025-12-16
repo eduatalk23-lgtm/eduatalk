@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
-import { bgSurface, borderDefault, textPrimary, textSecondary } from "@/lib/utils/darkMode";
+import { bgSurfaceVar, borderDefaultVar, textPrimaryVar, textSecondaryVar } from "@/lib/utils/darkMode";
 
 export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
 
@@ -114,8 +114,8 @@ export function Dialog({
         ref={dialogRef}
         className={cn(
           "relative w-full rounded-lg border shadow-lg",
-          borderDefault,
-          bgSurface,
+          borderDefaultVar,
+          bgSurfaceVar,
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
           "focus:outline-none",
           effectiveSize === "sm" && "max-w-sm",
@@ -154,20 +154,20 @@ export function Dialog({
         )}
 
         {(title || description) && (
-          <div className={cn("flex flex-col gap-1.5 border-b px-6 py-4", borderDefault)}>
+          <div className={cn("flex flex-col gap-1.5 border-b px-6 py-4", borderDefaultVar)}>
             {title && (
               <h2
                 id={titleId}
                 className={cn(
                   "text-lg font-semibold",
-                  variant === "destructive" ? "text-red-900 dark:text-red-300" : textPrimary
+                  variant === "destructive" ? "text-red-900 dark:text-red-300" : textPrimaryVar
                 )}
               >
                 {title}
               </h2>
             )}
             {description && (
-              <div id={descriptionId} className={cn("text-sm", textSecondary)}>
+              <div id={descriptionId} className={cn("text-sm", textSecondaryVar)}>
                 {description}
               </div>
             )}
@@ -199,7 +199,7 @@ export function DialogFooter({ children, className }: DialogFooterProps) {
     <div
       className={cn(
         "flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end",
-        borderDefault,
+        borderDefaultVar,
         className
       )}
     >

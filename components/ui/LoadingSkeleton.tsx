@@ -1,4 +1,4 @@
-import { bgSurface, borderDefault } from "@/lib/utils/darkMode";
+import { bgSurfaceVar, borderDefaultVar } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 /**
@@ -50,7 +50,7 @@ export function LoadingSkeleton({ variant = "default" }: { variant?: "default" |
  */
 export function CardSkeleton() {
   return (
-    <div className={cn("rounded-xl border p-6 shadow-sm", borderDefault, bgSurface)}>
+    <div className={cn("rounded-xl border p-6 shadow-sm", borderDefaultVar, bgSurfaceVar)}>
       <div className="animate-pulse flex flex-col gap-4">
         <div className="h-6 w-1/3 rounded bg-gray-200 dark:bg-gray-700"></div>
         <div className="h-4 w-full rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -65,9 +65,9 @@ export function CardSkeleton() {
  */
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className={cn("rounded-xl border shadow-sm", borderDefault, bgSurface)}>
+    <div className={cn("rounded-xl border shadow-sm", borderDefaultVar, bgSurfaceVar)}>
       <div className="animate-pulse">
-        <div className={cn("border-b p-4", borderDefault)}>
+        <div className={cn("border-b p-4", borderDefaultVar)}>
           <div className="h-4 w-1/4 rounded bg-gray-200 dark:bg-gray-700"></div>
         </div>
         {Array.from({ length: rows }).map((_, i) => (
@@ -113,8 +113,8 @@ function ScheduleSkeleton() {
   return (
     <div className="flex flex-col gap-4">
       <div className="h-6 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-      <div className={cn("rounded-lg border", borderDefault, bgSurface)}>
-        <div className={cn("border-b px-4 py-3", borderDefault, "bg-gray-50 dark:bg-gray-800")}>
+      <div className={cn("rounded-lg border", borderDefaultVar, bgSurfaceVar)}>
+        <div className={cn("border-b px-4 py-3", borderDefaultVar, "bg-gray-50 dark:bg-gray-800")}>
           <div className="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
         </div>
         <div className="max-h-[600px] flex flex-col gap-2 overflow-y-auto p-4">

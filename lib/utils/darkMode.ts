@@ -34,39 +34,49 @@ export { cn };
 // ============================================
 
 /**
- * CSS 변수를 직접 사용하는 유틸리티 함수
+ * CSS 변수 기반 유틸리티 (Tailwind CSS 4 호환)
+ * 
  * globals.css에 정의된 CSS 변수를 활용하여 더 유연한 테마 관리
+ * CSS 변수는 자동으로 다크 모드에 대응하므로 dark: 클래스가 필요 없습니다.
  * 
  * @note Tailwind CSS 4의 @theme 시스템과 연동
  * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
+ * @note 새로운 코드에서는 이 CSS 변수 기반 유틸리티를 우선 사용하세요.
  * 
- * @deprecated 새로운 코드에서는 CSS 변수 기반 유틸리티를 우선 사용하세요.
- * 기존 Tailwind 클래스 기반 유틸리티는 하위 호환성을 위해 유지됩니다.
+ * @example
+ * ```tsx
+ * import { textPrimaryVar, bgSurfaceVar, borderDefaultVar } from "@/lib/utils/darkMode";
+ * 
+ * <div className={cn(bgSurfaceVar, borderDefaultVar)}>
+ *   <h1 className={textPrimaryVar}>제목</h1>
+ * </div>
+ * ```
  */
+// 텍스트 색상
 export const textPrimaryVar = "text-[var(--text-primary)]";
 export const textSecondaryVar = "text-[var(--text-secondary)]";
 export const textTertiaryVar = "text-[var(--text-tertiary)]";
 export const textPlaceholderVar = "text-[var(--text-placeholder)]";
 export const textDisabledVar = "text-[var(--text-disabled)]";
-export const bgSurfaceVar = "bg-[var(--background)]";
-export const bgPageVar = "bg-[var(--background)]";
+export const textMutedVar = "text-[var(--text-tertiary)]"; // textMuted는 text-tertiary와 동일
 export const textForegroundVar = "text-[var(--foreground)]";
 
-/**
- * CSS 변수 기반 배경색 유틸리티
- * 
- * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
- */
-export const bgSurfaceVarNew = "bg-[var(--background)]";
-export const bgPageVarNew = "bg-[var(--background)]";
+// 배경색
+export const bgSurfaceVar = "bg-[var(--background)]";
+export const bgPageVar = "bg-[var(--background)]";
 
-/**
- * CSS 변수 기반 테두리 색상 유틸리티
- * 
- * @note CSS 변수 기반 유틸리티는 런타임에 테마 변경이 가능하며, 더 유연한 테마 관리가 가능합니다.
- */
-export const borderDefaultVar = "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]";
-export const borderInputVar = "border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))]";
+// Hover 배경색 (CSS 변수 기반 - secondary 색상 활용)
+// hover는 상태이므로 다크 모드에 따라 다른 색상이 필요합니다.
+// CSS 변수는 자동으로 다크 모드에 대응하지만, hover의 경우 명시적으로 처리합니다.
+export const bgHoverVar = "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]";
+export const bgHoverStrongVar = "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))]";
+
+// 테두리 색상 (CSS 변수만 사용, dark: 클래스 제거)
+export const borderDefaultVar = "border-[rgb(var(--color-secondary-200))]";
+export const borderInputVar = "border-[rgb(var(--color-secondary-300))]";
+
+// Divide 색상
+export const divideDefaultVar = "divide-[rgb(var(--color-secondary-200))]";
 
 // ============================================
 // 제네릭 색상 클래스 유틸리티

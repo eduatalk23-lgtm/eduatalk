@@ -2,6 +2,7 @@
 
 import { memo, forwardRef, isValidElement } from "react";
 import { cn } from "@/lib/cn";
+import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, bgHoverVar, bgHoverStrongVar } from "@/lib/utils/darkMode";
 
 export type ButtonVariant =
   | "primary"
@@ -26,14 +27,27 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     "bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-indigo-600 dark:focus:ring-indigo-500 border-transparent",
   secondary:
-    "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent",
+    "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))] focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent",
   destructive:
     "bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-800 focus:ring-red-600 dark:focus:ring-red-700 border-transparent",
-  outline:
-    "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-600 focus:ring-gray-500 dark:focus:ring-gray-400",
-  ghost:
-    "bg-transparent text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent",
-  link: "bg-transparent text-gray-900 dark:text-gray-100 hover:underline focus:ring-gray-500 dark:focus:ring-gray-400 border-transparent p-0",
+  outline: cn(
+    bgSurfaceVar,
+    textSecondaryVar,
+    borderDefaultVar,
+    bgHoverVar,
+    "hover:border-[rgb(var(--color-secondary-400))] dark:hover:border-[rgb(var(--color-secondary-600))] focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))]"
+  ),
+  ghost: cn(
+    "bg-transparent",
+    textSecondaryVar,
+    bgHoverVar,
+    "focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent"
+  ),
+  link: cn(
+    "bg-transparent",
+    textPrimaryVar,
+    "hover:underline focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent p-0"
+  ),
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -247,14 +247,28 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
         <div className="flex flex-col gap-1 md:col-span-2">
           <MasterBookSelector
             value={selectedBookId}
-            onChange={(bookId) => setSelectedBookId(bookId)}
+            onChange={(bookId) => {
+              setSelectedBookId(bookId);
+              // 기존 교재 선택 시 함께 등록 옵션 해제
+              if (bookId) {
+                setLinkBook(false);
+              }
+            }}
             masterBooks={masterBooks}
             onCreateBook={async (bookId) => {
               // 새 교재 생성 후 목록 새로고침
-              const updatedBooks = await refreshMasterBooks();
+              await refreshMasterBooks();
               setSelectedBookId(bookId);
+              // MasterBookSelector에서 교재 등록 시 함께 등록 옵션 해제
+              setLinkBook(false);
             }}
+            disabled={linkBook}
           />
+          {linkBook && (
+            <p className="text-xs text-amber-600">
+              아래에서 새 교재를 함께 등록하므로 기존 교재 선택이 비활성화되었습니다.
+            </p>
+          )}
         </div>
 
         {/* 연결된 교재 등록 여부 */}
@@ -263,17 +277,31 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
             <input
               type="checkbox"
               checked={linkBook}
-              onChange={(e) => setLinkBook(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setLinkBook(checked);
+                // 함께 등록 옵션 선택 시 기존 교재 선택 해제
+                if (checked) {
+                  setSelectedBookId(null);
+                }
+              }}
+              disabled={!!selectedBookId}
+              className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
             />
-            <span className="text-sm font-medium text-gray-700">
+            <span className={`text-sm font-medium ${selectedBookId ? "text-gray-400" : "text-gray-700"}`}>
               연결된 교재 함께 등록하기
             </span>
           </label>
-          <p className="text-xs text-gray-700">
-            이 강의가 특정 교재를 기반으로 하는 경우, 교재를 함께 등록할 수
-            있습니다.
-          </p>
+          {selectedBookId ? (
+            <p className="text-xs text-amber-600">
+              이미 교재가 선택되어 있습니다. 새 교재를 함께 등록하려면 먼저 선택된 교재를 해제하세요.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-700">
+              이 강의가 특정 교재를 기반으로 하는 경우, 교재를 함께 등록할 수
+              있습니다.
+            </p>
+          )}
         </div>
 
         {/* 메모 */}
