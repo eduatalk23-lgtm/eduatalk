@@ -44,6 +44,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "contents.kyobobook.co.kr",
       },
+      {
+        protocol: "https",
+        hostname: "img.megastudy.net",
+      },
       // 필요시 다른 도메인 추가 가능
       // {
       //   protocol: "https",
