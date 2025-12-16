@@ -69,6 +69,12 @@ if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDay
 - 주차 경계에서 회차 재배정 문제 해결
 - 오차 누적 없이 정확한 회차 분배 보장
 
+**에피소드 수 제한 추가 (2025-01-02 최종)**:
+- 실제 존재하는 에피소드 수를 확인하여 `content.end_range` 제한
+- 존재하지 않는 회차(예: 회차 25가 배정되는 문제) 배정 방지
+- `durationInfo.episodes`에서 최대 episode_number를 찾아 범위 제한
+- `end_range`는 exclusive이므로 `maxEpisodeNumber + 1`로 제한
+
 ### 동작 방식
 
 1. **학습일 수 >= 총 회차 수인 경우**

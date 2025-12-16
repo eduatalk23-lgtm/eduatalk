@@ -331,7 +331,26 @@ export class SchedulerEngine {
     // 학습일이 30일이고 회차가 30개면 하루 1개씩 분배
     // divideContentRange 패턴 사용하여 연속성 보장
     if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDays > 0 && totalRange > 0) {
-      const dailyRange = totalRange / totalStudyDays;
+      // 실제 에피소드 수 확인 및 범위 제한
+      const actualEpisodes = durationInfo.episodes || [];
+      const maxEpisodeNumber = actualEpisodes.length > 0
+        ? Math.max(...actualEpisodes.map(ep => ep.episode_number))
+        : null;
+      
+      // 실제 존재하는 에피소드 수를 기준으로 end_range 제한
+      // end_range는 exclusive이므로, maxEpisodeNumber가 있으면 maxEpisodeNumber + 1로 제한
+      const actualEndRange = maxEpisodeNumber !== null
+        ? Math.min(content.end_range, maxEpisodeNumber + 1)
+        : content.end_range;
+      
+      // 실제 totalRange 재계산 (end_range는 exclusive)
+      const actualTotalRange = actualEndRange - content.start_range;
+      
+      if (actualTotalRange <= 0) {
+        return result;
+      }
+      
+      const dailyRange = actualTotalRange / totalStudyDays;
       let currentPos = 0; // 0부터 시작하는 상대 위치 (정수로 관리)
       
       for (let i = 0; i < sortedDates.length; i++) {
@@ -340,18 +359,18 @@ export class SchedulerEngine {
         
         // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 회차 배정
         const dayRange = isLastDay
-          ? totalRange - currentPos
+          ? actualTotalRange - currentPos
           : Math.round(dailyRange);
         
         const dayEnd = currentPos + dayRange;
         
         // 실제 회차 범위 (start_range 오프셋 적용)
-        // currentPos와 dayEnd는 이미 정수이므로 Math.round 불필요
+        // divideContentRange 패턴: end는 exclusive이므로 그대로 사용
         const actualStart = content.start_range + currentPos;
         const actualEnd = content.start_range + dayEnd;
         
-        // 회차가 있는 경우만 배정
-        if (actualEnd > actualStart) {
+        // 회차가 있는 경우만 배정 (실제 에피소드 수 범위 내)
+        if (actualEnd > actualStart && (maxEpisodeNumber === null || actualEnd <= maxEpisodeNumber + 1)) {
           result.set(date, { start: actualStart, end: actualEnd });
         }
         
