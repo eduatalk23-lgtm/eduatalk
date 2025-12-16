@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type FormFieldType = "text" | "number" | "select" | "textarea";
 
@@ -39,6 +40,7 @@ export function ContentEditForm<T extends Record<string, string | number | null 
   isSaving = false,
 }: ContentEditFormProps<T>) {
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [formData, setFormData] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     fields.forEach((field) => {
@@ -58,10 +60,11 @@ export function ContentEditForm<T extends Record<string, string | number | null 
       });
 
       await onSubmit(formDataObj);
+      showSuccess("저장되었습니다.");
       router.refresh();
     } catch (error) {
       console.error("폼 제출 실패:", error);
-      alert(error instanceof Error ? error.message : "저장에 실패했습니다.");
+      showError(error instanceof Error ? error.message : "저장에 실패했습니다.");
     }
   };
 

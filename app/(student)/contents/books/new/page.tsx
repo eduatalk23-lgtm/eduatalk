@@ -12,10 +12,14 @@ import {
 } from "@/app/(student)/actions/contentMetadataActions";
 import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
+import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { useToast } from "@/components/ui/ToastProvider";
+import { getContainerClass } from "@/lib/constants/layout";
 
 export default function NewBookPage() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
 
   const [revisions, setRevisions] = useState<Array<{ id: string; name: string }>>([]);
   const [subjectGroups, setSubjectGroups] = useState<SubjectGroup[]>([]);
@@ -121,36 +125,33 @@ export default function NewBookPage() {
     startTransition(async () => {
       try {
         await addBook(formData);
+        showSuccess("책이 성공적으로 등록되었습니다.");
         router.push("/contents");
         router.refresh();
       } catch (error) {
         console.error("책 등록 실패:", error);
-        alert(error instanceof Error ? error.message : "책 등록에 실패했습니다.");
+        showError(error instanceof Error ? error.message : "책 등록에 실패했습니다.");
       }
     });
   }
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
+    <section className={`${getContainerClass("FORM", "lg")} flex flex-col gap-6`}>
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">📚 책 등록하기</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">새로운 교재를 등록하세요.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 shadow-sm">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 md:p-8 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
           {/* 교재명 */}
-          <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              교재명 <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="title"
-              required
-              placeholder="교재명을 입력하세요"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+          <FormField
+            name="title"
+            label="교재명"
+            required
+            placeholder="교재명을 입력하세요"
+            className="md:col-span-2"
+          />
 
           {/* 개정교육과정 */}
           <div className="flex flex-col gap-1">
@@ -236,46 +237,38 @@ export default function NewBookPage() {
           </div>
 
           {/* 총 페이지 */}
-          <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              총 페이지 <span className="text-red-500">*</span>
-            </label>
-            <input
-              name="total_pages"
-              type="number"
-              required
-              min="1"
-              placeholder="예: 255"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+          <FormField
+            name="total_pages"
+            label="총 페이지"
+            type="number"
+            required
+            min={1}
+            placeholder="예: 255"
+          />
 
           {/* 난이도 */}
-          <div className="flex flex-col gap-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              난이도
-            </label>
-            <select
-              name="difficulty"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            >
-              <option value="">선택하세요</option>
-              <option value="개념">개념</option>
-              <option value="기본">기본</option>
-              <option value="심화">심화</option>
-            </select>
-          </div>
+          <FormSelect
+            name="difficulty"
+            label="난이도"
+            placeholder="선택하세요"
+            options={[
+              { value: "개념", label: "개념" },
+              { value: "기본", label: "기본" },
+              { value: "심화", label: "심화" },
+            ]}
+          />
 
           {/* 메모 */}
-          <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div className="flex flex-col gap-1.5 md:col-span-2">
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               메모
             </label>
             <textarea
+              id="notes"
               name="notes"
               rows={3}
               placeholder="메모를 입력하세요"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-gray-900/20 dark:focus:ring-gray-100/20 transition-colors"
             />
           </div>
         </div>
@@ -288,7 +281,7 @@ export default function NewBookPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-600 dark:hover:bg-indigo-700"
           >
             {isPending ? "등록 중..." : "등록하기"}
           </button>

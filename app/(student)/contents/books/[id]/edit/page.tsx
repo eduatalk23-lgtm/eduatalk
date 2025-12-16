@@ -46,21 +46,19 @@ export default async function EditBookPage({
     <section className={`${getContainerClass("FORM", "lg")} flex flex-col gap-6`}>
       <Link
         href={`/contents/books/${book.id}`}
-        className="text-sm text-gray-500 transition hover:text-gray-900"
+        className="text-sm text-gray-500 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-gray-100"
       >
         ← 상세로 돌아가기
       </Link>
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">책 정보 수정</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">책 정보 수정</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           등록된 내용을 수정한 뒤 저장하면 상세 페이지로 이동합니다.
         </p>
       </div>
 
-      <div className="rounded-2xl border bg-white p-6 shadow-sm">
-        <BookEditForm book={book} />
-      </div>
+      <BookEditForm book={book} />
     </section>
   );
 }
