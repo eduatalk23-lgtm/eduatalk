@@ -119,6 +119,8 @@ export type ContentDurationInfo = {
   total_pages?: number | null;
   duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null;
+  total_episodes?: number | null; // 강의 총 회차 수 (정확한 계산용)
+  difficulty_level?: string | null; // 난이도 (교재/강의)
   episodes?: Array<{
     episode_number: number;
     duration: number | null; // 회차별 소요시간 (분)

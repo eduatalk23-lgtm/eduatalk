@@ -79,6 +79,7 @@ export function mergeSchedulerSettings(
     lunch_time: merged.lunch_time || DEFAULT_SCHEDULER_SETTINGS.lunch_time,
     study_hours: merged.study_hours || DEFAULT_SCHEDULER_SETTINGS.study_hours,
     self_study_hours: merged.self_study_hours,
+    review_time_ratio: merged.review_time_ratio ?? 0.5, // 기본값: 0.5 (50%)
   };
 }
 
@@ -94,6 +95,7 @@ export function dbToPartialSettings(
     default_lunch_time?: { start: string; end: string };
     default_study_hours?: { start: string; end: string };
     default_self_study_hours?: { start: string; end: string };
+    review_time_ratio?: number;
   } | null
 ): PartialSchedulerSettings | null {
   if (!dbSettings) return null;
@@ -112,6 +114,7 @@ export function dbToPartialSettings(
     lunch_time: dbSettings.default_lunch_time,
     study_hours: dbSettings.default_study_hours,
     self_study_hours: dbSettings.default_self_study_hours,
+    review_time_ratio: dbSettings.review_time_ratio,
   };
 }
 

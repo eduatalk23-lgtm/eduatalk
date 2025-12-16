@@ -17,6 +17,7 @@ import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/d
  * @param content - 콘텐츠 정보 (content_type, content_id, start_range, end_range)
  * @param durationInfo - 콘텐츠 소요시간 정보 (episode 정보 포함)
  * @param dayType - 일 유형 ('학습일' | '복습일' 등, 선택사항)
+ * @param reviewTimeRatio - 복습일 소요시간 비율 (기본값: 0.5 = 50%, 설정값이 있으면 사용)
  * @returns 예상 소요시간 (분 단위)
  * 
  * @example
@@ -36,7 +37,8 @@ export function calculateContentDuration(
     end_range: number;
   },
   durationInfo: ContentDurationInfo,
-  dayType?: "학습일" | "복습일" | string
+  dayType?: "학습일" | "복습일" | string,
+  reviewTimeRatio?: number
 ): number {
   const amount = content.end_range - content.start_range;
   
@@ -70,14 +72,12 @@ export function calculateContentDuration(
       baseTime = totalDuration;
     } else if (durationInfo.duration && durationInfo.duration > 0) {
       // Episode 정보가 없으면 전체 duration / 전체 회차 * 배정 회차
-      // 전체 회차 수는 알 수 없으므로, duration을 그대로 사용하거나
-      // 기본값으로 회차당 30분 사용
-      // TODO: 전체 회차 수를 조회하여 정확한 계산 필요
-      baseTime = Math.round((durationInfo.duration / amount) * amount);
-      
-      // duration이 전체 강의 시간이 아닐 수 있으므로, 더 안전한 방법 사용
-      // 기본값: 회차당 30분
-      if (baseTime <= 0) {
+      // total_episodes가 있으면 정확한 계산 가능
+      if (durationInfo.total_episodes && durationInfo.total_episodes > 0) {
+        const avgDurationPerEpisode = durationInfo.duration / durationInfo.total_episodes;
+        baseTime = Math.round(avgDurationPerEpisode * amount);
+      } else {
+        // total_episodes가 없으면 기본값: 회차당 30분
         baseTime = amount * 30;
       }
     } else {
@@ -85,9 +85,20 @@ export function calculateContentDuration(
       baseTime = amount * 30;
     }
   } else if (content.content_type === "book") {
-    // 책: 페이지 수 * (60 / pagesPerHour)
-    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
-    const minutesPerPage = 60 / pagesPerHour;
+    // 책: 난이도별 페이지당 소요시간 적용
+    const difficultyLevel = durationInfo.difficulty_level;
+    const PAGE_DURATION_BY_DIFFICULTY: Record<string, number> = {
+      기초: 4,   // 페이지당 4분
+      기본: 6,   // 페이지당 6분 (현재 기본값)
+      심화: 8,   // 페이지당 8분
+      최상: 10,  // 페이지당 10분
+    };
+    
+    // 난이도별 페이지당 소요시간 (분)
+    const minutesPerPage = difficultyLevel && PAGE_DURATION_BY_DIFFICULTY[difficultyLevel]
+      ? PAGE_DURATION_BY_DIFFICULTY[difficultyLevel]
+      : 60 / defaultRangeRecommendationConfig.pagesPerHour; // 기본값: pagesPerHour를 분 단위로 변환
+    
     baseTime = Math.round(amount * minutesPerPage);
   } else {
     // 커스텀: total_page_or_time >= 100이면 페이지로 간주, 아니면 시간으로 간주
@@ -119,9 +130,10 @@ export function calculateContentDuration(
     }
   }
 
-  // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
+  // 복습일이면 소요시간 단축 (설정값 또는 기본값 50% 사용)
   if (dayType === "복습일") {
-    return Math.round(baseTime * 0.5);
+    const ratio = reviewTimeRatio ?? 0.5; // 기본값: 0.5 (50%)
+    return Math.round(baseTime * ratio);
   }
 
   return baseTime;

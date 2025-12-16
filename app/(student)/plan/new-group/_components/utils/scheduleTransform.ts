@@ -3,7 +3,7 @@
  */
 
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
-import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import { calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
 import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 export type ScheduleTableRow = {
@@ -215,8 +215,9 @@ function calculateEstimatedTime(
     return dayType === "복습일" ? Math.round(blockTime * 0.5) : blockTime;
   }
 
-  // ContentData를 ContentDurationInfo로 변환
-  const durationInfo: ContentDurationInfo = {
+  // calculatePlanEstimatedTime 사용을 위해 ContentDurationMap 생성
+  const contentDurationMap = new Map<string, ContentDurationInfo>();
+  contentDurationMap.set(content.id, {
     content_type: contentType as "book" | "lecture" | "custom",
     content_id: content.id,
     total_pages: content.total_pages ?? null,
@@ -224,16 +225,16 @@ function calculateEstimatedTime(
     total_page_or_time: content.total_page_or_time ?? null,
     // ContentData에는 episodes 정보가 없으므로 null
     episodes: null,
-  };
+  });
 
-  return calculateContentDuration(
+  return calculatePlanEstimatedTime(
     {
       content_type: contentType as "book" | "lecture" | "custom",
       content_id: content.id,
-      start_range: startPageOrTime,
-      end_range: endPageOrTime,
+      planned_start_page_or_time: startPageOrTime,
+      planned_end_page_or_time: endPageOrTime,
     },
-    durationInfo,
+    contentDurationMap,
     dayType ?? undefined
   );
 }

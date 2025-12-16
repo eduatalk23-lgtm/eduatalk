@@ -39,7 +39,7 @@ import {
   getDayOfWeekName,
 } from "@/lib/errors/planGenerationErrors";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
-import { calculateContentDuration as calculateContentDurationUnified } from "@/lib/plan/contentDuration";
+import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
 /**
  * SchedulerEngine 컨텍스트 타입
@@ -61,40 +61,6 @@ export type SchedulerContext = {
     { subject?: string | null; subject_category?: string | null }
   >;
 };
-
-
-/**
- * 콘텐츠의 특정 범위에 대한 소요시간 계산 (분 단위)
- * 통합 함수를 사용하도록 변경
- */
-function calculateContentDuration(
-  content: ContentInfo,
-  startPageOrTime: number,
-  endPageOrTime: number,
-  durationMap?: ContentDurationMap
-): number {
-  const durationInfo = durationMap?.get(content.content_id);
-  
-  if (!durationInfo) {
-    // duration 정보가 없으면 기본값 반환
-    const amount = endPageOrTime - startPageOrTime;
-    if (content.content_type === "lecture") {
-      return amount * 30; // 회차당 30분
-    } else {
-      return amount * 2; // 페이지당 2분
-    }
-  }
-  
-  return calculateContentDurationUnified(
-    {
-      content_type: content.content_type,
-      content_id: content.content_id,
-      start_range: startPageOrTime,
-      end_range: endPageOrTime,
-    },
-    durationInfo
-  );
-}
 
 /**
  * SchedulerEngine 클래스
@@ -492,23 +458,28 @@ export class SchedulerEngine {
       );
 
       // Best Fit 알고리즘을 위한 플랜 정렬: 소요시간 내림차순 (큰 것부터 배치)
-      const plansWithDuration = datePlans.map(({ content, start, end: endAmount }) => ({
-        content,
-        start,
-        end: endAmount,
-        requiredMinutes: calculateContentDuration(
+      const plansWithDuration = datePlans.map(({ content, start, end: endAmount }) => {
+        const durationInfo = contentDurationMap?.get(content.content_id);
+        const requiredMinutes = durationInfo
+          ? calculateContentDuration(
+              {
+                content_type: content.content_type,
+                content_id: content.content_id,
+                start_range: start,
+                end_range: endAmount,
+              },
+              durationInfo
+            )
+          : (endAmount - start) * (content.content_type === "lecture" ? 30 : 2);
+        
+        return {
           content,
           start,
-          endAmount,
-          contentDurationMap
-        ),
-        remainingMinutes: calculateContentDuration(
-          content,
-          start,
-          endAmount,
-          contentDurationMap
-        ),
-      })).sort((a, b) => b.requiredMinutes - a.requiredMinutes); // 소요시간 내림차순
+          end: endAmount,
+          requiredMinutes,
+          remainingMinutes: requiredMinutes,
+        };
+      }).sort((a, b) => b.requiredMinutes - a.requiredMinutes); // 소요시간 내림차순
 
       let blockIndex = 1;
       let totalAvailableMinutes = 0;

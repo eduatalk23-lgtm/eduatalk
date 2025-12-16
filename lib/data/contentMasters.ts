@@ -2284,6 +2284,113 @@ export async function getStudentLectureEpisodesBatch(
 }
 
 /**
+ * 여러 마스터 강의의 episode 정보를 배치로 조회 (성능 최적화)
+ * @param masterLectureIds 조회할 마스터 강의 ID 배열
+ * @returns Map<masterLectureId, Episode[]> 형태로 반환
+ */
+export async function getMasterLectureEpisodesBatch(
+  masterLectureIds: string[]
+): Promise<
+  Map<
+    string,
+    Array<{
+      id: string;
+      episode_number: number;
+      episode_title: string | null;
+      duration: number | null;
+    }>
+  >
+> {
+  if (masterLectureIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 성능 측정 시작
+  const queryStart = performance.now();
+
+  const { data, error } = await supabase
+    .from("lecture_episodes")
+    .select("id, lecture_id, episode_number, episode_title, duration")
+    .in("lecture_id", masterLectureIds)
+    .order("lecture_id", { ascending: true })
+    .order("episode_number", { ascending: true });
+
+  const queryTime = performance.now() - queryStart;
+
+  if (error) {
+    console.error("[data/contentMasters] 마스터 강의 episode 배치 조회 실패", {
+      masterLectureIds,
+      error: error.message,
+      code: error.code,
+    });
+    return new Map();
+  }
+
+  // 결과를 lectureId별로 그룹화하여 Map으로 반환
+  const resultMap = new Map<
+    string,
+    Array<{
+      id: string;
+      episode_number: number;
+      episode_title: string | null;
+      duration: number | null;
+    }>
+  >();
+
+  (data || []).forEach(
+    (episode: {
+      id: string;
+      lecture_id: string;
+      episode_number: number;
+      episode_title: string | null;
+      duration: number | null;
+    }) => {
+      if (!resultMap.has(episode.lecture_id)) {
+        resultMap.set(episode.lecture_id, []);
+      }
+      resultMap.get(episode.lecture_id)!.push({
+        id: episode.id,
+        episode_number: episode.episode_number,
+        episode_title: episode.episode_title,
+        duration: episode.duration,
+      });
+    }
+  );
+
+  // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
+  masterLectureIds.forEach((lectureId) => {
+    if (!resultMap.has(lectureId)) {
+      resultMap.set(lectureId, []);
+    }
+  });
+
+  // 성능 로깅 (개발 환경에서만)
+  if (process.env.NODE_ENV === "development") {
+    const resultCount = data?.length || 0;
+    const emptyLectureIds = masterLectureIds.filter(
+      (lectureId) =>
+        !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
+    );
+
+    console.log("[getMasterLectureEpisodesBatch] 쿼리 성능:", {
+      lectureCount: masterLectureIds.length,
+      resultCount,
+      queryTime: `${queryTime.toFixed(2)}ms`,
+      avgTimePerLecture:
+        masterLectureIds.length > 0
+          ? `${(queryTime / masterLectureIds.length).toFixed(2)}ms`
+          : "N/A",
+      emptyLectureCount: emptyLectureIds.length,
+      emptyLectureIds: emptyLectureIds.length > 0 ? emptyLectureIds : undefined,
+    });
+  }
+
+  return resultMap;
+}
+
+/**
  * 통합 Episode 조회 함수
  * 학생 강의 episode를 우선 조회하고, 없으면 마스터 강의 episode를 사용합니다.
  *

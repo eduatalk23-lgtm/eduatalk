@@ -16,7 +16,7 @@ import {
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { SchedulerEngine, type SchedulerContext } from "@/lib/scheduler/SchedulerEngine";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
-import { calculateContentDuration as calculateContentDurationUnified } from "@/lib/plan/contentDuration";
+import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
 export type BlockInfo = {
   id: string;
@@ -541,38 +541,6 @@ function formatDateSimple(date: Date): string {
 }
 
 
-/**
- * 콘텐츠의 특정 범위에 대한 소요시간 계산 (분 단위)
- * 통합 함수를 사용하도록 변경
- */
-function calculateContentDuration(
-  content: ContentInfo,
-  startPageOrTime: number,
-  endPageOrTime: number,
-  durationMap?: ContentDurationMap
-): number {
-  const durationInfo = durationMap?.get(content.content_id);
-  
-  if (!durationInfo) {
-    // duration 정보가 없으면 기본값 반환
-    const amount = endPageOrTime - startPageOrTime;
-    if (content.content_type === "lecture") {
-      return amount * 30; // 회차당 30분
-    } else {
-      return amount * 2; // 페이지당 2분
-    }
-  }
-  
-  return calculateContentDurationUnified(
-    {
-      content_type: content.content_type,
-      content_id: content.content_id,
-      start_range: startPageOrTime,
-      end_range: endPageOrTime,
-    },
-    durationInfo
-  );
-}
 
 /**
  * 학습 가능한 날짜 목록 계산 (제외일 제외)
@@ -765,12 +733,18 @@ function generateDefaultPlans(
       datePlans.forEach(({ content, dailyAmount, currentStart: start }) => {
         // 콘텐츠 소요시간 계산
         const endPageOrTime = Math.min(start + dailyAmount, content.end_range);
-        const requiredMinutes = calculateContentDuration(
-          content,
-          start,
-          endPageOrTime,
-          contentDurationMap
-        );
+        const durationInfo = contentDurationMap?.get(content.content_id);
+        const requiredMinutes = durationInfo
+          ? calculateContentDuration(
+              {
+                content_type: content.content_type,
+                content_id: content.content_id,
+                start_range: start,
+                end_range: endPageOrTime,
+              },
+              durationInfo
+            )
+          : (endPageOrTime - start) * (content.content_type === "lecture" ? 30 : 2);
 
         let remainingMinutes = requiredMinutes;
 

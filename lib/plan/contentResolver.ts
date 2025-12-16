@@ -18,6 +18,10 @@ import type {
   ContentSubjectsMap,
   ContentResolutionResult,
 } from "@/lib/types/plan-generation";
+import {
+  getStudentLectureEpisodesBatch,
+  getMasterLectureEpisodesBatch,
+} from "@/lib/data/contentMasters";
 
 // ============================================
 // 타입 정의
@@ -395,11 +399,11 @@ export async function loadContentDurations(
   // 학생 콘텐츠 조회 (병렬)
   type BookDurationResult = {
     content: PlanContent;
-    studentBook: { id: string; total_pages: number | null; master_content_id: string | null } | null;
+    studentBook: { id: string; total_pages: number | null; master_content_id: string | null; difficulty_level: string | null } | null;
   };
   type LectureDurationResult = {
     content: PlanContent;
-    studentLecture: { id: string; duration: number | null; master_content_id: string | null } | null;
+    studentLecture: { id: string; duration: number | null; master_content_id: string | null; total_episodes: number | null } | null;
   };
   type CustomDurationResult = {
     content: PlanContent;
@@ -411,7 +415,7 @@ export async function loadContentDurations(
     try {
       const result = await queryClient
         .from("books")
-        .select("id, total_pages, master_content_id")
+        .select("id, total_pages, master_content_id, difficulty_level")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -426,7 +430,7 @@ export async function loadContentDurations(
     try {
       const result = await queryClient
         .from("lectures")
-        .select("id, duration, master_content_id")
+        .select("id, duration, master_content_id, total_episodes")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -458,8 +462,8 @@ export async function loadContentDurations(
   ]);
 
   // 마스터 콘텐츠 조회가 필요한 항목 수집
-  type MasterBookResult = { content: PlanContent; masterBook: { id: string; total_pages: number | null } | null };
-  type MasterLectureResult = { content: PlanContent; masterLecture: { id: string; total_duration: number | null } | null };
+  type MasterBookResult = { content: PlanContent; masterBook: { id: string; total_pages: number | null; difficulty_level: string | null } | null };
+  type MasterLectureResult = { content: PlanContent; masterLecture: { id: string; total_duration: number | null; total_episodes: number | null } | null };
 
   const masterBookQueries: Promise<MasterBookResult>[] = [];
   const masterLectureQueries: Promise<MasterLectureResult>[] = [];
@@ -471,6 +475,7 @@ export async function loadContentDurations(
         content_type: "book",
         content_id: content.content_id,
         total_pages: studentBook.total_pages,
+        difficulty_level: studentBook.difficulty_level ?? null,
       });
     } else if (studentBook?.master_content_id) {
       const masterId = studentBook.master_content_id;
@@ -479,7 +484,7 @@ export async function loadContentDurations(
           try {
             const result = await masterQueryClient
               .from("master_books")
-              .select("id, total_pages")
+              .select("id, total_pages, difficulty_level")
               .eq("id", masterId)
               .maybeSingle();
             return { content, masterBook: result.data };
@@ -491,54 +496,45 @@ export async function loadContentDurations(
     }
   }
 
-  // 학생 강의 결과 처리
+  // 학생 강의 episode 배치 조회 (N+1 쿼리 문제 해결)
+  const studentLectureIds: string[] = [];
+  const studentLectureMap = new Map<
+    string,
+    { content: PlanContent; studentLecture: { id: string; duration: number | null; master_content_id: string | null } | null }
+  >();
+
   for (const { content, studentLecture } of lectureResults) {
     const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
-    
-    // Episode 정보 조회 (학생 강의 episode 우선)
+    studentLectureIds.push(finalContentId);
+    studentLectureMap.set(finalContentId, { content, studentLecture });
+  }
+
+  // 모든 학생 강의 episode를 한 번에 조회
+  const studentEpisodesMap =
+    studentLectureIds.length > 0
+      ? await getStudentLectureEpisodesBatch(studentLectureIds, studentId)
+      : new Map();
+
+  // 학생 강의 결과 처리
+  for (const [finalContentId, { content, studentLecture }] of studentLectureMap) {
+    // 배치 조회한 episode 정보 사용
+    const studentEpisodes = studentEpisodesMap.get(finalContentId) || [];
     let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
-    try {
-      const episodeResult = await queryClient
-        .from("student_lecture_episodes")
-        .select("episode_number, duration")
-        .eq("lecture_id", finalContentId)
-        .order("episode_number", { ascending: true });
-      
-      if (episodeResult.data && episodeResult.data.length > 0) {
-        episodes = episodeResult.data.map((ep) => ({
-          episode_number: ep.episode_number,
-          duration: ep.duration,
-        }));
-      }
-    } catch {
-      // Episode 조회 실패 시 무시 (fallback 사용)
+
+    if (studentEpisodes.length > 0) {
+      episodes = studentEpisodes.map((ep) => ({
+        episode_number: ep.episode_number,
+        duration: ep.duration,
+      }));
     }
-    
-    // 마스터 강의 episode 조회 (fallback)
-    if (!episodes && studentLecture?.master_content_id) {
-      try {
-        const masterEpisodeResult = await masterQueryClient
-          .from("lecture_episodes")
-          .select("episode_number, duration")
-          .eq("lecture_id", studentLecture.master_content_id)
-          .order("episode_number", { ascending: true });
-        
-        if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
-          episodes = masterEpisodeResult.data.map((ep) => ({
-            episode_number: ep.episode_number,
-            duration: ep.duration,
-          }));
-        }
-      } catch {
-        // 마스터 episode 조회 실패 시 무시
-      }
-    }
-    
+
+    // 마스터 강의 episode 조회는 나중에 배치로 처리 (masterLectureQueries에 추가)
     if (studentLecture?.duration) {
       contentDurationMap.set(content.content_id, {
         content_type: "lecture",
         content_id: content.content_id,
         duration: studentLecture.duration,
+        total_episodes: studentLecture.total_episodes ?? null,
         episodes: episodes,
       });
     } else if (studentLecture?.master_content_id) {
@@ -548,7 +544,7 @@ export async function loadContentDurations(
           try {
             const result = await masterQueryClient
               .from("master_lectures")
-              .select("id, total_duration")
+              .select("id, total_duration, total_episodes")
               .eq("id", masterId)
               .maybeSingle();
             return { content, masterLecture: result.data };
@@ -562,6 +558,7 @@ export async function loadContentDurations(
       contentDurationMap.set(content.content_id, {
         content_type: "lecture",
         content_id: content.content_id,
+        total_episodes: studentLecture?.total_episodes ?? null,
         episodes: episodes,
       });
     }
@@ -591,39 +588,49 @@ export async function loadContentDurations(
           content_type: "book",
           content_id: content.content_id,
           total_pages: masterBook.total_pages,
+          difficulty_level: masterBook.difficulty_level ?? null,
         });
       }
     }
 
+    // 마스터 강의 episode 배치 조회 (N+1 쿼리 문제 해결)
+    const masterLectureIds: string[] = [];
+    const masterLectureMap = new Map<
+      string,
+      { content: PlanContent; masterLecture: { id: string; total_duration: number | null } | null }
+    >();
+
     for (const { content, masterLecture } of masterLectureResults) {
-      const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
-      
-      // 마스터 강의 episode 정보 조회
-      let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
       if (masterLecture?.id) {
-        try {
-          const masterEpisodeResult = await masterQueryClient
-            .from("lecture_episodes")
-            .select("episode_number, duration")
-            .eq("lecture_id", masterLecture.id)
-            .order("episode_number", { ascending: true });
-          
-          if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
-            episodes = masterEpisodeResult.data.map((ep) => ({
+        masterLectureIds.push(masterLecture.id);
+        masterLectureMap.set(masterLecture.id, { content, masterLecture });
+      }
+    }
+
+    // 모든 마스터 강의 episode를 한 번에 조회
+    const masterEpisodesMap =
+      masterLectureIds.length > 0
+        ? await getMasterLectureEpisodesBatch(masterLectureIds)
+        : new Map();
+
+    // 마스터 강의 결과 처리
+    for (const [masterId, { content, masterLecture }] of masterLectureMap) {
+      // 배치 조회한 episode 정보 사용
+      const masterEpisodes = masterEpisodesMap.get(masterId) || [];
+      const episodes: Array<{ episode_number: number; duration: number | null }> | null =
+        masterEpisodes.length > 0
+          ? masterEpisodes.map((ep) => ({
               episode_number: ep.episode_number,
               duration: ep.duration,
-            }));
-          }
-        } catch {
-          // Episode 조회 실패 시 무시
-        }
-      }
-      
+            }))
+          : null;
+
       if (masterLecture?.total_duration) {
         contentDurationMap.set(content.content_id, {
           content_type: "lecture",
           content_id: content.content_id,
           duration: masterLecture.total_duration,
+          total_episodes: masterLecture.total_episodes ?? null,
           episodes: episodes,
         });
       } else if (episodes) {
@@ -631,6 +638,7 @@ export async function loadContentDurations(
         contentDurationMap.set(content.content_id, {
           content_type: "lecture",
           content_id: content.content_id,
+          total_episodes: masterLecture?.total_episodes ?? null,
           episodes: episodes,
         });
       }

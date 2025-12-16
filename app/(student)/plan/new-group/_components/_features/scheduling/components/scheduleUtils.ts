@@ -3,7 +3,7 @@ import type { Plan } from "./scheduleTypes";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
-import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import { calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
 import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 // Re-export time utility functions for convenience
@@ -76,7 +76,8 @@ export function calculateEstimatedTime(
 ): number {
   if (
     plan.planned_start_page_or_time === null ||
-    plan.planned_end_page_or_time === null
+    plan.planned_end_page_or_time === null ||
+    !plan.content_id
   ) {
     const baseTime = 60; // 기본값 1시간
     // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
@@ -85,35 +86,28 @@ export function calculateEstimatedTime(
 
   const content = contents.get(plan.content_id);
   
-  // ContentData를 ContentDurationInfo로 변환
-  const durationInfo: ContentDurationInfo | undefined = content
-    ? {
-        content_type: plan.content_type as "book" | "lecture" | "custom",
-        content_id: plan.content_id,
-        total_pages: content.total_pages ?? null,
-        duration: content.duration ?? null,
-        total_page_or_time: content.total_page_or_time ?? null,
-        // ContentData에는 episodes 정보가 없으므로 null
-        episodes: null,
-      }
-    : undefined;
-
-  if (!durationInfo) {
-    // duration 정보가 없으면 기본값 반환
-    const amount =
-      plan.planned_end_page_or_time - plan.planned_start_page_or_time;
-    const baseTime = amount > 0 ? (plan.content_type === "lecture" ? amount * 30 : amount * 2) : 60;
-    return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
+  // calculatePlanEstimatedTime 사용을 위해 ContentDurationMap 생성
+  const contentDurationMap = new Map<string, ContentDurationInfo>();
+  if (content) {
+    contentDurationMap.set(plan.content_id, {
+      content_type: plan.content_type as "book" | "lecture" | "custom",
+      content_id: plan.content_id,
+      total_pages: content.total_pages ?? null,
+      duration: content.duration ?? null,
+      total_page_or_time: content.total_page_or_time ?? null,
+      // ContentData에는 episodes 정보가 없으므로 null
+      episodes: null,
+    });
   }
 
-  return calculateContentDuration(
+  return calculatePlanEstimatedTime(
     {
       content_type: plan.content_type as "book" | "lecture" | "custom",
       content_id: plan.content_id,
-      start_range: plan.planned_start_page_or_time,
-      end_range: plan.planned_end_page_or_time,
+      planned_start_page_or_time: plan.planned_start_page_or_time,
+      planned_end_page_or_time: plan.planned_end_page_or_time,
     },
-    durationInfo,
+    contentDurationMap,
     dayType
   );
 }

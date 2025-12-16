@@ -36,6 +36,9 @@ export type SchedulerSettings = {
   lunch_time?: TimeRange;
   study_hours?: TimeRange;
   self_study_hours?: TimeRange;
+
+  // 복습일 소요시간 비율 (기본값: 0.5 = 50%)
+  review_time_ratio?: number;
 };
 
 /**
@@ -48,6 +51,7 @@ export type PartialSchedulerSettings = Partial<{
   lunch_time: TimeRange;
   study_hours: TimeRange;
   self_study_hours: TimeRange;
+  review_time_ratio: number;
 }>;
 
 /**
@@ -72,6 +76,7 @@ export type TenantSchedulerSettings = {
   default_lunch_time: TimeRange;
   default_study_hours: TimeRange;
   default_self_study_hours?: TimeRange;
+  review_time_ratio?: number; // 복습일 소요시간 비율 (기본값: 0.5 = 50%)
   created_at: string;
   updated_at: string;
 };
