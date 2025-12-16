@@ -84,10 +84,11 @@ const {
 - **이유**: 회차 정보에 실제로 입력된 회차 개수를 정확히 반영
 
 ### Duration 단위 처리
-- **DB 저장**: 초 단위
+- **DB 저장**: 초 단위 (`LectureEpisode.duration`는 초 단위)
 - **UI 표시/입력**: 분 단위
 - **훅 내부**: 분 단위로 통일하여 계산
-- **자동 변환**: 초 단위(1000 이상)를 자동으로 분 단위로 변환
+- **초기값 처리**: `initialEpisodes`는 DB에서 온 데이터이므로 항상 초 단위로 가정하고 `secondsToMinutes`로 변환
+- **onChange 처리**: `LectureEpisodesManager`에서 이미 분 단위로 변환되어 전달되므로 그대로 사용
 
 ### 검증 로직 개선
 - 기존: 수동 FormData 파싱 (각 필드별로 타입 변환)
