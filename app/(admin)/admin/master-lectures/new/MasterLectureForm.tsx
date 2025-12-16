@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
-import { MasterBookSelector } from "../../_components/MasterBookSelector";
+import { MasterBookSelector } from "../_components/MasterBookSelector";
 
 type MasterLectureFormProps = {
   curriculumRevisions: CurriculumRevision[];
