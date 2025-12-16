@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createMasterBookWithoutRedirect } from "@/app/(student)/actions/masterContentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { BookDetail } from "@/lib/types/plan";
@@ -29,6 +29,7 @@ export function MasterBookSelector({
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [bookDetails, setBookDetails] = useState<Omit<BookDetail, "id" | "created_at">[]>([]);
+  const formRef = useRef<HTMLDivElement>(null);
 
   // 메타데이터 로딩 및 관리
   const {
@@ -65,12 +66,39 @@ export function MasterBookSelector({
     onChange(null);
   };
 
-  const handleCreateAndSelect = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreateAndSelect = async () => {
     setIsCreating(true);
 
     try {
-      const formData = new FormData(e.currentTarget);
+      // form 대신 div를 사용하므로, formRef를 통해 FormData 생성
+      if (!formRef.current) {
+        throw new Error("폼을 찾을 수 없습니다.");
+      }
+      
+      // 필수 필드 검증
+      const titleInput = formRef.current.querySelector('input[name="title"]') as HTMLInputElement;
+      if (!titleInput || !titleInput.value.trim()) {
+        showError("교재명은 필수입니다.");
+        setIsCreating(false);
+        return;
+      }
+      
+      // div 내부의 모든 input, select, textarea 요소를 찾아서 FormData 생성
+      const formData = new FormData();
+      const inputs = formRef.current.querySelectorAll("input, select, textarea");
+      inputs.forEach((input) => {
+        const element = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+        if (element.name) {
+          if (element.type === "checkbox" || element.type === "radio") {
+            const checkbox = element as HTMLInputElement;
+            if (checkbox.checked) {
+              formData.append(element.name, element.value);
+            }
+          } else {
+            formData.append(element.name, element.value);
+          }
+        }
+      });
 
       // 메타데이터 추가 (드롭다운에서 선택한 값들을 이름으로 변환)
       populateFormDataWithMetadata(formData);
@@ -124,7 +152,7 @@ export function MasterBookSelector({
             취소
           </button>
         </div>
-        <form onSubmit={handleCreateAndSelect} className="flex flex-col gap-4">
+        <div ref={formRef} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1 md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -289,14 +317,15 @@ export function MasterBookSelector({
               취소
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleCreateAndSelect}
               disabled={isCreating}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
             >
               {isCreating ? "등록 중..." : "등록 및 선택"}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     );
   }
