@@ -40,7 +40,7 @@ type BatchResponse = {
     episodes?: Array<{
       id: string;
       episode_number: number;
-      title: string | null;
+      episode_title: string | null;
       duration?: number | null;
     }>;
     metadata?: {
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         episodes?: Array<{
           id: string;
           episode_number: number;
-          title: string | null;
+          episode_title: string | null;
           duration?: number | null;
         }>;
         total_pages?: number | null;
@@ -337,10 +337,10 @@ export async function POST(request: NextRequest) {
       } else {
         const episodes = lectureEpisodesMap.get(content.contentId) || [];
         response[content.contentId] = {
-          episodes: episodes.map((e: { id: string; episode_number: number; title: string | null; duration: number | null }) => ({
+          episodes: episodes.map((e: { id: string; episode_number: number; episode_title: string | null; duration: number | null }) => ({
             id: e.id,
             episode_number: e.episode_number,
-            title: e.title,
+            episode_title: e.episode_title,
             duration: e.duration ?? null,
           })),
           total_episodes: totalEpisodesMap.get(content.contentId) ?? null,

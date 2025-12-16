@@ -5,7 +5,7 @@ import { deleteLecture } from "@/app/(student)/actions/contentActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
-import { getMasterLectureById } from "@/lib/data/contentMasters";
+import { getMasterLectureById, getLectureEpisodesWithFallback } from "@/lib/data/contentMasters";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -109,51 +109,11 @@ export default async function LectureDetailPage({
     .order("title", { ascending: true });
 
   // 강의 episode 정보 조회 (학생 강의 episode 우선, 없으면 마스터 참조)
-  let lectureEpisodes: Array<{ 
-    id: string; 
-    lecture_id: string; 
-    episode_number: number; 
-    episode_title: string | null;
-    duration: number | null; 
-    display_order: number;
-    created_at: string;
-  }> = [];
-  
-  // 먼저 학생 강의 episode 조회
-  const { data: studentEpisodes } = await supabase
-    .from("student_lecture_episodes")
-    .select("id,episode_number,episode_title,duration,display_order,created_at")
-    .eq("lecture_id", id)
-    .order("display_order", { ascending: true })
-    .order("episode_number", { ascending: true });
-
-  if (studentEpisodes && studentEpisodes.length > 0) {
-    lectureEpisodes = studentEpisodes.map(e => ({
-      id: e.id,
-      lecture_id: lecture.id,
-      episode_number: e.episode_number,
-      episode_title: e.episode_title,
-      duration: e.duration,
-      display_order: e.display_order,
-      created_at: e.created_at || "",
-    }));
-  } else if (lecture.master_lecture_id) {
-    // 학생 강의 episode가 없으면 마스터 참조
-    try {
-      const { episodes } = await getMasterLectureById(lecture.master_lecture_id);
-      lectureEpisodes = episodes.map(e => ({
-        id: e.id,
-        lecture_id: lecture.id,
-        episode_number: e.episode_number,
-        episode_title: e.episode_title,
-        duration: e.duration,
-        display_order: e.display_order,
-        created_at: "",
-      }));
-    } catch (err) {
-      console.error("마스터 강의 episode 정보 조회 실패:", err);
-    }
-  }
+  const lectureEpisodes = await getLectureEpisodesWithFallback(
+    id,
+    lecture.master_lecture_id,
+    user.id
+  );
 
   // 총 회차 자동 계산 (회차 정보 기반)
   const calculatedTotalEpisodes = lectureEpisodes.length > 0

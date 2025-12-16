@@ -105,6 +105,7 @@ export type ContentListItem = {
   id: string;
   title: string;
   master_content_id?: string | null;
+  master_lecture_id?: string | null;
   [key: string]: string | number | boolean | null | undefined;
 };
 

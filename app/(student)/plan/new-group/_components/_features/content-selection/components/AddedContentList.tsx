@@ -1,3 +1,4 @@
+import { isFromMaster } from "@/lib/utils/contentMaster";
 
 type AddedContentListProps = {
   contents: {
@@ -12,6 +13,7 @@ type AddedContentListProps = {
       title: string;
       subtitle?: string | null;
       master_content_id?: string | null;
+      master_lecture_id?: string | null;
     }>;
   };
   studentContents: Array<{
@@ -110,7 +112,7 @@ export function AddedContentList({
                   contentType === "book"
                     ? contents.books.find((b) => b.id === contentId)
                     : contents.lectures.find((l) => l.id === contentId);
-                return foundContent?.master_content_id ? (
+                return foundContent && isFromMaster(foundContent) ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                     📦 마스터에서 가져옴
                   </span>

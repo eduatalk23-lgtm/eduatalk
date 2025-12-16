@@ -296,7 +296,7 @@ async function loadLectureMetadata(
   // 학생 강의 조회
   const { data: lecture } = await queryClient
     .from("lectures")
-    .select("title, subject, subject_category, master_content_id")
+    .select("title, subject, subject_category, master_content_id, master_lecture_id")
     .eq("id", finalContentId)
     .eq("student_id", studentId)
     .maybeSingle();
@@ -310,13 +310,13 @@ async function loadLectureMetadata(
     };
   }
 
-  // 마스터 콘텐츠 ID로 학생 강의 찾기
+  // 마스터 콘텐츠 ID로 학생 강의 찾기 (master_content_id 또는 master_lecture_id로 조회)
   const actualMasterContentId = masterContentId || contentId;
   const { data: lectureByMaster } = await queryClient
     .from("lectures")
     .select("title, subject, subject_category")
     .eq("student_id", studentId)
-    .eq("master_content_id", actualMasterContentId)
+    .or(`master_content_id.eq.${actualMasterContentId},master_lecture_id.eq.${actualMasterContentId}`)
     .maybeSingle();
 
   if (lectureByMaster) {

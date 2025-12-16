@@ -33,7 +33,7 @@ export type Step6SimplifiedProps = {
   onUpdate?: (updates: Partial<WizardData>) => void;
   contents?: {
     books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; master_lecture_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   studentId?: string;
@@ -53,7 +53,7 @@ function SubjectAllocationEditor({
   onUpdate: (updates: Partial<WizardData>) => void;
   contents: {
     books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; master_lecture_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
   };
   editable?: boolean;

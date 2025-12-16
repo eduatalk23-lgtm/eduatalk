@@ -240,7 +240,7 @@ export interface StudentLectureEpisode {
   master_episode_id?: string | null;  // FK to lecture_episodes
   
   episode_number: number;
-  title?: string | null;
+  episode_title: string | null;  // DB 컬럼명과 일치 (student_lecture_episodes.episode_title)
   duration?: number | null;
   display_order: number;
   
@@ -261,7 +261,7 @@ export interface CreateStudentLectureEpisodeRequest {
   master_episode_id?: string;
   
   episode_number: number;
-  title?: string;
+  episode_title?: string | null;  // DB 컬럼명과 일치
   duration?: number;
   display_order: number;
 }

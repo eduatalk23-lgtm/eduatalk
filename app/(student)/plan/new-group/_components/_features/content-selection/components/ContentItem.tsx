@@ -1,5 +1,6 @@
 import { ContentDetailData, ContentMetadata } from "../types";
 import { ContentRangeSelector } from "./ContentRangeSelector";
+import { isFromMaster } from "@/lib/utils/contentMaster";
 
 type ContentItemProps = {
   item: {
@@ -7,6 +8,7 @@ type ContentItemProps = {
     title: string;
     subtitle?: string | null;
     master_content_id?: string | null;
+    master_lecture_id?: string | null;
   };
   contentType: "book" | "lecture";
   isSelected: boolean;
@@ -70,7 +72,7 @@ export function ContentItem({
               >
                 {contentType === "book" ? "📚 교재" : "🎧 강의"}
               </span>
-              {item.master_content_id && (
+              {isFromMaster(item) && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800">
                   📦 마스터에서 가져옴
                 </span>

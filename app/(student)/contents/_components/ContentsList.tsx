@@ -28,6 +28,8 @@ export type ContentListItem = {
   content_type?: string | null | undefined;
   total_page_or_time?: number | null | undefined;
   linked_book_id?: string | null | undefined;
+  master_content_id?: string | null | undefined; // 교재용
+  master_lecture_id?: string | null | undefined; // 강의용
   linkedBook?: { id: string; title: string } | null;
   // 알 수 없는 필드가 있을 경우를 위한 fallback
 } & Record<string, any>;
@@ -303,7 +305,7 @@ async function fetchContentsByTab(
         let query = supabase
           .from("lectures")
           .select(
-            "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,linked_book_id,master_content_id,curriculum_revision_id,subject_group_id,subject_id,platform_id,created_at"
+            "id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,total_episodes,linked_book_id,master_content_id,master_lecture_id,curriculum_revision_id,subject_group_id,subject_id,platform_id,created_at"
           );
 
         // 필터 적용

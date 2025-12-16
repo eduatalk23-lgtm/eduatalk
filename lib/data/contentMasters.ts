@@ -841,7 +841,7 @@ export async function copyMasterLectureToStudent(
     const studentEpisodes = episodes.map((episode) => ({
       lecture_id: studentLecture.id,
       episode_number: episode.episode_number,
-      title: episode.title, // 변경: episode_title → title
+      episode_title: episode.episode_title, // DB 컬럼명과 일치
       duration: episode.duration,
       display_order: episode.display_order,
     }));
@@ -2088,24 +2088,31 @@ export async function getStudentBookDetails(
 
 /**
  * 학생 강의의 episode 정보 조회 (student_lecture_episodes)
+ * @param lectureId 강의 ID
+ * @param studentId 학생 ID
+ * @returns Episode 정보 배열 (episode_title 필드 사용)
  */
 export async function getStudentLectureEpisodes(
   lectureId: string,
   studentId: string
 ): Promise<
-  Array<{ id: string; episode_number: number; title: string | null }>
+  Array<{ id: string; episode_number: number; episode_title: string | null }>
 > {
-  // 변경: episode_title → title
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")
-    .select("id, episode_number, title") // 변경: episode_title → title
+    .select("id, episode_number, episode_title")
     .eq("lecture_id", lectureId)
     .order("episode_number", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMasters] 학생 강의 episode 조회 실패", error);
+    console.error("[data/contentMasters] 학생 강의 episode 조회 실패", {
+      lectureId,
+      studentId,
+      error: error.message,
+      code: error.code,
+    });
     return [];
   }
 
@@ -2113,9 +2120,9 @@ export async function getStudentLectureEpisodes(
     (data as Array<{
       id: string;
       episode_number: number;
-      title: string | null;
+      episode_title: string | null;
     }> | null) ?? []
-  ); // 변경: episode_title → title
+  );
 }
 
 /**
@@ -2250,7 +2257,7 @@ export async function getStudentLectureEpisodesBatch(
     Array<{
       id: string;
       episode_number: number;
-      title: string | null;
+      episode_title: string | null;
       duration: number | null;
     }>
   >
@@ -2266,7 +2273,7 @@ export async function getStudentLectureEpisodesBatch(
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")
-    .select("id, lecture_id, episode_number, title, duration")
+    .select("id, lecture_id, episode_number, episode_title, duration")
     .in("lecture_id", lectureIds)
     .order("lecture_id", { ascending: true })
     .order("episode_number", { ascending: true });
@@ -2274,10 +2281,12 @@ export async function getStudentLectureEpisodesBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error(
-      "[data/contentMasters] 학생 강의 episode 배치 조회 실패",
-      error
-    );
+    console.error("[data/contentMasters] 학생 강의 episode 배치 조회 실패", {
+      lectureIds,
+      studentId,
+      error: error.message,
+      code: error.code,
+    });
     return new Map();
   }
 
@@ -2287,7 +2296,7 @@ export async function getStudentLectureEpisodesBatch(
     Array<{
       id: string;
       episode_number: number;
-      title: string | null;
+      episode_title: string | null;
       duration: number | null;
     }>
   >();
@@ -2297,7 +2306,7 @@ export async function getStudentLectureEpisodesBatch(
       id: string;
       lecture_id: string;
       episode_number: number;
-      title: string | null;
+      episode_title: string | null;
       duration: number | null;
     }) => {
       if (!resultMap.has(episode.lecture_id)) {
@@ -2306,7 +2315,7 @@ export async function getStudentLectureEpisodesBatch(
       resultMap.get(episode.lecture_id)!.push({
         id: episode.id,
         episode_number: episode.episode_number,
-        title: episode.title,
+        episode_title: episode.episode_title,
         duration: episode.duration,
       });
     }
@@ -2351,4 +2360,91 @@ export async function getStudentLectureEpisodesBatch(
   }
 
   return resultMap;
+}
+
+/**
+ * 통합 Episode 조회 함수
+ * 학생 강의 episode를 우선 조회하고, 없으면 마스터 강의 episode를 사용합니다.
+ *
+ * @param lectureId 학생 강의 ID
+ * @param masterLectureId 마스터 강의 ID (선택사항, fallback용)
+ * @param studentId 학생 ID (선택사항, 현재는 사용하지 않지만 향후 확장 가능)
+ * @returns Episode 정보 배열 (episode_title 필드 사용)
+ */
+export async function getLectureEpisodesWithFallback(
+  lectureId: string,
+  masterLectureId: string | null | undefined,
+  studentId?: string
+): Promise<
+  Array<{
+    id: string;
+    lecture_id: string;
+    episode_number: number;
+    episode_title: string | null;
+    duration: number | null;
+    display_order: number;
+    created_at: string;
+  }>
+> {
+  const supabase = await createSupabaseServerClient();
+
+  // 먼저 학생 강의 episode 조회
+  const { data: studentEpisodes, error: studentError } = await supabase
+    .from("student_lecture_episodes")
+    .select(
+      "id, episode_number, episode_title, duration, display_order, created_at"
+    )
+    .eq("lecture_id", lectureId)
+    .order("display_order", { ascending: true })
+    .order("episode_number", { ascending: true });
+
+  if (studentError) {
+    console.error("[data/contentMasters] 학생 강의 episode 조회 실패", {
+      lectureId,
+      masterLectureId,
+      error: studentError.message,
+      code: studentError.code,
+    });
+  }
+
+  // 학생 강의 episode가 있으면 반환
+  if (studentEpisodes && studentEpisodes.length > 0) {
+    return studentEpisodes.map((e) => ({
+      id: e.id,
+      lecture_id: lectureId,
+      episode_number: e.episode_number,
+      episode_title: e.episode_title,
+      duration: e.duration,
+      display_order: e.display_order,
+      created_at: e.created_at || "",
+    }));
+  }
+
+  // 학생 강의 episode가 없고 마스터 강의 ID가 있으면 마스터에서 조회
+  if (masterLectureId) {
+    try {
+      const { episodes } = await getMasterLectureById(masterLectureId);
+      return episodes.map((e) => ({
+        id: e.id,
+        lecture_id: lectureId,
+        episode_number: e.episode_number,
+        episode_title: e.episode_title,
+        duration: e.duration,
+        display_order: e.display_order,
+        created_at: e.created_at || "",
+      }));
+    } catch (err) {
+      console.error(
+        "[data/contentMasters] 마스터 강의 episode 정보 조회 실패",
+        {
+          lectureId,
+          masterLectureId,
+          error: err instanceof Error ? err.message : String(err),
+        }
+      );
+    }
+  }
+
+  // 둘 다 없으면 빈 배열 반환
+  return [];
 }

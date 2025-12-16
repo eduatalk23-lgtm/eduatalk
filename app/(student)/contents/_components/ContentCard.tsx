@@ -3,6 +3,7 @@
 import { useState, Fragment, memo } from "react";
 import Link from "next/link";
 import { DeleteContentButton } from "./DeleteContentButton";
+import { isFromMaster } from "@/lib/utils/contentMaster";
 
 type TabKey = "books" | "lectures" | "custom";
 
@@ -11,6 +12,7 @@ type ContentCardProps = {
     id: string;
     title: string;
     master_content_id?: string | null;
+    master_lecture_id?: string | null;
     [key: string]: string | number | boolean | null | undefined;
   };
   activeTab: TabKey;
@@ -57,7 +59,7 @@ function ContentCardComponent({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{item.title}</p>
-              {item.master_content_id && (
+              {isFromMaster(item) && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                   📦 마스터에서 가져옴
                 </span>
@@ -138,6 +140,8 @@ export const ContentCard = memo(ContentCardComponent, (prevProps, nextProps) => 
     prevProps.isSelected === nextProps.isSelected &&
     prevProps.subText === nextProps.subText &&
     prevProps.linkedBook?.id === nextProps.linkedBook?.id &&
+    prevProps.item.master_content_id === nextProps.item.master_content_id &&
+    prevProps.item.master_lecture_id === nextProps.item.master_lecture_id &&
     // detailRows 배열 길이와 주요 값 비교
     prevProps.detailRows.length === nextProps.detailRows.length &&
     prevProps.detailRows.every((row, idx) => 
