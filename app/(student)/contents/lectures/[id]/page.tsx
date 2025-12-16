@@ -5,7 +5,7 @@ import { deleteLecture } from "@/app/(student)/actions/contentActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
-import { getMasterLectureById, getLectureEpisodesWithFallback } from "@/lib/data/contentMasters";
+import { getMasterLectureById, getLectureEpisodesWithFallback, getMasterBookById } from "@/lib/data/contentMasters";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -90,7 +90,8 @@ export default async function LectureDetailPage({
   }
 
   // 연결된 교재 조회 (있는 경우)
-  let linkedBook = null;
+  // 1. 학생 강의에 직접 연결된 교재 조회
+  let linkedBook: { id: string; title: string; isMaster?: boolean } | null = null;
   if (lecture.linked_book_id) {
     const { data: book } = await supabase
       .from("books")
@@ -98,7 +99,27 @@ export default async function LectureDetailPage({
       .eq("id", lecture.linked_book_id)
       .eq("student_id", user.id)
       .maybeSingle();
-    linkedBook = book;
+    if (book) {
+      linkedBook = book;
+    }
+  }
+
+  // 2. 학생 강의에 연결된 교재가 없고, 마스터 강의에 연결된 교재가 있는 경우
+  //    마스터 강의의 교재 정보를 참조하여 표시
+  if (!linkedBook && masterLecture?.linked_book_id) {
+    try {
+      const { book: masterBook } = await getMasterBookById(masterLecture.linked_book_id);
+      if (masterBook) {
+        // 마스터 교재 정보를 표시용으로 사용 (실제 연결은 아님)
+        linkedBook = {
+          id: masterBook.id,
+          title: masterBook.title,
+          isMaster: true, // 마스터 교재임을 표시
+        };
+      }
+    } catch (err) {
+      console.error("마스터 교재 정보 조회 실패:", err);
+    }
   }
 
   // 학생의 교재 목록 조회 (연결된 교재 선택용)

@@ -860,6 +860,41 @@ export async function copyMasterLectureToStudent(
     }
   }
 
+  // 마스터 강의에 연결된 교재가 있으면 복사하고 연결
+  if (lecture.linked_book_id) {
+    try {
+      // 마스터 교재를 학생 교재로 복사
+      const { bookId: studentBookId } = await copyMasterBookToStudent(
+        lecture.linked_book_id,
+        studentId,
+        tenantId
+      );
+
+      // 학생 강의의 linked_book_id 업데이트
+      const { error: updateError } = await supabase
+        .from("lectures")
+        .update({ linked_book_id: studentBookId })
+        .eq("id", studentLecture.id);
+
+      if (updateError) {
+        console.error("[data/contentMasters] 강의 교재 연결 실패", {
+          lectureId: studentLecture.id,
+          bookId: studentBookId,
+          error: updateError.message,
+          code: updateError.code,
+        });
+        // 교재 연결 실패해도 강의는 복사됨
+      }
+    } catch (error) {
+      console.error("[data/contentMasters] 마스터 교재 복사 및 연결 실패", {
+        masterBookId: lecture.linked_book_id,
+        lectureId: studentLecture.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // 교재 복사 실패해도 강의는 복사됨
+    }
+  }
+
   return { lectureId: studentLecture.id };
 }
 

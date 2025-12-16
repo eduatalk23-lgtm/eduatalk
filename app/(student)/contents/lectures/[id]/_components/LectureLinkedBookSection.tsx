@@ -9,7 +9,7 @@ import { BookDetail } from "@/lib/types/plan";
 
 type LectureLinkedBookSectionProps = {
   lectureId: string;
-  linkedBook: { id: string; title: string } | null;
+  linkedBook: { id: string; title: string; isMaster?: boolean } | null;
   studentBooks: Array<{ id: string; title: string }>;
 };
 
@@ -334,22 +334,36 @@ export function LectureLinkedBookSection({
       {linkedBook ? (
         <div className="rounded-lg border border-gray-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{linkedBook.title}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-semibold text-gray-900">{linkedBook.title}</p>
+                {linkedBook.isMaster && (
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                    마스터 교재
+                  </span>
+                )}
+              </div>
               <Link
-                href={`/contents/books/${linkedBook.id}`}
+                href={linkedBook.isMaster ? `/contents/master-books/${linkedBook.id}` : `/contents/books/${linkedBook.id}`}
                 className="text-sm text-indigo-600 hover:underline"
               >
                 교재 상세보기 →
               </Link>
+              {linkedBook.isMaster && (
+                <p className="mt-2 text-sm text-gray-500">
+                  이 교재는 마스터 서비스에서 가져온 강의에 연결된 교재입니다. 학생 교재로 복사하려면 아래 버튼을 사용하세요.
+                </p>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={handleUnlinkBook}
-              className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-            >
-              연결 해제
-            </button>
+            {!linkedBook.isMaster && (
+              <button
+                type="button"
+                onClick={handleUnlinkBook}
+                className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              >
+                연결 해제
+              </button>
+            )}
           </div>
         </div>
       ) : (

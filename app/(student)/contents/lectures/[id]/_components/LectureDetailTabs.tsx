@@ -11,7 +11,7 @@ import { MasterLecture } from "@/lib/types/plan";
 type LectureDetailTabsProps = {
   lecture: Lecture & { linked_book_id?: string | null; total_episodes?: number | null };
   deleteAction: () => void;
-  linkedBook: { id: string; title: string } | null;
+  linkedBook: { id: string; title: string; isMaster?: boolean } | null;
   studentBooks: Array<{ id: string; title: string }>;
   initialEpisodes: Array<{
     id: string;
