@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterCustomContentById, deleteMasterCustomContent } from "@/lib/data/contentMasters";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
+import { ContentDetailLayout } from "@/app/(student)/contents/_components/ContentDetailLayout";
 import { ContentActionButtons } from "@/app/(student)/contents/_components/ContentActionButtons";
 
 export default async function MasterCustomContentDetailPage({
@@ -28,15 +27,17 @@ export default async function MasterCustomContentDetailPage({
   };
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-10">
-      <div className="rounded-2xl border bg-white p-8 shadow-sm">
+    <ContentDetailLayout
+      header={
         <ContentHeader
           title={content.title}
           subtitle={content.content_type || ""}
           icon="📝 커스텀 콘텐츠"
+          contentType="custom"
           createdAt={content.created_at}
         />
-
+      }
+      detailTable={
         <ContentDetailTable
           rows={[
             { label: "개정교육과정", value: content.revision },
@@ -57,19 +58,17 @@ export default async function MasterCustomContentDetailPage({
             { label: "메모", value: content.notes },
           ]}
         />
-
-        {/* 액션 버튼 (관리자/컨설턴트만 표시) */}
-        {(role === "admin" || role === "consultant") && (
-          <div className="flex flex-col gap-4 border-t pt-8">
-            <ContentActionButtons
-              editHref={`/admin/master-custom-contents/${content.id}/edit`}
-              deleteAction={deleteAction}
-              listHref="/admin/master-custom-contents"
-            />
-          </div>
-        )}
-      </div>
-    </section>
+      }
+      actions={
+        (role === "admin" || role === "consultant") ? (
+          <ContentActionButtons
+            editHref={`/admin/master-custom-contents/${content.id}/edit`}
+            deleteAction={deleteAction}
+            listHref="/admin/master-custom-contents"
+          />
+        ) : null
+      }
+    />
   );
 }
 

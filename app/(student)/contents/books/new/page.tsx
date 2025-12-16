@@ -14,7 +14,8 @@ import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getContainerClass } from "@/lib/constants/layout";
+import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
+import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
 
 export default function NewBookPage() {
   const [isPending, startTransition] = useTransition();
@@ -136,11 +137,10 @@ export default function NewBookPage() {
   }
 
   return (
-    <section className={`${getContainerClass("FORM", "lg")} flex flex-col gap-6`}>
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">📚 책 등록하기</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">새로운 교재를 등록하세요.</p>
-      </div>
+    <ContentFormLayout
+      title="📚 책 등록하기"
+      description="새로운 교재를 등록하세요."
+    >
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 md:p-8 shadow-sm">
         <div className="grid gap-4 md:grid-cols-2">
@@ -277,22 +277,12 @@ export default function NewBookPage() {
         <BookDetailsManager />
 
         {/* 버튼 */}
-        <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-600 dark:hover:bg-indigo-700"
-          >
-            {isPending ? "등록 중..." : "등록하기"}
-          </button>
-          <Link
-            href="/contents"
-            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-600"
-          >
-            취소
-          </Link>
-        </div>
+        <ContentFormActions
+          submitLabel="등록하기"
+          cancelHref="/contents"
+          isPending={isPending}
+        />
       </form>
-    </section>
+    </ContentFormLayout>
   );
 }

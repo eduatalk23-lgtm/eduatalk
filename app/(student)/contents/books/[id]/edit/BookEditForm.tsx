@@ -2,11 +2,11 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { updateBook } from "@/app/(student)/actions/contentActions";
 import { Book } from "@/app/types/content";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
 
 export function BookEditForm({ book }: { book: Book }) {
   const [isPending, startTransition] = useTransition();
@@ -132,21 +132,11 @@ export function BookEditForm({ book }: { book: Book }) {
       </div>
 
       {/* 버튼 */}
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-600 dark:hover:bg-indigo-700"
-        >
-          {isPending ? "수정 중..." : "변경사항 저장"}
-        </button>
-        <Link
-          href={`/contents/books/${book.id}`}
-          className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-600"
-        >
-          취소
-        </Link>
-      </div>
+      <ContentFormActions
+        submitLabel="변경사항 저장"
+        cancelHref={`/contents/books/${book.id}`}
+        isPending={isPending}
+      />
     </form>
   );
 }

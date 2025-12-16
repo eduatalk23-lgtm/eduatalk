@@ -4,8 +4,8 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterCustomContentById } from "@/lib/data/contentMasters";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";
+import { ContentDetailLayout } from "@/app/(student)/contents/_components/ContentDetailLayout";
 import { CopyMasterCustomContentButton } from "./_components/CopyMasterCustomContentButton";
-import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function StudentMasterCustomContentDetailPage({
   params,
@@ -25,15 +25,17 @@ export default async function StudentMasterCustomContentDetailPage({
   if (!content) notFound();
 
   return (
-    <section className={`${getContainerClass("CONTENT_DETAIL", "lg")} flex flex-col gap-8`}>
-      <div className="rounded-2xl border bg-white p-8 shadow-sm">
+    <ContentDetailLayout
+      header={
         <ContentHeader
           title={content.title}
           subtitle={content.content_type || ""}
           icon="📝 커스텀 콘텐츠"
+          contentType="custom"
           createdAt={content.created_at}
         />
-
+      }
+      detailTable={
         <ContentDetailTable
           rows={[
             { label: "개정교육과정", value: content.revision },
@@ -53,21 +55,19 @@ export default async function StudentMasterCustomContentDetailPage({
             { label: "메모", value: content.notes },
           ]}
         />
-
-        {/* 액션 버튼 */}
-        <div className="flex flex-col gap-4 border-t pt-8">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/contents/master-custom-contents"
-              className="inline-flex flex-1 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              목록으로
-            </Link>
-            <CopyMasterCustomContentButton masterContentId={id} />
-          </div>
+      }
+      actions={
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/contents/master-custom-contents"
+            className="inline-flex flex-1 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-600"
+          >
+            목록으로
+          </Link>
+          <CopyMasterCustomContentButton masterContentId={id} />
         </div>
-      </div>
-    </section>
+      }
+    />
   );
 }
 
