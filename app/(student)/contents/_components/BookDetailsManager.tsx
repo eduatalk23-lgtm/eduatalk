@@ -13,6 +13,7 @@ type DetailItem = Omit<BookDetail, "id" | "created_at"> & { tempId?: string };
 type GroupedDetails = {
   majorUnit: string;
   items: DetailItem[];
+  groupId: string; // 고유 ID (첫 번째 항목의 tempId 또는 display_order 기반)
 };
 
 export function BookDetailsManager({
@@ -44,17 +45,23 @@ export function BookDetailsManager({
 
     // display_order로 정렬
     const sortedGroups: GroupedDetails[] = Array.from(groups.entries())
-      .map(([majorUnit, items]) => ({
-        majorUnit,
-        items: items.sort((a, b) => {
+      .map(([majorUnit, items]) => {
+        const sortedItems = items.sort((a, b) => {
           // 같은 대단원 내에서는 display_order로 정렬
           if (a.display_order !== b.display_order) {
             return a.display_order - b.display_order;
           }
           // display_order가 같으면 페이지 번호로 정렬
           return (a.page_number || 0) - (b.page_number || 0);
-        }),
-      }))
+        });
+        // 그룹 고유 ID 생성 (첫 번째 항목의 tempId 또는 display_order 기반)
+        const groupId = sortedItems[0]?.tempId || `group-${sortedItems[0]?.display_order ?? 0}-${majorUnit}`;
+        return {
+          majorUnit,
+          items: sortedItems,
+          groupId,
+        };
+      })
       .sort((a, b) => {
         // 대단원 간 정렬은 첫 번째 항목의 display_order로
         const aOrder = a.items[0]?.display_order || 0;
@@ -199,7 +206,7 @@ export function BookDetailsManager({
 
             return (
               <div
-                key={group.majorUnit}
+                key={group.groupId}
                 className="rounded-md border border-gray-200 bg-white overflow-hidden"
               >
                 {/* 대단원 헤더 */}
@@ -216,6 +223,7 @@ export function BookDetailsManager({
                   </button>
                   <input
                     type="text"
+                    key={`input-${group.groupId}`}
                     value={group.majorUnit === "(대단원 없음)" ? "" : group.majorUnit}
                     onChange={(e) => {
                       const newName = e.target.value || "(대단원 없음)";
@@ -224,6 +232,7 @@ export function BookDetailsManager({
                     onFocus={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                     placeholder="대단원명을 입력하세요"
                     className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                   />
