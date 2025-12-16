@@ -25,6 +25,7 @@ import type {
 } from "@/lib/types/plan-generation";
 import type { ScheduledPlan } from "@/lib/plan/scheduler";
 import type { PlanGroup } from "@/lib/types/plan";
+import { timeToMinutes as timeToMinutesUtil, minutesToTime as minutesToTimeUtil } from "@/lib/utils/time";
 
 // ============================================
 // 타입 정의
@@ -68,19 +69,18 @@ export type DateProcessingContext = {
 
 /**
  * 시간 문자열을 분으로 변환
+ * @deprecated 공통 함수 사용 권장: import { timeToMinutes } from "@/lib/utils/time"
  */
 export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
+  return timeToMinutesUtil(time);
 }
 
 /**
  * 분을 시간 문자열로 변환
+ * @deprecated 공통 함수 사용 권장: import { minutesToTime } from "@/lib/utils/time"
  */
 export function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+  return minutesToTimeUtil(minutes);
 }
 
 /**

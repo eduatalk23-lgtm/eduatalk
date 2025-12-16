@@ -17,6 +17,7 @@ import {
   NonStudyTimeBlock,
 } from "@/lib/types/plan";
 import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 
 export type DayType = "study" | "review" | "exclusion";
 
@@ -618,15 +619,4 @@ function formatDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-}
-
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }

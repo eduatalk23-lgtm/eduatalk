@@ -34,8 +34,10 @@
 - `lib/blocks/statistics.ts`
 - `lib/blocks/validation.ts`
 - `lib/validation/scheduleValidator.ts`
+- `lib/plan/1730TimetableLogic.ts` (추가 수정)
+- `lib/plan/scheduleProcessor.ts` (re-export로 유지, 내부 구현은 공통 함수 사용)
 
-**결과**: 17개 파일에서 중복된 시간 변환 함수를 제거하고 공통 함수로 통합
+**결과**: 19개 파일에서 중복된 시간 변환 함수를 제거하고 공통 함수로 통합
 
 ### 2. ContentDurationInfo 타입 확장 ✅
 
