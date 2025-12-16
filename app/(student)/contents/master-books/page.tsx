@@ -5,6 +5,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterBooks, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
@@ -18,91 +19,26 @@ import { inlineButtonBase } from "@/lib/utils/darkMode";
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterBookFilters) {
   // 안정적인 캐시 키 생성
-      const cacheKey = [
-        "master-books-search",
-        filters.curriculum_revision_id || "",
-        filters.subject_group_id || "",
-        filters.subject_id || "",
-        filters.publisher_id || "",
-        filters.search || "",
-        filters.difficulty || "",
-        filters.sort || "",
-        filters.limit || 50,
-      ].join("-");
-  
+  const cacheKey = [
+    "master-books-search",
+    filters.curriculum_revision_id || "",
+    filters.subject_group_id || "",
+    filters.subject_id || "",
+    filters.publisher_id || "",
+    filters.search || "",
+    filters.difficulty || "",
+    filters.sort || "",
+    filters.tenantId || "", // tenantId를 캐시 키에 포함
+    filters.limit || 50,
+  ].join("-");
+
   const getCached = unstable_cache(
     async (filters: MasterBookFilters) => {
-      // 캐시 함수 내부에서 공개 데이터용 Supabase 클라이언트 생성 (쿠키 없이)
-      // master_books는 공개 데이터이므로 인증이 필요 없음
+      // 공개 데이터용 Supabase 클라이언트 생성 (쿠키 없이)
       const supabase = createSupabasePublicClient();
-      
-      let query = supabase
-        .from("master_books")
-        .select("*", { count: "exact" });
 
-      // 필터 적용
-      if (filters.curriculum_revision_id) {
-        query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
-      }
-      if (filters.subject_group_id) {
-        query = query.eq("subject_group_id", filters.subject_group_id);
-      }
-      if (filters.subject_id) {
-        query = query.eq("subject_id", filters.subject_id);
-      }
-      if (filters.publisher_id) {
-        query = query.eq("publisher_id", filters.publisher_id);
-      }
-      if (filters.search) {
-        query = query.ilike("title", `%${filters.search}%`);
-      }
-      if (filters.difficulty) {
-        query = query.eq("difficulty_level", filters.difficulty);
-      }
-      if (filters.tenantId) {
-        query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
-      } else {
-        query = query.is("tenant_id", null);
-      }
-
-      // 정렬
-      const sortBy = filters.sort || "updated_at_desc";
-      if (sortBy === "title_asc") {
-        query = query.order("title", { ascending: true });
-      } else if (sortBy === "title_desc") {
-        query = query.order("title", { ascending: false });
-      } else if (sortBy === "difficulty_level_asc") {
-        query = query.order("difficulty_level", { ascending: true });
-      } else if (sortBy === "difficulty_level_desc") {
-        query = query.order("difficulty_level", { ascending: false });
-      } else if (sortBy === "created_at_asc") {
-        query = query.order("created_at", { ascending: true });
-      } else if (sortBy === "created_at_desc") {
-        query = query.order("created_at", { ascending: false });
-      } else {
-        // 기본값: updated_at_desc
-        query = query.order("updated_at", { ascending: false });
-      }
-
-      // 페이지네이션
-      if (filters.limit) {
-        query = query.limit(filters.limit);
-      }
-      if (filters.offset) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
-      }
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error("[master-books] 검색 실패", error);
-        throw new Error(error.message || "교재 검색에 실패했습니다.");
-      }
-
-      return {
-        data: (data || []) as any[],
-        total: count ?? 0,
-      };
+      // 표준 함수 사용
+      return await searchMasterBooks(filters, supabase);
     },
     [cacheKey],
     {
@@ -160,6 +96,10 @@ export default async function StudentMasterBooksPage({
 
   if (!userId) redirect("/login");
 
+  // 테넌트 ID 가져오기 (공개 콘텐츠 + 자신의 테넌트 콘텐츠)
+  const tenantContext = await getTenantContext();
+  const tenantId = tenantContext?.tenantId || undefined;
+
   // 검색 필터 구성
   const filters: MasterBookFilters = {
     curriculum_revision_id: params.curriculum_revision_id,
@@ -169,6 +109,7 @@ export default async function StudentMasterBooksPage({
     search: params.search,
     difficulty: params.difficulty,
     sort: params.sort || "updated_at_desc",
+    tenantId, // 테넌트 ID 추가
     limit: 50,
   };
 
@@ -192,15 +133,6 @@ export default async function StudentMasterBooksPage({
     difficulties,
   };
 
-  console.log("[student/master-books] 개정교육과정 조회 결과:", {
-    count: curriculumRevisions.length,
-    revisions: curriculumRevisions.map((r) => ({ id: r.id, name: r.name })),
-  });
-
-  console.log("[student/master-books] 개정교육과정 조회 결과:", {
-    count: curriculumRevisions.length,
-    revisions: curriculumRevisions.map((r) => ({ id: r.id, name: r.name })),
-  });
 
   return (
     <section className={getContainerClass("LIST", "lg")}>

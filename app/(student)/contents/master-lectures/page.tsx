@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
@@ -17,32 +18,26 @@ import { inlineButtonBase } from "@/lib/utils/darkMode";
 // 검색 결과 조회 함수 (캐싱 적용)
 async function getCachedSearchResults(filters: MasterLectureFilters) {
   // 안정적인 캐시 키 생성
-      const cacheKey = [
-        "master-lectures-search",
-        filters.curriculum_revision_id || "",
-        filters.subject_group_id || "",
-        filters.subject_id || "",
-        filters.platform_id || "",
-        filters.search || "",
-        filters.difficulty || "",
-        filters.sort || "",
-        filters.limit || 50,
-      ].join("-");
-  
+  const cacheKey = [
+    "master-lectures-search",
+    filters.curriculum_revision_id || "",
+    filters.subject_group_id || "",
+    filters.subject_id || "",
+    filters.platform_id || "",
+    filters.search || "",
+    filters.difficulty || "",
+    filters.sort || "",
+    filters.tenantId || "", // tenantId를 캐시 키에 포함
+    filters.limit || 50,
+  ].join("-");
+
   const getCached = unstable_cache(
     async (filters: MasterLectureFilters) => {
       // 공개 데이터용 Supabase 클라이언트 생성 (쿠키 없이)
-      // 학생은 공개 콘텐츠(tenant_id IS NULL)만 조회 가능
       const supabase = createSupabasePublicClient();
-      
-      // tenantId를 명시적으로 undefined로 설정하여 공개 콘텐츠만 조회
-      const searchFilters: MasterLectureFilters = {
-        ...filters,
-        tenantId: undefined, // 공개 콘텐츠만 조회
-      };
 
-      // 표준 함수 사용
-      return await searchMasterLectures(searchFilters, supabase);
+      // tenantId를 그대로 전달 (공개 콘텐츠 + 자신의 테넌트 콘텐츠)
+      return await searchMasterLectures(filters, supabase);
     },
     [cacheKey],
     {
@@ -100,6 +95,10 @@ export default async function StudentMasterLecturesPage({
 
   if (!userId) redirect("/login");
 
+  // 테넌트 ID 가져오기 (공개 콘텐츠 + 자신의 테넌트 콘텐츠)
+  const tenantContext = await getTenantContext();
+  const tenantId = tenantContext?.tenantId || undefined;
+
   // 검색 필터 구성
   const filters: MasterLectureFilters = {
     curriculum_revision_id: params.curriculum_revision_id,
@@ -109,6 +108,7 @@ export default async function StudentMasterLecturesPage({
     search: params.search,
     difficulty: params.difficulty,
     sort: params.sort || "updated_at_desc",
+    tenantId, // 테넌트 ID 추가
     limit: 50,
   };
 
