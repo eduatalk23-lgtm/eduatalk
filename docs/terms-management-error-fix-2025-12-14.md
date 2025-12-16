@@ -155,3 +155,4 @@ ORDER BY content_type, version;
 - `update_terms_contents_updated_at()` 함수에 `SECURITY DEFINER` 및 `SET search_path` 추가
 - Supabase 보안 권고사항 준수
 
+

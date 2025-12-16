@@ -1,15 +1,9 @@
-
 import { useCallback } from "react";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
-import {
-  toPlanGroupError,
-  PlanGroupErrorCodes,
-} from "@/lib/errors/planGroupErrors";
 import { usePlanValidator } from "./usePlanValidator";
 import { usePlanDraft } from "./usePlanDraft";
 import { usePlanGenerator } from "./usePlanGenerator";
 import { useWizardNavigation } from "./useWizardNavigation";
-import { shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration } from "../utils/modeUtils";
 
 type UsePlanSubmissionProps = {
   wizardData: WizardData;
@@ -19,7 +13,10 @@ type UsePlanSubmissionProps = {
   setCurrentStep: (step: WizardStep) => void;
   setValidationErrors: (errors: string[]) => void;
   campInvitationId?: string;
-  initialData?: any;
+  initialData?: {
+    templateId?: string;
+    groupId?: string;
+  };
   onSaveRequest?: (saveFn: () => Promise<void>) => void;
   mode: {
     isCampMode: boolean;
@@ -42,7 +39,7 @@ export function usePlanSubmission({
   mode,
 }: UsePlanSubmissionProps) {
   // 분리된 훅들 사용
-  const { validateStep, validatePeriod } = usePlanValidator({
+  const { validatePeriod } = usePlanValidator({
     wizardData,
     currentStep,
     isTemplateMode: mode.isTemplateMode,
@@ -62,7 +59,6 @@ export function usePlanSubmission({
   const { generatePlans, createOrUpdatePlanGroup, isGenerating } = usePlanGenerator({
     wizardData,
     draftGroupId,
-    setDraftGroupId,
     setValidationErrors,
     isCampMode: mode.isCampMode,
     campInvitationId,
@@ -100,45 +96,48 @@ export function usePlanSubmission({
       setValidationErrors([]);
 
       try {
-        // 0. 기간 검증
+        // 0. 기간 검증 (동기, 빠름)
         const periodValidation = validatePeriod();
         if (!periodValidation.isValid && periodValidation.error) {
           setValidationErrors([periodValidation.error]);
           return;
         }
 
+        // 낙관적 UI 업데이트: Step 전환이 필요한 경우 먼저 UI 전환 후 백그라운드 저장
+        const needsOptimisticUpdate =
+          (currentStep === 4 && !generatePlansFlag) ||
+          currentStep === 5 ||
+          (currentStep === 6 && !generatePlansFlag);
+
+        if (needsOptimisticUpdate) {
+          // 1. 먼저 다음 단계로 UI 전환 (즉각적인 반응)
+          const nextStep: WizardStep = currentStep === 4 ? 5 : currentStep === 5 ? 6 : 7;
+          goToStep(nextStep);
+
+          // 2. 백그라운드에서 저장 (에러 시 토스트로 알림)
+          createOrUpdatePlanGroup()
+            .then((finalGroupId) => {
+              setDraftGroupId(finalGroupId);
+            })
+            .catch((error) => {
+              console.error("[usePlanSubmission] Background save failed", error);
+              // 에러는 createOrUpdatePlanGroup 내부에서 토스트로 표시됨
+            });
+          return;
+        }
+
+        // 플랜 생성이 필요한 경우: 기존 동기 방식 유지
         // 1. Create or Update Plan Group
         const finalGroupId = await createOrUpdatePlanGroup();
         setDraftGroupId(finalGroupId);
 
-        // 2. Handle Step Transitions (Create drafts only)
-        if (currentStep === 4 && !generatePlansFlag) {
-          // Step 4 -> 5
-          goToStep(5);
-          return;
-        }
-        if (currentStep === 5) {
-          // Step 5 -> 6
-          goToStep(6);
-          return;
-        }
-        if (currentStep === 6 && !generatePlansFlag) {
-          // Step 6 -> 7 (플랜 생성 없이)
-          goToStep(7);
-          return;
-        }
-
-        // 3. Plan Generation (Generate Real Plans)
+        // 2. Plan Generation (Generate Real Plans)
         if (generatePlansFlag) {
           await generatePlans(finalGroupId);
-          // generatePlans 내부에서 리다이렉트 처리됨
+          // 플랜 생성 후 Step 7로 이동 (리다이렉트는 Step 7 완료 버튼에서 처리)
+          goToStep(7);
         } else {
-          // 플랜 생성 없이 다음 단계로 이동
-          if (currentStep === 6) {
-            goToStep(7);
-          } else {
-            goNext();
-          }
+          goNext();
         }
       } catch (error) {
         console.error("[usePlanSubmission] Submit failed", error);

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
+import {
   getScheduleResultDataAction,
   generatePlansFromGroupAction,
   checkPlansExistAction,
+  updatePlanGroupStatus,
 } from "@/app/(student)/actions/planGroupActions";
 import { 
   CACHE_STALE_TIME_DYNAMIC, 
@@ -41,7 +42,11 @@ export function Step7ScheduleResult({
 
   // 플랜 생성 뮤테이션
   const generatePlansMutation = useMutation({
-    mutationFn: () => generatePlansFromGroupAction(groupId),
+    mutationFn: async () => {
+      // 플랜 생성 전 상태를 "saved"로 변경 (필수: generatePlansFromGroupAction은 saved/active 상태만 허용)
+      await updatePlanGroupStatus(groupId, "saved");
+      return generatePlansFromGroupAction(groupId);
+    },
     onSuccess: async () => {
       // 플랜 생성 후 관련 쿼리만 무효화 (invalidate만으로 충분, refetchQueries 제거)
       await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });

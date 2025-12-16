@@ -125,3 +125,4 @@ const handleStep7Complete = useCallback(async () => {
 - 템플릿 모드일 때는 Step 7이 표시되지 않으므로 완료 버튼도 표시되지 않음
 
 
+

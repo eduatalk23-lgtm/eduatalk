@@ -129,3 +129,4 @@ app/(student)/settings/
 - [개발 가이드라인](../.cursor/rules/project_rule.mdc)
 
 
+

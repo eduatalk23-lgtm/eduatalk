@@ -36,6 +36,8 @@ import {
   loadContentMetadata,
 } from "@/lib/plan/contentResolver";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
+import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
+import { PlanGroupError } from "@/lib/errors/planGroupErrors";
 
 /**
  * 리팩토링된 _generatePlansFromGroup 함수
@@ -104,9 +106,6 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 3. 병합된 스케줄러 설정
-  const { getMergedSchedulerSettings } = await import(
-    "@/lib/data/schedulerSettings"
-  );
   const mergedSettings = await getMergedSchedulerSettings(
     group.tenant_id,
     group.camp_template_id,
@@ -213,96 +212,129 @@ async function _generatePlansFromGroupRefactored(
     );
   }
 
-  // 7. 콘텐츠 ID 해석 및 복사 (새 모듈 사용)
-  // 마스터 콘텐츠를 학생 콘텐츠로 복사 (generate에서는 실제 복사 수행)
-  // 성능 최적화: 병렬 처리
+  // 7. 콘텐츠 ID 해석 및 복사 (배치 쿼리로 최적화)
   const contentIdMap = new Map<string, string>();
 
-  // 먼저 모든 콘텐츠에 대해 존재 여부 확인 쿼리를 병렬로 실행
-  const contentCheckPromises = contents.map(async (content) => {
-    if (isDummyContent(content.content_id)) {
-      return { contentId: content.content_id, resolvedId: content.content_id };
+  // 콘텐츠를 타입별로 분류 (더미 콘텐츠 제외)
+  const bookContents = contents.filter(
+    (c) => c.content_type === "book" && !isDummyContent(c.content_id)
+  );
+  const lectureContents = contents.filter(
+    (c) => c.content_type === "lecture" && !isDummyContent(c.content_id)
+  );
+  const customContents = contents.filter(
+    (c) => c.content_type === "custom" || isDummyContent(c.content_id)
+  );
+
+  // 더미/커스텀 콘텐츠는 그대로 매핑
+  customContents.forEach((c) => contentIdMap.set(c.content_id, c.content_id));
+  contents
+    .filter((c) => isDummyContent(c.content_id))
+    .forEach((c) => contentIdMap.set(c.content_id, c.content_id));
+
+  // 배치 쿼리: 학생 콘텐츠 존재 여부 확인 (병렬)
+  const [existingBooksResult, existingLecturesResult] = await Promise.all([
+    bookContents.length > 0
+      ? queryClient
+          .from("books")
+          .select("id, master_content_id")
+          .in(
+            "master_content_id",
+            bookContents.map((c) => c.content_id)
+          )
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [] }),
+    lectureContents.length > 0
+      ? queryClient
+          .from("lectures")
+          .select("id, master_content_id")
+          .in(
+            "master_content_id",
+            lectureContents.map((c) => c.content_id)
+          )
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // 존재하는 학생 콘텐츠 매핑
+  const existingBooksMap = new Map(
+    (existingBooksResult.data || []).map((b) => [b.master_content_id, b.id])
+  );
+  const existingLecturesMap = new Map(
+    (existingLecturesResult.data || []).map((l) => [l.master_content_id, l.id])
+  );
+
+  // 이미 존재하는 학생 콘텐츠 매핑
+  bookContents.forEach((c) => {
+    const existingId = existingBooksMap.get(c.content_id);
+    if (existingId) {
+      contentIdMap.set(c.content_id, existingId);
     }
+  });
+  lectureContents.forEach((c) => {
+    const existingId = existingLecturesMap.get(c.content_id);
+    if (existingId) {
+      contentIdMap.set(c.content_id, existingId);
+    }
+  });
 
-    if (content.content_type === "book") {
-      // 학생 교재 존재 여부 확인
-      const { data: existingBook } = await queryClient
-        .from("books")
-        .select("id")
-        .eq("master_content_id", content.content_id)
-        .eq("student_id", studentId)
-        .maybeSingle();
+  // 학생 콘텐츠가 없는 것들 필터링
+  const missingBookIds = bookContents
+    .filter((c) => !contentIdMap.has(c.content_id))
+    .map((c) => c.content_id);
+  const missingLectureIds = lectureContents
+    .filter((c) => !contentIdMap.has(c.content_id))
+    .map((c) => c.content_id);
 
-      if (existingBook) {
-        return { contentId: content.content_id, resolvedId: existingBook.id };
-      }
+  // 배치 쿼리: 마스터 콘텐츠 존재 여부 확인 (병렬)
+  const [masterBooksResult, masterLecturesResult] = await Promise.all([
+    missingBookIds.length > 0
+      ? masterQueryClient
+          .from("master_books")
+          .select("id")
+          .in("id", missingBookIds)
+      : Promise.resolve({ data: [] }),
+    missingLectureIds.length > 0
+      ? masterQueryClient
+          .from("master_lectures")
+          .select("id")
+          .in("id", missingLectureIds)
+      : Promise.resolve({ data: [] }),
+  ]);
 
-      // 마스터 교재인지 확인
-      const { data: masterBook } = await masterQueryClient
-        .from("master_books")
-        .select("id")
-        .eq("id", content.content_id)
-        .maybeSingle();
+  const masterBookIds = new Set(
+    (masterBooksResult.data || []).map((b) => b.id)
+  );
+  const masterLectureIds = new Set(
+    (masterLecturesResult.data || []).map((l) => l.id)
+  );
 
-      if (masterBook) {
-        // 마스터 교재 복사 (순차 처리 필요)
-        const copiedBook = await copyMasterBookToStudent(
-          content.content_id,
-          studentId,
-          group.tenant_id
-        );
-        return {
-          contentId: content.content_id,
-          resolvedId: copiedBook?.bookId || content.content_id,
-        };
-      }
-
-      return { contentId: content.content_id, resolvedId: content.content_id };
-    } else if (content.content_type === "lecture") {
-      // 학생 강의 존재 여부 확인
-      const { data: existingLecture } = await queryClient
-        .from("lectures")
-        .select("id")
-        .eq("master_content_id", content.content_id)
-        .eq("student_id", studentId)
-        .maybeSingle();
-
-      if (existingLecture) {
-        return { contentId: content.content_id, resolvedId: existingLecture.id };
-      }
-
-      // 마스터 강의인지 확인
-      const { data: masterLecture } = await masterQueryClient
-        .from("master_lectures")
-        .select("id")
-        .eq("id", content.content_id)
-        .maybeSingle();
-
-      if (masterLecture) {
-        // 마스터 강의 복사 (순차 처리 필요)
-        const copiedLecture = await copyMasterLectureToStudent(
-          content.content_id,
-          studentId,
-          group.tenant_id
-        );
-        return {
-          contentId: content.content_id,
-          resolvedId: copiedLecture?.lectureId || content.content_id,
-        };
-      }
-
-      return { contentId: content.content_id, resolvedId: content.content_id };
+  // 마스터 콘텐츠 복사 (복사는 순차 처리 필요 - DB 트랜잭션)
+  for (const contentId of missingBookIds) {
+    if (masterBookIds.has(contentId)) {
+      const copiedBook = await copyMasterBookToStudent(
+        contentId,
+        studentId,
+        group.tenant_id
+      );
+      contentIdMap.set(contentId, copiedBook?.bookId || contentId);
     } else {
-      // custom 콘텐츠
-      return { contentId: content.content_id, resolvedId: content.content_id };
+      contentIdMap.set(contentId, contentId);
     }
-  });
+  }
 
-  // 모든 콘텐츠 확인을 병렬로 실행
-  const contentCheckResults = await Promise.all(contentCheckPromises);
-  contentCheckResults.forEach(({ contentId, resolvedId }) => {
-    contentIdMap.set(contentId, resolvedId);
-  });
+  for (const contentId of missingLectureIds) {
+    if (masterLectureIds.has(contentId)) {
+      const copiedLecture = await copyMasterLectureToStudent(
+        contentId,
+        studentId,
+        group.tenant_id
+      );
+      contentIdMap.set(contentId, copiedLecture?.lectureId || contentId);
+    } else {
+      contentIdMap.set(contentId, contentId);
+    }
+  }
 
   // 8. 콘텐츠 소요시간 조회 (새 모듈 사용)
   const contentDurationMap = await loadContentDurations(
@@ -339,10 +371,6 @@ async function _generatePlansFromGroupRefactored(
     );
   } catch (error) {
     // PlanGroupError인 경우 failureReason을 사용하여 구체적인 메시지 전달
-    const { PlanGroupError, PlanGroupErrorCodes } = await import(
-      "@/lib/errors/planGroupErrors"
-    );
-    
     if (error instanceof PlanGroupError) {
       const userMessage = error.userMessage || error.message;
       
@@ -363,10 +391,6 @@ async function _generatePlansFromGroupRefactored(
     throw error;
   }
 
-  console.log("[_generatePlansFromGroupRefactored] 스케줄러 결과:", {
-    scheduledPlansCount: scheduledPlans.length,
-  });
-
   if (scheduledPlans.length === 0) {
     throw new AppError(
       "일정에 맞는 플랜을 생성할 수 없습니다. 기간과 콘텐츠 양을 확인해주세요.",
@@ -377,35 +401,12 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 11. 기존 플랜 삭제
-  // 삭제 전 기존 플랜 확인 (디버깅용)
-  const { data: existingPlans, error: checkError } = await supabase
-    .from("student_plan")
-    .select("id")
-    .eq("plan_group_id", groupId)
-    .limit(1);
-
-  if (checkError) {
-    console.error("[_generatePlansFromGroupRefactored] 기존 플랜 확인 실패:", checkError);
-  }
-
-  console.log("[_generatePlansFromGroupRefactored] 삭제 대상 플랜 수:", existingPlans?.length || 0);
-
-  const { error: deleteError, data: deletedData } = await supabase
+  const { error: deleteError } = await supabase
     .from("student_plan")
     .delete()
-    .eq("plan_group_id", groupId)
-    .select(); // 삭제된 레코드 반환
+    .eq("plan_group_id", groupId);
 
   if (deleteError) {
-    console.error("[_generatePlansFromGroupRefactored] 플랜 삭제 에러 상세:", {
-      message: deleteError.message,
-      code: deleteError.code,
-      details: deleteError.details,
-      hint: deleteError.hint,
-      groupId,
-      existingPlansCount: existingPlans?.length || 0,
-    });
-
     throw new AppError(
       `기존 플랜 삭제에 실패했습니다: ${deleteError.message || deleteError.code || "알 수 없는 오류"}`,
       ErrorCode.INTERNAL_ERROR,
@@ -413,8 +414,6 @@ async function _generatePlansFromGroupRefactored(
       true
     );
   }
-
-  console.log("[_generatePlansFromGroupRefactored] 삭제된 플랜 수:", deletedData?.length || 0);
 
   // 12. tenant_id 검증 (플랜 저장 전에 미리 검증)
   const tenantId = group.tenant_id || tenantContext.tenantId;
@@ -466,6 +465,12 @@ async function _generatePlansFromGroupRefactored(
 
   let globalSequence = 1;
 
+  // 역방향 콘텐츠 ID 맵 생성 (resolved ID -> original ID)
+  const reverseContentIdMap = new Map<string, string>();
+  contentIdMap.forEach((resolvedId, originalId) => {
+    reverseContentIdMap.set(resolvedId, originalId);
+  });
+
   // 각 날짜별로 처리
   for (const [date, datePlans] of plansByDate.entries()) {
     const timeSlotsForDate = dateTimeSlots.get(date) || [];
@@ -514,12 +519,10 @@ async function _generatePlansFromGroupRefactored(
     const now = new Date().toISOString();
 
     for (const segment of timeSegments) {
+      // O(1) 조회: 역방향 맵 사용
       const originalContentId =
-        datePlans.find(
-          (p) =>
-            p.content_id === segment.plan.content_id ||
-            contentIdMap.get(p.content_id) === segment.plan.content_id
-        )?.content_id || segment.plan.content_id;
+        reverseContentIdMap.get(segment.plan.content_id) ||
+        segment.plan.content_id;
       const metadata = contentMetadataMap.get(originalContentId) || {};
 
       // 주차별 일차 계산

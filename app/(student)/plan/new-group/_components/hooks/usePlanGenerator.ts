@@ -16,19 +16,25 @@ import {
 } from "@/lib/errors/planGroupErrors";
 import {
   createPlanGroupAction,
+  updatePlanGroupDraftAction,
   updatePlanGroupStatus,
 } from "@/app/(student)/actions/planGroupActions";
+import { generatePlansFromGroupAction } from "@/app/(student)/actions/plan-groups/plans";
+import { continueCampStepsForAdmin } from "@/app/(admin)/actions/campTemplateActions";
+import { submitCampParticipation } from "@/app/(student)/actions/campActions";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
 
 type UsePlanGeneratorProps = {
   wizardData: WizardData;
   draftGroupId: string | null;
-  setDraftGroupId: (id: string) => void;
   setValidationErrors: (errors: string[]) => void;
   isCampMode: boolean;
   campInvitationId?: string;
-  initialData?: any;
+  initialData?: {
+    templateId?: string;
+    groupId?: string;
+  };
   isAdminContinueMode: boolean;
   isAdminMode: boolean;
   currentStep: number;
@@ -51,7 +57,6 @@ type UsePlanGeneratorReturn = {
 export function usePlanGenerator({
   wizardData,
   draftGroupId,
-  setDraftGroupId,
   setValidationErrors,
   isCampMode,
   campInvitationId,
@@ -113,7 +118,6 @@ export function usePlanGenerator({
 
     // Create or Update Plan Group
     if (draftGroupId) {
-      const { updatePlanGroupDraftAction } = await import("@/app/(student)/actions/planGroupActions");
       await updatePlanGroupDraftAction(draftGroupId, creationData);
       finalGroupId = draftGroupId;
     } else {
@@ -131,12 +135,9 @@ export function usePlanGenerator({
       finalGroupId = result.groupId;
     }
 
-    // Update Status to 'saved'
-    try {
-      await updatePlanGroupStatus(finalGroupId, "saved");
-    } catch (error) {
-      console.warn("[usePlanGenerator] Status update failed", error);
-    }
+    // Note: updatePlanGroupStatus("saved") 호출 제거
+    // - createPlanGroupAction/updatePlanGroupDraftAction 내부에서 이미 상태 관리됨
+    // - 별도 네트워크 요청으로 인한 지연 방지
 
     return finalGroupId;
   }, [
@@ -163,7 +164,6 @@ export function usePlanGenerator({
       try {
         // 캠프 남은 단계 진행 (관리자)
         if (isAdminContinueMode && initialData?.templateId) {
-          const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
           await continueCampStepsForAdmin(
             draftGroupId || (initialData?.groupId as string),
             wizardData,
@@ -176,7 +176,6 @@ export function usePlanGenerator({
 
         // 캠프 참여 제출 (학생)
         if (campInvitationId && !isAdminMode) {
-          const { submitCampParticipation } = await import("@/app/(student)/actions/campActions");
           const result = await submitCampParticipation(campInvitationId, wizardData);
           if (result.success && result.groupId) {
             toast.showSuccess("캠프 참여가 완료되었습니다.");
@@ -192,10 +191,12 @@ export function usePlanGenerator({
 
         // 일반 플랜 생성
         if (!isAdminContinueMode && !campInvitationId) {
-          const { generatePlansFromGroupAction } = await import("@/app/(student)/actions/plan-groups/plans");
+          // 플랜 생성 전 상태를 "saved"로 변경 (필수: generatePlansFromGroupAction은 saved/active 상태만 허용)
+          await updatePlanGroupStatus(groupId, "saved");
           const result = await generatePlansFromGroupAction(groupId);
           toast.showSuccess(`플랜이 생성되었습니다. (총 ${result.count}개)`);
-          router.push(`/plan/group/${groupId}`, { scroll: true });
+          // 리다이렉트 제거 - Step 7로 이동하도록 상위에서 처리
+          // Step 7에서 완료 버튼을 눌렀을 때만 상세보기 페이지로 이동
         }
       } catch (error) {
         console.error("[usePlanGenerator] 플랜 생성 실패:", error);
