@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,7 +12,7 @@ import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
-import type { LectureEpisode } from "@/lib/types/plan";
+import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
 
 type MasterLectureFormProps = {
   curriculumRevisions: CurriculumRevision[];
@@ -23,7 +23,6 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
   const [linkBook, setLinkBook] = useState(false);
   const router = useRouter();
   const { showError, showSuccess } = useToast();
-  const totalDurationInputRef = useRef<HTMLInputElement>(null);
 
   // 강의 입력값을 추적하여 교재 필드에 자동 채우기
   const [lectureValues, setLectureValues] = useState({
@@ -32,37 +31,16 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
     subject: "",
   });
 
-  // 회차 정보 상태 관리
-  const [episodes, setEpisodes] = useState<Array<{
-    episode_number: number;
-    episode_title: string;
-    duration: number;
-  }>>([]);
-
-  // 회차별 시간 합계 계산
-  const totalDurationFromEpisodes = useMemo(() => {
-    return episodes.reduce((sum, episode) => {
-      return sum + (episode.duration || 0);
-    }, 0);
-  }, [episodes]);
-
-  // 회차 정보 변경 핸들러
-  const handleEpisodesChange = (newEpisodes: Omit<LectureEpisode, "id" | "created_at">[]) => {
-    setEpisodes(newEpisodes.map(e => ({
-      episode_number: e.episode_number || 0,
-      episode_title: e.episode_title || "",
-      duration: e.duration || 0, // 이미 분 단위
-    })));
-  };
-
-  // 회차 합계 적용 버튼 핸들러
-  const handleApplyTotalDuration = () => {
-    if (totalDurationInputRef.current && totalDurationFromEpisodes > 0) {
-      totalDurationInputRef.current.value = totalDurationFromEpisodes.toString();
-      // input 이벤트 트리거하여 React가 값 변경을 인식하도록
-      totalDurationInputRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  };
+  // 회차 정보 기반 계산 로직 (공통 훅 사용)
+  const {
+    totalEpisodes,
+    totalDuration: totalDurationFromEpisodes,
+    handleEpisodesChange,
+    handleApplyTotalEpisodes,
+    handleApplyTotalDuration,
+    totalEpisodesRef,
+    totalDurationRef,
+  } = useLectureEpisodesCalculation();
 
   function handleLectureFieldChange(field: string, value: string) {
     setLectureValues((prev) => ({ ...prev, [field]: value }));
@@ -163,14 +141,32 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
         />
 
         {/* 총 회차 */}
-        <FormField
-          label="총 회차"
-          name="total_episodes"
-          type="number"
-          required
-          min="1"
-          placeholder="예: 30"
-        />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              총 회차
+            </label>
+            {totalEpisodes > 0 && (
+              <button
+                type="button"
+                onClick={handleApplyTotalEpisodes}
+                className="text-xs text-indigo-600 hover:text-indigo-700 underline"
+              >
+                회차 합계 적용 ({totalEpisodes}회)
+              </button>
+            )}
+          </div>
+          <FormField
+            ref={totalEpisodesRef}
+            label=""
+            name="total_episodes"
+            type="number"
+            required
+            min="1"
+            placeholder="예: 30"
+            hint={totalEpisodes > 0 ? `회차 합계: ${totalEpisodes}회` : undefined}
+          />
+        </div>
 
         {/* 총 강의시간 */}
         <div className="flex flex-col gap-1">
@@ -189,7 +185,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             )}
           </div>
           <FormField
-            ref={totalDurationInputRef}
+            ref={totalDurationRef}
             name="total_duration"
             type="number"
             min="0"

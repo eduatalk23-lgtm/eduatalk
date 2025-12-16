@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition, useState, useMemo, useRef } from "react";
+import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
@@ -10,9 +10,10 @@ import { UrlField } from "@/components/forms/UrlField";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { secondsToMinutes } from "@/lib/utils/duration";
 import { useToast } from "@/components/ui/ToastProvider";
-import { masterLectureSchema } from "@/lib/validation/schemas";
+import { masterLectureSchema, formDataToObject } from "@/lib/validation/schemas";
 import FormField from "@/components/molecules/FormField";
 import { FormSelect } from "@/components/molecules/FormField";
+import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
 
 export function MasterLectureEditForm({
   lecture,
@@ -31,66 +32,25 @@ export function MasterLectureEditForm({
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
-  const totalDurationInputRef = useRef<HTMLInputElement>(null);
 
-  // 회차 정보 상태 관리 (초기값은 initialEpisodes에서 가져옴)
-  const [episodesState, setEpisodesState] = useState<Array<{
-    episode_number: number;
-    episode_title: string;
-    duration: number;
-  }>>(
-    episodes.map((e) => ({
-      episode_number: e.episode_number || 0,
-      episode_title: e.episode_title || "",
-      duration: e.duration ? secondsToMinutes(e.duration) || 0 : 0,
-    }))
-  );
-
-  // 회차별 시간 합계 계산
-  const totalDurationFromEpisodes = useMemo(() => {
-    return episodesState.reduce((sum, episode) => {
-      return sum + (episode.duration || 0);
-    }, 0);
-  }, [episodesState]);
-
-  // 회차 정보 변경 핸들러
-  const handleEpisodesChange = (newEpisodes: Omit<LectureEpisode, "id" | "created_at">[]) => {
-    setEpisodesState(newEpisodes.map(e => ({
-      episode_number: e.episode_number || 0,
-      episode_title: e.episode_title || "",
-      duration: e.duration || 0, // 이미 분 단위
-    })));
-  };
-
-  // 회차 합계 적용 버튼 핸들러
-  const handleApplyTotalDuration = () => {
-    if (totalDurationInputRef.current && totalDurationFromEpisodes > 0) {
-      totalDurationInputRef.current.value = totalDurationFromEpisodes.toString();
-      // input 이벤트 트리거하여 React가 값 변경을 인식하도록
-      totalDurationInputRef.current.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  };
+  // 회차 정보 기반 계산 로직 (공통 훅 사용)
+  // 훅 내부에서 초 단위를 분 단위로 자동 변환
+  const {
+    totalEpisodes,
+    totalDuration: totalDurationFromEpisodes,
+    handleEpisodesChange,
+    handleApplyTotalEpisodes,
+    handleApplyTotalDuration,
+    totalEpisodesRef,
+    totalDurationRef,
+  } = useLectureEpisodesCalculation(episodes);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // 클라이언트 사이드 검증
-    const formDataObj: Record<string, unknown> = {};
-    formData.forEach((value, key) => {
-      if (key === "total_episodes" || key === "total_duration") {
-        formDataObj[key] = value ? parseInt(value.toString()) : null;
-      } else {
-        formDataObj[key] = value.toString();
-      }
-    });
-
-    // total_duration을 분 단위로 변환 (스키마는 분 단위)
-    if (formDataObj.total_duration) {
-      formDataObj.total_duration = parseInt(
-        formDataObj.total_duration.toString()
-      );
-    }
+    // 클라이언트 사이드 검증 (formDataToObject 사용)
+    const formDataObj = formDataToObject(formData);
 
     const validation = masterLectureSchema.safeParse(formDataObj);
     if (!validation.success) {
@@ -185,15 +145,33 @@ export function MasterLectureEditForm({
         />
 
         {/* 총 회차 */}
-        <FormField
-          name="total_episodes"
-          label="총 회차"
-          type="number"
-          required
-          min="1"
-          defaultValue={lecture.total_episodes}
-          error={validationErrors.total_episodes}
-        />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              총 회차
+            </label>
+            {totalEpisodes > 0 && (
+              <button
+                type="button"
+                onClick={handleApplyTotalEpisodes}
+                className="text-xs text-indigo-600 hover:text-indigo-700 underline"
+              >
+                회차 합계 적용 ({totalEpisodes}회)
+              </button>
+            )}
+          </div>
+          <FormField
+            ref={totalEpisodesRef}
+            name="total_episodes"
+            label=""
+            type="number"
+            required
+            min="1"
+            defaultValue={lecture.total_episodes}
+            error={validationErrors.total_episodes}
+            hint={totalEpisodes > 0 ? `회차 합계: ${totalEpisodes}회` : undefined}
+          />
+        </div>
 
         {/* 총 강의시간 */}
         <div className="flex flex-col gap-1">
@@ -212,7 +190,7 @@ export function MasterLectureEditForm({
             )}
           </div>
           <FormField
-            ref={totalDurationInputRef}
+            ref={totalDurationRef}
             name="total_duration"
             type="number"
             min="0"
