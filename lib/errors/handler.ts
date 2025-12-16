@@ -246,6 +246,24 @@ export function normalizeError(error: unknown): AppError {
       }
     }
     
+    // 에러 메시지 기반 네트워크 에러 감지 (PostgREST gateway error 등)
+    const errorMessageLower = error.message.toLowerCase();
+    if (
+      errorMessageLower.includes("network connection lost") ||
+      errorMessageLower.includes("gateway error") ||
+      errorMessageLower.includes("connection") ||
+      errorMessageLower.includes("network") ||
+      errorMessageLower.includes("fetch failed") ||
+      errorMessageLower.includes("timeout")
+    ) {
+      return new AppError(
+        "네트워크 연결에 실패했습니다. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.",
+        ErrorCode.EXTERNAL_SERVICE_ERROR,
+        503,
+        true
+      );
+    }
+    
     // 일반 Error는 사용자에게 보여줄 수 있는 메시지로 변환
     // 단, 프로덕션에서는 일반적인 메시지만 반환
     const errorMessage = error.message || "알 수 없는 오류가 발생했습니다.";

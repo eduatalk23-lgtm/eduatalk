@@ -20,7 +20,7 @@ import {
   type SubjectGroup,
   type Subject,
 } from "@/lib/data/subjects";
-import { normalizeError } from "@/lib/errors";
+import { normalizeError, logError } from "@/lib/errors";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -169,7 +169,22 @@ export async function searchMasterBooks(
 
   if (error) {
     console.error("[data/contentMasters] 교재 검색 실패", error);
-    throw new Error(error.message || "교재 검색에 실패했습니다.");
+    
+    // normalizeError로 에러 정규화 및 로깅
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, {
+      context: "searchMasterBooks",
+      filters: {
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        publisher_id: filters.publisher_id,
+        search: filters.search,
+        difficulty: filters.difficulty,
+        tenantId: filters.tenantId,
+      },
+    });
+    throw normalizedError;
   }
 
   const result = {
@@ -471,7 +486,22 @@ export async function searchMasterLectures(
 
   if (error) {
     console.error("[data/contentMasters] 강의 검색 실패", error);
-    throw new Error(error.message || "강의 검색에 실패했습니다.");
+    
+    // normalizeError로 에러 정규화 및 로깅
+    const normalizedError = normalizeError(error);
+    logError(normalizedError, {
+      context: "searchMasterLectures",
+      filters: {
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        platform_id: filters.platform_id,
+        search: filters.search,
+        difficulty: filters.difficulty,
+        tenantId: filters.tenantId,
+      },
+    });
+    throw normalizedError;
   }
 
   const result = {
