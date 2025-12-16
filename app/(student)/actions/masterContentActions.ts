@@ -34,7 +34,9 @@ import {
 /**
  * 마스터 교재 목록 조회 (Server Action)
  */
-async function _getMasterBooksList(): Promise<Array<{ id: string; title: string }>> {
+async function _getMasterBooksList(): Promise<
+  Array<{ id: string; title: string }>
+> {
   await requireAdminOrConsultant();
   return await getMasterBooksList();
 }
@@ -104,7 +106,12 @@ export const addMasterBook = withErrorHandling(async (formData: FormData) => {
  * 서비스 마스터 교재 생성 (redirect 없이 bookId 반환)
  */
 export const createMasterBookWithoutRedirect = withErrorHandling(
-  async (formData: FormData): Promise<{ success: true; bookId: string } | { success: false; error: string; bookId: null }> => {
+  async (
+    formData: FormData
+  ): Promise<
+    | { success: true; bookId: string }
+    | { success: false; error: string; bookId: null }
+  > => {
     await requireAdminOrConsultant();
 
     const tenantContext = await getTenantContext();
@@ -155,7 +162,8 @@ export const createMasterBookWithoutRedirect = withErrorHandling(
       console.error("교재 생성 실패:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "교재 생성에 실패했습니다.",
+        error:
+          error instanceof Error ? error.message : "교재 생성에 실패했습니다.",
         bookId: null,
       };
     }

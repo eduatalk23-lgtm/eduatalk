@@ -14,7 +14,7 @@ import { masterLectureSchema, formDataToObject } from "@/lib/validation/schemas"
 import FormField from "@/components/molecules/FormField";
 import { FormSelect } from "@/components/molecules/FormField";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
-import { MasterBookSelector } from "../_components/MasterBookSelector";
+import { MasterBookSelector } from "../../_components/MasterBookSelector";
 
 export function MasterLectureEditForm({
   lecture,
