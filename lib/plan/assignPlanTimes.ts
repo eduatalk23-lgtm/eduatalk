@@ -265,12 +265,31 @@ export function assignPlanTimes(
   );
 
   if (hasLectureEpisodes) {
-    // Episode별 duration 기반 시간 배정
-    return assignEpisodeBasedTimes(
-      plansWithInfo,
+    // 교재와 강의 분리
+    const lecturePlans = plansWithInfo.filter(
+      (p) => p.plan.content_type === "lecture"
+    );
+    const nonLecturePlans = plansWithInfo.filter(
+      (p) => p.plan.content_type !== "lecture"
+    );
+
+    // 강의만 episode 기반 처리
+    const lectureSegments = assignEpisodeBasedTimes(
+      lecturePlans,
       studyTimeSlots,
       contentDurationMap,
       dayType
+    );
+
+    // 교재/커스텀은 일반 Best Fit 알고리즘으로 처리
+    const nonLectureSegments =
+      nonLecturePlans.length > 0
+        ? assignNonLecturePlans(nonLecturePlans, studyTimeSlots, dayType)
+        : [];
+
+    // 결과 병합 및 정렬
+    return [...lectureSegments, ...nonLectureSegments].sort(
+      (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
     );
   }
 
@@ -365,6 +384,129 @@ export function assignPlanTimes(
           originalEstimatedTime: planInfo.originalEstimatedTime,
         });
         
+        planInfo.remainingTime -= timeToUse;
+        slotAvailability[bestSlotIndex].usedTime += timeToUse;
+      }
+    }
+  }
+
+  // 시간 순으로 정렬
+  segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+
+  return segments;
+}
+
+/**
+ * 교재 및 커스텀 콘텐츠를 Best Fit 알고리즘으로 시간 배정
+ * 
+ * @param plansWithInfo - 플랜 정보 배열 (이미 estimatedTime 계산됨)
+ * @param studyTimeSlots - 학습 시간 슬롯
+ * @param dayType - 일 유형 ('학습일' | '복습일')
+ * @returns 시간이 배정된 플랜 세그먼트 배열
+ */
+function assignNonLecturePlans(
+  plansWithInfo: Array<{
+    plan: PlanTimeInput;
+    originalEstimatedTime: number;
+    estimatedTime: number;
+    remainingTime: number;
+    blockIndex: number;
+  }>,
+  studyTimeSlots: StudyTimeSlot[],
+  dayType: string
+): PlanTimeSegment[] {
+  // Best Fit 알고리즘을 위한 정렬: 소요시간 내림차순 (큰 것부터 배치)
+  const sortedPlans = [...plansWithInfo].sort((a, b) => {
+    // 먼저 block_index 순으로 정렬 (같은 block_index면 소요시간 내림차순)
+    const blockDiff = (a.blockIndex || 0) - (b.blockIndex || 0);
+    if (blockDiff !== 0) return blockDiff;
+    return b.originalEstimatedTime - a.originalEstimatedTime;
+  });
+
+  // 각 학습시간 슬롯에 플랜 배치 (Best Fit 알고리즘)
+  const segments: PlanTimeSegment[] = [];
+
+  // 슬롯별 사용 가능한 시간 추적
+  const slotAvailability: Array<{ slot: StudyTimeSlot; usedTime: number }> =
+    studyTimeSlots.map((slot) => ({
+      slot,
+      usedTime: 0,
+    }));
+
+  // 각 플랜을 가장 적합한 슬롯에 배치
+  for (const planInfo of sortedPlans) {
+    // 1. Precalculated Time Bypass (SchedulerEngine Result)
+    if (planInfo.plan._precalculated_start && planInfo.plan._precalculated_end) {
+      segments.push({
+        plan: planInfo.plan,
+        start: planInfo.plan._precalculated_start,
+        end: planInfo.plan._precalculated_end,
+        isPartial: false,
+        isContinued: false,
+        originalEstimatedTime: planInfo.originalEstimatedTime,
+      });
+      planInfo.remainingTime = 0;
+      continue;
+    }
+
+    if (planInfo.remainingTime <= 0) continue;
+
+    // Best Fit: 남은 시간이 가장 적은 슬롯 찾기 (하지만 플랜이 들어갈 수 있어야 함)
+    let bestSlotIndex = -1;
+    let bestRemainingSpace = Infinity;
+
+    for (let i = 0; i < slotAvailability.length; i++) {
+      const { slot, usedTime } = slotAvailability[i];
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const slotDuration = slotEnd - slotStart;
+      const availableTime = slotDuration - usedTime;
+
+      // 플랜이 들어갈 수 있고, 남은 공간이 가장 적은 슬롯 선택
+      if (availableTime >= planInfo.remainingTime && availableTime < bestRemainingSpace) {
+        bestSlotIndex = i;
+        bestRemainingSpace = availableTime;
+      }
+    }
+
+    // Best Fit 슬롯을 찾지 못한 경우, First Fit으로 폴백
+    if (bestSlotIndex === -1) {
+      for (let i = 0; i < slotAvailability.length; i++) {
+        const { slot, usedTime } = slotAvailability[i];
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        const slotDuration = slotEnd - slotStart;
+        const availableTime = slotDuration - usedTime;
+
+        if (availableTime > 0) {
+          bestSlotIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (bestSlotIndex >= 0) {
+      const { slot, usedTime } = slotAvailability[bestSlotIndex];
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const slotDuration = slotEnd - slotStart;
+      const availableTime = slotDuration - usedTime;
+      const timeToUse = Math.min(planInfo.remainingTime, availableTime);
+
+      if (timeToUse > 0) {
+        const wasPartial = planInfo.remainingTime < planInfo.originalEstimatedTime;
+        const willBePartial = planInfo.remainingTime > timeToUse;
+        const planStartTime = slotStart + usedTime;
+
+        segments.push({
+          plan: planInfo.plan,
+          start: minutesToTime(planStartTime),
+          end: minutesToTime(planStartTime + timeToUse),
+          isPartial: willBePartial,
+          isContinued: wasPartial,
+          originalEstimatedTime: planInfo.originalEstimatedTime,
+        });
+
         planInfo.remainingTime -= timeToUse;
         slotAvailability[bestSlotIndex].usedTime += timeToUse;
       }
