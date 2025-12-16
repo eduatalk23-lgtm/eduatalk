@@ -1,134 +1,147 @@
-# 다크 모드 가독성 개선 및 코드 최적화 완료
+# 다크 모드 최적화 및 통일 작업 완료 보고서
+
+**작업 일자**: 2025-02-02  
+**작업 범위**: 다크/라이트 모드 최적화 및 통일
 
 ## 작업 개요
 
-라이트/다크 모드 가독성 문제를 해결하고 중복 코드를 최적화했습니다. 359개 파일에서 발견된 다크 모드 미지원 패턴을 체계적으로 수정하고, 하드코딩된 색상값을 CSS 변수 기반 시스템으로 전환했습니다.
+프로젝트 전반의 다크 모드 구현을 CSS 변수 기반 시스템으로 통일하고, 중복 코드를 제거하여 유지보수성을 향상시켰습니다.
 
 ## 완료된 작업
 
-### 1. 공통 스타일링 유틸리티 생성
+### Phase 1: CSS 변수 시스템 정리 및 확장 ✅
+
+#### 1.1 globals.css 색상 값 표준화
+- CSS 변수 값이 Tailwind 표준과 일치하도록 확인
+- CSS 변수 기반 접근 방식으로 통일 결정
+
+#### 1.2 CSS 변수 기반 유틸리티 확장
+**추가된 유틸리티:**
+- `bgHoverVar`: Hover 배경색 (약한 강도)
+- `bgHoverStrongVar`: Hover 배경색 (강한 강도)
+- `textMutedVar`: 음소거 텍스트 색상
+- `divideDefaultVar`: 기본 구분선 색상
 
 **파일**: `lib/utils/darkMode.ts`
 
-기존 파일에 계획에 따른 추가 패턴을 보완했습니다:
+### Phase 2: 중복 코드 제거 ✅
 
-- `cardStyles`: 카드 스타일 패턴 (base, hover, padding)
-- `textStyles`: 텍스트 색상 패턴 (primary, secondary, tertiary, muted)
-- `borderStyles`: 보더 색상 패턴 (default, light, medium)
-- `bgStyles`: 배경 색상 패턴 (white, gray, card)
+#### 2.1 darkMode.ts 내부 중복 제거
+- `bgSurfaceVar`와 `bgSurfaceVarNew` 통합 (bgSurfaceVar로 통일)
+- `bgPageVar`와 `bgPageVarNew` 통합 (bgPageVar로 통일)
+- `borderDefaultVar`에서 `dark:` 클래스 제거 (CSS 변수만 사용)
 
-### 2. 관리자 대시보드 다크 모드 지원
+#### 2.2 공통 패턴 추출 및 마이그레이션
+**마이그레이션된 컴포넌트:**
+1. `components/atoms/Button.tsx`
+   - outline, ghost, link variant를 CSS 변수 기반으로 변경
+   - secondary variant도 CSS 변수 기반으로 변경
 
-**파일**: `app/(admin)/admin/dashboard/page.tsx`
+2. `components/atoms/Input.tsx`
+   - 배경색, 텍스트 색상, 테두리를 CSS 변수 기반으로 변경
 
-- KPI 카드 4개에 다크 모드 변형 추가
-- Top5 리스트 카드 3개에 다크 모드 변형 추가
-- 최근 상담노트 섹션에 다크 모드 변형 추가
-- 위험 학생 리스트는 이미 부분 지원되어 있었으나 완전히 수정
+3. `components/molecules/EmptyState.tsx`
+   - 배경색, 텍스트 색상, 테두리를 CSS 변수 기반으로 변경
 
-**수정 내용**:
-- `bg-white` → `bg-white dark:bg-gray-800`
-- `text-gray-900` → `text-gray-900 dark:text-gray-100`
-- `border-gray-200` → `border-gray-200 dark:border-gray-700`
-- 그라디언트 카드에도 다크 모드 변형 추가
+4. `components/layout/PageHeader.tsx`
+   - 텍스트 색상을 CSS 변수 기반으로 변경
 
-### 3. 콘텐츠 페이지 다크 모드 지원
+5. `components/ui/Dialog.tsx`
+   - 배경색, 텍스트 색상, 테두리를 CSS 변수 기반으로 변경
 
-**수정된 파일**:
-- `app/(student)/contents/master-lectures/page.tsx`
-- `app/(student)/contents/master-books/page.tsx`
-- `app/(student)/contents/master-custom-contents/page.tsx`
+6. `components/ui/LoadingSkeleton.tsx`
+   - 배경색, 테두리를 CSS 변수 기반으로 변경
 
-**수정 내용**:
-- 필터 카드에 다크 모드 변형 추가
-- 강의/교재/커스텀 콘텐츠 목록 카드에 다크 모드 변형 추가
-- Empty state에 다크 모드 변형 추가
-- 모든 텍스트 색상에 다크 모드 변형 추가
+### Phase 3: Deprecated 함수 마이그레이션 ✅
 
-### 4. 차트 컴포넌트 색상 시스템화
+**마이그레이션된 함수:**
+- `bgSurface` → `bgSurfaceVar`
+- `textPrimary` → `textPrimaryVar`
+- `textSecondary` → `textSecondaryVar`
+- `borderDefault` → `borderDefaultVar`
 
-하드코딩된 hex 색상값을 `lib/constants/colors.ts`의 `getChartColor()` 함수로 전환했습니다.
+**마이그레이션된 파일:**
+- `components/ui/Dialog.tsx`
+- `components/ui/LoadingSkeleton.tsx`
 
-**수정된 파일** (총 10개):
+### Phase 4: Tailwind CSS 4 최적화 ✅
 
-1. `app/(student)/scores/dashboard/mock/_components/MockExamTypeComparisonChart.tsx`
-   - `fill="#6366f1"` → `fill={getChartColor(0)}`
-   - `fill="#8b5cf6"` → `fill={getChartColor(1)}`
-   - `fill="#ec4899"` → `fill={getChartColor(2)}`
-   - Radar 차트의 stroke 색상도 동일하게 수정
+#### 4.1 @variant dark 설정 검증
+- `app/globals.css`의 `@variant dark (&:where(.dark, .dark))` 설정 확인
+- next-themes와의 호환성 확인 완료
 
-2. `app/(student)/scores/dashboard/mock/_components/MockPercentileDistributionChart.tsx`
-   - Bar 차트 fill 색상 수정
-   - Line 차트 stroke 색상 수정
-   - 동적 색상 배열 제거하고 `getChartColor(index)` 사용
+#### 4.2 CSS 변수와 Tailwind 통합 확인
+- `@theme inline` 블록에서 CSS 변수 활용 확인
+- Semantic 색상 팔레트 매핑 확인 완료
 
-3. `app/(student)/scores/dashboard/school/_components/SchoolGradeDistributionChart.tsx`
-   - Bar 차트 fill 색상 수정
-   - 카드 스타일에 다크 모드 변형 추가
+### Phase 5: 코드 품질 개선 ✅
 
-4. `app/(student)/scores/dashboard/_components/CompareSection.tsx`
-   - Bar 차트 fill 색상 수정
+- 모든 변경사항에 대해 lint 오류 없음 확인
+- 타입 안전성 유지
+- 기존 코드 스타일 일관성 유지
 
-5. `app/(student)/scores/dashboard/_components/IntegratedComparisonChart.tsx`
-   - Line 차트 stroke 색상 수정
-   - Bar 차트 fill 색상 수정
+### Phase 6: 문서화 및 가이드라인 ✅
 
-6. `app/(student)/scores/dashboard/_components/CourseAverageChart.tsx`
-   - Bar 차트 fill 색상 수정
+#### 6.1 사용 가이드 작성
+**파일**: `docs/dark-mode-usage-guide.md`
 
-7. `app/(student)/report/weekly/_components/WeeklyTimeBarChart.tsx`
-   - Bar 차트 fill 색상 수정
+**내용:**
+- CSS 변수 기반 유틸리티 사용법
+- Deprecated 함수 사용 금지 안내
+- 마이그레이션 가이드
+- 사용 예시
+- 주의사항
 
-8. `app/(admin)/admin/compare/_components/ComparePageClient.tsx`
-   - Bar 차트 fill 색상 수정 (학습시간, 플랜실행률)
+## 주요 변경사항
 
-9. `app/(student)/scores/dashboard/_components/SemesterChartsSection.tsx`
-   - Line 차트 stroke 색상 수정
+### CSS 변수 기반 유틸리티 시스템
 
-10. `app/(student)/scores/dashboard/_components/MockExamTrendSection.tsx`
-    - Line 차트 stroke 색상 수정 (평가원, 교육청, 사설)
+**이전:**
+```tsx
+import { bgSurface, textPrimary, borderDefault } from "@/lib/utils/darkMode";
+```
 
-### 5. 중복 패턴 최적화
+**이후:**
+```tsx
+import { bgSurfaceVar, textPrimaryVar, borderDefaultVar } from "@/lib/utils/darkMode";
+```
 
-- `lib/utils/darkMode.ts`에 공통 패턴 상수 정의 완료
-- 향후 새로운 컴포넌트에서 재사용 가능한 구조 마련
+### 하드코딩된 패턴 제거
 
-## 개선 효과
+**이전:**
+```tsx
+<div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+```
 
-### 가독성 향상
-- 다크 모드에서 모든 텍스트와 배경이 적절한 대비 유지
-- WCAG 접근성 기준 준수 (텍스트 대비 4.5:1 이상)
+**이후:**
+```tsx
+<div className={cn(bgSurfaceVar, textPrimaryVar)}>
+```
 
-### 코드 중복 감소
-- 공통 패턴을 상수로 추출하여 유지보수성 향상
-- 하드코딩된 색상값 제거로 일관성 확보
+## 통계
 
-### 일관성 확보
-- 전체 애플리케이션에서 동일한 다크 모드 스타일 적용
-- 차트 색상이 CSS 변수 기반으로 통일
+- **마이그레이션된 컴포넌트**: 6개
+- **추가된 CSS 변수 유틸리티**: 4개
+- **제거된 중복 코드**: 3개
+- **작성된 문서**: 1개
 
-### 확장성
-- 새로운 컴포넌트 추가 시 공통 유틸리티 활용 가능
-- 색상 변경 시 한 곳에서만 수정하면 전체 반영
+## 향후 작업
 
-## 수정 통계
+### 단기 (2-3주)
+1. 나머지 페이지 컴포넌트에서 하드코딩된 패턴 교체
+2. Deprecated 함수 사용처 50% 감소 목표
 
-- **수정된 파일**: 16개
-- **추가된 라인**: 365줄
-- **삭제된 라인**: 117줄
-- **차트 컴포넌트**: 10개 파일 수정
-- **페이지 컴포넌트**: 4개 파일 수정
+### 중기 (1-2개월)
+1. 모든 컴포넌트 CSS 변수 기반으로 전환
+2. Deprecated 함수 완전 제거
+3. 테스트 코드 작성
 
-## 다음 단계 (선택사항)
+## 참고 자료
 
-향후 추가로 개선할 수 있는 부분:
+- [다크 모드 사용 가이드](./dark-mode-usage-guide.md)
+- [다크 모드 구현 문서](./2025-02-02-dark-mode-implementation.md)
+- `lib/utils/darkMode.ts` - 모든 유틸리티 함수 정의
 
-1. **나머지 파일 일괄 수정**: 359개 파일 중 우선순위 높은 파일부터 순차적으로 수정
-2. **Card 컴포넌트 활용**: 단순 카드 레이아웃을 Card 컴포넌트로 교체 검토
-3. **자동화 스크립트**: 다크 모드 변형 누락을 자동으로 감지하는 스크립트 작성
+## 결론
 
-## 참고
-
-- Tailwind CSS 다크 모드 문서: https://tailwindcss.com/docs/dark-mode
-- CSS 변수 시스템: `app/globals.css` 참조
-- 색상 상수: `lib/constants/colors.ts` 참조
+다크 모드 최적화 및 통일 작업을 성공적으로 완료했습니다. CSS 변수 기반 시스템으로 전환하여 코드 일관성과 유지보수성을 크게 향상시켰습니다. 새로운 코드에서는 CSS 변수 기반 유틸리티를 사용하고, 기존 코드는 단계적으로 마이그레이션할 예정입니다.
