@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { getFormArray, getFormTags } from "@/lib/utils/formDataHelpers";
 
 /**
  * 공통 URL 검증 헬퍼
@@ -199,13 +200,48 @@ const NUMERIC_FIELDS = [
 ] as const;
 
 /**
+ * 배열 필드 목록 (체크박스 그룹 등)
+ * formData.getAll()을 사용하여 배열로 변환해야 하는 필드들
+ */
+const ARRAY_FIELDS = ['target_exam_type'] as const;
+
+/**
+ * 태그 필드 목록 (쉼표 구분 문자열)
+ * 쉼표로 구분된 문자열을 배열로 변환해야 하는 필드들
+ */
+const TAG_FIELDS = ['tags'] as const;
+
+/**
  * FormData에서 객체로 변환하는 헬퍼
  * 숫자 필드의 빈 문자열은 null로 변환하여 스키마 검증을 통과하도록 함
+ * 배열 필드와 태그 필드는 적절히 처리하여 배열로 변환
  */
 export function formDataToObject(formData: FormData): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
-  for (const [key, value] of formData.entries()) {
-    const stringValue = String(value);
+  
+  // 모든 키 수집 (중복 키 처리용)
+  const keys = new Set<string>();
+  for (const key of formData.keys()) {
+    keys.add(key);
+  }
+  
+  for (const key of keys) {
+    // 배열 필드 처리 (체크박스 그룹)
+    if (ARRAY_FIELDS.includes(key as typeof ARRAY_FIELDS[number])) {
+      const values = getFormArray(formData, key);
+      obj[key] = values.length > 0 ? values : null;
+      continue;
+    }
+    
+    // 태그 필드 처리 (쉼표 구분 문자열)
+    if (TAG_FIELDS.includes(key as typeof TAG_FIELDS[number])) {
+      obj[key] = getFormTags(formData, key);
+      continue;
+    }
+    
+    // 단일 값 처리
+    const value = formData.get(key);
+    const stringValue = String(value ?? "");
     
     // 빈 문자열 처리 - 숫자 필드는 null로 변환
     if (stringValue === "") {
