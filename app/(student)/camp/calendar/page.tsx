@@ -13,6 +13,7 @@ import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";
+import { enrichPlansWithContentDetails } from "@/lib/utils/planContentEnrichment";
 
 type CampCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -209,17 +210,12 @@ export default async function CampCalendarPage({
     }
     
     // 플랜에 콘텐츠 정보 추가 (denormalized 필드 사용 + 조회한 정보 보완)
-    const plansWithContent = filteredPlans.map((plan) => {
+    // 먼저 교과 정보를 추가한 후, 콘텐츠 상세 정보(episode/book_detail)를 추가
+    const plansWithBasicContent = filteredPlans.map((plan) => {
       // 교과 정보 (denormalized 필드 우선, 없으면 조회한 정보 사용, 둘 다 없으면 null)
       const contentSubjectInfo = plan.content_id ? contentSubjectMap.get(plan.content_id) : null;
       const contentSubjectCategory = plan.content_subject_category || contentSubjectInfo?.subjectCategory || null;
       const contentSubject = plan.content_subject || contentSubjectInfo?.subject || null;
-      
-      // 플랜 회차 정보 (sequence 사용)
-      let contentEpisode: string | null = null;
-      if (plan.sequence !== null && plan.sequence !== undefined) {
-        contentEpisode = `${plan.sequence}회차`;
-      }
       
       return {
         ...plan,
@@ -227,9 +223,20 @@ export default async function CampCalendarPage({
         contentSubject,
         contentSubjectCategory, // 교과 (항상 일관되게 표시)
         contentCategory: plan.content_category || null, // 유형
-        contentEpisode, // 플랜 회차
       };
     });
+
+    // 콘텐츠 상세 정보 추가 (episode_title, major_unit/minor_unit)
+    const plansWithContentDetails = await enrichPlansWithContentDetails(
+      plansWithBasicContent,
+      user.id
+    );
+
+    // 최종 plansWithContent 생성 (기존 구조 유지)
+    const plansWithContent = plansWithContentDetails.map((plan) => ({
+      ...plan,
+      contentEpisode: plan.contentEpisode || null,
+    }));
 
     // 첫 플랜 날짜 계산 (플랜이 있으면 첫 플랜 날짜, 없으면 오늘 날짜)
     const firstPlanDate =

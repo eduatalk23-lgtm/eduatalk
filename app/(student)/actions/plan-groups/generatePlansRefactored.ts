@@ -351,7 +351,8 @@ async function _generatePlansFromGroupRefactored(
       .filter((c) => c.content_type === "lecture")
       .map((c) => {
         const durationInfo = contentDurationMap.get(c.content_id);
-        const hasEpisodes = durationInfo?.episodes && durationInfo.episodes.length > 0;
+        const hasEpisodes =
+          durationInfo?.episodes && durationInfo.episodes.length > 0;
         const episodeCount = durationInfo?.episodes?.length ?? 0;
         return {
           content_id: c.content_id,
@@ -362,8 +363,12 @@ async function _generatePlansFromGroupRefactored(
         };
       });
 
-    const contentsWithEpisodes = lectureContentsWithEpisodes.filter((c) => c.hasEpisodes);
-    const contentsWithoutEpisodes = lectureContentsWithEpisodes.filter((c) => !c.hasEpisodes);
+    const contentsWithEpisodes = lectureContentsWithEpisodes.filter(
+      (c) => c.hasEpisodes
+    );
+    const contentsWithoutEpisodes = lectureContentsWithEpisodes.filter(
+      (c) => !c.hasEpisodes
+    );
 
     if (contentsWithEpisodes.length > 0) {
       console.log(
@@ -553,14 +558,18 @@ async function _generatePlansFromGroupRefactored(
 
     // Episode 정보 전달 확인 (개발 환경에서만)
     if (process.env.NODE_ENV === "development") {
-      const lecturePlans = plansForAssign.filter((p) => p.content_type === "lecture");
+      const lecturePlans = plansForAssign.filter(
+        (p) => p.content_type === "lecture"
+      );
       if (lecturePlans.length > 0) {
         const plansWithEpisodeInfo = lecturePlans
           .map((p) => {
             const durationInfo = contentDurationMap.get(p.content_id);
             return {
               content_id: p.content_id,
-              has_episodes: !!(durationInfo?.episodes && durationInfo.episodes.length > 0),
+              has_episodes: !!(
+                durationInfo?.episodes && durationInfo.episodes.length > 0
+              ),
               episode_count: durationInfo?.episodes?.length ?? 0,
               range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
             };
