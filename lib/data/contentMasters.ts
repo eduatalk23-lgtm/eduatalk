@@ -21,58 +21,23 @@ import {
   type Subject,
 } from "@/lib/data/subjects";
 import { normalizeError, logError } from "@/lib/errors";
+import { buildContentQuery } from "@/lib/data/contentQueryBuilder";
+import type {
+  MasterBookFilters,
+  MasterLectureFilters,
+  MasterCustomContentFilters,
+} from "@/lib/types/contentFilters";
+
+// 타입 재export (하위 호환성 유지)
+export type {
+  MasterBookFilters,
+  MasterLectureFilters,
+  MasterCustomContentFilters,
+} from "@/lib/types/contentFilters";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
-
-/**
- * 교재 검색 필터
- */
-export type MasterBookFilters = {
-  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
-  subject_group_id?: string; // 교과 그룹 ID로 필터링
-  subject_id?: string; // 과목 ID로 필터링
-  publisher_id?: string; // 출판사 ID로 필터링
-  search?: string; // 제목 검색
-  difficulty?: string; // 난이도 필터링
-  sort?: string; // 정렬 옵션
-  tenantId?: string | null;
-  limit?: number;
-  offset?: number;
-};
-
-/**
- * 강의 검색 필터
- */
-export type MasterLectureFilters = {
-  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
-  subject_group_id?: string; // 교과 그룹 ID로 필터링
-  subject_id?: string; // 과목 ID로 필터링
-  platform_id?: string; // 플랫폼 ID로 필터링
-  search?: string; // 제목 검색
-  difficulty?: string; // 난이도 필터링
-  sort?: string; // 정렬 옵션
-  tenantId?: string | null;
-  limit?: number;
-  offset?: number;
-};
-
-/**
- * 커스텀 콘텐츠 검색 필터
- */
-export type MasterCustomContentFilters = {
-  curriculum_revision_id?: string; // 개정교육과정 ID로 필터링
-  subject_group_id?: string; // 교과 그룹 ID로 필터링
-  subject_id?: string; // 과목 ID로 필터링
-  content_type?: string; // 콘텐츠 유형 필터링
-  search?: string; // 제목 검색
-  difficulty?: string; // 난이도 필터링
-  sort?: string; // 정렬 옵션
-  tenantId?: string | null;
-  limit?: number;
-  offset?: number;
-};
 
 /**
  * 통합 검색 필터 (하위 호환성)
@@ -108,91 +73,14 @@ export async function searchMasterBooks(
 ): Promise<{ data: MasterBook[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  let query = queryClient.from("master_books").select("*", { count: "exact" });
+  // 공통 쿼리 빌더 사용
+  const result = await buildContentQuery<MasterBook>(
+    queryClient,
+    "master_books",
+    filters
+  );
 
-  // 필터 적용
-  if (filters.curriculum_revision_id) {
-    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
-  }
-  if (filters.subject_group_id) {
-    query = query.eq("subject_group_id", filters.subject_group_id);
-  }
-  if (filters.subject_id) {
-    query = query.eq("subject_id", filters.subject_id);
-  }
-  if (filters.publisher_id) {
-    query = query.eq("publisher_id", filters.publisher_id);
-  }
-  if (filters.search) {
-    query = query.ilike("title", `%${filters.search}%`);
-  }
-  if (filters.difficulty) {
-    query = query.eq("difficulty_level", filters.difficulty);
-  }
-  if (filters.tenantId) {
-    query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
-  } else {
-    query = query.is("tenant_id", null); // 기본적으로 공개 콘텐츠만
-  }
-
-  // 정렬
-  const sortBy = filters.sort || "updated_at_desc";
-  if (sortBy === "title_asc") {
-    query = query.order("title", { ascending: true });
-  } else if (sortBy === "title_desc") {
-    query = query.order("title", { ascending: false });
-  } else if (sortBy === "difficulty_level_asc") {
-    query = query.order("difficulty_level", { ascending: true });
-  } else if (sortBy === "difficulty_level_desc") {
-    query = query.order("difficulty_level", { ascending: false });
-  } else if (sortBy === "created_at_asc") {
-    query = query.order("created_at", { ascending: true });
-  } else if (sortBy === "created_at_desc") {
-    query = query.order("created_at", { ascending: false });
-  } else {
-    // 기본값: updated_at_desc
-    query = query.order("updated_at", { ascending: false });
-  }
-
-  // 페이지네이션
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
-  if (filters.offset) {
-    query = query.range(
-      filters.offset,
-      filters.offset + (filters.limit || 20) - 1
-    );
-  }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("[data/contentMasters] 교재 검색 실패", error);
-
-    // normalizeError로 에러 정규화 및 로깅
-    const normalizedError = normalizeError(error);
-    logError(normalizedError, {
-      context: "searchMasterBooks",
-      filters: {
-        curriculum_revision_id: filters.curriculum_revision_id,
-        subject_group_id: filters.subject_group_id,
-        subject_id: filters.subject_id,
-        publisher_id: filters.publisher_id,
-        search: filters.search,
-        difficulty: filters.difficulty,
-        tenantId: filters.tenantId,
-      },
-    });
-    throw normalizedError;
-  }
-
-  const result = {
-    data: (data as MasterBook[] | null) ?? [],
-    total: count ?? 0,
-  };
-
-  // 로그: 서비스 마스터 교재 조회 결과
+  // 로그: 서비스 마스터 교재 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
     filters: {
       curriculum_revision_id: filters.curriculum_revision_id,
@@ -423,93 +311,14 @@ export async function searchMasterLectures(
 ): Promise<{ data: MasterLecture[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  let query = queryClient
-    .from("master_lectures")
-    .select("*", { count: "exact" });
+  // 공통 쿼리 빌더 사용
+  const result = await buildContentQuery<MasterLecture>(
+    queryClient,
+    "master_lectures",
+    filters
+  );
 
-  // 필터 적용
-  if (filters.curriculum_revision_id) {
-    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
-  }
-  if (filters.subject_group_id) {
-    query = query.eq("subject_group_id", filters.subject_group_id);
-  }
-  if (filters.subject_id) {
-    query = query.eq("subject_id", filters.subject_id);
-  }
-  if (filters.platform_id) {
-    query = query.eq("platform_id", filters.platform_id);
-  }
-  if (filters.search) {
-    query = query.ilike("title", `%${filters.search}%`);
-  }
-  if (filters.difficulty) {
-    query = query.eq("difficulty_level", filters.difficulty);
-  }
-  if (filters.tenantId) {
-    query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
-  } else {
-    query = query.is("tenant_id", null); // 기본적으로 공개 콘텐츠만
-  }
-
-  // 정렬
-  const sortBy = filters.sort || "updated_at_desc";
-  if (sortBy === "title_asc") {
-    query = query.order("title", { ascending: true });
-  } else if (sortBy === "title_desc") {
-    query = query.order("title", { ascending: false });
-  } else if (sortBy === "difficulty_level_asc") {
-    query = query.order("difficulty_level", { ascending: true });
-  } else if (sortBy === "difficulty_level_desc") {
-    query = query.order("difficulty_level", { ascending: false });
-  } else if (sortBy === "created_at_asc") {
-    query = query.order("created_at", { ascending: true });
-  } else if (sortBy === "created_at_desc") {
-    query = query.order("created_at", { ascending: false });
-  } else {
-    // 기본값: updated_at_desc
-    query = query.order("updated_at", { ascending: false });
-  }
-
-  // 페이지네이션
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
-  if (filters.offset) {
-    query = query.range(
-      filters.offset,
-      filters.offset + (filters.limit || 20) - 1
-    );
-  }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("[data/contentMasters] 강의 검색 실패", error);
-
-    // normalizeError로 에러 정규화 및 로깅
-    const normalizedError = normalizeError(error);
-    logError(normalizedError, {
-      context: "searchMasterLectures",
-      filters: {
-        curriculum_revision_id: filters.curriculum_revision_id,
-        subject_group_id: filters.subject_group_id,
-        subject_id: filters.subject_id,
-        platform_id: filters.platform_id,
-        search: filters.search,
-        difficulty: filters.difficulty,
-        tenantId: filters.tenantId,
-      },
-    });
-    throw normalizedError;
-  }
-
-  const result = {
-    data: (data as MasterLecture[] | null) ?? [],
-    total: count ?? 0,
-  };
-
-  // 로그: 서비스 마스터 강의 조회 결과
+  // 로그: 서비스 마스터 강의 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
     filters: {
       curriculum_revision_id: filters.curriculum_revision_id,
@@ -913,76 +722,12 @@ export async function searchMasterCustomContents(
 ): Promise<{ data: MasterCustomContent[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  let query = queryClient
-    .from("master_custom_contents")
-    .select("*", { count: "exact" });
-
-  // 필터 적용
-  if (filters.curriculum_revision_id) {
-    query = query.eq("curriculum_revision_id", filters.curriculum_revision_id);
-  }
-  if (filters.subject_group_id) {
-    query = query.eq("subject_group_id", filters.subject_group_id);
-  }
-  if (filters.subject_id) {
-    query = query.eq("subject_id", filters.subject_id);
-  }
-  if (filters.content_type) {
-    query = query.eq("content_type", filters.content_type);
-  }
-  if (filters.search) {
-    query = query.ilike("title", `%${filters.search}%`);
-  }
-  if (filters.difficulty) {
-    query = query.eq("difficulty_level", filters.difficulty);
-  }
-  if (filters.tenantId) {
-    query = query.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
-  } else {
-    query = query.is("tenant_id", null); // 기본적으로 공개 콘텐츠만
-  }
-
-  // 정렬
-  const sortBy = filters.sort || "updated_at_desc";
-  if (sortBy === "title_asc") {
-    query = query.order("title", { ascending: true });
-  } else if (sortBy === "title_desc") {
-    query = query.order("title", { ascending: false });
-  } else if (sortBy === "difficulty_level_asc") {
-    query = query.order("difficulty_level", { ascending: true });
-  } else if (sortBy === "difficulty_level_desc") {
-    query = query.order("difficulty_level", { ascending: false });
-  } else if (sortBy === "created_at_asc") {
-    query = query.order("created_at", { ascending: true });
-  } else if (sortBy === "created_at_desc") {
-    query = query.order("created_at", { ascending: false });
-  } else {
-    // 기본값: updated_at_desc
-    query = query.order("updated_at", { ascending: false });
-  }
-
-  // 페이지네이션
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
-  if (filters.offset) {
-    query = query.range(
-      filters.offset,
-      filters.offset + (filters.limit || 20) - 1
-    );
-  }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 검색 실패", error);
-    throw new Error(error.message || "커스텀 콘텐츠 검색에 실패했습니다.");
-  }
-
-  const result = {
-    data: (data as MasterCustomContent[] | null) ?? [],
-    total: count ?? 0,
-  };
+  // 공통 쿼리 빌더 사용
+  const result = await buildContentQuery<MasterCustomContent>(
+    queryClient,
+    "master_custom_contents",
+    filters
+  );
 
   return result;
 }
