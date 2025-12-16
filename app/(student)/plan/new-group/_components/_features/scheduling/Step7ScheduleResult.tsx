@@ -48,9 +48,14 @@ export function Step7ScheduleResult({
       return generatePlansFromGroupAction(groupId);
     },
     onSuccess: async () => {
-      // 플랜 생성 후 관련 쿼리만 무효화 (invalidate만으로 충분, refetchQueries 제거)
+      // 플랜 생성 후 DB 동기화를 위한 짧은 지연
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      // 플랜 생성 후 관련 쿼리 무효화 및 즉시 refetch
       await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
+      // 즉시 refetch하여 최신 데이터 표시
+      await queryClient.refetchQueries({ queryKey: ["plansExist", groupId] });
+      await queryClient.refetchQueries({ queryKey: ["planSchedule", groupId] });
     },
   });
 
