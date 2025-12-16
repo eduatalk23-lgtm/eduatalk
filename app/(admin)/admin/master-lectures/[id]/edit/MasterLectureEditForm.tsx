@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
@@ -9,6 +9,10 @@ import { LectureEpisodesManager } from "@/app/(student)/contents/_components/Lec
 import { UrlField } from "@/components/forms/UrlField";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { secondsToMinutes } from "@/lib/utils/duration";
+import { useToast } from "@/components/ui/ToastProvider";
+import { masterLectureSchema } from "@/lib/validation/schemas";
+import FormField from "@/components/molecules/FormField";
+import { FormSelect } from "@/components/molecules/FormField";
 
 export function MasterLectureEditForm({
   lecture,
@@ -23,19 +27,57 @@ export function MasterLectureEditForm({
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    // 클라이언트 사이드 검증
+    const formDataObj: Record<string, unknown> = {};
+    formData.forEach((value, key) => {
+      if (key === "total_episodes" || key === "total_duration") {
+        formDataObj[key] = value ? parseInt(value.toString()) : null;
+      } else {
+        formDataObj[key] = value.toString();
+      }
+    });
+
+    // total_duration을 분 단위로 변환 (스키마는 분 단위)
+    if (formDataObj.total_duration) {
+      formDataObj.total_duration = parseInt(
+        formDataObj.total_duration.toString()
+      );
+    }
+
+    const validation = masterLectureSchema.safeParse(formDataObj);
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        const path = err.path[0]?.toString();
+        if (path) {
+          errors[path] = err.message;
+        }
+      });
+      setValidationErrors(errors);
+      showError("입력값을 확인해주세요.");
+      return;
+    }
+
+    setValidationErrors({});
+
     startTransition(async () => {
       try {
         await updateMasterLectureAction(lecture.id, formData);
+        showSuccess("강의가 성공적으로 수정되었습니다.");
       } catch (error) {
         console.error("강의 수정 실패:", error);
-        alert(
-          error instanceof Error ? error.message : "강의 수정에 실패했습니다."
-        );
+        const errorMessage =
+          error instanceof Error ? error.message : "강의 수정에 실패했습니다.";
+        showError(errorMessage);
       }
     });
   }
@@ -47,147 +89,116 @@ export function MasterLectureEditForm({
     >
       <div className="grid gap-4 md:grid-cols-2">
         {/* 강의명 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">
-            강의명 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="title"
-            required
-            defaultValue={lecture.title}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          name="title"
+          label="강의명"
+          required
+          defaultValue={lecture.title}
+          error={validationErrors.title}
+          className="md:col-span-2"
+        />
 
         {/* 개정교육과정 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            개정교육과정
-          </label>
-          <select
-            name="revision"
-            defaultValue={lecture.revision || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            {curriculumRevisions.map((revision) => (
-              <option key={revision.id} value={revision.name}>
-                {revision.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FormSelect
+          name="revision"
+          label="개정교육과정"
+          defaultValue={lecture.revision || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            ...curriculumRevisions.map((revision) => ({
+              value: revision.name,
+              label: revision.name,
+            })),
+          ]}
+          error={validationErrors.revision}
+        />
 
         {/* 교과 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            교과
-          </label>
-          <select
-            name="subject_category"
-            defaultValue={lecture.subject_category || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="국어">국어</option>
-            <option value="수학">수학</option>
-            <option value="영어">영어</option>
-            <option value="사회">사회</option>
-            <option value="과학">과학</option>
-          </select>
-        </div>
+        <FormSelect
+          name="subject_category"
+          label="교과"
+          defaultValue={lecture.subject_category || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "국어", label: "국어" },
+            { value: "수학", label: "수학" },
+            { value: "영어", label: "영어" },
+            { value: "사회", label: "사회" },
+            { value: "과학", label: "과학" },
+          ]}
+          error={validationErrors.subject_category}
+        />
 
         {/* 과목 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            과목
-          </label>
-          <input
-            name="subject"
-            defaultValue={lecture.subject || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          name="subject"
+          label="과목"
+          defaultValue={lecture.subject || ""}
+          error={validationErrors.subject}
+        />
 
         {/* 플랫폼 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            플랫폼
-          </label>
-          <input
-            name="platform"
-            defaultValue={lecture.platform || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          name="platform"
+          label="플랫폼"
+          defaultValue={lecture.platform || ""}
+          error={validationErrors.platform}
+        />
 
         {/* 총 회차 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            총 회차 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="total_episodes"
-            type="number"
-            required
-            min="1"
-            defaultValue={lecture.total_episodes}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          name="total_episodes"
+          label="총 회차"
+          type="number"
+          required
+          min="1"
+          defaultValue={lecture.total_episodes}
+          error={validationErrors.total_episodes}
+        />
 
         {/* 총 강의시간 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            총 강의시간 (분)
-          </label>
-          <input
-            name="total_duration"
-            type="number"
-            min="0"
-            defaultValue={lecture.total_duration ? secondsToMinutes(lecture.total_duration) || "" : ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          name="total_duration"
+          label="총 강의시간 (분)"
+          type="number"
+          min="0"
+          defaultValue={
+            lecture.total_duration
+              ? secondsToMinutes(lecture.total_duration) || ""
+              : ""
+          }
+          error={validationErrors.total_duration}
+        />
 
         {/* 난이도 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            난이도
-          </label>
-          <select
-            name="difficulty_level"
-            defaultValue={lecture.difficulty_level || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="개념">개념</option>
-            <option value="기본">기본</option>
-            <option value="심화">심화</option>
-          </select>
-        </div>
+        <FormSelect
+          name="difficulty_level"
+          label="난이도"
+          defaultValue={lecture.difficulty_level || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "개념", label: "개념" },
+            { value: "기본", label: "기본" },
+            { value: "심화", label: "심화" },
+          ]}
+          error={validationErrors.difficulty_level}
+        />
 
         {/* 연결된 교재 */}
         <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">
-            연결된 교재 (선택사항)
-          </label>
-          <select
+          <FormSelect
             name="linked_book_id"
+            label="연결된 교재 (선택사항)"
             defaultValue={lecture.linked_book_id || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">연결된 교재 없음</option>
-            {masterBooks.map((book) => (
-              <option key={book.id} value={book.id}>
-                {book.title}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-gray-700">
-            이 강의가 특정 교재를 기반으로 하는 경우 교재를 연결할 수
-            있습니다.
-          </p>
+            options={[
+              { value: "", label: "연결된 교재 없음" },
+              ...masterBooks.map((book) => ({
+                value: book.id,
+                label: book.title,
+              })),
+            ]}
+            hint="이 강의가 특정 교재를 기반으로 하는 경우 교재를 연결할 수 있습니다."
+          />
         </div>
 
         {/* 동영상 URL */}

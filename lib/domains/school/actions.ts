@@ -16,7 +16,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSchoolSchema, updateSchoolSchema } from "./validation";
 import * as service from "./service";
-import { parseFormString, parseFormStringOrNull } from "@/lib/utils/formData";
+import { parseFormString, parseFormStringOrNull } from "@/lib/utils/formDataHelpers";
 import type {
   School,
   Region,

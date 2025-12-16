@@ -1,7 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   createMasterBook,
   updateMasterBook,
@@ -20,96 +23,32 @@ import {
   LectureEpisode,
 } from "@/lib/types/plan";
 import { minutesToSeconds } from "@/lib/utils/duration";
+import {
+  parseMasterBookFormData,
+  parseMasterBookUpdateFormData,
+  parseMasterLectureFormData,
+  parseMasterLectureUpdateFormData,
+} from "@/lib/utils/masterContentFormHelpers";
 
 /**
  * 서비스 마스터 교재 생성
  */
-export async function addMasterBook(formData: FormData) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const addMasterBook = withErrorHandling(async (formData: FormData) => {
+  await requireAdminOrConsultant();
 
-  if (!user) {
-    throw new Error("로그인이 필요합니다.");
-  }
-
-  // tenant_id 조회
-  const { data: student } = await supabase
-    .from("students")
-    .select("tenant_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const totalPagesStr = formData.get("total_pages")?.toString();
-
-  // 배열 필드 처리
-  const targetExamTypes = formData
-    .getAll("target_exam_type")
-    .filter(Boolean) as string[];
-  const tagsStr = formData.get("tags")?.toString() || "";
-  const tags = tagsStr
-    ? tagsStr
-        .split(",")
-        .map((t: string) => t.trim())
-        .filter(Boolean)
-    : null;
-
-  // subject_id 처리 (빈 문자열 체크)
-  const subjectIdRaw = formData.get("subject_id")?.toString();
-  const subjectId =
-    subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
-
-  const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
-    tenant_id: student?.tenant_id || null,
-    is_active: true,
-    curriculum_revision_id:
-      formData.get("curriculum_revision_id")?.toString() || null,
-    subject_id: subjectId,
-    subject_group_id: formData.get("subject_group_id")?.toString() || null,
-    subject_category: formData.get("subject_category")?.toString() || null,
-    subject: formData.get("subject")?.toString() || null,
-    grade_min: formData.get("grade_min")
-      ? parseInt(formData.get("grade_min")!.toString())
-      : null,
-    grade_max: formData.get("grade_max")
-      ? parseInt(formData.get("grade_max")!.toString())
-      : null,
-    school_type: formData.get("school_type")?.toString() || null,
-    revision: formData.get("revision")?.toString() || null,
-    content_category: formData.get("content_category")?.toString() || null,
-    // semester 필드 제거됨 (2025-02-04)
-    title: formData.get("title")?.toString() || "",
-    subtitle: formData.get("subtitle")?.toString() || null,
-    series_name: formData.get("series_name")?.toString() || null,
-    author: formData.get("author")?.toString() || null,
-    publisher_id: formData.get("publisher_id")?.toString() || null,
-    publisher_name: formData.get("publisher_name")?.toString() || null,
-    isbn_10: formData.get("isbn_10")?.toString() || null,
-    isbn_13: formData.get("isbn_13")?.toString() || null,
-    edition: formData.get("edition")?.toString() || null,
-    published_date: formData.get("published_date")?.toString() || null,
-    total_pages: totalPagesStr ? parseInt(totalPagesStr) : null,
-    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : null,
-    description: formData.get("description")?.toString() || null,
-    toc: formData.get("toc")?.toString() || null,
-    publisher_review: formData.get("publisher_review")?.toString() || null,
-    tags: tags,
-    source: formData.get("source")?.toString() || null,
-    source_product_code:
-      formData.get("source_product_code")?.toString() || null,
-    source_url: formData.get("source_url")?.toString() || null,
-    cover_image_url: formData.get("cover_image_url")?.toString() || null,
-    difficulty_level: formData.get("difficulty_level")?.toString() || null,
-    notes: formData.get("notes")?.toString() || null,
-    pdf_url: formData.get("pdf_url")?.toString() || null,
-    ocr_data: null,
-    page_analysis: null,
-    overall_difficulty: null,
-  };
+  const tenantContext = await getTenantContext();
+  const bookData = parseMasterBookFormData(
+    formData,
+    tenantContext?.tenantId || null
+  );
 
   if (!bookData.title) {
-    throw new Error("교재명은 필수입니다.");
+    throw new AppError(
+      "교재명은 필수입니다.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
   }
 
   const book = await createMasterBook(bookData);
@@ -136,207 +75,99 @@ export async function addMasterBook(formData: FormData) {
       }
     } catch (error) {
       console.error("상세 정보 추가 실패:", error);
-      // 수정: 에러를 다시 throw하여 사용자에게 알림
-      throw new Error(
+      throw new AppError(
         `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
           error instanceof Error ? error.message : "알 수 없는 오류"
-        }`
+        }`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
     }
   }
 
   redirect(`/admin/master-books/${book.id}`);
-}
+});
 
 /**
  * 서비스 마스터 교재 수정
  */
-export async function updateMasterBookAction(
-  bookId: string,
-  formData: FormData
-) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const updateMasterBookAction = withErrorHandling(
+  async (bookId: string, formData: FormData) => {
+    await requireAdminOrConsultant();
 
-  if (!user) {
-    throw new Error("로그인이 필요합니다.");
-  }
+    const updateData = parseMasterBookUpdateFormData(formData);
 
-  // 헬퍼 함수: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
-  // 빈 문자열이면 null 반환 (명시적으로 삭제)
-  const getFormValue = (key: string): string | null | undefined => {
-    const value = formData.get(key);
-    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
-    const str = value.toString();
-    return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
-  };
+    await updateMasterBook(bookId, updateData);
 
-  const totalPagesStr = formData.get("total_pages")?.toString();
+    // 상세 정보 업데이트
+    const detailsJson = formData.get("details")?.toString();
+    if (detailsJson) {
+      try {
+        const newDetails = JSON.parse(detailsJson) as Array<{
+          major_unit?: string | null;
+          minor_unit?: string | null;
+          page_number: number;
+          display_order: number;
+        }>;
 
-  // 배열 필드 처리
-  const targetExamTypes = formData
-    .getAll("target_exam_type")
-    .filter(Boolean) as string[];
+        // 기존 상세 정보 삭제 후 새로 추가
+        const { deleteAllBookDetails } = await import(
+          "@/lib/data/contentMasters"
+        );
+        await deleteAllBookDetails(bookId);
 
-  // tags 처리: 폼에 필드가 있으면 처리하고, 없으면 undefined
-  const tagsValue = getFormValue("tags");
-  const tags =
-    tagsValue === undefined
-      ? undefined
-      : tagsValue === null
-      ? null
-      : tagsValue
-          .split(",")
-          .map((t: string) => t.trim())
-          .filter(Boolean);
-
-  // subject_id 처리 (빈 문자열 체크)
-  const subjectIdRaw = formData.get("subject_id")?.toString();
-  const subjectId =
-    subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
-
-  const updateData: Partial<
-    Omit<MasterBook, "id" | "created_at" | "updated_at">
-  > = {
-    // 필수 필드 또는 폼에 항상 있는 필드
-    title: formData.get("title")?.toString(),
-
-    // 폼에 필드가 있을 때만 업데이트하는 필드들
-    curriculum_revision_id: getFormValue("curriculum_revision_id") || undefined,
-    subject_id: subjectId || undefined,
-    subject_group_id: getFormValue("subject_group_id") || undefined,
-    subject_category: getFormValue("subject_category") || undefined,
-    subject: getFormValue("subject") || undefined,
-    grade_min: formData.get("grade_min")
-      ? parseInt(formData.get("grade_min")!.toString())
-      : undefined,
-    grade_max: formData.get("grade_max")
-      ? parseInt(formData.get("grade_max")!.toString())
-      : undefined,
-    school_type: getFormValue("school_type") || undefined,
-    revision: getFormValue("revision") || undefined,
-    content_category: getFormValue("content_category") || undefined,
-    // semester 필드 제거됨 (2025-02-04)
-    subtitle: getFormValue("subtitle"),
-    series_name: getFormValue("series_name"),
-    author: getFormValue("author"),
-    publisher_id: getFormValue("publisher_id"),
-    publisher_name: getFormValue("publisher_name"),
-    isbn_10: getFormValue("isbn_10"),
-    isbn_13: getFormValue("isbn_13"),
-    edition: getFormValue("edition"),
-    published_date: getFormValue("published_date"),
-    total_pages: totalPagesStr ? parseInt(totalPagesStr) : undefined,
-    target_exam_type: targetExamTypes.length > 0 ? targetExamTypes : undefined,
-    description: getFormValue("description"),
-    toc: getFormValue("toc"),
-    publisher_review: getFormValue("publisher_review"),
-    tags: tags,
-    source: getFormValue("source"),
-    source_product_code: getFormValue("source_product_code"),
-    source_url: getFormValue("source_url"),
-    cover_image_url: getFormValue("cover_image_url"),
-    pdf_url: getFormValue("pdf_url"),
-    difficulty_level: getFormValue("difficulty_level"),
-    notes: getFormValue("notes"),
-  };
-
-  await updateMasterBook(bookId, updateData);
-
-  // 상세 정보 업데이트
-  const detailsJson = formData.get("details")?.toString();
-  if (detailsJson) {
-    try {
-      const newDetails = JSON.parse(detailsJson) as Array<{
-        major_unit?: string | null;
-        minor_unit?: string | null;
-        page_number: number;
-        display_order: number;
-      }>;
-
-      // 기존 상세 정보 삭제 후 새로 추가
-      const { deleteAllBookDetails } = await import(
-        "@/lib/data/contentMasters"
-      );
-      await deleteAllBookDetails(bookId);
-
-      // 새 상세 정보 추가
-      for (const detail of newDetails) {
-        await createBookDetail({
-          book_id: bookId,
-          major_unit: detail.major_unit || null,
-          minor_unit: detail.minor_unit || null,
-          page_number: detail.page_number,
-          display_order: detail.display_order,
-        });
+        // 새 상세 정보 추가
+        for (const detail of newDetails) {
+          await createBookDetail({
+            book_id: bookId,
+            major_unit: detail.major_unit || null,
+            minor_unit: detail.minor_unit || null,
+            page_number: detail.page_number,
+            display_order: detail.display_order,
+          });
+        }
+      } catch (error) {
+        console.error("상세 정보 업데이트 실패:", error);
+        throw new AppError(
+          `교재는 수정되었지만 상세 정보 저장에 실패했습니다: ${
+            error instanceof Error ? error.message : "알 수 없는 오류"
+          }`,
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
       }
-    } catch (error) {
-      console.error("상세 정보 업데이트 실패:", error);
-      // 수정: 에러를 다시 throw하여 사용자에게 알림
-      throw new Error(
-        `교재는 수정되었지만 상세 정보 저장에 실패했습니다: ${
-          error instanceof Error ? error.message : "알 수 없는 오류"
-        }`
-      );
     }
-  }
 
-  redirect(`/admin/master-books/${bookId}`);
-}
+    revalidatePath("/admin/master-books");
+    revalidatePath(`/admin/master-books/${bookId}`);
+    redirect(`/admin/master-books/${bookId}`);
+  }
+);
 
 /**
  * 서비스 마스터 강의 생성
  */
-export async function addMasterLecture(formData: FormData) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const addMasterLecture = withErrorHandling(async (formData: FormData) => {
+  await requireAdminOrConsultant();
 
-  if (!user) {
-    throw new Error("로그인이 필요합니다.");
-  }
-
-  // tenant_id 조회
-  const { data: student } = await supabase
-    .from("students")
-    .select("tenant_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const lectureData: Partial<
-    Omit<MasterLecture, "id" | "created_at" | "updated_at">
-  > & {
-    title: string;
-    total_episodes: number;
-    is_active: boolean;
-  } = {
-    tenant_id: student?.tenant_id || null,
-    is_active: true,
-    revision: formData.get("revision")?.toString() || null,
-    content_category: formData.get("content_category")?.toString() || null,
-    subject_category: formData.get("subject_category")?.toString() || null,
-    subject: formData.get("subject")?.toString() || null,
-    title: formData.get("title")?.toString() || "",
-    platform: formData.get("platform")?.toString() || null, // 수정: platform_name → platform (DB 스키마와 일치)
-    total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
-    total_duration: formData.get("total_duration")
-      ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
-      : null,
-    difficulty_level: formData.get("difficulty_level")?.toString() || null,
-    notes: formData.get("notes")?.toString() || null,
-    linked_book_id: formData.get("linked_book_id")?.toString() || null,
-  };
+  const tenantContext = await getTenantContext();
+  const lectureData = parseMasterLectureFormData(
+    formData,
+    tenantContext?.tenantId || null
+  );
 
   if (!lectureData.title || !lectureData.total_episodes) {
-    throw new Error("강의명과 총 회차는 필수입니다.");
+    throw new AppError(
+      "강의명과 총 회차는 필수입니다.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
   }
 
-  const lecture = await createMasterLecture(
-    lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">
-  );
+  const lecture = await createMasterLecture(lectureData);
 
   // 연결된 교재 생성 (있는 경우)
   const bookTitle = formData.get("book_title")?.toString();
@@ -350,11 +181,10 @@ export async function addMasterLecture(formData: FormData) {
         title: string;
         is_active: boolean;
       } = {
-        tenant_id: student?.tenant_id || null,
+        tenant_id: tenantContext?.tenantId || null,
         is_active: true,
         revision: formData.get("book_revision")?.toString() || null,
         content_category: null,
-        // semester 필드 제거됨 (2025-02-04)
         subject_category:
           formData.get("book_subject_category")?.toString() || null,
         subject: formData.get("book_subject")?.toString() || null,
@@ -369,7 +199,12 @@ export async function addMasterLecture(formData: FormData) {
       };
 
       if (!bookData.title || !bookData.total_pages) {
-        throw new Error("교재명과 총 페이지는 필수입니다.");
+        throw new AppError(
+          "교재명과 총 페이지는 필수입니다.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
       }
 
       const book = await createMasterBook(
@@ -399,11 +234,13 @@ export async function addMasterLecture(formData: FormData) {
           }
         } catch (error) {
           console.error("교재 상세 정보 추가 실패:", error);
-          // 수정: 에러를 다시 throw하여 사용자에게 알림
-          throw new Error(
+          throw new AppError(
             `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
               error instanceof Error ? error.message : "알 수 없는 오류"
-            }`
+            }`,
+            ErrorCode.DATABASE_ERROR,
+            500,
+            true
           );
         }
       }
@@ -424,7 +261,7 @@ export async function addMasterLecture(formData: FormData) {
     try {
       const episodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        episode_title?: string | null; // 수정: title → episode_title (DB 스키마와 일치)
+        episode_title?: string | null;
         duration?: number | null;
         display_order: number;
       }>;
@@ -433,7 +270,7 @@ export async function addMasterLecture(formData: FormData) {
         await createLectureEpisode({
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null, // 수정: 직접 사용
+          episode_title: episode.episode_title || null,
           duration: episode.duration
             ? minutesToSeconds(episode.duration)
             : null,
@@ -442,95 +279,72 @@ export async function addMasterLecture(formData: FormData) {
       }
     } catch (error) {
       console.error("episode 정보 추가 실패:", error);
-      // 수정: 에러를 다시 throw하여 사용자에게 알림
-      throw new Error(
+      throw new AppError(
         `강의는 생성되었지만 회차 정보 저장에 실패했습니다: ${
           error instanceof Error ? error.message : "알 수 없는 오류"
-        }`
+        }`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
     }
   }
 
   redirect(`/admin/master-lectures/${lecture.id}`);
-}
+});
 
 /**
  * 서비스 마스터 강의 수정
  */
-export async function updateMasterLectureAction(
-  lectureId: string,
-  formData: FormData
-) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const updateMasterLectureAction = withErrorHandling(
+  async (lectureId: string, formData: FormData) => {
+    await requireAdminOrConsultant();
 
-  if (!user) {
-    throw new Error("로그인이 필요합니다.");
-  }
+    const updateData = parseMasterLectureUpdateFormData(formData);
 
-  const updateData: Partial<
-    Omit<MasterLecture, "id" | "created_at" | "updated_at">
-  > = {
-    revision: formData.get("revision")?.toString() || null,
-    content_category: formData.get("content_category")?.toString() || null,
-    subject_category: formData.get("subject_category")?.toString() || null,
-    subject: formData.get("subject")?.toString() || null,
-    title: formData.get("title")?.toString(),
-    platform: formData.get("platform")?.toString() || null, // 수정: platform_name → platform (DB 스키마와 일치)
-    total_episodes: formData.get("total_episodes")
-      ? parseInt(formData.get("total_episodes")!.toString())
-      : undefined,
-    total_duration: formData.get("total_duration")
-      ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
-      : null,
-    difficulty_level: formData.get("difficulty_level")?.toString() || null,
-    notes: formData.get("notes")?.toString() || null,
-    linked_book_id: formData.get("linked_book_id")?.toString() || null,
-    video_url: formData.get("video_url")?.toString() || null,
-    lecture_source_url: formData.get("lecture_source_url")?.toString() || null,
-    cover_image_url: formData.get("cover_image_url")?.toString() || null,
-  };
+    await updateMasterLecture(lectureId, updateData);
 
-  await updateMasterLecture(lectureId, updateData);
+    // episode 정보 업데이트
+    const episodesJson = formData.get("episodes")?.toString();
+    if (episodesJson) {
+      try {
+        const newEpisodes = JSON.parse(episodesJson) as Array<{
+          episode_number: number;
+          episode_title?: string | null;
+          duration?: number | null;
+          display_order: number;
+        }>;
 
-  // episode 정보 업데이트
-  const episodesJson = formData.get("episodes")?.toString();
-  if (episodesJson) {
-    try {
-      const newEpisodes = JSON.parse(episodesJson) as Array<{
-        episode_number: number;
-        episode_title?: string | null; // 수정: title → episode_title (DB 스키마와 일치)
-        duration?: number | null;
-        display_order: number;
-      }>;
+        // 기존 episode 삭제 후 새로 추가
+        await deleteAllLectureEpisodes(lectureId);
 
-      // 기존 episode 삭제 후 새로 추가
-      await deleteAllLectureEpisodes(lectureId);
-
-      // 새 episode 추가
-      for (const episode of newEpisodes) {
-        await createLectureEpisode({
-          lecture_id: lectureId,
-          episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null, // 수정: 직접 사용
-          duration: episode.duration
-            ? minutesToSeconds(episode.duration)
-            : null,
-          display_order: episode.display_order,
-        });
+        // 새 episode 추가
+        for (const episode of newEpisodes) {
+          await createLectureEpisode({
+            lecture_id: lectureId,
+            episode_number: episode.episode_number,
+            episode_title: episode.episode_title || null,
+            duration: episode.duration
+              ? minutesToSeconds(episode.duration)
+              : null,
+            display_order: episode.display_order,
+          });
+        }
+      } catch (error) {
+        console.error("episode 정보 업데이트 실패:", error);
+        throw new AppError(
+          `강의는 수정되었지만 회차 정보 저장에 실패했습니다: ${
+            error instanceof Error ? error.message : "알 수 없는 오류"
+          }`,
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
       }
-    } catch (error) {
-      console.error("episode 정보 업데이트 실패:", error);
-      // 수정: 에러를 다시 throw하여 사용자에게 알림
-      throw new Error(
-        `강의는 수정되었지만 회차 정보 저장에 실패했습니다: ${
-          error instanceof Error ? error.message : "알 수 없는 오류"
-        }`
-      );
     }
-  }
 
-  redirect(`/admin/master-lectures/${lectureId}`);
-}
+    revalidatePath("/admin/master-lectures");
+    revalidatePath(`/admin/master-lectures/${lectureId}`);
+    redirect(`/admin/master-lectures/${lectureId}`);
+  }
+);

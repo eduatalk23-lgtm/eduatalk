@@ -22,4 +22,3 @@ export function isEmptyValue(
 ): boolean {
   return value === null || value === undefined || value === "";
 }
-
