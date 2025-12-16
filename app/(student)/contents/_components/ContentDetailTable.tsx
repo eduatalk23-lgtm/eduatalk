@@ -3,6 +3,7 @@
 import { formatValue, isEmptyValue } from "@/lib/utils/formatValue";
 import { isValidUrl } from "@/lib/utils/urlHelpers";
 import { cn } from "@/lib/cn";
+import { ExternalLink } from "lucide-react";
 
 type DetailRow = {
   label: string;
@@ -20,13 +21,16 @@ type ContentDetailTableProps = {
   rows?: DetailRow[]; // 하위 호환성
 };
 
-export function ContentDetailTable({ sections, rows }: ContentDetailTableProps) {
+export function ContentDetailTable({
+  sections,
+  rows,
+}: ContentDetailTableProps) {
   // 하위 호환성: rows가 제공되면 sections로 변환
   const resolvedSections: DetailSection[] = sections
     ? sections
     : rows
-      ? [{ rows }]
-      : [];
+    ? [{ rows }]
+    : [];
 
   if (resolvedSections.length === 0) {
     return null;
@@ -37,9 +41,11 @@ export function ContentDetailTable({ sections, rows }: ContentDetailTableProps) 
       {resolvedSections.map((section, sectionIndex) => (
         <div key={sectionIndex} className="flex flex-col gap-4">
           {section.title && (
-            <h3 className="text-base font-semibold text-gray-900">{section.title}</h3>
+            <h3 className="text-base font-semibold text-gray-900">
+              {section.title}
+            </h3>
           )}
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {section.rows.map((row, rowIndex) => (
               <DetailRow
                 key={row.label || rowIndex}
@@ -67,32 +73,37 @@ function DetailRow({
   const isEmpty = isEmptyValue(value);
   const displayValue = formatValue(value);
   const isUrlValue = !isEmpty && (isUrl || isValidUrl(value as string));
-  
+
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
+    <div className="flex flex-col gap-1.5 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </p>
       {isUrlValue ? (
         <a
           href={String(value)}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-base text-indigo-600 hover:text-indigo-800 hover:underline break-all"
+          className="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline break-all inline-flex items-center gap-1.5 group"
           aria-label={`${label} 링크 열기`}
         >
-          {String(value)}
+          <span className="truncate">{String(value)}</span>
+          <ExternalLink
+            className="h-4 w-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-hidden="true"
+          />
         </a>
       ) : (
-        <p 
+        <p
           className={cn(
-            "text-base",
-            isEmpty ? "text-gray-400" : "text-gray-900"
+            "text-base font-medium",
+            isEmpty ? "text-gray-400 italic" : "text-gray-900"
           )}
           aria-label={isEmpty ? `${label}: 정보 없음` : undefined}
         >
-          {displayValue}
+          {isEmpty ? "정보 없음" : displayValue}
         </p>
       )}
     </div>
   );
 }
-

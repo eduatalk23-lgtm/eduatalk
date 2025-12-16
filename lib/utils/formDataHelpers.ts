@@ -41,6 +41,71 @@ export function getFormInt(
 }
 
 /**
+ * FormData에서 숫자 값을 안전하게 추출 (검증 옵션 포함)
+ * - 빈 문자열이나 null은 null 반환
+ * - 숫자로 변환 불가능한 경우 null 반환
+ * - NaN 체크 포함
+ * - 범위 검증 지원 (min, max)
+ * - 필수 필드 검증 지원 (required)
+ * 
+ * @param formData FormData 객체
+ * @param key 필드 이름
+ * @param options 옵션 (min, max, required)
+ * @returns 숫자 값 또는 null
+ * @throws Error 필수 필드가 비어있거나, 범위를 벗어난 경우
+ */
+export function getNumberFromFormData(
+  formData: FormData,
+  key: string,
+  options?: {
+    min?: number;
+    max?: number;
+    required?: boolean;
+  }
+): number | null {
+  const value = formData.get(key);
+  
+  // null 또는 빈 문자열 처리
+  if (value === null || value === "") {
+    if (options?.required) {
+      throw new Error(`${key}는 필수입니다.`);
+    }
+    return null;
+  }
+  
+  // 문자열로 변환 및 공백 제거
+  const stringValue = String(value).trim();
+  if (stringValue === "") {
+    if (options?.required) {
+      throw new Error(`${key}는 필수입니다.`);
+    }
+    return null;
+  }
+  
+  // 숫자 변환
+  const numValue = Number(stringValue);
+  
+  // NaN 체크
+  if (isNaN(numValue)) {
+    if (options?.required) {
+      throw new Error(`${key}는 숫자여야 합니다.`);
+    }
+    return null;
+  }
+  
+  // 범위 검증
+  if (options?.min !== undefined && numValue < options.min) {
+    throw new Error(`${key}는 ${options.min} 이상이어야 합니다.`);
+  }
+  
+  if (options?.max !== undefined && numValue > options.max) {
+    throw new Error(`${key}는 ${options.max} 이하여야 합니다.`);
+  }
+  
+  return numValue;
+}
+
+/**
  * FormData에서 부동소수점 숫자 값을 안전하게 추출
  * @param formData FormData 객체
  * @param key 필드 키
@@ -201,12 +266,7 @@ export function parseFormArray(formData: FormData, key: string): string[] {
 
 /**
  * FormData를 일반 객체로 변환
+ * @deprecated lib/validation/schemas.ts의 formDataToObject를 사용하세요.
+ * 이 함수는 제거되었습니다.
  */
-export function formDataToObject(formData: FormData): Record<string, string> {
-  const result: Record<string, string> = {};
-  formData.forEach((value, key) => {
-    result[key] = String(value);
-  });
-  return result;
-}
 

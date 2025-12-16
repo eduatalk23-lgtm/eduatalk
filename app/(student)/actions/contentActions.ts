@@ -16,6 +16,7 @@ import {
   deleteCustomContent as deleteCustomContentData,
 } from "@/lib/data/studentContents";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
+import { getNumberFromFormData } from "@/lib/utils/formDataHelpers";
 
 // 책 등록
 export async function addBook(formData: FormData) {
@@ -117,7 +118,18 @@ export async function createBookWithoutRedirect(formData: FormData) {
   const subject = String(formData.get("subject") || "");
   const publisher = String(formData.get("publisher") || "");
   const difficulty = String(formData.get("difficulty") || "");
-  const totalPages = Number(formData.get("total_pages") || 0);
+  
+  let totalPages: number | null;
+  try {
+    totalPages = getNumberFromFormData(formData, "total_pages", { min: 1 });
+  } catch (error) {
+    return { 
+      success: false as const, 
+      error: error instanceof Error ? error.message : "총 페이지는 1 이상의 숫자여야 합니다.", 
+      bookId: null 
+    };
+  }
+  
   const notes = String(formData.get("notes") || "");
 
   const result = await createBookData({
@@ -130,7 +142,7 @@ export async function createBookWithoutRedirect(formData: FormData) {
     subject: subject || null,
     publisher: publisher || null,
     difficulty_level: difficulty || null,
-    total_pages: totalPages || null,
+    total_pages: totalPages,
     notes: notes || null,
   });
 
@@ -191,7 +203,7 @@ export async function updateBook(id: string, formData: FormData) {
   const subject = String(formData.get("subject") || "");
   const publisher = String(formData.get("publisher") || "");
   const difficulty = String(formData.get("difficulty") || "");
-  const totalPages = Number(formData.get("total_pages") || 0);
+  const totalPages = getNumberFromFormData(formData, "total_pages", { min: 1 });
   const notes = String(formData.get("notes") || "");
 
   const result = await updateBookData(id, user.userId, {
@@ -202,7 +214,7 @@ export async function updateBook(id: string, formData: FormData) {
     subject: subject || null,
     publisher: publisher || null,
     difficulty_level: difficulty || null,
-    total_pages: totalPages || null,
+    total_pages: totalPages,
     notes: notes || null,
   });
 
@@ -272,10 +284,10 @@ export async function addLecture(formData: FormData) {
   const subject = String(formData.get("subject") || "");
   const platform = String(formData.get("platform") || "");
   const difficulty = String(formData.get("difficulty") || "");
-  const duration = Number(formData.get("duration") || 0);
+  const duration = getNumberFromFormData(formData, "duration", { min: 0 });
   const notes = String(formData.get("notes") || "");
 
-  const totalEpisodes = Number(formData.get("total_episodes") || 0);
+  const totalEpisodes = getNumberFromFormData(formData, "total_episodes", { min: 0 });
   
   const result = await createLectureData({
     tenant_id: tenantContext.tenantId,
@@ -287,7 +299,7 @@ export async function addLecture(formData: FormData) {
     subject: subject || null,
     platform: platform || null,
     difficulty_level: difficulty || null,
-    duration: duration || null,
+    duration: duration,
     notes: notes || null,
   });
 
@@ -348,7 +360,7 @@ export async function updateLecture(id: string, formData: FormData) {
   const subject = String(formData.get("subject") || "");
   const platform = String(formData.get("platform") || "");
   const difficulty = String(formData.get("difficulty") || "");
-  const duration = Number(formData.get("duration") || 0);
+  const duration = getNumberFromFormData(formData, "duration", { min: 0 });
   const linkedBookId = String(formData.get("linked_book_id") || "");
   const notes = String(formData.get("notes") || "");
 
@@ -360,7 +372,7 @@ export async function updateLecture(id: string, formData: FormData) {
     subject: subject || null,
     platform: platform || null,
     difficulty_level: difficulty || null,
-    duration: duration || null,
+    duration: duration,
     // linked_book_id는 master_lectures에만 있고 student_lectures에는 없음
     notes: notes || null,
   });
@@ -425,7 +437,7 @@ export async function addCustomContent(formData: FormData) {
 
   const title = String(formData.get("title"));
   const type = String(formData.get("content_type"));
-  const total = Number(formData.get("total") || 0);
+  const total = getNumberFromFormData(formData, "total", { min: 0 });
   const difficulty = String(formData.get("difficulty") || "");
   const subject = String(formData.get("subject") || "");
 
@@ -434,7 +446,7 @@ export async function addCustomContent(formData: FormData) {
     student_id: user.userId,
     title,
     content_type: type || null,
-    total_page_or_time: total || null,
+    total_page_or_time: total,
     subject: subject || null,
   });
 
@@ -454,14 +466,14 @@ export async function updateCustomContent(id: string, formData: FormData) {
 
   const title = String(formData.get("title"));
   const type = String(formData.get("content_type"));
-  const total = Number(formData.get("total") || 0);
+  const total = getNumberFromFormData(formData, "total", { min: 0 });
   const difficulty = String(formData.get("difficulty") || "");
   const subject = String(formData.get("subject") || "");
 
   const result = await updateCustomContentData(id, user.userId, {
     title,
     content_type: type || null,
-    total_page_or_time: total || null,
+    total_page_or_time: total,
     subject: subject || null,
   });
 

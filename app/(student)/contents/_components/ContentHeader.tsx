@@ -47,7 +47,7 @@ export function ContentHeader({
     <div className={cn("flex flex-col gap-6 md:flex-row md:gap-8", className)}>
       {coverImageUrl && (
         <div className="flex flex-shrink-0 justify-center md:justify-start">
-          <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100 sm:h-64 sm:w-40 md:h-72 md:w-48">
+          <div className="relative h-48 w-32 overflow-hidden rounded-xl border-2 border-gray-200 bg-gray-100 shadow-md transition-transform hover:scale-105 sm:h-64 sm:w-40 md:h-72 md:w-48">
             <Image
               src={coverImageUrl}
               alt={`${title} 표지`}
@@ -59,24 +59,33 @@ export function ContentHeader({
           </div>
         </div>
       )}
-      <div className="flex flex-1 flex-col gap-3">
+      <div className="flex flex-1 flex-col gap-4">
         <div className="flex items-center gap-2">
-          <IconComponent className="h-4 w-4 text-gray-400" aria-hidden="true" />
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <div className="flex items-center justify-center rounded-lg bg-indigo-100 p-1.5">
+            <IconComponent className="h-4 w-4 text-indigo-600" aria-hidden="true" />
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
             {icon || (resolvedContentType === "book" ? "교재" : resolvedContentType === "lecture" ? "강의" : "커스텀 콘텐츠")}
           </p>
         </div>
-        <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">{title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl leading-tight">
+          {title}
+        </h1>
         {(subtitle || createdAt) && (
-          <p className="text-sm text-gray-500">
-            {subtitle && <span>{subtitle}</span>}
-            {subtitle && createdAt && <span className="mx-2">•</span>}
-            {createdAt && (
-              <span>
-                등록일 <time dateTime={createdAt}>{formatDate(createdAt)}</time>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+            {subtitle && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1 w-1 rounded-full bg-gray-400" aria-hidden="true" />
+                {subtitle}
               </span>
             )}
-          </p>
+            {createdAt && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1 w-1 rounded-full bg-gray-400" aria-hidden="true" />
+                등록일 <time dateTime={createdAt} className="font-medium">{formatDate(createdAt)}</time>
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>

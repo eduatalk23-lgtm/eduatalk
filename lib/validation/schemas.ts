@@ -186,19 +186,50 @@ export const masterCustomContentSchema = z.object({
 });
 
 /**
+ * 숫자 필드 목록 (확장 가능)
+ * 빈 문자열이 들어올 때 null로 변환해야 하는 필드들
+ */
+const NUMERIC_FIELDS = [
+  'total_duration',
+  'total_episodes',
+  'total_pages',
+  'total_page_or_time',
+  'grade_min',
+  'grade_max',
+] as const;
+
+/**
  * FormData에서 객체로 변환하는 헬퍼
+ * 숫자 필드의 빈 문자열은 null로 변환하여 스키마 검증을 통과하도록 함
  */
 export function formDataToObject(formData: FormData): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
   for (const [key, value] of formData.entries()) {
+    const stringValue = String(value);
+    
+    // 빈 문자열 처리 - 숫자 필드는 null로 변환
+    if (stringValue === "") {
+      if (NUMERIC_FIELDS.includes(key as typeof NUMERIC_FIELDS[number])) {
+        obj[key] = null;
+      } else {
+        obj[key] = "";
+      }
+      continue;
+    }
+    
+    // 불리언 값 처리
+    if (stringValue === "true" || stringValue === "false") {
+      obj[key] = stringValue === "true";
+      continue;
+    }
+    
     // 숫자로 변환 가능한 경우 변환
-    const numValue = Number(value);
-    if (!isNaN(numValue) && value !== "") {
+    // Number("")는 0을 반환하므로 빈 문자열 체크 후에만 변환 시도
+    const numValue = Number(stringValue);
+    if (!isNaN(numValue) && isFinite(numValue)) {
       obj[key] = numValue;
-    } else if (value === "true" || value === "false") {
-      obj[key] = value === "true";
     } else {
-      obj[key] = value;
+      obj[key] = stringValue;
     }
   }
   return obj;
