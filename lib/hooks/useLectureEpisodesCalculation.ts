@@ -15,8 +15,8 @@ type UseLectureEpisodesCalculationReturn = {
   handleEpisodesChange: (episodes: Omit<LectureEpisode, "id" | "created_at">[]) => void;
   handleApplyTotalEpisodes: () => void;
   handleApplyTotalDuration: () => void;
-  totalEpisodesRef: React.RefObject<HTMLInputElement>;
-  totalDurationRef: React.RefObject<HTMLInputElement>;
+  totalEpisodesRef: React.RefObject<HTMLInputElement | null>;
+  totalDurationRef: React.RefObject<HTMLInputElement | null>;
 };
 
 /**
@@ -43,8 +43,8 @@ export function useLectureEpisodesCalculation(
   });
 
   // ref 선언
-  const totalEpisodesRef = useRef<HTMLInputElement>(null);
-  const totalDurationRef = useRef<HTMLInputElement>(null);
+  const totalEpisodesRef = useRef<HTMLInputElement | null>(null);
+  const totalDurationRef = useRef<HTMLInputElement | null>(null);
 
   // 총 회차 수 계산 (배열 길이 기반)
   const totalEpisodes = useMemo(() => episodes.length, [episodes]);

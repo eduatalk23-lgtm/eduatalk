@@ -17,6 +17,7 @@ import {
 } from "@/lib/data/studentContents";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { getNumberFromFormData } from "@/lib/utils/formDataHelpers";
+import type { Lecture } from "@/lib/types/lecture";
 
 // 책 등록
 export async function addBook(formData: FormData) {
@@ -371,16 +372,16 @@ export async function updateLecture(id: string, formData: FormData) {
   const notes = String(formData.get("notes") || "");
 
   const result = await updateLectureData(id, user.userId, {
-    title,
-    revision: revision || null,
-    semester: semester || null,
-    subject_category: subjectCategory || null,
-    subject: subject || null,
-    platform: platform || null,
-    difficulty_level: difficulty || null,
+    title: title || undefined,
+    revision: revision || undefined,
+    semester: semester || undefined,
+    subject_category: subjectCategory || undefined,
+    subject: subject || undefined,
+    platform: platform || undefined,
+    difficulty_level: difficulty || undefined,
     duration: duration,
-    linked_book_id: linkedBookId || null,
-    notes: notes || null,
+    linked_book_id: linkedBookId || undefined,
+    notes: notes || undefined,
   });
 
   if (!result.success) {

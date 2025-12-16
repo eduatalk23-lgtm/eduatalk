@@ -228,6 +228,7 @@ export function parseMasterLectureFormData(
 
   return {
     tenant_id: tenantId,
+    is_active: true, // 필수 필드
     revision: getFormString(formData, "revision"),
     content_category: getFormString(formData, "content_category"),
     subject_category: getFormString(formData, "subject_category"),
@@ -242,14 +243,18 @@ export function parseMasterLectureFormData(
     linked_book_id: getFormUuid(formData, "linked_book_id"),
     instructor_name: getFormString(formData, "instructor_name"),
     grade_level: getFormString(formData, "grade_level"),
-    grade_min: getFormInt(formData, "grade_min"),
-    grade_max: getFormInt(formData, "grade_max"),
+    grade_min: getFormInt(formData, "grade_min") || null,
+    grade_max: getFormInt(formData, "grade_max") || null,
     lecture_type: getFormString(formData, "lecture_type"),
     lecture_source_url: getFormString(formData, "lecture_source_url"),
     source_url: getFormString(formData, "source_url"),
     video_url: getFormString(formData, "video_url"),
     cover_image_url: getFormString(formData, "cover_image_url"),
-  };
+    // 선택적 필드들 (타입에 정의되어 있지만 폼에서 제공하지 않는 경우)
+    curriculum_revision_id: getFormUuid(formData, "curriculum_revision_id") || null,
+    subject_id: getFormUuid(formData, "subject_id") || null,
+    subject_group_id: getFormUuid(formData, "subject_group_id") || null,
+  } as Omit<MasterLecture, "id" | "created_at" | "updated_at">;
 }
 
 /**
