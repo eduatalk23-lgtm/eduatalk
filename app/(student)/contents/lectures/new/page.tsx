@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { addLecture } from "@/app/(student)/actions/contentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import {
