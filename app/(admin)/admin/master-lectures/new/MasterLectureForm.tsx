@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
+import { addMasterLecture, getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
@@ -13,16 +13,33 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
+import { MasterBookSelector } from "../../_components/MasterBookSelector";
 
 type MasterLectureFormProps = {
   curriculumRevisions: CurriculumRevision[];
+  masterBooks: Array<{ id: string; title: string }>;
 };
 
-export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProps) {
+export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMasterBooks }: MasterLectureFormProps) {
   const [isPending, startTransition] = useTransition();
   const [linkBook, setLinkBook] = useState(false);
+  const [masterBooks, setMasterBooks] = useState<Array<{ id: string; title: string }>>(initialMasterBooks);
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const router = useRouter();
   const { showError, showSuccess } = useToast();
+
+  // 교재 목록 새로고침 함수
+  async function refreshMasterBooks() {
+    try {
+      const books = await getMasterBooksListAction();
+      setMasterBooks(books);
+      return books;
+    } catch (error) {
+      console.error("교재 목록 새로고침 실패:", error);
+      // 에러 발생 시 기존 목록 유지
+      return masterBooks;
+    }
+  }
 
   // 강의 입력값을 추적하여 교재 필드에 자동 채우기
   const [lectureValues, setLectureValues] = useState({
@@ -49,6 +66,13 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    // 교재 ID 추가
+    if (selectedBookId) {
+      formData.set("linked_book_id", selectedBookId);
+    } else {
+      formData.set("linked_book_id", "");
+    }
 
     // 공통 필드를 교재 입력 필드에 자동 채우기
     if (linkBook) {
@@ -232,6 +256,20 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
           hint="강의 표지 이미지의 URL을 입력하세요"
           className="md:col-span-2"
         />
+
+        {/* 연결된 교재 선택 */}
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <MasterBookSelector
+            value={selectedBookId}
+            onChange={(bookId) => setSelectedBookId(bookId)}
+            masterBooks={masterBooks}
+            onCreateBook={async (bookId) => {
+              // 새 교재 생성 후 목록 새로고침
+              const updatedBooks = await refreshMasterBooks();
+              setSelectedBookId(bookId);
+            }}
+          />
+        </div>
 
         {/* 연결된 교재 등록 여부 */}
         <div className="flex flex-col gap-1 md:col-span-2">

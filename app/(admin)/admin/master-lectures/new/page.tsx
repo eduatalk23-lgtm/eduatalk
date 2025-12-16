@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
+import { getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLectureForm } from "./MasterLectureForm";
 
 export default async function NewMasterLecturePage() {
@@ -14,7 +15,10 @@ export default async function NewMasterLecturePage() {
   }
 
   // 데이터 조회
-  const curriculumRevisions = await getCurriculumRevisions().catch(() => []);
+  const [curriculumRevisions, masterBooks] = await Promise.all([
+    getCurriculumRevisions().catch(() => []),
+    getMasterBooksListAction().catch(() => []),
+  ]);
 
   return (
     <section className="mx-auto w-full max-w-2xl px-4 py-10">
@@ -32,7 +36,7 @@ export default async function NewMasterLecturePage() {
           </Link>
         </div>
 
-        <MasterLectureForm curriculumRevisions={curriculumRevisions} />
+        <MasterLectureForm curriculumRevisions={curriculumRevisions} masterBooks={masterBooks} />
       </div>
     </section>
   );
