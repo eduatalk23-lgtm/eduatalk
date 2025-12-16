@@ -1708,6 +1708,7 @@ export async function createMasterLecture(
       notes: data.notes,
       linked_book_id: data.linked_book_id,
       video_url: data.video_url,
+      lecture_source_url: data.lecture_source_url,
       transcript: data.transcript,
       episode_analysis: data.episode_analysis,
       overall_difficulty: data.overall_difficulty,
@@ -1732,26 +1733,57 @@ export async function updateMasterLecture(
 ): Promise<MasterLecture> {
   const supabase = await createSupabaseServerClient();
 
+  // undefined 필드는 제외하고 실제 존재하는 필드만 업데이트
+  const updateFields: Record<string, any> = {};
+
+  if (data.tenant_id !== undefined) updateFields.tenant_id = data.tenant_id;
+  if (data.is_active !== undefined) updateFields.is_active = data.is_active;
+  if (data.curriculum_revision_id !== undefined)
+    updateFields.curriculum_revision_id = data.curriculum_revision_id;
+  if (data.subject_id !== undefined) updateFields.subject_id = data.subject_id;
+  if (data.subject_group_id !== undefined)
+    updateFields.subject_group_id = data.subject_group_id;
+  if (data.revision !== undefined) updateFields.revision = data.revision;
+  if (data.content_category !== undefined)
+    updateFields.content_category = data.content_category;
+  // semester 필드 제거됨 (2025-02-04)
+  if (data.subject_category !== undefined)
+    updateFields.subject_category = data.subject_category;
+  if (data.subject !== undefined) updateFields.subject = data.subject;
+  if (data.title !== undefined) updateFields.title = data.title;
+  if (data.platform !== undefined) updateFields.platform = data.platform;
+  if (data.platform_name !== undefined)
+    updateFields.platform_name = data.platform_name;
+  if (data.platform_id !== undefined) updateFields.platform_id = data.platform_id;
+  if (data.total_episodes !== undefined)
+    updateFields.total_episodes = data.total_episodes;
+  if (data.total_duration !== undefined)
+    updateFields.total_duration = data.total_duration;
+  if (data.difficulty_level !== undefined)
+    updateFields.difficulty_level = data.difficulty_level;
+  if (data.notes !== undefined) updateFields.notes = data.notes;
+  if (data.linked_book_id !== undefined)
+    updateFields.linked_book_id = data.linked_book_id;
+  if (data.video_url !== undefined) updateFields.video_url = data.video_url;
+  if (data.lecture_source_url !== undefined)
+    updateFields.lecture_source_url = data.lecture_source_url;
+  // cover_image_url은 DB에 컬럼이 없으므로 제외
+  if (data.transcript !== undefined) updateFields.transcript = data.transcript;
+  if (data.episode_analysis !== undefined)
+    updateFields.episode_analysis = data.episode_analysis;
+  if (data.overall_difficulty !== undefined)
+    updateFields.overall_difficulty = data.overall_difficulty;
+  if (data.instructor_name !== undefined)
+    updateFields.instructor_name = data.instructor_name;
+  if (data.grade_level !== undefined) updateFields.grade_level = data.grade_level;
+  if (data.grade_min !== undefined) updateFields.grade_min = data.grade_min;
+  if (data.grade_max !== undefined) updateFields.grade_max = data.grade_max;
+  if (data.lecture_type !== undefined)
+    updateFields.lecture_type = data.lecture_type;
+
   const { data: lecture, error } = await supabase
     .from("master_lectures")
-    .update({
-      revision: data.revision,
-      content_category: data.content_category,
-      // semester 필드 제거됨 (2025-02-04)
-      subject_category: data.subject_category,
-      subject: data.subject,
-      title: data.title,
-      platform: data.platform,
-      total_episodes: data.total_episodes,
-      total_duration: data.total_duration,
-      difficulty_level: data.difficulty_level,
-      notes: data.notes,
-      linked_book_id: data.linked_book_id,
-      video_url: data.video_url,
-      transcript: data.transcript,
-      episode_analysis: data.episode_analysis,
-      overall_difficulty: data.overall_difficulty,
-    })
+    .update(updateFields)
     .eq("id", lectureId)
     .select()
     .single();
