@@ -24,6 +24,9 @@ export type TimelineSlot = {
 
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 
+// Re-export time utility functions for convenience
+export { timeToMinutes, minutesToTime };
+
 /**
  * 날짜별 타임라인 슬롯 생성
  * daily_schedule의 time_slots와 플랜, 학원일정을 결합

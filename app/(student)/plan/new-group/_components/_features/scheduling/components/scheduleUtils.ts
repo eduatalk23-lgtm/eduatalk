@@ -6,6 +6,9 @@ import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
+// Re-export time utility functions for convenience
+export { timeToMinutes, minutesToTime };
+
 export const dayTypeLabels: Record<string, string> = {
   학습일: "학습일",
   복습일: "복습일",

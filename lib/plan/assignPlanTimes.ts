@@ -9,6 +9,9 @@ import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/d
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
+// Re-export time utility functions for convenience
+export { timeToMinutes, minutesToTime };
+
 // ============================================
 // 입력 타입 정의
 // ============================================

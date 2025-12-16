@@ -13,6 +13,9 @@ export function normalizePlanPurpose(
 
 import { timeToMinutes } from "@/lib/utils/time";
 
+// Re-export time utility function for convenience
+export { timeToMinutes };
+
 /**
  * 기존 draft 플랜 그룹 확인
  * 중복 생성 방지를 위해 동일한 조건의 draft가 있는지 확인
