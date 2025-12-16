@@ -840,7 +840,7 @@ async function _generatePlansFromGroupRefactored(
   // 성공 시 로깅
   if (insertedData && insertedData.length > 0) {
     console.log(
-      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨`
+      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨 (스케줄러 원본: ${scheduledPlans.length}개)`
     );
   }
 
@@ -856,7 +856,8 @@ async function _generatePlansFromGroupRefactored(
     }
   }
 
-  return { count: scheduledPlans.length };
+  // 실제 저장된 플랜 수 반환 (episode별 분할 후 실제 저장된 수)
+  return { count: insertedData?.length ?? 0 };
 }
 
 export const generatePlansFromGroupRefactoredAction = withErrorHandling(
