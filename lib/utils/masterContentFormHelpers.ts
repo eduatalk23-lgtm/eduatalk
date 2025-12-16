@@ -148,6 +148,20 @@ export function parseMasterBookUpdateFormData(
     return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
   };
 
+  // school_type 전용 헬퍼: 빈 문자열을 null로 변환하고, 유효하지 않은 값도 null로 처리
+  const getSchoolTypeValue = (): string | null | undefined => {
+    const value = formData.get("school_type");
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString().trim();
+    if (str === "") return null; // 빈 문자열 → null로 설정 (삭제)
+    // 유효한 enum 값인지 확인
+    if (str === "MIDDLE" || str === "HIGH" || str === "OTHER") {
+      return str;
+    }
+    // 유효하지 않은 값이면 null로 처리
+    return null;
+  };
+
   // 배열 필드 처리
   const targetExamTypes = getFormArray(formData, "target_exam_type");
 
@@ -177,7 +191,7 @@ export function parseMasterBookUpdateFormData(
     subject: getFormValue("subject") || undefined,
     grade_min: getFormInt(formData, "grade_min") ?? undefined,
     grade_max: getFormInt(formData, "grade_max") ?? undefined,
-    school_type: getFormValue("school_type") || undefined,
+    school_type: getSchoolTypeValue(), // 수정: 전용 헬퍼 사용 (빈 문자열 → null 처리)
     revision: getFormValue("revision") || undefined,
     content_category: getFormValue("content_category") || undefined,
     subtitle: getFormValue("subtitle"),
@@ -205,7 +219,7 @@ export function parseMasterBookUpdateFormData(
     notes: getFormValue("notes"),
   };
 
-  // undefined 값 제거
+  // undefined 값 제거 (null은 유지 - 명시적 삭제를 위해)
   return Object.fromEntries(
     Object.entries(updateData).filter(([_, v]) => v !== undefined)
   ) as Partial<Omit<MasterBook, "id" | "created_at" | "updated_at">>;
