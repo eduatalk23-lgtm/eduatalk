@@ -7,6 +7,7 @@ import {
   createSupabaseAdminClient,
 } from "@/lib/supabase/server";
 import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MasterBook,
   MasterLecture,
@@ -22,6 +23,7 @@ import {
 } from "@/lib/data/subjects";
 import { normalizeError, logError } from "@/lib/errors";
 import { buildContentQuery } from "@/lib/data/contentQueryBuilder";
+import { extractJoinedData } from "@/lib/utils/supabaseHelpers";
 import type {
   MasterBookFilters,
   MasterLectureFilters,
@@ -59,6 +61,66 @@ export type ContentMasterFilters = {
 };
 
 // ============================================
+// 공통 헬퍼 함수
+// ============================================
+
+/**
+ * 난이도 정보를 배치로 조회하여 매핑
+ * 목록 조회 시 difficulty_level_id를 사용하여 difficulty_levels.name을 조회하고
+ * difficulty_level 필드에 매핑합니다.
+ */
+async function enrichDifficultyLevels<
+  T extends {
+    difficulty_level_id?: string | null;
+    difficulty_level?: string | null;
+  }
+>(
+  supabase: SupabaseClient,
+  items: T[]
+): Promise<T[]> {
+  // difficulty_level_id가 있는 항목들만 수집
+  const difficultyLevelIds = new Set<string>();
+  items.forEach((item) => {
+    if (item.difficulty_level_id) {
+      difficultyLevelIds.add(item.difficulty_level_id);
+    }
+  });
+
+  if (difficultyLevelIds.size === 0) {
+    return items; // 난이도 ID가 없으면 그대로 반환
+  }
+
+  // 배치로 difficulty_levels 조회
+  const { data: difficultyLevels, error } = await supabase
+    .from("difficulty_levels")
+    .select("id, name")
+    .in("id", Array.from(difficultyLevelIds));
+
+  if (error) {
+    console.error("[contentMasters] 난이도 조회 실패:", error);
+    return items; // 에러 시 원본 반환
+  }
+
+  // ID → name 매핑 생성
+  const difficultyMap = new Map<string, string>();
+  (difficultyLevels || []).forEach((level) => {
+    difficultyMap.set(level.id, level.name);
+  });
+
+  // 각 항목의 difficulty_level 업데이트
+  return items.map((item) => {
+    if (item.difficulty_level_id && difficultyMap.has(item.difficulty_level_id)) {
+      return {
+        ...item,
+        difficulty_level:
+          difficultyMap.get(item.difficulty_level_id) || item.difficulty_level,
+      };
+    }
+    return item;
+  });
+}
+
+// ============================================
 // 교재 관련 함수
 // ============================================
 
@@ -80,6 +142,9 @@ export async function searchMasterBooks(
     filters
   );
 
+  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
+  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+
   // 로그: 서비스 마스터 교재 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
     filters: {
@@ -93,13 +158,16 @@ export async function searchMasterBooks(
       limit: filters.limit,
     },
     result: {
-      count: result.data.length,
+      count: enrichedData.length,
       total: result.total,
-      titles: result.data.slice(0, 3).map((b) => b.title), // 처음 3개만
+      titles: enrichedData.slice(0, 3).map((b) => b.title), // 처음 3개만
     },
   });
 
-  return result;
+  return {
+    data: enrichedData,
+    total: result.total,
+  };
 }
 
 /**
@@ -150,6 +218,7 @@ export async function getMasterBookById(bookId: string): Promise<{
         title,
         total_pages,
         difficulty_level,
+        difficulty_level_id,
         notes,
         pdf_url,
         ocr_data,
@@ -199,6 +268,10 @@ export async function getMasterBookById(bookId: string): Promise<{
         publishers:publisher_id (
           id,
           name
+        ),
+        difficulty_levels:difficulty_level_id (
+          id,
+          name
         )
       `
       )
@@ -235,24 +308,20 @@ export async function getMasterBookById(bookId: string): Promise<{
 
   // JOIN된 데이터를 평탄화하여 표시용 필드 추가
   // Supabase의 중첩 SELECT는 배열로 반환될 수 있으므로 배열 처리
-  const curriculumRevisionRaw = (bookData as any).curriculum_revisions;
-  const curriculumRevision = Array.isArray(curriculumRevisionRaw)
-    ? curriculumRevisionRaw[0]
-    : curriculumRevisionRaw;
+  const curriculumRevision = extractJoinedData(
+    (bookData as any).curriculum_revisions
+  );
 
-  const subjectsRaw = (bookData as any).subjects;
-  const subject = Array.isArray(subjectsRaw) ? subjectsRaw[0] : subjectsRaw;
+  const subject = extractJoinedData((bookData as any).subjects);
 
   // subject가 있을 때 subject_groups 처리
-  const subjectGroupsRaw = subject?.subject_groups;
-  const subjectGroup = Array.isArray(subjectGroupsRaw)
-    ? subjectGroupsRaw[0]
-    : subjectGroupsRaw;
+  const subjectGroup = extractJoinedData(subject?.subject_groups);
 
-  const publishersRaw = (bookData as any).publishers;
-  const publisher = Array.isArray(publishersRaw)
-    ? publishersRaw[0]
-    : publishersRaw;
+  const publisher = extractJoinedData((bookData as any).publishers);
+
+  const difficultyLevel = extractJoinedData(
+    (bookData as any).difficulty_levels
+  );
 
   // 디버깅: JOIN 결과 확인
   if (process.env.NODE_ENV === "development") {
@@ -260,16 +329,15 @@ export async function getMasterBookById(bookId: string): Promise<{
       bookId,
       subject_id: bookData.subject_id,
       curriculum_revision_id: bookData.curriculum_revision_id,
+      difficulty_level_id: bookData.difficulty_level_id,
       hasCurriculumRevision: !!curriculumRevision,
       hasSubject: !!subject,
       hasSubjectGroup: !!subjectGroup,
       hasPublisher: !!publisher,
-      curriculumRevisionRaw,
-      subjectsRaw,
-      subjectGroupsRaw,
-      publishersRaw,
+      hasDifficultyLevel: !!difficultyLevel,
       subjectData: subject,
       subjectGroupData: subjectGroup,
+      difficultyLevelData: difficultyLevel,
     });
   }
 
@@ -283,6 +351,10 @@ export async function getMasterBookById(bookId: string): Promise<{
     subject: bookData.subject || subject?.name || null,
     // publisher는 저장된 값 우선, JOIN은 fallback
     publisher: bookData.publisher_name || publisher?.name || null,
+    // difficulty_level은 difficulty_levels.name으로 설정 (없으면 기존 difficulty_level 유지)
+    // difficulty_level_id가 있으면 JOIN된 name을 우선 사용, 없으면 기존 문자열 값 사용
+    difficulty_level:
+      difficultyLevel?.name || bookData.difficulty_level || null,
   } as MasterBook & {
     subject_category?: string | null;
     subject?: string | null;
@@ -318,6 +390,9 @@ export async function searchMasterLectures(
     filters
   );
 
+  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
+  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+
   // 로그: 서비스 마스터 강의 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
     filters: {
@@ -331,13 +406,16 @@ export async function searchMasterLectures(
       limit: filters.limit,
     },
     result: {
-      count: result.data.length,
+      count: enrichedData.length,
       total: result.total,
-      titles: result.data.slice(0, 3).map((l) => l.title), // 처음 3개만
+      titles: enrichedData.slice(0, 3).map((l) => l.title), // 처음 3개만
     },
   });
 
-  return result;
+  return {
+    data: enrichedData,
+    total: result.total,
+  };
 }
 
 /**
@@ -351,7 +429,15 @@ export async function getMasterLectureById(
   const [lectureResult, episodesResult] = await Promise.all([
     supabase
       .from("master_lectures")
-      .select("*")
+      .select(
+        `
+        *,
+        difficulty_levels:difficulty_level_id (
+          id,
+          name
+        )
+      `
+      )
       .eq("id", lectureId)
       .maybeSingle<MasterLecture>(),
     supabase
@@ -377,8 +463,28 @@ export async function getMasterLectureById(
     // episode는 선택사항이므로 에러를 무시
   }
 
+  const lectureData = lectureResult.data;
+  if (!lectureData) {
+    return {
+      lecture: null,
+      episodes: (episodesResult.data as LectureEpisode[] | null) ?? [],
+    };
+  }
+
+  // JOIN된 데이터 처리
+  const difficultyLevel = extractJoinedData(
+    (lectureData as any).difficulty_levels
+  );
+
+  // difficulty_level을 JOIN된 name으로 덮어쓰기 (fallback: 기존 값)
+  const lecture = {
+    ...lectureData,
+    difficulty_level:
+      difficultyLevel?.name || lectureData.difficulty_level || null,
+  } as MasterLecture;
+
   return {
-    lecture: lectureResult.data,
+    lecture,
     episodes: (episodesResult.data as LectureEpisode[] | null) ?? [],
   };
 }
@@ -729,7 +835,13 @@ export async function searchMasterCustomContents(
     filters
   );
 
-  return result;
+  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
+  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+
+  return {
+    data: enrichedData,
+    total: result.total,
+  };
 }
 
 /**
@@ -742,7 +854,15 @@ export async function getMasterCustomContentById(
 
   const { data, error } = await supabase
     .from("master_custom_contents")
-    .select("*")
+    .select(
+      `
+      *,
+      difficulty_levels:difficulty_level_id (
+        id,
+        name
+      )
+    `
+    )
     .eq("id", contentId)
     .maybeSingle<MasterCustomContent>();
 
@@ -751,8 +871,23 @@ export async function getMasterCustomContentById(
     throw new Error(error.message || "커스텀 콘텐츠 조회에 실패했습니다.");
   }
 
+  if (!data) {
+    return {
+      content: null,
+    };
+  }
+
+  // JOIN된 데이터 처리
+  const difficultyLevel = extractJoinedData((data as any).difficulty_levels);
+
+  // difficulty_level을 JOIN된 name으로 덮어쓰기 (fallback: 기존 값)
+  const content = {
+    ...data,
+    difficulty_level: difficultyLevel?.name || data.difficulty_level || null,
+  } as MasterCustomContent;
+
   return {
-    content: data,
+    content,
   };
 }
 

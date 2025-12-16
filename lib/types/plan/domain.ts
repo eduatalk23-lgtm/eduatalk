@@ -539,7 +539,7 @@ export type CommonContentFields = {
   content_category: string | null; // 유형
   semester: string | null; // 학기 (고3-1 등) - 학생 콘텐츠용
   title: string;
-  difficulty_level: string | null; // 난이도
+  difficulty_level: string | null; // 난이도 (레거시, @deprecated: difficulty_level_id 사용 권장. getMasterBookById/getMasterLectureById에서 JOIN된 difficulty_levels.name으로 자동 덮어쓰기됨)
   notes: string | null; // 비고/메모
   updated_at: string;
   created_at: string;
@@ -548,7 +548,9 @@ export type CommonContentFields = {
 /**
  * 마스터 콘텐츠 공통 필드 (semester 제외)
  */
-export type MasterContentFields = Omit<CommonContentFields, "semester">;
+export type MasterContentFields = Omit<CommonContentFields, "semester"> & {
+  difficulty_level_id: string | null; // FK to difficulty_levels (우선 사용, getMasterBookById/getMasterLectureById에서 JOIN하여 difficulty_levels.name을 difficulty_level에 자동 반영)
+};
 
 /**
  * 서비스 마스터 교재
@@ -614,7 +616,12 @@ export type MasterLecture = MasterContentFields & {
   total_episodes: number; // 총 회차 (필수)
   total_duration: number | null; // 총 강의시간 (분 단위)
   linked_book_id: string | null; // 연결된 교재 ID (선택사항)
-  
+
+  // 교육과정 관련 (선택적)
+  curriculum_revision_id: string | null; // 교육과정 개정판 ID (FK → curriculum_revisions)
+  subject_id: string | null; // 과목 ID (FK → subjects)
+  subject_group_id: string | null; // 교과 그룹 ID (FK → subject_groups, denormalized)
+
   // 강의 메타 정보
   instructor_name: string | null; // 강사명 (실제 DB 컬럼명)
   instructor?: string | null; // @deprecated instructor_name 사용 권장
@@ -624,12 +631,12 @@ export type MasterLecture = MasterContentFields & {
   lecture_type: string | null; // 강의 유형
   lecture_source_url: string | null; // 강의 출처 URL
   source_url: string | null; // 출처 URL (레거시)
-  
+
   // 레거시 필드 (기존 코드 호환성 유지)
   platform?: string | null; // @deprecated platform_name 사용 권장
   subject?: string | null; // @deprecated CommonContentFields.subject 또는 subject_id 사용
   subject_category?: string | null; // @deprecated CommonContentFields.subject_category 사용
-  
+
   // AI 분석 필드 (향후 확장용)
   video_url?: string | null;
   cover_image_url?: string | null; // 표지 이미지 URL

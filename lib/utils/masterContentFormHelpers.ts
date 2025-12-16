@@ -51,23 +51,48 @@ export function parseMasterCustomContentFormData(
 export function parseMasterCustomContentUpdateFormData(
   formData: FormData
 ): Partial<Omit<MasterCustomContent, "id" | "created_at" | "updated_at">> {
+  // UUID 필드 전용 헬퍼: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제), 값이 있으면 그대로 반환
+  const getFormUuidValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString().trim();
+    return str === "" ? null : str; // 빈 문자열 → null로 설정 (삭제), 값 있음 → 그대로
+  };
+
+  // 헬퍼 함수: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제)
+  const getFormValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString();
+    return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
+  };
+
   const contentUrl = getFormString(formData, "content_url");
-  return {
-    revision: getFormString(formData, "revision"),
-    content_category: getFormString(formData, "content_category"),
-    title: getFormString(formData, "title") || "",
-    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
-    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
-    notes: getFormString(formData, "notes"),
-    content_type: getFormString(formData, "content_type"),
-    total_page_or_time: getFormInt(formData, "total_page_or_time"),
-    subject: getFormString(formData, "subject"),
-    subject_category: getFormString(formData, "subject_category"),
-    curriculum_revision_id: getFormUuid(formData, "curriculum_revision_id"),
-    subject_id: getFormUuid(formData, "subject_id"),
-    subject_group_id: getFormUuid(formData, "subject_group_id"),
+  const updateData: Partial<
+    Omit<MasterCustomContent, "id" | "created_at" | "updated_at">
+  > = {
+    revision: getFormValue("revision") || undefined,
+    content_category: getFormValue("content_category") || undefined,
+    title: formData.get("title")?.toString() || "",
+    difficulty_level: getFormValue("difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuidValue("difficulty_level_id"),
+    notes: getFormValue("notes"),
+    content_type: getFormValue("content_type") || undefined,
+    total_page_or_time: getFormInt(formData, "total_page_or_time") ?? undefined,
+    subject: getFormValue("subject") || undefined,
+    subject_category: getFormValue("subject_category") || undefined,
+    curriculum_revision_id: getFormUuidValue("curriculum_revision_id"),
+    subject_id: getFormUuidValue("subject_id"),
+    subject_group_id: getFormUuidValue("subject_group_id"),
     content_url: contentUrl === "" ? null : contentUrl,
   };
+
+  // undefined 값 제거 (null은 유지 - 명시적 삭제를 위해)
+  return Object.fromEntries(
+    Object.entries(updateData).filter(([_, v]) => v !== undefined)
+  ) as Partial<Omit<MasterCustomContent, "id" | "created_at" | "updated_at">>;
 }
 
 // ============================================
@@ -148,6 +173,15 @@ export function parseMasterBookUpdateFormData(
     return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
   };
 
+  // UUID 필드 전용 헬퍼: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제), 값이 있으면 그대로 반환
+  const getFormUuidValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString().trim();
+    return str === "" ? null : str; // 빈 문자열 → null로 설정 (삭제), 값 있음 → 그대로
+  };
+
   // school_type 전용 헬퍼: 빈 문자열을 null로 변환하고, 유효하지 않은 값도 null로 처리
   const getSchoolTypeValue = (): string | null | undefined => {
     const value = formData.get("school_type");
@@ -184,9 +218,9 @@ export function parseMasterBookUpdateFormData(
     title: formData.get("title")?.toString(),
 
     // 폼에 필드가 있을 때만 업데이트하는 필드들
-    curriculum_revision_id: getFormValue("curriculum_revision_id") || undefined,
-    subject_id: getFormUuid(formData, "subject_id") || undefined,
-    subject_group_id: getFormValue("subject_group_id") || undefined,
+    curriculum_revision_id: getFormUuidValue("curriculum_revision_id"),
+    subject_id: getFormUuidValue("subject_id"),
+    subject_group_id: getFormUuidValue("subject_group_id"),
     subject_category: getFormValue("subject_category") || undefined,
     subject: getFormValue("subject") || undefined,
     grade_min: getFormInt(formData, "grade_min") ?? undefined,
@@ -197,7 +231,7 @@ export function parseMasterBookUpdateFormData(
     subtitle: getFormValue("subtitle"),
     series_name: getFormValue("series_name"),
     author: getFormValue("author"),
-    publisher_id: getFormValue("publisher_id") || undefined,
+    publisher_id: getFormUuidValue("publisher_id"),
     publisher_name: getFormValue("publisher_name"),
     isbn_10: getFormValue("isbn_10"),
     isbn_13: getFormValue("isbn_13"),
@@ -215,7 +249,7 @@ export function parseMasterBookUpdateFormData(
     cover_image_url: getFormValue("cover_image_url"),
     pdf_url: getFormValue("pdf_url"),
     difficulty_level: getFormValue("difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
-    difficulty_level_id: getFormUuid(formData, "difficulty_level_id") || undefined,
+    difficulty_level_id: getFormUuidValue("difficulty_level_id"), // 수정: || undefined 제거, 헬퍼 함수 사용
     notes: getFormValue("notes"),
   };
 
@@ -284,6 +318,24 @@ export function parseMasterLectureFormData(
 export function parseMasterLectureUpdateFormData(
   formData: FormData
 ): Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at">> {
+  // UUID 필드 전용 헬퍼: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제), 값이 있으면 그대로 반환
+  const getFormUuidValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString().trim();
+    return str === "" ? null : str; // 빈 문자열 → null로 설정 (삭제), 값 있음 → 그대로
+  };
+
+  // 헬퍼 함수: 폼 필드가 있으면 값을 반환하고, 없으면 undefined 반환
+  // 빈 문자열이면 null 반환 (명시적으로 삭제)
+  const getFormValue = (key: string): string | null | undefined => {
+    const value = formData.get(key);
+    if (value === null) return undefined; // 폼에 필드가 없음 → 업데이트하지 않음
+    const str = value.toString();
+    return str.trim() === "" ? null : str.trim(); // 빈 문자열 → null로 설정 (삭제)
+  };
+
   const totalDurationMinutes = getFormInt(formData, "total_duration");
   const totalDuration = totalDurationMinutes
     ? minutesToSeconds(totalDurationMinutes)
@@ -292,24 +344,28 @@ export function parseMasterLectureUpdateFormData(
   const updateData: Partial<
     Omit<MasterLecture, "id" | "created_at" | "updated_at">
   > = {
-    revision: getFormString(formData, "revision"),
-    content_category: getFormString(formData, "content_category"),
-    subject_category: getFormString(formData, "subject_category"),
-    subject: getFormString(formData, "subject"),
+    revision: getFormValue("revision") || undefined,
+    content_category: getFormValue("content_category") || undefined,
+    subject_category: getFormValue("subject_category") || undefined,
+    subject: getFormValue("subject") || undefined,
     title: formData.get("title")?.toString(),
-    platform: getFormString(formData, "platform"),
+    platform: getFormValue("platform") || undefined,
     total_episodes: getFormInt(formData, "total_episodes") ?? undefined,
     total_duration: totalDuration,
-    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
-    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
-    notes: getFormString(formData, "notes"),
-    linked_book_id: getFormUuid(formData, "linked_book_id"),
-    video_url: getFormString(formData, "video_url"),
-    lecture_source_url: getFormString(formData, "lecture_source_url"),
-    cover_image_url: getFormString(formData, "cover_image_url"),
+    difficulty_level: getFormValue("difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuidValue("difficulty_level_id"),
+    notes: getFormValue("notes"),
+    linked_book_id: getFormUuidValue("linked_book_id"),
+    video_url: getFormValue("video_url") || undefined,
+    lecture_source_url: getFormValue("lecture_source_url") || undefined,
+    cover_image_url: getFormValue("cover_image_url") || undefined,
+    // UUID 필드들도 일관된 처리
+    curriculum_revision_id: getFormUuidValue("curriculum_revision_id"),
+    subject_id: getFormUuidValue("subject_id"),
+    subject_group_id: getFormUuidValue("subject_group_id"),
   };
 
-  // undefined 값 제거
+  // undefined 값 제거 (null은 유지 - 명시적 삭제를 위해)
   return Object.fromEntries(
     Object.entries(updateData).filter(([_, v]) => v !== undefined)
   ) as Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at">>;
