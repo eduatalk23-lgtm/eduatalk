@@ -59,8 +59,13 @@ if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDay
 
 **수정 사항 (2025-01-02 업데이트)**:
 - 기존: `currentPos`를 누적하면서 매번 `Math.round`를 적용하여 오차가 누적됨
-- 수정: `currentPos`를 직접 업데이트하는 방식으로 변경하여 오차 누적 방지
-- 회차 중복 배정 및 누락 문제 해결
+- 수정: 각 날짜의 배정 범위를 직접 계산 (`Math.round(i * dailyRange)`)하여 오차 누적 방지
+- 회차 중복 배정, 누락, 첫 주 마지막 날 몰아 배정 문제 해결
+
+**최종 수정 (2025-01-02 재수정)**:
+- 각 날짜의 시작/끝 위치를 독립적으로 계산 (`dayStartPos = Math.round(i * dailyRange)`, `dayEndPos = Math.round((i + 1) * dailyRange)`)
+- 주차 경계에서 회차 재배정 문제 해결
+- 오차 누적 없이 정확한 회차 분배 보장
 
 ### 동작 방식
 
