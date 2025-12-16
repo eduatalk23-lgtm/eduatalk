@@ -321,10 +321,38 @@ export class SchedulerEngine {
     // 2. Distribute content units
     let currentStart = content.start_range;
     const totalEnd = content.end_range;
+    const totalRange = totalEnd - currentStart; // 총 회차/페이지 수
     
     // Sort dates chronologically
     const sortedDates = [...allocatedDates].sort();
+    const totalStudyDays = sortedDates.length;
     
+    // 강의 콘텐츠의 경우: 학습일 수에 맞춰 균등 분배
+    // 학습일이 30일이고 회차가 30개면 하루 1개씩 분배
+    if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDays > 0 && totalRange > 0) {
+      const dailyRange = totalRange / totalStudyDays;
+      let currentPos = 0;
+      
+      for (let i = 0; i < sortedDates.length; i++) {
+        const date = sortedDates[i];
+        const isLastDay = i === sortedDates.length - 1;
+        
+        const dayStart = currentStart + Math.round(currentPos);
+        const dayEnd = isLastDay 
+          ? totalEnd 
+          : currentStart + Math.round(currentPos + dailyRange);
+        
+        if (dayEnd > dayStart) {
+          result.set(date, { start: dayStart, end: dayEnd });
+        }
+        
+        currentPos += dailyRange;
+      }
+      
+      return result;
+    }
+    
+    // 교재 및 커스텀 콘텐츠: Capacity-Aware 배치 (기존 로직)
     for (let i = 0; i < sortedDates.length; i++) {
       const date = sortedDates[i];
       const isLastDay = i === sortedDates.length - 1;
@@ -347,17 +375,7 @@ export class SchedulerEngine {
         let unitSize = 1; 
         let unitDuration = 0;
         
-        if (content.content_type === "lecture" && durationInfo.episodes) {
-          // Lecture: Strictly 1 episode per unit check
-          // content.start_range is typically 1 (Ep 1). dayEnd is current episode number (e.g. 1).
-          const targetEpisodeNum = Math.floor(dayEnd); 
-          
-          // Robust episode lookup
-          const ep = durationInfo.episodes.find(e => e.episode_number === targetEpisodeNum);
-          unitDuration = ep?.duration || 30; // fallback 30m if not found
-          unitSize = 1; 
-          
-        } else if (content.content_type === "book") {
+        if (content.content_type === "book") {
           // Book pages
           unitSize = 1; // 1 page
           unitDuration = 2; // default 2 mins/page
@@ -381,11 +399,6 @@ export class SchedulerEngine {
           }
           break; // Day full
         }
-        
-        // Force break for lectures if we want strict 1 episode per row?
-        // No, `result` map is {start, end}. This defines the RANGE for the day.
-        // If we want multiple rows in PlanTable, we must split this RANGE in `generateStudyDayPlans`.
-        // So here we validly calculate "This day can fit Episodes 1 to 3".
       }
       
       result.set(date, { start: currentStart, end: dayEnd });
