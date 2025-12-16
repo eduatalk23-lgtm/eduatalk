@@ -1,24 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { CurriculumHierarchyManager } from "./CurriculumHierarchyManager";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PlatformsManager } from "./PlatformsManager";
 import { PublishersManager } from "./PublishersManager";
 import { CareerFieldsManager } from "./CareerFieldsManager";
 import { DifficultyLevelsManager } from "./DifficultyLevelsManager";
 
-type TabKey = "hierarchy" | "platforms" | "publishers" | "career-fields" | "difficulty-levels";
+type TabKey = "platforms" | "publishers" | "career-fields" | "difficulty-levels";
+
+const DEFAULT_TAB: TabKey = "platforms";
 
 export function ContentMetadataTabs() {
-  const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeTab = (searchParams.get("tab") as TabKey) || DEFAULT_TAB;
 
-  const tabs = [
-    { key: "hierarchy" as TabKey, label: "교육과정 계층" },
-    { key: "platforms" as TabKey, label: "플랫폼" },
-    { key: "publishers" as TabKey, label: "출판사" },
-    { key: "career-fields" as TabKey, label: "진로 계열" },
-    { key: "difficulty-levels" as TabKey, label: "난이도" },
+  const tabs: Array<{ key: TabKey; label: string }> = [
+    { key: "platforms", label: "플랫폼" },
+    { key: "publishers", label: "출판사" },
+    { key: "career-fields", label: "진로 계열" },
+    { key: "difficulty-levels", label: "난이도" },
   ];
+
+  function handleTabChange(tab: TabKey) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.push(`?${params.toString()}`, { scroll: false });
+  }
 
   return (
     <div>
@@ -28,7 +36,7 @@ export function ContentMetadataTabs() {
           {tabs.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition ${
                 activeTab === tab.key
                   ? "border-indigo-500 text-indigo-600"
@@ -43,7 +51,6 @@ export function ContentMetadataTabs() {
 
       {/* 탭 컨텐츠 */}
       <div className="mt-6">
-        {activeTab === "hierarchy" && <CurriculumHierarchyManager />}
         {activeTab === "platforms" && <PlatformsManager />}
         {activeTab === "publishers" && <PublishersManager />}
         {activeTab === "career-fields" && <CareerFieldsManager />}
