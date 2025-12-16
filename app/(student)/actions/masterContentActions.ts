@@ -15,6 +15,7 @@ import {
   deleteBookDetail,
   createLectureEpisode,
   deleteAllLectureEpisodes,
+  getMasterBooksList,
 } from "@/lib/data/contentMasters";
 import {
   MasterBook,
@@ -29,6 +30,16 @@ import {
   parseMasterLectureFormData,
   parseMasterLectureUpdateFormData,
 } from "@/lib/utils/masterContentFormHelpers";
+
+/**
+ * 마스터 교재 목록 조회 (Server Action)
+ */
+async function _getMasterBooksList(): Promise<Array<{ id: string; title: string }>> {
+  await requireAdminOrConsultant();
+  return await getMasterBooksList();
+}
+
+export const getMasterBooksListAction = withErrorHandling(_getMasterBooksList);
 
 /**
  * 서비스 마스터 교재 생성
@@ -88,6 +99,68 @@ export const addMasterBook = withErrorHandling(async (formData: FormData) => {
 
   redirect(`/admin/master-books/${book.id}`);
 });
+
+/**
+ * 서비스 마스터 교재 생성 (redirect 없이 bookId 반환)
+ */
+export const createMasterBookWithoutRedirect = withErrorHandling(
+  async (formData: FormData): Promise<{ success: true; bookId: string } | { success: false; error: string; bookId: null }> => {
+    await requireAdminOrConsultant();
+
+    const tenantContext = await getTenantContext();
+    const bookData = parseMasterBookFormData(
+      formData,
+      tenantContext?.tenantId || null
+    );
+
+    if (!bookData.title) {
+      return {
+        success: false,
+        error: "교재명은 필수입니다.",
+        bookId: null,
+      };
+    }
+
+    try {
+      const book = await createMasterBook(bookData);
+
+      // 상세 정보 추가 (있는 경우)
+      const detailsJson = formData.get("details")?.toString();
+      if (detailsJson) {
+        try {
+          const details = JSON.parse(detailsJson) as Array<{
+            major_unit?: string;
+            minor_unit?: string;
+            page_number: number;
+            display_order: number;
+          }>;
+
+          for (const detail of details) {
+            await createBookDetail({
+              book_id: book.id,
+              major_unit: detail.major_unit || null,
+              minor_unit: detail.minor_unit || null,
+              page_number: detail.page_number,
+              display_order: detail.display_order,
+            });
+          }
+        } catch (error) {
+          console.error("상세 정보 추가 실패:", error);
+          // 상세 정보 추가 실패해도 교재는 생성됨
+        }
+      }
+
+      return { success: true, bookId: book.id };
+    } catch (error) {
+      console.error("교재 생성 실패:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "교재 생성에 실패했습니다.",
+        bookId: null,
+      };
+    }
+  }
+);
 
 /**
  * 서비스 마스터 교재 수정
