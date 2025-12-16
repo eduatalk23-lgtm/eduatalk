@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addMasterCustomContent } from "@/app/(admin)/actions/masterCustomContentActions";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
+import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -112,15 +113,10 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
         />
 
         {/* 난이도 */}
-        <FormSelect
+        <DifficultySelectField
+          contentType="custom"
+          name="difficulty_level_id"
           label="난이도"
-          name="difficulty_level"
-          options={[
-            { value: "", label: "선택하세요" },
-            { value: "상", label: "상" },
-            { value: "중", label: "중" },
-            { value: "하", label: "하" },
-          ]}
         />
 
         {/* 콘텐츠 카테고리 */}

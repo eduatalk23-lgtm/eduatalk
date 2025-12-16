@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { useTransition, useState } from "react";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
+import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
+import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
+import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import { UrlField } from "@/components/forms/UrlField";
+import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { secondsToMinutes } from "@/lib/utils/duration";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, formDataToObject } from "@/lib/validation/schemas";
 import FormField from "@/components/molecules/FormField";
-import { FormSelect } from "@/components/molecules/FormField";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
 import { useMasterBooksRefresh } from "@/lib/hooks/useMasterBooksRefresh";
 import { MasterBookSelector } from "../../_components/MasterBookSelector";
@@ -35,6 +38,52 @@ export function MasterLectureEditForm({
   const { masterBooks, refreshMasterBooks } = useMasterBooksRefresh(initialMasterBooks);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(lecture.linked_book_id || null);
 
+  // revision 이름으로 curriculum_revision_id 찾기
+  const initialRevisionId = curriculumRevisions.find(
+    (r) => r.name === lecture.revision
+  )?.id || "";
+
+  // 과목 선택 훅 사용
+  const {
+    selectedRevisionId,
+    selectedGroupId,
+    selectedSubjectId,
+    selectedSubjects,
+    subjectGroups,
+    loadingGroups,
+    handleCurriculumRevisionChange,
+    handleSubjectGroupChange,
+    handleSubjectChange,
+    addSubjectDataToFormData,
+    setSelectedGroupId,
+    setSelectedSubjects,
+    setSelectedSubjectId,
+  } = useSubjectSelection({
+    curriculumRevisions,
+    initialRevisionId,
+    onInitialLoad: async (revisionId: string) => {
+      try {
+        const groups = await getSubjectGroupsWithSubjectsAction(revisionId);
+        // lecture.subject로 과목 찾기
+        if (lecture.subject) {
+          for (const group of groups) {
+            const foundSubject = group.subjects.find(
+              (s) => s.name === lecture.subject
+            );
+            if (foundSubject) {
+              setSelectedGroupId(group.id);
+              setSelectedSubjects(group.subjects || []);
+              setSelectedSubjectId(foundSubject.id);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.error("교과 그룹 조회 실패:", error);
+      }
+    },
+  });
+
   // 회차 정보 기반 계산 로직 (공통 훅 사용)
   // 훅 내부에서 초 단위를 분 단위로 자동 변환
   const {
@@ -50,6 +99,9 @@ export function MasterLectureEditForm({
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    // 과목 정보 추가
+    addSubjectDataToFormData(formData);
 
     // 교재 ID 추가
     if (selectedBookId) {
@@ -106,43 +158,18 @@ export function MasterLectureEditForm({
           className="md:col-span-2"
         />
 
-        {/* 개정교육과정 */}
-        <FormSelect
-          name="revision"
-          label="개정교육과정"
-          defaultValue={lecture.revision || ""}
-          options={[
-            { value: "", label: "선택하세요" },
-            ...curriculumRevisions.map((revision) => ({
-              value: revision.name,
-              label: revision.name,
-            })),
-          ]}
-          error={validationErrors.revision}
-        />
-
-        {/* 교과 */}
-        <FormSelect
-          name="subject_category"
-          label="교과"
-          defaultValue={lecture.subject_category || ""}
-          options={[
-            { value: "", label: "선택하세요" },
-            { value: "국어", label: "국어" },
-            { value: "수학", label: "수학" },
-            { value: "영어", label: "영어" },
-            { value: "사회", label: "사회" },
-            { value: "과학", label: "과학" },
-          ]}
-          error={validationErrors.subject_category}
-        />
-
-        {/* 과목 */}
-        <FormField
-          name="subject"
-          label="과목"
-          defaultValue={lecture.subject || ""}
-          error={validationErrors.subject}
+        {/* 개정교육과정, 교과 그룹, 과목 */}
+        <SubjectSelectionFields
+          curriculumRevisions={curriculumRevisions}
+          selectedRevisionId={selectedRevisionId}
+          selectedGroupId={selectedGroupId}
+          selectedSubjectId={selectedSubjectId}
+          selectedSubjects={selectedSubjects}
+          subjectGroups={subjectGroups}
+          loadingGroups={loadingGroups}
+          onCurriculumRevisionChange={handleCurriculumRevisionChange}
+          onSubjectGroupChange={handleSubjectGroupChange}
+          onSubjectChange={handleSubjectChange}
         />
 
         {/* 플랫폼 */}
@@ -215,17 +242,12 @@ export function MasterLectureEditForm({
         </div>
 
         {/* 난이도 */}
-        <FormSelect
-          name="difficulty_level"
+        <DifficultySelectField
+          contentType="lecture"
+          defaultValue={lecture.difficulty_level_id || undefined}
+          name="difficulty_level_id"
           label="난이도"
-          defaultValue={lecture.difficulty_level || ""}
-          options={[
-            { value: "", label: "선택하세요" },
-            { value: "개념", label: "개념" },
-            { value: "기본", label: "기본" },
-            { value: "심화", label: "심화" },
-          ]}
-          error={validationErrors.difficulty_level}
+          error={validationErrors.difficulty_level_id}
         />
 
         {/* 연결된 교재 */}

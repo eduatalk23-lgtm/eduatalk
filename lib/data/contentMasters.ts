@@ -1371,7 +1371,8 @@ export async function createMasterBook(
       source_product_code: data.source_product_code,
       source_url: data.source_url,
       cover_image_url: data.cover_image_url,
-      difficulty_level: data.difficulty_level,
+      difficulty_level: data.difficulty_level, // @deprecated: difficulty_level_id 사용 권장
+      difficulty_level_id: (data as any).difficulty_level_id || null,
       notes: data.notes,
       pdf_url: data.pdf_url,
       ocr_data: data.ocr_data,
@@ -1450,7 +1451,9 @@ export async function updateMasterBook(
   if (data.cover_image_url !== undefined)
     updateFields.cover_image_url = data.cover_image_url;
   if (data.difficulty_level !== undefined)
-    updateFields.difficulty_level = data.difficulty_level;
+    updateFields.difficulty_level = data.difficulty_level; // @deprecated
+  if ((data as any).difficulty_level_id !== undefined)
+    updateFields.difficulty_level_id = (data as any).difficulty_level_id;
   if (data.notes !== undefined) updateFields.notes = data.notes;
   if (data.pdf_url !== undefined) updateFields.pdf_url = data.pdf_url;
   if (data.ocr_data !== undefined) updateFields.ocr_data = data.ocr_data;
@@ -1512,7 +1515,8 @@ export async function createMasterLecture(
       platform: data.platform,
       total_episodes: data.total_episodes,
       total_duration: data.total_duration,
-      difficulty_level: data.difficulty_level,
+      difficulty_level: data.difficulty_level, // @deprecated: difficulty_level_id 사용 권장
+      difficulty_level_id: (data as any).difficulty_level_id || null,
       notes: data.notes,
       linked_book_id: data.linked_book_id,
       video_url: data.video_url,
@@ -1573,7 +1577,9 @@ export async function updateMasterLecture(
   if (data.total_duration !== undefined)
     updateFields.total_duration = data.total_duration;
   if (data.difficulty_level !== undefined)
-    updateFields.difficulty_level = data.difficulty_level;
+    updateFields.difficulty_level = data.difficulty_level; // @deprecated
+  if ((data as any).difficulty_level_id !== undefined)
+    updateFields.difficulty_level_id = (data as any).difficulty_level_id;
   if (data.notes !== undefined) updateFields.notes = data.notes;
   if (data.linked_book_id !== undefined)
     updateFields.linked_book_id = data.linked_book_id;

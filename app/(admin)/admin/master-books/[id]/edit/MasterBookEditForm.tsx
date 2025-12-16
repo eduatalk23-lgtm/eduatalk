@@ -11,6 +11,7 @@ import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDet
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import { PublisherSelectField } from "@/components/forms/PublisherSelectField";
+import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -221,16 +222,11 @@ export function MasterBookEditForm({
         />
 
         {/* 난이도 */}
-        <FormSelect
+        <DifficultySelectField
+          contentType="book"
+          defaultValue={book.difficulty_level_id || undefined}
+          name="difficulty_level_id"
           label="난이도"
-          name="difficulty_level"
-          defaultValue={book.difficulty_level || ""}
-          options={[
-            { value: "", label: "선택하세요" },
-            { value: "개념", label: "개념" },
-            { value: "기본", label: "기본" },
-            { value: "심화", label: "심화" },
-          ]}
         />
 
         {/* 대상 시험 유형 */}

@@ -5,8 +5,9 @@ import { CurriculumHierarchyManager } from "./CurriculumHierarchyManager";
 import { PlatformsManager } from "./PlatformsManager";
 import { PublishersManager } from "./PublishersManager";
 import { CareerFieldsManager } from "./CareerFieldsManager";
+import { DifficultyLevelsManager } from "./DifficultyLevelsManager";
 
-type TabKey = "hierarchy" | "platforms" | "publishers" | "career-fields";
+type TabKey = "hierarchy" | "platforms" | "publishers" | "career-fields" | "difficulty-levels";
 
 export function ContentMetadataTabs() {
   const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
@@ -16,6 +17,7 @@ export function ContentMetadataTabs() {
     { key: "platforms" as TabKey, label: "플랫폼" },
     { key: "publishers" as TabKey, label: "출판사" },
     { key: "career-fields" as TabKey, label: "진로 계열" },
+    { key: "difficulty-levels" as TabKey, label: "난이도" },
   ];
 
   return (
@@ -45,6 +47,7 @@ export function ContentMetadataTabs() {
         {activeTab === "platforms" && <PlatformsManager />}
         {activeTab === "publishers" && <PublishersManager />}
         {activeTab === "career-fields" && <CareerFieldsManager />}
+        {activeTab === "difficulty-levels" && <DifficultyLevelsManager />}
       </div>
     </div>
   );

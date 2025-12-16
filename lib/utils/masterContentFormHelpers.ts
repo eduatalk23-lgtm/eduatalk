@@ -29,7 +29,8 @@ export function parseMasterCustomContentFormData(
     revision: getFormString(formData, "revision"),
     content_category: getFormString(formData, "content_category"),
     title: getFormString(formData, "title") || "",
-    difficulty_level: getFormString(formData, "difficulty_level"),
+    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
     notes: getFormString(formData, "notes"),
     content_type: getFormString(formData, "content_type"),
     total_page_or_time: getFormInt(formData, "total_page_or_time"),
@@ -55,7 +56,8 @@ export function parseMasterCustomContentUpdateFormData(
     revision: getFormString(formData, "revision"),
     content_category: getFormString(formData, "content_category"),
     title: getFormString(formData, "title") || "",
-    difficulty_level: getFormString(formData, "difficulty_level"),
+    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
     notes: getFormString(formData, "notes"),
     content_type: getFormString(formData, "content_type"),
     total_page_or_time: getFormInt(formData, "total_page_or_time"),
@@ -119,7 +121,8 @@ export function parseMasterBookFormData(
     source_product_code: getFormString(formData, "source_product_code"),
     source_url: getFormString(formData, "source_url"),
     cover_image_url: getFormString(formData, "cover_image_url"),
-    difficulty_level: getFormString(formData, "difficulty_level"),
+    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
     notes: getFormString(formData, "notes"),
     pdf_url: getFormString(formData, "pdf_url"),
     ocr_data: null,
@@ -197,7 +200,8 @@ export function parseMasterBookUpdateFormData(
     source_url: getFormValue("source_url"),
     cover_image_url: getFormValue("cover_image_url"),
     pdf_url: getFormValue("pdf_url"),
-    difficulty_level: getFormValue("difficulty_level"),
+    difficulty_level: getFormValue("difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id") || undefined,
     notes: getFormValue("notes"),
   };
 
@@ -238,7 +242,8 @@ export function parseMasterLectureFormData(
     platform: getFormString(formData, "platform"),
     total_episodes: getFormInt(formData, "total_episodes") || 0,
     total_duration: totalDuration,
-    difficulty_level: getFormString(formData, "difficulty_level"),
+    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
     notes: getFormString(formData, "notes"),
     linked_book_id: getFormUuid(formData, "linked_book_id"),
     instructor_name: getFormString(formData, "instructor_name"),
@@ -281,7 +286,8 @@ export function parseMasterLectureUpdateFormData(
     platform: getFormString(formData, "platform"),
     total_episodes: getFormInt(formData, "total_episodes") ?? undefined,
     total_duration: totalDuration,
-    difficulty_level: getFormString(formData, "difficulty_level"),
+    difficulty_level: getFormString(formData, "difficulty_level"), // @deprecated: difficulty_level_id 사용 권장
+    difficulty_level_id: getFormUuid(formData, "difficulty_level_id"),
     notes: getFormString(formData, "notes"),
     linked_book_id: getFormUuid(formData, "linked_book_id"),
     video_url: getFormString(formData, "video_url"),
