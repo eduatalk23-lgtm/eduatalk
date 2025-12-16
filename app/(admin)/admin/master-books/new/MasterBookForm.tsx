@@ -8,6 +8,7 @@ import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDet
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterBookSchema, validateFormData } from "@/lib/validation/schemas";
 import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
@@ -233,6 +234,24 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
           className="md:col-span-2"
           hint="쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다"
+        />
+
+        {/* PDF URL */}
+        <UrlField
+          label="PDF URL"
+          name="pdf_url"
+          placeholder="https://example.com/book.pdf"
+          hint="교재 PDF 파일의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 출처 URL */}
+        <UrlField
+          label="출처 URL"
+          name="source_url"
+          placeholder="https://example.com/source"
+          hint="교재 출처 URL을 입력하세요"
+          className="md:col-span-2"
         />
 
         {/* 메모 */}

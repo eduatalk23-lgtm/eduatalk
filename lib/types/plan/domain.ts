@@ -632,6 +632,7 @@ export type MasterLecture = MasterContentFields & {
   
   // AI 분석 필드 (향후 확장용)
   video_url?: string | null;
+  cover_image_url?: string | null; // 표지 이미지 URL
   transcript?: string | null;
   episode_analysis?: EpisodeAnalysis | null; // JSONB
   overall_difficulty?: number | null; // 0.00 ~ 10.00
@@ -651,6 +652,9 @@ export type MasterCustomContent = MasterContentFields & {
   curriculum_revision_id: string | null; // 교육과정 개정판 ID (FK → curriculum_revisions)
   subject_id: string | null; // 과목 ID (FK → subjects)
   subject_group_id: string | null; // 교과 그룹 ID (FK → subject_groups, denormalized)
+  
+  // 콘텐츠 URL
+  content_url: string | null; // 콘텐츠 URL (PDF, 동영상, 문제집 등의 링크)
 };
 
 /**

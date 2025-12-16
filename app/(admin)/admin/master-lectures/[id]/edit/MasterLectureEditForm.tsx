@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
+import { UrlField } from "@/components/forms/UrlField";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { secondsToMinutes } from "@/lib/utils/duration";
 
@@ -188,6 +189,36 @@ export function MasterLectureEditForm({
             있습니다.
           </p>
         </div>
+
+        {/* 동영상 URL */}
+        <UrlField
+          label="동영상 URL"
+          name="video_url"
+          defaultValue={lecture.video_url || ""}
+          placeholder="https://example.com/video.mp4"
+          hint="강의 동영상 파일의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 강의 출처 URL */}
+        <UrlField
+          label="강의 출처 URL"
+          name="lecture_source_url"
+          defaultValue={lecture.lecture_source_url || ""}
+          placeholder="https://example.com/source"
+          hint="강의 출처 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 표지 이미지 URL */}
+        <UrlField
+          label="표지 이미지 URL"
+          name="cover_image_url"
+          defaultValue={lecture.cover_image_url || ""}
+          placeholder="https://example.com/image.jpg"
+          hint="강의 표지 이미지의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
 
         {/* 메모 */}
         <div className="flex flex-col gap-1 md:col-span-2">

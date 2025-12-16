@@ -15,6 +15,7 @@ export function parseMasterCustomContentFormData(
   formData: FormData,
   tenantId: string | null
 ): Omit<MasterCustomContent, "id" | "created_at" | "updated_at"> {
+  const contentUrl = getFormString(formData, "content_url");
   return {
     tenant_id: tenantId,
     revision: getFormString(formData, "revision"),
@@ -29,6 +30,7 @@ export function parseMasterCustomContentFormData(
     curriculum_revision_id: getFormUuid(formData, "curriculum_revision_id"),
     subject_id: getFormUuid(formData, "subject_id"),
     subject_group_id: getFormUuid(formData, "subject_group_id"),
+    content_url: contentUrl === "" ? null : contentUrl,
   };
 }
 
@@ -40,6 +42,7 @@ export function parseMasterCustomContentFormData(
 export function parseMasterCustomContentUpdateFormData(
   formData: FormData
 ): Partial<Omit<MasterCustomContent, "id" | "created_at" | "updated_at">> {
+  const contentUrl = getFormString(formData, "content_url");
   return {
     revision: getFormString(formData, "revision"),
     content_category: getFormString(formData, "content_category"),
@@ -53,6 +56,7 @@ export function parseMasterCustomContentUpdateFormData(
     curriculum_revision_id: getFormUuid(formData, "curriculum_revision_id"),
     subject_id: getFormUuid(formData, "subject_id"),
     subject_group_id: getFormUuid(formData, "subject_group_id"),
+    content_url: contentUrl === "" ? null : contentUrl,
   };
 }
 

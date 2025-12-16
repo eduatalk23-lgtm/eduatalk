@@ -78,9 +78,19 @@ export default async function MasterLectureDetailPage({
               value: linkedBook ? linkedBook.title : null,
             },
             {
-              label: "출처 URL",
+              label: "동영상 URL",
+              value: (lecture as any).video_url,
+              isUrl: !!(lecture as any).video_url,
+            },
+            {
+              label: "강의 출처 URL",
               value: (lecture as any).lecture_source_url,
               isUrl: !!(lecture as any).lecture_source_url,
+            },
+            {
+              label: "표지 이미지 URL",
+              value: (lecture as any).cover_image_url,
+              isUrl: !!(lecture as any).cover_image_url,
             },
             { label: "부제목", value: (lecture as any).subtitle },
             { label: "시리즈명", value: (lecture as any).series_name },

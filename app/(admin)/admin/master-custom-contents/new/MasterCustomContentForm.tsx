@@ -6,6 +6,7 @@ import { addMasterCustomContent } from "@/app/(admin)/actions/masterCustomConten
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterCustomContentSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
@@ -127,6 +128,15 @@ export function MasterCustomContentForm({ curriculumRevisions }: MasterCustomCon
           label="콘텐츠 카테고리"
           name="content_category"
           placeholder="예: 개념서, 문제집 등"
+        />
+
+        {/* 콘텐츠 URL */}
+        <UrlField
+          label="콘텐츠 URL"
+          name="content_url"
+          placeholder="https://example.com/content.pdf"
+          hint="콘텐츠 URL (PDF, 동영상, 문제집 등의 링크)을 입력하세요"
+          className="md:col-span-2"
         />
 
         {/* 메모 */}

@@ -53,6 +53,7 @@ export default async function MasterCustomContentDetailPage({
             },
             { label: "난이도", value: content.difficulty_level },
             { label: "콘텐츠 카테고리", value: content.content_category },
+            { label: "콘텐츠 URL", value: content.content_url, isUrl: !!content.content_url },
             { label: "메모", value: content.notes },
           ]}
         />

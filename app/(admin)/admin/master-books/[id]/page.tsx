@@ -49,7 +49,8 @@ export default async function MasterBookDetailPage({
             { label: "총 페이지", value: book.total_pages ? `${book.total_pages}p` : null },
             { label: "난이도", value: book.difficulty_level },
             { label: "메모", value: book.notes },
-            { label: "출처 URL", value: book.source_url, isUrl: true },
+            { label: "PDF URL", value: book.pdf_url, isUrl: !!book.pdf_url },
+            { label: "출처 URL", value: book.source_url, isUrl: !!book.source_url },
           ]}
         />
 

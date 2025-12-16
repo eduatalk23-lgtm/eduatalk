@@ -102,7 +102,7 @@ export async function addMasterBook(formData: FormData) {
     cover_image_url: formData.get("cover_image_url")?.toString() || null,
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
-    pdf_url: null,
+    pdf_url: formData.get("pdf_url")?.toString() || null,
     ocr_data: null,
     page_analysis: null,
     overall_difficulty: null,
@@ -238,6 +238,7 @@ export async function updateMasterBookAction(
     source_product_code: getFormValue("source_product_code"),
     source_url: getFormValue("source_url"),
     cover_image_url: getFormValue("cover_image_url"),
+    pdf_url: getFormValue("pdf_url"),
     difficulty_level: getFormValue("difficulty_level"),
     notes: getFormValue("notes"),
   };
@@ -487,6 +488,9 @@ export async function updateMasterLectureAction(
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
     notes: formData.get("notes")?.toString() || null,
     linked_book_id: formData.get("linked_book_id")?.toString() || null,
+    video_url: formData.get("video_url")?.toString() || null,
+    lecture_source_url: formData.get("lecture_source_url")?.toString() || null,
+    cover_image_url: formData.get("cover_image_url")?.toString() || null,
   };
 
   await updateMasterLecture(lectureId, updateData);

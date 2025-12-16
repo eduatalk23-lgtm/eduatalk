@@ -11,6 +11,7 @@ import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDet
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterBookSchema, validateFormData } from "@/lib/validation/schemas";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
@@ -297,36 +298,49 @@ export function MasterBookEditForm({
           hint="쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다"
         />
 
+        {/* PDF URL */}
+        <UrlField
+          label="PDF URL"
+          name="pdf_url"
+          defaultValue={book.pdf_url || ""}
+          placeholder="https://example.com/book.pdf"
+          hint="교재 PDF 파일의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 출처 URL */}
+        <UrlField
+          label="출처 URL"
+          name="source_url"
+          defaultValue={book.source_url || ""}
+          placeholder="https://example.com/source"
+          hint="교재 출처 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
         {/* 표지 이미지 URL */}
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-900">
-            표지 이미지 URL
-          </label>
-          <input
-            name="cover_image_url"
-            type="url"
-            defaultValue={book.cover_image_url || ""}
-            placeholder="https://example.com/image.jpg"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          {book.cover_image_url && (
-            <div className="flex flex-col gap-2 pt-3">
-              <p className="text-xs text-gray-900">현재 이미지 미리보기:</p>
-              <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-                <Image
-                  src={book.cover_image_url}
-                  alt={`${book.title} 표지`}
-                  fill
-                  className="object-cover"
-                  sizes="128px"
-                />
-              </div>
+        <UrlField
+          label="표지 이미지 URL"
+          name="cover_image_url"
+          defaultValue={book.cover_image_url || ""}
+          placeholder="https://example.com/image.jpg"
+          hint="교재 표지 이미지의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+        {book.cover_image_url && (
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <p className="text-xs text-gray-900">현재 이미지 미리보기:</p>
+            <div className="relative h-48 w-32 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+              <Image
+                src={book.cover_image_url}
+                alt={`${book.title} 표지`}
+                fill
+                className="object-cover"
+                sizes="128px"
+              />
             </div>
-          )}
-          <p className="text-xs text-gray-900">
-            교재 표지 이미지의 URL을 입력하세요
-          </p>
-        </div>
+          </div>
+        )}
 
         {/* 메모 */}
         <div className="flex flex-col gap-1 md:col-span-2">

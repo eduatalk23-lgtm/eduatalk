@@ -8,6 +8,7 @@ import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { UrlField } from "@/components/forms/UrlField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
@@ -156,6 +157,33 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             { value: "기본", label: "기본" },
             { value: "심화", label: "심화" },
           ]}
+        />
+
+        {/* 동영상 URL */}
+        <UrlField
+          label="동영상 URL"
+          name="video_url"
+          placeholder="https://example.com/video.mp4"
+          hint="강의 동영상 파일의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 강의 출처 URL */}
+        <UrlField
+          label="강의 출처 URL"
+          name="lecture_source_url"
+          placeholder="https://example.com/source"
+          hint="강의 출처 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
+        {/* 표지 이미지 URL */}
+        <UrlField
+          label="표지 이미지 URL"
+          name="cover_image_url"
+          placeholder="https://example.com/image.jpg"
+          hint="강의 표지 이미지의 URL을 입력하세요"
+          className="md:col-span-2"
         />
 
         {/* 연결된 교재 등록 여부 */}

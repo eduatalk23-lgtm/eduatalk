@@ -5,6 +5,20 @@
 import { z } from "zod";
 
 /**
+ * 공통 URL 검증 헬퍼
+ * 빈 문자열, null, undefined를 허용하는 선택적 URL 필드
+ */
+const optionalUrlSchema = z
+  .union([
+    z.string().url("올바른 URL 형식을 입력해주세요."),
+    z.literal(""),
+    z.null(),
+    z.undefined(),
+  ])
+  .optional()
+  .nullable();
+
+/**
  * 성적 입력 스키마 (기존 호환용)
  */
 export const scoreSchema = z.object({
@@ -130,6 +144,9 @@ export const masterBookSchema = z.object({
   target_exam_type: z.array(z.string()).optional().nullable(),
   tags: z.array(z.string()).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  pdf_url: optionalUrlSchema,
+  source_url: optionalUrlSchema,
+  cover_image_url: optionalUrlSchema,
 });
 
 /**
@@ -145,6 +162,9 @@ export const masterLectureSchema = z.object({
   total_duration: z.number().int().min(0).optional().nullable(),
   difficulty_level: z.enum(["개념", "기본", "심화"]).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  video_url: optionalUrlSchema,
+  lecture_source_url: optionalUrlSchema,
+  cover_image_url: optionalUrlSchema,
 });
 
 /**
@@ -162,6 +182,7 @@ export const masterCustomContentSchema = z.object({
   difficulty_level: z.enum(["상", "중", "하"]).optional().nullable(),
   content_category: z.string().max(100).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  content_url: optionalUrlSchema,
 });
 
 /**
