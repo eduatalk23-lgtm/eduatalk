@@ -150,6 +150,10 @@ export async function createBookWithoutRedirect(formData: FormData) {
     return { success: false as const, error: result.error || "책 등록에 실패했습니다.", bookId: null };
   }
 
+  if (!result.bookId) {
+    return { success: false as const, error: "책 ID를 가져올 수 없습니다.", bookId: null };
+  }
+
   // 교재 상세 정보 추가 (있는 경우)
   const detailsJson = formData.get("details")?.toString();
   if (detailsJson && result.bookId) {

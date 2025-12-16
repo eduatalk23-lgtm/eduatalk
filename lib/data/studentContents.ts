@@ -33,6 +33,7 @@ export type Lecture = {
   platform?: string | null;
   difficulty_level?: string | null;
   duration?: number | null; // 분 단위
+  linked_book_id?: string | null;
   notes?: string | null;
   created_at?: string | null;
   updated_at?: string | null;

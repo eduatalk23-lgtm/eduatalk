@@ -196,6 +196,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
           </div>
           <FormField
             ref={totalDurationRef}
+            label="총 강의 시간 (분)"
             name="total_duration"
             type="number"
             min="0"

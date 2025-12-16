@@ -152,7 +152,8 @@ function BaseBookSelectorComponent({
         setIsSubmitting(false);
         setIsCreating(false);
       } else {
-        throw new Error(result.error || `${bookTypeLabel} 생성에 실패했습니다.`);
+        const errorMessage = result.success === false ? result.error : `${bookTypeLabel} 생성에 실패했습니다.`;
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error(`${bookTypeLabel} 생성 실패:`, error);

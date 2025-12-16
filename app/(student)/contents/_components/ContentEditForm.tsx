@@ -22,7 +22,7 @@ type FormField = {
   min?: number; // for number type
 };
 
-type ContentEditFormProps<T extends Record<string, string | number | null | undefined>> = {
+type ContentEditFormProps<T extends Record<string, string | number | string[] | boolean | null | undefined>> = {
   title: string;
   initialData: T;
   fields: FormField[];
@@ -31,7 +31,7 @@ type ContentEditFormProps<T extends Record<string, string | number | null | unde
   isSaving?: boolean;
 };
 
-export function ContentEditForm<T extends Record<string, string | number | null | undefined>>({
+export function ContentEditForm<T extends Record<string, string | number | string[] | boolean | null | undefined>>({
   title,
   initialData,
   fields,

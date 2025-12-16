@@ -1765,12 +1765,14 @@ export async function updateMasterLecture(
   const updateFields: Record<string, any> = {};
 
   if (data.tenant_id !== undefined) updateFields.tenant_id = data.tenant_id;
-  if (data.is_active !== undefined) updateFields.is_active = data.is_active;
-  if (data.curriculum_revision_id !== undefined)
-    updateFields.curriculum_revision_id = data.curriculum_revision_id;
-  if (data.subject_id !== undefined) updateFields.subject_id = data.subject_id;
-  if (data.subject_group_id !== undefined)
-    updateFields.subject_group_id = data.subject_group_id;
+  // MasterLecture 타입에 없는 필드들은 타입 단언으로 처리 (레거시 호환성)
+  const dataAny = data as any;
+  if (dataAny.is_active !== undefined) updateFields.is_active = dataAny.is_active;
+  if (dataAny.curriculum_revision_id !== undefined)
+    updateFields.curriculum_revision_id = dataAny.curriculum_revision_id;
+  if (dataAny.subject_id !== undefined) updateFields.subject_id = dataAny.subject_id;
+  if (dataAny.subject_group_id !== undefined)
+    updateFields.subject_group_id = dataAny.subject_group_id;
   if (data.revision !== undefined) updateFields.revision = data.revision;
   if (data.content_category !== undefined)
     updateFields.content_category = data.content_category;
