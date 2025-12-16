@@ -169,7 +169,7 @@ export async function searchMasterBooks(
 
   if (error) {
     console.error("[data/contentMasters] 교재 검색 실패", error);
-    
+
     // normalizeError로 에러 정규화 및 로깅
     const normalizedError = normalizeError(error);
     logError(normalizedError, {
@@ -486,7 +486,7 @@ export async function searchMasterLectures(
 
   if (error) {
     console.error("[data/contentMasters] 강의 검색 실패", error);
-    
+
     // normalizeError로 에러 정규화 및 로깅
     const normalizedError = normalizeError(error);
     logError(normalizedError, {

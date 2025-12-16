@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useTransition, useState } from "react";
-import { useRouter } from "next/navigation";
-import { updateMasterLectureAction, getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
+import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { UrlField } from "@/components/forms/UrlField";
@@ -14,6 +13,7 @@ import { masterLectureSchema, formDataToObject } from "@/lib/validation/schemas"
 import FormField from "@/components/molecules/FormField";
 import { FormSelect } from "@/components/molecules/FormField";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
+import { useMasterBooksRefresh } from "@/lib/hooks/useMasterBooksRefresh";
 import { MasterBookSelector } from "../../_components/MasterBookSelector";
 
 export function MasterLectureEditForm({
@@ -28,26 +28,12 @@ export function MasterLectureEditForm({
   curriculumRevisions?: CurriculumRevision[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
-  const [masterBooks, setMasterBooks] = useState<Array<{ id: string; title: string }>>(initialMasterBooks);
+  const { masterBooks, refreshMasterBooks } = useMasterBooksRefresh(initialMasterBooks);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(lecture.linked_book_id || null);
-
-  // 교재 목록 새로고침 함수
-  async function refreshMasterBooks() {
-    try {
-      const books = await getMasterBooksListAction();
-      setMasterBooks(books);
-      return books;
-    } catch (error) {
-      console.error("교재 목록 새로고침 실패:", error);
-      // 에러 발생 시 기존 목록 유지
-      return masterBooks;
-    }
-  }
 
   // 회차 정보 기반 계산 로직 (공통 훅 사용)
   // 훅 내부에서 초 단위를 분 단위로 자동 변환
@@ -248,17 +234,9 @@ export function MasterLectureEditForm({
             onChange={setSelectedBookId}
             masterBooks={masterBooks}
             onCreateBook={async (bookId) => {
-              // 교재 등록 후 목록 새로고침
-              const updatedBooks = await refreshMasterBooks();
-              const newBook = updatedBooks.find((b) => b.id === bookId);
-              if (newBook) {
-                // 새로 등록된 교재를 자동으로 선택
-                setSelectedBookId(bookId);
-              } else {
-                // 목록에 없으면 router.refresh()로 서버에서 다시 가져오기
-                router.refresh();
-                setSelectedBookId(bookId);
-              }
+              // 새 교재 생성 후 목록 새로고침
+              await refreshMasterBooks();
+              setSelectedBookId(bookId);
             }}
           />
         </div>

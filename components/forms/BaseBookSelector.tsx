@@ -132,17 +132,23 @@ function BaseBookSelectorComponent({
 
       if (result.success && result.bookId) {
         showSuccess(`${bookTypeLabel}가 성공적으로 등록되었습니다.`);
-        onChange(result.bookId);
-        setIsCreating(false);
+        
+        // 상태 초기화
         setBookDetails([]);
-        // 메타데이터 선택 상태 초기화
         setSelectedRevisionId("");
         setSelectedSubjectGroupId("");
         setSelectedSubjectId("");
         setSelectedPublisherId("");
+        
+        // onCreateBook을 먼저 await하여 목록 새로고침 후 선택
         if (onCreateBook) {
-          onCreateBook(result.bookId);
+          await onCreateBook(result.bookId);
+        } else {
+          // onCreateBook이 없으면 직접 onChange 호출
+          onChange(result.bookId);
         }
+        
+        setIsCreating(false);
       } else {
         throw new Error(result.error || `${bookTypeLabel} 생성에 실패했습니다.`);
       }

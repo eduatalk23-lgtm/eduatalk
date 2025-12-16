@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addMasterLecture, getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
+import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
@@ -13,6 +12,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
+import { useMasterBooksRefresh } from "@/lib/hooks/useMasterBooksRefresh";
 import { MasterBookSelector } from "../_components/MasterBookSelector";
 
 type MasterLectureFormProps = {
@@ -23,23 +23,9 @@ type MasterLectureFormProps = {
 export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMasterBooks }: MasterLectureFormProps) {
   const [isPending, startTransition] = useTransition();
   const [linkBook, setLinkBook] = useState(false);
-  const [masterBooks, setMasterBooks] = useState<Array<{ id: string; title: string }>>(initialMasterBooks);
+  const { masterBooks, refreshMasterBooks } = useMasterBooksRefresh(initialMasterBooks);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const router = useRouter();
   const { showError, showSuccess } = useToast();
-
-  // 교재 목록 새로고침 함수
-  async function refreshMasterBooks() {
-    try {
-      const books = await getMasterBooksListAction();
-      setMasterBooks(books);
-      return books;
-    } catch (error) {
-      console.error("교재 목록 새로고침 실패:", error);
-      // 에러 발생 시 기존 목록 유지
-      return masterBooks;
-    }
-  }
 
   // 강의 입력값을 추적하여 교재 필드에 자동 채우기
   const [lectureValues, setLectureValues] = useState({
