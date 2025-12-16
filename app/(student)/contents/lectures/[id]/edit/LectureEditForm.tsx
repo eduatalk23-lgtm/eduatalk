@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateLecture } from "@/app/(student)/actions/contentActions";
+import { getStudentBooksAction } from "@/app/(student)/actions/contentMetadataActions";
 import { Lecture } from "@/app/types/content";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -15,11 +16,25 @@ type LectureEditFormProps = {
   linkedBookId: string | null;
 };
 
-export function LectureEditForm({ lecture, studentBooks, linkedBookId }: LectureEditFormProps) {
+export function LectureEditForm({ lecture, studentBooks: initialStudentBooks, linkedBookId }: LectureEditFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [selectedBookId, setSelectedBookId] = useState<string | null>(linkedBookId);
+  const [studentBooks, setStudentBooks] = useState<Array<{ id: string; title: string }>>(initialStudentBooks);
+
+  // 교재 목록 새로고침 함수
+  async function refreshStudentBooks() {
+    try {
+      const books = await getStudentBooksAction();
+      setStudentBooks(books);
+      return books;
+    } catch (error) {
+      console.error("교재 목록 새로고침 실패:", error);
+      // 에러 발생 시 기존 목록 유지
+      return studentBooks;
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -152,11 +167,18 @@ export function LectureEditForm({ lecture, studentBooks, linkedBookId }: Lecture
           value={selectedBookId}
           onChange={setSelectedBookId}
           studentBooks={studentBooks}
-          onCreateBook={(bookId) => {
+          onCreateBook={async (bookId) => {
             // 교재 등록 후 목록 새로고침
-            router.refresh();
-            // 새로 등록된 교재를 자동으로 선택
-            setSelectedBookId(bookId);
+            const updatedBooks = await refreshStudentBooks();
+            const newBook = updatedBooks.find((b) => b.id === bookId);
+            if (newBook) {
+              // 새로 등록된 교재를 자동으로 선택
+              setSelectedBookId(bookId);
+            } else {
+              // 목록에 없으면 router.refresh()로 서버에서 다시 가져오기
+              router.refresh();
+              setSelectedBookId(bookId);
+            }
           }}
         />
       </div>
