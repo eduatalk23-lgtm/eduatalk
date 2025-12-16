@@ -15,15 +15,16 @@ Could not find the 'master_lecture_id' column of 'lectures' in the schema cache
 ## 해결 방법
 
 ### 1. 마이그레이션 파일 생성
-- 파일: `supabase/migrations/20251216191148_add_master_lecture_id_to_lectures.sql`
+- 파일: `supabase/migrations/20251216101211_add_master_lecture_id_to_lectures.sql`
 - 내용:
   - `lectures` 테이블에 `master_lecture_id` 컬럼 추가 (uuid, FK to master_lectures)
   - 인덱스 추가 (`idx_lectures_master_lecture_id`)
   - 기존 `master_content_id` 데이터가 있는 경우 자동 마이그레이션
 
 ### 2. 마이그레이션 실행
-- Supabase MCP를 통해 마이그레이션 적용 완료
+- Supabase MCP를 통해 마이그레이션 적용 완료 (원격 버전: `20251216101211`)
 - 컬럼 추가 및 인덱스 생성 완료
+- 마이그레이션 히스토리 동기화 완료
 
 ## 변경 사항
 
@@ -80,6 +81,7 @@ CREATE INDEX idx_lectures_master_lecture_id
 
 ---
 
-**작업 일시**: 2025-12-16 19:11:48  
-**마이그레이션 파일**: `20251216191148_add_master_lecture_id_to_lectures.sql`
+**작업 일시**: 2025-12-16 10:12:11  
+**마이그레이션 파일**: `20251216101211_add_master_lecture_id_to_lectures.sql`  
+**참고**: 원격에 이미 적용된 마이그레이션을 로컬로 동기화하여 해결
 
