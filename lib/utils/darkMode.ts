@@ -1549,3 +1549,54 @@ export function getRedBgClasses(variant: RedBgVariant = "button"): string {
   return getColorClasses(variant, redBgColorMap);
 }
 
+// ============================================
+// 탭 메뉴 스타일 유틸리티
+// ============================================
+
+/**
+ * 탭 버튼 스타일
+ * @param isActive 활성 상태 여부
+ * @param className 추가 클래스
+ * @returns 다크모드를 포함한 Tailwind 클래스 문자열
+ */
+export function tabButtonStyles(isActive: boolean, className?: string): string {
+  return cn(
+    "border-b-2 px-1 pb-4 text-sm font-medium transition-colors",
+    isActive
+      ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
+      : "border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300",
+    className
+  );
+}
+
+/**
+ * 탭 컨테이너 스타일
+ */
+export const tabContainerStyles = cn(
+  "border-b border-gray-200 dark:border-gray-700"
+);
+
+// ============================================
+// 메시지 스타일 유틸리티
+// ============================================
+
+/**
+ * 에러 메시지 스타일 객체
+ */
+export const errorMessageStyles = {
+  container: "flex flex-col gap-3 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg",
+  title: "text-sm font-semibold text-red-800 dark:text-red-200",
+  text: "text-sm text-red-700 dark:text-red-300",
+  link: "text-sm text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-red-100 underline font-medium",
+} as const;
+
+/**
+ * 성공 메시지 스타일 객체
+ */
+export const successMessageStyles = {
+  container: "flex flex-col gap-3 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg",
+  title: "text-sm font-semibold text-green-800 dark:text-green-200",
+  text: "text-sm text-green-700 dark:text-green-300",
+  link: "text-sm text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 underline font-medium",
+} as const;
+

@@ -80,14 +80,14 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
       <div className="w-full overflow-x-auto">
         <div className="min-w-[800px]">
           {/* 시간 축 */}
-          <div className="flex border-b border-gray-200">
-            <div className="w-20 flex-shrink-0 p-2 text-xs font-medium text-gray-500">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <div className="w-20 flex-shrink-0 p-2 text-xs font-medium text-gray-500 dark:text-gray-400">
               시간
             </div>
             {DAYS.map((day) => (
               <div
                 key={day}
-                className="flex-1 p-2 text-center text-sm font-medium text-gray-700 border-l border-gray-200"
+                className="flex-1 p-2 text-center text-sm font-medium text-gray-700 dark:text-gray-300 border-l border-gray-200 dark:border-gray-700"
               >
                 {day}요일
               </div>
@@ -95,17 +95,17 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
           </div>
 
           {/* 타임라인 그리드 */}
-          <div className="relative border-b border-gray-200">
+          <div className="relative border-b border-gray-200 dark:border-gray-700">
             {/* 시간 라인 */}
             <div className="flex">
               <div className="w-20 flex-shrink-0">
                 {HOURS.map((hour) => (
                   <div
                     key={hour}
-                    className="border-t border-gray-100 flex items-start justify-end pr-2 pt-1"
+                    className="border-t border-gray-100 dark:border-gray-800 flex items-start justify-end pr-2 pt-1"
                     style={createHeightPxStyle(hourHeight)}
                   >
-                    <span className="text-xs text-gray-400">{hour}시</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{hour}시</span>
                   </div>
                 ))}
               </div>
@@ -114,7 +114,7 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
               {blocksByDay.map((dayBlocks, dayIndex) => (
                 <div
                   key={dayIndex}
-                  className="flex-1 relative border-l border-gray-200"
+                  className="flex-1 relative border-l border-gray-200 dark:border-gray-700"
                 >
                   {/* 시간 슬롯 */}
                   <div
@@ -124,7 +124,7 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
                     {HOURS.map((hour) => (
                       <div
                         key={hour}
-                        className="border-t border-gray-100"
+                        className="border-t border-gray-100 dark:border-gray-800"
                         style={createHeightPxStyle(hourHeight)}
                         aria-hidden="true"
                       />
@@ -151,14 +151,14 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
                       return (
                         <div
                           key={block.id}
-                          className="absolute left-1 right-1 rounded-lg bg-indigo-100 border border-indigo-300 p-2"
+                          className="absolute left-1 right-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 border border-indigo-300 dark:border-indigo-700 p-2"
                           style={createBlockStyle(top, height, "40px")}
                         >
                           <div className="flex flex-col gap-1 h-full">
-                            <span className="text-xs font-medium text-indigo-900">
+                            <span className="text-xs font-medium text-indigo-900 dark:text-indigo-200">
                               {block.start_time} ~ {block.end_time}
                             </span>
-                            <span className="text-xs text-indigo-700">
+                            <span className="text-xs text-indigo-700 dark:text-indigo-300">
                               {blockDurationMinutes}분
                             </span>
                           </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BlocksViewer from "./BlocksViewer";
+import { errorMessageStyles } from "@/lib/utils/darkMode";
 
 type Block = {
   id: string;
@@ -306,20 +307,20 @@ export default function BlockSetManagement({
     <div>
       {/* 에러 메시지 */}
       {error && (
-        <div className="flex flex-col gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className={errorMessageStyles.container}>
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0">
               <span className="text-2xl">⚠️</span>
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <h3 className="text-sm font-semibold text-red-800">
+              <h3 className={errorMessageStyles.title}>
                 데이터 로드 실패
               </h3>
-              <p className="text-sm text-red-700">{error}</p>
+              <p className={errorMessageStyles.text}>{error}</p>
               <button
                 type="button"
                 onClick={() => loadData(activeSetId)}
-                className="text-sm text-red-700 hover:text-red-900 underline font-medium"
+                className={errorMessageStyles.link}
               >
                 다시 시도
               </button>

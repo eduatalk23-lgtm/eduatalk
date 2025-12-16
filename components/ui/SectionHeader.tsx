@@ -64,7 +64,7 @@ export function SectionHeader({
       {actionLabel && actionHref && (
         <Link
           href={actionHref}
-          className="text-body-2 font-medium text-primary-600 hover:text-primary-700"
+          className="text-body-2 font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
         >
           {actionLabel} →
         </Link>

@@ -4,6 +4,7 @@ import BlockSetManagement from "./BlockSetManagement";
 import ExclusionManagement from "./ExclusionManagement";
 import AcademyScheduleManagement from "./AcademyScheduleManagement";
 import type { PlanGroup } from "@/lib/types/plan";
+import { tabButtonStyles, tabContainerStyles } from "@/lib/utils/darkMode";
 
 export type ManagementTab = "blocks" | "exclusions" | "academy";
 
@@ -42,44 +43,27 @@ export default function BlockManagementTabs({
     onTabChange?.(tab);
   };
 
+  const tabs: Array<{ key: ManagementTab; label: string }> = [
+    { key: "blocks", label: "블록 세트" },
+    { key: "exclusions", label: "학습 제외 일정" },
+    { key: "academy", label: "학원 일정" },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       {/* 탭 메뉴 */}
-      <div className="border-b border-gray-200">
+      <div className={tabContainerStyles}>
         <nav className="-mb-px flex gap-4">
-          <button
-            type="button"
-            onClick={() => handleTabChange("blocks")}
-            className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
-              activeTab === "blocks"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            블록 세트
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange("exclusions")}
-            className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
-              activeTab === "exclusions"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            학습 제외 일정
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTabChange("academy")}
-            className={`border-b-2 px-1 pb-4 text-sm font-medium transition-colors ${
-              activeTab === "academy"
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            학원 일정
-          </button>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => handleTabChange(tab.key)}
+              className={tabButtonStyles(activeTab === tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </nav>
       </div>
 
