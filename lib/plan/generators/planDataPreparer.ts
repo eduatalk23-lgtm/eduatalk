@@ -45,8 +45,12 @@ export type ContentDurationInfo = {
   content_type: "book" | "lecture" | "custom";
   content_id: string;
   total_pages?: number | null;
-  duration?: number | null;
+  duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null;
+  episodes?: Array<{
+    episode_number: number;
+    duration: number | null; // 회차별 소요시간 (분)
+  }> | null; // 강의 episode별 duration 정보
 };
 
 /**
@@ -433,27 +437,82 @@ export async function prepareContentDuration(
       if (studentLecture.data) {
         const lectureData = studentLecture.data;
 
+        // Episode 정보 조회 (학생 강의 episode 우선)
+        let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
+        try {
+          const episodeResult = await supabase
+            .from("student_lecture_episodes")
+            .select("episode_number, duration")
+            .eq("lecture_id", finalContentId)
+            .order("episode_number", { ascending: true });
+          
+          if (episodeResult.data && episodeResult.data.length > 0) {
+            episodes = episodeResult.data.map((ep) => ({
+              episode_number: ep.episode_number,
+              duration: ep.duration,
+            }));
+          }
+        } catch {
+          // Episode 조회 실패 시 무시 (fallback 사용)
+        }
+        
+        // 마스터 강의 episode 조회 (fallback)
+        if (!episodes && lectureData.master_content_id) {
+          try {
+            const masterEpisodeResult = await supabase
+              .from("lecture_episodes")
+              .select("episode_number, duration")
+              .eq("lecture_id", lectureData.master_content_id)
+              .order("episode_number", { ascending: true });
+            
+            if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
+              episodes = masterEpisodeResult.data.map((ep) => ({
+                episode_number: ep.episode_number,
+                duration: ep.duration,
+              }));
+            }
+          } catch {
+            // 마스터 episode 조회 실패 시 무시
+          }
+        }
+
         if (lectureData.duration) {
           contentDurationMap.set(content.content_id, {
             content_type: "lecture",
             content_id: content.content_id,
             duration: lectureData.duration,
+            episodes: episodes,
           });
         } else if (lectureData.master_content_id) {
           // 마스터 강의 조회
           const { data: masterLecture } = await supabase
             .from("master_lectures")
-            .select("id, duration")
+            .select("id, total_duration")
             .eq("id", lectureData.master_content_id)
             .maybeSingle();
 
-          if (masterLecture?.duration) {
+          if (masterLecture?.total_duration) {
             contentDurationMap.set(content.content_id, {
               content_type: "lecture",
               content_id: content.content_id,
-              duration: masterLecture.duration,
+              duration: masterLecture.total_duration,
+              episodes: episodes,
+            });
+          } else if (episodes) {
+            // Episode 정보만 있는 경우
+            contentDurationMap.set(content.content_id, {
+              content_type: "lecture",
+              content_id: content.content_id,
+              episodes: episodes,
             });
           }
+        } else if (episodes) {
+          // Episode 정보만 있는 경우
+          contentDurationMap.set(content.content_id, {
+            content_type: "lecture",
+            content_id: content.content_id,
+            episodes: episodes,
+          });
         }
       }
     } else if (content.content_type === "custom") {

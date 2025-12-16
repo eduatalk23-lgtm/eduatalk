@@ -6,6 +6,8 @@
  */
 
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
 // ============================================
 // 입력 타입 정의
@@ -43,8 +45,12 @@ export type ContentDurationInfo = {
   content_type: ContentType;
   content_id: string;
   total_pages?: number | null;
-  duration?: number | null;
+  duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null;
+  episodes?: Array<{
+    episode_number: number;
+    duration: number | null; // 회차별 소요시간 (분)
+  }> | null; // 강의 episode별 duration 정보
 };
 
 /**
@@ -61,21 +67,9 @@ export type PlanEstimateInput = {
 // 출력 타입 정의
 // ============================================
 
-// 시간 문자열을 분으로 변환
-export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-// 분을 시간 문자열로 변환
-export function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
-
 /**
  * 플랜의 예상 소요시간 계산 (분 단위)
+ * 통합 함수를 사용하도록 변경
  *
  * @param plan - 플랜 정보 (content_type, 범위)
  * @param contentDurationMap - 콘텐츠 메타데이터 맵 (content_id → 정보)
@@ -89,48 +83,33 @@ export function calculatePlanEstimatedTime(
 ): number {
   if (
     plan.planned_start_page_or_time === null ||
-    plan.planned_end_page_or_time === null
+    plan.planned_end_page_or_time === null ||
+    !plan.content_id
   ) {
     const baseTime = 60; // 기본값 1시간
     // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
   }
 
-  const amount = plan.planned_end_page_or_time - plan.planned_start_page_or_time;
-  if (amount <= 0) {
-    const baseTime = 60;
+  const durationInfo = contentDurationMap.get(plan.content_id);
+  
+  if (!durationInfo) {
+    // duration 정보가 없으면 기본값 반환
+    const amount = plan.planned_end_page_or_time - plan.planned_start_page_or_time;
+    const baseTime = amount > 0 ? (plan.content_type === "lecture" ? amount * 30 : amount * 2) : 60;
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
   }
 
-  let baseTime = 0;
-
-  if (plan.content_type === "book") {
-    // 책: 설정 기반 시간 계산
-    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
-    const minutesPerPage = 60 / pagesPerHour;
-    baseTime = Math.round(amount * minutesPerPage);
-  } else if (plan.content_type === "lecture") {
-    // 강의: duration 정보 사용
-    const contentInfo = contentDurationMap.get(plan.content_id || "");
-    if (contentInfo?.duration && contentInfo.duration > 0) {
-      // 강의의 경우 planned_start_page_or_time과 planned_end_page_or_time이 회차를 나타냄
-      const episodeCount = amount; // 회차 수
-      const totalDuration = contentInfo.duration;
-      // 회차당 평균 시간 계산
-      baseTime = Math.round(totalDuration / Math.max(episodeCount, 1));
-    } else {
-      baseTime = 60; // 기본값
-    }
-  } else {
-    baseTime = 60; // 기본값
-  }
-
-  // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
-  if (dayType === "복습일") {
-    return Math.round(baseTime * 0.5);
-  }
-
-  return baseTime;
+  return calculateContentDuration(
+    {
+      content_type: plan.content_type,
+      content_id: plan.content_id,
+      start_range: plan.planned_start_page_or_time,
+      end_range: plan.planned_end_page_or_time,
+    },
+    durationInfo,
+    dayType
+  );
 }
 
 /**
@@ -208,44 +187,88 @@ export function assignPlanTimes(
     });
   }
 
-  // 플랜을 block_index 순으로 정렬
+  // Best Fit 알고리즘을 위한 정렬: 소요시간 내림차순 (큰 것부터 배치)
   const sortedPlans = [...plansWithInfo].sort((a, b) => {
-    return (a.blockIndex || 0) - (b.blockIndex || 0);
+    // 먼저 block_index 순으로 정렬 (같은 block_index면 소요시간 내림차순)
+    const blockDiff = (a.blockIndex || 0) - (b.blockIndex || 0);
+    if (blockDiff !== 0) return blockDiff;
+    return b.originalEstimatedTime - a.originalEstimatedTime;
   });
 
-  // 각 학습시간 슬롯에 플랜 배치
+  // 각 학습시간 슬롯에 플랜 배치 (Best Fit 알고리즘)
   const segments: PlanTimeSegment[] = [];
+  
+  // 슬롯별 사용 가능한 시간 추적
+  const slotAvailability: Array<{ slot: StudyTimeSlot; usedTime: number }> = studyTimeSlots.map((slot) => ({
+    slot,
+    usedTime: 0,
+  }));
 
-  studyTimeSlots.forEach((slot) => {
-    const slotStart = timeToMinutes(slot.start);
-    const slotEnd = timeToMinutes(slot.end);
-    let currentTime = slotStart;
+  // 각 플랜을 가장 적합한 슬롯에 배치
+  for (const planInfo of sortedPlans) {
+    if (planInfo.remainingTime <= 0) continue;
 
-    // 플랜 배치
-    for (const planInfo of sortedPlans) {
-      if (planInfo.remainingTime <= 0) continue;
+    // Best Fit: 남은 시간이 가장 적은 슬롯 찾기 (하지만 플랜이 들어갈 수 있어야 함)
+    let bestSlotIndex = -1;
+    let bestRemainingSpace = Infinity;
 
-      const timeToUse = Math.min(planInfo.remainingTime, slotEnd - currentTime);
+    for (let i = 0; i < slotAvailability.length; i++) {
+      const { slot, usedTime } = slotAvailability[i];
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const slotDuration = slotEnd - slotStart;
+      const availableTime = slotDuration - usedTime;
+
+      // 플랜이 들어갈 수 있고, 남은 공간이 가장 적은 슬롯 선택
+      if (availableTime >= planInfo.remainingTime && availableTime < bestRemainingSpace) {
+        bestSlotIndex = i;
+        bestRemainingSpace = availableTime;
+      }
+    }
+
+    // Best Fit 슬롯을 찾지 못한 경우, First Fit으로 폴백
+    if (bestSlotIndex === -1) {
+      for (let i = 0; i < slotAvailability.length; i++) {
+        const { slot, usedTime } = slotAvailability[i];
+        const slotStart = timeToMinutes(slot.start);
+        const slotEnd = timeToMinutes(slot.end);
+        const slotDuration = slotEnd - slotStart;
+        const availableTime = slotDuration - usedTime;
+
+        if (availableTime > 0) {
+          bestSlotIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (bestSlotIndex >= 0) {
+      const { slot, usedTime } = slotAvailability[bestSlotIndex];
+      const slotStart = timeToMinutes(slot.start);
+      const slotEnd = timeToMinutes(slot.end);
+      const slotDuration = slotEnd - slotStart;
+      const availableTime = slotDuration - usedTime;
+      const timeToUse = Math.min(planInfo.remainingTime, availableTime);
+
       if (timeToUse > 0) {
         const wasPartial = planInfo.remainingTime < planInfo.originalEstimatedTime;
         const willBePartial = planInfo.remainingTime > timeToUse;
+        const planStartTime = slotStart + usedTime;
         
         segments.push({
           plan: planInfo.plan,
-          start: minutesToTime(currentTime),
-          end: minutesToTime(currentTime + timeToUse),
+          start: minutesToTime(planStartTime),
+          end: minutesToTime(planStartTime + timeToUse),
           isPartial: willBePartial,
           isContinued: wasPartial,
           originalEstimatedTime: planInfo.originalEstimatedTime,
         });
         
         planInfo.remainingTime -= timeToUse;
-        currentTime += timeToUse;
-
-        if (currentTime >= slotEnd) break;
+        slotAvailability[bestSlotIndex].usedTime += timeToUse;
       }
     }
-  });
+  }
 
   // 시간 순으로 정렬
   segments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));

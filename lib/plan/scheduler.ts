@@ -15,6 +15,8 @@ import {
 } from "@/lib/plan/1730TimetableLogic";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { SchedulerEngine, type SchedulerContext } from "@/lib/scheduler/SchedulerEngine";
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { calculateContentDuration as calculateContentDurationUnified } from "@/lib/plan/contentDuration";
 
 export type BlockInfo = {
   id: string;
@@ -67,8 +69,12 @@ export type ContentDurationInfo = {
   content_type: "book" | "lecture" | "custom";
   content_id: string;
   total_pages?: number | null; // 책의 경우
-  duration?: number | null; // 강의의 경우 (분)
+  duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null; // 커스텀의 경우
+  episodes?: Array<{
+    episode_number: number;
+    duration: number | null; // 회차별 소요시간 (분)
+  }> | null; // 강의 episode별 duration 정보
 };
 
 export type ContentDurationMap = Map<string, ContentDurationInfo>;
@@ -534,28 +540,10 @@ function formatDateSimple(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * 분 단위를 시간 문자열로 변환
- */
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
 
 /**
  * 콘텐츠의 특정 범위에 대한 소요시간 계산 (분 단위)
- * - 강의: duration 사용
- * - 책: 페이지당 기본 2분 (총 페이지 수 기반)
- * - 커스텀: total_page_or_time 사용 (페이지면 2분/페이지, 시간이면 그대로)
+ * 통합 함수를 사용하도록 변경
  */
 function calculateContentDuration(
   content: ContentInfo,
@@ -564,36 +552,26 @@ function calculateContentDuration(
   durationMap?: ContentDurationMap
 ): number {
   const durationInfo = durationMap?.get(content.content_id);
-  const amount = endPageOrTime - startPageOrTime;
-
-  if (content.content_type === "lecture") {
-    // 강의: duration 정보 사용
-    if (durationInfo?.duration) {
-      // 전체 강의 시간을 전체 회차로 나눈 값 * 배정된 회차 수
-      // TODO: 실제로는 강의별 회차당 시간을 조회해야 하지만, 여기서는 간단히 처리
-      // duration이 전체 강의 시간이면, 전체 회차 수를 알아야 함
-      // 일단 duration을 그대로 사용 (전체 강의 시간이라고 가정)
-      return Math.round((durationInfo.duration / (content.end_range - content.start_range)) * amount);
+  
+  if (!durationInfo) {
+    // duration 정보가 없으면 기본값 반환
+    const amount = endPageOrTime - startPageOrTime;
+    if (content.content_type === "lecture") {
+      return amount * 30; // 회차당 30분
+    } else {
+      return amount * 2; // 페이지당 2분
     }
-    // duration 정보가 없으면 기본값: 회차당 30분
-    return amount * 30;
-  } else if (content.content_type === "book") {
-    // 책: 페이지당 기본 2분
-    return amount * 2;
-  } else {
-    // 커스텀: total_page_or_time이 페이지면 2분/페이지, 시간이면 그대로
-    if (durationInfo?.total_page_or_time) {
-      // total_page_or_time이 100 이상이면 페이지로 간주, 아니면 시간(분)으로 간주
-      if (durationInfo.total_page_or_time >= 100) {
-        return amount * 2; // 페이지당 2분
-      } else {
-        // 시간(분)으로 간주: 전체 시간을 전체 범위로 나눈 값 * 배정된 범위
-        return Math.round((durationInfo.total_page_or_time / (content.end_range - content.start_range)) * amount);
-      }
-    }
-    // 정보가 없으면 기본값: 페이지당 2분
-    return amount * 2;
   }
+  
+  return calculateContentDurationUnified(
+    {
+      content_type: content.content_type,
+      content_id: content.content_id,
+      start_range: startPageOrTime,
+      end_range: endPageOrTime,
+    },
+    durationInfo
+  );
 }
 
 /**

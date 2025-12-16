@@ -2,6 +2,7 @@
 
 import { getTimeSlotColorClasses, type TimeSlotType } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import { timeToMinutes } from "@/lib/utils/time";
 
 type TimeSlot = {
   type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
@@ -14,12 +15,6 @@ type TimelineBarProps = {
   timeSlots: TimeSlot[];
   totalHours: number;
 };
-
-// 시간 문자열(HH:mm)을 분으로 변환
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 타임슬롯 타입에 따른 배경색 클래스 반환

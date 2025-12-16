@@ -2,18 +2,12 @@
  * 블록 겹침 검증 유틸리티
  */
 
+import { timeToMinutes } from "@/lib/utils/time";
+
 type TimeBlock = {
   startTime: string; // HH:MM 형식
   endTime: string; // HH:MM 형식
 };
-
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 두 시간 블록이 겹치는지 확인

@@ -34,17 +34,13 @@ type PlanPreviewDialogProps = {
   isRegenerateMode?: boolean; // 이미 플랜이 생성되어 있는 경우 true
 };
 
+import { timeToMinutes } from "@/lib/utils/time";
+
 const contentTypeLabels: Record<string, string> = {
   book: "교재",
   lecture: "강의",
   custom: "커스텀",
 };
-
-// 시간 문자열을 분으로 변환
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 // 분을 시간 문자열로 변환
 function formatTime(minutes: number): string {

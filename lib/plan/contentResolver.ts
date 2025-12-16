@@ -493,11 +493,53 @@ export async function loadContentDurations(
 
   // 학생 강의 결과 처리
   for (const { content, studentLecture } of lectureResults) {
+    const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
+    
+    // Episode 정보 조회 (학생 강의 episode 우선)
+    let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
+    try {
+      const episodeResult = await queryClient
+        .from("student_lecture_episodes")
+        .select("episode_number, duration")
+        .eq("lecture_id", finalContentId)
+        .order("episode_number", { ascending: true });
+      
+      if (episodeResult.data && episodeResult.data.length > 0) {
+        episodes = episodeResult.data.map((ep) => ({
+          episode_number: ep.episode_number,
+          duration: ep.duration,
+        }));
+      }
+    } catch {
+      // Episode 조회 실패 시 무시 (fallback 사용)
+    }
+    
+    // 마스터 강의 episode 조회 (fallback)
+    if (!episodes && studentLecture?.master_content_id) {
+      try {
+        const masterEpisodeResult = await masterQueryClient
+          .from("lecture_episodes")
+          .select("episode_number, duration")
+          .eq("lecture_id", studentLecture.master_content_id)
+          .order("episode_number", { ascending: true });
+        
+        if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
+          episodes = masterEpisodeResult.data.map((ep) => ({
+            episode_number: ep.episode_number,
+            duration: ep.duration,
+          }));
+        }
+      } catch {
+        // 마스터 episode 조회 실패 시 무시
+      }
+    }
+    
     if (studentLecture?.duration) {
       contentDurationMap.set(content.content_id, {
         content_type: "lecture",
         content_id: content.content_id,
         duration: studentLecture.duration,
+        episodes: episodes,
       });
     } else if (studentLecture?.master_content_id) {
       const masterId = studentLecture.master_content_id;
@@ -515,6 +557,13 @@ export async function loadContentDurations(
           }
         })()
       );
+    } else if (episodes) {
+      // Episode 정보만 있는 경우 (duration이 없어도 episode 정보는 저장)
+      contentDurationMap.set(content.content_id, {
+        content_type: "lecture",
+        content_id: content.content_id,
+        episodes: episodes,
+      });
     }
   }
 
@@ -547,11 +596,42 @@ export async function loadContentDurations(
     }
 
     for (const { content, masterLecture } of masterLectureResults) {
+      const finalContentId = contentIdMap.get(content.content_id) || content.content_id;
+      
+      // 마스터 강의 episode 정보 조회
+      let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
+      if (masterLecture?.id) {
+        try {
+          const masterEpisodeResult = await masterQueryClient
+            .from("lecture_episodes")
+            .select("episode_number, duration")
+            .eq("lecture_id", masterLecture.id)
+            .order("episode_number", { ascending: true });
+          
+          if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
+            episodes = masterEpisodeResult.data.map((ep) => ({
+              episode_number: ep.episode_number,
+              duration: ep.duration,
+            }));
+          }
+        } catch {
+          // Episode 조회 실패 시 무시
+        }
+      }
+      
       if (masterLecture?.total_duration) {
         contentDurationMap.set(content.content_id, {
           content_type: "lecture",
           content_id: content.content_id,
           duration: masterLecture.total_duration,
+          episodes: episodes,
+        });
+      } else if (episodes) {
+        // Episode 정보만 있는 경우
+        contentDurationMap.set(content.content_id, {
+          content_type: "lecture",
+          content_id: content.content_id,
+          episodes: episodes,
         });
       }
     }

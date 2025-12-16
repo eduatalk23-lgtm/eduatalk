@@ -9,6 +9,7 @@
  */
 
 import { parseISO, format } from "date-fns";
+import { timeToMinutes } from "@/lib/utils/time";
 
 // ============================================
 // 타입 정의
@@ -54,14 +55,6 @@ export interface PlanWithTime {
 // ============================================
 // 시간 겹침 감지
 // ============================================
-
-/**
- * 시간을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 두 시간 범위가 겹치는지 확인

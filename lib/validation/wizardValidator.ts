@@ -21,6 +21,7 @@ import {
   step7Schema,
   validatePartialWizardDataSafe,
 } from "@/lib/schemas/planWizardSchema";
+import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 
 type WizardStep = 1 | 2 | 2.5 | 3 | 4 | 5 | 6 | 7;
 
@@ -446,6 +447,61 @@ export class WizardValidator {
         errors.push(`추천 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
       }
     });
+
+    // 학습 분량 적정성 검증 (schedule_summary가 있는 경우)
+    if (wizardData.schedule_summary) {
+      const { total_study_days, total_study_hours } = wizardData.schedule_summary;
+      
+      // 총 학습 분량 계산 (페이지 및 회차)
+      let totalPages = 0;
+      let totalEpisodes = 0;
+      
+      [...wizardData.student_contents, ...wizardData.recommended_contents].forEach((content) => {
+        const range = content.end_range - content.start_range;
+        if (content.content_type === "book") {
+          totalPages += range;
+        } else if (content.content_type === "lecture") {
+          totalEpisodes += range;
+        }
+      });
+      
+      // 예상 소요 일수 계산
+      const avgDailyHours = total_study_days > 0 ? total_study_hours / total_study_days : 0;
+      const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
+      const episodesPerHour = defaultRangeRecommendationConfig.episodesPerHour;
+      const totalDailyPages = Math.round(avgDailyHours * pagesPerHour);
+      const totalDailyEpisodes = Math.round(avgDailyHours * episodesPerHour);
+      
+      let estimatedDays = 0;
+      if (totalPages > 0 && totalDailyPages > 0) {
+        estimatedDays = Math.ceil(totalPages / totalDailyPages);
+      }
+      if (totalEpisodes > 0 && totalDailyEpisodes > 0) {
+        const episodeDays = Math.ceil(totalEpisodes / totalDailyEpisodes);
+        estimatedDays = Math.max(estimatedDays, episodeDays);
+      }
+      
+      // 예상 소요 일수가 총 학습일 수를 초과하는 경우 경고
+      if (estimatedDays > total_study_days && total_study_days > 0) {
+        warnings.push(
+          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)를 초과합니다. 학습 분량을 조정하는 것을 권장합니다.`
+        );
+      }
+      
+      // 학습 분량이 과도하게 적은 경우 경고 (예상 소요 일수가 총 학습일 수의 50% 미만)
+      if (estimatedDays > 0 && total_study_days > 0 && estimatedDays < total_study_days * 0.5) {
+        warnings.push(
+          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)의 50% 미만입니다. 학습 분량을 늘리는 것을 고려해보세요.`
+        );
+      }
+      
+      // 학습 분량이 과도하게 많은 경우 경고 (예상 소요 일수가 총 학습일 수의 150% 초과)
+      if (estimatedDays > total_study_days * 1.5 && total_study_days > 0) {
+        warnings.push(
+          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)의 150%를 초과합니다. 학습 분량이 과도할 수 있습니다.`
+        );
+      }
+    }
 
     return {
       valid: errors.length === 0,

@@ -2,6 +2,9 @@ import type { BlockData, ContentData } from "../../../utils/scheduleTransform";
 import type { Plan } from "./scheduleTypes";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 export const dayTypeLabels: Record<string, string> = {
   학습일: "학습일",
@@ -23,16 +26,6 @@ export const dayTypeColors: Record<string, string> = {
   개인일정: getDayTypeBadgeClasses("개인일정"),
 };
 
-export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-export function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
 
 export function getPlanStartTime(
   plan: Plan,
@@ -78,8 +71,6 @@ export function calculateEstimatedTime(
   contents: Map<string, ContentData>,
   dayType?: string
 ): number {
-  const content = contents.get(plan.content_id);
-
   if (
     plan.planned_start_page_or_time === null ||
     plan.planned_end_page_or_time === null
@@ -89,41 +80,37 @@ export function calculateEstimatedTime(
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
   }
 
-  const amount =
-    plan.planned_end_page_or_time - plan.planned_start_page_or_time;
-  if (amount <= 0) {
-    const baseTime = 60;
+  const content = contents.get(plan.content_id);
+  
+  // ContentData를 ContentDurationInfo로 변환
+  const durationInfo: ContentDurationInfo | undefined = content
+    ? {
+        content_type: plan.content_type as "book" | "lecture" | "custom",
+        content_id: plan.content_id,
+        total_pages: content.total_pages ?? null,
+        duration: content.duration ?? null,
+        total_page_or_time: content.total_page_or_time ?? null,
+        // ContentData에는 episodes 정보가 없으므로 null
+        episodes: null,
+      }
+    : undefined;
+
+  if (!durationInfo) {
+    // duration 정보가 없으면 기본값 반환
+    const amount =
+      plan.planned_end_page_or_time - plan.planned_start_page_or_time;
+    const baseTime = amount > 0 ? (plan.content_type === "lecture" ? amount * 30 : amount * 2) : 60;
     return dayType === "복습일" ? Math.round(baseTime * 0.5) : baseTime;
   }
 
-  let baseTime = 0;
-
-  if (plan.content_type === "book") {
-    // 책: 설정 기반 시간 계산
-    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
-    const minutesPerPage = 60 / pagesPerHour;
-    baseTime = Math.round(amount * minutesPerPage);
-  } else if (plan.content_type === "lecture") {
-    // 강의: duration 정보 사용
-    if (content?.duration && content.duration > 0) {
-      // 총 duration을 사용 (실제로는 episode별 duration이 필요할 수 있음)
-      // 강의의 경우 planned_start_page_or_time과 planned_end_page_or_time이 회차를 나타냄
-      // 예: 1강, 2강 -> duration을 회차 수로 나눠서 계산
-      const episodeCount = amount; // 회차 수
-      const totalDuration = content.duration;
-      // 회차당 평균 시간 계산 (더 정확한 계산이 필요할 수 있음)
-      baseTime = Math.round(totalDuration / Math.max(episodeCount, 1));
-    } else {
-      baseTime = 60; // 기본값
-    }
-  } else {
-    baseTime = 60; // 기본값
-  }
-
-  // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
-  if (dayType === "복습일") {
-    return Math.round(baseTime * 0.5);
-  }
-
-  return baseTime;
+  return calculateContentDuration(
+    {
+      content_type: plan.content_type as "book" | "lecture" | "custom",
+      content_id: plan.content_id,
+      start_range: plan.planned_start_page_or_time,
+      end_range: plan.planned_end_page_or_time,
+    },
+    durationInfo,
+    dayType
+  );
 }

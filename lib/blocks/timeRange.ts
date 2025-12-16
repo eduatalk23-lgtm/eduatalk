@@ -2,18 +2,12 @@
  * 타임테이블 시간 영역 계산 유틸리티
  */
 
+import { timeToMinutes } from "@/lib/utils/time";
+
 type Block = {
   start_time: string;
   end_time: string;
 };
-
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 분을 시간으로 변환

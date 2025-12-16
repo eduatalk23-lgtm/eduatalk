@@ -117,8 +117,12 @@ export type ContentDurationInfo = {
   content_type: ContentType;
   content_id: string;
   total_pages?: number | null;
-  duration?: number | null;
+  duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null;
+  episodes?: Array<{
+    episode_number: number;
+    duration: number | null; // 회차별 소요시간 (분)
+  }> | null; // 강의 episode별 duration 정보
 };
 
 /**

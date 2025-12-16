@@ -11,13 +11,7 @@ export function normalizePlanPurpose(
   return purpose;
 }
 
-/**
- * 시간 문자열을 분 단위로 변환
- */
-export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
+import { timeToMinutes } from "@/lib/utils/time";
 
 /**
  * 기존 draft 플랜 그룹 확인

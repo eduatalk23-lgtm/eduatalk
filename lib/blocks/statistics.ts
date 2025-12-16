@@ -2,28 +2,13 @@
  * 블록 통계 계산 유틸리티
  */
 
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+
 type Block = {
   day_of_week: number;
   start_time: string;
   end_time: string;
 };
-
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * 분을 시간 문자열로 변환 (HH:MM)
- */
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
 
 /**
  * 블록의 길이 계산 (분 단위)

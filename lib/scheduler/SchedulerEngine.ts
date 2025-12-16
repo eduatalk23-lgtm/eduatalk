@@ -38,6 +38,8 @@ import {
   calculateWeekNumber,
   getDayOfWeekName,
 } from "@/lib/errors/planGenerationErrors";
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { calculateContentDuration as calculateContentDurationUnified } from "@/lib/plan/contentDuration";
 
 /**
  * SchedulerEngine 컨텍스트 타입
@@ -60,25 +62,10 @@ export type SchedulerContext = {
   >;
 };
 
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * 분 단위를 시간 문자열로 변환
- */
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
 
 /**
  * 콘텐츠의 특정 범위에 대한 소요시간 계산 (분 단위)
+ * 통합 함수를 사용하도록 변경
  */
 function calculateContentDuration(
   content: ContentInfo,
@@ -87,40 +74,26 @@ function calculateContentDuration(
   durationMap?: ContentDurationMap
 ): number {
   const durationInfo = durationMap?.get(content.content_id);
-  const amount = endPageOrTime - startPageOrTime;
-
-  if (content.content_type === "lecture") {
-    // 강의: duration 정보 사용
-    if (durationInfo?.duration) {
-      // 전체 강의 시간을 전체 회차로 나눈 값 * 배정된 회차 수
-      return Math.round(
-        (durationInfo.duration / (content.end_range - content.start_range)) *
-          amount
-      );
+  
+  if (!durationInfo) {
+    // duration 정보가 없으면 기본값 반환
+    const amount = endPageOrTime - startPageOrTime;
+    if (content.content_type === "lecture") {
+      return amount * 30; // 회차당 30분
+    } else {
+      return amount * 2; // 페이지당 2분
     }
-    // duration 정보가 없으면 기본값: 회차당 30분
-    return amount * 30;
-  } else if (content.content_type === "book") {
-    // 책: 페이지당 기본 2분
-    return amount * 2;
-  } else {
-    // 커스텀: total_page_or_time이 페이지면 2분/페이지, 시간이면 그대로
-    if (durationInfo?.total_page_or_time) {
-      // total_page_or_time이 100 이상이면 페이지로 간주, 아니면 시간(분)으로 간주
-      if (durationInfo.total_page_or_time >= 100) {
-        return amount * 2; // 페이지당 2분
-      } else {
-        // 시간(분)으로 간주: 전체 시간을 전체 범위로 나눈 값 * 배정된 범위
-        return Math.round(
-          (durationInfo.total_page_or_time /
-            (content.end_range - content.start_range)) *
-            amount
-        );
-      }
-    }
-    // 정보가 없으면 기본값: 페이지당 2분
-    return amount * 2;
   }
+  
+  return calculateContentDurationUnified(
+    {
+      content_type: content.content_type,
+      content_id: content.content_id,
+      start_range: startPageOrTime,
+      end_range: endPageOrTime,
+    },
+    durationInfo
+  );
 }
 
 /**
@@ -518,61 +491,198 @@ export class SchedulerEngine {
         (slot) => slot.type === "학습시간"
       );
 
-      let slotIndex = 0;
-      let blockIndex = 1;
-      let currentSlotPosition = 0;
-
-      datePlans.forEach(({ content, start, end: endAmount }) => {
-        const requiredMinutes = calculateContentDuration(
+      // Best Fit 알고리즘을 위한 플랜 정렬: 소요시간 내림차순 (큰 것부터 배치)
+      const plansWithDuration = datePlans.map(({ content, start, end: endAmount }) => ({
+        content,
+        start,
+        end: endAmount,
+        requiredMinutes: calculateContentDuration(
           content,
           start,
           endAmount,
           contentDurationMap
-        );
+        ),
+        remainingMinutes: calculateContentDuration(
+          content,
+          start,
+          endAmount,
+          contentDurationMap
+        ),
+      })).sort((a, b) => b.requiredMinutes - a.requiredMinutes); // 소요시간 내림차순
 
-        let remainingMinutes = requiredMinutes;
-        let totalAvailableMinutes = 0;
+      let blockIndex = 1;
+      let totalAvailableMinutes = 0;
 
-        // 학습시간 슬롯이 있으면 사용, 없으면 available_time_ranges 사용
-        if (studyTimeSlots.length > 0) {
-          // 사용 가능한 총 시간 계산
-          studyTimeSlots.forEach((slot) => {
+      // 학습시간 슬롯이 있으면 사용, 없으면 available_time_ranges 사용
+      if (studyTimeSlots.length > 0) {
+        // 사용 가능한 총 시간 계산
+        studyTimeSlots.forEach((slot) => {
+          const slotStart = timeToMinutes(slot.start);
+          const slotEnd = timeToMinutes(slot.end);
+          totalAvailableMinutes += slotEnd - slotStart;
+        });
+
+        // 슬롯별 사용 가능한 시간 추적
+        const slotAvailability: Array<{ slot: typeof studyTimeSlots[0]; usedTime: number }> = studyTimeSlots.map((slot) => ({
+          slot,
+          usedTime: 0,
+        }));
+
+        // Best Fit 알고리즘: 각 플랜을 가장 적합한 슬롯에 배치
+        for (const planInfo of plansWithDuration) {
+          if (planInfo.remainingMinutes <= 0) continue;
+
+          // Best Fit: 남은 시간이 가장 적은 슬롯 찾기 (하지만 플랜이 들어갈 수 있어야 함)
+          let bestSlotIndex = -1;
+          let bestRemainingSpace = Infinity;
+
+          for (let i = 0; i < slotAvailability.length; i++) {
+            const { slot, usedTime } = slotAvailability[i];
             const slotStart = timeToMinutes(slot.start);
             const slotEnd = timeToMinutes(slot.end);
-            totalAvailableMinutes += slotEnd - slotStart;
-          });
+            const slotDuration = slotEnd - slotStart;
+            const availableTime = slotDuration - usedTime;
 
-          while (remainingMinutes > 0 && slotIndex < studyTimeSlots.length) {
-            const slot = studyTimeSlots[slotIndex];
+            // 플랜이 들어갈 수 있고, 남은 공간이 가장 적은 슬롯 선택
+            if (availableTime >= planInfo.remainingMinutes && availableTime < bestRemainingSpace) {
+              bestSlotIndex = i;
+              bestRemainingSpace = availableTime;
+            }
+          }
+
+          // Best Fit 슬롯을 찾지 못한 경우, First Fit으로 폴백
+          if (bestSlotIndex === -1) {
+            for (let i = 0; i < slotAvailability.length; i++) {
+              const { slot, usedTime } = slotAvailability[i];
+              const slotStart = timeToMinutes(slot.start);
+              const slotEnd = timeToMinutes(slot.end);
+              const slotDuration = slotEnd - slotStart;
+              const availableTime = slotDuration - usedTime;
+
+              if (availableTime > 0) {
+                bestSlotIndex = i;
+                break;
+              }
+            }
+          }
+
+          // 플랜 배치
+          while (planInfo.remainingMinutes > 0 && bestSlotIndex >= 0) {
+            const { slot, usedTime } = slotAvailability[bestSlotIndex];
             const slotStart = timeToMinutes(slot.start);
             const slotEnd = timeToMinutes(slot.end);
-            const slotAvailable = slotEnd - slotStart - currentSlotPosition;
-            const slotUsed = Math.min(remainingMinutes, slotAvailable);
+            const slotDuration = slotEnd - slotStart;
+            const availableTime = slotDuration - usedTime;
+            const slotUsed = Math.min(planInfo.remainingMinutes, availableTime);
 
+            if (slotUsed > 0) {
+              const planStartTime = minutesToTime(slotStart + usedTime);
+              const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
+
+              plans.push({
+                plan_date: date,
+                block_index: blockIndex,
+                content_type: planInfo.content.content_type,
+                content_id: planInfo.content.content_id,
+                planned_start_page_or_time: planInfo.start,
+                planned_end_page_or_time: planInfo.end,
+                is_reschedulable: true,
+                start_time: planStartTime,
+                end_time: planEndTime,
+              });
+
+              planInfo.remainingMinutes -= slotUsed;
+              slotAvailability[bestSlotIndex].usedTime += slotUsed;
+              blockIndex++;
+
+              // 슬롯이 가득 찬 경우 다음 슬롯 찾기
+              if (slotAvailability[bestSlotIndex].usedTime >= slotDuration) {
+                bestSlotIndex = -1;
+                // 다음 사용 가능한 슬롯 찾기
+                for (let i = 0; i < slotAvailability.length; i++) {
+                  const { slot: nextSlot, usedTime: nextUsedTime } = slotAvailability[i];
+                  const nextSlotStart = timeToMinutes(nextSlot.start);
+                  const nextSlotEnd = timeToMinutes(nextSlot.end);
+                  const nextSlotDuration = nextSlotEnd - nextSlotStart;
+                  const nextAvailableTime = nextSlotDuration - nextUsedTime;
+
+                  if (nextAvailableTime > 0) {
+                    bestSlotIndex = i;
+                    break;
+                  }
+                }
+              }
+            } else {
+              break;
+            }
+          }
+
+          // 시간 부족 감지
+          if (planInfo.remainingMinutes > 0) {
+            const week = calculateWeekNumber(date, this.context.periodStart);
+            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
+
+            this.addFailureReason({
+              type: "insufficient_time",
+              week,
+              dayOfWeek,
+              date,
+              requiredMinutes: planInfo.requiredMinutes,
+              availableMinutes: totalAvailableMinutes,
+            });
+          }
+        }
+      } else {
+        // 학습시간 슬롯이 없으면 available_time_ranges 사용 (First Fit 유지)
+        let slotIndex = 0;
+        let currentSlotPosition = 0;
+
+        // 사용 가능한 총 시간 계산
+        availableRanges.forEach((range) => {
+          const startMinutes = timeToMinutes(range.start);
+          const endMinutes = timeToMinutes(range.end);
+          totalAvailableMinutes +=
+            endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+        });
+
+        for (const planInfo of plansWithDuration) {
+          let remainingMinutes = planInfo.remainingMinutes;
+
+          while (remainingMinutes > 0 && slotIndex < availableRanges.length) {
+            const timeRange = availableRanges[slotIndex] || {
+              start: "10:00",
+              end: "19:00",
+            };
+            const startMinutes = timeToMinutes(timeRange.start);
+            const endMinutes = timeToMinutes(timeRange.end);
+            const rangeDuration =
+              endMinutes > startMinutes ? endMinutes - startMinutes : 60;
+            const slotAvailable = rangeDuration - currentSlotPosition;
+            const actualDuration = Math.min(remainingMinutes, slotAvailable);
             const planStartTime = minutesToTime(
-              slotStart + currentSlotPosition
+              startMinutes + currentSlotPosition
             );
             const planEndTime = minutesToTime(
-              slotStart + currentSlotPosition + slotUsed
+              startMinutes + currentSlotPosition + actualDuration
             );
 
             plans.push({
               plan_date: date,
               block_index: blockIndex,
-              content_type: content.content_type,
-              content_id: content.content_id,
-              planned_start_page_or_time: start,
-              planned_end_page_or_time: endAmount,
+              content_type: planInfo.content.content_type,
+              content_id: planInfo.content.content_id,
+              planned_start_page_or_time: planInfo.start,
+              planned_end_page_or_time: planInfo.end,
               is_reschedulable: true,
               start_time: planStartTime,
               end_time: planEndTime,
             });
 
-            remainingMinutes -= slotUsed;
-            currentSlotPosition += slotUsed;
+            remainingMinutes -= actualDuration;
+            currentSlotPosition += actualDuration;
             blockIndex++;
 
-            if (currentSlotPosition >= slotEnd - slotStart) {
+            if (currentSlotPosition >= rangeDuration) {
               slotIndex++;
               currentSlotPosition = 0;
             }
@@ -588,77 +698,12 @@ export class SchedulerEngine {
               week,
               dayOfWeek,
               date,
-              requiredMinutes: requiredMinutes,
-              availableMinutes: totalAvailableMinutes,
-            });
-          }
-        } else {
-          // 학습시간 슬롯이 없으면 available_time_ranges 사용
-          if (slotIndex >= availableRanges.length) {
-            slotIndex = availableRanges.length - 1;
-          }
-
-          // 사용 가능한 총 시간 계산
-          availableRanges.forEach((range) => {
-            const startMinutes = timeToMinutes(range.start);
-            const endMinutes = timeToMinutes(range.end);
-            totalAvailableMinutes +=
-              endMinutes > startMinutes ? endMinutes - startMinutes : 60;
-          });
-
-          const timeRange = availableRanges[slotIndex] || {
-            start: "10:00",
-            end: "19:00",
-          };
-          const startMinutes = timeToMinutes(timeRange.start);
-          const endMinutes = timeToMinutes(timeRange.end);
-          const rangeDuration =
-            endMinutes > startMinutes ? endMinutes - startMinutes : 60;
-          const actualDuration = Math.min(remainingMinutes, rangeDuration);
-          const planStartTime = minutesToTime(
-            startMinutes + currentSlotPosition
-          );
-          const planEndTime = minutesToTime(
-            startMinutes + currentSlotPosition + actualDuration
-          );
-
-          plans.push({
-            plan_date: date,
-            block_index: blockIndex,
-            content_type: content.content_type,
-            content_id: content.content_id,
-            planned_start_page_or_time: start,
-            planned_end_page_or_time: endAmount,
-            is_reschedulable: true,
-            start_time: planStartTime,
-            end_time: planEndTime,
-          });
-
-          remainingMinutes -= actualDuration;
-          currentSlotPosition += actualDuration;
-          blockIndex++;
-
-          if (currentSlotPosition >= rangeDuration) {
-            slotIndex++;
-            currentSlotPosition = 0;
-          }
-
-          // 시간 부족 감지
-          if (remainingMinutes > 0) {
-            const week = calculateWeekNumber(date, this.context.periodStart);
-            const dayOfWeek = getDayOfWeekName(new Date(date).getDay());
-
-            this.addFailureReason({
-              type: "insufficient_time",
-              week,
-              dayOfWeek,
-              date,
-              requiredMinutes: requiredMinutes,
+              requiredMinutes: planInfo.requiredMinutes,
               availableMinutes: totalAvailableMinutes,
             });
           }
         }
-      });
+      }
     });
 
     return { plans, studyPlansByDate };

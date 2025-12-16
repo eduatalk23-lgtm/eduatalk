@@ -2,6 +2,8 @@
  * 학원 일정 시간대 겹침 검증 유틸리티
  */
 
+import { timeToMinutes } from "@/lib/utils/time";
+
 type AcademySchedule = {
   day_of_week: number;
   start_time: string;
@@ -10,16 +12,6 @@ type AcademySchedule = {
   subject?: string;
   travel_time?: number;
 };
-
-/**
- * 시간 문자열을 분 단위로 변환
- * @param timeStr "HH:mm" 형식의 시간 문자열
- * @returns 자정부터의 분 단위 시간
- */
-function timeToMinutes(timeStr: string): number {
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 분 단위 시간에서 이동시간을 빼거나 더한 시간을 "HH:mm" 형식으로 반환

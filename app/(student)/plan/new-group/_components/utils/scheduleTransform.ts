@@ -3,6 +3,8 @@
  */
 
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import type { ContentDurationInfo } from "@/lib/types/plan-generation";
 
 export type ScheduleTableRow = {
   id: string;
@@ -188,6 +190,7 @@ function getTimeFromBlock(
  * 예상 소요시간 계산 (분 단위)
  * 콘텐츠 타입과 학습 분량을 기반으로 계산
  * 복습일일 경우 소요시간 단축 적용 (학습일 대비 50%로 단축)
+ * 통합 함수를 사용하도록 변경
  */
 function calculateEstimatedTime(
   contentType: string,
@@ -206,50 +209,33 @@ function calculateEstimatedTime(
     return dayType === "복습일" ? Math.round(blockTime * 0.5) : blockTime;
   }
 
-  const amount = endPageOrTime - startPageOrTime;
-  if (amount <= 0) {
+  if (!content) {
+    // 콘텐츠 정보가 없으면 블록 시간 반환
     const blockTime = getBlockDuration(planDate, blockIndex, blocks);
     return dayType === "복습일" ? Math.round(blockTime * 0.5) : blockTime;
   }
 
-  let baseTime = 0;
+  // ContentData를 ContentDurationInfo로 변환
+  const durationInfo: ContentDurationInfo = {
+    content_type: contentType as "book" | "lecture" | "custom",
+    content_id: content.id,
+    total_pages: content.total_pages ?? null,
+    duration: content.duration ?? null,
+    total_page_or_time: content.total_page_or_time ?? null,
+    // ContentData에는 episodes 정보가 없으므로 null
+    episodes: null,
+  };
 
-  // 콘텐츠 타입별 소요시간 계산
-  if (contentType === "book") {
-    // 책: 설정 기반 시간 계산
-    const pagesPerHour = defaultRangeRecommendationConfig.pagesPerHour;
-    const minutesPerPage = 60 / pagesPerHour;
-    baseTime = Math.round(amount * minutesPerPage);
-  } else if (contentType === "lecture") {
-    // 강의: duration 정보 사용
-    if (content?.duration && content.duration > 0) {
-      // 총 duration을 total_episodes로 나눠서 회차당 시간 계산
-      // 단, 여기서는 단순히 duration을 사용 (실제로는 episode별 duration이 필요할 수 있음)
-      // 현재는 플랜의 회차 범위를 고려하여 계산
-      // 예: 총 100분 강의, 10회차면 회차당 10분
-      // 하지만 정확한 계산을 위해서는 episode별 duration이 필요
-      // 일단은 블록 시간 반환 (추후 개선 필요)
-      baseTime = getBlockDuration(planDate, blockIndex, blocks);
-    } else {
-      // duration 정보가 없으면 블록 시간 반환
-      baseTime = getBlockDuration(planDate, blockIndex, blocks);
-    }
-  } else if (contentType === "custom") {
-    // 커스텀: total_page_or_time이 시간 단위면 그대로 사용
-    // 하지만 planned_start_page_or_time과 planned_end_page_or_time의 차이가 시간인지 페이지인지 불명확
-    // 일단은 블록 시간 반환 (추후 개선 필요)
-    baseTime = getBlockDuration(planDate, blockIndex, blocks);
-  } else {
-    // 기본값: 블록 시간
-    baseTime = getBlockDuration(planDate, blockIndex, blocks);
-  }
-
-  // 복습일이면 소요시간 단축 (학습일 대비 50%로 단축)
-  if (dayType === "복습일") {
-    return Math.round(baseTime * 0.5);
-  }
-
-  return baseTime;
+  return calculateContentDuration(
+    {
+      content_type: contentType as "book" | "lecture" | "custom",
+      content_id: content.id,
+      start_range: startPageOrTime,
+      end_range: endPageOrTime,
+    },
+    durationInfo,
+    dayType ?? undefined
+  );
 }
 
 /**

@@ -114,6 +114,8 @@ export type NonStudyTimeBlock = {
  */
 export type SchedulerMode = "block" | "time";
 
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+
 export type CalculateOptions = {
   scheduler_type: "1730_timetable";
   /**
@@ -135,23 +137,6 @@ export type CalculateOptions = {
   enable_self_study_for_study_days?: boolean; // 학습일/복습일 자율학습 시간 배정 (기본: false)
   non_study_time_blocks?: NonStudyTimeBlock[]; // 학습 시간 제외 항목
 };
-
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * 분 단위를 시간 문자열로 변환
- */
-function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
 
 /**
  * 두 시간 범위가 겹치는지 확인

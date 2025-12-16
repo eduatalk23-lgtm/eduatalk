@@ -22,22 +22,7 @@ export type TimelineSlot = {
   academy?: AcademySchedule; // 학원일정인 경우
 };
 
-/**
- * 시간 문자열을 분으로 변환
- */
-export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-/**
- * 분을 시간 문자열로 변환
- */
-export function minutesToTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
-}
+import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 
 /**
  * 날짜별 타임라인 슬롯 생성

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { calculateAutoTimeRange } from "@/lib/blocks/timeRange";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { createHeightPxStyle, createBlockStyle } from "@/lib/utils/cssVariables";
+import { timeToMinutes } from "@/lib/utils/time";
 
 type Block = {
   id: string;
@@ -18,14 +19,6 @@ type BlockTimelineProps = {
 };
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
-/**
- * 시간 문자열을 분 단위로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 블록의 위치와 높이 계산 (시간 범위 기준)
