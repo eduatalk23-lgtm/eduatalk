@@ -500,7 +500,7 @@ export async function loadContentDurations(
   const studentLectureIds: string[] = [];
   const studentLectureMap = new Map<
     string,
-    { content: PlanContent; studentLecture: { id: string; duration: number | null; master_content_id: string | null } | null }
+    { content: PlanContent; studentLecture: { id: string; duration: number | null; master_content_id: string | null; total_episodes: number | null } | null }
   >();
 
   for (const { content, studentLecture } of lectureResults) {
@@ -532,7 +532,7 @@ export async function loadContentDurations(
         )
         .map((ep) => ({
           episode_number: ep.episode_number,
-          duration: ep.duration ?? null,
+          duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
         }));
     }
 
@@ -541,7 +541,7 @@ export async function loadContentDurations(
       contentDurationMap.set(content.content_id, {
         content_type: "lecture",
         content_id: content.content_id,
-        duration: studentLecture.duration,
+        duration: studentLecture.duration ? Math.ceil(studentLecture.duration / 60) : null, // Convert seconds to minutes
         total_episodes: studentLecture.total_episodes ?? null,
         episodes: episodes,
       });
@@ -605,7 +605,7 @@ export async function loadContentDurations(
     const masterLectureIds: string[] = [];
     const masterLectureMap = new Map<
       string,
-      { content: PlanContent; masterLecture: { id: string; total_duration: number | null } | null }
+      { content: PlanContent; masterLecture: { id: string; total_duration: number | null; total_episodes: number | null } | null }
     >();
 
     for (const { content, masterLecture } of masterLectureResults) {
@@ -636,7 +636,7 @@ export async function loadContentDurations(
               )
               .map((ep) => ({
                 episode_number: ep.episode_number,
-                duration: ep.duration ?? null,
+                duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
               }))
           : null;
 
@@ -644,7 +644,7 @@ export async function loadContentDurations(
         contentDurationMap.set(content.content_id, {
           content_type: "lecture",
           content_id: content.content_id,
-          duration: masterLecture.total_duration,
+          duration: masterLecture.total_duration ? Math.ceil(masterLecture.total_duration / 60) : null, // Convert seconds to minutes
           total_episodes: masterLecture.total_episodes ?? null,
           episodes: episodes,
         });

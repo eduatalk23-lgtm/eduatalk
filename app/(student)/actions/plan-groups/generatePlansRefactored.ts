@@ -8,7 +8,7 @@ import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
 } from "@/lib/data/contentMasters";
-import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
+import { assignPlanTimes, calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
 import { updatePlanGroupStatus } from "./status";
 import { timeToMinutes } from "./utils";
 import {
@@ -553,8 +553,20 @@ async function _generatePlansFromGroupRefactored(
         planned_end_page_or_time: plan.planned_end_page_or_time,
         chapter: plan.chapter || null,
         block_index: plan.block_index,
+        // Preserve pre-calculated times if available (from SchedulerEngine)
+        _precalculated_start: plan.start_time,
+        _precalculated_end: plan.end_time, 
       };
     });
+
+    if (process.env.NODE_ENV === "development") {
+       console.log(`[generatePlansRefactored] ${date} plans precalc check:`, plansForAssign.map(p => ({
+         id: p.content_id, 
+         range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
+         start: p._precalculated_start,
+         end: p._precalculated_end
+       })));
+    }
 
     // Episode 정보 전달 확인 (개발 환경에서만)
     if (process.env.NODE_ENV === "development") {
@@ -585,13 +597,44 @@ async function _generatePlansFromGroupRefactored(
       }
     }
 
-    const timeSegments = assignPlanTimes(
-      plansForAssign,
-      studyTimeSlots,
-      contentDurationMap,
-      dayType,
-      totalStudyHours
-    );
+    // Check if we have pre-calculated times (from SchedulerEngine)
+    // If ANY plan has pre-calculated time, we assume the scheduler provided a complete timeline for this day.
+    const hasPrecalculatedTimes = plansForAssign.some(p => p._precalculated_start && p._precalculated_end);
+
+    let timeSegments: import("@/lib/plan/assignPlanTimes").PlanTimeSegment[];
+
+    if (hasPrecalculatedTimes) {
+      // Use pre-calculated times directly
+      timeSegments = plansForAssign.map(p => {
+        // Calculate estimated time for metadata (still useful)
+        const estimatedTime = calculatePlanEstimatedTime(p, contentDurationMap, dayType);
+        
+        return {
+          plan: p,
+          start: p._precalculated_start!,
+          end: p._precalculated_end!,
+          isPartial: false, // SchedulerEngine handles splitting, so partials are pre-split plans
+          isContinued: false,
+          originalEstimatedTime: estimatedTime,
+          estimatedTime: estimatedTime,
+          remainingTime: 0,
+          blockIndex: p.block_index || 0,
+        };
+      });
+      
+      // Sort by start time to match expected order
+      timeSegments.sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+      
+    } else {
+      // Fallback to legacy assignment logic
+      timeSegments = assignPlanTimes(
+        plansForAssign,
+        studyTimeSlots,
+        contentDurationMap,
+        dayType,
+        totalStudyHours
+      );
+    }
 
     let blockIndex = 1;
     const now = new Date().toISOString();

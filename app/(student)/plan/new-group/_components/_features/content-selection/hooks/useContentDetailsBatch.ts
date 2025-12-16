@@ -144,16 +144,71 @@ export function useContentDetailsBatch({
           requestBody.student_id = studentId;
         }
 
-        // 배치 API 호출
-        const response = await fetch("/api/student-content-details/batch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
+        // 재시도 가능한 에러인지 확인하는 헬퍼 함수
+        const isRetryableError = (error: unknown): boolean => {
+          if (error instanceof Error) {
+            const message = error.message.toLowerCase();
+            return (
+              message.includes("aborted") ||
+              message.includes("econnreset") ||
+              message.includes("network") ||
+              message.includes("timeout") ||
+              message.includes("fetch failed")
+            );
+          }
+          return false;
+        };
 
-        if (response.ok) {
+        // 배치 API 호출 (재시도 로직 포함)
+        let response: Response | null = null;
+        let batchError: Error | null = null;
+        const maxRetries = 2;
+        let retryCount = 0;
+
+        while (retryCount <= maxRetries) {
+          try {
+            response = await fetch("/api/student-content-details/batch", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(requestBody),
+              signal: abortControllerRef.current?.signal,
+            });
+
+            if (response.ok) {
+              break; // 성공하면 루프 종료
+            }
+
+            // 4xx 에러는 재시도하지 않음
+            if (response.status >= 400 && response.status < 500) {
+              break;
+            }
+
+            // 5xx 에러는 재시도
+            if (response.status >= 500 && retryCount < maxRetries) {
+              retryCount++;
+              await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount)); // 지수 백오프
+              continue;
+            }
+
+            break;
+          } catch (error) {
+            batchError = error instanceof Error ? error : new Error(String(error));
+
+            // 재시도 가능한 에러이고 재시도 횟수가 남아있으면 재시도
+            if (isRetryableError(error) && retryCount < maxRetries) {
+              retryCount++;
+              await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount)); // 지수 백오프
+              continue;
+            }
+
+            // 재시도 불가능하거나 최대 재시도 횟수 초과
+            break;
+          }
+        }
+
+        if (response?.ok) {
           const result = await response.json();
           const batchData = result.data;
 
@@ -217,9 +272,15 @@ export function useContentDetailsBatch({
           }
         } else {
           // 배치 API 실패 시 개별 API로 fallback
-          console.warn(
-            "[useContentDetailsBatch] 배치 API 실패, 개별 API로 fallback"
-          );
+          if (process.env.NODE_ENV === "development") {
+            console.warn(
+              "[useContentDetailsBatch] 배치 API 실패, 개별 API로 fallback",
+              {
+                retryCount,
+                error: batchError?.message || `HTTP ${batchResponse?.status}`,
+              }
+            );
+          }
 
           const fetchPromises = contentIdsToFetch.map(async (contentId) => {
             const contentType = getContentType(

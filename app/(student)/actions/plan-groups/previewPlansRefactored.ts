@@ -3,7 +3,8 @@
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
-import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
+import { assignPlanTimes, calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
+import { timeToMinutes } from "@/lib/utils/time";
 import {
   getPlanGroupWithDetailsByRole,
   getStudentIdForPlanGroup,
@@ -309,16 +310,57 @@ async function _previewPlansFromGroupRefactored(
           planned_end_page_or_time: plan.planned_end_page_or_time,
           chapter: plan.chapter || null,
           block_index: plan.block_index,
+          // Preserve pre-calculated times if available (from SchedulerEngine)
+          _precalculated_start: plan.start_time,
+          _precalculated_end: plan.end_time,
         };
       });
 
-      const timeSegments = assignPlanTimes(
-        plansForAssign,
-        studyTimeSlots,
-        contentDurationMap,
-        dayType,
-        totalStudyHours
+      // Check if we have pre-calculated times (from SchedulerEngine)
+      // If ANY plan has pre-calculated time, we assume the scheduler provided a complete timeline for this day.
+      const hasPrecalculatedTimes = plansForAssign.some(
+        (p) => p._precalculated_start && p._precalculated_end
       );
+
+      let timeSegments: import("@/lib/plan/assignPlanTimes").PlanTimeSegment[];
+
+      if (hasPrecalculatedTimes) {
+        // Use pre-calculated times directly
+        timeSegments = plansForAssign.map((p) => {
+          // Calculate estimated time for metadata (still useful)
+          const estimatedTime = calculatePlanEstimatedTime(
+            p,
+            contentDurationMap,
+            dayType
+          );
+
+          return {
+            plan: p,
+            start: p._precalculated_start!,
+            end: p._precalculated_end!,
+            isPartial: false, // SchedulerEngine handles splitting, so partials are pre-split plans
+            isContinued: false,
+            originalEstimatedTime: estimatedTime,
+            estimatedTime: estimatedTime,
+            remainingTime: 0,
+            blockIndex: p.block_index || 0,
+          };
+        });
+
+        // Sort by start time to match expected order
+        timeSegments.sort(
+          (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
+        );
+      } else {
+        // Fallback to legacy assignment logic
+        timeSegments = assignPlanTimes(
+          plansForAssign,
+          studyTimeSlots,
+          contentDurationMap,
+          dayType,
+          totalStudyHours
+        );
+      }
 
       let blockIndex = 1;
 

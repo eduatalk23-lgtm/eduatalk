@@ -14,6 +14,10 @@ import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import { fetchBlocksWithFallback } from "@/lib/utils/databaseFallback";
 import type { PlanGroupSchedulerOptions, TimeRange } from "@/lib/types/schedulerSettings";
+import {
+  getStudentBookDetailsBatch,
+  getStudentLectureEpisodesBatch,
+} from "@/lib/data/contentMasters";
 
 /**
  * 플랜 그룹의 플랜 목록 조회
@@ -185,6 +189,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     completed_amount: number | null;
     plan_number: number | null;
     sequence: number | null;
+    contentEpisode: string | null;
   }>;
   periodStart: string;
   periodEnd: string | null;
@@ -901,20 +906,196 @@ async function _getScheduleResultData(groupId: string): Promise<{
     }
   });
 
+  // ===== contentEpisode 생성을 위한 episode/book_detail 조회 =====
+  const planBookIds = new Set<string>();
+  const planLectureIds = new Set<string>();
+
+  (plans || []).forEach((plan) => {
+    if (plan.content_type === "book" && plan.content_id) {
+      planBookIds.add(plan.content_id);
+    } else if (plan.content_type === "lecture" && plan.content_id) {
+      planLectureIds.add(plan.content_id);
+    }
+  });
+
+  // 배치 조회 (병렬 처리)
+  const [bookDetailsMap, lectureEpisodesMap] = await Promise.all([
+    planBookIds.size > 0
+      ? getStudentBookDetailsBatch(Array.from(planBookIds), targetStudentId)
+      : Promise.resolve(
+          new Map<
+            string,
+            Array<{
+              id: string;
+              page_number: number;
+              major_unit: string | null;
+              minor_unit: string | null;
+            }>
+          >()
+        ),
+    planLectureIds.size > 0
+      ? getStudentLectureEpisodesBatch(Array.from(planLectureIds), targetStudentId)
+      : Promise.resolve(
+          new Map<
+            string,
+            Array<{
+              id: string;
+              episode_number: number;
+              episode_title: string | null;
+              duration: number | null;
+            }>
+          >()
+        ),
+  ]);
+
+  // contentEpisode 생성 헬퍼 함수
+  const createLectureEpisodeString = (
+    episodes: Array<{
+      episode_number: number;
+      episode_title: string | null;
+    }>,
+    startEpisodeNumber: number,
+    endEpisodeNumber: number
+  ): string | null => {
+    if (episodes.length === 0) return null;
+
+    const startEpisode = episodes.find(
+      (ep) => ep.episode_number === startEpisodeNumber
+    );
+    const endEpisode =
+      startEpisodeNumber === endEpisodeNumber
+        ? startEpisode
+        : episodes.find((ep) => ep.episode_number === endEpisodeNumber);
+
+    if (!startEpisode) return null;
+
+    if (startEpisodeNumber === endEpisodeNumber || !endEpisode) {
+      return startEpisode.episode_title
+        ? startEpisode.episode_title
+        : `${startEpisode.episode_number}강`;
+    }
+
+    const startTitle = startEpisode.episode_title
+      ? startEpisode.episode_title
+      : `${startEpisode.episode_number}강`;
+    const endTitle = endEpisode.episode_title
+      ? endEpisode.episode_title
+      : `${endEpisode.episode_number}강`;
+
+    return `${startTitle} ~ ${endTitle}`;
+  };
+
+  const createBookEpisodeString = (
+    bookDetails: Array<{
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }>,
+    startPage: number,
+    endPage: number
+  ): string | null => {
+    if (bookDetails.length === 0) return null;
+
+    // page_number <= startPage인 가장 큰 book_detail 찾기
+    let startDetail: (typeof bookDetails)[0] | null = null;
+    for (let i = bookDetails.length - 1; i >= 0; i--) {
+      if (bookDetails[i].page_number <= startPage) {
+        startDetail = bookDetails[i];
+        break;
+      }
+    }
+
+    // page_number <= endPage인 가장 큰 book_detail 찾기
+    let endDetail: (typeof bookDetails)[0] | null = null;
+    for (let i = bookDetails.length - 1; i >= 0; i--) {
+      if (bookDetails[i].page_number <= endPage) {
+        endDetail = bookDetails[i];
+        break;
+      }
+    }
+
+    // 단일 범위
+    if (startDetail && endDetail && startDetail === endDetail) {
+      const unit = startDetail.major_unit || startDetail.minor_unit;
+      if (unit) return unit;
+      return `${startPage}페이지${startPage !== endPage ? ` ~ ${endPage}페이지` : ""}`;
+    }
+
+    // 범위
+    if (startDetail && endDetail) {
+      const startUnit = startDetail.major_unit || startDetail.minor_unit;
+      const endUnit = endDetail.major_unit || endDetail.minor_unit;
+
+      if (startUnit && endUnit) {
+        if (startUnit === endUnit) return startUnit;
+        return `${startUnit} ~ ${endUnit}`;
+      }
+
+      return `${startPage}페이지 ~ ${endPage}페이지`;
+    }
+
+    return `${startPage}페이지${startPage !== endPage ? ` ~ ${endPage}페이지` : ""}`;
+  };
+
   return {
-    plans: (plans || []).map((p) => ({
-      id: p.id,
-      plan_date: p.plan_date || "",
-      block_index: p.block_index,
-      content_type: p.content_type || "",
-      content_id: p.content_id || "",
-      chapter: p.chapter,
-      planned_start_page_or_time: p.planned_start_page_or_time,
-      planned_end_page_or_time: p.planned_end_page_or_time,
-      completed_amount: p.completed_amount,
-      plan_number: p.plan_number ?? null,
-      sequence: p.sequence ?? null,
-    })),
+    plans: (plans || []).map((p) => {
+      let contentEpisode: string | null = null;
+
+      // 강의 콘텐츠 처리
+      if (p.content_type === "lecture" && p.content_id) {
+        const episodes = lectureEpisodesMap.get(p.content_id) || [];
+        const startEpisodeNumber = p.planned_start_page_or_time;
+        const endEpisodeNumber = p.planned_end_page_or_time;
+
+        if (
+          startEpisodeNumber !== null &&
+          startEpisodeNumber !== undefined &&
+          endEpisodeNumber !== null &&
+          endEpisodeNumber !== undefined
+        ) {
+          contentEpisode = createLectureEpisodeString(
+            episodes,
+            startEpisodeNumber,
+            endEpisodeNumber
+          );
+        }
+      }
+      // 교재 콘텐츠 처리
+      else if (p.content_type === "book" && p.content_id) {
+        const bookDetails = bookDetailsMap.get(p.content_id) || [];
+        const startPage = p.planned_start_page_or_time;
+        const endPage = p.planned_end_page_or_time;
+
+        if (
+          startPage !== null &&
+          startPage !== undefined &&
+          endPage !== null &&
+          endPage !== undefined
+        ) {
+          contentEpisode = createBookEpisodeString(bookDetails, startPage, endPage);
+        }
+      }
+
+      // Fallback: sequence 사용
+      if (!contentEpisode && p.sequence !== null && p.sequence !== undefined) {
+        contentEpisode = `${p.sequence}회차`;
+      }
+
+      return {
+        id: p.id,
+        plan_date: p.plan_date || "",
+        block_index: p.block_index,
+        content_type: p.content_type || "",
+        content_id: p.content_id || "",
+        chapter: p.chapter,
+        planned_start_page_or_time: p.planned_start_page_or_time,
+        planned_end_page_or_time: p.planned_end_page_or_time,
+        completed_amount: p.completed_amount,
+        plan_number: p.plan_number ?? null,
+        sequence: p.sequence ?? null,
+        contentEpisode,
+      };
+    }),
     periodStart: group.period_start || "",
     periodEnd: group.period_end || "",
     schedulerType: group.scheduler_type || null,

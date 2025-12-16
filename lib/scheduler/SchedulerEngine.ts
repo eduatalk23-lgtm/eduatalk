@@ -267,6 +267,135 @@ export class SchedulerEngine {
   }
 
   /**
+   * Capacity-based Content Distribution (Capacity-Aware Scheduling)
+   * Distributes content based on available time capacity of each day.
+   */
+  private distributeContentWithCapacity(
+    content: ContentInfo,
+    allocatedDates: string[],
+    durationInfo: {
+      content_type: "book" | "lecture" | "custom";
+      content_id: string;
+      total_pages?: number | null;
+      duration?: number | null;
+      total_page_or_time?: number | null;
+      episodes?: Array<{
+        episode_number: number;
+        duration: number | null;
+      }> | null;
+    }
+  ): Map<string, { start: number; end: number }> {
+    const result = new Map<string, { start: number; end: number }>();
+    if (allocatedDates.length === 0) return result;
+
+    const { dateAvailableTimeRanges, dateTimeSlots } = this.context;
+    
+    // 1. Calculate available duration for each day (in minutes)
+    const dailyCapacities = new Map<string, number>();
+    
+    allocatedDates.forEach(date => {
+      let capacity = 0;
+      
+      // Use time_slots (Step 2.5) if available
+      const timeSlots = dateTimeSlots?.get(date);
+      const studyTimeSlots = timeSlots?.filter(slot => slot.type === "학습시간");
+      
+      if (studyTimeSlots && studyTimeSlots.length > 0) {
+        studyTimeSlots.forEach(slot => {
+          capacity += timeToMinutes(slot.end) - timeToMinutes(slot.start);
+        });
+      } else {
+        // Fallback to available_time_ranges
+        const ranges = dateAvailableTimeRanges?.get(date) || [];
+        ranges.forEach(range => {
+          capacity += timeToMinutes(range.end) - timeToMinutes(range.start);
+        });
+        
+        // If no ranges defined, assume default (e.g., 2 hours)
+        if (capacity === 0) capacity = 120;
+      }
+      
+      dailyCapacities.set(date, capacity);
+    });
+
+    // 2. Distribute content units
+    let currentStart = content.start_range;
+    const totalEnd = content.end_range;
+    
+    // Sort dates chronologically
+    const sortedDates = [...allocatedDates].sort();
+    
+    for (let i = 0; i < sortedDates.length; i++) {
+      const date = sortedDates[i];
+      const isLastDay = i === sortedDates.length - 1;
+      
+      if (currentStart >= totalEnd) break;
+      
+      if (isLastDay) {
+        // Last day takes all remaining content
+        result.set(date, { start: currentStart, end: totalEnd });
+        break;
+      }
+      
+      const dayCapacity = dailyCapacities.get(date) || 120;
+      let usedTime = 0;
+      let dayEnd = currentStart;
+      
+      // Capacity-Aware Filling
+      while (dayEnd < totalEnd) {
+        // Determine unit size and duration
+        let unitSize = 1; 
+        let unitDuration = 0;
+        
+        if (content.content_type === "lecture" && durationInfo.episodes) {
+          // Lecture: Strictly 1 episode per unit check
+          // content.start_range is typically 1 (Ep 1). dayEnd is current episode number (e.g. 1).
+          const targetEpisodeNum = Math.floor(dayEnd); 
+          
+          // Robust episode lookup
+          const ep = durationInfo.episodes.find(e => e.episode_number === targetEpisodeNum);
+          unitDuration = ep?.duration || 30; // fallback 30m if not found
+          unitSize = 1; 
+          
+        } else if (content.content_type === "book") {
+          // Book pages
+          unitSize = 1; // 1 page
+          unitDuration = 2; // default 2 mins/page
+          if (durationInfo.total_pages && durationInfo.duration) {
+             unitDuration = durationInfo.duration / durationInfo.total_pages;
+          }
+        } else {
+          // Custom / Fallback
+          unitDuration = 1; // 1 min per unit
+        }
+        
+        // Check fit
+        if (usedTime + unitDuration <= dayCapacity) {
+          usedTime += unitDuration;
+          dayEnd += unitSize;
+        } else {
+          // Ensure at least one unit progress per allocated day if empty
+          if (usedTime === 0) {
+             usedTime += unitDuration;
+             dayEnd += unitSize;
+          }
+          break; // Day full
+        }
+        
+        // Force break for lectures if we want strict 1 episode per row?
+        // No, `result` map is {start, end}. This defines the RANGE for the day.
+        // If we want multiple rows in PlanTable, we must split this RANGE in `generateStudyDayPlans`.
+        // So here we validly calculate "This day can fit Episodes 1 to 3".
+      }
+      
+      result.set(date, { start: currentStart, end: dayEnd });
+      currentStart = dayEnd;
+    }
+
+    return result;
+  }
+
+  /**
    * 학습 범위 분할
    * 배정된 날짜에 학습 범위를 분배합니다.
    */
@@ -278,6 +407,7 @@ export class SchedulerEngine {
 
     const allocationMap = this.allocateContentDates();
     const contents = this.filterContents();
+    const { contentDurationMap } = this.context;
 
     this.contentRangeMap = new Map();
 
@@ -291,11 +421,22 @@ export class SchedulerEngine {
         return;
       }
 
-      const rangeMap = divideContentRange(
-        content.total_amount,
-        allocatedDates,
-        content.content_id
-      );
+      // Check if we have duration info for Capacity-Aware Scheduling
+      const durationInfo = contentDurationMap?.get(content.content_id);
+      
+      let rangeMap: Map<string, { start: number; end: number }>;
+      
+      // Use Capacity-Aware Logic if duration info exists (especially for Lectures)
+      if (durationInfo && (content.content_type === "lecture" || content.content_type === "book")) {
+         rangeMap = this.distributeContentWithCapacity(content, allocatedDates, durationInfo);
+      } else {
+         // Fallback to Naive Logic
+         rangeMap = divideContentRange(
+          content.total_amount,
+          allocatedDates,
+          content.content_id
+        );
+      }
 
       if (rangeMap.size === 0) {
         this.addFailureReason({
@@ -304,12 +445,6 @@ export class SchedulerEngine {
           contentType: content.content_type,
           totalAmount: content.total_amount,
           allocatedDates: allocatedDates.length,
-        });
-
-        console.warn("[SchedulerEngine] 학습 범위 분할 결과 없음:", {
-          content_id: content.content_id,
-          allocatedDatesCount: allocatedDates.length,
-          total_amount: content.total_amount,
         });
         return;
       }
@@ -320,10 +455,22 @@ export class SchedulerEngine {
         { start: number; end: number }
       >();
       rangeMap.forEach((range, date) => {
-        adjustedRangeMap.set(date, {
-          start: content.start_range + range.start,
-          end: content.start_range + range.end,
-        });
+        // range.start is 0-based offset from distribute logic? 
+        // divideContentRange returns 0-based offset usually? 
+        // checking divideContentRange impl: it uses currentStart=0.
+        // distributeContentWithCapacity logic above used currentStart=content.start_range.
+        // So for distributeContentWithCapacity, we don't need to add content.start_range again if it already tracked absolute pos.
+        
+        if (durationInfo && (content.content_type === "lecture" || content.content_type === "book")) {
+             // Already absolute
+             adjustedRangeMap.set(date, range);
+        } else {
+             // Naive logic returns relative offset
+             adjustedRangeMap.set(date, {
+              start: content.start_range + range.start,
+              end: content.start_range + range.end,
+            });
+        }
       });
 
       if (this.contentRangeMap) {
@@ -425,11 +572,25 @@ export class SchedulerEngine {
     // studyPlansByDate 구성
     sortedContents.forEach((content) => {
       const contentRangeMap = rangeMap.get(content.content_id);
-      if (!contentRangeMap) return;
+      if (!contentRangeMap) {
+        console.warn("[SchedulerEngine] 콘텐츠에 rangeMap이 없음:", {
+          content_id: content.content_id,
+          content_type: content.content_type,
+        });
+        return;
+      }
+
+      const rangeMapDates = Array.from(contentRangeMap.keys());
+      const matchedDates: string[] = [];
+      const unmatchedDates: string[] = [];
 
       contentRangeMap.forEach((range, date) => {
-        if (!studyDaysList.includes(date)) return;
+        if (!studyDaysList.includes(date)) {
+          unmatchedDates.push(date);
+          return;
+        }
 
+        matchedDates.push(date);
         if (!studyPlansByDate.has(date)) {
           studyPlansByDate.set(date, []);
         }
@@ -439,14 +600,37 @@ export class SchedulerEngine {
           end: range.end,
         });
       });
+
+      // 디버깅: 날짜 불일치 감지
+      if (unmatchedDates.length > 0 && process.env.NODE_ENV === "development") {
+        console.warn("[SchedulerEngine] rangeMap 날짜가 studyDaysList에 없음:", {
+          content_id: content.content_id,
+          rangeMapDates,
+          unmatchedDates,
+          studyDaysListSample: studyDaysList.slice(0, 5),
+          studyDaysListLength: studyDaysList.length,
+        });
+      }
     });
 
     // 학습일 플랜이 없는 경우 경고
     if (studyPlansByDate.size === 0) {
+      const allRangeMapDates = new Set<string>();
+      rangeMap.forEach((contentRangeMap) => {
+        contentRangeMap.forEach((_, date) => {
+          allRangeMapDates.add(date);
+        });
+      });
+
       console.warn("[SchedulerEngine] 학습일 플랜이 생성되지 않음:", {
         studyDaysList,
+        studyDaysListLength: studyDaysList.length,
         totalContentsCount: sortedContents.length,
         contentsWithRangeMap: Array.from(rangeMap.keys()).length,
+        allRangeMapDates: Array.from(allRangeMapDates),
+        rangeMapDatesNotInStudyDays: Array.from(allRangeMapDates).filter(
+          (date) => !studyDaysList.includes(date)
+        ),
       });
     }
 
@@ -458,27 +642,101 @@ export class SchedulerEngine {
       );
 
       // Best Fit 알고리즘을 위한 플랜 정렬: 소요시간 내림차순 (큰 것부터 배치)
-      const plansWithDuration = datePlans.map(({ content, start, end: endAmount }) => {
+      // If Content Type is Lecture, we might need to SPLIT the range into individual episodes here.
+      // The user wants "1 episode per learning history".
+      
+      const expandedPlans: Array<{
+          content: ContentInfo;
+          start: number;
+          end: number;
+      }> = [];
+
+      datePlans.forEach(dp => {
+         if (dp.content.content_type === "lecture") {
+             // Split range into individual episodes
+             for (let ep = dp.start; ep < dp.end; ep++) {
+                 expandedPlans.push({
+                     content: dp.content,
+                     start: ep,
+                     end: ep + 1
+                 });
+             }
+         } else {
+             // Keep as range
+             expandedPlans.push(dp);
+         }
+      });
+
+      // Episode Map 캐싱 (성능 최적화: 같은 콘텐츠의 episode 정보를 재사용)
+      const episodeMapCache = new Map<string, Map<number, number>>();
+      
+      const plansWithDuration = expandedPlans.map(({ content, start, end: endAmount }) => {
         const durationInfo = contentDurationMap?.get(content.content_id);
         const amount = endAmount - start;
         
+        let requiredMinutes: number;
+        
         // duration 정보가 있으면 통합 함수 사용, 없으면 기본값 계산
-        const requiredMinutes = durationInfo
-          ? calculateContentDuration(
+        if (durationInfo) {
+          // 강의이고 episode 정보가 있는 경우, 캐시된 Map 사용
+          if (content.content_type === "lecture" && durationInfo.episodes) {
+            // Episode Map 캐싱 확인
+            let episodeMap = episodeMapCache.get(content.content_id);
+            if (!episodeMap) {
+              // Map 생성 및 캐싱
+              episodeMap = new Map<number, number>();
+              for (const ep of durationInfo.episodes) {
+                if (
+                  ep.duration !== null &&
+                  ep.duration !== undefined &&
+                  ep.duration > 0 &&
+                  ep.episode_number > 0
+                ) {
+                  episodeMap.set(ep.episode_number, ep.duration);
+                }
+              }
+              episodeMapCache.set(content.content_id, episodeMap);
+            }
+            
+            // 단일 episode인 경우 직접 Map에서 조회 (calculateContentDuration 호출 생략)
+            if (amount === 1) {
+              const episodeDuration = episodeMap.get(start);
+              requiredMinutes = episodeDuration !== undefined && episodeDuration > 0
+                ? episodeDuration
+                : 30; // 기본값: 30분
+            } else {
+              // 범위인 경우 calculateContentDuration 사용
+              requiredMinutes = calculateContentDuration(
+                {
+                  content_type: content.content_type,
+                  content_id: content.content_id,
+                  start_range: start,
+                  end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
+                },
+                durationInfo
+              );
+            }
+          } else {
+            // 강의가 아니거나 episode 정보가 없는 경우 기존 로직 사용
+            requiredMinutes = calculateContentDuration(
               {
                 content_type: content.content_type,
                 content_id: content.content_id,
                 start_range: start,
-                end_range: endAmount,
+                end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
               },
               durationInfo
-            )
-          : amount > 0
+            );
+          }
+        } else {
+          // duration 정보가 없으면 기본값 계산
+          requiredMinutes = amount > 0
             ? content.content_type === "lecture"
               ? amount * 30 // 강의: 회차당 30분
               : amount * 2 // 책/커스텀: 페이지당 2분
             : 60; // 기본값: 1시간
-        
+        }
+
         return {
           content,
           start,
@@ -486,7 +744,7 @@ export class SchedulerEngine {
           requiredMinutes,
           remainingMinutes: requiredMinutes,
         };
-      }).sort((a, b) => b.requiredMinutes - a.requiredMinutes); // 소요시간 내림차순
+      }).sort((a, b) => a.start - b.start); // 순서대로 배치 (페이지/회차 순)
 
       let blockIndex = 1;
       let totalAvailableMinutes = 0;
@@ -563,7 +821,7 @@ export class SchedulerEngine {
                 content_type: planInfo.content.content_type,
                 content_id: planInfo.content.content_id,
                 planned_start_page_or_time: planInfo.start,
-                planned_end_page_or_time: planInfo.end,
+                planned_end_page_or_time: planInfo.end - 1, // Convert Exclusive to Inclusive for DB
                 is_reschedulable: true,
                 start_time: planStartTime,
                 end_time: planEndTime,
@@ -650,7 +908,7 @@ export class SchedulerEngine {
               content_type: planInfo.content.content_type,
               content_id: planInfo.content.content_id,
               planned_start_page_or_time: planInfo.start,
-              planned_end_page_or_time: planInfo.end,
+              planned_end_page_or_time: planInfo.end - 1, // Convert Exclusive to Inclusive for DB
               is_reschedulable: true,
               start_time: planStartTime,
               end_time: planEndTime,
@@ -803,7 +1061,7 @@ export class SchedulerEngine {
           content_type: content.content_type,
           content_id: content.content_id,
           planned_start_page_or_time: range.startAmount,
-          planned_end_page_or_time: range.endAmount,
+          planned_end_page_or_time: range.endAmount - 1, // Convert Exclusive to Inclusive for DB
           is_reschedulable: true,
           start_time: timeRange.start,
           end_time: timeRange.end,

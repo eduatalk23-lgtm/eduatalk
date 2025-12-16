@@ -44,44 +44,58 @@ export const PlanTable = memo(
         return "-";
       }
 
+      const start = plan.planned_start_page_or_time;
+      const end = plan.planned_end_page_or_time;
+      const isSingle = start === end;
+      const amount = end - start + 1; // Assuming inclusive range for books/episodes
+
       if (plan.content_type === "book") {
-        return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}p`;
+        // 교재: 페이지 범위 (예: "10-50p (41쪽)")
+        // 페이지는 amount가 쪽수
+        return isSingle 
+          ? `${start}p (1쪽)` 
+          : `${start}-${end}p (${amount}쪽)`;
       } else if (plan.content_type === "lecture") {
-        return `${plan.planned_start_page_or_time}강`;
+        // 강의: 회차 범위 (예: "8-10강 (3강)")
+        // 에피소드는 amount가 강의 수
+        return isSingle 
+          ? `${start}강 (1강)` 
+          : `${start}-${end}강 (${amount}강)`;
       }
 
-      return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
+      // 커스텀: 범위 (예: "10-50" 또는 "10")
+      return isSingle ? `${start}` : `${start}-${end}`;
     };
 
     return (
       <table className="w-full text-xs border-collapse border border-blue-200">
         <thead className="bg-blue-100">
           <tr>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               시간
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               교과
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               과목
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               유형
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               이름
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               학습내역
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               회차
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               학습 분량
             </th>
-            <th className="px-3 py-2 text-left border border-blue-200 font-semibold text-blue-800">
+            <th className="px-3 py-2 text-center border border-blue-200 font-semibold text-blue-800">
               소요시간
             </th>
           </tr>
@@ -105,8 +119,8 @@ export const PlanTable = memo(
                   planTime.isContinued ? "bg-blue-100" : ""
                 }`}
               >
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
-                  <div className="flex items-center gap-1">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
+                  <div className="flex items-center justify-center gap-1">
                     {planTime.isContinued && (
                       <span className="text-blue-800 font-semibold text-[10px]">
                         [이어서]
@@ -115,26 +129,18 @@ export const PlanTable = memo(
                     <span className="font-medium">
                       {planTime.start} ~ {planTime.end}
                     </span>
-                    <span className="text-blue-800">
-                      ({formatTime(duration)})
-                    </span>
                     {planTime.isPartial && (
                       <span className="text-blue-800 text-[10px]">(일부)</span>
                     )}
-                    {showOriginalTime && (
-                      <span className="text-orange-600 font-semibold text-[10px]">
-                        [예상: {formatTime(planTime.originalEstimatedTime!)}]
-                      </span>
-                    )}
                   </div>
                 </td>
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {content?.subject_category || "-"}
                 </td>
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {content?.subject || "-"}
                 </td>
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {planTime.plan.content_type === "book" ? "교재" : "강의"}
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800">
@@ -148,19 +154,19 @@ export const PlanTable = memo(
                 <td className="px-3 py-2 border border-blue-200 text-blue-800">
                   <div
                     className="max-w-[200px] truncate"
-                    title={planTime.plan.chapter || ""}
+                    title={planTime.plan.contentEpisode || planTime.plan.chapter || ""}
                   >
-                    {planTime.plan.chapter || "-"}
+                    {planTime.plan.contentEpisode || planTime.plan.chapter || "-"}
                   </div>
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {sequence}
                 </td>
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {formatLearningAmount(planTime.plan)}
                 </td>
-                <td className="px-3 py-2 border border-blue-200 text-blue-800">
-                  <div className="flex flex-col gap-0.5">
+                <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
+                  <div className="flex flex-col gap-0.5 items-center">
                     <span>{formatTime(duration)}</span>
                     {showOriginalTime && (
                       <div className="text-orange-600 text-[10px]">

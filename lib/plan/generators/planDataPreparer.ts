@@ -449,7 +449,7 @@ export async function prepareContentDuration(
           if (episodeResult.data && episodeResult.data.length > 0) {
             episodes = episodeResult.data.map((ep) => ({
               episode_number: ep.episode_number,
-              duration: ep.duration,
+              duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
             }));
           }
         } catch {
@@ -468,7 +468,7 @@ export async function prepareContentDuration(
             if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
               episodes = masterEpisodeResult.data.map((ep) => ({
                 episode_number: ep.episode_number,
-                duration: ep.duration,
+                duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
               }));
             }
           } catch {
@@ -480,7 +480,7 @@ export async function prepareContentDuration(
           contentDurationMap.set(content.content_id, {
             content_type: "lecture",
             content_id: content.content_id,
-            duration: lectureData.duration,
+            duration: lectureData.duration ? Math.ceil(lectureData.duration / 60) : null, // Convert seconds to minutes
             episodes: episodes,
           });
         } else if (lectureData.master_content_id) {
@@ -495,7 +495,7 @@ export async function prepareContentDuration(
             contentDurationMap.set(content.content_id, {
               content_type: "lecture",
               content_id: content.content_id,
-              duration: masterLecture.total_duration,
+              duration: masterLecture.total_duration ? Math.ceil(masterLecture.total_duration / 60) : null, // Convert seconds to minutes
               episodes: episodes,
             });
           } else if (episodes) {

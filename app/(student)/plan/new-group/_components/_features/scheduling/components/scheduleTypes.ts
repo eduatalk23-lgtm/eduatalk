@@ -36,4 +36,5 @@ export type Plan = {
   completed_amount: number | null;
   plan_number: number | null;
   sequence: number | null;
+  contentEpisode?: string | null; // episode/단원 정보 (강의: episode_title, 교재: major_unit/minor_unit)
 };

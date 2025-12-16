@@ -104,7 +104,8 @@ export function calculateContentDuration(
   dayType?: "학습일" | "복습일" | string,
   reviewTimeRatio?: number
 ): number {
-  const amount = content.end_range - content.start_range;
+  // Range is inclusive, so amount (count) is end - start + 1
+  const amount = content.end_range - content.start_range + 1;
   
   // 범위가 유효하지 않은 경우 기본값 반환
   if (amount <= 0) {

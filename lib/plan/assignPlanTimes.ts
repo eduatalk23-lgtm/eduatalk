@@ -32,6 +32,8 @@ export type PlanTimeInput = {
   planned_end_page_or_time: number;
   chapter?: string | null;
   block_index?: number;
+  _precalculated_start?: string | null;
+  _precalculated_end?: string | null;
 };
 
 /**
@@ -281,6 +283,20 @@ export function assignPlanTimes(
 
   // 각 플랜을 가장 적합한 슬롯에 배치
   for (const planInfo of sortedPlans) {
+    // 1. Precalculated Time Bypass (SchedulerEngine Result)
+    if (planInfo.plan._precalculated_start && planInfo.plan._precalculated_end) {
+      segments.push({
+        plan: planInfo.plan,
+        start: planInfo.plan._precalculated_start,
+        end: planInfo.plan._precalculated_end,
+        isPartial: false,
+        isContinued: false,
+        originalEstimatedTime: planInfo.originalEstimatedTime,
+      });
+      planInfo.remainingTime = 0;
+      continue;
+    }
+
     if (planInfo.remainingTime <= 0) continue;
 
     // Best Fit: 남은 시간이 가장 적은 슬롯 찾기 (하지만 플랜이 들어갈 수 있어야 함)
