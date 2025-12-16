@@ -92,6 +92,21 @@ difficulty_level: difficultyLevel?.name || bookData.difficulty_level || null,
 - JOIN 결과 처리 로직 추가
 - `difficulty_level` 필드를 JOIN된 `name`으로 덮어쓰기
 
+### 5. 목록 조회 함수 수정 (난이도 정보 후처리)
+
+**파일**: `lib/data/contentMasters.ts`
+
+**변경 사항:**
+- `enrichDifficultyLevels` 헬퍼 함수 추가: 배치로 `difficulty_levels` 조회하여 매핑
+- `searchMasterBooks`: 결과 후처리 추가
+- `searchMasterLectures`: 결과 후처리 추가
+- `searchMasterCustomContents`: 결과 후처리 추가
+
+**구현 방식:**
+- 목록 조회는 성능을 위해 JOIN 대신 배치 조회 방식 사용
+- `difficulty_level_id`가 있는 항목들을 수집하여 한 번에 조회
+- ID → name 매핑을 생성하여 각 항목의 `difficulty_level` 필드 업데이트
+
 ### 5. 타입 정의 업데이트
 
 **파일**: `lib/types/plan/domain.ts`
