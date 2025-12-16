@@ -58,12 +58,33 @@ export const TimeSlotsWithPlans = memo(
     // 플랜 정보 준비 (메모이제이션)
     const plansWithInfo = useMemo(() => {
       const plans = datePlans.map((plan) => {
-        const startTime = getPlanStartTime(plan, date, blocks);
+        // DB에 저장된 start_time과 end_time을 우선 사용
+        let startTime: string | null = null;
+        let endTime: string | null = null;
+        
+        if (plan.start_time && plan.end_time) {
+          // DB에 저장된 시간이 있으면 직접 사용
+          startTime = plan.start_time;
+          endTime = plan.end_time;
+        } else {
+          // 없으면 getPlanStartTime으로 추정
+          startTime = getPlanStartTime(plan, date, blocks);
+        }
+        
         const estimatedTime = calculateEstimatedTime(plan, contents, dayType);
+        
+        // DB에 저장된 시간이 있으면 그 시간을 사용, 없으면 추정 시간 사용
+        const originalStartTime = startTime ? timeToMinutes(startTime) : null;
+        const originalEndTime = endTime ? timeToMinutes(endTime) : null;
+        const originalDuration = originalStartTime !== null && originalEndTime !== null
+          ? originalEndTime - originalStartTime
+          : estimatedTime;
+        
         return {
           plan,
-          originalStartTime: startTime ? timeToMinutes(startTime) : null,
-          originalEstimatedTime: estimatedTime, // 원래 예상 소요시간 저장
+          originalStartTime,
+          originalEndTime,
+          originalEstimatedTime: originalDuration, // DB 시간 또는 예상 소요시간 저장
           estimatedTime, // 배치에 사용할 시간
           remainingTime: estimatedTime, // 남은 시간 추적
           blockIndex: plan.block_index,
@@ -146,30 +167,47 @@ export const TimeSlotsWithPlans = memo(
 
           if (planInfo.originalStartTime !== null) {
             const planStart = planInfo.originalStartTime;
-            const planEnd = planStart + planInfo.originalEstimatedTime; // 원래 예상 시간 사용
+            // DB에 저장된 end_time이 있으면 사용, 없으면 예상 시간 사용
+            const planEnd = planInfo.originalEndTime !== null
+              ? planInfo.originalEndTime
+              : planStart + planInfo.originalEstimatedTime;
 
             // 플랜이 이 슬롯과 겹치는지 확인
             if (planStart < slotEnd && planEnd > slotStart) {
-              const slotAvailableStart = Math.max(planStart, slotStart);
-              const slotAvailableEnd = Math.min(
-                planStart + planInfo.remainingTime,
-                slotEnd
-              );
-
-              if (slotAvailableStart < slotAvailableEnd) {
-                const timeUsed = slotAvailableEnd - slotAvailableStart;
-                const wasPartial =
-                  planInfo.remainingTime < planInfo.originalEstimatedTime;
-
+              // DB에 저장된 시간이 있으면 그대로 사용
+              if (planInfo.originalEndTime !== null && planStart >= slotStart && planEnd <= slotEnd) {
                 plansInSlot.push({
                   plan: planInfo.plan,
-                  start: minutesToTime(slotAvailableStart),
-                  end: minutesToTime(slotAvailableEnd),
-                  isPartial: planInfo.remainingTime > timeUsed,
-                  isContinued: wasPartial, // 이전 블록에서 이어지는지
+                  start: minutesToTime(planStart),
+                  end: minutesToTime(planEnd),
+                  isPartial: false,
+                  isContinued: false,
                   originalEstimatedTime: planInfo.originalEstimatedTime,
                 });
-                planInfo.remainingTime -= timeUsed;
+                planInfo.remainingTime = 0; // DB 시간을 사용했으므로 남은 시간 0
+              } else {
+                // 슬롯 범위 내에서 조정
+                const slotAvailableStart = Math.max(planStart, slotStart);
+                const slotAvailableEnd = Math.min(
+                  planInfo.originalEndTime !== null ? planInfo.originalEndTime : planStart + planInfo.remainingTime,
+                  slotEnd
+                );
+
+                if (slotAvailableStart < slotAvailableEnd) {
+                  const timeUsed = slotAvailableEnd - slotAvailableStart;
+                  const wasPartial =
+                    planInfo.remainingTime < planInfo.originalEstimatedTime;
+
+                  plansInSlot.push({
+                    plan: planInfo.plan,
+                    start: minutesToTime(slotAvailableStart),
+                    end: minutesToTime(slotAvailableEnd),
+                    isPartial: planInfo.remainingTime > timeUsed,
+                    isContinued: wasPartial, // 이전 블록에서 이어지는지
+                    originalEstimatedTime: planInfo.originalEstimatedTime,
+                  });
+                  planInfo.remainingTime -= timeUsed;
+                }
               }
             }
           }

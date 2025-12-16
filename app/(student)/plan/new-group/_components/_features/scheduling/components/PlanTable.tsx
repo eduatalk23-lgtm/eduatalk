@@ -103,13 +103,16 @@ export const PlanTable = memo(
         <tbody>
           {plans.map((planTime, planIdx) => {
             const content = contents.get(planTime.plan.content_id);
-            const duration =
+            // 실제 배치된 시간 계산
+            const actualDuration =
               timeToMinutes(planTime.end) - timeToMinutes(planTime.start);
+            // originalEstimatedTime이 있으면 우선 사용 (DB 시간 또는 계산된 예상 시간)
+            const displayDuration = planTime.originalEstimatedTime ?? actualDuration;
             const isReviewDay = dayType === "복습일";
             const showOriginalTime =
               isReviewDay &&
               planTime.originalEstimatedTime &&
-              planTime.originalEstimatedTime > duration;
+              planTime.originalEstimatedTime > actualDuration;
             const sequence = planTime.plan.sequence || 1;
 
             return (
@@ -167,7 +170,7 @@ export const PlanTable = memo(
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   <div className="flex flex-col gap-0.5 items-center">
-                    <span>{formatTime(duration)}</span>
+                    <span>{formatTime(displayDuration)}</span>
                     {showOriginalTime && (
                       <div className="text-orange-600 text-[10px]">
                         (예상: {formatTime(planTime.originalEstimatedTime!)})

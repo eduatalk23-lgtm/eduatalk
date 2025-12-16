@@ -612,7 +612,8 @@ async function _generatePlansFromGroupRefactored(
       if (p.content_type === "lecture") {
         // 이미 단일 episode로 분할된 경우(start === end)는 재분할하지 않음
         // SchedulerEngine이 이미 episode별로 분할했을 수 있음
-        const isAlreadySingleEpisode = p.planned_start_page_or_time === p.planned_end_page_or_time;
+        const isAlreadySingleEpisode =
+          p.planned_start_page_or_time === p.planned_end_page_or_time;
         if (isAlreadySingleEpisode) {
           return [p];
         }
@@ -682,20 +683,17 @@ async function _generatePlansFromGroupRefactored(
     );
 
     if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[generatePlansRefactored] ${date} assignPlanTimes 결과:`,
-        {
-          totalSegments: timeSegments.length,
-          segmentDetail: timeSegments.slice(0, 5).map((s) => ({
-            content_id: s.plan.content_id.substring(0, 8),
-            range: `${s.plan.planned_start_page_or_time}~${s.plan.planned_end_page_or_time}`,
-            start: s.start,
-            end: s.end,
-            precalc_start: s.plan._precalculated_start,
-            precalc_end: s.plan._precalculated_end,
-          })),
-        }
-      );
+      console.log(`[generatePlansRefactored] ${date} assignPlanTimes 결과:`, {
+        totalSegments: timeSegments.length,
+        segmentDetail: timeSegments.slice(0, 5).map((s) => ({
+          content_id: s.plan.content_id.substring(0, 8),
+          range: `${s.plan.planned_start_page_or_time}~${s.plan.planned_end_page_or_time}`,
+          start: s.start,
+          end: s.end,
+          precalc_start: s.plan._precalculated_start,
+          precalc_end: s.plan._precalculated_end,
+        })),
+      });
     }
 
     let blockIndex = 1;
