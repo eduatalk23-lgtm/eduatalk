@@ -7,6 +7,9 @@ import Link from "next/link";
 import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
+import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { useToast } from "@/components/ui/ToastProvider";
+import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 type MasterLectureFormProps = {
@@ -17,6 +20,7 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
   const [isPending, startTransition] = useTransition();
   const [linkBook, setLinkBook] = useState(false);
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
 
   // 강의 입력값을 추적하여 교재 필드에 자동 채우기
   const [lectureValues, setLectureValues] = useState({
@@ -40,12 +44,21 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
       formData.set("book_subject", lectureValues.subject);
     }
 
+    // 클라이언트 사이드 검증
+    const validation = validateFormData(formData, masterLectureSchema);
+    if (!validation.success) {
+      const firstError = validation.errors.errors[0];
+      showError(firstError.message);
+      return;
+    }
+
     startTransition(async () => {
       try {
         await addMasterLecture(formData);
+        showSuccess("강의가 성공적으로 등록되었습니다.");
       } catch (error) {
         console.error("강의 등록 실패:", error);
-        alert(
+        showError(
           error instanceof Error ? error.message : "강의 등록에 실패했습니다."
         );
       }
@@ -59,128 +72,91 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
     >
       <div className="grid gap-4 md:grid-cols-2">
         {/* 강의명 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700">
-            강의명 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="title"
-            required
-            placeholder="강의명을 입력하세요"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="강의명"
+          name="title"
+          required
+          placeholder="강의명을 입력하세요"
+          className="md:col-span-2"
+        />
 
         {/* 개정교육과정 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            개정교육과정
-          </label>
-          <select
-            name="revision"
-            value={lectureValues.revision}
-            onChange={(e) => handleLectureFieldChange("revision", e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            {curriculumRevisions.map((revision) => (
-              <option key={revision.id} value={revision.name}>
-                {revision.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <FormSelect
+          label="개정교육과정"
+          name="revision"
+          value={lectureValues.revision}
+          onChange={(e) => handleLectureFieldChange("revision", e.target.value)}
+          options={[
+            { value: "", label: "선택하세요" },
+            ...curriculumRevisions.map((revision) => ({
+              value: revision.name,
+              label: revision.name,
+            })),
+          ]}
+        />
 
         {/* 교과 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            교과
-          </label>
-          <select
-            name="subject_category"
-            value={lectureValues.subject_category}
-            onChange={(e) => handleLectureFieldChange("subject_category", e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="국어">국어</option>
-            <option value="수학">수학</option>
-            <option value="영어">영어</option>
-            <option value="사회">사회</option>
-            <option value="과학">과학</option>
-          </select>
-        </div>
+        <FormSelect
+          label="교과"
+          name="subject_category"
+          value={lectureValues.subject_category}
+          onChange={(e) => handleLectureFieldChange("subject_category", e.target.value)}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "국어", label: "국어" },
+            { value: "수학", label: "수학" },
+            { value: "영어", label: "영어" },
+            { value: "사회", label: "사회" },
+            { value: "과학", label: "과학" },
+          ]}
+        />
 
         {/* 과목 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            과목
-          </label>
-          <input
-            name="subject"
-            placeholder="예: 화법과 작문"
-            value={lectureValues.subject}
-            onChange={(e) => handleLectureFieldChange("subject", e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="과목"
+          name="subject"
+          placeholder="예: 화법과 작문"
+          value={lectureValues.subject}
+          onChange={(e) => handleLectureFieldChange("subject", e.target.value)}
+        />
 
         {/* 플랫폼 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            플랫폼
-          </label>
-          <input
-            name="platform"
-            placeholder="예: 메가스터디, EBSi"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="플랫폼"
+          name="platform"
+          placeholder="예: 메가스터디, EBSi"
+        />
 
         {/* 총 회차 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            총 회차 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="total_episodes"
-            type="number"
-            required
-            min="1"
-            placeholder="예: 30"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="총 회차"
+          name="total_episodes"
+          type="number"
+          required
+          min="1"
+          placeholder="예: 30"
+        />
 
         {/* 총 강의시간 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            총 강의시간 (분)
-          </label>
-          <input
-            name="total_duration"
-            type="number"
-            min="0"
-            placeholder="예: 1800"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="총 강의시간 (분)"
+          name="total_duration"
+          type="number"
+          min="0"
+          placeholder="예: 1800"
+        />
 
         {/* 난이도 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-700">
-            난이도
-          </label>
-          <select
-            name="difficulty_level"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="개념">개념</option>
-            <option value="기본">기본</option>
-            <option value="심화">심화</option>
-          </select>
-        </div>
+        <FormSelect
+          label="난이도"
+          name="difficulty_level"
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "개념", label: "개념" },
+            { value: "기본", label: "기본" },
+            { value: "심화", label: "심화" },
+          ]}
+        />
 
         {/* 연결된 교재 등록 여부 */}
         <div className="flex flex-col gap-1 md:col-span-2">
@@ -231,17 +207,13 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {/* 교재명 */}
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                교재명 <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="book_title"
-                required={linkBook}
-                placeholder="교재명을 입력하세요"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
+            <FormField
+              label="교재명"
+              name="book_title"
+              required={linkBook}
+              placeholder="교재명을 입력하세요"
+              className="md:col-span-2"
+            />
 
             {/* 개정교육과정 - 강의 입력값 참고 */}
             <div className="flex flex-col gap-1">
@@ -298,47 +270,33 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
             </div>
 
             {/* 출판사 */}
-            <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">
-                출판사
-              </label>
-              <input
-                name="book_publisher"
-                placeholder="출판사명을 입력하세요"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
+            <FormField
+              label="출판사"
+              name="book_publisher"
+              placeholder="출판사명을 입력하세요"
+            />
 
             {/* 총 페이지 */}
-            <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">
-                총 페이지 <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="book_total_pages"
-                type="number"
-                required={linkBook}
-                min="1"
-                placeholder="예: 255"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
+            <FormField
+              label="총 페이지"
+              name="book_total_pages"
+              type="number"
+              required={linkBook}
+              min="1"
+              placeholder="예: 255"
+            />
 
             {/* 난이도 */}
-            <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700">
-                난이도
-              </label>
-              <select
-                name="book_difficulty_level"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="">선택하세요</option>
-                <option value="개념">개념</option>
-                <option value="기본">기본</option>
-                <option value="심화">심화</option>
-              </select>
-            </div>
+            <FormSelect
+              label="난이도"
+              name="book_difficulty_level"
+              options={[
+                { value: "", label: "선택하세요" },
+                { value: "개념", label: "개념" },
+                { value: "기본", label: "기본" },
+                { value: "심화", label: "심화" },
+              ]}
+            />
 
             {/* 교재 메모 */}
             <div className="flex flex-col gap-1 md:col-span-2">
@@ -380,4 +338,3 @@ export function MasterLectureForm({ curriculumRevisions }: MasterLectureFormProp
     </form>
   );
 }
-

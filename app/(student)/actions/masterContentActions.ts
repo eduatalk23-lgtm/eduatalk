@@ -13,7 +13,12 @@ import {
   createLectureEpisode,
   deleteAllLectureEpisodes,
 } from "@/lib/data/contentMasters";
-import { MasterBook, MasterLecture, BookDetail, LectureEpisode } from "@/lib/types/plan";
+import {
+  MasterBook,
+  MasterLecture,
+  BookDetail,
+  LectureEpisode,
+} from "@/lib/types/plan";
 import { minutesToSeconds } from "@/lib/utils/duration";
 
 /**
@@ -37,26 +42,39 @@ export async function addMasterBook(formData: FormData) {
     .maybeSingle();
 
   const totalPagesStr = formData.get("total_pages")?.toString();
-  
+
   // 배열 필드 처리
-  const targetExamTypes = formData.getAll("target_exam_type").filter(Boolean) as string[];
+  const targetExamTypes = formData
+    .getAll("target_exam_type")
+    .filter(Boolean) as string[];
   const tagsStr = formData.get("tags")?.toString() || "";
-  const tags = tagsStr ? tagsStr.split(",").map((t: string) => t.trim()).filter(Boolean) : null;
-  
+  const tags = tagsStr
+    ? tagsStr
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter(Boolean)
+    : null;
+
   // subject_id 처리 (빈 문자열 체크)
   const subjectIdRaw = formData.get("subject_id")?.toString();
-  const subjectId = subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
-  
+  const subjectId =
+    subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
+
   const bookData: Omit<MasterBook, "id" | "created_at" | "updated_at"> = {
     tenant_id: student?.tenant_id || null,
     is_active: true,
-    curriculum_revision_id: formData.get("curriculum_revision_id")?.toString() || null,
+    curriculum_revision_id:
+      formData.get("curriculum_revision_id")?.toString() || null,
     subject_id: subjectId,
     subject_group_id: formData.get("subject_group_id")?.toString() || null,
     subject_category: formData.get("subject_category")?.toString() || null,
     subject: formData.get("subject")?.toString() || null,
-    grade_min: formData.get("grade_min") ? parseInt(formData.get("grade_min")!.toString()) : null,
-    grade_max: formData.get("grade_max") ? parseInt(formData.get("grade_max")!.toString()) : null,
+    grade_min: formData.get("grade_min")
+      ? parseInt(formData.get("grade_min")!.toString())
+      : null,
+    grade_max: formData.get("grade_max")
+      ? parseInt(formData.get("grade_max")!.toString())
+      : null,
     school_type: formData.get("school_type")?.toString() || null,
     revision: formData.get("revision")?.toString() || null,
     content_category: formData.get("content_category")?.toString() || null,
@@ -78,7 +96,8 @@ export async function addMasterBook(formData: FormData) {
     publisher_review: formData.get("publisher_review")?.toString() || null,
     tags: tags,
     source: formData.get("source")?.toString() || null,
-    source_product_code: formData.get("source_product_code")?.toString() || null,
+    source_product_code:
+      formData.get("source_product_code")?.toString() || null,
     source_url: formData.get("source_url")?.toString() || null,
     cover_image_url: formData.get("cover_image_url")?.toString() || null,
     difficulty_level: formData.get("difficulty_level")?.toString() || null,
@@ -155,36 +174,47 @@ export async function updateMasterBookAction(
   };
 
   const totalPagesStr = formData.get("total_pages")?.toString();
-  
+
   // 배열 필드 처리
-  const targetExamTypes = formData.getAll("target_exam_type").filter(Boolean) as string[];
-  
+  const targetExamTypes = formData
+    .getAll("target_exam_type")
+    .filter(Boolean) as string[];
+
   // tags 처리: 폼에 필드가 있으면 처리하고, 없으면 undefined
   const tagsValue = getFormValue("tags");
-  const tags = tagsValue === undefined 
-    ? undefined 
-    : tagsValue === null 
-    ? null 
-    : tagsValue.split(",").map((t: string) => t.trim()).filter(Boolean);
+  const tags =
+    tagsValue === undefined
+      ? undefined
+      : tagsValue === null
+      ? null
+      : tagsValue
+          .split(",")
+          .map((t: string) => t.trim())
+          .filter(Boolean);
 
   // subject_id 처리 (빈 문자열 체크)
   const subjectIdRaw = formData.get("subject_id")?.toString();
-  const subjectId = subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
-  
+  const subjectId =
+    subjectIdRaw && subjectIdRaw.trim() !== "" ? subjectIdRaw.trim() : null;
+
   const updateData: Partial<
     Omit<MasterBook, "id" | "created_at" | "updated_at">
   > = {
     // 필수 필드 또는 폼에 항상 있는 필드
     title: formData.get("title")?.toString(),
-    
+
     // 폼에 필드가 있을 때만 업데이트하는 필드들
     curriculum_revision_id: getFormValue("curriculum_revision_id") || undefined,
     subject_id: subjectId || undefined,
     subject_group_id: getFormValue("subject_group_id") || undefined,
     subject_category: getFormValue("subject_category") || undefined,
     subject: getFormValue("subject") || undefined,
-    grade_min: formData.get("grade_min") ? parseInt(formData.get("grade_min")!.toString()) : undefined,
-    grade_max: formData.get("grade_max") ? parseInt(formData.get("grade_max")!.toString()) : undefined,
+    grade_min: formData.get("grade_min")
+      ? parseInt(formData.get("grade_min")!.toString())
+      : undefined,
+    grade_max: formData.get("grade_max")
+      ? parseInt(formData.get("grade_max")!.toString())
+      : undefined,
     school_type: getFormValue("school_type") || undefined,
     revision: getFormValue("revision") || undefined,
     content_category: getFormValue("content_category") || undefined,
@@ -226,7 +256,9 @@ export async function updateMasterBookAction(
       }>;
 
       // 기존 상세 정보 삭제 후 새로 추가
-      const { deleteAllBookDetails } = await import("@/lib/data/contentMasters");
+      const { deleteAllBookDetails } = await import(
+        "@/lib/data/contentMasters"
+      );
       await deleteAllBookDetails(bookId);
 
       // 새 상세 정보 추가
@@ -273,33 +305,37 @@ export async function addMasterLecture(formData: FormData) {
     .eq("id", user.id)
     .maybeSingle();
 
-  const lectureData: Partial<Omit<MasterLecture, "id" | "created_at" | "updated_at">> & {
+  const lectureData: Partial<
+    Omit<MasterLecture, "id" | "created_at" | "updated_at">
+  > & {
     title: string;
     total_episodes: number;
     is_active: boolean;
   } = {
-      tenant_id: student?.tenant_id || null,
-      is_active: true,
-      revision: formData.get("revision")?.toString() || null,
-      content_category: formData.get("content_category")?.toString() || null,
-      subject_category: formData.get("subject_category")?.toString() || null,
-      subject: formData.get("subject")?.toString() || null,
-      title: formData.get("title")?.toString() || "",
-      platform: formData.get("platform")?.toString() || null,  // 수정: platform_name → platform (DB 스키마와 일치)
-      total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
-      total_duration: formData.get("total_duration")
-        ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
-        : null,
-      difficulty_level: formData.get("difficulty_level")?.toString() || null,
-      notes: formData.get("notes")?.toString() || null,
-      linked_book_id: formData.get("linked_book_id")?.toString() || null,
-    };
+    tenant_id: student?.tenant_id || null,
+    is_active: true,
+    revision: formData.get("revision")?.toString() || null,
+    content_category: formData.get("content_category")?.toString() || null,
+    subject_category: formData.get("subject_category")?.toString() || null,
+    subject: formData.get("subject")?.toString() || null,
+    title: formData.get("title")?.toString() || "",
+    platform: formData.get("platform")?.toString() || null, // 수정: platform_name → platform (DB 스키마와 일치)
+    total_episodes: parseInt(formData.get("total_episodes")?.toString() || "0"),
+    total_duration: formData.get("total_duration")
+      ? minutesToSeconds(parseInt(formData.get("total_duration")!.toString()))
+      : null,
+    difficulty_level: formData.get("difficulty_level")?.toString() || null,
+    notes: formData.get("notes")?.toString() || null,
+    linked_book_id: formData.get("linked_book_id")?.toString() || null,
+  };
 
   if (!lectureData.title || !lectureData.total_episodes) {
     throw new Error("강의명과 총 회차는 필수입니다.");
   }
 
-  const lecture = await createMasterLecture(lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">);
+  const lecture = await createMasterLecture(
+    lectureData as Omit<MasterLecture, "id" | "created_at" | "updated_at">
+  );
 
   // 연결된 교재 생성 (있는 경우)
   const bookTitle = formData.get("book_title")?.toString();
@@ -307,7 +343,9 @@ export async function addMasterLecture(formData: FormData) {
 
   if (bookTitle) {
     try {
-      const bookData: Partial<Omit<MasterBook, "id" | "created_at" | "updated_at">> & {
+      const bookData: Partial<
+        Omit<MasterBook, "id" | "created_at" | "updated_at">
+      > & {
         title: string;
         is_active: boolean;
       } = {
@@ -316,14 +354,16 @@ export async function addMasterLecture(formData: FormData) {
         revision: formData.get("book_revision")?.toString() || null,
         content_category: null,
         // semester 필드 제거됨 (2025-02-04)
-        subject_category: formData.get("book_subject_category")?.toString() || null,
+        subject_category:
+          formData.get("book_subject_category")?.toString() || null,
         subject: formData.get("book_subject")?.toString() || null,
         title: bookTitle,
         publisher_name: formData.get("book_publisher")?.toString() || null,
         total_pages: formData.get("book_total_pages")
           ? parseInt(formData.get("book_total_pages")!.toString())
           : 0,
-        difficulty_level: formData.get("book_difficulty_level")?.toString() || null,
+        difficulty_level:
+          formData.get("book_difficulty_level")?.toString() || null,
         notes: formData.get("book_notes")?.toString() || null,
       };
 
@@ -331,7 +371,9 @@ export async function addMasterLecture(formData: FormData) {
         throw new Error("교재명과 총 페이지는 필수입니다.");
       }
 
-      const book = await createMasterBook(bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">);
+      const book = await createMasterBook(
+        bookData as Omit<MasterBook, "id" | "created_at" | "updated_at">
+      );
       linkedBookId = book.id;
 
       // 교재 상세 정보 추가 (있는 경우)
@@ -381,7 +423,7 @@ export async function addMasterLecture(formData: FormData) {
     try {
       const episodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        episode_title?: string | null;  // 수정: title → episode_title (DB 스키마와 일치)
+        episode_title?: string | null; // 수정: title → episode_title (DB 스키마와 일치)
         duration?: number | null;
         display_order: number;
       }>;
@@ -390,8 +432,10 @@ export async function addMasterLecture(formData: FormData) {
         await createLectureEpisode({
           lecture_id: lecture.id,
           episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null,  // 수정: 직접 사용
-          duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+          episode_title: episode.episode_title || null, // 수정: 직접 사용
+          duration: episode.duration
+            ? minutesToSeconds(episode.duration)
+            : null,
           display_order: episode.display_order,
         });
       }
@@ -433,7 +477,7 @@ export async function updateMasterLectureAction(
     subject_category: formData.get("subject_category")?.toString() || null,
     subject: formData.get("subject")?.toString() || null,
     title: formData.get("title")?.toString(),
-    platform: formData.get("platform")?.toString() || null,  // 수정: platform_name → platform (DB 스키마와 일치)
+    platform: formData.get("platform")?.toString() || null, // 수정: platform_name → platform (DB 스키마와 일치)
     total_episodes: formData.get("total_episodes")
       ? parseInt(formData.get("total_episodes")!.toString())
       : undefined,
@@ -453,7 +497,7 @@ export async function updateMasterLectureAction(
     try {
       const newEpisodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
-        episode_title?: string | null;  // 수정: title → episode_title (DB 스키마와 일치)
+        episode_title?: string | null; // 수정: title → episode_title (DB 스키마와 일치)
         duration?: number | null;
         display_order: number;
       }>;
@@ -466,8 +510,10 @@ export async function updateMasterLectureAction(
         await createLectureEpisode({
           lecture_id: lectureId,
           episode_number: episode.episode_number,
-          episode_title: episode.episode_title || null,  // 수정: 직접 사용
-          duration: episode.duration ? minutesToSeconds(episode.duration) : null,
+          episode_title: episode.episode_title || null, // 수정: 직접 사용
+          duration: episode.duration
+            ? minutesToSeconds(episode.duration)
+            : null,
           display_order: episode.display_order,
         });
       }
@@ -484,4 +530,3 @@ export async function updateMasterLectureAction(
 
   redirect(`/admin/master-lectures/${lectureId}`);
 }
-

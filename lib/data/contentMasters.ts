@@ -1,18 +1,30 @@
 // 콘텐츠 마스터 데이터 액세스 레이어
 // master_books, master_lectures 테이블 사용
 
-import { createSupabaseServerClient, createSupabasePublicClient, createSupabaseAdminClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabasePublicClient,
+  createSupabaseAdminClient,
+} from "@/lib/supabase/server";
 import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
-import { MasterBook, MasterLecture, MasterCustomContent, BookDetail, LectureEpisode } from "@/lib/types/plan";
-import { 
-  getSubjectGroups, 
+import {
+  MasterBook,
+  MasterLecture,
+  MasterCustomContent,
+  BookDetail,
+  LectureEpisode,
+} from "@/lib/types/plan";
+import {
+  getSubjectGroups,
   getSubjectsByGroup,
   type SubjectGroup,
-  type Subject 
+  type Subject,
 } from "@/lib/data/subjects";
 import { normalizeError } from "@/lib/errors";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+type SupabaseServerClient = Awaited<
+  ReturnType<typeof createSupabaseServerClient>
+>;
 
 /**
  * 교재 검색 필터
@@ -94,11 +106,9 @@ export async function searchMasterBooks(
   filters: MasterBookFilters,
   supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<{ data: MasterBook[]; total: number }> {
-  const queryClient = supabase || await createSupabaseServerClient();
+  const queryClient = supabase || (await createSupabaseServerClient());
 
-  let query = queryClient
-    .from("master_books")
-    .select("*", { count: "exact" });
+  let query = queryClient.from("master_books").select("*", { count: "exact" });
 
   // 필터 적용
   if (filters.curriculum_revision_id) {
@@ -149,7 +159,10 @@ export async function searchMasterBooks(
     query = query.limit(filters.limit);
   }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+    query = query.range(
+      filters.offset,
+      filters.offset + (filters.limit || 20) - 1
+    );
   }
 
   const { data, error, count } = await query;
@@ -179,7 +192,7 @@ export async function searchMasterBooks(
     result: {
       count: result.data.length,
       total: result.total,
-      titles: result.data.slice(0, 3).map(b => b.title), // 처음 3개만
+      titles: result.data.slice(0, 3).map((b) => b.title), // 처음 3개만
     },
   });
 
@@ -189,7 +202,9 @@ export async function searchMasterBooks(
 /**
  * 마스터 교재 목록 조회 (드롭다운용)
  */
-export async function getMasterBooksList(): Promise<Array<{ id: string; title: string }>> {
+export async function getMasterBooksList(): Promise<
+  Array<{ id: string; title: string }>
+> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -211,13 +226,22 @@ export async function getMasterBooksList(): Promise<Array<{ id: string; title: s
  */
 export async function getMasterBookById(
   bookId: string
-): Promise<{ book: MasterBook & { subject_category?: string | null; subject?: string | null; publisher?: string | null; revision?: string | null }; details: BookDetail[] }> {
+): Promise<{
+  book: MasterBook & {
+    subject_category?: string | null;
+    subject?: string | null;
+    publisher?: string | null;
+    revision?: string | null;
+  };
+  details: BookDetail[];
+}> {
   const supabase = await createSupabaseServerClient();
 
   const [bookResult, detailsResult] = await Promise.all([
     supabase
       .from("master_books")
-      .select(`
+      .select(
+        `
         id,
         tenant_id,
         revision,
@@ -275,7 +299,8 @@ export async function getMasterBookById(
           id,
           name
         )
-      `)
+      `
+      )
       .eq("id", bookId)
       .maybeSingle(),
     supabase
@@ -292,7 +317,10 @@ export async function getMasterBookById(
   }
 
   if (detailsResult.error) {
-    console.error("[data/contentMasters] 교재 세부 정보 조회 실패", detailsResult.error);
+    console.error(
+      "[data/contentMasters] 교재 세부 정보 조회 실패",
+      detailsResult.error
+    );
     // 세부 정보는 선택사항이므로 에러를 무시
   }
 
@@ -307,14 +335,12 @@ export async function getMasterBookById(
   // JOIN된 데이터를 평탄화하여 표시용 필드 추가
   // Supabase의 중첩 SELECT는 배열로 반환될 수 있으므로 배열 처리
   const curriculumRevisionRaw = (bookData as any).curriculum_revisions;
-  const curriculumRevision = Array.isArray(curriculumRevisionRaw) 
-    ? curriculumRevisionRaw[0] 
+  const curriculumRevision = Array.isArray(curriculumRevisionRaw)
+    ? curriculumRevisionRaw[0]
     : curriculumRevisionRaw;
 
   const subjectsRaw = (bookData as any).subjects;
-  const subject = Array.isArray(subjectsRaw) 
-    ? subjectsRaw[0] 
-    : subjectsRaw;
+  const subject = Array.isArray(subjectsRaw) ? subjectsRaw[0] : subjectsRaw;
 
   // subject가 있을 때 subject_groups 처리
   const subjectGroupsRaw = subject?.subject_groups;
@@ -356,7 +382,12 @@ export async function getMasterBookById(
     subject: bookData.subject || subject?.name || null,
     // publisher는 저장된 값 우선, JOIN은 fallback
     publisher: bookData.publisher_name || publisher?.name || null,
-  } as MasterBook & { subject_category?: string | null; subject?: string | null; publisher?: string | null; revision?: string | null };
+  } as MasterBook & {
+    subject_category?: string | null;
+    subject?: string | null;
+    publisher?: string | null;
+    revision?: string | null;
+  };
 
   return {
     book,
@@ -377,7 +408,7 @@ export async function searchMasterLectures(
   filters: MasterLectureFilters,
   supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<{ data: MasterLecture[]; total: number }> {
-  const queryClient = supabase || await createSupabaseServerClient();
+  const queryClient = supabase || (await createSupabaseServerClient());
 
   let query = queryClient
     .from("master_lectures")
@@ -432,7 +463,10 @@ export async function searchMasterLectures(
     query = query.limit(filters.limit);
   }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+    query = query.range(
+      filters.offset,
+      filters.offset + (filters.limit || 20) - 1
+    );
   }
 
   const { data, error, count } = await query;
@@ -462,7 +496,7 @@ export async function searchMasterLectures(
     result: {
       count: result.data.length,
       total: result.total,
-      titles: result.data.slice(0, 3).map(l => l.title), // 처음 3개만
+      titles: result.data.slice(0, 3).map((l) => l.title), // 처음 3개만
     },
   });
 
@@ -485,7 +519,9 @@ export async function getMasterLectureById(
       .maybeSingle<MasterLecture>(),
     supabase
       .from("lecture_episodes")
-      .select("id, lecture_id, episode_number, episode_title, duration, display_order, created_at, lecture_source_url")
+      .select(
+        "id, lecture_id, episode_number, episode_title, duration, display_order, created_at, lecture_source_url"
+      )
       .eq("lecture_id", lectureId)
       .order("display_order", { ascending: true })
       .order("episode_number", { ascending: true }),
@@ -497,7 +533,10 @@ export async function getMasterLectureById(
   }
 
   if (episodesResult.error) {
-    console.error("[data/contentMasters] 강의 episode 조회 실패", episodesResult.error);
+    console.error(
+      "[data/contentMasters] 강의 episode 조회 실패",
+      episodesResult.error
+    );
     // episode는 선택사항이므로 에러를 무시
   }
 
@@ -617,7 +656,7 @@ export async function copyMasterBookToStudent(
     .from("books")
     .select("id")
     .eq("student_id", studentId)
-    .eq("master_content_id", bookId)  // books 테이블은 아직 master_content_id 사용 (교재용)
+    .eq("master_content_id", bookId) // books 테이블은 아직 master_content_id 사용 (교재용)
     .maybeSingle();
 
   if (existingBook) {
@@ -641,7 +680,7 @@ export async function copyMasterBookToStudent(
       difficulty_level: book.difficulty_level,
       total_pages: book.total_pages,
       notes: book.notes,
-      master_content_id: bookId,  // books 테이블은 아직 master_content_id 사용 (교재용)
+      master_content_id: bookId, // books 테이블은 아직 master_content_id 사용 (교재용)
     })
     .select("id")
     .single();
@@ -675,8 +714,8 @@ export async function copyMasterBookToStudent(
     }));
 
     if (!supabase) throw new Error("Supabase client uninitialized");
-  
-  const { error: detailsError } = await supabase
+
+    const { error: detailsError } = await supabase
       .from("student_book_details")
       .insert(studentBookDetails);
 
@@ -716,13 +755,13 @@ export async function copyMasterLectureToStudent(
   }
 
   if (!supabase) throw new Error("Supabase client uninitialized");
-  
+
   // 중복 체크: 같은 master_lecture_id를 가진 학생 강의가 이미 있는지 확인
   const { data: existingLecture } = await supabase
     .from("lectures")
     .select("id")
     .eq("student_id", studentId)
-    .eq("master_lecture_id", lectureId)  // 변경: master_content_id → master_lecture_id
+    .eq("master_lecture_id", lectureId) // 변경: master_content_id → master_lecture_id
     .maybeSingle();
 
   if (existingLecture) {
@@ -731,7 +770,7 @@ export async function copyMasterLectureToStudent(
   }
 
   if (!supabase) throw new Error("Supabase client uninitialized");
-  
+
   const { data: studentLecture, error } = await supabase
     .from("lectures")
     .insert({
@@ -742,11 +781,11 @@ export async function copyMasterLectureToStudent(
       semester: null, // 마스터 콘텐츠에서 semester 필드 제거됨
       subject_category: lecture.subject_category,
       subject: lecture.subject,
-      platform: lecture.platform_name,  // 변경: platform → platform_name
+      platform: lecture.platform_name, // 변경: platform → platform_name
       difficulty_level: lecture.difficulty_level,
-      total_episodes: lecture.total_episodes,  // 추가: 총 회차
+      total_episodes: lecture.total_episodes, // 추가: 총 회차
       notes: lecture.notes,
-      master_lecture_id: lectureId,  // 변경: master_content_id → master_lecture_id
+      master_lecture_id: lectureId, // 변경: master_content_id → master_lecture_id
     })
     .select("id")
     .single();
@@ -774,7 +813,7 @@ export async function copyMasterLectureToStudent(
     const studentEpisodes = episodes.map((episode) => ({
       lecture_id: studentLecture.id,
       episode_number: episode.episode_number,
-      title: episode.title,  // 변경: episode_title → title
+      title: episode.title, // 변경: episode_title → title
       duration: episode.duration,
       display_order: episode.display_order,
     }));
@@ -809,7 +848,7 @@ export async function searchMasterCustomContents(
   filters: MasterCustomContentFilters,
   supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>>
 ): Promise<{ data: MasterCustomContent[]; total: number }> {
-  const queryClient = supabase || await createSupabaseServerClient();
+  const queryClient = supabase || (await createSupabaseServerClient());
 
   let query = queryClient
     .from("master_custom_contents")
@@ -864,7 +903,10 @@ export async function searchMasterCustomContents(
     query = query.limit(filters.limit);
   }
   if (filters.offset) {
-    query = query.range(filters.offset, filters.offset + (filters.limit || 20) - 1);
+    query = query.range(
+      filters.offset,
+      filters.offset + (filters.limit || 20) - 1
+    );
   }
 
   const { data, error, count } = await query;
@@ -937,7 +979,9 @@ export async function createMasterCustomContent(
  */
 export async function updateMasterCustomContent(
   contentId: string,
-  updates: Partial<Omit<MasterCustomContent, "id" | "created_at" | "updated_at">>
+  updates: Partial<
+    Omit<MasterCustomContent, "id" | "created_at" | "updated_at">
+  >
 ): Promise<MasterCustomContent> {
   const supabase = await createSupabaseServerClient();
 
@@ -964,7 +1008,9 @@ export async function updateMasterCustomContent(
 /**
  * 커스텀 콘텐츠 삭제
  */
-export async function deleteMasterCustomContent(contentId: string): Promise<void> {
+export async function deleteMasterCustomContent(
+  contentId: string
+): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
@@ -1066,11 +1112,19 @@ export async function copyMasterToStudentContent(
   } catch (error) {
     // 교재가 아니면 강의로 시도
     try {
-      const result = await copyMasterLectureToStudent(masterId, studentId, tenantId);
+      const result = await copyMasterLectureToStudent(
+        masterId,
+        studentId,
+        tenantId
+      );
       return { lectureId: result.lectureId };
     } catch (lectureError) {
       // 강의도 아니면 커스텀 콘텐츠로 시도
-      const result = await copyMasterCustomContentToStudent(masterId, studentId, tenantId);
+      const result = await copyMasterCustomContentToStudent(
+        masterId,
+        studentId,
+        tenantId
+      );
       return { contentId: result.contentId };
     }
   }
@@ -1083,7 +1137,9 @@ export async function copyMasterToStudentContent(
 /**
  * 개정교육과정 목록 조회 (필터 옵션용)
  */
-export async function getCurriculumRevisions(): Promise<Array<{ id: string; name: string }>> {
+export async function getCurriculumRevisions(): Promise<
+  Array<{ id: string; name: string }>
+> {
   // Admin 클라이언트 우선 사용 (RLS 우회), 없으면 일반 서버 클라이언트 사용
   const supabase = await getClientForRLSBypass();
 
@@ -1239,8 +1295,12 @@ export async function getSemesterList(): Promise<string[]> {
   ]);
 
   const allSemesters = [
-    ...(booksResult.data || []).map((item: { semester: string }) => item.semester),
-    ...(lecturesResult.data || []).map((item: { semester: string }) => item.semester),
+    ...(booksResult.data || []).map(
+      (item: { semester: string }) => item.semester
+    ),
+    ...(lecturesResult.data || []).map(
+      (item: { semester: string }) => item.semester
+    ),
   ];
 
   const semesters = Array.from(new Set(allSemesters.filter(Boolean))).sort();
@@ -1267,7 +1327,9 @@ export async function getPublishersForFilter(
 
   // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
   if (tenantId) {
-    publisherQuery = publisherQuery.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+    publisherQuery = publisherQuery.or(
+      `tenant_id.is.null,tenant_id.eq.${tenantId}`
+    );
   } else {
     publisherQuery = publisherQuery.is("tenant_id", null);
   }
@@ -1320,7 +1382,7 @@ export async function getPlatformsForFilter(
   if (!supabase) return [];
 
   // master_lectures에서 실제로 사용된 platform_id 조회
-  
+
   let platformQuery = supabase
     .from("master_lectures")
     .select("platform_id")
@@ -1328,7 +1390,9 @@ export async function getPlatformsForFilter(
 
   // tenantId가 있으면 해당 테넌트 + 공개 콘텐츠만, 없으면 공개 콘텐츠만
   if (tenantId) {
-    platformQuery = platformQuery.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+    platformQuery = platformQuery.or(
+      `tenant_id.is.null,tenant_id.eq.${tenantId}`
+    );
   } else {
     platformQuery = platformQuery.is("tenant_id", null);
   }
@@ -1393,7 +1457,10 @@ export async function getDifficultiesForMasterBooks(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/contentMasters] 마스터 교재 난이도 목록 조회 실패", error);
+    console.error(
+      "[data/contentMasters] 마스터 교재 난이도 목록 조회 실패",
+      error
+    );
     return [];
   }
 
@@ -1431,7 +1498,10 @@ export async function getDifficultiesForMasterLectures(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/contentMasters] 마스터 강의 난이도 목록 조회 실패", error);
+    console.error(
+      "[data/contentMasters] 마스터 강의 난이도 목록 조회 실패",
+      error
+    );
     return [];
   }
 
@@ -1522,46 +1592,64 @@ export async function updateMasterBook(
 
   // undefined 필드는 제외하고 실제 존재하는 필드만 업데이트
   const updateFields: Record<string, any> = {};
-  
+
   if (data.tenant_id !== undefined) updateFields.tenant_id = data.tenant_id;
   if (data.is_active !== undefined) updateFields.is_active = data.is_active;
-  if (data.curriculum_revision_id !== undefined) updateFields.curriculum_revision_id = data.curriculum_revision_id;
+  if (data.curriculum_revision_id !== undefined)
+    updateFields.curriculum_revision_id = data.curriculum_revision_id;
   if (data.subject_id !== undefined) updateFields.subject_id = data.subject_id;
-  if (data.subject_group_id !== undefined) updateFields.subject_group_id = data.subject_group_id;
-  if (data.subject_category !== undefined) updateFields.subject_category = data.subject_category;
+  if (data.subject_group_id !== undefined)
+    updateFields.subject_group_id = data.subject_group_id;
+  if (data.subject_category !== undefined)
+    updateFields.subject_category = data.subject_category;
   if (data.subject !== undefined) updateFields.subject = data.subject;
   if (data.grade_min !== undefined) updateFields.grade_min = data.grade_min;
   if (data.grade_max !== undefined) updateFields.grade_max = data.grade_max;
-  if (data.school_type !== undefined) updateFields.school_type = data.school_type;
+  if (data.school_type !== undefined)
+    updateFields.school_type = data.school_type;
   if (data.revision !== undefined) updateFields.revision = data.revision;
-  if (data.content_category !== undefined) updateFields.content_category = data.content_category;
+  if (data.content_category !== undefined)
+    updateFields.content_category = data.content_category;
   // semester 필드 제거됨 (2025-02-04)
   if (data.title !== undefined) updateFields.title = data.title;
   if (data.subtitle !== undefined) updateFields.subtitle = data.subtitle;
-  if (data.series_name !== undefined) updateFields.series_name = data.series_name;
+  if (data.series_name !== undefined)
+    updateFields.series_name = data.series_name;
   if (data.author !== undefined) updateFields.author = data.author;
-  if (data.publisher_id !== undefined) updateFields.publisher_id = data.publisher_id;
-  if (data.publisher_name !== undefined) updateFields.publisher_name = data.publisher_name;
+  if (data.publisher_id !== undefined)
+    updateFields.publisher_id = data.publisher_id;
+  if (data.publisher_name !== undefined)
+    updateFields.publisher_name = data.publisher_name;
   if (data.isbn_10 !== undefined) updateFields.isbn_10 = data.isbn_10;
   if (data.isbn_13 !== undefined) updateFields.isbn_13 = data.isbn_13;
   if (data.edition !== undefined) updateFields.edition = data.edition;
-  if (data.published_date !== undefined) updateFields.published_date = data.published_date;
-  if (data.total_pages !== undefined) updateFields.total_pages = data.total_pages;
-  if (data.target_exam_type !== undefined) updateFields.target_exam_type = data.target_exam_type;
-  if (data.description !== undefined) updateFields.description = data.description;
+  if (data.published_date !== undefined)
+    updateFields.published_date = data.published_date;
+  if (data.total_pages !== undefined)
+    updateFields.total_pages = data.total_pages;
+  if (data.target_exam_type !== undefined)
+    updateFields.target_exam_type = data.target_exam_type;
+  if (data.description !== undefined)
+    updateFields.description = data.description;
   if (data.toc !== undefined) updateFields.toc = data.toc;
-  if (data.publisher_review !== undefined) updateFields.publisher_review = data.publisher_review;
+  if (data.publisher_review !== undefined)
+    updateFields.publisher_review = data.publisher_review;
   if (data.tags !== undefined) updateFields.tags = data.tags;
   if (data.source !== undefined) updateFields.source = data.source;
-  if (data.source_product_code !== undefined) updateFields.source_product_code = data.source_product_code;
+  if (data.source_product_code !== undefined)
+    updateFields.source_product_code = data.source_product_code;
   if (data.source_url !== undefined) updateFields.source_url = data.source_url;
-  if (data.cover_image_url !== undefined) updateFields.cover_image_url = data.cover_image_url;
-  if (data.difficulty_level !== undefined) updateFields.difficulty_level = data.difficulty_level;
+  if (data.cover_image_url !== undefined)
+    updateFields.cover_image_url = data.cover_image_url;
+  if (data.difficulty_level !== undefined)
+    updateFields.difficulty_level = data.difficulty_level;
   if (data.notes !== undefined) updateFields.notes = data.notes;
   if (data.pdf_url !== undefined) updateFields.pdf_url = data.pdf_url;
   if (data.ocr_data !== undefined) updateFields.ocr_data = data.ocr_data;
-  if (data.page_analysis !== undefined) updateFields.page_analysis = data.page_analysis;
-  if (data.overall_difficulty !== undefined) updateFields.overall_difficulty = data.overall_difficulty;
+  if (data.page_analysis !== undefined)
+    updateFields.page_analysis = data.page_analysis;
+  if (data.overall_difficulty !== undefined)
+    updateFields.overall_difficulty = data.overall_difficulty;
 
   const { data: book, error } = await supabase
     .from("master_books")
@@ -1784,7 +1872,9 @@ export async function deleteAllBookDetails(bookId: string): Promise<void> {
 
   if (error) {
     console.error("[data/contentMasters] 교재 상세 정보 일괄 삭제 실패", error);
-    throw new Error(error.message || "교재 상세 정보 일괄 삭제에 실패했습니다.");
+    throw new Error(
+      error.message || "교재 상세 정보 일괄 삭제에 실패했습니다."
+    );
   }
 }
 
@@ -1805,7 +1895,7 @@ export async function createLectureEpisode(
     .insert({
       lecture_id: data.lecture_id,
       episode_number: data.episode_number,
-      episode_title: data.episode_title || null,  // 수정: title → episode_title (DB 스키마와 일치)
+      episode_title: data.episode_title || null, // 수정: title → episode_title (DB 스키마와 일치)
       duration: data.duration || null,
       display_order: data.display_order,
     })
@@ -1830,10 +1920,13 @@ export async function updateLectureEpisode(
   const supabase = await createSupabaseServerClient();
 
   const updateFields: Record<string, unknown> = {};
-  if (data.episode_number !== undefined) updateFields.episode_number = data.episode_number;
-  if (data.episode_title !== undefined) updateFields.episode_title = data.episode_title;  // 수정: title → episode_title
+  if (data.episode_number !== undefined)
+    updateFields.episode_number = data.episode_number;
+  if (data.episode_title !== undefined)
+    updateFields.episode_title = data.episode_title; // 수정: title → episode_title
   if (data.duration !== undefined) updateFields.duration = data.duration;
-  if (data.display_order !== undefined) updateFields.display_order = data.display_order;
+  if (data.display_order !== undefined)
+    updateFields.display_order = data.display_order;
 
   const { data: episode, error } = await supabase
     .from("lecture_episodes")
@@ -1870,7 +1963,9 @@ export async function deleteLectureEpisode(episodeId: string): Promise<void> {
 /**
  * 강의 episode 일괄 삭제
  */
-export async function deleteAllLectureEpisodes(lectureId: string): Promise<void> {
+export async function deleteAllLectureEpisodes(
+  lectureId: string
+): Promise<void> {
   const supabase = await createSupabaseServerClient();
 
   const { error } = await supabase
@@ -1894,7 +1989,14 @@ export async function deleteAllLectureEpisodes(lectureId: string): Promise<void>
 export async function getStudentBookDetails(
   bookId: string,
   studentId: string
-): Promise<Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>> {
+): Promise<
+  Array<{
+    id: string;
+    page_number: number;
+    major_unit: string | null;
+    minor_unit: string | null;
+  }>
+> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -1908,7 +2010,14 @@ export async function getStudentBookDetails(
     return [];
   }
 
-  return (data as Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }> | null) ?? [];
+  return (
+    (data as Array<{
+      id: string;
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }> | null) ?? []
+  );
 }
 
 /**
@@ -1917,12 +2026,15 @@ export async function getStudentBookDetails(
 export async function getStudentLectureEpisodes(
   lectureId: string,
   studentId: string
-): Promise<Array<{ id: string; episode_number: number; title: string | null }>> {  // 변경: episode_title → title
+): Promise<
+  Array<{ id: string; episode_number: number; title: string | null }>
+> {
+  // 변경: episode_title → title
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")
-    .select("id, episode_number, title")  // 변경: episode_title → title
+    .select("id, episode_number, title") // 변경: episode_title → title
     .eq("lecture_id", lectureId)
     .order("episode_number", { ascending: true });
 
@@ -1931,7 +2043,13 @@ export async function getStudentLectureEpisodes(
     return [];
   }
 
-  return (data as Array<{ id: string; episode_number: number; title: string | null }> | null) ?? [];  // 변경: episode_title → title
+  return (
+    (data as Array<{
+      id: string;
+      episode_number: number;
+      title: string | null;
+    }> | null) ?? []
+  ); // 변경: episode_title → title
 }
 
 /**
@@ -1943,7 +2061,17 @@ export async function getStudentLectureEpisodes(
 export async function getStudentBookDetailsBatch(
   bookIds: string[],
   studentId: string
-): Promise<Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>> {
+): Promise<
+  Map<
+    string,
+    Array<{
+      id: string;
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }>
+  >
+> {
   if (bookIds.length === 0) {
     return new Map();
   }
@@ -1963,24 +2091,43 @@ export async function getStudentBookDetailsBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error("[data/contentMasters] 학생 교재 상세 정보 배치 조회 실패", error);
+    console.error(
+      "[data/contentMasters] 학생 교재 상세 정보 배치 조회 실패",
+      error
+    );
     return new Map();
   }
 
   // 결과를 bookId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
-  const resultMap = new Map<string, Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>>();
-  
-  (data || []).forEach((detail: { id: string; book_id: string; page_number: number; major_unit: string | null; minor_unit: string | null }) => {
-    if (!resultMap.has(detail.book_id)) {
-      resultMap.set(detail.book_id, []);
+  const resultMap = new Map<
+    string,
+    Array<{
+      id: string;
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }>
+  >();
+
+  (data || []).forEach(
+    (detail: {
+      id: string;
+      book_id: string;
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }) => {
+      if (!resultMap.has(detail.book_id)) {
+        resultMap.set(detail.book_id, []);
+      }
+      resultMap.get(detail.book_id)!.push({
+        id: detail.id,
+        page_number: detail.page_number,
+        major_unit: detail.major_unit,
+        minor_unit: detail.minor_unit,
+      });
     }
-    resultMap.get(detail.book_id)!.push({
-      id: detail.id,
-      page_number: detail.page_number,
-      major_unit: detail.major_unit,
-      minor_unit: detail.minor_unit,
-    });
-  });
+  );
 
   // 조회 결과가 없는 bookId들도 빈 배열로 초기화
   bookIds.forEach((bookId) => {
@@ -1992,23 +2139,29 @@ export async function getStudentBookDetailsBatch(
   // 성능 로깅 (개발 환경에서만) - resultMap 생성 후 실행
   if (process.env.NODE_ENV === "development") {
     const resultCount = data?.length || 0;
-    const emptyBookIds = bookIds.filter((bookId) => !resultMap.has(bookId) || resultMap.get(bookId)!.length === 0);
-    
+    const emptyBookIds = bookIds.filter(
+      (bookId) => !resultMap.has(bookId) || resultMap.get(bookId)!.length === 0
+    );
+
     console.log("[getStudentBookDetailsBatch] 쿼리 성능:", {
       bookCount: bookIds.length,
       resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
-      avgTimePerBook: bookIds.length > 0 ? `${(queryTime / bookIds.length).toFixed(2)}ms` : "N/A",
+      avgTimePerBook:
+        bookIds.length > 0
+          ? `${(queryTime / bookIds.length).toFixed(2)}ms`
+          : "N/A",
       emptyBookCount: emptyBookIds.length,
       emptyBookIds: emptyBookIds.length > 0 ? emptyBookIds : undefined,
     });
-    
+
     // 목차가 없는 교재가 있는 경우 추가 로깅
     if (emptyBookIds.length > 0) {
       console.debug("[getStudentBookDetailsBatch] 목차가 없는 교재:", {
         count: emptyBookIds.length,
         bookIds: emptyBookIds,
-        reason: "student_book_details 테이블에 해당 교재의 목차 정보가 없습니다.",
+        reason:
+          "student_book_details 테이블에 해당 교재의 목차 정보가 없습니다.",
       });
     }
   }
@@ -2025,7 +2178,17 @@ export async function getStudentBookDetailsBatch(
 export async function getStudentLectureEpisodesBatch(
   lectureIds: string[],
   studentId: string
-): Promise<Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>> {
+): Promise<
+  Map<
+    string,
+    Array<{
+      id: string;
+      episode_number: number;
+      title: string | null;
+      duration: number | null;
+    }>
+  >
+> {
   if (lectureIds.length === 0) {
     return new Map();
   }
@@ -2045,24 +2208,43 @@ export async function getStudentLectureEpisodesBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error("[data/contentMasters] 학생 강의 episode 배치 조회 실패", error);
+    console.error(
+      "[data/contentMasters] 학생 강의 episode 배치 조회 실패",
+      error
+    );
     return new Map();
   }
 
   // 결과를 lectureId별로 그룹화하여 Map으로 반환 (최적화: push() 사용)
-  const resultMap = new Map<string, Array<{ id: string; episode_number: number; title: string | null; duration: number | null }>>();
-  
-  (data || []).forEach((episode: { id: string; lecture_id: string; episode_number: number; title: string | null; duration: number | null }) => {
-    if (!resultMap.has(episode.lecture_id)) {
-      resultMap.set(episode.lecture_id, []);
+  const resultMap = new Map<
+    string,
+    Array<{
+      id: string;
+      episode_number: number;
+      title: string | null;
+      duration: number | null;
+    }>
+  >();
+
+  (data || []).forEach(
+    (episode: {
+      id: string;
+      lecture_id: string;
+      episode_number: number;
+      title: string | null;
+      duration: number | null;
+    }) => {
+      if (!resultMap.has(episode.lecture_id)) {
+        resultMap.set(episode.lecture_id, []);
+      }
+      resultMap.get(episode.lecture_id)!.push({
+        id: episode.id,
+        episode_number: episode.episode_number,
+        title: episode.title,
+        duration: episode.duration,
+      });
     }
-    resultMap.get(episode.lecture_id)!.push({
-      id: episode.id,
-      episode_number: episode.episode_number,
-      title: episode.title,
-      duration: episode.duration,
-    });
-  });
+  );
 
   // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
   lectureIds.forEach((lectureId) => {
@@ -2074,23 +2256,30 @@ export async function getStudentLectureEpisodesBatch(
   // 성능 로깅 (개발 환경에서만) - resultMap 생성 후 실행
   if (process.env.NODE_ENV === "development") {
     const resultCount = data?.length || 0;
-    const emptyLectureIds = lectureIds.filter((lectureId) => !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0);
-    
+    const emptyLectureIds = lectureIds.filter(
+      (lectureId) =>
+        !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
+    );
+
     console.log("[getStudentLectureEpisodesBatch] 쿼리 성능:", {
       lectureCount: lectureIds.length,
       resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
-      avgTimePerLecture: lectureIds.length > 0 ? `${(queryTime / lectureIds.length).toFixed(2)}ms` : "N/A",
+      avgTimePerLecture:
+        lectureIds.length > 0
+          ? `${(queryTime / lectureIds.length).toFixed(2)}ms`
+          : "N/A",
       emptyLectureCount: emptyLectureIds.length,
       emptyLectureIds: emptyLectureIds.length > 0 ? emptyLectureIds : undefined,
     });
-    
+
     // 회차가 없는 강의가 있는 경우 추가 로깅
     if (emptyLectureIds.length > 0) {
       console.debug("[getStudentLectureEpisodesBatch] 회차가 없는 강의:", {
         count: emptyLectureIds.length,
         lectureIds: emptyLectureIds,
-        reason: "student_lecture_episodes 테이블에 해당 강의의 회차 정보가 없습니다.",
+        reason:
+          "student_lecture_episodes 테이블에 해당 강의의 회차 정보가 없습니다.",
       });
     }
   }

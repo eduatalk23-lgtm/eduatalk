@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useTransition, useState, useEffect } from "react";
+import { useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
 import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
 import { MasterBook, BookDetail } from "@/lib/types/plan";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
+import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
+import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
+import FormField, { FormSelect } from "@/components/molecules/FormField";
+import { useToast } from "@/components/ui/ToastProvider";
+import { masterBookSchema, validateFormData } from "@/lib/validation/schemas";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
 import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
 
@@ -28,137 +33,79 @@ export function MasterBookEditForm({
 }: MasterBookEditFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const [selectedRevisionId, setSelectedRevisionId] = useState<string>(
-    book.curriculum_revision_id || ""
-  );
-  const [selectedGroupId, setSelectedGroupId] = useState<string>(
-    currentSubject?.subjectGroup.id || ""
-  );
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(
-    book.subject_id || ""
-  );
-  const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
-  const [subjectGroups, setSubjectGroups] = useState<(SubjectGroup & { subjects: Subject[] })[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
+  const { showError, showSuccess } = useToast();
 
-  // 초기 교과 그룹 목록 로드
-  useEffect(() => {
-    async function loadInitialGroups() {
-      if (book.curriculum_revision_id) {
-        setLoadingGroups(true);
-        try {
-          const groups = await getSubjectGroupsWithSubjectsAction(book.curriculum_revision_id);
-          setSubjectGroups(groups);
-          
-          // book.subject_id로 교과 그룹과 과목 찾기
-          if (book.subject_id) {
-            for (const group of groups) {
-              const foundSubject = group.subjects.find(s => s.id === book.subject_id);
-              if (foundSubject) {
-                setSelectedGroupId(group.id);
-                setSelectedSubjects(group.subjects || []);
-                setSelectedSubjectId(book.subject_id);
-                break;
-              }
-            }
-          }
-          // currentSubject가 있으면 우선 사용 (fallback)
-          else if (currentSubject) {
-            const group = groups.find(g => g.id === currentSubject.subjectGroup.id);
-            if (group) {
+  const {
+    selectedRevisionId,
+    selectedGroupId,
+    selectedSubjectId,
+    selectedSubjects,
+    subjectGroups,
+    loadingGroups,
+    handleCurriculumRevisionChange,
+    handleSubjectGroupChange,
+    handleSubjectChange,
+    addSubjectDataToFormData,
+    setSelectedGroupId,
+    setSelectedSubjects,
+    setSelectedSubjectId,
+  } = useSubjectSelection({
+    curriculumRevisions,
+    initialRevisionId: book.curriculum_revision_id || "",
+    initialGroupId: currentSubject?.subjectGroup.id || "",
+    initialSubjectId: book.subject_id || "",
+    onInitialLoad: async (revisionId: string) => {
+      try {
+        const groups = await getSubjectGroupsWithSubjectsAction(revisionId);
+        // book.subject_id로 교과 그룹과 과목 찾기
+        if (book.subject_id) {
+          for (const group of groups) {
+            const foundSubject = group.subjects.find(s => s.id === book.subject_id);
+            if (foundSubject) {
               setSelectedGroupId(group.id);
               setSelectedSubjects(group.subjects || []);
-              setSelectedSubjectId(currentSubject.id);
+              setSelectedSubjectId(book.subject_id);
+              break;
             }
           }
-        } catch (error) {
-          console.error("교과 그룹 조회 실패:", error);
-          setSubjectGroups([]);
-        } finally {
-          setLoadingGroups(false);
         }
-      }
-    }
-    loadInitialGroups();
-  }, [book.curriculum_revision_id, book.subject_id, currentSubject]);
-
-  // 개정교육과정 선택 시 해당 개정교육과정의 교과 그룹 목록 조회
-  async function handleCurriculumRevisionChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const revisionName = e.target.value;
-    const selectedRevision = curriculumRevisions.find(r => r.name === revisionName);
-    
-    // 교과 그룹과 과목 선택 초기화 (기존 과목은 유지하지 않음)
-    setSelectedGroupId("");
-    setSelectedSubjectId("");
-    setSelectedSubjects([]);
-    
-    if (selectedRevision) {
-      setSelectedRevisionId(selectedRevision.id);
-      setLoadingGroups(true);
-      
-      try {
-        const groups = await getSubjectGroupsWithSubjectsAction(selectedRevision.id);
-        setSubjectGroups(groups);
+        // currentSubject가 있으면 우선 사용 (fallback)
+        else if (currentSubject) {
+          const group = groups.find(g => g.id === currentSubject.subjectGroup.id);
+          if (group) {
+            setSelectedGroupId(group.id);
+            setSelectedSubjects(group.subjects || []);
+            setSelectedSubjectId(currentSubject.id);
+          }
+        }
       } catch (error) {
         console.error("교과 그룹 조회 실패:", error);
-        setSubjectGroups([]);
-      } finally {
-        setLoadingGroups(false);
       }
-    } else {
-      setSelectedRevisionId("");
-      setSubjectGroups([]);
-    }
-  }
-
-  // 교과 그룹 선택 시 해당 그룹의 과목 목록 업데이트
-  function handleSubjectGroupChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const groupId = e.target.value;
-    setSelectedGroupId(groupId);
-    setSelectedSubjectId(""); // 과목 선택 초기화
-    
-    if (groupId) {
-      const group = subjectGroups.find(g => g.id === groupId);
-      setSelectedSubjects(group?.subjects || []);
-    } else {
-      setSelectedSubjects([]);
-    }
-  }
-
-  // 과목 선택 시 처리 (개정교육과정 패턴과 동일)
-  function handleSubjectChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const subjectName = e.target.value;
-    const selectedSubject = selectedSubjects.find(s => s.name === subjectName);
-    setSelectedSubjectId(selectedSubject?.id || "");
-  }
+    },
+  });
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // 교과 그룹 정보 추가 (denormalize)
-    if (selectedGroupId) {
-      const selectedGroup = subjectGroups.find(g => g.id === selectedGroupId);
-      if (selectedGroup) {
-        formData.set("subject_group_id", selectedGroup.id);
-        formData.set("subject_category", selectedGroup.name);
-      }
-    }
+    // 과목 정보 추가
+    addSubjectDataToFormData(formData);
 
-    // 과목 정보 추가 (denormalize)
-    if (selectedSubjectId) {
-      const selectedSubject = selectedSubjects.find(s => s.id === selectedSubjectId);
-      if (selectedSubject) {
-        formData.set("subject", selectedSubject.name);
-      }
+    // 클라이언트 사이드 검증
+    const validation = validateFormData(formData, masterBookSchema);
+    if (!validation.success) {
+      const firstError = validation.errors.errors[0];
+      showError(firstError.message);
+      return;
     }
 
     startTransition(async () => {
       try {
         await updateMasterBookAction(book.id, formData);
+        showSuccess("교재가 성공적으로 수정되었습니다.");
       } catch (error) {
         console.error("교재 수정 실패:", error);
-        alert(
+        showError(
           error instanceof Error ? error.message : "교재 수정에 실패했습니다."
         );
       }
@@ -172,224 +119,121 @@ export function MasterBookEditForm({
     >
       <div className="grid gap-4 md:grid-cols-2">
         {/* 교재명 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-900">
-            교재명 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="title"
-            required
-            defaultValue={book.title}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="교재명"
+          name="title"
+          required
+          defaultValue={book.title}
+          className="md:col-span-2"
+        />
 
-        {/* 개정교육과정 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            개정교육과정
-          </label>
-          <select
-            name="revision"
-            value={curriculumRevisions.find(r => r.id === selectedRevisionId)?.name || book.revision || ""}
-            onChange={handleCurriculumRevisionChange}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            {curriculumRevisions.map((revision) => (
-              <option key={revision.id} value={revision.name}>
-                {revision.name}
-              </option>
-            ))}
-          </select>
-          {/* curriculum_revision_id를 hidden input으로 전송 */}
-          <input type="hidden" name="curriculum_revision_id" value={selectedRevisionId} />
-        </div>
-
-        {/* 교과 그룹 선택 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            교과 그룹
-          </label>
-          <select
-            value={selectedGroupId}
-            onChange={handleSubjectGroupChange}
-            disabled={!selectedRevisionId || loadingGroups}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600"
-          >
-            <option value="">
-              {loadingGroups
-                ? "로딩 중..."
-                : !selectedRevisionId
-                ? "개정교육과정을 먼저 선택하세요"
-                : "선택하세요"}
-            </option>
-            {subjectGroups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-          {!selectedRevisionId && (
-            <p className="text-xs text-gray-900">
-              개정교육과정을 먼저 선택하세요
-            </p>
-          )}
-        </div>
-
-        {/* 과목 선택 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            과목
-          </label>
-          <select
-            value={selectedSubjects.find(s => s.id === selectedSubjectId)?.name || ""}
-            onChange={handleSubjectChange}
-            disabled={!selectedGroupId || loadingGroups}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-600"
-          >
-            <option value="">선택하세요</option>
-            {selectedSubjects.map((subject) => (
-              <option key={subject.id} value={subject.name}>
-                {subject.name}
-              </option>
-            ))}
-          </select>
-          {/* subject_id를 hidden input으로 전송 */}
-          <input type="hidden" name="subject_id" value={selectedSubjectId} />
-          <p className="text-xs text-gray-900">
-            {!selectedRevisionId
-              ? "개정교육과정과 교과 그룹을 먼저 선택하세요"
-              : !selectedGroupId
-              ? "교과 그룹을 먼저 선택하세요"
-              : ""}
-          </p>
-        </div>
+        {/* 개정교육과정, 교과 그룹, 과목 */}
+        <SubjectSelectionFields
+          curriculumRevisions={curriculumRevisions}
+          selectedRevisionId={selectedRevisionId}
+          selectedGroupId={selectedGroupId}
+          selectedSubjectId={selectedSubjectId}
+          selectedSubjects={selectedSubjects}
+          subjectGroups={subjectGroups}
+          loadingGroups={loadingGroups}
+          onCurriculumRevisionChange={handleCurriculumRevisionChange}
+          onSubjectGroupChange={handleSubjectGroupChange}
+          onSubjectChange={handleSubjectChange}
+          revisionName={book.revision || undefined}
+        />
 
         {/* 출판사 선택 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            출판사
-          </label>
-          <select
-            name="publisher_id"
-            defaultValue={book.publisher_id || ""}
-            onChange={(e) => {
-              // publisher_id 변경 시 publisher_name도 자동 설정
-              const selectedPublisher = publishers.find(p => p.id === e.target.value);
-              const publisherNameInput = document.querySelector('input[name="publisher_name"]') as HTMLInputElement;
-              if (publisherNameInput && selectedPublisher) {
-                publisherNameInput.value = selectedPublisher.name;
-              }
-            }}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            {publishers.map((publisher) => (
-              <option key={publisher.id} value={publisher.id}>
-                {publisher.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
+        <FormSelect
+          label="출판사"
+          name="publisher_id"
+          defaultValue={book.publisher_id || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            ...publishers.map((publisher) => ({
+              value: publisher.id,
+              label: publisher.name,
+            })),
+          ]}
+          onChange={(e) => {
+            // publisher_id 변경 시 publisher_name도 자동 설정
+            const selectedPublisher = publishers.find(p => p.id === e.target.value);
+            const publisherNameInput = document.querySelector('input[name="publisher_name"]') as HTMLInputElement;
+            if (publisherNameInput && selectedPublisher) {
+              publisherNameInput.value = selectedPublisher.name;
+            }
+          }}
+        />
         {/* 출판사명 (숨김 필드, 자동 설정됨) */}
         <input type="hidden" name="publisher_name" defaultValue={book.publisher_name || ""} />
 
         {/* 저자 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            저자
-          </label>
-          <input
-            name="author"
-            defaultValue={book.author || ""}
-            placeholder="저자명을 입력하세요"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="저자"
+          name="author"
+          defaultValue={book.author || ""}
+          placeholder="저자명을 입력하세요"
+        />
 
         {/* 학교 유형 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            학교 유형
-          </label>
-          <select
-            name="school_type"
-            defaultValue={book.school_type || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="MIDDLE">중학교</option>
-            <option value="HIGH">고등학교</option>
-            <option value="OTHER">기타</option>
-          </select>
-        </div>
+        <FormSelect
+          label="학교 유형"
+          name="school_type"
+          defaultValue={book.school_type || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "MIDDLE", label: "중학교" },
+            { value: "HIGH", label: "고등학교" },
+            { value: "OTHER", label: "기타" },
+          ]}
+        />
 
         {/* 최소 학년 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            최소 학년
-          </label>
-          <select
-            name="grade_min"
-            defaultValue={book.grade_min || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-        </div>
+        <FormSelect
+          label="최소 학년"
+          name="grade_min"
+          defaultValue={book.grade_min?.toString() || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "1", label: "1학년" },
+            { value: "2", label: "2학년" },
+            { value: "3", label: "3학년" },
+          ]}
+        />
 
         {/* 최대 학년 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            최대 학년
-          </label>
-          <select
-            name="grade_max"
-            defaultValue={book.grade_max || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-        </div>
+        <FormSelect
+          label="최대 학년"
+          name="grade_max"
+          defaultValue={book.grade_max?.toString() || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "1", label: "1학년" },
+            { value: "2", label: "2학년" },
+            { value: "3", label: "3학년" },
+          ]}
+        />
 
         {/* 총 페이지 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            총 페이지
-          </label>
-          <input
-            name="total_pages"
-            type="number"
-            min="1"
-            defaultValue={book.total_pages || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-        </div>
+        <FormField
+          label="총 페이지"
+          name="total_pages"
+          type="number"
+          min="1"
+          defaultValue={book.total_pages?.toString() || ""}
+        />
 
         {/* 난이도 */}
-        <div className="flex flex-col gap-1">
-          <label className="block text-sm font-medium text-gray-900">
-            난이도
-          </label>
-          <select
-            name="difficulty_level"
-            defaultValue={book.difficulty_level || ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">선택하세요</option>
-            <option value="개념">개념</option>
-            <option value="기본">기본</option>
-            <option value="심화">심화</option>
-          </select>
-        </div>
+        <FormSelect
+          label="난이도"
+          name="difficulty_level"
+          defaultValue={book.difficulty_level || ""}
+          options={[
+            { value: "", label: "선택하세요" },
+            { value: "개념", label: "개념" },
+            { value: "기본", label: "기본" },
+            { value: "심화", label: "심화" },
+          ]}
+        />
 
         {/* 대상 시험 유형 */}
         <div className="flex flex-col gap-1 md:col-span-2">
@@ -444,20 +288,14 @@ export function MasterBookEditForm({
         </div>
 
         {/* 태그 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <label className="block text-sm font-medium text-gray-900">
-            태그
-          </label>
-          <input
-            name="tags"
-            defaultValue={book.tags?.join(", ") || ""}
-            placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          />
-          <p className="text-xs text-gray-900">
-            쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다
-          </p>
-        </div>
+        <FormField
+          label="태그"
+          name="tags"
+          defaultValue={book.tags?.join(", ") || ""}
+          placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
+          className="md:col-span-2"
+          hint="쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다"
+        />
 
         {/* 표지 이미지 URL */}
         <div className="flex flex-col gap-1 md:col-span-2">
@@ -526,4 +364,3 @@ export function MasterBookEditForm({
     </form>
   );
 }
-

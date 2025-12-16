@@ -110,6 +110,61 @@ export const customContentSchema = contentBaseSchema.extend({
 });
 
 /**
+ * 마스터 교재 스키마
+ */
+export const masterBookSchema = z.object({
+  title: z.string().min(1, "교재명을 입력해주세요.").max(200),
+  curriculum_revision_id: z.string().optional().nullable(),
+  subject_id: z.string().optional().nullable(),
+  subject_group_id: z.string().optional().nullable(),
+  subject_category: z.string().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  publisher_id: z.string().optional().nullable(),
+  publisher_name: z.string().optional().nullable(),
+  author: z.string().max(100).optional().nullable(),
+  school_type: z.enum(["MIDDLE", "HIGH", "OTHER"]).optional().nullable(),
+  grade_min: z.number().int().min(1).max(3).optional().nullable(),
+  grade_max: z.number().int().min(1).max(3).optional().nullable(),
+  total_pages: z.number().int().min(1).optional().nullable(),
+  difficulty_level: z.enum(["개념", "기본", "심화"]).optional().nullable(),
+  target_exam_type: z.array(z.string()).optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
+
+/**
+ * 마스터 강의 스키마
+ */
+export const masterLectureSchema = z.object({
+  title: z.string().min(1, "강의명을 입력해주세요.").max(200),
+  revision: z.string().optional().nullable(),
+  subject_category: z.string().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  platform: z.string().max(100).optional().nullable(),
+  total_episodes: z.number().int().min(1, "총 회차는 1 이상이어야 합니다."),
+  total_duration: z.number().int().min(0).optional().nullable(),
+  difficulty_level: z.enum(["개념", "기본", "심화"]).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
+
+/**
+ * 마스터 커스텀 콘텐츠 스키마
+ */
+export const masterCustomContentSchema = z.object({
+  title: z.string().min(1, "제목을 입력해주세요.").max(200),
+  content_type: z.enum(["book", "lecture", "worksheet", "other"]).optional().nullable(),
+  total_page_or_time: z.number().int().min(0).optional().nullable(),
+  curriculum_revision_id: z.string().optional().nullable(),
+  subject_id: z.string().optional().nullable(),
+  subject_group_id: z.string().optional().nullable(),
+  subject_category: z.string().optional().nullable(),
+  subject: z.string().optional().nullable(),
+  difficulty_level: z.enum(["상", "중", "하"]).optional().nullable(),
+  content_category: z.string().max(100).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
+
+/**
  * FormData에서 객체로 변환하는 헬퍼
  */
 export function formDataToObject(formData: FormData): Record<string, unknown> {
