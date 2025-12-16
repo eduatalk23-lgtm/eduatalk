@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   toPlanGroupError,
   PlanGroupErrorCodes,
@@ -7,7 +7,17 @@ import {
 import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { ContentInfo } from "../types";
-import { createBatchRequest, getContentType } from "@/lib/utils/contentDetailsUtils";
+import { createBatchRequest } from "@/lib/utils/contentDetailsUtils";
+
+// 콘텐츠 목록의 해시 생성 (중복 요청 방지용)
+function createContentHash(
+  studentContents: WizardData["student_contents"],
+  recommendedContents: WizardData["recommended_contents"]
+): string {
+  const studentIds = studentContents.map((c) => c.content_id).sort().join(",");
+  const recommendedIds = recommendedContents.map((c) => c.content_id).sort().join(",");
+  return `${studentIds}|${recommendedIds}`;
+}
 
 type ContentMetadata = {
   title?: string;
@@ -42,6 +52,11 @@ export function useContentInfos({
   const [loading, setLoading] = useState(true);
   const [loadingContentTotals, setLoadingContentTotals] = useState(true);
 
+  // 중복 요청 방지용 refs
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastFetchedHashRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
+
   // bookIdSet 생성 (콘텐츠 타입 확인용)
   const bookIdSet = useMemo(() => {
     const set = new Set<string>();
@@ -71,7 +86,29 @@ export function useContentInfos({
   }, [data.student_contents, data.recommended_contents]);
 
   useEffect(() => {
+    // 콘텐츠 해시 생성 (중복 요청 방지)
+    const currentHash = createContentHash(data.student_contents, data.recommended_contents);
+
+    // 이미 동일한 콘텐츠를 조회했거나 조회 중이면 스킵
+    if (lastFetchedHashRef.current === currentHash) {
+      return;
+    }
+
+    // 이전 요청이 진행 중이면 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 새 AbortController 생성
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     const fetchContentInfos = async () => {
+      // 이미 다른 요청이 진행 중이면 스킵
+      if (isFetchingRef.current) {
+        return;
+      }
+      isFetchingRef.current = true;
       setLoading(true);
       setLoadingContentTotals(true);
       const infos: ContentInfo[] = [];
@@ -93,7 +130,7 @@ export function useContentInfos({
           requestBody.student_id = studentId;
         }
 
-        let batchMetadataMap = new Map<string, ContentMetadata>();
+        const batchMetadataMap = new Map<string, ContentMetadata>();
 
         try {
           const batchResponse = await fetch("/api/student-content-details/batch", {
@@ -102,6 +139,7 @@ export function useContentInfos({
               "Content-Type": "application/json",
             },
             body: JSON.stringify(requestBody),
+            signal: abortController.signal,
           });
 
           if (batchResponse.ok) {
@@ -152,6 +190,10 @@ export function useContentInfos({
             });
           }
         } catch (error) {
+          // AbortError는 무시 (정상적인 취소)
+          if (error instanceof Error && error.name === "AbortError") {
+            return;
+          }
           console.error("[useContentInfos] 배치 API 호출 실패:", error);
         }
 
@@ -366,14 +408,32 @@ export function useContentInfos({
         infos.push(...recommendedResults);
       }
 
+      // 요청이 취소되었는지 확인
+      if (abortController.signal.aborted) {
+        isFetchingRef.current = false;
+        return;
+      }
+
       setContentInfos(infos);
       setContentTotals(newTotals);
       setLoading(false);
       setLoadingContentTotals(false);
+
+      // 성공적으로 완료되면 해시 저장
+      lastFetchedHashRef.current = currentHash;
+      isFetchingRef.current = false;
     };
 
     fetchContentInfos();
-  }, [data.student_contents, data.recommended_contents, contents, isCampMode, studentId, bookIdSet, contentKeyMap]);
+
+    // Cleanup: 컴포넌트 언마운트 또는 의존성 변경 시 요청 취소
+    return () => {
+      abortController.abort();
+      isFetchingRef.current = false;
+    };
+  // bookIdSet, contentKeyMap은 data.student_contents, data.recommended_contents에서 파생되므로 의존성에서 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.student_contents, data.recommended_contents, contents, isCampMode, studentId]);
 
   return { contentInfos, loading, contentTotals, loadingContentTotals };
 }

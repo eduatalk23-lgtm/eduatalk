@@ -74,10 +74,7 @@ async function enrichDifficultyLevels<
     difficulty_level_id?: string | null;
     difficulty_level?: string | null;
   }
->(
-  supabase: SupabaseClient,
-  items: T[]
-): Promise<T[]> {
+>(supabase: SupabaseClient, items: T[]): Promise<T[]> {
   // difficulty_level_id가 있는 항목들만 수집
   const difficultyLevelIds = new Set<string>();
   items.forEach((item) => {
@@ -109,7 +106,10 @@ async function enrichDifficultyLevels<
 
   // 각 항목의 difficulty_level 업데이트
   return items.map((item) => {
-    if (item.difficulty_level_id && difficultyMap.has(item.difficulty_level_id)) {
+    if (
+      item.difficulty_level_id &&
+      difficultyMap.has(item.difficulty_level_id)
+    ) {
       return {
         ...item,
         difficulty_level:

@@ -566,20 +566,102 @@ async function _generatePlansFromGroupRefactored(
     }
   }
 
-  // 14. 플랜 일괄 저장
-  const { error: insertError } = await supabase.from("student_plan").insert(planPayloads);
+  // 14. 플랜 저장 전 검증
+  if (planPayloads.length === 0) {
+    throw new AppError(
+      "저장할 플랜이 없습니다.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // 필수 필드 검증
+  const invalidPayloads = planPayloads.filter(
+    (p) => !p.plan_group_id || !p.student_id || !p.tenant_id || !p.content_id || !p.plan_date
+  );
+
+  if (invalidPayloads.length > 0) {
+    console.error(
+      "[_generatePlansFromGroupRefactored] 유효하지 않은 플랜 페이로드:",
+      {
+        invalidCount: invalidPayloads.length,
+        totalCount: planPayloads.length,
+        sampleInvalid: invalidPayloads[0],
+      }
+    );
+    throw new AppError(
+      `${invalidPayloads.length}개의 플랜에 필수 필드가 누락되었습니다.`,
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // 15. 플랜 일괄 저장
+  const { error: insertError, data: insertedData } = await supabase
+    .from("student_plan")
+    .insert(planPayloads)
+    .select();
 
   if (insertError) {
-    console.error("[_generatePlansFromGroupRefactored] 플랜 저장 실패:", insertError);
+    // 상세한 에러 정보 로깅
+    const errorDetails = {
+      errorCode: insertError.code,
+      errorMessage: insertError.message,
+      errorDetails: insertError.details,
+      errorHint: insertError.hint,
+      planPayloadsCount: planPayloads.length,
+      samplePayload: planPayloads[0], // 첫 번째 페이로드 샘플 (디버깅용)
+    };
+
+    console.error("[_generatePlansFromGroupRefactored] 플랜 저장 실패:", {
+      ...errorDetails,
+      fullError: insertError,
+    });
+
+    // 사용자 친화적인 에러 메시지 생성
+    let userMessage = "플랜 저장에 실패했습니다.";
+    
+    if (insertError.message) {
+      userMessage += ` ${insertError.message}`;
+    }
+    
+    if (insertError.details) {
+      userMessage += ` (${insertError.details})`;
+    }
+    
+    if (insertError.hint) {
+      userMessage += ` 힌트: ${insertError.hint}`;
+    }
+
+    // 특정 에러 코드에 대한 더 구체적인 메시지
+    if (insertError.code === "23503") {
+      userMessage = "참조 무결성 오류가 발생했습니다. 콘텐츠, 학생, 또는 플랜 그룹 정보를 확인해주세요.";
+    } else if (insertError.code === "23505") {
+      userMessage = "중복된 플랜이 이미 존재합니다.";
+    } else if (insertError.code === "23502") {
+      userMessage = "필수 필드가 누락되었습니다. 플랜 데이터를 확인해주세요.";
+    } else if (insertError.code === "23514") {
+      userMessage = "데이터 제약 조건을 위반했습니다. 플랜 데이터의 형식을 확인해주세요.";
+    }
+
     throw new AppError(
-      "플랜 저장에 실패했습니다.",
+      userMessage,
       ErrorCode.INTERNAL_ERROR,
       500,
       true
     );
   }
 
-  // 15. 플랜 그룹 상태 업데이트
+  // 성공 시 로깅
+  if (insertedData && insertedData.length > 0) {
+    console.log(
+      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨`
+    );
+  }
+
+  // 16. 플랜 그룹 상태 업데이트
   if ((group.status as PlanStatus) === "draft") {
     try {
       await updatePlanGroupStatus(groupId, "saved");
