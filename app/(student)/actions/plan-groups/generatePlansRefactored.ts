@@ -373,7 +373,7 @@ async function _generatePlansFromGroupRefactored(
     // PlanGroupError인 경우 failureReason을 사용하여 구체적인 메시지 전달
     if (error instanceof PlanGroupError) {
       const userMessage = error.userMessage || error.message;
-      
+
       throw new AppError(
         userMessage,
         ErrorCode.BUSINESS_LOGIC_ERROR,
@@ -386,7 +386,7 @@ async function _generatePlansFromGroupRefactored(
         }
       );
     }
-    
+
     // 기타 에러는 그대로 throw
     throw error;
   }
@@ -408,7 +408,9 @@ async function _generatePlansFromGroupRefactored(
 
   if (deleteError) {
     throw new AppError(
-      `기존 플랜 삭제에 실패했습니다: ${deleteError.message || deleteError.code || "알 수 없는 오류"}`,
+      `기존 플랜 삭제에 실패했습니다: ${
+        deleteError.message || deleteError.code || "알 수 없는 오류"
+      }`,
       ErrorCode.INTERNAL_ERROR,
       500,
       true
@@ -578,7 +580,12 @@ async function _generatePlansFromGroupRefactored(
 
   // 필수 필드 검증
   const invalidPayloads = planPayloads.filter(
-    (p) => !p.plan_group_id || !p.student_id || !p.tenant_id || !p.content_id || !p.plan_date
+    (p) =>
+      !p.plan_group_id ||
+      !p.student_id ||
+      !p.tenant_id ||
+      !p.content_id ||
+      !p.plan_date
   );
 
   if (invalidPayloads.length > 0) {
@@ -622,36 +629,33 @@ async function _generatePlansFromGroupRefactored(
 
     // 사용자 친화적인 에러 메시지 생성
     let userMessage = "플랜 저장에 실패했습니다.";
-    
+
     if (insertError.message) {
       userMessage += ` ${insertError.message}`;
     }
-    
+
     if (insertError.details) {
       userMessage += ` (${insertError.details})`;
     }
-    
+
     if (insertError.hint) {
       userMessage += ` 힌트: ${insertError.hint}`;
     }
 
     // 특정 에러 코드에 대한 더 구체적인 메시지
     if (insertError.code === "23503") {
-      userMessage = "참조 무결성 오류가 발생했습니다. 콘텐츠, 학생, 또는 플랜 그룹 정보를 확인해주세요.";
+      userMessage =
+        "참조 무결성 오류가 발생했습니다. 콘텐츠, 학생, 또는 플랜 그룹 정보를 확인해주세요.";
     } else if (insertError.code === "23505") {
       userMessage = "중복된 플랜이 이미 존재합니다.";
     } else if (insertError.code === "23502") {
       userMessage = "필수 필드가 누락되었습니다. 플랜 데이터를 확인해주세요.";
     } else if (insertError.code === "23514") {
-      userMessage = "데이터 제약 조건을 위반했습니다. 플랜 데이터의 형식을 확인해주세요.";
+      userMessage =
+        "데이터 제약 조건을 위반했습니다. 플랜 데이터의 형식을 확인해주세요.";
     }
 
-    throw new AppError(
-      userMessage,
-      ErrorCode.INTERNAL_ERROR,
-      500,
-      true
-    );
+    throw new AppError(userMessage, ErrorCode.INTERNAL_ERROR, 500, true);
   }
 
   // 성공 시 로깅
@@ -666,7 +670,10 @@ async function _generatePlansFromGroupRefactored(
     try {
       await updatePlanGroupStatus(groupId, "saved");
     } catch (error) {
-      console.warn("[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패:", error);
+      console.warn(
+        "[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패:",
+        error
+      );
     }
   }
 
