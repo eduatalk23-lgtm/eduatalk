@@ -205,6 +205,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
     total_pages?: number | null;
     duration?: number | null;
     total_page_or_time?: number | null;
+    episodes?: Array<{
+      episode_number: number;
+      duration: number | null;
+    }> | null;
   }>;
   blocks: Array<{
     id: string;
@@ -406,6 +410,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
       total_pages?: number | null; // 책의 경우
       duration?: number | null; // 강의의 경우
       total_page_or_time?: number | null; // 커스텀의 경우
+      episodes?: Array<{
+        episode_number: number;
+        duration: number | null;
+      }> | null; // 강의의 경우 episode 정보
     }
   >();
 
@@ -552,6 +560,109 @@ async function _getScheduleResultData(groupId: string): Promise<{
         });
       }
     }
+  }
+
+  // 3.5. 강의 episodes 정보 조회 (소요시간 계산을 위해)
+  const allLectureIds = Array.from(new Set([...foundLectureIds, ...missingLectureIds]));
+  if (allLectureIds.length > 0) {
+    // 학생 강의 episodes 조회
+    const { data: studentEpisodes } = await queryClient
+      .from("student_lecture_episodes")
+      .select("lecture_id, episode_number, duration")
+      .in("lecture_id", allLectureIds)
+      .eq("student_id", targetStudentId)
+      .order("lecture_id", { ascending: true })
+      .order("episode_number", { ascending: true });
+
+    // 마스터 강의 episodes 조회 (학생 강의에 episodes가 없는 경우)
+    const lectureIdsWithEpisodes = new Set(
+      (studentEpisodes || []).map((e) => e.lecture_id)
+    );
+    const lectureIdsWithoutEpisodes = allLectureIds.filter(
+      (id) => !lectureIdsWithEpisodes.has(id)
+    );
+
+    let masterEpisodes: Array<{
+      lecture_id: string;
+      episode_number: number;
+      duration: number | null;
+    }> = [];
+
+    if (lectureIdsWithoutEpisodes.length > 0) {
+      // 마스터 강의 ID 조회 (학생 강의의 master_lecture_id)
+      const { data: studentLectures } = await queryClient
+        .from("lectures")
+        .select("id, master_lecture_id")
+        .in("id", lectureIdsWithoutEpisodes)
+        .eq("student_id", targetStudentId);
+
+      const masterLectureIds = Array.from(
+        new Set(
+          (studentLectures || [])
+            .map((l) => l.master_lecture_id)
+            .filter((id): id is string => id !== null)
+        )
+      );
+
+      if (masterLectureIds.length > 0) {
+        const { data: masterEpisodesData } = await supabase
+          .from("lecture_episodes")
+          .select("lecture_id, episode_number, duration")
+          .in("lecture_id", masterLectureIds)
+          .order("lecture_id", { ascending: true })
+          .order("episode_number", { ascending: true });
+
+        // 마스터 강의 ID를 학생 강의 ID로 매핑
+        const masterToStudentMap = new Map<string, string[]>();
+        (studentLectures || []).forEach((l) => {
+          if (l.master_lecture_id) {
+            if (!masterToStudentMap.has(l.master_lecture_id)) {
+              masterToStudentMap.set(l.master_lecture_id, []);
+            }
+            masterToStudentMap.get(l.master_lecture_id)!.push(l.id);
+          }
+        });
+
+        // 마스터 episodes를 학생 강의 ID로 매핑
+        (masterEpisodesData || []).forEach((ep) => {
+          const studentIds = masterToStudentMap.get(ep.lecture_id) || [];
+          studentIds.forEach((studentId) => {
+            masterEpisodes.push({
+              lecture_id: studentId,
+              episode_number: ep.episode_number,
+              duration: ep.duration,
+            });
+          });
+        });
+      }
+    }
+
+    // episodes 정보를 contentsMap에 추가
+    const episodesByLecture = new Map<
+      string,
+      Array<{ episode_number: number; duration: number | null }>
+    >();
+
+    [...(studentEpisodes || []), ...masterEpisodes].forEach((ep) => {
+      if (!episodesByLecture.has(ep.lecture_id)) {
+        episodesByLecture.set(ep.lecture_id, []);
+      }
+      episodesByLecture.get(ep.lecture_id)!.push({
+        episode_number: ep.episode_number,
+        duration: ep.duration,
+      });
+    });
+
+    // contentsMap에 episodes 정보 추가
+    episodesByLecture.forEach((episodes, lectureId) => {
+      const content = contentsMap.get(lectureId);
+      if (content) {
+        contentsMap.set(lectureId, {
+          ...content,
+          episodes: episodes.sort((a, b) => a.episode_number - b.episode_number),
+        });
+      }
+    });
   }
 
   // 4. 블록 데이터 처리 (플랜 생성 시와 동일한 방식으로 block_index 재할당)

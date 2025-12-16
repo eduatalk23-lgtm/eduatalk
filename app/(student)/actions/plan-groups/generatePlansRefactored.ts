@@ -606,9 +606,17 @@ async function _generatePlansFromGroupRefactored(
 
     // Episode별 플랜 분할 (Pre-calculated time 여부와 무관하게)
     // 큰 범위(예: 2~23)를 개별 episode로 분할하여 각 episode의 실제 duration을 정확히 반영
+    // 단, SchedulerEngine이 이미 episode별로 분할한 경우(start === end)는 재분할하지 않음
     const splitPlansForAssign = plansForAssign.flatMap((p) => {
       // 강의 콘텐츠만 episode별로 분할
       if (p.content_type === "lecture") {
+        // 이미 단일 episode로 분할된 경우(start === end)는 재분할하지 않음
+        // SchedulerEngine이 이미 episode별로 분할했을 수 있음
+        const isAlreadySingleEpisode = p.planned_start_page_or_time === p.planned_end_page_or_time;
+        if (isAlreadySingleEpisode) {
+          return [p];
+        }
+        // 범위가 있는 경우에만 분할
         return splitPlanTimeInputByEpisodes(p, contentDurationMap);
       }
       return [p];

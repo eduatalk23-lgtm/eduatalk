@@ -54,6 +54,10 @@ export type ContentData = {
   total_pages?: number | null; // 책의 경우
   duration?: number | null; // 강의의 경우
   total_page_or_time?: number | null; // 커스텀의 경우
+  episodes?: Array<{
+    episode_number: number;
+    duration: number | null;
+  }> | null; // 강의의 경우 episode 정보
 };
 
 export type BlockData = {

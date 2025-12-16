@@ -101,8 +101,11 @@ export function calculateEstimatedTime(
       total_pages: content.total_pages ?? null,
       duration: content.duration ?? null,
       total_page_or_time: content.total_page_or_time ?? null,
-      // ContentData에는 episodes 정보가 없으므로 null
-      episodes: null,
+      // ContentData에 episodes 정보가 있으면 사용
+      episodes: content.episodes?.map((ep) => ({
+        episode_number: ep.episode_number,
+        duration: ep.duration,
+      })) ?? null,
     });
   }
 
