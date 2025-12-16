@@ -1,8 +1,12 @@
 // 공통 콘텐츠 상세 정보 테이블 컴포넌트
 
+import { formatValue, isEmptyValue } from "@/lib/utils/formatValue";
+import { isValidUrl } from "@/lib/utils/urlHelpers";
+import { cn } from "@/lib/cn";
+
 type DetailRow = {
   label: string;
-  value: string | number | null;
+  value: string | number | null | undefined;
   isUrl?: boolean;
 };
 
@@ -29,14 +33,9 @@ function DetailRow({
   value: string | number | null | undefined;
   isUrl?: boolean;
 }) {
-  // null, undefined, 빈 문자열 처리
-  // 값이 없으면 해당 행을 표시하지 않음 (빈 값 숨김)
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-  
-  // URL인 경우 링크로 표시
-  const isUrlValue = isUrl || (typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://")));
+  const isEmpty = isEmptyValue(value);
+  const displayValue = formatValue(value);
+  const isUrlValue = !isEmpty && (isUrl || isValidUrl(value as string));
   
   return (
     <div className="flex flex-col gap-1">
@@ -47,11 +46,20 @@ function DetailRow({
           target="_blank"
           rel="noopener noreferrer"
           className="text-base text-indigo-600 hover:text-indigo-800 hover:underline break-all"
+          aria-label={`${label} 링크 열기`}
         >
           {String(value)}
         </a>
       ) : (
-        <p className="text-base text-gray-900">{String(value)}</p>
+        <p 
+          className={cn(
+            "text-base",
+            isEmpty ? "text-gray-400" : "text-gray-900"
+          )}
+          aria-label={isEmpty ? `${label}: 정보 없음` : undefined}
+        >
+          {displayValue}
+        </p>
       )}
     </div>
   );
