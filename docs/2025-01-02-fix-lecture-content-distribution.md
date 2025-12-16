@@ -63,7 +63,9 @@ if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDay
 - 회차 중복 배정, 누락, 첫 주 마지막 날 몰아 배정 문제 해결
 
 **최종 수정 (2025-01-02 재수정)**:
-- 각 날짜의 시작/끝 위치를 독립적으로 계산 (`dayStartPos = Math.round(i * dailyRange)`, `dayEndPos = Math.round((i + 1) * dailyRange)`)
+- `divideContentRange` 패턴을 정확히 따름 (currentPos를 누적하는 방식)
+- 각 날짜의 dayRange를 계산하고 currentPos를 업데이트하여 연속성 보장
+- `Math.round`는 dayRange 계산에만 사용하고, currentPos와 dayEnd는 이미 정수이므로 Math.round 불필요
 - 주차 경계에서 회차 재배정 문제 해결
 - 오차 누적 없이 정확한 회차 분배 보장
 

@@ -329,28 +329,34 @@ export class SchedulerEngine {
     
     // 강의 콘텐츠의 경우: 학습일 수에 맞춰 균등 분배
     // 학습일이 30일이고 회차가 30개면 하루 1개씩 분배
+    // divideContentRange 패턴 사용하여 연속성 보장
     if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDays > 0 && totalRange > 0) {
-      // 각 날짜의 배정 범위를 직접 계산하여 오차 누적 방지
       const dailyRange = totalRange / totalStudyDays;
+      let currentPos = 0; // 0부터 시작하는 상대 위치 (정수로 관리)
       
       for (let i = 0; i < sortedDates.length; i++) {
         const date = sortedDates[i];
         const isLastDay = i === sortedDates.length - 1;
         
-        // 각 날짜의 시작 위치와 끝 위치를 직접 계산 (누적 오차 방지)
-        const dayStartPos = Math.round(i * dailyRange);
-        const dayEndPos = isLastDay
-          ? totalRange
-          : Math.round((i + 1) * dailyRange);
+        // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 회차 배정
+        const dayRange = isLastDay
+          ? totalRange - currentPos
+          : Math.round(dailyRange);
+        
+        const dayEnd = currentPos + dayRange;
         
         // 실제 회차 범위 (start_range 오프셋 적용)
-        const actualStart = content.start_range + dayStartPos;
-        const actualEnd = content.start_range + dayEndPos;
+        // currentPos와 dayEnd는 이미 정수이므로 Math.round 불필요
+        const actualStart = content.start_range + currentPos;
+        const actualEnd = content.start_range + dayEnd;
         
         // 회차가 있는 경우만 배정
         if (actualEnd > actualStart) {
           result.set(date, { start: actualStart, end: actualEnd });
         }
+        
+        // 다음 날을 위해 현재 위치 업데이트 (정확한 연속성 보장)
+        currentPos = dayEnd;
       }
       
       return result;
