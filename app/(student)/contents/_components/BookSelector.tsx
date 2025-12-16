@@ -1,0 +1,375 @@
+"use client";
+
+import { useState } from "react";
+import { createBookWithoutRedirect } from "@/app/(student)/actions/contentActions";
+import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
+import { BookDetail } from "@/lib/types/plan";
+import { useToast } from "@/components/ui/ToastProvider";
+
+type BookSelectorProps = {
+  value?: string | null; // 현재 선택된 교재 ID
+  onChange: (bookId: string | null) => void; // 교재 선택 변경 콜백
+  studentBooks: Array<{ id: string; title: string }>; // 학생의 교재 목록
+  onCreateBook?: (bookId: string) => void; // 새 교재 생성 후 콜백
+  disabled?: boolean;
+  className?: string;
+};
+
+export function BookSelector({
+  value,
+  onChange,
+  studentBooks,
+  onCreateBook,
+  disabled = false,
+  className = "",
+}: BookSelectorProps) {
+  const { showError, showSuccess } = useToast();
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [bookDetails, setBookDetails] = useState<Omit<BookDetail, "id" | "created_at">[]>([]);
+
+  // 검색된 교재 목록
+  const filteredBooks = studentBooks.filter((book) =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // 현재 선택된 교재 정보
+  const selectedBook = studentBooks.find((book) => book.id === value);
+
+  const handleSelectBook = (bookId: string) => {
+    onChange(bookId);
+    setIsSearching(false);
+    setSearchQuery("");
+  };
+
+  const handleUnselectBook = () => {
+    onChange(null);
+  };
+
+  const handleCreateAndSelect = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsCreating(true);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+
+      // 목차 정보 추가
+      if (bookDetails.length > 0) {
+        const detailsWithOrder = bookDetails.map((detail, index) => ({
+          major_unit: detail.major_unit || null,
+          minor_unit: detail.minor_unit || null,
+          page_number: detail.page_number || 0,
+          display_order: detail.display_order || index,
+        }));
+        formData.append("details", JSON.stringify(detailsWithOrder));
+      }
+
+      const result = await createBookWithoutRedirect(formData);
+
+      if (result.success && result.bookId) {
+        showSuccess("교재가 성공적으로 등록되었습니다.");
+        onChange(result.bookId);
+        setIsCreating(false);
+        setBookDetails([]);
+        if (onCreateBook) {
+          onCreateBook(result.bookId);
+        }
+      } else {
+        throw new Error(result.error || "교재 생성에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("교재 생성 실패:", error);
+      showError(error instanceof Error ? error.message : "교재 생성에 실패했습니다.");
+      setIsCreating(false);
+    }
+  };
+
+  if (isCreating) {
+    return (
+      <div className={`flex flex-col gap-4 ${className}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">교재 등록</h3>
+          <button
+            type="button"
+            onClick={() => setIsCreating(false)}
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            취소
+          </button>
+        </div>
+        <form onSubmit={handleCreateAndSelect} className="flex flex-col gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                교재명 <span className="text-red-500">*</span>
+              </label>
+              <input
+                name="title"
+                required
+                placeholder="교재명을 입력하세요"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                개정교육과정
+              </label>
+              <input
+                name="revision"
+                placeholder="예: 2022개정"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                학년/학기
+              </label>
+              <input
+                name="semester"
+                placeholder="예: 고1-1"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                교과
+              </label>
+              <select
+                name="subject_category"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">선택하세요</option>
+                <option value="국어">국어</option>
+                <option value="수학">수학</option>
+                <option value="영어">영어</option>
+                <option value="사회">사회</option>
+                <option value="과학">과학</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                과목
+              </label>
+              <input
+                name="subject"
+                placeholder="예: 화법과 작문"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                출판사
+              </label>
+              <input
+                name="publisher"
+                placeholder="출판사명을 입력하세요"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                총 페이지
+              </label>
+              <input
+                name="total_pages"
+                type="number"
+                min="1"
+                placeholder="예: 255"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                난이도
+              </label>
+              <select
+                name="difficulty"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">선택하세요</option>
+                <option value="하">하</option>
+                <option value="중">중</option>
+                <option value="중상">중상</option>
+                <option value="상">상</option>
+                <option value="최상">최상</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                메모
+              </label>
+              <textarea
+                name="notes"
+                rows={3}
+                placeholder="메모를 입력하세요"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* 교재 상세 정보 (목차) */}
+          <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">교재 목차 (선택사항)</h4>
+            <BookDetailsManager
+              initialDetails={[]}
+              onChange={(details) => {
+                setBookDetails(details);
+              }}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCreating(false)}
+              className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {isCreating ? "등록 중..." : "등록 및 선택"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  if (isSearching) {
+    return (
+      <div className={`flex flex-col gap-4 ${className}`}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">교재 검색 및 선택</h3>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSearching(false);
+              setSearchQuery("");
+            }}
+            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            취소
+          </button>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="교재명으로 검색..."
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+          {filteredBooks.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {filteredBooks.map((book) => (
+                <div
+                  key={book.id}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{book.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectBook(book.id)}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                  >
+                    선택하기
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-8 text-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {searchQuery ? "검색 결과가 없습니다." : "등록된 교재가 없습니다."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex flex-col gap-4 ${className}`}>
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          연결된 교재
+        </label>
+        <div className="flex gap-2">
+          {studentBooks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsSearching(true)}
+              disabled={disabled}
+              className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              교재 검색
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsCreating(true)}
+            disabled={disabled}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            교재 등록
+          </button>
+        </div>
+      </div>
+
+      {selectedBook ? (
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-900 dark:text-gray-100">{selectedBook.title}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleUnselectBook}
+              disabled={disabled}
+              className="rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-red-700 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              해제
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-8 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            연결된 교재가 없습니다.
+          </p>
+          <div className="flex justify-center gap-2">
+            {studentBooks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsSearching(true)}
+                disabled={disabled}
+                className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                교재 검색하여 연결
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsCreating(true)}
+              disabled={disabled}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              새 교재 등록하여 연결
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

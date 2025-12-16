@@ -1,21 +1,36 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateLecture } from "@/app/(student)/actions/contentActions";
 import { Lecture } from "@/app/types/content";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
+import { BookSelector } from "@/app/(student)/contents/_components/BookSelector";
 
-export function LectureEditForm({ lecture }: { lecture: Lecture }) {
+type LectureEditFormProps = {
+  lecture: Lecture & { linked_book_id?: string | null };
+  studentBooks: Array<{ id: string; title: string }>;
+  linkedBookId: string | null;
+};
+
+export function LectureEditForm({ lecture, studentBooks, linkedBookId }: LectureEditFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(linkedBookId);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    // 교재 ID 추가
+    if (selectedBookId) {
+      formData.set("linked_book_id", selectedBookId);
+    } else {
+      formData.set("linked_book_id", "");
+    }
 
     startTransition(async () => {
       try {
@@ -129,6 +144,15 @@ export function LectureEditForm({ lecture }: { lecture: Lecture }) {
             className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-gray-900/20 dark:focus:ring-gray-100/20 transition-colors"
           />
         </div>
+      </div>
+
+      {/* 교재 선택 */}
+      <div className="md:col-span-2">
+        <BookSelector
+          value={selectedBookId}
+          onChange={setSelectedBookId}
+          studentBooks={studentBooks}
+        />
       </div>
 
       {/* 버튼 */}

@@ -11,6 +11,8 @@ import {
 import { getSubjectGroups, getSubjectsByGroup } from "@/lib/data/subjects";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { getBooks } from "@/lib/data/studentContents";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 
 /**
  * 개정교육과정 목록 조회
@@ -140,4 +142,24 @@ async function _getSubjectsByGroup(subjectGroupId: string): Promise<Subject[]> {
 }
 
 export const getSubjectsByGroupAction = withErrorHandling(_getSubjectsByGroup);
+
+/**
+ * 학생의 교재 목록 조회
+ */
+async function _getStudentBooks(): Promise<Array<{ id: string; title: string }>> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  const tenantContext = await getTenantContext();
+  const books = await getBooks(user.userId, tenantContext?.tenantId || null);
+  
+  return books.map((book) => ({
+    id: book.id,
+    title: book.title,
+  }));
+}
+
+export const getStudentBooksAction = withErrorHandling(_getStudentBooks);
 

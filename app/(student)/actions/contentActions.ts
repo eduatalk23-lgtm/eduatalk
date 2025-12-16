@@ -288,6 +288,7 @@ export async function addLecture(formData: FormData) {
   const notes = String(formData.get("notes") || "");
 
   const totalEpisodes = getNumberFromFormData(formData, "total_episodes", { min: 0 });
+  const linkedBookId = String(formData.get("linked_book_id") || "");
   
   const result = await createLectureData({
     tenant_id: tenantContext.tenantId,
@@ -300,6 +301,7 @@ export async function addLecture(formData: FormData) {
     platform: platform || null,
     difficulty_level: difficulty || null,
     duration: duration,
+    linked_book_id: linkedBookId || null,
     notes: notes || null,
   });
 
@@ -373,7 +375,7 @@ export async function updateLecture(id: string, formData: FormData) {
     platform: platform || null,
     difficulty_level: difficulty || null,
     duration: duration,
-    // linked_book_id는 master_lectures에만 있고 student_lectures에는 없음
+    linked_book_id: linkedBookId || null,
     notes: notes || null,
   });
 

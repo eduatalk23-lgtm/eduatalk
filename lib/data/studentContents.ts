@@ -278,6 +278,7 @@ export async function createLecture(
     platform?: string | null;
     difficulty_level?: string | null;
     duration?: number | null;
+    linked_book_id?: string | null;
     notes?: string | null;
   }
 ): Promise<{ success: boolean; lectureId?: string; error?: string }> {
@@ -294,6 +295,7 @@ export async function createLecture(
     platform: lecture.platform || null,
     difficulty_level: lecture.difficulty_level || null,
     duration: lecture.duration || null,
+    linked_book_id: lecture.linked_book_id || null,
     notes: lecture.notes || null,
   };
 

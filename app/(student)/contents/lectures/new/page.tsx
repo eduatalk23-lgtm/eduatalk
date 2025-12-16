@@ -8,6 +8,7 @@ import { LectureEpisodesManager } from "@/app/(student)/contents/_components/Lec
 import {
   getCurriculumRevisionsAction,
   getPlatformsAction,
+  getStudentBooksAction,
 } from "@/app/(student)/actions/contentMetadataActions";
 import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
@@ -15,6 +16,7 @@ import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
+import { BookSelector } from "@/app/(student)/contents/_components/BookSelector";
 
 export default function NewLecturePage() {
   const [isPending, startTransition] = useTransition();
@@ -30,10 +32,22 @@ export default function NewLecturePage() {
   const [selectedSubjectGroupId, setSelectedSubjectGroupId] = useState<string>("");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [selectedPlatformId, setSelectedPlatformId] = useState<string>("");
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [studentBooks, setStudentBooks] = useState<Array<{ id: string; title: string }>>([]);
 
   useEffect(() => {
     loadMetadata();
+    loadStudentBooks();
   }, []);
+
+  async function loadStudentBooks() {
+    try {
+      const books = await getStudentBooksAction();
+      setStudentBooks(books);
+    } catch (error) {
+      console.error("교재 목록 로드 실패:", error);
+    }
+  }
 
   useEffect(() => {
     if (selectedRevisionId) {
@@ -120,6 +134,11 @@ export default function NewLecturePage() {
       if (platform) {
         formData.set("platform", platform.name);
       }
+    }
+
+    // 교재 ID 추가
+    if (selectedBookId) {
+      formData.set("linked_book_id", selectedBookId);
     }
 
     startTransition(async () => {
@@ -283,6 +302,20 @@ export default function NewLecturePage() {
 
         {/* 강의 회차 정보 */}
         <LectureEpisodesManager />
+
+        {/* 교재 선택 */}
+        <div className="md:col-span-2">
+          <BookSelector
+            value={selectedBookId}
+            onChange={setSelectedBookId}
+            studentBooks={studentBooks}
+            onCreateBook={(bookId) => {
+              setSelectedBookId(bookId);
+              // 새로 생성된 교재를 목록에 추가하기 위해 페이지 새로고침
+              router.refresh();
+            }}
+          />
+        </div>
 
         {/* 버튼 */}
         <ContentFormActions
