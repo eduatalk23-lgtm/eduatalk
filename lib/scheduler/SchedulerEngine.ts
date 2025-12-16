@@ -331,22 +331,30 @@ export class SchedulerEngine {
     // 학습일이 30일이고 회차가 30개면 하루 1개씩 분배
     if (content.content_type === "lecture" && durationInfo.episodes && totalStudyDays > 0 && totalRange > 0) {
       const dailyRange = totalRange / totalStudyDays;
-      let currentPos = 0;
+      let currentPos = 0; // 0부터 시작하는 상대 위치
       
       for (let i = 0; i < sortedDates.length; i++) {
         const date = sortedDates[i];
         const isLastDay = i === sortedDates.length - 1;
         
-        const dayStart = currentStart + Math.round(currentPos);
-        const dayEnd = isLastDay 
-          ? totalEnd 
-          : currentStart + Math.round(currentPos + dailyRange);
+        // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 회차 배정
+        const dayRange = isLastDay
+          ? totalRange - currentPos
+          : Math.round(dailyRange);
         
-        if (dayEnd > dayStart) {
-          result.set(date, { start: dayStart, end: dayEnd });
+        const dayEnd = currentPos + dayRange;
+        
+        // 실제 회차 범위 (start_range 오프셋 적용)
+        const actualStart = content.start_range + Math.round(currentPos);
+        const actualEnd = content.start_range + Math.round(dayEnd);
+        
+        // 회차가 있는 경우만 배정
+        if (actualEnd > actualStart) {
+          result.set(date, { start: actualStart, end: actualEnd });
         }
         
-        currentPos += dailyRange;
+        // 다음 날을 위해 현재 위치 업데이트
+        currentPos = dayEnd;
       }
       
       return result;
