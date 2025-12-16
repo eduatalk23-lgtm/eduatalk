@@ -569,6 +569,25 @@ export class SchedulerEngine {
       }>
     >();
 
+    // 날짜 배열에서 가장 가까운 날짜 찾기 (헬퍼 함수)
+    const findClosestDate = (targetDate: string, dateList: string[]): string | null => {
+      if (dateList.length === 0) return null;
+      
+      const target = new Date(targetDate).getTime();
+      let closestDate = dateList[0];
+      let minDiff = Math.abs(new Date(closestDate).getTime() - target);
+      
+      for (const date of dateList) {
+        const diff = Math.abs(new Date(date).getTime() - target);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestDate = date;
+        }
+      }
+      
+      return closestDate;
+    };
+
     // studyPlansByDate 구성
     sortedContents.forEach((content) => {
       const contentRangeMap = rangeMap.get(content.content_id);
@@ -583,10 +602,29 @@ export class SchedulerEngine {
       const rangeMapDates = Array.from(contentRangeMap.keys());
       const matchedDates: string[] = [];
       const unmatchedDates: string[] = [];
+      const adjustedDates: Map<string, string> = new Map(); // 원본 날짜 -> 조정된 날짜
 
       contentRangeMap.forEach((range, date) => {
         if (!studyDaysList.includes(date)) {
           unmatchedDates.push(date);
+          
+          // 가장 가까운 학습일로 자동 조정
+          const closestDate = findClosestDate(date, studyDaysList);
+          if (closestDate) {
+            adjustedDates.set(date, closestDate);
+            
+            // 조정된 날짜에 플랜 추가
+            if (!studyPlansByDate.has(closestDate)) {
+              studyPlansByDate.set(closestDate, []);
+            }
+            studyPlansByDate.get(closestDate)!.push({
+              content,
+              start: range.start,
+              end: range.end,
+            });
+            
+            matchedDates.push(closestDate);
+          }
           return;
         }
 
@@ -601,12 +639,18 @@ export class SchedulerEngine {
         });
       });
 
-      // 디버깅: 날짜 불일치 감지
-      if (unmatchedDates.length > 0 && process.env.NODE_ENV === "development") {
-        console.warn("[SchedulerEngine] rangeMap 날짜가 studyDaysList에 없음:", {
+      // 디버깅: 날짜 불일치 감지 및 조정 로그
+      if (unmatchedDates.length > 0) {
+        const adjustmentLog: Record<string, string> = {};
+        adjustedDates.forEach((adjusted, original) => {
+          adjustmentLog[original] = adjusted;
+        });
+        
+        console.warn("[SchedulerEngine] rangeMap 날짜가 studyDaysList에 없어 자동 조정:", {
           content_id: content.content_id,
           rangeMapDates,
           unmatchedDates,
+          adjustedDates: adjustmentLog,
           studyDaysListSample: studyDaysList.slice(0, 5),
           studyDaysListLength: studyDaysList.length,
         });

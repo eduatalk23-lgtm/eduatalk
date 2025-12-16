@@ -71,7 +71,21 @@ export async function POST(request: NextRequest) {
       return apiUnauthorized();
     }
 
-    const body: BatchRequest & { student_id?: string } = await request.json();
+    // 요청 본문 파싱 (빈 요청 처리)
+    let body: BatchRequest & { student_id?: string };
+    try {
+      const text = await request.text();
+      if (!text || text.trim() === "") {
+        return apiBadRequest("요청 본문이 비어있습니다.");
+      }
+      body = JSON.parse(text);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return apiBadRequest("요청 본문이 유효한 JSON 형식이 아닙니다.");
+      }
+      throw error;
+    }
+
     const { contents, includeMetadata = false, student_id } = body;
 
     if (!contents || !Array.isArray(contents) || contents.length === 0) {
