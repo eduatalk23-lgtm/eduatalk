@@ -12,15 +12,16 @@ import type {
   Enums,
   Json,
 } from "@/lib/supabase/database.types";
+import type { PlanGroup as DomainPlanGroup } from "@/lib/types/plan/domain";
 
 // ============================================
 // Database 타입에서 파생된 타입
 // ============================================
 
 /**
- * 플랜 그룹 타입
+ * 플랜 그룹 타입 (도메인 타입 사용)
  */
-export type PlanGroup = Tables<"plan_groups">;
+export type PlanGroup = DomainPlanGroup;
 
 /**
  * 플랜 그룹 생성 입력 타입

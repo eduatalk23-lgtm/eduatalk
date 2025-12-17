@@ -6,6 +6,7 @@
  */
 
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { ContentType, StudentLevel, ExclusionType } from "@/lib/types/common";
 
 // ============================================
 // Enum 타입

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PostgrestError } from "@supabase/supabase-js";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -320,14 +321,12 @@ export async function getPlansForStudent(
       errorMessage.includes("<!DOCTYPE html>");
     const isServerError =
       isHtmlError ||
-      supabaseError?.code === "500" ||
-      supabaseError?.statusCode === 500;
+      supabaseError?.code === "500";
 
     // 서버 에러인 경우 재시도 로직
     if (isServerError) {
       console.warn("[data/studentPlans] 서버 에러 발생, 재시도 중...", {
         errorCode: supabaseError?.code,
-        statusCode: supabaseError?.statusCode,
         isHtmlError,
       });
 

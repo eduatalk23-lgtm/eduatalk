@@ -2,7 +2,8 @@
  * 템플릿 데이터와 학생 입력 데이터를 병합하는 유틸리티
  */
 
-import type { WizardData, TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { TemplateLockedFields } from "@/lib/types/plan/input";
 
 /**
  * 템플릿 데이터와 학생 입력 데이터를 병합합니다.

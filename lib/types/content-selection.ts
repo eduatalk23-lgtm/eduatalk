@@ -10,7 +10,8 @@
 // ============================================================================
 
 // 공통 타입은 lib/types/common.ts에서 import
-export type { ContentType, ExclusionType } from "@/lib/types/common";
+import type { ContentType, ExclusionType } from "@/lib/types/common";
+export type { ContentType, ExclusionType };
 
 // ============================================================================
 // 콘텐츠 관련 타입

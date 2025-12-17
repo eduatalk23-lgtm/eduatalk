@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -33,6 +34,7 @@ export type Lecture = {
   platform?: string | null;
   difficulty_level?: string | null;
   duration?: number | null; // 분 단위
+  total_episodes?: number | null; // 총 에피소드 수
   linked_book_id?: string | null;
   notes?: string | null;
   created_at?: string | null;

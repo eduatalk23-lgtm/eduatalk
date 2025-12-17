@@ -15,6 +15,7 @@ import type {
   PlanExclusion,
   AcademySchedule,
 } from "@/lib/types/plan";
+import type { PlanStatus } from "@/lib/types/plan/domain";
 import type {
   PlanGroupFilters,
   StudentPlanFilters,
@@ -175,7 +176,7 @@ export async function updatePlanGroupStatus(
     return { success: false, error: "유효하지 않은 상태입니다." };
   }
 
-  return updatePlanGroup(groupId, studentId, { status });
+  return updatePlanGroup(groupId, studentId, { status: status as PlanStatus });
 }
 
 // ============================================

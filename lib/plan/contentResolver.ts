@@ -523,14 +523,15 @@ export async function loadContentDurations(
 
     if (studentEpisodes.length > 0) {
       // Episode 정보 변환 (타입 안전성 강화)
+      type EpisodeItem = { id: string; episode_number: number; episode_title: string | null; duration: number | null };
       episodes = studentEpisodes
         .filter(
-          (ep): ep is { episode_number: number; duration: number | null } =>
+          (ep: EpisodeItem): ep is EpisodeItem & { episode_number: number } =>
             ep.episode_number !== null &&
             ep.episode_number !== undefined &&
             ep.episode_number > 0
         )
-        .map((ep) => ({
+        .map((ep: EpisodeItem) => ({
           episode_number: ep.episode_number,
           duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
         }));
@@ -625,16 +626,17 @@ export async function loadContentDurations(
     for (const [masterId, { content, masterLecture }] of masterLectureMap) {
       // 배치 조회한 episode 정보 사용 (타입 안전성 개선)
       const masterEpisodes = masterEpisodesMap.get(masterId) ?? [];
+      type MasterEpisodeItem = { id: string; episode_number: number; episode_title: string | null; duration: number | null };
       const episodes: Array<{ episode_number: number; duration: number | null }> | null =
         masterEpisodes.length > 0
           ? masterEpisodes
               .filter(
-                (ep): ep is { episode_number: number; duration: number | null } =>
+                (ep: MasterEpisodeItem): ep is MasterEpisodeItem & { episode_number: number } =>
                   ep.episode_number !== null &&
                   ep.episode_number !== undefined &&
                   ep.episode_number > 0
               )
-              .map((ep) => ({
+              .map((ep: MasterEpisodeItem) => ({
                 episode_number: ep.episode_number,
                 duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
               }))

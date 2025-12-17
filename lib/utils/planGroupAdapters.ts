@@ -7,7 +7,7 @@
 
 import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, SchedulerType, ExclusionType } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
+import { getSchedulerOptionsWithTimeSettings, extractTimeSettingsFromSchedulerOptions } from "@/lib/utils/schedulerOptions";
 
 /**
  * PlanGroup을 WizardData로 변환
@@ -35,7 +35,7 @@ export function planGroupToWizardData(
 ): WizardData {
   // scheduler_options에서 time_settings 추출
   const schedulerOptions = getSchedulerOptionsWithTimeSettings(group);
-  const timeSettings = schedulerOptions?.time_settings;
+  const timeSettings = extractTimeSettingsFromSchedulerOptions(schedulerOptions);
 
   // 콘텐츠 분리 (학생/추천)
   let studentContents: any[] = [];
@@ -62,12 +62,12 @@ export function planGroupToWizardData(
   return {
     // Step 1: 기본 정보
     name: group.name || "",
-    plan_purpose: (group.plan_purpose as PlanPurpose) || "",
+    plan_purpose: (group.plan_purpose === "기타" ? "" : (group.plan_purpose as "내신대비" | "모의고사(수능)" | "")) || "",
     scheduler_type: (group.scheduler_type as SchedulerType) || "",
-    scheduler_options: {
+    scheduler_options: schedulerOptions ? {
       study_days: schedulerOptions.study_days,
       review_days: schedulerOptions.review_days,
-    },
+    } : undefined,
     period_start: group.period_start,
     period_end: group.period_end,
     target_date: group.target_date || undefined,

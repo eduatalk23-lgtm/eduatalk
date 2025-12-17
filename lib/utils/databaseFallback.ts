@@ -4,7 +4,7 @@
  * 다양한 에러 타입에 대한 fallback 처리를 지원합니다.
  */
 
-import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { ErrorCodeCheckers, POSTGREST_ERROR_CODES, POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 /**
  * 컬럼 누락 에러인지 확인
@@ -43,8 +43,6 @@ export async function checkViewExists(
       .from(viewName)
       .select("1")
       .limit(0);
-    
-import { POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
 
     // PGRST205 에러는 View가 없다는 의미
     if (error?.code === POSTGREST_ERROR_CODES.TABLE_VIEW_NOT_FOUND) {
@@ -83,8 +81,6 @@ import { POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
  * const result = await withErrorFallback(
  *   () => query(),
  *   () => fallbackQuery(),
-import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
-
  *   (error) => error?.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN || error?.code === POSTGRES_ERROR_CODES.UNDEFINED_TABLE
  * );
  * ```
