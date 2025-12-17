@@ -257,9 +257,10 @@ export async function getPlansForStudent(
 
   if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id 컬럼이 없는 경우
+    // 필요한 컬럼만 선택하여 성능 최적화
     let fallbackQuery = supabase
       .from("student_plan")
-      .select("*")
+      .select("id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at")
       .eq("student_id", filters.studentId);
 
     if (filters.tenantId) {
