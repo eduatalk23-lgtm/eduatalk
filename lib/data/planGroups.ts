@@ -17,6 +17,7 @@ import {
   DailyScheduleInfo,
   PlanContentWithDetails,
 } from "@/lib/types/plan";
+import { isPlanContentWithDetails } from "@/lib/types/guards";
 import { logError } from "@/lib/errors/handler";
 import { checkColumnExists } from "@/lib/utils/migrationStatus";
 
@@ -1011,7 +1012,9 @@ export async function createPlanContents(
 
   const payload = contents.map((content, index) => {
     // PlanContentWithDetails 타입으로 안전하게 처리
-    const contentWithDetails = content as PlanContentWithDetails;
+    const contentWithDetails = isPlanContentWithDetails(content)
+      ? content
+      : { ...content, start_detail_id: null, end_detail_id: null };
     
     return {
       tenant_id: tenantId,
