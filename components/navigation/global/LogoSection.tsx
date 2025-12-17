@@ -22,11 +22,11 @@ export function LogoSection({
       <div className={layoutStyles.flexBetween}>
         <a
           href={dashboardHref}
-          className={`${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`}
+          className={`${layoutStyles.flexCenter} text-h2 font-semibold ${layoutStyles.textHeading}`}
         >
           <span>⏱️</span>
           <span>TimeLevelUp</span>
-          <span className={`ml-2 text-xs ${layoutStyles.textMuted}`}>{roleLabel}</span>
+          <span className={`ml-2 text-body-2 ${layoutStyles.textMuted}`}>{roleLabel}</span>
         </a>
       </div>
     );
@@ -37,11 +37,11 @@ export function LogoSection({
     <div className={layoutStyles.flexBetween}>
       <a
         href={dashboardHref}
-        className={`${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`}
+        className={`${layoutStyles.flexCenter} text-h2 font-semibold ${layoutStyles.textHeading}`}
       >
         <span>⏱️</span>
         <span>TimeLevelUp</span>
-        <span className={`text-xs ${layoutStyles.textMuted}`}>{roleLabel}</span>
+        <span className={`text-body-2 ${layoutStyles.textMuted}`}>{roleLabel}</span>
       </a>
     </div>
   );

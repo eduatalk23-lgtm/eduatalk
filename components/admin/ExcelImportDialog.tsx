@@ -100,7 +100,7 @@ export default function ExcelImportDialog({
         <div className="flex flex-col gap-2">
           <label
             htmlFor="excel-file-input"
-            className="block text-sm font-medium text-[var(--text-secondary)]"
+            className="block text-body-2-bold text-[var(--text-secondary)]"
           >
             Excel 파일 선택
           </label>
@@ -111,10 +111,10 @@ export default function ExcelImportDialog({
             accept=".xlsx,.xls"
             onChange={handleFileSelect}
             disabled={isLoading}
-            className="block w-full text-sm text-[var(--text-tertiary)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+            className="block w-full text-body-2 text-[var(--text-tertiary)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-body-2 file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
           />
           {selectedFile && (
-            <p className="text-sm text-[var(--text-secondary)]">
+            <p className="text-body-2 text-[var(--text-secondary)]">
               선택된 파일: <span className="font-medium">{selectedFile.name}</span> (
               {(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
             </p>
@@ -122,7 +122,7 @@ export default function ExcelImportDialog({
         </div>
 
         <div className="rounded-lg border border-warning-200 bg-warning-50 dark:bg-warning-900/30 p-3">
-          <p className="text-sm text-warning-800 dark:text-warning-200">
+          <p className="text-body-2 text-warning-800 dark:text-warning-200">
             <strong>주의:</strong> 업로드된 데이터는 기존 데이터를 모두 삭제하고 새로 추가합니다.
             중요한 데이터는 미리 백업해주세요.
           </p>

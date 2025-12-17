@@ -88,34 +88,34 @@ export class GlobalErrorBoundary extends Component<
             {isDevelopment && error && (
               <div className="mt-6 rounded-lg border border-error-200 bg-error-50 dark:bg-error-900/30 p-4">
                 <details className="flex flex-col gap-2">
-                  <summary className="cursor-pointer text-sm font-semibold text-error-800 dark:text-error-200 hover:text-error-900 dark:hover:text-error-100">
+                  <summary className="cursor-pointer text-body-2-bold text-error-800 dark:text-error-200 hover:text-error-900 dark:hover:text-error-100">
                     개발자 정보 (개발 모드에서만 표시)
                   </summary>
                   <div className="flex flex-col gap-3">
                     <div>
-                      <div className="text-xs font-semibold text-error-700 dark:text-error-300 mb-1">
+                      <div className="text-body-2 font-semibold text-error-700 dark:text-error-300 mb-1">
                         에러 메시지:
                       </div>
-                      <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-xs text-error-900 dark:text-error-100 whitespace-pre-wrap break-words">
+                      <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-body-2 text-error-900 dark:text-error-100 whitespace-pre-wrap break-words">
                         {error.toString()}
                       </pre>
                     </div>
                     {error.stack && (
                       <div>
-                        <div className="text-xs font-semibold text-error-700 dark:text-error-300 mb-1">
+                        <div className="text-body-2 font-semibold text-error-700 dark:text-error-300 mb-1">
                           스택 트레이스:
                         </div>
-                        <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-xs text-error-900 dark:text-error-100 whitespace-pre-wrap break-words max-h-60">
+                        <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-body-2 text-error-900 dark:text-error-100 whitespace-pre-wrap break-words max-h-60">
                           {error.stack}
                         </pre>
                       </div>
                     )}
                     {errorInfo && errorInfo.componentStack && (
                       <div>
-                        <div className="text-xs font-semibold text-error-700 dark:text-error-300 mb-1">
+                        <div className="text-body-2 font-semibold text-error-700 dark:text-error-300 mb-1">
                           컴포넌트 스택:
                         </div>
-                        <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-xs text-error-900 dark:text-error-100 whitespace-pre-wrap break-words max-h-60">
+                        <pre className="overflow-auto rounded bg-error-100 dark:bg-error-900/50 p-2 text-body-2 text-error-900 dark:text-error-100 whitespace-pre-wrap break-words max-h-60">
                           {errorInfo.componentStack}
                         </pre>
                       </div>

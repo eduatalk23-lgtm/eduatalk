@@ -173,7 +173,7 @@ export const designTokens = {
  */
 export const navItemStyles = {
   // 기본 스타일 - border-l-2를 기본으로 두어 레이아웃 시프트 방지
-  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition border-l-2",
+  base: "flex items-center gap-2 rounded-lg px-3 py-2 text-body-2 font-medium transition border-l-2",
 
   // 포커스 스타일
   focus: designTokens.focus.ring,
@@ -195,7 +195,7 @@ export const navItemStyles = {
  * 카테고리 헤더 스타일
  */
 export const categoryHeaderStyles = {
-  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition border-l-2",
+  base: "flex w-full items-center justify-between rounded-lg px-3 py-2 text-body-2 font-medium transition border-l-2",
   focus: navItemStyles.focus,
   active: navItemStyles.active,
   inactive: navItemStyles.inactive,
@@ -206,7 +206,7 @@ export const categoryHeaderStyles = {
  * 하위 메뉴 아이템 스타일
  */
 export const subItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition border-l-2",
+  base: "flex items-center gap-2 rounded-lg px-4 py-2 text-body-2 font-medium transition border-l-2",
   focus: navItemStyles.focus,
   active: `${designTokens.colors.primary.bg50} ${designTokens.colors.primary.text500} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray.text700} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText} border-transparent`,
@@ -216,7 +216,7 @@ export const subItemStyles = {
  * 자식 메뉴 아이템 스타일 (3단계)
  */
 export const childItemStyles = {
-  base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition border-l-2",
+  base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-body-2 font-medium transition border-l-2",
   focus: navItemStyles.focus,
   active: `${designTokens.colors.primary.bg100} ${designTokens.colors.primary.text800} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray.text600} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText} border-transparent`,
@@ -319,9 +319,9 @@ export function getChildItemClasses({
  */
 export const tooltipStyles = {
   /** 기본 툴팁 (Breadcrumbs 등에서 사용 - 위쪽에 표시) */
-  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
+  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-body-2 text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
   /** 사이드 툴팁 (CategoryNav collapsed 모드에서 사용 - 오른쪽에 표시, hover 시 표시) */
-  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
+  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-body-2 font-medium text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
   /** 툴팁 화살표 스타일 */
   arrow:
     "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--text-primary)] dark:border-t-[var(--text-primary)]",
@@ -341,7 +341,7 @@ export const tooltipStyles = {
  * 모든 스타일은 다크 모드를 지원합니다.
  */
 export const breadcrumbStyles = {
-  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray.text600} ${designTokens.colors.gray.bg50} border-b border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-700))]`,
+  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-body-2 ${designTokens.colors.gray.text600} ${designTokens.colors.gray.bg50} border-b border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-700))]`,
   list: "flex items-center gap-1 flex-wrap max-w-full",
   separator: designTokens.colors.gray.text400,
   link: `${designTokens.colors.gray.hoverText} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition`,
@@ -403,7 +403,7 @@ export const sidebarStyles = {
   tenantInfo: `${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${layoutStyles.padding3}`,
   navSection: "px-3 py-4",
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
-  logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
+  logoLink: `${layoutStyles.flexCenter} text-h2 font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
   expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary.bg50} hover:bg-primary-100 dark:hover:bg-primary-900/50 ${designTokens.colors.primary.text500} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
 };

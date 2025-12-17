@@ -17,9 +17,9 @@ export function TenantInfo({ tenantInfo, isCollapsed, variant = "sidebar" }: Ten
     return (
       <div className={`rounded-lg ${layoutStyles.bgGray50} px-3 py-2`}>
         <div className={layoutStyles.flexCenter}>
-          <span className="text-sm">🏢</span>
+          <span className="text-body-2">🏢</span>
           <div className="flex-1 min-w-0">
-            <div className={`text-sm font-semibold ${layoutStyles.textHeading} truncate`}>
+            <div className={`text-body-2 font-semibold ${layoutStyles.textHeading} truncate`}>
               {tenantInfo.name}
             </div>
           </div>
@@ -29,22 +29,22 @@ export function TenantInfo({ tenantInfo, isCollapsed, variant = "sidebar" }: Ten
   }
 
   return (
-    <div className={`${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${variant === "mobile" ? layoutStyles.padding3 : layoutStyles.padding3}`}>
-      <div className={layoutStyles.flexCenter}>
-        <span className={`text-sm ${variant === "mobile" ? "" : "flex-shrink-0"}`}>🏢</span>
-        <div
-          className={cn(
-            "flex-1 min-w-0",
-            variant === "mobile" ? "" : "transition-opacity",
-            isCollapsed && variant !== "mobile" && "opacity-0 w-0 overflow-hidden"
-          )}
-        >
-          <div className={`text-sm font-semibold ${layoutStyles.textHeading} truncate`}>
-            {tenantInfo.name}
+      <div className={`${layoutStyles.borderBottom} ${layoutStyles.bgGray50} ${variant === "mobile" ? layoutStyles.padding3 : layoutStyles.padding3}`}>
+        <div className={layoutStyles.flexCenter}>
+          <span className={`text-body-2 ${variant === "mobile" ? "" : "flex-shrink-0"}`}>🏢</span>
+          <div
+            className={cn(
+              "flex-1 min-w-0",
+              variant === "mobile" ? "" : "transition-opacity",
+              isCollapsed && variant !== "mobile" && "opacity-0 w-0 overflow-hidden"
+            )}
+          >
+            <div className={`text-body-2 font-semibold ${layoutStyles.textHeading} truncate`}>
+              {tenantInfo.name}
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
