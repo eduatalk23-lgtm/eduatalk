@@ -28,6 +28,15 @@ type AcademyWithSchedules = Academy & {
   schedules: AcademySchedule[];
 };
 
+// 학원 카드 스타일 상수
+const getAcademyCardClassName = (isSelected: boolean) => {
+  const baseClasses = "flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors cursor-pointer";
+  const selectedClasses = "border-gray-900 dark:border-gray-400 bg-gray-50 dark:bg-gray-700";
+  const unselectedClasses = "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700";
+  
+  return `${baseClasses} ${isSelected ? selectedClasses : unselectedClasses}`;
+};
+
 export default function AcademyScheduleManagement({
   studentId,
   onAddRequest,
@@ -485,23 +494,19 @@ export default function AcademyScheduleManagement({
           {academies.length > 0 ? (
             <div className="flex flex-col gap-2">
             {academies.map((academy) => (
-              <div
+              <button
                 key={academy.id}
-                className={`flex items-center justify-between rounded-lg border px-4 py-3 ${
-                  selectedAcademyId === academy.id
-                    ? "border-gray-900 dark:border-gray-400 bg-gray-50 dark:bg-gray-700"
-                    : "border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
-                }`}
+                type="button"
+                onClick={() => setSelectedAcademyId(academy.id)}
+                className={getAcademyCardClassName(selectedAcademyId === academy.id)}
+                aria-label={`${academy.name} 선택`}
+                aria-pressed={selectedAcademyId === academy.id}
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedAcademyId(academy.id)}
-                      className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-gray-700 dark:hover:text-gray-300"
-                    >
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {academy.name}
-                    </button>
+                    </span>
                     {selectedAcademyId === academy.id && (
                       <span className="text-xs text-gray-500 dark:text-gray-400">(선택됨)</span>
                     )}
@@ -510,13 +515,19 @@ export default function AcademyScheduleManagement({
                     이동시간: {academy.travel_time}분 | 일정: {academy.schedules.length}개
                   </div>
                 </div>
-                <div className="pl-4 flex gap-1">
+                <div 
+                  className="pl-4 flex gap-1"
+                  onClick={(e) => e.stopPropagation()}
+                  role="group"
+                  aria-label="학원 관리"
+                >
                   <button
                     type="button"
                     onClick={() => handleStartEditAcademy(academy)}
                     disabled={isPending || editingAcademyId !== null}
                     className="rounded p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                     title="수정"
+                    aria-label={`${academy.name} 수정`}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -526,11 +537,12 @@ export default function AcademyScheduleManagement({
                     disabled={isPending || editingAcademyId !== null}
                     className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                     title="삭제"
+                    aria-label={`${academy.name} 삭제`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
+              </button>
             ))}
             </div>
           ) : (
