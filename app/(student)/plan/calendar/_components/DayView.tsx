@@ -193,7 +193,20 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
             {/* 날짜 타입 배지 */}
             {dayTypeInfo && dayType !== "normal" && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={cn("rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-[var(--elevation-1)]", dayTypeBadgeClass)}>
+                <span 
+                  className={cn(
+                    "rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-[var(--elevation-1)]",
+                    dayTypeBadgeClass,
+                    // 제외일인 경우 더 눈에 띄게
+                    (dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정") && 
+                    "ring-2 ring-offset-2"
+                  )}
+                  title={
+                    dayTypeInfo.exclusion 
+                      ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
+                      : dayTypeInfo.label
+                  }
+                >
                   {dayTypeInfo.icon} {dayTypeInfo.label}
                 </span>
                 {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (

@@ -156,8 +156,18 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             {/* 날짜 타입 배지 - 텍스트로 표시 */}
             {dayTypeInfo && dayType !== "normal" && (
               <span 
-                className={cn("rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-semibold border shadow-[var(--elevation-1)] shrink-0 whitespace-nowrap", dayTypeBadgeClass)}
-                title={dayTypeInfo.label}
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-semibold border shadow-[var(--elevation-1)] shrink-0 whitespace-nowrap",
+                  dayTypeBadgeClass,
+                  // 제외일인 경우 더 눈에 띄게 (배경색 강조)
+                  (dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정") && 
+                  "ring-1 ring-offset-0"
+                )}
+                title={
+                  dayTypeInfo.exclusion 
+                    ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
+                    : dayTypeInfo.label
+                }
                 aria-label={dayTypeInfo.label}
               >
                 {dayTypeInfo.label}
@@ -308,6 +318,22 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             
             return (
               <>
+                {/* 제외일 안내 (제외일이 있고 플랜이 있는 경우) */}
+                {dayExclusions.length > 0 && items.length > 0 && (
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 mb-1">
+                    <span className="text-[9px] text-orange-700 dark:text-orange-300 font-semibold">
+                      ⚠️
+                    </span>
+                    <span className="text-[9px] text-orange-600 dark:text-orange-400 font-medium">
+                      제외일
+                    </span>
+                    {dayExclusions[0].exclusion_type && (
+                      <span className="text-[9px] text-orange-500 dark:text-orange-500">
+                        ({dayExclusions[0].exclusion_type})
+                      </span>
+                    )}
+                  </div>
+                )}
                 {items}
                 {totalItems > maxDisplay && (
                   <div 

@@ -139,10 +139,14 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
             bgColorClass,
             textColorClass,
             boldTextColorClass,
+            dayTypeBadgeClass,
           } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
           
           const isStudyDay = dayTypeInfo?.type === "학습일";
           const isReviewDay = dayTypeInfo?.type === "복습일";
+          const isExclusionDay = dayTypeInfo?.type === "지정휴일" || 
+                                 dayTypeInfo?.type === "휴가" || 
+                                 dayTypeInfo?.type === "개인일정";
 
           const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
 
@@ -163,16 +167,51 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                   <div className={`text-lg font-bold ${boldTextColorClass}`}>
                     {formatDate(date)}
                   </div>
-                  {/* 학습일/복습일일 때 아이콘 + 텍스트 표시 */}
-                  {(isStudyDay || isReviewDay) && dayTypeInfo && (
+                  {/* 날짜 타입 표시 - 학습일/복습일/제외일 모두 표시 */}
+                  {dayTypeInfo && dayTypeInfo.type !== "normal" && (
                     <div className="flex items-center gap-1">
-                      <span className="text-xs">{dayTypeInfo.icon}</span>
-                      <span className={`text-xs font-medium ${textColorClass}`}>
-                        {dayTypeInfo.label}
-                      </span>
+                      {(isStudyDay || isReviewDay) && (
+                        <>
+                          <span className="text-xs">{dayTypeInfo.icon}</span>
+                          <span className={`text-xs font-medium ${textColorClass}`}>
+                            {dayTypeInfo.label}
+                          </span>
+                        </>
+                      )}
+                      {isExclusionDay && (
+                        <span 
+                          className={cn(
+                            "rounded-full px-1.5 py-0.5 text-[9px] font-semibold border shadow-[var(--elevation-1)] ring-1 ring-offset-0",
+                            dayTypeBadgeClass
+                          )}
+                          title={
+                            dayTypeInfo.exclusion 
+                              ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
+                              : dayTypeInfo.label
+                          }
+                        >
+                          {dayTypeInfo.label}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* 제외일 상세 정보 표시 */}
+                {isExclusionDay && dayExclusions.length > 0 && dayExclusions[0] && (
+                  <div className="flex flex-col gap-0.5 px-2 py-1 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
+                    {dayExclusions[0].exclusion_type && (
+                      <span className="text-[10px] font-medium text-orange-700 dark:text-orange-300">
+                        {dayExclusions[0].exclusion_type}
+                      </span>
+                    )}
+                    {dayExclusions[0].reason && (
+                      <span className="text-[9px] text-orange-600 dark:text-orange-400 line-clamp-1">
+                        {dayExclusions[0].reason}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* 플랜 및 학원일정 통계 */}
                 {(dayPlans.length > 0 || dayAcademySchedules.length > 0) && (
