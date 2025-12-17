@@ -1,7 +1,7 @@
 // 플랜 그룹 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PostgrestError } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
   PlanGroup,
   PlanContent,
@@ -73,6 +73,68 @@ function getErrorDetails(error: unknown): {
     details: null,
     hint: null,
   };
+}
+
+/**
+ * Supabase 클라이언트 생성 (Admin 모드 지원)
+ */
+async function getSupabaseClient(useAdminClient: boolean = false): Promise<SupabaseClient> {
+  if (useAdminClient) {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[getSupabaseClient] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+      }
+      return await createSupabaseServerClient();
+    }
+    return adminClient;
+  }
+  return await createSupabaseServerClient();
+}
+
+/**
+ * Academy 찾기 또는 생성
+ */
+async function getOrCreateAcademy(
+  supabase: SupabaseClient,
+  studentId: string,
+  tenantId: string,
+  academyName: string
+): Promise<string | null> {
+  const { data: existingAcademy } = await supabase
+    .from("academies")
+    .select("id")
+    .eq("student_id", studentId)
+    .eq("name", academyName)
+    .maybeSingle();
+
+  if (existingAcademy) {
+    return existingAcademy.id;
+  }
+
+  const { data: newAcademy, error: academyError } = await supabase
+    .from("academies")
+    .insert({
+      student_id: studentId,
+      tenant_id: tenantId,
+      name: academyName,
+      travel_time: 60, // 기본값
+    })
+    .select("id")
+    .single();
+
+  if (academyError || !newAcademy) {
+    logError(academyError || new Error("학원 생성 실패"), {
+      function: "getOrCreateAcademy",
+      studentId,
+      tenantId,
+      academyName,
+    });
+    return null;
+  }
+
+  return newAcademy.id;
 }
 
 /**
@@ -1641,22 +1703,7 @@ export async function createPlanAcademySchedules(
   }>,
   useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
-  // 관리자 모드일 때 Admin 클라이언트 사용 (RLS 우회)
-  let supabase;
-  if (useAdminClient) {
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-    if (!adminClient) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[createPlanAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
-      }
-      supabase = await createSupabaseServerClient();
-    } else {
-      supabase = adminClient;
-    }
-  } else {
-    supabase = await createSupabaseServerClient();
-  }
+  const supabase = await getSupabaseClient(useAdminClient);
 
   if (schedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
@@ -1761,50 +1808,12 @@ export async function createPlanAcademySchedules(
     });
   }
 
-  // academy_name별로 academy를 찾거나 생성하는 헬퍼 함수
-  const getOrCreateAcademy = async (academyName: string): Promise<string | null> => {
-    const { data: existingAcademy } = await supabase
-      .from("academies")
-      .select("id")
-      .eq("student_id", studentId)
-      .eq("name", academyName)
-      .maybeSingle();
-
-    if (existingAcademy) {
-      return existingAcademy.id;
-    }
-
-    // 새 academy 생성
-    const { data: newAcademy, error: academyError } = await supabase
-      .from("academies")
-      .insert({
-        student_id: studentId,
-        tenant_id: tenantId,
-        name: academyName,
-        travel_time: 60,
-      })
-      .select("id")
-      .single();
-
-    if (academyError || !newAcademy) {
-      logError(academyError || new Error("학원 생성 실패"), {
-        function: "createPlanAcademySchedules",
-        level: "warn",
-        academyName,
-        studentId,
-      });
-      return null;
-    }
-
-    return newAcademy.id;
-  };
-
   // 시간 관리 영역의 학원 일정을 현재 플랜 그룹으로 업데이트
   if (toUpdate.length > 0) {
     for (const { id, schedule } of toUpdate) {
       // academy_name으로 academy 찾기 또는 생성
       const academyName = schedule.academy_name || "학원";
-      const academyId = await getOrCreateAcademy(academyName);
+      const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
       
       if (!academyId) {
         console.warn("[createPlanAcademySchedules] 학원 ID 확보 실패, 새로 생성으로 폴백", {
@@ -1851,7 +1860,7 @@ export async function createPlanAcademySchedules(
       const academyName = schedule.academy_name || "학원";
       
       if (!academyNameMap.has(academyName)) {
-        const academyId = await getOrCreateAcademy(academyName);
+        const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
         if (!academyId) {
           return { success: false, error: `학원 생성에 실패했습니다: ${academyName}` };
         }
@@ -1906,8 +1915,8 @@ export async function createPlanAcademySchedules(
 }
 
 /**
- * 학생별 학원 일정 일괄 생성 (전역 관리)
- * @deprecated Phase 2 이후 createPlanAcademySchedules 사용 권장
+ * 학생별 학원 일정 일괄 생성 (시간 관리 영역 - plan_group_id = NULL)
+ * 시간 관리 영역에서 플랜 그룹 없이 학원 일정을 미리 등록할 때 사용
  * @param useAdminClient 관리자 모드일 때 true로 설정 (RLS 우회)
  */
 export async function createStudentAcademySchedules(
@@ -1922,22 +1931,7 @@ export async function createStudentAcademySchedules(
   }>,
   useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
-  // 관리자 모드일 때 Admin 클라이언트 사용 (RLS 우회)
-  let supabase;
-  if (useAdminClient) {
-    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const adminClient = createSupabaseAdminClient();
-    if (!adminClient) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[createStudentAcademySchedules] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
-      }
-      supabase = await createSupabaseServerClient();
-    } else {
-      supabase = adminClient;
-    }
-  } else {
-    supabase = await createSupabaseServerClient();
-  }
+  const supabase = await getSupabaseClient(useAdminClient);
 
   if (schedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
@@ -1994,43 +1988,10 @@ export async function createStudentAcademySchedules(
     const academyName = schedule.academy_name || "학원";
     
     if (!academyNameMap.has(academyName)) {
-      // 기존 academy 찾기
-      const { data: existingAcademy } = await supabase
-        .from("academies")
-        .select("id")
-        .eq("student_id", studentId)
-        .eq("name", academyName)
-        .maybeSingle();
-
-      let academyId: string;
+      const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
       
-      if (existingAcademy) {
-        academyId = existingAcademy.id;
-      } else {
-        // 새 academy 생성
-        const { data: newAcademy, error: academyError } = await supabase
-          .from("academies")
-          .insert({
-            student_id: studentId,
-            tenant_id: tenantId,
-            name: academyName,
-            travel_time: 60, // 기본값
-          })
-          .select("id")
-          .single();
-
-        if (academyError || !newAcademy) {
-          logError(academyError || new Error("학원 생성 실패"), {
-            function: "createStudentAcademySchedules",
-            studentId,
-            tenantId,
-            academyName,
-            useAdminClient,
-          });
-          return { success: false, error: academyError?.message || "학원 생성에 실패했습니다." };
-        }
-
-        academyId = newAcademy.id;
+      if (!academyId) {
+        return { success: false, error: `학원 생성에 실패했습니다: ${academyName}` };
       }
 
       academyNameMap.set(academyName, academyId);
@@ -2038,8 +1999,7 @@ export async function createStudentAcademySchedules(
   }
 
   // academy_id를 포함한 payload 생성
-  // 주의: 이 함수는 deprecated되었으며, Phase 2 이후 plan_group_id가 필수입니다.
-  // 이 함수는 시간 관리 메뉴에서만 사용되며, 마이그레이션 전까지만 유효합니다.
+  // 시간 관리 영역에 저장 (plan_group_id = NULL)
   const payload = newSchedules.map((schedule) => {
     const academyName = schedule.academy_name || "학원";
     const academyId = academyNameMap.get(academyName);
@@ -2051,7 +2011,7 @@ export async function createStudentAcademySchedules(
     return {
       tenant_id: tenantId,
       student_id: studentId,
-      // plan_group_id는 마이그레이션 후 NOT NULL이므로 이 함수는 더 이상 사용 불가
+      plan_group_id: null, // 시간 관리 영역 (NULL 허용)
       academy_id: academyId,
       day_of_week: schedule.day_of_week,
       start_time: schedule.start_time,
