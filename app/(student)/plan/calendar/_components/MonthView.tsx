@@ -110,6 +110,8 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       dayTypeBadgeClass,
     } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
 
+    const dayType = dayTypeInfo?.type || "normal";
+
     const handleDateClick = () => {
       setSelectedDate(date);
       setIsModalOpen(true);
