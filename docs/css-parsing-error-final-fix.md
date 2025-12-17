@@ -35,9 +35,10 @@ module.exports = {
 예시: `border-[rgb(var(--color-secondary-200))]` 또는 `border-[rgb(var(--color-secondary-300))]`
 ```
 
-#### 방법 C: HTML 엔티티 사용 (작동하지 않음)
+#### 방법 C: 와일드카드 사용 (작동하지 않음)
 ```markdown
-예시: `border-[rgb(var(--color-secondary-*))]` ❌ 작동하지 않음
+예시: 와일드카드(별표)를 사용한 패턴은 Tailwind CSS에서 파싱 에러를 발생시킵니다.
+실제 색상 값(100, 200, 300 등)을 명시적으로 사용해야 합니다.
 ```
 
 ### 3. 문제가 되는 파일들

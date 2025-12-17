@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind CSS 4 Content Paths - docs 폴더 제외 */
+@source "../app/**/*.{js,ts,jsx,tsx,mdx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+@source "../lib/**/*.{js,ts,jsx,tsx}";
+
 /* 
   Tailwind CSS 4 Dark Mode Variant
   - Supports class-based dark mode via next-themes (.dark class)
