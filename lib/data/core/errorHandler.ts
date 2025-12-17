@@ -145,7 +145,7 @@ export function isError(
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 /**
- * 42703 에러 코드 확인 (컬럼이 존재하지 않을 때)
+ * UNDEFINED_COLUMN 에러 코드 확인 (컬럼이 존재하지 않을 때)
  * 
  * @deprecated ErrorCodeCheckers.isColumnNotFound 사용 권장
  */

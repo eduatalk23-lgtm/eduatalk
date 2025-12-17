@@ -272,7 +272,7 @@ export async function getPlanGroupsForStudent(
  * 삭제되지 않은 플랜 그룹만 조회합니다.
  *
  * Fallback 처리:
- * - 컬럼이 없는 경우(에러 코드 42703) fallback 쿼리를 사용합니다.
+ * - 컬럼이 없는 경우(UNDEFINED_COLUMN 에러) fallback 쿼리를 사용합니다.
  * - scheduler_options 컬럼이 없는 경우 null로 설정합니다.
  *
  * @param groupId 플랜 그룹 ID
@@ -374,7 +374,7 @@ export async function getPlanGroupById(
     }
   }
 
-  if (error && isPostgrestError(error) && error.code !== "PGRST116") {
+  if (error && isPostgrestError(error) && error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED) {
     const { details, hint } = getErrorDetails(error);
     logError(error, {
       function: "getPlanGroupById",
@@ -1341,7 +1341,7 @@ async function createExclusions(
       }
 
       // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
-      if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+      if (error && (error.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION || error.message?.includes("duplicate"))) {
         return {
           success: false,
           error: "이미 등록된 제외일이 있습니다.",
@@ -1427,7 +1427,7 @@ async function createExclusions(
   }
 
   // 중복 키 에러 처리
-  if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+  if (error && (error.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION || error.message?.includes("duplicate"))) {
     return {
       success: false,
       error: "이미 등록된 제외일이 있습니다.",
@@ -1609,7 +1609,7 @@ export async function getStudentAcademySchedules(
   let { data, error } = await query;
   let studentSchedulesData: AcademySchedule[] | null = (data as AcademySchedule[] | null) ?? null;
 
-  if (error && isPostgrestError(error) && error.code === "42703") {
+  if (error && isPostgrestError(error) && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // academy_id가 없는 경우를 대비한 fallback
     const fallbackSelect = () =>
       supabase
@@ -2095,7 +2095,7 @@ export async function getPlanGroupByIdForAdmin(
     }
   }
 
-  if (error && error.code !== "PGRST116") {
+  if (error && error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED) {
     logError(error, {
       function: "getPlanGroupByIdForAdmin",
       groupId,

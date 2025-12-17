@@ -41,7 +41,7 @@ export function useActivePlan({
 
 import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
-      // 컬럼이 없는 경우 (42703 에러) null 반환
+      // 컬럼이 없는 경우 (UNDEFINED_COLUMN 에러) null 반환
       if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
         console.warn("[useActivePlan] actual_start_time 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
         return null;

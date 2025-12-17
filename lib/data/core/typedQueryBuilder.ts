@@ -306,7 +306,7 @@ export async function createTypedConditionalQuery<T>(
 
     // 일반적인 에러 처리
     if (result.error) {
-      // 42703 에러는 이미 queryBuilder에서 처리됨
+      // UNDEFINED_COLUMN 에러는 이미 queryBuilder에서 처리됨
       if (ErrorCodeCheckers.isColumnNotFound(result.error)) {
         if (fallbackQuery) {
           return await createTypedQuery(fallbackQuery, queryOptions);

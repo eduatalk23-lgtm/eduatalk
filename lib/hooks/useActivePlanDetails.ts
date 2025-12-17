@@ -47,7 +47,7 @@ export function useActivePlanDetails({
         .maybeSingle();
 
       if (planError) {
-        // 컬럼이 없는 경우 (42703 에러) null 반환
+        // 컬럼이 없는 경우 (UNDEFINED_COLUMN 에러) null 반환
         if (planError.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
           return null;
         }

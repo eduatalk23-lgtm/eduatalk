@@ -187,7 +187,7 @@ export async function getPlansForGoal(
     let { data: progressData, error: progressError } = await selectProgress()
       .eq("student_id", studentId);
 
-    if (progressError && progressError.code === "42703") {
+    if (progressError && progressError.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data: progressData, error: progressError } = await selectProgress());
     }
 
@@ -213,7 +213,7 @@ export async function getPlansForGoal(
     let { data: plans, error: plansError } = await selectPlans()
       .eq("student_id", studentId);
 
-    if (plansError && plansError.code === "42703") {
+    if (plansError && plansError.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data: plans, error: plansError } = await selectPlans());
     }
 
