@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type ActivePlanDetails = {
   id: string;
@@ -43,8 +44,6 @@ export function useActivePlanDetails({
         )
         .eq("id", planId)
         .maybeSingle();
-
-import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
       if (planError) {
         // 컬럼이 없는 경우 (42703 에러) null 반환
