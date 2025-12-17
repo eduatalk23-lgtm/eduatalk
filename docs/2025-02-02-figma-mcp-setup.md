@@ -31,7 +31,7 @@ Context7 MCP를 활용하여 Figma MCP 서버의 모범 사례를 검색하고 �
       "args": [
         "-y",
         "figma-developer-mcp",
-        "--figma-api-key=figd_jXMKQa3D-60c0vXOOT53rSzishkcSQT3I-8fsVA4",
+        "--figma-api-key=YOUR_FIGMA_PERSONAL_ACCESS_TOKEN",
         "--stdio"
       ],
       "env": {
@@ -74,7 +74,7 @@ Context7 MCP를 활용하여 Figma MCP 서버의 모범 사례를 검색하고 �
       "command": "npx",
       "args": ["-y", "figma-developer-mcp", "--stdio"],
       "env": {
-        "FIGMA_API_KEY": "figd_jXMKQa3D-60c0vXOOT53rSzishkcSQT3I-8fsVA4",
+        "FIGMA_API_KEY": "YOUR_FIGMA_PERSONAL_ACCESS_TOKEN",
         "OUTPUT_FORMAT": "json"
       }
     }
