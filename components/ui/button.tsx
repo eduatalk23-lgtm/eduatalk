@@ -1,6 +1,20 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 
+/**
+ * @deprecated 이 컴포넌트는 더 이상 사용되지 않습니다.
+ * 대신 `@/components/atoms/Button`을 사용하세요.
+ * 
+ * @example
+ * // Before
+ * import { Button } from "@/components/ui/button";
+ * 
+ * // After
+ * import Button from "@/components/atoms/Button";
+ * 
+ * // variant: "default" → "primary"
+ * // size: "default" → "md"
+ */
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
   size?: "default" | "sm" | "lg" | "icon"

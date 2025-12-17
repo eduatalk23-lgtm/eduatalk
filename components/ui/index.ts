@@ -24,6 +24,11 @@
 // Badge → atoms/Badge (개선됨)
 export { Badge } from "../atoms/Badge";
 
+// Button → atoms/Button (개선됨, 마이그레이션 진행 중)
+// @deprecated components/ui/button.tsx는 더 이상 사용되지 않습니다.
+// 대신 @/components/atoms/Button을 사용하세요.
+export { Button } from "./button";
+
 // LoadingSkeleton → atoms/Skeleton (개선됨)
 export { LoadingSkeleton } from "./LoadingSkeleton";
 
