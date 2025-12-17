@@ -14,11 +14,11 @@ export type ToastProps = {
 };
 
 const variantClasses: Record<ToastVariant, string> = {
-  default: "bg-gray-900 text-white",
-  success: "bg-green-600 text-white",
-  error: "bg-red-600 text-white",
-  warning: "bg-amber-500 text-white",
-  info: "bg-blue-600 text-white",
+  default: "bg-[var(--text-primary)] text-white",
+  success: "bg-success-600 text-white",
+  error: "bg-error-600 text-white",
+  warning: "bg-warning-500 text-white",
+  info: "bg-info-600 text-white",
 };
 
 const iconMap: Record<ToastVariant, string> = {

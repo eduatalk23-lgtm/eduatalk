@@ -48,8 +48,8 @@ function TabsComponent({
     <div
       className={cn(
         "flex",
-        variant === "line" && "border-b border-gray-200 dark:border-gray-700",
-        variant === "pill" && "gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 p-1",
+        variant === "line" && "border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
+        variant === "pill" && "gap-1 rounded-lg bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))] p-1",
         fullWidth && "w-full",
         className
       )}
@@ -69,14 +69,14 @@ function TabsComponent({
               variant === "line" && [
                 "-mb-px border-b-2",
                 isActive
-                  ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
-                  : "border-transparent text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-300",
+                  ? "border-[var(--text-primary)] dark:border-[var(--text-primary)] text-[var(--text-primary)] dark:text-[var(--text-primary)]"
+                  : "border-transparent text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))] dark:hover:border-[rgb(var(--color-secondary-600))] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)]",
               ],
               variant === "pill" && [
                 "rounded-md",
                 isActive
-                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-[var(--elevation-1)]"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
+                  ? "bg-white dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] dark:text-[var(--text-primary)] shadow-[var(--elevation-1)]"
+                  : "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)]",
               ],
               tab.disabled && "cursor-not-allowed opacity-50"
             )}
@@ -88,8 +88,8 @@ function TabsComponent({
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-xs font-medium",
                   isActive
-                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                    ? "bg-[var(--text-primary)] dark:bg-[var(--text-primary)] text-white dark:text-[var(--text-primary)]"
+                    : "bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"
                 )}
               >
                 {tab.badge}

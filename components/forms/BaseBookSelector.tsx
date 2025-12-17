@@ -179,11 +179,11 @@ function BaseBookSelectorComponent({
     return (
       <div className={`flex flex-col gap-4 ${className}`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{bookTypeLabel} 등록</h3>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">{bookTypeLabel} 등록</h3>
           <button
             type="button"
             onClick={() => setIsCreating(false)}
-            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="rounded-lg border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
           >
             취소
           </button>
@@ -191,18 +191,18 @@ function BaseBookSelectorComponent({
         <div ref={formRef} className="flex flex-col gap-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 {bookTypeLabel}명 <span className="text-red-500">*</span>
               </label>
               <input
                 name="title"
                 required
                 placeholder={`${bookTypeLabel}명을 입력하세요`}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 개정교육과정
               </label>
               <select
@@ -212,7 +212,7 @@ function BaseBookSelectorComponent({
                   setSelectedSubjectGroupId("");
                   setSelectedSubjectId("");
                 }}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">선택하세요</option>
                 {revisions.map((rev) => (
@@ -223,17 +223,17 @@ function BaseBookSelectorComponent({
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 학년/학기
               </label>
               <input
                 name="semester"
                 placeholder="예: 고1-1"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 교과
               </label>
               <select
@@ -243,7 +243,7 @@ function BaseBookSelectorComponent({
                   setSelectedSubjectId("");
                 }}
                 disabled={!selectedRevisionId}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-[rgb(var(--color-secondary-100))] dark:disabled:bg-[rgb(var(--color-secondary-600))] disabled:cursor-not-allowed"
               >
                 <option value="">
                   {selectedRevisionId ? "선택하세요" : "개정교육과정을 먼저 선택하세요"}
@@ -256,14 +256,14 @@ function BaseBookSelectorComponent({
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 과목
               </label>
               <select
                 value={selectedSubjectId}
                 onChange={(e) => setSelectedSubjectId(e.target.value)}
                 disabled={!selectedSubjectGroupId}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-[rgb(var(--color-secondary-100))] dark:disabled:bg-[rgb(var(--color-secondary-600))] disabled:cursor-not-allowed"
               >
                 <option value="">
                   {selectedSubjectGroupId ? "선택하세요" : "교과를 먼저 선택하세요"}
@@ -276,13 +276,13 @@ function BaseBookSelectorComponent({
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 출판사
               </label>
               <select
                 value={selectedPublisherId}
                 onChange={(e) => setSelectedPublisherId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">선택하세요</option>
                 {publishers.map((publisher) => (
@@ -293,7 +293,7 @@ function BaseBookSelectorComponent({
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 총 페이지
               </label>
               <input
@@ -301,16 +301,16 @@ function BaseBookSelectorComponent({
                 type="number"
                 min="1"
                 placeholder="예: 255"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 난이도
               </label>
               <select
                 name="difficulty_level"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">선택하세요</option>
                 <option value="하">하</option>
@@ -321,21 +321,21 @@ function BaseBookSelectorComponent({
               </select>
             </div>
             <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
                 메모
               </label>
               <textarea
                 name="notes"
                 rows={3}
                 placeholder="메모를 입력하세요"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-sm text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
           </div>
 
           {/* 교재 상세 정보 (목차) */}
-          <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{bookTypeLabel} 목차 (선택사항)</h4>
+          <div className="flex flex-col gap-3 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] pt-4">
+            <h4 className="text-sm font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">{bookTypeLabel} 목차 (선택사항)</h4>
             <BookDetailsManager
               initialDetails={[]}
               onChange={(details) => {
@@ -348,7 +348,7 @@ function BaseBookSelectorComponent({
             <button
               type="button"
               onClick={() => setIsCreating(false)}
-              className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="rounded-lg border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
             >
               취소
             </button>
@@ -370,7 +370,7 @@ function BaseBookSelectorComponent({
     return (
       <div className={`flex flex-col gap-4 ${className}`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{bookTypeLabel} 검색 및 선택</h3>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">{bookTypeLabel} 검색 및 선택</h3>
           <button
             type="button"
             onClick={() => {
@@ -400,7 +400,7 @@ function BaseBookSelectorComponent({
                   className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
                 >
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{book.title}</p>
+                    <p className="font-medium text-[var(--text-primary)] dark:text-[var(--text-primary)]">{book.title}</p>
                   </div>
                   <button
                     type="button"
@@ -413,8 +413,8 @@ function BaseBookSelectorComponent({
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="rounded-lg border border-dashed border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] p-8 text-center">
+              <p className="text-sm text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">
                 {searchQuery ? "검색 결과가 없습니다." : `등록된 ${bookTypeLabel}가 없습니다.`}
               </p>
             </div>
@@ -453,16 +453,16 @@ function BaseBookSelectorComponent({
       </div>
 
       {selectedBook ? (
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <div className="rounded-lg border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-gray-900 dark:text-gray-100">{selectedBook.title}</p>
+              <p className="font-medium text-[var(--text-primary)] dark:text-[var(--text-primary)]">{selectedBook.title}</p>
             </div>
             <button
               type="button"
               onClick={handleUnselectBook}
               disabled={disabled}
-              className="rounded-lg border border-red-300 dark:border-red-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-red-700 dark:text-red-400 transition hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg border border-error-300 dark:border-error-700 bg-white dark:bg-secondary-900 px-4 py-2 text-sm font-semibold text-error-700 dark:text-error-400 transition-base hover:bg-error-50 dark:hover:bg-error-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               해제
             </button>

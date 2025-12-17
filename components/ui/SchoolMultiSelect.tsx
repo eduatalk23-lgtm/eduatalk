@@ -240,9 +240,9 @@ export default function SchoolMultiSelect({
         };
       case 2: // 2순위
         return {
-          badge: "bg-gradient-to-br from-gray-400 to-gray-500 text-white font-semibold shadow-[var(--elevation-1)]",
-          card: "bg-gradient-to-r from-gray-50 to-indigo-50 border border-gray-300 shadow-[var(--elevation-1)]",
-          icon: "text-gray-600",
+          badge: "bg-gradient-to-br from-secondary-400 to-secondary-500 text-white font-semibold shadow-[var(--elevation-1)]",
+          card: "bg-gradient-to-r from-[rgb(var(--color-secondary-50))] to-primary-50 border border-[rgb(var(--color-secondary-300))] shadow-[var(--elevation-1)]",
+          icon: "text-[var(--text-secondary)]",
         };
       case 3: // 3순위
         return {
@@ -297,7 +297,7 @@ export default function SchoolMultiSelect({
                   {rank !== 1 && rank}
                 </div>
                 {/* 학교 이름 */}
-                <span className="font-medium text-gray-900">{school.name}</span>
+                <span className="font-medium text-[var(--text-primary)]">{school.name}</span>
                 {/* 삭제 버튼 */}
                 {!disabled && (
                   <button
@@ -343,16 +343,16 @@ export default function SchoolMultiSelect({
             }
             disabled={disabled || !canAddMore}
             className={cn(
-              "w-full rounded-lg border border-gray-300 px-3 py-2 bg-gray-50 text-gray-900 cursor-default",
-              "disabled:bg-gray-100 disabled:text-gray-500",
-              !canAddMore && "text-gray-400"
+              "w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] cursor-default",
+              "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]",
+              !canAddMore && "text-[var(--text-tertiary)]"
             )}
           />
           {selectedSchools.length > 0 && !disabled && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
               <svg
                 className="h-4 w-4"
@@ -374,9 +374,9 @@ export default function SchoolMultiSelect({
           onClick={handleSearchClick}
           disabled={disabled || !canAddMore}
           className={cn(
-            "flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-gray-700 transition-colors",
-            "hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200",
-            "disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            "flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-[var(--text-secondary)] transition-base",
+            "hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200",
+            "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed"
           )}
         >
           <svg
@@ -395,9 +395,9 @@ export default function SchoolMultiSelect({
 
       {/* 검색 드롭다운 메뉴 */}
       {isOpen && !disabled && isSearchMode && canAddMore && (
-        <div className="absolute z-50 top-1 w-full rounded-lg border border-gray-200 bg-white shadow-[var(--elevation-8)]">
+        <div className="absolute z-50 top-1 w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]">
           {/* 검색 입력 필드 */}
-          <div className="border-b border-gray-200 p-3">
+          <div className="border-b border-[rgb(var(--color-secondary-200))] p-3">
             <div className="flex gap-2">
               <input
                 ref={searchInputRef}
@@ -410,12 +410,12 @@ export default function SchoolMultiSelect({
                 onKeyDown={handleSearchKeyDown}
                 placeholder="대학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:text-gray-500"
+                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
                   <svg
-                    className="h-4 w-4 animate-spin text-gray-400"
+                    className="h-4 w-4 animate-spin text-[var(--text-tertiary)]"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
@@ -443,7 +443,7 @@ export default function SchoolMultiSelect({
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 <svg
                   className="h-4 w-4"
@@ -464,7 +464,7 @@ export default function SchoolMultiSelect({
             {loading ? (
               <div className="flex items-center justify-center px-4 py-6">
                 <svg
-                  className="h-5 w-5 animate-spin text-gray-400"
+                  className="h-5 w-5 animate-spin text-[var(--text-tertiary)]"
                   fill="none"
                   viewBox="0 0 24 24"
                 >
@@ -482,7 +482,7 @@ export default function SchoolMultiSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="text-sm text-gray-500">검색 중...</span>
+                <span className="text-sm text-[var(--text-tertiary)]">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -496,12 +496,12 @@ export default function SchoolMultiSelect({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-[var(--text-primary)]">
                           {school.name}
                         </div>
                         <div className="flex items-center gap-2">
                           {school.region && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-[var(--text-tertiary)]">
                               {school.region}
                             </span>
                           )}
@@ -529,11 +529,11 @@ export default function SchoolMultiSelect({
                 ))}
               </ul>
             ) : searchQuery.trim().length > 0 ? (
-              <div className="px-4 py-3 text-center text-sm text-gray-500">
+              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
                 검색 결과가 없습니다. 다른 검색어를 시도해보세요.
               </div>
             ) : (
-              <div className="px-4 py-3 text-center text-sm text-gray-500">
+              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
                 대학교명을 입력하고 검색하세요.
               </div>
             )}

@@ -221,16 +221,16 @@ export default function SchoolSelect({
             placeholder={placeholder}
             disabled={disabled}
             className={cn(
-              "w-full rounded-lg border border-gray-300 px-3 py-2 bg-gray-50 text-gray-900 cursor-default",
-              "disabled:bg-gray-100 disabled:text-gray-500",
-              !selectedSchool && !value && "text-gray-400"
+              "w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] cursor-default",
+              "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]",
+              !selectedSchool && !value && "text-[var(--text-tertiary)]"
             )}
           />
           {selectedSchool && !disabled && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
               <svg
                 className="h-4 w-4"
@@ -252,9 +252,9 @@ export default function SchoolSelect({
           onClick={handleSearchClick}
           disabled={disabled}
           className={cn(
-            "flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-gray-700 transition-colors",
-            "hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-200",
-            "disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            "flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-[var(--text-secondary)] transition-base",
+            "hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200",
+            "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed"
           )}
         >
           <svg
@@ -273,9 +273,9 @@ export default function SchoolSelect({
 
       {/* 검색 드롭다운 */}
       {isOpen && !disabled && isSearchMode && (
-        <div className="absolute z-50 top-full w-full rounded-lg border border-gray-200 bg-white shadow-[var(--elevation-8)]">
+        <div className="absolute z-50 top-full w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]">
           {/* 검색 입력 */}
-          <div className="border-b border-gray-200 p-3">
+          <div className="border-b border-[rgb(var(--color-secondary-200))] p-3">
             <div className="flex gap-2">
               <input
                 ref={searchInputRef}
@@ -285,12 +285,12 @@ export default function SchoolSelect({
                 onKeyDown={handleSearchKeyDown}
                 placeholder="학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
                   <svg
-                    className="h-4 w-4 animate-spin text-gray-400"
+                    className="h-4 w-4 animate-spin text-[var(--text-tertiary)]"
                     fill="none"
                     viewBox="0 0 24 24"
                   >
@@ -318,7 +318,7 @@ export default function SchoolSelect({
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-50))]"
               >
                 <svg
                   className="h-4 w-4"
@@ -372,9 +372,9 @@ export default function SchoolSelect({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">{school.name}</div>
+                        <div className="font-medium text-[var(--text-primary)]">{school.name}</div>
                         {school.region && (
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-[var(--text-tertiary)]">
                             {school.region}
                           </div>
                         )}
@@ -395,11 +395,11 @@ export default function SchoolSelect({
                 ))}
               </ul>
             ) : searchQuery.trim().length > 0 ? (
-              <div className="px-4 py-3 text-center text-sm text-gray-500">
+              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
                 검색 결과가 없습니다.
               </div>
             ) : (
-              <div className="px-4 py-3 text-center text-sm text-gray-500">
+              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
                 학교명을 입력하세요.
               </div>
             )}

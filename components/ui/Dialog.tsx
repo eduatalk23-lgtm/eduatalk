@@ -154,7 +154,13 @@ export function Dialog({
         {showCloseButton && (
           <button
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-lg p-1 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200"
+            className={cn(
+              "absolute right-4 top-4 rounded-lg p-1 transition-base",
+              "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
+              "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+              "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] focus-visible:ring-offset-2"
+            )}
             aria-label="닫기"
           >
             <svg
