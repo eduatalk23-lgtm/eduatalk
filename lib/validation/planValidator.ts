@@ -225,8 +225,8 @@ export class PlanValidator {
   static validateAcademySchedules(
     schedules: Array<{
       day_of_week: number;
-      start_time: string;
-      end_time: string;
+      start_time: string | null | undefined;
+      end_time: string | null | undefined;
     }>
   ): ValidationResult {
     const errors: string[] = [];
@@ -238,12 +238,18 @@ export class PlanValidator {
         errors.push(`학원 일정 ${index + 1}: 올바른 요일을 선택해주세요 (0-6).`);
       }
 
+      // 시간 필수 체크
+      if (!schedule.start_time || !schedule.end_time) {
+        errors.push(`학원 일정 ${index + 1}: 시작 시간과 종료 시간을 입력해주세요.`);
+        return; // 시간이 없으면 다음 검증 스킵
+      }
+
       // 시간 검증
       const start = this.parseTime(schedule.start_time);
       const end = this.parseTime(schedule.end_time);
 
-      if (!start || !end) {
-        errors.push(`학원 일정 ${index + 1}: 올바른 시간 형식을 입력해주세요.`);
+      if (start === null || end === null) {
+        errors.push(`학원 일정 ${index + 1}: 올바른 시간 형식을 입력해주세요. (HH:MM 형식)`);
       } else if (start >= end) {
         errors.push(`학원 일정 ${index + 1}: 종료 시간은 시작 시간보다 이후여야 합니다.`);
       }
@@ -309,7 +315,12 @@ export class PlanValidator {
   /**
    * 시간 문자열 파싱 (HH:MM 형식)
    */
-  private static parseTime(timeStr: string): number | null {
+  private static parseTime(timeStr: string | null | undefined): number | null {
+    // null, undefined, 빈 문자열 체크
+    if (!timeStr || typeof timeStr !== "string" || timeStr.trim() === "") {
+      return null;
+    }
+
     const parts = timeStr.split(":");
     if (parts.length !== 2) return null;
 
