@@ -68,5 +68,14 @@ Tailwind CSS 4는 `@source` 디렉토리 내의 파일을 스캔하여 사용된
 
 ## 검증
 
-빌드를 실행하여 CSS 파싱 에러가 해결되었는지 확인했습니다. (TypeScript 에러는 별개의 문제이며, CSS 파싱 에러는 해결되었습니다)
+빌드를 실행하여 CSS 파싱 에러가 해결되었는지 확인했습니다:
+- ✅ CSS 파싱 에러 완전히 해결됨
+- ⚠️ TypeScript 에러는 별개의 문제 (CSS 파싱과 무관)
+
+### 최종 수정 사항
+
+1. `docs/gradual-improvement-tasks-review-2025-01-XX.md`: 잘못된 패턴을 구체적인 변수명 예시로 변경
+2. `docs/2025-01-XX-css-parsing-error-fix.md`: 에러 메시지 예시에서도 와일드카드 패턴 제거 (한글로 대체)
+
+모든 문서에서 `text-[var(--text-*)]` 같은 와일드카드를 포함한 CSS 변수 패턴이 완전히 제거되었습니다.
 
