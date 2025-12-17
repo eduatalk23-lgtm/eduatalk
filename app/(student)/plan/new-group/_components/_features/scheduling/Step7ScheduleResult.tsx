@@ -3,21 +3,14 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getScheduleResultDataAction,
   generatePlansFromGroupAction,
   checkPlansExistAction,
   updatePlanGroupStatus,
 } from "@/app/(student)/actions/planGroupActions";
 import { 
-  CACHE_STALE_TIME_DYNAMIC, 
-  CACHE_STALE_TIME_STABLE,
-  CACHE_GC_TIME_STABLE 
+  CACHE_STALE_TIME_DYNAMIC
 } from "@/lib/constants/queryCache";
-import { ScheduleTableView } from "./components/ScheduleTableView";
-import type {
-  ContentData,
-  BlockData,
-} from "../../utils/scheduleTransform";
+import { PlanScheduleView } from "@/app/(student)/plan/group/[id]/_components/PlanScheduleView";
 
 type Step7ScheduleResultProps = {
   groupId: string;
@@ -102,43 +95,9 @@ export function Step7ScheduleResult({
     generatePlansMutation.mutate();
   };
 
-  // 스케줄 결과 데이터 조회 (기존 PlanScheduleView와 동일한 queryKey 사용)
-  const {
-    data,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["planSchedule", groupId],
-    queryFn: async () => {
-      const result = await getScheduleResultDataAction(groupId);
-
-      if (result.plans.length === 0) {
-        throw new Error("생성된 플랜이 없습니다.");
-      }
-
-      // contents 배열을 Map으로 변환
-      const contentsMap = new Map(
-        result.contents.map((c) => [c.id, c])
-      );
-
-      return {
-        dailySchedule: result.dailySchedule || [],
-        plans: result.plans || [],
-        contents: contentsMap,
-        blocks: result.blocks || [],
-      };
-    },
-    enabled: Boolean(plansCheck?.hasPlans || generatePlansMutation.isSuccess),
-    staleTime: CACHE_STALE_TIME_STABLE, // 5분간 캐시 유지 (Stable Data)
-    gcTime: CACHE_GC_TIME_STABLE, // 15분간 메모리 유지
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
-
   const isGenerating = generatePlansMutation.isPending;
-  const isLoadingData = isLoading || isCheckingPlans;
-  const hasError = error || generatePlansMutation.error;
+  const isLoadingData = isCheckingPlans;
+  const hasError = generatePlansMutation.error;
 
   if (isLoadingData || isGenerating) {
     return (
@@ -186,7 +145,6 @@ export function Step7ScheduleResult({
   // 플랜이 없을 때 에러 표시 (자동 생성 시도 후에도 실패한 경우)
   // 자동 생성이 진행 중이거나 성공한 경우는 로딩 화면으로 처리되므로 여기서는 에러만 표시
   if (
-    !data &&
     !isLoadingData &&
     !isGenerating &&
     plansCheck &&
@@ -220,11 +178,10 @@ export function Step7ScheduleResult({
   }
 
   // 플랜이 있을 때 스케줄 결과 표시
-  if (!data) {
+  // PlanScheduleView가 자체적으로 데이터를 페칭하므로 조건부 렌더링만
+  if (!plansCheck?.hasPlans && !generatePlansMutation.isSuccess) {
     return null;
   }
-
-  const { dailySchedule, plans, contents, blocks } = data;
 
   return (
     <div className="flex flex-col gap-6">
@@ -232,7 +189,7 @@ export function Step7ScheduleResult({
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold text-gray-900">스케줄 결과</h2>
           <p className="text-sm text-gray-500">
-            생성된 학습 플랜을 확인할 수 있습니다. 총 {plans.length}개의 플랜이 생성되었습니다.
+            생성된 학습 플랜을 확인할 수 있습니다.
           </p>
         </div>
         <button
@@ -245,12 +202,8 @@ export function Step7ScheduleResult({
         </button>
       </div>
 
-      <ScheduleTableView
-        dailySchedule={dailySchedule}
-        plans={plans}
-        contents={contents}
-        blocks={blocks}
-      />
+      {/* PlanScheduleView가 자체적으로 데이터를 페칭하고 탭 전환 버튼을 제공 */}
+      <PlanScheduleView groupId={groupId} />
     </div>
   );
 }

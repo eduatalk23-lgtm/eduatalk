@@ -2,18 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
-import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   getPlanGroupById,
-  getStudentAcademySchedules,
+  getPlanGroupByIdForAdmin,
   createStudentAcademySchedules,
-  applyTimeManagementFilter,
+  getStudentAcademySchedules,
 } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { AcademySchedule } from "@/lib/types/plan";
-import { resolveTargetStudentId } from "@/lib/utils/planGroupAuth";
 
 /**
  * 시간 관리 데이터 반영 (학원일정)
@@ -34,87 +34,110 @@ async function _syncTimeManagementAcademySchedules(
     source?: "time_management";
   }>;
 }> {
+  const { role, userId } = await getCurrentUserRole();
+  const tenantContext = await getTenantContext();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (!tenantContext?.tenantId) {
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // 관리자/컨설턴트 모드일 때는 studentId 파라미터 필수
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  let targetStudentId: string;
+
   const supabase = await createSupabaseServerClient();
 
-  // 학생 ID 결정 (인증/권한 체크 포함)
-  let targetStudentId: string;
-  let tenantId: string;
-  
-  try {
-    const resolved = await resolveTargetStudentId(groupId, studentId);
-    targetStudentId = resolved.targetStudentId;
-    tenantId = resolved.tenantId;
-  } catch (error) {
-    // 템플릿 모드에서 studentId가 없으면 빈 결과 반환 (기존 동작 유지)
-    if (error instanceof AppError && error.code === ErrorCode.VALIDATION_ERROR && !groupId && !studentId) {
-      return {
-        count: 0,
-        academySchedules: [],
-      };
+  // 플랜 그룹 조회 (groupId가 있는 경우만)
+  if (groupId) {
+    let group;
+    if (isAdminOrConsultant) {
+      // 관리자 모드: getPlanGroupByIdForAdmin 사용
+      group = await getPlanGroupByIdForAdmin(groupId, tenantContext.tenantId);
+      if (!group) {
+        throw new AppError(
+          "플랜 그룹을 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+      // 관리자 모드에서 studentId가 없으면 플랜 그룹에서 student_id 가져오기
+      targetStudentId = studentId || group.student_id;
+      if (!targetStudentId) {
+        throw new AppError(
+          "학생 ID를 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+    } else {
+      // 학생 모드: 기존 로직
+      group = await getPlanGroupById(
+        groupId,
+        userId,
+        tenantContext.tenantId
+      );
+      if (!group) {
+        throw new AppError(
+          "플랜 그룹을 찾을 수 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+      targetStudentId = userId;
+      // 기존 플랜 그룹인 경우 revalidate
+      revalidatePath(`/plan/group/${groupId}/edit`);
     }
-    throw error;
+  } else {
+    // groupId가 없는 경우
+    if (isAdminOrConsultant) {
+      // 관리자 모드: studentId 파라미터 필수
+      if (!studentId) {
+        // 템플릿 모드에서는 빈 결과 반환
+        return {
+          count: 0,
+          academySchedules: [],
+        };
+      }
+      targetStudentId = studentId;
+    } else {
+      // 학생 모드: 현재 사용자 ID 사용
+      targetStudentId = userId;
+    }
   }
 
-  // 시간 관리 영역 및 다른 플랜 그룹의 학원 일정 조회
-  // - plan_group_id가 NULL인 학원 일정 (시간 관리 영역)
-  // - plan_group_id가 현재 그룹이 아닌 다른 그룹의 학원 일정
-  let timeManagementSchedulesQuery = supabase
-    .from("academy_schedules")
-    .select("id,tenant_id,student_id,academy_id,plan_group_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)")
-    .eq("student_id", targetStudentId);
-
-  if (tenantId) {
-    timeManagementSchedulesQuery = timeManagementSchedulesQuery.eq("tenant_id", tenantId);
-  }
-
-  // plan_group_id 필터링 적용 (현재 그룹 제외)
-  timeManagementSchedulesQuery = applyTimeManagementFilter(
-    timeManagementSchedulesQuery,
-    groupId
+  // 학생의 모든 학원일정 조회 (시간 관리에 등록된 모든 학원일정)
+  const allAcademySchedules = await getStudentAcademySchedules(
+    targetStudentId,
+    tenantContext.tenantId
   );
-
-  const { data: allSchedules, error } = await timeManagementSchedulesQuery;
-
-  if (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("[_syncTimeManagementAcademySchedules] 쿼리 오류:", error);
-    }
-    // 에러 발생 시 빈 배열 반환 (기존 동작 유지)
-    return {
-      count: 0,
-      academySchedules: [],
-    };
-  }
-
-  // 데이터 변환: academies 관계 데이터를 travel_time으로 변환
-  type ScheduleWithAcademies = {
-    id: string;
-    tenant_id: string;
-    student_id: string;
-    academy_id: string | null;
-    plan_group_id: string | null;
-    day_of_week: number;
-    start_time: string;
-    end_time: string;
-    academy_name: string | null;
-    subject: string | null;
-    created_at: string;
-    updated_at: string;
-    academies?: { travel_time?: number } | null;
-  };
-
-  const schedules = (allSchedules || []) as ScheduleWithAcademies[];
 
   // 최신 학원일정 데이터 반환 (source 필드 추가)
   return {
-    count: schedules.length,
-    academySchedules: schedules.map((s) => ({
+    count: allAcademySchedules.length,
+    academySchedules: allAcademySchedules.map((s) => ({
       day_of_week: s.day_of_week,
       start_time: s.start_time,
       end_time: s.end_time,
       academy_name: s.academy_name || undefined,
       subject: s.subject || undefined,
-      travel_time: s.academies?.travel_time ?? 60,
+      travel_time: s.travel_time || 60,
       source: "time_management" as const,
     })),
   };
