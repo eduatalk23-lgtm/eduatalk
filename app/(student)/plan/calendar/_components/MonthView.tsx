@@ -5,7 +5,7 @@ import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { timeToMinutes } from "../_utils/timelineUtils";
+import { timeToMinutes, getTimeSlotColorClass } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
@@ -217,10 +217,8 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               if (slot.type !== "학습시간") {
                 if (displayedCount < maxDisplay && !showOnlyStudyTime) {
                   const icon = slot.type === "점심시간" ? "🍽️" : slot.type === "이동시간" ? "🚶" : slot.type === "자율학습" ? "📖" : "⏰";
-                  // 자율학습은 초록색, 나머지는 주황색
-                  const colorClass = slot.type === "자율학습" 
-                    ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800"
-                    : "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800";
+                  // 공통 유틸리티 함수 사용하여 색상 통일
+                  const colorClass = getTimeSlotColorClass(slot.type);
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-${slot.type}`}

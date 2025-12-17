@@ -70,6 +70,8 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
                 ? "bg-purple-500 text-white"
                 : slot.type === "자율학습"
                 ? "bg-green-500 text-white"
+                : slot.type === "이동시간"
+                ? "bg-teal-500 text-white"
                 : "bg-orange-500 text-white"
             )}>
               {slot.type}
