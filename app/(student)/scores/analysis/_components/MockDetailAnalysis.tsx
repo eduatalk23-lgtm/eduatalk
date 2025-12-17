@@ -2,13 +2,15 @@
 
 import { useMemo } from "react";
 import { analyzeMockTrend, compareTwoRecentMockScores } from "@/lib/analysis/scoreAnalyzer";
+import { enrichMockScores } from "@/lib/utils/scoreTransform";
+import type { MockScoreWithRelations } from "@/lib/types/scoreAnalysis";
 import MockTrendChart from "./MockTrendChart";
 import MockComparisonTable from "./MockComparisonTable";
 
 type MockDetailAnalysisProps = {
   studentId: string;
   tenantId: string;
-  scores: any[];
+  scores: MockScoreWithRelations[];
 };
 
 export default function MockDetailAnalysis({
@@ -16,25 +18,27 @@ export default function MockDetailAnalysis({
   tenantId,
   scores,
 }: MockDetailAnalysisProps) {
+  // 중복 제거: 한 번만 변환
+  const enrichedScores = useMemo(
+    () => enrichMockScores(scores),
+    [scores]
+  );
+
   // 백분위 추이 분석
-  const trendAnalysis = useMemo(() => analyzeMockTrend(scores), [scores]);
+  const trendAnalysis = useMemo(() => analyzeMockTrend(enrichedScores), [enrichedScores]);
 
   // 최근 2회 비교
   const recentComparison = useMemo(() => {
-    const scoresWithNames = scores.map((s) => ({
-      ...s,
-      subject_name: s.subjects?.name || "알 수 없음",
-    }));
-    return compareTwoRecentMockScores(scoresWithNames);
-  }, [scores]);
+    return compareTwoRecentMockScores(enrichedScores);
+  }, [enrichedScores]);
 
   // 시간순 정렬된 데이터 (차트용)
   const sortedScores = useMemo(() => {
-    return [...scores].sort(
+    return [...enrichedScores].sort(
       (a, b) =>
         new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
     );
-  }, [scores]);
+  }, [enrichedScores]);
 
   if (scores.length === 0) {
     return (
@@ -56,7 +60,7 @@ export default function MockDetailAnalysis({
         <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-600">전체 시험 수</p>
           <p className="text-2xl font-bold text-gray-900">
-            {scores.length}
+            {enrichedScores.length}
           </p>
         </div>
         <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
@@ -142,7 +146,7 @@ export default function MockDetailAnalysis({
                     {score.exam_title}
                   </td>
                   <td className="px-4 py-3 text-gray-900">
-                    {score.subjects?.name || "알 수 없음"}
+                    {score.subject_name || "알 수 없음"}
                   </td>
                   <td className="px-4 py-3">
                     {score.grade_score ? (

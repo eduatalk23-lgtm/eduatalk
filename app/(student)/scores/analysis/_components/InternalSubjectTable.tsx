@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { InternalScoreWithRelations } from "@/lib/types/scoreAnalysis";
 
 type InternalSubjectTableProps = {
-  scores: any[];
+  scores: InternalScoreWithRelations[];
   ranking: Array<{
     subject_id: string;
     subject_name: string;

@@ -4,26 +4,7 @@
  * 내신 및 모의고사 성적의 추이, 순위, 취약점 등을 분석합니다.
  */
 
-type InternalScoreData = {
-  subject_group_id: string;
-  subject_id: string;
-  grade: number;
-  semester: number;
-  rank_grade: number | null;
-  credit_hours: number;
-  raw_score?: number | null;
-  avg_score?: number | null;
-  std_dev?: number | null;
-};
-
-type MockScoreData = {
-  exam_date: string;
-  exam_title: string;
-  subject_id: string;
-  grade_score: number | null;
-  standard_score: number | null;
-  percentile: number | null;
-};
+import type { EnrichedInternalScore, EnrichedMockScore } from "@/lib/types/scoreAnalysis";
 
 /**
  * GPA 추이 계산 (학기별)
@@ -31,7 +12,7 @@ type MockScoreData = {
  * @param scores - 내신 성적 배열
  * @returns 학기별 GPA 배열
  */
-export function calculateGPATrend(scores: InternalScoreData[]): Array<{
+export function calculateGPATrend(scores: EnrichedInternalScore[]): Array<{
   grade: number;
   semester: number;
   gpa: number;
@@ -87,10 +68,7 @@ export function calculateGPATrend(scores: InternalScoreData[]): Array<{
  * @returns 성적 우수 순으로 정렬된 과목 배열
  */
 export function calculateSubjectRanking(
-  scores: (InternalScoreData & {
-    subject_name?: string;
-    subject_group_name?: string;
-  })[]
+  scores: EnrichedInternalScore[]
 ): Array<{
   subject_id: string;
   subject_name: string;
@@ -138,10 +116,7 @@ export function calculateSubjectRanking(
  * @returns 취약 과목 배열
  */
 export function analyzeWeakPoints(
-  scores: (InternalScoreData & {
-    subject_name?: string;
-    subject_group_name?: string;
-  })[],
+  scores: EnrichedInternalScore[],
   threshold: number = 5
 ): Array<{
   subject_id: string;
@@ -231,7 +206,7 @@ export function compareWithAverage(score: {
  * @param scores - 모의고사 성적 배열 (시간순 정렬됨)
  * @returns 추이 분석 결과
  */
-export function analyzeMockTrend(scores: MockScoreData[]): {
+export function analyzeMockTrend(scores: EnrichedMockScore[]): {
   trend: "상승" | "유지" | "하락" | "분석불가";
   recent_average_percentile: number | null;
   change_from_previous: number | null;
@@ -301,9 +276,7 @@ export function analyzeMockTrend(scores: MockScoreData[]): {
  * @returns 최근 2회 비교 결과
  */
 export function compareTwoRecentMockScores(
-  scores: (MockScoreData & {
-    subject_name?: string;
-  })[]
+  scores: EnrichedMockScore[]
 ): Array<{
   subject_id: string;
   subject_name: string;
@@ -336,7 +309,7 @@ export function compareTwoRecentMockScores(
     acc[subjectId].scores.push(score);
 
     return acc;
-  }, {} as Record<string, { subject_id: string; subject_name: string; scores: MockScoreData[] }>);
+  }, {} as Record<string, { subject_id: string; subject_name: string; scores: EnrichedMockScore[] }>);
 
   // 최근 2회 비교
   return Object.values(groupedBySubject).map((subject) => {

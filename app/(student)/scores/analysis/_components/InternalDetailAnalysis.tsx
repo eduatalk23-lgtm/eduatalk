@@ -2,13 +2,15 @@
 
 import { useMemo } from "react";
 import { calculateGPATrend, calculateSubjectRanking, analyzeWeakPoints } from "@/lib/analysis/scoreAnalyzer";
+import { enrichInternalScores } from "@/lib/utils/scoreTransform";
+import type { InternalScoreWithRelations } from "@/lib/types/scoreAnalysis";
 import InternalGPAChart from "./InternalGPAChart";
 import InternalSubjectTable from "./InternalSubjectTable";
 
 type InternalDetailAnalysisProps = {
   studentId: string;
   tenantId: string;
-  scores: any[];
+  scores: InternalScoreWithRelations[];
 };
 
 export default function InternalDetailAnalysis({
@@ -16,28 +18,24 @@ export default function InternalDetailAnalysis({
   tenantId,
   scores,
 }: InternalDetailAnalysisProps) {
+  // 중복 제거: 한 번만 변환
+  const enrichedScores = useMemo(
+    () => enrichInternalScores(scores),
+    [scores]
+  );
+
   // GPA 추이 계산
-  const gpaTrend = useMemo(() => calculateGPATrend(scores), [scores]);
+  const gpaTrend = useMemo(() => calculateGPATrend(enrichedScores), [enrichedScores]);
 
   // 과목별 순위 계산
   const subjectRanking = useMemo(() => {
-    const scoresWithNames = scores.map((s) => ({
-      ...s,
-      subject_name: s.subjects?.name || "알 수 없음",
-      subject_group_name: s.subject_groups?.name || "기타",
-    }));
-    return calculateSubjectRanking(scoresWithNames);
-  }, [scores]);
+    return calculateSubjectRanking(enrichedScores);
+  }, [enrichedScores]);
 
   // 취약 과목 분석
   const weakSubjects = useMemo(() => {
-    const scoresWithNames = scores.map((s) => ({
-      ...s,
-      subject_name: s.subjects?.name || "알 수 없음",
-      subject_group_name: s.subject_groups?.name || "기타",
-    }));
-    return analyzeWeakPoints(scoresWithNames);
-  }, [scores]);
+    return analyzeWeakPoints(enrichedScores);
+  }, [enrichedScores]);
 
   if (scores.length === 0) {
     return (

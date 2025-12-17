@@ -7,6 +7,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { InternalScoreWithRelations, MockScoreWithRelations } from "@/lib/types/scoreAnalysis";
 
 type InternalScore = Tables<"student_internal_scores">;
 type MockScore = Tables<"student_mock_scores">;
@@ -25,11 +26,7 @@ export async function getInternalScoresByTerm(
   tenantId: string,
   grade?: number,
   semester?: number
-): Promise<(InternalScore & {
-  subject_group?: { name: string } | null;
-  subject?: { name: string } | null;
-  subject_type?: { name: string } | null;
-})[]> {
+): Promise<InternalScoreWithRelations[]> {
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
@@ -89,7 +86,7 @@ export async function getInternalScoresByTerm(
     return [];
   }
 
-  return (data as any[]) || [];
+  return (data as InternalScoreWithRelations[]) || [];
 }
 
 /**
@@ -108,10 +105,7 @@ export async function getMockScoresByPeriod(
   startDate?: string,
   endDate?: string,
   grade?: number
-): Promise<(MockScore & {
-  subject_group?: { name: string } | null;
-  subject?: { name: string } | null;
-})[]> {
+): Promise<MockScoreWithRelations[]> {
   const supabase = await createSupabaseServerClient();
 
   let query = supabase
@@ -174,7 +168,7 @@ export async function getMockScoresByPeriod(
     return [];
   }
 
-  return (data as any[]) || [];
+  return (data as InternalScoreWithRelations[]) || [];
 }
 
 /**
@@ -238,10 +232,7 @@ export async function getMockScoresByExam(
   tenantId: string,
   examDate: string,
   examTitle: string
-): Promise<(MockScore & {
-  subject_group?: { name: string } | null;
-  subject?: { name: string } | null;
-})[]> {
+): Promise<MockScoreWithRelations[]> {
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -264,7 +255,7 @@ export async function getMockScoresByExam(
     return [];
   }
 
-  return (data as any[]) || [];
+  return (data as InternalScoreWithRelations[]) || [];
 }
 
 /**
@@ -292,7 +283,7 @@ export async function getInternalAverageBySubjectGroup(
   // 교과군별로 그룹화
   const grouped = scores.reduce((acc, score) => {
     const groupId = score.subject_group_id;
-    const groupName = (score.subject_group as any)?.name || "기타";
+    const groupName = score.subject_group?.name || "기타";
 
     if (!acc[groupId]) {
       acc[groupId] = {

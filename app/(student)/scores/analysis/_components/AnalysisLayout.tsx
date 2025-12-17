@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import type { InternalScoreWithRelations, MockScoreWithRelations } from "@/lib/types/scoreAnalysis";
 import InternalDetailAnalysis from "./InternalDetailAnalysis";
 import MockDetailAnalysis from "./MockDetailAnalysis";
 
 type AnalysisLayoutProps = {
   studentId: string;
   tenantId: string;
-  internalScores: any[];
-  mockScores: any[];
+  internalScores: InternalScoreWithRelations[];
+  mockScores: MockScoreWithRelations[];
 };
 
 type AnalysisType = "internal" | "mock";
