@@ -494,11 +494,18 @@ export default function AcademyScheduleManagement({
           {academies.length > 0 ? (
             <div className="flex flex-col gap-2">
             {academies.map((academy) => (
-              <button
+              <div
                 key={academy.id}
-                type="button"
                 onClick={() => setSelectedAcademyId(academy.id)}
                 className={getAcademyCardClassName(selectedAcademyId === academy.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedAcademyId(academy.id);
+                  }
+                }}
                 aria-label={`${academy.name} 선택`}
                 aria-pressed={selectedAcademyId === academy.id}
               >
@@ -542,7 +549,7 @@ export default function AcademyScheduleManagement({
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-              </button>
+              </div>
             ))}
             </div>
           ) : (
