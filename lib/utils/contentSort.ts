@@ -4,8 +4,13 @@
  * Supabase 쿼리에 정렬 옵션을 적용하는 공통 함수
  */
 
-import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContentSortOption } from "@/lib/types/contentFilters";
+
+// PostgrestFilterBuilder 타입 추론
+// Supabase 쿼리 빌더의 타입을 추론합니다
+type PostgrestFilterBuilder<T extends Record<string, unknown> = Record<string, unknown>> = 
+  ReturnType<ReturnType<SupabaseClient["from"]>["select"]>;
 
 /**
  * 콘텐츠 쿼리에 정렬 옵션을 적용합니다.
@@ -16,10 +21,10 @@ import type { ContentSortOption } from "@/lib/types/contentFilters";
  * @returns 정렬이 적용된 쿼리 빌더
  */
 export function applyContentSort<T extends Record<string, unknown>>(
-  query: PostgrestFilterBuilder<any, any, T, any, any, any, any>,
+  query: PostgrestFilterBuilder<T>,
   sortBy?: ContentSortOption | string,
   defaultSort: ContentSortOption = "updated_at_desc"
-): PostgrestFilterBuilder<any, any, T, any, any, any, any> {
+): PostgrestFilterBuilder<T> {
   const sort = (sortBy as ContentSortOption) || defaultSort;
 
   switch (sort) {

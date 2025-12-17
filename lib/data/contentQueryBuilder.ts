@@ -6,7 +6,6 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 import { applyContentFilters } from "@/lib/utils/contentFilters";
 import { applyContentSort } from "@/lib/utils/contentSort";
 import type {

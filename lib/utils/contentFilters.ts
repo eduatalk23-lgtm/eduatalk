@@ -4,13 +4,18 @@
  * Supabase 쿼리에 필터 옵션을 적용하는 공통 함수
  */
 
-import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BaseContentFilters,
   MasterBookFilters,
   MasterLectureFilters,
   MasterCustomContentFilters,
 } from "@/lib/types/contentFilters";
+
+// PostgrestFilterBuilder 타입 추론
+// Supabase 쿼리 빌더의 타입을 추론합니다
+type PostgrestFilterBuilder<T extends Record<string, unknown> = Record<string, unknown>> = 
+  ReturnType<ReturnType<SupabaseClient["from"]>["select"]>;
 
 /**
  * 콘텐츠 쿼리에 필터를 적용합니다.
@@ -28,10 +33,10 @@ import type {
  * @returns 필터가 적용된 쿼리 빌더
  */
 export function applyContentFilters<T extends Record<string, unknown>>(
-  query: PostgrestFilterBuilder<any, any, T, any, any, any, any>,
+  query: PostgrestFilterBuilder<T>,
   filters: BaseContentFilters | MasterBookFilters | MasterLectureFilters | MasterCustomContentFilters,
   tableName: string
-): PostgrestFilterBuilder<any, any, T, any, any, any, any> {
+): PostgrestFilterBuilder<T> {
   let filteredQuery = query;
 
   // 1. 인덱스가 있는 컬럼 우선 필터링
