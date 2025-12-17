@@ -52,11 +52,15 @@
 - ✅ `components/filters/UnifiedContentFilter.tsx`
 - ✅ `components/forms/BaseBookSelector.tsx`
 
-**우선순위 낮음:**
-- `components/errors/ErrorBoundary.tsx`
-- `components/navigation/global/navStyles.ts`
-- `components/admin/ExcelImportDialog.tsx`
-- 기타 15개 파일
+**우선순위 낮음:** ✅ 완료
+- ✅ `components/errors/ErrorBoundary.tsx`
+- ✅ `components/navigation/global/navStyles.ts`
+- ✅ `components/admin/ExcelImportDialog.tsx`
+- ✅ `components/navigation/global/CategoryNav.tsx`
+- ✅ `components/navigation/global/LogoSection.tsx`
+- ✅ `components/navigation/global/TenantInfo.tsx`
+- ✅ `components/charts/LazyRecharts.tsx`
+- ✅ 기타 주요 컴포넌트
 
 #### 개선 방안
 1. 우선순위 높은 컴포넌트부터 적용
@@ -151,10 +155,11 @@
 2. ✅ Input/Select sizeClasses 타이포그래피 시스템 적용
 3. ✅ 테스트 및 커밋
 
-### Phase 3: Margin 클래스 정리 (점진적)
-1. 가능한 부분만 수정
-2. 특수 케이스는 예외 처리
-3. 컴포넌트 수정 시 기회가 생기면 적용
+### Phase 3: Margin 클래스 정리 (점진적) ✅ 검토 완료
+1. ✅ components 디렉토리 검토 완료
+2. ✅ 대부분 특수 케이스 또는 허용 가능한 케이스 확인
+3. ✅ Spacing-First 정책 위반 케이스 없음
+4. ⏳ 새로운 컴포넌트 작성 시 정책 준수
 
 ### Phase 4: 나머지 컴포넌트 개선 (점진적)
 1. 컴포넌트 수정 시 기회가 생기면 적용
@@ -173,7 +178,8 @@
 | 공통 컴포넌트 타이포그래피 | 중간 | 소규모 | 높음 | 높음 | ✅ 완료 |
 | 추가 컴포넌트 타이포그래피 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
 | FormField 개선 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
-| Margin 클래스 제거 | 낮음 | 대규모 | 낮음 | 낮음 | ⏳ 점진적 |
+| Margin 클래스 제거 | 낮음 | 소규모 | 낮음 | 낮음 | ✅ 검토 완료 (특수 케이스만 남음) |
+| 우선순위 낮은 컴포넌트 타이포그래피 | 낮음 | 중간 | 중간 | 중간 | ✅ 완료 |
 | 기타 컴포넌트 개선 | 낮음 | 소규모 | 낮음 | 중간 | ⏳ 점진적 |
 
 ---
