@@ -9,9 +9,8 @@
 // 기본 타입
 // ============================================================================
 
-export type ContentType = "book" | "lecture" | "custom";
-
-export type ExclusionType = "휴가" | "개인사정" | "휴일지정" | "기타";
+// 공통 타입은 lib/types/common.ts에서 import
+export type { ContentType, ExclusionType } from "@/lib/types/common";
 
 // ============================================================================
 // 콘텐츠 관련 타입

@@ -50,17 +50,8 @@ export type PlanStatus =
 /**
  * 제외일 유형
  */
-export type ExclusionType = "휴가" | "개인사정" | "휴일지정" | "기타";
-
-/**
- * 콘텐츠 타입
- */
-export type ContentType = "book" | "lecture" | "custom";
-
-/**
- * 학생 수준
- */
-export type StudentLevel = "high" | "medium" | "low";
+// 공통 타입은 lib/types/common.ts에서 import
+export type { ExclusionType, ContentType, StudentLevel } from "@/lib/types/common";
 
 // ============================================
 // JSONB 필드 타입 (PlanGroup 내부)
