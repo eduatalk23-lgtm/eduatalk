@@ -21,13 +21,13 @@ Parsing CSS source code failed
 
 Unexpected token Delim('*')
 ```
-참고: 실제 에러 메시지에는 `--text-*` 패턴이 포함되어 있었지만, 문서에서 Tailwind가 스캔하지 않도록 한글로 대체했습니다.
+참고: 실제 에러 메시지에는 와일드카드를 사용한 잘못된 CSS 변수 패턴이 포함되어 있었지만, 문서에서는 Tailwind가 스캔하지 않도록 설명으로 대체했습니다.
 
 ## 원인 분석
 
 1. **문제의 근본 원인**: 여러 파일에 잘못된 CSS 패턴 예시가 포함되어 있었습니다:
    - `docs/gradual-improvement-tasks-review-2025-01-XX.md`: 마크다운 문서에 와일드카드를 사용한 잘못된 CSS 변수 패턴
-   - `eslint.config.mjs`: ESLint 에러 메시지 문자열에 `--text-*` 패턴
+   - `eslint.config.mjs`: ESLint 에러 메시지 문자열에 와일드카드를 사용한 잘못된 패턴
 
 2. **CSS 변수 제약사항**: CSS `var()` 함수에서 변수 이름에 와일드카드(`*`)를 사용할 수 없습니다. CSS 변수 이름은 완전히 정의되어야 합니다.
 
@@ -56,7 +56,7 @@ Unexpected token Delim('*')
 
 **수정 전**:
 ```javascript
-"디자인 시스템 토큰을 사용하세요: --color-*, --text-*, semantic colors..."
+"디자인 시스템 토큰을 사용하세요: --color-*, --text-primary, --text-secondary 등, semantic colors..."
 ```
 
 **수정 후**:
@@ -75,7 +75,7 @@ Unexpected token Delim('*')
 - CSS 변수는 `--` 접두사로 시작해야 합니다
 - 변수 이름은 완전히 정의되어야 하며 와일드카드를 포함할 수 없습니다
 - 유효한 예시: `--text-primary`, `--text-secondary`, `--text-tertiary`
-- 유효하지 않은 예시: `--text-*`
+- 유효하지 않은 예시: 와일드카드를 포함한 변수명 (예: --text-별표)
 
 ### Tailwind CSS 4의 동적 클래스 생성
 
@@ -97,7 +97,7 @@ Tailwind CSS 4는 `@source` 디렉토리 내의 파일을 스캔하여 사용된
 
 1. `docs/gradual-improvement-tasks-review-2025-01-XX.md`: 잘못된 패턴을 구체적인 변수명 예시로 변경
 2. `docs/2025-01-XX-css-parsing-error-fix.md`: 에러 메시지 예시에서도 와일드카드 패턴 제거 (한글로 대체)
-3. `eslint.config.mjs`: 에러 메시지 문자열에서 `--text-*` 패턴을 구체적인 변수명 예시로 변경
+3. `eslint.config.mjs`: 에러 메시지 문자열에서 와일드카드 패턴을 구체적인 변수명 예시로 변경
 
 모든 파일에서 와일드카드를 포함한 CSS 변수 패턴이 완전히 제거되었습니다.
 
