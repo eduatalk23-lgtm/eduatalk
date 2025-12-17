@@ -9,6 +9,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterBooks, getPublishersForFilter, getDifficultiesForMasterBooks } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterBookFilters } from "@/lib/data/contentMasters";
+import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
@@ -108,7 +109,7 @@ export default async function StudentMasterBooksPage({
     publisher_id: params.publisher_id,
     search: params.search,
     difficulty: params.difficulty,
-    sort: params.sort || "updated_at_desc",
+    sort: (params.sort as ContentSortOption | undefined) ?? ("updated_at_desc" as ContentSortOption),
     tenantId, // 테넌트 ID 추가
     limit: 50,
   };

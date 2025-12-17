@@ -12,6 +12,7 @@ import {
   type ContentMasterFilters,
 } from "@/lib/data/contentMasters";
 import { searchMasterBooks, searchMasterLectures } from "@/lib/data/contentMasters";
+import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 
 /**
@@ -37,7 +38,7 @@ async function _searchContentMasters(
       publisher_id: filters.publisher_id,
       search: filters.search,
       difficulty: filters.difficulty,
-      sort: filters.sort,
+      sort: filters.sort as ContentSortOption | undefined,
       tenantId: tenantContext?.tenantId || null,
       limit: filters.limit,
       offset: filters.offset,
@@ -54,7 +55,7 @@ async function _searchContentMasters(
       platform_id: filters.platform_id,
       search: filters.search,
       difficulty: filters.difficulty,
-      sort: filters.sort,
+      sort: filters.sort as ContentSortOption | undefined,
       tenantId: tenantContext?.tenantId || null,
       limit: filters.limit,
       offset: filters.offset,
@@ -73,7 +74,7 @@ async function _searchContentMasters(
         publisher_id: filters.publisher_id,
         search: filters.search,
         difficulty: filters.difficulty,
-        sort: filters.sort,
+        sort: filters.sort as ContentSortOption | undefined,
         tenantId: tenantContext?.tenantId || null,
         limit: filters.limit,
         offset: filters.offset,
@@ -85,7 +86,7 @@ async function _searchContentMasters(
         platform_id: filters.platform_id,
         search: filters.search,
         difficulty: filters.difficulty,
-        sort: filters.sort,
+        sort: filters.sort as ContentSortOption | undefined,
         tenantId: tenantContext?.tenantId || null,
         limit: filters.limit,
         offset: filters.offset,

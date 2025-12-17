@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";
 import { searchMasterLectures, getCurriculumRevisions, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
+import type { ContentSortOption } from "@/lib/types/contentFilters";
 import ExcelActions from "./_components/ExcelActions";
 import { secondsToMinutes } from "@/lib/utils/duration";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
@@ -32,7 +33,7 @@ export default async function MasterLecturesPage({
     platform_id: params.platform_id,
     search: params.search,
     difficulty: params.difficulty,
-    sort: params.sort || "updated_at_desc",
+    sort: (params.sort as ContentSortOption | undefined) ?? ("updated_at_desc" as ContentSortOption),
     tenantId, // 테넌트 ID 추가
     limit: 50,
   };

@@ -6,6 +6,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterLectures, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
+import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/server";
 import { secondsToMinutes } from "@/lib/utils/duration";
@@ -107,7 +108,7 @@ export default async function StudentMasterLecturesPage({
     platform_id: params.platform_id,
     search: params.search,
     difficulty: params.difficulty,
-    sort: params.sort || "updated_at_desc",
+    sort: (params.sort as ContentSortOption | undefined) ?? ("updated_at_desc" as ContentSortOption),
     tenantId, // 테넌트 ID 추가
     limit: 50,
   };

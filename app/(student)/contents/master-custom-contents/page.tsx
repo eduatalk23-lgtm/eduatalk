@@ -5,6 +5,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { searchMasterCustomContents, getCurriculumRevisions } from "@/lib/data/contentMasters";
 import { MasterCustomContentFilters } from "@/lib/data/contentMasters";
+import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { UnifiedContentFilter } from "@/components/filters/UnifiedContentFilter";
 import { getContainerClass } from "@/lib/constants/layout";
 import { inlineButtonBase } from "@/lib/utils/darkMode";
@@ -34,7 +35,7 @@ export default async function StudentMasterCustomContentsPage({
     content_type: params.content_type,
     search: params.search,
     difficulty: params.difficulty,
-    sort: params.sort || "updated_at_desc",
+    sort: (params.sort as ContentSortOption | undefined) ?? ("updated_at_desc" as ContentSortOption),
     tenantId, // 테넌트 ID 추가
     limit: 50,
   };

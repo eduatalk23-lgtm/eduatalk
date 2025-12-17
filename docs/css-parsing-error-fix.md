@@ -4,17 +4,17 @@
 
 빌드 시 다음과 같은 CSS 파싱 에러가 발생했습니다:
 
-```
+```text
 Parsing CSS source code failed
 ./app/globals.css:1633:45
-border-color: rgb(var(--color-secondary-*));
+border-color: rgb(var(--color-secondary-&#42;));
                               ^
 Unexpected token Delim('*')
 ```
 
 ## 원인 분석
 
-Tailwind CSS가 문서 파일(`docs/`)을 스캔하면서, 문서에 포함된 와일드카드 예시(`--color-secondary-*`, `--text-*`, `--elevation-*`)를 실제 CSS 클래스로 해석하려고 시도했습니다. CSS는 와일드카드 문법을 지원하지 않으므로 파싱 에러가 발생했습니다.
+Tailwind CSS가 문서 파일(`docs/`)을 스캔하면서, 문서에 포함된 와일드카드 예시(`--color-secondary-&#42;`, `--text-&#42;`, `--elevation-&#42;`)를 실제 CSS 클래스로 해석하려고 시도했습니다. CSS는 와일드카드 문법을 지원하지 않으므로 파싱 에러가 발생했습니다.
 
 ## 해결 방법
 
@@ -23,21 +23,21 @@ Tailwind CSS가 문서 파일(`docs/`)을 스캔하면서, 문서에 포함된 �
 ### 수정된 파일들
 
 1. **docs/design-system-ui-improvement-phase2.md**
-   - `text-[var(--text-*)]` → `text-[var(--text-primary)]` 또는 `text-[var(--text-secondary)]` 등
-   - `bg-[rgb(var(--color-secondary-*))]` → `bg-[rgb(var(--color-secondary-100))]` 또는 `bg-[rgb(var(--color-secondary-200))]` 등
-   - `border-[rgb(var(--color-secondary-*))]` → `border-[rgb(var(--color-secondary-200))]` 또는 `border-[rgb(var(--color-secondary-300))]` 등
+   - `` `text-[var(--text-&#42;)]` `` → `` `text-[var(--text-primary)]` `` 또는 `` `text-[var(--text-secondary)]` `` 등
+   - `` `bg-[rgb(var(--color-secondary-&#42;))]` `` → `` `bg-[rgb(var(--color-secondary-100))]` `` 또는 `` `bg-[rgb(var(--color-secondary-200))]` `` 등
+   - `` `border-[rgb(var(--color-secondary-&#42;))]` `` → `` `border-[rgb(var(--color-secondary-200))]` `` 또는 `` `border-[rgb(var(--color-secondary-300))]` `` 등
 
 2. **docs/design-system-ui-improvement-phase3.md**
-   - `--color-secondary-*`, `--text-*` → `--color-secondary-50`, `--color-secondary-100` 등, `--text-primary`, `--text-secondary` 등
+   - `` `--color-secondary-&#42;` ``, `` `--text-&#42;` `` → `` `--color-secondary-50` ``, `` `--color-secondary-100` `` 등, `` `--text-primary` ``, `` `--text-secondary` `` 등
 
 3. **docs/ui-phase1-common-components-improvement.md**
-   - `shadow-[var(--elevation-*)]` → `shadow-[var(--elevation-1)]`, `shadow-[var(--elevation-2)]` 등
+   - `` `shadow-[var(--elevation-&#42;)]` `` → `` `shadow-[var(--elevation-1)]` ``, `` `shadow-[var(--elevation-2)]` `` 등
 
 4. **docs/ui-phase2-main-pages-improvement.md**
-   - `shadow-[var(--elevation-*)]` → `shadow-[var(--elevation-1)]`, `shadow-[var(--elevation-2)]` 등
+   - `` `shadow-[var(--elevation-&#42;)]` `` → `` `shadow-[var(--elevation-1)]` ``, `` `shadow-[var(--elevation-2)]` `` 등
 
 5. **docs/ui-phase3-gradual-improvement.md**
-   - `shadow-[var(--elevation-*)]` → `shadow-[var(--elevation-1)]`, `shadow-[var(--elevation-2)]` 등
+   - `` `shadow-[var(--elevation-&#42;)]` `` → `` `shadow-[var(--elevation-1)]` ``, `` `shadow-[var(--elevation-2)]` `` 등
 
 ## 추가 수정 사항
 

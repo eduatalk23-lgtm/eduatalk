@@ -70,11 +70,3 @@ export function CareerFieldsManager() {
     />
   );
 }
-
-
-
-
-
-
-
-
