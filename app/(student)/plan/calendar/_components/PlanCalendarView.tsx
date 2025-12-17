@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from "lucide-react";
 import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
-import { formatMonthYear, formatWeekRangeShort, formatDay, parseDateString } from "@/lib/date/calendarUtils";
+import { formatMonthYear, formatWeekRangeShort, formatDay, parseDateString, formatDateString } from "@/lib/date/calendarUtils";
 import { buildDayTypesFromDailySchedule } from "@/lib/date/calendarDayTypes";
 import { useMemo } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -64,12 +65,41 @@ export function PlanCalendarView({
   academySchedules,
   dailySchedules,
 }: PlanCalendarViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL에서 날짜와 뷰 읽기
+  const urlDate = searchParams.get("date");
+  const urlView = searchParams.get("view") as "month" | "week" | "day" | null;
+
   // initialDate를 Date 객체로 변환 (YYYY-MM-DD 형식)
   // 로컬 타임존 기준으로 파싱하여 날짜가 변경되지 않도록 합니다.
   const initialDateObj = parseDateString(initialDate);
-  const [currentDate, setCurrentDate] = useState(initialDateObj);
-  const [view, setView] = useState<"month" | "week" | "day">(initialView);
+  
+  // URL에서 날짜가 있으면 사용, 없으면 initialDate 사용
+  const startDate = urlDate ? parseDateString(urlDate) : initialDateObj;
+  const startView = urlView && ["month", "week", "day"].includes(urlView) ? urlView : initialView;
+
+  const [currentDate, setCurrentDate] = useState(startDate);
+  const [view, setView] = useState<"month" | "week" | "day">(startView);
   const [showOnlyStudyTime, setShowOnlyStudyTime] = useState(false);
+
+  // URL 동기화 함수
+  const updateURL = useCallback((date: Date, viewType: "month" | "week" | "day") => {
+    const dateStr = formatDateString(date);
+    const params = new URLSearchParams(searchParams.toString());
+    
+    params.set("date", dateStr);
+    params.set("view", viewType);
+    
+    // replace를 사용하여 히스토리 스택에 쌓이지 않도록 함 (뒤로가기 지원)
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [router, searchParams]);
+
+  // 날짜 변경 시 URL 업데이트
+  useEffect(() => {
+    updateURL(currentDate, view);
+  }, [currentDate, view, updateURL]);
 
   // 플랜 그룹의 daily_schedule에서 날짜별 일정 타입 정보 생성
   // Step7에서 생성된 정보를 그대로 사용 (재계산 불필요)
@@ -83,49 +113,169 @@ export function PlanCalendarView({
     return buildDailyScheduleMap(dailySchedules);
   }, [dailySchedules]);
 
-  const goToPrevious = () => {
-    const newDate = new Date(currentDate);
-    if (view === "month") {
-      newDate.setMonth(newDate.getMonth() - 1);
-    } else if (view === "week") {
-      newDate.setDate(newDate.getDate() - 7);
-    } else {
-      newDate.setDate(newDate.getDate() - 1);
-    }
-    setCurrentDate(newDate);
-  };
+  // 날짜 범위 체크 유틸리티
+  const isDateInRange = useCallback((date: Date): boolean => {
+    const dateStr = formatDateString(date);
+    return dateStr >= minDate && dateStr <= maxDate;
+  }, [minDate, maxDate]);
 
-  const goToNext = () => {
+  // 날짜 이동 유틸리티 (범위 체크 포함)
+  const moveDate = useCallback((direction: "prev" | "next" | "today") => {
     const newDate = new Date(currentDate);
-    if (view === "month") {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else if (view === "week") {
-      newDate.setDate(newDate.getDate() + 7);
-    } else {
-      newDate.setDate(newDate.getDate() + 1);
+    
+    if (direction === "today") {
+      const today = new Date();
+      if (isDateInRange(today)) {
+        setCurrentDate(today);
+      }
+      return;
     }
-    setCurrentDate(newDate);
-  };
 
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
+    if (direction === "prev") {
+      if (view === "month") {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else if (view === "week") {
+        newDate.setDate(newDate.getDate() - 7);
+      } else {
+        newDate.setDate(newDate.getDate() - 1);
+      }
+    } else {
+      if (view === "month") {
+        newDate.setMonth(newDate.getMonth() + 1);
+      } else if (view === "week") {
+        newDate.setDate(newDate.getDate() + 7);
+      } else {
+        newDate.setDate(newDate.getDate() + 1);
+      }
+    }
+
+    // 범위 체크: 범위 밖이면 이동하지 않음
+    if (isDateInRange(newDate)) {
+      setCurrentDate(newDate);
+    }
+  }, [currentDate, view, isDateInRange]);
+
+  const goToPrevious = useCallback(() => moveDate("prev"), [moveDate]);
+  const goToNext = useCallback(() => moveDate("next"), [moveDate]);
+  const goToToday = useCallback(() => moveDate("today"), [moveDate]);
+
+  // 뷰 변경 핸들러
+  const handleViewChange = useCallback((newView: "month" | "week" | "day") => {
+    setView(newView);
+    updateURL(currentDate, newView);
+  }, [currentDate, updateURL]);
+
+  // 이전/다음 버튼 활성화 상태
+  const canGoPrevious = useMemo(() => {
+    const testDate = new Date(currentDate);
+    if (view === "month") {
+      testDate.setMonth(testDate.getMonth() - 1);
+    } else if (view === "week") {
+      testDate.setDate(testDate.getDate() - 7);
+    } else {
+      testDate.setDate(testDate.getDate() - 1);
+    }
+    return isDateInRange(testDate);
+  }, [currentDate, view, isDateInRange]);
+
+  const canGoNext = useMemo(() => {
+    const testDate = new Date(currentDate);
+    if (view === "month") {
+      testDate.setMonth(testDate.getMonth() + 1);
+    } else if (view === "week") {
+      testDate.setDate(testDate.getDate() + 7);
+    } else {
+      testDate.setDate(testDate.getDate() + 1);
+    }
+    return isDateInRange(testDate);
+  }, [currentDate, view, isDateInRange]);
+
+  // 키보드 네비게이션
+  const calendarRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 캘린더 영역에 포커스가 있을 때만 처리
+      if (!calendarRef.current?.contains(document.activeElement)) {
+        return;
+      }
+
+      // 입력 필드에 포커스가 있으면 무시
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          goToPrevious();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          goToNext();
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          if (view === "week" || view === "day") {
+            moveDate("prev");
+          }
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          if (view === "week" || view === "day") {
+            moveDate("next");
+          }
+          break;
+        case "Home":
+          e.preventDefault();
+          goToToday();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goToPrevious, goToNext, goToToday, moveDate, view]);
+
+  // 오늘 날짜인지 확인
+  const isToday = useMemo(() => {
+    const today = formatDateString(new Date());
+    const current = formatDateString(currentDate);
+    return today === current;
+  }, [currentDate]);
 
   return (
-    <div className="rounded-xl border-2 border-gray-200 bg-white shadow-lg">
+    <div 
+      ref={calendarRef}
+      className="rounded-xl border-2 border-gray-200 bg-white shadow-lg"
+      role="application"
+      aria-label="플랜 캘린더"
+      tabIndex={0}
+    >
       {/* 헤더 - 개선된 레이아웃 */}
       <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 md:px-8 py-5 md:py-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* 왼쪽: 날짜 네비게이션 */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" role="group" aria-label="날짜 네비게이션">
             <button
               onClick={goToPrevious}
+              disabled={!canGoPrevious}
               aria-label="이전 기간으로 이동"
-              className="rounded-lg p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:scale-110 active:scale-95"
+              aria-disabled={!canGoPrevious}
+              className={`rounded-lg p-2 transition-all duration-200 ${
+                canGoPrevious
+                  ? "text-gray-600 hover:bg-gray-100 hover:scale-110 active:scale-95 cursor-pointer"
+                  : "text-gray-300 cursor-not-allowed opacity-50"
+              }`}
             >
               <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
             </button>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <h2 
+              className="text-2xl md:text-3xl font-bold text-gray-900"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {view === "month"
                 ? formatMonthYear(currentDate)
                 : view === "week"
@@ -134,38 +284,59 @@ export function PlanCalendarView({
             </h2>
             <button
               onClick={goToNext}
+              disabled={!canGoNext}
               aria-label="다음 기간으로 이동"
-              className="rounded-lg p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:scale-110 active:scale-95"
+              aria-disabled={!canGoNext}
+              className={`rounded-lg p-2 transition-all duration-200 ${
+                canGoNext
+                  ? "text-gray-600 hover:bg-gray-100 hover:scale-110 active:scale-95 cursor-pointer"
+                  : "text-gray-300 cursor-not-allowed opacity-50"
+              }`}
             >
               <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
             </button>
             <button
               onClick={goToToday}
               aria-label="오늘 날짜로 이동"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm md:text-base font-bold text-white shadow-md transition-all duration-200 hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+              aria-pressed={isToday}
+              className={`rounded-lg px-4 py-2 text-sm md:text-base font-bold shadow-md transition-all duration-200 ${
+                isToday
+                  ? "bg-indigo-700 text-white shadow-lg"
+                  : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+              }`}
             >
               오늘
             </button>
           </div>
 
           {/* 오른쪽: 뷰 전환 및 필터 */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" role="group" aria-label="뷰 전환 및 필터">
             {/* 뷰 전환 버튼 그룹 */}
-            <div className="flex rounded-lg border-2 border-gray-200 bg-gray-50 p-1 shadow-sm">
+            <div 
+              className="flex rounded-lg border-2 border-gray-200 bg-gray-50 p-1 shadow-sm"
+              role="tablist"
+              aria-label="캘린더 뷰 선택"
+            >
               <button
-                onClick={() => setView("month")}
-                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
+                onClick={() => handleViewChange("month")}
+                role="tab"
+                aria-selected={view === "month"}
+                aria-controls="calendar-view"
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                   view === "month"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <CalendarIcon className="inline h-3 w-3 md:h-4 md:w-4" />
+                <CalendarIcon className="inline h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
                 <span className="ml-1">월별</span>
               </button>
               <button
-                onClick={() => setView("week")}
-                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
+                onClick={() => handleViewChange("week")}
+                role="tab"
+                aria-selected={view === "week"}
+                aria-controls="calendar-view"
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                   view === "week"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -174,8 +345,11 @@ export function PlanCalendarView({
                 주별
               </button>
               <button
-                onClick={() => setView("day")}
-                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
+                onClick={() => handleViewChange("day")}
+                role="tab"
+                aria-selected={view === "day"}
+                aria-controls="calendar-view"
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                   view === "day"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -188,14 +362,16 @@ export function PlanCalendarView({
             {/* 필터 버튼 */}
             <button
               onClick={() => setShowOnlyStudyTime(!showOnlyStudyTime)}
-              className={`flex items-center gap-2 rounded-lg border-2 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-95 ${
+              aria-pressed={showOnlyStudyTime}
+              aria-label={showOnlyStudyTime ? "모든 타임슬롯 표시" : "학습시간만 표시"}
+              className={`flex items-center gap-2 rounded-lg border-2 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
                 showOnlyStudyTime 
                   ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm" 
                   : "border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}
               title={showOnlyStudyTime ? "모든 타임슬롯 표시" : "학습시간만 표시"}
             >
-              <Filter className="h-3 w-3 md:h-4 md:w-4" />
+              <Filter className="h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{showOnlyStudyTime ? "전체" : "학습시간만"}</span>
             </button>
           </div>
@@ -203,7 +379,12 @@ export function PlanCalendarView({
       </div>
 
       {/* 캘린더 뷰 - 확대된 패딩 */}
-      <div className="p-4 md:p-6 lg:p-8">
+      <div 
+        id="calendar-view"
+        role="region"
+        aria-label={`${view === "month" ? "월별" : view === "week" ? "주별" : "일별"} 캘린더 뷰`}
+        className="p-4 md:p-6 lg:p-8"
+      >
         {view === "month" ? (
           <MonthView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : view === "week" ? (

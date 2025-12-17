@@ -96,6 +96,9 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     };
   }, [plansByDate]);
 
+  // 오늘 날짜 확인
+  const todayStr = formatDateString(new Date());
+
   // 날짜 셀 렌더링
   const renderDayCell = (day: number) => {
     const date = new Date(year, month, day);
@@ -103,6 +106,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     const dayPlans = plansByDate.get(dateStr) || [];
     const dayExclusions = exclusionsByDate.get(dateStr) || [];
     const dayTypeInfo = dayTypes.get(dateStr);
+    const isToday = dateStr === todayStr;
     
     // 날짜 타입별 스타일링 (공통 유틸리티 사용)
     const {
@@ -118,20 +122,36 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       setIsModalOpen(true);
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleDateClick();
+      }
+    };
+
     return (
       <div
         key={day}
+        role="button"
+        tabIndex={0}
+        aria-label={`${dateStr} 날짜, ${dayPlans.length}개의 플랜`}
+        aria-current={isToday ? "date" : undefined}
         className={cn(
-          "min-h-[120px] md:min-h-[140px] lg:min-h-[160px] cursor-pointer rounded-lg border-2 p-2 md:p-3 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)]",
-          bgColorClass
+          "min-h-[120px] md:min-h-[140px] lg:min-h-[160px] cursor-pointer rounded-lg border-2 p-2 md:p-3 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+          bgColorClass,
+          isToday && "ring-2 ring-indigo-500 ring-offset-2"
         )}
         onClick={handleDateClick}
+        onKeyDown={handleKeyDown}
       >
         {/* 날짜 헤더 */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <div className={`text-lg font-bold ${textColorClass}`}>
+            <div className={cn("text-lg font-bold", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
               {day}
+              {isToday && (
+                <span className="ml-1 text-xs" aria-label="오늘">●</span>
+              )}
             </div>
             {/* 날짜 타입 배지 - 아이콘만 표시 */}
             {dayTypeInfo && dayType !== "normal" && (
@@ -332,12 +352,13 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
 
   return (
     <>
-      <div className="w-full">
+      <div className="w-full" role="grid" aria-label="월별 캘린더">
         {/* 요일 헤더 - 개선된 스타일 */}
-        <div className="grid grid-cols-7 gap-2 md:gap-3">
+        <div className="grid grid-cols-7 gap-2 md:gap-3" role="row">
           {weekdays.map((day) => (
             <div
               key={day}
+              role="columnheader"
               className="py-2 md:py-3 text-center text-sm md:text-base font-semibold text-gray-700"
             >
               {day}
@@ -346,7 +367,9 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
         </div>
 
         {/* 캘린더 그리드 - 확대된 간격 */}
-        <div className="grid grid-cols-7 gap-2 md:gap-3">{cells}</div>
+        <div className="grid grid-cols-7 gap-2 md:gap-3" role="rowgroup">
+          {cells}
+        </div>
       </div>
 
       {/* 타임라인 모달 */}

@@ -16,7 +16,7 @@ import { getContainerClass } from "@/lib/constants/layout";
 import { enrichPlansWithContentDetails } from "@/lib/utils/planContentEnrichment";
 
 type PlanCalendarPageProps = {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; date?: string }>;
 };
 
 export default async function PlanCalendarPage({
