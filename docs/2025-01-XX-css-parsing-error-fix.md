@@ -12,20 +12,22 @@ Parsing CSS source code failed
 ./app/globals.css:2967:23
 
   2965 |   }
-  2966 |   .text-\[var\(--text-\*\)\] {
-> 2967 |     color: var(--text-*);
+  2966 |   .text-\[var\(--text-와일드카드\)\] {
+> 2967 |     color: var(--text-와일드카드);
        |                       ^
   2968 |   }
 
 Unexpected token Delim('*')
 ```
+참고: 실제 에러 메시지에는 `--text-*` 패턴이 포함되어 있었지만, 문서에서 Tailwind가 스캔하지 않도록 한글로 대체했습니다.
 
 ## 원인 분석
 
 1. **문제의 근본 원인**: `docs/gradual-improvement-tasks-review-2025-01-XX.md` 파일에 잘못된 CSS 패턴 예시가 포함되어 있었습니다:
    ```markdown
-   - `gray-*` → `secondary-*` 또는 `text-[var(--text-*)]`
+   - `gray-*` → `secondary-*` 또는 `text-[var(--text-별표)]` (와일드카드 사용 불가)
    ```
+   참고: 실제 문서에는 와일드카드를 사용한 잘못된 패턴이 사용되었지만, CSS 변수 이름에는 와일드카드를 사용할 수 없습니다.
 
 2. **CSS 변수 제약사항**: CSS `var()` 함수에서 변수 이름에 와일드카드(`*`)를 사용할 수 없습니다. CSS 변수 이름은 완전히 정의되어야 합니다.
 
@@ -37,8 +39,9 @@ Unexpected token Delim('*')
 
 **수정 전**:
 ```markdown
-- `gray-*` → `secondary-*` 또는 `text-[var(--text-*)]`
+- `gray-*` → `secondary-*` 또는 `text-[var(--text-별표)]` (잘못된 패턴)
 ```
+참고: 실제 문서에는 와일드카드를 사용한 잘못된 패턴이 사용되었지만, 이는 유효하지 않은 CSS 문법입니다.
 
 **수정 후**:
 ```markdown
