@@ -343,7 +343,7 @@ function ScoreListTableComponent({
                     href={`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}/${score.id}/edit`}
                     className={cn(
                       "flex-1 rounded-lg border px-4 py-2 text-center text-sm font-semibold transition",
-                      borderInput,
+                      borderInputVar,
                       bgSurfaceVar,
                       textSecondaryVar,
                       "hover:bg-gray-50 dark:hover:bg-gray-700"
