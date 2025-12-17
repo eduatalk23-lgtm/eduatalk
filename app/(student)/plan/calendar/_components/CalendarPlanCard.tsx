@@ -75,16 +75,31 @@ export function CalendarPlanCard({
         ? "border-t-0" // 마지막: 위 border 제거
         : "border-t-0 border-b-0" // 중간: 위아래 border 제거
       : "";
+
+    // 툴팁 텍스트 생성
+    const tooltipText = [
+      plan.contentSubjectCategory || plan.contentSubject || "과목 없음",
+      plan.contentEpisode && `회차: ${plan.contentEpisode}`,
+      plan.contentTitle && `제목: ${plan.contentTitle}`,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    // 교과/과목 텍스트 (회차 포함)
+    const subjectText = plan.contentSubjectCategory || plan.contentSubject || "-";
+    const episodeText = plan.contentEpisode ? ` ${plan.contentEpisode}` : "";
+    const fullText = `${subjectText}${episodeText}`;
     
     return (
       <div
         className={cn(
-          "group border p-1 py-0.5 text-xs transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-4)] relative",
+          "group border p-1.5 py-1 text-xs transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-4)] relative",
           connectionClasses,
           borderColorClass,
           bgColorClass,
           borderClasses
         )}
+        title={tooltipText}
       >
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
@@ -92,26 +107,40 @@ export function CalendarPlanCard({
             className={`absolute left-0 right-0 bottom-0 h-[3px] translate-y-[6px] z-10 ${isCompleted ? "bg-green-300 dark:bg-green-700" : isActive ? "bg-blue-300 dark:bg-blue-700" : "bg-gray-200 dark:bg-gray-700"}`} 
           />
         )}
-        <div className="flex items-center gap-0.5 min-w-0">
-          <span className="text-xs shrink-0">{contentTypeIcon}</span>
-          <span className={cn("truncate font-medium min-w-0 flex-1 text-[10px] leading-tight", textPrimary)}>
-            {plan.contentSubjectCategory || plan.contentSubject || "-"}
-          </span>
-          {plan.contentEpisode && (
-            <span className="shrink-0 text-[10px] text-gray-600 dark:text-gray-400">
-              {plan.contentEpisode}
+        {/* 개선된 레이아웃: 세로 스택으로 변경 */}
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {/* 1행: 아이콘 + 교과/과목 + 상태 */}
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-xs shrink-0 leading-none">{contentTypeIcon}</span>
+            <span 
+              className={cn(
+                "truncate font-medium min-w-0 flex-1 text-[11px] leading-tight",
+                textPrimary
+              )}
+              title={fullText}
+            >
+              {fullText}
             </span>
-          )}
-          {isCompleted && (
-            <span className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[10px] font-semibold text-white">
-              ✅
-            </span>
-          )}
-          {isActive && !isCompleted && (
-            <span className="shrink-0 rounded-full bg-blue-500 px-1 py-0.5 text-[10px] font-semibold text-white">
-              ⏱️
-            </span>
-          )}
+            {/* 상태 뱃지 (완료/진행중) */}
+            {isCompleted && (
+              <span 
+                className="shrink-0 rounded-full bg-green-500 px-1 py-0.5 text-[9px] font-semibold text-white leading-none"
+                title="완료"
+                aria-label="완료"
+              >
+                ✓
+              </span>
+            )}
+            {isActive && !isCompleted && (
+              <span 
+                className="shrink-0 rounded-full bg-blue-500 px-1 py-0.5 text-[9px] font-semibold text-white leading-none"
+                title="학습 중"
+                aria-label="학습 중"
+              >
+                ⏱
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );

@@ -145,26 +145,27 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
         onKeyDown={handleKeyDown}
       >
         {/* 날짜 헤더 */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <div className={cn("text-lg font-bold", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex items-center justify-between gap-1">
+            <div className={cn("text-base md:text-lg font-bold leading-tight", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
               {day}
               {isToday && (
-                <span className="ml-1 text-xs" aria-label="오늘">●</span>
+                <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
               )}
             </div>
             {/* 날짜 타입 배지 - 아이콘만 표시 */}
             {dayTypeInfo && dayType !== "normal" && (
               <span 
-                className={cn("rounded-full p-1 text-sm border shadow-[var(--elevation-1)]", dayTypeBadgeClass)}
+                className={cn("rounded-full p-0.5 text-[10px] border shadow-[var(--elevation-1)] shrink-0", dayTypeBadgeClass)}
                 title={dayTypeInfo.label}
+                aria-label={dayTypeInfo.label}
               >
                 {dayTypeInfo.icon}
               </span>
             )}
           </div>
-          <div className="flex flex-col gap-1.5">
           {/* 타임라인 슬롯 기반으로 플랜 및 기타 슬롯 표시 */}
+          <div className="flex flex-col gap-1 min-w-0">
           {(() => {
             const dailySchedule = dailyScheduleMap.get(dateStr);
             
@@ -200,7 +201,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-academy`}
-                      className="truncate rounded bg-purple-100 px-1.5 py-0.5 text-xs text-purple-800"
+                      className="truncate rounded bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 text-[10px] text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800"
                       title={`${slot.academy.academy_name || "학원"}: ${slot.start} ~ ${slot.end}`}
                     >
                       🏫 {slot.academy.academy_name || "학원"}
@@ -217,12 +218,12 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                   const icon = slot.type === "점심시간" ? "🍽️" : slot.type === "이동시간" ? "🚶" : slot.type === "자율학습" ? "📖" : "⏰";
                   // 자율학습은 초록색, 나머지는 주황색
                   const colorClass = slot.type === "자율학습" 
-                    ? "bg-green-100 text-green-800"
-                    : "bg-orange-100 text-orange-800";
+                    ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800"
+                    : "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800";
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-${slot.type}`}
-                      className={`truncate rounded px-1.5 py-0.5 text-xs ${colorClass}`}
+                      className={`truncate rounded px-1.5 py-0.5 text-[10px] border ${colorClass}`}
                       title={`${slot.type}: ${slot.start} ~ ${slot.end}`}
                     >
                       {icon} {slot.type}
@@ -306,17 +307,17 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             }, 0) + unmatchedPlans.length;
             
             return (
-              <div className="flex flex-col gap-1">
+              <>
                 {items}
                 {totalItems > maxDisplay && (
                   <div 
-                    className="flex items-center justify-center rounded-md bg-gray-100 px-1.5 py-1 text-gray-600"
+                    className="flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
                     title={`${totalItems - maxDisplay}개 더 있음`}
                   >
-                    <span className="text-xs">⋯</span>
+                    <span className="text-[10px] font-medium">+{totalItems - maxDisplay}</span>
                   </div>
                 )}
-              </div>
+              </>
             );
           })()}
           </div>
