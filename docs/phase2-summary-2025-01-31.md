@@ -56,6 +56,17 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 
 **문서**: `docs/phase2-caching-strategy-optimization-2025-01-31.md`
 
+### 6. 타입 정의 통합 ✅
+
+**파일**: `lib/types/common.ts` (신규 생성), `lib/types/plan/domain.ts`, `lib/types/content-selection.ts`
+
+- 공통 타입 파일 생성 (`lib/types/common.ts`)
+- 중복 타입 정의 통합 (ContentType, ExclusionType, StudentLevel)
+- 공통 필드 타입, 유틸리티 타입, 응답 타입 정의
+- 타입 재사용성 향상 가이드라인 문서 작성
+
+**문서**: `docs/phase2-type-definition-unification-2025-01-31.md`
+
 ## 생성된 파일
 
 1. `lib/data/core/typedQueryBuilder.ts` - 타입 안전한 쿼리 빌더
@@ -70,6 +81,8 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 3. `lib/hooks/useActivePlan.ts` - 캐시 전략 상수 적용
 4. `lib/hooks/useActivePlanDetails.ts` - 캐시 전략 상수 적용
 5. `lib/providers/QueryProvider.tsx` - 캐시 전략 상수 적용
+6. `lib/types/plan/domain.ts` - 중복 타입 제거 및 공통 타입 import
+7. `lib/types/content-selection.ts` - 중복 타입 제거 및 공통 타입 import
 
 ## 개선 효과
 
@@ -80,6 +93,8 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 5. **로깅 개선**: 심각도에 따른 적절한 로그 레벨 사용
 6. **캐싱 전략 일관성**: 하드코딩된 값을 상수로 교체하여 유지보수성 향상
 7. **코드 일관성**: 모든 훅에서 동일한 캐시 전략 상수 사용
+8. **타입 일관성 향상**: 공통 타입을 한 곳에서 관리하여 일관성 보장
+9. **타입 재사용성 향상**: 공통 유틸리티 타입으로 코드 중복 감소
 
 ## 남은 작업 (규모가 커서 별도 세션 권장)
 
@@ -98,10 +113,10 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 - 서버 사이드 캐싱 강화
 - 예상 시간: 1일
 
-### 4. 타입 정의 통합
+### 4. 타입 정의 통합 ✅
 - 도메인별 타입 통합
 - 공통 타입 정의 강화
-- 예상 시간: 1-2일
+- 완료: 공통 타입 파일 생성 및 중복 타입 통합
 
 ### 5. 유틸리티 함수 통합
 - 유사 기능 함수 통합
