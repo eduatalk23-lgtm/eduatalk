@@ -190,7 +190,7 @@ export function Dialog({
               <h2
                 id={titleId}
                 className={cn(
-                  "text-lg font-semibold",
+                  "text-h2",
                   variant === "destructive"
                     ? "text-error-900 dark:text-error-300"
                     : textPrimaryVar
@@ -202,7 +202,7 @@ export function Dialog({
             {description && (
               <div
                 id={descriptionId}
-                className={cn("text-sm", textSecondaryVar)}
+                className={cn("text-body-2", textSecondaryVar)}
               >
                 {description}
               </div>

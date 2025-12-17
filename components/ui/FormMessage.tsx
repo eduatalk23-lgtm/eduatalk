@@ -22,7 +22,7 @@ const FormMessage = memo(function FormMessage({
   );
 
   return (
-    <p className={cn("rounded px-3 py-2 text-sm", styles[type], className)}>
+    <p className={cn("rounded px-3 py-2 text-body-2", styles[type], className)}>
       {message}
     </p>
   );

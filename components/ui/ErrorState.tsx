@@ -41,8 +41,8 @@ function ErrorStateComponent({
       <div className="mx-auto flex flex-col gap-4 max-w-md">
         <div className="text-5xl md:text-6xl">{icon}</div>
         <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-error-900 dark:text-error-100">{title}</h3>
-          <p className="text-sm text-error-700 dark:text-error-300">{displayMessage}</p>
+          <h3 className="text-body-1 text-error-900 dark:text-error-100">{title}</h3>
+          <p className="text-body-2 text-error-700 dark:text-error-300">{displayMessage}</p>
         </div>
         {/* actionHref가 있으면 Link 사용, onRetry가 있으면 Button 사용 */}
         {actionLabel && actionHref && (
