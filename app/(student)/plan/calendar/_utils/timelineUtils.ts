@@ -138,6 +138,11 @@ export function buildTimelineSlots(
 
       // 학원일정인 경우 학원일정 매칭
       if (slot.type === "학원일정") {
+        // 제외일인 경우 학원일정도 표시하지 않음
+        if (isExclusionDay) {
+          return;
+        }
+        
         const slotStart = timeToMinutes(slot.start);
         const slotEnd = timeToMinutes(slot.end);
 

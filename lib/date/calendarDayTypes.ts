@@ -91,6 +91,35 @@ export function buildDayTypesFromDailySchedule(
     });
   }
 
+  // 먼저 제외일이 있는 날짜를 제외일 타입으로 설정 (최고 우선순위)
+  if (exclusions) {
+    exclusions.forEach((exclusion) => {
+      const dateStr = exclusion.exclusion_date.slice(0, 10);
+      // 제외일 타입 결정 (exclusion_type에 따라 매핑)
+      // exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타"
+      // day_type: "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정"
+      let exclusionDayType: DayType = "지정휴일";
+      if (exclusion.exclusion_type === "휴가") {
+        exclusionDayType = "휴가";
+      } else if (exclusion.exclusion_type === "개인사정") {
+        exclusionDayType = "개인일정";
+      } else if (exclusion.exclusion_type === "휴일지정" || exclusion.exclusion_type === "기타") {
+        exclusionDayType = "지정휴일";
+      }
+      
+      const dayTypeInfo = DAY_TYPE_INFO[exclusionDayType];
+      dayTypeMap.set(dateStr, {
+        ...dayTypeInfo,
+        type: exclusionDayType,
+        exclusion: {
+          exclusion_date: exclusion.exclusion_date,
+          exclusion_type: exclusion.exclusion_type,
+          reason: exclusion.reason || null,
+        },
+      });
+    });
+  }
+
   // 모든 플랜 그룹의 daily_schedule을 순회하며 날짜별 타입 정보 수집
   dailySchedules.forEach((schedule) => {
     if (!schedule || !Array.isArray(schedule)) {
@@ -103,6 +132,15 @@ export function buildDayTypesFromDailySchedule(
       }
 
       const dateStr = daily.date.slice(0, 10); // YYYY-MM-DD 형식 보장
+      
+      // 제외일이 이미 설정된 날짜는 덮어쓰지 않음 (제외일이 최고 우선순위)
+      if (dayTypeMap.has(dateStr)) {
+        const existing = dayTypeMap.get(dateStr)!;
+        // 제외일 타입이면 덮어쓰지 않음
+        if (existing.type === "지정휴일" || existing.type === "휴가" || existing.type === "개인일정") {
+          return;
+        }
+      }
       
       // 제외일 타입인 경우, 실제 제외일 목록에 있는지 확인
       // 플랜 생성 시 추가하지 않은 제외일은 캘린더에 표시하지 않음
