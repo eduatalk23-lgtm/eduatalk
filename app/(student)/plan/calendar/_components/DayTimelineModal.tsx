@@ -71,7 +71,7 @@ export function DayTimelineModal({
     dayTypeBadgeClass,
   } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
 
-  const description = dayTypeInfo && dayType !== "normal" ? (
+  const description = dayTypeInfo && dayTypeInfo.type !== "normal" ? (
     <div className="flex items-center gap-2">
       <span className={`rounded-full px-3 py-1 text-sm font-medium ${dayTypeBadgeClass}`}>
         {dayTypeInfo.icon} {dayTypeInfo.label}
