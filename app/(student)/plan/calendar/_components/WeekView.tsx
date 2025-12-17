@@ -171,7 +171,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                   {dayTypeInfo && dayTypeInfo.type !== "normal" && (
                     <div className="flex items-center gap-1">
                       {dayTypeInfo.icon && (
-                        <span className="text-xs">{dayTypeInfo.icon}</span>
+                        <dayTypeInfo.icon className="w-3.5 h-3.5 shrink-0" />
                       )}
                       <span className={`text-xs font-medium ${textColorClass}`}>
                         {dayTypeInfo.label}

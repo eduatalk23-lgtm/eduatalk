@@ -195,7 +195,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
             {dayTypeInfo && dayType !== "normal" && (
               <div className="flex items-center gap-2 flex-wrap">
                 {dayTypeInfo.icon && (
-                  <span className="text-sm">{dayTypeInfo.icon}</span>
+                  <dayTypeInfo.icon className="w-4 h-4 shrink-0" />
                 )}
                 <span className={cn("text-sm font-bold", textColorClass)}>
                   {dayTypeInfo.label}

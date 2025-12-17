@@ -4,13 +4,14 @@
  */
 
 import type { DailyScheduleInfo } from "@/lib/types/plan";
+import { BookOpen, RotateCw, Umbrella, type LucideIcon } from "lucide-react";
 
 export type DayType = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정" | "normal";
 
 export type DayTypeInfo = {
   type: DayType;
   label: string;
-  icon: string;
+  icon: LucideIcon | null;
   description?: string;
   exclusion?: {
     exclusion_date: string;
@@ -26,37 +27,37 @@ export const DAY_TYPE_INFO: Record<DayType, DayTypeInfo> = {
   학습일: {
     type: "학습일",
     label: "학습일",
-    icon: "✏️",
+    icon: BookOpen,
     description: "새로운 내용을 학습하는 날",
   },
   복습일: {
     type: "복습일",
     label: "복습일",
-    icon: "🔄",
+    icon: RotateCw,
     description: "이전에 학습한 내용을 복습하는 날",
   },
   지정휴일: {
     type: "지정휴일",
     label: "지정휴일",
-    icon: "🏖️",
+    icon: Umbrella,
     description: "지정된 휴일",
   },
   휴가: {
     type: "휴가",
     label: "휴가",
-    icon: "🏖️",
+    icon: Umbrella,
     description: "휴가",
   },
   개인일정: {
     type: "개인일정",
     label: "개인일정",
-    icon: "🏖️",
+    icon: Umbrella,
     description: "개인 일정",
   },
   normal: {
     type: "normal",
     label: "일반",
-    icon: "",
+    icon: null,
     description: "일반 날짜",
   },
 };

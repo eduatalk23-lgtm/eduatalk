@@ -157,7 +157,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             {dayTypeInfo && dayType !== "normal" && (
               <div className="flex items-center gap-0.5 shrink-0">
                 {dayTypeInfo.icon && (
-                  <span className="text-[10px] md:text-xs">{dayTypeInfo.icon}</span>
+                  <dayTypeInfo.icon className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
                 )}
                 <span className={cn("text-[9px] md:text-[10px] font-medium", textColorClass)}>
                   {dayTypeInfo.label}
