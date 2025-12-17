@@ -98,22 +98,28 @@ export function buildDayTypesFromDailySchedule(
       // 제외일 타입 결정 (exclusion_type에 따라 매핑)
       // exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타"
       // day_type: "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정"
-      // "휴일지정"과 "기타"는 모두 "지정휴일"로 표시하되, 내부적으로 구분하여 처리
       let exclusionDayType: DayType = "지정휴일";
+      let exclusionLabel = "지정휴일";
+      
       if (exclusion.exclusion_type === "휴가") {
         exclusionDayType = "휴가";
+        exclusionLabel = "휴가";
       } else if (exclusion.exclusion_type === "개인사정") {
         exclusionDayType = "개인일정";
-      } else if (exclusion.exclusion_type === "휴일지정" || exclusion.exclusion_type === "기타") {
-        // "휴일지정"과 "기타"는 모두 "지정휴일"로 표시
-        // 하지만 타임슬롯 필터링 시 exclusion_type을 확인하여 다르게 처리
+        exclusionLabel = "개인사정";
+      } else if (exclusion.exclusion_type === "휴일지정") {
         exclusionDayType = "지정휴일";
+        exclusionLabel = "휴일지정";
+      } else if (exclusion.exclusion_type === "기타") {
+        exclusionDayType = "지정휴일";
+        exclusionLabel = "기타"; // "기타"로 표시
       }
       
       const dayTypeInfo = DAY_TYPE_INFO[exclusionDayType];
       dayTypeMap.set(dateStr, {
         ...dayTypeInfo,
         type: exclusionDayType,
+        label: exclusionLabel, // exclusion_type에 따라 label 변경
         exclusion: {
           exclusion_date: exclusion.exclusion_date,
           exclusion_type: exclusion.exclusion_type,

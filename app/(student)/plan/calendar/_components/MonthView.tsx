@@ -153,29 +153,16 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                 <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
               )}
             </div>
-            {/* 날짜 타입 배지 - 텍스트로 표시 */}
+            {/* 날짜 타입 배지 - 학습일/복습일과 동일한 구조로 통일 */}
             {dayTypeInfo && dayType !== "normal" && (
-              <span 
-                className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-semibold border shadow-[var(--elevation-1)] shrink-0 whitespace-nowrap",
-                  dayTypeBadgeClass,
-                  // "기타" 제외일은 더 강조 (지정휴일과 구분)
-                  dayExclusions.length > 0 && dayExclusions[0].exclusion_type === "기타" && 
-                  "ring-2 ring-red-500 ring-offset-1",
-                  // 다른 제외일은 기존 스타일 유지
-                  (dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정") && 
-                  dayExclusions.length > 0 && dayExclusions[0].exclusion_type !== "기타" &&
-                  "ring-1 ring-offset-0"
+              <div className="flex items-center gap-0.5 shrink-0">
+                {dayTypeInfo.icon && (
+                  <span className="text-[10px] md:text-xs">{dayTypeInfo.icon}</span>
                 )}
-                title={
-                  dayTypeInfo.exclusion 
-                    ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
-                    : dayTypeInfo.label
-                }
-                aria-label={dayTypeInfo.label}
-              >
-                {dayTypeInfo.label}
-              </span>
+                <span className={cn("text-[9px] md:text-[10px] font-medium", textColorClass)}>
+                  {dayTypeInfo.label}
+                </span>
+              </div>
             )}
           </div>
           {/* 타임라인 슬롯 기반으로 플랜 및 기타 슬롯 표시 */}

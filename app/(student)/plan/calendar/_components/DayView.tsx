@@ -190,36 +190,25 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
             <h2 className={`text-3xl font-bold ${textColorClass}`}>
               {formatDateFull(currentDate)}
             </h2>
-            {/* 날짜 타입 배지 */}
+            {/* 날짜 타입 배지 - 학습일/복습일과 동일한 구조로 통일 */}
             {dayTypeInfo && dayType !== "normal" && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span 
-                  className={cn(
-                    "rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-[var(--elevation-1)]",
-                    dayTypeBadgeClass,
-                    // "기타" 제외일은 더 강조 (지정휴일과 구분)
-                    dayExclusions.length > 0 && dayExclusions[0].exclusion_type === "기타" && 
-                    "ring-2 ring-red-500 ring-offset-2",
-                    // 다른 제외일은 기존 스타일 유지
-                    (dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정") && 
-                    dayExclusions.length > 0 && dayExclusions[0].exclusion_type !== "기타" &&
-                    "ring-2 ring-offset-2"
-                  )}
-                  title={
-                    dayTypeInfo.exclusion 
-                      ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
-                      : dayTypeInfo.label
-                  }
-                >
-                  {dayTypeInfo.icon} {dayTypeInfo.label}
+                {dayTypeInfo.icon && (
+                  <span className="text-sm">{dayTypeInfo.icon}</span>
+                )}
+                <span className={cn("text-sm font-bold", textColorClass)}>
+                  {dayTypeInfo.label}
                 </span>
+                {/* 제외일 상세 정보는 유지 */}
                 {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
                   <span className={cn("text-sm font-medium", textTertiary)}>
                     ({dayExclusions[0].exclusion_type})
                   </span>
                 )}
                 {dayExclusions.length > 0 && dayExclusions[0].reason && (
-                  <span className={cn("text-sm font-medium", textTertiary)}>- {dayExclusions[0].reason}</span>
+                  <span className={cn("text-sm font-medium", textTertiary)}>
+                    - {dayExclusions[0].reason}
+                  </span>
                 )}
               </div>
             )}

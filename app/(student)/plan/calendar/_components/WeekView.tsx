@@ -167,38 +167,15 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                   <div className={`text-lg font-bold ${boldTextColorClass}`}>
                     {formatDate(date)}
                   </div>
-                  {/* 날짜 타입 표시 - 학습일/복습일/제외일 모두 표시 */}
+                  {/* 날짜 타입 표시 - 모든 타입을 동일한 구조로 통일 */}
                   {dayTypeInfo && dayTypeInfo.type !== "normal" && (
                     <div className="flex items-center gap-1">
-                      {(isStudyDay || isReviewDay) && (
-                        <>
-                          <span className="text-xs">{dayTypeInfo.icon}</span>
-                          <span className={`text-xs font-medium ${textColorClass}`}>
-                            {dayTypeInfo.label}
-                          </span>
-                        </>
+                      {dayTypeInfo.icon && (
+                        <span className="text-xs">{dayTypeInfo.icon}</span>
                       )}
-                      {isExclusionDay && (
-                        <span 
-                          className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[9px] font-semibold border shadow-[var(--elevation-1)]",
-                            dayTypeBadgeClass,
-                            // "기타" 제외일은 더 강조 (지정휴일과 구분)
-                            dayExclusions.length > 0 && dayExclusions[0].exclusion_type === "기타" && 
-                            "ring-2 ring-red-500 ring-offset-1",
-                            // 다른 제외일은 기존 스타일 유지
-                            dayExclusions.length > 0 && dayExclusions[0].exclusion_type !== "기타" &&
-                            "ring-1 ring-offset-0"
-                          )}
-                          title={
-                            dayTypeInfo.exclusion 
-                              ? `${dayTypeInfo.label}${dayTypeInfo.exclusion.exclusion_type ? ` - ${dayTypeInfo.exclusion.exclusion_type}` : ""}${dayTypeInfo.exclusion.reason ? `: ${dayTypeInfo.exclusion.reason}` : ""}`
-                              : dayTypeInfo.label
-                          }
-                        >
-                          {dayTypeInfo.label}
-                        </span>
-                      )}
+                      <span className={`text-xs font-medium ${textColorClass}`}>
+                        {dayTypeInfo.label}
+                      </span>
                     </div>
                   )}
                 </div>
