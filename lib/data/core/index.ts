@@ -5,6 +5,7 @@
 
 export * from "./types";
 export * from "./errorHandler";
+export * from "./errorTypes";
 export * from "./queryBuilder";
 export * from "./baseRepository";
 export * from "./typedQueryBuilder";

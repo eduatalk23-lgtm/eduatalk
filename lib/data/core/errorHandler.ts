@@ -4,6 +4,13 @@
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
+import {
+  structureError,
+  isIgnorableError,
+  isRecoverableError,
+  isRetryableError,
+  type StructuredError,
+} from "./errorTypes";
 
 /**
  * Supabase 에러 타입
@@ -42,6 +49,10 @@ const DEFAULT_IGNORE_ERROR_CODES = [POSTGREST_ERROR_CODES.NO_ROWS_RETURNED];
 
 /**
  * 에러를 안전하게 처리하고 로깅
+ * 
+ * @param error - PostgrestError 또는 null
+ * @param options - 에러 처리 옵션
+ * @returns 에러가 처리되었는지 여부 (무시 가능한 에러는 false)
  */
 export function handleQueryError(
   error: PostgrestError | null,
@@ -57,69 +68,64 @@ export function handleQueryError(
     ignoreErrorCodes = DEFAULT_IGNORE_ERROR_CODES,
   } = options;
 
+  // 구조화된 에러로 변환
+  const structuredError = structureError(error, context);
+
   // 무시할 에러 코드인 경우
-  if (ignoreErrorCodes.includes(error.code || "")) {
+  if (ignoreErrorCodes.includes(error.code || "") || isIgnorableError(structuredError)) {
     return false; // 에러가 아니므로 처리할 필요 없음
   }
 
   // 에러 로깅
   if (logError) {
-    // 에러 객체를 안전하게 직렬화
-    const errorInfo: Record<string, unknown> = {};
-    
-    // 기본 속성 추출
-    if (error.message) {
-      errorInfo.message = error.message;
-    }
-    if (error.code) {
-      errorInfo.code = error.code;
-    }
-    
-    // 에러 객체의 모든 열거 가능한 속성 추출
-    try {
-      Object.keys(error).forEach((key) => {
-        const value = (error as unknown as Record<string, unknown>)[key];
-        // 순환 참조 방지 및 직렬화 가능한 값만 포함
-        if (value !== null && typeof value !== "function" && typeof value !== "object") {
-          errorInfo[key] = value;
-        } else if (typeof value === "object" && value !== null) {
-          try {
-            // 객체인 경우 JSON 직렬화 시도
-            JSON.stringify(value);
-            errorInfo[key] = value;
-          } catch {
-            // 직렬화 불가능한 경우 문자열로 변환
-            errorInfo[key] = String(value);
-          }
-        }
-      });
-    } catch (e) {
-      // 속성 추출 실패 시 최소한의 정보라도 로깅
-      errorInfo.errorString = String(error);
-    }
-    
-    // PostgrestError의 표준 속성들 명시적으로 확인
-    if ("details" in error && error.details) {
-      errorInfo.details = error.details;
-    }
-    if ("hint" in error && error.hint) {
-      errorInfo.hint = error.hint;
-    }
-    if ("statusCode" in error && (error as { statusCode?: unknown }).statusCode) {
-      errorInfo.statusCode = (error as { statusCode?: unknown }).statusCode;
-    }
-
-    // 최소한의 정보가 있는지 확인
-    if (Object.keys(errorInfo).length === 0) {
-      errorInfo.errorString = String(error);
-      errorInfo.errorType = typeof error;
-      errorInfo.errorConstructor = error?.constructor?.name || "Unknown";
-    }
-
-    console.error(`${context} 쿼리 에러:`, errorInfo);
+    logStructuredError(structuredError);
   }
 
   return true; // 에러가 있음
+}
+
+/**
+ * 구조화된 에러를 로깅
+ */
+export function logStructuredError(error: StructuredError): void {
+  const logLevel = getLogLevel(error.severity);
+  const logMessage = `${error.context || "[data]"} 쿼리 에러 [${error.category}/${error.severity}]:`;
+  const logData = {
+    message: error.message,
+    code: error.code,
+    category: error.category,
+    severity: error.severity,
+    details: error.details,
+    hint: error.hint,
+    statusCode: error.statusCode,
+    timestamp: error.timestamp,
+  };
+
+  // 심각도에 따라 다른 로그 레벨 사용
+  if (logLevel === "error") {
+    console.error(logMessage, logData);
+  } else if (logLevel === "warn") {
+    console.warn(logMessage, logData);
+  } else {
+    console.info(logMessage, logData);
+  }
+}
+
+/**
+ * 심각도에 따른 로그 레벨 결정
+ */
+function getLogLevel(severity: StructuredError["severity"]): "error" | "warn" | "info" {
+  switch (severity) {
+    case "critical":
+    case "high":
+      return "error";
+    case "medium":
+      return "warn";
+    case "low":
+      return "info";
+    default:
+      return "warn";
+  }
 }
 
 /**
@@ -145,5 +151,46 @@ import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
  */
 export function isColumnNotFoundError(error: PostgrestError | null): boolean {
   return ErrorCodeCheckers.isColumnNotFound(error);
+}
+
+/**
+ * 에러를 구조화하여 반환
+ * 
+ * @param error - 에러 객체
+ * @param context - 컨텍스트 정보
+ * @returns 구조화된 에러
+ */
+export function getStructuredError(
+  error: PostgrestError | Error | unknown,
+  context?: string
+): StructuredError {
+  return structureError(error, context);
+}
+
+/**
+ * 에러가 무시 가능한지 확인
+ */
+export function canIgnoreError(error: PostgrestError | null, context?: string): boolean {
+  if (!error) return true;
+  const structured = structureError(error, context);
+  return isIgnorableError(structured);
+}
+
+/**
+ * 에러가 복구 가능한지 확인 (fallback 가능)
+ */
+export function canRecoverFromError(error: PostgrestError | null, context?: string): boolean {
+  if (!error) return false;
+  const structured = structureError(error, context);
+  return isRecoverableError(structured);
+}
+
+/**
+ * 에러가 재시도 가능한지 확인
+ */
+export function canRetryError(error: PostgrestError | null, context?: string): boolean {
+  if (!error) return false;
+  const structured = structureError(error, context);
+  return isRetryableError(structured);
 }
 
