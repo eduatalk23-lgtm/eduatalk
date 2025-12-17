@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getContainerClass } from "@/lib/constants/layout";
 import { searchMasterLectures, getCurriculumRevisions, getPlatformsForFilter, getDifficultiesForMasterLectures } from "@/lib/data/contentMasters";
 import { MasterLectureFilters } from "@/lib/data/contentMasters";
 import ExcelActions from "./_components/ExcelActions";
@@ -46,7 +47,7 @@ export default async function MasterLecturesPage({
   ]);
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
+    <section className={getContainerClass("LIST", "lg")}>
       <div className="flex flex-col gap-8">
         {/* Header */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

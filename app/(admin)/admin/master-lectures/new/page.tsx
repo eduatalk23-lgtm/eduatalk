@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
 import { getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
+import { getContainerClass } from "@/lib/constants/layout";
 import { MasterLectureForm } from "./MasterLectureForm";
 
 export default async function NewMasterLecturePage() {
@@ -21,7 +22,7 @@ export default async function NewMasterLecturePage() {
   ]);
 
   return (
-    <section className="mx-auto w-full max-w-2xl px-4 py-10">
+    <section className={getContainerClass("FORM", "lg")}>
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <div>

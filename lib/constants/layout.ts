@@ -7,19 +7,19 @@
 
 export const LAYOUT_WIDTHS = {
   /** 폼 페이지 (settings, account, devices 등) */
-  FORM: "max-w-2xl",
+  FORM: "max-w-3xl",
   
   /** 콘텐츠 상세 페이지 (books/[id], lectures/[id] 등) */
-  CONTENT_DETAIL: "max-w-3xl",
+  CONTENT_DETAIL: "max-w-5xl",
   
   /** 리스트/대시보드 페이지 (contents, plan 등) */
-  LIST: "max-w-4xl",
+  LIST: "max-w-6xl",
   
   /** 캠프/플랜 그룹 페이지 (camp, plan/group/[id] 등) */
-  CAMP_PLAN: "max-w-5xl",
+  CAMP_PLAN: "max-w-7xl",
   
   /** 대시보드 메인 페이지 (today, dashboard 등) */
-  DASHBOARD: "max-w-7xl",
+  DASHBOARD: "max-w-[1536px]",
   
   /** 모달/다이얼로그 (작은 모달) */
   MODAL_SM: "max-w-2xl",

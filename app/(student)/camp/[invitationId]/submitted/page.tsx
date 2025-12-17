@@ -5,6 +5,7 @@ import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampInvitation, getCampTemplate } from "@/lib/data/campTemplates";
 import { classifyPlanContents } from "@/lib/data/planContents";
+import { getContainerClass } from "@/lib/constants/layout";
 import { PlanGroupDetailView } from "@/app/(student)/plan/group/[id]/_components/PlanGroupDetailView";
 import {
   planPurposeLabels,
@@ -236,7 +237,7 @@ export default async function CampSubmissionDetailPage({
   });
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-6 md:py-10">
+    <section className={getContainerClass("CAMP_PLAN", "md")}>
       <div className="flex flex-col gap-6">
         {/* 상단 액션 바 */}
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
