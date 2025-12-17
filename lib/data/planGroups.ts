@@ -1080,6 +1080,306 @@ export async function getStudentExclusions(
 }
 
 /**
+ * 제외일 일괄 생성 (통합 함수)
+ * plan_group_id가 제공되면 플랜 그룹별로, 없으면 시간 관리 영역에 저장
+ */
+async function createExclusions(
+  studentId: string,
+  tenantId: string,
+  exclusions: Array<{
+    exclusion_date: string;
+    exclusion_type: string;
+    reason?: string | null;
+  }>,
+  planGroupId?: string | null
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  if (exclusions.length === 0) {
+    return { success: true };
+  }
+
+  // plan_group_id가 있는 경우: 플랜 그룹별 관리 로직
+  if (planGroupId) {
+    // 플랜 그룹에서 student_id 확인
+    const { data: group } = await supabase
+      .from("plan_groups")
+      .select("student_id")
+      .eq("id", planGroupId)
+      .maybeSingle();
+
+    if (!group?.student_id) {
+      return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+    }
+
+    // student_id 일치 확인
+    if (group.student_id !== studentId) {
+      return { success: false, error: "학생 ID가 일치하지 않습니다." };
+    }
+
+    // 중복 체크: 현재 플랜 그룹 내 제외일 조회 (날짜+유형 조합)
+    const currentExclusionsQuery = supabase
+      .from("plan_exclusions")
+      .select("id, exclusion_date, exclusion_type")
+      .eq("student_id", studentId)
+      .eq("plan_group_id", planGroupId);
+
+    if (tenantId) {
+      currentExclusionsQuery.eq("tenant_id", tenantId);
+    }
+
+    const { data: currentExclusions, error: exclusionsError } =
+      await currentExclusionsQuery;
+
+    if (exclusionsError) {
+      logError(exclusionsError, {
+        function: "createExclusions",
+        planGroupId,
+        tenantId,
+        level: "warn",
+      });
+    }
+
+    // 현재 플랜 그룹에 이미 있는 제외일 (날짜+유형 조합)
+    const existingKeys = new Set(
+      (currentExclusions || []).map(
+        (e) => `${e.exclusion_date}-${e.exclusion_type}`
+      )
+    );
+
+    // 시간 관리 영역의 제외일 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
+    const timeManagementExclusionsQuery = supabase
+      .from("plan_exclusions")
+      .select("id, exclusion_date, exclusion_type, reason")
+      .eq("student_id", studentId);
+
+    if (tenantId) {
+      timeManagementExclusionsQuery.eq("tenant_id", tenantId);
+    }
+
+    // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
+    timeManagementExclusionsQuery.or(
+      `plan_group_id.is.null,plan_group_id.neq.${planGroupId}`
+    );
+
+    const { data: timeManagementExclusions } =
+      await timeManagementExclusionsQuery;
+
+    // 시간 관리 영역의 제외일을 키로 매핑
+    const timeManagementMap = new Map(
+      (timeManagementExclusions || []).map((e) => [
+        `${e.exclusion_date}-${e.exclusion_type}`,
+        e,
+      ])
+    );
+
+    // 업데이트할 항목과 새로 생성할 항목 분리
+    const toUpdate: Array<{ id: string; exclusion: typeof exclusions[0] }> =
+      [];
+    const toInsert: typeof exclusions = [];
+
+    for (const exclusion of exclusions) {
+      const key = `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
+
+      // 현재 플랜 그룹에 이미 있으면 스킵
+      if (existingKeys.has(key)) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[createExclusions] 이미 존재하는 제외일 스킵", {
+            key,
+            planGroupId,
+          });
+        }
+        continue;
+      }
+
+      // 시간 관리 영역에 있으면 업데이트
+      const timeManagementExclusion = timeManagementMap.get(key);
+      if (timeManagementExclusion) {
+        toUpdate.push({
+          id: timeManagementExclusion.id,
+          exclusion,
+        });
+      } else {
+        // 없으면 새로 생성
+        toInsert.push(exclusion);
+      }
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("[createExclusions] 처리 요약", {
+        updateCount: toUpdate.length,
+        insertCount: toInsert.length,
+        skipCount:
+          exclusions.length - toUpdate.length - toInsert.length,
+        planGroupId,
+      });
+    }
+
+    // 시간 관리 영역의 제외일을 현재 플랜 그룹으로 업데이트
+    if (toUpdate.length > 0) {
+      for (const { id, exclusion } of toUpdate) {
+        const { error: updateError } = await supabase
+          .from("plan_exclusions")
+          .update({
+            plan_group_id: planGroupId,
+            reason: exclusion.reason || null,
+          })
+          .eq("id", id);
+
+        if (updateError) {
+          logError(updateError, {
+            function: "createExclusions",
+            level: "warn",
+            exclusionId: id,
+            planGroupId,
+          });
+          // 업데이트 실패 시 새로 생성 목록에 추가
+          toInsert.push(exclusion);
+        } else if (process.env.NODE_ENV === "development") {
+          console.log("[createExclusions] 제외일 재활용 성공", {
+            exclusionDate: exclusion.exclusion_date,
+            exclusionType: exclusion.exclusion_type,
+            planGroupId,
+          });
+        }
+      }
+    }
+
+    // 새로 생성할 제외일
+    if (toInsert.length > 0) {
+      const payload = toInsert.map((exclusion) => ({
+        tenant_id: tenantId,
+        student_id: studentId,
+        plan_group_id: planGroupId,
+        exclusion_date: exclusion.exclusion_date,
+        exclusion_type: exclusion.exclusion_type,
+        reason: exclusion.reason || null,
+      }));
+
+      let { error } = await supabase.from("plan_exclusions").insert(payload);
+
+      if (error && error.code === "42703") {
+        const fallbackPayload = payload.map(
+          ({ tenant_id: _tenantId, ...rest }) => rest
+        );
+        ({ error } = await supabase
+          .from("plan_exclusions")
+          .insert(fallbackPayload));
+      }
+
+      // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
+      if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+        return {
+          success: false,
+          error: "이미 등록된 제외일이 있습니다.",
+        };
+      }
+
+      if (error) {
+        logError(error, {
+          function: "createExclusions",
+          planGroupId,
+          tenantId,
+        });
+        return { success: false, error: error.message };
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[createExclusions] 제외일 생성 완료", {
+          insertCount: toInsert.length,
+          planGroupId,
+        });
+      }
+    }
+
+    return { success: true };
+  }
+
+  // plan_group_id가 없는 경우: 시간 관리 영역에 저장 (plan_group_id = NULL)
+  // 중복 체크: 같은 날짜+유형의 제외일이 이미 있으면 스킵
+  const existingExclusionsQuery = supabase
+    .from("plan_exclusions")
+    .select("id, exclusion_date, exclusion_type")
+    .eq("student_id", studentId)
+    .is("plan_group_id", null);
+
+  if (tenantId) {
+    existingExclusionsQuery.eq("tenant_id", tenantId);
+  }
+
+  const { data: existingExclusions, error: existingError } =
+    await existingExclusionsQuery;
+
+  if (existingError) {
+    logError(existingError, {
+      function: "createExclusions",
+      studentId,
+      tenantId,
+      level: "warn",
+    });
+  }
+
+  // 기존 제외일 키 (날짜+유형 조합)
+  const existingKeys = new Set(
+    (existingExclusions || []).map(
+      (e) => `${e.exclusion_date}-${e.exclusion_type}`
+    )
+  );
+
+  // 중복되지 않은 제외일만 필터링
+  const newExclusions = exclusions.filter(
+    (e) => !existingKeys.has(`${e.exclusion_date}-${e.exclusion_type}`)
+  );
+
+  if (newExclusions.length === 0) {
+    return { success: true }; // 모든 제외일이 이미 존재
+  }
+
+  const payload = newExclusions.map((exclusion) => ({
+    tenant_id: tenantId,
+    student_id: studentId,
+    plan_group_id: null, // 시간 관리 영역
+    exclusion_date: exclusion.exclusion_date,
+    exclusion_type: exclusion.exclusion_type,
+    reason: exclusion.reason || null,
+  }));
+
+  let { error } = await supabase.from("plan_exclusions").insert(payload);
+
+  if (error && error.code === "42703") {
+    const fallbackPayload = payload.map(
+      ({ tenant_id: _tenantId, ...rest }) => rest
+    );
+    ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
+  }
+
+  // 중복 키 에러 처리
+  if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
+    return {
+      success: false,
+      error: "이미 등록된 제외일이 있습니다.",
+    };
+  }
+
+  if (error) {
+    logError(error, {
+      function: "createExclusions",
+      studentId,
+      tenantId,
+    });
+    return { success: false, error: error.message };
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[createExclusions] 시간 관리 영역 제외일 생성 완료", {
+      insertCount: newExclusions.length,
+    });
+  }
+
+  return { success: true };
+}
+
+/**
  * 플랜 그룹 제외일 일괄 생성 (플랜 그룹별 관리)
  */
 export async function createPlanExclusions(
@@ -1091,185 +1391,24 @@ export async function createPlanExclusions(
     reason?: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
-  if (exclusions.length === 0) {
-    return { success: true };
-  }
-
   // 플랜 그룹에서 student_id 조회
+  const supabase = await createSupabaseServerClient();
   const { data: group } = await supabase
     .from("plan_groups")
     .select("student_id")
     .eq("id", groupId)
     .maybeSingle();
-  
+
   if (!group?.student_id) {
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 중복 체크: 현재 플랜 그룹 내 제외일 조회 (날짜+유형 조합)
-  const currentExclusionsQuery = supabase
-    .from("plan_exclusions")
-    .select("id, exclusion_date, exclusion_type")
-    .eq("student_id", group.student_id)
-    .eq("plan_group_id", groupId);
-  
-  if (tenantId) {
-    currentExclusionsQuery.eq("tenant_id", tenantId);
-  }
-  
-  const { data: currentExclusions, error: exclusionsError } = await currentExclusionsQuery;
-  
-  if (exclusionsError) {
-    logError(exclusionsError, {
-      function: "createPlanExclusions",
-      groupId,
-      tenantId,
-      level: "warn",
-    });
-  }
-
-  // 현재 플랜 그룹에 이미 있는 제외일 (날짜+유형 조합)
-  const existingKeys = new Set(
-    (currentExclusions || []).map(
-      (e) => `${e.exclusion_date}-${e.exclusion_type}`
-    )
-  );
-
-  // 시간 관리 영역의 제외일 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-  const timeManagementExclusionsQuery = supabase
-    .from("plan_exclusions")
-    .select("id, exclusion_date, exclusion_type, reason")
-    .eq("student_id", group.student_id);
-  
-  if (tenantId) {
-    timeManagementExclusionsQuery.eq("tenant_id", tenantId);
-  }
-  
-  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-  timeManagementExclusionsQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
-  
-  const { data: timeManagementExclusions } = await timeManagementExclusionsQuery;
-  
-  // 시간 관리 영역의 제외일을 키로 매핑
-  const timeManagementMap = new Map(
-    (timeManagementExclusions || []).map((e) => [
-      `${e.exclusion_date}-${e.exclusion_type}`,
-      e,
-    ])
-  );
-
-  // 업데이트할 항목과 새로 생성할 항목 분리
-  const toUpdate: Array<{ id: string; exclusion: typeof exclusions[0] }> = [];
-  const toInsert: typeof exclusions = [];
-
-  for (const exclusion of exclusions) {
-    const key = `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
-    
-    // 현재 플랜 그룹에 이미 있으면 스킵
-    if (existingKeys.has(key)) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[createPlanExclusions] 이미 존재하는 제외일 스킵", { key });
-      }
-      continue;
-    }
-    
-    // 시간 관리 영역에 있으면 업데이트
-    const timeManagementExclusion = timeManagementMap.get(key);
-    if (timeManagementExclusion) {
-      toUpdate.push({
-        id: timeManagementExclusion.id,
-        exclusion,
-      });
-    } else {
-      // 없으면 새로 생성
-      toInsert.push(exclusion);
-    }
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[createPlanExclusions] 처리 요약", {
-      updateCount: toUpdate.length,
-      insertCount: toInsert.length,
-      skipCount: exclusions.length - toUpdate.length - toInsert.length,
-    });
-  }
-
-  // 시간 관리 영역의 제외일을 현재 플랜 그룹으로 업데이트
-  if (toUpdate.length > 0) {
-    for (const { id, exclusion } of toUpdate) {
-      const { error: updateError } = await supabase
-        .from("plan_exclusions")
-        .update({
-          plan_group_id: groupId,
-          reason: exclusion.reason || null,
-        })
-        .eq("id", id);
-
-      if (updateError) {
-        logError(updateError, {
-          function: "createPlanExclusions",
-          level: "warn",
-          exclusionId: id,
-          groupId,
-        });
-        // 업데이트 실패 시 새로 생성 목록에 추가
-        toInsert.push(exclusion);
-      } else if (process.env.NODE_ENV === "development") {
-        console.log("[createPlanExclusions] 제외일 재활용 성공", {
-          exclusionDate: exclusion.exclusion_date,
-          exclusionType: exclusion.exclusion_type,
-        });
-      }
-    }
-  }
-
-  // 새로 생성할 제외일
-  if (toInsert.length > 0) {
-    const payload = toInsert.map((exclusion) => ({
-      tenant_id: tenantId,
-      student_id: group.student_id,
-      plan_group_id: groupId,
-      exclusion_date: exclusion.exclusion_date,
-      exclusion_type: exclusion.exclusion_type,
-      reason: exclusion.reason || null,
-    }));
-
-    let { error } = await supabase.from("plan_exclusions").insert(payload);
-
-    if (error && error.code === "42703") {
-      const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-      ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
-    }
-
-    // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
-    if (error && (error.code === "23505" || error.message?.includes("duplicate"))) {
-      return {
-        success: false,
-        error: "이미 등록된 제외일이 있습니다.",
-      };
-    }
-
-    if (error) {
-      logError(error, {
-        function: "createPlanExclusions",
-        groupId,
-        tenantId,
-      });
-      return { success: false, error: error.message };
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[createPlanExclusions] 제외일 생성 완료", { insertCount: toInsert.length });
-    }
-  }
-
-  return { success: true };
+  // 통합 함수 호출
+  return createExclusions(group.student_id, tenantId, exclusions, groupId);
 }
 
 /**
- * 학생별 제외일 일괄 생성 (전역 관리)
+ * 학생별 제외일 일괄 생성 (전역 관리 - 시간 관리 영역)
  */
 export async function createStudentExclusions(
   studentId: string,
@@ -1280,49 +1419,8 @@ export async function createStudentExclusions(
     reason?: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
-  if (exclusions.length === 0) {
-    return { success: true };
-  }
-
-  // 중복 체크: 같은 날짜의 제외일이 이미 있으면 스킵
-  const existingExclusions = await getStudentExclusions(studentId, tenantId);
-  const existingDates = new Set(existingExclusions.map((e) => e.exclusion_date));
-
-  const newExclusions = exclusions.filter(
-    (e) => !existingDates.has(e.exclusion_date)
-  );
-
-  if (newExclusions.length === 0) {
-    return { success: true }; // 모든 제외일이 이미 존재
-  }
-
-  const payload = newExclusions.map((exclusion) => ({
-    tenant_id: tenantId,
-    student_id: studentId,
-    exclusion_date: exclusion.exclusion_date,
-    exclusion_type: exclusion.exclusion_type,
-    reason: exclusion.reason || null,
-  }));
-
-  let { error } = await supabase.from("plan_exclusions").insert(payload);
-
-  if (error && error.code === "42703") {
-    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-    ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
-  }
-
-  if (error) {
-    logError(error, {
-      function: "createStudentExclusions",
-      studentId,
-      tenantId,
-    });
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
+  // 통합 함수 호출 (plan_group_id = null)
+  return createExclusions(studentId, tenantId, exclusions, null);
 }
 
 /**

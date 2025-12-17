@@ -416,6 +416,7 @@ export type PlanExclusion = {
   id: string;
   tenant_id: string;
   student_id: string; // students 참조 (플랜 그룹과 분리)
+  plan_group_id: string | null; // plan_groups 참조 (NULL이면 시간 관리 영역의 제외일)
   exclusion_date: string; // date
   exclusion_type: ExclusionType;
   reason: string | null;

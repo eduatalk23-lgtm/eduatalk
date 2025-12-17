@@ -9,6 +9,7 @@ import {
   getPlanGroupById,
   getPlanGroupByIdForAdmin,
   createPlanExclusions,
+  createStudentExclusions,
   getStudentExclusions,
 } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -155,7 +156,44 @@ async function _syncTimeManagementExclusions(
 }
 
 /**
+ * 플랜 그룹 찾기 헬퍼 함수
+ * 활성 플랜 그룹 → draft/saved 플랜 그룹 순서로 찾기
+ */
+async function findTargetPlanGroup(
+  userId: string
+): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 활성 플랜 그룹 찾기
+  const { data: activeGroup } = await supabase
+    .from("plan_groups")
+    .select("id")
+    .eq("student_id", userId)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (activeGroup) {
+    return activeGroup.id;
+  }
+
+  // 2. 활성 플랜 그룹이 없으면 가장 최근 draft 또는 saved 플랜 그룹 사용
+  const { data: recentGroup } = await supabase
+    .from("plan_groups")
+    .select("id")
+    .eq("student_id", userId)
+    .in("status", ["draft", "saved"])
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return recentGroup?.id || null;
+}
+
+/**
  * 플랜 그룹 제외일 추가
+ * 플랜 그룹이 없어도 시간 관리 영역에 제외일을 추가할 수 있음
  */
 async function _addPlanExclusion(formData: FormData): Promise<void> {
   const user = await requireStudentAuth();
@@ -166,6 +204,7 @@ async function _addPlanExclusion(formData: FormData): Promise<void> {
   const reason = formData.get("reason");
   const planGroupId = formData.get("plan_group_id");
 
+  // 입력 검증
   if (!exclusionDate || typeof exclusionDate !== "string") {
     throw new AppError(
       "제외일을 입력해주세요.",
@@ -184,68 +223,26 @@ async function _addPlanExclusion(formData: FormData): Promise<void> {
     );
   }
 
-  // plan_group_id가 제공되지 않으면 활성 플랜 그룹 찾기
-  let targetGroupId =
-    planGroupId && typeof planGroupId === "string" ? planGroupId : null;
+  // plan_group_id가 제공되지 않으면 플랜 그룹 찾기
+  const targetGroupId =
+    planGroupId && typeof planGroupId === "string"
+      ? planGroupId
+      : await findTargetPlanGroup(user.userId);
 
-  if (!targetGroupId) {
-    const supabase = await createSupabaseServerClient();
-    const { data: activeGroup } = await supabase
-      .from("plan_groups")
-      .select("id")
-      .eq("student_id", user.userId)
-      .eq("status", "active")
-      .is("deleted_at", null)
-      .maybeSingle();
+  const exclusionData = {
+    exclusion_date: exclusionDate,
+    exclusion_type: exclusionType,
+    reason: reason && typeof reason === "string" ? reason.trim() : null,
+  };
 
-    if (activeGroup) {
-      targetGroupId = activeGroup.id;
-    } else {
-      // 활성 플랜 그룹이 없으면 가장 최근 draft 또는 saved 플랜 그룹 사용
-      const { data: recentGroup } = await supabase
-        .from("plan_groups")
-        .select("id")
-        .eq("student_id", user.userId)
-        .in("status", ["draft", "saved"])
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (recentGroup) {
-        targetGroupId = recentGroup.id;
-      } else {
-        throw new AppError(
-          "제외일을 추가하려면 먼저 플랜 그룹을 생성해주세요.",
-          ErrorCode.VALIDATION_ERROR,
-          400,
-          true
-        );
-      }
-    }
-  }
-
-  if (!targetGroupId) {
-    throw new AppError(
-      "제외일을 추가하려면 먼저 플랜 그룹을 생성해주세요.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
-  }
-
-  // 플랜 그룹별로 제외일 추가
-  const result = await createPlanExclusions(
-    targetGroupId,
-    tenantContext.tenantId,
-    [
-      {
-        exclusion_date: exclusionDate,
-        exclusion_type: exclusionType,
-        reason: reason && typeof reason === "string" ? reason.trim() : null,
-      },
-    ]
-  );
+  // 플랜 그룹이 있으면 플랜 그룹별로, 없으면 시간 관리 영역에 저장
+  const result = targetGroupId
+    ? await createPlanExclusions(targetGroupId, tenantContext.tenantId, [
+        exclusionData,
+      ])
+    : await createStudentExclusions(user.userId, tenantContext.tenantId, [
+        exclusionData,
+      ]);
 
   if (!result.success) {
     // 중복 에러인 경우 VALIDATION_ERROR로 처리

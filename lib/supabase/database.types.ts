@@ -933,6 +933,7 @@ export type Database = {
           id: string;
           tenant_id: string;
           student_id: string;
+          plan_group_id: string | null;
           exclusion_date: string;
           exclusion_type: string;
           reason: string | null;
@@ -942,6 +943,7 @@ export type Database = {
           id?: string;
           tenant_id: string;
           student_id: string;
+          plan_group_id?: string | null;
           exclusion_date: string;
           exclusion_type: string;
           reason?: string | null;
@@ -951,6 +953,7 @@ export type Database = {
           id?: string;
           tenant_id?: string;
           student_id?: string;
+          plan_group_id?: string | null;
           exclusion_date?: string;
           exclusion_type?: string;
           reason?: string | null;

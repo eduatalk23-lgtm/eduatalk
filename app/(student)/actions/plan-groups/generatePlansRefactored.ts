@@ -615,7 +615,7 @@ async function _generatePlansFromGroupRefactored(
         if (dayType === "복습일") {
           return [p];
         }
-        
+
         // 이미 단일 episode로 분할된 경우(start === end)는 재분할하지 않음
         // SchedulerEngine이 이미 episode별로 분할했을 수 있음
         const isAlreadySingleEpisode =
