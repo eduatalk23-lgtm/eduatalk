@@ -747,3 +747,51 @@ export type PlanStatusTransition = {
   condition?: string; // 전이 조건 설명
 };
 
+// ============================================
+// 확장 타입 (타입 안전성 개선용)
+// ============================================
+
+/**
+ * PlanContent에 start_detail_id, end_detail_id가 확실히 포함된 타입
+ * DB 조회 시 해당 필드가 포함되지 않을 수 있으므로 별도 타입으로 정의
+ */
+export type PlanContentWithDetails = PlanContent & {
+  start_detail_id?: string | null;
+  end_detail_id?: string | null;
+};
+
+/**
+ * SchedulerOptions와 TimeSettings를 통합한 타입
+ * scheduler_options JSONB 필드에 TimeSettings가 병합되어 저장됨
+ */
+export type SchedulerOptionsWithTimeSettings = SchedulerOptions & TimeSettings;
+
+/**
+ * MasterBook에 JOIN된 데이터를 포함한 타입
+ * Supabase JOIN 쿼리 결과를 타입 안전하게 처리하기 위한 타입
+ */
+export type MasterBookWithJoins = MasterBook & {
+  curriculum_revisions?: Array<{ id: string; name: string }> | null;
+  subjects?: Array<{
+    id: string;
+    name: string;
+    subject_groups?: Array<{ id: string; name: string }> | null;
+  }> | null;
+  publishers?: Array<{ id: string; name: string }> | null;
+  difficulty_levels?: Array<{ id: string; name: string }> | null;
+};
+
+/**
+ * MasterLecture에 JOIN된 데이터를 포함한 타입
+ * Supabase JOIN 쿼리 결과를 타입 안전하게 처리하기 위한 타입
+ */
+export type MasterLectureWithJoins = MasterLecture & {
+  curriculum_revisions?: Array<{ id: string; name: string }> | null;
+  subjects?: Array<{
+    id: string;
+    name: string;
+    subject_groups?: Array<{ id: string; name: string }> | null;
+  }> | null;
+  difficulty_levels?: Array<{ id: string; name: string }> | null;
+};
+

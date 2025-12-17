@@ -42,6 +42,7 @@ import {
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
 import { PlanGroupError } from "@/lib/errors/planGroupErrors";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 
 /**
  * 리팩토링된 _generatePlansFromGroup 함수
@@ -126,6 +127,9 @@ async function _generatePlansFromGroupRefactored(
     self_study_hours: mergedSettings.self_study_hours,
   };
 
+  // scheduler_options에서 TimeSettings 추출 (타입 안전하게)
+  const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
+
   // 4. 스케줄 계산
   const scheduleResult = calculateAvailableDates(
     group.period_start,
@@ -157,17 +161,14 @@ async function _generatePlansFromGroupRefactored(
       scheduler_options: schedulerOptions || null,
       use_self_study_with_blocks: true,
       enable_self_study_for_holidays:
-        (group.scheduler_options as any)?.enable_self_study_for_holidays ===
-        true,
+        groupSchedulerOptions?.enable_self_study_for_holidays === true,
       enable_self_study_for_study_days:
-        (group.scheduler_options as any)?.enable_self_study_for_study_days ===
-        true,
+        groupSchedulerOptions?.enable_self_study_for_study_days === true,
       lunch_time: schedulerOptions.lunch_time,
       camp_study_hours: schedulerOptions.camp_study_hours,
       camp_self_study_hours: schedulerOptions.self_study_hours,
-      designated_holiday_hours: (group.scheduler_options as any)
-        ?.designated_holiday_hours,
-      non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
+      designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours,
+      non_study_time_blocks: group.non_study_time_blocks || undefined,
     }
   );
 

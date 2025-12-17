@@ -14,6 +14,8 @@ import {
   MasterCustomContent,
   BookDetail,
   LectureEpisode,
+  MasterBookWithJoins,
+  MasterLectureWithJoins,
 } from "@/lib/types/plan";
 import {
   getSubjectGroups,
@@ -298,29 +300,37 @@ export async function getMasterBookById(bookId: string): Promise<{
     // 세부 정보는 선택사항이므로 에러를 무시
   }
 
-  const bookData = bookResult.data;
+  const bookData = bookResult.data as MasterBookWithJoins | null;
   if (!bookData) {
     return {
-      book: null as any,
+      book: null,
       details: (detailsResult.data as BookDetail[] | null) ?? [],
     };
   }
 
   // JOIN된 데이터를 평탄화하여 표시용 필드 추가
   // Supabase의 중첩 SELECT는 배열로 반환될 수 있으므로 배열 처리
-  const curriculumRevision = extractJoinedData(
-    (bookData as any).curriculum_revisions
+  const curriculumRevision = extractJoinedData<{ id: string; name: string }>(
+    bookData.curriculum_revisions
   );
 
-  const subject = extractJoinedData((bookData as any).subjects);
+  const subject = extractJoinedData<{
+    id: string;
+    name: string;
+    subject_groups?: Array<{ id: string; name: string }> | null;
+  }>(bookData.subjects);
 
   // subject가 있을 때 subject_groups 처리
-  const subjectGroup = extractJoinedData(subject?.subject_groups);
+  const subjectGroup = extractJoinedData<{ id: string; name: string }>(
+    subject?.subject_groups
+  );
 
-  const publisher = extractJoinedData((bookData as any).publishers);
+  const publisher = extractJoinedData<{ id: string; name: string }>(
+    bookData.publishers
+  );
 
-  const difficultyLevel = extractJoinedData(
-    (bookData as any).difficulty_levels
+  const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+    bookData.difficulty_levels
   );
 
   // 디버깅: JOIN 결과 확인
@@ -463,7 +473,7 @@ export async function getMasterLectureById(
     // episode는 선택사항이므로 에러를 무시
   }
 
-  const lectureData = lectureResult.data;
+  const lectureData = lectureResult.data as MasterLectureWithJoins | null;
   if (!lectureData) {
     return {
       lecture: null,
@@ -472,8 +482,8 @@ export async function getMasterLectureById(
   }
 
   // JOIN된 데이터 처리
-  const difficultyLevel = extractJoinedData(
-    (lectureData as any).difficulty_levels
+  const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+    lectureData.difficulty_levels
   );
 
   // difficulty_level을 JOIN된 name으로 덮어쓰기 (fallback: 기존 값)
@@ -878,7 +888,13 @@ export async function getMasterCustomContentById(
   }
 
   // JOIN된 데이터 처리
-  const difficultyLevel = extractJoinedData((data as any).difficulty_levels);
+  // MasterCustomContent는 JOIN 타입이 정의되지 않았으므로 타입 단언 사용
+  const dataWithJoins = data as MasterCustomContent & {
+    difficulty_levels?: Array<{ id: string; name: string }> | null;
+  };
+  const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+    dataWithJoins.difficulty_levels
+  );
 
   // difficulty_level을 JOIN된 name으로 덮어쓰기 (fallback: 기존 값)
   const content = {

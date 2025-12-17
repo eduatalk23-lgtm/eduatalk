@@ -14,6 +14,7 @@ import {
   AdditionalPeriodReallocation,
   NonStudyTimeBlock,
   DailyScheduleInfo,
+  PlanContentWithDetails,
 } from "@/lib/types/plan";
 import { logError } from "@/lib/errors/handler";
 import { checkColumnExists } from "@/lib/utils/migrationStatus";
@@ -1007,25 +1008,34 @@ export async function createPlanContents(
     return { success: true };
   }
 
-  const payload = contents.map((content, index) => ({
-    tenant_id: tenantId,
-    plan_group_id: groupId,
-    content_type: content.content_type,
-    content_id: content.content_id,
-    master_content_id: content.master_content_id ?? null,
-    start_range: content.start_range,
-    end_range: content.end_range,
-    start_detail_id: (content as any).start_detail_id ?? null,
-    end_detail_id: (content as any).end_detail_id ?? null,
-    display_order: content.display_order ?? index,
-    // 자동 추천 관련 필드
-    is_auto_recommended: content.is_auto_recommended ?? false,
-    recommendation_source: content.recommendation_source ?? null,
-    recommendation_reason: content.recommendation_reason ?? null,
-    recommendation_metadata: content.recommendation_metadata ?? null,
-    recommended_at: content.recommended_at ?? null,
-    recommended_by: content.recommended_by ?? null,
-  }));
+  const payload = contents.map((content, index) => {
+    // PlanContentWithDetails 타입으로 안전하게 처리
+    const contentWithDetails = content as PlanContentWithDetails;
+    
+    return {
+      tenant_id: tenantId,
+      plan_group_id: groupId,
+      content_type: content.content_type,
+      content_id: content.content_id,
+      master_content_id: content.master_content_id ?? null,
+      start_range: content.start_range,
+      end_range: content.end_range,
+      start_detail_id: 'start_detail_id' in contentWithDetails 
+        ? contentWithDetails.start_detail_id ?? null 
+        : null,
+      end_detail_id: 'end_detail_id' in contentWithDetails 
+        ? contentWithDetails.end_detail_id ?? null 
+        : null,
+      display_order: content.display_order ?? index,
+      // 자동 추천 관련 필드
+      is_auto_recommended: content.is_auto_recommended ?? false,
+      recommendation_source: content.recommendation_source ?? null,
+      recommendation_reason: content.recommendation_reason ?? null,
+      recommendation_metadata: content.recommendation_metadata ?? null,
+      recommended_at: content.recommended_at ?? null,
+      recommended_by: content.recommended_by ?? null,
+    };
+  });
 
   let { error } = await supabase.from("plan_contents").insert(payload);
 

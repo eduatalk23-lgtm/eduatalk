@@ -107,3 +107,93 @@ export function isContentType(
   return validTypes.includes(value);
 }
 
+// ============================================
+// Plan 관련 타입 가드 함수
+// ============================================
+
+import type {
+  PlanContent,
+  PlanContentWithDetails,
+  SchedulerOptionsWithTimeSettings,
+  MasterBookWithJoins,
+  MasterLectureWithJoins,
+} from "./plan/domain";
+
+/**
+ * 값이 PlanContentWithDetails인지 확인
+ * start_detail_id 또는 end_detail_id 필드 존재 여부로 판단
+ */
+export function isPlanContentWithDetails(
+  value: PlanContent | PlanContentWithDetails
+): value is PlanContentWithDetails {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    ("start_detail_id" in value || "end_detail_id" in value)
+  );
+}
+
+/**
+ * 값이 SchedulerOptionsWithTimeSettings인지 확인
+ * TimeSettings 필드 존재 여부로 판단
+ */
+export function isSchedulerOptionsWithTimeSettings(
+  value: unknown
+): value is SchedulerOptionsWithTimeSettings {
+  if (!isNonNullObject(value)) {
+    return false;
+  }
+
+  // TimeSettings의 주요 필드 중 하나라도 존재하면 true
+  const timeSettingsFields = [
+    "lunch_time",
+    "camp_study_hours",
+    "camp_self_study_hours",
+    "designated_holiday_hours",
+    "use_self_study_with_blocks",
+    "enable_self_study_for_holidays",
+    "enable_self_study_for_study_days",
+  ];
+
+  return timeSettingsFields.some((field) => field in value);
+}
+
+/**
+ * 값이 MasterBookWithJoins인지 확인
+ * JOIN된 데이터 필드 존재 여부로 판단
+ */
+export function isMasterBookWithJoins(
+  value: unknown
+): value is MasterBookWithJoins {
+  if (!isNonNullObject(value)) {
+    return false;
+  }
+
+  // JOIN 필드 중 하나라도 존재하면 true
+  const joinFields = [
+    "curriculum_revisions",
+    "subjects",
+    "publishers",
+    "difficulty_levels",
+  ];
+
+  return joinFields.some((field) => field in value);
+}
+
+/**
+ * 값이 MasterLectureWithJoins인지 확인
+ * JOIN된 데이터 필드 존재 여부로 판단
+ */
+export function isMasterLectureWithJoins(
+  value: unknown
+): value is MasterLectureWithJoins {
+  if (!isNonNullObject(value)) {
+    return false;
+  }
+
+  // JOIN 필드 중 하나라도 존재하면 true
+  const joinFields = ["curriculum_revisions", "subjects", "difficulty_levels"];
+
+  return joinFields.some((field) => field in value);
+}
+
