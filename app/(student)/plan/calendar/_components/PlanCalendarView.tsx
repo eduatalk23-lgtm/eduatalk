@@ -84,22 +84,42 @@ export function PlanCalendarView({
   const [view, setView] = useState<"month" | "week" | "day">(startView);
   const [showOnlyStudyTime, setShowOnlyStudyTime] = useState(false);
 
-  // URL 동기화 함수
+  // URL 파라미터 추출 (의존성 최적화를 위해 값만 추출)
+  const currentDateParam = searchParams.get("date");
+  const currentViewParam = searchParams.get("view");
+
+  // URL 동기화 함수 - 실제 변경이 있을 때만 업데이트
   const updateURL = useCallback((date: Date, viewType: "month" | "week" | "day") => {
     const dateStr = formatDateString(date);
-    const params = new URLSearchParams(searchParams.toString());
     
+    // URL이 이미 올바른 값이면 업데이트하지 않음
+    if (currentDateParam === dateStr && currentViewParam === viewType) {
+      return;
+    }
+    
+    const params = new URLSearchParams();
     params.set("date", dateStr);
     params.set("view", viewType);
     
     // replace를 사용하여 히스토리 스택에 쌓이지 않도록 함 (뒤로가기 지원)
     router.replace(`?${params.toString()}`, { scroll: false });
-  }, [router, searchParams]);
+  }, [router, currentDateParam, currentViewParam]);
 
-  // 날짜 변경 시 URL 업데이트
+  // 날짜 변경 시 URL 업데이트 - 초기 마운트 시 스킵
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    updateURL(currentDate, view);
-  }, [currentDate, view, updateURL]);
+    // 초기 마운트 시에는 URL이 이미 올바르게 설정되어 있으므로 스킵
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
+    const dateStr = formatDateString(currentDate);
+    // URL과 상태가 다를 때만 업데이트
+    if (currentDateParam !== dateStr || currentViewParam !== view) {
+      updateURL(currentDate, view);
+    }
+  }, [currentDate, view, updateURL, currentDateParam, currentViewParam]);
 
   // 플랜 그룹의 daily_schedule에서 날짜별 일정 타입 정보 생성
   // Step7에서 생성된 정보를 그대로 사용 (재계산 불필요)
@@ -155,15 +175,10 @@ export function PlanCalendarView({
     }
   }, [currentDate, view, isDateInRange]);
 
-  const goToPrevious = useCallback(() => moveDate("prev"), [moveDate]);
-  const goToNext = useCallback(() => moveDate("next"), [moveDate]);
-  const goToToday = useCallback(() => moveDate("today"), [moveDate]);
-
-  // 뷰 변경 핸들러
+  // 뷰 변경 핸들러 - updateURL은 useEffect에서 자동으로 처리됨
   const handleViewChange = useCallback((newView: "month" | "week" | "day") => {
     setView(newView);
-    updateURL(currentDate, newView);
-  }, [currentDate, updateURL]);
+  }, []);
 
   // 이전/다음 버튼 활성화 상태
   const canGoPrevious = useMemo(() => {
@@ -209,11 +224,11 @@ export function PlanCalendarView({
       switch (e.key) {
         case "ArrowLeft":
           e.preventDefault();
-          goToPrevious();
+          moveDate("prev");
           break;
         case "ArrowRight":
           e.preventDefault();
-          goToNext();
+          moveDate("next");
           break;
         case "ArrowUp":
           e.preventDefault();
@@ -229,14 +244,14 @@ export function PlanCalendarView({
           break;
         case "Home":
           e.preventDefault();
-          goToToday();
+          moveDate("today");
           break;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToPrevious, goToNext, goToToday, moveDate, view]);
+  }, [moveDate, view]);
 
   // 오늘 날짜인지 확인
   const isToday = useMemo(() => {
@@ -259,7 +274,7 @@ export function PlanCalendarView({
           {/* 왼쪽: 날짜 네비게이션 */}
           <div className="flex items-center gap-3" role="group" aria-label="날짜 네비게이션">
             <button
-              onClick={goToPrevious}
+              onClick={() => moveDate("prev")}
               disabled={!canGoPrevious}
               aria-label="이전 기간으로 이동"
               aria-disabled={!canGoPrevious}
@@ -283,7 +298,7 @@ export function PlanCalendarView({
                 : formatDay(currentDate)}
             </h2>
             <button
-              onClick={goToNext}
+              onClick={() => moveDate("next")}
               disabled={!canGoNext}
               aria-label="다음 기간으로 이동"
               aria-disabled={!canGoNext}
@@ -296,7 +311,7 @@ export function PlanCalendarView({
               <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
             </button>
             <button
-              onClick={goToToday}
+              onClick={() => moveDate("today")}
               aria-label="오늘 날짜로 이동"
               aria-pressed={isToday}
               className={`rounded-lg px-4 py-2 text-sm md:text-base font-bold shadow-md transition-all duration-200 ${
