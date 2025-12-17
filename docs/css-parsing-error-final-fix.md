@@ -37,7 +37,7 @@ module.exports = {
 
 #### 방법 C: HTML 엔티티 사용 (작동하지 않음)
 ```markdown
-예시: `border-[rgb(var(--color-secondary-&#42;))]` ❌ 작동하지 않음
+예시: `border-[rgb(var(--color-secondary-*))]` ❌ 작동하지 않음
 ```
 
 ### 3. 문제가 되는 파일들
