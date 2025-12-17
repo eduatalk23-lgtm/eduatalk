@@ -5,7 +5,6 @@
  */
 
 export {
-  CONTENT_TYPE_ICONS,
   CONTENT_TYPE_LABELS,
   type ContentType,
   getContentTypeIcon,

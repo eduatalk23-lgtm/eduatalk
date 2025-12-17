@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
-import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
+import { getContentTypeIcon } from "../../_shared/utils/contentTypeUtils";
 import { getWeekStart, formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { getTimeSlotColorClass, getTimeSlotIcon, type TimeSlotType } from "../_utils/timelineUtils";
@@ -250,7 +250,10 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                           className="rounded border-2 border-purple-200 bg-purple-50 p-2 text-xs"
                         >
                           <div className="flex items-center gap-1">
-                            <span className="text-sm">🏫</span>
+                            {(() => {
+                              const AcademyIcon = getTimeSlotIcon("학원일정");
+                              return <AcademyIcon className="w-4 h-4 shrink-0" />;
+                            })()}
                             <div className="flex-1">
                               <div className={cn("font-medium", textPrimary)}>
                                 {slot.academy.academy_name || "학원"}
@@ -280,7 +283,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                             }
                             addedPlanIds.add(plan.id);
 
-                            const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type] || "📚";
+                            const ContentTypeIcon = getContentTypeIcon(plan.content_type);
                             const isCompleted = plan.progress != null && plan.progress >= 100;
                             const isActive = plan.actual_start_time && !plan.actual_end_time;
                             
@@ -308,7 +311,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                                   )}
                                   {/* 2행: 아이콘 + 교과 + 회차 */}
                                   <div className="flex items-center gap-1">
-                                  <span className="text-sm">{contentTypeIcon}</span>
+                                    <ContentTypeIcon className="w-4 h-4 shrink-0" />
                                   {plan.contentSubjectCategory && (
                                     <span className={cn("font-medium", textSecondary)}>
                                       {plan.contentSubjectCategory}
@@ -360,7 +363,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                     // (학습시간과 학원일정은 위에서 이미 처리됨)
                     {
                       const colorClass = getTimeSlotColorClass(slot.type);
-                      const icon = getTimeSlotIcon(slot.type);
+                      const IconComponent = getTimeSlotIcon(slot.type);
                       
                       items.push(
                         <div
@@ -368,7 +371,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                           className={`rounded border p-2 text-xs ${colorClass}`}
                         >
                           <div className="flex items-center gap-1">
-                            <span className="text-sm">{icon}</span>
+                            <IconComponent className="w-4 h-4 shrink-0" />
                             <div className="flex-1">
                               <div className="font-medium">
                                 {slot.label || slot.type}

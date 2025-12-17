@@ -31,7 +31,7 @@ type TimelineItemProps = {
 
 export function TimelineItem({ slot, isLast = false, connectedPlanIds }: TimelineItemProps) {
   const colorClass = getTimeSlotColorClass(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
-  const icon = getTimeSlotIcon(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
+  const IconComponent = getTimeSlotIcon(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
 
   // 시간에서 시(hour)만 추출 (예: "10:00" -> "10시")
   const startHour = slot.start.split(":")[0];
@@ -55,7 +55,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
           {/* 타입 헤더 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{icon}</span>
+              <IconComponent className="w-6 h-6" />
               {(slot.type === "학습시간" || slot.type === "학원일정") && (
                 <span className={cn("text-lg font-bold", textPrimary)}>
                   {slot.start} ~ {slot.end}

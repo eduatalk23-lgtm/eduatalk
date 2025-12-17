@@ -5,11 +5,13 @@
  * used across the plan directory components.
  */
 
-export const CONTENT_TYPE_ICONS = {
-  book: "📚",
-  lecture: "🎧",
-  custom: "📝",
-} as const;
+import { Book, Headphones, FileText, type LucideIcon } from "lucide-react";
+
+export const CONTENT_TYPE_ICONS: Record<string, LucideIcon> = {
+  book: Book,
+  lecture: Headphones,
+  custom: FileText,
+};
 
 export const CONTENT_TYPE_LABELS = {
   book: "교재",
@@ -17,13 +19,13 @@ export const CONTENT_TYPE_LABELS = {
   custom: "커스텀",
 } as const;
 
-export type ContentType = keyof typeof CONTENT_TYPE_ICONS;
+export type ContentType = keyof typeof CONTENT_TYPE_LABELS;
 
 /**
- * Get the icon for a content type
+ * Get the icon component for a content type (lucide-react)
  */
-export function getContentTypeIcon(type: string): string {
-  return CONTENT_TYPE_ICONS[type as ContentType] || "📋";
+export function getContentTypeIcon(type: string): LucideIcon {
+  return CONTENT_TYPE_ICONS[type] || FileText;
 }
 
 /**

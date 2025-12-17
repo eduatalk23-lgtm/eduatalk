@@ -23,6 +23,7 @@ export type TimelineSlot = {
 };
 
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { Clock, Utensils, School, Footprints, BookOpen, type LucideIcon } from "lucide-react";
 
 // Re-export time utility functions for convenience
 export { timeToMinutes, minutesToTime };
@@ -253,22 +254,22 @@ export function getTimeSlotColorClass(type: TimeSlotType): string {
 }
 
 /**
- * 타임슬롯 아이콘 반환
+ * 타임슬롯 아이콘 컴포넌트 반환 (lucide-react)
  */
-export function getTimeSlotIcon(type: TimeSlotType): string {
+export function getTimeSlotIcon(type: TimeSlotType): LucideIcon {
   switch (type) {
     case "학습시간":
-      return "⏰"; // 콘텐츠 아이콘(📚, 🎧, 📝)과 구분하기 위해 시계 아이콘 사용
+      return Clock;
     case "점심시간":
-      return "🍽️";
+      return Utensils;
     case "학원일정":
-      return "🏫";
+      return School;
     case "이동시간":
-      return "🚶";
+      return Footprints;
     case "자율학습":
-      return "📖";
+      return BookOpen;
     default:
-      return "⏰";
+      return Clock;
   }
 }
 

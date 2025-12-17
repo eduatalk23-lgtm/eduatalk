@@ -141,7 +141,7 @@ export function DayTimelineModal({
                   // 학원일정 표시
                   if (slot.type === "학원일정" && slot.academy) {
                     const colorClass = getTimeSlotColorClass(slot.type);
-                    const icon = getTimeSlotIcon(slot.type);
+                    const IconComponent = getTimeSlotIcon(slot.type);
 
                     return (
                       <div
@@ -149,7 +149,7 @@ export function DayTimelineModal({
                         className={`rounded-lg border-2 p-4 ${colorClass}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{icon}</span>
+                          <IconComponent className="w-6 h-6 shrink-0" />
                           <div className="flex flex-1 flex-col gap-1">
                             <div className={cn("font-semibold", textPrimary)}>
                               {slot.academy.academy_name || "학원"}
@@ -220,7 +220,7 @@ export function DayTimelineModal({
                   // (학습시간과 학원일정은 위에서 이미 처리됨)
                   {
                     const colorClass = getTimeSlotColorClass(slot.type);
-                    const icon = getTimeSlotIcon(slot.type);
+                    const IconComponent = getTimeSlotIcon(slot.type);
 
                     return (
                       <div
@@ -228,7 +228,7 @@ export function DayTimelineModal({
                         className={`rounded-lg border p-4 ${colorClass}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{icon}</span>
+                          <IconComponent className="w-6 h-6 shrink-0" />
                           <div className="flex flex-1 flex-col gap-1">
                             <div className={cn("font-semibold", textPrimary)}>{slot.label || slot.type}</div>
                             <div className={cn("text-sm opacity-75", textTertiary)}>

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, memo } from "react";
+import { Clock } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
-import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
+import { getContentTypeIcon } from "../../_shared/utils/contentTypeUtils";
 import { formatDateString, formatDateFull } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -308,7 +309,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                 // 학원일정 처리
                 if (slotType === "학원일정" && blockAcademy) {
                   const colorClass = getTimeSlotColorClass(slotType);
-                  const icon = getTimeSlotIcon(slotType);
+                  const IconComponent = getTimeSlotIcon(slotType);
                   
                   return (
                     <tr key={block.index} className={`border-b border-gray-100 ${colorClass}`}>
@@ -320,7 +321,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          <span>{icon}</span>
+                          <IconComponent className="w-4 h-4 shrink-0" />
                           <span>{blockAcademy.academy_name || "학원"}</span>
                         </div>
                       </td>
@@ -337,7 +338,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                 // 점심시간, 이동시간, 자율학습 등 특수 타임슬롯 처리
                 if (slotType && slotType !== "학습시간" && slotType !== "학원일정") {
                   const colorClass = getTimeSlotColorClass(slotType);
-                  const icon = getTimeSlotIcon(slotType);
+                  const IconComponent = getTimeSlotIcon(slotType);
                   
                   return (
                     <tr key={block.index} className={`border-b border-gray-100 ${colorClass}`}>
@@ -349,7 +350,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                       </td>
                       <td colSpan={5} className="px-4 py-3 text-center text-sm font-medium">
                         <div className="flex items-center justify-center gap-2">
-                          <span>{icon}</span>
+                          <IconComponent className="w-4 h-4 shrink-0" />
                           <span>{slotType}</span>
                         </div>
                       </td>
@@ -363,7 +364,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                     {/* 플랜 행들 */}
                     {blockPlans.length > 0 ? (
                       blockPlans.map((plan, planIndex) => {
-                        const contentTypeIcon = CONTENT_TYPE_EMOJIS[plan.content_type];
+                        const ContentTypeIcon = getContentTypeIcon(plan.content_type);
                         const isCompleted = plan.progress != null && plan.progress >= 100;
                         const isActive = plan.actual_start_time && !plan.actual_end_time;
                         const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;
@@ -394,7 +395,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                             {/* 콘텐츠 */}
                             <td className="px-4 py-3 align-top">
                               <div className="flex items-center gap-2">
-                                <span className="text-base">{contentTypeIcon}</span>
+                                <ContentTypeIcon className="w-5 h-5 shrink-0" />
                                 <div className="flex flex-col gap-0.5">
                                   <span className={cn("font-medium", textPrimary)}>
                                     {plan.contentTitle}
@@ -431,11 +432,21 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                                 {plan.planned_start_page_or_time !== null &&
                                 plan.planned_end_page_or_time !== null ? (
                                   <>
-                                    {plan.content_type === "book" ? (
-                                      <span>📖 {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</span>
-                                    ) : (
-                                      <span>🎧 {plan.planned_start_page_or_time}강</span>
-                                    )}
+                                    {(() => {
+                                      const ContentIcon = getContentTypeIcon(plan.content_type);
+                                      return (
+                                        <div className="flex items-center gap-1">
+                                          <ContentIcon className="w-4 h-4 shrink-0" />
+                                          <span>
+                                            {plan.content_type === "book" ? (
+                                              <>{plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</>
+                                            ) : (
+                                              <>{plan.planned_start_page_or_time}강</>
+                                            )}
+                                          </span>
+                                        </div>
+                                      );
+                                    })()}
                                     {plan.chapter && (
                                       <span className={cn("text-xs", textMuted)}>
                                         챕터: {plan.chapter}
@@ -448,7 +459,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                                 {/* 시간 정보 */}
                                 {plan.start_time && plan.end_time && (
                                   <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
-                                    <span>⏰</span>
+                                    <Clock className="w-3 h-3 shrink-0" />
                                     <span>{plan.start_time} ~ {plan.end_time}</span>
                                   </div>
                                 )}

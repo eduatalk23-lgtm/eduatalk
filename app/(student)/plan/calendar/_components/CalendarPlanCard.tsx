@@ -111,7 +111,7 @@ export function CalendarPlanCard({
         <div className="flex flex-col gap-0.5 min-w-0">
           {/* 1행: 아이콘 + 교과/과목 + 상태 */}
           <div className="flex items-center gap-1 min-w-0">
-            <span className="text-xs shrink-0 leading-none">{contentTypeIcon}</span>
+            <contentTypeIcon className="w-3 h-3 shrink-0" />
             <span 
               className={cn(
                 "truncate font-medium min-w-0 flex-1 text-[11px] leading-tight",
@@ -211,12 +211,18 @@ export function CalendarPlanCard({
 
           {/* 3행: 학습 범위 */}
           {plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null && (
-            <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-              {plan.content_type === "book" ? (
-                <>📖 {plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</>
-              ) : (
-                <>🎧 {plan.planned_start_page_or_time}강</>
-              )}
+            <div className="flex items-center gap-1 text-xs md:text-sm text-gray-500 dark:text-gray-400">
+              {(() => {
+                const ContentIcon = getContentTypeIcon(plan.content_type);
+                return <ContentIcon className="w-3 h-3 shrink-0" />;
+              })()}
+              <span>
+                {plan.content_type === "book" ? (
+                  <>{plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}페이지</>
+                ) : (
+                  <>{plan.planned_start_page_or_time}강</>
+                )}
+              </span>
               {plan.chapter && <span className="pl-1">({plan.chapter})</span>}
             </div>
           )}

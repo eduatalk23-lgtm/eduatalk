@@ -199,13 +199,15 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               // 학원일정 표시
               if (slot.type === "학원일정" && slot.academy) {
                 if (displayedCount < maxDisplay) {
+                  const AcademyIcon = getTimeSlotIcon("학원일정");
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-academy`}
-                      className="truncate rounded bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 text-[10px] text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800"
+                      className="truncate rounded bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 text-[10px] text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800 flex items-center gap-0.5"
                       title={`${slot.academy.academy_name || "학원"}: ${slot.start} ~ ${slot.end}`}
                     >
-                      🏫 {slot.academy.academy_name || "학원"}
+                      <AcademyIcon className="w-3 h-3 shrink-0" />
+                      <span>{slot.academy.academy_name || "학원"}</span>
                     </div>
                   );
                   displayedCount++;
@@ -216,16 +218,17 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               // 점심시간, 이동시간, 자율학습 표시
               if (slot.type !== "학습시간") {
                 if (displayedCount < maxDisplay && !showOnlyStudyTime) {
-                  const icon = slot.type === "점심시간" ? "🍽️" : slot.type === "이동시간" ? "🚶" : slot.type === "자율학습" ? "📖" : "⏰";
+                  const IconComponent = getTimeSlotIcon(slot.type);
                   // 공통 유틸리티 함수 사용하여 색상 통일
                   const colorClass = getTimeSlotColorClass(slot.type);
                   items.push(
                     <div
                       key={`slot-${slot.start}-${slot.end}-${slot.type}`}
-                      className={`truncate rounded px-1.5 py-0.5 text-[10px] border ${colorClass}`}
+                      className={`truncate rounded px-1.5 py-0.5 text-[10px] border flex items-center gap-0.5 ${colorClass}`}
                       title={`${slot.type}: ${slot.start} ~ ${slot.end}`}
                     >
-                      {icon} {slot.type}
+                      <IconComponent className="w-3 h-3 shrink-0" />
+                      <span>{slot.type}</span>
                     </div>
                   );
                   displayedCount++;
