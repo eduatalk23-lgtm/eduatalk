@@ -24,29 +24,53 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    "bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600 focus:ring-primary-600 dark:focus:ring-primary-500 border-transparent",
-  secondary:
-    "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))] focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent",
-  destructive:
-    "bg-error-600 dark:bg-error-700 text-white hover:bg-error-700 dark:hover:bg-error-800 focus:ring-error-600 dark:focus:ring-error-700 border-transparent",
+  primary: cn(
+    "bg-primary-600 dark:bg-primary-500 text-white",
+    "shadow-sm hover:shadow-md",
+    "hover:bg-primary-700 dark:hover:bg-primary-600",
+    "active:scale-[0.98] active:shadow-sm",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2",
+    "transition-all duration-200 ease-in-out",
+    "border-transparent"
+  ),
+  secondary: cn(
+    "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-primary)]",
+    "hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]",
+    "active:scale-[0.98]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2",
+    "transition-all duration-200 ease-in-out",
+    "border-transparent"
+  ),
+  destructive: cn(
+    "bg-error-600 dark:bg-error-700 text-white",
+    "shadow-sm hover:shadow-md",
+    "hover:bg-error-700 dark:hover:bg-error-800",
+    "active:scale-[0.98] active:shadow-sm",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2",
+    "transition-all duration-200 ease-in-out",
+    "border-transparent"
+  ),
   outline: cn(
     bgSurfaceVar,
     textSecondaryVar,
     borderDefaultVar,
     bgHoverVar,
-    "hover:border-[rgb(var(--color-secondary-400))] dark:hover:border-[rgb(var(--color-secondary-600))] focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))]"
+    "hover:border-[rgb(var(--color-secondary-400))] dark:hover:border-[rgb(var(--color-secondary-600))]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2"
   ),
   ghost: cn(
     "bg-transparent",
     textSecondaryVar,
     bgHoverVar,
-    "focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent"
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2",
+    "border-transparent"
   ),
   link: cn(
     "bg-transparent",
     textPrimaryVar,
-    "hover:underline focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent p-0"
+    "hover:underline",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2",
+    "border-transparent p-0"
   ),
 };
 
@@ -81,7 +105,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          "inline-flex items-center justify-center gap-2 rounded-lg border font-semibold",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          // Base transition은 variant에서 처리, outline과 link는 transition-colors만 유지
+          variant === "outline" || variant === "link" || variant === "ghost" 
+            ? "transition-colors" 
+            : "",
           variantClasses[variant],
           sizeClasses[size],
           fullWidth && "w-full",

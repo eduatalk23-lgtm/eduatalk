@@ -20,7 +20,13 @@ const cardVariants = cva(
     variants: {
       variant: {
         default: "border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900",
-        interactive: "border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900 transition-shadow hover:shadow-md cursor-pointer",
+        interactive: cn(
+          "border-secondary-200 dark:border-secondary-800 bg-white dark:bg-secondary-900",
+          "shadow-md",
+          "transition-all duration-200",
+          "hover:shadow-lg hover:-translate-y-0.5",
+          "cursor-pointer"
+        ),
         error: "border-error-200 dark:border-error-800 bg-error-50 dark:bg-error-900/30",
       },
       padding: {
