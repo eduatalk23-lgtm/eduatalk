@@ -52,9 +52,8 @@ function EmptyStateComponent({
         <div className="flex flex-col gap-1">
           <HeadingTag
             className={cn(
-              "font-semibold",
               textPrimaryVar,
-              isCompact ? "text-base" : "text-lg"
+              isCompact ? "text-body-2-bold" : "text-body-1"
             )}
           >
             {title}
@@ -63,7 +62,7 @@ function EmptyStateComponent({
             <p
               className={cn(
                 textTertiaryVar,
-                isCompact ? "text-xs" : "text-sm"
+                isCompact ? "text-body-2" : "text-body-2"
               )}
             >
               {description}

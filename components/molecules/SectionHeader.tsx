@@ -13,16 +13,16 @@ export type SectionHeaderProps = {
 
 const sizeClasses = {
   sm: {
-    title: "text-base",
-    description: "text-xs",
+    title: "text-body-2-bold",
+    description: "text-body-2",
   },
   md: {
-    title: "text-lg",
-    description: "text-sm",
+    title: "text-h2",
+    description: "text-body-2",
   },
   lg: {
-    title: "text-xl",
-    description: "text-base",
+    title: "text-h1",
+    description: "text-body-1",
   },
 };
 
@@ -38,14 +38,14 @@ function SectionHeaderComponent({
       <div className="flex flex-col gap-1">
         <h2
           className={cn(
-            "font-semibold text-[var(--text-primary)]",
-            sizeClasses[size].title
+            sizeClasses[size].title,
+            "text-text-primary"
           )}
         >
           {title}
         </h2>
         {description && (
-          <p className={cn("text-[var(--text-secondary)]", sizeClasses[size].description)}>
+          <p className={cn(sizeClasses[size].description, "text-text-secondary")}>
             {description}
           </p>
         )}
