@@ -24,10 +24,10 @@
 // Badge → atoms/Badge (개선됨)
 export { Badge } from "../atoms/Badge";
 
-// Button → atoms/Button (개선됨, 마이그레이션 진행 중)
-// @deprecated components/ui/button.tsx는 더 이상 사용되지 않습니다.
+// Button → atoms/Button (마이그레이션 완료)
+// @deprecated components/ui/button.tsx는 삭제되었습니다.
 // 대신 @/components/atoms/Button을 사용하세요.
-export { Button } from "./button";
+// export { Button } from "../atoms/Button"; // 필요시 직접 import
 
 // LoadingSkeleton → atoms/Skeleton (개선됨)
 export { LoadingSkeleton } from "./LoadingSkeleton";
@@ -42,10 +42,10 @@ export { ProgressBar } from "../atoms/ProgressBar";
 // Card → molecules/Card (개선됨)
 export { Card, CardHeader, CardContent, CardFooter } from "../molecules/Card";
 
-// EmptyState → molecules/EmptyState (개선됨, 마이그레이션 진행 중)
-// @deprecated components/ui/EmptyState.tsx는 더 이상 사용되지 않습니다.
+// EmptyState → molecules/EmptyState (마이그레이션 완료)
+// @deprecated components/ui/EmptyState.tsx는 삭제되었습니다.
 // 대신 @/components/molecules/EmptyState를 사용하세요.
-export { EmptyState } from "./EmptyState";
+// export { EmptyState } from "../molecules/EmptyState"; // 필요시 직접 import
 
 // ErrorState → molecules/ErrorState (개선됨)
 export { ErrorState } from "./ErrorState";
