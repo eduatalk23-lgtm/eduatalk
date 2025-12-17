@@ -346,7 +346,19 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           .ilike("name_kor", `%${query}%`)
           .limit(limit);
 
-        let universityNameData: any[] = [];
+        // JOIN된 데이터 타입 정의
+        type UniversityCampusWithJoin = {
+          id: number;
+          campus_name: string;
+          region: string | null;
+          campus_type: string | null;
+          university: {
+            university_code: string;
+            name_kor: string;
+          } | null;
+        };
+
+        let universityNameData: UniversityCampusWithJoin[] = [];
         if (!universitiesError && universitiesData && universitiesData.length > 0) {
           const universityIds = universitiesData.map(u => u.id);
           
@@ -371,16 +383,16 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
             .order("campus_name", { ascending: true });
 
           if (!campusError && campusData) {
-            universityNameData = campusData;
+            universityNameData = campusData as UniversityCampusWithJoin[];
           }
         }
 
         // 결과 합치기 (중복 제거)
-        const allCampusData: any[] = [];
+        const allCampusData: UniversityCampusWithJoin[] = [];
         const seenIds = new Set<number>();
 
         if (!campusNameError && campusNameData) {
-          for (const uc of campusNameData) {
+          for (const uc of campusNameData as UniversityCampusWithJoin[]) {
             if (!seenIds.has(uc.id)) {
               seenIds.add(uc.id);
               allCampusData.push(uc);
@@ -388,7 +400,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           }
         }
 
-        for (const uc of universityNameData) {
+        for (const uc of universityNameData as UniversityCampusWithJoin[]) {
           if (!seenIds.has(uc.id)) {
             seenIds.add(uc.id);
             allCampusData.push(uc);
@@ -397,7 +409,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
 
         // 결과 변환
         for (const uc of allCampusData.slice(0, limit)) {
-          const university = uc.university as any;
+          const university = uc.university;
           const campusName = uc.campus_name;
           const universityName = university?.name_kor || campusName;
           
