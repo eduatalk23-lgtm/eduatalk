@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { Plan } from "./scheduleTypes";
 import type { ContentData } from "../../../utils/scheduleTransform";
 import { timeToMinutes } from "./scheduleUtils";
+import { formatPlanTime, formatPlanLearningAmount } from "@/lib/utils/planFormatting";
 
 // 플랜 표 컴포넌트
 export const PlanTable = memo(
@@ -23,49 +24,6 @@ export const PlanTable = memo(
     dayType: string;
     sequenceMap: Map<string, number>;
   }) {
-    const formatTime = (minutes: number): string => {
-      if (minutes === 0) return "0분";
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      if (hours > 0 && mins > 0) {
-        return `${hours}시간 ${mins}분`;
-      } else if (hours > 0) {
-        return `${hours}시간`;
-      } else {
-        return `${mins}분`;
-      }
-    };
-
-    const formatLearningAmount = (plan: Plan): string => {
-      if (
-        plan.planned_start_page_or_time === null ||
-        plan.planned_end_page_or_time === null
-      ) {
-        return "-";
-      }
-
-      const start = plan.planned_start_page_or_time;
-      const end = plan.planned_end_page_or_time;
-      const isSingle = start === end;
-      const amount = end - start + 1; // Assuming inclusive range for books/episodes
-
-      if (plan.content_type === "book") {
-        // 교재: 페이지 범위 (예: "10-50p (41쪽)")
-        // 페이지는 amount가 쪽수
-        return isSingle 
-          ? `${start}p (1쪽)` 
-          : `${start}-${end}p (${amount}쪽)`;
-      } else if (plan.content_type === "lecture") {
-        // 강의: 회차 범위 (예: "8-10강 (3강)")
-        // 에피소드는 amount가 강의 수
-        return isSingle 
-          ? `${start}강 (1강)` 
-          : `${start}-${end}강 (${amount}강)`;
-      }
-
-      // 커스텀: 범위 (예: "10-50" 또는 "10")
-      return isSingle ? `${start}` : `${start}-${end}`;
-    };
 
     return (
       <table className="w-full text-xs border-collapse border border-blue-200">
@@ -166,14 +124,14 @@ export const PlanTable = memo(
                   {sequence}
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
-                  {formatLearningAmount(planTime.plan)}
+                  {formatPlanLearningAmount(planTime.plan)}
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   <div className="flex flex-col gap-0.5 items-center">
-                    <span>{formatTime(displayDuration)}</span>
+                    <span>{formatPlanTime(displayDuration)}</span>
                     {showOriginalTime && (
                       <div className="text-orange-600 text-[10px]">
-                        (예상: {formatTime(planTime.originalEstimatedTime!)})
+                        (예상: {formatPlanTime(planTime.originalEstimatedTime!)})
                       </div>
                     )}
                   </div>

@@ -35,44 +35,13 @@ type PlanPreviewDialogProps = {
 };
 
 import { timeToMinutes } from "@/lib/utils/time";
+import { formatPlanTime, formatPlanLearningAmount } from "@/lib/utils/planFormatting";
 
 const contentTypeLabels: Record<string, string> = {
   book: "교재",
   lecture: "강의",
   custom: "커스텀",
 };
-
-// 분을 시간 문자열로 변환
-function formatTime(minutes: number): string {
-  if (minutes === 0) return "0분";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours > 0 && mins > 0) {
-    return `${hours}시간 ${mins}분`;
-  } else if (hours > 0) {
-    return `${hours}시간`;
-  } else {
-    return `${mins}분`;
-  }
-}
-
-// 학습 분량 포맷팅
-function formatLearningAmount(plan: PlanPreview): string {
-  if (
-    plan.planned_start_page_or_time === null ||
-    plan.planned_end_page_or_time === null
-  ) {
-    return "-";
-  }
-
-  if (plan.content_type === "book") {
-    return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}p`;
-  } else if (plan.content_type === "lecture") {
-    return `${plan.planned_start_page_or_time}강`;
-  }
-
-  return `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
-}
 
 // 회차 계산 최적화: 모든 플랜의 회차를 한 번에 계산
 // 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
@@ -404,10 +373,10 @@ export function PlanPreviewDialog({
                           {sequence}
                         </td>
                         <td className="px-3 py-2 border border-blue-200 text-blue-700">
-                          {formatLearningAmount(plan)}
+                          {formatPlanLearningAmount(plan)}
                         </td>
                         <td className="px-3 py-2 border border-blue-200 text-blue-700">
-                          {duration > 0 ? formatTime(duration) : "-"}
+                          {duration > 0 ? formatPlanTime(duration) : "-"}
                         </td>
                       </tr>
                     );

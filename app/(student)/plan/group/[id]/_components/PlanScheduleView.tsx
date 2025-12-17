@@ -1,6 +1,6 @@
 "use client";
 
-import { useImperativeHandle, forwardRef } from "react";
+import { useImperativeHandle, forwardRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { getScheduleResultDataAction } from "@/app/(student)/actions/planGroupActions";
@@ -9,6 +9,7 @@ import {
   CACHE_GC_TIME_STABLE 
 } from "@/lib/constants/queryCache";
 import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/_features/scheduling/components/ScheduleTableView";
+import { PlanListView } from "./PlanListView";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import type {
   ContentData,
@@ -26,6 +27,7 @@ export type PlanScheduleViewRef = {
 export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleViewProps>(
   ({ groupId }, ref) => {
   const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<"schedule" | "table">("schedule");
 
   // React Query를 사용한 데이터 페칭
   const {
@@ -105,13 +107,45 @@ export const PlanScheduleView = forwardRef<PlanScheduleViewRef, PlanScheduleView
         <p className="text-sm text-gray-800">
           총 {plans.length}개의 플랜이 생성되었습니다.
         </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode("schedule")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              viewMode === "schedule"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            일별 스케줄
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              viewMode === "table"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            플랜 테이블
+          </button>
+        </div>
       </div>
-      <ScheduleTableView
-        dailySchedule={dailySchedule}
-        plans={plans}
-        contents={contents}
-        blocks={blocks}
-      />
+      {viewMode === "schedule" ? (
+        <ScheduleTableView
+          dailySchedule={dailySchedule}
+          plans={plans}
+          contents={contents}
+          blocks={blocks}
+        />
+      ) : (
+        <PlanListView
+          plans={plans}
+          contents={contents}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   );
   }
