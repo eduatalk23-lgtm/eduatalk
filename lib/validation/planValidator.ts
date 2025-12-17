@@ -244,12 +244,26 @@ export class PlanValidator {
         return; // 시간이 없으면 다음 검증 스킵
       }
 
+      // 디버깅: 실제 값 확인 (개발 환경에서만)
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[PlanValidator] 학원 일정 ${index + 1} 시간 값:`, {
+          start_time: schedule.start_time,
+          end_time: schedule.end_time,
+          start_time_type: typeof schedule.start_time,
+          end_time_type: typeof schedule.end_time,
+        });
+      }
+
       // 시간 검증
       const start = this.parseTime(schedule.start_time);
       const end = this.parseTime(schedule.end_time);
 
       if (start === null || end === null) {
-        errors.push(`학원 일정 ${index + 1}: 올바른 시간 형식을 입력해주세요. (HH:MM 형식)`);
+        // 더 구체적인 에러 메시지 제공
+        const startIssue = start === null ? `시작 시간(${schedule.start_time})` : null;
+        const endIssue = end === null ? `종료 시간(${schedule.end_time})` : null;
+        const issues = [startIssue, endIssue].filter(Boolean).join(", ");
+        errors.push(`학원 일정 ${index + 1}: ${issues}의 형식이 올바르지 않습니다. (HH:MM 형식 필요)`);
       } else if (start >= end) {
         errors.push(`학원 일정 ${index + 1}: 종료 시간은 시작 시간보다 이후여야 합니다.`);
       }
@@ -314,6 +328,11 @@ export class PlanValidator {
 
   /**
    * 시간 문자열 파싱 (HH:MM 형식)
+   * 
+   * 지원 형식:
+   * - "09:00" (표준 HH:MM)
+   * - "9:00" (한 자리 시간, 자동 보정)
+   * - "09:00:00" (초 포함, 초 무시)
    */
   private static parseTime(timeStr: string | null | undefined): number | null {
     // null, undefined, 빈 문자열 체크
@@ -321,11 +340,19 @@ export class PlanValidator {
       return null;
     }
 
-    const parts = timeStr.split(":");
-    if (parts.length !== 2) return null;
+    const trimmed = timeStr.trim();
+    
+    // "HH:MM" 또는 "H:MM" 형식 지원
+    // "HH:MM:SS" 형식도 지원 (초는 무시)
+    const timePattern = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+    const match = trimmed.match(timePattern);
+    
+    if (!match) {
+      return null;
+    }
 
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
 
     if (isNaN(hours) || isNaN(minutes)) return null;
     if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;

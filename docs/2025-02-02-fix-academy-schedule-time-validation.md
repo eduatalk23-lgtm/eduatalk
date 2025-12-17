@@ -31,11 +31,19 @@ private static parseTime(timeStr: string | null | undefined): number | null {
     return null;
   }
 
-  const parts = timeStr.split(":");
-  if (parts.length !== 2) return null;
+  const trimmed = timeStr.trim();
+  
+  // "HH:MM" 또는 "H:MM" 형식 지원
+  // "HH:MM:SS" 형식도 지원 (초는 무시)
+  const timePattern = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+  const match = trimmed.match(timePattern);
+  
+  if (!match) {
+    return null;
+  }
 
-  const hours = parseInt(parts[0], 10);
-  const minutes = parseInt(parts[1], 10);
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
 
   if (isNaN(hours) || isNaN(minutes)) return null;
   if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
@@ -48,6 +56,10 @@ private static parseTime(timeStr: string | null | undefined): number | null {
 - 파라미터 타입을 `string | null | undefined`로 확장
 - `null`/`undefined`/빈 문자열 체크 추가
 - 타입 체크 추가 (`typeof timeStr !== "string"`)
+- **정규식을 사용하여 더 유연한 형식 지원**:
+  - `"09:00"` (표준 HH:MM) ✅
+  - `"9:00"` (한 자리 시간) ✅
+  - `"09:00:00"` (초 포함, 초는 무시) ✅
 
 ### 2. `validateAcademySchedules` 메서드 개선
 
@@ -92,17 +104,20 @@ static validateAcademySchedules(
 **변경 사항**:
 - `start_time`과 `end_time` 타입을 `string | null | undefined`로 확장
 - 시간 필수 체크 추가 (빈 값일 때 명확한 에러 메시지)
-- `parseTime` 결과가 `null`일 때 더 구체적인 에러 메시지 제공 (HH:MM 형식 명시)
+- `parseTime` 결과가 `null`일 때 더 구체적인 에러 메시지 제공 (어떤 시간 필드가 문제인지 명시)
+- 개발 환경에서 디버깅 로그 추가 (실제 입력 값 확인)
 
 ## 테스트 시나리오
 
 다음과 같은 경우에 대해 올바르게 처리됩니다:
 
 1. ✅ `start_time: "09:00"`, `end_time: "10:00"` - 정상 처리
-2. ✅ `start_time: null`, `end_time: "10:00"` - "시작 시간과 종료 시간을 입력해주세요." 에러
-3. ✅ `start_time: ""`, `end_time: "10:00"` - "시작 시간과 종료 시간을 입력해주세요." 에러
-4. ✅ `start_time: "invalid"`, `end_time: "10:00"` - "올바른 시간 형식을 입력해주세요. (HH:MM 형식)" 에러
-5. ✅ `start_time: "09:00"`, `end_time: "09:00"` - "종료 시간은 시작 시간보다 이후여야 합니다." 에러
+2. ✅ `start_time: "9:00"`, `end_time: "10:00"` - 정상 처리 (한 자리 시간 지원)
+3. ✅ `start_time: "09:00:00"`, `end_time: "10:00:00"` - 정상 처리 (초 포함 형식 지원)
+4. ✅ `start_time: null`, `end_time: "10:00"` - "시작 시간과 종료 시간을 입력해주세요." 에러
+5. ✅ `start_time: ""`, `end_time: "10:00"` - "시작 시간과 종료 시간을 입력해주세요." 에러
+6. ✅ `start_time: "invalid"`, `end_time: "10:00"` - "시작 시간(invalid)의 형식이 올바르지 않습니다. (HH:MM 형식 필요)" 에러
+7. ✅ `start_time: "09:00"`, `end_time: "09:00"` - "종료 시간은 시작 시간보다 이후여야 합니다." 에러
 
 ## 관련 파일
 
@@ -111,6 +126,10 @@ static validateAcademySchedules(
 ## 참고
 
 - 시간 형식은 `HH:MM` (24시간 형식)을 사용합니다.
-- 예: `09:00`, `13:30`, `23:59`
+- 지원 형식:
+  - `09:00` (표준 형식) ✅
+  - `9:00` (한 자리 시간, 자동 처리) ✅
+  - `09:00:00` (초 포함, 초는 무시) ✅
 - 시간 범위: `00:00` ~ `23:59`
+- 분 범위: `00` ~ `59`
 
