@@ -33,6 +33,7 @@ import {
   getStatusBadgeColorClasses,
   getIndigoTextClasses,
   bgStyles,
+  divideDefaultVar,
 } from "@/lib/utils/darkMode";
 
 type SupabaseServerClient = Awaited<
@@ -481,7 +482,7 @@ export default async function AdminStudentsPage({
                 <th className={tableHeaderBase}>작업</th>
               </tr>
             </thead>
-            <tbody className={cn("divide-y", "divide-gray-200 dark:divide-gray-700", bgSurface)}>
+            <tbody className={cn("divide-y", divideDefaultVar, bgSurface)}>
               {studentsWithStats.map((student) => (
                 <tr key={student.id} className={tableRowBase}>
                   <td className={cn(tableCellBase, "font-medium", textPrimary)}>
