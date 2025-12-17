@@ -189,13 +189,13 @@ export function UnifiedContentFilter({
       {/* 1열: 개정교육과정, 교과, 과목 */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">
+          <label className="text-body-2-bold text-[var(--text-secondary)]">
             개정교육과정
           </label>
           <select
             value={values.curriculum_revision_id || ""}
             onChange={(e) => handleCurriculumRevisionChange(e.target.value)}
-            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
             aria-label="개정교육과정 선택"
           >
             <option value="">전체</option>
@@ -208,11 +208,11 @@ export function UnifiedContentFilter({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">교과</label>
+          <label className="text-body-2-bold text-[var(--text-secondary)]">교과</label>
           <select
             value={values.subject_group_id || ""}
             onChange={(e) => handleSubjectGroupChange(e.target.value)}
-            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm disabled:bg-[rgb(var(--color-secondary-100))] disabled:cursor-not-allowed"
+            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 disabled:bg-[rgb(var(--color-secondary-100))] disabled:cursor-not-allowed"
             disabled={!values.curriculum_revision_id || hierarchyLoading}
             aria-label="교과 선택"
           >
@@ -230,11 +230,11 @@ export function UnifiedContentFilter({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">과목</label>
+          <label className="text-body-2-bold text-[var(--text-secondary)]">과목</label>
           <select
             value={values.subject_id || ""}
             onChange={(e) => handleSubjectChange(e.target.value)}
-            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm disabled:bg-[rgb(var(--color-secondary-100))] disabled:cursor-not-allowed"
+            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 disabled:bg-[rgb(var(--color-secondary-100))] disabled:cursor-not-allowed"
             disabled={!values.subject_group_id || hierarchyLoading}
             aria-label="과목 선택"
           >
@@ -257,11 +257,11 @@ export function UnifiedContentFilter({
         {/* 출판사 (교재용) */}
         {contentType === "book" && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">출판사</label>
+            <label className="text-body-2-bold text-[var(--text-secondary)]">출판사</label>
             <select
               value={values.publisher_id || ""}
               onChange={(e) => handlePublisherChange(e.target.value)}
-              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
               aria-label="출판사 선택"
             >
               <option value="">전체</option>
@@ -277,11 +277,11 @@ export function UnifiedContentFilter({
         {/* 플랫폼 (강의용) */}
         {contentType === "lecture" && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">플랫폼</label>
+            <label className="text-body-2-bold text-[var(--text-secondary)]">플랫폼</label>
             <select
               value={values.platform_id || ""}
               onChange={(e) => handlePlatformChange(e.target.value)}
-              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
               aria-label="플랫폼 선택"
             >
               <option value="">전체</option>
@@ -297,11 +297,11 @@ export function UnifiedContentFilter({
         {/* 콘텐츠 유형 (커스텀 콘텐츠용) */}
         {contentType === "custom" && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">콘텐츠 유형</label>
+            <label className="text-body-2-bold text-[var(--text-secondary)]">콘텐츠 유형</label>
             <select
               value={values.content_type || ""}
               onChange={(e) => handleContentTypeChange(e.target.value)}
-              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
               aria-label="콘텐츠 유형 선택"
             >
               <option value="">전체</option>
@@ -316,11 +316,11 @@ export function UnifiedContentFilter({
         {/* 난이도 */}
         {showDifficulty && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">난이도</label>
+            <label className="text-body-2-bold text-[var(--text-secondary)]">난이도</label>
             <select
               value={values.difficulty || ""}
               onChange={(e) => handleDifficultyChange(e.target.value)}
-              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
               aria-label="난이도 선택"
             >
               <option value="">전체</option>
@@ -338,7 +338,7 @@ export function UnifiedContentFilter({
       <div className="flex flex-col gap-4">
         {/* 제목 검색 */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-[var(--text-secondary)]">
+          <label className="text-body-2-bold text-[var(--text-secondary)]">
             제목 검색
           </label>
             <input
@@ -352,18 +352,18 @@ export function UnifiedContentFilter({
               }
             }}
             placeholder={contentType === "book" ? "교재명 입력" : contentType === "lecture" ? "강의명 입력" : "콘텐츠명 입력"}
-            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+            className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
           />
         </div>
 
         {/* 정렬 */}
         {showSort && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">정렬</label>
+            <label className="text-body-2-bold text-[var(--text-secondary)]">정렬</label>
             <select
               value={values.sort || defaultSort}
               onChange={(e) => handleSortChange(e.target.value)}
-              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2"
               aria-label="정렬 순서 선택"
             >
               {sortOptions.map((option) => (
@@ -379,14 +379,14 @@ export function UnifiedContentFilter({
         <div className="flex gap-2">
           <button
             type="submit"
-            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700"
           >
             검색
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] bg-white dark:bg-secondary-900 px-4 py-2 text-sm font-semibold text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))]"
+            className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-semibold text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))]"
           >
             초기화
           </button>

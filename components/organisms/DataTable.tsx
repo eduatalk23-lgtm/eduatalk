@@ -88,7 +88,7 @@ function DataTableComponent<T>({
                   key={column.key}
                   className={cn(
                     "border-b border-[rgb(var(--color-secondary-200))] font-semibold text-[var(--text-secondary)]",
-                    compact ? "px-3 py-2 text-xs" : "px-4 py-3 text-sm",
+                    compact ? "px-3 py-2 text-body-2" : "px-4 py-3 text-body-2",
                     alignClasses[column.align || "left"]
                   )}
                   style={column.width ? { width: column.width } : undefined}
@@ -129,7 +129,7 @@ function DataTableComponent<T>({
                       <td
                         key={column.key}
                         className={cn(
-                          compact ? "px-3 py-2 text-xs" : "px-4 py-3 text-sm",
+                          compact ? "px-3 py-2 text-body-2" : "px-4 py-3 text-body-2",
                           alignClasses[column.align || "left"]
                         )}
                       >

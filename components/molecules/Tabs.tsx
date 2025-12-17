@@ -30,9 +30,9 @@ export type TabsProps = {
 // ============================================
 
 const sizeClasses = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-6 py-3 text-base",
+  sm: "px-3 py-1.5 text-body-2",
+  md: "px-4 py-2 text-body-2",
+  lg: "px-6 py-3 text-body-1",
 };
 
 function TabsComponent({
@@ -86,7 +86,7 @@ function TabsComponent({
             {tab.badge !== undefined && (
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-xs font-medium",
+                  "rounded-full px-1.5 py-0.5 text-body-2 font-medium",
                   isActive
                     ? "bg-[var(--text-primary)] dark:bg-[var(--text-primary)] text-white dark:text-[var(--text-primary)]"
                     : "bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"

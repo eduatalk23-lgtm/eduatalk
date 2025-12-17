@@ -45,12 +45,12 @@
 - `components/ui/SchoolSelect.tsx`
 - `components/ui/SchoolMultiSelect.tsx`
 
-**우선순위 중간:**
-- `components/molecules/SearchModal.tsx`
-- `components/molecules/Tabs.tsx`
-- `components/organisms/DataTable.tsx`
-- `components/filters/UnifiedContentFilter.tsx`
-- `components/forms/BaseBookSelector.tsx`
+**우선순위 중간:** ✅ 완료
+- ✅ `components/molecules/SearchModal.tsx`
+- ✅ `components/molecules/Tabs.tsx`
+- ✅ `components/organisms/DataTable.tsx`
+- ✅ `components/filters/UnifiedContentFilter.tsx`
+- ✅ `components/forms/BaseBookSelector.tsx`
 
 **우선순위 낮음:**
 - `components/errors/ErrorBoundary.tsx`
@@ -160,7 +160,8 @@
 |------|----------|--------|--------|-----|------|
 | FormInput 개선 | 높음 | 중간 | 중간 | 높음 | ✅ 완료 |
 | Dialog/ErrorState/FormMessage | 높음 | 소규모 | 높음 | 높음 | ✅ 완료 |
-| 타이포그래피 확대 (우선순위 높음) | 중간 | 중간 | 높음 | 높음 | ⏳ 진행 중 |
+| 타이포그래피 확대 (우선순위 높음) | 중간 | 중간 | 높음 | 높음 | ✅ 완료 |
+| 타이포그래피 확대 (우선순위 중간) | 중간 | 중간 | 높음 | 높음 | ✅ 완료 |
 | FormField 개선 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
 | Margin 클래스 제거 | 낮음 | 대규모 | 낮음 | 낮음 | ⏳ 점진적 |
 | 기타 컴포넌트 개선 | 낮음 | 소규모 | 낮음 | 중간 | ⏳ 점진적 |
