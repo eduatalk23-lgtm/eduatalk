@@ -13,7 +13,7 @@ const Label = forwardRef<HTMLLabelElement, LabelProps>(
       <label
         ref={ref}
         className={cn(
-          "inline-flex items-center gap-1 text-sm font-medium text-[var(--text-primary)]",
+          "inline-flex items-center gap-1 text-body-2 font-medium text-[var(--text-primary)]",
           className
         )}
         {...props}

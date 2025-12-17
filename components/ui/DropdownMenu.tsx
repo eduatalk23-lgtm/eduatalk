@@ -330,7 +330,7 @@ const DropdownMenuItem = React.forwardRef<
     };
 
     const baseClasses = cn(
-      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-sm outline-none transition-base",
+      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base",
       "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
       "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
       "focus:bg-[rgb(var(--color-secondary-50))] dark:focus:bg-[rgb(var(--color-secondary-800))]",

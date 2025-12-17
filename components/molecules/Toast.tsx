@@ -61,7 +61,7 @@ function ToastComponent({
       )}
     >
       <span className="flex-shrink-0" aria-hidden="true">{iconMap[variant]}</span>
-      <p className="text-sm font-medium">{message}</p>
+      <p className="text-body-2 font-medium">{message}</p>
       <button
         onClick={() => {
           setIsVisible(false);

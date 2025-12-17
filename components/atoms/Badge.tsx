@@ -43,10 +43,10 @@ const badgeVariants = cva(
         outline: "border border-current bg-transparent text-current",
       },
       size: {
-        xs: "px-1.5 py-0.5 text-xs",
-        sm: "px-2 py-0.5 text-xs",
-        md: "px-2.5 py-1 text-sm",
-        lg: "px-3 py-1.5 text-sm",
+        xs: "px-1.5 py-0.5 text-body-2",
+        sm: "px-2 py-0.5 text-body-2",
+        md: "px-2.5 py-1 text-body-2",
+        lg: "px-3 py-1.5 text-body-2",
       },
     },
     defaultVariants: {
