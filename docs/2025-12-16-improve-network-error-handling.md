@@ -84,3 +84,4 @@ if (error) {
 - `lib/errors/handler.ts`: 에러 정규화 함수 개선
 - `lib/data/contentMasters.ts`: 교재/강의 검색 함수 에러 처리 개선
 
+

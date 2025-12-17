@@ -25,10 +25,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           "w-full rounded-lg border bg-white transition-colors appearance-none cursor-pointer",
           "text-[var(--text-primary)]",
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
-          "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-[var(--text-disabled)]",
+          "disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-50))] dark:disabled:bg-[rgb(var(--color-secondary-900))] disabled:text-[var(--text-disabled)]",
           hasError
-            ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-            : "border-gray-300 focus:border-gray-900 focus:ring-gray-900/20",
+            ? "border-error-500 dark:border-error-600 focus:border-error-500 dark:focus:border-error-600 focus:ring-error-500/20 dark:focus:ring-error-600/20"
+            : "border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] focus:border-[var(--text-primary)] dark:focus:border-[var(--text-primary)] focus:ring-[var(--text-primary)]/20 dark:focus:ring-[var(--text-primary)]/20",
           sizeClasses[selectSize],
           // 화살표 아이콘을 위한 패딩
           "pr-10 bg-no-repeat bg-right",

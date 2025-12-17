@@ -148,3 +148,4 @@ export function generateDateRange(startDate: string, endDate: string): string[] 
 2. **날짜 목록 가상화**: 비연속 다중 선택 시 대량 날짜 처리 시 가상화 고려
 3. **접근성 개선**: ARIA 레이블 및 키보드 네비게이션 추가 고려
 
+

@@ -25,11 +25,11 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-indigo-600 dark:bg-indigo-500 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600 focus:ring-indigo-600 dark:focus:ring-indigo-500 border-transparent",
+    "bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600 focus:ring-primary-600 dark:focus:ring-primary-500 border-transparent",
   secondary:
     "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-800))] text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))] focus:ring-[rgb(var(--color-secondary-500))] dark:focus:ring-[rgb(var(--color-secondary-400))] border-transparent",
   destructive:
-    "bg-red-600 dark:bg-red-700 text-white hover:bg-red-700 dark:hover:bg-red-800 focus:ring-red-600 dark:focus:ring-red-700 border-transparent",
+    "bg-error-600 dark:bg-error-700 text-white hover:bg-error-700 dark:hover:bg-error-800 focus:ring-error-600 dark:focus:ring-error-700 border-transparent",
   outline: cn(
     bgSurfaceVar,
     textSecondaryVar,

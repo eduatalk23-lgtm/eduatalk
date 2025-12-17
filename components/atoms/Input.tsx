@@ -30,7 +30,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
           "disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-50))] dark:disabled:bg-[rgb(var(--color-secondary-900))] disabled:text-[var(--text-disabled)]",
           hasError
-            ? "border-red-500 dark:border-red-600 focus:border-red-500 dark:focus:border-red-600 focus:ring-red-500/20 dark:focus:ring-red-600/20"
+            ? "border-error-500 dark:border-error-600 focus:border-error-500 dark:focus:border-error-600 focus:ring-error-500/20 dark:focus:ring-error-600/20"
             : cn(
                 borderInputVar,
                 "focus:border-[var(--text-primary)] dark:focus:border-[var(--text-primary)] focus:ring-[var(--text-primary)]/20 dark:focus:ring-[var(--text-primary)]/20"
