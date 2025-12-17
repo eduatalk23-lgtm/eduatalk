@@ -11,7 +11,7 @@ import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
-import { bgSurface, textPrimary, textSecondary, borderDefault, getGradientCardClasses, getIndigoTextClasses, type GradientColor } from "@/lib/utils/darkMode";
+import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, getGradientCardClasses, getIndigoTextClasses, type GradientColor } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type StudentRow = {
@@ -64,23 +64,23 @@ export default async function DashboardPage() {
       <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6 md:gap-8">
           {/* 상단: 학생 인사 + 요약 */}
-          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-[var(--elevation-4)]", bgSurface, borderDefault)}>
+          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-[var(--elevation-4)]", bgSurfaceVar, borderDefaultVar)}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <h1 className={cn("text-h1", textPrimary)}>
+                  <h1 className={cn("text-h1", textPrimaryVar)}>
                   안녕하세요, {studentName}님
                 </h1>
-                  <p className={cn("text-sm md:text-base", textSecondary)}>
+                  <p className={cn("text-sm md:text-base", textSecondaryVar)}>
                   오늘도 열심히 학습하시는 모습이 멋집니다!
-                </p>
+                  </p>
                 </div>
 
                 <div className="flex items-baseline gap-3 pt-2">
                   <span className={cn("text-4xl md:text-5xl font-bold", getIndigoTextClasses("heading"))}>
                     {todayProgress}%
                   </span>
-                  <span className={cn("text-base md:text-lg", textSecondary)}>
+                  <span className={cn("text-base md:text-lg", textSecondaryVar)}>
                     오늘 학습 진행률
                   </span>
                 </div>
@@ -93,7 +93,7 @@ export default async function DashboardPage() {
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">
-            <h2 className={cn("text-h2", textPrimary)}>주요 기능</h2>
+            <h2 className={cn("text-h2", textPrimaryVar)}>주요 기능</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-stretch">
               {getDashboardCategories().map((category) => {
                 let description = "";
