@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { buildPlanExecutionUrl } from "@/app/(student)/today/_utils/navigationUtils";
 import { useActivePlanDetails } from "@/lib/hooks/useActivePlanDetails";
-import { textPrimary, textTertiary } from "@/lib/utils/darkMode";
+import { textPrimaryVar, textTertiaryVar } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type ActiveLearningWidgetProps = {
@@ -100,7 +100,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎯</span>
-            <h3 className={cn("text-lg font-semibold", textPrimary)}>현재 학습 중</h3>
+            <h3 className={cn("text-lg font-semibold", textPrimaryVar)}>현재 학습 중</h3>
           </div>
         </div>
         <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -130,10 +130,10 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xl">{contentTypeIcon}</span>
-          <h4 className={cn("font-semibold", textPrimary)}>{activePlan.title}</h4>
+          <h4 className={cn("font-semibold", textPrimaryVar)}>{activePlan.title}</h4>
         </div>
 
-        <div className={cn("flex items-center gap-4 text-sm", textTertiary)}>
+        <div className={cn("flex items-center gap-4 text-sm", textTertiaryVar)}>
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
             <span className="font-medium">학습 시간: {formatTime(elapsedSeconds)}</span>

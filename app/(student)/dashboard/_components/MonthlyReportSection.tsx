@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { MonthlyReport } from "@/lib/reports/monthly";
-import { cn, textPrimary, textTertiary } from "@/lib/utils/darkMode";
+import { cn, textPrimaryVar, textTertiaryVar } from "@/lib/utils/darkMode";
 
 type MonthlyReportSectionProps = {
   studentId: string;
@@ -55,7 +55,7 @@ export function MonthlyReportSection({
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className={cn("text-h2", textPrimary)}>이번 달 요약</h2>
+          <h2 className={cn("text-h2", textPrimaryVar)}>이번 달 요약</h2>
           <div className="flex items-center gap-3">
             <Link
               href="/report/monthly"
@@ -67,7 +67,7 @@ export function MonthlyReportSection({
         </div>
         <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 shadow-[var(--elevation-1)]">
           <div className="flex items-center justify-center py-8">
-            <p className={cn("text-sm", textTertiary)}>월간 리포트 로딩 중...</p>
+            <p className={cn("text-sm", textTertiaryVar)}>월간 리포트 로딩 중...</p>
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export function MonthlyReportSection({
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className={cn("text-h2", textPrimary)}>이번 달 요약</h2>
+          <h2 className={cn("text-h2", textPrimaryVar)}>이번 달 요약</h2>
           <div className="flex items-center gap-3">
             <Link
               href="/report/monthly"
@@ -113,7 +113,7 @@ export function MonthlyReportSection({
       <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="flex flex-col gap-1 text-center">
-            <div className={cn("text-sm font-medium", textTertiary)}>
+            <div className={cn("text-sm font-medium", textTertiaryVar)}>
               총 학습시간
             </div>
             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
@@ -122,7 +122,7 @@ export function MonthlyReportSection({
             </div>
           </div>
           <div className="flex flex-col gap-1 text-center">
-            <div className={cn("text-sm font-medium", textTertiary)}>
+            <div className={cn("text-sm font-medium", textTertiaryVar)}>
               플랜 실행률
             </div>
             <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
@@ -130,7 +130,7 @@ export function MonthlyReportSection({
             </div>
           </div>
           <div className="flex flex-col gap-1 text-center">
-            <div className={cn("text-sm font-medium", textTertiary)}>
+            <div className={cn("text-sm font-medium", textTertiaryVar)}>
               목표 달성률
             </div>
             <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
