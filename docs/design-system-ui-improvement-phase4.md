@@ -85,7 +85,7 @@ active: `${designTokens.colors.primary.bg50} ${designTokens.colors.primary.text5
     - `text-blue-*`, `bg-blue-*`, `border-blue-*`
     - 기타 Tailwind 기본 색상 (yellow, green, amber, orange, purple, pink, teal, cyan, emerald, lime, violet, fuchsia, rose, sky, slate, zinc, neutral, stone)
   - 권장 사용:
-    - 디자인 시스템 토큰: `` `--color-&#42;` ``, `` `--text-&#42;` ``
+    - 디자인 시스템 토큰: `--color-50~900`, `--text-primary/secondary`
     - 시맨틱 색상: `` `primary-*` ``, `` `error-*` ``, `` `warning-*` ``, `` `success-*` ``, `` `info-*` ``
   - 감지 범위:
     - JSX className 속성의 문자열 리터럴
@@ -98,7 +98,7 @@ active: `${designTokens.colors.primary.bg50} ${designTokens.colors.primary.text5
   selector:
     'JSXAttribute[name.name="className"] > Literal[value=/\\b(text|bg|border)-(gray|indigo|red|blue|yellow|green|amber|orange|purple|pink|teal|cyan|emerald|lime|violet|fuchsia|rose|sky|slate|zinc|neutral|stone)-\\d+/]',
   message:
-    "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-50~900, --text-primary/secondary, semantic colors (primary-*, error-*, warning-*, success-*, info-*).",
+    "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-50~900, --text-primary/secondary, semantic colors (primary-50~900, error-50~900, warning-50~900, success-50~900, info-50~900).",
 }
 ```
 

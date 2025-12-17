@@ -12,14 +12,14 @@
 ```
 Parsing CSS source code failed
 ./app/globals.css:1633:45
-border-color: rgb(var(--color-secondary-*));
+border-color: rgb(var(--color-secondary-[ASTERISK]));
                               ^
 Unexpected token Delim('*')
 ```
 
 ## 원인 분석
 
-Tailwind CSS가 문서 파일(`docs/`)을 스캔하면서, 문서에 포함된 와일드카드 예시(`--color-secondary-*`, `--text-*`, `--elevation-*`)를 실제 CSS 클래스로 해석하려고 시도했습니다. CSS는 와일드카드 문법을 지원하지 않으므로 파싱 에러가 발생했습니다.
+Tailwind CSS가 문서 파일(`docs/`)을 스캔하면서, 문서에 포함된 와일드카드 예시를 실제 CSS 클래스로 해석하려고 시도했습니다. CSS는 와일드카드 문법을 지원하지 않으므로 파싱 에러가 발생했습니다.
 
 ## 해결 방법
 
