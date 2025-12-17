@@ -37,13 +37,13 @@
 - 타이포그래피 시스템 사용률: 약 30% (주요 컴포넌트는 완료)
 
 #### 발견된 파일 (28개)
-**우선순위 높음:**
-- `components/ui/InstallPrompt.tsx`
-- `components/molecules/StatCard.tsx`
-- `components/ui/TimeRangeInput.tsx`
-- `components/ui/StickySaveButton.tsx`
-- `components/ui/SchoolSelect.tsx`
-- `components/ui/SchoolMultiSelect.tsx`
+**우선순위 높음:** ✅ 완료
+- ✅ `components/ui/InstallPrompt.tsx`
+- ✅ `components/molecules/StatCard.tsx`
+- ✅ `components/ui/TimeRangeInput.tsx`
+- ✅ `components/ui/StickySaveButton.tsx`
+- ✅ `components/ui/SchoolSelect.tsx`
+- ✅ `components/ui/SchoolMultiSelect.tsx`
 
 **우선순위 중간:** ✅ 완료
 - ✅ `components/molecules/SearchModal.tsx`
@@ -120,23 +120,31 @@
 - ✅ sizeClasses의 `text-xs`, `text-sm`, `text-base` → `text-body-2`, `text-body-1`
 - ✅ Input과 동일한 패턴 적용
 
-#### 기타 컴포넌트
-- `InstallPrompt.tsx`: 타이포그래피 시스템 적용
-- `StatCard.tsx`: 타이포그래피 시스템 적용
-- `TimeRangeInput.tsx`: 타이포그래피 시스템 적용
+#### 기타 컴포넌트 ✅ 완료
+- ✅ `InstallPrompt.tsx`: 타이포그래피 시스템 적용
+- ✅ `StatCard.tsx`: 타이포그래피 시스템 적용
+- ✅ `TimeRangeInput.tsx`: 타이포그래피 시스템 적용
+- ✅ `Toast.tsx`: 타이포그래피 시스템 적용
+- ✅ `DropdownMenu.tsx`: 타이포그래피 시스템 적용
+- ✅ `Badge.tsx`: 타이포그래피 시스템 적용
+- ✅ `Label.tsx`: 타이포그래피 시스템 적용
+- ✅ `FormCheckbox.tsx`: 타이포그래피 시스템 적용
+- ✅ `ProgressBar.tsx`: 타이포그래피 시스템 적용
+- ✅ `LoadingOverlay.tsx`: 타이포그래피 시스템 적용
+- ✅ `Button.tsx`: 타이포그래피 시스템 적용
 
 ---
 
 ## 🎯 권장 작업 순서
 
-### Phase 1: 우선순위 높은 컴포넌트 타이포그래피 적용 (2-3시간)
-1. `InstallPrompt.tsx` 수정
-2. `StatCard.tsx` 수정
-3. `TimeRangeInput.tsx` 수정
-4. `StickySaveButton.tsx` 수정
-5. `SchoolSelect.tsx` 수정
-6. `SchoolMultiSelect.tsx` 수정
-7. 테스트 및 커밋
+### Phase 1: 우선순위 높은 컴포넌트 타이포그래피 적용 (2-3시간) ✅ 완료
+1. ✅ `InstallPrompt.tsx` 수정
+2. ✅ `StatCard.tsx` 수정
+3. ✅ `TimeRangeInput.tsx` 수정
+4. ✅ `StickySaveButton.tsx` 수정
+5. ✅ `SchoolSelect.tsx` 수정
+6. ✅ `SchoolMultiSelect.tsx` 수정
+7. ✅ 테스트 및 커밋
 
 ### Phase 2: FormField 컴포넌트 개선 (30분-1시간) ✅ 완료
 1. ✅ 에러/힌트 메시지 타이포그래피 적용
@@ -162,6 +170,8 @@
 | Dialog/ErrorState/FormMessage | 높음 | 소규모 | 높음 | 높음 | ✅ 완료 |
 | 타이포그래피 확대 (우선순위 높음) | 중간 | 중간 | 높음 | 높음 | ✅ 완료 |
 | 타이포그래피 확대 (우선순위 중간) | 중간 | 중간 | 높음 | 높음 | ✅ 완료 |
+| 공통 컴포넌트 타이포그래피 | 중간 | 소규모 | 높음 | 높음 | ✅ 완료 |
+| 추가 컴포넌트 타이포그래피 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
 | FormField 개선 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
 | Margin 클래스 제거 | 낮음 | 대규모 | 낮음 | 낮음 | ⏳ 점진적 |
 | 기타 컴포넌트 개선 | 낮음 | 소규모 | 낮음 | 중간 | ⏳ 점진적 |
