@@ -100,7 +100,7 @@ export function MonthlyReportSection({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h2 className={cn("text-h2", textPrimary)}>이번 달 요약</h2>
+        <h2 className={cn("text-h2", textPrimaryVar)}>이번 달 요약</h2>
         <div className="flex items-center gap-3">
           <Link
             href="/report/monthly"

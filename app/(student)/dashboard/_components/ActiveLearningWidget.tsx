@@ -123,7 +123,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🎯</span>
-          <h3 className={cn("text-lg font-semibold", textPrimary)}>현재 학습 중</h3>
+          <h3 className={cn("text-lg font-semibold", textPrimaryVar)}>현재 학습 중</h3>
         </div>
       </div>
 
