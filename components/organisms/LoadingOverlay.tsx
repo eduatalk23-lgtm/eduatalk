@@ -29,7 +29,7 @@ function LoadingOverlayComponent({
     >
       <Spinner size="lg" />
       {message && (
-        <p className="text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">{message}</p>
+        <p className="text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">{message}</p>
       )}
     </div>
   );

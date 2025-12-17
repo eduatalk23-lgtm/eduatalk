@@ -111,7 +111,7 @@ function ProgressBarComponent({
         />
       </div>
       {finalShowLabel && (
-        <div className="text-right text-xs font-medium text-[var(--text-secondary)]">
+        <div className="text-right text-body-2 font-medium text-[var(--text-secondary)]">
           {Math.round(percentage)}%
         </div>
       )}

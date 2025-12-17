@@ -42,14 +42,14 @@ const FormCheckbox = memo(function FormCheckbox({
           {...props}
         />
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{label}</span>
+          <span className="text-body-2 text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{label}</span>
           {description && (
-            <span className="text-xs text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">{description}</span>
+            <span className="text-body-2 text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">{description}</span>
           )}
         </div>
       </label>
       {error && (
-        <span id={errorId} className="text-xs text-error-600 dark:text-error-400" role="alert">
+        <span id={errorId} className="text-body-2 text-error-600 dark:text-error-400" role="alert">
           {error}
         </span>
       )}
