@@ -86,7 +86,12 @@ export async function getInternalScoresByTerm(
     return [];
   }
 
-  return (data as InternalScoreWithRelations[]) || [];
+  return ((data as any[]) || []).map((item: any) => ({
+    ...item,
+    subject_group: item.subject_group?.[0] || null,
+    subject: item.subject?.[0] || null,
+    subject_type: item.subject_type?.[0] || null,
+  })) as MockScoreWithRelations[];
 }
 
 /**
@@ -168,7 +173,12 @@ export async function getMockScoresByPeriod(
     return [];
   }
 
-  return (data as InternalScoreWithRelations[]) || [];
+  return ((data as any[]) || []).map((item: any) => ({
+    ...item,
+    subject_group: item.subject_group?.[0] || null,
+    subject: item.subject?.[0] || null,
+    subject_type: item.subject_type?.[0] || null,
+  })) as MockScoreWithRelations[];
 }
 
 /**
@@ -255,7 +265,12 @@ export async function getMockScoresByExam(
     return [];
   }
 
-  return (data as InternalScoreWithRelations[]) || [];
+  return ((data as any[]) || []).map((item: any) => ({
+    ...item,
+    subject_group: item.subject_group?.[0] || null,
+    subject: item.subject?.[0] || null,
+    subject_type: item.subject_type?.[0] || null,
+  })) as MockScoreWithRelations[];
 }
 
 /**

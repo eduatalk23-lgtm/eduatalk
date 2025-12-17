@@ -15,7 +15,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { executeRescheduleTransaction } from "@/lib/reschedule/transaction";
 import { applyAdjustments, type AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import { isReschedulable } from "@/lib/utils/planStatusUtils";
-import type { PlanGroup, PlanContent } from "@/lib/types/plan";
+import type { PlanGroup, PlanContent, PlanStatus } from "@/lib/types/plan";
 import type { ScheduledPlan } from "@/lib/plan/scheduler";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
@@ -200,7 +200,10 @@ async function _getReschedulePreview(
     };
 
     const reschedulablePlans = ((existingPlans as StudentPlanRow[] | null) || []).filter((plan) =>
-      isReschedulable(plan)
+      isReschedulable({
+        status: (plan.status as PlanStatus) || "pending",
+        is_active: plan.is_active ?? true,
+      })
     );
 
     // 2.3 오늘 이전 미진행 플랜 조회 및 미진행 범위 계산
@@ -602,7 +605,10 @@ async function _rescheduleContents(
     };
 
     const reschedulablePlans = ((existingPlans as StudentPlanFullRow[] | null) || []).filter((plan) =>
-      isReschedulable(plan)
+      isReschedulable({
+        status: (plan.status as PlanStatus) || "pending",
+        is_active: plan.is_active ?? true,
+      })
     );
 
     const plansBeforeCount = reschedulablePlans.length;

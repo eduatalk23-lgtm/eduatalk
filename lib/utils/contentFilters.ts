@@ -27,11 +27,11 @@ import type {
  * @param tableName 테이블 이름 (디버깅용)
  * @returns 필터가 적용된 쿼리 빌더
  */
-export function applyContentFilters<T>(
-  query: PostgrestFilterBuilder<any, T, any>,
+export function applyContentFilters<T extends Record<string, unknown>>(
+  query: PostgrestFilterBuilder<any, any, T, any, any, any, any>,
   filters: BaseContentFilters | MasterBookFilters | MasterLectureFilters | MasterCustomContentFilters,
   tableName: string
-): PostgrestFilterBuilder<any, T, any> {
+): PostgrestFilterBuilder<any, any, T, any, any, any, any> {
   let filteredQuery = query;
 
   // 1. 인덱스가 있는 컬럼 우선 필터링
@@ -52,7 +52,7 @@ export function applyContentFilters<T>(
 
   // 3. 난이도 필터
   if (filters.difficulty) {
-    filteredQuery = filteredQuery.eq("difficulty_level", filters.difficulty);
+    filteredQuery = filteredQuery.eq("difficulty_level", filters.difficulty as any);
   }
 
   // 4. 테넌트 필터
@@ -65,13 +65,13 @@ export function applyContentFilters<T>(
 
   // 5. 콘텐츠 타입별 필터
   if ("publisher_id" in filters && filters.publisher_id) {
-    filteredQuery = filteredQuery.eq("publisher_id", filters.publisher_id);
+    filteredQuery = filteredQuery.eq("publisher_id", filters.publisher_id as any);
   }
   if ("platform_id" in filters && filters.platform_id) {
-    filteredQuery = filteredQuery.eq("platform_id", filters.platform_id);
+    filteredQuery = filteredQuery.eq("platform_id", filters.platform_id as any);
   }
   if ("content_type" in filters && filters.content_type) {
-    filteredQuery = filteredQuery.eq("content_type", filters.content_type);
+    filteredQuery = filteredQuery.eq("content_type", filters.content_type as any);
   }
 
   return filteredQuery;

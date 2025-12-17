@@ -17,7 +17,7 @@ export const previewPlansFromGroupAction = previewPlansFromGroupRefactoredAction
 async function _getPlansByGroupId(groupId: string): Promise<{
   plans: Array<{
     id: string;
-    plan_date: string;
+    plan_date: string | null;
     block_index: number | null;
     content_type: string;
     content_id: string;

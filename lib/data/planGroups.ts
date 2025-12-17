@@ -1012,9 +1012,9 @@ export async function createPlanContents(
 
   const payload = contents.map((content, index) => {
     // PlanContentWithDetails 타입으로 안전하게 처리
-    const contentWithDetails = isPlanContentWithDetails(content)
-      ? content
-      : { ...content, start_detail_id: null, end_detail_id: null };
+    const contentWithDetails: PlanContentWithDetails = isPlanContentWithDetails(content as PlanContent | PlanContentWithDetails)
+      ? (content as PlanContentWithDetails)
+      : { ...content, start_detail_id: null, end_detail_id: null } as PlanContentWithDetails;
     
     return {
       tenant_id: tenantId,

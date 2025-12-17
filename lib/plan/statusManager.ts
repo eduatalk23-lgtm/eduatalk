@@ -12,6 +12,8 @@ const STATUS_TRANSITIONS: Record<PlanStatus, PlanStatus[]> = {
   paused: ["active"], // 일시정지에서 재개만 가능 (완료/중단은 active로 가서 처리)
   completed: [], // 완료 상태는 변경 불가
   cancelled: ["active"], // 기존 데이터 호환성을 위해 유지 (UI에서는 표시 안 함)
+  pending: ["in_progress", "cancelled"], // 대기 중
+  in_progress: ["completed", "paused", "cancelled"], // 진행 중
 };
 
 /**
@@ -68,6 +70,20 @@ const STATUS_CONSTRAINTS: Record<
     canModifyContents: false,
     canModifyExclusions: false,
     description: "중단 상태 (일시정지로 통합됨) - 읽기 전용",
+  },
+  pending: {
+    canEdit: true,
+    canDelete: true,
+    canModifyContents: true,
+    canModifyExclusions: true,
+    description: "대기 중인 플랜",
+  },
+  in_progress: {
+    canEdit: true,
+    canDelete: false,
+    canModifyContents: false,
+    canModifyExclusions: false,
+    description: "진행 중인 플랜",
   },
 };
 

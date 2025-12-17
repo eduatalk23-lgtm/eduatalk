@@ -315,6 +315,8 @@ export class PlanValidator {
       paused: ["active", "cancelled"],
       completed: [], // 완료 상태는 변경 불가
       cancelled: ["active"], // 중단 상태에서 재개(활성화) 가능
+      pending: ["in_progress", "cancelled"],
+      in_progress: ["completed", "paused", "cancelled"],
     };
 
     if (!allowedTransitions[from].includes(to)) {

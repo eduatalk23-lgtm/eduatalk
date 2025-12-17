@@ -18,12 +18,12 @@ interface UseRecommendedContentsProps {
   data: {
     student_contents: Array<{
       content_id: string;
-      content_type: "book" | "lecture";
+      content_type: "book" | "lecture" | "custom";
       [key: string]: any;
     }>;
     recommended_contents: Array<{
       content_id: string;
-      content_type: "book" | "lecture";
+      content_type: "book" | "lecture" | "custom";
       [key: string]: any;
     }>;
   };

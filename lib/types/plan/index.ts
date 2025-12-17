@@ -85,6 +85,10 @@ export type {
   BookDetail,
   LectureEpisode,
   ContentMasterDetail,
+  // 확장 타입 (JOIN 결과)
+  PlanContentWithDetails,
+  MasterBookWithJoins,
+  MasterLectureWithJoins,
   // 유틸리티 타입
   PlanStatusTransition,
 } from "./domain";

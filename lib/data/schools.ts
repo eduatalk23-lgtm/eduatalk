@@ -347,16 +347,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           .limit(limit);
 
         // JOIN된 데이터 타입 정의
-        type UniversityCampusWithJoin = {
-          id: number;
-          campus_name: string;
-          region: string | null;
-          campus_type: string | null;
-          university: {
-            university_code: string;
-            name_kor: string;
-          } | null;
-        };
+        type UniversityCampusWithJoin = UniversityWithCampus;
 
         let universityNameData: UniversityCampusWithJoin[] = [];
         if (!universitiesError && universitiesData && universitiesData.length > 0) {
@@ -383,7 +374,10 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
             .order("campus_name", { ascending: true });
 
           if (!campusError && campusData) {
-            universityNameData = campusData as UniversityCampusWithJoin[];
+            universityNameData = (campusData as any[]).map((uc: any) => ({
+              ...uc,
+              university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+            })) as UniversityWithCampus[];
           }
         }
 
@@ -392,7 +386,10 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
         const seenIds = new Set<number>();
 
         if (!campusNameError && campusNameData) {
-          for (const uc of campusNameData as UniversityCampusWithJoin[]) {
+          for (const uc of (campusNameData as any[]).map((uc: any) => ({
+            ...uc,
+            university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+          })) as UniversityWithCampus[]) {
             if (!seenIds.has(uc.id)) {
               seenIds.add(uc.id);
               allCampusData.push(uc);
@@ -400,7 +397,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           }
         }
 
-        for (const uc of universityNameData as UniversityCampusWithJoin[]) {
+        for (const uc of universityNameData as UniversityWithCampus[]) {
           if (!seenIds.has(uc.id)) {
             seenIds.add(uc.id);
             allCampusData.push(uc);
@@ -449,8 +446,11 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           .order("campus_name", { ascending: true });
 
         if (!campusError && campusData) {
-        for (const uc of campusData) {
-          const universityCampus = uc as UniversityWithCampus;
+          for (const uc of campusData) {
+            const universityCampus = {
+              ...uc,
+              university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+            } as UniversityWithCampus;
           const university = universityCampus.university;
           const campusName = universityCampus.campus_name;
           const universityName = university?.name_kor || campusName;

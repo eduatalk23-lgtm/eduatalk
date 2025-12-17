@@ -39,12 +39,24 @@ export type SchedulerType = "1730_timetable";
 
 /**
  * 플랜 상태
+ * 
+ * 통합 타입 정의:
+ * - draft: 초안
+ * - saved: 저장됨
+ * - active: 활성화됨
+ * - paused: 일시정지됨
+ * - pending: 대기 중 (아직 시작하지 않음)
+ * - in_progress: 진행 중 (시작했지만 완료하지 않음)
+ * - completed: 완료됨
+ * - cancelled: 취소됨
  */
 export type PlanStatus =
   | "draft"
   | "saved"
   | "active"
   | "paused"
+  | "pending"
+  | "in_progress"
   | "completed"
   | "cancelled";
 

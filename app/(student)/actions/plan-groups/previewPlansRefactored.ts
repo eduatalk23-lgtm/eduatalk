@@ -184,7 +184,7 @@ async function _previewPlansFromGroupRefactored(
       })),
       {
         scheduler_type: group.scheduler_type || "1730_timetable",
-        scheduler_options: group.scheduler_options || null,
+        scheduler_options: group.scheduler_options ?? undefined,
         use_self_study_with_blocks: true,
         enable_self_study_for_holidays:
           groupSchedulerOptions?.enable_self_study_for_holidays === true,

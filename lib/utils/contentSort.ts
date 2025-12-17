@@ -15,11 +15,11 @@ import type { ContentSortOption } from "@/lib/types/contentFilters";
  * @param defaultSort 기본 정렬 옵션 (기본값: 'updated_at_desc')
  * @returns 정렬이 적용된 쿼리 빌더
  */
-export function applyContentSort<T>(
-  query: PostgrestFilterBuilder<any, T, any>,
+export function applyContentSort<T extends Record<string, unknown>>(
+  query: PostgrestFilterBuilder<any, any, T, any, any, any, any>,
   sortBy?: ContentSortOption | string,
   defaultSort: ContentSortOption = "updated_at_desc"
-): PostgrestFilterBuilder<any, T, any> {
+): PostgrestFilterBuilder<any, any, T, any, any, any, any> {
   const sort = (sortBy as ContentSortOption) || defaultSort;
 
   switch (sort) {

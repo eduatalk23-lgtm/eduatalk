@@ -71,6 +71,9 @@ export function useContentDetailsBatch({
   // 이미 조회한 콘텐츠 상세 정보를 캐시로 관리
   const cachedDetailsRef = useRef<Map<string, ContentDetailData>>(new Map());
   const cachedMetadataRef = useRef<Map<string, ContentMetadata>>(new Map());
+  
+  // AbortController를 위한 ref
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 콘텐츠 목록을 content_id 형식으로 변환
   const contents = useMemo(
@@ -84,6 +87,11 @@ export function useContentDetailsBatch({
       setContentMetadata(new Map());
       setLoadingDetails(new Set());
       setError(null);
+      // AbortController 정리
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       return;
     }
 
@@ -158,6 +166,9 @@ export function useContentDetailsBatch({
           }
           return false;
         };
+
+        // AbortController 생성
+        abortControllerRef.current = new AbortController();
 
         // 배치 API 호출 (재시도 로직 포함)
         let response: Response | null = null;
@@ -277,7 +288,7 @@ export function useContentDetailsBatch({
               "[useContentDetailsBatch] 배치 API 실패, 개별 API로 fallback",
               {
                 retryCount,
-                error: batchError?.message || `HTTP ${batchResponse?.status}`,
+                error: batchError?.message || `HTTP ${response?.status || "unknown"}`,
               }
             );
           }
@@ -359,6 +370,14 @@ export function useContentDetailsBatch({
     };
 
     fetchAllDetails();
+
+    // cleanup 함수: 컴포넌트 언마운트 시 AbortController 정리
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [
     contentIds,
     bookIdSet,

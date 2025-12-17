@@ -168,7 +168,6 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
   const {
     bgColorClass,
     textColorClass,
-    subtitleColorClass,
     dayTypeBadgeClass,
   } = getDayTypeStyling(currentDate, dayTypeInfo, dayExclusions);
 

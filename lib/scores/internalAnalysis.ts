@@ -168,7 +168,10 @@ export async function getInternalAnalysis(
 
     for (const row of subjectData) {
       // Relational Query 결과에서 subject_group.name 추출
-      const rowWithJoin = row as InternalScoreWithSubjectGroup;
+      const rowWithJoin = {
+        ...row,
+        subject_group: Array.isArray(row.subject_group) ? row.subject_group[0] : row.subject_group,
+      } as InternalScoreWithSubjectGroup;
       const subjectGroupName = rowWithJoin.subject_group?.name;
       if (!subjectGroupName) continue;
 

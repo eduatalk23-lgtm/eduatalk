@@ -130,7 +130,11 @@ export async function enrichPlansWithContentInfo(
   const plansWithContent: PlanWithContent[] = plansWithContentDetails.map(
     (plan) => ({
       ...plan,
-      contentEpisode: plan.contentEpisode || null,
+      contentTitle: (plan as any).contentTitle || plan.content_title || "제목 없음",
+      contentSubject: (plan as any).contentSubject || plan.content_subject || null,
+      contentSubjectCategory: (plan as any).contentSubjectCategory || plan.content_subject_category || null,
+      contentCategory: (plan as any).contentCategory || plan.content_category || null,
+      contentEpisode: (plan as any).contentEpisode || null,
     })
   );
 

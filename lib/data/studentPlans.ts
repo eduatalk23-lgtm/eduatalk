@@ -254,7 +254,7 @@ export async function getPlansForStudent(
     }
   );
 
-  let { data, error } = await query;
+  let { data, error }: { data: any[] | null; error: any } = await query;
 
   if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id 컬럼이 없는 경우
@@ -306,9 +306,15 @@ export async function getPlansForStudent(
       }
     }
 
-    ({ data, error } = await fallbackQuery
+    const fallbackResult = await fallbackQuery
       .order("plan_date", { ascending: true })
-      .order("block_index", { ascending: true }));
+      .order("block_index", { ascending: true });
+    if (fallbackResult.data !== null && fallbackResult.data !== undefined) {
+      data = fallbackResult.data;
+    }
+    if (fallbackResult.error !== null && fallbackResult.error !== undefined) {
+      error = fallbackResult.error;
+    }
   }
 
   if (error) {
@@ -465,7 +471,10 @@ export async function getPlansForStudent(
     return [];
   }
 
-  return (data as Plan[] | null) ?? [];
+  return ((data as Plan[] | null) ?? []).map((plan) => ({
+    ...plan,
+    plan_group_id: plan.plan_group_id ?? null,
+  }));
 }
 
 /**

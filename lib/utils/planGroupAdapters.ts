@@ -88,7 +88,7 @@ export function planGroupToWizardData(
       subject: a.subject || undefined,
       travel_time: a.travel_time || undefined,
     })),
-    time_settings: timeSettings,
+    time_settings: timeSettings ?? undefined,
     non_study_time_blocks: [],
 
     // Step 3: 콘텐츠

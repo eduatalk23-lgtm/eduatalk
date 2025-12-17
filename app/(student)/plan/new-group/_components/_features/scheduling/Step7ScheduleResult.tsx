@@ -122,8 +122,8 @@ export function Step7ScheduleResult({
     const errorMessage = 
       generatePlansMutation.error instanceof Error 
         ? `플랜 생성 실패: ${generatePlansMutation.error.message}`
-        : error instanceof Error 
-        ? error.message
+        : typeof generatePlansMutation.error === 'object' && generatePlansMutation.error !== null && 'message' in generatePlansMutation.error
+        ? String((generatePlansMutation.error as { message: unknown }).message)
         : "데이터를 불러오는 중 오류가 발생했습니다.";
 
     return (

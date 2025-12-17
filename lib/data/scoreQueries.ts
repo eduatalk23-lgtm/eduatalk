@@ -95,8 +95,22 @@ export async function getTermScores(
 
   return {
     term: term as Tables<"student_terms"> | null,
-    internalScores: (internalScores as InternalScore[]) ?? [],
-    mockScores: (mockScores as MockScore[]) ?? [],
+    internalScores: ((internalScores as any) ?? []).map((score: any) => ({
+      ...score,
+      subject: score.subject?.[0] || null,
+      subject_group: score.subject_group?.[0] || null,
+    })) as Array<Tables<"student_internal_scores"> & {
+      subject: Tables<"subjects"> | null;
+      subject_group: Tables<"subject_groups"> | null;
+    }>,
+    mockScores: ((mockScores as any) ?? []).map((score: any) => ({
+      ...score,
+      subject: score.subject?.[0] || null,
+      subject_group: score.subject_group?.[0] || null,
+    })) as Array<Tables<"student_mock_scores"> & {
+      subject: Tables<"subjects"> | null;
+      subject_group: Tables<"subject_groups"> | null;
+    }>,
   };
 }
 

@@ -30,6 +30,7 @@ import type {
   MasterBookFilters,
   MasterLectureFilters,
   MasterCustomContentFilters,
+  ContentSortOption,
 } from "@/lib/types/contentFilters";
 
 // 타입 재export (하위 호환성 유지)
@@ -198,12 +199,12 @@ export async function getMasterBooksList(): Promise<
  * subject_id, curriculum_revision_id, publisher_id로부터 관련 정보를 JOIN으로 조회
  */
 export async function getMasterBookById(bookId: string): Promise<{
-  book: MasterBook & {
+  book: (MasterBook & {
     subject_category?: string | null;
     subject?: string | null;
     publisher?: string | null;
     revision?: string | null;
-  };
+  }) | null;
   details: BookDetail[];
 }> {
   const supabase = await createSupabaseServerClient();
@@ -511,7 +512,10 @@ export async function searchContentMasters(
   filters: ContentMasterFilters
 ): Promise<{ data: any[]; total: number }> {
   if (filters.content_type === "book") {
-    const result = await searchMasterBooks(filters);
+    const result = await searchMasterBooks({
+      ...filters,
+      sort: filters.sort as ContentSortOption | undefined,
+    });
     // content_type 필드 추가
     const dataWithType = result.data.map((book) => ({
       ...book,
@@ -519,7 +523,10 @@ export async function searchContentMasters(
     }));
     return { data: dataWithType, total: result.total };
   } else if (filters.content_type === "lecture") {
-    const result = await searchMasterLectures(filters);
+    const result = await searchMasterLectures({
+      ...filters,
+      sort: filters.sort as ContentSortOption | undefined,
+    });
     // content_type 필드 추가
     const dataWithType = result.data.map((lecture) => ({
       ...lecture,
@@ -529,8 +536,14 @@ export async function searchContentMasters(
   } else {
     // 둘 다 검색
     const [booksResult, lecturesResult] = await Promise.all([
-      searchMasterBooks(filters),
-      searchMasterLectures(filters),
+      searchMasterBooks({
+        ...filters,
+        sort: filters.sort as ContentSortOption | undefined,
+      }),
+      searchMasterLectures({
+        ...filters,
+        sort: filters.sort as ContentSortOption | undefined,
+      }),
     ]);
     // content_type 필드 추가
     const booksWithType = booksResult.data.map((book) => ({
