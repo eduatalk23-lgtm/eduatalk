@@ -5,7 +5,7 @@ import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { timeToMinutes, getTimeSlotColorClass } from "../_utils/timelineUtils";
+import { timeToMinutes, getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
