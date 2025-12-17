@@ -44,6 +44,10 @@ export function buildTimelineSlots(
   // 해당 날짜의 제외일 확인
   const dayExclusions = exclusions.filter((exclusion) => exclusion.exclusion_date === dateStr);
   const isExclusionDay = dayExclusions.length > 0;
+  // 제외일 타입 확인 (휴일지정은 자율학습 허용, 기타는 모든 학습 관련 슬롯 필터링)
+  const exclusionType = dayExclusions.length > 0 ? dayExclusions[0].exclusion_type : null;
+  const isHolidayDesignated = exclusionType === "휴일지정"; // 자율학습 허용
+  const isOtherExclusion = exclusionType === "기타"; // 모든 학습 관련 슬롯 필터링
   
   // 해당 날짜의 플랜만 필터링
   const dayPlans = plans.filter((plan) => plan.plan_date === dateStr);
@@ -74,9 +78,20 @@ export function buildTimelineSlots(
     sortedTimeSlots.forEach((slot) => {
       // 제외일인 경우 학습 관련 타임슬롯 필터링
       // 학원일정은 제외일에도 표시 가능 (학원 수업은 별도)
-      if (isExclusionDay && slot.type !== "학원일정" && slot.type !== "학습시간") {
-        // 점심시간, 이동시간, 자율학습 등은 제외일에는 표시하지 않음
-        return;
+      if (isExclusionDay) {
+        // "기타" 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
+        if (isOtherExclusion && slot.type !== "학원일정") {
+          return;
+        }
+        // "휴일지정" 제외일: 자율학습은 허용, 나머지 학습 관련 슬롯은 필터링
+        if (isHolidayDesignated && slot.type !== "학원일정" && slot.type !== "자율학습" && slot.type !== "학습시간") {
+          // 점심시간, 이동시간 등은 필터링, 자율학습은 허용
+          return;
+        }
+        // "휴가", "개인사정" 등 기타 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
+        if (!isHolidayDesignated && !isOtherExclusion && slot.type !== "학원일정" && slot.type !== "학습시간") {
+          return;
+        }
       }
       const timelineSlot: TimelineSlot = {
         type: slot.type as TimeSlotType,
@@ -88,6 +103,7 @@ export function buildTimelineSlots(
       // 학습시간인 경우 플랜 매칭
       if (slot.type === "학습시간") {
         // 제외일인 경우 학습시간 슬롯은 표시하지 않음
+        // 단, "휴일지정"은 자율학습만 허용하므로 학습시간은 필터링
         if (isExclusionDay) {
           return;
         }
@@ -138,7 +154,8 @@ export function buildTimelineSlots(
 
       // 학원일정인 경우 학원일정 매칭
       if (slot.type === "학원일정") {
-        // 제외일인 경우 학원일정도 표시하지 않음
+        // 제외일인 경우 학원일정은 표시하지 않음
+        // "휴일지정"도 자율학습만 허용하므로 학원일정은 필터링
         if (isExclusionDay) {
           return;
         }
