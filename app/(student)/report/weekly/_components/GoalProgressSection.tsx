@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
-import { goalStatusColors, borderDefault, bgSurface, textPrimary, textTertiary, textMuted } from "@/lib/utils/darkMode";
+import {
+  goalStatusColors,
+  borderDefaultVar,
+  bgSurfaceVar,
+  textPrimaryVar,
+  textTertiaryVar,
+  textMutedVar,
+} from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type GoalProgressSectionProps = {
@@ -27,9 +34,9 @@ const goalTypeLabels: Record<string, string> = {
 
 export function GoalProgressSection({ goals }: GoalProgressSectionProps) {
   return (
-    <div className={cn("rounded-xl border p-6 shadow-sm", borderDefault, bgSurface)}>
+    <div className={cn("rounded-xl border p-6 shadow-sm", borderDefaultVar, bgSurfaceVar)}>
       <div className="flex flex-col gap-4">
-        <h3 className={cn("text-lg font-semibold", textPrimary)}>목표별 달성률</h3>
+        <h3 className={cn("text-lg font-semibold", textPrimaryVar)}>목표별 달성률</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {goals.map((goal) => {
             const isUrgent = goal.status === "in_progress" && goal.daysRemaining !== null && goal.daysRemaining <= 7;
@@ -42,7 +49,7 @@ export function GoalProgressSection({ goals }: GoalProgressSectionProps) {
                   "rounded-lg border p-4 transition hover:shadow-md",
                   isUrgent
                     ? "border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/30"
-                    : cn(borderDefault, bgSurface)
+                    : cn(borderDefaultVar, bgSurfaceVar)
                 )}
               >
                 <div className="flex flex-col gap-3">
@@ -62,18 +69,18 @@ export function GoalProgressSection({ goals }: GoalProgressSectionProps) {
                         : "미달성"}
                     </span>
                   </div>
-                  <h4 className={cn("text-sm font-semibold line-clamp-2", textPrimary)}>
+                  <h4 className={cn("text-sm font-semibold line-clamp-2", textPrimaryVar)}>
                     {goal.title}
                   </h4>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between text-xs">
-                      <span className={textTertiary}>달성률</span>
-                      <span className={cn("font-semibold", textPrimary)}>{goal.progressPercentage}%</span>
+                      <span className={textTertiaryVar}>달성률</span>
+                      <span className={cn("font-semibold", textPrimaryVar)}>{goal.progressPercentage}%</span>
                     </div>
                     <ProgressBar value={goal.progressPercentage} height="md" />
                   </div>
                   {goal.weeklyProgressAmount > 0 && (
-                    <p className={cn("text-xs", textMuted)}>
+                    <p className={cn("text-xs", textMutedVar)}>
                       이번 주 진행량: +{goal.weeklyProgressAmount}
                     </p>
                   )}
