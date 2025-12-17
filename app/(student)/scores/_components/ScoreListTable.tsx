@@ -142,7 +142,7 @@ function ScoreListTableComponent({
             onChange={(e) => setFilterSubjectType(e.target.value)}
             className={cn(
               "rounded-lg border px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500",
-              borderInput,
+              borderInputVar,
               bgSurfaceVar,
               textPrimaryVar
             )}
