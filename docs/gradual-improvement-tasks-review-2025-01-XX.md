@@ -45,7 +45,7 @@
 - **작업량**: 약 15분
 
 #### 매핑 규칙
-- `gray-*` → `secondary-*` 또는 `text-[var(--text-*)]`
+- `gray-*` → `secondary-*` 또는 `text-[var(--text-primary)]`, `text-[var(--text-secondary)]` 등 (구체적인 변수명 사용)
 - `indigo-*` → `primary-*`
 - `blue-*` → `info-*`
 - `amber-*` → `warning-*`
