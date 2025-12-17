@@ -52,8 +52,8 @@ brew install git-filter-repo
 # 또는 pip로 설치
 pip install git-filter-repo
 
-# 토큰 제거
-git filter-repo --replace-text <(echo "figd_jXMKQa3D-60c0vXOOT53rSzishkcSQT3I-8fsVA4==>YOUR_FIGMA_PERSONAL_ACCESS_TOKEN")
+# 토큰 제거 (실제 토큰을 YOUR_FIGMA_PERSONAL_ACCESS_TOKEN으로 교체)
+git filter-repo --replace-text <(echo "figd_<YOUR_ACTUAL_TOKEN>==>YOUR_FIGMA_PERSONAL_ACCESS_TOKEN")
 
 # 강제 푸시 (주의: 히스토리 재작성)
 git push origin --force --all
@@ -68,8 +68,8 @@ brew install bfg
 # 토큰 제거
 bfg --replace-text replacements.txt
 
-# replacements.txt 내용:
-# figd_jXMKQa3D-60c0vXOOT53rSzishkcSQT3I-8fsVA4==>YOUR_FIGMA_PERSONAL_ACCESS_TOKEN
+# replacements.txt 내용 (실제 토큰을 YOUR_FIGMA_PERSONAL_ACCESS_TOKEN으로 교체):
+# figd_<YOUR_ACTUAL_TOKEN>==>YOUR_FIGMA_PERSONAL_ACCESS_TOKEN
 
 # 정리 및 강제 푸시
 git reflog expire --expire=now --all
