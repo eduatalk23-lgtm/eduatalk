@@ -6,7 +6,7 @@ import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
 import { ExclusionImportModal } from "../modals/ExclusionImportModal";
-import { formatDateFromDate, parseDateString } from "@/lib/utils/date";
+import { formatDateFromDate, parseDateString, generateDateRange } from "@/lib/utils/date";
 import { DateInput } from "../../../_components/DateInput";
 
 type ExclusionsPanelProps = {
@@ -159,27 +159,6 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       loadAvailableCount();
     }
   }, [periodStart, periodEnd, data.exclusions.length]);
-
-  const generateDateRange = (start: string, end: string): string[] => {
-    const dates: string[] = [];
-    // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
-    const startParts = parseDateString(start);
-    const endParts = parseDateString(end);
-    const startDate = new Date(
-      startParts.year,
-      startParts.month - 1,
-      startParts.day
-    );
-    const endDate = new Date(endParts.year, endParts.month - 1, endParts.day);
-    const current = new Date(startDate);
-
-    while (current <= endDate) {
-      dates.push(formatDateFromDate(current));
-      current.setDate(current.getDate() + 1);
-    }
-
-    return dates;
-  };
 
   const addExclusion = () => {
     if (!editable) return;
@@ -456,29 +435,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                 날짜 선택 (다중 선택 가능)
               </label>
               <div className="max-h-48 flex flex-col gap-1 overflow-y-auto rounded-lg border border-gray-300 bg-white p-2">
-                {(() => {
-                  const dates: string[] = [];
-                  // YYYY-MM-DD 형식 문자열을 직접 파싱하여 타임존 문제 방지
-                  const startParts = parseDateString(periodStart);
-                  const endParts = parseDateString(periodEnd);
-                  const start = new Date(
-                    startParts.year,
-                    startParts.month - 1,
-                    startParts.day
-                  );
-                  const end = new Date(
-                    endParts.year,
-                    endParts.month - 1,
-                    endParts.day
-                  );
-                  const current = new Date(start);
-
-                  while (current <= end) {
-                    dates.push(formatDateFromDate(current));
-                    current.setDate(current.getDate() + 1);
-                  }
-
-                  return dates.map((date) => {
+                {generateDateRange(periodStart, periodEnd).map((date) => {
                     const isSelected = newExclusionDates.includes(date);
                     const isExcluded = data.exclusions.some(
                       (e) => e.exclusion_date === date

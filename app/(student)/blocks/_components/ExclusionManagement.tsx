@@ -6,12 +6,16 @@ import { addPlanExclusion, deletePlanExclusion } from "@/app/(student)/actions/p
 import type { PlanExclusion } from "@/lib/types/plan";
 import { Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { DateInput } from "@/app/(student)/plan/new-group/_components/_components/DateInput";
+import { generateDateRange, formatDateFromDate, parseDateString } from "@/lib/utils/date";
 
 type ExclusionManagementProps = {
   studentId: string;
   onAddRequest?: () => void;
   isAdding?: boolean;
 };
+
+type ExclusionInputType = "single" | "range" | "multiple";
 
 const exclusionTypes = [
   { value: "휴가", label: "휴가" },
@@ -27,7 +31,20 @@ export default function ExclusionManagement({
 }: ExclusionManagementProps) {
   const [planExclusions, setPlanExclusions] = useState<PlanExclusion[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 날짜 선택 타입
+  const [exclusionInputType, setExclusionInputType] = useState<ExclusionInputType>("single");
+  
+  // 단일 날짜
   const [newExclusionDate, setNewExclusionDate] = useState("");
+  
+  // 범위 선택
+  const [newExclusionStartDate, setNewExclusionStartDate] = useState("");
+  const [newExclusionEndDate, setNewExclusionEndDate] = useState("");
+  
+  // 비연속 다중 선택
+  const [newExclusionDates, setNewExclusionDates] = useState<string[]>([]);
+  
   const [newExclusionType, setNewExclusionType] = useState<"휴가" | "개인사정" | "휴일지정" | "기타">("휴가");
   const [newExclusionReason, setNewExclusionReason] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -70,6 +87,32 @@ export default function ExclusionManagement({
     }
   };
 
+  // 비연속 다중 선택 토글
+  const toggleExclusionDate = (date: string) => {
+    setNewExclusionDates((prev) =>
+      prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date]
+    );
+  };
+
+  // 현재 선택된 날짜 목록 가져오기 (비연속 다중 선택용)
+  const getAvailableDates = (): string[] => {
+    // 최근 1년 전부터 1년 후까지의 날짜 범위 제공
+    const dates: string[] = [];
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setFullYear(today.getFullYear() - 1);
+    const endDate = new Date(today);
+    endDate.setFullYear(today.getFullYear() + 1);
+    
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      dates.push(formatDateFromDate(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return dates;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -79,33 +122,61 @@ export default function ExclusionManagement({
   }
 
   const handleAddExclusion = async () => {
-    if (!newExclusionDate) {
-      alert("날짜를 입력해주세요.");
-      return;
+    let datesToAdd: string[] = [];
+
+    // 날짜 선택 타입에 따라 처리
+    if (exclusionInputType === "single") {
+      if (!newExclusionDate) {
+        alert("날짜를 입력해주세요.");
+        return;
+      }
+      datesToAdd = [newExclusionDate];
+    } else if (exclusionInputType === "range") {
+      if (!newExclusionStartDate || !newExclusionEndDate) {
+        alert("시작일과 종료일을 선택해주세요.");
+        return;
+      }
+      if (new Date(newExclusionStartDate) > new Date(newExclusionEndDate)) {
+        alert("시작일은 종료일보다 앞서야 합니다.");
+        return;
+      }
+      datesToAdd = generateDateRange(newExclusionStartDate, newExclusionEndDate);
+    } else if (exclusionInputType === "multiple") {
+      if (newExclusionDates.length === 0) {
+        alert("날짜를 최소 1개 이상 선택해주세요.");
+        return;
+      }
+      datesToAdd = [...newExclusionDates];
     }
 
-    // 클라이언트 측 중복 체크
-    const existingDate = planExclusions.find(
-      (e) => e.exclusion_date === newExclusionDate
-    );
-    if (existingDate) {
-      alert(`이미 등록된 제외일입니다: ${newExclusionDate}`);
+    // 중복 체크
+    const existingDates = new Set(planExclusions.map((e) => e.exclusion_date));
+    const duplicates = datesToAdd.filter((date) => existingDates.has(date));
+
+    if (duplicates.length > 0) {
+      alert(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
       return;
     }
 
     startTransition(async () => {
       try {
-        const formData = new FormData();
-        formData.append("exclusion_date", newExclusionDate);
-        formData.append("exclusion_type", newExclusionType);
-        if (newExclusionReason.trim()) {
-          formData.append("reason", newExclusionReason.trim());
-        }
+        // 여러 날짜를 순차적으로 추가
+        for (const date of datesToAdd) {
+          const formData = new FormData();
+          formData.append("exclusion_date", date);
+          formData.append("exclusion_type", newExclusionType);
+          if (newExclusionReason.trim()) {
+            formData.append("reason", newExclusionReason.trim());
+          }
 
-        await addPlanExclusion(formData);
+          await addPlanExclusion(formData);
+        }
 
         // 폼 초기화
         setNewExclusionDate("");
+        setNewExclusionStartDate("");
+        setNewExclusionEndDate("");
+        setNewExclusionDates([]);
         setNewExclusionReason("");
         onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
 
@@ -166,19 +237,114 @@ export default function ExclusionManagement({
 
         {/* 제외일 추가 폼 */}
         {isAdding && (
-          <div className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="flex flex-col gap-1">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  날짜 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:border-gray-900 dark:focus:border-gray-400 focus:outline-none"
-                  value={newExclusionDate}
-                  onChange={(e) => setNewExclusionDate(e.target.value)}
+          <div className="flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 p-4">
+            {/* 입력 유형 선택 */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setExclusionInputType("single")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  exclusionInputType === "single"
+                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                    : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                단일 날짜
+              </button>
+              <button
+                type="button"
+                onClick={() => setExclusionInputType("range")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  exclusionInputType === "range"
+                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                    : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                시작일 ~ 종료일
+              </button>
+              <button
+                type="button"
+                onClick={() => setExclusionInputType("multiple")}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  exclusionInputType === "multiple"
+                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                    : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
+              >
+                비연속 다중 선택
+              </button>
+            </div>
+
+            {/* 날짜 입력 */}
+            {exclusionInputType === "single" && (
+              <DateInput
+                id="exclusion-single-date-input"
+                label="날짜"
+                labelClassName="text-xs"
+                value={newExclusionDate}
+                onChange={setNewExclusionDate}
+              />
+            )}
+
+            {exclusionInputType === "range" && (
+              <div className="grid grid-cols-2 gap-3">
+                <DateInput
+                  id="exclusion-range-start-date-input"
+                  label="시작일"
+                  labelClassName="text-xs"
+                  value={newExclusionStartDate}
+                  onChange={setNewExclusionStartDate}
+                />
+                <DateInput
+                  id="exclusion-range-end-date-input"
+                  label="종료일"
+                  labelClassName="text-xs"
+                  value={newExclusionEndDate}
+                  onChange={setNewExclusionEndDate}
                 />
               </div>
+            )}
+
+            {exclusionInputType === "multiple" && (
+              <div className="flex flex-col gap-2">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  날짜 선택 (다중 선택 가능)
+                </label>
+                <div className="max-h-48 flex flex-col gap-1 overflow-y-auto rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2">
+                  {getAvailableDates().map((date) => {
+                    const isSelected = newExclusionDates.includes(date);
+                    const isExcluded = planExclusions.some(
+                      (e) => e.exclusion_date === date
+                    );
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => !isExcluded && toggleExclusionDate(date)}
+                        disabled={isExcluded}
+                        className={`w-full rounded px-2 py-1 text-left text-xs transition-colors ${
+                          isExcluded
+                            ? "cursor-not-allowed bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 line-through"
+                          : isSelected
+                          ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                          : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        {date} {isExcluded && "(이미 제외됨)"}
+                      </button>
+                    );
+                  })}
+                </div>
+                {newExclusionDates.length > 0 && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {newExclusionDates.length}개 날짜 선택됨
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 유형 및 사유 */}
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                   유형 <span className="text-red-500">*</span>
@@ -214,7 +380,14 @@ export default function ExclusionManagement({
               <button
                 type="button"
                 onClick={handleAddExclusion}
-                disabled={isPending || !newExclusionDate}
+                disabled={
+                  isPending ||
+                  (exclusionInputType === "single" && !newExclusionDate) ||
+                  (exclusionInputType === "range" &&
+                    (!newExclusionStartDate || !newExclusionEndDate)) ||
+                  (exclusionInputType === "multiple" &&
+                    newExclusionDates.length === 0)
+                }
                 className="rounded-lg bg-gray-900 dark:bg-gray-100 px-4 py-2 text-sm font-medium text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-400 dark:disabled:bg-gray-500"
               >
                 {isPending ? "추가 중..." : "추가"}
@@ -224,6 +397,9 @@ export default function ExclusionManagement({
                 onClick={() => {
                   onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
                   setNewExclusionDate("");
+                  setNewExclusionStartDate("");
+                  setNewExclusionEndDate("");
+                  setNewExclusionDates([]);
                   setNewExclusionReason("");
                 }}
                 disabled={isPending}

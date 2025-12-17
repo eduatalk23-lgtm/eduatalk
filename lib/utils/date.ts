@@ -168,3 +168,31 @@ export function getDayOfWeek(dateStr: string): number {
   return date.getDay();
 }
 
+/**
+ * 시작일과 종료일 사이의 모든 날짜를 생성 (YYYY-MM-DD 형식)
+ * 타임존 문제를 방지하기 위해 문자열을 직접 파싱합니다.
+ * 
+ * @param startDate 시작일 (YYYY-MM-DD 형식)
+ * @param endDate 종료일 (YYYY-MM-DD 형식)
+ * @returns 시작일부터 종료일까지의 모든 날짜 배열 (YYYY-MM-DD 형식)
+ * 
+ * @example
+ * generateDateRange("2025-01-01", "2025-01-03")
+ * // Returns: ["2025-01-01", "2025-01-02", "2025-01-03"]
+ */
+export function generateDateRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const startParts = parseDateString(startDate);
+  const endParts = parseDateString(endDate);
+  const start = new Date(startParts.year, startParts.month - 1, startParts.day);
+  const end = new Date(endParts.year, endParts.month - 1, endParts.day);
+  const current = new Date(start);
+
+  while (current <= end) {
+    dates.push(formatDateFromDate(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
