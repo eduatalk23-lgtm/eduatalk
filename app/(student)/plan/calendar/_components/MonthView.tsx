@@ -11,6 +11,7 @@ import { DayTimelineModal } from "./DayTimelineModal";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
 import { useCalendarData } from "../_hooks/useCalendarData";
 import { getTimelineSlots } from "../_hooks/useTimelineSlots";
+import { cn } from "@/lib/cn";
 
 type MonthViewProps = {
   plans: PlanWithContent[];
@@ -120,7 +121,10 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     return (
       <div
         key={day}
-        className={`min-h-[120px] cursor-pointer rounded-lg border-2 p-2 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg ${bgColorClass}`}
+        className={cn(
+          "min-h-[120px] cursor-pointer rounded-lg border-2 p-2 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)]",
+          bgColorClass
+        )}
         onClick={handleDateClick}
       >
         {/* 날짜 헤더 */}
@@ -132,7 +136,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
             {/* 날짜 타입 배지 - 아이콘만 표시 */}
             {dayTypeInfo && dayType !== "normal" && (
               <span 
-                className={`rounded-full p-1 text-sm border shadow-sm ${dayTypeBadgeClass}`}
+                className={cn("rounded-full p-1 text-sm border shadow-[var(--elevation-1)]", dayTypeBadgeClass)}
                 title={dayTypeInfo.label}
               >
                 {dayTypeInfo.icon}

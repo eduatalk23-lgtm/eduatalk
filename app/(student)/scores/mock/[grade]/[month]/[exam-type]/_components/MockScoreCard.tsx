@@ -30,7 +30,7 @@ function MockScoreCardComponent({
     score.grade_score !== null ? (
       <div
         className={cn(
-          "flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shrink-0 shadow-sm",
+          "flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shrink-0 shadow-[var(--elevation-1)]",
           gradeColor.badge
         )}
       >

@@ -38,11 +38,11 @@ function BaseScoreCardComponent<T extends { id: string; grade_score?: number | n
     <>
       <div
         className={cn(
-          "group relative rounded-xl border shadow-sm transition-all duration-200 select-none cursor-pointer",
+          "group relative rounded-xl border shadow-[var(--elevation-1)] transition-base select-none cursor-pointer",
           bgSurface,
           borderDefault,
-          "hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-700",
-          isHovered && "shadow-md border-indigo-200 dark:border-indigo-700"
+          "hover:shadow-[var(--elevation-4)] hover:border-indigo-200 dark:hover:border-indigo-700",
+          isHovered && "shadow-[var(--elevation-4)] border-indigo-200 dark:border-indigo-700"
         )}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -99,7 +99,7 @@ function BaseScoreCardComponent<T extends { id: string; grade_score?: number | n
                   onEdit(score);
                 }}
                 className={cn(
-                  "rounded-lg p-2 shadow-md ring-1 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                  "rounded-lg p-2 shadow-[var(--elevation-4)] ring-1 transition-base focus:outline-none focus:ring-2 focus:ring-indigo-500",
                   bgSurface,
                   textSecondary,
                   borderDefault,
@@ -118,7 +118,7 @@ function BaseScoreCardComponent<T extends { id: string; grade_score?: number | n
                   onDelete(score.id);
                 }}
                 className={cn(
-                  "rounded-lg p-2 shadow-md ring-1 transition-all focus:outline-none focus:ring-2 focus:ring-red-500",
+                  "rounded-lg p-2 shadow-[var(--elevation-4)] ring-1 transition-base focus:outline-none focus:ring-2 focus:ring-red-500",
                   bgSurface,
                   textSecondary,
                   borderDefault,

@@ -382,7 +382,7 @@ function PlanGroupCardComponent({
 
 
         {/* 전체 진행률 및 시간 */}
-        <div className={cn("rounded-lg border p-6 shadow-sm", bgSurface, borderDefault)}>
+        <div className={cn("rounded-lg border p-6 shadow-[var(--elevation-1)]", bgSurface, borderDefault)}>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2 text-center">
               <h3 className={cn("text-lg font-semibold", textPrimary)}>
@@ -431,7 +431,7 @@ function PlanGroupCardComponent({
 
   // 일일 뷰: 컴팩트한 카드 형태
   return (
-    <div className={cn("rounded-lg border p-4 shadow-sm", bgSurface, borderDefault)}>
+    <div className={cn("rounded-lg border p-4 shadow-[var(--elevation-1)] transition-base hover:shadow-[var(--elevation-4)]", bgSurface, borderDefault)}>
       <div className="flex flex-col gap-4">
         {/* 카드 헤더 */}
         <div className="flex items-center justify-between">

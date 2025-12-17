@@ -30,10 +30,10 @@ export const ContentCard = React.memo(function ContentCard({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-lg border p-4 transition-all",
+        "flex flex-col gap-3 rounded-lg border p-4 shadow-[var(--elevation-1)] transition-base",
         selected
-          ? "border-blue-500 bg-blue-50"
-          : "border-gray-200 bg-white hover:border-gray-300",
+          ? "border-blue-500 bg-blue-50 shadow-[var(--elevation-4)]"
+          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-[var(--elevation-4)]",
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
@@ -166,7 +166,7 @@ export const ContentCard = React.memo(function ContentCard({
                 onClick={onEditRange}
                 disabled={disabled}
                 className={cn(
-                  "rounded p-2 transition-colors hover:bg-gray-100",
+                  "rounded p-2 transition-base hover:bg-gray-100",
                   disabled && "cursor-not-allowed opacity-50"
                 )}
                 title="범위 수정"
@@ -182,7 +182,7 @@ export const ContentCard = React.memo(function ContentCard({
                 onClick={onRemove}
                 disabled={disabled}
                 className={cn(
-                  "rounded p-2 transition-colors hover:bg-red-100",
+                  "rounded p-2 transition-base hover:bg-red-100",
                   disabled && "cursor-not-allowed opacity-50"
                 )}
                 title="삭제"
@@ -198,7 +198,7 @@ export const ContentCard = React.memo(function ContentCard({
                 onClick={onToggle}
                 disabled={disabled}
                 className={cn(
-                  "rounded-lg border-2 border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50",
+                  "rounded-lg border-2 border-blue-500 px-4 py-2 text-sm font-medium text-blue-600 transition-base hover:bg-blue-50",
                   disabled && "cursor-not-allowed opacity-50 hover:bg-white"
                 )}
               >

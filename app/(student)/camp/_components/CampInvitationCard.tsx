@@ -50,7 +50,7 @@ export function CampInvitationCard({
   return (
     <div
       onClick={handleCardClick}
-      className="block cursor-pointer rounded-lg border border-gray-200 bg-white p-6 transition hover:border-indigo-300 hover:shadow-md"
+      className="block cursor-pointer rounded-lg border border-gray-200 bg-white p-6 shadow-[var(--elevation-1)] transition-base hover:border-indigo-300 hover:shadow-[var(--elevation-4)]"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2 flex-1">

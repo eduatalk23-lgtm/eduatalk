@@ -4,9 +4,22 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
-import { bgSurfaceVar, borderDefaultVar, textPrimaryVar, textSecondaryVar } from "@/lib/utils/darkMode";
+import {
+  bgSurfaceVar,
+  borderDefaultVar,
+  textPrimaryVar,
+  textSecondaryVar,
+} from "@/lib/utils/darkMode";
 
-export type DialogSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
+export type DialogSize =
+  | "sm"
+  | "md"
+  | "lg"
+  | "xl"
+  | "2xl"
+  | "3xl"
+  | "4xl"
+  | "full";
 
 export type DialogProps = {
   open: boolean;
@@ -36,8 +49,12 @@ export function Dialog({
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const titleId = title ? `dialog-title-${Math.random().toString(36).substr(2, 9)}` : undefined;
-  const descriptionId = description ? `dialog-description-${Math.random().toString(36).substr(2, 9)}` : undefined;
+  const titleId = title
+    ? `dialog-title-${Math.random().toString(36).substr(2, 9)}`
+    : undefined;
+  const descriptionId = description
+    ? `dialog-description-${Math.random().toString(36).substr(2, 9)}`
+    : undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -50,7 +67,10 @@ export function Dialog({
       if (previousFocusRef.current) {
         // 짧은 지연 후 포커스 복원 (모달 애니메이션 완료 대기)
         setTimeout(() => {
-          if (previousFocusRef.current && document.contains(previousFocusRef.current)) {
+          if (
+            previousFocusRef.current &&
+            document.contains(previousFocusRef.current)
+          ) {
             previousFocusRef.current.focus();
           }
           previousFocusRef.current = null;
@@ -113,7 +133,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={cn(
-          "relative w-full rounded-lg border shadow-lg",
+          "relative w-full rounded-lg border shadow-[var(--elevation-8)]",
           borderDefaultVar,
           bgSurfaceVar,
           "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%] duration-200",
@@ -154,20 +174,30 @@ export function Dialog({
         )}
 
         {(title || description) && (
-          <div className={cn("flex flex-col gap-1.5 border-b px-6 py-4", borderDefaultVar)}>
+          <div
+            className={cn(
+              "flex flex-col gap-1.5 border-b px-6 py-4",
+              borderDefaultVar
+            )}
+          >
             {title && (
               <h2
                 id={titleId}
                 className={cn(
                   "text-lg font-semibold",
-                  variant === "destructive" ? "text-red-900 dark:text-red-300" : textPrimaryVar
+                  variant === "destructive"
+                    ? "text-red-900 dark:text-red-300"
+                    : textPrimaryVar
                 )}
               >
                 {title}
               </h2>
             )}
             {description && (
-              <div id={descriptionId} className={cn("text-sm", textSecondaryVar)}>
+              <div
+                id={descriptionId}
+                className={cn("text-sm", textSecondaryVar)}
+              >
                 {description}
               </div>
             )}
@@ -263,4 +293,3 @@ export function ConfirmDialog({
     </Dialog>
   );
 }
-

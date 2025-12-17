@@ -20,7 +20,7 @@ export async function RecommendationCard() {
   }
 
   return (
-    <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 p-6 shadow-sm">
+    <div className="rounded-2xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 p-6 shadow-[var(--elevation-1)]">
       <div className="flex flex-col gap-4">
         <h2 className={cn("text-xl font-semibold", textPrimary)}>학습 추천</h2>
 

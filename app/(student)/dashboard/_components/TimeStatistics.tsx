@@ -26,7 +26,7 @@ export function TimeStatistics({
   };
 
   return (
-    <div className={cn("rounded-xl border p-6 shadow-sm", borderDefault, bgSurface)}>
+    <div className={cn("rounded-xl border p-6 shadow-[var(--elevation-1)]", borderDefault, bgSurface)}>
       <div className="flex flex-col gap-4">
         <h3 className={cn("text-lg font-semibold", textPrimary)}>📊 오늘의 시간 분석</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

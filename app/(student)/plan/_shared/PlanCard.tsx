@@ -128,11 +128,11 @@ export const PlanCard = memo(function PlanCard({
   );
 
   const baseClasses = cn(
-    "rounded-xl border p-4 shadow-sm transition-all duration-200",
+    "rounded-xl border p-4 shadow-[var(--elevation-1)] transition-base",
     bgSurface,
     isSelected
-      ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200 dark:bg-blue-900/30 dark:border-blue-400 dark:ring-blue-800"
-      : cn(borderDefault, "hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-gray-600"),
+      ? "border-blue-500 bg-blue-50 shadow-[var(--elevation-4)] ring-2 ring-blue-200 dark:bg-blue-900/30 dark:border-blue-400 dark:ring-blue-800"
+      : cn(borderDefault, "hover:border-gray-300 hover:shadow-[var(--elevation-8)] hover:-translate-y-0.5 dark:hover:border-gray-600"),
     onClick && "cursor-pointer",
     className
   );

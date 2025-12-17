@@ -2,7 +2,12 @@
 
 import { memo, forwardRef } from "react";
 import { cn } from "@/lib/cn";
-import { bgSurfaceVar, textPrimaryVar, textPlaceholderVar, borderInputVar } from "@/lib/utils/darkMode";
+import {
+  bgSurfaceVar,
+  textPrimaryVar,
+  textPlaceholderVar,
+  borderInputVar,
+} from "@/lib/utils/darkMode";
 
 export type InputSize = "sm" | "md" | "lg";
 
@@ -18,12 +23,21 @@ const sizeClasses: Record<InputSize, string> = {
 };
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ inputSize = "md", hasError = false, className, "aria-describedby": ariaDescribedBy, ...props }, ref) => {
+  (
+    {
+      inputSize = "md",
+      hasError = false,
+      className,
+      "aria-describedby": ariaDescribedBy,
+      ...props
+    },
+    ref
+  ) => {
     return (
       <input
         ref={ref}
         className={cn(
-          "w-full rounded-lg border transition-colors",
+          "w-full rounded-lg border transition-base",
           bgSurfaceVar,
           textPrimaryVar,
           `placeholder:${textPlaceholderVar}`,
@@ -49,4 +63,3 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 Input.displayName = "Input";
 
 export default memo(Input);
-

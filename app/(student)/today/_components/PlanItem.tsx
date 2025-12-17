@@ -187,7 +187,7 @@ function PlanItemComponent({
   if (viewMode === "single") {
     // 단일 뷰: 큰 화면으로 표시
     return (
-      <div className={cn("rounded-lg border p-6 shadow-sm", bgSurface, borderDefault)}>
+      <div className={cn("rounded-lg border p-6 shadow-[var(--elevation-1)]", bgSurface, borderDefault)}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -252,7 +252,7 @@ function PlanItemComponent({
 
   // 일일 뷰: 컴팩트하게 표시
   return (
-    <div className={cn("rounded-lg border p-4 shadow-sm", bgSurface, borderDefault)}>
+    <div className={cn("rounded-lg border p-4 shadow-[var(--elevation-1)] transition-base hover:shadow-[var(--elevation-4)]", bgSurface, borderDefault)}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">

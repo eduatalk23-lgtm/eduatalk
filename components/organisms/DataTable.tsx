@@ -70,7 +70,7 @@ function DataTableComponent<T>({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-gray-200",
+        "overflow-hidden rounded-xl border border-[rgb(var(--color-secondary-200))]",
         className
       )}
     >
@@ -78,7 +78,7 @@ function DataTableComponent<T>({
         <table className="w-full border-collapse">
           <thead
             className={cn(
-              "bg-gray-50",
+              "bg-[rgb(var(--color-secondary-50))]",
               stickyHeader && "sticky top-0 z-10"
             )}
           >
@@ -87,18 +87,18 @@ function DataTableComponent<T>({
                 <th
                   key={column.key}
                   className={cn(
-                    "border-b border-gray-200 font-semibold text-gray-700",
+                    "border-b border-[rgb(var(--color-secondary-200))] font-semibold text-[var(--text-secondary)]",
                     compact ? "px-3 py-2 text-xs" : "px-4 py-3 text-sm",
                     alignClasses[column.align || "left"]
                   )}
-                  style={{ width: column.width }}
+                  style={column.width ? { width: column.width } : undefined}
                 >
                   {column.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white">
+          <tbody className="bg-white dark:bg-secondary-900">
             {isLoading
               ? Array.from({ length: loadingRows }).map((_, rowIndex) => (
                   <tr key={`skeleton-${rowIndex}`}>
@@ -106,7 +106,7 @@ function DataTableComponent<T>({
                       <td
                         key={column.key}
                         className={cn(
-                          "border-b border-gray-100",
+                          "border-b border-[rgb(var(--color-secondary-100))]",
                           compact ? "px-3 py-2" : "px-4 py-3"
                         )}
                       >
@@ -120,9 +120,9 @@ function DataTableComponent<T>({
                     key={keyExtractor(item, index)}
                     onClick={() => onRowClick?.(item)}
                     className={cn(
-                      "border-b border-gray-100 last:border-b-0",
+                      "border-b border-[rgb(var(--color-secondary-100))] last:border-b-0",
                       onRowClick &&
-                        "cursor-pointer transition-colors hover:bg-gray-50"
+                        "cursor-pointer transition-base hover:bg-[rgb(var(--color-secondary-50))]"
                     )}
                   >
                     {columns.map((column) => (

@@ -65,7 +65,7 @@ export function MonthlyReportSection({
             </Link>
           </div>
         </div>
-        <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 shadow-sm">
+        <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 p-6 shadow-[var(--elevation-1)]">
           <div className="flex items-center justify-center py-8">
             <p className={cn("text-sm", textTertiary)}>월간 리포트 로딩 중...</p>
           </div>
@@ -88,7 +88,7 @@ export function MonthlyReportSection({
             </Link>
           </div>
         </div>
-        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-6 shadow-sm">
+        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-6 shadow-[var(--elevation-1)]">
           <p className="text-sm text-red-600 dark:text-red-400">
             {error || "월간 리포트를 불러올 수 없습니다."}
           </p>
@@ -140,7 +140,7 @@ export function MonthlyReportSection({
           <div className="text-center">
             <Link
               href="/report/monthly"
-              className="inline-block rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 dark:hover:bg-indigo-600"
+              className="inline-block rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-base hover:bg-indigo-700 dark:hover:bg-indigo-600"
             >
               월간 리포트 보기
             </Link>

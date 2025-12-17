@@ -127,11 +127,12 @@ export function PlanGroupListItem({
 
   return (
     <li
-      className={`group relative rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 ${
+      className={cn(
+        "group relative rounded-xl border bg-white p-4 shadow-[var(--elevation-1)] transition-base",
         isSelected
-          ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200"
-          : "border-gray-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5"
-      }`}
+          ? "border-blue-500 bg-blue-50 shadow-[var(--elevation-4)] ring-2 ring-blue-200"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-[var(--elevation-8)] hover:-translate-y-0.5"
+      )}
     >
       <div className="flex flex-col gap-3">
         {/* 1줄: 체크박스 + 뱃지 (좌측) / 아이콘들 (우측) */}
@@ -146,7 +147,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   onToggleSelect();
                 }}
-                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-700 transition hover:bg-gray-100 hover:text-gray-900 relative z-20"
+                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-700 transition-base hover:bg-gray-100 hover:text-gray-900 relative z-20"
                 title={isSelected ? "선택 해제" : "선택"}
                 aria-label={isSelected ? "선택 해제" : "선택"}
               >
@@ -258,7 +259,7 @@ export function PlanGroupListItem({
               
               {/* 비활성화 상태일 때 툴팁 표시 */}
               {!canToggle && (
-                <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:block group-hover:opacity-100 z-50" style={{ marginBottom: '0.5rem' }}>
+                <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-[var(--elevation-8)] transition-opacity group-hover:block group-hover:opacity-100 z-50" style={{ marginBottom: '0.5rem' }}>
                   <div className="whitespace-normal break-words">
                     {!hasPlans || planCount === 0
                       ? "플랜이 생성된 후 활성화할 수 있습니다"

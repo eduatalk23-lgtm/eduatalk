@@ -75,7 +75,7 @@ function TabsComponent({
               variant === "pill" && [
                 "rounded-md",
                 isActive
-                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm"
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-[var(--elevation-1)]"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300",
               ],
               tab.disabled && "cursor-not-allowed opacity-50"

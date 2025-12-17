@@ -302,9 +302,9 @@ export function getChildItemClasses({
  */
 export const tooltipStyles = {
   /** 기본 툴팁 (Breadcrumbs 등에서 사용 - 위쪽에 표시) */
-  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-[50] pointer-events-none",
+  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
   /** 사이드 툴팁 (CategoryNav collapsed 모드에서 사용 - 오른쪽에 표시, hover 시 표시) */
-  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-lg whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
+  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
   /** 툴팁 화살표 스타일 */
   arrow:
     "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",

@@ -29,7 +29,7 @@ export function StickySaveButton({
   }
 
   return (
-    <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white px-6 py-4 shadow-lg md:px-8">
+    <div className="sticky bottom-0 z-10 border-t border-gray-200 bg-white px-6 py-4 shadow-[var(--elevation-8)] md:px-8">
       <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
         {hasChanges && (
           <p className="text-sm text-gray-500">

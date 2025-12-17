@@ -154,7 +154,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
           return (
             <div
               key={dateStr}
-              className={`cursor-pointer rounded-lg border-2 p-2 transition hover:shadow-lg ${bgColorClass}`}
+              className={cn("cursor-pointer rounded-lg border-2 p-2 transition-base hover:shadow-[var(--elevation-8)]", bgColorClass)}
               onClick={handleDateClick}
             >
               {/* 날짜 헤더 */}

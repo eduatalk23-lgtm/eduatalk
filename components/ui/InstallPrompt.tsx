@@ -44,7 +44,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg",
+        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[var(--elevation-8)]",
         "animate-in slide-in-from-bottom duration-300",
         className
       )}
@@ -73,14 +73,14 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
             {!isIOS && (
               <button
                 onClick={handleInstall}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-base"
               >
                 설치
               </button>
             )}
             <button
               onClick={handleDismiss}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-base"
               aria-label="닫기"
             >
               <X className="w-5 h-5" />

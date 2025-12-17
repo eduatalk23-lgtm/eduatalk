@@ -273,7 +273,7 @@ export default function SchoolSelect({
 
       {/* 검색 드롭다운 */}
       {isOpen && !disabled && isSearchMode && (
-        <div className="absolute z-50 top-full w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-50 top-full w-full rounded-lg border border-gray-200 bg-white shadow-[var(--elevation-8)]">
           {/* 검색 입력 */}
           <div className="border-b border-gray-200 p-3">
             <div className="flex gap-2">

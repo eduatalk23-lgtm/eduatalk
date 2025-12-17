@@ -131,11 +131,12 @@ export default function BlocksViewer({
             {blockSetsWithStats.map((set) => (
               <div
                 key={set.id}
-                className={`bg-white dark:bg-gray-800 border-2 rounded-lg p-6 transition-all hover:shadow-md flex flex-col gap-4 ${
+                className={cn(
+                  "bg-white dark:bg-gray-800 border-2 rounded-lg p-6 shadow-[var(--elevation-1)] transition-base hover:shadow-[var(--elevation-4)] flex flex-col gap-4",
                   activeSetId === set.id
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 shadow-[var(--elevation-4)]"
                     : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-                }`}
+                )}
               >
                 {/* 헤더 */}
                 <div className="flex items-start justify-between">
@@ -311,7 +312,7 @@ function BlockSetCreateForm({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="flex flex-col gap-4 bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-lg">
+      <div className="flex flex-col gap-4 bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[var(--elevation-8)]">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">새 블록 세트 추가</h3>
           <button

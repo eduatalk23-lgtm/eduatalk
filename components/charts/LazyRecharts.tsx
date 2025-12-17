@@ -18,12 +18,13 @@ import React, { Suspense, lazy, ComponentType } from "react";
 
 // Loading skeleton for charts
 export function ChartLoadingSkeleton({ height = 300 }: { height?: number }) {
+  // 동적 height는 인라인 스타일이 필요 (Tailwind arbitrary values는 빌드 시점에 생성되어야 함)
   return (
     <div
-      className="animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center"
-      style={{ height }}
+      className="animate-pulse bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))] rounded-lg flex items-center justify-center"
+      style={{ height: `${height}px` }}
     >
-      <div className="text-gray-400 dark:text-gray-600 text-sm">
+      <div className="text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] text-sm">
         차트 로딩 중...
       </div>
     </div>

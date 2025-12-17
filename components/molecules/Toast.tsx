@@ -53,7 +53,7 @@ function ToastComponent({
       aria-live={variant === "error" ? "assertive" : "polite"}
       aria-atomic="true"
       className={cn(
-        "flex items-center gap-3 rounded-lg px-4 py-3 shadow-lg transition-all duration-300",
+        "flex items-center gap-3 rounded-lg px-4 py-3 shadow-[var(--elevation-8)] transition-slow",
         variantClasses[variant],
         isVisible
           ? "translate-y-0 opacity-100"

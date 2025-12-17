@@ -41,7 +41,10 @@ function ContentCardComponent({
   const secondaryInfo = detailRows.slice(3);
 
   return (
-    <li className={`rounded-lg border bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 ${isSelected ? "ring-2 ring-indigo-500" : ""}`}>
+    <li className={cn(
+      "rounded-lg border bg-white p-4 shadow-[var(--elevation-1)] transition-base dark:border-gray-700 dark:bg-gray-800",
+      isSelected && "ring-2 ring-indigo-500 shadow-[var(--elevation-4)]"
+    )}>
       <div className="flex items-start justify-between gap-4">
         {/* 체크박스 */}
         {onSelect && (

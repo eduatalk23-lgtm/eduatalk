@@ -96,7 +96,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
   // 로딩 중 스켈레톤 UI
   if (isPlanLoading) {
     return (
-      <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-sm animate-pulse">
+      <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-[var(--elevation-1)] animate-pulse">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎯</span>
@@ -119,7 +119,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
   }[activePlan.contentType];
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 shadow-[var(--elevation-1)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-2xl">🎯</span>
@@ -152,7 +152,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
           <button
             onClick={handleResume}
             disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-base hover:bg-indigo-700 disabled:opacity-50"
           >
             <Play className="h-4 w-4" />
             다시시작
@@ -161,7 +161,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
           <button
             onClick={handlePause}
             disabled={isLoading}
-            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-yellow-700 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm font-semibold text-white transition-base hover:bg-yellow-700 disabled:opacity-50"
           >
             <Pause className="h-4 w-4" />
             일시정지
@@ -169,7 +169,7 @@ export function ActiveLearningWidget({ activePlanId, campMode = false }: ActiveL
         )}
         <Link
           href={buildPlanExecutionUrl(activePlan.id, campMode)}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition-base hover:bg-gray-700"
         >
           상세보기
         </Link>

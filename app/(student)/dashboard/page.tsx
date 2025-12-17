@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6 md:gap-8">
           {/* 상단: 학생 인사 + 요약 */}
-          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-md", bgSurface, borderDefault)}>
+          <div className={cn("rounded-2xl border p-6 md:p-8 shadow-[var(--elevation-4)]", bgSurface, borderDefault)}>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
@@ -192,7 +192,7 @@ function QuickActionCard({
     <Link
       href={href}
       className={cn(
-        "h-full rounded-xl border-2 p-5 md:p-6 transition-all duration-200 hover:scale-[1.02] flex flex-col",
+        "h-full rounded-xl border-2 p-5 md:p-6 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-4)] flex flex-col",
         getGradientCardClasses(color)
       )}
     >

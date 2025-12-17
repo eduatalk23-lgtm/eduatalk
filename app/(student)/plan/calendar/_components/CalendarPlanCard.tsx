@@ -78,7 +78,13 @@ export function CalendarPlanCard({
     
     return (
       <div
-        className={`group border p-1 py-0.5 text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-md relative ${connectionClasses} ${borderColorClass} ${bgColorClass} ${borderClasses}`}
+        className={cn(
+          "group border p-1 py-0.5 text-xs transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-4)] relative",
+          connectionClasses,
+          borderColorClass,
+          bgColorClass,
+          borderClasses
+        )}
       >
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
@@ -113,13 +119,14 @@ export function CalendarPlanCard({
 
   return (
     <div
-      className={`group rounded-lg border-2 p-4 md:p-5 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg relative ${
+      className={cn(
+        "group rounded-lg border-2 p-4 md:p-5 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)] relative",
         isCompleted
           ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30"
           : isActive
           ? "border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30"
           : cn(borderDefault, bgSurface)
-      }`}
+      )}
     >
       <div className="flex items-start justify-between gap-4">
         {/* 왼쪽: 콘텐츠 정보 */}
@@ -128,17 +135,17 @@ export function CalendarPlanCard({
           <div className="flex items-center gap-2 flex-wrap">
             {/* 상태 뱃지 */}
             {isCompleted && (
-              <span className="shrink-0 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
+              <span className="shrink-0 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-[var(--elevation-1)]">
                 ✅ 완료
               </span>
             )}
             {isActive && !isCompleted && (
-              <span className="shrink-0 rounded-full bg-blue-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
+              <span className="shrink-0 rounded-full bg-blue-500 px-3 py-1 text-xs font-bold text-white shadow-[var(--elevation-1)]">
                 ⏱️ 학습 중
               </span>
             )}
             {!isCompleted && !isActive && (
-              <span className="shrink-0 rounded-full bg-gray-400 px-3 py-1 text-xs font-bold text-white shadow-sm">
+              <span className="shrink-0 rounded-full bg-gray-400 px-3 py-1 text-xs font-bold text-white shadow-[var(--elevation-1)]">
                 ⏸️ 대기
               </span>
             )}

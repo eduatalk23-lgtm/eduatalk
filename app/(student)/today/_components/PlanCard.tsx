@@ -370,7 +370,7 @@ function PlanCardComponent({
         {/* 헤더 */}
         <div className="flex flex-col items-center gap-3 text-center">
           {planTimeRange && (
-            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-sm", bgSurface, getIndigoTextClasses("heading"))}>
+            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-[var(--elevation-1)]", bgSurface, getIndigoTextClasses("heading"))}>
               <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>
@@ -423,12 +423,12 @@ function PlanCardComponent({
 
   // 일일 뷰 - 모바일 친화적 카드 레이아웃
   return (
-    <div className={cn("rounded-xl border p-4 shadow-sm transition hover:shadow-md sm:p-5", borderDefault, bgSurface)}>
+    <div className={cn("rounded-xl border p-4 shadow-[var(--elevation-1)] transition-base hover:shadow-[var(--elevation-4)] sm:p-5", borderDefault, bgSurface)}>
       <div className="flex flex-col gap-4 sm:gap-5">
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
           {planTimeRange && (
-            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-sm sm:self-start", bgSurface, getIndigoTextClasses("heading"))}>
+            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-[var(--elevation-1)] sm:self-start", bgSurface, getIndigoTextClasses("heading"))}>
               <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
               <span>{planTimeRange}</span>
             </div>

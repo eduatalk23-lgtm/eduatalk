@@ -41,7 +41,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
     <div className="relative flex gap-4">
       {/* 시간대 라인 */}
       <div className="flex flex-col items-center gap-2">
-        <div className={cn("rounded-lg px-4 py-2 text-base font-bold shadow-md border-2", borderInput, bgSurface, textPrimary)}>
+        <div className={cn("rounded-lg px-4 py-2 text-base font-bold shadow-[var(--elevation-4)] border-2", borderInput, bgSurface, textPrimary)}>
           {startHour}시
         </div>
         {!isLast && (
@@ -51,7 +51,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
 
       {/* 콘텐츠 영역 */}
       <div className="flex-1 pb-4">
-        <div className={`flex flex-col gap-4 rounded-lg border-2 p-5 transition-all duration-200 hover:scale-[1.01] hover:shadow-lg ${colorClass}`}>
+        <div className={cn("flex flex-col gap-4 rounded-lg border-2 p-5 transition-base hover:scale-[1.01] hover:shadow-[var(--elevation-8)]", colorClass)}>
           {/* 타입 헤더 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -62,7 +62,8 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
                 </span>
               )}
             </div>
-            <span className={`rounded-full px-4 py-1.5 text-xs font-bold shadow-sm ${
+            <span className={cn(
+              "rounded-full px-4 py-1.5 text-xs font-bold shadow-[var(--elevation-1)]",
               slot.type === "학습시간"
                 ? "bg-blue-500 text-white"
                 : slot.type === "학원일정"
@@ -70,7 +71,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
                 : slot.type === "자율학습"
                 ? "bg-green-500 text-white"
                 : "bg-orange-500 text-white"
-            }`}>
+            )}>
               {slot.type}
             </span>
           </div>

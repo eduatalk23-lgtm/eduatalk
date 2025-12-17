@@ -234,20 +234,20 @@ export default function SchoolMultiSelect({
     switch (rank) {
       case 1: // 1순위
         return {
-          badge: "bg-gradient-to-br from-amber-500 to-amber-600 text-white font-semibold shadow-md",
-          card: "bg-gradient-to-r from-amber-50 to-indigo-50 border-2 border-amber-300 shadow-md",
+          badge: "bg-gradient-to-br from-amber-500 to-amber-600 text-white font-semibold shadow-[var(--elevation-4)]",
+          card: "bg-gradient-to-r from-amber-50 to-indigo-50 border-2 border-amber-300 shadow-[var(--elevation-4)]",
           icon: "text-amber-600",
         };
       case 2: // 2순위
         return {
-          badge: "bg-gradient-to-br from-gray-400 to-gray-500 text-white font-semibold shadow-sm",
-          card: "bg-gradient-to-r from-gray-50 to-indigo-50 border border-gray-300 shadow-sm",
+          badge: "bg-gradient-to-br from-gray-400 to-gray-500 text-white font-semibold shadow-[var(--elevation-1)]",
+          card: "bg-gradient-to-r from-gray-50 to-indigo-50 border border-gray-300 shadow-[var(--elevation-1)]",
           icon: "text-gray-600",
         };
       case 3: // 3순위
         return {
-          badge: "bg-gradient-to-br from-amber-700 to-amber-800 text-white font-semibold shadow-sm",
-          card: "bg-gradient-to-r from-amber-50/50 to-indigo-50 border border-amber-200 shadow-sm",
+          badge: "bg-gradient-to-br from-amber-700 to-amber-800 text-white font-semibold shadow-[var(--elevation-1)]",
+          card: "bg-gradient-to-r from-amber-50/50 to-indigo-50 border border-amber-200 shadow-[var(--elevation-1)]",
           icon: "text-amber-700",
         };
       default:
@@ -271,8 +271,8 @@ export default function SchoolMultiSelect({
               <div
                 key={school.id || school.name}
                 className={cn(
-                  "group flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm transition-all",
-                  "hover:shadow-lg hover:scale-[1.02]",
+                  "group flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm transition-base",
+                  "hover:shadow-[var(--elevation-8)] hover:scale-[1.02]",
                   styles.card
                 )}
               >
@@ -395,7 +395,7 @@ export default function SchoolMultiSelect({
 
       {/* 검색 드롭다운 메뉴 */}
       {isOpen && !disabled && isSearchMode && canAddMore && (
-        <div className="absolute z-50 top-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-50 top-1 w-full rounded-lg border border-gray-200 bg-white shadow-[var(--elevation-8)]">
           {/* 검색 입력 필드 */}
           <div className="border-b border-gray-200 p-3">
             <div className="flex gap-2">

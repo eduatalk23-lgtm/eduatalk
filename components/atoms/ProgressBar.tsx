@@ -23,18 +23,18 @@ export type ProgressBarProps = {
 };
 
 const variantClasses: Record<ProgressBarVariant, string> = {
-  default: "bg-gray-900",
-  success: "bg-green-600",
-  warning: "bg-amber-500",
-  error: "bg-red-600",
+  default: "bg-[var(--text-primary)]",
+  success: "bg-success-600",
+  warning: "bg-warning-500",
+  error: "bg-error-600",
 };
 
 const colorClasses: Record<ProgressBarColor, string> = {
-  blue: "bg-blue-500",
-  green: "bg-green-600",
-  indigo: "bg-indigo-600",
-  orange: "bg-orange-600",
-  red: "bg-red-600",
+  blue: "bg-info-500",
+  green: "bg-success-600",
+  indigo: "bg-primary-600",
+  orange: "bg-warning-600",
+  red: "bg-error-600",
   purple: "bg-purple-600",
   violet: "bg-violet-600",
 };
@@ -91,13 +91,13 @@ function ProgressBarComponent({
     <div className={cn("w-full", className)}>
       <div
         className={cn(
-          "w-full overflow-hidden rounded-full bg-gray-200",
+          "w-full overflow-hidden rounded-full bg-[rgb(var(--color-secondary-200))]",
           sizeClasses[finalSize]
         )}
       >
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-300",
+            "h-full rounded-full transition-base",
             finalColorClass,
             barClassName
           )}
@@ -111,7 +111,7 @@ function ProgressBarComponent({
         />
       </div>
       {finalShowLabel && (
-        <div className="text-right text-xs font-medium text-gray-600">
+        <div className="text-right text-xs font-medium text-[var(--text-secondary)]">
           {Math.round(percentage)}%
         </div>
       )}

@@ -184,7 +184,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
   return (
     <div className="flex w-full flex-col gap-6">
       {/* 날짜 헤더 및 요약 정보 */}
-      <div className={`rounded-xl border-2 p-6 shadow-lg ${bgColorClass}`}>
+      <div className={cn("rounded-xl border-2 p-6 shadow-[var(--elevation-8)]", bgColorClass)}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-3">
             <h2 className={`text-3xl font-bold ${textColorClass}`}>
@@ -193,7 +193,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
             {/* 날짜 타입 배지 */}
             {dayTypeInfo && dayType !== "normal" && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-sm ${dayTypeBadgeClass}`}>
+                <span className={cn("rounded-full px-4 py-1.5 text-sm font-bold border-2 shadow-[var(--elevation-1)]", dayTypeBadgeClass)}>
                   {dayTypeInfo.icon} {dayTypeInfo.label}
                 </span>
                 {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
@@ -232,7 +232,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
       </div>
 
       {/* 타임라인 뷰 (시간 순서대로) */}
-      <div className={cn("rounded-xl border-2 shadow-md", borderDefault, bgSurface)}>
+      <div className={cn("rounded-xl border-2 shadow-[var(--elevation-4)]", borderDefault, bgSurface)}>
         <div className={cn("border-b-2 px-6 py-4 bg-gradient-to-r", borderDefault, bgStyles.gray, "to-white dark:to-gray-800")}>
           <h3 className={cn("text-xl font-bold", textPrimary)}>학습 플랜 타임라인</h3>
         </div>

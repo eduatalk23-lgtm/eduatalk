@@ -47,7 +47,7 @@ export function ContentHeader({
     <div className={cn("flex flex-col gap-6 md:flex-row md:gap-8", className)}>
       {coverImageUrl && (
         <div className="flex flex-shrink-0 justify-center md:justify-start">
-          <div className="relative h-48 w-32 overflow-hidden rounded-xl border-2 border-gray-200 bg-gray-100 shadow-md transition-transform hover:scale-105 sm:h-64 sm:w-40 md:h-72 md:w-48">
+          <div className="relative h-48 w-32 overflow-hidden rounded-xl border-2 border-gray-200 bg-gray-100 shadow-[var(--elevation-4)] transition-base hover:scale-105 sm:h-64 sm:w-40 md:h-72 md:w-48">
             <Image
               src={coverImageUrl}
               alt={`${title} 표지`}

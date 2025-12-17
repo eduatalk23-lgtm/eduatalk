@@ -2,7 +2,14 @@
 
 import { memo, forwardRef, isValidElement } from "react";
 import { cn } from "@/lib/cn";
-import { bgSurfaceVar, textPrimaryVar, textSecondaryVar, borderDefaultVar, bgHoverVar, bgHoverStrongVar } from "@/lib/utils/darkMode";
+import {
+  bgSurfaceVar,
+  textPrimaryVar,
+  textSecondaryVar,
+  borderDefaultVar,
+  bgHoverVar,
+  bgHoverStrongVar,
+} from "@/lib/utils/darkMode";
 
 export type ButtonVariant =
   | "primary"
@@ -26,11 +33,11 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 const variantClasses: Record<ButtonVariant, string> = {
   primary: cn(
     "bg-primary-600 dark:bg-primary-500 text-white",
-    "shadow-sm hover:shadow-md",
+    "shadow-[var(--elevation-2)] hover:shadow-[var(--elevation-4)]",
     "hover:bg-primary-700 dark:hover:bg-primary-600",
-    "active:scale-[0.98] active:shadow-sm",
+    "active:scale-[0.98] active:shadow-[var(--elevation-1)]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2",
-    "transition-all duration-200 ease-in-out",
+    "transition-base",
     "border-transparent"
   ),
   secondary: cn(
@@ -38,16 +45,16 @@ const variantClasses: Record<ButtonVariant, string> = {
     "hover:bg-[rgb(var(--color-secondary-200))] dark:hover:bg-[rgb(var(--color-secondary-700))]",
     "active:scale-[0.98]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2",
-    "transition-all duration-200 ease-in-out",
+    "transition-base",
     "border-transparent"
   ),
   destructive: cn(
     "bg-error-600 dark:bg-error-700 text-white",
-    "shadow-sm hover:shadow-md",
+    "shadow-[var(--elevation-2)] hover:shadow-[var(--elevation-4)]",
     "hover:bg-error-700 dark:hover:bg-error-800",
-    "active:scale-[0.98] active:shadow-sm",
+    "active:scale-[0.98] active:shadow-[var(--elevation-1)]",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error-500 focus-visible:ring-offset-2",
-    "transition-all duration-200 ease-in-out",
+    "transition-base",
     "border-transparent"
   ),
   outline: cn(
@@ -98,8 +105,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     // 아이콘만 있는 버튼의 경우 aria-label 필수
-    const hasOnlyIcon = isValidElement(children) && !Boolean((children.props as any).children);
-    const finalAriaLabel = ariaLabel || (hasOnlyIcon && !props.title ? "버튼" : undefined);
+    const hasOnlyIcon =
+      isValidElement(children) && !Boolean((children.props as any).children);
+    const finalAriaLabel =
+      ariaLabel || (hasOnlyIcon && !props.title ? "버튼" : undefined);
 
     return (
       <button
@@ -108,8 +117,8 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "inline-flex items-center justify-center gap-2 rounded-lg border font-semibold",
           "disabled:cursor-not-allowed disabled:opacity-50",
           // Base transition은 variant에서 처리, outline과 link는 transition-colors만 유지
-          variant === "outline" || variant === "link" || variant === "ghost" 
-            ? "transition-colors" 
+          variant === "outline" || variant === "link" || variant === "ghost"
+            ? "transition-colors"
             : "",
           variantClasses[variant],
           sizeClasses[size],
@@ -152,4 +161,3 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = "Button";
 
 export default memo(Button);
-

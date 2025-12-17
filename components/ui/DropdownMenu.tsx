@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useId, ReactNode, ComponentPropsWithoutRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useId,
+  ReactNode,
+  ComponentPropsWithoutRef,
+} from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
@@ -11,12 +18,15 @@ type DropdownMenuContextValue = {
   triggerId: string;
 };
 
-const DropdownMenuContext = React.createContext<DropdownMenuContextValue | null>(null);
+const DropdownMenuContext =
+  React.createContext<DropdownMenuContextValue | null>(null);
 
 function useDropdownMenuContext() {
   const context = React.useContext(DropdownMenuContext);
   if (!context) {
-    throw new Error("DropdownMenu components must be used within DropdownMenu.Root");
+    throw new Error(
+      "DropdownMenu components must be used within DropdownMenu.Root"
+    );
   }
   return context;
 }
@@ -27,20 +37,26 @@ type DropdownMenuRootProps = {
   onOpenChange?: (open: boolean) => void;
 };
 
-function DropdownMenuRoot({ children, open: controlledOpen, onOpenChange: controlledOnOpenChange }: DropdownMenuRootProps) {
+function DropdownMenuRoot({
+  children,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: DropdownMenuRootProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
-  const onOpenChange = isControlled ? controlledOnOpenChange || (() => {}) : setInternalOpen;
+  const onOpenChange = isControlled
+    ? controlledOnOpenChange || (() => {})
+    : setInternalOpen;
 
   const contentId = useId();
   const triggerId = useId();
 
   return (
-    <DropdownMenuContext.Provider value={{ open, onOpenChange, contentId, triggerId }}>
-      <div className="relative">
-        {children}
-      </div>
+    <DropdownMenuContext.Provider
+      value={{ open, onOpenChange, contentId, triggerId }}
+    >
+      <div className="relative">{children}</div>
     </DropdownMenuContext.Provider>
   );
 }
@@ -49,7 +65,12 @@ type DropdownMenuTriggerProps = ComponentPropsWithoutRef<"button"> & {
   asChild?: boolean;
 };
 
-function DropdownMenuTrigger({ asChild, className, children, ...props }: DropdownMenuTriggerProps) {
+function DropdownMenuTrigger({
+  asChild,
+  className,
+  children,
+  ...props
+}: DropdownMenuTriggerProps) {
   const { open, onOpenChange, triggerId } = useDropdownMenuContext();
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -92,13 +113,12 @@ type DropdownMenuContentProps = {
   sideOffset?: number;
 };
 
-
-function DropdownMenuContent({ 
-  children, 
-  align = "end", 
-  side = "bottom", 
+function DropdownMenuContent({
+  children,
+  align = "end",
+  side = "bottom",
   className,
-  sideOffset = 8 
+  sideOffset = 8,
 }: DropdownMenuContentProps) {
   const { open, onOpenChange, contentId, triggerId } = useDropdownMenuContext();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -147,7 +167,7 @@ function DropdownMenuContent({
     function handleKeyDown(e: KeyboardEvent) {
       if (!contentRef.current) return;
 
-      const focusableItems = itemsRef.current.filter(item => {
+      const focusableItems = itemsRef.current.filter((item) => {
         if (!item || item.offsetParent === null) return false;
         // HTMLButtonElement인 경우에만 disabled 체크
         if (item instanceof HTMLButtonElement && item.disabled) return false;
@@ -163,7 +183,10 @@ function DropdownMenuContent({
 
         case "ArrowDown":
           e.preventDefault();
-          if (focusedIndex === null || focusedIndex >= focusableItems.length - 1) {
+          if (
+            focusedIndex === null ||
+            focusedIndex >= focusableItems.length - 1
+          ) {
             setFocusedIndex(0);
             focusableItems[0]?.focus();
           } else {
@@ -214,22 +237,26 @@ function DropdownMenuContent({
   useEffect(() => {
     if (open && contentRef.current) {
       const updateItemsRef = () => {
-        const menuItems = contentRef.current?.querySelectorAll('[role="menuitem"]') || [];
-        itemsRef.current = Array.from(menuItems) as (HTMLAnchorElement | HTMLButtonElement)[];
-        
+        const menuItems =
+          contentRef.current?.querySelectorAll('[role="menuitem"]') || [];
+        itemsRef.current = Array.from(menuItems) as (
+          | HTMLAnchorElement
+          | HTMLButtonElement
+        )[];
+
         // 첫 번째 항목에 포커스
-        const focusableItems = itemsRef.current.filter(item => {
+        const focusableItems = itemsRef.current.filter((item) => {
           if (!item || item.offsetParent === null) return false;
           if (item instanceof HTMLButtonElement && item.disabled) return false;
           return true;
         });
-        
+
         if (focusableItems.length > 0) {
           setFocusedIndex(0);
           focusableItems[0]?.focus();
         }
       };
-      
+
       // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 실행
       setTimeout(updateItemsRef, 0);
     } else {
@@ -250,16 +277,19 @@ function DropdownMenuContent({
       role="menu"
       aria-labelledby={triggerId}
       className={cn(
-        "absolute z-50 min-w-[200px] rounded-lg border shadow-lg",
-        "bg-white dark:bg-gray-800",
-        "border-gray-200 dark:border-gray-700",
+        "absolute z-50 min-w-[200px] rounded-lg border shadow-[var(--elevation-8)]",
+        "bg-white dark:bg-secondary-900",
+        "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
         "py-1",
         alignClasses,
         sideClasses,
         "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
         className
       )}
-      style={{ marginTop: side === "bottom" ? sideOffset : undefined, marginBottom: side === "top" ? sideOffset : undefined }}
+      style={{
+        marginTop: side === "bottom" ? sideOffset : undefined,
+        marginBottom: side === "top" ? sideOffset : undefined,
+      }}
     >
       {children}
     </div>
@@ -274,11 +304,21 @@ type DropdownMenuItemProps = ComponentPropsWithoutRef<"a" | "button"> & {
   disabled?: boolean;
 };
 
-const DropdownMenuItem = React.forwardRef<HTMLAnchorElement | HTMLButtonElement, DropdownMenuItemProps>(
-  ({ asChild, className, children, href, disabled, onClick, ...props }, ref) => {
+const DropdownMenuItem = React.forwardRef<
+  HTMLAnchorElement | HTMLButtonElement,
+  DropdownMenuItemProps
+>(
+  (
+    { asChild, className, children, href, disabled, onClick, ...props },
+    ref
+  ) => {
     const { onOpenChange } = useDropdownMenuContext();
 
-    const handleClick = (e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>) => {
+    const handleClick = (
+      e:
+        | React.MouseEvent<HTMLAnchorElement>
+        | React.MouseEvent<HTMLButtonElement>
+    ) => {
       if (disabled) {
         e.preventDefault();
         return;
@@ -290,10 +330,10 @@ const DropdownMenuItem = React.forwardRef<HTMLAnchorElement | HTMLButtonElement,
     };
 
     const baseClasses = cn(
-      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-sm outline-none transition-colors",
-      "text-gray-700 dark:text-gray-200",
-      "hover:bg-gray-100 dark:hover:bg-gray-700",
-      "focus:bg-gray-100 dark:focus:bg-gray-700",
+      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-sm outline-none transition-base",
+      "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
+      "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+      "focus:bg-[rgb(var(--color-secondary-50))] dark:focus:bg-[rgb(var(--color-secondary-800))]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       disabled && "pointer-events-none opacity-50",
       className
@@ -349,7 +389,7 @@ type DropdownMenuSeparatorProps = {
 function DropdownMenuSeparator({ className }: DropdownMenuSeparatorProps) {
   return (
     <div
-      className={cn("my-1 h-px bg-gray-200 dark:bg-gray-700", className)}
+      className={cn("my-1 h-px bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]", className)}
       role="separator"
       aria-orientation="horizontal"
     />
@@ -363,5 +403,3 @@ export const DropdownMenu = {
   Item: DropdownMenuItem,
   Separator: DropdownMenuSeparator,
 };
-
-

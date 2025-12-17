@@ -17,7 +17,7 @@
   /* Base Colors - Light Mode */
   --background: #ffffff;
   --foreground: #171717;
-  
+
   /* Text Color System - Light Mode */
   --text-primary: #171717;
   --text-secondary: #374151;
@@ -131,6 +131,19 @@
   --color-risk-medium: 234 179 8; /* yellow-500 - 주의 */
   --color-risk-high: 245 158 11; /* amber-500 - 위험 */
   --color-risk-critical: 239 68 68; /* red-500 - 매우 위험 */
+
+  /* Elevation System (Material Design 0-24dp) */
+  /* Material Design Elevation 시스템을 참고한 그림자 값 */
+  --elevation-0: 0 0 0 0 rgba(0, 0, 0, 0);
+  --elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --elevation-2: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --elevation-4: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --elevation-8: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --elevation-16: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --elevation-24: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 /* Dark Mode Configuration 
@@ -217,7 +230,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
+
   /* Custom Text Colors */
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -380,6 +393,29 @@ body {
   font-size: 17px;
   font-weight: 700;
   line-height: 1.5;
+}
+
+/* Transition System */
+/* 2025년 웹 트렌드: 짧은 지속시간 (100-300ms), 목적 중심, prefers-reduced-motion 지원 */
+.transition-base {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-fast {
+  transition: all 100ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transition-slow {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Accessibility: prefers-reduced-motion 지원 */
+@media (prefers-reduced-motion: reduce) {
+  .transition-base,
+  .transition-fast,
+  .transition-slow {
+    transition: none;
+  }
 }
 
 /* Input Overrides */
