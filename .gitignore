@@ -57,6 +57,7 @@ next-env.d.ts
 # mcp
 .cursor/mcp.json
 .mcp.json
+~/.config/cursor/mcp.json
 
 # other
 repomix-output.xml
