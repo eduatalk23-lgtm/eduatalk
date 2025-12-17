@@ -71,7 +71,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
           <div className="h-4 w-1/4 rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]"></div>
         </div>
         {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className={cn("border-b p-4", "border-gray-100 dark:border-gray-700")}>
+          <div key={i} className={cn("border-b p-4", "border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-700))]")}>
             <div className="flex gap-4">
               <div className="h-4 w-1/4 rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]"></div>
               <div className="h-4 w-1/4 rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]"></div>
@@ -114,12 +114,12 @@ function ScheduleSkeleton() {
     <div className="flex flex-col gap-4">
         <div className="h-6 w-48 animate-pulse rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
       <div className={cn("rounded-lg border", borderDefaultVar, bgSurfaceVar)}>
-        <div className={cn("border-b px-4 py-3", borderDefaultVar, "bg-gray-50 dark:bg-gray-800")}>
+        <div className={cn("border-b px-4 py-3", borderDefaultVar, "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]")}>
           <div className="h-5 w-32 animate-pulse rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
         </div>
         <div className="max-h-[600px] flex flex-col gap-2 overflow-y-auto p-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={cn("flex flex-col gap-2 border-b pb-4 last:border-b-0", "border-gray-100 dark:border-gray-700")}>
+            <div key={i} className={cn("flex flex-col gap-2 border-b pb-4 last:border-b-0", "border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-700))]")}>
               <div className="h-12 w-full animate-pulse rounded bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-700))]" />
               <div className="ml-4 flex flex-col gap-2">
                 <div className="h-16 w-full animate-pulse rounded bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-700))]" />
@@ -139,7 +139,7 @@ function ScheduleSkeleton() {
 function TabSkeleton() {
   return (
     <div className="flex flex-col gap-4">
-      <div className="h-8 w-48 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+      <div className="h-8 w-48 animate-pulse rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
       <div className="flex flex-col gap-3">
           <div className="h-32 w-full animate-pulse rounded-lg bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />
           <div className="h-64 w-full animate-pulse rounded-lg bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))]" />

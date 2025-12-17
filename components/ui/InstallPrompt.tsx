@@ -54,7 +54,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
           <div className="flex flex-col gap-1 flex-1">
             <div className="flex items-center gap-2">
               {isIOS ? (
-                <Share2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Share2 className="w-5 h-5 text-info-600 dark:text-info-400" />
               ) : (
                 <Download className="w-5 h-5 text-info-600 dark:text-info-400" />
               )}

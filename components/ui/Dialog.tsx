@@ -192,7 +192,7 @@ export function Dialog({
                 className={cn(
                   "text-lg font-semibold",
                   variant === "destructive"
-                    ? "text-red-900 dark:text-red-300"
+                    ? "text-error-900 dark:text-error-300"
                     : textPrimaryVar
                 )}
               >
