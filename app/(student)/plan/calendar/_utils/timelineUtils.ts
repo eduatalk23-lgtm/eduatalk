@@ -84,8 +84,8 @@ export function buildTimelineSlots(
           return;
         }
         // "휴일지정" 제외일: 자율학습은 허용, 나머지 학습 관련 슬롯은 필터링
-        if (isHolidayDesignated && slot.type !== "학원일정" && slot.type !== "자율학습" && slot.type !== "학습시간") {
-          // 점심시간, 이동시간 등은 필터링, 자율학습은 허용
+        if (isHolidayDesignated && slot.type !== "학원일정" && slot.type !== "자율학습") {
+          // 학습시간, 점심시간, 이동시간 등은 필터링, 자율학습만 허용
           return;
         }
         // "휴가", "개인사정" 등 기타 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
