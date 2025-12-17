@@ -24,7 +24,7 @@ export function ChartLoadingSkeleton({ height = 300 }: { height?: number }) {
       className="animate-pulse bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))] rounded-lg flex items-center justify-center"
       style={{ height: `${height}px` }}
     >
-      <div className="text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] text-sm">
+      <div className="text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] text-body-2">
         차트 로딩 중...
       </div>
     </div>
