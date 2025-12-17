@@ -52,7 +52,7 @@ export default async function PlanCalendarPage({
 
     if (activePlanGroups.length === 0) {
       return (
-        <section className={getContainerClass("LIST", "md")}>
+        <section className={getContainerClass("DASHBOARD", "md")}>
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
             <div className="mx-auto flex max-w-md flex-col gap-4">
               <div className="text-6xl">📅</div>
@@ -287,75 +287,78 @@ export default async function PlanCalendarPage({
       : 0;
 
     return (
-      <section className={getContainerClass("LIST", "md")}>
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
-          {/* 페이지 헤더 - 카드 스타일 */}
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div className="flex flex-col gap-3 flex-1">
-                <h1 className="text-3xl font-bold text-gray-900">플랜 캘린더</h1>
-                <p className="text-sm text-gray-600">
+          {/* 페이지 헤더 - 간소화된 스타일 */}
+          <div className="rounded-xl border-2 border-gray-200 bg-white p-6 md:p-8 shadow-sm">
+            <div className="flex flex-col gap-6">
+              {/* 제목 및 설명 */}
+              <div className="flex flex-col gap-2">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">플랜 캘린더</h1>
+                <p className="text-sm md:text-base text-gray-600">
                   활성화된 플랜 그룹의 플랜을 캘린더 형식으로 확인하세요
                 </p>
-                {/* 활성 플랜 그룹 정보 표시 */}
-                {activePlanGroups.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-500">활성 플랜:</span>
-                    {activePlanGroups.map((group) => (
-                      <span
-                        key={group.id}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-800 border border-indigo-200"
-                      >
-                        <span className="h-2 w-2 rounded-full bg-indigo-600"></span>
-                        {group.name || group.id.slice(0, 8)}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
-              
-              {/* 통계 요약 */}
-              <div className="flex flex-wrap gap-3 md:flex-nowrap">
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-gray-50 px-4 py-3 border border-gray-200 min-w-[80px]">
-                  <span className="text-xs font-medium text-gray-500">총 플랜</span>
-                  <span className="text-2xl font-bold text-gray-900">{totalPlans}</span>
+
+              {/* 활성 플랜 그룹 정보 */}
+              {activePlanGroups.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500">활성 플랜:</span>
+                  {activePlanGroups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-800 border border-indigo-200"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-indigo-600"></span>
+                      {group.name || group.id.slice(0, 8)}
+                    </span>
+                  ))}
                 </div>
-                <div className="flex flex-col items-center gap-1 rounded-lg bg-green-50 px-4 py-3 border border-green-200 min-w-[80px]">
+              )}
+
+              {/* 통계 요약 - 개선된 레이아웃 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-4 py-3 border border-gray-200">
+                  <span className="text-xs font-medium text-gray-500">총 플랜</span>
+                  <span className="text-2xl md:text-3xl font-bold text-gray-900">{totalPlans}</span>
+                </div>
+                <div className="flex flex-col gap-1 rounded-lg bg-green-50 px-4 py-3 border border-green-200">
                   <span className="text-xs font-medium text-green-700">완료</span>
-                  <span className="text-2xl font-bold text-green-600">{completedPlans}</span>
+                  <span className="text-2xl md:text-3xl font-bold text-green-600">{completedPlans}</span>
                 </div>
                 {activePlans > 0 && (
-                  <div className="flex flex-col items-center gap-1 rounded-lg bg-blue-50 px-4 py-3 border border-blue-200 min-w-[80px]">
+                  <div className="flex flex-col gap-1 rounded-lg bg-blue-50 px-4 py-3 border border-blue-200">
                     <span className="text-xs font-medium text-blue-700">진행중</span>
-                    <span className="text-2xl font-bold text-blue-600">{activePlans}</span>
+                    <span className="text-2xl md:text-3xl font-bold text-blue-600">{activePlans}</span>
                   </div>
                 )}
                 {averageProgress > 0 && (
-                  <div className="flex flex-col items-center gap-1 rounded-lg bg-indigo-50 px-4 py-3 border border-indigo-200 min-w-[80px]">
+                  <div className="flex flex-col gap-1 rounded-lg bg-indigo-50 px-4 py-3 border border-indigo-200">
                     <span className="text-xs font-medium text-indigo-700">평균 진행률</span>
-                    <span className="text-2xl font-bold text-indigo-600">{averageProgress}%</span>
+                    <span className="text-2xl md:text-3xl font-bold text-indigo-600">{averageProgress}%</span>
                   </div>
                 )}
               </div>
-            </div>
-            {/* 불일치 경고 */}
-            {hasUnmatchedPlans && (
-              <div className="flex flex-col gap-4 rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 shadow-sm">
-                <div className="font-bold">⚠️ 플랜 그룹 불일치 감지</div>
-                <div className="flex flex-col gap-1 text-xs">
-                  {unmatchedGroupIds.length > 0 && (
-                    <div>
-                      활성화되지 않은 플랜 그룹의 플랜이 포함되어 있습니다: {unmatchedGroupIds.length}개
-                    </div>
-                  )}
-                  {filteredPlans.some((p) => !p.plan_group_id) && (
-                    <div>
-                      플랜 그룹이 없는 플랜이 포함되어 있습니다: {filteredPlans.filter((p) => !p.plan_group_id).length}개
-                    </div>
-                  )}
+
+              {/* 불일치 경고 */}
+              {hasUnmatchedPlans && (
+                <div className="flex flex-col gap-2 rounded-lg border-2 border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800 shadow-sm">
+                  <div className="font-bold">⚠️ 플랜 그룹 불일치 감지</div>
+                  <div className="flex flex-col gap-1 text-xs">
+                    {unmatchedGroupIds.length > 0 && (
+                      <div>
+                        활성화되지 않은 플랜 그룹의 플랜이 포함되어 있습니다: {unmatchedGroupIds.length}개
+                      </div>
+                    )}
+                    {filteredPlans.some((p) => !p.plan_group_id) && (
+                      <div>
+                        플랜 그룹이 없는 플랜이 포함되어 있습니다: {filteredPlans.filter((p) => !p.plan_group_id).length}개
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <PlanCalendarView
@@ -376,7 +379,7 @@ export default async function PlanCalendarPage({
     
     // 사용자 친화적인 에러 메시지 표시
     return (
-      <section className={getContainerClass("LIST", "md")}>
+      <section className={getContainerClass("DASHBOARD", "md")}>
         <div className="rounded-xl border border-red-200 bg-red-50 p-10 text-center">
           <div className="mx-auto flex max-w-md flex-col gap-4">
             <div className="text-6xl">⚠️</div>

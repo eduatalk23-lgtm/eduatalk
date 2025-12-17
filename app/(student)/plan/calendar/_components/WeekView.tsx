@@ -113,20 +113,20 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
 
   return (
     <>
-      <div className="w-full flex flex-col gap-2">
-        {/* 요일 헤더 (카드 영역 밖 상단) */}
-        <div className="grid grid-cols-7 gap-2">
+      <div className="w-full flex flex-col gap-3 md:gap-4">
+        {/* 요일 헤더 (카드 영역 밖 상단) - 개선된 스타일 */}
+        <div className="grid grid-cols-7 gap-2 md:gap-3">
           {weekdays.map((day, index) => (
             <div key={index} className="text-center">
-              <div className={cn("text-sm font-semibold", textSecondary)}>
+              <div className={cn("text-sm md:text-base font-semibold", textSecondary)}>
                 {day}
               </div>
             </div>
           ))}
         </div>
 
-        {/* 날짜 카드들 */}
-        <div className="grid grid-cols-7 gap-2">
+        {/* 날짜 카드들 - 확대된 간격 */}
+        <div className="grid grid-cols-7 gap-2 md:gap-3">
           {weekDays.map((date, index) => {
           const dateStr = formatDateString(date);
           const dayPlans = plansByDate.get(dateStr) || [];
@@ -154,7 +154,7 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
           return (
             <div
               key={dateStr}
-              className={cn("cursor-pointer rounded-lg border-2 p-2 transition-base hover:shadow-[var(--elevation-8)]", bgColorClass)}
+              className={cn("cursor-pointer rounded-lg border-2 p-3 md:p-4 transition-base hover:shadow-[var(--elevation-8)]", bgColorClass)}
               onClick={handleDateClick}
             >
               {/* 날짜 헤더 */}

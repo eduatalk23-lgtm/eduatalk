@@ -122,7 +122,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       <div
         key={day}
         className={cn(
-          "min-h-[120px] cursor-pointer rounded-lg border-2 p-2 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)]",
+          "min-h-[120px] md:min-h-[140px] lg:min-h-[160px] cursor-pointer rounded-lg border-2 p-2 md:p-3 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)]",
           bgColorClass
         )}
         onClick={handleDateClick}
@@ -307,7 +307,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
 
   // 빈 셀 렌더링
   const renderEmptyCell = (key: string) => (
-    <div key={key} className="min-h-[100px] border border-gray-200 bg-gray-50" />
+    <div key={key} className="min-h-[120px] md:min-h-[140px] lg:min-h-[160px] border border-gray-200 bg-gray-50 rounded-lg" />
   );
 
   // 캘린더 그리드 생성
@@ -333,20 +333,20 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
   return (
     <>
       <div className="w-full">
-        {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 gap-1">
+        {/* 요일 헤더 - 개선된 스타일 */}
+        <div className="grid grid-cols-7 gap-2 md:gap-3">
           {weekdays.map((day) => (
             <div
               key={day}
-              className="py-2 text-center text-sm font-semibold text-gray-700"
+              className="py-2 md:py-3 text-center text-sm md:text-base font-semibold text-gray-700"
             >
               {day}
             </div>
           ))}
         </div>
 
-        {/* 캘린더 그리드 */}
-        <div className="grid grid-cols-7 gap-1">{cells}</div>
+        {/* 캘린더 그리드 - 확대된 간격 */}
+        <div className="grid grid-cols-7 gap-2 md:gap-3">{cells}</div>
       </div>
 
       {/* 타임라인 모달 */}

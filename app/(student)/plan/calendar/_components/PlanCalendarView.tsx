@@ -113,8 +113,8 @@ export function PlanCalendarView({
 
   return (
     <div className="rounded-xl border-2 border-gray-200 bg-white shadow-lg">
-      {/* 헤더 */}
-      <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 py-5">
+      {/* 헤더 - 개선된 레이아웃 */}
+      <div className="border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 md:px-8 py-5 md:py-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           {/* 왼쪽: 날짜 네비게이션 */}
           <div className="flex items-center gap-3">
@@ -123,9 +123,9 @@ export function PlanCalendarView({
               aria-label="이전 기간으로 이동"
               className="rounded-lg p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:scale-110 active:scale-95"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-5 w-5 md:h-6 md:w-6" />
             </button>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
               {view === "month"
                 ? formatMonthYear(currentDate)
                 : view === "week"
@@ -137,12 +137,12 @@ export function PlanCalendarView({
               aria-label="다음 기간으로 이동"
               className="rounded-lg p-2 text-gray-600 transition-all duration-200 hover:bg-gray-100 hover:scale-110 active:scale-95"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-5 w-5 md:h-6 md:w-6" />
             </button>
             <button
               onClick={goToToday}
               aria-label="오늘 날짜로 이동"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-md transition-all duration-200 hover:bg-indigo-700 hover:shadow-lg active:scale-95"
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm md:text-base font-bold text-white shadow-md transition-all duration-200 hover:bg-indigo-700 hover:shadow-lg active:scale-95"
             >
               오늘
             </button>
@@ -154,18 +154,18 @@ export function PlanCalendarView({
             <div className="flex rounded-lg border-2 border-gray-200 bg-gray-50 p-1 shadow-sm">
               <button
                 onClick={() => setView("month")}
-                className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
                   view === "month"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
                 }`}
               >
-                <CalendarIcon className="inline h-4 w-4" />
-                월별
+                <CalendarIcon className="inline h-3 w-3 md:h-4 md:w-4" />
+                <span className="ml-1">월별</span>
               </button>
               <button
                 onClick={() => setView("week")}
-                className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
                   view === "week"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -175,7 +175,7 @@ export function PlanCalendarView({
               </button>
               <button
                 onClick={() => setView("day")}
-                className={`rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                className={`rounded-md px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 ${
                   view === "day"
                     ? "bg-white text-indigo-600 shadow-md scale-105"
                     : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
@@ -188,22 +188,22 @@ export function PlanCalendarView({
             {/* 필터 버튼 */}
             <button
               onClick={() => setShowOnlyStudyTime(!showOnlyStudyTime)}
-              className={`flex items-center gap-2 rounded-lg border-2 bg-white px-4 py-2 text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-95 ${
+              className={`flex items-center gap-2 rounded-lg border-2 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-95 ${
                 showOnlyStudyTime 
                   ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm" 
                   : "border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}
               title={showOnlyStudyTime ? "모든 타임슬롯 표시" : "학습시간만 표시"}
             >
-              <Filter className="h-4 w-4" />
-              <span>{showOnlyStudyTime ? "전체" : "학습시간만"}</span>
+              <Filter className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">{showOnlyStudyTime ? "전체" : "학습시간만"}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 캘린더 뷰 */}
-      <div className="p-4">
+      {/* 캘린더 뷰 - 확대된 패딩 */}
+      <div className="p-4 md:p-6 lg:p-8">
         {view === "month" ? (
           <MonthView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : view === "week" ? (

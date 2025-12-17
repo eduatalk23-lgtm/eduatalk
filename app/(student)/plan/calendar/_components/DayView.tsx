@@ -182,9 +182,9 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
     : 0;
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      {/* 날짜 헤더 및 요약 정보 */}
-      <div className={cn("rounded-xl border-2 p-6 shadow-[var(--elevation-8)]", bgColorClass)}>
+    <div className="flex w-full flex-col gap-6 md:gap-8">
+      {/* 날짜 헤더 및 요약 정보 - 개선된 패딩 */}
+      <div className={cn("rounded-xl border-2 p-6 md:p-8 shadow-[var(--elevation-8)]", bgColorClass)}>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-3">
             <h2 className={`text-3xl font-bold ${textColorClass}`}>
@@ -231,12 +231,12 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
         </div>
       </div>
 
-      {/* 타임라인 뷰 (시간 순서대로) */}
+      {/* 타임라인 뷰 (시간 순서대로) - 개선된 패딩 */}
       <div className={cn("rounded-xl border-2 shadow-[var(--elevation-4)]", borderDefault, bgSurface)}>
-        <div className={cn("border-b-2 px-6 py-4 bg-gradient-to-r", borderDefault, bgStyles.gray, "to-white dark:to-gray-800")}>
-          <h3 className={cn("text-xl font-bold", textPrimary)}>학습 플랜 타임라인</h3>
+        <div className={cn("border-b-2 px-6 md:px-8 py-4 md:py-5 bg-gradient-to-r", borderDefault, bgStyles.gray, "to-white dark:to-gray-800")}>
+          <h3 className={cn("text-xl md:text-2xl font-bold", textPrimary)}>학습 플랜 타임라인</h3>
         </div>
-        <div className="p-6">
+        <div className="p-6 md:p-8">
           {TIME_BLOCKS.length === 0 ? (
             <div className={cn("flex flex-col gap-2 py-12 text-center", textMuted)}>
               <div className="text-4xl">📅</div>
