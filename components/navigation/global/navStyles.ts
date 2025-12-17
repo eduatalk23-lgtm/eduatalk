@@ -86,13 +86,30 @@ export const designTokens = {
      * 네비게이션 활성 상태 등에 사용
      */
     primary: {
-      50: "bg-primary-50 dark:bg-primary-900/30",
-      100: "bg-primary-100 dark:bg-primary-900/50",
-      500: "text-primary-700 dark:text-primary-300",
-      700: "text-primary-700 dark:text-primary-300",
-      800: "text-primary-800 dark:text-primary-200",
+      // 배경 색상
+      bg50: "bg-primary-50 dark:bg-primary-900/30",
+      bg100: "bg-primary-100 dark:bg-primary-900/50",
+      
+      // 텍스트 색상
+      text500: "text-primary-700 dark:text-primary-300",
+      text700: "text-primary-700 dark:text-primary-300",
+      text800: "text-primary-800 dark:text-primary-200",
+      
+      // 테두리
       border: "border-primary-500",
       borderLight: "border-primary-200 dark:border-primary-800",
+      
+      // 하위 호환성을 위한 레거시 키 (deprecated)
+      // @deprecated bg50 사용
+      50: "bg-primary-50 dark:bg-primary-900/30",
+      // @deprecated bg100 사용
+      100: "bg-primary-100 dark:bg-primary-900/50",
+      // @deprecated text500 사용
+      500: "text-primary-700 dark:text-primary-300",
+      // @deprecated text700 사용
+      700: "text-primary-700 dark:text-primary-300",
+      // @deprecated text800 사용
+      800: "text-primary-800 dark:text-primary-200",
     },
     /**
      * Gray 색상 토큰
@@ -162,7 +179,7 @@ export const navItemStyles = {
   focus: designTokens.focus.ring,
 
   // 활성 상태
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary.bg50} ${designTokens.colors.primary.text500} ${designTokens.colors.primary.border}`,
 
   // 비활성 상태 - 투명 보더로 레이아웃 유지
   inactive: `${designTokens.colors.gray.text700} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText} border-transparent`,
@@ -191,7 +208,7 @@ export const categoryHeaderStyles = {
 export const subItemStyles = {
   base: "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition border-l-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[50]} ${designTokens.colors.primary[500]} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary.bg50} ${designTokens.colors.primary.text500} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray.text700} ${designTokens.colors.gray.hoverBg} ${designTokens.colors.gray.hoverText} border-transparent`,
 };
 
@@ -201,7 +218,7 @@ export const subItemStyles = {
 export const childItemStyles = {
   base: "flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium transition border-l-2",
   focus: navItemStyles.focus,
-  active: `${designTokens.colors.primary[100]} ${designTokens.colors.primary[800]} ${designTokens.colors.primary.border}`,
+  active: `${designTokens.colors.primary.bg100} ${designTokens.colors.primary.text800} ${designTokens.colors.primary.border}`,
   inactive: `${designTokens.colors.gray.text600} ${designTokens.colors.gray.hoverBgLight} ${designTokens.colors.gray.hoverText} border-transparent`,
 };
 
@@ -388,7 +405,7 @@ export const sidebarStyles = {
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
-  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary[50]} hover:bg-primary-100 dark:hover:bg-primary-900/50 ${designTokens.colors.primary[500]} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
+  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary.bg50} hover:bg-primary-100 dark:hover:bg-primary-900/50 ${designTokens.colors.primary.text500} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
 };
 
 /**

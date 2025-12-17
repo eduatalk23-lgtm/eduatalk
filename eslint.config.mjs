@@ -40,6 +40,28 @@ const eslintConfig = defineConfig([
           message:
             "Spacing-First 정책: margin 클래스를 사용하지 마세요. 형제 요소 간격은 부모의 gap으로, 외곽 여백은 최상단 래퍼의 padding으로 관리하세요.",
         },
+        {
+          // 하드코딩된 색상 클래스 사용 금지 (gray-*, indigo-*, red-*, blue-*, yellow-*, green-*, amber-* 등)
+          // 디자인 시스템 토큰 사용 권장: --color-*, --text-*, semantic colors (primary-*, error-*, warning-*, success-*, info-*)
+          selector:
+            'JSXAttribute[name.name="className"] > Literal[value=/\\b(text|bg|border)-(gray|indigo|red|blue|yellow|green|amber|orange|purple|pink|teal|cyan|emerald|lime|violet|fuchsia|rose|sky|slate|zinc|neutral|stone)-\\d+/]',
+          message:
+            "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-*, --text-*, semantic colors (primary-*, error-*, warning-*, success-*, info-*).",
+        },
+        {
+          // Template literal에서 하드코딩된 색상 클래스 감지
+          selector:
+            'TemplateLiteral[expressions.length=0] > TemplateElement[value.raw=/\\b(text|bg|border)-(gray|indigo|red|blue|yellow|green|amber|orange|purple|pink|teal|cyan|emerald|lime|violet|fuchsia|rose|sky|slate|zinc|neutral|stone)-\\d+/]',
+          message:
+            "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-*, --text-*, semantic colors (primary-*, error-*, warning-*, success-*, info-*).",
+        },
+        {
+          // 일반 문자열 리터럴에서 하드코딩된 색상 클래스 감지
+          selector:
+            'Literal[value=/\\b(text|bg|border)-(gray|indigo|red|blue|yellow|green|amber|orange|purple|pink|teal|cyan|emerald|lime|violet|fuchsia|rose|sky|slate|zinc|neutral|stone)-\\d+/]',
+          message:
+            "디자인 시스템 정책: 하드코딩된 색상 클래스를 사용하지 마세요. 디자인 시스템 토큰을 사용하세요: --color-*, --text-*, semantic colors (primary-*, error-*, warning-*, success-*, info-*).",
+        },
       ],
     },
   },
