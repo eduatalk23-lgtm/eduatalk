@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { calculateAutoTimeRange } from "@/lib/blocks/timeRange";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { createHeightPxStyle, createBlockStyle } from "@/lib/utils/cssVariables";
 import { timeToMinutes } from "@/lib/utils/time";
 

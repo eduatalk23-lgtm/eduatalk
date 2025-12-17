@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { calculateDayDistribution, calculateBlockStatistics } from "@/lib/blocks/statistics";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import ProgressBar from "@/components/atoms/ProgressBar";
 import { Card, CardContent } from "@/components/molecules/Card";
 

@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import { addPlanExclusion, deletePlanExclusion } from "@/app/(student)/actions/planGroupActions";
 import type { PlanExclusion } from "@/lib/types/plan";
 import { Trash2 } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { DateInput } from "@/app/(student)/plan/new-group/_components/_components/DateInput";
 import { generateDateRange, formatDateFromDate, parseDateString } from "@/lib/utils/date";
 

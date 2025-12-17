@@ -16,7 +16,7 @@ import { DailyBreakdownSection } from "./_components/DailyBreakdownSection";
 import { WeeklyCoachingSection } from "./_components/WeeklyCoachingSection";
 import { getWeeklyCoaching } from "@/app/(student)/report/weekly/coachingAction";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getContainerClass } from "@/lib/constants/layout";
 
 export default async function WeeklyReportPage() {

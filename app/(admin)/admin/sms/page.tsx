@@ -7,7 +7,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { SMSSendForm } from "./_components/SMSSendForm";
 
 type SMSLogRow = {

@@ -21,7 +21,7 @@ import { ParentWeeklyCoachingSection } from "./_components/ParentWeeklyCoachingS
 import { getWeeklyCoaching } from "@/app/(student)/report/weekly/coachingAction";
 import { StudentSelector } from "../../_components/StudentSelector";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {

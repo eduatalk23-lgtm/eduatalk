@@ -2,6 +2,21 @@ import Link from "next/link";
 import { bgPage, borderInput, textPrimary, textMuted, inlineButtonPrimary } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
+/**
+ * @deprecated 이 컴포넌트는 더 이상 사용되지 않습니다.
+ * 대신 `@/components/molecules/EmptyState`를 사용하세요.
+ * 
+ * @example
+ * // Before
+ * import { EmptyState } from "@/components/ui/EmptyState";
+ * 
+ * // After
+ * import { EmptyState } from "@/components/molecules/EmptyState";
+ * 
+ * // Props는 대부분 호환됩니다.
+ * // icon은 string뿐만 아니라 ReactNode도 지원됩니다.
+ * // variant, headingLevel 등 추가 기능이 있습니다.
+ */
 type EmptyStateProps = {
   title: string;
   description: string;

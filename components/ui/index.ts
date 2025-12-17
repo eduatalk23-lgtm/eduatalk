@@ -42,7 +42,9 @@ export { ProgressBar } from "../atoms/ProgressBar";
 // Card → molecules/Card (개선됨)
 export { Card, CardHeader, CardContent, CardFooter } from "../molecules/Card";
 
-// EmptyState → molecules/EmptyState (개선됨)
+// EmptyState → molecules/EmptyState (개선됨, 마이그레이션 진행 중)
+// @deprecated components/ui/EmptyState.tsx는 더 이상 사용되지 않습니다.
+// 대신 @/components/molecules/EmptyState를 사용하세요.
 export { EmptyState } from "./EmptyState";
 
 // ErrorState → molecules/ErrorState (개선됨)

@@ -9,7 +9,7 @@ import { ContentProgressSection } from "./_components/ContentProgressSection";
 import { MonthlyHistorySection } from "./_components/MonthlyHistorySection";
 import { MonthNavigation } from "./_components/MonthNavigation";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {

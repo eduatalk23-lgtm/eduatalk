@@ -4,7 +4,7 @@ import { useState, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import { updateBlock, deleteBlock } from "@/app/actions/blocks";
 import { validateFormData, blockSchema } from "@/lib/validation/schemas";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 
 type Block = {
   id: string;

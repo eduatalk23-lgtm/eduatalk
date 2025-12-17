@@ -7,7 +7,7 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { getAttendanceRecords } from "@/lib/domains/attendance/service";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";

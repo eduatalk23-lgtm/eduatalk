@@ -14,7 +14,7 @@ import { MonthlyHistorySection } from "@/app/(student)/report/monthly/_component
 import { MonthNavigation } from "@/app/(student)/report/monthly/_components/MonthNavigation";
 import { StudentSelector } from "../../_components/StudentSelector";
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { getContainerClass } from "@/lib/constants/layout";
 
 type PageProps = {

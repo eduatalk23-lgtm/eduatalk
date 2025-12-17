@@ -12,7 +12,7 @@ import {
 } from "@/app/(student)/actions/planGroupActions";
 import type { AcademySchedule, Academy } from "@/lib/types/plan";
 import { Trash2, Pencil, X, Plus } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 

@@ -6,7 +6,7 @@ import Link from "next/link";
 import BlockForm from "./BlockForm";
 import { createBlockSet } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import { cn } from "@/lib/cn";
 
 type Block = {
