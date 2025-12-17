@@ -4,17 +4,17 @@ import React, { useMemo, memo } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
-import { formatDateString, formatDateFull, isToday } from "@/lib/date/calendarUtils";
-import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
+import { formatDateString, formatDateFull } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
-import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
+import { getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
 import { StatCard } from "./StatCard";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
-import { getDayTypeColor } from "@/lib/constants/colors";
 import { cn } from "@/lib/cn";
+import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
+import { getTimelineSlots } from "../_hooks/useTimelineSlots";
 import {
   textPrimary,
   textSecondary,
@@ -105,14 +105,15 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
     [exclusions, dateStr]
   );
 
-  // 타임라인 슬롯 생성
-  const timelineSlots = useMemo(() => {
-    return buildTimelineSlots(
+  // 타임라인 슬롯 생성 및 정렬/필터링 (공통 유틸리티 사용)
+  const { sortedSlots: timelineSlots } = useMemo(() => {
+    return getTimelineSlots(
       dateStr,
       dailySchedule,
       dayPlans,
       dayAcademySchedules,
-      dayExclusions
+      dayExclusions,
+      false // DayView에서는 항상 전체 표시
     );
   }, [dateStr, dailySchedule, dayPlans, dayAcademySchedules, dayExclusions]);
 
@@ -162,20 +163,13 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
     };
   }, [timelineSlots, showOnlyStudyTime]);
 
-  // dayType 기반으로 스타일 결정
-  const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-  const isTodayDate = isToday(currentDate);
-
-  // 날짜 타입 색상 가져오기 (다크 모드 지원)
-  const dayTypeColor = getDayTypeColor(
-    isHoliday ? "지정휴일" : dayType,
-    isTodayDate
-  );
-
-  const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
-  const textColorClass = dayTypeColor.boldText;
-  const subtitleColorClass = dayTypeColor.text;
-  const dayTypeBadgeClass = dayTypeColor.badge;
+  // 날짜 타입별 스타일링 (공통 유틸리티 사용)
+  const {
+    bgColorClass,
+    textColorClass,
+    subtitleColorClass,
+    dayTypeBadgeClass,
+  } = getDayTypeStyling(currentDate, dayTypeInfo, dayExclusions);
 
   // 플랜 통계 계산
   const totalPlans = dayPlans.length;

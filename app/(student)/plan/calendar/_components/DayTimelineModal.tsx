@@ -3,15 +3,15 @@
 import { Dialog } from "@/components/ui/Dialog";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
-import { formatDateFull, formatDateString, isToday } from "@/lib/date/calendarUtils";
-import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes } from "../_utils/timelineUtils";
+import { formatDateFull, formatDateString } from "@/lib/date/calendarUtils";
+import { getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { StatCard } from "./StatCard";
-import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { getDayTypeColor } from "@/lib/constants/colors";
-import { cardStyle, textPrimary, textSecondary, textTertiary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
+import { textPrimary, textSecondary, textTertiary, textMuted, bgSurface, borderDefault } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
+import { getTimelineSlots } from "../_hooks/useTimelineSlots";
 
 type DayTimelineModalProps = {
   open: boolean;
@@ -47,21 +47,15 @@ export function DayTimelineModal({
     (exclusion) => exclusion.exclusion_date === dateStr
   );
 
-  // 타임라인 슬롯 생성
-  const timelineSlots = buildTimelineSlots(
+  // 타임라인 슬롯 생성 및 정렬/필터링 (공통 유틸리티 사용)
+  const { sortedSlots } = getTimelineSlots(
     dateStr,
     dailySchedule,
     plans,
     dayAcademySchedules,
-    dayExclusions
+    dayExclusions,
+    false // 모달에서는 항상 전체 표시
   );
-
-  // 시간 순서대로 정렬
-  const sortedSlots = [...timelineSlots].sort((a, b) => {
-    const aStart = timeToMinutes(a.start);
-    const bStart = timeToMinutes(b.start);
-    return aStart - bStart;
-  });
 
   // 통계 계산
   const totalPlans = plans.length;
@@ -72,18 +66,10 @@ export function DayTimelineModal({
       ? Math.round(plans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans)
       : 0;
 
-  const dayType = dayTypeInfo?.type || "normal";
-  const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-  const isTodayDate = isToday(date);
-
-  // 날짜 타입 색상 가져오기 (다크 모드 지원)
-  const dayTypeColor = getDayTypeColor(
-    isHoliday ? "지정휴일" : dayType,
-    isTodayDate
-  );
-
-  const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
-  const dayTypeBadgeClass = dayTypeColor.badge;
+  // 날짜 타입별 스타일링 (공통 유틸리티 사용)
+  const {
+    dayTypeBadgeClass,
+  } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
 
   const description = dayTypeInfo && dayType !== "normal" ? (
     <div className="flex items-center gap-2">

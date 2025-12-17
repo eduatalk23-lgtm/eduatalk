@@ -6,14 +6,15 @@ import { Link2 } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule, DailyScheduleInfo } from "@/lib/types/plan";
 import { CONTENT_TYPE_EMOJIS } from "../_constants/contentIcons";
-import { getWeekStart, formatDateString, isToday } from "@/lib/date/calendarUtils";
-import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
+import { getWeekStart, formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { buildTimelineSlots, getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotType } from "../_utils/timelineUtils";
-import { getDayTypeColor } from "@/lib/constants/colors";
+import { getTimeSlotColorClass, getTimeSlotIcon, type TimeSlotType } from "../_utils/timelineUtils";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import { textPrimary, textSecondary, textMuted, bgSurface, bgPage, borderDefault } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
+import { useCalendarData } from "../_hooks/useCalendarData";
+import { getTimelineSlots } from "../_hooks/useTimelineSlots";
 
 // 큰 모달 컴포넌트는 동적 import로 코드 스플리팅
 const DayTimelineModal = dynamic(
@@ -59,48 +60,13 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
 
   const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 
-  // 날짜별 플랜 그룹화 (메모이제이션)
-  const plansByDate = useMemo(() => {
-    const map = new Map<string, PlanWithContent[]>();
-    plans.forEach((plan) => {
-      const date = plan.plan_date;
-      if (!map.has(date)) {
-        map.set(date, []);
-      }
-      map.get(date)!.push(plan);
-    });
-    return map;
-  }, [plans]);
-
-  // 날짜별 휴일 그룹화 (메모이제이션)
-  const exclusionsByDate = useMemo(() => {
-    const map = new Map<string, PlanExclusion[]>();
-    exclusions.forEach((exclusion) => {
-      const date = exclusion.exclusion_date;
-      if (!map.has(date)) {
-        map.set(date, []);
-      }
-      map.get(date)!.push(exclusion);
-    });
-    return map;
-  }, [exclusions]);
-
-  // 날짜별 학원일정 그룹화 (메모이제이션)
-  const academySchedulesByDate = useMemo(() => {
-    const map = new Map<string, AcademySchedule[]>();
-    weekDays.forEach((date) => {
-      const dateStr = formatDateString(date);
-      const dayOfWeek = date.getDay();
-      // 요일이 일치하는 학원일정 찾기 (0=일요일, 1=월요일, ...)
-      const daySchedules = academySchedules.filter(
-        (schedule) => schedule.day_of_week === dayOfWeek
-      );
-      if (daySchedules.length > 0) {
-        map.set(dateStr, daySchedules);
-      }
-    });
-    return map;
-  }, [academySchedules, weekDays]);
+  // 날짜별 데이터 그룹화 (공통 훅 사용)
+  const { plansByDate, exclusionsByDate, academySchedulesByDate } = useCalendarData(
+    plans,
+    exclusions,
+    academySchedules,
+    weekDays
+  );
 
   const formatDate = (date: Date): string => {
     return `${date.getMonth() + 1}/${date.getDate()}`;
@@ -167,24 +133,16 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
           const dayExclusions = exclusionsByDate.get(dateStr) || [];
           const dayAcademySchedules = academySchedulesByDate.get(dateStr) || [];
           const dayTypeInfo = dayTypes.get(dateStr);
-          const dayType = dayTypeInfo?.type || "normal";
           
-          // dayType 기반으로 스타일 결정
-          const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-          const isTodayDate = isToday(date);
-          const isStudyDay = dayType === "학습일";
-          const isReviewDay = dayType === "복습일";
+          // 날짜 타입별 스타일링 (공통 유틸리티 사용)
+          const {
+            bgColorClass,
+            textColorClass,
+            boldTextColorClass,
+          } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
           
-          // 날짜 타입 색상 가져오기
-          const dayTypeColor = getDayTypeColor(
-            isHoliday ? "지정휴일" : dayType,
-            isTodayDate
-          );
-
-          const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
-          const textColorClass = dayTypeColor.text;
-          const boldTextColorClass = dayTypeColor.boldText;
-          const dayTypeBadgeClass = dayTypeColor.badge;
+          const isStudyDay = dayTypeInfo?.type === "학습일";
+          const isReviewDay = dayTypeInfo?.type === "복습일";
 
           const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
 
@@ -239,25 +197,16 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                 {/* 타임라인 슬롯 표시 (시간 순서대로 정렬) */}
                 {(() => {
                   const dailySchedule = dailyScheduleMap.get(dateStr);
-                  const timelineSlots = buildTimelineSlots(
+                  
+                  // 타임라인 슬롯 생성 및 정렬/필터링 (공통 유틸리티 사용)
+                  const { filteredSlots } = getTimelineSlots(
                     dateStr,
                     dailySchedule,
                     dayPlans,
                     dayAcademySchedules,
-                    dayExclusions
+                    dayExclusions,
+                    showOnlyStudyTime
                   );
-                  
-                  // 시간 순서대로 정렬 (start 시간 기준)
-                  const sortedSlots = [...timelineSlots].sort((a, b) => {
-                    const aStart = timeToMinutes(a.start);
-                    const bStart = timeToMinutes(b.start);
-                    return aStart - bStart;
-                  });
-                  
-                  // showOnlyStudyTime 필터링
-                  const filteredSlots = showOnlyStudyTime
-                    ? sortedSlots.filter((slot) => slot.type === "학습시간")
-                    : sortedSlots;
                   
                   if (filteredSlots.length === 0 && dayPlans.length === 0) {
                     return (

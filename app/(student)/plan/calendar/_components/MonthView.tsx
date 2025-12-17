@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
-import { formatDateString, isToday } from "@/lib/date/calendarUtils";
-import { DAY_TYPE_INFO } from "@/lib/date/calendarDayTypes";
+import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { buildTimelineSlots, timeToMinutes } from "../_utils/timelineUtils";
+import { timeToMinutes } from "../_utils/timelineUtils";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
-import { getDayTypeColor } from "@/lib/constants/colors";
+import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
+import { useCalendarData } from "../_hooks/useCalendarData";
+import { getTimelineSlots } from "../_hooks/useTimelineSlots";
 
 type MonthViewProps = {
   plans: PlanWithContent[];
@@ -37,18 +38,8 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
   // 요일 레이블
   const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
-  // 날짜별 플랜 그룹화 (메모이제이션)
-  const plansByDate = useMemo(() => {
-    const map = new Map<string, PlanWithContent[]>();
-    plans.forEach((plan) => {
-      const date = plan.plan_date;
-      if (!map.has(date)) {
-        map.set(date, []);
-      }
-      map.get(date)!.push(plan);
-    });
-    return map;
-  }, [plans]);
+  // 날짜별 데이터 그룹화 (공통 훅 사용)
+  const { plansByDate, exclusionsByDate } = useCalendarData(plans, exclusions, academySchedules);
 
   // 같은 plan_number를 가진 플랜들의 연결 상태 계산
   const getPlanConnectionState = useMemo(() => {
@@ -104,19 +95,6 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     };
   }, [plansByDate]);
 
-  // 날짜별 휴일 그룹화 (메모이제이션)
-  const exclusionsByDate = useMemo(() => {
-    const map = new Map<string, PlanExclusion[]>();
-    exclusions.forEach((exclusion) => {
-      const date = exclusion.exclusion_date;
-      if (!map.has(date)) {
-        map.set(date, []);
-      }
-      map.get(date)!.push(exclusion);
-    });
-    return map;
-  }, [exclusions]);
-
   // 날짜 셀 렌더링
   const renderDayCell = (day: number) => {
     const date = new Date(year, month, day);
@@ -124,21 +102,13 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     const dayPlans = plansByDate.get(dateStr) || [];
     const dayExclusions = exclusionsByDate.get(dateStr) || [];
     const dayTypeInfo = dayTypes.get(dateStr);
-    const dayType = dayTypeInfo?.type || "normal";
     
-    // dayType 기반으로 스타일 결정
-    const isHoliday = dayType === "지정휴일" || dayType === "휴가" || dayType === "개인일정" || dayExclusions.length > 0;
-    const isTodayDate = isToday(date);
-    
-    // 날짜 타입 색상 가져오기
-    const dayTypeColor = getDayTypeColor(
-      isHoliday ? "지정휴일" : dayType,
-      isTodayDate
-    );
-
-    const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
-    const textColorClass = dayTypeColor.text;
-    const dayTypeBadgeClass = dayTypeColor.badge;
+    // 날짜 타입별 스타일링 (공통 유틸리티 사용)
+    const {
+      bgColorClass,
+      textColorClass,
+      dayTypeBadgeClass,
+    } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
 
     const handleDateClick = () => {
       setSelectedDate(date);
@@ -171,7 +141,6 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
           {/* 타임라인 슬롯 기반으로 플랜 및 기타 슬롯 표시 */}
           {(() => {
             const dailySchedule = dailyScheduleMap.get(dateStr);
-            const dayExclusions = exclusionsByDate.get(dateStr) || [];
             
             // 해당 날짜의 학원일정 (요일 기반)
             const dayOfWeek = date.getDay();
@@ -179,26 +148,15 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
               (schedule) => schedule.day_of_week === dayOfWeek
             );
             
-            // 타임라인 슬롯 생성 (주별/일별과 동일한 방식)
-            const timelineSlots = buildTimelineSlots(
+            // 타임라인 슬롯 생성 및 정렬/필터링 (공통 유틸리티 사용)
+            const { filteredSlots } = getTimelineSlots(
               dateStr,
               dailySchedule,
               dayPlans,
               dayAcademySchedules,
-              dayExclusions
+              dayExclusions,
+              showOnlyStudyTime
             );
-            
-            // 시간 순서대로 정렬
-            const sortedSlots = [...timelineSlots].sort((a, b) => {
-              const aStart = timeToMinutes(a.start);
-              const bStart = timeToMinutes(b.start);
-              return aStart - bStart;
-            });
-            
-            // showOnlyStudyTime 필터링
-            const filteredSlots = showOnlyStudyTime
-              ? sortedSlots.filter((slot) => slot.type === "학습시간")
-              : sortedSlots;
             
             const items: React.ReactElement[] = [];
             const addedPlanIds = new Set<string>();
