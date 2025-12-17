@@ -26,7 +26,7 @@ Unexpected token Delim('*')
 ## 원인 분석
 
 1. **문제의 근본 원인**: 여러 파일에 잘못된 CSS 패턴 예시가 포함되어 있었습니다:
-   - `docs/gradual-improvement-tasks-review-2025-01-XX.md`: 마크다운 문서에 `text-[var(--text-*)]` 패턴
+   - `docs/gradual-improvement-tasks-review-2025-01-XX.md`: 마크다운 문서에 와일드카드를 사용한 잘못된 CSS 변수 패턴
    - `eslint.config.mjs`: ESLint 에러 메시지 문자열에 `--text-*` 패턴
 
 2. **CSS 변수 제약사항**: CSS `var()` 함수에서 변수 이름에 와일드카드(`*`)를 사용할 수 없습니다. CSS 변수 이름은 완전히 정의되어야 합니다.
@@ -99,7 +99,7 @@ Tailwind CSS 4는 `@source` 디렉토리 내의 파일을 스캔하여 사용된
 2. `docs/2025-01-XX-css-parsing-error-fix.md`: 에러 메시지 예시에서도 와일드카드 패턴 제거 (한글로 대체)
 3. `eslint.config.mjs`: 에러 메시지 문자열에서 `--text-*` 패턴을 구체적인 변수명 예시로 변경
 
-모든 파일에서 `text-[var(--text-*)]` 같은 와일드카드를 포함한 CSS 변수 패턴이 완전히 제거되었습니다.
+모든 파일에서 와일드카드를 포함한 CSS 변수 패턴이 완전히 제거되었습니다.
 
 ## 해결 체크리스트
 
