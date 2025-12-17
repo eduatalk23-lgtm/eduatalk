@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { CACHE_STALE_TIME_REALTIME } from "@/lib/constants/queryCache";
 
 type UseActivePlanOptions = {
   studentId: string;
@@ -51,7 +52,7 @@ import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
       return plan;
     },
     enabled,
-    staleTime: 1000 * 10, // 10초 (실시간 업데이트를 위해 짧게)
+    staleTime: CACHE_STALE_TIME_REALTIME, // 10초 (실시간 업데이트를 위해 짧게)
     refetchInterval: 1000 * 30, // 30초마다 자동 리페치
   });
 }

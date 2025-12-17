@@ -3,6 +3,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import {
+  CACHE_STALE_TIME_DYNAMIC,
+  CACHE_GC_TIME_DYNAMIC,
+} from "@/lib/constants/queryCache";
 
 // 개발 환경에서만 ReactQueryDevtools를 동적으로 로드
 const ReactQueryDevtools = dynamic(
@@ -19,10 +23,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // 서버 상태와의 동기화를 위해 staleTime을 짧게 설정 (Dynamic Data 기준)
-            staleTime: 1000 * 60, // 1분
+            // 기본값은 Dynamic Data 기준 (자주 변하는 데이터)
+            // 각 쿼리에서 필요에 따라 다른 staleTime 설정 가능
+            staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분
             // 캐시 유지 시간
-            gcTime: 1000 * 60 * 10, // 10분 (이전 cacheTime)
+            gcTime: CACHE_GC_TIME_DYNAMIC, // 10분
             // 재시도 설정
             retry: 1,
             // 에러 발생 시 재시도 전 대기 시간
