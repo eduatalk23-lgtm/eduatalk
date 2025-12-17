@@ -149,3 +149,4 @@ export function generateDateRange(startDate: string, endDate: string): string[] 
 3. **접근성 개선**: ARIA 레이블 및 키보드 네비게이션 추가 고려
 
 
+

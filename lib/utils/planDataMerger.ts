@@ -2,7 +2,7 @@
  * 템플릿 데이터와 학생 입력 데이터를 병합하는 유틸리티
  */
 
-import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { WizardData, TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 
 /**
  * 템플릿 데이터와 학생 입력 데이터를 병합합니다.
@@ -105,7 +105,7 @@ export function applyTemplateLockedFields(
 
   // Step 1 잠금 필드 적용
   if (lockedFields.step1) {
-    const step1 = lockedFields.step1 as any; // 타입 추론 오류 회피
+    const step1 = lockedFields.step1 as NonNullable<TemplateLockedFields["step1"]>;
 
     // 필드 고정
     if (step1.name === true) {
@@ -139,7 +139,7 @@ export function applyTemplateLockedFields(
 
   // Step 2 잠금 필드 적용
   if (lockedFields.step2) {
-    const step2 = lockedFields.step2 as any; // 타입 추론 오류 회피
+    const step2 = lockedFields.step2 as NonNullable<TemplateLockedFields["step2"]>;
 
     // 제외일 고정
     if (step2.exclusions === true) {
@@ -177,7 +177,7 @@ export function applyTemplateLockedFields(
 
   // Step 3 잠금 필드 적용
   if (lockedFields.step3) {
-    const step3 = lockedFields.step3 as any; // 타입 추론 오류 회피
+    const step3 = lockedFields.step3 as NonNullable<TemplateLockedFields["step3"]>;
 
     // 학생 콘텐츠 고정
     if (step3.student_contents === true) {

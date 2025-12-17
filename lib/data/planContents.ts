@@ -221,7 +221,8 @@ export async function classifyPlanContents(
       });
       supabase = await createSupabaseServerClient();
     } else {
-      supabase = adminClient as any; // Admin 클라이언트를 SupabaseServerClient 타입으로 사용
+      // Admin 클라이언트는 SupabaseServerClient와 호환되므로 타입 단언 사용
+      supabase = adminClient as unknown as SupabaseServerClient;
       isUsingAdminClient = true;
       if (process.env.NODE_ENV === "development") {
         console.log("[classifyPlanContents] Admin 클라이언트 사용 (RLS 우회)", {

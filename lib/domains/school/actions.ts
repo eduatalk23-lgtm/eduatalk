@@ -14,7 +14,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { createSchoolSchema, updateSchoolSchema } from "./validation";
+import { createSchoolSchema, updateSchoolSchema, type CreateSchoolFormData, type UpdateSchoolFormData } from "./validation";
 import * as service from "./service";
 import { parseFormString, parseFormStringOrNull } from "@/lib/utils/formDataHelpers";
 import type {
@@ -134,13 +134,13 @@ export async function createSchoolAction(
     city: parseFormStringOrNull(formData.get("city")),
     district: parseFormStringOrNull(formData.get("district")),
     phone: parseFormStringOrNull(formData.get("phone")),
-    category: parseFormStringOrNull(formData.get("category")) as any,
+    category: parseFormStringOrNull(formData.get("category")) as CreateSchoolFormData["category"],
     university_type: parseFormStringOrNull(
       formData.get("university_type")
-    ) as any,
+    ) as CreateSchoolFormData["university_type"],
     university_ownership: parseFormStringOrNull(
       formData.get("university_ownership")
-    ) as any,
+    ) as CreateSchoolFormData["university_ownership"],
     campus_name: parseFormStringOrNull(formData.get("campus_name")),
   };
 
@@ -189,13 +189,13 @@ export async function updateSchoolAction(
     city: parseFormStringOrNull(formData.get("city")),
     district: parseFormStringOrNull(formData.get("district")),
     phone: parseFormStringOrNull(formData.get("phone")),
-    category: parseFormStringOrNull(formData.get("category")) as any,
+    category: parseFormStringOrNull(formData.get("category")) as UpdateSchoolFormData["category"],
     university_type: parseFormStringOrNull(
       formData.get("university_type")
-    ) as any,
+    ) as UpdateSchoolFormData["university_type"],
     university_ownership: parseFormStringOrNull(
       formData.get("university_ownership")
-    ) as any,
+    ) as UpdateSchoolFormData["university_ownership"],
     campus_name: parseFormStringOrNull(formData.get("campus_name")),
   };
 

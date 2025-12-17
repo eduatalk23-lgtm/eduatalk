@@ -121,7 +121,10 @@ export async function getSubjectsByGroup(
   }
 
   // JOIN 결과를 평탄화
-  return ((data as any[]) ?? []).map((subject) => ({
+  type SubjectWithJoin = Subject & {
+    subject_types?: { name: string } | null;
+  };
+  return ((data as SubjectWithJoin[]) ?? []).map((subject) => ({
     ...subject,
     subject_type: subject.subject_types?.name || null,
   })) as Subject[];
@@ -308,9 +311,12 @@ export async function getSubjectHierarchyOptimized(
   }
 
   // 데이터 변환
-  const groupsWithSubjects = ((groupsData || []) as any[]).map((group) => ({
+  type GroupWithJoin = SubjectGroup & {
+    subjects?: Array<Subject & { subject_types?: { name: string } | null }>;
+  };
+  const groupsWithSubjects = ((groupsData || []) as GroupWithJoin[]).map((group) => ({
     ...group,
-    subjects: ((group.subjects || []) as any[]).map((subject) => ({
+    subjects: ((group.subjects || [])).map((subject) => ({
       ...subject,
       subject_type: subject.subject_types?.name || null,
       subjectType: subject.subject_types || null,
@@ -401,11 +407,16 @@ export async function getSubjectById(subjectId: string): Promise<
     return null;
   }
 
+  type SubjectWithJoins = Subject & {
+    subject_groups?: SubjectGroup;
+    subject_types?: { name: string } | null;
+  };
+  const dataWithJoins = data as SubjectWithJoins;
   return {
-    ...data,
-    subjectGroup: (data as any).subject_groups,
-    subjectType: (data as any).subject_types || null,
-    subject_type: (data as any).subject_types?.name || null,
+    ...dataWithJoins,
+    subjectGroup: dataWithJoins.subject_groups,
+    subjectType: dataWithJoins.subject_types || null,
+    subject_type: dataWithJoins.subject_types?.name || null,
   } as Subject & {
     subjectGroup: SubjectGroup;
     subjectType?: SubjectType | null;

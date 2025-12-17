@@ -1523,7 +1523,7 @@ export async function createMasterBook(
       source_url: data.source_url,
       cover_image_url: data.cover_image_url,
       difficulty_level: data.difficulty_level, // @deprecated: difficulty_level_id 사용 권장
-      difficulty_level_id: (data as any).difficulty_level_id || null,
+      difficulty_level_id: data.difficulty_level_id ?? null,
       notes: data.notes,
       pdf_url: data.pdf_url,
       ocr_data: data.ocr_data,
@@ -1603,8 +1603,8 @@ export async function updateMasterBook(
     updateFields.cover_image_url = data.cover_image_url;
   if (data.difficulty_level !== undefined)
     updateFields.difficulty_level = data.difficulty_level; // @deprecated
-  if ((data as any).difficulty_level_id !== undefined)
-    updateFields.difficulty_level_id = (data as any).difficulty_level_id;
+  if (data.difficulty_level_id !== undefined)
+    updateFields.difficulty_level_id = data.difficulty_level_id;
   if (data.notes !== undefined) updateFields.notes = data.notes;
   if (data.pdf_url !== undefined) updateFields.pdf_url = data.pdf_url;
   if (data.ocr_data !== undefined) updateFields.ocr_data = data.ocr_data;
@@ -1667,7 +1667,7 @@ export async function createMasterLecture(
       total_episodes: data.total_episodes,
       total_duration: data.total_duration,
       difficulty_level: data.difficulty_level, // @deprecated: difficulty_level_id 사용 권장
-      difficulty_level_id: (data as any).difficulty_level_id || null,
+      difficulty_level_id: data.difficulty_level_id ?? null,
       notes: data.notes,
       linked_book_id: data.linked_book_id,
       video_url: data.video_url,
@@ -1700,16 +1700,16 @@ export async function updateMasterLecture(
   const updateFields: Record<string, any> = {};
 
   if (data.tenant_id !== undefined) updateFields.tenant_id = data.tenant_id;
-  // MasterLecture 타입에 없는 필드들은 타입 단언으로 처리 (레거시 호환성)
-  const dataAny = data as any;
-  if (dataAny.is_active !== undefined)
-    updateFields.is_active = dataAny.is_active;
-  if (dataAny.curriculum_revision_id !== undefined)
-    updateFields.curriculum_revision_id = dataAny.curriculum_revision_id;
-  if (dataAny.subject_id !== undefined)
-    updateFields.subject_id = dataAny.subject_id;
-  if (dataAny.subject_group_id !== undefined)
-    updateFields.subject_group_id = dataAny.subject_group_id;
+  // MasterLecture 타입에 정의된 필드들은 직접 접근
+  if (data.curriculum_revision_id !== undefined)
+    updateFields.curriculum_revision_id = data.curriculum_revision_id;
+  if (data.subject_id !== undefined)
+    updateFields.subject_id = data.subject_id;
+  if (data.subject_group_id !== undefined)
+    updateFields.subject_group_id = data.subject_group_id;
+  // is_active는 MasterLecture 타입에 없으므로 타입 확장으로 처리
+  if ('is_active' in data && data.is_active !== undefined)
+    updateFields.is_active = data.is_active as boolean;
   if (data.revision !== undefined) updateFields.revision = data.revision;
   if (data.content_category !== undefined)
     updateFields.content_category = data.content_category;
@@ -1729,8 +1729,8 @@ export async function updateMasterLecture(
     updateFields.total_duration = data.total_duration;
   if (data.difficulty_level !== undefined)
     updateFields.difficulty_level = data.difficulty_level; // @deprecated
-  if ((data as any).difficulty_level_id !== undefined)
-    updateFields.difficulty_level_id = (data as any).difficulty_level_id;
+  if (data.difficulty_level_id !== undefined)
+    updateFields.difficulty_level_id = data.difficulty_level_id;
   if (data.notes !== undefined) updateFields.notes = data.notes;
   if (data.linked_book_id !== undefined)
     updateFields.linked_book_id = data.linked_book_id;

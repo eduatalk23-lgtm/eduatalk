@@ -8,7 +8,7 @@
 
 import { parseISO, format, isAfter, isBefore, isSameDay, eachDayOfInterval, startOfDay } from "date-fns";
 import { isReschedulable, isCompletedPlan } from "@/lib/utils/planStatusUtils";
-import type { PlanContent } from "@/lib/types/plan";
+import type { PlanContent, PlanStatus } from "@/lib/types/plan";
 
 // ============================================
 // 타입 정의
@@ -77,7 +77,7 @@ export function getAffectedDates(
     if (
       selectedContentIdSet.has(plan.content_id) &&
       isReschedulable({
-        status: (plan.status as any) || "pending",
+        status: (plan.status as PlanStatus) || "pending",
         is_active: plan.is_active ?? true,
       })
     ) {
@@ -102,7 +102,7 @@ export function getCompletedPlanDates(
   existingPlans.forEach((plan) => {
     if (
       isCompletedPlan({
-        status: (plan.status as any) || "pending",
+        status: (plan.status as PlanStatus) || "pending",
       })
     ) {
       completedDates.add(plan.plan_date);
@@ -221,7 +221,7 @@ export function generateDateRangeSuggestions(
     const affectedPlansCount = existingPlans.filter((plan) =>
       rangeDates.includes(plan.plan_date) &&
       isReschedulable({
-        status: (plan.status as any) || "pending",
+        status: (plan.status as PlanStatus) || "pending",
         is_active: plan.is_active ?? true,
       })
     ).length;
@@ -267,7 +267,7 @@ export function generateDateRangeSuggestions(
     const allAffectedPlansCount = existingPlans.filter((plan) =>
       reschedulableDates.includes(plan.plan_date) &&
       isReschedulable({
-        status: (plan.status as any) || "pending",
+        status: (plan.status as PlanStatus) || "pending",
         is_active: plan.is_active ?? true,
       })
     ).length;

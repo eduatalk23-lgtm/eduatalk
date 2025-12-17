@@ -13,8 +13,16 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+
+/**
+ * JOIN 결과 타입 (subject_group 포함)
+ */
+type InternalScoreWithSubjectGroup = Tables<"student_internal_scores"> & {
+  subject_group?: { id: string; name: string } | null;
+};
 
 /**
  * 내신 분석 결과 타입
@@ -160,7 +168,8 @@ export async function getInternalAnalysis(
 
     for (const row of subjectData) {
       // Relational Query 결과에서 subject_group.name 추출
-      const subjectGroupName = (row as any).subject_group?.name;
+      const rowWithJoin = row as InternalScoreWithSubjectGroup;
+      const subjectGroupName = rowWithJoin.subject_group?.name;
       if (!subjectGroupName) continue;
 
       const rankGrade = Number(row.rank_grade) || 0;

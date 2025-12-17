@@ -217,8 +217,9 @@ export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSch
 
       if (!campusError && campusData) {
         for (const uc of campusData) {
-          const university = uc.university as any;
-          const campusName = uc.campus_name;
+          const universityCampus = uc as UniversityWithCampus;
+          const university = universityCampus.university;
+          const campusName = universityCampus.campus_name;
           const universityName = university?.name_kor || campusName;
           
           results.push({
@@ -436,10 +437,11 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           .order("campus_name", { ascending: true });
 
         if (!campusError && campusData) {
-          for (const uc of campusData) {
-            const university = uc.university as any;
-            const campusName = uc.campus_name;
-            const universityName = university?.name_kor || campusName;
+        for (const uc of campusData) {
+          const universityCampus = uc as UniversityWithCampus;
+          const university = universityCampus.university;
+          const campusName = universityCampus.campus_name;
+          const universityName = university?.name_kor || campusName;
             
             // 캠퍼스명이 대학명과 같으면 대학명만, 다르면 "대학명 (캠퍼스명)" 형식
             const displayName = campusName === universityName
@@ -528,8 +530,9 @@ export async function getSchoolByUnifiedId(unifiedId: string): Promise<AllSchool
 
       if (error || !data) return null;
 
-      const university = data.university as any;
-      const campusName = data.campus_name;
+      const universityCampus = data as UniversityWithCampus;
+      const university = universityCampus.university;
+      const campusName = universityCampus.campus_name;
       const universityName = university?.name_kor || campusName;
 
       return {

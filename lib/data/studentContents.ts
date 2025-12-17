@@ -430,8 +430,8 @@ export async function updateLecture(
   if (updates.platform !== undefined) payload.platform = updates.platform;
   if (updates.difficulty_level !== undefined) payload.difficulty_level = updates.difficulty_level;
   if (updates.duration !== undefined) payload.duration = updates.duration;
-  if ((updates as any).total_episodes !== undefined) payload.total_episodes = (updates as any).total_episodes;
-  if ((updates as any).linked_book_id !== undefined) payload.linked_book_id = (updates as any).linked_book_id;
+  if (updates.total_episodes !== undefined) payload.total_episodes = updates.total_episodes;
+  if (updates.linked_book_id !== undefined) payload.linked_book_id = updates.linked_book_id;
   if (updates.notes !== undefined) payload.notes = updates.notes;
 
   let { error } = await supabase

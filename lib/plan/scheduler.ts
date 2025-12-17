@@ -5,7 +5,9 @@ import {
   AcademySchedule,
   SchedulerType,
   SchedulerOptions,
+  AdditionalPeriodReallocation,
 } from "@/lib/types/plan";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import {
   getContentAllocation,
   calculateSubjectAllocationDates,
@@ -181,15 +183,7 @@ export async function generatePlansFromGroup(
   }
 
   // 4. 추가 기간 재배치 처리 (복습의 복습)
-  const additionalReallocation = (group as any).additional_period_reallocation as {
-    period_start: string;
-    period_end: string;
-    type: "additional_review";
-    original_period_start: string;
-    original_period_end: string;
-    subjects?: string[];
-    review_of_review_factor?: number;
-  } | null | undefined;
+  const additionalReallocation = group.additional_period_reallocation as AdditionalPeriodReallocation | null | undefined;
 
   if (additionalReallocation && additionalReallocation.type === "additional_review") {
     const reallocatedPlans = generateAdditionalPeriodReallocationPlans(
@@ -322,8 +316,9 @@ function generateAdditionalPeriodReallocationPlans(
   }
 
   // 5. 추가 기간의 학습일/복습일 분류 (1730_timetable인 경우)
-  const studyDays = (group.scheduler_options as any)?.study_days ?? 6;
-  const reviewDays = (group.scheduler_options as any)?.review_days ?? 1;
+  const schedulerOptions = getSchedulerOptionsWithTimeSettings(group);
+  const studyDays = schedulerOptions?.study_days ?? 6;
+  const reviewDays = schedulerOptions?.review_days ?? 1;
   const weekSize = studyDays + reviewDays;
 
   const additionalStudyDates: string[] = [];

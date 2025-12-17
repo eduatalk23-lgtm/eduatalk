@@ -36,13 +36,13 @@ export function useInstallPrompt(): UseInstallPromptReturn {
     // iOS 감지
     const iOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-      !(window as any).MSStream;
+      !(window as Window & { MSStream?: unknown }).MSStream;
     setIsIOS(iOS);
 
     // Standalone 모드 감지 (이미 설치됨)
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setIsStandalone(standalone);
     setIsInstalled(standalone);
 

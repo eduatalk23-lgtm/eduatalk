@@ -5,8 +5,9 @@
  * DetailView에서 Step 컴포넌트를 재사용하기 위한 타입 변환
  */
 
-import type { PlanGroup, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, SchedulerType, ExclusionType } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 
 /**
  * PlanGroup을 WizardData로 변환
@@ -33,8 +34,8 @@ export function planGroupToWizardData(
   templateBlockSetName?: string | null
 ): WizardData {
   // scheduler_options에서 time_settings 추출
-  const schedulerOptions = (group.scheduler_options as any) || {};
-  const timeSettings = schedulerOptions.time_settings;
+  const schedulerOptions = getSchedulerOptionsWithTimeSettings(group);
+  const timeSettings = schedulerOptions?.time_settings;
 
   // 콘텐츠 분리 (학생/추천)
   let studentContents: any[] = [];
@@ -61,8 +62,8 @@ export function planGroupToWizardData(
   return {
     // Step 1: 기본 정보
     name: group.name || "",
-    plan_purpose: (group.plan_purpose as any) || "",
-    scheduler_type: (group.scheduler_type as any) || "",
+    plan_purpose: (group.plan_purpose as PlanPurpose) || "",
+    scheduler_type: (group.scheduler_type as SchedulerType) || "",
     scheduler_options: {
       study_days: schedulerOptions.study_days,
       review_days: schedulerOptions.review_days,
@@ -75,7 +76,7 @@ export function planGroupToWizardData(
     // Step 2: 제외일 및 학원 일정
     exclusions: exclusions.map((e) => ({
       exclusion_date: e.exclusion_date,
-      exclusion_type: e.exclusion_type as any,
+      exclusion_type: e.exclusion_type as ExclusionType,
       reason: e.reason || undefined,
       source: "student",
     })),

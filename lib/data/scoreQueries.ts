@@ -7,6 +7,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
 
+type InternalScore = Tables<"student_internal_scores">;
+type MockScore = Tables<"student_mock_scores">;
+
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
@@ -92,8 +95,8 @@ export async function getTermScores(
 
   return {
     term: term as Tables<"student_terms"> | null,
-    internalScores: (internalScores as any[]) ?? [],
-    mockScores: (mockScores as any[]) ?? [],
+    internalScores: (internalScores as InternalScore[]) ?? [],
+    mockScores: (mockScores as MockScore[]) ?? [],
   };
 }
 

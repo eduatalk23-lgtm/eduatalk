@@ -79,7 +79,7 @@ export async function createPlanGroup(
     }
 
     const planGroup = await repository.insertPlanGroup(data);
-    return { success: true, planGroupId: planGroup.id, planGroup: planGroup as any };
+    return { success: true, planGroupId: planGroup.id, planGroup };
   } catch (error) {
     console.error("[plan/service] 플랜 그룹 생성 실패:", error);
     return {
@@ -117,7 +117,7 @@ export async function updatePlanGroup(
       studentId,
       updates
     );
-    return { success: true, planGroup: planGroup as any };
+    return { success: true, planGroup };
   } catch (error) {
     console.error("[plan/service] 플랜 그룹 수정 실패:", error);
     return {
@@ -175,7 +175,7 @@ export async function updatePlanGroupStatus(
     return { success: false, error: "유효하지 않은 상태입니다." };
   }
 
-  return updatePlanGroup(groupId, studentId, { status: status as any });
+  return updatePlanGroup(groupId, studentId, { status });
 }
 
 // ============================================

@@ -244,7 +244,9 @@ export async function getPlansForGoal(
       }
 
       if (!contentError && content) {
-        contentMap.set(`${plan.content_type}:${plan.content_id}`, (content as any).title || "제목 없음");
+        type ContentWithTitle = { title?: string | null };
+        const contentWithTitle = content as ContentWithTitle;
+        contentMap.set(`${plan.content_type}:${plan.content_id}`, contentWithTitle.title || "제목 없음");
       }
     }
 

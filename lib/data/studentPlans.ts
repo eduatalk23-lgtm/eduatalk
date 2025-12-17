@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -309,7 +310,7 @@ export async function getPlansForStudent(
   }
 
   if (error) {
-    const supabaseError = error as any;
+    const supabaseError = error as PostgrestError;
     const errorMessage = supabaseError?.message || String(error);
 
     // HTML 응답이 반환된 경우 (500 에러 등) 감지
