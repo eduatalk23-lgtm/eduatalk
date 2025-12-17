@@ -204,8 +204,8 @@ async function _updatePlanGroupDraft(
           content_id: c.content_id,
           start_range: c.start_range,
           end_range: c.end_range,
-          start_detail_id: (c as any).start_detail_id ?? null,
-          end_detail_id: (c as any).end_detail_id ?? null,
+          start_detail_id: c.start_detail_id ?? null,
+          end_detail_id: c.end_detail_id ?? null,
           display_order: c.display_order ?? 0,
         }))
       );

@@ -136,6 +136,7 @@ export function isPlanContentWithDetails(
 /**
  * 값이 SchedulerOptionsWithTimeSettings인지 확인
  * TimeSettings 필드 존재 여부로 판단
+ * TypeScript 모범 사례: 타입 가드 함수는 런타임 검증을 수행하여 타입 안전성 보장
  */
 export function isSchedulerOptionsWithTimeSettings(
   value: unknown
@@ -145,6 +146,7 @@ export function isSchedulerOptionsWithTimeSettings(
   }
 
   // TimeSettings의 주요 필드 중 하나라도 존재하면 true
+  // 필드 타입도 검증하여 더 안전하게 처리
   const timeSettingsFields = [
     "lunch_time",
     "camp_study_hours",
@@ -153,9 +155,30 @@ export function isSchedulerOptionsWithTimeSettings(
     "use_self_study_with_blocks",
     "enable_self_study_for_holidays",
     "enable_self_study_for_study_days",
-  ];
+  ] as const;
 
-  return timeSettingsFields.some((field) => field in value);
+  // 필드 존재 여부 확인
+  const hasTimeSettingsField = timeSettingsFields.some((field) => field in value);
+  
+  if (!hasTimeSettingsField) {
+    return false;
+  }
+
+  // 타입 검증: lunch_time이 있으면 객체 형태인지 확인
+  if ("lunch_time" in value && value.lunch_time !== null && value.lunch_time !== undefined) {
+    if (!isNonNullObject(value.lunch_time)) {
+      return false;
+    }
+    // { start: string, end: string } 형태인지 확인
+    if (!("start" in value.lunch_time) || !("end" in value.lunch_time)) {
+      return false;
+    }
+    if (typeof value.lunch_time.start !== "string" || typeof value.lunch_time.end !== "string") {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

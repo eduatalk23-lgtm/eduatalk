@@ -26,6 +26,7 @@ import { getAdjustedPeriod, getTodayDateString, PeriodCalculationError } from "@
 import { generatePreviewCacheKey, getCachedPreview, cachePreviewResult } from "@/lib/reschedule/previewCache";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
 import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 
 // ============================================
 // 타입 정의
@@ -184,7 +185,21 @@ async function _getReschedulePreview(
 
     const { data: existingPlans } = await query;
 
-    const reschedulablePlans = (existingPlans || []).filter((plan) =>
+    // student_plan 테이블의 타입 정의
+    type StudentPlanRow = {
+      id: string;
+      plan_date: string;
+      content_id: string | null;
+      content_type: string;
+      planned_start_page_or_time: number | null;
+      planned_end_page_or_time: number | null;
+      start_time: string | null;
+      end_time: string | null;
+      status: string | null;
+      is_active: boolean | null;
+    };
+
+    const reschedulablePlans = ((existingPlans as StudentPlanRow[] | null) || []).filter((plan) =>
       isReschedulable(plan)
     );
 
@@ -308,6 +323,7 @@ async function _getReschedulePreview(
 
     // 6. calculateAvailableDates로 스케줄 결과 계산
     // adjustedPeriod를 사용하여 조정된 기간에 대해서만 스케줄 계산 (성능 최적화)
+    const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
     const scheduleResult = calculateAvailableDates(
       adjustedPeriod.start,  // 전체 기간 대신 조정된 기간 사용
       adjustedPeriod.end,    // 전체 기간 대신 조정된 기간 사용
@@ -338,14 +354,14 @@ async function _getReschedulePreview(
         scheduler_options: schedulerOptions || null,
         use_self_study_with_blocks: true,
         enable_self_study_for_holidays:
-          (group.scheduler_options as any)?.enable_self_study_for_holidays === true,
+          groupSchedulerOptions?.enable_self_study_for_holidays === true,
         enable_self_study_for_study_days:
-          (group.scheduler_options as any)?.enable_self_study_for_study_days === true,
+          groupSchedulerOptions?.enable_self_study_for_study_days === true,
         lunch_time: schedulerOptions.lunch_time,
         camp_study_hours: schedulerOptions.camp_study_hours,
         camp_self_study_hours: schedulerOptions.self_study_hours,
-        designated_holiday_hours: (group.scheduler_options as any)?.designated_holiday_hours,
-        non_study_time_blocks: (group as any).non_study_time_blocks || undefined,
+        designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours,
+        non_study_time_blocks: group.non_study_time_blocks || undefined,
       }
     );
 
@@ -440,9 +456,9 @@ async function _getReschedulePreview(
       id: plan.id,
       plan_date: plan.plan_date,
       content_id: plan.content_id || "",
-      content_type: (plan as any).content_type || "",
-      planned_start_page_or_time: (plan as any).planned_start_page_or_time || null,
-      planned_end_page_or_time: (plan as any).planned_end_page_or_time || null,
+      content_type: plan.content_type || "",
+      planned_start_page_or_time: plan.planned_start_page_or_time ?? null,
+      planned_end_page_or_time: plan.planned_end_page_or_time ?? null,
       start_time: plan.start_time || null,
       end_time: plan.end_time || null,
       status: plan.status || null,
@@ -570,7 +586,22 @@ async function _rescheduleContents(
 
     const { data: existingPlans } = await query;
 
-    const reschedulablePlans = (existingPlans || []).filter((plan) =>
+    // student_plan 테이블의 전체 타입 정의 (select("*") 사용 시)
+    type StudentPlanFullRow = {
+      id: string;
+      plan_date: string;
+      content_id: string | null;
+      content_type: string;
+      planned_start_page_or_time: number | null;
+      planned_end_page_or_time: number | null;
+      start_time: string | null;
+      end_time: string | null;
+      status: string | null;
+      is_active: boolean | null;
+      [key: string]: unknown; // 기타 필드들
+    };
+
+    const reschedulablePlans = ((existingPlans as StudentPlanFullRow[] | null) || []).filter((plan) =>
       isReschedulable(plan)
     );
 
@@ -580,7 +611,7 @@ async function _rescheduleContents(
     const planHistoryInserts = reschedulablePlans.map((plan) => ({
       plan_id: plan.id,
       plan_group_id: groupId,
-      plan_data: plan as any,
+      plan_data: plan as Record<string, unknown>,
       content_id: plan.content_id,
       adjustment_type: "full" as const,
     }));
@@ -664,7 +695,7 @@ async function _rescheduleContents(
       .insert({
         plan_group_id: groupId,
         student_id: group.student_id,
-        adjusted_contents: adjustments as any,
+        adjusted_contents: adjustments as AdjustmentInput[],
         plans_before_count: plansBeforeCount,
         plans_after_count: plansAfterCount,
         reason: reason || null,

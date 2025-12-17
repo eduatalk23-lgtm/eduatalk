@@ -49,6 +49,7 @@ export function getSchedulerOptionsWithTimeSettings(
 
 /**
  * SchedulerOptions에서 TimeSettings 필드만 추출
+ * 타입 가드 함수를 사용하여 안전하게 처리
  * 
  * @param options SchedulerOptionsWithTimeSettings 또는 SchedulerOptions
  * @returns TimeSettings 또는 null
@@ -68,30 +69,35 @@ export function extractTimeSettingsFromSchedulerOptions(
     return null;
   }
 
+  // 타입 가드로 검증하여 안전하게 처리
+  const safeOptions = isSchedulerOptionsWithTimeSettings(options)
+    ? options
+    : (options as SchedulerOptionsWithTimeSettings);
+
   // TimeSettings 필드만 추출
   const timeSettings: TimeSettings = {
-    lunch_time: "lunch_time" in options ? options.lunch_time : undefined,
+    lunch_time: "lunch_time" in safeOptions ? safeOptions.lunch_time : undefined,
     camp_study_hours:
-      "camp_study_hours" in options ? options.camp_study_hours : undefined,
+      "camp_study_hours" in safeOptions ? safeOptions.camp_study_hours : undefined,
     camp_self_study_hours:
-      "camp_self_study_hours" in options
-        ? options.camp_self_study_hours
+      "camp_self_study_hours" in safeOptions
+        ? safeOptions.camp_self_study_hours
         : undefined,
     designated_holiday_hours:
-      "designated_holiday_hours" in options
-        ? options.designated_holiday_hours
+      "designated_holiday_hours" in safeOptions
+        ? safeOptions.designated_holiday_hours
         : undefined,
     use_self_study_with_blocks:
-      "use_self_study_with_blocks" in options
-        ? options.use_self_study_with_blocks
+      "use_self_study_with_blocks" in safeOptions
+        ? safeOptions.use_self_study_with_blocks
         : undefined,
     enable_self_study_for_holidays:
-      "enable_self_study_for_holidays" in options
-        ? options.enable_self_study_for_holidays
+      "enable_self_study_for_holidays" in safeOptions
+        ? safeOptions.enable_self_study_for_holidays
         : undefined,
     enable_self_study_for_study_days:
-      "enable_self_study_for_study_days" in options
-        ? options.enable_self_study_for_study_days
+      "enable_self_study_for_study_days" in safeOptions
+        ? safeOptions.enable_self_study_for_study_days
         : undefined,
   };
 

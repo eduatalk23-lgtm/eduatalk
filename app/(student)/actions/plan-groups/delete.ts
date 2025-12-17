@@ -6,6 +6,8 @@ import { deletePlanGroup, getPlanGroupWithDetails } from "@/lib/data/planGroups"
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
+import type { PlanStatus } from "@/lib/types/plan";
 
 /**
  * 플랜 그룹 삭제
@@ -39,9 +41,10 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
   }
 
   // 상태별 삭제 권한 체크
-  if (!PlanStatusManager.canDelete(group.status as any)) {
+  const planStatus: PlanStatus = (group.status || "draft") as PlanStatus;
+  if (!PlanStatusManager.canDelete(planStatus)) {
     throw new AppError(
-      `${group.status} 상태에서는 플랜 그룹을 삭제할 수 없습니다.`,
+      `${planStatus} 상태에서는 플랜 그룹을 삭제할 수 없습니다.`,
       ErrorCode.VALIDATION_ERROR,
       400,
       true
@@ -73,13 +76,14 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
     const { data: progressData } = await progressQuery;
 
     // 3. 백업 데이터 구성
+    const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
     const backupData = {
       plan_group: {
         id: group.id,
         name: group.name,
         plan_purpose: group.plan_purpose,
         scheduler_type: group.scheduler_type,
-        scheduler_options: (group as any).scheduler_options || null,
+        scheduler_options: groupSchedulerOptions || null,
         period_start: group.period_start,
         period_end: group.period_end,
         target_date: group.target_date,

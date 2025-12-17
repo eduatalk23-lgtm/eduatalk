@@ -11,6 +11,7 @@ import { getPlanGroupWithDetailsByRole } from "@/lib/auth/planGroupAuth";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
 import { calculateAvailableDates } from "@/lib/scheduler/calculateAvailableDates";
+import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import type {
   LoadedPlanGroupData,
   ScheduleCalculationResult,
@@ -339,10 +340,10 @@ export function createScheduleCalculationOptions(
   group: PlanGroup,
   schedulerOptions: MergedSchedulerOptions
 ): ScheduleCalculationOptions {
-  const groupOptions = group.scheduler_options as Record<string, unknown> | null;
+  const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
 
   // subject_allocations와 content_allocations 추출 및 검증
-  const subjectAllocations = groupOptions?.subject_allocations as
+  const subjectAllocations = groupSchedulerOptions?.subject_allocations as
     | Array<{
         subject_id?: string;
         subject_name: string;
@@ -350,7 +351,7 @@ export function createScheduleCalculationOptions(
         weekly_days?: number;
       }>
     | undefined;
-  const contentAllocations = groupOptions?.content_allocations as
+  const contentAllocations = groupSchedulerOptions?.content_allocations as
     | Array<{
         content_type: "book" | "lecture" | "custom";
         content_id: string;
@@ -389,15 +390,13 @@ export function createScheduleCalculationOptions(
     },
     use_self_study_with_blocks: true,
     enable_self_study_for_holidays:
-      (groupOptions?.enable_self_study_for_holidays as boolean) === true,
+      groupSchedulerOptions?.enable_self_study_for_holidays === true,
     enable_self_study_for_study_days:
-      (groupOptions?.enable_self_study_for_study_days as boolean) === true,
+      groupSchedulerOptions?.enable_self_study_for_study_days === true,
     lunch_time: schedulerOptions.lunch_time,
     camp_study_hours: schedulerOptions.camp_study_hours,
     camp_self_study_hours: schedulerOptions.self_study_hours,
-    designated_holiday_hours: groupOptions?.designated_holiday_hours as
-      | { start: string; end: string }
-      | undefined,
+    designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours,
     non_study_time_blocks: group.non_study_time_blocks,
   };
 }

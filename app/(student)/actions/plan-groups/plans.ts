@@ -75,8 +75,23 @@ async function _getPlansByGroupId(groupId: string): Promise<{
     );
   }
 
+  // student_plan 테이블의 타입 정의 (sequence 필드 포함)
+  type StudentPlanRow = {
+    id: string;
+    plan_date: string | null;
+    block_index: number | null;
+    content_type: string;
+    content_id: string;
+    chapter: string | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    completed_amount: number | null;
+    is_reschedulable: boolean | null;
+    sequence: number | null;
+  };
+
   return {
-    plans: (plans || []).map((plan) => ({
+    plans: ((plans as StudentPlanRow[] | null) || []).map((plan) => ({
       id: plan.id,
       plan_date: plan.plan_date,
       block_index: plan.block_index,
@@ -87,7 +102,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
       planned_end_page_or_time: plan.planned_end_page_or_time,
       completed_amount: plan.completed_amount,
       is_reschedulable: plan.is_reschedulable ?? true,
-      sequence: (plan as any).sequence ?? null,
+      sequence: plan.sequence ?? null,
     })),
   };
 }

@@ -24,8 +24,20 @@
 export function extractJoinedData<T>(
   raw: T | T[] | null | undefined
 ): T | null {
-  if (!raw) return null;
-  return Array.isArray(raw) ? raw[0] : raw;
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    if (Array.isArray(raw)) {
+      return raw.length > 0 ? raw[0] : null;
+    }
+    return raw;
+  } catch (error) {
+    // 예상치 못한 타입의 경우 null 반환
+    console.warn("[extractJoinedData] Unexpected data type:", error);
+    return null;
+  }
 }
 
 /**
