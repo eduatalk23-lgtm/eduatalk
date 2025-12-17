@@ -41,6 +41,10 @@ export function buildTimelineSlots(
 ): TimelineSlot[] {
   const slots: TimelineSlot[] = [];
   
+  // 해당 날짜의 제외일 확인
+  const dayExclusions = exclusions.filter((exclusion) => exclusion.exclusion_date === dateStr);
+  const isExclusionDay = dayExclusions.length > 0;
+  
   // 해당 날짜의 플랜만 필터링
   const dayPlans = plans.filter((plan) => plan.plan_date === dateStr);
   
@@ -68,6 +72,12 @@ export function buildTimelineSlots(
 
     // 각 타임슬롯에 플랜 매칭
     sortedTimeSlots.forEach((slot) => {
+      // 제외일인 경우 학습 관련 타임슬롯 필터링
+      // 학원일정은 제외일에도 표시 가능 (학원 수업은 별도)
+      if (isExclusionDay && slot.type !== "학원일정" && slot.type !== "학습시간") {
+        // 점심시간, 이동시간, 자율학습 등은 제외일에는 표시하지 않음
+        return;
+      }
       const timelineSlot: TimelineSlot = {
         type: slot.type as TimeSlotType,
         start: slot.start,
@@ -77,6 +87,11 @@ export function buildTimelineSlots(
 
       // 학습시간인 경우 플랜 매칭
       if (slot.type === "학습시간") {
+        // 제외일인 경우 학습시간 슬롯은 표시하지 않음
+        if (isExclusionDay) {
+          return;
+        }
+        
         const slotStart = timeToMinutes(slot.start);
         const slotEnd = timeToMinutes(slot.end);
 
@@ -145,35 +160,18 @@ export function buildTimelineSlots(
     });
     
     // 시간 정보가 있는 플랜 중 타임슬롯에 매칭되지 않은 플랜을 별도 슬롯으로 추가
-    const matchedPlanIds = new Set<string>();
-    slots.forEach((slot) => {
-      if (slot.plans) {
-        slot.plans.forEach((plan) => matchedPlanIds.add(plan.id));
-      }
-    });
-    
-    plansWithTime.forEach((plan) => {
-      if (!matchedPlanIds.has(plan.id) && plan.start_time && plan.end_time) {
-        // 플랜의 시간 정보로 직접 타임슬롯 생성
-        slots.push({
-          type: "학습시간",
-          start: plan.start_time,
-          end: plan.end_time,
-          label: `${plan.start_time} ~ ${plan.end_time}`,
-          plans: [plan],
-        });
-      }
-    });
-    
-    // 시간 순으로 다시 정렬
-    slots.sort((a, b) => {
-      return timeToMinutes(a.start) - timeToMinutes(b.start);
-    });
-  } else {
-    // time_slots가 없으면 플랜의 시간 정보로 타임라인 생성
-    if (plansWithTime.length > 0) {
+    // 제외일이 아닌 경우에만 추가
+    if (!isExclusionDay) {
+      const matchedPlanIds = new Set<string>();
+      slots.forEach((slot) => {
+        if (slot.plans) {
+          slot.plans.forEach((plan) => matchedPlanIds.add(plan.id));
+        }
+      });
+      
       plansWithTime.forEach((plan) => {
-        if (plan.start_time && plan.end_time) {
+        if (!matchedPlanIds.has(plan.id) && plan.start_time && plan.end_time) {
+          // 플랜의 시간 정보로 직접 타임슬롯 생성
           slots.push({
             type: "학습시간",
             start: plan.start_time,
@@ -185,17 +183,40 @@ export function buildTimelineSlots(
       });
     }
     
-    // 시간 정보가 없는 플랜은 block_index 순으로 표시
-    if (plansWithoutTime.length > 0) {
-      plansWithoutTime.forEach((plan) => {
-        slots.push({
-          type: "학습시간",
-          start: "00:00",
-          end: "23:59",
-          label: `블록 ${plan.block_index}`,
-          plans: [plan],
+    // 시간 순으로 다시 정렬
+    slots.sort((a, b) => {
+      return timeToMinutes(a.start) - timeToMinutes(b.start);
+    });
+  } else {
+    // time_slots가 없으면 플랜의 시간 정보로 타임라인 생성
+    // 제외일이 아닌 경우에만 플랜 표시
+    if (!isExclusionDay) {
+      if (plansWithTime.length > 0) {
+        plansWithTime.forEach((plan) => {
+          if (plan.start_time && plan.end_time) {
+            slots.push({
+              type: "학습시간",
+              start: plan.start_time,
+              end: plan.end_time,
+              label: `${plan.start_time} ~ ${plan.end_time}`,
+              plans: [plan],
+            });
+          }
         });
-      });
+      }
+      
+      // 시간 정보가 없는 플랜은 block_index 순으로 표시
+      if (plansWithoutTime.length > 0) {
+        plansWithoutTime.forEach((plan) => {
+          slots.push({
+            type: "학습시간",
+            start: "00:00",
+            end: "23:59",
+            label: `블록 ${plan.block_index}`,
+            plans: [plan],
+          });
+        });
+      }
     }
   }
 
