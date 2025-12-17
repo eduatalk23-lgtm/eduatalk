@@ -1,7 +1,7 @@
 // 플랜 그룹 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient, PostgrestQueryBuilder } from "@supabase/supabase-js";
 import {
   PlanGroup,
   PlanContent,
@@ -135,6 +135,30 @@ async function getOrCreateAcademy(
   }
 
   return newAcademy.id;
+}
+
+/**
+ * 시간 관리 영역 및 다른 플랜 그룹의 데이터 조회를 위한 쿼리 필터 적용
+ * - plan_group_id가 NULL인 데이터 (시간 관리 영역)
+ * - plan_group_id가 현재 그룹이 아닌 다른 그룹의 데이터
+ * 
+ * @param query - Supabase 쿼리 빌더
+ * @param currentGroupId - 현재 플랜 그룹 ID (null이면 시간 관리 영역만 조회)
+ * @returns 필터링된 쿼리 빌더
+ */
+export function applyTimeManagementFilter<
+  T extends PostgrestQueryBuilder<any, any, any, any>
+>(
+  query: T,
+  currentGroupId: string | null
+): T {
+  if (currentGroupId) {
+    // 현재 그룹을 제외한 모든 데이터 조회 (시간 관리 영역 + 다른 플랜 그룹)
+    return query.or(`plan_group_id.is.null,plan_group_id.neq.${currentGroupId}`) as T;
+  } else {
+    // 시간 관리 영역만 조회
+    return query.is("plan_group_id", null) as T;
+  }
 }
 
 /**
@@ -1210,18 +1234,19 @@ async function createExclusions(
     );
 
     // 시간 관리 영역의 제외일 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-    const timeManagementExclusionsQuery = supabase
+    let timeManagementExclusionsQuery = supabase
       .from("plan_exclusions")
       .select("id, exclusion_date, exclusion_type, reason")
       .eq("student_id", studentId);
 
     if (tenantId) {
-      timeManagementExclusionsQuery.eq("tenant_id", tenantId);
+      timeManagementExclusionsQuery = timeManagementExclusionsQuery.eq("tenant_id", tenantId);
     }
 
-    // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-    timeManagementExclusionsQuery.or(
-      `plan_group_id.is.null,plan_group_id.neq.${planGroupId}`
+    // plan_group_id 필터링 적용 (현재 그룹 제외)
+    timeManagementExclusionsQuery = applyTimeManagementFilter(
+      timeManagementExclusionsQuery,
+      planGroupId
     );
 
     const { data: timeManagementExclusions } =
@@ -1750,17 +1775,20 @@ export async function createPlanAcademySchedules(
   }
 
   // 시간 관리 영역의 학원 일정 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-  const timeManagementSchedulesQuery = supabase
+  let timeManagementSchedulesQuery = supabase
     .from("academy_schedules")
     .select("id, day_of_week, start_time, end_time, academy_name, subject, academy_id")
     .eq("student_id", studentId);
   
   if (tenantId) {
-    timeManagementSchedulesQuery.eq("tenant_id", tenantId);
+    timeManagementSchedulesQuery = timeManagementSchedulesQuery.eq("tenant_id", tenantId);
   }
   
-  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-  timeManagementSchedulesQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
+  // plan_group_id 필터링 적용 (현재 그룹 제외)
+  timeManagementSchedulesQuery = applyTimeManagementFilter(
+    timeManagementSchedulesQuery,
+    groupId
+  );
   
   const { data: timeManagementSchedules } = await timeManagementSchedulesQuery;
   
