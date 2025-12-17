@@ -2,6 +2,7 @@
 
 import { useState, Fragment, memo } from "react";
 import Link from "next/link";
+import { cn } from "@/lib/cn";
 import { DeleteContentButton } from "./DeleteContentButton";
 import { isFromMaster } from "@/lib/utils/contentMaster";
 
