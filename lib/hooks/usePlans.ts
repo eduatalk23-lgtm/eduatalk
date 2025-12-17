@@ -22,11 +22,16 @@ function plansQueryOptions(studentId: string, tenantId: string | null, planDate:
   return queryOptions({
     queryKey: ["plans", studentId, planDate] as const,
     queryFn: async (): Promise<Plan[]> => {
-      return await getPlansForStudent({
+      const plans = await getPlansForStudent({
         studentId,
         tenantId,
         planDate,
       });
+      // plan_group_id를 string | null로 변환 (undefined 제거)
+      return plans.map((plan) => ({
+        ...plan,
+        plan_group_id: plan.plan_group_id ?? null,
+      })) as Plan[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
   });

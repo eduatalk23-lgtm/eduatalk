@@ -36,13 +36,13 @@ export function applyContentFilters<T extends Record<string, unknown>>(
 
   // 1. 인덱스가 있는 컬럼 우선 필터링
   if (filters.curriculum_revision_id) {
-    filteredQuery = filteredQuery.eq("curriculum_revision_id", filters.curriculum_revision_id);
+    filteredQuery = filteredQuery.eq("curriculum_revision_id", filters.curriculum_revision_id as any);
   }
   if (filters.subject_group_id) {
-    filteredQuery = filteredQuery.eq("subject_group_id", filters.subject_group_id);
+    filteredQuery = filteredQuery.eq("subject_group_id", filters.subject_group_id as any);
   }
   if (filters.subject_id) {
-    filteredQuery = filteredQuery.eq("subject_id", filters.subject_id);
+    filteredQuery = filteredQuery.eq("subject_id", filters.subject_id as any);
   }
 
   // 2. 텍스트 검색

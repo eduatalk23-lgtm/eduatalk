@@ -91,7 +91,7 @@ export async function getInternalScoresByTerm(
     subject_group: item.subject_group?.[0] || null,
     subject: item.subject?.[0] || null,
     subject_type: item.subject_type?.[0] || null,
-  })) as MockScoreWithRelations[];
+  })) as InternalScoreWithRelations[];
 }
 
 /**
