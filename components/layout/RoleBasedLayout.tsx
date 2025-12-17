@@ -302,7 +302,7 @@ export function RoleBasedLayout({
   const { isCollapsed } = useSidebar();
 
   const content = (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex min-h-screen bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
       {/* 사이드바 네비게이션 (데스크톱) */}
       {showSidebar && (
         <aside

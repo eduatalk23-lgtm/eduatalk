@@ -135,7 +135,7 @@ export function SearchModal<T extends { id: string }>({
           <div className="flex flex-col gap-2">
             <label
               htmlFor="search-input"
-              className="block text-sm font-medium text-gray-700"
+              className="block text-sm font-medium text-[var(--text-secondary)]"
             >
               {searchLabel}
             </label>
@@ -145,10 +145,10 @@ export function SearchModal<T extends { id: string }>({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
             />
             {searchQuery.length > 0 && searchQuery.length < 2 && (
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[var(--text-tertiary)]">
                 최소 2글자 이상 입력해주세요.
               </p>
             )}
@@ -159,7 +159,7 @@ export function SearchModal<T extends { id: string }>({
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="relation-select"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-[var(--text-secondary)]"
               >
                 관계
               </label>
@@ -168,7 +168,7 @@ export function SearchModal<T extends { id: string }>({
                 value={selectedRelation}
                 onChange={(e) => onRelationChange(e.target.value)}
                 disabled={isPending}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100"
+                className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-4 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))]"
               >
                 {relationOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -181,20 +181,20 @@ export function SearchModal<T extends { id: string }>({
 
           {/* 검색 결과 */}
           {isSearching && (
-            <div className="py-8 text-center text-sm text-gray-500">
+            <div className="py-8 text-center text-sm text-[var(--text-tertiary)]">
               검색 중...
             </div>
           )}
 
           {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <div className="py-8 text-center text-sm text-gray-500">
+            <div className="py-8 text-center text-sm text-[var(--text-tertiary)]">
               검색 결과가 없습니다.
             </div>
           )}
 
           {!isSearching && searchResults.length > 0 && (
             <div className="flex flex-col gap-2">
-              <div className="text-sm font-medium text-gray-700">
+              <div className="text-sm font-medium text-[var(--text-secondary)]">
                 검색 결과 ({searchResults.length}개)
               </div>
               <div className="max-h-64 flex flex-col gap-2 overflow-y-auto">
@@ -208,7 +208,7 @@ export function SearchModal<T extends { id: string }>({
         <button
           onClick={onClose}
           disabled={isPending}
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          className="rounded-lg border border-[rgb(var(--color-secondary-300))] bg-white dark:bg-secondary-900 px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] disabled:opacity-50"
         >
           닫기
         </button>

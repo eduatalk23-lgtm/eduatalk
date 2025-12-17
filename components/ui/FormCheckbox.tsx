@@ -33,8 +33,8 @@ const FormCheckbox = memo(function FormCheckbox({
           id={inputId}
           type="checkbox"
           className={cn(
-            "mt-0.5 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-600 dark:bg-gray-700",
-            error && "border-red-500",
+            "mt-0.5 h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] text-primary-600 focus:ring-primary-600 dark:bg-[rgb(var(--color-secondary-700))]",
+            error && "border-error-500",
             className
           )}
           aria-invalid={error ? "true" : undefined}
@@ -42,14 +42,14 @@ const FormCheckbox = memo(function FormCheckbox({
           {...props}
         />
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
+          <span className="text-sm text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">{label}</span>
           {description && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">{description}</span>
+            <span className="text-xs text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">{description}</span>
           )}
         </div>
       </label>
       {error && (
-        <span id={errorId} className="text-xs text-red-600 dark:text-red-400" role="alert">
+        <span id={errorId} className="text-xs text-error-600 dark:text-error-400" role="alert">
           {error}
         </span>
       )}

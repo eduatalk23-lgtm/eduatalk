@@ -44,7 +44,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[var(--elevation-8)]",
+        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-secondary-900 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-800))] shadow-[var(--elevation-8)]",
         "animate-in slide-in-from-bottom duration-300",
         className
       )}
@@ -56,13 +56,13 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
               {isIOS ? (
                 <Share2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               ) : (
-                <Download className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <Download className="w-5 h-5 text-info-600 dark:text-info-400" />
               )}
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">
                 앱 설치하기
               </h3>
             </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+            <p className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">
               {isIOS
                 ? "홈 화면에 추가하여 더 빠르게 접근하세요"
                 : "홈 화면에 추가하여 오프라인에서도 사용하세요"}
@@ -73,14 +73,14 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
             {!isIOS && (
               <button
                 onClick={handleInstall}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-base"
+                className="px-4 py-2 bg-info-600 hover:bg-info-700 text-white text-sm font-medium rounded-lg transition-base"
               >
                 설치
               </button>
             )}
             <button
               onClick={handleDismiss}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-base"
+              className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)] transition-base"
               aria-label="닫기"
             >
               <X className="w-5 h-5" />
@@ -89,8 +89,8 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
         </div>
 
         {isIOS && (
-          <div className="flex flex-col gap-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-            <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
+          <div className="flex flex-col gap-3 pt-3 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-800))]">
+            <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">
               <Share2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex flex-col gap-1">
                 <p className="font-medium">설치 방법:</p>

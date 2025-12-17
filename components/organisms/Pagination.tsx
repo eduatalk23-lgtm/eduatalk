@@ -110,7 +110,7 @@ function PaginationComponent({
         page === "..." ? (
           <span
             key={`dots-${index}`}
-            className="px-2 text-gray-400"
+            className="px-2 text-[var(--text-tertiary)]"
           >
             ...
           </span>

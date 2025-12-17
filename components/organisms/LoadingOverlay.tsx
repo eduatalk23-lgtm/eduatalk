@@ -22,14 +22,14 @@ function LoadingOverlayComponent({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm",
+        "flex flex-col items-center justify-center gap-4 bg-white/80 dark:bg-[rgb(var(--color-secondary-900))]/80 backdrop-blur-sm",
         fullScreen ? "fixed inset-0 z-50" : "absolute inset-0 z-10",
         className
       )}
     >
       <Spinner size="lg" />
       {message && (
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{message}</p>
+        <p className="text-sm font-medium text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">{message}</p>
       )}
     </div>
   );

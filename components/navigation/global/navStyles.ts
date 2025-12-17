@@ -86,13 +86,13 @@ export const designTokens = {
      * 네비게이션 활성 상태 등에 사용
      */
     primary: {
-      50: "bg-indigo-50 dark:bg-indigo-900/30",
-      100: "bg-indigo-100 dark:bg-indigo-900/50",
-      500: "text-indigo-700 dark:text-indigo-300",
-      700: "text-indigo-700 dark:text-indigo-300",
-      800: "text-indigo-800 dark:text-indigo-200",
-      border: "border-indigo-500",
-      borderLight: "border-indigo-200 dark:border-indigo-800",
+      50: "bg-primary-50 dark:bg-primary-900/30",
+      100: "bg-primary-100 dark:bg-primary-900/50",
+      500: "text-primary-700 dark:text-primary-300",
+      700: "text-primary-700 dark:text-primary-300",
+      800: "text-primary-800 dark:text-primary-200",
+      border: "border-primary-500",
+      borderLight: "border-primary-200 dark:border-primary-800",
     },
     /**
      * Gray 색상 토큰
@@ -106,47 +106,47 @@ export const designTokens = {
      */
     gray: {
       // 배경 색상
-      bg50: "bg-gray-50 dark:bg-gray-800",
-      bg100: "bg-gray-100 dark:bg-gray-800",
-      bg800: "bg-gray-800 dark:bg-gray-700",
-      bg900: "bg-gray-900 dark:bg-gray-100",
+      bg50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
+      bg100: "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))]",
+      bg800: "bg-[rgb(var(--color-secondary-800))] dark:bg-[rgb(var(--color-secondary-700))]",
+      bg900: "bg-[var(--text-primary)] dark:bg-[var(--text-primary)]",
 
       // 텍스트 색상
-      text200: "text-gray-200 dark:text-gray-200",
-      text400: "text-gray-400 dark:text-gray-400",
-      text500: "text-gray-500 dark:text-gray-400",
-      text600: "text-gray-600 dark:text-gray-400",
-      text700: "text-gray-700 dark:text-gray-200",
-      text900: "text-gray-900 dark:text-gray-100",
+      text200: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
+      text400: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
+      text500: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
+      text600: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
+      text700: "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
+      text900: "text-[var(--text-primary)] dark:text-[var(--text-primary)]",
 
       // 호버 색상
-      hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-800",
-      hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
-      hoverBgLight: "hover:bg-gray-50 dark:hover:bg-gray-800",
+      hoverBg: "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
+      hoverText: "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
+      hoverBgLight: "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
 
       // 하위 호환성을 위한 레거시 키 (deprecated)
       // @deprecated bg50 사용
-      50: "bg-gray-50 dark:bg-gray-800",
+      50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
       // @deprecated bg100 사용
-      100: "bg-gray-100 dark:bg-gray-800",
+      100: "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))]",
       // @deprecated text200 사용
-      200: "text-gray-200 dark:text-gray-200",
+      200: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
       // @deprecated text400 사용
-      400: "text-gray-400 dark:text-gray-400",
+      400: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
       // @deprecated text500 사용
-      500: "text-gray-500 dark:text-gray-400",
+      500: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
       // @deprecated text600 사용
-      600: "text-gray-600 dark:text-gray-400",
+      600: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
       // @deprecated text700 사용
-      700: "text-gray-700 dark:text-gray-200",
+      700: "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
       // @deprecated bg800 사용
-      800: "bg-gray-800 dark:bg-gray-700",
+      800: "bg-[rgb(var(--color-secondary-800))] dark:bg-[rgb(var(--color-secondary-700))]",
       // @deprecated bg900 사용
-      900: "bg-gray-900 dark:bg-gray-100",
+      900: "bg-[var(--text-primary)] dark:bg-[var(--text-primary)]",
     },
   },
   focus: {
-    ring: "focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1",
+    ring: "focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1",
   },
 };
 
@@ -302,12 +302,12 @@ export function getChildItemClasses({
  */
 export const tooltipStyles = {
   /** 기본 툴팁 (Breadcrumbs 등에서 사용 - 위쪽에 표시) */
-  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
+  base: "absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-[50] pointer-events-none",
   /** 사이드 툴팁 (CategoryNav collapsed 모드에서 사용 - 오른쪽에 표시, hover 시 표시) */
-  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
+  side: "absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none",
   /** 툴팁 화살표 스타일 */
   arrow:
-    "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-100",
+    "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-[var(--text-primary)] dark:border-t-[var(--text-primary)]",
 };
 
 /**
@@ -324,11 +324,11 @@ export const tooltipStyles = {
  * 모든 스타일은 다크 모드를 지원합니다.
  */
 export const breadcrumbStyles = {
-  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray.text600} ${designTokens.colors.gray.bg50} border-b border-gray-100 dark:border-gray-700`,
+  container: `flex items-center gap-1 overflow-x-auto px-4 py-2 text-sm ${designTokens.colors.gray.text600} ${designTokens.colors.gray.bg50} border-b border-[rgb(var(--color-secondary-100))] dark:border-[rgb(var(--color-secondary-700))]`,
   list: "flex items-center gap-1 flex-wrap max-w-full",
   separator: designTokens.colors.gray.text400,
   link: `${designTokens.colors.gray.hoverText} truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px] transition`,
-  current: `font-medium text-gray-900 dark:text-gray-100 truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]`,
+  current: `font-medium text-[var(--text-primary)] dark:text-[var(--text-primary)] truncate max-w-[120px] sm:max-w-[150px] md:max-w-[200px]`,
 };
 
 /**
@@ -336,9 +336,9 @@ export const breadcrumbStyles = {
  */
 export const layoutStyles = {
   // Border 스타일
-  borderBottom: "border-b border-gray-200 dark:border-gray-700",
-  borderTop: "border-t border-gray-200 dark:border-gray-700",
-  borderRight: "border-r border-gray-200 dark:border-gray-700",
+  borderBottom: "border-b border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
+  borderTop: "border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
+  borderRight: "border-r border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
 
   // Flex 레이아웃
   flexCenter: "flex items-center gap-2",
@@ -351,17 +351,17 @@ export const layoutStyles = {
   padding2: "px-3 py-2",
 
   // Background
-  bgGray50: "bg-gray-50 dark:bg-gray-800",
-  bgWhite: "bg-white dark:bg-gray-800",
+  bgGray50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
+  bgWhite: "bg-white dark:bg-secondary-900",
 
   // Text
-  textHeading: "text-gray-900 dark:text-gray-100",
-  textMuted: "text-gray-500 dark:text-gray-400",
-  textSecondary: "text-gray-600 dark:text-gray-400",
+  textHeading: "text-[var(--text-primary)] dark:text-[var(--text-primary)]",
+  textMuted: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
+  textSecondary: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
 
   // Hover
-  hoverBg: "hover:bg-gray-100 dark:hover:bg-gray-700",
-  hoverText: "hover:text-gray-900 dark:hover:text-gray-100",
+  hoverBg: "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+  hoverText: "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
 
   // Transition
   transition: "transition-colors",
@@ -388,7 +388,7 @@ export const sidebarStyles = {
   footer: `${layoutStyles.borderTop} ${layoutStyles.padding4} sticky bottom-0 z-[20] ${layoutStyles.bgWhite}`,
   logoLink: `${layoutStyles.flexCenter} text-lg font-semibold ${layoutStyles.textHeading}`,
   collapseButton: `p-2 rounded-md ${layoutStyles.hoverBg} ${layoutStyles.textSecondary} ${layoutStyles.hoverText} ${layoutStyles.transition} ${layoutStyles.focusRing}`,
-  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary[50]} hover:bg-indigo-100 dark:hover:bg-indigo-900/50 ${designTokens.colors.primary[500]} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
+  expandButton: `group relative w-full ${layoutStyles.flexCenter} justify-center p-3 rounded-lg ${designTokens.colors.primary[50]} hover:bg-primary-100 dark:hover:bg-primary-900/50 ${designTokens.colors.primary[500]} ${layoutStyles.transition} border ${designTokens.colors.primary.borderLight} ${layoutStyles.focusRing}`,
 };
 
 /**

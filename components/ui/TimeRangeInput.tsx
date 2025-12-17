@@ -55,11 +55,11 @@ export function TimeRangeInput({
   return (
     <div className="flex flex-col gap-2">
       <div>
-        <label className="text-xs font-medium text-gray-800">
-          {label} {required && <span className="text-red-500">*</span>}
+        <label className="text-xs font-medium text-[var(--text-primary)]">
+          {label} {required && <span className="text-error-500">*</span>}
         </label>
         {description && (
-          <p className="text-xs text-gray-600">{description}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{description}</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -69,7 +69,7 @@ export function TimeRangeInput({
             value={start}
             onChange={(e) => handleStartChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
+            className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--text-primary)] focus:outline-none disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-tertiary)]"
           />
         </div>
         <div>
@@ -78,12 +78,12 @@ export function TimeRangeInput({
             value={end}
             onChange={(e) => handleEndChange(e.target.value)}
             disabled={disabled}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-800"
+            className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--text-primary)] focus:outline-none disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-tertiary)]"
           />
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-800">
+        <div className="text-xs text-[var(--text-primary)]">
           기본값: {defaultStart} ~ {defaultEnd}
         </div>
         {!isUsingDefault && (
@@ -91,7 +91,7 @@ export function TimeRangeInput({
             type="button"
             onClick={handleReset}
             disabled={disabled}
-            className="text-xs text-gray-800 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-xs text-[var(--text-primary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             기본값으로 되돌리기
           </button>
