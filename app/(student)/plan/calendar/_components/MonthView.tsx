@@ -153,14 +153,14 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                 <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
               )}
             </div>
-            {/* 날짜 타입 배지 - 아이콘만 표시 */}
+            {/* 날짜 타입 배지 - 텍스트로 표시 */}
             {dayTypeInfo && dayType !== "normal" && (
               <span 
-                className={cn("rounded-full p-0.5 text-[10px] border shadow-[var(--elevation-1)] shrink-0", dayTypeBadgeClass)}
+                className={cn("rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-semibold border shadow-[var(--elevation-1)] shrink-0 whitespace-nowrap", dayTypeBadgeClass)}
                 title={dayTypeInfo.label}
                 aria-label={dayTypeInfo.label}
               >
-                {dayTypeInfo.icon}
+                {dayTypeInfo.label}
               </span>
             )}
           </div>
