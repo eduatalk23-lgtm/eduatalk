@@ -11,7 +11,7 @@ import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
-import { bgSurface, textPrimary, textSecondary, borderDefault, getGradientCardClasses, type GradientColor } from "@/lib/utils/darkMode";
+import { bgSurface, textPrimary, textSecondary, borderDefault, getGradientCardClasses, getIndigoTextClasses, type GradientColor } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
 type StudentRow = {
@@ -77,7 +77,7 @@ export default async function DashboardPage() {
                 </div>
 
                 <div className="flex items-baseline gap-3 pt-2">
-                  <span className="text-4xl md:text-5xl font-bold text-indigo-600 dark:text-indigo-400">
+                  <span className={cn("text-4xl md:text-5xl font-bold", getIndigoTextClasses("heading"))}>
                     {todayProgress}%
                   </span>
                   <span className={cn("text-base md:text-lg", textSecondary)}>
@@ -200,6 +200,7 @@ function QuickActionCard({
         <div className="flex items-start gap-3 md:gap-4">
           <span className="text-2xl md:text-3xl flex-shrink-0">{icon}</span>
           <div className="flex flex-col gap-1 flex-1 min-w-0">
+            {/* 텍스트 색상은 getGradientCardClasses에서 이미 포함됨 (예: text-indigo-900 dark:text-indigo-200) */}
             <h3 className="text-base md:text-lg font-semibold">{title}</h3>
             <p className="text-xs md:text-sm opacity-80 line-clamp-2">{description}</p>
           </div>
