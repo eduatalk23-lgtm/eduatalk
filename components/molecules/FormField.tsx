@@ -54,12 +54,12 @@ const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
           {...props}
         />
         {error && (
-          <p id={errorId} className="text-xs text-error-600 dark:text-error-400" role="alert">
+          <p id={errorId} className="text-body-2 text-error-600 dark:text-error-400" role="alert">
             {error}
           </p>
         )}
         {hint && !error && (
-          <p id={hintId} className="text-xs text-[var(--text-secondary)]">
+          <p id={hintId} className="text-body-2 text-[var(--text-secondary)]">
             {hint}
           </p>
         )}
@@ -141,10 +141,10 @@ const FormSelectComponent = forwardRef<HTMLSelectElement, FormSelectProps>(
           ))}
         </Select>
         {error && (
-          <p id={errorId} className="text-xs text-error-600 dark:text-error-400" role="alert">{error}</p>
+          <p id={errorId} className="text-body-2 text-error-600 dark:text-error-400" role="alert">{error}</p>
         )}
         {hint && !error && (
-          <p id={hintId} className="text-xs text-[var(--text-secondary)]">{hint}</p>
+          <p id={hintId} className="text-body-2 text-[var(--text-secondary)]">{hint}</p>
         )}
       </div>
     );

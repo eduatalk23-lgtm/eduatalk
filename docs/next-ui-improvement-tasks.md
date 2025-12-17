@@ -108,13 +108,17 @@
 
 ### 우선순위 3: 기타 컴포넌트 개선 (점진적)
 
-#### FormField 컴포넌트
-- 에러 메시지: `text-xs` → `text-body-2`
-- 힌트 메시지: `text-xs` → `text-body-2`
+#### FormField 컴포넌트 ✅ 완료
+- ✅ 에러 메시지: `text-xs` → `text-body-2`
+- ✅ 힌트 메시지: `text-xs` → `text-body-2`
 
-#### Input 컴포넌트
-- sizeClasses의 `text-xs`, `text-sm`, `text-base` 검토
-- 타이포그래피 시스템과의 일관성 확보
+#### Input 컴포넌트 ✅ 완료
+- ✅ sizeClasses의 `text-xs`, `text-sm`, `text-base` → `text-body-2`, `text-body-1`
+- ✅ 타이포그래피 시스템과의 일관성 확보
+
+#### Select 컴포넌트 ✅ 완료
+- ✅ sizeClasses의 `text-xs`, `text-sm`, `text-base` → `text-body-2`, `text-body-1`
+- ✅ Input과 동일한 패턴 적용
 
 #### 기타 컴포넌트
 - `InstallPrompt.tsx`: 타이포그래피 시스템 적용
@@ -134,9 +138,10 @@
 6. `SchoolMultiSelect.tsx` 수정
 7. 테스트 및 커밋
 
-### Phase 2: FormField 컴포넌트 개선 (30분-1시간)
-1. 에러/힌트 메시지 타이포그래피 적용
-2. 테스트 및 커밋
+### Phase 2: FormField 컴포넌트 개선 (30분-1시간) ✅ 완료
+1. ✅ 에러/힌트 메시지 타이포그래피 적용
+2. ✅ Input/Select sizeClasses 타이포그래피 시스템 적용
+3. ✅ 테스트 및 커밋
 
 ### Phase 3: Margin 클래스 정리 (점진적)
 1. 가능한 부분만 수정
@@ -156,7 +161,7 @@
 | FormInput 개선 | 높음 | 중간 | 중간 | 높음 | ✅ 완료 |
 | Dialog/ErrorState/FormMessage | 높음 | 소규모 | 높음 | 높음 | ✅ 완료 |
 | 타이포그래피 확대 (우선순위 높음) | 중간 | 중간 | 높음 | 높음 | ⏳ 진행 중 |
-| FormField 개선 | 중간 | 소규모 | 중간 | 중간 | ⏳ 대기 |
+| FormField 개선 | 중간 | 소규모 | 중간 | 중간 | ✅ 완료 |
 | Margin 클래스 제거 | 낮음 | 대규모 | 낮음 | 낮음 | ⏳ 점진적 |
 | 기타 컴포넌트 개선 | 낮음 | 소규모 | 낮음 | 중간 | ⏳ 점진적 |
 
