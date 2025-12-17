@@ -165,7 +165,7 @@
 
 ### 적용된 개선 사항
 
-- **Elevation 시스템**: 모든 `shadow-sm`, `shadow-md`, `shadow-lg` → `shadow-[var(--elevation-*)]`로 변경
+- **Elevation 시스템**: 모든 `shadow-sm`, `shadow-md`, `shadow-lg` → `shadow-[var(--elevation-1)]`, `shadow-[var(--elevation-2)]` 등으로 변경
 - **Transition 시스템**: 모든 `transition-all duration-200` → `transition-base`로 변경
 - **Hover 효과**: 일관된 Elevation 증가
 

@@ -17,7 +17,7 @@ Phase 3에서는 중기 개선 작업으로 나머지 주요 컴포넌트들의 
 - **변경 사항**: 네비게이션 스타일 시스템 전체 색상 교체
 - **변경 내용**:
   - Primary 색상: `indigo-*` → `primary-*`
-  - Gray 색상: `gray-*` → 디자인 시스템 토큰 (`--color-secondary-*`, `--text-*`)
+  - Gray 색상: `gray-*` → 디자인 시스템 토큰 (`--color-secondary-50`, `--color-secondary-100` 등, `--text-primary`, `--text-secondary` 등)
   - Focus ring: `indigo-500` → `primary-500`
   - 툴팁 색상: `gray-900` → `var(--text-primary)`
   - Breadcrumbs 색상: 모든 `gray-*` → 디자인 시스템 토큰

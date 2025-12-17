@@ -87,9 +87,9 @@ error: "bg-error-600 text-white"
 - ✅ 버튼 및 라벨 색상 개선
 
 **주요 변경**:
-- 모든 `text-gray-*` → `text-[var(--text-*)]`
-- 모든 `bg-gray-*` → `bg-[rgb(var(--color-secondary-*))]`
-- 모든 `border-gray-*` → `border-[rgb(var(--color-secondary-*))]`
+- 모든 `text-gray-*` → `text-[var(--text-primary)]` 또는 `text-[var(--text-secondary)]` 등
+- 모든 `bg-gray-*` → `bg-[rgb(var(--color-secondary-100))]` 또는 `bg-[rgb(var(--color-secondary-200))]` 등
+- 모든 `border-gray-*` → `border-[rgb(var(--color-secondary-200))]` 또는 `border-[rgb(var(--color-secondary-300))]` 등
 - `focus:border-indigo-500` → `focus:border-primary-500`
 
 #### 3. UnifiedContentFilter 컴포넌트
