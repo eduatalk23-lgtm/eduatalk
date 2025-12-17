@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, queryOptions } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 import { CACHE_STALE_TIME_REALTIME } from "@/lib/constants/queryCache";
@@ -21,20 +21,15 @@ type UseActivePlanDetailsOptions = {
 };
 
 /**
- * 활성 플랜 상세 정보를 React Query로 로드하는 훅
- * 지연 로딩을 위해 클라이언트에서만 실행
+ * 활성 플랜 상세 정보 조회 쿼리 옵션 (타입 안전)
+ * 
+ * queryOptions를 사용하여 타입 안전성을 향상시킵니다.
+ * queryClient.getQueryData()에서도 타입 추론이 자동으로 됩니다.
  */
-export function useActivePlanDetails({
-  planId,
-  enabled = true,
-}: UseActivePlanDetailsOptions) {
-  return useQuery({
-    queryKey: ["activePlanDetails", planId],
+function activePlanDetailsQueryOptions(planId: string) {
+  return queryOptions({
+    queryKey: ["activePlanDetails", planId] as const,
     queryFn: async (): Promise<ActivePlanDetails | null> => {
-      if (!planId) {
-        return null;
-      }
-
       const supabase = createSupabaseBrowserClient();
 
       // 플랜 기본 정보 조회
@@ -112,9 +107,28 @@ export function useActivePlanDetails({
         isPaused: !!isPaused,
       };
     },
-    enabled: enabled && !!planId,
     staleTime: CACHE_STALE_TIME_REALTIME, // 10초 (실시간 업데이트를 위해 짧게)
     refetchInterval: 1000 * 30, // 30초마다 자동 리페치
   });
 }
+
+/**
+ * 활성 플랜 상세 정보를 React Query로 로드하는 훅
+ * 지연 로딩을 위해 클라이언트에서만 실행
+ */
+export function useActivePlanDetails({
+  planId,
+  enabled = true,
+}: UseActivePlanDetailsOptions) {
+  return useQuery({
+    ...activePlanDetailsQueryOptions(planId || ""),
+    enabled: enabled && !!planId,
+  });
+}
+
+/**
+ * 활성 플랜 상세 정보 쿼리 옵션을 외부에서도 사용할 수 있도록 export
+ * (prefetchQuery 등에서 사용)
+ */
+export { activePlanDetailsQueryOptions };
 
