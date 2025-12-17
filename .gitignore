@@ -50,9 +50,17 @@ next-env.d.ts
 # vscode
 .vscode/
 
+# Cursor IDE
+.cursor/
+.claude/
+*.cursor-settings
+*.claude-settings
+
 # Git related
 *.patch
 *.log
+.git-rewrite-todo
+.git-rewrite-todo-*
 
 # mcp
 .cursor/mcp.json
