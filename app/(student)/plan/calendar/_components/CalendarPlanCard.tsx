@@ -40,7 +40,7 @@ export function CalendarPlanCard({
   isLast = false,
   isMiddle = false,
 }: PlanCardProps) {
-  const contentTypeIcon = getContentTypeIcon(plan.content_type);
+  const ContentTypeIcon = getContentTypeIcon(plan.content_type);
   const isCompleted = plan.progress != null && plan.progress >= 100;
   const isActive = plan.actual_start_time && !plan.actual_end_time;
   const progressPercentage = plan.progress != null ? Math.round(plan.progress) : null;
@@ -111,7 +111,7 @@ export function CalendarPlanCard({
         <div className="flex flex-col gap-0.5 min-w-0">
           {/* 1행: 아이콘 + 교과/과목 + 상태 */}
           <div className="flex items-center gap-1 min-w-0">
-            <contentTypeIcon className="w-3 h-3 shrink-0" />
+            <ContentTypeIcon className="w-3 h-3 shrink-0" />
             <span 
               className={cn(
                 "truncate font-medium min-w-0 flex-1 text-[11px] leading-tight",
@@ -200,7 +200,7 @@ export function CalendarPlanCard({
 
           {/* 2행: 교재명(또는 강의명) 회차 */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className="text-xl md:text-2xl shrink-0">{contentTypeIcon}</span>
+            <ContentTypeIcon className="w-6 h-6 md:w-8 md:h-8 shrink-0" />
             <h3 className={cn("truncate text-base md:text-lg font-semibold min-w-0 flex-1", textPrimary)}>{plan.contentTitle}</h3>
             {plan.contentEpisode && (
               <span className="shrink-0 text-sm font-medium text-gray-600 dark:text-gray-400">
