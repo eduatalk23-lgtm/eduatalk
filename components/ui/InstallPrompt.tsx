@@ -58,11 +58,11 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
               ) : (
                 <Download className="w-5 h-5 text-info-600 dark:text-info-400" />
               )}
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">
+              <h3 className="text-body-2-bold text-text-primary">
                 앱 설치하기
               </h3>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">
+            <p className="text-body-2 text-text-secondary">
               {isIOS
                 ? "홈 화면에 추가하여 더 빠르게 접근하세요"
                 : "홈 화면에 추가하여 오프라인에서도 사용하세요"}
@@ -73,7 +73,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
             {!isIOS && (
               <button
                 onClick={handleInstall}
-                className="px-4 py-2 bg-info-600 hover:bg-info-700 text-white text-sm font-medium rounded-lg transition-base"
+                className="px-4 py-2 bg-info-600 hover:bg-info-700 text-white text-body-2 font-medium rounded-lg transition-base"
               >
                 설치
               </button>
@@ -90,10 +90,10 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
 
         {isIOS && (
           <div className="flex flex-col gap-3 pt-3 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-800))]">
-            <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]">
+            <div className="flex items-start gap-2 text-body-2 text-text-secondary">
               <Share2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex flex-col gap-1">
-                <p className="font-medium">설치 방법:</p>
+                <p className="text-body-2-bold">설치 방법:</p>
                 <ol className="list-decimal list-inside flex flex-col gap-1 ml-2">
                   <li>하단 공유 버튼 <Share2 className="w-3 h-3 inline" /> 클릭</li>
                   <li>&quot;홈 화면에 추가&quot; 선택</li>

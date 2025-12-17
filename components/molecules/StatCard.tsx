@@ -111,14 +111,14 @@ function StatCardComponent({
         <div className="flex items-center gap-3">
           <div className={cn("rounded-lg p-2", colors.iconBg)}>{icon}</div>
           <div className="flex flex-col gap-1">
-            <div className={cn("text-sm", colors.label)}>{label}</div>
-            <div className={cn("text-2xl font-bold", colors.value)}>{value}</div>
+            <div className={cn("text-body-2", colors.label)}>{label}</div>
+            <div className={cn("text-h1", colors.value)}>{value}</div>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          <div className={cn("text-sm", colors.label)}>{label}</div>
-          <div className={cn("text-2xl font-bold", colors.value)}>{value}</div>
+          <div className={cn("text-body-2", colors.label)}>{label}</div>
+          <div className={cn("text-h1", colors.value)}>{value}</div>
         </div>
       )}
     </div>

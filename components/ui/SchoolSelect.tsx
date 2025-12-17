@@ -285,7 +285,7 @@ export default function SchoolSelect({
                 onKeyDown={handleSearchKeyDown}
                 placeholder="학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
@@ -318,7 +318,7 @@ export default function SchoolSelect({
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[rgb(var(--color-secondary-50))]"
+                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-secondary hover:bg-[rgb(var(--color-secondary-50))]"
               >
                 <svg
                   className="h-4 w-4"
@@ -357,7 +357,7 @@ export default function SchoolSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="text-sm text-gray-500">검색 중...</span>
+                <span className="text-body-2 text-text-tertiary">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -366,21 +366,21 @@ export default function SchoolSelect({
                     key={school.id || school.name}
                     onClick={() => handleSelect(school)}
                     className={cn(
-                      "cursor-pointer px-4 py-2 text-sm hover:bg-indigo-50",
+                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-indigo-50",
                       selectedSchool?.id === school.id && "bg-indigo-100"
                     )}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="font-medium text-[var(--text-primary)]">{school.name}</div>
+                        <div className="text-body-2-bold text-text-primary">{school.name}</div>
                         {school.region && (
-                          <div className="text-xs text-[var(--text-tertiary)]">
+                          <div className="text-body-2 text-text-tertiary">
                             {school.region}
                           </div>
                         )}
                       </div>
                       {school.type && (
-                        <span className="whitespace-nowrap text-xs font-medium text-indigo-600">
+                        <span className="whitespace-nowrap text-body-2 font-medium text-indigo-600">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"
@@ -395,11 +395,11 @@ export default function SchoolSelect({
                 ))}
               </ul>
             ) : searchQuery.trim().length > 0 ? (
-              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
+              <div className="px-4 py-3 text-center text-body-2 text-text-tertiary">
                 검색 결과가 없습니다.
               </div>
             ) : (
-              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
+              <div className="px-4 py-3 text-center text-body-2 text-text-tertiary">
                 학교명을 입력하세요.
               </div>
             )}

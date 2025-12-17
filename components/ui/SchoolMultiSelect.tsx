@@ -271,7 +271,7 @@ export default function SchoolMultiSelect({
               <div
                 key={school.id || school.name}
                 className={cn(
-                  "group flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm transition-base",
+                  "group flex items-center gap-2 rounded-xl px-4 py-2.5 text-body-2 transition-base",
                   "hover:shadow-[var(--elevation-8)] hover:scale-[1.02]",
                   styles.card
                 )}
@@ -279,7 +279,7 @@ export default function SchoolMultiSelect({
                 {/* 순위 배지 */}
                 <div
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-body-2 font-bold",
                     styles.badge
                   )}
                   aria-label={`${rank}순위`}
@@ -297,7 +297,7 @@ export default function SchoolMultiSelect({
                   {rank !== 1 && rank}
                 </div>
                 {/* 학교 이름 */}
-                <span className="font-medium text-[var(--text-primary)]">{school.name}</span>
+                <span className="text-body-2-bold text-text-primary">{school.name}</span>
                 {/* 삭제 버튼 */}
                 {!disabled && (
                   <button
@@ -410,7 +410,7 @@ export default function SchoolMultiSelect({
                 onKeyDown={handleSearchKeyDown}
                 placeholder="대학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]"
+                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
@@ -443,7 +443,7 @@ export default function SchoolMultiSelect({
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-sm text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200"
+                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-secondary transition-base hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200"
               >
                 <svg
                   className="h-4 w-4"
@@ -482,7 +482,7 @@ export default function SchoolMultiSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="text-sm text-[var(--text-tertiary)]">검색 중...</span>
+                <span className="text-body-2 text-text-tertiary">검색 중...</span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -491,30 +491,30 @@ export default function SchoolMultiSelect({
                     key={school.id || school.name}
                     onClick={() => handleSelect(school)}
                     className={cn(
-                      "cursor-pointer px-4 py-2 text-sm hover:bg-indigo-50"
+                      "cursor-pointer px-4 py-2 text-body-2 hover:bg-indigo-50"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1">
-                        <div className="font-medium text-[var(--text-primary)]">
+                        <div className="text-body-2-bold text-text-primary">
                           {school.name}
                         </div>
                         <div className="flex items-center gap-2">
                           {school.region && (
-                            <span className="text-xs text-[var(--text-tertiary)]">
+                            <span className="text-body-2 text-text-tertiary">
                               {school.region}
                             </span>
                           )}
                           {/* 캠퍼스 정보 표시 */}
                           {school.name.includes("캠퍼스") && (
-                            <span className="text-xs text-blue-600 font-medium">
+                            <span className="text-body-2 font-medium text-blue-600">
                               {school.name.match(/(.+캠퍼스)/)?.[0] || ""}
                             </span>
                           )}
                         </div>
                       </div>
                       {school.type && (
-                        <span className="text-xs font-medium text-indigo-600 whitespace-nowrap">
+                        <span className="text-body-2 font-medium text-indigo-600 whitespace-nowrap">
                           {school.type === "중학교"
                             ? "중등"
                             : school.type === "고등학교"
@@ -529,11 +529,11 @@ export default function SchoolMultiSelect({
                 ))}
               </ul>
             ) : searchQuery.trim().length > 0 ? (
-              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
+              <div className="px-4 py-3 text-center text-body-2 text-text-tertiary">
                 검색 결과가 없습니다. 다른 검색어를 시도해보세요.
               </div>
             ) : (
-              <div className="px-4 py-3 text-center text-sm text-[var(--text-tertiary)]">
+              <div className="px-4 py-3 text-center text-body-2 text-text-tertiary">
                 대학교명을 입력하고 검색하세요.
               </div>
             )}
