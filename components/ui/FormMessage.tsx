@@ -14,9 +14,9 @@ const FormMessage = memo(function FormMessage({
 }: FormMessageProps) {
   const styles = useMemo(
     () => ({
-      error: "bg-red-50 text-red-700",
-      success: "bg-green-50 text-green-700",
-      info: "bg-blue-50 text-blue-700",
+      error: "bg-error-50 dark:bg-error-900/30 text-error-700 dark:text-error-300",
+      success: "bg-success-50 dark:bg-success-900/30 text-success-700 dark:text-success-300",
+      info: "bg-info-50 dark:bg-info-900/30 text-info-700 dark:text-info-300",
     }),
     []
   );

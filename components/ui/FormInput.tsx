@@ -27,7 +27,7 @@ const FormInput = memo(function FormInput({
         className={cn(
           "rounded border px-3 py-2",
           "text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]",
-          error && "border-red-500",
+          error && "border-error-500",
           className
         )}
         aria-invalid={error ? "true" : undefined}
@@ -35,7 +35,7 @@ const FormInput = memo(function FormInput({
         {...props}
       />
       {error && (
-        <span id={errorId} className="text-xs text-red-600 dark:text-red-400" role="alert">
+        <span id={errorId} className="text-xs text-error-600 dark:text-error-400" role="alert">
           {error}
         </span>
       )}

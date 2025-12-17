@@ -34,21 +34,21 @@ function ErrorStateComponent({
   return (
     <div
       className={cn(
-        "rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-8 md:p-12 text-center",
+        "rounded-xl border border-error-200 dark:border-error-800 bg-error-50 dark:bg-error-900/30 p-8 md:p-12 text-center",
         className
       )}
     >
       <div className="mx-auto flex flex-col gap-4 max-w-md">
         <div className="text-5xl md:text-6xl">{icon}</div>
         <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold text-red-900 dark:text-red-100">{title}</h3>
-          <p className="text-sm text-red-700 dark:text-red-300">{displayMessage}</p>
+          <h3 className="text-lg font-semibold text-error-900 dark:text-error-100">{title}</h3>
+          <p className="text-sm text-error-700 dark:text-error-300">{displayMessage}</p>
         </div>
         {/* actionHref가 있으면 Link 사용, onRetry가 있으면 Button 사용 */}
         {actionLabel && actionHref && (
           <Link
             href={actionHref}
-            className="inline-flex items-center justify-center rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+            className="inline-flex items-center justify-center rounded-lg bg-error-600 px-6 py-3 text-sm font-semibold text-white transition-base hover:bg-error-700"
           >
             {actionLabel}
           </Link>
