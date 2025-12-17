@@ -457,8 +457,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
                         {date} {isExcluded && "(이미 제외됨)"}
                       </button>
                     );
-                  });
-                })()}
+                  })}
               </div>
               {newExclusionDates.length > 0 && (
                 <p className="text-xs text-gray-600">
