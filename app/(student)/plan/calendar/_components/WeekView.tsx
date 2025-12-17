@@ -181,8 +181,14 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
                       {isExclusionDay && (
                         <span 
                           className={cn(
-                            "rounded-full px-1.5 py-0.5 text-[9px] font-semibold border shadow-[var(--elevation-1)] ring-1 ring-offset-0",
-                            dayTypeBadgeClass
+                            "rounded-full px-1.5 py-0.5 text-[9px] font-semibold border shadow-[var(--elevation-1)]",
+                            dayTypeBadgeClass,
+                            // "기타" 제외일은 더 강조 (지정휴일과 구분)
+                            dayExclusions.length > 0 && dayExclusions[0].exclusion_type === "기타" && 
+                            "ring-2 ring-red-500 ring-offset-1",
+                            // 다른 제외일은 기존 스타일 유지
+                            dayExclusions.length > 0 && dayExclusions[0].exclusion_type !== "기타" &&
+                            "ring-1 ring-offset-0"
                           )}
                           title={
                             dayTypeInfo.exclusion 

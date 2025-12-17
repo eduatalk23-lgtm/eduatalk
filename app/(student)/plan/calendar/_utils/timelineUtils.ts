@@ -44,9 +44,9 @@ export function buildTimelineSlots(
   // 해당 날짜의 제외일 확인
   const dayExclusions = exclusions.filter((exclusion) => exclusion.exclusion_date === dateStr);
   const isExclusionDay = dayExclusions.length > 0;
-  // 제외일 타입 확인 (휴일지정은 자율학습 허용, 기타는 모든 학습 관련 슬롯 필터링)
+  // 제외일 타입 확인 (휴일지정은 모두 표시, 기타는 모든 학습 관련 슬롯 필터링)
   const exclusionType = dayExclusions.length > 0 ? dayExclusions[0].exclusion_type : null;
-  const isHolidayDesignated = exclusionType === "휴일지정"; // 자율학습 허용
+  const isHolidayDesignated = exclusionType === "휴일지정"; // 모든 타임슬롯 표시
   const isOtherExclusion = exclusionType === "기타"; // 모든 학습 관련 슬롯 필터링
   
   // 해당 날짜의 플랜만 필터링
@@ -77,19 +77,17 @@ export function buildTimelineSlots(
     // 각 타임슬롯에 플랜 매칭
     sortedTimeSlots.forEach((slot) => {
       // 제외일인 경우 학습 관련 타임슬롯 필터링
-      // 학원일정은 제외일에도 표시 가능 (학원 수업은 별도)
       if (isExclusionDay) {
-        // "기타" 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
-        if (isOtherExclusion && slot.type !== "학원일정") {
-          return;
+        // "휴일지정" 제외일: 모든 타임슬롯 표시 (필터링 없음)
+        if (isHolidayDesignated) {
+          // 필터링하지 않음 - 모든 슬롯 표시
         }
-        // "휴일지정" 제외일: 자율학습은 허용, 나머지 학습 관련 슬롯은 필터링
-        if (isHolidayDesignated && slot.type !== "학원일정" && slot.type !== "자율학습") {
-          // 학습시간, 점심시간, 이동시간 등은 필터링, 자율학습만 허용
+        // "기타" 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
+        else if (isOtherExclusion && slot.type !== "학원일정") {
           return;
         }
         // "휴가", "개인사정" 등 기타 제외일: 모든 학습 관련 슬롯 필터링 (학원일정 제외)
-        if (!isHolidayDesignated && !isOtherExclusion && slot.type !== "학원일정" && slot.type !== "학습시간") {
+        else if (!isHolidayDesignated && !isOtherExclusion && slot.type !== "학원일정" && slot.type !== "학습시간") {
           return;
         }
       }
@@ -103,8 +101,8 @@ export function buildTimelineSlots(
       // 학습시간인 경우 플랜 매칭
       if (slot.type === "학습시간") {
         // 제외일인 경우 학습시간 슬롯은 표시하지 않음
-        // 단, "휴일지정"은 자율학습만 허용하므로 학습시간은 필터링
-        if (isExclusionDay) {
+        // 단, "휴일지정"은 모든 타임슬롯을 표시하므로 필터링하지 않음
+        if (isExclusionDay && !isHolidayDesignated) {
           return;
         }
         

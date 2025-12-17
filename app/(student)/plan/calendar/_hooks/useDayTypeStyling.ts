@@ -34,6 +34,11 @@ export function getDayTypeStyling(
   const dayType = dayTypeInfo?.type || "normal";
   const isTodayDate = isToday(date);
   
+  // 제외일 타입 확인
+  const exclusionType = exclusions.length > 0 ? exclusions[0].exclusion_type : null;
+  const isHolidayDesignated = exclusionType === "휴일지정";
+  const isOtherExclusion = exclusionType === "기타";
+  
   // 휴일 여부 계산: dayType이 휴일 관련이거나 제외일이 있는 경우
   const isHoliday =
     dayType === "지정휴일" ||
@@ -42,19 +47,36 @@ export function getDayTypeStyling(
     exclusions.length > 0;
 
   // 날짜 타입 색상 가져오기
+  // "기타" 제외일은 빨간색 계열로 강조, "휴일지정"은 노란색 계열 유지
+  let dayTypeForColor: string = isHoliday ? "지정휴일" : dayType;
+  if (isOtherExclusion) {
+    // "기타" 제외일은 빨간색 계열 색상 사용
+    dayTypeForColor = "기타";
+  }
+  
   const dayTypeColor = getDayTypeColor(
-    isHoliday ? "지정휴일" : dayType,
+    dayTypeForColor,
     isTodayDate
   );
-
-  // 스타일 클래스 조합
-  const bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
+  
+  // "기타" 제외일의 경우 모든 색상을 빨간색 계열로 오버라이드
+  let bgColorClass = `${dayTypeColor.border} ${dayTypeColor.bg}`;
+  let textColorClass = dayTypeColor.text;
+  let boldTextColorClass = dayTypeColor.boldText;
+  let badgeClass = dayTypeColor.badge;
+  
+  if (isOtherExclusion) {
+    bgColorClass = "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30";
+    textColorClass = "text-red-600 dark:text-red-400";
+    boldTextColorClass = "text-red-900 dark:text-red-100";
+    badgeClass = "bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700";
+  }
 
   return {
     bgColorClass,
-    textColorClass: dayTypeColor.text,
-    boldTextColorClass: dayTypeColor.boldText,
-    dayTypeBadgeClass: dayTypeColor.badge,
+    textColorClass,
+    boldTextColorClass,
+    dayTypeBadgeClass: badgeClass,
     isHoliday,
     isToday: isTodayDate,
     dayTypeInfo,

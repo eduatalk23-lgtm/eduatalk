@@ -1178,7 +1178,7 @@ export function getTimeSlotColorClasses(type: TimeSlotType): string {
  * 
  * 플랜 그룹 스케줄에서 사용되는 날짜 유형을 나타냅니다.
  */
-export type DayTypeBadge = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
+export type DayTypeBadge = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정" | "기타";
 
 /**
  * 날짜 타입 배지 색상 매핑 (제네릭 함수 사용)
@@ -1192,6 +1192,7 @@ const dayTypeBadgeColorMap: Record<DayTypeBadge, string> = {
   "지정휴일": "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-200 dark:border-yellow-800",
   "휴가": "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
   "개인일정": "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800",
+  "기타": "bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
 } as const;
 
 /**
@@ -1292,6 +1293,12 @@ export function getDayTypeColorObject(
       border: "border-purple-300 dark:border-purple-700",
       text: "text-purple-600 dark:text-purple-400",
       boldText: "text-purple-900 dark:text-purple-100",
+    },
+    "기타": {
+      bg: "bg-red-50 dark:bg-red-900/30",
+      border: "border-red-300 dark:border-red-700",
+      text: "text-red-600 dark:text-red-400",
+      boldText: "text-red-900 dark:text-red-100",
     },
   };
 
