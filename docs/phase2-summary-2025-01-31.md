@@ -46,6 +46,16 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 
 `SELECT *` 패턴이 많은 곳에서 사용되고 있지만, 모든 것을 최적화하는 것은 시간이 많이 걸리므로 가이드라인을 제공했습니다.
 
+### 5. React Query 캐싱 전략 최적화 ✅
+
+**파일**: `lib/hooks/useActivePlan.ts`, `lib/hooks/useActivePlanDetails.ts`, `lib/providers/QueryProvider.tsx`
+
+- 하드코딩된 `staleTime` 값을 캐시 전략 상수로 교체
+- QueryProvider 기본 설정을 캐시 전략 상수와 일치
+- 서버 사이드 캐싱 가이드라인 문서 작성
+
+**문서**: `docs/phase2-caching-strategy-optimization-2025-01-31.md`
+
 ## 생성된 파일
 
 1. `lib/data/core/typedQueryBuilder.ts` - 타입 안전한 쿼리 빌더
@@ -57,6 +67,9 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 
 1. `lib/data/core/errorHandler.ts` - 구조화된 에러 사용하도록 개선
 2. `lib/data/core/index.ts` - 새로운 모듈 export 추가
+3. `lib/hooks/useActivePlan.ts` - 캐시 전략 상수 적용
+4. `lib/hooks/useActivePlanDetails.ts` - 캐시 전략 상수 적용
+5. `lib/providers/QueryProvider.tsx` - 캐시 전략 상수 적용
 
 ## 개선 효과
 
@@ -65,6 +78,8 @@ Phase 2에서 타입 안전한 쿼리 빌더를 생성하고, 에러 처리 패�
 3. **에러 처리 통일**: 일관된 에러 처리 패턴 적용
 4. **에러 분류 자동화**: 에러 코드를 카테고리와 심각도로 자동 매핑
 5. **로깅 개선**: 심각도에 따른 적절한 로그 레벨 사용
+6. **캐싱 전략 일관성**: 하드코딩된 값을 상수로 교체하여 유지보수성 향상
+7. **코드 일관성**: 모든 훅에서 동일한 캐시 전략 상수 사용
 
 ## 남은 작업 (규모가 커서 별도 세션 권장)
 
