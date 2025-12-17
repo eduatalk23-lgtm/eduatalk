@@ -33,10 +33,12 @@ export type ErrorHandlingOptions = {
   ignoreErrorCodes?: string[];
 };
 
+import { POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
+
 /**
  * 기본 무시할 에러 코드
  */
-const DEFAULT_IGNORE_ERROR_CODES = ["PGRST116"];
+const DEFAULT_IGNORE_ERROR_CODES = [POSTGREST_ERROR_CODES.NO_ROWS_RETURNED];
 
 /**
  * 에러를 안전하게 처리하고 로깅
@@ -134,10 +136,14 @@ export function isError(
   return !ignoreErrorCodes.includes(error.code || "");
 }
 
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+
 /**
  * 42703 에러 코드 확인 (컬럼이 존재하지 않을 때)
+ * 
+ * @deprecated ErrorCodeCheckers.isColumnNotFound 사용 권장
  */
 export function isColumnNotFoundError(error: PostgrestError | null): boolean {
-  return error?.code === "42703";
+  return ErrorCodeCheckers.isColumnNotFound(error);
 }
 

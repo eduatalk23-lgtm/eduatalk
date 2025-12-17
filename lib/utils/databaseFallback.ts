@@ -4,20 +4,26 @@
  * 다양한 에러 타입에 대한 fallback 처리를 지원합니다.
  */
 
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+
 /**
  * 컬럼 누락 에러인지 확인
  * PostgreSQL 에러 코드 42703 (undefined_column)
+ * 
+ * @deprecated ErrorCodeCheckers.isColumnNotFound 사용 권장
  */
 export function isColumnMissingError(error: any): boolean {
-  return error?.code === "42703";
+  return ErrorCodeCheckers.isColumnNotFound(error);
 }
 
 /**
  * View 또는 테이블이 존재하지 않는 에러인지 확인
  * PostgreSQL 에러 코드 PGRST205 (table/view not found in schema cache)
+ * 
+ * @deprecated ErrorCodeCheckers.isViewNotFound 사용 권장
  */
 export function isViewNotFoundError(error: any): boolean {
-  return error?.code === "PGRST205";
+  return ErrorCodeCheckers.isViewNotFound(error);
 }
 
 /**
@@ -38,8 +44,10 @@ export async function checkViewExists(
       .select("1")
       .limit(0);
     
+import { POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
+
     // PGRST205 에러는 View가 없다는 의미
-    if (error?.code === "PGRST205") {
+    if (error?.code === POSTGREST_ERROR_CODES.TABLE_VIEW_NOT_FOUND) {
       return false;
     }
     
@@ -75,7 +83,9 @@ export async function checkViewExists(
  * const result = await withErrorFallback(
  *   () => query(),
  *   () => fallbackQuery(),
- *   (error) => error?.code === "42703" || error?.code === "42P01"
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
+
+ *   (error) => error?.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN || error?.code === POSTGRES_ERROR_CODES.UNDEFINED_TABLE
  * );
  * ```
  */

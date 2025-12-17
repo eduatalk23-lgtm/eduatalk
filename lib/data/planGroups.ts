@@ -1,6 +1,7 @@
 // 플랜 그룹 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { POSTGRES_ERROR_CODES, POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
   PlanGroup,
@@ -202,7 +203,7 @@ export async function getPlanGroupsForStudent(
   let { data, error } = await query;
   let planGroupsData: PlanGroup[] | null = data as PlanGroup[] | null;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // 마이그레이션 상태 확인 (캐시 사용)
     const hasSchedulerOptions = await checkColumnExists(
       "plan_groups",
@@ -317,7 +318,7 @@ export async function getPlanGroupById(
 
   // 컬럼이 없는 경우 fallback 처리
   // 마이그레이션 상태를 먼저 확인하여 불필요한 재시도 방지
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // scheduler_options 컬럼 존재 여부 확인 (캐시 사용)
     const hasSchedulerOptions = await checkColumnExists(
       "plan_groups",
@@ -519,7 +520,7 @@ export async function createPlanGroup(
     .single();
 
   // 컬럼이 없는 경우 fallback 처리
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // scheduler_options가 포함된 경우 제외하고 재시도
     if (payload.scheduler_options !== undefined) {
       if (process.env.NODE_ENV === "development") {
@@ -612,7 +613,7 @@ export async function updatePlanGroup(
     .is("deleted_at", null);
 
   // 컬럼이 없는 경우 fallback 처리
-  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+  if (error && (error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN || error.code === POSTGREST_ERROR_CODES.NO_CONTENT)) {
     // scheduler_options가 포함된 경우 제외하고 재시도
     if (payload.scheduler_options !== undefined) {
       if (process.env.NODE_ENV === "development") {
@@ -937,7 +938,7 @@ export async function getPlanContents(
     });
   }
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // 컬럼이 없는 경우 fallback 쿼리 시도
     const fallbackSelect = () =>
       supabase
@@ -1039,7 +1040,7 @@ export async function createPlanContents(
 
   let { error } = await supabase.from("plan_contents").insert(payload);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[createPlanContents] 컬럼이 없어 fallback 쿼리 사용", {
         groupId,
@@ -1096,7 +1097,7 @@ export async function getPlanExclusions(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ data, error } = await selectExclusions());
   }
 
@@ -1135,7 +1136,7 @@ export async function getStudentExclusions(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ data, error } = await selectExclusions());
   }
 
@@ -1330,7 +1331,7 @@ async function createExclusions(
 
       let { error } = await supabase.from("plan_exclusions").insert(payload);
 
-      if (error && error.code === "42703") {
+      if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
         const fallbackPayload = payload.map(
           ({ tenant_id: _tenantId, ...rest }) => rest
         );
@@ -1418,7 +1419,7 @@ async function createExclusions(
 
   let { error } = await supabase.from("plan_exclusions").insert(payload);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     const fallbackPayload = payload.map(
       ({ tenant_id: _tenantId, ...rest }) => rest
     );
@@ -1524,7 +1525,7 @@ export async function getAcademySchedules(
   let schedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
   // tenant_id 컬럼 없는 경우 재시도
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[getAcademySchedules] tenant_id 컬럼 없음, 재시도", { groupId, tenantId });
     }
@@ -1902,7 +1903,7 @@ export async function createPlanAcademySchedules(
 
     let { error } = await supabase.from("academy_schedules").insert(payload);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
       ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
     }
@@ -2033,7 +2034,7 @@ export async function createStudentAcademySchedules(
 
   let { error } = await supabase.from("academy_schedules").insert(payload);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
     ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
   }
@@ -2075,7 +2076,7 @@ export async function getPlanGroupByIdForAdmin(
 
   let { data, error } = await selectGroup().maybeSingle<PlanGroup>();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // 컬럼이 없는 경우 fallback
     const fallbackSelect = () =>
       supabase
@@ -2222,7 +2223,7 @@ export async function getPlanGroupWithDetailsForAdmin(
     let { data, error } = await selectSchedules();
     adminSchedulesData = data as AcademySchedule[] | null;
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       // academy_id가 없는 경우를 대비한 fallback
       const fallbackSelect = () =>
         adminClient

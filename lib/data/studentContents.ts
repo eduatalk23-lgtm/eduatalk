@@ -89,7 +89,7 @@ export async function getBooks(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const fallbackQuery = supabase.from("books").select("*");
 
@@ -138,7 +138,7 @@ export async function getLectures(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const fallbackQuery = supabase.from("lectures").select("*");
 
@@ -187,7 +187,7 @@ export async function getCustomContents(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const fallbackQuery = supabase.from("student_custom_contents").select("*");
 
@@ -246,7 +246,7 @@ export async function createBook(
     .select("id")
     .single();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
     ({ data, error } = await supabase
@@ -306,7 +306,7 @@ export async function createLecture(
     .select("id")
     .single();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
     ({ data, error } = await supabase
@@ -354,7 +354,7 @@ export async function createCustomContent(
     .select("id")
     .single();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
     ({ data, error } = await supabase
@@ -399,7 +399,7 @@ export async function updateBook(
     .eq("id", bookId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase.from("books").update(payload).eq("id", bookId));
   }
 
@@ -440,7 +440,7 @@ export async function updateLecture(
     .eq("id", lectureId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase.from("lectures").update(payload).eq("id", lectureId));
   }
 
@@ -474,7 +474,7 @@ export async function updateCustomContent(
     .eq("id", contentId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase
       .from("student_custom_contents")
       .update(payload)
@@ -504,7 +504,7 @@ export async function deleteBook(
     .eq("id", bookId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase.from("books").delete().eq("id", bookId));
   }
 
@@ -531,7 +531,7 @@ export async function deleteLecture(
     .eq("id", lectureId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase.from("lectures").delete().eq("id", lectureId));
   }
 
@@ -558,7 +558,7 @@ export async function deleteCustomContent(
     .eq("id", contentId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase
       .from("student_custom_contents")
       .delete()

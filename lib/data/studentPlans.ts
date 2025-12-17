@@ -255,7 +255,7 @@ export async function getPlansForStudent(
 
   let { data, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id 컬럼이 없는 경우
     let fallbackQuery = supabase
       .from("student_plan")
@@ -494,7 +494,7 @@ export async function getPlanById(
 
   let { data, error } = await query.maybeSingle<Plan>();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ data, error } = await selectPlan().maybeSingle<Plan>());
   }
 
@@ -580,7 +580,7 @@ export async function createPlan(
     .select("id")
     .single();
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     // fallback: tenant_id, student_id 컬럼이 없는 경우
     const {
       tenant_id: _tenantId,
@@ -651,7 +651,7 @@ export async function updatePlanSafe(
     .eq("id", planId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase
       .from("student_plan")
       .update(payload)
@@ -725,7 +725,7 @@ export async function updatePlan(
     .eq("id", planId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase
       .from("student_plan")
       .update(payload)
@@ -755,7 +755,7 @@ export async function deletePlan(
     .eq("id", planId)
     .eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
     ({ error } = await supabase.from("student_plan").delete().eq("id", planId));
   }
 
@@ -791,7 +791,7 @@ export async function deletePlans(
       .in("id", batch)
       .eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ error } = await supabase
         .from("student_plan")
         .delete()

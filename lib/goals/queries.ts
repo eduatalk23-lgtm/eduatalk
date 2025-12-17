@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Goal, GoalProgress } from "./calc";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -19,7 +20,7 @@ export async function getAllGoals(
 
     let { data, error } = await selectGoals().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data, error } = await selectGoals());
     }
 
@@ -47,7 +48,7 @@ export async function getGoalById(
 
     let { data, error } = await selectGoal().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data, error } = await selectGoal().maybeSingle());
     }
 
@@ -79,7 +80,7 @@ export async function getGoalProgress(
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data, error } = await selectProgress());
     }
 
@@ -112,7 +113,7 @@ export async function getActiveGoals(
 
     let { data, error } = await selectGoals().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data, error } = await selectGoals());
     }
 
@@ -146,7 +147,7 @@ export async function getWeekGoals(
 
     let { data, error } = await selectGoals().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
       ({ data, error } = await selectGoals());
     }
 
