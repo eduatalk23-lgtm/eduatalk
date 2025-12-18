@@ -175,7 +175,7 @@ export async function searchMasterBooks(
 
 /**
  * 마스터 교재 목록 조회 (드롭다운용)
- * 활성화된 교재만 조회합니다.
+ * 초기 로드 시 사용 (최대 50개)
  */
 export async function getMasterBooksList(): Promise<
   Array<{ id: string; title: string }>
@@ -186,7 +186,8 @@ export async function getMasterBooksList(): Promise<
     .from("master_books")
     .select("id, title")
     .eq("is_active", true)
-    .order("title", { ascending: true });
+    .order("title", { ascending: true })
+    .limit(50);
 
   if (error) {
     console.error("[data/contentMasters] 교재 목록 조회 실패", error);
@@ -194,6 +195,54 @@ export async function getMasterBooksList(): Promise<
   }
 
   return (data as Array<{ id: string; title: string }> | null) ?? [];
+}
+
+/**
+ * 마스터 교재 검색 (서버 사이드)
+ * 검색어로 교재를 검색합니다. 최대 50개 반환.
+ */
+export async function searchMasterBooksForDropdown(
+  searchQuery: string
+): Promise<Array<{ id: string; title: string }>> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("master_books")
+    .select("id, title")
+    .eq("is_active", true)
+    .ilike("title", `%${searchQuery}%`)
+    .order("title", { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error("[data/contentMasters] 교재 검색 실패", error);
+    return [];
+  }
+
+  return (data as Array<{ id: string; title: string }> | null) ?? [];
+}
+
+/**
+ * 마스터 교재 단일 조회 (ID로)
+ * 선택된 교재 정보를 조회합니다.
+ */
+export async function getMasterBookForDropdown(
+  bookId: string
+): Promise<{ id: string; title: string } | null> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("master_books")
+    .select("id, title")
+    .eq("id", bookId)
+    .single();
+
+  if (error) {
+    console.error("[data/contentMasters] 교재 조회 실패", error);
+    return null;
+  }
+
+  return data as { id: string; title: string } | null;
 }
 
 /**

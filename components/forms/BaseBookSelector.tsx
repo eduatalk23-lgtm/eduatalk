@@ -55,10 +55,9 @@ function BaseBookSelectorComponent({
 
   // 검색된 교재 목록 (메모이제이션)
   const filteredBooks = useMemo(
-    () =>
-      books.filter((book) =>
-        book.title.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
+    () => books.filter((book) =>
+      book.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
     [books, searchQuery]
   );
 

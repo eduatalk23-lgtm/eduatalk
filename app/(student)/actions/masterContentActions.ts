@@ -16,6 +16,8 @@ import {
   createLectureEpisode,
   deleteAllLectureEpisodes,
   getMasterBooksList,
+  searchMasterBooksForDropdown,
+  getMasterBookForDropdown,
 } from "@/lib/data/contentMasters";
 import {
   MasterBook,
@@ -33,6 +35,7 @@ import {
 
 /**
  * 마스터 교재 목록 조회 (Server Action)
+ * 초기 로드용 - 최대 50개
  */
 async function _getMasterBooksList(): Promise<
   Array<{ id: string; title: string }>
@@ -42,6 +45,35 @@ async function _getMasterBooksList(): Promise<
 }
 
 export const getMasterBooksListAction = withErrorHandling(_getMasterBooksList);
+
+/**
+ * 마스터 교재 검색 (Server Action)
+ * 검색어로 교재 검색 - 최대 50개
+ */
+async function _searchMasterBooks(
+  searchQuery: string
+): Promise<Array<{ id: string; title: string }>> {
+  await requireAdminOrConsultant();
+  if (!searchQuery || searchQuery.trim().length < 1) {
+    return await getMasterBooksList();
+  }
+  return await searchMasterBooksForDropdown(searchQuery.trim());
+}
+
+export const searchMasterBooksAction = withErrorHandling(_searchMasterBooks);
+
+/**
+ * 마스터 교재 단일 조회 (Server Action)
+ * ID로 교재 정보 조회
+ */
+async function _getMasterBookById(
+  bookId: string
+): Promise<{ id: string; title: string } | null> {
+  await requireAdminOrConsultant();
+  return await getMasterBookForDropdown(bookId);
+}
+
+export const getMasterBookByIdAction = withErrorHandling(_getMasterBookById);
 
 /**
  * 서비스 마스터 교재 생성
