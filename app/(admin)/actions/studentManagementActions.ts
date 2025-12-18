@@ -630,3 +630,296 @@ export async function updateStudentInfo(
 
   return { success: true };
 }
+
+/**
+ * 연결 코드 생성 (STU-XXXX-XXXX 형식)
+ */
+function generateConnectionCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const getRandomChar = () => chars[Math.floor(Math.random() * chars.length)];
+  
+  const part1 = Array.from({ length: 4 }, getRandomChar).join("");
+  const part2 = Array.from({ length: 4 }, getRandomChar).join("");
+  
+  return `STU-${part1}-${part2}`;
+}
+
+/**
+ * 신규 학생 등록 (인증 계정 없이)
+ * 
+ * @param formData - 학생 정보 FormData
+ * @returns 학생 ID와 연결 코드
+ */
+export async function createStudent(
+  formData: FormData
+): Promise<{
+  success: boolean;
+  studentId?: string;
+  connectionCode?: string;
+  error?: string;
+}> {
+  const { role, tenantId, userId } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  if (!tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
+  if (!userId) {
+    return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // FormData를 객체로 변환
+  const { formDataToObject } = await import("@/lib/validation/schemas");
+  const { createStudentSchema } = await import("@/lib/validation/studentSchemas");
+  
+  const obj = formDataToObject(formData);
+  
+  // 스키마 검증
+  const validationResult = createStudentSchema.safeParse({
+    basic: obj,
+    profile: obj,
+    career: obj,
+  });
+
+  if (!validationResult.success) {
+    const firstError = validationResult.error.errors[0];
+    return {
+      success: false,
+      error: firstError?.message || "입력 정보가 올바르지 않습니다.",
+    };
+  }
+
+  const { basic, profile, career } = validationResult.data;
+
+  try {
+    // 학생 ID 생성 (UUID)
+    const studentId = crypto.randomUUID();
+
+    // 1. students 테이블 레코드 생성
+    const { upsertStudent } = await import("@/lib/data/students");
+    const basicResult = await upsertStudent({
+      id: studentId,
+      tenant_id: tenantId,
+      name: basic.name,
+      grade: basic.grade,
+      class: basic.class ?? "",
+      birth_date: basic.birth_date,
+      school_id: basic.school_id ?? null,
+      school_type: basic.school_type ?? null,
+      division: basic.division ?? null,
+      student_number: basic.student_number ?? null,
+      enrolled_at: basic.enrolled_at ?? null,
+      status: basic.status ?? "enrolled",
+    });
+
+    if (!basicResult.success) {
+      return { success: false, error: basicResult.error || "학생 정보 저장에 실패했습니다." };
+    }
+
+    // 2. student_profiles 테이블 레코드 생성 (데이터 있는 경우)
+    if (profile) {
+      const { upsertStudentProfile } = await import("@/lib/data/studentProfiles");
+      const profileResult = await upsertStudentProfile({
+        id: studentId,
+        tenant_id: tenantId,
+        gender: profile.gender ?? null,
+        phone: profile.phone ?? null,
+        mother_phone: profile.mother_phone ?? null,
+        father_phone: profile.father_phone ?? null,
+        address: profile.address ?? null,
+        address_detail: profile.address_detail ?? null,
+        postal_code: profile.postal_code ?? null,
+        emergency_contact: profile.emergency_contact ?? null,
+        emergency_contact_phone: profile.emergency_contact_phone ?? null,
+        medical_info: profile.medical_info ?? null,
+        bio: profile.bio ?? null,
+        interests: profile.interests ?? null,
+      });
+
+      if (!profileResult.success) {
+        // 프로필 저장 실패는 치명적이지 않으므로 경고만
+        console.warn("[admin/studentManagement] 프로필 저장 실패:", profileResult.error);
+      }
+    }
+
+    // 3. student_career_goals 테이블 레코드 생성 (데이터 있는 경우)
+    if (career) {
+      const { upsertStudentCareerGoal } = await import("@/lib/data/studentCareerGoals");
+      const careerResult = await upsertStudentCareerGoal({
+        student_id: studentId,
+        tenant_id: tenantId,
+        exam_year: career.exam_year ?? null,
+        curriculum_revision: career.curriculum_revision ?? null,
+        desired_university_ids: career.desired_university_ids ?? null,
+        desired_career_field: career.desired_career_field ?? null,
+        target_major: career.target_major ?? null,
+        target_major_2: career.target_major_2 ?? null,
+        target_score: career.target_score ?? null,
+        target_university_type: career.target_university_type ?? null,
+        notes: career.notes ?? null,
+      });
+
+      if (!careerResult.success) {
+        // 진로 정보 저장 실패는 치명적이지 않으므로 경고만
+        console.warn("[admin/studentManagement] 진로 정보 저장 실패:", careerResult.error);
+      }
+    }
+
+    // 4. 연결 코드 생성 및 저장
+    const connectionCode = generateConnectionCode();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
+
+    const { error: codeError } = await supabase
+      .from("student_connection_codes")
+      .insert({
+        student_id: studentId,
+        connection_code: connectionCode,
+        expires_at: expiresAt.toISOString(),
+        created_by: userId,
+      });
+
+    if (codeError) {
+      console.error("[admin/studentManagement] 연결 코드 저장 실패", codeError);
+      return {
+        success: false,
+        error: `연결 코드 저장에 실패했습니다: ${codeError.message}`,
+      };
+    }
+
+    revalidatePath("/admin/students");
+
+    return {
+      success: true,
+      studentId,
+      connectionCode,
+    };
+  } catch (error) {
+    console.error("[admin/studentManagement] 학생 등록 중 오류", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "학생 등록 중 알 수 없는 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 연결 코드 검증 (회원가입 시 사용)
+ * 
+ * @param connectionCode - 연결 코드
+ * @returns 학생 ID 또는 에러
+ */
+export async function validateConnectionCode(
+  connectionCode: string
+): Promise<{
+  success: boolean;
+  studentId?: string;
+  error?: string;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 코드 형식 검증
+  if (!connectionCode.match(/^STU-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+    return { success: false, error: "연결 코드 형식이 올바르지 않습니다." };
+  }
+
+  // 코드 조회
+  const { data, error } = await supabase
+    .from("student_connection_codes")
+    .select("student_id, expires_at, used_at")
+    .eq("connection_code", connectionCode)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[admin/studentManagement] 연결 코드 조회 실패", error);
+    return { success: false, error: "연결 코드를 확인할 수 없습니다." };
+  }
+
+  if (!data) {
+    return { success: false, error: "유효하지 않은 연결 코드입니다." };
+  }
+
+  // 만료 확인
+  const expiresAt = new Date(data.expires_at);
+  if (expiresAt < new Date()) {
+    return { success: false, error: "만료된 연결 코드입니다." };
+  }
+
+  // 사용 여부 확인
+  if (data.used_at) {
+    return { success: false, error: "이미 사용된 연결 코드입니다." };
+  }
+
+  return {
+    success: true,
+    studentId: data.student_id,
+  };
+}
+
+/**
+ * 연결 코드 재발급
+ * 
+ * @param studentId - 학생 ID
+ * @returns 새로운 연결 코드
+ */
+export async function regenerateConnectionCode(
+  studentId: string
+): Promise<{
+  success: boolean;
+  connectionCode?: string;
+  error?: string;
+}> {
+  const { role, tenantId, userId } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  if (!tenantId || !userId) {
+    return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 기존 코드 비활성화 (used_at 설정)
+  await supabase
+    .from("student_connection_codes")
+    .update({ used_at: new Date().toISOString() })
+    .eq("student_id", studentId)
+    .is("used_at", null);
+
+  // 새 코드 생성
+  const connectionCode = generateConnectionCode();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
+
+  const { error: codeError } = await supabase
+    .from("student_connection_codes")
+    .insert({
+      student_id: studentId,
+      connection_code: connectionCode,
+      expires_at: expiresAt.toISOString(),
+      created_by: userId,
+    });
+
+  if (codeError) {
+    console.error("[admin/studentManagement] 연결 코드 재발급 실패", codeError);
+    return {
+      success: false,
+      error: `연결 코드 재발급에 실패했습니다: ${codeError.message}`,
+    };
+  }
+
+  revalidatePath(`/admin/students/${studentId}`);
+
+  return {
+    success: true,
+    connectionCode,
+  };
+}
