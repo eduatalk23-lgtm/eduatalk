@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BookDetail, LectureEpisode, UseRangeEditorReturn } from "../types";
 import { toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import { parseContentDetailsResponse } from "@/lib/api/contentDetails";
 
 type ContentDetail =
   | { details: BookDetail[]; type: "book" }
@@ -140,10 +141,40 @@ export function useRangeEditor({
 
         if (detailsResponse.ok) {
           const result = await detailsResponse.json();
-          const detailData: ContentDetail =
-            content.content_type === "book"
-              ? { details: result.details || [], type: "book" as const }
-              : { details: result.episodes || [], type: "lecture" as const };
+          
+          // API 응답을 타입 안전하게 파싱
+          const parsedData = parseContentDetailsResponse(result, content.content_type);
+          
+          if (!parsedData) {
+            console.error("[useRangeEditor] 상세정보 파싱 실패:", {
+              contentId: content.content_id,
+              contentType: content.content_type,
+              response: result,
+            });
+            // 파싱 실패 시 빈 배열로 처리
+            const detailData: ContentDetail = {
+              details: [],
+              type: content.content_type,
+            } as ContentDetail;
+            
+            // 상세정보가 없는 경우 로깅 (개발 환경에서만)
+            if (process.env.NODE_ENV === "development") {
+              console.debug("[useRangeEditor] 상세정보 없음 (정상):", {
+                type: "NO_DETAILS",
+                contentType: content.content_type,
+                contentId: content.content_id,
+              });
+            }
+            
+            setContentDetails((prev) => {
+              const newMap = new Map(prev);
+              newMap.set(editingRangeIndex, detailData);
+              return newMap;
+            });
+            return;
+          }
+          
+          const detailData: ContentDetail = parsedData as ContentDetail;
 
           // 상세정보가 없는 경우 로깅 (개발 환경에서만)
           if (detailData.details.length === 0) {

@@ -6,6 +6,7 @@ import {
 } from "@/lib/errors/planGroupErrors";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BookDetail, LectureEpisode } from "../types";
+import { parseContentDetailsResponse } from "@/lib/api/contentDetails";
 
 type UseContentDetailsProps = {
   editingRangeIndex: { type: "student" | "recommended"; index: number } | null;
@@ -76,10 +77,25 @@ export function useContentDetails({
         const response = await fetch(apiPath);
         if (response.ok) {
           const result = await response.json();
-          const detailData =
-            content.content_type === "book"
-              ? { details: result.details || [], type: "book" as const }
-              : { details: result.episodes || [], type: "lecture" as const };
+          
+          // API 응답을 타입 안전하게 파싱
+          const detailData = parseContentDetailsResponse(result, content.content_type);
+          
+          if (!detailData) {
+            console.error("[useContentDetails] 상세정보 파싱 실패:", {
+              contentId: content.content_id,
+              contentType: content.content_type,
+              response: result,
+            });
+            // 파싱 실패 시 빈 배열로 처리
+            const fallbackData = {
+              details: [] as BookDetail[] | LectureEpisode[],
+              type: content.content_type as "book" | "lecture",
+            };
+            cachedDetailsRef.current.set(content.content_id, fallbackData);
+            setContentDetails(new Map([[contentKey, fallbackData]]));
+            return;
+          }
 
           // 캐시에 저장
           cachedDetailsRef.current.set(content.content_id, detailData);
