@@ -41,9 +41,9 @@ ON student_divisions FOR SELECT
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'admin'
+    SELECT 1 FROM admin_users
+    WHERE admin_users.id = auth.uid()
+    AND admin_users.role IN ('admin', 'consultant', 'superadmin')
   )
 );
 
@@ -52,9 +52,9 @@ ON student_divisions FOR INSERT
 TO authenticated
 WITH CHECK (
   EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'admin'
+    SELECT 1 FROM admin_users
+    WHERE admin_users.id = auth.uid()
+    AND admin_users.role IN ('admin', 'consultant', 'superadmin')
   )
 );
 
@@ -63,9 +63,9 @@ ON student_divisions FOR UPDATE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'admin'
+    SELECT 1 FROM admin_users
+    WHERE admin_users.id = auth.uid()
+    AND admin_users.role IN ('admin', 'consultant', 'superadmin')
   )
 );
 
@@ -74,9 +74,9 @@ ON student_divisions FOR DELETE
 TO authenticated
 USING (
   EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'admin'
+    SELECT 1 FROM admin_users
+    WHERE admin_users.id = auth.uid()
+    AND admin_users.role IN ('admin', 'consultant', 'superadmin')
   )
 );
 
