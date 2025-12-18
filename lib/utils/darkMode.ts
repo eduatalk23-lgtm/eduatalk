@@ -676,6 +676,42 @@ export function inlineButtonSuccess(className?: string): string {
   );
 }
 
+/**
+ * 인라인 버튼 스타일 (outline variant)
+ * Button 컴포넌트를 사용할 수 없는 경우에만 사용
+ */
+export function inlineButtonOutline(className?: string): string {
+  return cn(
+    "inline-flex items-center justify-center rounded-lg border px-4 py-2 text-body-2 font-semibold transition-colors",
+    bgSurfaceVar,
+    borderInputVar,
+    textSecondaryVar,
+    bgHoverVar,
+    className
+  );
+}
+
+// ============================================
+// 입력 필드 기본 스타일
+// ============================================
+
+/**
+ * 기본 입력 필드 스타일 (Input 컴포넌트를 사용할 수 없는 경우)
+ * CSS 변수 기반으로 다크모드 자동 지원
+ */
+export function inputBaseStyle(className?: string): string {
+  return cn(
+    "w-full rounded-md border px-3 py-2 text-body-2",
+    bgSurfaceVar,
+    borderInputVar,
+    textPrimaryVar,
+    "focus:border-indigo-500 dark:focus:border-indigo-400",
+    "focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-400",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    className
+  );
+}
+
 // ============================================
 // 입력 그룹 스타일
 // ============================================
@@ -1605,5 +1641,33 @@ export const successMessageStyles = {
   title: "text-sm font-semibold text-green-800 dark:text-green-200",
   text: "text-sm text-green-700 dark:text-green-300",
   link: "text-sm text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 underline font-medium",
+} as const;
+
+/**
+ * 경고 메시지 스타일 객체
+ */
+export const warningMessageStyles = {
+  container: cn(
+    "rounded-lg border p-4",
+    "border-yellow-300 dark:border-yellow-800",
+    "bg-yellow-50 dark:bg-yellow-900/30"
+  ),
+  title: "text-sm font-semibold text-yellow-800 dark:text-yellow-200",
+  text: "text-sm text-yellow-700 dark:text-yellow-300",
+  link: "text-sm text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 underline font-medium",
+} as const;
+
+/**
+ * 정보 메시지 스타일 객체
+ */
+export const infoMessageStyles = {
+  container: cn(
+    "rounded-lg border p-4",
+    "border-blue-300 dark:border-blue-800",
+    "bg-blue-50 dark:bg-blue-900/30"
+  ),
+  title: "text-sm font-semibold text-blue-800 dark:text-blue-200",
+  text: "text-sm text-blue-700 dark:text-blue-300",
+  link: "text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline font-medium",
 } as const;
 

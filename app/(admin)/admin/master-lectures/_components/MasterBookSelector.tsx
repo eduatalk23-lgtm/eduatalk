@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/atoms/Button";
 import {
   createMasterBookWithoutRedirect,
   searchMasterBooksAction,
@@ -10,6 +12,17 @@ import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDet
 import { BookDetail } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useBookMetadata } from "@/lib/hooks/useBookMetadata";
+import {
+  bgSurfaceVar,
+  bgPageVar,
+  borderInputVar,
+  textPrimaryVar,
+  textSecondaryVar,
+  textTertiaryVar,
+  inputBaseStyle,
+  inlineButtonPrimary,
+  inlineButtonOutline,
+} from "@/lib/utils/darkMode";
 
 type MasterBookSelectorProps = {
   value?: string | null;
@@ -369,16 +382,17 @@ export function MasterBookSelector({
       <div className={`flex flex-col gap-4 ${className}`}>
         <div className="flex items-center justify-between">
           <h3 className="text-h2 font-semibold text-[var(--text-primary)]">마스터 교재 검색 및 선택</h3>
-          <button
+          <Button
             type="button"
             onClick={() => {
               setIsSearching(false);
               setSearchQuery("");
             }}
-            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-body-2 font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
+            variant="outline"
+            size="sm"
           >
             취소
-          </button>
+          </Button>
         </div>
         <div className="flex flex-col gap-4">
           <div>
@@ -387,11 +401,11 @@ export function MasterBookSelector({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="교재명으로 검색... (2글자 이상 입력)"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-body-2 text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className={inputBaseStyle()}
               autoFocus
             />
             {isLoading && (
-              <p className="mt-2 text-sm text-gray-500">검색 중...</p>
+              <p className={cn("mt-2 text-sm", textTertiaryVar)}>검색 중...</p>
             )}
           </div>
           {searchResults.length > 0 ? (
@@ -399,18 +413,19 @@ export function MasterBookSelector({
               {searchResults.map((book) => (
                 <div
                   key={book.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
+                  className={cn("flex items-center justify-between rounded-lg border p-4", bgSurfaceVar, borderDefaultVar)}
                 >
                   <div>
-                    <p className="font-medium text-[var(--text-primary)]">{book.title}</p>
+                    <p className={cn("font-medium", textPrimaryVar)}>{book.title}</p>
                   </div>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleSelectBook(book.id, book.title)}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700"
+                    variant="primary"
+                    size="sm"
                   >
                     선택하기
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -429,26 +444,28 @@ export function MasterBookSelector({
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <div className="flex items-center justify-between">
-        <label className="block text-body-2 font-medium text-gray-700 dark:text-gray-300">
+        <label className={cn("block text-body-2 font-medium", textSecondaryVar)}>
           연결된 마스터 교재
         </label>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => setIsSearching(true)}
             disabled={disabled}
-            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-body-2 font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="outline"
+            size="sm"
           >
             마스터 교재 검색
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setIsCreating(true)}
             disabled={disabled}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="primary"
+            size="sm"
           >
             마스터 교재 등록
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -469,27 +486,29 @@ export function MasterBookSelector({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-8 text-center">
-          <p className="text-body-2 text-gray-500 dark:text-gray-400">
+        <div className={cn("flex flex-col gap-4 rounded-lg border border-dashed p-8 text-center", bgPageVar, borderInputVar)}>
+          <p className={cn("text-body-2", textTertiaryVar)}>
             연결된 마스터 교재가 없습니다.
           </p>
           <div className="flex justify-center gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => setIsSearching(true)}
               disabled={disabled}
-              className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-body-2 font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="outline"
+              size="sm"
             >
               마스터 교재 검색하여 연결
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setIsCreating(true)}
               disabled={disabled}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              variant="primary"
+              size="sm"
             >
               새 마스터 교재 등록하여 연결
-            </button>
+            </Button>
           </div>
         </div>
       )}

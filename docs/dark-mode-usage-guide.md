@@ -69,6 +69,45 @@ import {
 } from "@/lib/utils/darkMode";
 ```
 
+### 인라인 버튼 스타일 (컴포넌트를 사용할 수 없는 경우)
+
+```tsx
+import {
+  inlineButtonPrimary,    // Primary 버튼 스타일
+  inlineButtonSecondary,  // Secondary 버튼 스타일
+  inlineButtonOutline,    // Outline 버튼 스타일
+} from "@/lib/utils/darkMode";
+
+// Button 컴포넌트를 사용할 수 없는 경우에만 사용
+<button className={inlineButtonPrimary()}>저장</button>
+<button className={inlineButtonOutline()}>취소</button>
+```
+
+### 메시지 스타일
+
+```tsx
+import {
+  warningMessageStyles,  // 경고 메시지 스타일 객체
+  errorMessageStyles,    // 에러 메시지 스타일 객체
+  infoMessageStyles,     // 정보 메시지 스타일 객체
+} from "@/lib/utils/darkMode";
+
+// 사용 예시
+<div className={warningMessageStyles.container}>
+  <h3 className={warningMessageStyles.title}>주의</h3>
+  <p className={warningMessageStyles.text}>경고 메시지 내용</p>
+</div>
+```
+
+### 입력 필드 기본 스타일 (Input 컴포넌트를 사용할 수 없는 경우)
+
+```tsx
+import { inputBaseStyle } from "@/lib/utils/darkMode";
+
+// Input 컴포넌트를 사용할 수 없는 경우에만 사용
+<input type="text" className={inputBaseStyle()} />
+```
+
 ## 사용 예시
 
 ### 기본 카드 컴포넌트

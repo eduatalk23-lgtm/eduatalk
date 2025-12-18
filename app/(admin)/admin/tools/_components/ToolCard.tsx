@@ -2,6 +2,13 @@
 
 import { memo } from "react";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/atoms/Button";
+import {
+  bgSurfaceVar,
+  borderDefaultVar,
+  textPrimaryVar,
+  textTertiaryVar,
+} from "@/lib/utils/darkMode";
 
 export type ToolCardProps = {
   icon: string;
@@ -21,25 +28,21 @@ function ToolCardComponent({
   onButtonClick,
 }: ToolCardProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <div className={cn("rounded-lg border p-6 shadow-sm", bgSurfaceVar, borderDefaultVar)}>
       <div className="flex flex-col gap-4">
         <div className="text-2xl">{icon}</div>
         <div className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <p className="text-sm text-gray-500">{description}</p>
+          <h2 className={cn("text-lg font-semibold", textPrimaryVar)}>{title}</h2>
+          <p className={cn("text-sm", textTertiaryVar)}>{description}</p>
         </div>
-        <button
+        <Button
           onClick={onButtonClick}
           disabled={buttonDisabled}
-          className={cn(
-            "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-            buttonDisabled
-              ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-              : "bg-indigo-600 text-white hover:bg-indigo-700"
-          )}
+          variant="primary"
+          size="md"
         >
           {buttonText}
-        </button>
+        </Button>
       </div>
     </div>
   );
