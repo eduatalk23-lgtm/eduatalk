@@ -242,6 +242,55 @@ psql -f supabase/migrations/20250119220000_add_student_division.sql
 
 ---
 
+## Division 관리 페이지
+
+### 페이지 경로
+- `/admin/students/divisions` - 학생 구분 관리 페이지
+
+### 주요 기능
+1. **구분별 통계 카드**: 고등부, 중등부, 기타, 미설정 학생 수 표시
+2. **구분별 필터링**: 전체, 고등부, 중등부, 기타, 미설정 필터
+3. **검색 기능**: 이름, 학년, 반으로 검색
+4. **개별 구분 변경**: 각 학생의 구분을 드롭다운으로 변경
+5. **일괄 구분 변경**: 여러 학생을 선택하여 한 번에 구분 변경
+
+### 사용 방법
+
+#### 개별 구분 변경
+1. 학생 목록에서 해당 학생의 "구분 변경" 드롭다운 선택
+2. 원하는 구분 선택 (고등부, 중등부, 기타, 미설정)
+3. 자동으로 업데이트됨
+
+#### 일괄 구분 변경
+1. 학생 목록에서 변경할 학생들을 체크박스로 선택
+2. 상단의 "일괄 변경" 버튼 클릭
+3. 모달에서 변경할 구분 선택
+4. "변경하기" 버튼 클릭
+5. 성공/실패 결과 확인
+
+### API 함수
+
+#### `batchUpdateStudentDivisionAction()`
+
+여러 학생의 구분을 일괄 업데이트합니다.
+
+```typescript
+await batchUpdateStudentDivisionAction(
+  studentIds: string[],
+  division: StudentDivision | null
+): Promise<{
+  success: boolean;
+  successCount: number;
+  failureCount: number;
+  errors?: Array<{ studentId: string; error: string }>;
+}>
+```
+
+**특징**:
+- 배치 처리 (500개씩)
+- 부분 성공 시 상세 정보 제공
+- 에러 상세 정보 반환
+
 ## 향후 개선 사항
 
 1. 학생 상세 페이지에 구분 수정 기능 추가

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import {
@@ -10,7 +11,8 @@ import {
   textSecondary,
   inlineButtonPrimary,
 } from "@/lib/utils/darkMode";
-import { STUDENT_SORT_OPTIONS, STUDENT_DIVISIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
+import { STUDENT_SORT_OPTIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
+import { getActiveStudentDivisionsAction } from "@/app/actions/studentDivisionsActions";
 
 type StudentSearchFilterProps = {
   searchQuery: string;
@@ -31,6 +33,28 @@ export function StudentSearchFilter({
   showInactiveFilter,
   sortBy,
 }: StudentSearchFilterProps) {
+  const [divisions, setDivisions] = useState<Array<{ value: StudentDivision; label: string }>>([]);
+  const [loadingDivisions, setLoadingDivisions] = useState(true);
+
+  useEffect(() => {
+    async function loadDivisions() {
+      try {
+        const data = await getActiveStudentDivisionsAction();
+        setDivisions(
+          data.map((d) => ({
+            value: d.name as StudentDivision,
+            label: d.name,
+          }))
+        );
+      } catch (error) {
+        console.error("학생 구분 목록 로드 실패:", error);
+      } finally {
+        setLoadingDivisions(false);
+      }
+    }
+    loadDivisions();
+  }, []);
+
   const hasActiveFilters =
     searchQuery ||
     gradeFilter ||
@@ -123,11 +147,15 @@ export function StudentSearchFilter({
             )}
           >
             <option value="">전체</option>
-            {STUDENT_DIVISIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            {loadingDivisions ? (
+              <option disabled>로딩 중...</option>
+            ) : (
+              divisions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))
+            )}
           </select>
         </div>
 

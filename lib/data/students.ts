@@ -466,3 +466,86 @@ export async function getStudentDivisionStats(): Promise<Array<{
   }));
 }
 
+/**
+ * 학생 구분 일괄 업데이트
+ * 배치 처리로 성능 최적화 (500개씩)
+ */
+export async function batchUpdateStudentDivision(
+  studentIds: string[],
+  division: StudentDivision | null
+): Promise<{
+  success: boolean;
+  successCount: number;
+  failureCount: number;
+  errors?: Array<{ studentId: string; error: string }>;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 입력 검증
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      errors: [{ studentId: "", error: "학생을 선택해주세요." }],
+    };
+  }
+
+  // 중복 제거
+  const uniqueStudentIds = Array.from(new Set(studentIds));
+
+  // division 값 검증
+  if (division !== null && division !== "고등부" && division !== "중등부" && division !== "기타") {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: uniqueStudentIds.length,
+      errors: uniqueStudentIds.map((id) => ({
+        studentId: id,
+        error: "유효하지 않은 구분입니다.",
+      })),
+    };
+  }
+
+  const errors: Array<{ studentId: string; error: string }> = [];
+  let successCount = 0;
+  const batchSize = 500;
+
+  // 배치 처리
+  for (let i = 0; i < uniqueStudentIds.length; i += batchSize) {
+    const batch = uniqueStudentIds.slice(i, i + batchSize);
+
+    const { error: updateError } = await supabase
+      .from("students")
+      .update({ division, updated_at: new Date().toISOString() })
+      .in("id", batch);
+
+    if (updateError) {
+      console.error("[data/students] 일괄 구분 업데이트 실패", {
+        batchSize: batch.length,
+        error: updateError.message,
+        code: updateError.code,
+      });
+
+      // 배치 전체 실패로 처리
+      batch.forEach((studentId) => {
+        errors.push({
+          studentId,
+          error: updateError.message || "구분 업데이트에 실패했습니다.",
+        });
+      });
+    } else {
+      successCount += batch.length;
+    }
+  }
+
+  const failureCount = errors.length;
+
+  return {
+    success: failureCount === 0,
+    successCount,
+    failureCount,
+    errors: failureCount > 0 ? errors : undefined,
+  };
+}
+

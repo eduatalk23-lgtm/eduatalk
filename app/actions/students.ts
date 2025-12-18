@@ -1,9 +1,22 @@
 "use server";
 
-import { updateStudentDivision, getStudentsByDivision, getStudentDivisionStats } from "@/lib/data/students";
+import { updateStudentDivision, getStudentsByDivision, getStudentDivisionStats, batchUpdateStudentDivision } from "@/lib/data/students";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import type { StudentDivision } from "@/lib/constants/students";
+
+/**
+ * 구분 값 검증 헬퍼 함수
+ */
+function validateDivision(division: StudentDivision | null): { valid: boolean; error?: string } {
+  if (division !== null && division !== "고등부" && division !== "중등부" && division !== "기타") {
+    return {
+      valid: false,
+      error: "유효하지 않은 구분입니다. 고등부, 중등부, 기타 중 하나를 선택해주세요.",
+    };
+  }
+  return { valid: true };
+}
 
 /**
  * 학생 구분 업데이트 (관리자만)
@@ -22,10 +35,11 @@ export async function updateStudentDivisionAction(
   }
 
   // 입력 검증
-  if (division !== null && division !== "고등부" && division !== "중등부" && division !== "기타") {
+  const validation = validateDivision(division);
+  if (!validation.valid) {
     return {
       success: false,
-      error: "유효하지 않은 구분입니다. 고등부, 중등부, 기타 중 하나를 선택해주세요.",
+      error: validation.error,
     };
   }
 
@@ -92,5 +106,57 @@ export async function getStudentDivisionStatsAction(): Promise<{
       error: error instanceof Error ? error.message : "통계 조회에 실패했습니다.",
     };
   }
+}
+
+/**
+ * 학생 구분 일괄 업데이트 (관리자만)
+ */
+export async function batchUpdateStudentDivisionAction(
+  studentIds: string[],
+  division: StudentDivision | null
+): Promise<{
+  success: boolean;
+  successCount: number;
+  failureCount: number;
+  errors?: Array<{ studentId: string; error: string }>;
+}> {
+  const { role } = await getCurrentUserRole();
+
+  if (!isAdminRole(role)) {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: studentIds.length,
+      errors: studentIds.map((id) => ({
+        studentId: id,
+        error: "권한이 없습니다. 관리자만 학생 구분을 수정할 수 있습니다.",
+      })),
+    };
+  }
+
+  // 입력 검증
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: 0,
+      errors: [{ studentId: "", error: "학생을 선택해주세요." }],
+    };
+  }
+
+  const validation = validateDivision(division);
+  if (!validation.valid) {
+    return {
+      success: false,
+      successCount: 0,
+      failureCount: studentIds.length,
+      errors: studentIds.map((id) => ({
+        studentId: id,
+        error: validation.error || "유효하지 않은 구분입니다.",
+      })),
+    };
+  }
+
+  return await batchUpdateStudentDivision(studentIds, division);
 }
 
