@@ -24,3 +24,20 @@ export const STUDENT_SORT_OPTIONS: Record<
   grade: { value: "grade", label: "학년순" },
 } as const;
 
+/**
+ * 학생 구분 타입
+ */
+export type StudentDivision = "고등부" | "중등부" | "기타";
+
+/**
+ * 학생 구분 옵션 상수
+ */
+export const STUDENT_DIVISIONS: Array<{
+  value: StudentDivision;
+  label: string;
+}> = [
+  { value: "고등부", label: "고등부" },
+  { value: "중등부", label: "중등부" },
+  { value: "기타", label: "기타" },
+] as const;
+

@@ -10,12 +10,13 @@ import {
   textSecondary,
   inlineButtonPrimary,
 } from "@/lib/utils/darkMode";
-import { STUDENT_SORT_OPTIONS, type StudentSortOption } from "@/lib/constants/students";
+import { STUDENT_SORT_OPTIONS, STUDENT_DIVISIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
 
 type StudentSearchFilterProps = {
   searchQuery: string;
   gradeFilter: string;
   classFilter: string;
+  divisionFilter?: StudentDivision;
   hasScoreFilter: boolean;
   showInactiveFilter: boolean;
   sortBy: StudentSortOption;
@@ -25,6 +26,7 @@ export function StudentSearchFilter({
   searchQuery,
   gradeFilter,
   classFilter,
+  divisionFilter,
   hasScoreFilter,
   showInactiveFilter,
   sortBy,
@@ -32,6 +34,8 @@ export function StudentSearchFilter({
   const hasActiveFilters =
     searchQuery ||
     gradeFilter ||
+    classFilter ||
+    divisionFilter ||
     hasScoreFilter ||
     showInactiveFilter ||
     sortBy !== "name";
@@ -100,6 +104,31 @@ export function StudentSearchFilter({
               "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
             )}
           />
+        </div>
+
+        {/* 구분 필터 */}
+        <div className="flex flex-col gap-1">
+          <label className={cn("text-sm font-medium", textSecondary)}>
+            구분
+          </label>
+          <select
+            name="division"
+            defaultValue={divisionFilter || ""}
+            className={cn(
+              "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+              borderInput,
+              bgSurface,
+              textPrimary,
+              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+            )}
+          >
+            <option value="">전체</option>
+            {STUDENT_DIVISIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* 성적 입력 여부 필터 */}

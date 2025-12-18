@@ -282,6 +282,7 @@ export type Database = {
           name: string;
           school_id: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
           school_type: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          division: "고등부" | "중등부" | "기타" | null;
           grade: number | null;
           created_at: string;
           updated_at: string;
@@ -293,6 +294,7 @@ export type Database = {
           name: string;
           school_id?: string | null;
           school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          division?: "고등부" | "중등부" | "기타" | null;
           grade?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -304,6 +306,7 @@ export type Database = {
           name?: string;
           school_id?: string | null;
           school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+          division?: "고등부" | "중등부" | "기타" | null;
           grade?: number | null;
           created_at?: string;
           updated_at?: string;

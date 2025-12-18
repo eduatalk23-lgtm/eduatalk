@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { getStudentsHasScore } from "@/lib/data/studentStats";
-import { STUDENT_LIST_PAGE_SIZE, STUDENT_SORT_OPTIONS, type StudentSortOption } from "@/lib/constants/students";
+import { STUDENT_LIST_PAGE_SIZE, STUDENT_SORT_OPTIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
 import { StudentSearchFilter } from "./_components/StudentSearchFilter";
 import { StudentListClient } from "./_components/StudentListClient";
 import { StudentPagination } from "./_components/StudentPagination";
@@ -26,6 +26,7 @@ type StudentRow = {
   class?: string | null;
   school_id?: string | null;
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+  division?: StudentDivision | null;
   created_at?: string | null;
   is_active?: boolean | null;
 };
@@ -46,14 +47,15 @@ export default async function AdminStudentsPage({
   const searchQuery = params.search?.trim() ?? "";
   const gradeFilter = params.grade?.trim() ?? "";
   const classFilter = params.class?.trim() ?? "";
+  const divisionFilter = params.division?.trim() as StudentDivision | undefined;
   const hasScoreFilter = params.has_score === "true";
   const showInactiveFilter = params.show_inactive === "true";
   const sortBy: StudentSortOption = (params.sort as StudentSortOption) || "name";
   const page = parseInt(params.page || "1", 10);
   const pageSize = STUDENT_LIST_PAGE_SIZE;
 
-  // 학생 목록 조회 (페이지네이션)
-  const selectFields = "id,name,grade,class,school_id,school_type,created_at,is_active";
+  // 학생 목록 조회 (페이지네이션) - division 필드 포함
+  const selectFields = "id,name,grade,class,school_id,school_type,division,created_at,is_active";
 
   const selectStudents = () =>
     supabase
@@ -82,6 +84,11 @@ export default async function AdminStudentsPage({
 
   if (classFilter) {
     query = query.eq("class", classFilter);
+  }
+
+  // division 필터링
+  if (divisionFilter) {
+    query = query.eq("division", divisionFilter);
   }
 
   // is_active 필터링
@@ -155,6 +162,7 @@ export default async function AdminStudentsPage({
       name: student.name,
       grade: student.grade ? String(student.grade) : null,
       class: student.class,
+      division: student.division ?? null,
       schoolName,
       phone: phoneData?.phone ?? null,
       mother_phone: phoneData?.mother_phone ?? null,
@@ -175,6 +183,7 @@ export default async function AdminStudentsPage({
           searchQuery={searchQuery}
           gradeFilter={gradeFilter}
           classFilter={classFilter}
+          divisionFilter={divisionFilter}
           hasScoreFilter={hasScoreFilter}
           showInactiveFilter={showInactiveFilter}
           sortBy={sortBy}

@@ -58,6 +58,7 @@ export function StudentTable({
               />
             </th>
             <th className={tableHeaderBase}>이름</th>
+            <th className={tableHeaderBase}>구분</th>
             <th className={tableHeaderBase}>학교</th>
             <th className={tableHeaderBase}>학년</th>
             <th className={tableHeaderBase}>학생 연락처</th>
@@ -98,6 +99,24 @@ export function StudentTable({
                   >
                     {student.name ?? "이름 없음"}
                   </Link>
+                </td>
+                <td className={cn(tableCellBase, textMuted)}>
+                  {student.division ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-1 text-xs font-semibold",
+                        student.division === "고등부"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          : student.division === "중등부"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                      )}
+                    >
+                      {student.division}
+                    </span>
+                  ) : (
+                    "-"
+                  )}
                 </td>
                 <td className={cn(tableCellBase, textMuted)}>
                   {student.schoolName}

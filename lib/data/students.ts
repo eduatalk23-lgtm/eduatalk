@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { executeQuery, executeSingleQuery } from "./core/queryBuilder";
 import type { SupabaseServerClient } from "./core/types";
+import { createTypedConditionalQuery } from "./core/typedQueryBuilder";
+import type { StudentDivision } from "@/lib/constants/students";
 
 export type Student = {
   id: string;
@@ -11,12 +13,52 @@ export type Student = {
   birth_date?: string | null;
   school_id?: string | null; // 통합 ID (SCHOOL_123 또는 UNIV_456)
   school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+  division?: "고등부" | "중등부" | "기타" | null;
   student_number?: string | null;
   enrolled_at?: string | null;
   status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
+
+/**
+ * 학생 기본 필드 목록 (동적 필드 포함)
+ */
+const STUDENT_BASE_FIELDS = "id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at";
+const STUDENT_OPTIONAL_FIELDS = ["school_type", "division"];
+
+/**
+ * 학생 쿼리 빌더 - 동적 필드 선택
+ * 선택적 필드를 병렬로 확인하여 성능 최적화
+ */
+async function buildStudentQuery(
+  supabase: SupabaseServerClient,
+  baseSelect: string = STUDENT_BASE_FIELDS
+): Promise<string> {
+  let selectFields = baseSelect;
+  
+  // 선택적 필드를 병렬로 확인 (성능 최적화)
+  const fieldChecks = await Promise.allSettled(
+    STUDENT_OPTIONAL_FIELDS.map(async (field) => {
+      try {
+        const testQuery = supabase.from("students").select(field).limit(1);
+        const { error: testError } = await testQuery;
+        return { field, exists: !testError };
+      } catch (e) {
+        return { field, exists: false };
+      }
+    })
+  );
+  
+  // 존재하는 필드만 추가
+  for (const result of fieldChecks) {
+    if (result.status === "fulfilled" && result.value.exists) {
+      selectFields += `,${result.value.field}`;
+    }
+  }
+  
+  return selectFields;
+}
 
 /**
  * 학생 ID로 학생 정보 조회
@@ -27,48 +69,32 @@ export async function getStudentById(
 ): Promise<Student | null> {
   const supabase = await createSupabaseServerClient();
 
-  // 기본 학적 정보만 조회 (프로필/진로 정보는 별도 테이블에서 조회)
-  // name 필드도 포함하여 조회
-  // school_type 컬럼은 마이그레이션 후 추가되므로, 에러 발생 시 재시도
-  let { data, error } = await supabase
-    .from("students")
-    .select("id,tenant_id,name,grade,class,birth_date,school_id,school_type,student_number,enrolled_at,status,created_at,updated_at")
-    .eq("id", studentId)
-    .maybeSingle<Student>();
-  
-  // school_type 컬럼이 없으면 (42703 에러) school_type 없이 재시도
-  if (error && error.code === "42703" && error.message?.includes("school_type")) {
-    const retryResult = await supabase
-      .from("students")
-      .select("id,tenant_id,name,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
-      .eq("id", studentId)
-      .maybeSingle<Student>();
-    
-    data = retryResult.data;
-    error = retryResult.error;
-    
-    // school_type이 없으면 null로 설정
-    if (data) {
-      data = { ...data, school_type: null };
+  // 동적 필드 선택을 사용한 타입 안전한 쿼리
+  return await createTypedConditionalQuery<Student>(
+    async () => {
+      const selectFields = await buildStudentQuery(supabase);
+      return await supabase
+        .from("students")
+        .select(selectFields)
+        .eq("id", studentId)
+        .maybeSingle<Student>();
+    },
+    {
+      context: "[data/students] getStudentById",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: 기본 필드만 사용
+        return await supabase
+          .from("students")
+          .select(STUDENT_BASE_FIELDS)
+          .eq("id", studentId)
+          .maybeSingle<Student>();
+      },
+      shouldFallback: (error) => {
+        return error?.code === "42703" || error?.code === "PGRST116";
+      },
     }
-  }
-
-  if (error) {
-    // PGRST116은 레코드가 없는 경우이므로 null 반환
-    if (error.code === "PGRST116") {
-      return null;
-    }
-    console.error("[data/students] 학생 정보 조회 실패", {
-      studentId,
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
-    return null;
-  }
-
-  return data ?? null;
+  );
 }
 
 /**
@@ -80,17 +106,19 @@ export async function listStudentsByTenant(
 ): Promise<Student[]> {
   const supabase = await createSupabaseServerClient();
 
-  // 기본 학적 정보만 조회
+  // 기본 학적 정보만 조회 (동적 필드 포함)
+  const selectFields = await buildStudentQuery(supabase);
+  
   const result = await executeQuery<Student[]>(
     async () => {
       const queryResult = await supabase
         .from("students")
-        .select("id,tenant_id,grade,class,birth_date,school_id,student_number,enrolled_at,status,created_at,updated_at")
+        .select(selectFields)
         .order("created_at", { ascending: false });
       return queryResult;
     },
     {
-      context: "[data/students]",
+      context: "[data/students] listStudentsByTenant",
       defaultValue: [],
     }
   );
@@ -128,6 +156,7 @@ export async function upsertStudent(
     birth_date: string;
     school_id?: string | null;
     school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
+    division?: StudentDivision | null;
     student_number?: string | null;
     enrolled_at?: string | null;
     status?: "enrolled" | "on_leave" | "graduated" | "transferred" | null;
@@ -197,7 +226,7 @@ export async function upsertStudent(
     }
   }
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     id: student.id,
     tenant_id: tenantId,
     grade: student.grade,
@@ -219,13 +248,31 @@ export async function upsertStudent(
     payload.school_type = schoolType;
   }
 
-  const { error } = await supabase
+  // division이 있으면 추가
+  if (student.division !== undefined) {
+    payload.division = student.division;
+  }
+
+  // 타입 안전한 upsert 시도
+  let { error } = await supabase
     .from("students")
     .upsert(payload, { onConflict: "id" });
 
-  // school_type 컬럼이 없어서 에러가 발생하면 school_type 제거하고 재시도
-  if (error && error.code === "42703" && error.message?.includes("school_type")) {
-    delete payload.school_type;
+  // 선택적 필드가 없어서 에러가 발생하면 해당 필드 제거하고 재시도
+  if (error && error.code === "42703") {
+    const errorMessage = error.message?.toLowerCase() || "";
+    
+    // school_type 컬럼이 없으면 제거
+    if (errorMessage.includes("school_type") && payload.school_type) {
+      delete payload.school_type;
+    }
+    
+    // division 컬럼이 없으면 제거
+    if (errorMessage.includes("division") && payload.division) {
+      delete payload.division;
+    }
+    
+    // 재시도
     const retryResult = await supabase
       .from("students")
       .upsert(payload, { onConflict: "id" });
@@ -235,7 +282,9 @@ export async function upsertStudent(
       return { success: false, error: retryResult.error.message };
     }
     
-    console.warn("[data/students] school_type 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
+    if (errorMessage.includes("school_type") || errorMessage.includes("division")) {
+      console.warn("[data/students] 선택적 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
+    }
   } else if (error) {
     console.error("[data/students] 학생 정보 저장 실패", error);
     return { success: false, error: error.message };
@@ -298,5 +347,122 @@ export async function getActiveStudentsForSMS(): Promise<{
     .order("name", { ascending: true });
 
   return { data: data ?? [], error };
+}
+
+/**
+ * 학생 구분 업데이트
+ */
+export async function updateStudentDivision(
+  studentId: string,
+  division: StudentDivision | null
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("students")
+    .update({ division })
+    .eq("id", studentId);
+
+  if (error) {
+    console.error("[data/students] 학생 구분 업데이트 실패", {
+      studentId,
+      division,
+      error: error.message,
+      code: error.code,
+    });
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 구분별 학생 목록 조회
+ */
+export async function getStudentsByDivision(
+  division: StudentDivision | null
+): Promise<Student[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const selectFields = await buildStudentQuery(supabase);
+
+  let query = supabase
+    .from("students")
+    .select(selectFields)
+    .order("name", { ascending: true });
+
+  if (division !== null) {
+    query = query.eq("division", division);
+  } else {
+    query = query.is("division", null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[data/students] 구분별 학생 목록 조회 실패", {
+      division,
+      error: error.message,
+      code: error.code,
+    });
+    return [];
+  }
+
+  return (data as Student[]) ?? [];
+}
+
+/**
+ * 구분별 학생 통계 조회
+ */
+export async function getStudentDivisionStats(): Promise<Array<{
+  division: StudentDivision | null;
+  count: number;
+}>> {
+  const supabase = await createSupabaseServerClient();
+
+  // division 필드 존재 여부 확인
+  try {
+    const testQuery = supabase.from("students").select("division").limit(1);
+    const { error: testError } = await testQuery;
+    
+    if (testError && testError.code === "42703") {
+      // division 컬럼이 없으면 빈 배열 반환
+      return [];
+    }
+  } catch (e) {
+    return [];
+  }
+
+  // 구분별 통계 조회
+  const { data, error } = await supabase
+    .from("students")
+    .select("division");
+
+  if (error) {
+    console.error("[data/students] 구분별 통계 조회 실패", error);
+    return [];
+  }
+
+  if (!data) {
+    return [];
+  }
+
+  // 통계 집계
+  const stats = new Map<StudentDivision | null, number>();
+  stats.set("고등부", 0);
+  stats.set("중등부", 0);
+  stats.set("기타", 0);
+  stats.set(null, 0);
+
+  for (const student of data) {
+    const division = student.division as StudentDivision | null;
+    const current = stats.get(division) ?? 0;
+    stats.set(division, current + 1);
+  }
+
+  return Array.from(stats.entries()).map(([division, count]) => ({
+    division,
+    count,
+  }));
 }
 
