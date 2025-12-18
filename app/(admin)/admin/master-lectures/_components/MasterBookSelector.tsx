@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/atoms/Button";
+import Button from "@/components/atoms/Button";
 import {
   createMasterBookWithoutRedirect,
   searchMasterBooksAction,
@@ -16,6 +16,7 @@ import {
   bgSurfaceVar,
   bgPageVar,
   borderInputVar,
+  borderDefaultVar,
   textPrimaryVar,
   textSecondaryVar,
   textTertiaryVar,
