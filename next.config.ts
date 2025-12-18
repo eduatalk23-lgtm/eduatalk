@@ -60,6 +60,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.mirae-n.com",
       },
+      {
+        protocol: "https",
+        hostname: "e.vivasam.com",
+      },
       // 필요시 다른 도메인 추가 가능
       // {
       //   protocol: "https",
