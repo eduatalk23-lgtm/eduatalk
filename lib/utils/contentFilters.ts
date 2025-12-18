@@ -21,6 +21,7 @@ type PostgrestFilterBuilder<T extends Record<string, unknown> = Record<string, u
  * 콘텐츠 쿼리에 필터를 적용합니다.
  * 
  * 필터 적용 순서:
+ * 0. 활성화된 콘텐츠만 (is_active = true) - Supabase 모범 사례
  * 1. 인덱스가 있는 컬럼 우선 (curriculum_revision_id, subject_id, subject_group_id)
  * 2. 텍스트 검색 (search)
  * 3. 난이도 필터
@@ -38,6 +39,10 @@ export function applyContentFilters<T extends Record<string, unknown>>(
   tableName: string
 ): PostgrestFilterBuilder<T> {
   let filteredQuery = query;
+
+  // 0. 활성화된 콘텐츠만 (기본 필터) - Supabase 모범 사례 적용
+  // 모든 검색에서 비활성화된 콘텐츠는 제외
+  filteredQuery = filteredQuery.eq("is_active", true);
 
   // 1. 인덱스가 있는 컬럼 우선 필터링
   if (filters.curriculum_revision_id) {
@@ -61,6 +66,8 @@ export function applyContentFilters<T extends Record<string, unknown>>(
   }
 
   // 4. 테넌트 필터
+  // tenantId가 있으면: 공개 콘텐츠(tenant_id = null) + 해당 테넌트 콘텐츠
+  // tenantId가 없으면: 공개 콘텐츠만 (tenant_id = null)
   if (filters.tenantId) {
     filteredQuery = filteredQuery.or(`tenant_id.is.null,tenant_id.eq.${filters.tenantId}`);
   } else {

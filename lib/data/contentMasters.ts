@@ -175,6 +175,7 @@ export async function searchMasterBooks(
 
 /**
  * 마스터 교재 목록 조회 (드롭다운용)
+ * 활성화된 교재만 조회합니다.
  */
 export async function getMasterBooksList(): Promise<
   Array<{ id: string; title: string }>
@@ -184,6 +185,7 @@ export async function getMasterBooksList(): Promise<
   const { data, error } = await supabase
     .from("master_books")
     .select("id, title")
+    .eq("is_active", true)
     .order("title", { ascending: true });
 
   if (error) {
@@ -322,6 +324,8 @@ export async function getMasterBookById(bookId: string): Promise<{
   }>(bookData.subjects);
 
   // subject가 있을 때 subject_groups 처리
+  // subject_group_id는 master_books에 직접 존재하지만, subjects를 통한 JOIN도 수행
+  // denormalized 값(subject_category, subject)이 우선이므로 JOIN은 fallback으로만 사용
   const subjectGroup = extractJoinedData<{ id: string; name: string }>(
     subject?.subject_groups
   );
@@ -339,6 +343,7 @@ export async function getMasterBookById(bookId: string): Promise<{
     console.log("[getMasterBookById] JOIN 결과:", {
       bookId,
       subject_id: bookData.subject_id,
+      subject_group_id: bookData.subject_group_id,
       curriculum_revision_id: bookData.curriculum_revision_id,
       difficulty_level_id: bookData.difficulty_level_id,
       hasCurriculumRevision: !!curriculumRevision,
@@ -346,6 +351,9 @@ export async function getMasterBookById(bookId: string): Promise<{
       hasSubjectGroup: !!subjectGroup,
       hasPublisher: !!publisher,
       hasDifficultyLevel: !!difficultyLevel,
+      // denormalized 값 확인
+      denormalizedSubjectCategory: bookData.subject_category,
+      denormalizedSubject: bookData.subject,
       subjectData: subject,
       subjectGroupData: subjectGroup,
       difficultyLevelData: difficultyLevel,
@@ -354,16 +362,17 @@ export async function getMasterBookById(bookId: string): Promise<{
 
   const book = {
     ...bookData,
-    // revision은 curriculum_revisions.name으로 설정 (없으면 기존 revision 유지)
+    // revision: curriculum_revisions.name 우선, 없으면 denormalized revision 값 사용
     revision: curriculumRevision?.name || bookData.revision || null,
-    // subject_category는 저장된 값 우선, JOIN은 fallback
+    // subject_category: denormalized 값 우선, 없으면 JOIN 결과 사용
+    // 성능 향상을 위해 denormalized 컬럼을 우선 사용하고 JOIN은 fallback으로만 활용
     subject_category: bookData.subject_category || subjectGroup?.name || null,
-    // subject는 저장된 값 우선, JOIN은 fallback
+    // subject: denormalized 값 우선, 없으면 JOIN 결과 사용
     subject: bookData.subject || subject?.name || null,
-    // publisher는 저장된 값 우선, JOIN은 fallback
+    // publisher: denormalized 값(publisher_name) 우선, 없으면 JOIN 결과 사용
     publisher: bookData.publisher_name || publisher?.name || null,
-    // difficulty_level은 difficulty_levels.name으로 설정 (없으면 기존 difficulty_level 유지)
-    // difficulty_level_id가 있으면 JOIN된 name을 우선 사용, 없으면 기존 문자열 값 사용
+    // difficulty_level: difficulty_levels.name 우선, 없으면 denormalized difficulty_level 값 사용
+    // difficulty_level_id가 있으면 JOIN된 name을 우선 사용
     difficulty_level:
       difficultyLevel?.name || bookData.difficulty_level || null,
   } as MasterBook & {
