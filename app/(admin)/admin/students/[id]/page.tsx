@@ -32,6 +32,7 @@ import { AnalysisReportSectionSkeleton } from "./_components/AnalysisReportSecti
 import { ConsultingNotesSectionSkeleton } from "./_components/ConsultingNotesSectionSkeleton";
 import { ParentLinksSection } from "./_components/ParentLinksSection";
 import { ParentLinksSectionSkeleton } from "./_components/ParentLinksSectionSkeleton";
+import { ConnectionCodeSection } from "./_components/ConnectionCodeSection";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -136,6 +137,7 @@ export default async function AdminStudentDetailPage({
           {/* 기본정보 탭 */}
           <TabContent tab="basic">
             <div className="space-y-6">
+              <ConnectionCodeSection studentId={studentId} />
               <StudentInfoEditForm
                 studentId={studentId}
                 studentName={student.name}

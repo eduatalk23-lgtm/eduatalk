@@ -14,6 +14,7 @@ import { StudentPagination } from "./_components/StudentPagination";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 import { getStudentSchoolsBatch } from "@/lib/data/studentSchools";
+import { CreateStudentButton } from "./_components/CreateStudentButton";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -176,7 +177,10 @@ export default async function AdminStudentsPage({
   return (
     <div className="p-6 md:p-10">
       <div className="flex flex-col gap-6">
-        <PageHeader title="학생 관리" />
+        <div className="flex items-center justify-between">
+          <PageHeader title="학생 관리" />
+          <CreateStudentButton />
+        </div>
 
         {/* 검색 및 필터 바 */}
         <StudentSearchFilter
