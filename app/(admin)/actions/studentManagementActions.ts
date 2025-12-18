@@ -923,3 +923,48 @@ export async function regenerateConnectionCode(
     connectionCode,
   };
 }
+
+/**
+ * 학생의 연결 코드 조회
+ * 
+ * @param studentId - 학생 ID
+ * @returns 연결 코드 정보
+ */
+export async function getStudentConnectionCode(
+  studentId: string
+): Promise<{
+  success: boolean;
+  data?: {
+    connection_code: string;
+    expires_at: string;
+    used_at: string | null;
+  } | null;
+  error?: string;
+}> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("student_connection_codes")
+    .select("connection_code, expires_at, used_at")
+    .eq("student_id", studentId)
+    .is("used_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[admin/studentManagement] 연결 코드 조회 실패", error);
+    return { success: false, error: error.message || "연결 코드를 조회할 수 없습니다." };
+  }
+
+  return {
+    success: true,
+    data: data ?? null,
+  };
+}

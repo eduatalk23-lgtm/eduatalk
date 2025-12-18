@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import Button from "@/components/atoms/Button";
 import { Copy, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { regenerateConnectionCode } from "@/app/(admin)/actions/studentManagementActions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  regenerateConnectionCode,
+  getStudentConnectionCode,
+} from "@/app/(admin)/actions/studentManagementActions";
 
 type ConnectionCodeSectionProps = {
   studentId: string;
@@ -27,22 +29,12 @@ export function ConnectionCodeSection({ studentId }: ConnectionCodeSectionProps)
   useEffect(() => {
     async function fetchConnectionCode() {
       try {
-        const supabase = await createSupabaseServerClient();
-        const { data, error } = await supabase
-          .from("student_connection_codes")
-          .select("connection_code, expires_at, used_at")
-          .eq("student_id", studentId)
-          .is("used_at", null)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          console.error("[ConnectionCodeSection] 연결 코드 조회 실패", error);
-          return;
+        const result = await getStudentConnectionCode(studentId);
+        if (result.success) {
+          setConnectionCode(result.data ?? null);
+        } else {
+          console.error("[ConnectionCodeSection] 연결 코드 조회 실패", result.error);
         }
-
-        setConnectionCode(data);
       } catch (error) {
         console.error("[ConnectionCodeSection] 연결 코드 조회 중 오류", error);
       } finally {
@@ -72,17 +64,12 @@ export function ConnectionCodeSection({ studentId }: ConnectionCodeSectionProps)
       const result = await regenerateConnectionCode(studentId);
       if (result.success && result.connectionCode) {
         // 새 코드로 업데이트
-        const supabase = await createSupabaseServerClient();
-        const { data } = await supabase
-          .from("student_connection_codes")
-          .select("connection_code, expires_at, used_at")
-          .eq("student_id", studentId)
-          .eq("connection_code", result.connectionCode)
-          .maybeSingle();
-
-        if (data) {
-          setConnectionCode(data);
+        const fetchResult = await getStudentConnectionCode(studentId);
+        if (fetchResult.success) {
+          setConnectionCode(fetchResult.data ?? null);
           showSuccess("연결 코드가 재발급되었습니다.");
+        } else {
+          showError(fetchResult.error || "연결 코드 조회에 실패했습니다.");
         }
       } else {
         showError(result.error || "연결 코드 재발급에 실패했습니다.");
