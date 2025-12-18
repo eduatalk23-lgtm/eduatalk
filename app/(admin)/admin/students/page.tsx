@@ -163,22 +163,6 @@ export default async function AdminStudentsPage({
     };
   });
 
-  // 디버깅: 연락처 정보가 있는 학생 수 확인
-  const studentsWithPhone = studentsWithData.filter(
-    (s) => s.phone || s.mother_phone || s.father_phone
-  );
-  console.log("[admin/students] 연락처 정보 전달 결과:", {
-    total: studentsWithData.length,
-    withPhone: studentsWithPhone.length,
-    phoneDataMapSize: phoneDataMap.size,
-    samplePhoneData: phoneDataList.slice(0, 3).map((p) => ({
-      id: p.id,
-      phone: p.phone,
-      mother_phone: p.mother_phone,
-      father_phone: p.father_phone,
-    })),
-  });
-
   const totalPages = count ? Math.ceil(count / pageSize) : 1;
 
   return (
