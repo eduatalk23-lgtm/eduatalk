@@ -10,7 +10,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StudentDetailWrapper } from "./_components/StudentDetailWrapper";
 import { StudentDetailTabs } from "./_components/StudentDetailTabs";
 import { TabContent } from "./_components/TabContent";
-import { BasicInfoSection } from "./_components/BasicInfoSection";
+import StudentInfoEditForm from "./_components/StudentInfoEditForm";
+import { getStudentById } from "@/lib/data/students";
+import { getStudentProfileById } from "@/lib/data/studentProfiles";
+import { getStudentCareerGoalById } from "@/lib/data/studentCareerGoals";
+import type { StudentInfoData } from "./_types/studentFormTypes";
 import { PlanListSection } from "./_components/PlanListSection";
 import { ContentListSection } from "./_components/ContentListSection";
 import { ScoreTrendSection } from "./_components/ScoreTrendSection";
@@ -52,18 +56,46 @@ export default async function AdminStudentDetailPage({
   const paramsObj = await searchParams;
   const defaultTab: TabType = (paramsObj.tab as TabType) || "basic";
 
-  const supabase = await createSupabaseServerClient();
+  // 학생 정보 통합 조회 (3개 테이블)
+  const [student, profile, careerGoal] = await Promise.all([
+    getStudentById(studentId),
+    getStudentProfileById(studentId),
+    getStudentCareerGoalById(studentId),
+  ]);
 
-  // 학생 정보 조회
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("id,name,grade,class,birth_date,is_active")
-    .eq("id", studentId)
-    .maybeSingle();
-
-  if (studentError || !student) {
+  if (!student) {
     notFound();
   }
+
+  // 통합 데이터 구성
+  const studentInfoData: StudentInfoData = {
+    // students 테이블
+    id: student.id,
+    name: student.name,
+    grade: student.grade,
+    class: student.class,
+    birth_date: student.birth_date,
+    school_id: student.school_id,
+    school_type: student.school_type,
+    division: student.division,
+    memo: (student as any).memo,
+    status: student.status,
+    is_active: (student as any).is_active,
+    // student_profiles 테이블
+    gender: profile?.gender,
+    phone: profile?.phone,
+    mother_phone: profile?.mother_phone,
+    father_phone: profile?.father_phone,
+    address: profile?.address,
+    emergency_contact: profile?.emergency_contact,
+    emergency_contact_phone: profile?.emergency_contact_phone,
+    medical_info: profile?.medical_info,
+    // student_career_goals 테이블
+    exam_year: careerGoal?.exam_year,
+    curriculum_revision: careerGoal?.curriculum_revision,
+    desired_university_ids: careerGoal?.desired_university_ids,
+    desired_career_field: careerGoal?.desired_career_field,
+  };
 
   return (
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>
@@ -82,7 +114,13 @@ export default async function AdminStudentDetailPage({
           {/* 기본정보 탭 */}
           <TabContent tab="basic">
             <div className="space-y-6">
-              <BasicInfoSection student={student} isAdmin={role === "admin"} />
+              <StudentInfoEditForm
+                studentId={studentId}
+                studentName={student.name}
+                isActive={(student as any).is_active}
+                initialData={studentInfoData}
+                isAdmin={role === "admin"}
+              />
               <Suspense fallback={<ParentLinksSectionSkeleton />}>
                 <ParentLinksSection studentId={studentId} />
               </Suspense>
