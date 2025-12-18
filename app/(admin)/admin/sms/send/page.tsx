@@ -5,6 +5,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getActiveStudentsForSMS } from "@/lib/data/students";
 import Link from "next/link";
 import { SMSSendForm } from "../_components/SMSSendForm";
 
@@ -18,36 +19,10 @@ export default async function SMSSendPage() {
   const supabase = await createSupabaseServerClient();
   const tenantContext = await getTenantContext();
 
-  // SMS 발송 폼용 학생 목록 조회 (모든 학생, 연락처 포함)
+  // SMS 발송 폼용 활성화된 학생 목록 조회 (공통 함수 사용)
   // RLS 정책이 자동으로 tenant_id 필터링을 처리합니다
-  let studentsSelectFields = "id, name, grade, class";
-
-  // 학부모 연락처 컬럼 확인 (mother_phone, father_phone 사용)
-  try {
-    const testQuery = supabase.from("students").select("mother_phone, father_phone").limit(1);
-    const { error: testError } = await testQuery;
-    if (!testError) {
-      studentsSelectFields += ",mother_phone,father_phone";
-    }
-  } catch (e) {
-    // 컬럼이 없으면 무시
-  }
-
-  try {
-    // is_active 컬럼이 있는지 테스트
-    const testQuery = supabase.from("students").select("is_active").limit(1);
-    const { error: testError } = await testQuery;
-    if (!testError) {
-      studentsSelectFields += ",is_active";
-    }
-  } catch (e) {
-    // 컬럼이 없으면 무시
-  }
-
-  const { data: studentsForSMS, error: studentsError } = await supabase
-    .from("students")
-    .select(studentsSelectFields)
-    .order("name", { ascending: true });
+  const { data: studentsForSMS, error: studentsError } =
+    await getActiveStudentsForSMS();
 
   // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
   const studentIds = (studentsForSMS ?? []).map((s: any) => s.id);

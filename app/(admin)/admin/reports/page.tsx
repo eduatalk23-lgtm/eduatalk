@@ -32,9 +32,13 @@ export default async function AdminReportsPage({
   const searchQuery = params.search?.trim() ?? "";
   const period = (params.period as "weekly" | "monthly") || "weekly";
 
-  // 학생 목록 조회
+  // 활성화된 학생 목록 조회
   const selectStudents = () =>
-    supabase.from("students").select("id,name,grade").order("name", { ascending: true });
+    supabase
+      .from("students")
+      .select("id,name,grade")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
 
   let query = selectStudents();
 

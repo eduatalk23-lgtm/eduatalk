@@ -40,7 +40,8 @@ export async function toggleStudentStatus(
 }
 
 /**
- * 학생 계정 삭제 (소프트 삭제: is_active를 false로 설정하고 auth.users에서도 삭제)
+ * 학생 계정 삭제 (하드 삭제: 실제 DB에서 삭제)
+ * NO ACTION 제약조건이 있는 테이블들을 먼저 삭제한 후 students 테이블 삭제
  */
 export async function deleteStudent(
   studentId: string
@@ -53,44 +54,134 @@ export async function deleteStudent(
 
   const supabase = await createSupabaseServerClient();
 
-  // 1. students 테이블에서 is_active를 false로 설정 (소프트 삭제)
-  const { error: updateError } = await supabase
-    .from("students")
-    .update({ is_active: false })
-    .eq("id", studentId);
-
-  if (updateError) {
-    console.error("[admin/studentManagement] 학생 비활성화 실패", updateError);
-    return {
-      success: false,
-      error: updateError.message || "학생 삭제에 실패했습니다.",
-    };
-  }
-
-  // 2. auth.users에서도 삭제 (관리자 권한 필요)
   try {
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(
+    // NO ACTION 제약조건이 있는 테이블들을 먼저 삭제 (순서 중요)
+    // 1. student_score_analysis_cache
+    const { error: cacheError } = await supabase
+      .from("student_score_analysis_cache")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (cacheError) {
+      console.error(
+        "[admin/studentManagement] 성적 분석 캐시 삭제 실패",
+        cacheError
+      );
+      // 경고만 하고 계속 진행
+    }
+
+    // 2. student_score_events
+    const { error: eventsError } = await supabase
+      .from("student_score_events")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (eventsError) {
+      console.error(
+        "[admin/studentManagement] 성적 이벤트 삭제 실패",
+        eventsError
+      );
+      // 경고만 하고 계속 진행
+    }
+
+    // 3. student_internal_scores
+    const { error: internalScoresError } = await supabase
+      .from("student_internal_scores")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (internalScoresError) {
+      console.error(
+        "[admin/studentManagement] 내신 성적 삭제 실패",
+        internalScoresError
+      );
+      return {
+        success: false,
+        error: `내신 성적 삭제 실패: ${internalScoresError.message}`,
+      };
+    }
+
+    // 4. student_mock_scores
+    const { error: mockScoresError } = await supabase
+      .from("student_mock_scores")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (mockScoresError) {
+      console.error(
+        "[admin/studentManagement] 모의고사 성적 삭제 실패",
+        mockScoresError
+      );
+      return {
+        success: false,
+        error: `모의고사 성적 삭제 실패: ${mockScoresError.message}`,
+      };
+    }
+
+    // 5. student_terms
+    const { error: termsError } = await supabase
+      .from("student_terms")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (termsError) {
+      console.error(
+        "[admin/studentManagement] 학기 정보 삭제 실패",
+        termsError
+      );
+      return {
+        success: false,
+        error: `학기 정보 삭제 실패: ${termsError.message}`,
+      };
+    }
+
+    // 6. auth.users에서 사용자 삭제 (관리자 권한 필요)
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
       studentId
     );
-    if (deleteError) {
+
+    if (authDeleteError) {
       console.error(
         "[admin/studentManagement] 인증 사용자 삭제 실패",
+        authDeleteError
+      );
+      return {
+        success: false,
+        error: `인증 사용자 삭제 실패: ${authDeleteError.message}`,
+      };
+    }
+
+    // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
+    const { error: deleteError } = await supabase
+      .from("students")
+      .delete()
+      .eq("id", studentId);
+
+    if (deleteError) {
+      console.error(
+        "[admin/studentManagement] 학생 삭제 실패",
         deleteError
       );
-      // 인증 사용자 삭제 실패해도 students 테이블은 업데이트되었으므로 경고만
-      console.warn(
-        "[admin/studentManagement] 인증 사용자 삭제 실패했지만 학생 정보는 비활성화되었습니다."
-      );
+      return {
+        success: false,
+        error: deleteError.message || "학생 삭제에 실패했습니다.",
+      };
     }
+
+    revalidatePath("/admin/students");
+    revalidatePath(`/admin/students/${studentId}`);
+
+    return { success: true };
   } catch (error) {
-    console.error("[admin/studentManagement] 인증 사용자 삭제 중 오류", error);
-    // 인증 사용자 삭제 실패해도 students 테이블은 업데이트되었으므로 경고만
+    console.error("[admin/studentManagement] 학생 삭제 중 오류", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "학생 삭제 중 알 수 없는 오류가 발생했습니다.",
+    };
   }
-
-  revalidatePath("/admin/students");
-  revalidatePath(`/admin/students/${studentId}`);
-
-  return { success: true };
 }
 
 /**
@@ -133,7 +224,8 @@ export async function bulkToggleStudentStatus(
 }
 
 /**
- * 여러 학생을 일괄 삭제 (관리자 전용)
+ * 여러 학생을 일괄 삭제 (관리자 전용, 하드 삭제)
+ * 각 학생에 대해 deleteStudent와 동일한 프로세스 수행
  */
 export async function bulkDeleteStudents(
   studentIds: string[]
@@ -154,37 +246,92 @@ export async function bulkDeleteStudents(
 
   // 각 학생에 대해 삭제 작업 수행
   for (const studentId of studentIds) {
-    // 1. students 테이블에서 is_active를 false로 설정
-    const { error: updateError } = await supabase
-      .from("students")
-      .update({ is_active: false })
-      .eq("id", studentId);
-
-    if (updateError) {
-      errors.push(`${studentId}: ${updateError.message}`);
-      continue;
-    }
-
-    // 2. auth.users에서도 삭제
     try {
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(
+      // NO ACTION 제약조건이 있는 테이블들을 먼저 삭제
+      // 1. student_score_analysis_cache
+      await supabase
+        .from("student_score_analysis_cache")
+        .delete()
+        .eq("student_id", studentId);
+
+      // 2. student_score_events
+      await supabase
+        .from("student_score_events")
+        .delete()
+        .eq("student_id", studentId);
+
+      // 3. student_internal_scores
+      const { error: internalScoresError } = await supabase
+        .from("student_internal_scores")
+        .delete()
+        .eq("student_id", studentId);
+
+      if (internalScoresError) {
+        errors.push(
+          `${studentId}: 내신 성적 삭제 실패 - ${internalScoresError.message}`
+        );
+        continue;
+      }
+
+      // 4. student_mock_scores
+      const { error: mockScoresError } = await supabase
+        .from("student_mock_scores")
+        .delete()
+        .eq("student_id", studentId);
+
+      if (mockScoresError) {
+        errors.push(
+          `${studentId}: 모의고사 성적 삭제 실패 - ${mockScoresError.message}`
+        );
+        continue;
+      }
+
+      // 5. student_terms
+      const { error: termsError } = await supabase
+        .from("student_terms")
+        .delete()
+        .eq("student_id", studentId);
+
+      if (termsError) {
+        errors.push(
+          `${studentId}: 학기 정보 삭제 실패 - ${termsError.message}`
+        );
+        continue;
+      }
+
+      // 6. auth.users에서 사용자 삭제
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
         studentId
       );
-      if (deleteError) {
-        console.warn(
-          `[admin/studentManagement] 인증 사용자 삭제 실패 (${studentId}):`,
-          deleteError
+
+      if (authDeleteError) {
+        errors.push(
+          `${studentId}: 인증 사용자 삭제 실패 - ${authDeleteError.message}`
         );
-        // 인증 사용자 삭제 실패해도 students 테이블은 업데이트되었으므로 성공으로 카운트
+        continue;
       }
+
+      // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
+      const { error: deleteError } = await supabase
+        .from("students")
+        .delete()
+        .eq("id", studentId);
+
+      if (deleteError) {
+        errors.push(`${studentId}: 학생 삭제 실패 - ${deleteError.message}`);
+        continue;
+      }
+
+      successCount++;
     } catch (error) {
-      console.warn(
-        `[admin/studentManagement] 인증 사용자 삭제 중 오류 (${studentId}):`,
+      const errorMessage =
+        error instanceof Error ? error.message : "알 수 없는 오류";
+      errors.push(`${studentId}: ${errorMessage}`);
+      console.error(
+        `[admin/studentManagement] 학생 삭제 중 오류 (${studentId}):`,
         error
       );
     }
-
-    successCount++;
   }
 
   revalidatePath("/admin/students");

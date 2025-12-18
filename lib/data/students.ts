@@ -244,3 +244,59 @@ export async function upsertStudent(
   return { success: true };
 }
 
+/**
+ * SMS 발송용 활성화된 학생 목록 조회
+ * is_active 필터를 자동으로 적용하고, 동적으로 필드를 확인하여 조회
+ */
+export async function getActiveStudentsForSMS(): Promise<{
+  data: Array<{
+    id: string;
+    name?: string | null;
+    grade?: string | null;
+    class?: string | null;
+    mother_phone?: string | null;
+    father_phone?: string | null;
+    is_active?: boolean | null;
+  }>;
+  error: unknown;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 기본 필드
+  let studentsSelectFields = "id, name, grade, class";
+
+  // 학부모 연락처 컬럼 확인 (mother_phone, father_phone 사용)
+  try {
+    const testQuery = supabase
+      .from("students")
+      .select("mother_phone, father_phone")
+      .limit(1);
+    const { error: testError } = await testQuery;
+    if (!testError) {
+      studentsSelectFields += ",mother_phone,father_phone";
+    }
+  } catch (e) {
+    // 컬럼이 없으면 무시
+  }
+
+  // is_active 컬럼 확인
+  try {
+    const testQuery = supabase.from("students").select("is_active").limit(1);
+    const { error: testError } = await testQuery;
+    if (!testError) {
+      studentsSelectFields += ",is_active";
+    }
+  } catch (e) {
+    // 컬럼이 없으면 무시
+  }
+
+  // 활성화된 학생만 조회
+  const { data, error } = await supabase
+    .from("students")
+    .select(studentsSelectFields)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  return { data: data ?? [], error };
+}
+

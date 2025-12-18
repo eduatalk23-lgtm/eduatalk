@@ -34,10 +34,11 @@ async function getStudentStatistics(
     const weekStartStr = weekStart.toISOString().slice(0, 10);
     const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
-    // 전체 학생 수
+    // 활성화된 전체 학생 수
     const { count: totalCount, error: countError } = await supabase
       .from("students")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("is_active", true);
 
     if (countError && countError.code === "42703") {
       const { count: retryCount } = await supabase
@@ -309,13 +310,17 @@ async function getTopGoalAchievementStudents(supabase: SupabaseServerClient) {
 // 위험 학생 조회 (Risk Engine 사용)
 async function getAtRiskStudents(supabase: SupabaseServerClient) {
   try {
-    // 모든 학생 조회
+    // 활성화된 모든 학생 조회
     const { data: students, error } = await supabase
       .from("students")
-      .select("id,name");
+      .select("id,name")
+      .eq("is_active", true);
 
     if (error && error.code === "42703") {
-      const { data: retryStudents } = await supabase.from("students").select("id,name");
+      const { data: retryStudents } = await supabase
+        .from("students")
+        .select("id,name")
+        .eq("is_active", true);
       if (!retryStudents) return [];
       const studentRows = retryStudents as Array<{ id: string; name?: string | null }>;
       const riskResults = await Promise.all(
