@@ -66,8 +66,9 @@ async function getStudentStatistics(
     const activeThisWeek = activeStudentIds.size;
 
     // 성적 입력한 학생 수 (두 테이블에서 각각 조회 후 합치기)
+    // ⚠️ student_school_scores는 student_internal_scores로 변경되었습니다.
     const [schoolScores, mockScores] = await Promise.all([
-      supabase.from("student_school_scores").select("student_id"),
+      supabase.from("student_internal_scores").select("student_id"),
       supabase.from("student_mock_scores").select("student_id"),
     ]);
 

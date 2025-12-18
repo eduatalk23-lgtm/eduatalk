@@ -33,6 +33,8 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
+type TabType = "basic" | "plan" | "content" | "score" | "session" | "analysis" | "consulting" | "attendance";
+
 export default async function AdminStudentDetailPage({
   params,
   searchParams,
@@ -48,7 +50,7 @@ export default async function AdminStudentDetailPage({
 
   const { id: studentId } = await params;
   const paramsObj = await searchParams;
-  const defaultTab = (paramsObj.tab as any) || "basic";
+  const defaultTab: TabType = (paramsObj.tab as TabType) || "basic";
 
   const supabase = await createSupabaseServerClient();
 
