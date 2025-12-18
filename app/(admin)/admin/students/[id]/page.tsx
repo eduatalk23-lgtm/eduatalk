@@ -58,15 +58,27 @@ export default async function AdminStudentDetailPage({
 
   // 학생 정보 통합 조회 (3개 테이블)
   // 관리자는 memo와 is_active 필드도 조회해야 함
+  // RLS 정책을 우회하기 위해 Admin Client 사용
   const supabase = await createSupabaseServerClient();
-  const [studentResult, profile, careerGoal] = await Promise.all([
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+  
+  const [studentResult, profileResult, careerGoalResult] = await Promise.all([
     supabase
       .from("students")
       .select("id,name,grade,class,birth_date,school_id,school_type,division,memo,status,is_active,created_at,updated_at")
       .eq("id", studentId)
       .maybeSingle(),
-    getStudentProfileById(studentId),
-    getStudentCareerGoalById(studentId),
+    adminClient
+      .from("student_profiles")
+      .select("*")
+      .eq("id", studentId)
+      .maybeSingle(),
+    adminClient
+      .from("student_career_goals")
+      .select("*")
+      .eq("student_id", studentId)
+      .maybeSingle(),
   ]);
 
   if (studentResult.error || !studentResult.data) {
@@ -74,6 +86,8 @@ export default async function AdminStudentDetailPage({
   }
 
   const student = studentResult.data;
+  const profile = profileResult.data;
+  const careerGoal = careerGoalResult.data;
 
   // 통합 데이터 구성
   const studentInfoData: StudentInfoData = {
@@ -90,19 +104,19 @@ export default async function AdminStudentDetailPage({
     status: student.status as "enrolled" | "on_leave" | "graduated" | "transferred" | null,
     is_active: student.is_active ?? true,
     // student_profiles 테이블
-    gender: profile?.gender,
-    phone: profile?.phone,
-    mother_phone: profile?.mother_phone,
-    father_phone: profile?.father_phone,
-    address: profile?.address,
-    emergency_contact: profile?.emergency_contact,
-    emergency_contact_phone: profile?.emergency_contact_phone,
-    medical_info: profile?.medical_info,
+    gender: profile?.gender as "남" | "여" | null,
+    phone: profile?.phone ?? null,
+    mother_phone: profile?.mother_phone ?? null,
+    father_phone: profile?.father_phone ?? null,
+    address: profile?.address ?? null,
+    emergency_contact: profile?.emergency_contact ?? null,
+    emergency_contact_phone: profile?.emergency_contact_phone ?? null,
+    medical_info: profile?.medical_info ?? null,
     // student_career_goals 테이블
-    exam_year: careerGoal?.exam_year,
-    curriculum_revision: careerGoal?.curriculum_revision,
-    desired_university_ids: careerGoal?.desired_university_ids,
-    desired_career_field: careerGoal?.desired_career_field,
+    exam_year: careerGoal?.exam_year ?? null,
+    curriculum_revision: careerGoal?.curriculum_revision as "2009 개정" | "2015 개정" | "2022 개정" | null,
+    desired_university_ids: careerGoal?.desired_university_ids ?? null,
+    desired_career_field: careerGoal?.desired_career_field ?? null,
   };
 
   return (
