@@ -251,9 +251,9 @@ async function linkStudentWithConnectionCode(
   connectionCode: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 연결 코드 검증
+    // 연결 코드 검증 (공통 모듈 사용)
     const { validateConnectionCode } = await import(
-      "@/app/(admin)/actions/studentManagementActions"
+      "@/lib/utils/connectionCodeUtils"
     );
     const validationResult = await validateConnectionCode(connectionCode);
 

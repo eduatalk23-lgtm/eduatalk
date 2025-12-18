@@ -633,15 +633,63 @@ export async function updateStudentInfo(
 
 /**
  * 연결 코드 생성 (STU-XXXX-XXXX 형식)
+ * crypto.getRandomValues를 사용하여 보안 강화
  */
 function generateConnectionCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  const getRandomChar = () => chars[Math.floor(Math.random() * chars.length)];
+  
+  // crypto.getRandomValues를 사용하여 보안 강화
+  const getRandomChar = () => {
+    const randomArray = new Uint32Array(1);
+    crypto.getRandomValues(randomArray);
+    const index = randomArray[0] % chars.length;
+    return chars[index];
+  };
   
   const part1 = Array.from({ length: 4 }, getRandomChar).join("");
   const part2 = Array.from({ length: 4 }, getRandomChar).join("");
   
   return `STU-${part1}-${part2}`;
+}
+
+/**
+ * 고유 연결 코드 생성 (중복 체크 포함)
+ * 
+ * @param supabase - Supabase 클라이언트
+ * @param maxRetries - 최대 재시도 횟수 (기본값: 10)
+ * @returns 고유한 연결 코드
+ */
+async function generateUniqueConnectionCode(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  maxRetries = 10
+): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const code = generateConnectionCode();
+    
+    // 중복 체크
+    const { data, error } = await supabase
+      .from("student_connection_codes")
+      .select("id")
+      .eq("connection_code", code)
+      .maybeSingle();
+    
+    if (error && error.code !== "PGRST116") {
+      // PGRST116은 "no rows returned" 에러이므로 정상
+      console.error("[admin/studentManagement] 연결 코드 중복 체크 실패", error);
+      throw new Error("연결 코드 생성 중 오류가 발생했습니다.");
+    }
+    
+    // 중복이 없으면 반환
+    if (!data) {
+      return code;
+    }
+    
+    // 중복이 있으면 재시도
+    console.warn(`[admin/studentManagement] 연결 코드 중복 감지, 재시도 ${attempt + 1}/${maxRetries}: ${code}`);
+  }
+  
+  // 최대 재시도 횟수 초과
+  throw new Error("고유한 연결 코드를 생성할 수 없습니다. 다시 시도해주세요.");
 }
 
 /**
@@ -674,17 +722,27 @@ export async function createStudent(
 
   const supabase = await createSupabaseServerClient();
 
-  // FormData를 객체로 변환
+  // FormData 필드 분리
+  const { separateStudentFormFields } = await import("@/lib/utils/studentFormDataHelpers");
   const { formDataToObject } = await import("@/lib/validation/schemas");
   const { createStudentSchema } = await import("@/lib/validation/studentSchemas");
   
-  const obj = formDataToObject(formData);
+  // 필드를 기본정보, 프로필, 진로정보로 분리
+  const { basic: basicFormData, profile: profileFormData, career: careerFormData } = 
+    separateStudentFormFields(formData);
+  
+  // 각 필드 그룹을 객체로 변환
+  const basicObj = formDataToObject(basicFormData);
+  
+  // 프로필과 진로 정보는 선택사항이므로 빈 FormData인지 확인
+  const profileObj = profileFormData.keys().next().done ? null : formDataToObject(profileFormData);
+  const careerObj = careerFormData.keys().next().done ? null : formDataToObject(careerFormData);
   
   // 스키마 검증
   const validationResult = createStudentSchema.safeParse({
-    basic: obj,
-    profile: obj,
-    career: obj,
+    basic: basicObj,
+    profile: profileObj,
+    career: careerObj,
   });
 
   if (!validationResult.success) {
@@ -771,8 +829,8 @@ export async function createStudent(
       }
     }
 
-    // 4. 연결 코드 생성 및 저장
-    const connectionCode = generateConnectionCode();
+    // 4. 연결 코드 생성 및 저장 (고유 코드 생성 함수 사용)
+    const connectionCode = await generateUniqueConnectionCode(supabase);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
 
@@ -811,9 +869,9 @@ export async function createStudent(
 
 /**
  * 연결 코드 검증 (회원가입 시 사용)
+ * 공통 모듈로 이동됨 - lib/utils/connectionCodeUtils.ts
  * 
- * @param connectionCode - 연결 코드
- * @returns 학생 ID 또는 에러
+ * @deprecated 이 함수는 lib/utils/connectionCodeUtils.ts의 validateConnectionCode를 사용하세요.
  */
 export async function validateConnectionCode(
   connectionCode: string
@@ -822,44 +880,8 @@ export async function validateConnectionCode(
   studentId?: string;
   error?: string;
 }> {
-  const supabase = await createSupabaseServerClient();
-
-  // 코드 형식 검증
-  if (!connectionCode.match(/^STU-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
-    return { success: false, error: "연결 코드 형식이 올바르지 않습니다." };
-  }
-
-  // 코드 조회
-  const { data, error } = await supabase
-    .from("student_connection_codes")
-    .select("student_id, expires_at, used_at")
-    .eq("connection_code", connectionCode)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[admin/studentManagement] 연결 코드 조회 실패", error);
-    return { success: false, error: "연결 코드를 확인할 수 없습니다." };
-  }
-
-  if (!data) {
-    return { success: false, error: "유효하지 않은 연결 코드입니다." };
-  }
-
-  // 만료 확인
-  const expiresAt = new Date(data.expires_at);
-  if (expiresAt < new Date()) {
-    return { success: false, error: "만료된 연결 코드입니다." };
-  }
-
-  // 사용 여부 확인
-  if (data.used_at) {
-    return { success: false, error: "이미 사용된 연결 코드입니다." };
-  }
-
-  return {
-    success: true,
-    studentId: data.student_id,
-  };
+  const { validateConnectionCode: validate } = await import("@/lib/utils/connectionCodeUtils");
+  return validate(connectionCode);
 }
 
 /**
@@ -894,8 +916,8 @@ export async function regenerateConnectionCode(
     .eq("student_id", studentId)
     .is("used_at", null);
 
-  // 새 코드 생성
-  const connectionCode = generateConnectionCode();
+  // 새 코드 생성 (고유 코드 생성 함수 사용)
+  const connectionCode = await generateUniqueConnectionCode(supabase);
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30); // 30일 후 만료
 

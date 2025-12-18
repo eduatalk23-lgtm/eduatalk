@@ -1,11 +1,14 @@
 /**
  * 신규 학생 등록 폼 훅
  * React Hook Form을 사용하여 폼 상태 관리
+ * Zod 스키마를 통한 검증 통합
  */
 
 import { useForm, type UseFormReturn } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
 import type { CreateStudentFormData } from "../_types/createStudentTypes";
+import { createStudentFormSchema } from "@/lib/validation/createStudentFormSchema";
 
 type UseCreateStudentFormProps = {
   defaultValues?: Partial<CreateStudentFormData>;
@@ -56,8 +59,9 @@ export function useCreateStudentForm({
     [initialDefaultValues]
   );
 
-  // React Hook Form 설정
+  // React Hook Form 설정 (Zod 스키마 통합)
   const form = useForm<CreateStudentFormData>({
+    resolver: zodResolver(createStudentFormSchema),
     defaultValues,
     mode: "onChange",
     shouldUnregister: false,
