@@ -61,7 +61,22 @@ LIMIT 10;
 2. 데이터베이스 쿼리로 실제 데이터 존재 여부 확인
 3. 로그 결과에 따라 추가 조사 필요
 
+## 문제 해결
+
+### 원인
+`student_profiles` 테이블과 `parent_student_links` 테이블에 RLS 정책이 없거나, 관리자 권한으로 접근할 때 RLS가 차단되어 데이터를 조회하지 못했습니다.
+
+### 해결 방법
+`getStudentPhonesBatch` 함수에서 `student_profiles`와 `parent_student_links` 테이블 조회 시 Admin Client를 사용하도록 수정했습니다. `getSupabaseClientForRLSBypass` 함수를 사용하여 RLS를 우회합니다.
+
+### 수정 내용
+- `student_profiles` 테이블 조회: Admin Client 사용
+- `parent_student_links` 테이블 조회: Admin Client 사용
+- `students` 테이블 조회: 기존대로 Server Client 사용 (RLS 정책이 있음)
+
 ## 수정 파일
-- `lib/utils/studentPhoneUtils.ts`: 디버깅 로그 추가
+- `lib/utils/studentPhoneUtils.ts`: 
+  - 디버깅 로그 추가
+  - `student_profiles` 및 `parent_student_links` 조회 시 Admin Client 사용
 - `app/(admin)/admin/students/page.tsx`: 디버깅 로그 추가
 

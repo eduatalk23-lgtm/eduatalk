@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 
 export type StudentPhoneData = {
   id: string;
@@ -72,6 +73,12 @@ export async function getStudentPhonesBatch(
   }
 
   const supabase = await createSupabaseServerClient();
+  
+  // RLS 우회가 필요한 쿼리를 위한 Admin Client (student_profiles는 RLS 정책이 없을 수 있음)
+  const adminClient = await getSupabaseClientForRLSBypass({
+    forceAdmin: true,
+    fallbackToServer: true,
+  });
 
   // 1. students 테이블에서 기본 정보 일괄 조회
   const { data: students, error: studentsError } = await supabase
@@ -84,7 +91,7 @@ export async function getStudentPhonesBatch(
     return [];
   }
 
-  // 2. student_profiles 테이블에서 전화번호 일괄 조회 (fallback 데이터)
+  // 2. student_profiles 테이블에서 전화번호 일괄 조회 (RLS 우회를 위해 Admin Client 사용)
   let profiles: Array<{
     id: string;
     phone?: string | null;
@@ -92,7 +99,7 @@ export async function getStudentPhonesBatch(
     father_phone?: string | null;
   }> = [];
 
-  const { data: profilesData, error: profilesError } = await supabase
+  const { data: profilesData, error: profilesError } = await adminClient
     .from("student_profiles")
     .select("id, phone, mother_phone, father_phone")
     .in("id", studentIds);
@@ -110,14 +117,14 @@ export async function getStudentPhonesBatch(
     console.log("[studentPhoneUtils] student_profiles 데이터 없음");
   }
 
-  // 3. parent_student_links를 통해 연결된 학부모 정보 조회
+  // 3. parent_student_links를 통해 연결된 학부모 정보 조회 (RLS 우회를 위해 Admin Client 사용)
   let linkedParentPhones: Map<string, {
     mother?: { phone: string; parentId: string };
     father?: { phone: string; parentId: string };
   }> = new Map();
 
   try {
-    const { data: links, error: linksError } = await supabase
+    const { data: links, error: linksError } = await adminClient
       .from("parent_student_links")
       .select(`
         student_id,
