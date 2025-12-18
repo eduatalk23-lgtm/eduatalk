@@ -56,6 +56,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "mall.chunjaetext.co.kr",
       },
+      {
+        protocol: "https",
+        hostname: "www.mirae-n.com",
+      },
       // 필요시 다른 도메인 추가 가능
       // {
       //   protocol: "https",
