@@ -183,19 +183,21 @@ export function BookDetailsManager({
   }, [details, updateDetails]);
 
   // 대단원명 업데이트 (해당 대단원의 모든 항목 업데이트)
-  const updateMajorUnitName = useCallback((oldName: string, newName: string) => {
+  const updateMajorUnitName = useCallback((oldName: string, newName: string, skipDuplicateCheck: boolean = false) => {
     const normalizedNewName = normalizeMajorUnit(newName);
     const normalizedOldName = normalizeMajorUnit(oldName);
     
-    // 중복 체크: 새 이름이 이미 다른 그룹에 존재하는지 확인
-    const existingGroup = groupedDetails.find(
-      (g) => getMajorUnit(g.majorUnit) === normalizedNewName && 
-             g.majorUnit !== normalizedOldName
-    );
-    
-    if (existingGroup) {
-      alert(`"${normalizedNewName}" 대단원명이 이미 존재합니다. 다른 이름을 사용해주세요.`);
-      return;
+    // 중복 체크: 입력 중이 아닐 때만 수행
+    if (!skipDuplicateCheck) {
+      const existingGroup = groupedDetails.find(
+        (g) => getMajorUnit(g.majorUnit) === normalizedNewName && 
+               g.majorUnit !== normalizedOldName
+      );
+      
+      if (existingGroup) {
+        alert(`"${normalizedNewName}" 대단원명이 이미 존재합니다. 다른 이름을 사용해주세요.`);
+        return;
+      }
     }
 
     const newDetails = details.map((d) =>
@@ -205,6 +207,17 @@ export function BookDetailsManager({
     );
     updateDetails(newDetails);
   }, [details, groupedDetails, updateDetails]);
+
+  // 대단원명 입력 완료 시 중복 체크
+  const handleMajorUnitBlur = useCallback((group: GroupedDetails, currentValue: string) => {
+    const normalizedValue = normalizeMajorUnit(currentValue);
+    const normalizedOldName = normalizeMajorUnit(group.majorUnit);
+    
+    // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크
+    if (normalizedValue !== normalizedOldName && normalizedValue !== EMPTY_MAJOR_UNIT) {
+      updateMajorUnitName(group.majorUnit, normalizedValue, false);
+    }
+  }, [updateMajorUnitName]);
 
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -252,12 +265,24 @@ export function BookDetailsManager({
                     value={group.majorUnit === EMPTY_MAJOR_UNIT ? "" : group.majorUnit}
                     onChange={(e) => {
                       const newName = normalizeMajorUnit(e.target.value);
-                      updateMajorUnitName(group.majorUnit, newName);
+                      // 입력 중에는 중복 체크를 건너뜀
+                      updateMajorUnitName(group.majorUnit, newName, true);
+                    }}
+                    onBlur={(e) => {
+                      e.stopPropagation();
+                      // 입력 완료 시 중복 체크 수행
+                      handleMajorUnitBlur(group, e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      // Enter 키 입력 시에도 중복 체크 수행
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                      }
                     }}
                     onFocus={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
                     placeholder="대단원명을 입력하세요"
                     className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm font-semibold text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                   />

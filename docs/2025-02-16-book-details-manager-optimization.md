@@ -7,6 +7,12 @@
 **작업 일시**: 2025-02-16  
 **작업 파일**: `app/(student)/contents/_components/BookDetailsManager.tsx`
 
+### 추가 개선 (2025-02-16)
+
+입력 중 중복 체크로 인한 입력 방해 문제를 해결했습니다.
+- **문제**: 기존 대단원명 "이차곡선"이 있을 때, "이차곡선의 접선"을 입력하려고 하면 "이차곡선"에서 입력이 막히는 문제
+- **해결**: 입력 중(`onChange`)에는 중복 체크를 하지 않고, 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 중복 체크를 수행하도록 변경
+
 ---
 
 ## 🔍 문제 분석
@@ -106,29 +112,43 @@ const toggleGroup = useCallback((groupId: string) => {
 
 **추가된 로직**
 ```typescript
-const updateMajorUnitName = useCallback((oldName: string, newName: string) => {
+const updateMajorUnitName = useCallback((oldName: string, newName: string, skipDuplicateCheck: boolean = false) => {
   const normalizedNewName = normalizeMajorUnit(newName);
   const normalizedOldName = normalizeMajorUnit(oldName);
   
-  // 중복 체크: 새 이름이 이미 다른 그룹에 존재하는지 확인
-  const existingGroup = groupedDetails.find(
-    (g) => getMajorUnit(g.majorUnit) === normalizedNewName && 
-           g.majorUnit !== normalizedOldName
-  );
-  
-  if (existingGroup) {
-    alert(`"${normalizedNewName}" 대단원명이 이미 존재합니다. 다른 이름을 사용해주세요.`);
-    return;
+  // 중복 체크: 입력 중이 아닐 때만 수행
+  if (!skipDuplicateCheck) {
+    const existingGroup = groupedDetails.find(
+      (g) => getMajorUnit(g.majorUnit) === normalizedNewName && 
+             g.majorUnit !== normalizedOldName
+    );
+    
+    if (existingGroup) {
+      alert(`"${normalizedNewName}" 대단원명이 이미 존재합니다. 다른 이름을 사용해주세요.`);
+      return;
+    }
   }
 
   // 업데이트 로직...
 }, [details, groupedDetails, updateDetails]);
+
+// 대단원명 입력 완료 시 중복 체크
+const handleMajorUnitBlur = useCallback((group: GroupedDetails, currentValue: string) => {
+  const normalizedValue = normalizeMajorUnit(currentValue);
+  const normalizedOldName = normalizeMajorUnit(group.majorUnit);
+  
+  // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크
+  if (normalizedValue !== normalizedOldName && normalizedValue !== EMPTY_MAJOR_UNIT) {
+    updateMajorUnitName(group.majorUnit, normalizedValue, false);
+  }
+}, [updateMajorUnitName]);
 ```
 
 **효과**
 - 중복된 대단원명 입력 방지
 - 그룹 병합 방지
-- 사용자 경험 개선
+- 입력 중에는 중복 체크를 하지 않아 자연스러운 입력 가능
+- 입력 완료 시에만 중복 체크하여 사용자 경험 개선
 
 ### Phase 5: 성능 최적화
 
@@ -211,6 +231,8 @@ import { useState, useMemo, useCallback, memo } from "react";
 
 ### 5. 중복 체크 로직 추가
 - `updateMajorUnitName` 함수에 중복 체크 및 경고 로직 추가
+- `skipDuplicateCheck` 파라미터 추가하여 입력 중에는 중복 체크를 건너뜀
+- `handleMajorUnitBlur` 함수 추가하여 입력 완료 시에만 중복 체크 수행
 
 ### 6. 성능 최적화
 - 모든 함수를 `useCallback`으로 메모이제이션
@@ -243,6 +265,11 @@ import { useState, useMemo, useCallback, memo } from "react";
 5. **여러 대단원 추가 후 각각의 이름을 수정해보며 포커스 유지 확인**
    - ✅ 여러 대단원 추가 및 수정 시 포커스 유지
    - ✅ 각 대단원의 토글 상태가 독립적으로 유지됨
+
+6. **입력 중 중복 체크로 인한 입력 방해 문제 확인**
+   - ✅ 기존 대단원명 "이차곡선"이 있을 때 "이차곡선의 접선" 입력 가능
+   - ✅ 입력 중에는 중복 체크를 하지 않아 자연스러운 입력 가능
+   - ✅ 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 중복 체크 수행
 
 ---
 
