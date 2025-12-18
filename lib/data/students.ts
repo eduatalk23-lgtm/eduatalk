@@ -378,9 +378,10 @@ export async function updateStudentDivision(
 
 /**
  * 구분별 학생 목록 조회
+ * @param division - 구분 필터 (undefined: 전체, null: 미설정, "고등부"|"중등부"|"기타": 특정 구분)
  */
 export async function getStudentsByDivision(
-  division: StudentDivision | null
+  division: StudentDivision | null | undefined
 ): Promise<Student[]> {
   const supabase = await createSupabaseServerClient();
 
@@ -391,10 +392,13 @@ export async function getStudentsByDivision(
     .select(selectFields)
     .order("name", { ascending: true });
 
-  if (division !== null) {
-    query = query.eq("division", division);
-  } else {
-    query = query.is("division", null);
+  // undefined인 경우 모든 학생 조회 (필터 없음)
+  if (division !== undefined) {
+    if (division !== null) {
+      query = query.eq("division", division);
+    } else {
+      query = query.is("division", null);
+    }
   }
 
   const { data, error } = await query;

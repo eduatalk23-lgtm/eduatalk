@@ -38,7 +38,7 @@ export default async function StudentDivisionsPage({
 
   // 학생 목록 조회
   const students = await getStudentsByDivision(
-    divisionFilter === "all" ? null : divisionFilter
+    divisionFilter === "all" ? undefined : divisionFilter
   );
 
   return (
