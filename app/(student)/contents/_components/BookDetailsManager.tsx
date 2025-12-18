@@ -43,6 +43,9 @@ export function BookDetailsManager({
     }))
   );
 
+  // 각 대단원 입력 필드의 로컬 상태 관리 (입력 중 details 업데이트 방지)
+  const [localMajorUnitNames, setLocalMajorUnitNames] = useState<Map<string, string>>(new Map());
+
   // 대단원별로 그룹화
   const groupedDetails = useMemo(() => {
     const groups = new Map<string, DetailItem[]>();
@@ -208,15 +211,22 @@ export function BookDetailsManager({
     updateDetails(newDetails);
   }, [details, groupedDetails, updateDetails]);
 
-  // 대단원명 입력 완료 시 중복 체크
+  // 대단원명 입력 완료 시 중복 체크 및 실제 업데이트
   const handleMajorUnitBlur = useCallback((group: GroupedDetails, currentValue: string) => {
     const normalizedValue = normalizeMajorUnit(currentValue);
     const normalizedOldName = normalizeMajorUnit(group.majorUnit);
     
-    // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크
+    // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크 및 업데이트
     if (normalizedValue !== normalizedOldName && normalizedValue !== EMPTY_MAJOR_UNIT) {
       updateMajorUnitName(group.majorUnit, normalizedValue, false);
     }
+    
+    // 로컬 상태 정리
+    setLocalMajorUnitNames((prev) => {
+      const next = new Map(prev);
+      next.delete(group.groupId);
+      return next;
+    });
   }, [updateMajorUnitName]);
 
   return (
@@ -241,6 +251,10 @@ export function BookDetailsManager({
           {groupedDetails.map((group) => {
             const isExpanded = expandedGroups.has(group.groupId);
             const hasMinorUnits = group.items.some((item) => item.minor_unit);
+            
+            // 로컬 상태가 있으면 로컬 상태 사용, 없으면 실제 값 사용
+            const displayValue = localMajorUnitNames.get(group.groupId) ?? 
+                                (group.majorUnit === EMPTY_MAJOR_UNIT ? "" : group.majorUnit);
 
             return (
               <div
@@ -262,15 +276,19 @@ export function BookDetailsManager({
                   <input
                     type="text"
                     key={`input-${group.groupId}`}
-                    value={group.majorUnit === EMPTY_MAJOR_UNIT ? "" : group.majorUnit}
+                    value={displayValue}
                     onChange={(e) => {
-                      const newName = normalizeMajorUnit(e.target.value);
-                      // 입력 중에는 중복 체크를 건너뜀
-                      updateMajorUnitName(group.majorUnit, newName, true);
+                      const newName = e.target.value;
+                      // 입력 중에는 로컬 상태만 업데이트 (실제 details는 업데이트하지 않음)
+                      setLocalMajorUnitNames((prev) => {
+                        const next = new Map(prev);
+                        next.set(group.groupId, newName);
+                        return next;
+                      });
                     }}
                     onBlur={(e) => {
                       e.stopPropagation();
-                      // 입력 완료 시 중복 체크 수행
+                      // 입력 완료 시 중복 체크 및 실제 업데이트
                       handleMajorUnitBlur(group, e.target.value);
                     }}
                     onKeyDown={(e) => {

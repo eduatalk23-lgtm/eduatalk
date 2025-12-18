@@ -9,9 +9,13 @@
 
 ### 추가 개선 (2025-02-16)
 
-입력 중 중복 체크로 인한 입력 방해 문제를 해결했습니다.
-- **문제**: 기존 대단원명 "이차곡선"이 있을 때, "이차곡선의 접선"을 입력하려고 하면 "이차곡선"에서 입력이 막히는 문제
-- **해결**: 입력 중(`onChange`)에는 중복 체크를 하지 않고, 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 중복 체크를 수행하도록 변경
+입력 중 중복 체크 및 그룹 재생성 문제를 해결했습니다.
+- **문제 1**: 기존 대단원명 "이차곡선"이 있을 때, "이차곡선의 접선"을 입력하려고 하면 "이차곡선"에서 입력이 막히는 문제
+- **문제 2**: "이차곡선"까지 입력하면 대단원 항목이 사라지고 해당 대단원의 하위 중단원 목록이 생성되는 문제
+- **해결**: 
+  - 입력 중(`onChange`)에는 로컬 상태만 업데이트하고 실제 `details`는 업데이트하지 않음
+  - 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 실제 `details` 업데이트 및 중복 체크 수행
+  - 로컬 상태(`localMajorUnitNames`)를 사용하여 입력 중 그룹 재생성 방지
 
 ---
 
@@ -132,15 +136,25 @@ const updateMajorUnitName = useCallback((oldName: string, newName: string, skipD
   // 업데이트 로직...
 }, [details, groupedDetails, updateDetails]);
 
-// 대단원명 입력 완료 시 중복 체크
+// 각 대단원 입력 필드의 로컬 상태 관리 (입력 중 details 업데이트 방지)
+const [localMajorUnitNames, setLocalMajorUnitNames] = useState<Map<string, string>>(new Map());
+
+// 대단원명 입력 완료 시 중복 체크 및 실제 업데이트
 const handleMajorUnitBlur = useCallback((group: GroupedDetails, currentValue: string) => {
   const normalizedValue = normalizeMajorUnit(currentValue);
   const normalizedOldName = normalizeMajorUnit(group.majorUnit);
   
-  // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크
+  // 값이 변경되었고, 빈 값이 아닐 때만 중복 체크 및 업데이트
   if (normalizedValue !== normalizedOldName && normalizedValue !== EMPTY_MAJOR_UNIT) {
     updateMajorUnitName(group.majorUnit, normalizedValue, false);
   }
+  
+  // 로컬 상태 정리
+  setLocalMajorUnitNames((prev) => {
+    const next = new Map(prev);
+    next.delete(group.groupId);
+    return next;
+  });
 }, [updateMajorUnitName]);
 ```
 
@@ -266,10 +280,11 @@ import { useState, useMemo, useCallback, memo } from "react";
    - ✅ 여러 대단원 추가 및 수정 시 포커스 유지
    - ✅ 각 대단원의 토글 상태가 독립적으로 유지됨
 
-6. **입력 중 중복 체크로 인한 입력 방해 문제 확인**
+6. **입력 중 중복 체크 및 그룹 재생성 문제 확인**
    - ✅ 기존 대단원명 "이차곡선"이 있을 때 "이차곡선의 접선" 입력 가능
-   - ✅ 입력 중에는 중복 체크를 하지 않아 자연스러운 입력 가능
-   - ✅ 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 중복 체크 수행
+   - ✅ 입력 중에는 로컬 상태만 업데이트하여 그룹 재생성 방지
+   - ✅ 대단원 항목이 사라지지 않고 정상적으로 입력 가능
+   - ✅ 입력 완료 시(`onBlur` 또는 `Enter` 키)에만 실제 `details` 업데이트 및 중복 체크 수행
 
 ---
 
