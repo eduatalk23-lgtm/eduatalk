@@ -277,11 +277,19 @@ export function normalizeError(error: unknown): AppError {
     );
   }
 
+  // Error가 아닌 값이 throw된 경우 (문자열, 숫자, 객체 등)
+  // 개발 환경에서는 실제 값을 포함한 메시지 제공
+  const errorMessage = process.env.NODE_ENV === "development"
+    ? `알 수 없는 오류가 발생했습니다: ${JSON.stringify(error)}`
+    : "알 수 없는 오류가 발생했습니다.";
+  
   return new AppError(
-    "알 수 없는 오류가 발생했습니다.",
+    errorMessage,
     ErrorCode.INTERNAL_ERROR,
     500,
-    false
+    // 개발 환경에서는 상세 정보를 포함하므로 isUserFacing을 true로 설정
+    // 프로덕션에서는 일반 메시지만 표시
+    process.env.NODE_ENV === "development"
   );
 }
 
@@ -325,17 +333,19 @@ export function withErrorHandling<
       
       logError(normalizedError, { function: fn.name, args });
       
-      // 사용자에게 보여줄 수 있는 에러만 throw
+      // 사용자에게 보여줄 수 있는 에러는 그대로 throw
       if (normalizedError.isUserFacing) {
         throw normalizedError;
       }
       
-      // 개발 환경에서는 실제 에러 메시지 포함
+      // isUserFacing이 false인 경우 (Error가 아닌 값이 catch된 경우 등)
+      // 개발 환경에서는 원본 에러 정보를 포함한 메시지 제공
+      // 프로덕션에서는 일반적인 메시지만 제공
       const errorMessage = process.env.NODE_ENV === "development"
         ? `작업을 완료하는 중 오류가 발생했습니다: ${normalizedError.message}`
-        : "작업을 완료하는 중 오류가 발생했습니다.";
+        : "작업을 완료하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
       
-      // 그 외에는 일반적인 에러 메시지
+      // 사용자에게 보여줄 수 있는 형태로 변환하여 throw
       throw new AppError(
         errorMessage,
         ErrorCode.INTERNAL_ERROR,
