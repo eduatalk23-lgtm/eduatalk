@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getPublishers, getCurriculumRevisions } from "@/lib/data/contentMetadata";
+import { getContainerClass } from "@/lib/constants/layout";
 import { MasterBookForm } from "./MasterBookForm";
 
 export default async function NewMasterBookPage() {
@@ -20,7 +21,7 @@ export default async function NewMasterBookPage() {
   ]);
 
   return (
-    <section className="mx-auto w-full max-w-2xl px-4 py-10">
+    <section className={getContainerClass("MASTER_FORM", "lg")}>
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <div>

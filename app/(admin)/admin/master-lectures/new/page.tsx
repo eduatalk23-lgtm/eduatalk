@@ -22,7 +22,7 @@ export default async function NewMasterLecturePage() {
   ]);
 
   return (
-    <section className={getContainerClass("FORM", "lg")}>
+    <section className={getContainerClass("MASTER_FORM", "lg")}>
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
           <div>

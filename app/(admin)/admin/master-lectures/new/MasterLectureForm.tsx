@@ -114,16 +114,16 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm"
+      className="flex flex-col gap-6 rounded-lg border bg-white p-6 md:p-8 shadow-sm"
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* 강의명 */}
         <FormField
           label="강의명"
           name="title"
           required
           placeholder="강의명을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 개정교육과정, 교과 그룹, 과목 */}
@@ -145,6 +145,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
           label="플랫폼"
           name="platform"
           placeholder="예: 메가스터디, EBSi"
+          className="lg:col-span-2"
         />
 
         {/* 총 회차 */}
@@ -215,7 +216,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
           name="video_url"
           placeholder="https://example.com/video.mp4"
           hint="강의 동영상 파일의 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 강의 출처 URL */}
@@ -224,7 +225,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
           name="lecture_source_url"
           placeholder="https://example.com/source"
           hint="강의 출처 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 표지 이미지 URL */}
@@ -233,11 +234,11 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
           name="cover_image_url"
           placeholder="https://example.com/image.jpg"
           hint="강의 표지 이미지의 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 연결된 교재 선택 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
           <MasterBookSelector
             value={selectedBookId}
             onChange={(bookId) => {
@@ -265,7 +266,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
         </div>
 
         {/* 연결된 교재 등록 여부 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -298,7 +299,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
         </div>
 
         {/* 메모 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
             메모
           </label>
@@ -325,14 +326,14 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
               공통 정보(개정교육과정, 교과, 과목)는 강의 입력값을 참고합니다.
             </p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* 교재명 */}
             <FormField
               label="교재명"
               name="book_title"
               required={linkBook}
               placeholder="교재명을 입력하세요"
-              className="md:col-span-2"
+              className="md:col-span-2 lg:col-span-3"
             />
 
             {/* 개정교육과정 - 강의 입력값 참고 */}
@@ -420,7 +421,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
             />
 
             {/* 교재 메모 */}
-            <div className="flex flex-col gap-1 md:col-span-2">
+            <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
               <label className="block text-sm font-medium text-gray-700">
                 교재 메모
               </label>

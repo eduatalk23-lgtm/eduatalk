@@ -69,9 +69,9 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 md:p-8 shadow-sm">
       {/* 필수 입력 항목 안내 */}
-      <div className="rounded-md bg-blue-50 border border-blue-200 p-3 md:col-span-2">
+      <div className="rounded-md bg-blue-50 border border-blue-200 p-3 md:col-span-2 lg:col-span-3">
         <p className="text-sm text-blue-800 font-medium mb-2">필수 입력 항목</p>
         <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
           <li>교재명</li>
@@ -83,14 +83,14 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         </ul>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* 교재명 */}
         <FormField
           label="교재명"
           name="title"
           required
           placeholder="교재명을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 개정교육과정, 교과 그룹, 과목 */}
@@ -115,6 +115,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           label="저자"
           name="author"
           placeholder="저자명을 입력하세요"
+          className="lg:col-span-2"
         />
 
         {/* 학교 유형 */}
@@ -170,7 +171,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
         />
 
         {/* 대상 시험 유형 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
             대상 시험 유형
           </label>
@@ -222,7 +223,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           label="태그"
           name="tags"
           placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 기출문제, 실전모의고사, 핵심개념)"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
           hint="쉼표(,)로 구분하여 여러 태그를 입력할 수 있습니다"
         />
 
@@ -232,7 +233,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           name="pdf_url"
           placeholder="https://example.com/book.pdf"
           hint="교재 PDF 파일의 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 출처 URL */}
@@ -241,7 +242,7 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           name="source_url"
           placeholder="https://example.com/source"
           hint="교재 출처 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 표지 이미지 URL */}
@@ -250,11 +251,11 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           name="cover_image_url"
           placeholder="https://example.com/image.jpg"
           hint="교재 표지 이미지의 URL을 입력하세요"
-          className="md:col-span-2"
+          className="md:col-span-2 lg:col-span-3"
         />
 
         {/* 메모 */}
-        <div className="flex flex-col gap-1 md:col-span-2">
+        <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
             메모
           </label>

@@ -9,6 +9,9 @@ export const LAYOUT_WIDTHS = {
   /** 폼 페이지 (settings, account, devices 등) */
   FORM: "max-w-3xl",
   
+  /** 마스터 콘텐츠 폼 페이지 (master-lectures, master-books 등 - 웹 환경 최적화) */
+  MASTER_FORM: "max-w-5xl",
+  
   /** 콘텐츠 상세 페이지 (books/[id], lectures/[id] 등) */
   CONTENT_DETAIL: "max-w-5xl",
   
