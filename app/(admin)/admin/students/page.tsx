@@ -4,42 +4,16 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
-import { getWeeklyPlanSummary } from "@/lib/reports/weekly";
-import { getStudentsStatsBatch, getStudentsHasScore } from "@/lib/data/studentStats";
+import { getStudentsHasScore } from "@/lib/data/studentStats";
 import { STUDENT_LIST_PAGE_SIZE, STUDENT_SORT_OPTIONS, type StudentSortOption } from "@/lib/constants/students";
-import { StudentActions } from "./_components/StudentActions";
 import { StudentSearchFilter } from "./_components/StudentSearchFilter";
-import { StudentTable } from "./_components/StudentTable";
+import { StudentListClient } from "./_components/StudentListClient";
 import { StudentPagination } from "./_components/StudentPagination";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { ProgressBar } from "@/components/atoms/ProgressBar";
-import { getWeekRange } from "@/lib/date/weekRange";
-import { cn } from "@/lib/cn";
-import {
-  bgSurface,
-  bgPage,
-  bgHover,
-  textPrimary,
-  textSecondary,
-  textMuted,
-  textTertiary,
-  borderDefault,
-  borderInput,
-  tableHeaderBase,
-  tableCellBase,
-  tableContainer,
-  tableRowBase,
-  inlineButtonPrimary,
-  getGrayBgClasses,
-  getStatusBadgeColorClasses,
-  getIndigoTextClasses,
-  bgStyles,
-  divideDefaultVar,
-} from "@/lib/utils/darkMode";
+import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
+import { getStudentSchoolsBatch } from "@/lib/data/studentSchools";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -50,6 +24,8 @@ type StudentRow = {
   name?: string | null;
   grade?: string | null;
   class?: string | null;
+  school_id?: string | null;
+  school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
   created_at?: string | null;
   is_active?: boolean | null;
 };
@@ -77,7 +53,7 @@ export default async function AdminStudentsPage({
   const pageSize = STUDENT_LIST_PAGE_SIZE;
 
   // 학생 목록 조회 (페이지네이션)
-  const selectFields = "id,name,grade,class,created_at,is_active";
+  const selectFields = "id,name,grade,class,school_id,school_type,created_at,is_active";
 
   const selectStudents = () =>
     supabase
@@ -155,27 +131,35 @@ export default async function AdminStudentsPage({
     filteredStudents = studentRows.filter((s) => hasScoreSet.has(s.id));
   }
 
-  // 이번 주 날짜 범위
-  const { weekStart, weekEnd } = getWeekRange();
-
-  // 배치 쿼리로 모든 학생 통계를 한 번에 조회 (N+1 문제 해결)
+  // 배치 쿼리로 학교 정보 및 연락처 정보 일괄 조회 (N+1 문제 해결)
   const studentIds = filteredStudents.map((s) => s.id);
-  const statsMap = await getStudentsStatsBatch(
-    supabase,
-    studentIds,
-    weekStart,
-    weekEnd
+  
+  // 병렬로 데이터 페칭
+  const [phoneDataList, schoolMap] = await Promise.all([
+    getStudentPhonesBatch(studentIds),
+    getStudentSchoolsBatch(supabase, filteredStudents),
+  ]);
+
+  // 연락처 데이터를 Map으로 변환
+  const phoneDataMap = new Map(
+    phoneDataList.map((p) => [p.id, p])
   );
 
-  // 통계 데이터를 학생 정보와 결합
-  const studentsWithStats = filteredStudents.map((student) => {
-    const stats = statsMap.get(student.id);
+  // 데이터를 학생 정보와 결합
+  const studentsWithData = filteredStudents.map((student) => {
+    const phoneData = phoneDataMap.get(student.id);
+    const schoolName = schoolMap.get(student.id) ?? "-";
+    
     return {
-      ...student,
-      studyTimeMinutes: stats?.studyTimeMinutes ?? 0,
-      planCompletionRate: stats?.planCompletionRate ?? 0,
-      lastActivity: stats?.lastActivity ?? null,
-      hasScore: stats?.hasScore ?? false,
+      id: student.id,
+      name: student.name,
+      grade: student.grade ? String(student.grade) : null,
+      class: student.class,
+      schoolName,
+      phone: phoneData?.phone ?? null,
+      mother_phone: phoneData?.mother_phone ?? null,
+      father_phone: phoneData?.father_phone ?? null,
+      is_active: student.is_active,
     };
   });
 
@@ -197,13 +181,16 @@ export default async function AdminStudentsPage({
         />
 
         {/* 학생 리스트 */}
-        {studentsWithStats.length === 0 ? (
+        {studentsWithData.length === 0 ? (
           <EmptyState
             title="등록된 학생이 없습니다"
             description="아직 등록된 학생이 없습니다."
           />
         ) : (
-          <StudentTable students={studentsWithStats} isAdmin={role === "admin"} />
+          <StudentListClient
+            students={studentsWithData}
+            isAdmin={role === "admin"}
+          />
         )}
 
         {/* 페이지네이션 */}

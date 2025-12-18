@@ -94,6 +94,115 @@ export async function deleteStudent(
 }
 
 /**
+ * 여러 학생의 상태를 일괄 변경 (활성화/비활성화)
+ */
+export async function bulkToggleStudentStatus(
+  studentIds: string[],
+  isActive: boolean
+): Promise<{ success: boolean; error?: string; updatedCount?: number }> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin" && role !== "consultant") {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  if (studentIds.length === 0) {
+    return { success: false, error: "선택된 학생이 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error, count } = await supabase
+    .from("students")
+    .update({ is_active: isActive })
+    .in("id", studentIds)
+    .select("id");
+
+  if (error) {
+    console.error("[admin/studentManagement] 학생 상태 일괄 변경 실패", error);
+    return {
+      success: false,
+      error: error.message || "상태 변경에 실패했습니다.",
+    };
+  }
+
+  revalidatePath("/admin/students");
+
+  const updatedCount = data?.length ?? count ?? studentIds.length;
+  return { success: true, updatedCount };
+}
+
+/**
+ * 여러 학생을 일괄 삭제 (관리자 전용)
+ */
+export async function bulkDeleteStudents(
+  studentIds: string[]
+): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
+  const { role } = await getCurrentUserRole();
+
+  if (role !== "admin") {
+    return { success: false, error: "관리자만 학생을 삭제할 수 있습니다." };
+  }
+
+  if (studentIds.length === 0) {
+    return { success: false, error: "선택된 학생이 없습니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  let successCount = 0;
+  const errors: string[] = [];
+
+  // 각 학생에 대해 삭제 작업 수행
+  for (const studentId of studentIds) {
+    // 1. students 테이블에서 is_active를 false로 설정
+    const { error: updateError } = await supabase
+      .from("students")
+      .update({ is_active: false })
+      .eq("id", studentId);
+
+    if (updateError) {
+      errors.push(`${studentId}: ${updateError.message}`);
+      continue;
+    }
+
+    // 2. auth.users에서도 삭제
+    try {
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(
+        studentId
+      );
+      if (deleteError) {
+        console.warn(
+          `[admin/studentManagement] 인증 사용자 삭제 실패 (${studentId}):`,
+          deleteError
+        );
+        // 인증 사용자 삭제 실패해도 students 테이블은 업데이트되었으므로 성공으로 카운트
+      }
+    } catch (error) {
+      console.warn(
+        `[admin/studentManagement] 인증 사용자 삭제 중 오류 (${studentId}):`,
+        error
+      );
+    }
+
+    successCount++;
+  }
+
+  revalidatePath("/admin/students");
+
+  if (errors.length > 0) {
+    return {
+      success: errors.length < studentIds.length,
+      error: `일부 학생 삭제에 실패했습니다: ${errors.slice(0, 3).join(", ")}${
+        errors.length > 3 ? "..." : ""
+      }`,
+      deletedCount: successCount,
+    };
+  }
+
+  return { success: true, deletedCount: successCount };
+}
+
+/**
  * 학생 반 정보 업데이트 (관리자 전용)
  */
 export async function updateStudentClass(
