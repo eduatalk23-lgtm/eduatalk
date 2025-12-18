@@ -102,6 +102,12 @@ export async function getStudentPhonesBatch(
     // 에러가 있어도 계속 진행 (학부모 연결 정보로 보완 가능)
   } else if (profilesData) {
     profiles = profilesData;
+    console.log("[studentPhoneUtils] student_profiles 조회 성공:", {
+      count: profiles.length,
+      withPhone: profiles.filter((p) => p.phone || p.mother_phone || p.father_phone).length,
+    });
+  } else {
+    console.log("[studentPhoneUtils] student_profiles 데이터 없음");
   }
 
   // 3. parent_student_links를 통해 연결된 학부모 정보 조회
@@ -169,6 +175,12 @@ export async function getStudentPhonesBatch(
           current.father = { phone, parentId };
         }
       });
+
+      console.log("[studentPhoneUtils] parent_student_links 처리 완료:", {
+        linksCount: links.length,
+        linkedParentsCount: linkedParentPhones.size,
+        parentPhonesMapSize: parentPhonesMap.size,
+      });
     }
   } catch (error) {
     console.error("[studentPhoneUtils] parent_student_links 처리 중 오류", error);
@@ -178,7 +190,7 @@ export async function getStudentPhonesBatch(
   // 4. 결과 병합
   // - 학부모 계정의 phone이 null이 아닐 때만 사용
   // - null이거나 없으면 student_profiles 사용
-  return students.map((student) => {
+  const result = students.map((student) => {
     const profile = profiles.find((p) => p.id === student.id);
     const linkedParents = linkedParentPhones.get(student.id);
 
@@ -212,5 +224,16 @@ export async function getStudentPhonesBatch(
       father_phone_source: fatherPhoneSource,
     };
   });
+
+  // 디버깅: 연락처 정보가 있는 학생 수 확인
+  const studentsWithPhone = result.filter((r) => r.phone || r.mother_phone || r.father_phone);
+  console.log("[studentPhoneUtils] 연락처 정보 조회 결과:", {
+    total: result.length,
+    withPhone: studentsWithPhone.length,
+    profilesCount: profiles.length,
+    linkedParentsCount: linkedParentPhones.size,
+  });
+
+  return result;
 }
 
