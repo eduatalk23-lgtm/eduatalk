@@ -1,7 +1,11 @@
 /**
- * usePlanValidator - Step별 유효성 검사 훅
+ * usePlanValidator - Step별 유효성 검사 훅 (제출용)
  * 
- * 각 Step별 유효성 검사를 담당합니다.
+ * 제출 시 검증을 담당합니다. 상태 관리 없이 검증 결과만 반환합니다.
+ * usePlanSubmission에서 사용되며, 주로 기간 검증(validatePeriod)에 사용됩니다.
+ * 
+ * 참고: UI 검증 및 상태 관리는 useWizardValidation을 사용하세요.
+ * 
  * 향후 Zod Schema를 활용한 검증으로 확장 가능하도록 구조화되어 있습니다.
  */
 

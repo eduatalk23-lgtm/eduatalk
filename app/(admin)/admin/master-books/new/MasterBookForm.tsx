@@ -244,6 +244,15 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
           className="md:col-span-2"
         />
 
+        {/* 표지 이미지 URL */}
+        <UrlField
+          label="표지 이미지 URL"
+          name="cover_image_url"
+          placeholder="https://example.com/image.jpg"
+          hint="교재 표지 이미지의 URL을 입력하세요"
+          className="md:col-span-2"
+        />
+
         {/* 메모 */}
         <div className="flex flex-col gap-1 md:col-span-2">
           <label className="block text-sm font-medium text-gray-700">

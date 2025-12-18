@@ -41,6 +41,7 @@ export async function addBook(formData: FormData) {
   const difficulty = String(formData.get("difficulty") || "");
   const totalPages = Number(formData.get("total_pages") || 0);
   const notes = String(formData.get("notes") || "");
+  const coverImageUrl = String(formData.get("cover_image_url") || "");
 
   const result = await createBookData({
     tenant_id: tenantContext.tenantId,
@@ -54,6 +55,7 @@ export async function addBook(formData: FormData) {
     difficulty_level: difficulty || null,
     total_pages: totalPages || null,
     notes: notes || null,
+    cover_image_url: coverImageUrl || null,
   });
 
   if (!result.success) {
@@ -132,6 +134,7 @@ export async function createBookWithoutRedirect(formData: FormData) {
   }
   
   const notes = String(formData.get("notes") || "");
+  const coverImageUrl = String(formData.get("cover_image_url") || "");
 
   const result = await createBookData({
     tenant_id: tenantContext.tenantId,
@@ -145,6 +148,7 @@ export async function createBookWithoutRedirect(formData: FormData) {
     difficulty_level: difficulty || null,
     total_pages: totalPages,
     notes: notes || null,
+    cover_image_url: coverImageUrl || null,
   });
 
   if (!result.success) {
@@ -210,6 +214,7 @@ export async function updateBook(id: string, formData: FormData) {
   const difficulty = String(formData.get("difficulty") || "");
   const totalPages = getNumberFromFormData(formData, "total_pages", { min: 1 });
   const notes = String(formData.get("notes") || "");
+  const coverImageUrl = String(formData.get("cover_image_url") || "");
 
   const result = await updateBookData(id, user.userId, {
     title,
@@ -221,6 +226,7 @@ export async function updateBook(id: string, formData: FormData) {
     difficulty_level: difficulty || null,
     total_pages: totalPages,
     notes: notes || null,
+    cover_image_url: coverImageUrl || null,
   });
 
   if (!result.success) {

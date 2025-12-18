@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
 import { useBookMetadata } from "@/lib/hooks/useBookMetadata";
+import { UrlField } from "@/components/forms/UrlField";
 
 export default function NewBookPage() {
   const [isPending, startTransition] = useTransition();
@@ -172,6 +173,15 @@ export default function NewBookPage() {
               { value: "기본", label: "기본" },
               { value: "심화", label: "심화" },
             ]}
+          />
+
+          {/* 표지 이미지 URL */}
+          <UrlField
+            label="표지 이미지 URL"
+            name="cover_image_url"
+            placeholder="https://example.com/image.jpg"
+            hint="교재 표지 이미지의 URL을 입력하세요"
+            className="md:col-span-2"
           />
 
           {/* 메모 */}

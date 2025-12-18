@@ -43,10 +43,23 @@ export function getFirstErrorFieldId(
   return Array.from(fieldErrors.keys())[0];
 }
 
+/**
+ * useWizardValidation - UI 검증 및 상태 관리 훅
+ * 
+ * 위저드 단계별 검증을 수행하고 Context를 통해 검증 결과를 관리합니다.
+ * PlanGroupWizard에서 사용되며, 검증 오류를 UI에 표시하는 역할을 합니다.
+ * 
+ * 참고: 제출 시 검증은 usePlanValidator를 사용하세요.
+ */
 type UseWizardValidationProps = {
   wizardData: WizardData;
   isTemplateMode: boolean;
   isCampMode?: boolean;
+  // Context 함수들 (옵셔널 - 하위 호환성 유지)
+  setFieldError?: (field: string, error: string) => void;
+  setErrors?: (errors: string[]) => void;
+  setWarnings?: (warnings: string[]) => void;
+  clearValidation?: () => void;
 };
 
 type UseWizardValidationReturn = {
@@ -63,7 +76,14 @@ export function useWizardValidation({
   wizardData,
   isTemplateMode,
   isCampMode = false,
+  setFieldError,
+  setErrors,
+  setWarnings,
+  clearValidation,
 }: UseWizardValidationProps): UseWizardValidationReturn {
+  // 로컬 상태 (하위 호환성 유지)
+  // 주의: Context 함수들이 제공되면 Context 상태를 우선 사용하세요.
+  // PlanGroupWizard에서는 Context의 상태를 직접 사용합니다.
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(new Map());
@@ -72,7 +92,11 @@ export function useWizardValidation({
     setValidationErrors([]);
     setValidationWarnings([]);
     setFieldErrors(new Map());
-  }, []);
+    // Context도 초기화
+    if (clearValidation) {
+      clearValidation();
+    }
+  }, [clearValidation]);
 
   const validateStep = useCallback(
     (step: WizardStep): boolean => {
@@ -84,12 +108,35 @@ export function useWizardValidation({
         isCampMode
       );
 
+      // Context 업데이트 (우선) - 검증 결과를 Context에 반영
+      // 순서: 1) 기존 검증 상태 초기화, 2) 새로운 검증 결과 설정
+      if (clearValidation) {
+        // 기존 검증 상태 먼저 초기화 (fieldErrors, errors, warnings 모두 초기화)
+        clearValidation();
+      }
+      
+      // 새로운 검증 결과 설정
+      if (setErrors) {
+        setErrors(result.errors);
+      }
+      if (setWarnings) {
+        setWarnings(result.warnings);
+      }
+      // fieldErrors를 Context에 반영
+      if (setFieldError) {
+        result.fieldErrors.forEach((error, field) => {
+          setFieldError(field, error);
+        });
+      }
+
+      // 로컬 상태 업데이트 (하위 호환성 유지)
       setValidationErrors(result.errors);
       setValidationWarnings(result.warnings);
       setFieldErrors(result.fieldErrors);
+
       return result.isValid;
     },
-    [wizardData, isTemplateMode, isCampMode]
+    [wizardData, isTemplateMode, isCampMode, setFieldError, setErrors, setWarnings, clearValidation]
   );
 
   return {

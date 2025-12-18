@@ -6,8 +6,6 @@ import Link from "next/link";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
-import { scrollToTop, scrollToField } from "@/lib/utils/scroll";
-import { getFirstErrorFieldId } from "./hooks/useWizardValidation";
 import { PlanWizardProvider, usePlanWizard } from "./_context/PlanWizardContext";
 import {
   createPlanGroupAction,
@@ -25,6 +23,7 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import { validateDataConsistency } from "@/lib/utils/planGroupDataSync";
 import { useWizardValidation } from "./hooks/useWizardValidation";
 import { usePlanSubmission } from "./hooks/usePlanSubmission";
+import { useWizardScroll } from "./hooks/useWizardScroll";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import type { SchedulerOptions } from "@/lib/types/plan";
 import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
@@ -427,7 +426,13 @@ function PlanGroupWizardInner({
     clearValidationState
   } = useWizardValidation({
     wizardData,
-    isTemplateMode
+    isTemplateMode,
+    isCampMode,
+    // Context 함수들 전달 - 검증 결과를 Context에 반영
+    setFieldError,
+    setErrors,
+    setWarnings,
+    clearValidation,
   });
 
   // Submission Hook
@@ -470,11 +475,6 @@ function PlanGroupWizardInner({
   const prevBlockSetIdRef = useRef<string | undefined>(wizardData.block_set_id);
   const isBlockSetIdOnlyChangeRef = useRef(false);
 
-  // 단계 변경 시 스크롤을 상단으로 이동
-  useEffect(() => {
-    scrollToTop();
-  }, [currentStep]);
-
   // block_set_id 변경 감지 (자동 저장 방지를 위한 추적)
   useEffect(() => {
     const currentBlockSetId = wizardData.block_set_id;
@@ -504,41 +504,18 @@ function PlanGroupWizardInner({
 
   // validateStep Logic replaced by useWizardValidation hook
 
-  // 첫 번째 오류 필드로 스크롤 이동 함수
-  const scrollToFirstError = useCallback(() => {
-    if (fieldErrors.size === 0) return;
-
-    // 화면 순서에 따라 첫 번째 오류 필드 찾기
-    const firstFieldId = getFirstErrorFieldId(fieldErrors, currentStep);
-    if (!firstFieldId) return;
-
-    // DOM 업데이트 후 스크롤 실행
-    // requestAnimationFrame을 두 번 사용하여 브라우저 렌더링 완료 보장
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollToField(firstFieldId);
-      });
-    });
-  }, [fieldErrors, currentStep]);
-
-  // 검증 실패 시 스크롤을 위한 ref
-  const shouldScrollToErrorRef = useRef(false);
-
-  // fieldErrors가 변경되고 스크롤 플래그가 설정되어 있으면 스크롤 실행
-  useEffect(() => {
-    if (shouldScrollToErrorRef.current && fieldErrors.size > 0) {
-      shouldScrollToErrorRef.current = false;
-      scrollToFirstError();
-    }
-  }, [fieldErrors, scrollToFirstError]);
+  // 스크롤 관리 훅 (검증 실패 및 단계 변경 시 스크롤 통합 관리)
+  const { handleValidationFailed } = useWizardScroll({
+    currentStep,
+    fieldErrors,
+  });
 
   const handleNext = useCallback(() => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
     if (currentStep !== 3) {
       if (!validateStep(currentStep)) {
-        // 검증 실패 시 스크롤 플래그 설정
-        // useEffect에서 fieldErrors 변경 감지 후 스크롤 실행
-        shouldScrollToErrorRef.current = true;
+        // 검증 실패 시 오류 필드로 스크롤하도록 예약
+        handleValidationFailed();
         return;
       }
     }
@@ -585,7 +562,7 @@ function PlanGroupWizardInner({
         nextStep();
       }
     }
-  }, [currentStep, validateStep, mode, handleSubmit, setStep, nextStep]);
+  }, [currentStep, validateStep, mode, handleSubmit, setStep, nextStep, handleValidationFailed]);
 
   const handleBack = useCallback(() => {
     if (canGoBack(currentStep, mode)) {

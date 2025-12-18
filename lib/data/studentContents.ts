@@ -17,6 +17,7 @@ export type Book = {
   difficulty_level?: string | null;
   total_pages?: number | null;
   notes?: string | null;
+  cover_image_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -224,6 +225,7 @@ export async function createBook(
     difficulty_level?: string | null;
     total_pages?: number | null;
     notes?: string | null;
+    cover_image_url?: string | null;
   }
 ): Promise<{ success: boolean; bookId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -240,6 +242,7 @@ export async function createBook(
     difficulty_level: book.difficulty_level || null,
     total_pages: book.total_pages || null,
     notes: book.notes || null,
+    cover_image_url: book.cover_image_url || null,
   };
 
   let { data, error } = await supabase
@@ -394,6 +397,7 @@ export async function updateBook(
   if (updates.difficulty_level !== undefined) payload.difficulty_level = updates.difficulty_level;
   if (updates.total_pages !== undefined) payload.total_pages = updates.total_pages;
   if (updates.notes !== undefined) payload.notes = updates.notes;
+  if (updates.cover_image_url !== undefined) payload.cover_image_url = updates.cover_image_url;
 
   let { error } = await supabase
     .from("books")
