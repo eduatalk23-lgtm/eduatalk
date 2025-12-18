@@ -243,6 +243,186 @@ async function ensureUserRecord(
 }
 
 /**
+ * 연결 코드로 학생 계정 연결
+ * 기존 학생 레코드를 새 사용자 ID로 연결
+ */
+async function linkStudentWithConnectionCode(
+  userId: string,
+  connectionCode: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 연결 코드 검증
+    const { validateConnectionCode } = await import(
+      "@/app/(admin)/actions/studentManagementActions"
+    );
+    const validationResult = await validateConnectionCode(connectionCode);
+
+    if (!validationResult.success || !validationResult.studentId) {
+      return {
+        success: false,
+        error: validationResult.error || "유효하지 않은 연결 코드입니다.",
+      };
+    }
+
+    const existingStudentId = validationResult.studentId;
+
+    // Admin 클라이언트 사용 (RLS 우회)
+    const adminResult = getAdminClientOrError();
+    if (!adminResult.success) {
+      return { success: false, error: adminResult.error };
+    }
+    const supabase = adminResult.client;
+
+    // 기존 학생 레코드 데이터 조회
+    const { data: existingStudent, error: studentError } = await supabase
+      .from("students")
+      .select("*")
+      .eq("id", existingStudentId)
+      .maybeSingle();
+
+    if (studentError || !existingStudent) {
+      return {
+        success: false,
+        error: "연결할 학생 정보를 찾을 수 없습니다.",
+      };
+    }
+
+    // 기존 프로필 및 진로 정보 조회
+    const [profileResult, careerResult] = await Promise.all([
+      supabase
+        .from("student_profiles")
+        .select("*")
+        .eq("id", existingStudentId)
+        .maybeSingle(),
+      supabase
+        .from("student_career_goals")
+        .select("*")
+        .eq("student_id", existingStudentId)
+        .maybeSingle(),
+    ]);
+
+    // 트랜잭션 처리: 기존 레코드 삭제 후 새 ID로 재생성
+    // 1. 새 ID로 students 레코드 생성
+    const { error: insertError } = await supabase.from("students").insert({
+      id: userId,
+      tenant_id: existingStudent.tenant_id,
+      name: existingStudent.name,
+      grade: existingStudent.grade,
+      class: existingStudent.class,
+      birth_date: existingStudent.birth_date,
+      school_id: existingStudent.school_id,
+      school_type: existingStudent.school_type,
+      division: existingStudent.division,
+      student_number: existingStudent.student_number,
+      enrolled_at: existingStudent.enrolled_at,
+      status: existingStudent.status,
+      is_active: existingStudent.is_active,
+    });
+
+    if (insertError) {
+      console.error("[auth] 학생 레코드 재생성 실패", insertError);
+      return {
+        success: false,
+        error: `학생 레코드 연결에 실패했습니다: ${insertError.message}`,
+      };
+    }
+
+    // 2. 프로필 정보 재생성 (있는 경우)
+    if (profileResult.data) {
+      const { error: profileError } = await supabase
+        .from("student_profiles")
+        .insert({
+          id: userId,
+          tenant_id: profileResult.data.tenant_id,
+          gender: profileResult.data.gender,
+          phone: profileResult.data.phone,
+          mother_phone: profileResult.data.mother_phone,
+          father_phone: profileResult.data.father_phone,
+          address: profileResult.data.address,
+          address_detail: profileResult.data.address_detail,
+          postal_code: profileResult.data.postal_code,
+          emergency_contact: profileResult.data.emergency_contact,
+          emergency_contact_phone: profileResult.data.emergency_contact_phone,
+          medical_info: profileResult.data.medical_info,
+          bio: profileResult.data.bio,
+          interests: profileResult.data.interests,
+        });
+
+      if (profileError) {
+        console.error("[auth] 프로필 정보 재생성 실패", profileError);
+        // 프로필 재생성 실패는 치명적이지 않으므로 경고만
+      }
+    }
+
+    // 3. 진로 정보 재생성 (있는 경우)
+    if (careerResult.data) {
+      const { error: careerError } = await supabase
+        .from("student_career_goals")
+        .insert({
+          student_id: userId,
+          tenant_id: careerResult.data.tenant_id,
+          exam_year: careerResult.data.exam_year,
+          curriculum_revision: careerResult.data.curriculum_revision,
+          desired_university_ids: careerResult.data.desired_university_ids,
+          desired_career_field: careerResult.data.desired_career_field,
+          target_major: careerResult.data.target_major,
+          target_major_2: careerResult.data.target_major_2,
+          target_score: careerResult.data.target_score,
+          target_university_type: careerResult.data.target_university_type,
+          notes: careerResult.data.notes,
+        });
+
+      if (careerError) {
+        console.error("[auth] 진로 정보 재생성 실패", careerError);
+        // 진로 정보 재생성 실패는 치명적이지 않으므로 경고만
+      }
+    }
+
+    // 4. 기존 레코드 삭제 (CASCADE로 관련 데이터 자동 삭제)
+    const { error: deleteError } = await supabase
+      .from("students")
+      .delete()
+      .eq("id", existingStudentId);
+
+    if (deleteError) {
+      console.error("[auth] 기존 학생 레코드 삭제 실패", deleteError);
+      // 삭제 실패는 경고만 (이미 새 레코드가 생성되었으므로)
+    }
+
+    // 5. 연결 코드 사용 처리
+    const { error: codeError } = await supabase
+      .from("student_connection_codes")
+      .update({ used_at: new Date().toISOString() })
+      .eq("connection_code", connectionCode)
+      .is("used_at", null);
+
+    if (codeError) {
+      console.error("[auth] 연결 코드 사용 처리 실패", codeError);
+      // 코드 사용 처리 실패는 경고만
+    }
+
+    console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
+      userId,
+      existingStudentId,
+      connectionCode,
+    });
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[auth] linkStudentWithConnectionCode 예외", {
+      userId,
+      connectionCode,
+      error: errorMessage,
+    });
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * 회원가입 시 학생 레코드 생성
  */
 async function createStudentRecord(
@@ -429,6 +609,7 @@ export async function signUp(
   const displayName = String(formData.get("displayName") ?? "").trim();
   const tenantId = String(formData.get("tenant_id") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim() as "student" | "parent" | "";
+  const connectionCode = String(formData.get("connection_code") ?? "").trim();
 
   // 약관 동의 정보 추출
   const consentTerms = formData.get("consent_terms") === "on";
@@ -474,10 +655,33 @@ export async function signUp(
       const displayName = validation.data.displayName;
 
       if (role === "student") {
-        const result = await createStudentRecord(authData.user.id, tenantId, displayName);
-        if (!result.success) {
-          // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
-          console.error("[auth] 학생 레코드 생성 실패:", result.error);
+        // 연결 코드가 있으면 검증 및 연결 시도
+        if (connectionCode) {
+          const linkResult = await linkStudentWithConnectionCode(
+            authData.user.id,
+            connectionCode
+          );
+          if (linkResult.success) {
+            console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
+              userId: authData.user.id,
+              connectionCode,
+            });
+            // 연결 성공 시 새 레코드 생성 불필요 (기존 레코드와 연결됨)
+          } else {
+            console.error("[auth] 연결 코드 검증 실패:", linkResult.error);
+            // 연결 실패 시 일반 레코드 생성 시도
+            const result = await createStudentRecord(authData.user.id, tenantId, displayName);
+            if (!result.success) {
+              console.error("[auth] 학생 레코드 생성 실패:", result.error);
+            }
+          }
+        } else {
+          // 연결 코드가 없으면 일반 레코드 생성
+          const result = await createStudentRecord(authData.user.id, tenantId, displayName);
+          if (!result.success) {
+            // 레코드 생성 실패는 로깅만 하고 회원가입은 성공으로 처리
+            console.error("[auth] 학생 레코드 생성 실패:", result.error);
+          }
         }
       } else if (role === "parent") {
         const result = await createParentRecord(authData.user.id, tenantId, displayName);

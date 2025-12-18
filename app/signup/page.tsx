@@ -199,6 +199,25 @@ export default function SignupPage() {
           </p>
         </div>
 
+        {/* 연결 코드 입력 (학생만) */}
+        {selectedRole === "student" && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="connection_code" className="text-sm font-medium text-gray-700">
+              학생 연결 코드 <span className="text-gray-500">(선택사항)</span>
+            </label>
+            <FormInput
+              label=""
+              name="connection_code"
+              type="text"
+              placeholder="STU-XXXX-XXXX"
+              className="uppercase"
+            />
+            <p className="text-xs text-gray-500">
+              관리자가 발급한 연결 코드가 있다면 입력하세요. 코드를 입력하면 기존 학생 정보와 계정이 자동으로 연결됩니다.
+            </p>
+          </div>
+        )}
+
         {/* 약관 동의 */}
         <div className="flex flex-col gap-3 rounded-lg border border-gray-200 p-4">
           <h3 className="text-sm font-medium text-gray-900">약관 동의</h3>
