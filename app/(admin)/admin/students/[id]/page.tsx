@@ -57,15 +57,23 @@ export default async function AdminStudentDetailPage({
   const defaultTab: TabType = (paramsObj.tab as TabType) || "basic";
 
   // 학생 정보 통합 조회 (3개 테이블)
-  const [student, profile, careerGoal] = await Promise.all([
-    getStudentById(studentId),
+  // 관리자는 memo와 is_active 필드도 조회해야 함
+  const supabase = await createSupabaseServerClient();
+  const [studentResult, profile, careerGoal] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id,name,grade,class,birth_date,school_id,school_type,division,memo,status,is_active,created_at,updated_at")
+      .eq("id", studentId)
+      .maybeSingle(),
     getStudentProfileById(studentId),
     getStudentCareerGoalById(studentId),
   ]);
 
-  if (!student) {
+  if (studentResult.error || !studentResult.data) {
     notFound();
   }
+
+  const student = studentResult.data;
 
   // 통합 데이터 구성
   const studentInfoData: StudentInfoData = {
@@ -76,11 +84,11 @@ export default async function AdminStudentDetailPage({
     class: student.class,
     birth_date: student.birth_date,
     school_id: student.school_id,
-    school_type: student.school_type,
-    division: student.division,
-    memo: (student as any).memo,
-    status: student.status,
-    is_active: (student as any).is_active,
+    school_type: student.school_type as "MIDDLE" | "HIGH" | "UNIVERSITY" | null,
+    division: student.division as "고등부" | "중등부" | "기타" | null,
+    memo: student.memo ?? null,
+    status: student.status as "enrolled" | "on_leave" | "graduated" | "transferred" | null,
+    is_active: student.is_active ?? true,
     // student_profiles 테이블
     gender: profile?.gender,
     phone: profile?.phone,
@@ -117,7 +125,7 @@ export default async function AdminStudentDetailPage({
               <StudentInfoEditForm
                 studentId={studentId}
                 studentName={student.name}
-                isActive={(student as any).is_active}
+                isActive={student.is_active ?? true}
                 initialData={studentInfoData}
                 isAdmin={role === "admin"}
               />
