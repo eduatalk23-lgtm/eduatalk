@@ -19,6 +19,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { getStudentPhones } from "@/lib/utils/studentPhoneUtils";
 import type { UpdateAttendanceRecordRequest, AttendanceRecordHistory } from "@/lib/types/attendance";
 
 /**
@@ -56,27 +57,15 @@ export async function recordAttendanceAction(
       const tenantContext = await getTenantContext();
       const supabase = await createSupabaseServerClient();
 
-      // 학생 정보 조회
+      // 학생 기본 정보 조회
       const { data: student } = await supabase
         .from("students")
-        .select("id, name, mother_phone, father_phone")
+        .select("id, name")
         .eq("id", input.student_id)
         .single();
 
-      // student_profiles 테이블에서 phone 정보 조회 (선택사항)
-      let profile: { phone?: string | null; mother_phone?: string | null; father_phone?: string | null } | null = null;
-      try {
-        const { data: profileData } = await supabase
-          .from("student_profiles")
-          .select("phone, mother_phone, father_phone")
-          .eq("id", input.student_id)
-          .maybeSingle();
-        if (profileData) {
-          profile = profileData;
-        }
-      } catch (e) {
-        // student_profiles 테이블이 없으면 무시
-      }
+      // getStudentPhones 함수를 사용하여 연락처 정보 조회 (통합 로직)
+      const phoneData = await getStudentPhones(input.student_id);
 
       // 학원명 조회
       const { data: tenant } = await supabase
@@ -87,10 +76,8 @@ export async function recordAttendanceAction(
 
       // 학부모 연락처 확인 (mother_phone 또는 father_phone이 있는지)
       const hasParentContact = 
-        profile?.mother_phone || 
-        profile?.father_phone || 
-        student?.mother_phone || 
-        student?.father_phone;
+        phoneData?.mother_phone || 
+        phoneData?.father_phone;
 
       // 학부모 연락처가 있고, 출석 상태에 따라 SMS 발송
       if (hasParentContact && tenant?.name) {

@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { SMSSendForm } from "./_components/SMSSendForm";
+import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 
 type SMSLogRow = {
   id: string;
@@ -195,39 +196,19 @@ export default async function AdminSMSPage({
   // 타입 단언으로 StudentRow[]로 변환
   const studentsForSMS: StudentRow[] | null = studentsForSMSRaw as StudentRow[] | null;
 
-  // student_profiles 테이블에서 phone 정보 조회 (학생 본인 연락처)
-  type ProfileData = {
-    id: string;
-    phone?: string | null;
-    mother_phone?: string | null;
-    father_phone?: string | null;
-  };
+  // 배치 쿼리로 연락처 정보 일괄 조회 (getStudentPhonesBatch 사용)
   const studentIdList = (studentsForSMS ?? []).map((s) => s.id);
-  let profiles: ProfileData[] = [];
+  const phoneDataList = await getStudentPhonesBatch(studentIdList);
+  const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
 
-  if (studentIdList.length > 0) {
-    try {
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("student_profiles")
-        .select("id, phone, mother_phone, father_phone")
-        .in("id", studentIdList);
-
-      if (!profilesError && profilesData) {
-        profiles = profilesData as ProfileData[];
-      }
-    } catch {
-      // student_profiles 테이블이 없으면 무시
-    }
-  }
-
-  // 프로필 정보를 학생 정보와 병합 (student_profiles 우선, 없으면 students 테이블 사용)
+  // 프로필 정보를 학생 정보와 병합
   const studentsWithPhones = (studentsForSMS ?? []).map((s) => {
-    const profile = profiles.find((p) => p.id === s.id);
+    const phoneData = phoneDataMap.get(s.id);
     return {
       ...s,
-      phone: profile?.phone ?? null, // student_profiles 우선
-      mother_phone: profile?.mother_phone ?? s.mother_phone ?? null,
-      father_phone: profile?.father_phone ?? s.father_phone ?? null,
+      phone: phoneData?.phone ?? null,
+      mother_phone: phoneData?.mother_phone ?? null,
+      father_phone: phoneData?.father_phone ?? null,
     };
   });
 

@@ -13,6 +13,7 @@ import {
   type SMSTemplateType,
 } from "@/lib/services/smsTemplates";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 
 /**
  * 단일 SMS 발송
@@ -133,37 +134,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // student_profiles 테이블에서 phone 정보 조회
-      let profiles: Array<{
-        id: string;
-        phone?: string | null;
-        mother_phone?: string | null;
-        father_phone?: string | null;
-      }> = [];
-
-      if (studentIds.length > 0) {
-        try {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("student_profiles")
-            .select("id, phone, mother_phone, father_phone")
-            .in("id", studentIds);
-
-          if (!profilesError && profilesData) {
-            profiles = profilesData;
-          }
-        } catch (e) {
-          // student_profiles 테이블이 없으면 무시
-        }
-      }
+      // getStudentPhonesBatch 함수를 사용하여 연락처 정보 일괄 조회 (통합 로직)
+      const phoneDataList = await getStudentPhonesBatch(studentIds);
+      const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
 
       // 프로필 정보를 학생 정보와 병합
       const studentsWithPhones = students.map((student: any) => {
-        const profile = profiles.find((p: any) => p.id === student.id);
+        const phoneData = phoneDataMap.get(student.id);
         return {
           ...student,
-          phone: profile?.phone ?? null,
-          mother_phone: profile?.mother_phone ?? student.mother_phone ?? null,
-          father_phone: profile?.father_phone ?? student.father_phone ?? null,
+          phone: phoneData?.phone ?? null,
+          mother_phone: phoneData?.mother_phone ?? null,
+          father_phone: phoneData?.father_phone ?? null,
         };
       });
 
