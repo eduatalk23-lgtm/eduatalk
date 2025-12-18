@@ -3,20 +3,13 @@
 import { useMemo } from "react";
 import Button from "@/components/atoms/Button";
 import { formatSMSTemplate, type SMSTemplateType } from "@/lib/services/smsTemplates";
-
-type Student = {
-  id: string;
-  name: string | null;
-  phone?: string | null;
-  mother_phone?: string | null;
-  father_phone?: string | null;
-};
+import type { SMSRecipient } from "@/app/api/admin/sms/students/route";
 
 type SMSPreviewModalProps = {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  selectedStudents: Student[];
+  selectedRecipients: SMSRecipient[];
   message: string;
   templateType?: SMSTemplateType | "";
   templateVariables?: Record<string, string>;
@@ -28,7 +21,7 @@ export function SMSPreviewModal({
   open,
   onClose,
   onConfirm,
-  selectedStudents,
+  selectedRecipients,
   message,
   templateType,
   templateVariables = {},
@@ -37,27 +30,27 @@ export function SMSPreviewModal({
 }: SMSPreviewModalProps) {
   if (!open) return null;
 
-  const recipientCount = selectedStudents.length;
+  const recipientCount = selectedRecipients.length;
 
-  // 각 학생별 메시지 생성 (템플릿 사용 시)
-  const studentMessages = useMemo(() => {
+  // 각 연락처별 메시지 생성 (템플릿 사용 시)
+  const recipientMessages = useMemo(() => {
     if (!templateType || !message) {
-      return selectedStudents.map((s) => ({
-        student: s,
+      return selectedRecipients.map((r) => ({
+        recipient: r,
         message: message,
       }));
     }
 
-    return selectedStudents.map((student) => {
+    return selectedRecipients.map((recipient) => {
       try {
         const variables = {
           ...templateVariables,
           학원명: academyName,
-          학생명: student.name || "학생",
+          학생명: recipient.studentName || "학생",
         };
         const formattedMessage = formatSMSTemplate(templateType, variables);
         return {
-          student,
+          recipient,
           message: formattedMessage,
         };
       } catch {
@@ -65,16 +58,32 @@ export function SMSPreviewModal({
         let finalMessage = message;
         finalMessage = finalMessage.replace(
           /\{학생명\}/g,
-          student.name || "학생"
+          recipient.studentName || "학생"
         );
         finalMessage = finalMessage.replace(/\{학원명\}/g, academyName);
         return {
-          student,
+          recipient,
           message: finalMessage,
         };
       }
     });
-  }, [selectedStudents, message, templateType, templateVariables, academyName]);
+  }, [selectedRecipients, message, templateType, templateVariables, academyName]);
+
+  // 전송 대상자 타입 라벨
+  const getRecipientTypeLabel = (
+    recipientType: SMSRecipient["recipientType"]
+  ): string => {
+    switch (recipientType) {
+      case "student":
+        return "학생";
+      case "mother":
+        return "어머니";
+      case "father":
+        return "아버지";
+      default:
+        return "";
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -104,26 +113,34 @@ export function SMSPreviewModal({
         {/* 발송 대상자 목록 및 메시지 미리보기 */}
         <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
           <div className="divide-y divide-gray-200">
-            {studentMessages.map(({ student, message: studentMessage }) => (
-              <div key={student.id} className="flex flex-col gap-2 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col gap-1">
-                    <div className="text-sm font-medium text-gray-900">
-                      {student.name || "이름 없음"}
+            {recipientMessages.map(({ recipient, message: recipientMessage }) => {
+              const key = `${recipient.studentId}-${recipient.recipientType}`;
+              return (
+                <div key={key} className="flex flex-col gap-2 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-gray-900">
+                          {recipient.studentName || "이름 없음"}
+                        </div>
+                        <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800">
+                          {getRecipientTypeLabel(recipient.recipientType)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {recipient.phone || "연락처 없음"}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {student.mother_phone || student.father_phone || student.phone || "연락처 없음"}
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="text-xs text-gray-600">발송 메시지:</div>
+                    <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                      {recipientMessage}
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <div className="text-xs text-gray-600">발송 메시지:</div>
-                  <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                    {studentMessage}
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

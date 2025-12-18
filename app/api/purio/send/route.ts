@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // 요청 본문 파싱
     const body = await request.json();
-    const { type, phone, message, studentIds, templateVariables, recipientType } = body;
+    const { type, phone, message, studentIds, recipients, templateVariables, recipientType } = body;
 
     // 입력값 검증
     if (!type || (type !== "single" && type !== "bulk")) {
@@ -86,11 +86,15 @@ export async function POST(request: NextRequest) {
       });
     } else {
       // 일괄 발송
-      if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      const recipients = body.recipients;
+      const studentIds = body.studentIds; // 레거시 지원
+
+      // recipients 배열이 있으면 사용, 없으면 studentIds 사용 (레거시)
+      if (!recipients && (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0)) {
         return NextResponse.json(
           {
             success: false,
-            error: "발송 대상 학생을 선택해주세요.",
+            error: "발송 대상 연락처를 선택해주세요.",
           },
           { status: 400 }
         );
@@ -106,48 +110,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 학생 정보 일괄 조회
       const supabase = await createSupabaseServerClient();
-      const { data: students, error: studentsError } = await supabase
-        .from("students")
-        .select("id, name")
-        .in("id", studentIds);
-
-      if (studentsError) {
-        console.error("[SMS API] 학생 정보 조회 실패:", studentsError);
-        return NextResponse.json(
-          {
-            success: false,
-            error: "학생 정보를 조회하는 중 오류가 발생했습니다.",
-          },
-          { status: 500 }
-        );
-      }
-
-      if (!students || students.length === 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "학생 정보를 찾을 수 없습니다.",
-          },
-          { status: 404 }
-        );
-      }
-
-      // getStudentPhonesBatch 함수를 사용하여 연락처 정보 일괄 조회 (통합 로직)
-      const phoneDataList = await getStudentPhonesBatch(studentIds);
-      const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
-
-      // 프로필 정보를 학생 정보와 병합
-      const studentsWithPhones = students.map((student: any) => {
-        const phoneData = phoneDataMap.get(student.id);
-        return {
-          ...student,
-          phone: phoneData?.phone ?? null,
-          mother_phone: phoneData?.mother_phone ?? null,
-          father_phone: phoneData?.father_phone ?? null,
-        };
-      });
 
       // 학원명 조회
       const { data: tenant } = await supabase
@@ -158,66 +121,157 @@ export async function POST(request: NextRequest) {
 
       const academyName = tenant?.name || "학원";
 
-      // 전송 대상자에 따라 전화번호 선택
-      const getPhoneByRecipientType = (
-        student: any,
-        type: "student" | "mother" | "father"
-      ): string | null => {
-        switch (type) {
-          case "student":
-            return student.phone;
-          case "mother":
-            return student.mother_phone;
-          case "father":
-            return student.father_phone;
-          default:
-            return student.mother_phone ?? student.father_phone ?? student.phone;
-        }
-      };
+      // recipients 배열이 있으면 직접 사용 (새 방식)
+      let finalRecipients: Array<{
+        phone: string;
+        message: string;
+        recipientId: string;
+      }> = [];
 
-      // SMS 발송 대상 준비
-      const recipients = studentsWithPhones
-        .map((student) => {
-          const phone = getPhoneByRecipientType(
-            student,
-            recipientType || "mother"
-          );
-          return { ...student, selectedPhone: phone };
-        })
-        .filter((student) => student.selectedPhone)
-        .map((student) => {
-          // 각 학생별로 메시지 변수 치환
-          let finalMessage = message;
+      if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+        // 학생 정보 조회 (학생명 치환용)
+        const studentIdsFromRecipients = Array.from(
+          new Set(recipients.map((r: any) => r.studentId))
+        );
+        const { data: students } = await supabase
+          .from("students")
+          .select("id, name")
+          .in("id", studentIdsFromRecipients);
 
-          // 학생명 자동 치환 (항상)
-          finalMessage = finalMessage.replace(
-            /\{학생명\}/g,
-            student.name || "학생"
-          );
+        const studentMap = new Map(
+          (students || []).map((s: any) => [s.id, s])
+        );
 
-          // 학원명 자동 치환 (항상)
-          finalMessage = finalMessage.replace(/\{학원명\}/g, academyName);
+        // 각 recipient에 대해 메시지 생성
+        finalRecipients = recipients
+          .filter((r: any) => r.phone)
+          .map((recipient: any) => {
+            const student = studentMap.get(recipient.studentId);
+            let finalMessage = message;
 
-          // 템플릿 변수가 있으면 추가 변수 치환
-          if (templateVariables) {
-            for (const [key, value] of Object.entries(templateVariables)) {
-              if (key !== "학생명" && key !== "학원명" && value) {
-                finalMessage = finalMessage.replace(
-                  new RegExp(`\\{${key}\\}`, "g"),
-                  value as string
-                );
+            // 학생명 자동 치환 (항상)
+            finalMessage = finalMessage.replace(
+              /\{학생명\}/g,
+              student?.name || "학생"
+            );
+
+            // 학원명 자동 치환 (항상)
+            finalMessage = finalMessage.replace(/\{학원명\}/g, academyName);
+
+            // 템플릿 변수가 있으면 추가 변수 치환
+            if (templateVariables) {
+              for (const [key, value] of Object.entries(templateVariables)) {
+                if (key !== "학생명" && key !== "학원명" && value) {
+                  finalMessage = finalMessage.replace(
+                    new RegExp(`\\{${key}\\}`, "g"),
+                    value as string
+                  );
+                }
               }
             }
+
+            return {
+              phone: recipient.phone,
+              message: finalMessage,
+              recipientId: recipient.studentId,
+            };
+          });
+      } else {
+        // 레거시: studentIds 사용
+        const { data: students, error: studentsError } = await supabase
+          .from("students")
+          .select("id, name")
+          .in("id", studentIds);
+
+        if (studentsError) {
+          console.error("[SMS API] 학생 정보 조회 실패:", studentsError);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "학생 정보를 조회하는 중 오류가 발생했습니다.",
+            },
+            { status: 500 }
+          );
+        }
+
+        if (!students || students.length === 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "학생 정보를 찾을 수 없습니다.",
+            },
+            { status: 404 }
+          );
+        }
+
+        // getStudentPhonesBatch 함수를 사용하여 연락처 정보 일괄 조회
+        const phoneDataList = await getStudentPhonesBatch(studentIds);
+        const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
+
+        // 전송 대상자에 따라 전화번호 선택
+        const getPhoneByRecipientType = (
+          student: any,
+          type: "student" | "mother" | "father"
+        ): string | null => {
+          const phoneData = phoneDataMap.get(student.id);
+          if (!phoneData) return null;
+
+          switch (type) {
+            case "student":
+              return phoneData.phone;
+            case "mother":
+              return phoneData.mother_phone;
+            case "father":
+              return phoneData.father_phone;
+            default:
+              return phoneData.mother_phone ?? phoneData.father_phone ?? phoneData.phone;
           }
+        };
 
-          return {
-            phone: student.selectedPhone!,
-            message: finalMessage,
-            recipientId: student.id,
-          };
-        });
+        // SMS 발송 대상 준비
+        finalRecipients = students
+          .map((student: any) => {
+            const phone = getPhoneByRecipientType(
+              student,
+              recipientType || "mother"
+            );
+            return { ...student, selectedPhone: phone };
+          })
+          .filter((student) => student.selectedPhone)
+          .map((student) => {
+            // 각 학생별로 메시지 변수 치환
+            let finalMessage = message;
 
-      if (recipients.length === 0) {
+            // 학생명 자동 치환 (항상)
+            finalMessage = finalMessage.replace(
+              /\{학생명\}/g,
+              student.name || "학생"
+            );
+
+            // 학원명 자동 치환 (항상)
+            finalMessage = finalMessage.replace(/\{학원명\}/g, academyName);
+
+            // 템플릿 변수가 있으면 추가 변수 치환
+            if (templateVariables) {
+              for (const [key, value] of Object.entries(templateVariables)) {
+                if (key !== "학생명" && key !== "학원명" && value) {
+                  finalMessage = finalMessage.replace(
+                    new RegExp(`\\{${key}\\}`, "g"),
+                    value as string
+                  );
+                }
+              }
+            }
+
+            return {
+              phone: student.selectedPhone!,
+              message: finalMessage,
+              recipientId: student.id,
+            };
+          });
+      }
+
+      if (finalRecipients.length === 0) {
         return NextResponse.json(
           {
             success: false,
@@ -228,11 +282,11 @@ export async function POST(request: NextRequest) {
       }
 
       // 대량 발송
-      const result = await sendBulkSMS(recipients, tenantContext.tenantId);
+      const result = await sendBulkSMS(finalRecipients, tenantContext.tenantId);
 
       // 결과 매핑 (studentId 포함)
       const errors = result.errors.map((err, index) => {
-        const recipient = recipients[index];
+        const recipient = finalRecipients[index];
         return {
           studentId: recipient.recipientId || "",
           error: err.error,

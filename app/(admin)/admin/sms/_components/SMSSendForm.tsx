@@ -12,40 +12,46 @@ import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import Select from "@/components/atoms/Select";
 import { useToast } from "@/components/ui/ToastProvider";
-import { SMSRecipientSelector } from "./SMSRecipientSelector";
 import { SMSPreviewModal } from "./SMSPreviewModal";
 import { SMSSendSummary } from "./SMSSendSummary";
-import { SingleRecipientSearch } from "./SingleRecipientSearch";
-
-// 전송 대상자 타입
-export type RecipientType = "student" | "mother" | "father";
-
-type Student = {
-  id: string;
-  name: string | null;
-  grade?: string | null;
-  class?: string | null;
-  phone: string | null; // 학생 본인 연락처
-  mother_phone: string | null;
-  father_phone: string | null;
-  is_active?: boolean | null;
-};
+import SMSFilterPanel, {
+  type SMSFilter,
+  type RecipientType,
+} from "./SMSFilterPanel";
+import SMSRecipientList from "./SMSRecipientList";
+import SelectedRecipientsList from "./SelectedRecipientsList";
+import type {
+  SMSRecipient,
+} from "@/app/api/admin/sms/students/route";
 
 type SMSSendFormProps = {
-  students: Student[];
   academyName?: string;
 };
 
 export function SMSSendForm({
-  students,
   academyName = "학원",
 }: SMSSendFormProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(
-    new Set()
-  );
+  
+  // 필터 상태
+  const [filter, setFilter] = useState<SMSFilter>({
+    search: "",
+    grades: [],
+    divisions: [],
+    recipientTypes: [],
+  });
+  
+  // 조회 결과
+  const [queryResults, setQueryResults] = useState<SMSRecipient[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  
+  // 선택된 연락처 (누적 선택)
+  const [selectedRecipients, setSelectedRecipients] = useState<
+    Map<string, SMSRecipient>
+  >(new Map());
+  
   const [selectedTemplate, setSelectedTemplate] = useState<SMSTemplateType | "">(
     ""
   );
@@ -57,29 +63,99 @@ export function SMSSendForm({
   >({});
   const [showPreview, setShowPreview] = useState(false);
   const [sendMode, setSendMode] = useState<"single" | "bulk">("bulk");
-  // 전송 대상자 선택 (단일/일괄 발송 모두)
+  // 전송 대상자 선택 (단일 발송 모드용)
   const [recipientType, setRecipientType] = useState<RecipientType>("mother");
 
-  // 클라이언트 컴포넌트에 전달할 콜백 함수들 (useCallback으로 감싸기)
-  const handleSelectionChange = useCallback((selectedIds: Set<string>) => {
-    setSelectedStudentIds(selectedIds);
+  // recipient 키 생성
+  const getRecipientKey = useCallback((recipient: SMSRecipient): string => {
+    return `${recipient.studentId}-${recipient.recipientType}`;
   }, []);
 
-  const handleRecipientTypeChange = useCallback((type: RecipientType) => {
-    setRecipientType(type);
+  // 조회 실행
+  const handleSearch = useCallback(async () => {
+    if (filter.recipientTypes.length === 0) {
+      showError("전송 대상자를 최소 1개 이상 선택해주세요.");
+      return;
+    }
+
+    setIsLoadingResults(true);
+    try {
+      // Query Parameters 구성
+      const params = new URLSearchParams();
+      if (filter.search) {
+        params.append("search", filter.search);
+      }
+      if (filter.grades.length > 0) {
+        params.append("grades", filter.grades.join(","));
+      }
+      if (filter.divisions.length > 0) {
+        params.append(
+          "divisions",
+          filter.divisions.map((d) => (d === null ? "null" : d)).join(",")
+        );
+      }
+      params.append("recipientTypes", filter.recipientTypes.join(","));
+
+      const response = await fetch(
+        `/api/admin/sms/students?${params.toString()}`
+      );
+      const result: { recipients: SMSRecipient[]; total: number; error?: string } =
+        await response.json();
+
+      if (!response.ok || result.error) {
+        showError(result.error || "조회 중 오류가 발생했습니다.");
+        setQueryResults([]);
+        return;
+      }
+
+      setQueryResults(result.recipients);
+    } catch (error) {
+      console.error("[SMS] 조회 실패:", error);
+      showError("조회 중 오류가 발생했습니다.");
+      setQueryResults([]);
+    } finally {
+      setIsLoadingResults(false);
+    }
+  }, [filter, showError]);
+
+  // 연락처 선택/해제
+  const handleToggleRecipient = useCallback(
+    (recipient: SMSRecipient) => {
+      setSelectedRecipients((prev) => {
+        const next = new Map(prev);
+        const key = getRecipientKey(recipient);
+        if (next.has(key)) {
+          next.delete(key);
+        } else {
+          next.set(key, recipient);
+        }
+        return next;
+      });
+    },
+    [getRecipientKey]
+  );
+
+  // 연락처 제거
+  const handleRemoveRecipient = useCallback((key: string) => {
+    setSelectedRecipients((prev) => {
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
   }, []);
 
-  const handleSingleRecipientSelect = useCallback((phone: string, studentName?: string) => {
-    setCustomPhone(phone);
-    setSelectedStudentName(studentName || "");
+  // 전체 해제
+  const handleClearAllRecipients = useCallback(() => {
+    setSelectedRecipients(new Map());
   }, []);
+
 
   const templates = getAllSMSTemplates();
 
-  // 선택된 학생 목록
-  const selectedStudents = useMemo(() => {
-    return students.filter((s) => selectedStudentIds.has(s.id));
-  }, [students, selectedStudentIds]);
+  // 선택된 연락처 목록 (배열)
+  const selectedRecipientsList = useMemo(() => {
+    return Array.from(selectedRecipients.values());
+  }, [selectedRecipients]);
 
   // 템플릿 선택 시 메시지 자동 채우기
   const handleTemplateChange = (templateType: SMSTemplateType) => {
@@ -154,8 +230,8 @@ export function SMSSendForm({
       }
     } else {
       // 일괄 발송 모드
-      if (selectedStudentIds.size === 0) {
-        showError("최소 1명 이상의 학생을 선택해주세요.");
+      if (selectedRecipients.size === 0) {
+        showError("최소 1개 이상의 연락처를 선택해주세요.");
         return;
       }
     }
@@ -166,7 +242,7 @@ export function SMSSendForm({
     }
 
     // 미리보기 표시
-    if (sendMode === "bulk" && selectedStudentIds.size > 0) {
+    if (sendMode === "bulk" && selectedRecipients.size > 0) {
       setShowPreview(true);
       return;
     }
@@ -207,7 +283,13 @@ export function SMSSendForm({
             router.push("/admin/sms/results");
           }, 1000);
         } else {
-          // 일괄 발송 - API Route 호출
+          // 일괄 발송 - recipients 배열 전송
+          const recipients = selectedRecipientsList.map((r) => ({
+            studentId: r.studentId,
+            phone: r.phone,
+            recipientType: r.recipientType,
+          }));
+
           const response = await fetch("/api/purio/send", {
             method: "POST",
             headers: {
@@ -215,13 +297,12 @@ export function SMSSendForm({
             },
             body: JSON.stringify({
               type: "bulk",
-              studentIds: Array.from(selectedStudentIds),
+              recipients,
               message: message.trim(),
               templateVariables: {
                 ...templateVariables,
                 학원명: academyName,
               },
-              recipientType,
             }),
           });
 
@@ -262,9 +343,8 @@ export function SMSSendForm({
     sendMode,
     customPhone,
     message,
-    selectedStudentIds,
+    selectedRecipientsList,
     templateVariables,
-    recipientType,
     academyName,
     startTransition,
     // showSuccess와 showError는 useToast에서 가져온 안정적인 함수이므로
@@ -321,18 +401,34 @@ export function SMSSendForm({
 
           {/* 발송 대상자 선택 (일괄 발송 모드) */}
           {sendMode === "bulk" && (
-              <div className="flex flex-col gap-2">
-                <Label>발송 대상자 선택</Label>
-                <div>
-                  <SMSRecipientSelector
-                    students={students}
-                    selectedStudentIds={selectedStudentIds}
-                    onSelectionChange={handleSelectionChange}
-                    recipientType={recipientType}
-                    onRecipientTypeChange={handleRecipientTypeChange}
-                  />
-                </div>
-              </div>
+            <div className="flex flex-col gap-6">
+              {/* 필터 패널 */}
+              <SMSFilterPanel
+                filter={filter}
+                onFilterChange={setFilter}
+                onSearch={handleSearch}
+                isLoading={isLoadingResults}
+              />
+
+              {/* 조회 결과 */}
+              {queryResults.length > 0 && (
+                <SMSRecipientList
+                  recipients={queryResults}
+                  selectedRecipients={selectedRecipients}
+                  onToggleRecipient={handleToggleRecipient}
+                  isLoading={isLoadingResults}
+                />
+              )}
+
+              {/* 선택된 연락처 목록 */}
+              {selectedRecipients.size > 0 && (
+                <SelectedRecipientsList
+                  selectedRecipients={selectedRecipients}
+                  onRemoveRecipient={handleRemoveRecipient}
+                  onClearAll={handleClearAllRecipients}
+                />
+              )}
+            </div>
           )}
 
           {/* 전송 대상자 선택 (단일/일괄 발송 모두) */}
@@ -375,56 +471,28 @@ export function SMSSendForm({
             </div>
           </div>
 
-          {/* 수신자 검색 및 입력 (단일 발송 모드) */}
+          {/* 수신자 입력 (단일 발송 모드) */}
           {sendMode === "single" && (
-            <div className="space-y-4">
-              {/* 학생 검색 */}
-              <SingleRecipientSearch
-                students={students}
-                onSelect={handleSingleRecipientSelect}
-                selectedPhone={customPhone}
-                recipientType={recipientType}
-                onRecipientTypeChange={handleRecipientTypeChange}
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="phone">수신자 전화번호 *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="010-1234-5678"
+                value={customPhone}
+                onChange={(e) => {
+                  setCustomPhone(e.target.value);
+                  if (!e.target.value) {
+                    setSelectedStudentName("");
+                  }
+                }}
+                required
               />
-
-              {/* 수신자 전화번호 입력 */}
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="phone">수신자 전화번호 *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="010-1234-5678 또는 검색으로 선택"
-                    value={customPhone}
-                    onChange={(e) => {
-                      setCustomPhone(e.target.value);
-                      if (!e.target.value) {
-                        setSelectedStudentName("");
-                      }
-                    }}
-                    className="flex-1"
-                    required
-                  />
-                  {customPhone && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setCustomPhone("");
-                        setSelectedStudentName("");
-                      }}
-                    >
-                      초기화
-                    </Button>
-                  )}
-                </div>
-                {selectedStudentName && (
-                  <p className="text-xs text-gray-600">
-                    선택된 학생: {selectedStudentName}
-                  </p>
-                )}
-              </div>
+              {selectedStudentName && (
+                <p className="text-xs text-gray-600">
+                  선택된 학생: {selectedStudentName}
+                </p>
+              )}
             </div>
           )}
 
@@ -510,16 +578,16 @@ export function SMSSendForm({
           </div>
 
           {/* 발송 요약 (일괄 발송 모드) */}
-          {sendMode === "bulk" && selectedStudentIds.size > 0 && (
+          {sendMode === "bulk" && selectedRecipients.size > 0 && (
             <SMSSendSummary
-              recipientCount={selectedStudentIds.size}
+              recipientCount={selectedRecipients.size}
               messageLength={message.length}
             />
           )}
 
           {/* 발송 버튼 */}
           <div className="flex justify-end gap-2">
-            {sendMode === "bulk" && selectedStudentIds.size > 0 && (
+            {sendMode === "bulk" && selectedRecipients.size > 0 && (
               <Button
                 type="button"
                 variant="outline"
@@ -529,7 +597,14 @@ export function SMSSendForm({
                 미리보기
               </Button>
             )}
-            <Button type="submit" disabled={isPending || !message.trim()}>
+            <Button
+              type="submit"
+              disabled={
+                isPending ||
+                !message.trim() ||
+                (sendMode === "bulk" && selectedRecipients.size === 0)
+              }
+            >
               {isPending ? "발송 중..." : "SMS 발송"}
             </Button>
           </div>
@@ -537,17 +612,19 @@ export function SMSSendForm({
       </div>
 
       {/* 미리보기 모달 */}
-      <SMSPreviewModal
-        open={showPreview}
-        onClose={() => setShowPreview(false)}
-        onConfirm={handleSend}
-        selectedStudents={selectedStudents}
-        message={message}
-        templateType={selectedTemplate || undefined}
-        templateVariables={templateVariables}
-        academyName={academyName}
-        isSending={isPending}
-      />
+      {sendMode === "bulk" && (
+        <SMSPreviewModal
+          open={showPreview}
+          onClose={() => setShowPreview(false)}
+          onConfirm={handleSend}
+          selectedRecipients={selectedRecipientsList}
+          message={message}
+          templateType={selectedTemplate || undefined}
+          templateVariables={templateVariables}
+          academyName={academyName}
+          isSending={isPending}
+        />
+      )}
     </>
   );
 }
