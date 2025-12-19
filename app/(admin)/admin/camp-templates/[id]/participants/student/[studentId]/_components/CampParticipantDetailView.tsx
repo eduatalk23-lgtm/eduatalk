@@ -11,12 +11,14 @@ type CampParticipantDetailViewProps = {
   template: CampTemplate;
   studentId: string;
   participantStats: ParticipantStatsData;
+  planGroupId: string | null;
 };
 
 export function CampParticipantDetailView({
   template,
   studentId,
   participantStats,
+  planGroupId,
 }: CampParticipantDetailViewProps) {
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -42,6 +44,14 @@ export function CampParticipantDetailView({
               ← 참여자 목록
             </Link>
             <div className="flex flex-wrap items-center gap-3">
+              {planGroupId && (
+                <Link
+                  href={`/admin/camp-templates/${template.id}/participants/${planGroupId}/reschedule`}
+                  className="inline-flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                >
+                  플랜 재조정
+                </Link>
+              )}
               <Link
                 href={`/admin/students/${studentId}?tab=attendance`}
                 className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"

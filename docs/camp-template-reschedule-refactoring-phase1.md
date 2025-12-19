@@ -15,11 +15,13 @@
 역할에 독립적인 재조정 로직을 추출하여 공통 모듈로 분리했습니다.
 
 **주요 함수**:
+
 - `validateRescheduleInput`: 입력값 검증
 - `calculateReschedulePreview`: 재조정 미리보기 계산 (역할 독립적)
 - `executeRescheduleOperation`: 재조정 실행 로직 (역할 독립적)
 
 **타입 정의**:
+
 - `RescheduleContext`: 재조정 컨텍스트 (사용자 ID, 학생 ID, 역할, 테넌트 ID)
 - `ReschedulePreviewResult`: 재조정 미리보기 결과
 - `RescheduleResult`: 재조정 실행 결과
@@ -32,6 +34,7 @@
 중복된 기간 계산 로직을 통합 함수로 추출했습니다.
 
 **추가 함수**:
+
 - `calculateAdjustedPeriodUnified`: 통합된 기간 계산 함수
   - `placementDateRange`가 있으면 우선 사용
   - 없으면 `rescheduleDateRange`를 기반으로 자동 계산
@@ -43,6 +46,7 @@
 기존의 중복된 로직을 제거하고 공통 로직을 사용하도록 리팩토링했습니다.
 
 **변경 사항**:
+
 - `_getReschedulePreview`: 공통 로직 `calculateReschedulePreview` 호출
 - `_rescheduleContents`: 공통 로직 `executeRescheduleOperation` 호출
 - 권한 검증: `verifyPlanGroupAccess` 사용
@@ -50,6 +54,7 @@
 - 학생 ID 결정: `getStudentIdForPlanGroup` 사용
 
 **코드 감소**:
+
 - 기존: 약 750줄
 - 리팩토링 후: 약 150줄
 - 약 80% 코드 감소
@@ -99,4 +104,3 @@
 - `lib/reschedule/periodCalculator.ts` - 기간 계산 로직 (통합 함수 추가)
 - `app/(student)/actions/plan-groups/reschedule.ts` - 학생용 재조정 액션 (리팩토링)
 - `lib/auth/planGroupAuth.ts` - 권한 검증 및 플랜 그룹 조회 유틸리티
-
