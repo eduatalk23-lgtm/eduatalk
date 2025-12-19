@@ -17,9 +17,7 @@ export type HistoryEventType =
   | "auto_schedule_generated"
   | "risk_evaluation";
 
-export type HistoryDetail = {
-  [key: string]: any;
-};
+export type HistoryDetail = Record<string, unknown>;
 
 /**
  * 히스토리 기록 함수

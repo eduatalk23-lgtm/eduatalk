@@ -84,7 +84,7 @@ export type MonthlyHistory = {
   events: Array<{
     id: string;
     eventType: string;
-    detail: any;
+    detail: Record<string, unknown>;
     createdAt: string;
   }>;
 };
@@ -735,11 +735,12 @@ export async function getMonthlyContentProgress(
 
     // 진행률 변화 계산
     const progressChangeMap = new Map<string, number>();
-    (historyData ?? []).forEach((h: { detail?: any; created_at?: string | null }) => {
-      if (h.detail?.content_type && h.detail?.content_id && h.detail?.progress) {
-        const key = `${h.detail.content_type}:${h.detail.content_id}`;
+    (historyData ?? []).forEach((h: { detail?: Record<string, unknown>; created_at?: string | null }) => {
+      const detail = h.detail as { content_type?: string; content_id?: string; progress?: number } | undefined;
+      if (detail?.content_type && detail?.content_id && typeof detail.progress === 'number') {
+        const key = `${detail.content_type}:${detail.content_id}`;
         const currentChange = progressChangeMap.get(key) ?? 0;
-        progressChangeMap.set(key, Math.max(currentChange, h.detail.progress));
+        progressChangeMap.set(key, Math.max(currentChange, detail.progress));
       }
     });
 
@@ -817,7 +818,7 @@ export async function getMonthlyHistory(
     const historyRows = (historyData as Array<{
       id: string;
       event_type?: string | null;
-      detail?: any;
+      detail?: Record<string, unknown>;
       created_at?: string | null;
     }> | null) ?? [];
 
