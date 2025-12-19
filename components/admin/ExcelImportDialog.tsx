@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Dialog, DialogFooter } from "@/components/organisms/Dialog";
+import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 

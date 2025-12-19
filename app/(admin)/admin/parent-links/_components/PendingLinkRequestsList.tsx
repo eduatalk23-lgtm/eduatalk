@@ -9,7 +9,7 @@ import {
   type PendingLinkRequest,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
 import { PendingLinkRequestCard } from "./PendingLinkRequestCard";
-import { ConfirmDialog } from "@/components/organisms/Dialog";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type PendingLinkRequestsListProps = {
   initialRequests?: PendingLinkRequest[];

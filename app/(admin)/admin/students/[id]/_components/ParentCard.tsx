@@ -8,7 +8,7 @@ import {
   type StudentParent,
   type ParentRelation,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
-import { ConfirmDialog } from "@/components/organisms/Dialog";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type ParentCardProps = {
   parent: StudentParent;

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getInternalScoresByTerm, getMockScoresByPeriod } from "@/lib/data/scoreDetails";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SectionHeader } from "@/components/ui";
 import AnalysisLayout from "./_components/AnalysisLayout";
 import { getContainerClass } from "@/lib/constants/layout";
 

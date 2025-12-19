@@ -7,7 +7,7 @@ import {
   rejectLinkRequest,
   type PendingLinkRequest,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
-import { ConfirmDialog } from "@/components/organisms/Dialog";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type PendingLinkRequestCardProps = {
   request: PendingLinkRequest;

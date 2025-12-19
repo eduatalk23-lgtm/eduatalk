@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getActiveCurriculumRevision, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SectionHeader } from "@/components/ui";
 import ScoreInputLayout from "./_components/ScoreInputLayout";
 import { getContainerClass } from "@/lib/constants/layout";
 

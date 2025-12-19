@@ -54,7 +54,7 @@ export { ErrorState } from "./ErrorState";
 export { default as FormInput } from "./FormInput";
 
 // SectionHeader → molecules/SectionHeader (개선됨)
-export { SectionHeader } from "./SectionHeader";
+export { SectionHeader } from "../molecules/SectionHeader";
 
 // Toast → molecules/Toast (개선됨)
 export { Toast } from "../molecules/Toast";

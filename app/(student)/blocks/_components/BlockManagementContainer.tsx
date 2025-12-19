@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { SectionHeader } from "@/components/ui";
 import BlockManagementTabs, { type ManagementTab } from "./BlockManagementTabs";
 import type { PlanGroup } from "@/lib/types/plan";
 
