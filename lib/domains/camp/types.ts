@@ -176,3 +176,36 @@ export type ParticipantAttendanceStats = {
   absent_rate: number;
 };
 
+// ============================================
+// 캠프 학습 통계 관련 타입
+// ============================================
+
+/**
+ * 캠프 학습 통계
+ */
+export type CampLearningStats = {
+  template_id: string;
+  template_name: string;
+  total_study_minutes: number;
+  average_study_minutes_per_participant: number;
+  participant_stats: Array<{
+    student_id: string;
+    student_name: string;
+    study_minutes: number;
+    plan_completion_rate: number;
+    subject_distribution: Record<string, number>;
+  }>;
+};
+
+/**
+ * 참여자별 학습 통계
+ */
+export type ParticipantLearningStats = {
+  student_id: string;
+  student_name: string;
+  study_minutes: number;
+  plan_completion_rate: number;
+  subject_distribution: Record<string, number>;
+  total_plans: number;
+  completed_plans: number;
+};

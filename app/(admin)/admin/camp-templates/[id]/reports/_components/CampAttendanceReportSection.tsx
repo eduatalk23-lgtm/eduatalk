@@ -1,0 +1,104 @@
+"use client";
+
+import type { CampAttendanceStats } from "@/lib/domains/camp/types";
+import { Card } from "@/components/ui/Card";
+
+type CampAttendanceReportSectionProps = {
+  attendanceStats: CampAttendanceStats;
+};
+
+export function CampAttendanceReportSection({
+  attendanceStats,
+}: CampAttendanceReportSectionProps) {
+  return (
+    <Card className="p-6">
+      <div className="flex flex-col gap-6">
+        <h2 className="text-lg font-semibold text-gray-900">출석 리포트</h2>
+
+        {/* 통계 요약 */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-600">출석률</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {attendanceStats.attendance_rate.toFixed(1)}%
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-600">지각률</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {attendanceStats.late_rate.toFixed(1)}%
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-gray-600">결석률</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {attendanceStats.absent_rate.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+
+        {/* 참여자별 출석 현황 */}
+        {attendanceStats.participant_stats.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                    이름
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    출석률
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    출석
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    지각
+                  </th>
+                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">
+                    결석
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {attendanceStats.participant_stats.map((stat) => (
+                  <tr
+                    key={stat.student_id}
+                    className="border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {stat.student_name}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-700">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                          stat.attendance_rate >= 90
+                            ? "bg-green-100 text-green-800"
+                            : stat.attendance_rate >= 70
+                            ? "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {stat.attendance_rate.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-700">
+                      {stat.present_count}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-700">
+                      {stat.late_count}
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-700">
+                      {stat.absent_count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
