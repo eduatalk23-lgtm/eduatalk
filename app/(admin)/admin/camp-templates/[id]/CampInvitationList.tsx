@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampInvitation } from "@/lib/types/plan";
 import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Pagination } from "@/components/organisms/Pagination";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type CampInvitationListProps = {
   invitations: Array<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>;
@@ -18,6 +19,11 @@ type CampInvitationListProps = {
   pageSize?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  filters?: {
+    search?: string;
+    status?: string;
+  };
+  onFilterChange?: (filters: { search?: string; status?: string }) => void;
 };
 
 export function CampInvitationList({ 
@@ -31,11 +37,23 @@ export function CampInvitationList({
   pageSize = 20,
   onPageChange,
   onPageSizeChange,
+  filters = {},
+  onFilterChange,
 }: CampInvitationListProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchInput, setSearchInput] = useState(filters.search || "");
+  const [statusInput, setStatusInput] = useState(filters.status || "");
+  
+  // 상태 변경 확인 다이얼로그 상태
+  const [statusChangeDialog, setStatusChangeDialog] = useState<{
+    open: boolean;
+    invitationId: string;
+    oldStatus: "pending" | "accepted" | "declined";
+    newStatus: "pending" | "accepted" | "declined";
+  } | null>(null);
   
   const totalPages = total ? Math.ceil(total / pageSize) : 0;
   
@@ -213,8 +231,97 @@ export function CampInvitationList({
     });
   };
 
+  // 필터 적용 핸들러
+  const handleApplyFilters = () => {
+    onFilterChange?.({
+      search: searchInput.trim() || undefined,
+      status: statusInput || undefined,
+    });
+  };
+
+  // 필터 초기화 핸들러
+  const handleResetFilters = () => {
+    setSearchInput("");
+    setStatusInput("");
+    onFilterChange?.({});
+  };
+
+  // 필터 변경 시 입력값 동기화
+  useEffect(() => {
+    setSearchInput(filters.search || "");
+    setStatusInput(filters.status || "");
+  }, [filters]);
+
   return (
     <div className="flex flex-col gap-4">
+      {/* 필터 UI */}
+      {onFilterChange && (
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">필터</h3>
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-xs text-gray-600 hover:text-gray-800"
+            >
+              초기화
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <label htmlFor="filter-search" className="block text-xs font-medium text-gray-700 mb-1">
+                학생명 검색
+              </label>
+              <input
+                id="filter-search"
+                type="text"
+                placeholder="학생명 검색..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleApplyFilters();
+                  }
+                }}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="filter-status" className="block text-xs font-medium text-gray-700 mb-1">
+                상태
+              </label>
+              <select
+                id="filter-status"
+                value={statusInput}
+                onChange={(e) => {
+                  setStatusInput(e.target.value);
+                  onFilterChange?.({
+                    search: searchInput.trim() || undefined,
+                    status: e.target.value || undefined,
+                  });
+                }}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">전체</option>
+                <option value="pending">대기중</option>
+                <option value="accepted">수락</option>
+                <option value="declined">거절</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleApplyFilters}
+                className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                검색
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 통계 */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -336,28 +443,20 @@ export function CampInvitationList({
                           (oldStatus === "accepted" && newStatus === "declined") ||
                           (oldStatus === "declined" && newStatus === "accepted");
                         
-                        const getStatusLabel = (status: string) => {
-                          switch (status) {
-                            case "pending": return "대기중";
-                            case "accepted": return "수락";
-                            case "declined": return "거절";
-                            default: return status;
-                          }
-                        };
-                        
                         if (requiresConfirmation) {
-                          const confirmed = confirm(
-                            `초대 상태를 "${getStatusLabel(newStatus)}"로 변경하시겠습니까?`
-                          );
-                          if (!confirmed) {
-                            // 확인 취소 시 select 값을 원래대로 복원
-                            e.target.value = oldStatus;
-                            return;
-                          }
+                          // 확인 다이얼로그 표시
+                          setStatusChangeDialog({
+                            open: true,
+                            invitationId: invitation.id,
+                            oldStatus,
+                            newStatus,
+                          });
+                          // select 값을 원래대로 복원 (확인 후 변경)
+                          e.target.value = oldStatus;
+                        } else {
+                          // 확인이 필요 없는 경우 바로 변경
+                          statusChangeMutation.mutate({ invitationId: invitation.id, newStatus });
                         }
-                        
-                        // TanStack Query mutation 실행
-                        statusChangeMutation.mutate({ invitationId: invitation.id, newStatus });
                       }
                     }}
                     disabled={isPending || statusChangeMutation.isPending}
@@ -422,6 +521,43 @@ export function CampInvitationList({
             </select>
           </div>
         </div>
+      )}
+
+      {/* 상태 변경 확인 다이얼로그 */}
+      {statusChangeDialog && (
+        <ConfirmDialog
+          open={statusChangeDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStatusChangeDialog(null);
+            }
+          }}
+          title="초대 상태 변경 확인"
+          description={(() => {
+            const getStatusLabel = (status: string) => {
+              switch (status) {
+                case "pending": return "대기중";
+                case "accepted": return "수락";
+                case "declined": return "거절";
+                default: return status;
+              }
+            };
+            return `초대 상태를 "${getStatusLabel(statusChangeDialog.newStatus)}"로 변경하시겠습니까?`;
+          })()}
+          confirmLabel="변경"
+          cancelLabel="취소"
+          variant="default"
+          isLoading={statusChangeMutation.isPending}
+          onConfirm={() => {
+            if (statusChangeDialog) {
+              statusChangeMutation.mutate({
+                invitationId: statusChangeDialog.invitationId,
+                newStatus: statusChangeDialog.newStatus,
+              });
+              setStatusChangeDialog(null);
+            }
+          }}
+        />
       )}
     </div>
   );

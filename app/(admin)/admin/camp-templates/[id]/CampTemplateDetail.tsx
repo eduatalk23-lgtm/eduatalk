@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
 import {
@@ -51,6 +51,7 @@ export function CampTemplateDetail({
   templateBlockSet,
 }: CampTemplateDetailProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   // 템플릿 데이터를 변수로 추출하여 반복 접근 최적화 및 타입 안전성 확보
   const templateData = template.template_data;
   const toast = useToast();
@@ -58,6 +59,15 @@ export function CampTemplateDetail({
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [invitationTotal, setInvitationTotal] = useState(0);
+  
+  // 필터 상태 (URL searchParams와 동기화)
+  const [invitationFilters, setInvitationFilters] = useState<{
+    search?: string;
+    status?: string;
+  }>({
+    search: searchParams.get("search") || undefined,
+    status: searchParams.get("status") || undefined,
+  });
   
   // 페이지네이션 훅 사용
   const {
@@ -83,7 +93,7 @@ export function CampTemplateDetail({
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
-  const loadInvitations = useCallback(async (page: number, pageSize: number) => {
+  const loadInvitations = useCallback(async (page: number, pageSize: number, filters?: { search?: string; status?: string }) => {
     // 삭제 중이면 실행하지 않음
     if (isDeleting) {
       return;
@@ -94,7 +104,8 @@ export function CampTemplateDetail({
       const result = await getCampInvitationsForTemplateWithPaginationAction(
         template.id,
         page,
-        pageSize
+        pageSize,
+        filters
       );
       if (result.success) {
         setInvitations(result.invitations || []);
@@ -124,10 +135,25 @@ export function CampTemplateDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id, isDeleting]);
 
+  // URL searchParams 변경 감지 및 필터 동기화
+  useEffect(() => {
+    const search = searchParams.get("search") || undefined;
+    const status = searchParams.get("status") || undefined;
+    setInvitationFilters({ search, status });
+  }, [searchParams]);
+
+  // 필터 변경 시 초대 목록 다시 로드
+  useEffect(() => {
+    if (!isDeleting) {
+      loadInvitations(invitationPage, invitationPageSize, invitationFilters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id, isDeleting, invitationFilters]);
+
   // 초기 로드 (template.id와 isDeleting만 의존하여 불필요한 재호출 방지)
   useEffect(() => {
     if (!isDeleting) {
-      loadInvitations(1, invitationPageSize);
+      loadInvitations(invitationPage, invitationPageSize, invitationFilters);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id, isDeleting]);
@@ -145,13 +171,39 @@ export function CampTemplateDetail({
   // 초대 발송 후 목록 새로고침 (페이지를 1로 리셋)
   const handleInvitationSent = useCallback(() => {
     setInvitationPage(1);
-  }, [setInvitationPage]);
+    // 필터 유지하면서 새로고침
+    loadInvitations(1, invitationPageSize, invitationFilters);
+  }, [setInvitationPage, invitationPageSize, invitationFilters, loadInvitations]);
 
   // 초대 삭제 후 목록 새로고침 (페이지 조정)
   const handleDeleteInvitations = useCallback((deletedCount: number) => {
     adjustPageAfterDeletion(deletedCount, invitationTotal);
-    loadInvitations(invitationPage, invitationPageSize);
-  }, [adjustPageAfterDeletion, invitationTotal, invitationPage, invitationPageSize, loadInvitations]);
+    loadInvitations(invitationPage, invitationPageSize, invitationFilters);
+  }, [adjustPageAfterDeletion, invitationTotal, invitationPage, invitationPageSize, invitationFilters, loadInvitations]);
+  
+  // 필터 변경 핸들러
+  const handleFilterChange = useCallback((filters: { search?: string; status?: string }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // 필터 파라미터 업데이트
+    if (filters.search) {
+      params.set("search", filters.search);
+    } else {
+      params.delete("search");
+    }
+    
+    if (filters.status) {
+      params.set("status", filters.status);
+    } else {
+      params.delete("status");
+    }
+    
+    // 필터 변경 시 페이지를 1로 리셋
+    params.set("page", "1");
+    
+    // URL 업데이트
+    router.push(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
 
   const handleStatusChange = async (
     newStatus: "draft" | "active" | "archived"
@@ -613,6 +665,8 @@ export function CampTemplateDetail({
             pageSize={invitationPageSize}
             onPageChange={handleInvitationPageChange}
             onPageSizeChange={handleInvitationPageSizeChange}
+            filters={invitationFilters}
+            onFilterChange={handleFilterChange}
           />
         </div>
 

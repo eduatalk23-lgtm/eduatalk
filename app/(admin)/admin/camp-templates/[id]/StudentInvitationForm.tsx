@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { sendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { filterStudents, extractUniqueGrades, extractUniqueClasses, type Student, type StudentFilter } from "@/lib/utils/studentFilterUtils";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type StudentInvitationFormProps = {
   templateId: string;
@@ -24,6 +25,16 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     isActive: "all",
   });
   const [loading, setLoading] = useState(true);
+  
+  // 발송 진행 상황 상태
+  const [sendingProgress, setSendingProgress] = useState<{
+    isSending: boolean;
+    total: number;
+    processed: number;
+    success: number;
+    failed: number;
+    failedStudents: Array<{ id: string; name: string; error: string }>;
+  } | null>(null);
 
   // 학생 목록 로드 (useCallback으로 메모이제이션)
   const loadStudents = useCallback(async () => {
@@ -151,7 +162,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     });
   };
 
-  const handleSendInvitations = () => {
+  const handleSendInvitations = async () => {
     // 활성 상태가 아니면 초대 발송 불가
     if (templateStatus !== "active") {
       const statusMessage = 
@@ -171,39 +182,140 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
 
     // 선택된 학생 ID를 미리 저장 (비동기 처리 중 값이 변경될 수 있음)
     const sentStudentIds = Array.from(selectedStudentIds);
+    const studentMap = new Map(students.map((s) => [s.id, s]));
 
-    startTransition(async () => {
+    // 진행 상황 초기화
+    setSendingProgress({
+      isSending: true,
+      total: sentStudentIds.length,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      failedStudents: [],
+    });
+
+    // 배치 크기 설정 (10명씩 처리)
+    const BATCH_SIZE = 10;
+    const batches: string[][] = [];
+    
+    for (let i = 0; i < sentStudentIds.length; i += BATCH_SIZE) {
+      batches.push(sentStudentIds.slice(i, i + BATCH_SIZE));
+    }
+
+    let totalSuccess = 0;
+    let totalFailed = 0;
+    const failedStudents: Array<{ id: string; name: string; error: string }> = [];
+
+    // 배치별로 순차 처리
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      
       try {
-        const result = await sendCampInvitationsAction(
-          templateId,
-          sentStudentIds
-        );
-
+        const result = await sendCampInvitationsAction(templateId, batch);
+        
         if (result.success) {
-          toast.showSuccess(
-            `${result.count || sentStudentIds.length}명의 학생에게 초대를 발송했습니다.`
-          );
+          const successCount = result.count || batch.length;
+          totalSuccess += successCount;
           
-          // 선택 초기화
-          setSelectedStudentIds(new Set());
-          
-          // 초대된 학생을 목록에서 즉시 제거 (UI 반응성 향상, 추가 로딩 없음)
-          setStudents((prevStudents) =>
-            prevStudents.filter((student) => !sentStudentIds.includes(student.id))
-          );
-          
-          // 상위 컴포넌트에 알림 (초대 목록 새로고침은 상위 컴포넌트에서 처리)
-          onInvitationSent?.();
+          // 실패한 학생이 있는 경우 (일부만 성공)
+          if (successCount < batch.length) {
+            const failedCount = batch.length - successCount;
+            totalFailed += failedCount;
+            
+            // 실패한 학생 정보 수집 (정확한 실패 학생 ID는 서버에서 반환하지 않으므로 추정)
+            batch.forEach((studentId) => {
+              const student = studentMap.get(studentId);
+              if (student) {
+                failedStudents.push({
+                  id: studentId,
+                  name: student.name,
+                  error: "초대 발송 실패 (이미 초대되었거나 오류 발생)",
+                });
+              }
+            });
+          }
         } else {
-          toast.showError(result.error || "초대 발송에 실패했습니다.");
+          // 배치 전체 실패
+          totalFailed += batch.length;
+          batch.forEach((studentId) => {
+            const student = studentMap.get(studentId);
+            if (student) {
+              failedStudents.push({
+                id: studentId,
+                name: student.name,
+                error: result.error || "초대 발송 실패",
+              });
+            }
+          });
         }
       } catch (error) {
-        console.error("초대 발송 실패:", error);
-        toast.showError(
-          error instanceof Error ? error.message : "초대 발송에 실패했습니다."
-        );
+        // 배치 전체 실패
+        totalFailed += batch.length;
+        const errorMessage = error instanceof Error ? error.message : "초대 발송 실패";
+        batch.forEach((studentId) => {
+          const student = studentMap.get(studentId);
+          if (student) {
+            failedStudents.push({
+              id: studentId,
+              name: student.name,
+              error: errorMessage,
+            });
+          }
+        });
       }
+
+      // 진행 상황 업데이트
+      setSendingProgress((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          processed: (i + 1) * BATCH_SIZE > sentStudentIds.length ? sentStudentIds.length : (i + 1) * BATCH_SIZE,
+          success: totalSuccess,
+          failed: totalFailed,
+          failedStudents,
+        };
+      });
+
+      // 배치 간 짧은 지연 (서버 부하 방지)
+      if (i < batches.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    // 발송 완료
+    setSendingProgress((prev) => {
+      if (!prev) return null;
+      return { ...prev, isSending: false };
     });
+
+    // 결과 메시지 표시
+    if (totalSuccess > 0) {
+      toast.showSuccess(
+        `${totalSuccess}명의 학생에게 초대를 발송했습니다.${totalFailed > 0 ? ` (실패: ${totalFailed}명)` : ""}`
+      );
+    }
+
+    if (totalFailed > 0 && totalSuccess === 0) {
+      toast.showError(`${totalFailed}명의 학생 초대 발송에 실패했습니다.`);
+    }
+
+    // 성공한 학생만 목록에서 제거
+    const successfulStudentIds = sentStudentIds.filter((id) => {
+      return !failedStudents.some((f) => f.id === id);
+    });
+
+    // 선택 초기화
+    setSelectedStudentIds(new Set());
+    
+    // 성공한 학생을 목록에서 즉시 제거
+    setStudents((prevStudents) =>
+      prevStudents.filter((student) => !successfulStudentIds.includes(student.id))
+    );
+    
+    // 상위 컴포넌트에 알림
+    if (totalSuccess > 0) {
+      onInvitationSent?.();
+    }
   };
 
   const isActive = templateStatus === "active";
@@ -367,15 +479,54 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         )}
       </div>
 
+      {/* 발송 진행 상황 */}
+      {sendingProgress && (
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-900">초대 발송 진행 중</h3>
+            <span className="text-xs text-gray-600">
+              {sendingProgress.processed} / {sendingProgress.total}
+            </span>
+          </div>
+          <ProgressBar
+            value={sendingProgress.processed}
+            max={sendingProgress.total}
+            showValue
+            autoColor
+            height="md"
+          />
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="text-green-600">
+              성공: {sendingProgress.success}명
+            </div>
+            <div className="text-red-600">
+              실패: {sendingProgress.failed}명
+            </div>
+          </div>
+          {sendingProgress.failedStudents.length > 0 && (
+            <div className="mt-2 max-h-32 overflow-y-auto rounded border border-red-200 bg-red-50 p-2">
+              <div className="text-xs font-semibold text-red-800 mb-1">실패한 학생:</div>
+              <div className="space-y-1">
+                {sendingProgress.failedStudents.map((failed) => (
+                  <div key={failed.id} className="text-xs text-red-700">
+                    {failed.name}: {failed.error}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 발송 버튼 */}
       <div className="flex justify-end">
         <button
           type="button"
           onClick={handleSendInvitations}
-          disabled={isPending || selectedStudentIds.size === 0 || isDisabled}
+          disabled={sendingProgress?.isSending || selectedStudentIds.size === 0 || isDisabled}
           className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-400"
         >
-          {isPending ? "발송 중..." : `초대 발송 (${selectedStudentIds.size}명)`}
+          {sendingProgress?.isSending ? "발송 중..." : `초대 발송 (${selectedStudentIds.size}명)`}
         </button>
       </div>
     </div>
