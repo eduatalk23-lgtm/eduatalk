@@ -1005,12 +1005,17 @@ export const sendCampInvitationsAction = withErrorHandling(
       };
     }
 
-    // 초대 생성
+    // 초대 생성 (expires_at: 초대 발송 후 7일)
+    const now = new Date();
+    const expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
     const invitations = newStudentIds.map((studentId) => ({
       tenant_id: tenantId,
       camp_template_id: templateId,
       student_id: studentId,
       status: "pending",
+      expires_at: expiresAt.toISOString(),
     }));
 
     const { data: insertedInvitations, error } = await supabase
@@ -3969,8 +3974,15 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
       is_locked: true,
     }));
 
-    // 각 초대에 대해 플랜 그룹 생성
-    for (const invitationId of invitationIds) {
+    // 병렬 처리 함수 (최대 동시 처리 수 제한)
+    const MAX_CONCURRENT = 5;
+    const processInvitation = async (invitationId: string): Promise<{
+      success: boolean;
+      invitationId: string;
+      studentId?: string;
+      groupId?: string;
+      error?: string;
+    }> => {
       try {
         // 초대 정보 조회
         const { data: invitation, error: invitationError } = await supabase
@@ -3980,11 +3992,11 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           .maybeSingle();
 
         if (invitationError || !invitation) {
-          errors.push({
+          return {
+            success: false,
             invitationId,
             error: invitationError?.message || "초대를 찾을 수 없습니다.",
-          });
-          continue;
+          };
         }
 
         // 이미 플랜 그룹이 있는지 확인
@@ -3997,7 +4009,12 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
 
         if (existingGroup) {
           // 이미 플랜 그룹이 있으면 스킵
-          continue;
+          return {
+            success: true,
+            invitationId,
+            studentId: invitation.student_id,
+            groupId: existingGroup.id,
+          };
         }
 
         // 템플릿 기본값으로 병합된 데이터 생성
@@ -4050,11 +4067,12 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
         });
 
         if (!groupResult.success || !groupResult.groupId) {
-          errors.push({
+          return {
+            success: false,
             invitationId,
+            studentId: invitation.student_id,
             error: groupResult.error || "플랜 그룹 생성에 실패했습니다.",
-          });
-          continue;
+          };
         }
 
         const groupId = groupResult.groupId;
@@ -4090,18 +4108,79 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           );
         }
 
-        successCount++;
+        return {
+          success: true,
+          invitationId,
+          studentId: invitation.student_id,
+          groupId,
+        };
       } catch (error) {
         console.error(
           `[bulkCreatePlanGroupsForCamp] 초대 ${invitationId} 처리 실패:`,
           error
         );
-        errors.push({
+        return {
+          success: false,
           invitationId,
           error:
             error instanceof Error
               ? error.message
               : "알 수 없는 오류가 발생했습니다.",
+        };
+      }
+    };
+
+    // 병렬 처리 실행 (배치 단위로 처리)
+    const batches: string[][] = [];
+    for (let i = 0; i < invitationIds.length; i += MAX_CONCURRENT) {
+      batches.push(invitationIds.slice(i, i + MAX_CONCURRENT));
+    }
+
+    const results: Array<{
+      success: boolean;
+      invitationId: string;
+      studentId?: string;
+      groupId?: string;
+      error?: string;
+    }> = [];
+
+    for (const batch of batches) {
+      const batchResults = await Promise.all(
+        batch.map((invitationId) => processInvitation(invitationId))
+      );
+      results.push(...batchResults);
+    }
+
+    // 결과 집계
+    for (const result of results) {
+      if (result.success) {
+        successCount++;
+        // 플랜 생성 완료 알림 발송 (비동기)
+        if (result.studentId && result.groupId) {
+          const { sendInAppNotification } = await import(
+            "@/lib/services/inAppNotificationService"
+          );
+          sendInAppNotification(
+            result.studentId,
+            "camp_plan_created",
+            "캠프 플랜이 생성되었습니다",
+            `${template.name} 캠프의 학습 플랜이 생성되었습니다. 확인해주세요.`,
+            {
+              invitationId: result.invitationId,
+              templateId,
+              groupId: result.groupId,
+            }
+          ).catch((err) => {
+            console.error(
+              `[bulkCreatePlanGroupsForCamp] 초대 ${result.invitationId} 알림 발송 실패:`,
+              err
+            );
+          });
+        }
+      } else {
+        errors.push({
+          invitationId: result.invitationId,
+          error: result.error || "알 수 없는 오류가 발생했습니다.",
         });
       }
     }

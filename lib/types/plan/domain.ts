@@ -30,7 +30,7 @@ export type CampProgramType = "윈터캠프" | "썸머캠프" | "파이널캠프
 /**
  * 캠프 초대 상태
  */
-export type CampInvitationStatus = "pending" | "accepted" | "declined";
+export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expired";
 
 /**
  * 스케줄러 유형
@@ -460,6 +460,15 @@ export type AcademySchedule = {
 };
 
 /**
+ * 캠프 템플릿 리마인더 설정
+ */
+export type CampReminderSettings = {
+  enabled: boolean;
+  intervals: number[]; // 초대 발송 후 며칠째에 리마인더 발송 (예: [3, 5, 7])
+  lastReminderDays: number; // 마지막 리마인더는 초대 발송 후 며칠째
+};
+
+/**
  * 캠프 템플릿
  */
 export type CampTemplate = {
@@ -473,6 +482,7 @@ export type CampTemplate = {
   camp_start_date: string | null; // 캠프 시작일 (date)
   camp_end_date: string | null; // 캠프 종료일 (date)
   camp_location: string | null; // 캠프 장소
+  reminder_settings: CampReminderSettings | null; // 리마인더 설정
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -490,6 +500,7 @@ export type CampInvitation = {
   invited_at: string;
   accepted_at: string | null;
   declined_at: string | null;
+  expires_at: string | null; // 만료일 (초대 발송 후 7일 기본값)
   created_at: string;
   updated_at: string;
 };
