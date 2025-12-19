@@ -86,7 +86,8 @@ export default async function CampSubmissionDetailPage({
       "[CampSubmissionDetailPage] 플랜 그룹을 찾을 수 없음:",
       invitationId
     );
-    notFound();
+    // 플랜 그룹이 없는 경우 참여 페이지로 리다이렉트 (데이터 불일치 처리)
+    redirect(`/camp/${invitationId}`);
   }
 
   // tenantId 조회

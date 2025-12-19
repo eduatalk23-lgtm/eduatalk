@@ -53,7 +53,7 @@ export default async function CampParticipationPage({
         "[CampParticipationPage] 플랜 그룹 조회 에러:",
         planGroupError
       );
-      // 에러 발생 시 제출 완료 페이지로 리다이렉트
+      // 에러 발생 시 제출 완료 페이지로 리다이렉트 (플랜 그룹이 있을 것으로 예상)
       redirect(`/camp/${invitationId}/submitted`);
     }
 
@@ -70,13 +70,20 @@ export default async function CampParticipationPage({
 
       // 플랜이 생성되었으면 플랜 그룹 상세로, 아니면 제출 완료 상세로
       if (hasPlans) {
-        redirect(`/plan/group/${planGroup.id}`);
+        redirect(`/plan/group/${planGroup.id}?camp=true`);
       } else {
         redirect(`/camp/${invitationId}/submitted`);
       }
     } else {
-      // 플랜 그룹이 없는 경우는 이상한 케이스이므로 제출 완료 페이지로 (안전장치)
-      redirect(`/camp/${invitationId}/submitted`);
+      // 플랜 그룹이 없는 경우: accepted 상태인데 플랜 그룹이 없음 (데이터 불일치)
+      // 이 경우 참여 페이지를 그대로 보여주되, 에러 메시지를 표시하기 위해 계속 진행
+      // (아래 코드에서 validationErrors에 추가하여 표시)
+      console.warn(
+        "[CampParticipationPage] accepted 상태인데 플랜 그룹이 없음:",
+        invitationId
+      );
+      // 참여 페이지를 그대로 보여주되, 상태를 pending으로 되돌리거나 에러 메시지 표시
+      // 일단 계속 진행하여 참여 페이지를 보여줌
     }
   }
 
@@ -136,8 +143,35 @@ export default async function CampParticipationPage({
     });
   }
 
+  // accepted 상태인데 플랜 그룹이 없는 경우 확인 (데이터 불일치 체크)
+  let hasDataInconsistency = false;
+  if (invitation.status === "accepted") {
+    const { data: checkPlanGroup } = await supabase
+      .from("plan_groups")
+      .select("id")
+      .eq("camp_invitation_id", invitationId)
+      .limit(1)
+      .maybeSingle();
+    
+    if (!checkPlanGroup) {
+      hasDataInconsistency = true;
+      console.warn(
+        "[CampParticipationPage] 데이터 불일치: accepted 상태인데 플랜 그룹이 없음",
+        invitationId
+      );
+    }
+  }
+
   // 템플릿 데이터 필수 필드 검증
   const validationErrors: string[] = [];
+  
+  // 데이터 불일치 에러 추가
+  if (hasDataInconsistency) {
+    validationErrors.push(
+      "캠프 참여 상태에 문제가 있습니다. 관리자에게 문의해주세요."
+    );
+  }
+  
   if (!templateData?.period_start || !templateData?.period_end) {
     validationErrors.push("템플릿에 학습 기간이 설정되지 않았습니다.");
   }
