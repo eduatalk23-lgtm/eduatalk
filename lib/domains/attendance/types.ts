@@ -99,6 +99,7 @@ export type AttendanceStatistics = {
 
 export type AttendanceFilters = {
   student_id?: string;
+  student_ids?: string[]; // 여러 학생 ID 필터링
   start_date?: string; // YYYY-MM-DD
   end_date?: string; // YYYY-MM-DD
   status?: AttendanceStatus;

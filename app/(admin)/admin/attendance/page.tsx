@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { getAttendanceRecords } from "@/lib/domains/attendance/service";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -14,19 +13,16 @@ import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
   AttendanceRecordFormWithStudentSelect,
 } from "./_components/AttendanceRecordForm";
-import { AttendanceList } from "./_components/AttendanceList";
+import { AttendanceListClient } from "./_components/AttendanceListClient";
 import { AttendanceStatistics } from "./_components/AttendanceStatistics";
-import { AttendanceFilters as AttendanceFiltersComponent } from "./_components/AttendanceFilters";
+import { AttendanceSearchFilter } from "./_components/AttendanceSearchFilter";
+import { AttendancePagination } from "./_components/AttendancePagination";
+import { findAttendanceRecordsWithPagination } from "@/lib/domains/attendance/repository";
 import type {
   AttendanceFilters,
-  AttendanceRecord,
+  AttendanceStatus,
 } from "@/lib/domains/attendance/types";
-import { calculateAttendanceStats } from "@/lib/domains/attendance/service";
-
-type StudentRow = {
-  id: string;
-  name?: string | null;
-};
+import { ATTENDANCE_LIST_PAGE_SIZE, type AttendanceSortOption } from "@/lib/constants/attendance";
 
 type AttendancePageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -49,27 +45,51 @@ async function AttendanceContent({
   }
 
   // 필터 파라미터
-  const studentIdFilter = searchParams.student_id?.trim() ?? "";
+  const studentNameFilter = searchParams.student_name?.trim() ?? "";
   const startDateFilter = searchParams.start_date?.trim() ?? "";
   const endDateFilter = searchParams.end_date?.trim() ?? "";
-  const statusFilter = searchParams.status?.trim() ?? "";
+  const statusFilter = searchParams.status?.trim() as AttendanceStatus | undefined;
+  const sortBy: AttendanceSortOption = (searchParams.sort as AttendanceSortOption) || "date";
+  const page = parseInt(searchParams.page || "1", 10);
+  const pageSize = ATTENDANCE_LIST_PAGE_SIZE;
 
-  // 출석 기록 조회
+  // 출석 기록 조회 (페이지네이션 적용)
   const filters: AttendanceFilters = {
     start_date: startDateFilter || undefined,
     end_date: endDateFilter || undefined,
-    status: statusFilter
-      ? (statusFilter as AttendanceFilters["status"])
-      : undefined,
+    status: statusFilter,
   };
 
-  if (studentIdFilter) {
-    filters.student_id = studentIdFilter;
+  // 학생명으로 필터링 (학생 ID 조회 필요)
+  if (studentNameFilter) {
+    const { data: students } = await supabase
+      .from("students")
+      .select("id")
+      .eq("tenant_id", tenantContext.tenantId)
+      .ilike("name", `%${studentNameFilter}%`)
+      .limit(100);
+
+    if (students && students.length > 0) {
+      // 여러 학생 ID로 필터링
+      filters.student_ids = students.map((s) => s.id);
+    } else {
+      // 학생이 없으면 빈 결과 반환
+      filters.student_ids = ["00000000-0000-0000-0000-000000000000"]; // 존재하지 않는 ID
+    }
   }
 
-  let records: AttendanceRecord[] = [];
+  let paginationResult;
   try {
-    records = await getAttendanceRecords(filters);
+    paginationResult = await findAttendanceRecordsWithPagination(
+      filters,
+      {
+        page,
+        pageSize,
+        sortBy,
+        sortOrder: "desc",
+      },
+      tenantContext.tenantId
+    );
   } catch (error: any) {
     // 에러 객체 전체를 먼저 로깅
     console.error("[admin/attendance] 출석 기록 조회 실패 - 원본 에러:", error);
@@ -138,27 +158,18 @@ async function AttendanceContent({
     }
   }
 
-  // 학생 정보 조회
-  const studentIds = [
-    ...new Set(records.map((r) => r.student_id).filter(Boolean)),
-  ];
-  const { data: students } = await supabase
-    .from("students")
-    .select("id,name")
-    .in("id", studentIds.length > 0 ? studentIds : [""]);
+  const records = paginationResult?.records ?? [];
+  const totalPages = paginationResult?.totalPages ?? 1;
 
-  const studentMap = new Map(
-    (students ?? []).map((s: StudentRow) => [s.id, s.name ?? "이름 없음"])
-  );
-
-  // 전체 통계 계산 (필터링된 기록 기준)
+  // 전체 통계 계산 (필터링된 기록 기준 - 페이지네이션된 데이터가 아닌 전체 데이터 필요)
+  // 통계는 별도로 조회하거나, 현재 페이지 데이터만 표시
   let overallStats = {
-    total_days: 0,
-    present_count: 0,
-    absent_count: 0,
-    late_count: 0,
-    early_leave_count: 0,
-    excused_count: 0,
+    total_days: paginationResult?.total ?? 0,
+    present_count: records.filter((r) => r.status === "present").length,
+    absent_count: records.filter((r) => r.status === "absent").length,
+    late_count: records.filter((r) => r.status === "late").length,
+    early_leave_count: records.filter((r) => r.status === "early_leave").length,
+    excused_count: records.filter((r) => r.status === "excused").length,
     attendance_rate: 0,
     late_rate: 0,
     absent_rate: 0,
@@ -175,6 +186,7 @@ async function AttendanceContent({
     const excusedCount = records.filter((r) => r.status === "excused").length;
 
     overallStats = {
+      ...overallStats,
       total_days: totalDays,
       present_count: presentCount,
       absent_count: absentCount,
@@ -226,10 +238,12 @@ async function AttendanceContent({
         </div>
 
         {/* 필터 */}
-        <AttendanceFiltersComponent
+        <AttendanceSearchFilter
+          studentNameFilter={studentNameFilter}
           startDateFilter={startDateFilter}
           endDateFilter={endDateFilter}
           statusFilter={statusFilter}
+          sortBy={sortBy}
         />
 
         {/* 출석 기록 목록 */}
@@ -239,7 +253,14 @@ async function AttendanceContent({
             description="아직 등록된 출석 기록이 없습니다."
           />
         ) : (
-          <AttendanceList records={records} studentMap={studentMap} />
+          <>
+            <AttendanceListClient records={records} />
+            <AttendancePagination
+              currentPage={page}
+              totalPages={totalPages}
+              searchParams={searchParams}
+            />
+          </>
         )}
       </div>
     </div>

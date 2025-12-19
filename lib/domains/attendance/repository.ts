@@ -235,3 +235,192 @@ export async function findAttendanceRecordsByStudent(
   });
 }
 
+/**
+ * 출석 기록 조회 (페이지네이션 지원, 학생 정보 배치 조회)
+ */
+export type AttendanceRecordWithStudent = AttendanceRecord & {
+  student_name: string | null;
+};
+
+export type AttendancePaginationParams = {
+  page: number;
+  pageSize: number;
+  sortBy?: "date" | "student_name" | "status";
+  sortOrder?: "asc" | "desc";
+};
+
+export type AttendancePaginationResult = {
+  records: AttendanceRecordWithStudent[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export async function findAttendanceRecordsWithPagination(
+  filters: AttendanceFilters,
+  pagination: AttendancePaginationParams,
+  tenantId?: string | null
+): Promise<AttendancePaginationResult> {
+  const supabase = await createSupabaseServerClient();
+
+  // 기본 쿼리 (학생 정보는 별도로 조회)
+  let query = supabase
+    .from("attendance_records")
+    .select("*", { count: "exact" });
+
+  // 테넌트 필터
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  // 필터 적용
+  if (filters.student_ids && filters.student_ids.length > 0) {
+    query = query.in("student_id", filters.student_ids);
+  } else if (filters.student_id) {
+    query = query.eq("student_id", filters.student_id);
+  }
+
+  if (filters.start_date) {
+    query = query.gte("attendance_date", filters.start_date);
+  }
+
+  if (filters.end_date) {
+    query = query.lte("attendance_date", filters.end_date);
+  }
+
+  if (filters.status) {
+    query = query.eq("status", filters.status);
+  }
+
+  // 정렬
+  const sortBy = pagination.sortBy ?? "date";
+  const sortOrder = pagination.sortOrder ?? "desc";
+
+  if (sortBy === "date") {
+    query = query.order("attendance_date", { ascending: sortOrder === "asc" });
+    query = query.order("check_in_time", { ascending: sortOrder === "asc" });
+  } else if (sortBy === "status") {
+    query = query.order("status", { ascending: sortOrder === "asc" });
+    query = query.order("attendance_date", { ascending: false });
+  }
+
+  // 페이지네이션
+  const from = (pagination.page - 1) * pagination.pageSize;
+  const to = from + pagination.pageSize - 1;
+  query = query.range(from, to);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("[attendance/repository] 출석 기록 조회 실패", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw error;
+  }
+
+  const records = (data as AttendanceRecord[]) ?? [];
+
+  // 학생 정보 배치 조회 (N+1 문제 해결)
+  const studentIds = [...new Set(records.map((r) => r.student_id).filter(Boolean))];
+  let studentMap = new Map<string, string | null>();
+
+  if (studentIds.length > 0) {
+    const { data: students, error: studentsError } = await supabase
+      .from("students")
+      .select("id, name")
+      .in("id", studentIds);
+
+    if (studentsError) {
+      console.error("[attendance/repository] 학생 정보 조회 실패", {
+        message: studentsError.message,
+        code: studentsError.code,
+      });
+    } else {
+      studentMap = new Map(
+        (students ?? []).map((s) => [s.id, s.name ?? null])
+      );
+    }
+  }
+
+  // 학생명 정렬 (클라이언트 사이드)
+  let sortedRecords = records;
+  if (sortBy === "student_name") {
+    sortedRecords = [...records].sort((a, b) => {
+      const nameA = studentMap.get(a.student_id) ?? "";
+      const nameB = studentMap.get(b.student_id) ?? "";
+      return sortOrder === "asc"
+        ? nameA.localeCompare(nameB, "ko")
+        : nameB.localeCompare(nameA, "ko");
+    });
+  }
+
+  // 데이터 변환
+  const recordsWithStudent: AttendanceRecordWithStudent[] = sortedRecords.map(
+    (record) => ({
+      ...record,
+      student_name: studentMap.get(record.student_id) ?? null,
+    })
+  );
+
+  const total = count ?? 0;
+  const totalPages = Math.ceil(total / pagination.pageSize);
+
+  return {
+    records: recordsWithStudent,
+    total,
+    page: pagination.page,
+    pageSize: pagination.pageSize,
+    totalPages,
+  };
+}
+
+/**
+ * 출석 기록 개수 조회
+ */
+export async function countAttendanceRecords(
+  filters: AttendanceFilters,
+  tenantId?: string | null
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("attendance_records")
+    .select("*", { count: "exact", head: true });
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  if (filters.student_id) {
+    query = query.eq("student_id", filters.student_id);
+  }
+
+  if (filters.start_date) {
+    query = query.gte("attendance_date", filters.start_date);
+  }
+
+  if (filters.end_date) {
+    query = query.lte("attendance_date", filters.end_date);
+  }
+
+  if (filters.status) {
+    query = query.eq("status", filters.status);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error("[attendance/repository] 출석 기록 개수 조회 실패", {
+      message: error.message,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
