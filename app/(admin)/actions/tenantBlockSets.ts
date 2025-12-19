@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { blockSchema, validateFormData } from "@/lib/validation/schemas";
 
@@ -13,10 +12,8 @@ import { blockSchema, validateFormData } from "@/lib/validation/schemas";
  * 테넌트 블록 세트 생성
  */
 async function _createTenantBlockSet(formData: FormData): Promise<{ blockSetId: string; name: string }> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -235,10 +232,8 @@ async function _getTenantBlockSets(): Promise<
     blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
   }>
 > {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -298,10 +293,8 @@ async function _getTenantBlockSets(): Promise<
  * 테넌트 블록 추가
  */
 async function _addTenantBlock(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -379,10 +372,8 @@ async function _addTenantBlock(formData: FormData): Promise<void> {
  * 테넌트 블록 일괄 추가 (여러 요일에 동일 시간대 블록 추가)
  */
 async function _addTenantBlocksToMultipleDays(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {

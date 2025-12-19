@@ -33,11 +33,11 @@ export async function requireAdminOrConsultant(
   options: AdminGuardOptions = {}
 ): Promise<AdminGuardResult> {
   const { userId, role, tenantId } = await getCurrentUserRole();
-  
+
   if (!isAdminRole(role)) {
     throw new AppError("관리자 또는 컨설턴트 권한이 필요합니다.", ...);
   }
-  
+
   return { userId, role, tenantId };
 }
 ```
@@ -115,7 +115,9 @@ const { data: updatedRows, error } = await supabase
 const targetTenantId = role === "superadmin" ? null : tenantId;
 
 if (targetTenantId !== null) {
-  studentsQuery = studentsQuery.or(`tenant_id.eq.${targetTenantId},tenant_id.is.null`);
+  studentsQuery = studentsQuery.or(
+    `tenant_id.eq.${targetTenantId},tenant_id.is.null`
+  );
 }
 ```
 
@@ -344,4 +346,3 @@ export async function getStudentPlansForAdmin(
 ---
 
 **다음 작업**: Phase 4.1 보안 강화 작업 시작
-

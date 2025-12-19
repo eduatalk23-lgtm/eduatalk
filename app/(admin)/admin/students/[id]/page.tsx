@@ -47,7 +47,7 @@ export default async function AdminStudentDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { userId, role } = await getCurrentUserRole();
+  const { userId, role, tenantId } = await getCurrentUserRole();
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");
@@ -164,7 +164,7 @@ export default async function AdminStudentDetailPage({
           {/* 학습계획 탭 */}
           <TabContent tab="plan">
             <Suspense fallback={<PlanListSectionSkeleton />}>
-              <PlanListSection studentId={studentId} />
+              <PlanListSection studentId={studentId} tenantId={tenantId} />
             </Suspense>
           </TabContent>
 

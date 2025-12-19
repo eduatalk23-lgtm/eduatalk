@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { exportToExcel } from "@/lib/utils/excel";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
@@ -16,8 +16,9 @@ import {
  * 4개 시트로 구성: curriculum_revisions, subject_groups, subjects, subject_types
  */
 export async function exportSubjectsToExcel(): Promise<Buffer> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin") {
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
+  if (role !== "admin" && role !== "superadmin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
 
@@ -97,8 +98,9 @@ export async function exportSubjectsToExcel(): Promise<Buffer> {
  * 교과/과목 관리 양식 파일 다운로드
  */
 export async function downloadSubjectsTemplate(): Promise<Buffer> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin") {
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
+  if (role !== "admin" && role !== "superadmin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
 

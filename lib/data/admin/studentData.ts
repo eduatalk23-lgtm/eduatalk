@@ -10,15 +10,19 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient
 
 /**
  * 관리자용: 학생의 플랜 목록 조회
+ * @param studentId 학생 ID
+ * @param tenantId 테넌트 ID (superadmin인 경우 null 가능)
+ * @param dateRange 날짜 범위 (선택)
  */
 export async function getStudentPlansForAdmin(
   studentId: string,
+  tenantId: string | null,
   dateRange?: { start: string; end: string }
 ) {
   try {
     const filters: Parameters<typeof getPlansForStudent>[0] = {
       studentId,
-      tenantId: null,
+      tenantId, // 테넌트 격리 보장
     };
 
     if (dateRange) {

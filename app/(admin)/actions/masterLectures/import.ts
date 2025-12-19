@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseExcelFile, validateExcelFile } from "@/lib/utils/excel";
 import { z } from "zod";
@@ -48,8 +48,9 @@ export async function importMasterLecturesFromExcel(
 ): Promise<{ success: boolean; message: string; errors?: string[] }> {
   // Uint8Array를 Buffer로 변환
   const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin") {
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
+  if (role !== "admin" && role !== "superadmin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
 

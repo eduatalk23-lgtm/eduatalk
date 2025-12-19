@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { revalidateCampTemplatePaths } from "@/lib/utils/revalidation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   getCampTemplate,
@@ -1821,7 +1820,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
           "@/lib/data/planContents"
         );
         // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
-        const { role, userId } = await getCurrentUserRole();
+        const { role, userId } = await requireAdminOrConsultant();
         // superadmin은 admin으로 매핑
         const mappedRole = role === "superadmin" ? "admin" : role;
         const { studentContents, recommendedContents } =

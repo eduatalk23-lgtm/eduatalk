@@ -3,16 +3,17 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 
 /**
  * 관리자 계정 생성
  */
 export async function createAdminUser(formData: FormData) {
-  const { role: currentRole } = await getCurrentUserRole();
+  // 권한 확인 (admin만 허용)
+  const { role: currentRole } = await requireAdminOrConsultant();
 
   // Super Admin만 접근 가능
-  if (currentRole !== "admin") {
+  if (currentRole !== "admin" && currentRole !== "superadmin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
 
@@ -80,11 +81,12 @@ export async function createAdminUser(formData: FormData) {
  * 관리자 권한 제거
  */
 export async function deleteAdminUser(userId: string) {
+  // 권한 확인 (admin만 허용)
   const { role: currentRole, userId: currentUserId } =
-    await getCurrentUserRole();
+    await requireAdminOrConsultant();
 
   // Super Admin만 접근 가능
-  if (currentRole !== "admin") {
+  if (currentRole !== "admin" && currentRole !== "superadmin") {
     throw new Error("관리자 권한이 필요합니다.");
   }
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
@@ -10,9 +10,10 @@ import { revalidatePath } from "next/cache";
 export async function deleteUnverifiedUser(
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     return { success: false, error: "관리자 권한이 필요합니다." };
   }
 
@@ -49,9 +50,10 @@ export async function deleteUnverifiedUser(
 export async function resendVerificationEmail(
   email: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
-  const { role } = await getCurrentUserRole();
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     return { success: false, error: "관리자 권한이 필요합니다." };
   }
 
@@ -110,9 +112,10 @@ export async function resendVerificationEmail(
 export async function deleteMultipleUnverifiedUsers(
   userIds: string[]
 ): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
-  const { role } = await getCurrentUserRole();
+  // 권한 확인 (admin만 허용)
+  const { role } = await requireAdminOrConsultant();
 
-  if (role !== "admin") {
+  if (role !== "admin" && role !== "superadmin") {
     return { success: false, error: "관리자 권한이 필요합니다." };
   }
 

@@ -25,13 +25,15 @@ const contentTypeLabels: Record<string, string> = {
 
 export async function PlanListSection({
   studentId,
+  tenantId,
   dateRange,
 }: {
   studentId: string;
+  tenantId: string | null;
   dateRange?: { start: string; end: string };
 }) {
   try {
-    const plans = await getStudentPlansForAdmin(studentId, dateRange);
+    const plans = await getStudentPlansForAdmin(studentId, tenantId, dateRange);
 
     // 최근 10개만 표시
     const recentPlans = plans.slice(0, 10);

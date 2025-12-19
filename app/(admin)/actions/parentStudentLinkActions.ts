@@ -1,7 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -98,14 +97,8 @@ type SearchableParentRow = {
 export async function getStudentParents(
   studentId: string
 ): Promise<{ success: boolean; data?: StudentParent[]; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return {
-      success: false,
-      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-    };
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const supabase = await createSupabaseServerClient();
 
@@ -180,14 +173,8 @@ export async function searchParents(
   query: string,
   tenantId?: string
 ): Promise<{ success: boolean; data?: SearchableParent[]; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return {
-      success: false,
-      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-    };
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   // 최소 2글자 이상 검색
   if (!query || query.trim().length < 2) {
@@ -268,14 +255,8 @@ export async function createParentStudentLink(
   parentId: string,
   relation: ParentRelation
 ): Promise<{ success: boolean; linkId?: string; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return {
-      success: false,
-      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-    };
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   // relation 값 검증
   const validRelations: ParentRelation[] = [
@@ -550,14 +531,8 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
   data?: PendingLinkRequest[];
   error?: string;
 }> {
-  const { role, tenantId: userTenantId } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return {
-      success: false,
-      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-    };
-  }
+  // 권한 확인
+  const { tenantId: userTenantId } = await requireAdminOrConsultant();
 
   const supabase = await createSupabaseServerClient();
   const targetTenantId = tenantId || userTenantId;

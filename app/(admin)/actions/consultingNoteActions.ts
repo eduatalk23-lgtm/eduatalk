@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
 export async function addConsultingNote(
   studentId: string,
@@ -13,14 +12,17 @@ export async function addConsultingNote(
   formData: FormData
 ): Promise<{ success: boolean; error?: string } | null> {
   try {
-    const user = await getCurrentUser();
+    // 권한 확인
+    const { userId, role, tenantId } = await requireAdminOrConsultant();
 
-    if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-      return { success: false, error: "권한이 없습니다." };
+    if (userId !== consultantId) {
+      return { success: false, error: "잘못된 요청입니다." };
     }
 
-    if (user.userId !== consultantId) {
-      return { success: false, error: "잘못된 요청입니다." };
+    // 테넌트 컨텍스트 확인
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
     }
 
     const note = String(formData.get("note") ?? "").trim();
@@ -30,6 +32,22 @@ export async function addConsultingNote(
     }
 
     const supabase = await createSupabaseServerClient();
+
+    // 테넌트 격리: 학생이 해당 테넌트에 속하는지 확인
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError || !student) {
+      return { success: false, error: "학생을 찾을 수 없습니다." };
+    }
+
+    // 테넌트 격리 검증 (superadmin 제외)
+    if (role !== "superadmin" && student.tenant_id !== tenantContext.tenantId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
 
     const { error } = await supabase.from("student_consulting_notes").insert({
       student_id: studentId,
@@ -76,6 +94,22 @@ export async function deleteConsultingNote(
     }
 
     // 상담노트 조회 및 권한 확인
+    // 테넌트 격리: 학생이 해당 테넌트에 속하는지 먼저 확인
+    const { data: student, error: studentError } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (studentError || !student) {
+      return { success: false, error: "학생을 찾을 수 없습니다." };
+    }
+
+    // 테넌트 격리 검증 (superadmin 제외)
+    if (role !== "superadmin" && student.tenant_id !== tenantContext.tenantId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
     const { data: note, error: fetchError } = await supabase
       .from("student_consulting_notes")
       .select("consultant_id")
@@ -88,7 +122,7 @@ export async function deleteConsultingNote(
     }
 
     // 본인이 작성한 노트만 삭제 가능 (또는 admin은 모든 노트 삭제 가능)
-    if (role !== "admin" && note.consultant_id !== user.userId) {
+    if (role !== "admin" && role !== "superadmin" && note.consultant_id !== userId) {
       return { success: false, error: "권한이 없습니다." };
     }
 
