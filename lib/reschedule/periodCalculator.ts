@@ -249,3 +249,57 @@ export function validateReschedulePeriod(
     };
   }
 }
+
+/**
+ * 통합된 기간 계산 함수
+ * 
+ * placementDateRange가 있으면 우선 사용하고,
+ * 없으면 rescheduleDateRange를 기반으로 자동 계산합니다.
+ * 
+ * @param placementDateRange 수동으로 선택한 배치 범위
+ * @param rescheduleDateRange 재조정할 플랜 범위
+ * @param today 오늘 날짜
+ * @param groupEnd 플랜 그룹 종료일
+ * @param includeToday 오늘 날짜 포함 여부
+ * @returns 조정된 기간
+ * @throws PeriodCalculationError 기간이 유효하지 않은 경우
+ * 
+ * @example
+ * ```ts
+ * // placementDateRange 우선 사용
+ * const period = calculateAdjustedPeriodUnified(
+ *   { from: '2025-12-15', to: '2025-12-20' },
+ *   { from: '2025-12-10', to: '2025-12-25' },
+ *   '2025-12-10',
+ *   '2025-12-31'
+ * );
+ * // { start: '2025-12-15', end: '2025-12-20' }
+ * 
+ * // placementDateRange가 없으면 rescheduleDateRange 기반 자동 계산
+ * const period = calculateAdjustedPeriodUnified(
+ *   null,
+ *   { from: '2025-12-10', to: '2025-12-25' },
+ *   '2025-12-10',
+ *   '2025-12-31'
+ * );
+ * // { start: '2025-12-11', end: '2025-12-25' } (오늘 이후로 조정)
+ * ```
+ */
+export function calculateAdjustedPeriodUnified(
+  placementDateRange: { from: string; to: string } | null | undefined,
+  rescheduleDateRange: { from: string; to: string } | null | undefined,
+  today: string,
+  groupEnd: string,
+  includeToday: boolean = false
+): AdjustedPeriod {
+  if (placementDateRange?.from && placementDateRange?.to) {
+    // 수동으로 선택한 배치 범위 사용
+    return {
+      start: placementDateRange.from,
+      end: placementDateRange.to,
+    };
+  }
+
+  // 자동 계산: rescheduleDateRange를 기반으로 오늘 이후 기간 계산
+  return getAdjustedPeriod(rescheduleDateRange || null, today, groupEnd, includeToday);
+}
