@@ -68,18 +68,27 @@ export function CampPlanGroupReviewForm({
         setLoading(true);
         
         // 서버에서 이미 상세 정보를 포함한 경우 확인
+        type ContentWithDetails = PlanContent & {
+          contentTitle?: string;
+          contentSubtitle?: string | null;
+        };
+        
         const hasServerDetails = contents.some(
-          (c) => (c as any).contentTitle || (c as any).contentSubtitle !== undefined
+          (c): c is ContentWithDetails => 
+            'contentTitle' in c || 'contentSubtitle' in c
         );
 
         if (hasServerDetails) {
           // 서버에서 이미 조회한 정보 사용
-          const infos = contents.map((content) => ({
-            content_id: content.content_id,
-            content_type: content.content_type,
-            title: (content as any).contentTitle || "",
-            subject_category: (content as any).contentSubtitle || null,
-          }));
+          const infos = contents.map((content) => {
+            const contentWithDetails = content as ContentWithDetails;
+            return {
+              content_id: content.content_id,
+              content_type: content.content_type,
+              title: contentWithDetails.contentTitle || "",
+              subject_category: contentWithDetails.contentSubtitle || null,
+            };
+          });
           setContentInfos(infos);
           setLoading(false);
           return;
@@ -184,9 +193,14 @@ export function CampPlanGroupReviewForm({
 
   // 학생 콘텐츠와 추천 콘텐츠 분리
   const studentContents = useMemo(() => {
-    return contents.filter((c) => {
+    type ContentWithRecommendation = PlanContent & {
+      is_recommended?: boolean;
+    };
+    
+    return contents.filter((c): c is ContentWithRecommendation => {
+      const contentWithRec = c as ContentWithRecommendation;
       // is_recommended 필드가 있으면 그것을 사용, 없으면 추정
-      return !(c as any).is_recommended;
+      return !contentWithRec.is_recommended;
     });
   }, [contents]);
 

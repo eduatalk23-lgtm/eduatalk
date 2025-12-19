@@ -111,7 +111,8 @@ export default function SubjectsPage() {
     const arrayBuffer = await file.arrayBuffer();
     // Server Action에서 Buffer로 변환하기 위해 Uint8Array로 전달
     const uint8Array = new Uint8Array(arrayBuffer);
-    return importSubjectsFromExcel(uint8Array as any);
+    // importSubjectsFromExcel는 Buffer | Uint8Array를 받음
+    return importSubjectsFromExcel(uint8Array);
   }
 
   const sortedRevisions = [...revisions].sort(

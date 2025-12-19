@@ -239,13 +239,20 @@ export default async function CampContinuePage({
       content_type: c.content_type,
       title: c.title,
     })),
-    recommendedContents: wizardData.recommended_contents.map((c) => ({
-      content_id: c.content_id,
-      content_type: c.content_type,
-      title: c.title,
-      is_auto_recommended: (c as any).is_auto_recommended,
-      recommendation_source: (c as any).recommendation_source,
-    })),
+    recommendedContents: wizardData.recommended_contents.map((c) => {
+      type ContentWithRecommendation = typeof c & {
+        is_auto_recommended?: boolean;
+        recommendation_source?: "auto" | "admin" | "template" | null;
+      };
+      const contentWithRec = c as ContentWithRecommendation;
+      return {
+        content_id: c.content_id,
+        content_type: c.content_type,
+        title: c.title,
+        is_auto_recommended: contentWithRec.is_auto_recommended ?? false,
+        recommendation_source: contentWithRec.recommendation_source ?? null,
+      };
+    }),
   });
   
   // 남은 단계 진행 시에는 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
@@ -286,20 +293,36 @@ export default async function CampContinuePage({
 
   // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
   if (filteredWizardData.exclusions) {
-    filteredWizardData.exclusions = filteredWizardData.exclusions.map((exclusion) => ({
-      ...exclusion,
-      source: (exclusion as any).source || ("student" as const),
-      is_locked: (exclusion as any).is_locked || false,
-    }));
+    type ExclusionWithSource = PlanExclusion & {
+      source?: "student" | "template";
+      is_locked?: boolean;
+    };
+    
+    filteredWizardData.exclusions = filteredWizardData.exclusions.map((exclusion) => {
+      const exclusionWithSource = exclusion as ExclusionWithSource;
+      return {
+        ...exclusion,
+        source: exclusionWithSource.source ?? ("student" as const),
+        is_locked: exclusionWithSource.is_locked ?? false,
+      };
+    });
   }
 
   if (filteredWizardData.academy_schedules) {
+    type AcademyScheduleWithSource = AcademySchedule & {
+      source?: "student" | "template";
+      is_locked?: boolean;
+    };
+    
     filteredWizardData.academy_schedules = filteredWizardData.academy_schedules.map(
-      (schedule) => ({
-        ...schedule,
-        source: (schedule as any).source || ("student" as const),
-        is_locked: (schedule as any).is_locked || false,
-      })
+      (schedule) => {
+        const scheduleWithSource = schedule as AcademyScheduleWithSource;
+        return {
+          ...schedule,
+          source: scheduleWithSource.source ?? ("student" as const),
+          is_locked: scheduleWithSource.is_locked ?? false,
+        };
+      }
     );
   }
 

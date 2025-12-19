@@ -49,7 +49,7 @@ export function MethodStatisticsChart({ data }: MethodStatisticsChartProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(1)}%`}
+          label={({ name, percent }: { name: string; percent: number }) => `${name}: ${(percent * 100).toFixed(1)}%`}
           outerRadius={80}
           fill={getChartColor(0)}
           dataKey="value"

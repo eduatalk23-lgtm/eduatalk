@@ -9,6 +9,9 @@ import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 
+type CheckInMethod = "manual" | "qr" | "location" | "auto";
+type AttendanceStatus = "present" | "absent" | "late" | "early_leave" | "excused";
+
 type EditAttendanceRecordFormProps = {
   recordId: string;
   initialData: {
@@ -45,12 +48,29 @@ export function EditAttendanceRecordForm({
     }
   };
   
+  // 타입 가드 함수
+  const isValidCheckInMethod = (value: string | null | undefined): value is CheckInMethod | null => {
+    if (!value) return true; // null 허용
+    return ["manual", "qr", "location", "auto"].includes(value);
+  };
+
+  const isValidStatus = (value: string | null | undefined): value is AttendanceStatus => {
+    if (!value) return false;
+    return ["present", "absent", "late", "early_leave", "excused"].includes(value);
+  };
+
   const [formData, setFormData] = useState<UpdateAttendanceRecordRequest>({
     check_in_time: formatDateTimeLocal(initialData.check_in_time),
     check_out_time: formatDateTimeLocal(initialData.check_out_time),
-    check_in_method: (initialData.check_in_method as any) || null,
-    check_out_method: (initialData.check_out_method as any) || null,
-    status: (initialData.status as any) || "present",
+    check_in_method: isValidCheckInMethod(initialData.check_in_method) 
+      ? (initialData.check_in_method as CheckInMethod | null)
+      : null,
+    check_out_method: isValidCheckInMethod(initialData.check_out_method)
+      ? (initialData.check_out_method as CheckInMethod | null)
+      : null,
+    status: isValidStatus(initialData.status) 
+      ? initialData.status 
+      : "present",
     notes: initialData.notes || "",
     reason: "", // 필수
   });
@@ -167,9 +187,14 @@ export function EditAttendanceRecordForm({
             <select
               id="status"
               value={formData.status || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, status: e.target.value as any })
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                if (isValidStatus(value)) {
+                  setFormData({ ...formData, status: value });
+                } else {
+                  setFormData({ ...formData, status: "present" });
+                }
+              }}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-gray-900 dark:focus:border-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-100/20"
             >
               <option value="present">출석</option>

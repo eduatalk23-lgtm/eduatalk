@@ -67,7 +67,8 @@ export default function ExcelActions() {
   async function handleImport(file: File): Promise<{ success: boolean; message: string; errors?: string[] }> {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    return importMasterLecturesFromExcel(uint8Array as any);
+    // importMasterLecturesFromExcel는 Buffer | Uint8Array를 받음
+    return importMasterLecturesFromExcel(uint8Array);
   }
 
   return (

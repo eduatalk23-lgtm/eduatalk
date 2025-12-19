@@ -16,7 +16,9 @@ export default function ExcelActions() {
     setIsExporting(true);
     try {
       const buffer = await exportMasterBooksToExcel();
-      const blob = new Blob([buffer as any], {
+      // Buffer를 Uint8Array로 변환 (브라우저 환경 호환)
+      const uint8Array = Buffer.isBuffer(buffer) ? new Uint8Array(buffer) : buffer;
+      const blob = new Blob([uint8Array], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
@@ -42,7 +44,9 @@ export default function ExcelActions() {
     setIsExporting(true);
     try {
       const buffer = await downloadMasterBooksTemplate();
-      const blob = new Blob([buffer as any], {
+      // Buffer를 Uint8Array로 변환 (브라우저 환경 호환)
+      const uint8Array = Buffer.isBuffer(buffer) ? new Uint8Array(buffer) : buffer;
+      const blob = new Blob([uint8Array], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
@@ -67,7 +71,8 @@ export default function ExcelActions() {
   async function handleImport(file: File): Promise<{ success: boolean; message: string; errors?: string[] }> {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
-    return importMasterBooksFromExcel(uint8Array as any);
+    // importMasterBooksFromExcel는 Buffer | Uint8Array를 받음
+    return importMasterBooksFromExcel(uint8Array);
   }
 
   return (
