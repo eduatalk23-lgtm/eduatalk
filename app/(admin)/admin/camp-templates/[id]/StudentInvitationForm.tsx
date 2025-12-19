@@ -107,6 +107,50 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     }
   };
 
+  // 학년별 일괄 선택
+  const handleSelectByGrade = (grade: string) => {
+    const gradeStudents = filteredStudents.filter((s) => s.grade === grade);
+    const gradeStudentIds = new Set(gradeStudents.map((s) => s.id));
+    
+    // 해당 학년의 모든 학생이 이미 선택되어 있는지 확인
+    const allSelected = gradeStudentIds.size > 0 && 
+      Array.from(gradeStudentIds).every((id) => selectedStudentIds.has(id));
+    
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        // 모두 선택되어 있으면 해제
+        gradeStudentIds.forEach((id) => next.delete(id));
+      } else {
+        // 일부만 선택되어 있거나 선택되지 않았으면 모두 선택
+        gradeStudentIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  // 반별 일괄 선택
+  const handleSelectByClass = (classValue: string) => {
+    const classStudents = filteredStudents.filter((s) => s.class === classValue);
+    const classStudentIds = new Set(classStudents.map((s) => s.id));
+    
+    // 해당 반의 모든 학생이 이미 선택되어 있는지 확인
+    const allSelected = classStudentIds.size > 0 && 
+      Array.from(classStudentIds).every((id) => selectedStudentIds.has(id));
+    
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) {
+        // 모두 선택되어 있으면 해제
+        classStudentIds.forEach((id) => next.delete(id));
+      } else {
+        // 일부만 선택되어 있거나 선택되지 않았으면 모두 선택
+        classStudentIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
   const handleSendInvitations = () => {
     // 활성 상태가 아니면 초대 발송 불가
     if (templateStatus !== "active") {
@@ -209,9 +253,26 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         {/* 고급 필터 (학년, 반) */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <label htmlFor="filter-grade" className="block text-sm font-medium text-gray-700 mb-1">
-              학년
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="filter-grade" className="block text-sm font-medium text-gray-700">
+                학년
+              </label>
+              {filter.grade && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectByGrade(filter.grade!)}
+                  disabled={isDisabled}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
+                >
+                  {(() => {
+                    const gradeStudents = filteredStudents.filter((s) => s.grade === filter.grade);
+                    const allSelected = gradeStudents.length > 0 && 
+                      gradeStudents.every((s) => selectedStudentIds.has(s.id));
+                    return allSelected ? "해제" : "전체 선택";
+                  })()}
+                </button>
+              )}
+            </div>
             <select
               id="filter-grade"
               value={filter.grade || ""}
@@ -229,9 +290,26 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
           </div>
           
           <div>
-            <label htmlFor="filter-class" className="block text-sm font-medium text-gray-700 mb-1">
-              반
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="filter-class" className="block text-sm font-medium text-gray-700">
+                반
+              </label>
+              {filter.class && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectByClass(filter.class!)}
+                  disabled={isDisabled}
+                  className="text-xs text-indigo-600 hover:text-indigo-700 disabled:text-gray-400"
+                >
+                  {(() => {
+                    const classStudents = filteredStudents.filter((s) => s.class === filter.class);
+                    const allSelected = classStudents.length > 0 && 
+                      classStudents.every((s) => selectedStudentIds.has(s.id));
+                    return allSelected ? "해제" : "전체 선택";
+                  })()}
+                </button>
+              )}
+            </div>
             <select
               id="filter-class"
               value={filter.class || ""}
