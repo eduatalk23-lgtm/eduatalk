@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
 import { MoreVertical } from "lucide-react";
+import { getUserFacingMessage } from "@/lib/errors";
 
 type TemplateCardProps = {
   template: CampTemplate;
@@ -31,15 +32,15 @@ export function TemplateCard({ template }: TemplateCardProps) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
         setShowDeleteDialog(false); // 다이얼로그 먼저 닫기
         setIsDeleting(false); // 상태 리셋
-        router.push("/admin/camp-templates"); // 목록 페이지로 이동
+        // 서버 컴포넌트를 다시 렌더링하기 위해 refresh 사용
+        router.refresh();
       } else {
         toast.showError(result.error || "템플릿 삭제에 실패했습니다.");
         setIsDeleting(false);
       }
     } catch (error) {
       console.error("템플릿 삭제 실패:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "템플릿 삭제에 실패했습니다.";
+      const errorMessage = getUserFacingMessage(error);
       toast.showError(errorMessage);
       setIsDeleting(false);
     }
@@ -69,8 +70,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
       }
     } catch (error) {
       console.error("상태 변경 실패:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "상태 변경에 실패했습니다.";
+      const errorMessage = getUserFacingMessage(error);
       toast.showError(errorMessage);
     } finally {
       setIsChangingStatus(false);
