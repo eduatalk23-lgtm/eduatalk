@@ -8,6 +8,7 @@ import { getCampTemplate } from "./campTemplates";
 import { getCampInvitationsForTemplate } from "./campTemplates";
 import type { AttendanceRecord } from "@/lib/domains/attendance/types";
 import { calculateStatsFromRecords } from "@/lib/domains/attendance/utils";
+import { calculateTotalDays } from "@/lib/utils/statistics";
 import type { CampAttendanceStats, ParticipantAttendanceStats } from "@/lib/domains/camp/types";
 
 /**
@@ -210,14 +211,4 @@ export async function getParticipantAttendanceStats(
   };
 }
 
-/**
- * 날짜 범위의 총 일수 계산
- */
-function calculateTotalDays(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays + 1; // 시작일과 종료일 포함
-}
 
