@@ -185,3 +185,211 @@ async function _createMockScore(formData: FormData) {
 
 export const createMockScore = withErrorHandling(_createMockScore);
 
+/**
+ * 내신 성적 수정
+ */
+async function _updateInternalScore(scoreId: string, formData: FormData) {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  // FormData에서 값 추출
+  const tenant_id = formData.get("tenant_id") as string;
+  const grade = formData.get("grade") ? parseInt(formData.get("grade") as string) : undefined;
+  const semester = formData.get("semester") ? parseInt(formData.get("semester") as string) : undefined;
+  const curriculum_revision_id = formData.get("curriculum_revision_id") as string | undefined;
+  const subject_group_id = formData.get("subject_group_id") as string | undefined;
+  const subject_type_id = formData.get("subject_type_id") as string | undefined;
+  const subject_id = formData.get("subject_id") as string | undefined;
+  const credit_hours = formData.get("credit_hours") ? parseFloat(formData.get("credit_hours") as string) : undefined;
+  const raw_score = formData.get("raw_score") ? parseFloat(formData.get("raw_score") as string) : undefined;
+  const avg_score = formData.get("avg_score") ? parseFloat(formData.get("avg_score") as string) : undefined;
+  const std_dev = formData.get("std_dev") ? parseFloat(formData.get("std_dev") as string) : undefined;
+  const rank_grade = formData.get("rank_grade") ? parseInt(formData.get("rank_grade") as string) : undefined;
+  const total_students = formData.get("total_students") ? parseInt(formData.get("total_students") as string) : undefined;
+
+  if (!tenant_id) {
+    throw new AppError("기관 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  // 업데이트할 필드만 구성
+  const updates: Record<string, unknown> = {};
+  if (grade !== undefined) updates.grade = grade;
+  if (semester !== undefined) updates.semester = semester;
+  if (curriculum_revision_id) updates.curriculum_revision_id = curriculum_revision_id;
+  if (subject_group_id) updates.subject_group_id = subject_group_id;
+  if (subject_type_id) updates.subject_type_id = subject_type_id;
+  if (subject_id) updates.subject_id = subject_id;
+  if (credit_hours !== undefined) updates.credit_hours = credit_hours;
+  if (raw_score !== undefined) updates.raw_score = raw_score;
+  if (avg_score !== undefined) updates.avg_score = avg_score;
+  if (std_dev !== undefined) updates.std_dev = std_dev;
+  if (rank_grade !== undefined) updates.rank_grade = rank_grade;
+  if (total_students !== undefined) updates.total_students = total_students;
+
+  const { error } = await supabase
+    .from("student_internal_scores")
+    .update(updates)
+    .eq("id", scoreId)
+    .eq("student_id", user.userId)
+    .eq("tenant_id", tenant_id);
+
+  if (error) {
+    console.error("[actions/scores-internal] 내신 성적 수정 실패", error);
+    throw new AppError("내신 성적 수정에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
+  }
+
+  revalidatePath("/scores");
+  revalidatePath(`/scores/${scoreId}/edit`);
+  return { success: true };
+}
+
+export const updateInternalScore = withErrorHandling(_updateInternalScore);
+
+/**
+ * 모의고사 성적 수정
+ */
+async function _updateMockScore(scoreId: string, formData: FormData) {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  // FormData에서 값 추출
+  const tenant_id = formData.get("tenant_id") as string;
+  const exam_date = formData.get("exam_date") as string | undefined;
+  const exam_title = formData.get("exam_title") as string | undefined;
+  const grade = formData.get("grade") ? parseInt(formData.get("grade") as string) : undefined;
+  const subject_id = formData.get("subject_id") as string | undefined;
+  const subject_group_id = formData.get("subject_group_id") as string | undefined;
+  const raw_score = formData.get("raw_score") ? parseFloat(formData.get("raw_score") as string) : undefined;
+  const standard_score = formData.get("standard_score") ? parseFloat(formData.get("standard_score") as string) : undefined;
+  const percentile = formData.get("percentile") ? parseFloat(formData.get("percentile") as string) : undefined;
+  const grade_score = formData.get("grade_score") ? parseInt(formData.get("grade_score") as string) : undefined;
+
+  if (!tenant_id) {
+    throw new AppError("기관 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+
+  // 업데이트할 필드만 구성
+  const updates: Record<string, unknown> = {};
+  if (exam_date) updates.exam_date = exam_date;
+  if (exam_title) updates.exam_title = exam_title;
+  if (grade !== undefined) updates.grade = grade;
+  if (subject_id) updates.subject_id = subject_id;
+  if (subject_group_id) updates.subject_group_id = subject_group_id;
+  if (raw_score !== undefined) updates.raw_score = raw_score;
+  if (standard_score !== undefined) updates.standard_score = standard_score;
+  if (percentile !== undefined) updates.percentile = percentile;
+  if (grade_score !== undefined) updates.grade_score = grade_score;
+
+  const { error } = await supabase
+    .from("student_mock_scores")
+    .update(updates)
+    .eq("id", scoreId)
+    .eq("student_id", user.userId)
+    .eq("tenant_id", tenant_id);
+
+  if (error) {
+    console.error("[actions/scores-internal] 모의고사 성적 수정 실패", error);
+    throw new AppError("모의고사 성적 수정에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
+  }
+
+  revalidatePath("/scores");
+  revalidatePath(`/scores/${scoreId}/edit`);
+  return { success: true };
+}
+
+export const updateMockScore = withErrorHandling(_updateMockScore);
+
+/**
+ * 내신 성적 삭제
+ */
+async function _deleteInternalScore(scoreId: string) {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  const { error } = await supabase
+    .from("student_internal_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", user.userId);
+
+  if (error) {
+    console.error("[actions/scores-internal] 내신 성적 삭제 실패", error);
+    throw new AppError("내신 성적 삭제에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
+  }
+
+  revalidatePath("/scores");
+  return { success: true };
+}
+
+export const deleteInternalScore = withErrorHandling(_deleteInternalScore);
+
+/**
+ * 모의고사 성적 삭제
+ */
+async function _deleteMockScore(scoreId: string) {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  const { error } = await supabase
+    .from("student_mock_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", user.userId);
+
+  if (error) {
+    console.error("[actions/scores-internal] 모의고사 성적 삭제 실패", error);
+    throw new AppError("모의고사 성적 삭제에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
+  }
+
+  revalidatePath("/scores");
+  return { success: true };
+}
+
+export const deleteMockScore = withErrorHandling(_deleteMockScore);
+
+/**
+ * 성적 삭제 (타입 자동 감지)
+ */
+async function _deleteScore(scoreId: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
+  // 성적 타입 확인
+  const { detectScoreType } = await import("@/lib/utils/scoreTypeDetector");
+  const scoreType = await detectScoreType(scoreId, user.userId);
+
+  if (!scoreType) {
+    throw new AppError("성적을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
+  // 타입에 따라 적절한 삭제 함수 호출
+  if (scoreType === "internal") {
+    await _deleteInternalScore(scoreId);
+  } else {
+    await _deleteMockScore(scoreId);
+  }
+
+  return { success: true };
+}
+
+export const deleteScore = withErrorHandling(_deleteScore);
+

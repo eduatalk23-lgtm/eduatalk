@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteStudentScore } from "@/app/actions/scores";
+import { deleteScore } from "@/app/actions/scores-internal";
 
 type DeleteScoreButtonProps = {
   id: string;
@@ -18,7 +18,7 @@ export function DeleteScoreButton({ id }: DeleteScoreButtonProps) {
     setError(null);
     startTransition(async () => {
       try {
-        await deleteStudentScore(id);
+        await deleteScore(id);
         router.refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");

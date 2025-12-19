@@ -593,6 +593,71 @@ export async function createSchoolScore(score: {
 }
 
 /**
+ * 내신 성적 업데이트 (정규화 버전)
+ */
+export async function updateInternalScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string,
+  updates: Partial<Omit<InternalScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const payload: Record<string, unknown> = {};
+  if (updates.grade !== undefined) payload.grade = updates.grade;
+  if (updates.semester !== undefined) payload.semester = updates.semester;
+  if (updates.curriculum_revision_id !== undefined) payload.curriculum_revision_id = updates.curriculum_revision_id;
+  if (updates.subject_group_id !== undefined) payload.subject_group_id = updates.subject_group_id;
+  if (updates.subject_type_id !== undefined) payload.subject_type_id = updates.subject_type_id;
+  if (updates.subject_id !== undefined) payload.subject_id = updates.subject_id;
+  if (updates.credit_hours !== undefined) payload.credit_hours = updates.credit_hours;
+  if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
+  if (updates.avg_score !== undefined) payload.avg_score = updates.avg_score;
+  if (updates.std_dev !== undefined) payload.std_dev = updates.std_dev;
+  if (updates.rank_grade !== undefined) payload.rank_grade = updates.rank_grade;
+  if (updates.total_students !== undefined) payload.total_students = updates.total_students;
+
+  const { error } = await supabase
+    .from("student_internal_scores")
+    .update(payload)
+    .eq("id", scoreId)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 업데이트 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 내신 성적 삭제 (정규화 버전)
+ */
+export async function deleteInternalScore(
+  scoreId: string,
+  studentId: string,
+  tenantId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("student_internal_scores")
+    .delete()
+    .eq("id", scoreId)
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    console.error("[data/studentScores] 내신 성적 삭제 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
  * 모의고사 성적 생성 (정규화 버전)
  *
  * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
