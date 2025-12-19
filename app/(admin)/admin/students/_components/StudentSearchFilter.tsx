@@ -73,12 +73,12 @@ export function StudentSearchFilter({
         {/* 검색 */}
         <div className="flex flex-col gap-1 flex-1">
           <label className={cn("text-sm font-medium", textSecondary)}>
-            이름 검색
+            검색 (이름 또는 연락처)
           </label>
           <input
             type="text"
             name="search"
-            placeholder="이름으로 검색..."
+            placeholder="이름 또는 연락처 4자리 이상으로 검색..."
             defaultValue={searchQuery}
             className={cn(
               "w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
@@ -88,6 +88,9 @@ export function StudentSearchFilter({
               "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
             )}
           />
+          <p className={cn("text-xs", textSecondary)}>
+            이름으로 검색하거나 연락처 4자리 이상을 입력하세요
+          </p>
         </div>
 
         {/* 학년 필터 */}

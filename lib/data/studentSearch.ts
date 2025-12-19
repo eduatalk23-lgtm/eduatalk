@@ -6,7 +6,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { getSupabaseClientForRLSBypass, type SupabaseClientForStudentQuery } from "@/lib/supabase/clientSelector";
 import type { StudentDivision } from "@/lib/constants/students";
 
 export type StudentSearchParams = {
@@ -88,7 +88,171 @@ export function detectSearchType(query: string): "name" | "phone" | "all" {
 }
 
 /**
+ * baseQuery 빌더 함수
+ * 필터 조건을 적용한 기본 쿼리를 생성합니다.
+ */
+function buildBaseQuery(
+  adminClient: SupabaseClientForStudentQuery,
+  filters: StudentSearchParams["filters"],
+  excludeStudentIds: string[],
+  tenantId?: string | null
+) {
+  let baseQuery = adminClient
+    .from("students")
+    .select("id, name, grade, class, division, is_active");
+
+  // tenant_id 필터 (있는 경우)
+  if (tenantId) {
+    baseQuery = baseQuery.eq("tenant_id", tenantId);
+  }
+
+  // 필터 적용
+  if (filters?.grade) {
+    baseQuery = baseQuery.eq("grade", filters.grade);
+  }
+  if (filters?.class) {
+    baseQuery = baseQuery.eq("class", filters.class);
+  }
+  if (filters?.division !== undefined) {
+    if (filters.division === null) {
+      baseQuery = baseQuery.is("division", null);
+    } else {
+      baseQuery = baseQuery.eq("division", filters.division);
+    }
+  }
+  if (filters?.isActive !== undefined) {
+    baseQuery = baseQuery.eq("is_active", filters.isActive);
+  }
+
+  // 제외할 학생 ID 필터
+  if (excludeStudentIds.length > 0) {
+    baseQuery = baseQuery.not("id", "in", `(${excludeStudentIds.join(",")})`);
+  }
+
+  return baseQuery;
+}
+
+/**
+ * 연락처 검색으로 매칭된 학생 ID를 수집합니다.
+ */
+async function collectPhoneMatchedIds(
+  adminClient: SupabaseClientForStudentQuery,
+  normalizedQuery: string
+): Promise<Set<string>> {
+  const phoneMatchedIds = new Set<string>();
+
+  // student_profiles에서 연락처 검색
+  const { data: profiles, error: profilesError } = await adminClient
+    .from("student_profiles")
+    .select("id, phone, mother_phone, father_phone")
+    .or(
+      `phone.ilike.%${normalizedQuery}%,mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
+    );
+
+  if (profilesError) {
+    console.error("[studentSearch] student_profiles 조회 실패", profilesError);
+  }
+
+  // student_profiles에서 매칭된 ID 수집
+  if (profiles) {
+    profiles.forEach((profile) => {
+      if (
+        profile.phone?.includes(normalizedQuery) ||
+        profile.mother_phone?.includes(normalizedQuery) ||
+        profile.father_phone?.includes(normalizedQuery)
+      ) {
+        phoneMatchedIds.add(profile.id);
+      }
+    });
+  }
+
+  // parent_student_links를 통해 연결된 학부모 연락처 검색
+  try {
+    const { data: links, error: linksError } = await adminClient
+      .from("parent_student_links")
+      .select("student_id, relation, parent_id")
+      .limit(1000); // 성능을 위해 제한
+
+    if (!linksError && links && links.length > 0) {
+      const parentIds = Array.from(
+        new Set(links.map((link: { parent_id: string }) => link.parent_id))
+      );
+
+      // auth.users에서 phone 조회
+      const adminAuthClient = createSupabaseAdminClient();
+      if (adminAuthClient && parentIds.length > 0) {
+        try {
+          const { data: authUsers, error: authError } =
+            await adminAuthClient.auth.admin.listUsers();
+
+          if (!authError && authUsers?.users) {
+            // 검색어와 일치하는 phone을 가진 학부모 찾기
+            const matchingParentIds = new Set<string>();
+            authUsers.users.forEach((user) => {
+              if (user.phone && user.phone.includes(normalizedQuery)) {
+                matchingParentIds.add(user.id);
+              }
+            });
+
+            // 매칭된 학부모와 연결된 학생 ID 수집
+            links.forEach((link: { parent_id: string; student_id: string }) => {
+              if (matchingParentIds.has(link.parent_id)) {
+                phoneMatchedIds.add(link.student_id);
+              }
+            });
+          }
+        } catch (error) {
+          console.error("[studentSearch] auth.users phone 조회 실패", error);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[studentSearch] parent_student_links 처리 중 오류", error);
+  }
+
+  return phoneMatchedIds;
+}
+
+/**
+ * 매칭된 필드를 결정합니다.
+ */
+function determineMatchedField(
+  student: { name: string | null },
+  phoneData: { phone?: string | null; mother_phone?: string | null; father_phone?: string | null } | undefined,
+  searchQuery: string,
+  normalizedQuery: string,
+  detectedType: "name" | "phone" | "all"
+): "name" | "phone" | "mother_phone" | "father_phone" | null {
+  let matchedField: "name" | "phone" | "mother_phone" | "father_phone" | null = null;
+
+  if (detectedType === "name" || detectedType === "all") {
+    if (student.name?.toLowerCase().includes(searchQuery.toLowerCase())) {
+      matchedField = "name";
+    }
+  }
+
+  if (detectedType === "phone" || detectedType === "all") {
+    if (!matchedField && phoneData) {
+      if (phoneData.phone?.includes(normalizedQuery)) {
+        matchedField = "phone";
+      } else if (phoneData.mother_phone?.includes(normalizedQuery)) {
+        matchedField = "mother_phone";
+      } else if (phoneData.father_phone?.includes(normalizedQuery)) {
+        matchedField = "father_phone";
+      }
+    }
+  }
+
+  return matchedField;
+}
+
+/**
  * 통합 학생 검색 함수
+ * 
+ * 개선된 로직:
+ * 1. 이름 검색과 연락처 검색에서 매칭된 학생 ID를 먼저 수집 (Set 사용하여 중복 제거)
+ * 2. 수집된 ID로 단일 쿼리 실행하여 페이지네이션 적용
+ * 3. 정확한 total 카운트 계산
  * 
  * @param params - 검색 파라미터
  * @returns 검색 결과
@@ -112,7 +276,6 @@ export async function searchStudentsUnified(
     return { students: [], total: 0 };
   }
 
-  const supabase = await createSupabaseServerClient();
   const adminClient = await getSupabaseClientForRLSBypass({
     forceAdmin: true,
     fallbackToServer: true,
@@ -126,210 +289,67 @@ export async function searchStudentsUnified(
   const detectedType = searchType || detectSearchType(searchQuery);
   const normalizedQuery = searchQuery.replace(/[-\s]/g, "");
 
-  // 학생 기본 정보 조회 쿼리 빌드
-  let baseQuery = adminClient
-    .from("students")
-    .select("id, name, grade, class, division, is_active", { count: "exact" });
+  // 1단계: 매칭된 학생 ID 수집 (페이지네이션 없이)
+  const matchedStudentIds = new Set<string>();
 
-  // tenant_id 필터 (있는 경우)
-  if (tenantId) {
-    baseQuery = baseQuery.eq("tenant_id", tenantId);
-  }
-
-  // 필터 적용
-  if (filters.grade) {
-    baseQuery = baseQuery.eq("grade", filters.grade);
-  }
-  if (filters.class) {
-    baseQuery = baseQuery.eq("class", filters.class);
-  }
-  if (filters.division !== undefined) {
-    if (filters.division === null) {
-      baseQuery = baseQuery.is("division", null);
-    } else {
-      baseQuery = baseQuery.eq("division", filters.division);
-    }
-  }
-  if (filters.isActive !== undefined) {
-    baseQuery = baseQuery.eq("is_active", filters.isActive);
-  }
-
-  // 제외할 학생 ID 필터
-  if (excludeStudentIds.length > 0) {
-    baseQuery = baseQuery.not("id", "in", `(${excludeStudentIds.join(",")})`);
-  }
-
-  let students: Array<{
-    id: string;
-    name: string | null;
-    grade: string | null;
-    class: string | null;
-    division: StudentDivision | null;
-    is_active: boolean | null;
-  }> = [];
-  let total = 0;
-
-  // 이름 검색
+  // 이름 검색 - ID만 수집
   if (detectedType === "name" || detectedType === "all") {
-    let nameQuery = baseQuery.ilike("name", `%${searchQuery}%`);
-    
-    // 페이지네이션
-    nameQuery = nameQuery.range(offset, offset + limit - 1);
-    
-    const { data, error, count } = await nameQuery;
-    
-    if (error) {
-      console.error("[studentSearch] 이름 검색 실패", error);
-    } else {
-      students = (data || []) as typeof students;
-      total = count || 0;
+    const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
+    const { data: nameMatches, error: nameError } = await baseQuery
+      .select("id")
+      .ilike("name", `%${searchQuery}%`);
+
+    if (nameError) {
+      console.error("[studentSearch] 이름 검색 ID 수집 실패", nameError);
+    } else if (nameMatches) {
+      nameMatches.forEach((row: { id: string }) => matchedStudentIds.add(row.id));
     }
   }
 
-  // 연락처 검색
+  // 연락처 검색 - ID만 수집
   if (detectedType === "phone" || detectedType === "all") {
-    // student_profiles에서 연락처 검색
-    const { data: profiles, error: profilesError } = await adminClient
-      .from("student_profiles")
-      .select("id, phone, mother_phone, father_phone")
-      .or(
-        `phone.ilike.%${normalizedQuery}%,mother_phone.ilike.%${normalizedQuery}%,father_phone.ilike.%${normalizedQuery}%`
-      );
-
-    if (profilesError) {
-      console.error("[studentSearch] student_profiles 조회 실패", profilesError);
-    }
-
-    // parent_student_links를 통해 연결된 학부모 연락처 검색
-    let linkedStudentIds: string[] = [];
-    
-    try {
-      const { data: links, error: linksError } = await adminClient
-        .from("parent_student_links")
-        .select("student_id, relation, parent_id")
-        .limit(1000); // 성능을 위해 제한
-
-      if (!linksError && links && links.length > 0) {
-        const parentIds = Array.from(
-          new Set(links.map((link: any) => link.parent_id))
-        );
-
-        // auth.users에서 phone 조회
-        const adminAuthClient = createSupabaseAdminClient();
-        if (adminAuthClient && parentIds.length > 0) {
-          try {
-            const { data: authUsers, error: authError } =
-              await adminAuthClient.auth.admin.listUsers();
-
-            if (!authError && authUsers?.users) {
-              // 검색어와 일치하는 phone을 가진 학부모 찾기
-              const matchingParentIds = new Set<string>();
-              authUsers.users.forEach((user) => {
-                if (user.phone && user.phone.includes(normalizedQuery)) {
-                  matchingParentIds.add(user.id);
-                }
-              });
-
-              // 매칭된 학부모와 연결된 학생 ID 수집
-              links.forEach((link: any) => {
-                if (matchingParentIds.has(link.parent_id)) {
-                  linkedStudentIds.push(link.student_id);
-                }
-              });
-            }
-          } catch (error) {
-            console.error("[studentSearch] auth.users phone 조회 실패", error);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("[studentSearch] parent_student_links 처리 중 오류", error);
-    }
-
-    // 연락처로 매칭된 학생 ID 수집
-    const phoneMatchedIds = new Set<string>();
-    
-    if (profiles) {
-      profiles.forEach((profile) => {
-        if (
-          profile.phone?.includes(normalizedQuery) ||
-          profile.mother_phone?.includes(normalizedQuery) ||
-          profile.father_phone?.includes(normalizedQuery)
-        ) {
-          phoneMatchedIds.add(profile.id);
-        }
-      });
-    }
-
-    // 연결된 학부모 연락처로 매칭된 학생 ID 추가
-    linkedStudentIds.forEach((id) => phoneMatchedIds.add(id));
-
-    if (phoneMatchedIds.size > 0) {
-      // 학생 기본 정보 조회
-      let phoneQuery = baseQuery.in("id", Array.from(phoneMatchedIds));
-      
-      // 페이지네이션
-      phoneQuery = phoneQuery.range(offset, offset + limit - 1);
-      
-      const { data, error, count } = await phoneQuery;
-
-      if (error) {
-        console.error("[studentSearch] 연락처 검색 학생 조회 실패", error);
-      } else {
-        // 이름 검색 결과와 병합 (중복 제거)
-        const existingIds = new Set(students.map((s) => s.id));
-        const phoneStudents = (data || []) as typeof students;
-        
-        phoneStudents.forEach((student) => {
-          if (!existingIds.has(student.id)) {
-            students.push(student);
-          }
-        });
-
-        // total 업데이트 (더 큰 값 사용)
-        if (count && count > total) {
-          total = count;
-        }
-      }
-    }
+    const phoneMatchedIds = await collectPhoneMatchedIds(adminClient, normalizedQuery);
+    phoneMatchedIds.forEach((id) => matchedStudentIds.add(id));
   }
 
-  // 학생 ID 목록 추출
-  const studentIds = students.map((s) => s.id);
+  // 2단계: 수집된 ID로 페이지네이션 적용
+  const total = matchedStudentIds.size;
+  const studentIds = Array.from(matchedStudentIds).slice(offset, offset + limit);
 
   if (studentIds.length === 0) {
     return { students: [], total: 0 };
   }
 
-  // 연락처 정보 일괄 조회
+  // 3단계: 페이지네이션된 ID로 실제 데이터 조회
+  const baseQuery = buildBaseQuery(adminClient, filters, excludeStudentIds, tenantId);
+  const { data: students, error: studentsError } = await baseQuery
+    .in("id", studentIds)
+    .select("id, name, grade, class, division, is_active");
+
+  if (studentsError) {
+    console.error("[studentSearch] 학생 데이터 조회 실패", studentsError);
+    return { students: [], total: 0 };
+  }
+
+  if (!students || students.length === 0) {
+    return { students: [], total: 0 };
+  }
+
+  // 4단계: 연락처 정보 일괄 조회
   const { getStudentPhonesBatch } = await import("@/lib/utils/studentPhoneUtils");
   const phoneDataList = await getStudentPhonesBatch(studentIds);
   const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
 
-  // 결과 매핑 및 matched_field 설정
+  // 5단계: 결과 매핑 및 matched_field 설정
   const results: StudentSearchResult[] = students.map((student) => {
     const phoneData = phoneDataMap.get(student.id);
-    
-    // 매칭된 필드 확인
-    let matchedField: "name" | "phone" | "mother_phone" | "father_phone" | null = null;
-    
-    if (detectedType === "name" || detectedType === "all") {
-      if (student.name?.toLowerCase().includes(searchQuery.toLowerCase())) {
-        matchedField = "name";
-      }
-    }
-    
-    if (detectedType === "phone" || detectedType === "all") {
-      if (!matchedField && phoneData) {
-        if (phoneData.phone?.includes(normalizedQuery)) {
-          matchedField = "phone";
-        } else if (phoneData.mother_phone?.includes(normalizedQuery)) {
-          matchedField = "mother_phone";
-        } else if (phoneData.father_phone?.includes(normalizedQuery)) {
-          matchedField = "father_phone";
-        }
-      }
-    }
+    const matchedField = determineMatchedField(
+      student,
+      phoneData,
+      searchQuery,
+      normalizedQuery,
+      detectedType
+    );
 
     return {
       id: student.id,
@@ -346,7 +366,7 @@ export async function searchStudentsUnified(
 
   return {
     students: results,
-    total: total || results.length,
+    total: total,
   };
 }
 
