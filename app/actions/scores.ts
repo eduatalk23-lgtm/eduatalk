@@ -3,14 +3,19 @@
 /**
  * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
  * 
- * 새 구조로 마이그레이션 필요:
+ * 이 파일의 모든 함수는 더 이상 사용되지 않습니다.
+ * 새 구조로 완전히 마이그레이션되었습니다.
+ * 
+ * 새 구조:
  * - 내신 성적: student_internal_scores 테이블 사용
  * - 모의고사 성적: student_mock_scores 테이블 사용
  * 
  * 새 구조는 student_terms를 통해 학기 정보를 관리하며,
  * student_term_id FK를 통해 연결됩니다.
  * 
- * @see lib/data/studentScores.ts - createInternalScore, createMockScore
+ * @deprecated 이 파일의 모든 함수는 사용하지 마세요.
+ * @see app/actions/scores-internal.ts - createInternalScore, createMockScore, updateInternalScore, updateMockScore, deleteScore
+ * @see lib/data/studentScores.ts - getInternalScores, getMockScores
  * @see lib/domains/score/repository.ts - insertInternalScore, insertMockScore
  */
 
@@ -26,7 +31,10 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-// 성적 등록
+/**
+ * 성적 등록 (레거시)
+ * @deprecated 사용하지 마세요. createInternalScore 또는 createMockScore를 사용하세요.
+ */
 async function _addStudentScore(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -124,9 +132,15 @@ async function _addStudentScore(formData: FormData) {
   redirect("/scores");
 }
 
+/**
+ * @deprecated 사용하지 마세요. createInternalScore 또는 createMockScore를 사용하세요.
+ */
 export const addStudentScore = withErrorHandling(_addStudentScore);
 
-// 성적 수정
+/**
+ * 성적 수정 (레거시)
+ * @deprecated 사용하지 마세요. updateInternalScore 또는 updateMockScore를 사용하세요.
+ */
 async function _updateStudentScore(id: string, formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -219,9 +233,15 @@ async function _updateStudentScore(id: string, formData: FormData) {
   redirect("/scores");
 }
 
+/**
+ * @deprecated 사용하지 마세요. updateInternalScore 또는 updateMockScore를 사용하세요.
+ */
 export const updateStudentScore = withErrorHandling(_updateStudentScore);
 
-// 성적 삭제
+/**
+ * 성적 삭제 (레거시)
+ * @deprecated 사용하지 마세요. deleteScore를 사용하세요.
+ */
 async function _deleteStudentScore(id: string) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -268,5 +288,8 @@ async function _deleteStudentScore(id: string) {
   redirect("/scores");
 }
 
+/**
+ * @deprecated 사용하지 마세요. deleteScore를 사용하세요.
+ */
 export const deleteStudentScore = withErrorHandling(_deleteStudentScore);
 

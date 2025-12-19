@@ -127,7 +127,8 @@ export async function getStudentScores(
 }
 
 /**
- * 통합 성적 생성
+ * 통합 성적 생성 (레거시)
+ * @deprecated 사용하지 마세요. createInternalScore 또는 createMockScore를 사용하세요.
  */
 export async function createStudentScore(score: {
   tenant_id?: string | null;
@@ -185,7 +186,8 @@ export async function createStudentScore(score: {
 }
 
 /**
- * 통합 성적 업데이트
+ * 통합 성적 업데이트 (레거시)
+ * @deprecated 사용하지 마세요. updateInternalScore 또는 updateMockScore를 사용하세요.
  */
 export async function updateStudentScore(
   scoreId: string,
@@ -229,7 +231,8 @@ export async function updateStudentScore(
 }
 
 /**
- * 통합 성적 삭제
+ * 통합 성적 삭제 (레거시)
+ * @deprecated 사용하지 마세요. deleteInternalScore 또는 deleteMockScore를 사용하세요.
  */
 export async function deleteStudentScore(
   scoreId: string,
