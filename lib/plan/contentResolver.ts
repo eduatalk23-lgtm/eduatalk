@@ -399,7 +399,7 @@ export async function loadContentDurations(
   // 학생 콘텐츠 조회 (병렬)
   type BookDurationResult = {
     content: PlanContent;
-    studentBook: { id: string; total_pages: number | null; master_content_id: string | null; difficulty_level: string | null } | null;
+    studentBook: { id: string; total_pages: number | null; master_content_id: string | null; difficulty_level: string | null; difficulty_level_id: string | null } | null;
   };
   type LectureDurationResult = {
     content: PlanContent;
@@ -415,7 +415,7 @@ export async function loadContentDurations(
     try {
       const result = await queryClient
         .from("books")
-        .select("id, total_pages, master_content_id, difficulty_level")
+        .select("id, total_pages, master_content_id, difficulty_level, difficulty_level_id")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -462,20 +462,50 @@ export async function loadContentDurations(
   ]);
 
   // 마스터 콘텐츠 조회가 필요한 항목 수집
-  type MasterBookResult = { content: PlanContent; masterBook: { id: string; total_pages: number | null; difficulty_level: string | null } | null };
+  type MasterBookResult = { content: PlanContent; masterBook: { id: string; total_pages: number | null; difficulty_level: string | null; difficulty_level_id: string | null } | null };
   type MasterLectureResult = { content: PlanContent; masterLecture: { id: string; total_duration: number | null; total_episodes: number | null } | null };
 
   const masterBookQueries: Promise<MasterBookResult>[] = [];
   const masterLectureQueries: Promise<MasterLectureResult>[] = [];
 
+  // difficulty_level_id → difficulty_level 변환을 위한 배치 조회
+  const difficultyLevelIds = new Set<string>();
+  for (const { studentBook } of bookResults) {
+    if (studentBook?.difficulty_level_id) {
+      difficultyLevelIds.add(studentBook.difficulty_level_id);
+    }
+  }
+
+  // difficulty_levels 테이블에서 배치 조회
+  const difficultyLevelMap = new Map<string, string>();
+  if (difficultyLevelIds.size > 0) {
+    try {
+      const { data: difficultyLevels } = await queryClient
+        .from("difficulty_levels")
+        .select("id, name")
+        .in("id", Array.from(difficultyLevelIds));
+      
+      (difficultyLevels || []).forEach((level) => {
+        difficultyLevelMap.set(level.id, level.name);
+      });
+    } catch (error) {
+      console.error("[contentResolver] difficulty_levels 조회 실패:", error);
+    }
+  }
+
   // 학생 교재 결과 처리
   for (const { content, studentBook } of bookResults) {
     if (studentBook?.total_pages) {
+      // difficulty_level_id가 있으면 변환, 없으면 기존 difficulty_level 사용
+      const difficultyLevel = studentBook.difficulty_level_id
+        ? difficultyLevelMap.get(studentBook.difficulty_level_id) ?? studentBook.difficulty_level ?? null
+        : studentBook.difficulty_level ?? null;
+
       contentDurationMap.set(content.content_id, {
         content_type: "book",
         content_id: content.content_id,
         total_pages: studentBook.total_pages,
-        difficulty_level: studentBook.difficulty_level ?? null,
+        difficulty_level: difficultyLevel,
       });
     } else if (studentBook?.master_content_id) {
       const masterId = studentBook.master_content_id;
@@ -484,7 +514,7 @@ export async function loadContentDurations(
           try {
             const result = await masterQueryClient
               .from("master_books")
-              .select("id, total_pages, difficulty_level")
+              .select("id, total_pages, difficulty_level, difficulty_level_id")
               .eq("id", masterId)
               .maybeSingle();
             return { content, masterBook: result.data };
@@ -591,13 +621,43 @@ export async function loadContentDurations(
       Promise.all(masterLectureQueries),
     ]);
 
+    // 마스터 교재의 difficulty_level_id도 변환을 위해 수집
+    const masterDifficultyLevelIds = new Set<string>();
+    for (const { masterBook } of masterBookResults) {
+      if (masterBook?.difficulty_level_id) {
+        masterDifficultyLevelIds.add(masterBook.difficulty_level_id);
+      }
+    }
+
+    // 마스터 교재의 difficulty_levels 배치 조회
+    const masterDifficultyLevelMap = new Map<string, string>();
+    if (masterDifficultyLevelIds.size > 0) {
+      try {
+        const { data: masterDifficultyLevels } = await masterQueryClient
+          .from("difficulty_levels")
+          .select("id, name")
+          .in("id", Array.from(masterDifficultyLevelIds));
+        
+        (masterDifficultyLevels || []).forEach((level) => {
+          masterDifficultyLevelMap.set(level.id, level.name);
+        });
+      } catch (error) {
+        console.error("[contentResolver] 마스터 difficulty_levels 조회 실패:", error);
+      }
+    }
+
     for (const { content, masterBook } of masterBookResults) {
       if (masterBook?.total_pages) {
+        // difficulty_level_id가 있으면 변환, 없으면 기존 difficulty_level 사용
+        const difficultyLevel = masterBook.difficulty_level_id
+          ? masterDifficultyLevelMap.get(masterBook.difficulty_level_id) ?? masterBook.difficulty_level ?? null
+          : masterBook.difficulty_level ?? null;
+
         contentDurationMap.set(content.content_id, {
           content_type: "book",
           content_id: content.content_id,
           total_pages: masterBook.total_pages,
-          difficulty_level: masterBook.difficulty_level ?? null,
+          difficulty_level: difficultyLevel,
         });
       }
     }
