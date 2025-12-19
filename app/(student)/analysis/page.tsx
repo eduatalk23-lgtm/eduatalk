@@ -27,6 +27,17 @@ export default async function AnalysisPage() {
 
   if (!user) redirect("/login");
 
+  // 학생 정보 조회 (tenant_id 포함)
+  const { data: student } = await supabase
+    .from("students")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!student || !student.tenant_id) {
+    redirect("/student-setup");
+  }
+
   // 저장된 분석 데이터 조회
   const selectAnalysis = () =>
     supabase
@@ -69,7 +80,7 @@ export default async function AnalysisPage() {
   if (riskAnalyses.length === 0) {
     // 실시간 계산
     try {
-      const calculated = await calculateAllRiskIndices(supabase, user.id);
+      const calculated = await calculateAllRiskIndices(supabase, user.id, student.tenant_id);
       riskAnalyses = calculated;
       // 백그라운드에서 저장 시도
       saveRiskAnalysis(supabase, user.id, calculated).catch(console.error);

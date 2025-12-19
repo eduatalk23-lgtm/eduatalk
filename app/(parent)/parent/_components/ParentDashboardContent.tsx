@@ -33,10 +33,10 @@ export async function ParentDashboardContent({
 }: ParentDashboardContentProps) {
   const supabase = await createSupabaseServerClient();
 
-  // 학생 정보 조회
+  // 학생 정보 조회 (tenant_id 포함)
   const { data: student } = await supabase
     .from("students")
-    .select("id, name, grade, class")
+    .select("id, name, grade, class, tenant_id")
     .eq("id", studentId)
     .maybeSingle();
 
@@ -44,6 +44,14 @@ export async function ParentDashboardContent({
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
         <p className="text-sm text-red-700">학생 정보를 찾을 수 없습니다.</p>
+      </div>
+    );
+  }
+
+  if (!student.tenant_id) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+        <p className="text-sm text-red-700">기관 정보를 찾을 수 없습니다.</p>
       </div>
     );
   }
@@ -82,9 +90,9 @@ export async function ParentDashboardContent({
     // 활성 목표
     getActiveGoals(supabase, studentId, todayDate),
     // 모든 성적
-    fetchAllScores(supabase, studentId),
+    fetchAllScores(supabase, studentId, student.tenant_id),
     // 위험 신호 분석
-    calculateAllRiskIndices(supabase, studentId).catch(() => []),
+    calculateAllRiskIndices(supabase, studentId, student.tenant_id).catch(() => []),
   ]);
 
   // 오늘 학습시간 계산

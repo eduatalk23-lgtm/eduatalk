@@ -47,42 +47,93 @@ export type SubjectRiskAnalysis = {
 };
 
 /**
- * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
+ * 분석 유틸리티
  * 
- * 새 구조로 마이그레이션 필요:
- * - 내신 성적: student_internal_scores 테이블 사용
- * - 모의고사 성적: student_mock_scores 테이블 사용
+ * 새 구조의 내신/모의고사 성적을 레거시 형태로 변환하여 제공합니다.
  * 
- * @see lib/data/scoreQueries.ts - getTermScores, getAllTermScores
+ * @see lib/data/studentScores.ts - getInternalScores, getMockScores
  */
 
+import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
+import { getSubjectById } from "@/lib/data/subjects";
+
 /**
- * 모든 성적 조회
- * @deprecated student_scores 테이블 사용. getInternalScores, getMockScores 사용 권장
+ * 모든 성적 조회 (새 구조)
+ * 
+ * 내신 성적과 모의고사 성적을 조회하여 레거시 ScoreRow 형태로 변환합니다.
  */
 export async function fetchAllScores(
   supabase: SupabaseServerClient,
-  studentId: string
+  studentId: string,
+  tenantId: string
 ): Promise<ScoreRow[]> {
   try {
-    const selectScores = () =>
-      supabase
-        .from("student_scores")
-        .select(
-          "id,course,course_detail,grade,raw_score,test_date,semester,created_at"
-        )
-        .order("test_date", { ascending: false })
-        .order("created_at", { ascending: false });
+    // 내신 성적과 모의고사 성적 병렬 조회
+    const [internalScores, mockScores] = await Promise.all([
+      getInternalScores(studentId, tenantId),
+      getMockScores(studentId, tenantId),
+    ]);
 
-    let { data, error } = await selectScores().eq("student_id", studentId);
+    // 내신 성적을 레거시 형태로 변환
+    const internalRows: ScoreRow[] = await Promise.all(
+      internalScores.map(async (score) => {
+        // 과목 정보 조회
+        let subject = null;
+        let subjectGroupName = null;
+        if (score.subject_id) {
+          subject = await getSubjectById(score.subject_id);
+          subjectGroupName = subject?.subjectGroup.name ?? null;
+        }
 
-    if (error && error.code === "42703") {
-      ({ data, error } = await selectScores());
-    }
+        return {
+          id: score.id,
+          subject_type: null,
+          semester: score.semester ? `${score.grade}-${score.semester}` : null,
+          course: subjectGroupName,
+          course_detail: subject?.name ?? null,
+          raw_score: score.raw_score,
+          grade: score.rank_grade ?? null,
+          score_type_detail: "내신",
+          test_date: null,
+          created_at: score.created_at,
+        };
+      })
+    );
 
-    if (error) throw error;
+    // 모의고사 성적을 레거시 형태로 변환
+    const mockRows: ScoreRow[] = await Promise.all(
+      mockScores.map(async (score) => {
+        // 과목 정보 조회
+        let subject = null;
+        let subjectGroupName = null;
+        if (score.subject_id) {
+          subject = await getSubjectById(score.subject_id);
+          subjectGroupName = subject?.subjectGroup.name ?? null;
+        }
 
-    return (data as ScoreRow[] | null) ?? [];
+        return {
+          id: score.id,
+          subject_type: null,
+          semester: null,
+          course: subjectGroupName,
+          course_detail: subject?.name ?? null,
+          raw_score: score.raw_score,
+          grade: score.grade_score ?? null,
+          score_type_detail: "모의고사",
+          test_date: score.exam_date ?? null,
+          created_at: score.created_at,
+        };
+      })
+    );
+
+    // 두 결과를 합치고 날짜순으로 정렬 (최신순)
+    const allScores = [...internalRows, ...mockRows].sort((a, b) => {
+      const dateA = a.test_date ? new Date(a.test_date).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const dateB = b.test_date ? new Date(b.test_date).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      return dateB - dateA; // 최신순
+    });
+
+    return allScores;
   } catch (error) {
     console.error("[analysis] 성적 조회 실패", error);
     return [];
@@ -399,10 +450,11 @@ export function calculateRiskIndex(
 // 모든 과목의 Risk Index 계산
 export async function calculateAllRiskIndices(
   supabase: SupabaseServerClient,
-  studentId: string
+  studentId: string,
+  tenantId: string
 ): Promise<SubjectRiskAnalysis[]> {
   const [scores, progressMap] = await Promise.all([
-    fetchAllScores(supabase, studentId),
+    fetchAllScores(supabase, studentId, tenantId),
     fetchProgressMap(supabase, studentId),
   ]);
 

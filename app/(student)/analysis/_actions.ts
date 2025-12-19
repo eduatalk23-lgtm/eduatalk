@@ -23,8 +23,19 @@ export async function recalculateRiskIndex(): Promise<{
     return { success: false, error: "로그인이 필요합니다." };
   }
 
+  // 학생 정보 조회 (tenant_id 포함)
+  const { data: student } = await supabase
+    .from("students")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!student || !student.tenant_id) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
+
   try {
-    const analyses = await calculateAllRiskIndices(supabase, user.id);
+    const analyses = await calculateAllRiskIndices(supabase, user.id, student.tenant_id);
     await saveRiskAnalysis(supabase, user.id, analyses);
 
     revalidatePath("/analysis");

@@ -1,22 +1,21 @@
 /**
- * ⚠️ DEPRECATED: 이 파일은 레거시 student_scores 테이블을 사용합니다.
+ * 성적 대시보드 유틸리티
  * 
- * 새 구조로 마이그레이션 필요:
- * - 내신 성적: student_internal_scores 테이블 사용
- * - 모의고사 성적: student_mock_scores 테이블 사용
+ * 새 구조의 내신/모의고사 성적을 레거시 형태로 변환하여 제공합니다.
  * 
- * 새 구조는 student_terms를 통해 학기 정보를 관리하며,
- * student_term_id FK를 통해 연결됩니다.
- * 
- * @see lib/data/scoreQueries.ts - getTermScores, getAllTermScores
  * @see lib/data/studentScores.ts - getInternalScores, getMockScores
  */
+
+import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
+import { getSubjectById } from "@/lib/data/subjects";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof import("@/lib/supabase/server").createSupabaseServerClient>
 >;
 
-/** @deprecated student_scores 테이블 사용. 새 구조로 마이그레이션 필요 */
+/**
+ * 레거시 ScoreRow 타입 (하위 호환성 유지)
+ */
 export type ScoreRow = {
   id: string;
   subject_type: string | null;
@@ -31,32 +30,82 @@ export type ScoreRow = {
 };
 
 /**
- * 모든 성적 조회
- * @deprecated student_scores 테이블 사용. getInternalScores, getMockScores 사용 권장
+ * 모든 성적 조회 (새 구조)
+ * 
+ * 내신 성적과 모의고사 성적을 조회하여 레거시 ScoreRow 형태로 변환합니다.
  */
 export async function fetchAllScores(
   supabase: SupabaseServerClient,
-  studentId: string
+  studentId: string,
+  tenantId: string
 ): Promise<ScoreRow[]> {
   try {
-    const selectScores = () =>
-      supabase
-        .from("student_scores")
-        .select(
-          "id,subject_type,semester,course,course_detail,raw_score,grade,score_type_detail,test_date,created_at"
-        )
-        .order("test_date", { ascending: true })
-        .order("created_at", { ascending: true });
+    // 내신 성적과 모의고사 성적 병렬 조회
+    const [internalScores, mockScores] = await Promise.all([
+      getInternalScores(studentId, tenantId),
+      getMockScores(studentId, tenantId),
+    ]);
 
-    let { data, error } = await selectScores().eq("student_id", studentId);
+    // 내신 성적을 레거시 형태로 변환
+    const internalRows: ScoreRow[] = await Promise.all(
+      internalScores.map(async (score) => {
+        // 과목 정보 조회
+        let subject = null;
+        let subjectGroupName = null;
+        if (score.subject_id) {
+          subject = await getSubjectById(score.subject_id);
+          subjectGroupName = subject?.subjectGroup.name ?? null;
+        }
 
-    if (error && error.code === "42703") {
-      ({ data, error } = await selectScores());
-    }
+        return {
+          id: score.id,
+          subject_type: null, // 새 구조에서는 subject_type_id 사용
+          semester: score.semester ? `${score.grade}-${score.semester}` : null,
+          course: subjectGroupName,
+          course_detail: subject?.name ?? null,
+          raw_score: score.raw_score,
+          grade: score.rank_grade ?? null,
+          score_type_detail: "내신",
+          test_date: null, // 내신은 test_date 없음
+          created_at: score.created_at,
+        };
+      })
+    );
 
-    if (error) throw error;
+    // 모의고사 성적을 레거시 형태로 변환
+    const mockRows: ScoreRow[] = await Promise.all(
+      mockScores.map(async (score) => {
+        // 과목 정보 조회
+        let subject = null;
+        let subjectGroupName = null;
+        if (score.subject_id) {
+          subject = await getSubjectById(score.subject_id);
+          subjectGroupName = subject?.subjectGroup.name ?? null;
+        }
 
-    return (data as ScoreRow[] | null) ?? [];
+        return {
+          id: score.id,
+          subject_type: null,
+          semester: null,
+          course: subjectGroupName,
+          course_detail: subject?.name ?? null,
+          raw_score: score.raw_score,
+          grade: score.grade_score ?? null,
+          score_type_detail: "모의고사",
+          test_date: score.exam_date ?? null,
+          created_at: score.created_at,
+        };
+      })
+    );
+
+    // 두 결과를 합치고 날짜순으로 정렬
+    const allScores = [...internalRows, ...mockRows].sort((a, b) => {
+      const dateA = a.test_date ? new Date(a.test_date).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const dateB = b.test_date ? new Date(b.test_date).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      return dateA - dateB;
+    });
+
+    return allScores;
   } catch (error) {
     console.error("[dashboard] 성적 조회 실패", error);
     return [];
