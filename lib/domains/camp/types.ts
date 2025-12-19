@@ -132,3 +132,47 @@ export type CampPlanConfig = {
   isLegacy: boolean;
 };
 
+// ============================================
+// 캠프 출석 관련 타입
+// ============================================
+
+/**
+ * 캠프 출석 통계
+ */
+export type CampAttendanceStats = {
+  template_id: string;
+  template_name: string;
+  total_participants: number;
+  total_days: number;
+  attendance_rate: number;
+  late_rate: number;
+  absent_rate: number;
+  participant_stats: Array<{
+    student_id: string;
+    student_name: string;
+    attendance_rate: number;
+    absent_count: number;
+    late_count: number;
+    present_count: number;
+    early_leave_count: number;
+    excused_count: number;
+  }>;
+};
+
+/**
+ * 참여자별 출석 통계
+ */
+export type ParticipantAttendanceStats = {
+  student_id: string;
+  student_name: string;
+  total_days: number;
+  present_count: number;
+  absent_count: number;
+  late_count: number;
+  early_leave_count: number;
+  excused_count: number;
+  attendance_rate: number;
+  late_rate: number;
+  absent_rate: number;
+};
+

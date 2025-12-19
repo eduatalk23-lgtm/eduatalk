@@ -350,6 +350,12 @@ export function CampTemplateDetail({
               >
                 참여자 목록
               </Link>
+              <Link
+                href={`/admin/camp-templates/${template.id}/attendance`}
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                출석 관리
+              </Link>
               {currentStatus !== "active" && (
                 <Link
                   href={`/admin/camp-templates/${template.id}/edit`}
