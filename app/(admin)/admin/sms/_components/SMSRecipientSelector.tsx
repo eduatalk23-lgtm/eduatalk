@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Label from "@/components/atoms/Label";
 import Input from "@/components/atoms/Input";
 import Select from "@/components/atoms/Select";
 import Button from "@/components/atoms/Button";
 import {
-  filterStudents,
   getPhoneByRecipientType,
   extractUniqueGrades,
   extractUniqueClasses,
@@ -39,16 +38,122 @@ export function SMSRecipientSelector({
     isActive: "all",
   });
 
-  // 고유 학년 목록 추출 (공통 유틸리티 함수 사용)
-  const uniqueGrades = useMemo(() => extractUniqueGrades(students), [students]);
+  // 검색 결과 상태 (API 호출 결과)
+  const [searchResults, setSearchResults] = useState<Student[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [executedSearchQuery, setExecutedSearchQuery] = useState("");
 
-  // 고유 반 목록 추출 (공통 유틸리티 함수 사용)
-  const uniqueClasses = useMemo(() => extractUniqueClasses(students), [students]);
+  // 검색 실행 함수 (debounce 포함)
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setExecutedSearchQuery("");
+      return;
+    }
 
-  // 필터링된 학생 목록 (공통 유틸리티 함수 사용)
+    setIsSearching(true);
+    setExecutedSearchQuery(query.trim());
+
+    try {
+      const params = new URLSearchParams({
+        q: query.trim(),
+        limit: "1000", // 충분히 큰 범위
+      });
+
+      // 필터 파라미터 추가
+      if (filter.grade) {
+        params.append("grade", filter.grade);
+      }
+      if (filter.class) {
+        params.append("class", filter.class);
+      }
+      if (filter.isActive !== "all") {
+        params.append("isActive", filter.isActive === "active" ? "true" : "false");
+      }
+
+      const response = await fetch(`/api/students/search?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error("검색에 실패했습니다.");
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data?.students) {
+        // 검색 결과를 Student 타입으로 변환
+        const searchResults_: Student[] = result.data.students.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          grade: s.grade,
+          class: s.class,
+          division: s.division,
+          phone: s.phone,
+          mother_phone: s.mother_phone,
+          father_phone: s.father_phone,
+          is_active: true,
+        }));
+
+        setSearchResults(searchResults_);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error("[SMSRecipientSelector] 검색 오류:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [filter.grade, filter.class, filter.isActive]);
+
+  // 검색어 변경 시 debounce 처리
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (filter.search) {
+        performSearch(filter.search);
+      } else {
+        setSearchResults([]);
+        setExecutedSearchQuery("");
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [filter.search, performSearch]);
+
+  // 검색어가 있으면 검색 결과 사용, 없으면 기존 students 사용
+  const studentsToFilter = executedSearchQuery ? searchResults : students;
+
+  // 고유 학년 목록 추출 (검색 결과 또는 전체 학생 목록에서)
+  const uniqueGrades = useMemo(() => extractUniqueGrades(studentsToFilter), [studentsToFilter]);
+
+  // 고유 반 목록 추출 (검색 결과 또는 전체 학생 목록에서)
+  const uniqueClasses = useMemo(() => extractUniqueClasses(studentsToFilter), [studentsToFilter]);
+
+  // 필터링된 학생 목록 (검색 결과에 추가 필터 적용)
   const filteredStudents = useMemo(() => {
-    return filterStudents(students, filter);
-  }, [students, filter]);
+    let result = studentsToFilter;
+
+    // 검색어가 없을 때만 추가 필터 적용 (검색어가 있으면 이미 API에서 필터링됨)
+    if (!executedSearchQuery) {
+      // 학년 필터
+      if (filter.grade) {
+        result = result.filter((s) => s.grade === filter.grade);
+      }
+
+      // 반 필터
+      if (filter.class) {
+        result = result.filter((s) => s.class === filter.class);
+      }
+
+      // 활성 상태 필터
+      if (filter.isActive === "active") {
+        result = result.filter((s) => s.is_active === true);
+      } else if (filter.isActive === "inactive") {
+        result = result.filter((s) => s.is_active === false);
+      }
+    }
+
+    return result;
+  }, [studentsToFilter, filter, executedSearchQuery]);
 
   // 필터링된 학생 중 선택 가능한 학생 (선택한 대상자 타입에 따라)
   const selectableStudents = useMemo(() => {
@@ -106,15 +211,23 @@ export function SMSRecipientSelector({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div>
             <Label htmlFor="filter-search">이름/전화번호 검색</Label>
-            <Input
-              id="filter-search"
-              type="text"
-              placeholder="검색..."
-              value={filter.search}
-              onChange={(e) =>
-                setFilter((prev) => ({ ...prev, search: e.target.value }))
-              }
-            />
+            <div className="relative">
+              <Input
+                id="filter-search"
+                type="text"
+                placeholder="검색... (이름 또는 연락처 4자리 이상)"
+                value={filter.search}
+                onChange={(e) =>
+                  setFilter((prev) => ({ ...prev, search: e.target.value }))
+                }
+                className={isSearching ? "pr-8" : ""}
+              />
+              {isSearching && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
