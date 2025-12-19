@@ -116,7 +116,7 @@ export function CreateStudentForm({
   };
 
   return (
-    <form onSubmit={(form.handleSubmit as any)(onSubmit)} className="flex flex-col gap-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
       {/* 탭 네비게이션 */}
       <div className="flex gap-2 border-b">
         <button

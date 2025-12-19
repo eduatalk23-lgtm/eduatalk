@@ -433,11 +433,13 @@ export async function updateAttendanceSMSSettings(
 
     // update().select() 결과 확인
     if (!data || data.length === 0) {
+      const errorCode = error && typeof error === 'object' && 'code' in error ? String(error.code) : undefined;
+      const errorMessage = error && typeof error === 'object' && 'message' in error ? String(error.message) : undefined;
       console.error("[attendanceSettings] 업데이트된 행이 없습니다:", {
         tenantId: tenantContext.tenantId,
         updateData,
-        errorCode: (error as any)?.code,
-        errorMessage: (error as any)?.message,
+        errorCode,
+        errorMessage,
       });
       throw new AppError(
         "SMS 설정 업데이트에 실패했습니다. 업데이트된 행이 없습니다. RLS 정책 문제일 수 있습니다.",

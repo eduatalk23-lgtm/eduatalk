@@ -91,7 +91,7 @@ export const getSubjectCategoriesAction = withErrorHandling(async (revisionId?: 
   return groups.map((group) => ({
     id: group.id,
     name: group.name,
-    display_order: (group as any).display_order ?? 0,
+    display_order: group.display_order ?? 0,
     is_active: true,
   }));
 });

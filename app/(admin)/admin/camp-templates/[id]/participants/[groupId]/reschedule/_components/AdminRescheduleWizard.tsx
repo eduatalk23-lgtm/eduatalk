@@ -26,6 +26,7 @@ type AdminRescheduleWizardProps = {
     status: string | null;
     is_active: boolean | null;
     content_id: string;
+    plan_date?: string;
   }>;
   initialDateRange?: { from: string; to: string } | null;
 };
@@ -202,7 +203,7 @@ export function AdminRescheduleWizard({
             contents={contents}
             existingPlans={existingPlans.map((p) => ({
               ...p,
-              plan_date: (p as any).plan_date || "",
+              plan_date: p.plan_date || "",
             }))}
             onComplete={handleStep1Complete}
             initialDateRange={initialDateRange}
@@ -219,7 +220,7 @@ export function AdminRescheduleWizard({
             groupPeriodEnd={group.period_end}
             existingPlans={existingPlans.map((p) => ({
               ...p,
-              plan_date: (p as any).plan_date || "",
+              plan_date: p.plan_date || "",
             }))}
           />
         )}
