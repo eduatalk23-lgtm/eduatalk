@@ -1604,10 +1604,12 @@ export const getCampPlanGroupForReview = withErrorHandling(
           "@/lib/data/planContents"
         );
         // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
-        const { userId } = await getCurrentUserRole();
+        const { role, userId } = await getCurrentUserRole();
+        // superadmin은 admin으로 매핑
+        const mappedRole = role === "superadmin" ? "admin" : role;
         const { studentContents, recommendedContents } =
           await classifyPlanContents(result.contents, result.group.student_id, {
-            currentUserRole: role,
+            currentUserRole: mappedRole || undefined,
             currentUserId: userId || undefined,
           });
 
@@ -3941,7 +3943,10 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
       );
     }
 
-    if (template.tenant_id !== tenantContext.tenantId) {
+    // tenantId를 변수에 저장하여 타입 좁히기
+    const tenantId = tenantContext.tenantId;
+
+    if (template.tenant_id !== tenantId) {
       throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
     }
 
@@ -4051,7 +4056,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
         // 플랜 그룹 생성
         const { createPlanGroup } = await import("@/lib/data/planGroups");
         const groupResult = await createPlanGroup({
-          tenant_id: tenantContext.tenantId,
+          tenant_id: tenantId,
           student_id: invitation.student_id,
           name: creationData.name || null,
           plan_purpose: creationData.plan_purpose || null,
@@ -4087,7 +4092,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           const { createPlanExclusions } = await import("@/lib/data/planGroups");
           await createPlanExclusions(
             groupId,
-            tenantContext.tenantId,
+            tenantId,
             creationData.exclusions.map((e) => ({
               exclusion_date: e.exclusion_date,
               exclusion_type: e.exclusion_type,
@@ -4101,7 +4106,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           const { createStudentAcademySchedules } = await import("@/lib/data/planGroups");
           await createStudentAcademySchedules(
             invitation.student_id,
-            tenantContext.tenantId,
+            tenantId,
             creationData.academy_schedules.map((s) => ({
               day_of_week: s.day_of_week,
               start_time: s.start_time,
@@ -4167,7 +4172,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           );
           sendInAppNotification(
             result.studentId,
-            "camp_plan_created",
+            "plan_created",
             "캠프 플랜이 생성되었습니다",
             `${template.name} 캠프의 학습 플랜이 생성되었습니다. 확인해주세요.`,
             {

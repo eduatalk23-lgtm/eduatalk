@@ -3,7 +3,6 @@
  */
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type Participant = {
   invitation_id: string;
@@ -93,30 +92,11 @@ export async function loadCampParticipants(
   );
 
   // 통계 정보 포함 옵션이 활성화된 경우
-  if (options?.includeStats) {
-    const { getCampParticipantStatsBatch } = await import(
-      "./campParticipantStats"
-    );
-    const studentIds = participants
-      .filter((p) => p.invitation_status === "accepted")
-      .map((p) => p.student_id);
-
-    if (studentIds.length > 0) {
-      const statsMap = await getCampParticipantStatsBatch(templateId, studentIds);
-
-      // 통계 정보 병합
-      return participants.map((participant) => {
-        const stats = statsMap.get(participant.student_id);
-        return {
-          ...participant,
-          attendance_rate: stats?.attendance_rate ?? null,
-          study_minutes: stats?.study_minutes ?? null,
-          plan_completion_rate: stats?.plan_completion_rate ?? null,
-        };
-      });
-    }
-  }
-
+  // 클라이언트 컴포넌트에서는 서버 전용 함수를 호출할 수 없으므로,
+  // 통계 정보는 API 엔드포인트를 통해 별도로 로드해야 합니다.
+  // 여기서는 참여자 목록만 반환합니다.
+  // 통계 정보가 필요한 경우, 클라이언트에서 별도로 API를 호출하세요.
+  
   return participants;
 }
 

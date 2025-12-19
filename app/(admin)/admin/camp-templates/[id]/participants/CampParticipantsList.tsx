@@ -56,9 +56,8 @@ export function CampParticipantsList({
     
     try {
       setLoading(true);
-      const participantsData = await loadCampParticipants(templateId, {
-        includeStats: true,
-      });
+      // 통계 정보는 별도로 로드하지 않음 (서버 전용 함수 호출 제거)
+      const participantsData = await loadCampParticipants(templateId);
       setParticipants(participantsData);
     } catch (error) {
       console.error("[CampParticipantsList] 참여자 목록 로드 실패:", {
