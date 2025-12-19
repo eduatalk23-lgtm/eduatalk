@@ -15,7 +15,7 @@ type RescheduleLog = {
   id: string;
   plan_group_id: string;
   student_id: string;
-  adjusted_contents: any;
+  adjusted_contents: unknown; // JSONB
   plans_before_count: number;
   plans_after_count: number;
   reason: string | null;

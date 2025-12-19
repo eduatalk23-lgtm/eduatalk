@@ -161,8 +161,9 @@ export default function TemplateBlocksViewer({
                           await onCreateSetSuccess();
                         }
                         router.refresh();
-                      } catch (error: any) {
-                        toast.showError(error.message || "세트 삭제에 실패했습니다.");
+                      } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : "세트 삭제에 실패했습니다.";
+                        toast.showError(errorMessage);
                       }
                     }}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -258,8 +259,9 @@ export default function TemplateBlocksViewer({
                           
                           toast.showSuccess("블록 세트가 템플릿에 연결되었습니다.");
                           router.refresh();
-                        } catch (error: any) {
-                          toast.showError(error.message || "블록 세트 연결에 실패했습니다.");
+                        } catch (error: unknown) {
+                          const errorMessage = error instanceof Error ? error.message : "블록 세트 연결에 실패했습니다.";
+                          toast.showError(errorMessage);
                         }
                       }}
                       className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -345,7 +347,7 @@ function TemplateBlockSetCreateForm({
             
             try {
               await addTenantBlock(blockFormData);
-            } catch (blockError: any) {
+            } catch (blockError: unknown) {
               console.warn("블록 추가 실패:", blockError);
             }
           }
@@ -354,8 +356,9 @@ function TemplateBlockSetCreateForm({
         router.refresh();
         onSuccess(result.blockSetId);
         return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 생성에 실패했습니다." };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "세트 생성에 실패했습니다.";
+        return { error: errorMessage };
       }
     },
     { error: null }

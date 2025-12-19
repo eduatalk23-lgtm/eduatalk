@@ -32,8 +32,9 @@ export function LocationSettingsForm() {
           radiusMeters: result.data.radiusMeters?.toString() || "100",
         });
       }
-    } catch (err: any) {
-      setError(err.message || "위치 설정을 불러올 수 없습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "위치 설정을 불러올 수 없습니다.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -106,8 +107,9 @@ export function LocationSettingsForm() {
       } else {
         setError(result.error || "위치 설정 저장에 실패했습니다.");
       }
-    } catch (err: any) {
-      setError(err.message || "위치 설정 저장 중 오류가 발생했습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "위치 설정 저장 중 오류가 발생했습니다.";
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }

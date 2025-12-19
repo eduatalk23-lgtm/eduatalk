@@ -41,8 +41,9 @@ export function QRCodeDisplay() {
       } else {
         setError(result.error || "QR 코드 생성에 실패했습니다.");
       }
-    } catch (err: any) {
-      setError(err.message || "QR 코드 생성에 실패했습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "QR 코드 생성에 실패했습니다.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

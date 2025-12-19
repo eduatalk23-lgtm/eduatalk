@@ -58,9 +58,10 @@ export default function TemplateBlockForm({
           try {
             await addTenantBlock(blockFormData);
             successCount++;
-          } catch (blockError: any) {
+          } catch (blockError: unknown) {
             const dayLabel = ["일", "월", "화", "수", "목", "금", "토"][day];
-            errors.push(`${dayLabel}요일: ${blockError.message || "추가 실패"}`);
+            const errorMessage = blockError instanceof Error ? blockError.message : "추가 실패";
+            errors.push(`${dayLabel}요일: ${errorMessage}`);
           }
         }
 
@@ -79,8 +80,9 @@ export default function TemplateBlockForm({
         }
 
         return { error: null, success: true };
-      } catch (err: any) {
-        return { error: err.message || "블록 추가에 실패했습니다.", success: false };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "블록 추가에 실패했습니다.";
+        return { error: errorMessage, success: false };
       }
     },
     initialState

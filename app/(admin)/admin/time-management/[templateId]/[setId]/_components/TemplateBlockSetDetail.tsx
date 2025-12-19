@@ -50,8 +50,9 @@ export default function TemplateBlockSetDetail({
       } else {
         router.push("/admin/time-management");
       }
-    } catch (error: any) {
-      toast.showError(error.message || "블록 세트 삭제에 실패했습니다.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "블록 세트 삭제에 실패했습니다.";
+      toast.showError(errorMessage);
       setIsDeleting(false);
     }
   };
@@ -68,8 +69,9 @@ export default function TemplateBlockSetDetail({
       await deleteTenantBlock(formData);
       toast.showSuccess("블록이 삭제되었습니다.");
       router.refresh();
-    } catch (error: any) {
-      toast.showError(error.message || "블록 삭제에 실패했습니다.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "블록 삭제에 실패했습니다.";
+      toast.showError(errorMessage);
     }
   };
 

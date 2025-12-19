@@ -73,9 +73,9 @@ export default function TemplateBlockSetManagement({
 
       setBlockSets(updatedSets);
       setError(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("블록 데이터 로드 실패:", error);
-      const errorMessage = error?.message || "블록 데이터를 불러오는 중 오류가 발생했습니다.";
+      const errorMessage = error instanceof Error ? error.message : "블록 데이터를 불러오는 중 오류가 발생했습니다.";
       setError(errorMessage);
     } finally {
       if (!skipLoadingState) {

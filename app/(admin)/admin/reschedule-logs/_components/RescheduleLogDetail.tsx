@@ -13,10 +13,29 @@ type RescheduleLogDetailProps = {
   logId: string;
 };
 
+type RescheduleLog = {
+  id: string;
+  adjusted_contents: unknown; // JSONB
+  plans_before_count: number;
+  plans_after_count: number;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  [key: string]: unknown;
+};
+
+type PlanHistory = {
+  id: string;
+  plan_id: string;
+  adjustment_type: string | null;
+  created_at: string;
+  [key: string]: unknown;
+};
+
 export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
   const [loading, setLoading] = useState(true);
-  const [log, setLog] = useState<any>(null);
-  const [histories, setHistories] = useState<any[]>([]);
+  const [log, setLog] = useState<RescheduleLog | null>(null);
+  const [histories, setHistories] = useState<PlanHistory[]>([]);
 
   useEffect(() => {
     loadDetail();
@@ -47,8 +66,8 @@ export function RescheduleLogDetail({ logId }: RescheduleLogDetailProps) {
         console.error("[RescheduleLogDetail] 히스토리 조회 실패:", historyError);
       }
 
-      setLog(logData);
-      setHistories(historyData || []);
+      setLog(logData as RescheduleLog);
+      setHistories((historyData || []) as PlanHistory[]);
     } catch (error) {
       console.error("[RescheduleLogDetail] 조회 실패:", error);
     } finally {

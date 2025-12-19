@@ -49,8 +49,9 @@ export function AttendanceSMSSettingsForm() {
             result.data.attendance_sms_show_failure_to_user ?? false,
         });
       }
-    } catch (err: any) {
-      setError(err.message || "SMS 설정을 불러올 수 없습니다.");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "SMS 설정을 불러올 수 없습니다.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ export function AttendanceSMSSettingsForm() {
         console.error('[AttendanceSMSSettingsForm] 저장 실패:', errorMessage);
         setError(errorMessage);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 네트워크 에러 또는 예상치 못한 에러 처리
       console.error('[AttendanceSMSSettingsForm] 예외 발생:', err);
       
@@ -106,15 +107,14 @@ export function AttendanceSMSSettingsForm() {
       
       if (err instanceof Error) {
         errorMessage = err.message;
+        // 네트워크 에러인지 확인
+        if (err.name === 'NetworkError' || 'code' in err && (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT')) {
+          errorMessage = "네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해주세요.";
+        }
       } else if (typeof err === 'string') {
         errorMessage = err;
-      } else if (err?.message) {
+      } else if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string') {
         errorMessage = err.message;
-      }
-      
-      // 네트워크 에러인지 확인
-      if (err?.name === 'NetworkError' || err?.code === 'ECONNREFUSED' || err?.code === 'ETIMEDOUT') {
-        errorMessage = "네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해주세요.";
       }
       
       setError(errorMessage);
