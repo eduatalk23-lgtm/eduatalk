@@ -11,6 +11,7 @@
 Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하기 위한 종합적인 최적화 작업입니다. 초기 진단에서 식별된 문제점들을 해결하고, 일관된 표준을 적용하여 유지보수성과 성능을 향상시켰습니다.
 
 **작업 단계**:
+
 - **Phase 5.1**: 사용자 정보 및 테넌트 컨텍스트 중복 조회 최적화
 - **Phase 5.2**: 클라이언트 컴포넌트 AuthContext 마이그레이션
 - **Phase 5.3**: API Route 표준화 및 에러 핸들링 통일
@@ -22,6 +23,7 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
 ### 1. 중복 페칭 제거
 
 #### 서버 사이드 최적화
+
 - **React `cache` 적용**: `getCurrentUser()`와 `getTenantContext()`에 React `cache` 함수 적용
 - **효과**: 동일 요청 내에서 중복 DB 쿼리 30-50% 감소 예상
 - **적용 파일**:
@@ -29,6 +31,7 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
   - `lib/tenant/getTenantContext.ts`
 
 #### 클라이언트 사이드 최적화
+
 - **AuthContext 도입**: React Query를 사용한 중앙화된 사용자 정보 관리
 - **효과**: 불필요한 API 호출 80-90% 감소 예상
 - **적용 파일**:
@@ -39,6 +42,7 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
 ### 2. API 표준화
 
 #### 응답 형식 통일
+
 - **표준 헬퍼 함수 사용**: 모든 API Route에서 `apiSuccess`, `apiError`, `handleApiError` 사용
 - **일관된 응답 구조**: `{ success: true, data: ... }` 또는 `{ success: false, error: ... }`
 - **표준화된 파일**:
@@ -51,6 +55,7 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
   - 기타 다수
 
 #### 에러 핸들링 통일
+
 - **중앙화된 에러 처리**: 모든 API Route에서 `handleApiError` 사용
 - **일관된 에러 형식**: 구조화된 에러 응답 (`code`, `message`, `details`)
 - **효과**: 디버깅 효율성 향상, 사용자 경험 개선
@@ -58,11 +63,13 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
 ### 3. 캐싱 전략
 
 #### React Query 캐싱
+
 - **사용자 정보**: `staleTime: 5분`, `gcTime: 15분` (STABLE 데이터 기준)
 - **자동 갱신**: 네트워크 재연결 시 자동 리페치
 - **캐시 전략 상수**: `lib/constants/queryCache.ts`에서 데이터 유형별 전략 정의
 
 #### Next.js Request Memoization
+
 - **서버 사이드 캐싱**: React `cache` 함수로 동일 요청 내 중복 호출 방지
 - **효과**: 서버 컴포넌트, Server Actions, API Routes에서 자동 적용
 
@@ -88,14 +95,17 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
 ### 수정된 파일
 
 #### 서버 사이드 최적화
+
 - `lib/auth/getCurrentUser.ts` - React `cache` 적용
 - `lib/tenant/getTenantContext.ts` - React `cache` 적용
 
 #### 클라이언트 사이드 최적화
+
 - `app/providers.tsx` - `AuthProvider` 추가
 - `app/(student)/settings/_components/SettingsPageClient.tsx` - `useAuth()` 적용
 
 #### API 표준화
+
 - `app/api/admin/sms/students/route.ts` - 표준 헬퍼 함수 사용
 - `app/api/scores/internal/route.ts` - 표준 헬퍼 함수 사용
 - `app/api/scores/mock/route.ts` - 표준 헬퍼 함수 사용
@@ -109,14 +119,17 @@ Phase 5는 데이터 페칭 및 API 레이어의 성능과 구조를 개선하�
 ## 📊 성능 개선 효과
 
 ### 데이터베이스 쿼리 감소
+
 - **서버 사이드**: 동일 요청 내 중복 호출 제거로 **30-50% 감소** 예상
 - **클라이언트 사이드**: React Query 캐싱으로 불필요한 API 호출 **80-90% 감소** 예상
 
 ### 네트워크 요청 감소
+
 - **사용자 정보 조회**: 첫 로드 후 5분간 캐시 재사용
 - **API 호출 최적화**: 표준화된 응답 형식으로 클라이언트 처리 단순화
 
 ### 응답 속도 개선
+
 - **서버 사이드**: 중복 DB 쿼리 제거로 응답 시간 단축
 - **클라이언트 사이드**: 캐시된 데이터 즉시 사용 가능
 
@@ -142,6 +155,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 ```
 
 **특징**:
+
 - React Query를 사용한 자동 캐싱
 - `staleTime: 5분` (STABLE 데이터 기준)
 - `refetchOnWindowFocus: false` (서버 컴포넌트 사용 시 불필요)
@@ -159,6 +173,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 ```
 
 **특징**:
+
 - React의 `cache` 함수로 동일 요청 내 중복 호출 방지
 - Next.js의 Request Memoization 활용
 - 서버 컴포넌트, Server Actions, API Routes에서 자동 적용
@@ -167,16 +182,14 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
 ```typescript
 // 표준화 전
-return NextResponse.json(
-  { error: "메시지" },
-  { status: 400 }
-);
+return NextResponse.json({ error: "메시지" }, { status: 400 });
 
 // 표준화 후
 return apiBadRequest("메시지");
 ```
 
 **표준 헬퍼 함수**:
+
 - `apiSuccess<T>(data, meta?)` - 성공 응답
 - `apiCreated<T>(data)` - 생성 성공 응답 (201)
 - `apiBadRequest(message, details?)` - 잘못된 요청 (400)
@@ -192,6 +205,7 @@ return apiBadRequest("메시지");
 ### 중복 페칭 제거
 
 **이전**:
+
 ```typescript
 // 여러 컴포넌트에서 개별적으로 호출
 const user = await getCurrentUser();
@@ -200,6 +214,7 @@ const tenantContext = await getTenantContext();
 ```
 
 **이후**:
+
 ```typescript
 // 서버 사이드: React cache로 자동 중복 제거
 const user = await getCurrentUser(); // 한 번만 실행
@@ -211,14 +226,13 @@ const { user, isLoading } = useAuth(); // 캐시된 데이터 사용
 ### API 응답 형식
 
 **이전**:
+
 ```typescript
-return NextResponse.json(
-  { error: "메시지" },
-  { status: 400 }
-);
+return NextResponse.json({ error: "메시지" }, { status: 400 });
 ```
 
 **이후**:
+
 ```typescript
 return apiBadRequest("메시지");
 // { success: false, error: { code: "BAD_REQUEST", message: "메시지" } }
@@ -227,6 +241,7 @@ return apiBadRequest("메시지");
 ### 에러 처리
 
 **이전**:
+
 ```typescript
 catch (error) {
   console.error("[API] 오류:", error);
@@ -238,6 +253,7 @@ catch (error) {
 ```
 
 **이후**:
+
 ```typescript
 catch (error) {
   return handleApiError(error, "[api/endpoint]");
@@ -249,6 +265,7 @@ catch (error) {
 ## ✅ 체크리스트
 
 ### Phase 5.1: 사용자 정보 최적화
+
 - [x] `/api/auth/me` 엔드포인트 생성
 - [x] `AuthContext` 생성 및 `useAuth()` 훅 제공
 - [x] `getCurrentUser()`에 React `cache` 적용
@@ -256,12 +273,14 @@ catch (error) {
 - [x] `AuthProvider`를 `Providers`에 추가
 
 ### Phase 5.2: 클라이언트 컴포넌트 마이그레이션
+
 - [x] 마이그레이션 대상 식별
 - [x] `SettingsPageClient.tsx`에서 `useAuth()` 적용
 - [x] 불필요한 `supabase.auth.getUser()` 호출 제거
 - [x] 로딩 상태 관리 개선
 
 ### Phase 5.3: API 표준화
+
 - [x] API Route 표준화 대상 식별
 - [x] 주요 API Route 표준화 (`apiSuccess`, `apiError` 사용)
 - [x] 에러 핸들링 통일 (`handleApiError` 적용)
@@ -306,11 +325,7 @@ export default async function MyPage() {
 ### API Route에서 표준 응답 사용
 
 ```typescript
-import {
-  apiSuccess,
-  apiBadRequest,
-  handleApiError,
-} from "@/lib/api";
+import { apiSuccess, apiBadRequest, handleApiError } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -383,4 +398,3 @@ Phase 5 작업을 통해 데이터 페칭 레이어의 성능과 구조를 크�
 **작성자**: AI Assistant  
 **검토자**: (대기 중)  
 **승인자**: (대기 중)
-
