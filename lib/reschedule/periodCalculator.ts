@@ -294,6 +294,15 @@ export function calculateAdjustedPeriodUnified(
 ): AdjustedPeriod {
   if (placementDateRange?.from && placementDateRange?.to) {
     // 수동으로 선택한 배치 범위 사용
+    // 유효성 검증 수행
+    const validation = validateReschedulePeriod(placementDateRange, today, groupEnd);
+    if (!validation.valid) {
+      throw new PeriodCalculationError(
+        validation.error || '유효하지 않은 날짜 범위입니다.',
+        validation.errorCode || 'INVALID_DATE_RANGE'
+      );
+    }
+    
     return {
       start: placementDateRange.from,
       end: placementDateRange.to,

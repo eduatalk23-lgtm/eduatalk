@@ -63,3 +63,60 @@ export async function getParticipantLearningStatsForCamp(
   );
 }
 
+/**
+ * 참여자별 일별 학습 데이터 조회
+ */
+export async function getParticipantDailyLearningDataForCamp(
+  templateId: string,
+  studentId: string
+): Promise<Array<{
+  date: string;
+  study_minutes: number;
+  completed_plans: number;
+  total_plans: number;
+  completion_rate: number;
+}>> {
+  const template = await getCampTemplate(templateId);
+  
+  if (!template || !template.camp_start_date || !template.camp_end_date) {
+    return [];
+  }
+
+  const { getParticipantDailyLearningData } = await import("@/lib/data/campLearningStats");
+  return getParticipantDailyLearningData(
+    templateId,
+    studentId,
+    template.camp_start_date,
+    template.camp_end_date
+  );
+}
+
+/**
+ * 참여자별 과목별 상세 통계 조회
+ */
+export async function getParticipantSubjectStatsForCamp(
+  templateId: string,
+  studentId: string
+): Promise<Array<{
+  subject: string;
+  study_minutes: number;
+  completed_plans: number;
+  total_plans: number;
+  completion_rate: number;
+  average_study_minutes_per_plan: number;
+}>> {
+  const template = await getCampTemplate(templateId);
+  
+  if (!template || !template.camp_start_date || !template.camp_end_date) {
+    return [];
+  }
+
+  const { getParticipantSubjectStats } = await import("@/lib/data/campLearningStats");
+  return getParticipantSubjectStats(
+    templateId,
+    studentId,
+    template.camp_start_date,
+    template.camp_end_date
+  );
+}
+

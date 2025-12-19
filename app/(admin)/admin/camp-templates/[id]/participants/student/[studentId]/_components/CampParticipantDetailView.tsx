@@ -83,6 +83,8 @@ export function CampParticipantDetailView({
             templateId={template.id}
             studentId={studentId}
             learningStats={participantStats.learning_stats}
+            dailyLearningData={participantStats.daily_learning_data}
+            subjectStats={participantStats.subject_stats}
           />
         )}
       </div>

@@ -14,6 +14,7 @@ import {
   getAdjustedPeriod,
   getAdjustedPeriodWithDetails,
   validateReschedulePeriod,
+  calculateAdjustedPeriodUnified,
   PeriodCalculationError,
 } from './periodCalculator';
 
@@ -182,5 +183,126 @@ describe('validateReschedulePeriod', () => {
     expect(result.valid).toBe(false);
     expect(result.error).toBeDefined();
     expect(result.errorCode).toBe('PAST_DATE_RANGE');
+  });
+});
+
+describe('calculateAdjustedPeriodUnified', () => {
+  const today = '2025-12-10';
+  const groupEnd = '2025-12-31';
+
+  describe('placementDateRange 우선 사용', () => {
+    it('placementDateRange가 있으면 우선 사용', () => {
+      const placementRange = { from: '2025-12-15', to: '2025-12-20' };
+      const rescheduleRange = { from: '2025-12-12', to: '2025-12-25' };
+      
+      const result = calculateAdjustedPeriodUnified(
+        placementRange,
+        rescheduleRange,
+        today,
+        groupEnd
+      );
+      
+      expect(result.start).toBe('2025-12-15');
+      expect(result.end).toBe('2025-12-20');
+    });
+
+    it('placementDateRange만 있고 rescheduleDateRange가 없어도 사용', () => {
+      const placementRange = { from: '2025-12-15', to: '2025-12-20' };
+      
+      const result = calculateAdjustedPeriodUnified(
+        placementRange,
+        null,
+        today,
+        groupEnd
+      );
+      
+      expect(result.start).toBe('2025-12-15');
+      expect(result.end).toBe('2025-12-20');
+    });
+  });
+
+  describe('rescheduleDateRange 기반 자동 계산', () => {
+    it('placementDateRange가 없으면 rescheduleDateRange 기반 계산', () => {
+      const rescheduleRange = { from: '2025-12-15', to: '2025-12-20' };
+      
+      const result = calculateAdjustedPeriodUnified(
+        null,
+        rescheduleRange,
+        today,
+        groupEnd
+      );
+      
+      expect(result.start).toBe('2025-12-15');
+      expect(result.end).toBe('2025-12-20');
+    });
+
+    it('rescheduleDateRange 시작일이 오늘 이전이면 조정', () => {
+      const rescheduleRange = { from: '2025-12-05', to: '2025-12-20' };
+      
+      const result = calculateAdjustedPeriodUnified(
+        null,
+        rescheduleRange,
+        today,
+        groupEnd
+      );
+      
+      expect(result.start).toBe('2025-12-11'); // 오늘 다음날
+      expect(result.end).toBe('2025-12-20');
+    });
+
+    it('includeToday=true면 오늘부터 시작', () => {
+      const rescheduleRange = { from: '2025-12-05', to: '2025-12-20' };
+      
+      const result = calculateAdjustedPeriodUnified(
+        null,
+        rescheduleRange,
+        today,
+        groupEnd,
+        true
+      );
+      
+      expect(result.start).toBe('2025-12-10'); // 오늘
+      expect(result.end).toBe('2025-12-20');
+    });
+
+    it('rescheduleDateRange가 없으면 오늘 다음날부터 그룹 종료일까지', () => {
+      const result = calculateAdjustedPeriodUnified(
+        null,
+        null,
+        today,
+        groupEnd
+      );
+      
+      expect(result.start).toBe('2025-12-11');
+      expect(result.end).toBe('2025-12-31');
+    });
+  });
+
+  describe('에러 처리', () => {
+    it('유효하지 않은 placementDateRange는 에러', () => {
+      const placementRange = { from: '2025-12-20', to: '2025-12-15' }; // 종료일이 시작일 이전
+      
+      expect(() => {
+        calculateAdjustedPeriodUnified(
+          placementRange,
+          null,
+          today,
+          groupEnd
+        );
+      }).toThrow(PeriodCalculationError);
+    });
+
+    it('과거 날짜 범위는 에러', () => {
+      const rescheduleRange = { from: '2025-12-01', to: '2025-12-09' };
+      
+      expect(() => {
+        calculateAdjustedPeriodUnified(
+          null,
+          rescheduleRange,
+          today,
+          groupEnd
+        );
+      }).toThrow(PeriodCalculationError);
+    });
   });
 });

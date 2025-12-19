@@ -316,3 +316,257 @@ export async function getParticipantLearningStats(
   };
 }
 
+/**
+ * 참여자별 일별 학습 데이터 조회
+ */
+export async function getParticipantDailyLearningData(
+  templateId: string,
+  studentId: string,
+  startDate: string,
+  endDate: string
+): Promise<Array<{
+  date: string;
+  study_minutes: number;
+  completed_plans: number;
+  total_plans: number;
+  completion_rate: number;
+}>> {
+  const supabase = await createSupabaseServerClient();
+
+  // 플랜 그룹 조회
+  const { data: planGroup, error: planGroupError } = await supabase
+    .from("plan_groups")
+    .select("id")
+    .eq("camp_template_id", templateId)
+    .eq("plan_type", "camp")
+    .eq("student_id", studentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (planGroupError || !planGroup) {
+    return [];
+  }
+
+  // 플랜 조회
+  const { data: plans, error: plansError } = await supabase
+    .from("student_plan")
+    .select("id, plan_date, completed_amount, status")
+    .eq("plan_group_id", planGroup.id)
+    .gte("plan_date", startDate)
+    .lte("plan_date", endDate)
+    .order("plan_date", { ascending: true });
+
+  if (plansError || !plans || plans.length === 0) {
+    return [];
+  }
+
+  const planIds = plans.map((p) => p.id);
+
+  // 학습 세션 조회
+  let studySessions: Array<{
+    plan_id: string;
+    duration_seconds: number | null;
+  }> = [];
+
+  if (planIds.length > 0) {
+    const { data: sessions, error: sessionsError } = await supabase
+      .from("student_study_sessions")
+      .select("plan_id, duration_seconds")
+      .in("plan_id", planIds);
+
+    if (!sessionsError && sessions) {
+      studySessions = sessions as Array<{
+        plan_id: string;
+        duration_seconds: number | null;
+      }>;
+    }
+  }
+
+  // 플랜별 학습 시간 계산
+  const planStudyTimeMap = new Map<string, number>();
+  studySessions.forEach((session) => {
+    if (session.plan_id && session.duration_seconds) {
+      const current = planStudyTimeMap.get(session.plan_id) || 0;
+      planStudyTimeMap.set(
+        session.plan_id,
+        current + Math.floor(session.duration_seconds / 60)
+      );
+    }
+  });
+
+  // 날짜별로 그룹화
+  const dailyDataMap = new Map<string, {
+    study_minutes: number;
+    completed_plans: number;
+    total_plans: number;
+  }>();
+
+  plans.forEach((plan) => {
+    const date = plan.plan_date;
+    const existing = dailyDataMap.get(date) || {
+      study_minutes: 0,
+      completed_plans: 0,
+      total_plans: 0,
+    };
+
+    existing.total_plans += 1;
+    existing.study_minutes += planStudyTimeMap.get(plan.id) || 0;
+
+    // 완료된 플랜 확인
+    if (
+      plan.status === "completed" ||
+      (plan.completed_amount !== null && plan.completed_amount > 0)
+    ) {
+      existing.completed_plans += 1;
+    }
+
+    dailyDataMap.set(date, existing);
+  });
+
+  // 날짜 순서로 정렬하여 배열로 변환
+  const dailyData = Array.from(dailyDataMap.entries())
+    .map(([date, data]) => ({
+      date,
+      study_minutes: data.study_minutes,
+      completed_plans: data.completed_plans,
+      total_plans: data.total_plans,
+      completion_rate:
+        data.total_plans > 0
+          ? Math.round((data.completed_plans / data.total_plans) * 100)
+          : 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return dailyData;
+}
+
+/**
+ * 참여자별 과목별 상세 통계 조회
+ */
+export async function getParticipantSubjectStats(
+  templateId: string,
+  studentId: string,
+  startDate: string,
+  endDate: string
+): Promise<Array<{
+  subject: string;
+  study_minutes: number;
+  completed_plans: number;
+  total_plans: number;
+  completion_rate: number;
+  average_study_minutes_per_plan: number;
+}>> {
+  const supabase = await createSupabaseServerClient();
+
+  // 플랜 그룹 조회
+  const { data: planGroup, error: planGroupError } = await supabase
+    .from("plan_groups")
+    .select("id")
+    .eq("camp_template_id", templateId)
+    .eq("plan_type", "camp")
+    .eq("student_id", studentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (planGroupError || !planGroup) {
+    return [];
+  }
+
+  // 플랜 조회
+  const { data: plans, error: plansError } = await supabase
+    .from("student_plan")
+    .select("id, plan_date, completed_amount, subject, status")
+    .eq("plan_group_id", planGroup.id)
+    .gte("plan_date", startDate)
+    .lte("plan_date", endDate)
+    .not("subject", "is", null);
+
+  if (plansError || !plans || plans.length === 0) {
+    return [];
+  }
+
+  const planIds = plans.map((p) => p.id);
+
+  // 학습 세션 조회
+  let studySessions: Array<{
+    plan_id: string;
+    duration_seconds: number | null;
+  }> = [];
+
+  if (planIds.length > 0) {
+    const { data: sessions, error: sessionsError } = await supabase
+      .from("student_study_sessions")
+      .select("plan_id, duration_seconds")
+      .in("plan_id", planIds);
+
+    if (!sessionsError && sessions) {
+      studySessions = sessions as Array<{
+        plan_id: string;
+        duration_seconds: number | null;
+      }>;
+    }
+  }
+
+  // 플랜별 학습 시간 계산
+  const planStudyTimeMap = new Map<string, number>();
+  studySessions.forEach((session) => {
+    if (session.plan_id && session.duration_seconds) {
+      const current = planStudyTimeMap.get(session.plan_id) || 0;
+      planStudyTimeMap.set(
+        session.plan_id,
+        current + Math.floor(session.duration_seconds / 60)
+      );
+    }
+  });
+
+  // 과목별로 그룹화
+  const subjectDataMap = new Map<string, {
+    study_minutes: number;
+    completed_plans: number;
+    total_plans: number;
+  }>();
+
+  plans.forEach((plan) => {
+    if (!plan.subject) return;
+
+    const existing = subjectDataMap.get(plan.subject) || {
+      study_minutes: 0,
+      completed_plans: 0,
+      total_plans: 0,
+    };
+
+    existing.total_plans += 1;
+    existing.study_minutes += planStudyTimeMap.get(plan.id) || 0;
+
+    // 완료된 플랜 확인
+    if (
+      plan.status === "completed" ||
+      (plan.completed_amount !== null && plan.completed_amount > 0)
+    ) {
+      existing.completed_plans += 1;
+    }
+
+    subjectDataMap.set(plan.subject, existing);
+  });
+
+  // 배열로 변환 및 정렬
+  const subjectStats = Array.from(subjectDataMap.entries())
+    .map(([subject, data]) => ({
+      subject,
+      study_minutes: data.study_minutes,
+      completed_plans: data.completed_plans,
+      total_plans: data.total_plans,
+      completion_rate:
+        data.total_plans > 0
+          ? Math.round((data.completed_plans / data.total_plans) * 100)
+          : 0,
+      average_study_minutes_per_plan:
+        data.total_plans > 0
+          ? Math.round(data.study_minutes / data.total_plans)
+          : 0,
+    }))
+    .sort((a, b) => b.study_minutes - a.study_minutes);
+
+  return subjectStats;
+}
+
