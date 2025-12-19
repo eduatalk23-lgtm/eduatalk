@@ -188,11 +188,13 @@ console.error("학생 목록 조회 실패 - 원본 에러 객체:", studentsErr
 ## 4차 수정 (근본 원인 해결)
 
 ### 문제
+
 - 에러 메시지: "column students.phone does not exist"
 - 에러 코드: "42703" (컬럼이 존재하지 않음)
 - `students` 테이블에 `phone`, `mother_phone`, `father_phone` 컬럼이 없음
 
 ### 원인 분석
+
 - `students` 테이블에는 전화번호 컬럼이 없음
 - 전화번호는 `student_profiles` 테이블에 존재
 - 쿼리에서 존재하지 않는 컬럼을 조회하려고 시도
@@ -238,6 +240,7 @@ const studentsWithPhones = availableStudents.map((student) => {
 ```
 
 ### 데이터베이스 스키마 확인
+
 - `students` 테이블: 전화번호 컬럼 없음
 - `student_profiles` 테이블: `phone`, `mother_phone`, `father_phone` 컬럼 존재
 

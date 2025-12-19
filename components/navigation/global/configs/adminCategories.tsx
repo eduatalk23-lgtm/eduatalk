@@ -57,24 +57,6 @@ export const adminCategories: NavigationCategory[] = [
         icon: <Users className="w-4 h-4" />,
       },
       {
-        id: "admin-students-attendance",
-        label: "출석 관리",
-        href: "/admin/attendance",
-        icon: <CheckCircle className="w-4 h-4" />,
-      },
-      {
-        id: "admin-attendance-qr-code",
-        label: "QR 코드 생성",
-        href: "/admin/attendance/qr-code",
-        icon: <Smartphone className="w-4 h-4" />,
-      },
-      {
-        id: "admin-attendance-settings",
-        label: "출석 위치 설정",
-        href: "/admin/attendance/settings",
-        icon: <MapPin className="w-4 h-4" />,
-      },
-      {
         id: "admin-parent-links",
         label: "학부모 연결 관리",
         href: "/admin/parent-links",
@@ -91,6 +73,43 @@ export const adminCategories: NavigationCategory[] = [
         label: "구분 항목 관리",
         href: "/admin/students/divisions/items",
         icon: <Settings className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
+    id: "admin-attendance",
+    label: "출석 관리",
+    icon: <CheckCircle className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-attendance-records",
+        label: "출석 기록",
+        href: "/admin/attendance",
+        icon: <ClipboardList className="w-4 h-4" />,
+      },
+      {
+        id: "admin-attendance-statistics",
+        label: "출석 통계",
+        href: "/admin/attendance/statistics",
+        icon: <BarChart3 className="w-4 h-4" />,
+      },
+      {
+        id: "admin-attendance-qr-code",
+        label: "QR 코드 관리",
+        href: "/admin/attendance/qr-code",
+        icon: <Smartphone className="w-4 h-4" />,
+      },
+      {
+        id: "admin-attendance-settings",
+        label: "출석 설정",
+        href: "/admin/attendance/settings",
+        icon: <Settings className="w-4 h-4" />,
+      },
+      {
+        id: "admin-attendance-sms-logs",
+        label: "SMS 로그",
+        href: "/admin/attendance/sms-logs",
+        icon: <MessageSquare className="w-4 h-4" />,
       },
     ],
   },
