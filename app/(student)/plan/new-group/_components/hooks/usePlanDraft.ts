@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { WizardData } from "../PlanGroupWizard";
+import type { WizardData } from "../PlanGroupWizard";
 import {
   toPlanGroupError,
   PlanGroupError,
@@ -19,6 +19,21 @@ import {
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
 
+/**
+ * 초기 데이터 타입 (템플릿 또는 기존 그룹에서 로드된 데이터)
+ */
+type InitialData = Partial<WizardData> & {
+  templateId?: string;
+  student_id?: string;
+  studentId?: string;
+  groupId?: string;
+  templateProgramType?: string;
+  templateStatus?: string;
+  _startStep?: number;
+  _validationErrors?: string[];
+  contents?: WizardData["student_contents"];
+};
+
 type UsePlanDraftProps = {
   wizardData: WizardData;
   draftGroupId: string | null;
@@ -26,7 +41,7 @@ type UsePlanDraftProps = {
   setValidationErrors: (errors: string[]) => void;
   isCampMode: boolean;
   campInvitationId?: string;
-  initialData?: any;
+  initialData?: InitialData;
 };
 
 type UsePlanDraftReturn = {

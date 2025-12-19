@@ -46,7 +46,7 @@ export function SubjectGradeHistoryChart({
 
   // 차트 데이터 생성
   const chartData = sortedDates.map((date) => {
-    const point: Record<string, any> = { date: date.slice(5) }; // MM-DD 형식
+    const point: Record<string, string | number | null> = { date: date.slice(5) }; // MM-DD 형식
     data.forEach((subject) => {
       const key = `${subject.course}:${subject.course_detail}`;
       if (selectedSubjects.includes(key)) {
@@ -109,7 +109,7 @@ export function SubjectGradeHistoryChart({
             label={{ value: "등급", angle: -90, position: "insideLeft" }}
           />
           <Tooltip
-            formatter={(value: any) => {
+            formatter={(value: number | string | null) => {
               if (value === null || value === undefined) return "데이터 없음";
               return `${value}등급`;
             }}

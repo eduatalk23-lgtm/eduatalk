@@ -797,7 +797,7 @@ function PlanGroupWizardInner({
             data={wizardData}
             onUpdate={updateWizardData}
             blockSets={blockSets}
-            onBlockSetsLoaded={(latestBlockSets: any) => {
+            onBlockSetsLoaded={(latestBlockSets) => {
               setBlockSets(latestBlockSets);
             }}
             isTemplateMode={isTemplateMode}
@@ -844,17 +844,17 @@ function PlanGroupWizardInner({
         {currentStep === 4 && (
           <Step3ContentSelection
             data={wizardData}
-            onUpdate={(updates: any) => {
+            onUpdate={(updates) => {
               // custom 타입 필터링
               const filteredUpdates: Partial<WizardData> = { ...updates };
               if (updates.student_contents) {
                 filteredUpdates.student_contents = updates.student_contents.filter(
-                  (c: any) => c.content_type === "book" || c.content_type === "lecture"
+                  (c) => c.content_type === "book" || c.content_type === "lecture"
                 ) as WizardData["student_contents"];
               }
               if (updates.recommended_contents) {
                 filteredUpdates.recommended_contents = updates.recommended_contents.filter(
-                  (c: any) => c.content_type === "book" || c.content_type === "lecture"
+                  (c) => c.content_type === "book" || c.content_type === "lecture"
                 ) as WizardData["recommended_contents"];
               }
               updateWizardData(filteredUpdates);

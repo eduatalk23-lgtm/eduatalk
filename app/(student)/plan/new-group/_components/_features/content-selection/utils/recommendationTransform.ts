@@ -1,6 +1,32 @@
 import type { RecommendedContent } from "@/lib/types/content-selection";
 
 /**
+ * API 응답 타입 (추천 콘텐츠)
+ */
+type RecommendationApiResponse = {
+  id: string;
+  contentType?: "book" | "lecture";
+  content_type?: "book" | "lecture";
+  title: string;
+  subject_category?: string | null;
+  subject?: string | null;
+  semester?: string | null;
+  revision?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
+  difficulty_level?: string | null;
+  reason?: string;
+  priority?: number;
+  scoreDetails?: {
+    schoolGrade?: number | null;
+    schoolAverageGrade?: number | null;
+    mockPercentile?: number | null;
+    mockGrade?: number | null;
+    riskScore?: number;
+  };
+};
+
+/**
  * API 응답을 RecommendedContent 타입으로 변환
  *
  * contentType 자동 추정:
@@ -8,7 +34,7 @@ import type { RecommendedContent } from "@/lib/types/content-selection";
  * - platform이 있으면 lecture
  * - 둘 다 없으면 book (기본값)
  */
-export function transformRecommendation(r: any): RecommendedContent {
+export function transformRecommendation(r: RecommendationApiResponse): RecommendedContent {
   // contentType 결정: camelCase 우선, 없으면 snake_case, 없으면 추정
   let contentType = r.contentType || r.content_type;
 
@@ -69,7 +95,7 @@ export function transformRecommendation(r: any): RecommendedContent {
  * 추천 콘텐츠 배열 변환
  */
 export function transformRecommendations(
-  rawRecommendations: any[]
+  rawRecommendations: RecommendationApiResponse[]
 ): RecommendedContent[] {
   return rawRecommendations.map(transformRecommendation);
 }

@@ -25,6 +25,26 @@ type MockRow = {
 };
 
 /**
+ * Supabase Relational Query 결과 타입
+ * student_mock_scores 테이블과 subjects, subject_groups 조인 결과
+ */
+type MockScoreWithRelations = {
+  percentile: number | null;
+  standard_score: number | null;
+  grade_score: number | null;
+  subject_id: string | null;
+  subject: {
+    id: string;
+    name: string;
+    subject_group_id: string | null;
+    subject_group: {
+      id: string;
+      name: string;
+    } | null;
+  } | null;
+};
+
+/**
  * 모의고사 분석 결과 타입
  */
 export type MockAnalysis = {
@@ -213,8 +233,8 @@ export async function getMockAnalysis(
   }
 
   // 데이터 변환 (조인 결과에서 직접 subject_group_name 추출)
-  const rows: MockRow[] = mockScores
-    .map((score: any) => {
+  const rows: MockRow[] = (mockScores as MockScoreWithRelations[])
+    .map((score) => {
       // Relational Query 결과에서 subject_group_name 추출
       const subjectGroupName =
         score.subject?.subject_group?.name || "";

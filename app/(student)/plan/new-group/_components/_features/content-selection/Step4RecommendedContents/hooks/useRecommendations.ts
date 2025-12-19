@@ -12,6 +12,53 @@ import {
 } from "@/lib/errors/planGroupErrors";
 import { RecommendedContent, UseRecommendationsReturn } from "../types";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
+import type { RecommendedContent as RecommendedContentType } from "@/lib/types/content-selection";
+
+/**
+ * API 응답 타입 (추천 콘텐츠)
+ */
+type RecommendationApiResponse = {
+  id: string;
+  contentType?: "book" | "lecture";
+  content_type?: "book" | "lecture";
+  title: string;
+  subject_category?: string | null;
+  subject?: string | null;
+  semester?: string | null;
+  revision?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
+  difficulty_level?: string | null;
+  reason?: string;
+  priority?: number;
+  scoreDetails?: {
+    schoolGrade?: number | null;
+    schoolAverageGrade?: number | null;
+    mockPercentile?: number | null;
+    mockGrade?: number | null;
+    riskScore?: number;
+  };
+};
+
+/**
+ * API 응답 타입 (상세 정보)
+ */
+type ContentDetailsApiResponse = {
+  success: boolean;
+  data?: {
+    details?: Array<{
+      id: string;
+      page_number: number;
+      major_unit?: string | null;
+      minor_unit?: string | null;
+    }>;
+    episodes?: Array<{
+      id: string;
+      episode_number: number;
+      episode_title?: string | null;
+    }>;
+  };
+};
 
 type UseRecommendationsProps = {
   data: WizardData;
@@ -229,7 +276,7 @@ export function useRecommendations({
           let endRange = 100;
 
           // 상세 정보 조회
-          let detailsResult: any = null;
+          let detailsResult: ContentDetailsApiResponse | null = null;
           let hasDetails = false;
           
           const detailsResponse = await fetch(
@@ -237,7 +284,7 @@ export function useRecommendations({
           );
 
           if (detailsResponse.ok) {
-            detailsResult = await detailsResponse.json();
+            detailsResult = await detailsResponse.json() as ContentDetailsApiResponse;
 
             // API 응답 형식: { success: true, data: { details/episodes: [...] } }
             if (detailsResult.success && detailsResult.data) {
@@ -534,7 +581,7 @@ export function useRecommendations({
         // 각 추천 콘텐츠의 contentType 필드 확인
         console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 전):", {
           count: rawRecommendations.length,
-          items: rawRecommendations.map((r: any) => ({
+          items: rawRecommendations.map((r) => ({
             id: r.id,
             title: r.title,
             contentType: r.contentType,
@@ -546,7 +593,7 @@ export function useRecommendations({
         });
 
         // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
-        const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+        const recommendations: RecommendedContent[] = (rawRecommendations as RecommendationApiResponse[]).map((r) => {
           // contentType 검증 (서버에서 보장되지만 방어 코드)
           if (!r.contentType) {
             console.error("[useRecommendations] contentType이 없는 추천 콘텐츠:", {
@@ -813,7 +860,7 @@ export function useRecommendations({
       // 각 추천 콘텐츠의 contentType 필드 확인
       console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 전):", {
         count: rawRecommendations.length,
-        items: rawRecommendations.map((r: any) => ({
+        items: rawRecommendations.map((r) => ({
           id: r.id,
           title: r.title,
           contentType: r.contentType,
@@ -825,7 +872,7 @@ export function useRecommendations({
       });
 
       // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
-      const recommendations: RecommendedContent[] = rawRecommendations.map((r: any) => {
+      const recommendations: RecommendedContent[] = (rawRecommendations as RecommendationApiResponse[]).map((r) => {
         // contentType 검증 (서버에서 보장되지만 방어 코드)
         if (!r.contentType) {
           console.error("[useRecommendations] contentType이 없는 추천 콘텐츠 (fetchRecommendations):", {

@@ -250,9 +250,11 @@ async function getTemplateBlockSet(
  * );
  * ```
  */
+import type { SchedulerOptions } from "@/lib/types/plan/domain";
+
 export async function getTemplateBlockSetId(
   templateId: string,
-  schedulerOptions?: Record<string, any> | null,
+  schedulerOptions?: SchedulerOptions | null,
   tenantId?: string | null
 ): Promise<string | null> {
   const supabase = await createSupabaseServerClient();

@@ -842,7 +842,7 @@ function generate1730TimetablePlans(
   blocks: BlockInfo[],
   academySchedules: AcademySchedule[],
   exclusions: PlanExclusion[],
-  options?: any,
+  options?: SchedulerOptions,
   riskIndexMap?: Map<string, { riskScore: number }>,
   dateAvailableTimeRanges?: DateAvailableTimeRanges,
   dateTimeSlots?: DateTimeSlots,

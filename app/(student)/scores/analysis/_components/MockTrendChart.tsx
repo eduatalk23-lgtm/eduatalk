@@ -6,9 +6,10 @@ import {
   ChartLoadingSkeleton,
 } from "@/components/charts/LazyRecharts";
 import { getChartColor } from "@/lib/constants/colors";
+import type { MockScore } from "@/lib/data/studentScores";
 
 type MockTrendChartProps = {
-  scores: any[];
+  scores: Array<Pick<MockScore, "exam_date" | "exam_title" | "percentile">>;
 };
 
 export default function MockTrendChart({ scores }: MockTrendChartProps) {
@@ -91,7 +92,7 @@ export default function MockTrendChart({ scores }: MockTrendChartProps) {
             borderRadius: "8px",
             fontSize: "12px",
           }}
-          formatter={(value: any) => [`${value.toFixed(1)}%`, "평균 백분위"]}
+          formatter={(value: number | string) => [`${Number(value).toFixed(1)}%`, "평균 백분위"]}
         />
         <Legend wrapperStyle={{ fontSize: "12px" }} />
         <Line

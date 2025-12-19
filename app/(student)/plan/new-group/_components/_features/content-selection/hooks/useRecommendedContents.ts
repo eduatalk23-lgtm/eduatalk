@@ -12,22 +12,15 @@ import {
   prepareAutoAssignment,
   applyAutoAssignmentLimit,
 } from "../utils/autoAssignment";
+import type { WizardData } from "@/lib/schemas/planWizardSchema";
 
 interface UseRecommendedContentsProps {
   studentId?: string;
   data: {
-    student_contents: Array<{
-      content_id: string;
-      content_type: "book" | "lecture" | "custom";
-      [key: string]: any;
-    }>;
-    recommended_contents: Array<{
-      content_id: string;
-      content_type: "book" | "lecture" | "custom";
-      [key: string]: any;
-    }>;
+    student_contents: WizardData["student_contents"];
+    recommended_contents: WizardData["recommended_contents"];
   };
-  onUpdate: (updates: any) => void;
+  onUpdate: (updates: Partial<Pick<WizardData, "student_contents" | "recommended_contents">>) => void;
   recommendationSettings: RecommendationSettings;
 }
 
@@ -111,7 +104,7 @@ export function useRecommendedContents({
       // 학생 콘텐츠의 master_content_id 수집
       const studentMasterIds = new Set<string>();
       data.student_contents.forEach((c) => {
-        const masterContentId = (c as any).master_content_id;
+        const masterContentId = c.master_content_id;
         if (masterContentId) {
           studentMasterIds.add(masterContentId);
         }
