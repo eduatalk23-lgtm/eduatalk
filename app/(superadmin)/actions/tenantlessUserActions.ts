@@ -1,8 +1,8 @@
 "use server";
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { updateUserTenant, updateMultipleUserTenants } from "@/lib/utils/tenantAssignment";
 import { getAuthUserMetadata } from "@/lib/utils/authUserMetadata";
@@ -29,15 +29,22 @@ export async function getTenantlessUsers(
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
+    // Super admin은 RLS를 우회하기 위해 Admin 클라이언트 사용
     const adminClient = createSupabaseAdminClient();
+    
+    if (!adminClient) {
+      return {
+        success: false,
+        error: "Service Role Key가 설정되지 않았습니다. 관리자에게 문의하세요.",
+      };
+    }
 
     const tenantlessUsers: TenantlessUser[] = [];
     const userIdsToFetch: string[] = [];
 
-    // 1. 학생 조회 (tenant_id IS NULL)
+    // 1. 학생 조회 (tenant_id IS NULL) - Admin 클라이언트로 RLS 우회
     if (!userType || userType === "student" || userType === "all") {
-      const { data: students, error: studentsError } = await supabase
+      const { data: students, error: studentsError } = await adminClient
         .from("students")
         .select("id, created_at")
         .is("tenant_id", null);
@@ -59,9 +66,9 @@ export async function getTenantlessUsers(
       }
     }
 
-    // 2. 학부모 조회 (tenant_id IS NULL)
+    // 2. 학부모 조회 (tenant_id IS NULL) - Admin 클라이언트로 RLS 우회
     if (!userType || userType === "parent" || userType === "all") {
-      const { data: parents, error: parentsError } = await supabase
+      const { data: parents, error: parentsError } = await adminClient
         .from("parent_users")
         .select("id, created_at")
         .is("tenant_id", null);
@@ -83,9 +90,9 @@ export async function getTenantlessUsers(
       }
     }
 
-    // 3. 관리자 조회 (tenant_id IS NULL, superadmin 제외)
+    // 3. 관리자 조회 (tenant_id IS NULL, superadmin 제외) - Admin 클라이언트로 RLS 우회
     if (!userType || userType === "admin" || userType === "all") {
-      const { data: admins, error: adminsError } = await supabase
+      const { data: admins, error: adminsError } = await adminClient
         .from("admin_users")
         .select("id, role, created_at")
         .is("tenant_id", null)
@@ -152,10 +159,18 @@ export async function assignTenantToUser(
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
+    // Super admin은 RLS를 우회하기 위해 Admin 클라이언트 사용
+    const adminClient = createSupabaseAdminClient();
+    
+    if (!adminClient) {
+      return {
+        success: false,
+        error: "Service Role Key가 설정되지 않았습니다. 관리자에게 문의하세요.",
+      };
+    }
 
     // 공통 함수 사용
-    const result = await updateUserTenant(supabase, userId, tenantId, userType);
+    const result = await updateUserTenant(adminClient, userId, tenantId, userType);
 
     if (result.success) {
       revalidatePath("/superadmin/tenantless-users");
@@ -185,10 +200,18 @@ export async function assignTenantToMultipleUsers(
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
+    // Super admin은 RLS를 우회하기 위해 Admin 클라이언트 사용
+    const adminClient = createSupabaseAdminClient();
+    
+    if (!adminClient) {
+      return {
+        success: false,
+        error: "Service Role Key가 설정되지 않았습니다. 관리자에게 문의하세요.",
+      };
+    }
 
     // 공통 함수 사용
-    const result = await updateMultipleUserTenants(supabase, userIds, tenantId);
+    const result = await updateMultipleUserTenants(adminClient, userIds, tenantId);
 
     if (result.success) {
       revalidatePath("/superadmin/tenantless-users");
