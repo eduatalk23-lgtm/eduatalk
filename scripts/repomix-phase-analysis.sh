@@ -53,25 +53,25 @@ run_phase2() {
 
 run_phase3() {
     log_info "Phase 3: 학생 도메인 핵심 분석 시작... (가장 큰 파일, 시간이 걸릴 수 있습니다)"
-    npx repomix app/(student)/plan app/(student)/scores lib/plan lib/scores lib/metrics lib/goals -o repomix-phase3-student-core.xml
+    npx repomix "app/(student)/plan" "app/(student)/scores" lib/plan lib/scores lib/metrics lib/goals -o repomix-phase3-student-core.xml
     log_success "Phase 3 완료: repomix-phase3-student-core.xml"
 }
 
 run_phase4() {
     log_info "Phase 4: 학생 도메인 확장 분석 시작..."
-    npx repomix app/(student)/contents app/(student)/today app/(student)/dashboard app/(student)/analysis app/(student)/blocks app/(student)/camp lib/data lib/recommendations -o repomix-phase4-student-extended.xml
+    npx repomix "app/(student)/contents" "app/(student)/today" "app/(student)/dashboard" "app/(student)/analysis" "app/(student)/blocks" "app/(student)/camp" lib/data lib/recommendations -o repomix-phase4-student-extended.xml
     log_success "Phase 4 완료: repomix-phase4-student-extended.xml"
 }
 
 run_phase5() {
     log_info "Phase 5: 관리자 영역 분석 시작..."
-    npx repomix app/(admin) lib/data/admin -o repomix-phase5-admin.xml
+    npx repomix "app/(admin)" lib/data/admin -o repomix-phase5-admin.xml
     log_success "Phase 5 완료: repomix-phase5-admin.xml"
 }
 
 run_phase6() {
     log_info "Phase 6: 나머지 영역 및 공통 분석 시작..."
-    npx repomix app/(parent) app/(superadmin) app/login app/signup app/actions app/api components/navigation components/layout lib/domains lib/coaching lib/risk lib/reschedule -o repomix-phase6-others.xml
+    npx repomix "app/(parent)" "app/(superadmin)" app/login app/signup app/actions app/api components/navigation components/layout lib/domains lib/coaching lib/risk lib/reschedule -o repomix-phase6-others.xml
     log_success "Phase 6 완료: repomix-phase6-others.xml"
 }
 
