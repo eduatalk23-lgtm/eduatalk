@@ -47,12 +47,17 @@ export default async function CampPage() {
         .eq("plan_group_id", planGroup.id)
         .limit(1);
 
+      // isDraft 판단: pending 상태이고 플랜 그룹이 draft 상태일 때만 true
+      // 초대 삭제 후 재생성 시 이전 플랜 그룹이 남아있을 수 있으므로,
+      // 초대 상태가 pending이고 플랜 그룹이 draft 상태일 때만 작성 중으로 표시
+      const isDraft = invitation.status === "pending" && planGroup.status === "draft";
+
       return {
         ...invitation,
         planGroupId: planGroup.id,
         planGroupStatus: planGroup.status,
         hasPlans: (plans?.length || 0) > 0,
-        isDraft: planGroup.status === "draft",
+        isDraft,
         periodStart: planGroup.period_start || null,
         periodEnd: planGroup.period_end || null,
       };
