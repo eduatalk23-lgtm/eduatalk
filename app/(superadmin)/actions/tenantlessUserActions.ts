@@ -4,6 +4,8 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { updateUserTenant, updateMultipleUserTenants } from "@/lib/utils/tenantAssignment";
+import { getAuthUserMetadata } from "@/lib/utils/authUserMetadata";
 
 export type TenantlessUser = {
   id: string;
@@ -30,20 +32,8 @@ export async function getTenantlessUsers(
     const supabase = await createSupabaseServerClient();
     const adminClient = createSupabaseAdminClient();
 
-    // Supabase Auth에서 모든 사용자 이메일 조회
-    let allAuthUsers: Array<{ id: string; email?: string; user_metadata?: any }> = [];
-    if (adminClient) {
-      const { data: authData } = await adminClient.auth.admin.listUsers();
-      if (authData?.users) {
-        allAuthUsers = authData.users.map((u) => ({
-          id: u.id,
-          email: u.email,
-          user_metadata: u.user_metadata,
-        }));
-      }
-    }
-
     const tenantlessUsers: TenantlessUser[] = [];
+    const userIdsToFetch: string[] = [];
 
     // 1. 학생 조회 (tenant_id IS NULL)
     if (!userType || userType === "student" || userType === "all") {
@@ -56,11 +46,11 @@ export async function getTenantlessUsers(
         console.error("[tenantless-users] 학생 조회 실패", studentsError);
       } else if (students) {
         for (const student of students) {
-          const authUser = allAuthUsers.find((u) => u.id === student.id);
+          userIdsToFetch.push(student.id);
           tenantlessUsers.push({
             id: student.id,
-            email: authUser?.email || "이메일 없음",
-            name: authUser?.user_metadata?.display_name || null,
+            email: "이메일 없음", // 임시값, 나중에 업데이트
+            name: null,
             role: "student",
             userType: "student",
             created_at: student.created_at || new Date().toISOString(),
@@ -80,11 +70,11 @@ export async function getTenantlessUsers(
         console.error("[tenantless-users] 학부모 조회 실패", parentsError);
       } else if (parents) {
         for (const parent of parents) {
-          const authUser = allAuthUsers.find((u) => u.id === parent.id);
+          userIdsToFetch.push(parent.id);
           tenantlessUsers.push({
             id: parent.id,
-            email: authUser?.email || "이메일 없음",
-            name: authUser?.user_metadata?.display_name || null,
+            email: "이메일 없음", // 임시값, 나중에 업데이트
+            name: null,
             role: "parent",
             userType: "parent",
             created_at: parent.created_at || new Date().toISOString(),
@@ -105,11 +95,11 @@ export async function getTenantlessUsers(
         console.error("[tenantless-users] 관리자 조회 실패", adminsError);
       } else if (admins) {
         for (const admin of admins) {
-          const authUser = allAuthUsers.find((u) => u.id === admin.id);
+          userIdsToFetch.push(admin.id);
           tenantlessUsers.push({
             id: admin.id,
-            email: authUser?.email || "이메일 없음",
-            name: authUser?.user_metadata?.display_name || null,
+            email: "이메일 없음", // 임시값, 나중에 업데이트
+            name: null,
             role: admin.role === "admin" ? "admin" : "consultant",
             userType: "admin",
             created_at: admin.created_at || new Date().toISOString(),
@@ -117,6 +107,18 @@ export async function getTenantlessUsers(
         }
       }
     }
+
+    // 최적화된 Auth 사용자 메타데이터 조회
+    const userMetadata = await getAuthUserMetadata(adminClient, userIdsToFetch);
+
+    // 메타데이터로 사용자 정보 업데이트
+    tenantlessUsers.forEach((user) => {
+      const metadata = userMetadata.get(user.id);
+      if (metadata) {
+        user.email = metadata.email || "이메일 없음";
+        user.name = metadata.name;
+      }
+    });
 
     // 생성일 기준 정렬 (최신순)
     tenantlessUsers.sort((a, b) => {
@@ -152,50 +154,14 @@ export async function assignTenantToUser(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 테넌트 존재 확인
-    const { data: tenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("id", tenantId)
-      .maybeSingle();
+    // 공통 함수 사용
+    const result = await updateUserTenant(supabase, userId, tenantId, userType);
 
-    if (tenantError || !tenant) {
-      return { success: false, error: "해당 기관을 찾을 수 없습니다." };
+    if (result.success) {
+      revalidatePath("/superadmin/tenantless-users");
     }
 
-    // 사용자 타입에 따라 해당 테이블 업데이트
-    let updateError = null;
-
-    if (userType === "student") {
-      const { error } = await supabase
-        .from("students")
-        .update({ tenant_id: tenantId })
-        .eq("id", userId);
-      updateError = error;
-    } else if (userType === "parent") {
-      const { error } = await supabase
-        .from("parent_users")
-        .update({ tenant_id: tenantId })
-        .eq("id", userId);
-      updateError = error;
-    } else if (userType === "admin") {
-      const { error } = await supabase
-        .from("admin_users")
-        .update({ tenant_id: tenantId })
-        .eq("id", userId);
-      updateError = error;
-    }
-
-    if (updateError) {
-      console.error(`[tenantless-users] ${userType} 테넌트 할당 실패`, updateError);
-      return {
-        success: false,
-        error: updateError.message || "테넌트 할당에 실패했습니다.",
-      };
-    }
-
-    revalidatePath("/superadmin/tenantless-users");
-    return { success: true };
+    return result;
   } catch (error) {
     console.error("[tenantless-users] 테넌트 할당 중 오류", error);
     return {
@@ -221,56 +187,14 @@ export async function assignTenantToMultipleUsers(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 테넌트 존재 확인
-    const { data: tenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("id", tenantId)
-      .maybeSingle();
+    // 공통 함수 사용
+    const result = await updateMultipleUserTenants(supabase, userIds, tenantId);
 
-    if (tenantError || !tenant) {
-      return { success: false, error: "해당 기관을 찾을 수 없습니다." };
+    if (result.success) {
+      revalidatePath("/superadmin/tenantless-users");
     }
 
-    let assignedCount = 0;
-    const errors: string[] = [];
-
-    for (const { userId, userType } of userIds) {
-      let updateError = null;
-
-      if (userType === "student") {
-        const { error } = await supabase
-          .from("students")
-          .update({ tenant_id: tenantId })
-          .eq("id", userId);
-        updateError = error;
-      } else if (userType === "parent") {
-        const { error } = await supabase
-          .from("parent_users")
-          .update({ tenant_id: tenantId })
-          .eq("id", userId);
-        updateError = error;
-      } else if (userType === "admin") {
-        const { error } = await supabase
-          .from("admin_users")
-          .update({ tenant_id: tenantId })
-          .eq("id", userId);
-        updateError = error;
-      }
-
-      if (updateError) {
-        errors.push(`${userId}: ${updateError.message}`);
-      } else {
-        assignedCount++;
-      }
-    }
-
-    if (errors.length > 0) {
-      console.error("[tenantless-users] 일부 사용자 테넌트 할당 실패", errors);
-    }
-
-    revalidatePath("/superadmin/tenantless-users");
-    return { success: true, assignedCount };
+    return result;
   } catch (error) {
     console.error("[tenantless-users] 일괄 테넌트 할당 중 오류", error);
     return {
