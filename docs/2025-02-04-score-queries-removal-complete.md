@@ -59,20 +59,20 @@
 // 입력: MockScore (정규화된 FK 기반)
 {
   id: string;
-  subject_group_id: string;  // FK
-  subject_id: string;        // FK
-  exam_title: string;        // 예: "2024학년도 3월 평가원 모의고사"
-  exam_date: string;         // 예: "2024-03-15"
+  subject_group_id: string; // FK
+  subject_id: string; // FK
+  exam_title: string; // 예: "2024학년도 3월 평가원 모의고사"
+  exam_date: string; // 예: "2024-03-15"
   // ...
 }
 
 // 출력: MockScoreRow (레거시 텍스트 기반)
 {
   id: string;
-  subject_group: string;     // 매핑된 교과군 이름
-  subject_name: string;      // 매핑된 과목 이름
-  exam_type: string;         // "평가원", "교육청", "사설"
-  exam_round: string;        // "3월", "6월" 등
+  subject_group: string; // 매핑된 교과군 이름
+  subject_name: string; // 매핑된 과목 이름
+  exam_type: string; // "평가원", "교육청", "사설"
+  exam_round: string; // "3월", "6월" 등
   // ...
 }
 ```
@@ -156,4 +156,3 @@
 
 **작업 완료**: ✅  
 **다음 단계**: 학생 코어 모듈 리팩토링 완료
-

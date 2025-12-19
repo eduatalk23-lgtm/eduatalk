@@ -145,13 +145,13 @@ async function AttendanceContent({
     
     // 테이블이 없는 경우 (PGRST205, 42P01 에러 또는 AppError로 변환된 경우)
     const errorCode = error?.code || errorInfo.code;
-    const errorMessage = error?.message || errorInfo.message || "";
+    const errorMessageForCheck = error?.message || errorInfo.message || "";
     if (
       errorCode === "PGRST205" ||
       errorCode === "42P01" ||
       errorCode === "NOT_FOUND" ||
-      errorMessage.includes("Could not find the table") ||
-      errorMessage.includes("테이블")
+      errorMessageForCheck.includes("Could not find the table") ||
+      errorMessageForCheck.includes("테이블")
     ) {
       return (
         <div className="p-6 md:p-10">

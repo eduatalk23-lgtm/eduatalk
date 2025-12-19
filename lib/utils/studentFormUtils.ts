@@ -53,7 +53,15 @@ export function formatGradeDisplay(
 /**
  * 폼 필드별 유효성 검증
  */
-import { validatePhoneNumber } from "./phone";
+import { 
+  validatePhoneNumber,
+  formatPhoneNumber,
+  normalizePhoneNumber,
+} from "./phone";
+
+// Re-export phone utilities for convenience
+export { formatPhoneNumber, normalizePhoneNumber, validatePhoneNumber };
+
 export type ValidationErrors = Partial<Record<keyof {
   name: string;
   school_id: string;
