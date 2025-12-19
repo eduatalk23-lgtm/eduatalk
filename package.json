@@ -14,7 +14,8 @@
     "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
     "test:score-dashboard": "tsx scripts/testScoreDashboard.ts",
     "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts",
-    "generate:icons": "tsx scripts/generate-pwa-icons.ts"
+    "generate:icons": "tsx scripts/generate-pwa-icons.ts",
+    "check-legacy-scores-table": "tsx scripts/check-legacy-student-scores-table.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.4.1",
