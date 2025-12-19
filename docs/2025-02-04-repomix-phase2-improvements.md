@@ -16,38 +16,40 @@ Phase 2 코드 리뷰에서 제안한 개선 사항을 실제로 적용했습니
 ### 1. databaseFallback.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - `supabase: any` → `supabase: SupabaseClient`
 - `error: any` → `error: PostgrestError` 또는 `error: unknown`
 - `withErrorFallback` 제네릭 타입 기본값 개선
 
 **개선 전**:
+
 ```typescript
 export async function checkViewExists(
-  supabase: any,  // ❌
+  supabase: any, // ❌
   viewName: string
-): Promise<boolean>
+): Promise<boolean>;
 
-export async function withErrorFallback<T, E = any>(  // ❌
-  // ...
-)
+export async function withErrorFallback<T, E = any>(); // ❌
+// ...
 ```
 
 **개선 후**:
+
 ```typescript
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 export async function checkViewExists(
-  supabase: SupabaseClient,  // ✅
+  supabase: SupabaseClient, // ✅
   viewName: string
-): Promise<boolean>
+): Promise<boolean>;
 
-export async function withErrorFallback<T, E = PostgrestError>(  // ✅
-  // ...
-)
+export async function withErrorFallback<T, E = PostgrestError>(); // ✅
+// ...
 ```
 
 **개선 효과**:
+
 - 타입 안전성 향상: Supabase 클라이언트 타입 명시
 - 에러 타입 명확화: PostgrestError 타입 사용
 - 제네릭 타입 개선: 기본 타입을 PostgrestError로 설정
@@ -57,37 +59,41 @@ export async function withErrorFallback<T, E = PostgrestError>(  // ✅
 ### 2. planVersionUtils.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - `plan_data: any` → `plan_data: StudentPlanRow`
 - 반환 타입 `any` → `StudentPlanRow`
 - `createNewVersion` 함수 타입 개선
 
 **개선 전**:
+
 ```typescript
 export interface PlanVersionHistory {
-  plan_data: any;  // ❌
+  plan_data: any; // ❌
 }
 
 export async function getLatestVersionPlan(
   supabase: SupabaseClient,
   versionGroupId: string
-): Promise<any | null>  // ❌
+): Promise<any | null>; // ❌
 ```
 
 **개선 후**:
+
 ```typescript
-import type { StudentPlanRow } from '@/lib/types/plan';
+import type { StudentPlanRow } from "@/lib/types/plan";
 
 export interface PlanVersionHistory {
-  plan_data: StudentPlanRow;  // ✅
+  plan_data: StudentPlanRow; // ✅
 }
 
 export async function getLatestVersionPlan(
   supabase: SupabaseClient,
   versionGroupId: string
-): Promise<StudentPlanRow | null>  // ✅
+): Promise<StudentPlanRow | null>; // ✅
 ```
 
 **개선 효과**:
+
 - 타입 안전성 향상: 플랜 데이터 타입 명시
 - 코드 가독성 향상: 반환 타입이 명확해짐
 - IDE 지원 향상: 자동완성 및 타입 체크 개선
@@ -97,24 +103,34 @@ export async function getLatestVersionPlan(
 ### 3. contentFilters.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - 필터 값에 대한 타입 단언(`as any`) 제거
 - Supabase 쿼리 빌더의 타입 추론 활용
 
 **개선 전**:
+
 ```typescript
 if (filters.curriculum_revision_id) {
-  filteredQuery = filteredQuery.eq("curriculum_revision_id", filters.curriculum_revision_id as any);
+  filteredQuery = filteredQuery.eq(
+    "curriculum_revision_id",
+    filters.curriculum_revision_id as any
+  );
 }
 ```
 
 **개선 후**:
+
 ```typescript
 if (filters.curriculum_revision_id) {
-  filteredQuery = filteredQuery.eq("curriculum_revision_id", filters.curriculum_revision_id);
+  filteredQuery = filteredQuery.eq(
+    "curriculum_revision_id",
+    filters.curriculum_revision_id
+  );
 }
 ```
 
 **개선 효과**:
+
 - 타입 단언 제거: 7개 `as any` 제거
 - 타입 안전성 향상: Supabase 타입 시스템 활용
 - 코드 간결성: 불필요한 타입 단언 제거
@@ -125,12 +141,12 @@ if (filters.curriculum_revision_id) {
 
 ### 타입 안전성 개선
 
-| 파일 | 개선 전 `any` 개수 | 개선 후 `any` 개수 | 제거된 `any` |
-|------|-------------------|-------------------|--------------|
-| `databaseFallback.ts` | 5개 | 0개 | -5개 (-100%) |
-| `planVersionUtils.ts` | 6개 | 0개 | -6개 (-100%) |
-| `contentFilters.ts` | 7개 | 0개 | -7개 (-100%) |
-| **합계** | **18개** | **0개** | **-18개 (-100%)** |
+| 파일                  | 개선 전 `any` 개수 | 개선 후 `any` 개수 | 제거된 `any`      |
+| --------------------- | ------------------ | ------------------ | ----------------- |
+| `databaseFallback.ts` | 5개                | 0개                | -5개 (-100%)      |
+| `planVersionUtils.ts` | 6개                | 0개                | -6개 (-100%)      |
+| `contentFilters.ts`   | 7개                | 0개                | -7개 (-100%)      |
+| **합계**              | **18개**           | **0개**            | **-18개 (-100%)** |
 
 ### 추가된 타입 import
 
@@ -184,11 +200,13 @@ if (filters.curriculum_revision_id) {
 ### 4. planGroupAdapters.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - `Array<any>` → `Array<PlanContentWithDetails | ContentInfo>`
 - 콘텐츠 배열 타입 명시
 - 타입 단언 제거
 
 **개선 전**:
+
 ```typescript
 contents?: Array<any>,
 let studentContents: any[] = [];
@@ -197,6 +215,7 @@ contents.map((c: any) => ({ ... }))
 ```
 
 **개선 후**:
+
 ```typescript
 type ContentInfo = {
   id?: string;
@@ -212,6 +231,7 @@ contents.map((c) => ({ ... }))
 ```
 
 **개선 효과**:
+
 - 타입 안전성 향상: 콘텐츠 타입 명시
 - 타입 단언 제거: 3개 `any` 제거
 
@@ -220,15 +240,18 @@ contents.map((c) => ({ ... }))
 ### 5. calendarPageHelpers.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - `(plan as any)` → 명시적 타입 정의 및 안전한 접근
 - 타입 단언 제거
 
 **개선 전**:
+
 ```typescript
 contentTitle: (plan as any).contentTitle || plan.content_title || "제목 없음",
 ```
 
 **개선 후**:
+
 ```typescript
 const planWithContent = plan as Plan & {
   contentTitle?: string;
@@ -240,6 +263,7 @@ contentTitle: planWithContent.contentTitle || plan.content_title || "제목 없�
 ```
 
 **개선 효과**:
+
 - 타입 안전성 향상: 명시적 타입 정의
 - 타입 단언 제거: 5개 `(plan as any)` 제거
 
@@ -248,34 +272,42 @@ contentTitle: planWithContent.contentTitle || plan.content_title || "제목 없�
 ### 6. excel.ts 타입 개선 ✅
 
 **변경 사항**:
+
 - `Record<string, any[]>` → 제네릭 타입 사용
 - `any[]` → 제네릭 타입 배열
 - `any[][]` → 명시적 타입 배열
 
 **개선 전**:
+
 ```typescript
-export async function exportToExcel(sheets: Record<string, any[]>): Promise<Buffer>
-export async function parseExcelFile(fileBuffer: Buffer): Promise<Record<string, any[]>>
-export function convertDataToSheet(data: any[], headers?: string[]): any[][]
+export async function exportToExcel(
+  sheets: Record<string, any[]>
+): Promise<Buffer>;
+export async function parseExcelFile(
+  fileBuffer: Buffer
+): Promise<Record<string, any[]>>;
+export function convertDataToSheet(data: any[], headers?: string[]): any[][];
 ```
 
 **개선 후**:
-```typescript
-export async function exportToExcel<T extends Record<string, unknown> = Record<string, unknown>>(
-  sheets: Record<string, T[]>
-): Promise<Buffer>
 
-export async function parseExcelFile<T extends Record<string, unknown> = Record<string, unknown>>(
-  fileBuffer: Buffer
-): Promise<Record<string, T[]>>
+```typescript
+export async function exportToExcel<
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(sheets: Record<string, T[]>): Promise<Buffer>;
+
+export async function parseExcelFile<
+  T extends Record<string, unknown> = Record<string, unknown>,
+>(fileBuffer: Buffer): Promise<Record<string, T[]>>;
 
 export function convertDataToSheet<T extends Record<string, unknown>>(
   data: T[],
   headers?: string[]
-): (string | number | boolean | null)[][]
+): (string | number | boolean | null)[][];
 ```
 
 **개선 효과**:
+
 - 타입 안전성 향상: 제네릭 타입으로 유연성과 안전성 확보
 - 타입 단언 제거: 3개 `any` 제거
 
@@ -285,15 +317,15 @@ export function convertDataToSheet<T extends Record<string, unknown>>(
 
 ### 타입 안전성 개선
 
-| 파일 | 개선 전 `any` 개수 | 개선 후 `any` 개수 | 제거된 `any` |
-|------|-------------------|-------------------|--------------|
-| `databaseFallback.ts` | 5개 | 0개 | -5개 (-100%) |
-| `planVersionUtils.ts` | 6개 | 0개 | -6개 (-100%) |
-| `contentFilters.ts` | 7개 | 0개 | -7개 (-100%) |
-| `planGroupAdapters.ts` | 3개 | 0개 | -3개 (-100%) |
-| `calendarPageHelpers.ts` | 5개 | 0개 | -5개 (-100%) |
-| `excel.ts` | 3개 | 0개 | -3개 (-100%) |
-| **합계** | **29개** | **0개** | **-29개 (-100%)** |
+| 파일                     | 개선 전 `any` 개수 | 개선 후 `any` 개수 | 제거된 `any`      |
+| ------------------------ | ------------------ | ------------------ | ----------------- |
+| `databaseFallback.ts`    | 5개                | 0개                | -5개 (-100%)      |
+| `planVersionUtils.ts`    | 6개                | 0개                | -6개 (-100%)      |
+| `contentFilters.ts`      | 7개                | 0개                | -7개 (-100%)      |
+| `planGroupAdapters.ts`   | 3개                | 0개                | -3개 (-100%)      |
+| `calendarPageHelpers.ts` | 5개                | 0개                | -5개 (-100%)      |
+| `excel.ts`               | 3개                | 0개                | -3개 (-100%)      |
+| **합계**                 | **29개**           | **0개**            | **-29개 (-100%)** |
 
 ---
 
@@ -330,4 +362,3 @@ export function convertDataToSheet<T extends Record<string, unknown>>(
 ---
 
 **작업 완료 시간**: 2025-02-04
-

@@ -15,8 +15,8 @@ import {
 import { perfTime } from "@/lib/utils/perfLog";
 import {
   withErrorFallback,
-  isViewNotFoundError,
 } from "@/lib/utils/databaseFallback";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -97,7 +97,7 @@ async function getPlansFromView(options: {
     fallbackQuery,
     (error) => {
       // PGRST205: View가 스키마 캐시에 없음
-      if (isViewNotFoundError(error)) {
+      if (ErrorCodeCheckers.isViewNotFound(error)) {
         // 개발 환경에서만 상세 로깅
         if (process.env.NODE_ENV === "development") {
           console.warn(
@@ -117,7 +117,7 @@ async function getPlansFromView(options: {
   );
 
   // 에러가 있고 fallback하지 않은 경우 (실제 에러)
-  if (result.error && !isViewNotFoundError(result.error)) {
+  if (result.error && !ErrorCodeCheckers.isViewNotFound(result.error)) {
     // 구조화된 에러 로깅
     const errorDetails = {
       code: result.error?.code,

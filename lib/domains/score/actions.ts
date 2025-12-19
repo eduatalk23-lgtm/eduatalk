@@ -13,7 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import * as service from "./service";
-import { parseFormString, parseFormNumberOrNull } from "@/lib/utils/formDataHelpers";
+import { getFormString, getFormInt, getFormUuid } from "@/lib/utils/formDataHelpers";
 import type {
   SchoolScore,
   MockScore,
@@ -59,25 +59,23 @@ export async function createSchoolScoreAction(
   }
 
   const input = {
-    tenant_id: parseFormString(formData.get("tenant_id")) || null,
-    student_id: parseFormString(formData.get("student_id")) || user.userId,
-    grade: parseFormNumberOrNull(formData.get("grade")) || 1,
-    semester: parseFormNumberOrNull(formData.get("semester")) || 1,
-    subject_group_id: parseFormString(formData.get("subject_group_id")) || null,
-    subject_id: parseFormString(formData.get("subject_id")) || null,
-    subject_type_id: parseFormString(formData.get("subject_type_id")) || null,
-    subject_group: parseFormString(formData.get("subject_group")) || null,
-    subject_type: parseFormString(formData.get("subject_type")) || null,
-    subject_name: parseFormString(formData.get("subject_name")) || null,
-    credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
-    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
-    subject_average: parseFormNumberOrNull(formData.get("subject_average")),
-    standard_deviation: parseFormNumberOrNull(
-      formData.get("standard_deviation")
-    ),
-    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
-    total_students: parseFormNumberOrNull(formData.get("total_students")),
-    rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
+    tenant_id: getFormString(formData, "tenant_id"),
+    student_id: getFormString(formData, "student_id") || user.userId,
+    grade: getFormInt(formData, "grade") || 1,
+    semester: getFormInt(formData, "semester") || 1,
+    subject_group_id: getFormUuid(formData, "subject_group_id"),
+    subject_id: getFormUuid(formData, "subject_id"),
+    subject_type_id: getFormUuid(formData, "subject_type_id"),
+    subject_group: getFormString(formData, "subject_group"),
+    subject_type: getFormString(formData, "subject_type"),
+    subject_name: getFormString(formData, "subject_name"),
+    credit_hours: getFormInt(formData, "credit_hours"),
+    raw_score: getFormInt(formData, "raw_score"),
+    subject_average: getFormInt(formData, "subject_average"),
+    standard_deviation: getFormInt(formData, "standard_deviation"),
+    grade_score: getFormInt(formData, "grade_score"),
+    total_students: getFormInt(formData, "total_students"),
+    rank_grade: getFormInt(formData, "rank_grade"),
   };
 
   const result = await service.createSchoolScore(input);
@@ -101,33 +99,29 @@ export async function updateSchoolScoreAction(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
-  const scoreId = parseFormString(formData.get("id"));
-  const studentId = parseFormString(formData.get("student_id")) || user.userId;
+  const scoreId = getFormString(formData, "id");
+  const studentId = getFormString(formData, "student_id") || user.userId;
 
   if (!scoreId) {
     return { success: false, error: "성적 ID가 필요합니다." };
   }
 
   const updates = {
-    grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
-    semester: parseFormNumberOrNull(formData.get("semester")) || undefined,
-    subject_group_id:
-      parseFormString(formData.get("subject_group_id")) || undefined,
-    subject_id: parseFormString(formData.get("subject_id")) || undefined,
-    subject_type_id:
-      parseFormString(formData.get("subject_type_id")) || undefined,
-    subject_group: parseFormString(formData.get("subject_group")) || undefined,
-    subject_type: parseFormString(formData.get("subject_type")) || undefined,
-    subject_name: parseFormString(formData.get("subject_name")) || undefined,
-    credit_hours: parseFormNumberOrNull(formData.get("credit_hours")),
-    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
-    subject_average: parseFormNumberOrNull(formData.get("subject_average")),
-    standard_deviation: parseFormNumberOrNull(
-      formData.get("standard_deviation")
-    ),
-    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
-    total_students: parseFormNumberOrNull(formData.get("total_students")),
-    rank_grade: parseFormNumberOrNull(formData.get("rank_grade")),
+    grade: getFormInt(formData, "grade") ?? undefined,
+    semester: getFormInt(formData, "semester") ?? undefined,
+    subject_group_id: getFormUuid(formData, "subject_group_id") ?? undefined,
+    subject_id: getFormUuid(formData, "subject_id") ?? undefined,
+    subject_type_id: getFormUuid(formData, "subject_type_id") ?? undefined,
+    subject_group: getFormString(formData, "subject_group") ?? undefined,
+    subject_type: getFormString(formData, "subject_type") ?? undefined,
+    subject_name: getFormString(formData, "subject_name") ?? undefined,
+    credit_hours: getFormInt(formData, "credit_hours") ?? undefined,
+    raw_score: getFormInt(formData, "raw_score") ?? undefined,
+    subject_average: getFormInt(formData, "subject_average") ?? undefined,
+    standard_deviation: getFormInt(formData, "standard_deviation") ?? undefined,
+    grade_score: getFormInt(formData, "grade_score") ?? undefined,
+    total_students: getFormInt(formData, "total_students") ?? undefined,
+    rank_grade: getFormInt(formData, "rank_grade") ?? undefined,
   };
 
   const result = await service.updateSchoolScore(scoreId, studentId, updates);
@@ -201,11 +195,11 @@ export async function createMockScoreAction(
 
   // exam_date와 exam_title 가져오기
   const examDate =
-    parseFormString(formData.get("exam_date")) ||
+    getFormString(formData, "exam_date") ||
     new Date().toISOString().split("T")[0];
   const examTitle =
-    parseFormString(formData.get("exam_title")) ||
-    parseFormString(formData.get("exam_type")) ||
+    getFormString(formData, "exam_title") ||
+    getFormString(formData, "exam_type") ||
     "모의고사";
 
   // curriculum_revision_id 가져오기
@@ -219,20 +213,19 @@ export async function createMockScoreAction(
   }
 
   const input = {
-    tenant_id:
-      parseFormString(formData.get("tenant_id")) || user.tenantId || "",
-    student_id: parseFormString(formData.get("student_id")) || user.userId,
+    tenant_id: getFormString(formData, "tenant_id") || user.tenantId || "",
+    student_id: getFormString(formData, "student_id") || user.userId,
     exam_date: examDate,
     exam_title: examTitle,
-    grade: parseFormNumberOrNull(formData.get("grade")) || 1,
-    subject_id: parseFormString(formData.get("subject_id")) || "",
-    subject_group_id: parseFormString(formData.get("subject_group_id")) || "",
+    grade: getFormInt(formData, "grade") || 1,
+    subject_id: getFormUuid(formData, "subject_id") || "",
+    subject_group_id: getFormUuid(formData, "subject_group_id") || "",
     curriculum_revision_id: curriculumRevision.id,
-    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
-    standard_score: parseFormNumberOrNull(formData.get("standard_score")),
-    percentile: parseFormNumberOrNull(formData.get("percentile")),
-    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
-    semester: parseFormNumberOrNull(formData.get("semester")) ?? undefined,
+    raw_score: getFormInt(formData, "raw_score"),
+    standard_score: getFormInt(formData, "standard_score"),
+    percentile: getFormInt(formData, "percentile"),
+    grade_score: getFormInt(formData, "grade_score"),
+    semester: getFormInt(formData, "semester") ?? undefined,
   };
 
   const result = await service.createMockScore(input);
@@ -256,28 +249,26 @@ export async function updateMockScoreAction(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
-  const scoreId = parseFormString(formData.get("id"));
-  const studentId = parseFormString(formData.get("student_id")) || user.userId;
+  const scoreId = getFormString(formData, "id");
+  const studentId = getFormString(formData, "student_id") || user.userId;
 
   if (!scoreId) {
     return { success: false, error: "성적 ID가 필요합니다." };
   }
 
   const updates = {
-    grade: parseFormNumberOrNull(formData.get("grade")) || undefined,
-    exam_type: parseFormString(formData.get("exam_type")) || undefined,
-    subject_group_id:
-      parseFormString(formData.get("subject_group_id")) || undefined,
-    subject_id: parseFormString(formData.get("subject_id")) || undefined,
-    subject_type_id:
-      parseFormString(formData.get("subject_type_id")) || undefined,
-    subject_group: parseFormString(formData.get("subject_group")) || undefined,
-    subject_name: parseFormString(formData.get("subject_name")) || undefined,
-    raw_score: parseFormNumberOrNull(formData.get("raw_score")),
-    standard_score: parseFormNumberOrNull(formData.get("standard_score")),
-    percentile: parseFormNumberOrNull(formData.get("percentile")),
-    grade_score: parseFormNumberOrNull(formData.get("grade_score")),
-    exam_round: parseFormString(formData.get("exam_round")) || undefined,
+    grade: getFormInt(formData, "grade") ?? undefined,
+    exam_type: getFormString(formData, "exam_type") ?? undefined,
+    subject_group_id: getFormUuid(formData, "subject_group_id") ?? undefined,
+    subject_id: getFormUuid(formData, "subject_id") ?? undefined,
+    subject_type_id: getFormUuid(formData, "subject_type_id") ?? undefined,
+    subject_group: getFormString(formData, "subject_group") ?? undefined,
+    subject_name: getFormString(formData, "subject_name") ?? undefined,
+    raw_score: getFormInt(formData, "raw_score") ?? undefined,
+    standard_score: getFormInt(formData, "standard_score") ?? undefined,
+    percentile: getFormInt(formData, "percentile") ?? undefined,
+    grade_score: getFormInt(formData, "grade_score") ?? undefined,
+    exam_round: getFormString(formData, "exam_round") ?? undefined,
   };
 
   const result = await service.updateMockScore(scoreId, studentId, updates);

@@ -12,25 +12,10 @@ import {
   POSTGRES_ERROR_CODES,
 } from "@/lib/constants/errorCodes";
 
-/**
- * 컬럼 누락 에러인지 확인
- * PostgreSQL 에러 코드 42703 (undefined_column)
- *
- * @deprecated ErrorCodeCheckers.isColumnNotFound 사용 권장
- */
-export function isColumnMissingError(error: unknown): boolean {
-  return ErrorCodeCheckers.isColumnNotFound(error);
-}
-
-/**
- * View 또는 테이블이 존재하지 않는 에러인지 확인
- * PostgreSQL 에러 코드 PGRST205 (table/view not found in schema cache)
- *
- * @deprecated ErrorCodeCheckers.isViewNotFound 사용 권장
- */
-export function isViewNotFoundError(error: unknown): boolean {
-  return ErrorCodeCheckers.isViewNotFound(error);
-}
+// Deprecated 함수들은 제거되었습니다.
+// 새로운 코드에서는 ErrorCodeCheckers를 사용하세요:
+// - ErrorCodeCheckers.isColumnNotFound: 컬럼 누락 에러 확인
+// - ErrorCodeCheckers.isViewNotFound: View 누락 에러 확인
 
 /**
  * View 존재 여부를 확인하는 헬퍼 함수
@@ -77,7 +62,7 @@ export async function checkViewExists(
  * const result = await withErrorFallback(
  *   () => query(),
  *   () => fallbackQuery(),
- *   isColumnMissingError
+ *   ErrorCodeCheckers.isColumnNotFound
  * );
  *
  * // 커스텀 에러 판단 로직
@@ -110,26 +95,14 @@ export async function withErrorFallback<T, E = PostgrestError>(
   return result;
 }
 
-/**
- * 컬럼 누락 시 fallback 쿼리를 실행하는 헬퍼 함수
- *
- * @deprecated withErrorFallback을 사용하세요. 하위 호환성을 위해 유지됩니다.
- *
- * @param query 원본 쿼리 함수
- * @param fallbackQuery fallback 쿼리 함수 (컬럼 제외)
- * @param missingColumn 누락된 컬럼 이름 (로깅용)
- * @returns 쿼리 결과
- */
-export async function withColumnFallback<T>(
-  query: () => Promise<{ data: T | null; error: PostgrestError | null }>,
-  fallbackQuery: () => Promise<{
-    data: T | null;
-    error: PostgrestError | null;
-  }>,
-  missingColumn: string
-): Promise<{ data: T | null; error: PostgrestError | null }> {
-  return withErrorFallback(query, fallbackQuery, isColumnMissingError);
-}
+// Deprecated 함수 withColumnFallback은 제거되었습니다.
+// 새로운 코드에서는 withErrorFallback과 ErrorCodeCheckers.isColumnNotFound를 사용하세요:
+// 
+// const result = await withErrorFallback(
+//   query,
+//   fallbackQuery,
+//   ErrorCodeCheckers.isColumnNotFound
+// );
 
 /**
  * block_index를 동적으로 할당하는 헬퍼 함수
@@ -215,7 +188,7 @@ export async function fetchBlocksWithFallback(
   let { data, error } = await baseQuery;
 
   // block_index 컬럼이 없는 경우 fallback
-  if (isColumnMissingError(error)) {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     const fallbackQuery = queryClient
       .from("student_block_schedule")
       .select("id, day_of_week, start_time, end_time")

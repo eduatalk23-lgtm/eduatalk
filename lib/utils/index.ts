@@ -5,13 +5,17 @@
  */
 
 // FormData 관련 유틸리티
+// Deprecated 함수들은 제거되었습니다. getFormString, getFormInt 등을 사용하세요.
 export {
-  parseFormString,
-  parseFormStringOrNull,
-  parseFormNumber,
-  parseFormNumberOrNull,
-  parseFormBoolean,
-  parseFormArray,
+  getFormString,
+  getFormInt,
+  getFormFloat,
+  getFormUuid,
+  getFormBoolean,
+  getFormDate,
+  getFormArray,
+  getFormTags,
+  getNumberFromFormData,
 } from "./formDataHelpers";
 
 // 날짜 관련 유틸리티

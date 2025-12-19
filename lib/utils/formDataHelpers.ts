@@ -202,71 +202,16 @@ export function getFormTags(
 }
 
 // ============================================
-// formData.ts에서 통합된 함수들 (하위 호환성 유지)
+// Deprecated 함수들은 제거되었습니다.
+// 새로운 코드에서는 다음 함수들을 사용하세요:
+// - getFormString: 문자열 값 추출
+// - getFormInt: 정수 값 추출
+// - getFormFloat: 부동소수점 값 추출
+// - getFormUuid: UUID 값 추출
+// - getFormBoolean: 불리언 값 추출
+// - getFormDate: 날짜 값 추출
+// - getFormArray: 배열 값 추출
+// - getFormTags: 태그 문자열 파싱
+// - getNumberFromFormData: 숫자 값 추출 (검증 옵션 포함)
 // ============================================
-
-/**
- * FormData 값을 문자열로 변환 (빈 문자열 대체)
- * @deprecated getFormString을 사용하세요
- */
-export function parseFormString(value: FormDataEntryValue | null): string {
-  return String(value ?? "").trim();
-}
-
-/**
- * FormData 값을 문자열로 변환 (빈 값은 null 반환)
- * @deprecated getFormString을 사용하세요
- */
-export function parseFormStringOrNull(
-  value: FormDataEntryValue | null
-): string | null {
-  const str = parseFormString(value);
-  return str || null;
-}
-
-/**
- * FormData 값을 숫자로 변환
- * @deprecated getFormInt을 사용하세요
- */
-export function parseFormNumber(value: FormDataEntryValue | null): number {
-  const str = parseFormString(value);
-  const num = Number(str);
-  return isNaN(num) ? 0 : num;
-}
-
-/**
- * FormData 값을 숫자로 변환 (빈 값은 null 반환)
- * @deprecated getFormInt을 사용하세요
- */
-export function parseFormNumberOrNull(
-  value: FormDataEntryValue | null
-): number | null {
-  const str = parseFormString(value);
-  if (!str) return null;
-  const num = Number(str);
-  return isNaN(num) ? null : num;
-}
-
-/**
- * FormData 값을 불리언으로 변환
- * @deprecated getFormBoolean을 사용하세요
- */
-export function parseFormBoolean(value: FormDataEntryValue | null): boolean {
-  const str = parseFormString(value).toLowerCase();
-  return str === "true" || str === "1" || str === "yes" || str === "on";
-}
-
-/**
- * FormData에서 여러 값을 추출 (체크박스 그룹 등)
- * @deprecated getFormArray를 사용하세요
- */
-export function parseFormArray(formData: FormData, key: string): string[] {
-  return getFormArray(formData, key);
-}
-
-/**
- * FormData를 일반 객체로 변환
- * @deprecated lib/validation/schemas.ts의 formDataToObject를 사용하세요.
- * 이 함수는 제거되었습니다.
- */
 

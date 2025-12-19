@@ -16,7 +16,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSchoolSchema, updateSchoolSchema, type CreateSchoolFormData, type UpdateSchoolFormData } from "./validation";
 import * as service from "./service";
-import { parseFormString, parseFormStringOrNull } from "@/lib/utils/formDataHelpers";
+import { getFormString, getFormUuid } from "@/lib/utils/formDataHelpers";
 import type {
   School,
   Region,
@@ -125,23 +125,19 @@ export async function createSchoolAction(
 
   // FormData 파싱
   const rawData = {
-    name: parseFormString(formData.get("name")),
-    type: parseFormString(formData.get("type")) as SchoolType,
-    region_id: parseFormStringOrNull(formData.get("region_id")),
-    address: parseFormStringOrNull(formData.get("address")),
-    postal_code: parseFormStringOrNull(formData.get("postal_code")),
-    address_detail: parseFormStringOrNull(formData.get("address_detail")),
-    city: parseFormStringOrNull(formData.get("city")),
-    district: parseFormStringOrNull(formData.get("district")),
-    phone: parseFormStringOrNull(formData.get("phone")),
-    category: parseFormStringOrNull(formData.get("category")) as CreateSchoolFormData["category"],
-    university_type: parseFormStringOrNull(
-      formData.get("university_type")
-    ) as CreateSchoolFormData["university_type"],
-    university_ownership: parseFormStringOrNull(
-      formData.get("university_ownership")
-    ) as CreateSchoolFormData["university_ownership"],
-    campus_name: parseFormStringOrNull(formData.get("campus_name")),
+    name: getFormString(formData, "name") || "",
+    type: (getFormString(formData, "type") || "") as SchoolType,
+    region_id: getFormUuid(formData, "region_id"),
+    address: getFormString(formData, "address"),
+    postal_code: getFormString(formData, "postal_code"),
+    address_detail: getFormString(formData, "address_detail"),
+    city: getFormString(formData, "city"),
+    district: getFormString(formData, "district"),
+    phone: getFormString(formData, "phone"),
+    category: getFormString(formData, "category") as CreateSchoolFormData["category"] | null,
+    university_type: getFormString(formData, "university_type") as CreateSchoolFormData["university_type"] | null,
+    university_ownership: getFormString(formData, "university_ownership") as CreateSchoolFormData["university_ownership"] | null,
+    campus_name: getFormString(formData, "campus_name"),
   };
 
   // 검증
@@ -179,24 +175,20 @@ export async function updateSchoolAction(
 
   // FormData 파싱
   const rawData = {
-    id: parseFormString(formData.get("id")),
-    name: parseFormString(formData.get("name")),
-    type: parseFormString(formData.get("type")) as SchoolType,
-    region_id: parseFormStringOrNull(formData.get("region_id")),
-    address: parseFormStringOrNull(formData.get("address")),
-    postal_code: parseFormStringOrNull(formData.get("postal_code")),
-    address_detail: parseFormStringOrNull(formData.get("address_detail")),
-    city: parseFormStringOrNull(formData.get("city")),
-    district: parseFormStringOrNull(formData.get("district")),
-    phone: parseFormStringOrNull(formData.get("phone")),
-    category: parseFormStringOrNull(formData.get("category")) as UpdateSchoolFormData["category"],
-    university_type: parseFormStringOrNull(
-      formData.get("university_type")
-    ) as UpdateSchoolFormData["university_type"],
-    university_ownership: parseFormStringOrNull(
-      formData.get("university_ownership")
-    ) as UpdateSchoolFormData["university_ownership"],
-    campus_name: parseFormStringOrNull(formData.get("campus_name")),
+    id: getFormString(formData, "id") || "",
+    name: getFormString(formData, "name") || "",
+    type: (getFormString(formData, "type") || "") as SchoolType,
+    region_id: getFormUuid(formData, "region_id"),
+    address: getFormString(formData, "address"),
+    postal_code: getFormString(formData, "postal_code"),
+    address_detail: getFormString(formData, "address_detail"),
+    city: getFormString(formData, "city"),
+    district: getFormString(formData, "district"),
+    phone: getFormString(formData, "phone"),
+    category: getFormString(formData, "category") as UpdateSchoolFormData["category"] | null,
+    university_type: getFormString(formData, "university_type") as UpdateSchoolFormData["university_type"] | null,
+    university_ownership: getFormString(formData, "university_ownership") as UpdateSchoolFormData["university_ownership"] | null,
+    campus_name: getFormString(formData, "campus_name"),
   };
 
   // 검증
