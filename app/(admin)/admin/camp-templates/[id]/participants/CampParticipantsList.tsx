@@ -26,6 +26,8 @@ export function CampParticipantsList({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<"name" | "attendance_rate" | "study_minutes" | "plan_completion_rate" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<
     Set<string>
   >(new Set());
@@ -54,7 +56,9 @@ export function CampParticipantsList({
     
     try {
       setLoading(true);
-      const participantsData = await loadCampParticipants(templateId);
+      const participantsData = await loadCampParticipants(templateId, {
+        includeStats: true,
+      });
       setParticipants(participantsData);
     } catch (error) {
       console.error("[CampParticipantsList] 참여자 목록 로드 실패:", {
@@ -116,16 +120,67 @@ export function CampParticipantsList({
     };
   }, [loadParticipants]);
 
-  // 필터링된 참여자 목록 (메모이제이션)
+  // 필터링 및 정렬된 참여자 목록 (메모이제이션)
   const filteredParticipants = useMemo(() => {
-    return participants.filter((p) => {
+    let filtered = participants.filter((p) => {
       if (statusFilter === "all") return true;
       if (statusFilter === "accepted") return p.invitation_status === "accepted";
       if (statusFilter === "pending") return p.invitation_status === "pending";
       if (statusFilter === "declined") return p.invitation_status === "declined";
       return true;
     });
-  }, [participants, statusFilter]);
+
+    // 정렬 적용
+    if (sortBy) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: number | string | null = null;
+        let bValue: number | string | null = null;
+
+        switch (sortBy) {
+          case "name":
+            aValue = a.student_name;
+            bValue = b.student_name;
+            break;
+          case "attendance_rate":
+            aValue = a.attendance_rate ?? -1;
+            bValue = b.attendance_rate ?? -1;
+            break;
+          case "study_minutes":
+            aValue = a.study_minutes ?? -1;
+            bValue = b.study_minutes ?? -1;
+            break;
+          case "plan_completion_rate":
+            aValue = a.plan_completion_rate ?? -1;
+            bValue = b.plan_completion_rate ?? -1;
+            break;
+        }
+
+        if (aValue === null && bValue === null) return 0;
+        if (aValue === null) return 1;
+        if (bValue === null) return -1;
+
+        if (typeof aValue === "string" && typeof bValue === "string") {
+          const comparison = aValue.localeCompare(bValue, "ko");
+          return sortOrder === "asc" ? comparison : -comparison;
+        }
+
+        const comparison = (aValue as number) - (bValue as number);
+        return sortOrder === "asc" ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }, [participants, statusFilter, sortBy, sortOrder]);
+
+  // 정렬 핸들러
+  const handleSort = useCallback((column: "name" | "attendance_rate" | "study_minutes" | "plan_completion_rate") => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("desc");
+    }
+  }, [sortBy, sortOrder]);
 
   // 선택 가능한 참여자만 필터링 (플랜이 생성된 참여자만 활성화 가능) - 메모이제이션
   const selectableParticipants = useMemo(() => {
@@ -608,7 +663,18 @@ export function CampParticipantsList({
                   />
                 </th>
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  학생명
+                  <button
+                    type="button"
+                    onClick={() => handleSort("name")}
+                    className="flex items-center gap-1 hover:text-gray-700"
+                  >
+                    학생명
+                    {sortBy === "name" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </button>
                 </th>
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   학년/반
@@ -622,6 +688,48 @@ export function CampParticipantsList({
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   플랜 상태
                 </th>
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-900">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("attendance_rate")}
+                    className="flex items-center justify-center gap-1 hover:text-gray-700"
+                  >
+                    출석률
+                    {sortBy === "attendance_rate" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-900">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("study_minutes")}
+                    className="flex items-center justify-center gap-1 hover:text-gray-700"
+                  >
+                    학습 시간
+                    {sortBy === "study_minutes" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </button>
+                </th>
+                <th className="border-b border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-900">
+                  <button
+                    type="button"
+                    onClick={() => handleSort("plan_completion_rate")}
+                    className="flex items-center justify-center gap-1 hover:text-gray-700"
+                  >
+                    진행률
+                    {sortBy === "plan_completion_rate" && (
+                      <span className="text-xs">
+                        {sortOrder === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </button>
+                </th>
                 <th className="border-b border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   참여일
                 </th>
@@ -634,7 +742,7 @@ export function CampParticipantsList({
               {filteredParticipants.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={11}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     참여자가 없습니다.
@@ -679,7 +787,12 @@ export function CampParticipantsList({
                         </div>
                       </td>
                       <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
-                        {participant.student_name}
+                        <Link
+                          href={`/admin/camp-templates/${templateId}/participants/${participant.student_id}`}
+                          className="text-indigo-600 hover:text-indigo-800 hover:underline"
+                        >
+                          {participant.student_name}
+                        </Link>
                       </td>
                       <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
                         {participant.student_grade && participant.student_class
@@ -722,6 +835,53 @@ export function CampParticipantsList({
                           </span>
                         ) : (
                           "—"
+                        )}
+                      </td>
+                      <td className="border-b border-gray-100 px-4 py-3 text-center text-sm">
+                        {participant.attendance_rate !== null &&
+                        participant.attendance_rate !== undefined ? (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              participant.attendance_rate >= 90
+                                ? "bg-green-100 text-green-800"
+                                : participant.attendance_rate >= 70
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {participant.attendance_rate.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="border-b border-gray-100 px-4 py-3 text-center text-sm text-gray-600">
+                        {participant.study_minutes !== null &&
+                        participant.study_minutes !== undefined ? (
+                          <span>
+                            {Math.floor(participant.study_minutes / 60)}시간{" "}
+                            {participant.study_minutes % 60}분
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="border-b border-gray-100 px-4 py-3 text-center text-sm">
+                        {participant.plan_completion_rate !== null &&
+                        participant.plan_completion_rate !== undefined ? (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              participant.plan_completion_rate >= 80
+                                ? "bg-green-100 text-green-800"
+                                : participant.plan_completion_rate >= 60
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {participant.plan_completion_rate}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
                         )}
                       </td>
                       <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">

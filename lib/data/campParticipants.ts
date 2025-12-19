@@ -19,6 +19,10 @@ export type Participant = {
   hasPlans: boolean;
   invited_at: string;
   accepted_at: string | null;
+  // 통계 정보 (선택적)
+  attendance_rate?: number | null;
+  study_minutes?: number | null;
+  plan_completion_rate?: number | null;
 };
 
 type PlanGroupData = {
@@ -32,9 +36,11 @@ type PlanGroupData = {
 
 /**
  * 캠프 참여자 목록 로드 (클라이언트 사이드)
+ * 통계 정보 포함 옵션 추가
  */
 export async function loadCampParticipants(
-  templateId: string
+  templateId: string,
+  options?: { includeStats?: boolean }
 ): Promise<Participant[]> {
   const supabase = createSupabaseBrowserClient();
 
@@ -78,13 +84,40 @@ export async function loadCampParticipants(
   );
 
   // 데이터 병합
-  return mergeParticipantData(
+  const participants = await mergeParticipantData(
     invitationsData || [],
     planGroupsData,
     plansMap,
     templateId,
     supabase
   );
+
+  // 통계 정보 포함 옵션이 활성화된 경우
+  if (options?.includeStats) {
+    const { getCampParticipantStatsBatch } = await import(
+      "./campParticipantStats"
+    );
+    const studentIds = participants
+      .filter((p) => p.invitation_status === "accepted")
+      .map((p) => p.student_id);
+
+    if (studentIds.length > 0) {
+      const statsMap = await getCampParticipantStatsBatch(templateId, studentIds);
+
+      // 통계 정보 병합
+      return participants.map((participant) => {
+        const stats = statsMap.get(participant.student_id);
+        return {
+          ...participant,
+          attendance_rate: stats?.attendance_rate ?? null,
+          study_minutes: stats?.study_minutes ?? null,
+          plan_completion_rate: stats?.plan_completion_rate ?? null,
+        };
+      });
+    }
+  }
+
+  return participants;
 }
 
 /**
