@@ -8,7 +8,8 @@ export type Book = {
   subject_category: string | null;
   subject: string | null;
   publisher: string | null;
-  difficulty_level: string | null;
+  difficulty_level: string | null; // @deprecated: difficulty_level_id 사용 권장
+  difficulty_level_id?: string | null;
   total_pages: number | null;
   notes: string | null;
   created_at?: string;
@@ -54,7 +55,8 @@ export type Lecture = {
   subject_category: string | null;
   subject: string | null;
   platform: string | null;
-  difficulty_level: string | null;
+  difficulty_level: string | null; // @deprecated: difficulty_level_id 사용 권장
+  difficulty_level_id?: string | null;
   duration: number | null;
   notes: string | null;
   created_at?: string;
