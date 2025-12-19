@@ -4,7 +4,6 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { redirect } from "next/navigation";
 import { getCampTemplatesForTenantWithPagination } from "@/lib/data/campTemplates";
-import { filterCampTemplates, type CampTemplateFilters } from "@/lib/utils/campFilters";
 import { TemplateCard } from "./_components/TemplateCard";
 import { CampTemplatesPagination } from "./_components/CampTemplatesPagination";
 
@@ -36,19 +35,17 @@ export default async function CampTemplatesPage({
   const page = parseInt(params.page || "1", 10);
   const limit = parseInt(params.limit || "20", 10);
 
-  // 필터 옵션
-  const filters: CampTemplateFilters = {
-    search: searchQuery,
-    status: statusFilter as CampTemplateFilters["status"],
-    programType: programTypeFilter as CampTemplateFilters["programType"],
-  };
-
-  // 페이지네이션된 데이터 조회
+  // 서버 사이드 필터링 적용
   let result: Awaited<ReturnType<typeof getCampTemplatesForTenantWithPagination>>;
   try {
     result = await getCampTemplatesForTenantWithPagination(tenantContext.tenantId, {
       page,
       pageSize: limit,
+      filters: {
+        search: searchQuery || undefined,
+        status: statusFilter || undefined,
+        programType: programTypeFilter || undefined,
+      },
     });
   } catch (error) {
     console.error("[CampTemplatesPage] 템플릿 목록 조회 실패", error);
@@ -61,11 +58,8 @@ export default async function CampTemplatesPage({
     };
   }
 
-  // 클라이언트 사이드 필터링 (검색어, 상태, 프로그램 유형)
-  const filteredTemplates = filterCampTemplates(result.items, filters);
-  
-  // 필터링 후에도 페이지네이션을 유지하기 위해 전체 개수는 원본 total 사용
-  // 실제로는 서버 사이드 필터링이 더 효율적이지만, 현재는 클라이언트 필터링으로 구현
+  // 서버 사이드 필터링이 적용되었으므로 클라이언트 필터링 불필요
+  const filteredTemplates = result.items;
   const totalPages = Math.ceil(result.total / limit);
 
   return (
@@ -163,8 +157,7 @@ export default async function CampTemplatesPage({
         {/* 결과 개수 */}
         <div className="text-sm text-gray-600">
           총 <span className="font-semibold">{result.total}</span>
-          개의 템플릿 중 <span className="font-semibold">{filteredTemplates.length}</span>
-          개가 표시됩니다.
+          개의 템플릿이 표시됩니다.
         </div>
 
         {/* 템플릿 목록 */}

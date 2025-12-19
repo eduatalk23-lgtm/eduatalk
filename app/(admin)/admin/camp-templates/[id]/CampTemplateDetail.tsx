@@ -133,10 +133,29 @@ export function CampTemplateDetail({
     loadInvitations(1, newPageSize);
   }, [loadInvitations]);
 
-  // 초대 발송 후 목록 새로고침 (useCallback으로 메모이제이션)
+  // 초대 발송 후 목록 새로고침 (페이지를 1로 리셋)
   const handleInvitationSent = useCallback(() => {
-    loadInvitations();
-  }, [loadInvitations]);
+    setInvitationPage(1);
+    loadInvitations(1, invitationPageSize);
+  }, [loadInvitations, invitationPageSize]);
+
+  // 초대 삭제 후 목록 새로고침 (페이지 조정)
+  const handleDeleteInvitations = useCallback(async (deletedCount: number) => {
+    // 삭제 후 현재 페이지에 데이터가 있는지 확인
+    const remainingCount = invitationTotal - deletedCount;
+    const itemsPerPage = invitationPageSize;
+    const currentPageStart = (invitationPage - 1) * itemsPerPage;
+    
+    if (remainingCount <= currentPageStart && invitationPage > 1) {
+      // 현재 페이지에 데이터가 없으면 이전 페이지로
+      const newPage = invitationPage - 1;
+      setInvitationPage(newPage);
+      loadInvitations(newPage, invitationPageSize);
+    } else {
+      // 현재 페이지에 데이터가 있으면 새로고침만
+      loadInvitations(invitationPage, invitationPageSize);
+    }
+  }, [invitationTotal, invitationPage, invitationPageSize, loadInvitations]);
 
   const handleStatusChange = async (
     newStatus: "draft" | "active" | "archived"
@@ -592,6 +611,7 @@ export function CampTemplateDetail({
             loading={loadingInvitations}
             templateId={template.id}
             onRefresh={handleInvitationSent}
+            onDeleteInvitations={handleDeleteInvitations}
             total={invitationTotal}
             page={invitationPage}
             pageSize={invitationPageSize}

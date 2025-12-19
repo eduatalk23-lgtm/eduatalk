@@ -11,6 +11,7 @@ type CampInvitationListProps = {
   loading: boolean;
   templateId: string;
   onRefresh?: () => void;
+  onDeleteInvitations?: (deletedCount: number) => void;
   total?: number;
   page?: number;
   pageSize?: number;
@@ -23,6 +24,7 @@ export function CampInvitationList({
   loading, 
   templateId, 
   onRefresh,
+  onDeleteInvitations,
   total,
   page = 1,
   pageSize = 20,
@@ -89,7 +91,7 @@ export function CampInvitationList({
         const result = await deleteCampInvitationAction(invitationId);
         if (result.success) {
           toast.showSuccess("초대가 삭제되었습니다.");
-          onRefresh?.();
+          onDeleteInvitations?.(1);
         } else {
           toast.showError(result.error || "초대 삭제에 실패했습니다.");
         }
@@ -120,9 +122,10 @@ export function CampInvitationList({
       try {
         const result = await deleteCampInvitationsAction(Array.from(selectedIds));
         if (result.success) {
-          toast.showSuccess(`${result.count || selectedIds.size}개의 초대가 삭제되었습니다.`);
+          const deletedCount = result.count || selectedIds.size;
+          toast.showSuccess(`${deletedCount}개의 초대가 삭제되었습니다.`);
           setSelectedIds(new Set());
-          onRefresh?.();
+          onDeleteInvitations?.(deletedCount);
         } else {
           toast.showError(result.error || "초대 삭제에 실패했습니다.");
         }
@@ -275,7 +278,34 @@ export function CampInvitationList({
                     value={invitation.status}
                     onChange={(e) => {
                       const newStatus = e.target.value as "pending" | "accepted" | "declined";
-                      if (newStatus !== invitation.status) {
+                      const oldStatus = invitation.status;
+                      
+                      if (newStatus !== oldStatus) {
+                        // accepted ↔ declined 변경 시 확인 필수
+                        const requiresConfirmation = 
+                          (oldStatus === "accepted" && newStatus === "declined") ||
+                          (oldStatus === "declined" && newStatus === "accepted");
+                        
+                        const getStatusLabel = (status: string) => {
+                          switch (status) {
+                            case "pending": return "대기중";
+                            case "accepted": return "수락";
+                            case "declined": return "거절";
+                            default: return status;
+                          }
+                        };
+                        
+                        if (requiresConfirmation) {
+                          const confirmed = confirm(
+                            `초대 상태를 "${getStatusLabel(newStatus)}"로 변경하시겠습니까?`
+                          );
+                          if (!confirmed) {
+                            // 확인 취소 시 select 값을 원래대로 복원
+                            e.target.value = oldStatus;
+                            return;
+                          }
+                        }
+                        
                         startTransition(async () => {
                           try {
                             const result = await updateCampInvitationStatusAction(invitation.id, newStatus);
@@ -284,10 +314,14 @@ export function CampInvitationList({
                               onRefresh?.();
                             } else {
                               toast.showError(result.error || "초대 상태 변경에 실패했습니다.");
+                              // 실패 시 select 값을 원래대로 복원
+                              e.target.value = oldStatus;
                             }
                           } catch (error) {
                             console.error("초대 상태 변경 실패:", error);
                             toast.showError("초대 상태 변경에 실패했습니다.");
+                            // 실패 시 select 값을 원래대로 복원
+                            e.target.value = oldStatus;
                           }
                         });
                       }

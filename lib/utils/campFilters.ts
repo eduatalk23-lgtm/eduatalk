@@ -10,8 +10,8 @@ import type { CampTemplateStatus, CampProgramType, CampInvitationStatus } from "
  */
 export type CampTemplateFilters = {
   search?: string;
-  status?: CampTemplateStatus | "";
-  programType?: CampProgramType | "";
+  status?: CampTemplateStatus; // 빈 문자열 제거
+  programType?: CampProgramType; // 빈 문자열 제거
 };
 
 /**
@@ -19,8 +19,8 @@ export type CampTemplateFilters = {
  */
 export type CampInvitationFilters = {
   search?: string;
-  status?: CampInvitationStatus | "";
-  studentName?: string;
+  status?: CampInvitationStatus; // 빈 문자열 제거
+  // studentName 필터 제거 (search로 통합)
 };
 
 /**
@@ -42,13 +42,13 @@ export function filterCampTemplates(
     );
   }
 
-  // 상태 필터링
-  if (filters.status) {
+  // 상태 필터링 (빈 문자열 명시적 체크)
+  if (filters.status && filters.status !== "") {
     filtered = filtered.filter((t) => t.status === filters.status);
   }
 
-  // 프로그램 유형 필터링
-  if (filters.programType) {
+  // 프로그램 유형 필터링 (빈 문자열 명시적 체크)
+  if (filters.programType && filters.programType !== "") {
     filtered = filtered.filter((t) => t.program_type === filters.programType);
   }
 
@@ -65,22 +65,11 @@ export function filterCampInvitations(
   let filtered = invitations;
 
   // 상태 필터링
-  if (filters.status) {
+  if (filters.status && filters.status !== "") {
     filtered = filtered.filter((inv) => inv.status === filters.status);
   }
 
-  // 학생명 검색
-  if (filters.studentName?.trim()) {
-    const nameLower = filters.studentName.toLowerCase().trim();
-    filtered = filtered.filter(
-      (inv) =>
-        inv.student_name?.toLowerCase().includes(nameLower) ||
-        inv.student_grade?.toLowerCase().includes(nameLower) ||
-        inv.student_class?.toLowerCase().includes(nameLower)
-    );
-  }
-
-  // 일반 검색 (학생명, 학년, 반 모두 검색)
+  // 검색 필터링 (학생명, 학년, 반 모두 검색)
   if (filters.search?.trim()) {
     const searchLower = filters.search.toLowerCase().trim();
     filtered = filtered.filter(

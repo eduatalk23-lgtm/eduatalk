@@ -456,9 +456,16 @@ export default async function AdminDashboardPage() {
 
   // 캐싱을 적용한 데이터 조회
   const tenantContext = await getTenantContext();
-  const campStats = tenantContext?.tenantId
+  const campStatsResult = tenantContext?.tenantId
     ? await getCampStatisticsForTenant(tenantContext.tenantId)
     : null;
+  
+  // 에러 처리
+  if (campStatsResult && !campStatsResult.success) {
+    console.error("[admin/dashboard] 캠프 통계 조회 실패:", campStatsResult.error);
+  }
+  
+  const campStats = campStatsResult?.success ? campStatsResult.data : null;
 
   const [
     studentStats,
