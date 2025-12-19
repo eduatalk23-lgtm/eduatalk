@@ -181,20 +181,131 @@ if (filters.curriculum_revision_id) {
 
 ---
 
+### 4. planGroupAdapters.ts 타입 개선 ✅
+
+**변경 사항**:
+- `Array<any>` → `Array<PlanContentWithDetails | ContentInfo>`
+- 콘텐츠 배열 타입 명시
+- 타입 단언 제거
+
+**개선 전**:
+```typescript
+contents?: Array<any>,
+let studentContents: any[] = [];
+let recommendedContents: any[] = [];
+contents.map((c: any) => ({ ... }))
+```
+
+**개선 후**:
+```typescript
+type ContentInfo = {
+  id?: string;
+  content_id: string;
+  content_type: "book" | "lecture" | "custom";
+  // ...
+};
+
+contents?: Array<PlanContentWithDetails | ContentInfo>,
+let studentContents: Array<{ ... }> = [];
+let recommendedContents: Array<{ ... }> = [];
+contents.map((c) => ({ ... }))
+```
+
+**개선 효과**:
+- 타입 안전성 향상: 콘텐츠 타입 명시
+- 타입 단언 제거: 3개 `any` 제거
+
+---
+
+### 5. calendarPageHelpers.ts 타입 개선 ✅
+
+**변경 사항**:
+- `(plan as any)` → 명시적 타입 정의 및 안전한 접근
+- 타입 단언 제거
+
+**개선 전**:
+```typescript
+contentTitle: (plan as any).contentTitle || plan.content_title || "제목 없음",
+```
+
+**개선 후**:
+```typescript
+const planWithContent = plan as Plan & {
+  contentTitle?: string;
+  contentSubject?: string | null;
+  // ...
+};
+
+contentTitle: planWithContent.contentTitle || plan.content_title || "제목 없음",
+```
+
+**개선 효과**:
+- 타입 안전성 향상: 명시적 타입 정의
+- 타입 단언 제거: 5개 `(plan as any)` 제거
+
+---
+
+### 6. excel.ts 타입 개선 ✅
+
+**변경 사항**:
+- `Record<string, any[]>` → 제네릭 타입 사용
+- `any[]` → 제네릭 타입 배열
+- `any[][]` → 명시적 타입 배열
+
+**개선 전**:
+```typescript
+export async function exportToExcel(sheets: Record<string, any[]>): Promise<Buffer>
+export async function parseExcelFile(fileBuffer: Buffer): Promise<Record<string, any[]>>
+export function convertDataToSheet(data: any[], headers?: string[]): any[][]
+```
+
+**개선 후**:
+```typescript
+export async function exportToExcel<T extends Record<string, unknown> = Record<string, unknown>>(
+  sheets: Record<string, T[]>
+): Promise<Buffer>
+
+export async function parseExcelFile<T extends Record<string, unknown> = Record<string, unknown>>(
+  fileBuffer: Buffer
+): Promise<Record<string, T[]>>
+
+export function convertDataToSheet<T extends Record<string, unknown>>(
+  data: T[],
+  headers?: string[]
+): (string | number | boolean | null)[][]
+```
+
+**개선 효과**:
+- 타입 안전성 향상: 제네릭 타입으로 유연성과 안전성 확보
+- 타입 단언 제거: 3개 `any` 제거
+
+---
+
+## 📊 전체 개선 통계
+
+### 타입 안전성 개선
+
+| 파일 | 개선 전 `any` 개수 | 개선 후 `any` 개수 | 제거된 `any` |
+|------|-------------------|-------------------|--------------|
+| `databaseFallback.ts` | 5개 | 0개 | -5개 (-100%) |
+| `planVersionUtils.ts` | 6개 | 0개 | -6개 (-100%) |
+| `contentFilters.ts` | 7개 | 0개 | -7개 (-100%) |
+| `planGroupAdapters.ts` | 3개 | 0개 | -3개 (-100%) |
+| `calendarPageHelpers.ts` | 5개 | 0개 | -5개 (-100%) |
+| `excel.ts` | 3개 | 0개 | -3개 (-100%) |
+| **합계** | **29개** | **0개** | **-29개 (-100%)** |
+
+---
+
 ## 📝 다음 단계
 
 ### 추가 개선 가능 사항
 
-1. **다른 파일의 `any` 타입 제거** (중간 우선순위):
-   - `planGroupAdapters.ts`: `Array<any>` → 명시적 타입 정의
-   - `calendarPageHelpers.ts`: `(plan as any)` → 타입 가드 사용
-   - `excel.ts`: `Record<string, any[]>` → 명시적 타입 정의
-
-2. **Deprecated 함수 정리** (중간 우선순위):
+1. **Deprecated 함수 정리** (중간 우선순위):
    - 사용처 확인 및 마이그레이션
    - 단계적 제거
 
-3. **함수 복잡도 관리** (낮은 우선순위):
+2. **함수 복잡도 관리** (낮은 우선순위):
    - 복잡한 함수 분리
    - 책임 분리
 

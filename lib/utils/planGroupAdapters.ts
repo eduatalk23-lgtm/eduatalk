@@ -5,9 +5,26 @@
  * DetailView에서 Step 컴포넌트를 재사용하기 위한 타입 변환
  */
 
-import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, SchedulerType, ExclusionType } from "@/lib/types/plan";
+import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, SchedulerType, ExclusionType, PlanContentWithDetails } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { getSchedulerOptionsWithTimeSettings, extractTimeSettingsFromSchedulerOptions } from "@/lib/utils/schedulerOptions";
+
+/**
+ * 콘텐츠 정보 (WizardData 변환용)
+ */
+type ContentInfo = {
+  id?: string;
+  content_id: string;
+  content_type: "book" | "lecture" | "custom";
+  start_range: number;
+  end_range: number;
+  contentTitle?: string;
+  title?: string;
+  contentSubtitle?: string;
+  subject_category?: string | null;
+  isRecommended?: boolean;
+  is_recommended?: boolean;
+};
 
 /**
  * PlanGroup을 WizardData로 변환
@@ -24,7 +41,7 @@ export function planGroupToWizardData(
   group: PlanGroup,
   exclusions: PlanExclusion[] = [],
   academySchedules: AcademySchedule[] = [],
-  contents?: Array<any>,
+  contents?: Array<PlanContentWithDetails | ContentInfo>,
   templateBlocks?: Array<{
     id: string;
     day_of_week: number;
@@ -38,21 +55,36 @@ export function planGroupToWizardData(
   const timeSettings = extractTimeSettingsFromSchedulerOptions(schedulerOptions);
 
   // 콘텐츠 분리 (학생/추천)
-  let studentContents: any[] = [];
-  let recommendedContents: any[] = [];
+  let studentContents: Array<{
+    content_id: string;
+    content_type: "book" | "lecture" | "custom";
+    start_range: number;
+    end_range: number;
+    subject_category?: string;
+    title: string;
+  }> = [];
+  let recommendedContents: Array<{
+    content_id: string;
+    content_type: "book" | "lecture" | "custom";
+    start_range: number;
+    end_range: number;
+    subject_category?: string;
+    title: string;
+    is_auto_recommended: boolean;
+  }> = [];
   
   if (contents && contents.length > 0) {
     const { studentContents: student, recommendedContents: recommended } = 
       contentsToWizardFormat(
-        contents.map((c: any) => ({
+        contents.map((c) => ({
           id: c.id || c.content_id,
           content_id: c.content_id,
           content_type: c.content_type,
           start_range: c.start_range,
           end_range: c.end_range,
-          contentTitle: c.contentTitle || c.title || "알 수 없음",
-          contentSubtitle: c.contentSubtitle || c.subject_category || null,
-          isRecommended: c.isRecommended || c.is_recommended || false,
+          contentTitle: ("contentTitle" in c ? c.contentTitle : undefined) || ("title" in c ? c.title : undefined) || "알 수 없음",
+          contentSubtitle: ("contentSubtitle" in c ? c.contentSubtitle : undefined) || ("subject_category" in c ? c.subject_category : undefined) || null,
+          isRecommended: ("isRecommended" in c ? c.isRecommended : false) || ("is_recommended" in c ? c.is_recommended : false) || false,
         }))
       );
     studentContents = student;

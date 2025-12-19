@@ -127,15 +127,28 @@ export async function enrichPlansWithContentInfo(
   );
 
   // 5. 최종 plansWithContent 생성 (기존 구조 유지)
+  // enrichPlansWithContentDetails가 반환하는 타입은 PlanWithEpisode이므로
+  // contentEpisode는 이미 포함되어 있을 수 있음
   const plansWithContent: PlanWithContent[] = plansWithContentDetails.map(
-    (plan) => ({
-      ...plan,
-      contentTitle: (plan as any).contentTitle || plan.content_title || "제목 없음",
-      contentSubject: (plan as any).contentSubject || plan.content_subject || null,
-      contentSubjectCategory: (plan as any).contentSubjectCategory || plan.content_subject_category || null,
-      contentCategory: (plan as any).contentCategory || plan.content_category || null,
-      contentEpisode: (plan as any).contentEpisode || null,
-    })
+    (plan) => {
+      // PlanWithContent 타입으로 안전하게 변환
+      const planWithContent = plan as Plan & {
+        contentTitle?: string;
+        contentSubject?: string | null;
+        contentSubjectCategory?: string | null;
+        contentCategory?: string | null;
+        contentEpisode?: string | null;
+      };
+
+      return {
+        ...plan,
+        contentTitle: planWithContent.contentTitle || plan.content_title || "제목 없음",
+        contentSubject: planWithContent.contentSubject ?? plan.content_subject ?? null,
+        contentSubjectCategory: planWithContent.contentSubjectCategory ?? plan.content_subject_category ?? null,
+        contentCategory: planWithContent.contentCategory ?? plan.content_category ?? null,
+        contentEpisode: planWithContent.contentEpisode ?? null,
+      };
+    }
   );
 
   return plansWithContent;

@@ -9,7 +9,9 @@
  * @param sheets 시트별 데이터 (시트명: 데이터 배열)
  * @returns Excel 파일 Buffer
  */
-export async function exportToExcel(sheets: Record<string, any[]>): Promise<Buffer> {
+export async function exportToExcel<T extends Record<string, unknown> = Record<string, unknown>>(
+  sheets: Record<string, T[]>
+): Promise<Buffer> {
   const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();
 
@@ -40,17 +42,17 @@ export async function exportToExcel(sheets: Record<string, any[]>): Promise<Buff
  * @param fileBuffer Excel 파일 Buffer
  * @returns 시트별 데이터 (시트명: 데이터 배열)
  */
-export async function parseExcelFile(
+export async function parseExcelFile<T extends Record<string, unknown> = Record<string, unknown>>(
   fileBuffer: Buffer
-): Promise<Record<string, any[]>> {
+): Promise<Record<string, T[]>> {
   const XLSX = await import("xlsx");
   const workbook = XLSX.read(fileBuffer, { type: "buffer" });
-  const result: Record<string, any[]> = {};
+  const result: Record<string, T[]> = {};
 
   // 각 시트를 순회하며 데이터 추출
   for (const sheetName of workbook.SheetNames) {
     const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, {
+    const data = XLSX.utils.sheet_to_json<T>(worksheet, {
       raw: false, // 날짜 등을 문자열로 변환
       defval: null, // 빈 셀은 null로 처리
     });
@@ -128,10 +130,10 @@ export async function generateTemplateExcel(
  * @param headers 헤더 배열 (선택사항, 없으면 객체 키 사용)
  * @returns Excel 시트 데이터
  */
-export function convertDataToSheet(
-  data: any[],
+export function convertDataToSheet<T extends Record<string, unknown>>(
+  data: T[],
   headers?: string[]
-): any[][] {
+): (string | number | boolean | null)[][] {
   if (data.length === 0) {
     return headers ? [headers] : [];
   }
@@ -144,7 +146,7 @@ export function convertDataToSheet(
   const sheetHeaders = headers || Object.keys(firstItem);
 
   // 헤더 행
-  const rows: any[][] = [sheetHeaders];
+  const rows: (string | number | boolean | null)[][] = [sheetHeaders];
 
   // 데이터 행
   for (const row of data) {
