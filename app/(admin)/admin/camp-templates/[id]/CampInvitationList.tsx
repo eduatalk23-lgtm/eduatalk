@@ -34,8 +34,20 @@ export function CampInvitationList({
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Optimistic update를 위한 상태 관리
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, string>>(new Map());
   
   const totalPages = total ? Math.ceil(total / pageSize) : 0;
+  
+  // Optimistic update가 적용된 초대 목록 생성
+  const invitationsWithOptimistic = invitations.map((inv) => {
+    const optimisticStatus = optimisticUpdates.get(inv.id);
+    if (optimisticStatus) {
+      return { ...inv, status: optimisticStatus as "pending" | "accepted" | "declined" };
+    }
+    return inv;
+  });
+  
   if (loading) {
     return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
   }
@@ -48,11 +60,11 @@ export function CampInvitationList({
     );
   }
 
-  // 상태별 통계
+  // 상태별 통계 (Optimistic update 반영)
   const stats = {
-    pending: invitations.filter((inv) => inv.status === "pending").length,
-    accepted: invitations.filter((inv) => inv.status === "accepted").length,
-    declined: invitations.filter((inv) => inv.status === "declined").length,
+    pending: invitationsWithOptimistic.filter((inv) => inv.status === "pending").length,
+    accepted: invitationsWithOptimistic.filter((inv) => inv.status === "accepted").length,
+    declined: invitationsWithOptimistic.filter((inv) => inv.status === "declined").length,
   };
 
   const handleToggleSelect = (invitationId: string) => {
@@ -255,7 +267,7 @@ export function CampInvitationList({
             </tr>
           </thead>
           <tbody>
-            {invitations.map((invitation) => (
+            {invitationsWithOptimistic.map((invitation) => (
               <tr key={invitation.id} className="hover:bg-gray-50">
                 <td className="border-b border-gray-100 px-4 py-3">
                   <input
@@ -306,18 +318,39 @@ export function CampInvitationList({
                           }
                         }
                         
+                        // Optimistic update
+                        setOptimisticUpdates((prev) => new Map(prev).set(invitation.id, newStatus));
+                        
                         startTransition(async () => {
                           try {
                             const result = await updateCampInvitationStatusAction(invitation.id, newStatus);
-                            if (result.success) {
-                              toast.showSuccess("초대 상태가 변경되었습니다.");
-                              onRefresh?.();
-                            } else {
+                            if (!result.success) {
+                              // 롤백
+                              setOptimisticUpdates((prev) => {
+                                const next = new Map(prev);
+                                next.delete(invitation.id);
+                                return next;
+                              });
                               toast.showError(result.error || "초대 상태 변경에 실패했습니다.");
                               // 실패 시 select 값을 원래대로 복원
                               e.target.value = oldStatus;
+                            } else {
+                              // 성공 시 optimistic update 제거 및 새로고침
+                              setOptimisticUpdates((prev) => {
+                                const next = new Map(prev);
+                                next.delete(invitation.id);
+                                return next;
+                              });
+                              toast.showSuccess("초대 상태가 변경되었습니다.");
+                              onRefresh?.();
                             }
                           } catch (error) {
+                            // 롤백
+                            setOptimisticUpdates((prev) => {
+                              const next = new Map(prev);
+                              next.delete(invitation.id);
+                              return next;
+                            });
                             console.error("초대 상태 변경 실패:", error);
                             toast.showError("초대 상태 변경에 실패했습니다.");
                             // 실패 시 select 값을 원래대로 복원

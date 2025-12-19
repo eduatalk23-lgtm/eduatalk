@@ -69,6 +69,7 @@ export function CampTemplateDetail({
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
+  // invitationPage, invitationPageSize는 함수 파라미터로 전달하므로 의존성에서 제거
   const loadInvitations = useCallback(async (page: number = invitationPage, pageSize: number = invitationPageSize) => {
     // 삭제 중이면 실행하지 않음
     if (isDeleting) {
@@ -110,7 +111,7 @@ export function CampTemplateDetail({
       setLoadingInvitations(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template.id, isDeleting, invitationPage, invitationPageSize]);
+  }, [template.id, isDeleting]);
 
   // 초기 로드 (template.id와 isDeleting만 의존하여 불필요한 재호출 방지)
   useEffect(() => {

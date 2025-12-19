@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -936,6 +937,7 @@ export const copyCampTemplateAction = withErrorHandling(
 
     // 경로 재검증
     revalidatePath("/admin/camp-templates");
+    revalidatePath("/admin/camp-templates", "layout"); // 레이아웃도 재검증
     if (result.templateId) {
       revalidatePath(`/admin/camp-templates/${result.templateId}`);
     }
