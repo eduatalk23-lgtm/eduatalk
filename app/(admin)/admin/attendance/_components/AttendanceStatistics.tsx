@@ -44,31 +44,31 @@ export function AttendanceStatistics({
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-          <div className="text-center">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
             <div className="text-sm text-gray-600">출석</div>
             <div className="text-lg font-semibold text-green-600">
               {statistics.present_count}
             </div>
           </div>
-          <div className="text-center">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
             <div className="text-sm text-gray-600">결석</div>
             <div className="text-lg font-semibold text-red-600">
               {statistics.absent_count}
             </div>
           </div>
-          <div className="text-center">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
             <div className="text-sm text-gray-600">지각</div>
             <div className="text-lg font-semibold text-yellow-600">
               {statistics.late_count}
             </div>
           </div>
-          <div className="text-center">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
             <div className="text-sm text-gray-600">조퇴</div>
             <div className="text-lg font-semibold text-orange-600">
               {statistics.early_leave_count}
             </div>
           </div>
-          <div className="text-center">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 text-center">
             <div className="text-sm text-gray-600">공결</div>
             <div className="text-lg font-semibold text-blue-600">
               {statistics.excused_count}

@@ -62,12 +62,13 @@ async function AttendanceContent({
 
   // 학생명으로 필터링 (학생 ID 조회 필요)
   if (studentNameFilter) {
+    // 학생 검색 제한 제거: 충분히 큰 범위로 조회 (실제로는 대부분의 학원에서 1000명 이하)
     const { data: students } = await supabase
       .from("students")
       .select("id")
       .eq("tenant_id", tenantContext.tenantId)
       .ilike("name", `%${studentNameFilter}%`)
-      .limit(100);
+      .range(0, 999); // 1000명까지 조회 가능
 
     if (students && students.length > 0) {
       // 여러 학생 ID로 필터링
@@ -161,52 +162,25 @@ async function AttendanceContent({
   const records = paginationResult?.records ?? [];
   const totalPages = paginationResult?.totalPages ?? 1;
 
-  // 전체 통계 계산 (필터링된 기록 기준 - 페이지네이션된 데이터가 아닌 전체 데이터 필요)
-  // 통계는 별도로 조회하거나, 현재 페이지 데이터만 표시
-  let overallStats = {
-    total_days: paginationResult?.total ?? 0,
-    present_count: records.filter((r) => r.status === "present").length,
-    absent_count: records.filter((r) => r.status === "absent").length,
-    late_count: records.filter((r) => r.status === "late").length,
-    early_leave_count: records.filter((r) => r.status === "early_leave").length,
-    excused_count: records.filter((r) => r.status === "excused").length,
-    attendance_rate: 0,
-    late_rate: 0,
-    absent_rate: 0,
-  };
-
-  if (records.length > 0) {
-    const totalDays = records.length;
-    const presentCount = records.filter((r) => r.status === "present").length;
-    const absentCount = records.filter((r) => r.status === "absent").length;
-    const lateCount = records.filter((r) => r.status === "late").length;
-    const earlyLeaveCount = records.filter(
-      (r) => r.status === "early_leave"
-    ).length;
-    const excusedCount = records.filter((r) => r.status === "excused").length;
-
-    overallStats = {
-      ...overallStats,
-      total_days: totalDays,
-      present_count: presentCount,
-      absent_count: absentCount,
-      late_count: lateCount,
-      early_leave_count: earlyLeaveCount,
-      excused_count: excusedCount,
-      attendance_rate: totalDays > 0 ? (presentCount / totalDays) * 100 : 0,
-      late_rate: totalDays > 0 ? (lateCount / totalDays) * 100 : 0,
-      absent_rate: totalDays > 0 ? (absentCount / totalDays) * 100 : 0,
-    };
-  }
+  // 전체 통계 계산 (필터링된 전체 데이터 기준)
+  // 필터 기반 통계 계산 함수 사용
+  const { calculateAttendanceStatsWithFilters } = await import(
+    "@/lib/domains/attendance/service"
+  );
+  const overallStats = await calculateAttendanceStatsWithFilters(
+    filters,
+    tenantContext.tenantId
+  );
 
   // 학생 목록 조회 (출석 기록 입력 폼용)
+  // 학생 검색 제한 제거: 충분히 큰 범위로 조회
   const { data: allStudents } = await supabase
     .from("students")
     .select("id,name")
     .eq("tenant_id", tenantContext.tenantId)
     .eq("is_active", true)
     .order("name", { ascending: true })
-    .limit(100);
+    .range(0, 999); // 1000명까지 조회 가능
 
   return (
     <div className="p-6 md:p-10">
@@ -258,6 +232,8 @@ async function AttendanceContent({
             <AttendancePagination
               currentPage={page}
               totalPages={totalPages}
+              totalItems={paginationResult?.total ?? 0}
+              pageSize={pageSize}
               searchParams={searchParams}
             />
           </>

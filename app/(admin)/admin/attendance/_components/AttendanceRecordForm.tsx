@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { recordAttendanceAction } from "@/app/(admin)/actions/attendanceActions";
+import { useState } from "react";
+import { useRecordAttendance } from "@/lib/hooks/useAttendance";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
@@ -25,7 +25,7 @@ export function AttendanceRecordForm({
   defaultDate,
   onSuccess,
 }: AttendanceRecordFormProps) {
-  const [isPending, startTransition] = useTransition();
+  const recordAttendance = useRecordAttendance();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -47,44 +47,38 @@ export function AttendanceRecordForm({
     setError(null);
     setSuccess(false);
 
-    startTransition(async () => {
-      try {
-        const result = await recordAttendanceAction({
-          student_id: studentId,
-          attendance_date: formData.attendance_date,
-          check_in_time: formData.check_in_time || null,
-          check_out_time: formData.check_out_time || null,
-          check_in_method: formData.check_in_method || null,
-          check_out_method: formData.check_out_method || null,
-          status: formData.status,
-          notes: formData.notes || null,
-        });
+    try {
+      await recordAttendance.mutateAsync({
+        student_id: studentId,
+        attendance_date: formData.attendance_date,
+        check_in_time: formData.check_in_time || null,
+        check_out_time: formData.check_out_time || null,
+        check_in_method: formData.check_in_method || null,
+        check_out_method: formData.check_out_method || null,
+        status: formData.status,
+        notes: formData.notes || null,
+      });
 
-        if (result.success) {
-          setSuccess(true);
-          if (onSuccess) {
-            onSuccess();
-          }
-          // 폼 초기화
-          setTimeout(() => {
-            setFormData({
-              attendance_date: today,
-              check_in_time: "",
-              check_out_time: "",
-              check_in_method: "manual",
-              check_out_method: "manual",
-              status: "present",
-              notes: "",
-            });
-            setSuccess(false);
-          }, 2000);
-        } else {
-          setError(result.error || "출석 기록 저장에 실패했습니다.");
-        }
-      } catch (err: any) {
-        setError(err.message || "출석 기록 저장 중 오류가 발생했습니다.");
+      setSuccess(true);
+      if (onSuccess) {
+        onSuccess();
       }
-    });
+      // 폼 초기화
+      setTimeout(() => {
+        setFormData({
+          attendance_date: today,
+          check_in_time: "",
+          check_out_time: "",
+          check_in_method: "manual",
+          check_out_method: "manual",
+          status: "present",
+          notes: "",
+        });
+        setSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || "출석 기록 저장 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -219,8 +213,8 @@ export function AttendanceRecordForm({
         </div>
       )}
 
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "저장 중..." : "저장"}
+      <Button type="submit" disabled={recordAttendance.isPending}>
+        {recordAttendance.isPending ? "저장 중..." : "저장"}
       </Button>
     </form>
   );

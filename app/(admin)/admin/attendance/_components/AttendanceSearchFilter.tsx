@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   borderInput,
@@ -36,6 +38,7 @@ export function AttendanceSearchFilter({
   checkOutMethodFilter,
   sortBy,
 }: AttendanceSearchFilterProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const hasActiveFilters =
     studentNameFilter ||
     startDateFilter ||
@@ -45,12 +48,17 @@ export function AttendanceSearchFilter({
     checkOutMethodFilter ||
     sortBy !== "date";
 
+  // 기본 필터: 학생명, 날짜, 상태
+  // 고급 필터: 입실 방법, 정렬
+
   return (
     <div className="flex flex-col gap-4">
       <form
         method="get"
-        className="flex flex-col gap-4 md:flex-row md:items-end"
+        className="flex flex-col gap-4"
       >
+        {/* 기본 필터 */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-end">
         {/* 학생명 검색 */}
         <div className="flex flex-col gap-1 flex-1">
           <label className={cn("text-sm font-medium", textSecondary)}>
@@ -134,54 +142,6 @@ export function AttendanceSearchFilter({
           </select>
         </div>
 
-        {/* 입실 방법 필터 */}
-        <div className="flex flex-col gap-1">
-          <label className={cn("text-sm font-medium", textSecondary)}>
-            입실 방법
-          </label>
-          <select
-            name="check_in_method"
-            defaultValue={checkInMethodFilter || ""}
-            className={cn(
-              "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
-              borderInput,
-              bgSurface,
-              textPrimary,
-              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
-            )}
-          >
-            <option value="">전체</option>
-            <option value="manual">수동</option>
-            <option value="qr">QR코드</option>
-            <option value="location">위치기반</option>
-            <option value="auto">자동</option>
-          </select>
-        </div>
-
-        {/* 정렬 */}
-        <div className="flex flex-col gap-1">
-          <label className={cn("text-sm font-medium", textSecondary)}>
-            정렬
-          </label>
-          <select
-            name="sort"
-            defaultValue={sortBy}
-            className={cn(
-              "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
-              borderInput,
-              bgSurface,
-              textPrimary,
-              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
-            )}
-          >
-            {Object.values(ATTENDANCE_SORT_OPTIONS).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* 검색 버튼 */}
         <button
           type="submit"
@@ -208,6 +168,81 @@ export function AttendanceSearchFilter({
             초기화
           </Link>
         )}
+        </div>
+
+        {/* 고급 필터 (접기/펼치기) */}
+        <div className="flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={cn(
+              "flex items-center justify-between rounded-lg border px-4 py-2 text-sm font-medium transition",
+              borderInput,
+              bgSurface,
+              textSecondary,
+              bgHover
+            )}
+          >
+            <span>고급 필터</span>
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+
+          {isExpanded && (
+            <div className="flex flex-col gap-4 md:flex-row md:items-end">
+              {/* 입실 방법 필터 */}
+              <div className="flex flex-col gap-1">
+                <label className={cn("text-sm font-medium", textSecondary)}>
+                  입실 방법
+                </label>
+                <select
+                  name="check_in_method"
+                  defaultValue={checkInMethodFilter || ""}
+                  className={cn(
+                    "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                    borderInput,
+                    bgSurface,
+                    textPrimary,
+                    "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                  )}
+                >
+                  <option value="">전체</option>
+                  <option value="manual">수동</option>
+                  <option value="qr">QR코드</option>
+                  <option value="location">위치기반</option>
+                  <option value="auto">자동</option>
+                </select>
+              </div>
+
+              {/* 정렬 */}
+              <div className="flex flex-col gap-1">
+                <label className={cn("text-sm font-medium", textSecondary)}>
+                  정렬
+                </label>
+                <select
+                  name="sort"
+                  defaultValue={sortBy}
+                  className={cn(
+                    "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                    borderInput,
+                    bgSurface,
+                    textPrimary,
+                    "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                  )}
+                >
+                  {Object.values(ATTENDANCE_SORT_OPTIONS).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
       </form>
     </div>
   );
