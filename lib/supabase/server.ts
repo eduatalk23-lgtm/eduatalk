@@ -193,26 +193,38 @@ export function createSupabasePublicClient() {
 /**
  * Admin 권한을 가진 Supabase 클라이언트 생성 (Service Role Key 사용)
  * 주의: 서버 사이드에서만 사용해야 하며, 절대 클라이언트에 노출되면 안 됨
+ * 
+ * @returns Supabase Admin 클라이언트 또는 null (Service Role Key가 없을 경우)
+ * 
+ * @deprecated lib/supabase/admin.ts의 createSupabaseAdminClient를 사용하세요.
+ * 이 함수는 하위 호환성을 위해 유지되며, 내부적으로 admin.ts를 사용합니다.
  */
 export function createSupabaseAdminClient() {
-  // Service Role Key가 없는 경우 에러 처리하거나 Anon Key로 대체 (보안상 취약할 수 있음)
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.warn("[supabase/server] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. 권한 문제가 발생할 수 있습니다.");
+  // lib/supabase/admin.ts의 구현을 따름 (보안상 안전)
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceRoleKey) {
+    // 개발 환경에서는 에러 throw
+    if (process.env.NODE_ENV === "development") {
+      throw new Error(
+        "SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. " +
+        "Admin 클라이언트를 생성할 수 없습니다."
+      );
+    }
+    // 프로덕션 환경에서는 null 반환 (호출하는 쪽에서 처리)
+    console.error(
+      "[supabase/server] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다."
+    );
+    return null;
   }
 
-  return createClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    serviceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-         fetch: (...args) => fetch(...args),
-      }
-    }
-  );
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+    global: {
+      fetch: (...args) => fetch(...args),
+    },
+  });
 }
