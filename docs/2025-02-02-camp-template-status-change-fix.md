@@ -50,12 +50,29 @@ if (!updatedRows || updatedRows.length === 0) {  // updatedRows가 정의되지 
 
 1. `.select()` 메서드 추가하여 업데이트된 행 데이터 반환
 2. 구조 분해에 `data: updatedRows` 추가
+3. **`createSupabaseAdminClient()` 사용으로 변경** (RLS 정책 문제 해결)
+
+### 문제 분석
+
+- `updateCampTemplateAction` 등 다른 update 함수들은 `createSupabaseAdminClient()`를 사용하여 RLS를 우회
+- `updateCampTemplateStatusAction`만 `createSupabaseServerClient()`를 사용하여 RLS 정책에 의해 업데이트가 차단될 수 있음
+- Admin 영역에서의 관리 작업이므로 Admin Client 사용이 적절함
 
 ### 수정 코드
 
 ```typescript
 // 상태 변경
-const supabase = await createSupabaseServerClient();
+// Admin Client 사용 (RLS 우회)
+const supabase = createSupabaseAdminClient();
+if (!supabase) {
+  throw new AppError(
+    "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    ErrorCode.INTERNAL_ERROR,
+    500,
+    true
+  );
+}
+
 const { data: updatedRows, error } = await supabase  // data 구조 분해 추가
   .from("camp_templates")
   .update({
@@ -110,4 +127,9 @@ if (!updatedRows || updatedRows.length === 0) {
 - Supabase의 `update()` 메서드는 기본적으로 업데이트된 데이터를 반환하지 않음
 - 업데이트된 행을 확인하려면 `.select()` 메서드를 호출해야 함
 - 다른 update 액션들(`updateCampTemplateAction` 등)도 동일한 패턴 사용
+- **Admin 영역에서는 RLS를 우회하기 위해 `createSupabaseAdminClient()` 사용**
+  - `updateCampTemplateAction` (724번째 줄)
+  - `getCampTemplates` (130번째 줄)
+  - `getCampTemplateById` (188번째 줄)
+  - 모두 Admin Client 사용
 
