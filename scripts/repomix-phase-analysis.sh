@@ -64,9 +64,9 @@ run_phase4() {
 }
 
 run_phase5() {
-    log_info "Phase 5: 관리자 영역 분석 시작..."
-    npx repomix "app/(admin)" lib/data/admin -o repomix-phase5-admin.xml
-    log_success "Phase 5 완료: repomix-phase5-admin.xml"
+    log_info "Phase 5: 데이터 페칭 및 API 최적화 분석 시작..."
+    npx repomix lib/api lib/data app/api lib/hooks -o repomix-phase5-data-fetching.xml
+    log_success "Phase 5 완료: repomix-phase5-data-fetching.xml"
 }
 
 run_phase6() {
@@ -96,7 +96,7 @@ main() {
         echo "  2 - 공통 유틸리티 (lib/utils, lib/types, components/ui)"
         echo "  3 - 학생 핵심 (plan, scores, metrics, goals)"
         echo "  4 - 관리자 및 컨설턴트 (app/(admin), lib/data/admin, 권한 관리)"
-        echo "  5 - 관리자 (app/(admin), lib/data/admin)"
+        echo "  5 - 데이터 페칭 및 API (lib/api, lib/data, app/api, lib/hooks)"
         echo "  6 - 나머지 (parent, superadmin, actions, api, 기타)"
         echo "  all - 모든 Phase 실행"
         echo ""
