@@ -1,6 +1,6 @@
 import type { PlanGroup } from "@/lib/types/plan";
 import type { SupabaseClientForStudentQuery } from "@/lib/supabase/clientSelector";
-import { selectClientForBlockSetQuery } from "@/lib/supabase/clientSelector";
+import { selectClientForCrossAccess } from "@/lib/supabase/clientSelector";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
@@ -346,7 +346,7 @@ async function getStudentBlockSet(
 ): Promise<BlockInfo[] | null> {
   // 적절한 클라이언트 선택 (관리자/컨설턴트가 다른 학생 데이터 조회 시 Admin 클라이언트)
   const isAdminOrConsultant = role === "admin" || role === "consultant";
-  const queryClient = await selectClientForBlockSetQuery(
+  const queryClient = await selectClientForCrossAccess(
     studentId,
     currentUserId,
     isAdminOrConsultant
@@ -416,7 +416,7 @@ async function getActiveBlockSet(
 ): Promise<BlockInfo[] | null> {
   // 적절한 클라이언트 선택
   const isAdminOrConsultant = role === "admin" || role === "consultant";
-  const queryClient = await selectClientForBlockSetQuery(
+  const queryClient = await selectClientForCrossAccess(
     studentId,
     currentUserId,
     isAdminOrConsultant

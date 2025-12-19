@@ -12,7 +12,7 @@ import type {
   AcademySchedule,
 } from "@/lib/types/plan";
 import {
-  selectClientForStudentQuery,
+  selectClientForCrossAccess,
   ensureAdminClient,
   type SupabaseClientForStudentQuery,
 } from "@/lib/supabase/clientSelector";
@@ -126,7 +126,7 @@ export async function getSupabaseClientForStudent(
   role: PlanGroupAllowedRole
 ) {
   const isAdminOrConsultant = role === "admin" || role === "consultant";
-  return selectClientForStudentQuery(
+  return selectClientForCrossAccess(
     studentId,
     currentUserId,
     isAdminOrConsultant

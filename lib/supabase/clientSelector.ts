@@ -52,65 +52,6 @@ export async function selectClientForCrossAccess(
   return createSupabaseServerClient();
 }
 
-/**
- * 학생 데이터 조회 시 사용할 Supabase 클라이언트를 선택합니다.
- * - 관리자/컨설턴트가 다른 학생 데이터를 조회할 경우 Admin 클라이언트 사용
- * - 그 외에는 기본 서버 클라이언트 사용
- * 
- * @deprecated selectClientForCrossAccess를 사용하세요. 하위 호환성을 위해 유지됩니다.
- */
-export async function selectClientForStudentQuery(
-  studentId: string,
-  currentUserId: string,
-  isAdminOrConsultant: boolean
-): Promise<SupabaseClientForStudentQuery> {
-  return selectClientForCrossAccess(studentId, currentUserId, isAdminOrConsultant);
-}
-
-/**
- * 플랜 생성 작업에 필요한 클라이언트를 선택합니다.
- * - 관리자/컨설턴트가 다른 학생의 플랜을 생성할 경우 Admin 클라이언트 사용
- * - 그 외에는 기본 서버 클라이언트 사용
- * 
- * @deprecated selectClientForCrossAccess를 사용하세요. 하위 호환성을 위해 유지됩니다.
- */
-export async function selectClientForPlanGeneration(
-  studentId: string,
-  currentUserId: string,
-  isAdminOrConsultant: boolean
-): Promise<SupabaseClientForStudentQuery> {
-  return selectClientForCrossAccess(studentId, currentUserId, isAdminOrConsultant);
-}
-
-/**
- * 콘텐츠(교재/강의) 조회 시 사용할 클라이언트를 선택합니다.
- * - 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 경우 Admin 클라이언트 사용
- * - 그 외에는 기본 서버 클라이언트 사용
- * 
- * @deprecated selectClientForCrossAccess를 사용하세요. 하위 호환성을 위해 유지됩니다.
- */
-export async function selectClientForContentQuery(
-  studentId: string,
-  currentUserId: string,
-  isAdminOrConsultant: boolean
-): Promise<SupabaseClientForStudentQuery> {
-  return selectClientForCrossAccess(studentId, currentUserId, isAdminOrConsultant);
-}
-
-/**
- * 블록 세트 조회 시 사용할 클라이언트를 선택합니다.
- * - 관리자/컨설턴트가 다른 학생의 블록 세트를 조회할 경우 Admin 클라이언트 사용
- * - 그 외에는 기본 서버 클라이언트 사용
- * 
- * @deprecated selectClientForCrossAccess를 사용하세요. 하위 호환성을 위해 유지됩니다.
- */
-export async function selectClientForBlockSetQuery(
-  studentId: string,
-  currentUserId: string,
-  isAdminOrConsultant: boolean
-): Promise<SupabaseClientForStudentQuery> {
-  return selectClientForCrossAccess(studentId, currentUserId, isAdminOrConsultant);
-}
 
 /**
  * RLS 우회가 필요한 작업을 위한 클라이언트 선택
