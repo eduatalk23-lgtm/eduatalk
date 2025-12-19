@@ -1,6 +1,7 @@
 // 캠프 템플릿 및 초대 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
@@ -51,6 +52,7 @@ export async function getCampTemplate(templateId: string): Promise<CampTemplate 
 
 /**
  * 캠프 템플릿 생성
+ * 관리자 전용 함수이므로 Admin 클라이언트를 사용하여 RLS를 우회합니다.
  */
 export async function createCampTemplate(data: {
   tenant_id: string;
@@ -63,7 +65,9 @@ export async function createCampTemplate(data: {
   camp_end_date?: string;
   camp_location?: string;
 }): Promise<{ success: boolean; templateId?: string; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 전용 함수이므로 Admin 클라이언트 사용 (RLS 우회)
+  // 호출 전에 requireAdminOrConsultant()로 권한 검증이 완료되어야 함
+  const supabase = createSupabaseAdminClient();
 
   const insertData: {
     tenant_id: string;
@@ -704,13 +708,15 @@ export async function deleteCampInvitations(
 /**
  * 캠프 템플릿 복사
  * 템플릿 데이터와 블록 세트 연결을 복사합니다. 초대 정보는 복사하지 않습니다.
+ * 관리자 전용 함수이므로 Admin 클라이언트를 사용하여 RLS를 우회합니다.
  */
 export async function copyCampTemplate(
   templateId: string,
   newName?: string
 ): Promise<{ success: boolean; templateId?: string; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 관리자 전용 함수이므로 Admin 클라이언트 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
 
     // 원본 템플릿 조회
     const originalTemplate = await getCampTemplate(templateId);
