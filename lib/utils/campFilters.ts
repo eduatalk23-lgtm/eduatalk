@@ -10,8 +10,8 @@ import type { CampTemplateStatus, CampProgramType, CampInvitationStatus } from "
  */
 export type CampTemplateFilters = {
   search?: string;
-  status?: CampTemplateStatus; // 빈 문자열 제거
-  programType?: CampProgramType; // 빈 문자열 제거
+  status?: Exclude<CampTemplateStatus, "">; // 빈 문자열 제외
+  programType?: Exclude<CampProgramType, "">; // 빈 문자열 제외
 };
 
 /**
@@ -19,9 +19,24 @@ export type CampTemplateFilters = {
  */
 export type CampInvitationFilters = {
   search?: string;
-  status?: CampInvitationStatus; // 빈 문자열 제거
+  status?: Exclude<CampInvitationStatus, "">; // 빈 문자열 제외
   // studentName 필터 제거 (search로 통합)
 };
+
+/**
+ * 필터 정규화 (빈 값 제거)
+ */
+export function normalizeFilters<T extends Record<string, unknown>>(
+  filters: T
+): Partial<T> {
+  const normalized: Partial<T> = {};
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      normalized[key as keyof T] = value;
+    }
+  });
+  return normalized;
+}
 
 /**
  * 캠프 템플릿 필터링

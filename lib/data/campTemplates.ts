@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
+import { applyFilters, type FilterConfig } from "@/lib/utils/supabaseQueryBuilder";
 
 /**
  * 캠프 템플릿 조회
@@ -167,28 +168,40 @@ export async function getCampTemplatesForTenantWithPagination(
     const offset = options.offset ?? (page - 1) * pageSize;
     const filters = options.filters || {};
 
-    // 쿼리 빌더 함수 (필터 적용)
+    // 쿼리 빌더 함수 (필터 적용) - supabaseQueryBuilder 사용
     const buildQuery = () => {
       let query = supabase
         .from("camp_templates")
         .select("*")
         .eq("tenant_id", tenantId);
 
-      // 검색어 필터링 (name 또는 description)
+      // 필터 설정
+      const filterConfig: FilterConfig<typeof filters> = {
+        search: {
+          operator: "ilike",
+          transform: (value) => {
+            const searchLower = String(value).toLowerCase().trim();
+            // name 또는 description에 대한 검색은 별도 처리 필요
+            return searchLower;
+          },
+        },
+        status: {
+          operator: "eq",
+        },
+        programType: {
+          operator: "eq",
+        },
+      };
+
+      // 검색어 필터링 (name 또는 description) - 특수 처리
       if (filters.search?.trim()) {
         const searchLower = filters.search.toLowerCase().trim();
         query = query.or(`name.ilike.%${searchLower}%,description.ilike.%${searchLower}%`);
       }
 
-      // 상태 필터링
-      if (filters.status && filters.status !== "") {
-        query = query.eq("status", filters.status);
-      }
-
-      // 프로그램 유형 필터링
-      if (filters.programType && filters.programType !== "") {
-        query = query.eq("program_type", filters.programType);
-      }
+      // 나머지 필터 적용
+      const { search, ...otherFilters } = filters;
+      query = applyFilters(query, otherFilters, filterConfig);
 
       return query;
     };

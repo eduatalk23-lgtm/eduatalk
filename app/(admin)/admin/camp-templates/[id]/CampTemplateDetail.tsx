@@ -20,6 +20,7 @@ import {
   planPurposeLabels,
   schedulerTypeLabels,
 } from "@/lib/constants/planLabels";
+import { usePagination } from "@/lib/hooks/usePagination";
 
 type CampTemplateDetailProps = {
   template: CampTemplate;
@@ -56,9 +57,22 @@ export function CampTemplateDetail({
   const [isPending, startTransition] = useTransition();
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
-  const [invitationPage, setInvitationPage] = useState(1);
-  const [invitationPageSize, setInvitationPageSize] = useState(20);
   const [invitationTotal, setInvitationTotal] = useState(0);
+  
+  // 페이지네이션 훅 사용
+  const {
+    page: invitationPage,
+    pageSize: invitationPageSize,
+    setPage: setInvitationPage,
+    setPageSize: setInvitationPageSize,
+    adjustPageAfterDeletion,
+  } = usePagination({
+    initialPage: 1,
+    initialPageSize: 20,
+    onPageChange: (page, pageSize) => {
+      loadInvitations(page, pageSize);
+    },
+  });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<
@@ -69,8 +83,7 @@ export function CampTemplateDetail({
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
-  // invitationPage, invitationPageSize는 함수 파라미터로 전달하므로 의존성에서 제거
-  const loadInvitations = useCallback(async (page: number = invitationPage, pageSize: number = invitationPageSize) => {
+  const loadInvitations = useCallback(async (page: number, pageSize: number) => {
     // 삭제 중이면 실행하지 않음
     if (isDeleting) {
       return;
@@ -86,8 +99,6 @@ export function CampTemplateDetail({
       if (result.success) {
         setInvitations(result.invitations || []);
         setInvitationTotal(result.total || 0);
-        setInvitationPage(result.page || 1);
-        setInvitationPageSize(result.pageSize || 20);
       } else {
         // 에러가 발생한 경우 빈 배열로 처리
         setInvitations([]);
@@ -121,42 +132,26 @@ export function CampTemplateDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id, isDeleting]);
 
-  // 페이지 변경 핸들러
+  // 페이지 변경 핸들러 (usePagination 훅에서 자동 처리됨)
   const handleInvitationPageChange = useCallback((newPage: number) => {
     setInvitationPage(newPage);
-    loadInvitations(newPage, invitationPageSize);
-  }, [loadInvitations, invitationPageSize]);
+  }, [setInvitationPage]);
 
-  // 페이지 크기 변경 핸들러
+  // 페이지 크기 변경 핸들러 (usePagination 훅에서 자동 처리됨)
   const handleInvitationPageSizeChange = useCallback((newPageSize: number) => {
     setInvitationPageSize(newPageSize);
-    setInvitationPage(1);
-    loadInvitations(1, newPageSize);
-  }, [loadInvitations]);
+  }, [setInvitationPageSize]);
 
   // 초대 발송 후 목록 새로고침 (페이지를 1로 리셋)
   const handleInvitationSent = useCallback(() => {
     setInvitationPage(1);
-    loadInvitations(1, invitationPageSize);
-  }, [loadInvitations, invitationPageSize]);
+  }, [setInvitationPage]);
 
   // 초대 삭제 후 목록 새로고침 (페이지 조정)
-  const handleDeleteInvitations = useCallback(async (deletedCount: number) => {
-    // 삭제 후 현재 페이지에 데이터가 있는지 확인
-    const remainingCount = invitationTotal - deletedCount;
-    const itemsPerPage = invitationPageSize;
-    const currentPageStart = (invitationPage - 1) * itemsPerPage;
-    
-    if (remainingCount <= currentPageStart && invitationPage > 1) {
-      // 현재 페이지에 데이터가 없으면 이전 페이지로
-      const newPage = invitationPage - 1;
-      setInvitationPage(newPage);
-      loadInvitations(newPage, invitationPageSize);
-    } else {
-      // 현재 페이지에 데이터가 있으면 새로고침만
-      loadInvitations(invitationPage, invitationPageSize);
-    }
-  }, [invitationTotal, invitationPage, invitationPageSize, loadInvitations]);
+  const handleDeleteInvitations = useCallback((deletedCount: number) => {
+    adjustPageAfterDeletion(deletedCount, invitationTotal);
+    loadInvitations(invitationPage, invitationPageSize);
+  }, [adjustPageAfterDeletion, invitationTotal, invitationPage, invitationPageSize, loadInvitations]);
 
   const handleStatusChange = async (
     newStatus: "draft" | "active" | "archived"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampInvitation } from "@/lib/types/plan";
 import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -32,21 +33,58 @@ export function CampInvitationList({
   onPageSizeChange,
 }: CampInvitationListProps) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Optimistic update를 위한 상태 관리
-  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, string>>(new Map());
   
   const totalPages = total ? Math.ceil(total / pageSize) : 0;
   
-  // Optimistic update가 적용된 초대 목록 생성
-  const invitationsWithOptimistic = invitations.map((inv) => {
-    const optimisticStatus = optimisticUpdates.get(inv.id);
-    if (optimisticStatus) {
-      return { ...inv, status: optimisticStatus as "pending" | "accepted" | "declined" };
-    }
-    return inv;
+  // TanStack Query를 사용한 Optimistic Update 패턴
+  const statusChangeMutation = useMutation({
+    mutationFn: async ({ invitationId, newStatus }: { invitationId: string; newStatus: "pending" | "accepted" | "declined" }) => {
+      const result = await updateCampInvitationStatusAction(invitationId, newStatus);
+      if (!result.success) {
+        throw new Error(result.error || "상태 변경에 실패했습니다.");
+      }
+      return result;
+    },
+    onMutate: async ({ invitationId, newStatus }) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ["camp-invitations", templateId] });
+      
+      // 이전 상태 스냅샷
+      const previousInvitations = queryClient.getQueryData<typeof invitations>(["camp-invitations", templateId]);
+      
+      // Optimistic update
+      queryClient.setQueryData<typeof invitations>(["camp-invitations", templateId], (old) => {
+        if (!old) return old;
+        return old.map((inv) => 
+          inv.id === invitationId ? { ...inv, status: newStatus } : inv
+        );
+      });
+      
+      return { previousInvitations };
+    },
+    onError: (err, variables, context) => {
+      // 롤백
+      if (context?.previousInvitations) {
+        queryClient.setQueryData(["camp-invitations", templateId], context.previousInvitations);
+      }
+      toast.showError(err.message || "상태 변경에 실패했습니다.");
+    },
+    onSuccess: () => {
+      toast.showSuccess("초대 상태가 변경되었습니다.");
+      onRefresh?.();
+    },
+    onSettled: () => {
+      // 성공/실패 관계없이 쿼리 무효화
+      queryClient.invalidateQueries({ queryKey: ["camp-invitations", templateId] });
+    },
   });
+  
+  // Optimistic update는 mutation의 onMutate에서 처리되므로
+  // props로 받은 데이터를 그대로 사용 (상위 컴포넌트에서 useQuery 사용 시 자동 반영됨)
+  const invitationsWithOptimistic = invitations;
   
   if (loading) {
     return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
@@ -318,48 +356,11 @@ export function CampInvitationList({
                           }
                         }
                         
-                        // Optimistic update
-                        setOptimisticUpdates((prev) => new Map(prev).set(invitation.id, newStatus));
-                        
-                        startTransition(async () => {
-                          try {
-                            const result = await updateCampInvitationStatusAction(invitation.id, newStatus);
-                            if (!result.success) {
-                              // 롤백
-                              setOptimisticUpdates((prev) => {
-                                const next = new Map(prev);
-                                next.delete(invitation.id);
-                                return next;
-                              });
-                              toast.showError(result.error || "초대 상태 변경에 실패했습니다.");
-                              // 실패 시 select 값을 원래대로 복원
-                              e.target.value = oldStatus;
-                            } else {
-                              // 성공 시 optimistic update 제거 및 새로고침
-                              setOptimisticUpdates((prev) => {
-                                const next = new Map(prev);
-                                next.delete(invitation.id);
-                                return next;
-                              });
-                              toast.showSuccess("초대 상태가 변경되었습니다.");
-                              onRefresh?.();
-                            }
-                          } catch (error) {
-                            // 롤백
-                            setOptimisticUpdates((prev) => {
-                              const next = new Map(prev);
-                              next.delete(invitation.id);
-                              return next;
-                            });
-                            console.error("초대 상태 변경 실패:", error);
-                            toast.showError("초대 상태 변경에 실패했습니다.");
-                            // 실패 시 select 값을 원래대로 복원
-                            e.target.value = oldStatus;
-                          }
-                        });
+                        // TanStack Query mutation 실행
+                        statusChangeMutation.mutate({ invitationId: invitation.id, newStatus });
                       }
                     }}
-                    disabled={isPending}
+                    disabled={isPending || statusChangeMutation.isPending}
                     className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="pending">대기중</option>
