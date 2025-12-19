@@ -6,6 +6,7 @@ import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
 import {
   getCampInvitationsForTemplate,
+  getCampInvitationsForTemplateWithPaginationAction,
   deleteCampTemplateAction,
   updateCampTemplateStatusAction,
 } from "@/app/(admin)/actions/campTemplateActions";
@@ -54,6 +55,9 @@ export function CampTemplateDetail({
   const [isPending, startTransition] = useTransition();
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
+  const [invitationPage, setInvitationPage] = useState(1);
+  const [invitationPageSize, setInvitationPageSize] = useState(20);
+  const [invitationTotal, setInvitationTotal] = useState(0);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<
@@ -63,7 +67,7 @@ export function CampTemplateDetail({
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
-  const loadInvitations = useCallback(async () => {
+  const loadInvitations = useCallback(async (page: number = invitationPage, pageSize: number = invitationPageSize) => {
     // 삭제 중이면 실행하지 않음
     if (isDeleting) {
       return;
@@ -71,12 +75,20 @@ export function CampTemplateDetail({
 
     try {
       setLoadingInvitations(true);
-      const result = await getCampInvitationsForTemplate(template.id);
+      const result = await getCampInvitationsForTemplateWithPaginationAction(
+        template.id,
+        page,
+        pageSize
+      );
       if (result.success) {
         setInvitations(result.invitations || []);
+        setInvitationTotal(result.total || 0);
+        setInvitationPage(result.page || 1);
+        setInvitationPageSize(result.pageSize || 20);
       } else {
         // 에러가 발생한 경우 빈 배열로 처리
         setInvitations([]);
+        setInvitationTotal(0);
         toast.showError("초대 목록을 불러오는데 실패했습니다.");
       }
     } catch (error) {
@@ -88,6 +100,7 @@ export function CampTemplateDetail({
       // 템플릿이 없는 경우는 조용히 처리
       if (errorMessage.includes("템플릿을 찾을 수 없습니다")) {
         setInvitations([]);
+        setInvitationTotal(0);
       } else {
         toast.showError(errorMessage);
       }
@@ -95,15 +108,28 @@ export function CampTemplateDetail({
       setLoadingInvitations(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template.id, isDeleting]);
+  }, [template.id, isDeleting, invitationPage, invitationPageSize]);
 
   // 초기 로드 (template.id와 isDeleting만 의존하여 불필요한 재호출 방지)
   useEffect(() => {
     if (!isDeleting) {
-      loadInvitations();
+      loadInvitations(1, invitationPageSize);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [template.id, isDeleting]);
+
+  // 페이지 변경 핸들러
+  const handleInvitationPageChange = useCallback((newPage: number) => {
+    setInvitationPage(newPage);
+    loadInvitations(newPage, invitationPageSize);
+  }, [loadInvitations, invitationPageSize]);
+
+  // 페이지 크기 변경 핸들러
+  const handleInvitationPageSizeChange = useCallback((newPageSize: number) => {
+    setInvitationPageSize(newPageSize);
+    setInvitationPage(1);
+    loadInvitations(1, newPageSize);
+  }, [loadInvitations]);
 
   // 초대 발송 후 목록 새로고침 (useCallback으로 메모이제이션)
   const handleInvitationSent = useCallback(() => {
@@ -528,6 +554,11 @@ export function CampTemplateDetail({
             loading={loadingInvitations}
             templateId={template.id}
             onRefresh={handleInvitationSent}
+            total={invitationTotal}
+            page={invitationPage}
+            pageSize={invitationPageSize}
+            onPageChange={handleInvitationPageChange}
+            onPageSizeChange={handleInvitationPageSizeChange}
           />
         </div>
 

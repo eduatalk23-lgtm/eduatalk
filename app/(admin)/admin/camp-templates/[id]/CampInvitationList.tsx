@@ -4,18 +4,36 @@ import { useState, useTransition } from "react";
 import { CampInvitation } from "@/lib/types/plan";
 import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { Pagination } from "@/components/organisms/Pagination";
 
 type CampInvitationListProps = {
   invitations: Array<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>;
   loading: boolean;
   templateId: string;
   onRefresh?: () => void;
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
-export function CampInvitationList({ invitations, loading, templateId, onRefresh }: CampInvitationListProps) {
+export function CampInvitationList({ 
+  invitations, 
+  loading, 
+  templateId, 
+  onRefresh,
+  total,
+  page = 1,
+  pageSize = 20,
+  onPageChange,
+  onPageSizeChange,
+}: CampInvitationListProps) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  const totalPages = total ? Math.ceil(total / pageSize) : 0;
   if (loading) {
     return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
   }
@@ -296,6 +314,34 @@ export function CampInvitationList({ invitations, loading, templateId, onRefresh
           </tbody>
         </table>
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="flex flex-col items-center gap-4">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={(newPage) => {
+              onPageChange?.(newPage);
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700">페이지 크기:</label>
+            <select
+              value={pageSize.toString()}
+              onChange={(e) => {
+                const newPageSize = parseInt(e.target.value, 10);
+                onPageSizeChange?.(newPageSize);
+              }}
+              className="rounded-md border border-gray-300 px-3 py-1 text-sm"
+            >
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

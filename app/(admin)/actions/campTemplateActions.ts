@@ -7,6 +7,7 @@ import {
   getCampTemplate,
   createCampTemplate,
   getCampInvitationsForTemplate as getCampInvitationsForTemplateData,
+  getCampInvitationsForTemplateWithPagination,
 } from "@/lib/data/campTemplates";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import {
@@ -33,10 +34,7 @@ import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
  * 캠프 템플릿 목록 조회
  */
 export const getCampTemplates = withErrorHandling(async () => {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -74,10 +72,7 @@ export const getCampTemplates = withErrorHandling(async () => {
 export const getCampTemplateById = withErrorHandling(
   async (templateId: string) => {
     // 권한 검증
-    const { role } = await getCurrentUserRole();
-    if (role !== "admin" && role !== "consultant") {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    await requireAdminOrConsultant();
 
     // 템플릿 ID 검증
     if (!templateId || typeof templateId !== "string") {
@@ -1070,6 +1065,57 @@ export const getCampInvitationsForTemplate = withErrorHandling(
 );
 
 /**
+ * 템플릿별 캠프 초대 목록 조회 (페이지네이션 지원)
+ */
+export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandling(
+  async (
+    templateId: string,
+    page: number = 1,
+    pageSize: number = 20
+  ) => {
+    await requireAdminOrConsultant();
+
+    // 입력값 검증
+    if (!templateId || typeof templateId !== "string") {
+      throw new AppError(
+        "템플릿 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 페이지네이션된 초대 목록 조회
+    const result = await getCampInvitationsForTemplateWithPagination(
+      templateId,
+      tenantContext.tenantId,
+      {
+        page,
+        pageSize,
+      }
+    );
+
+    return {
+      success: true,
+      invitations: result.items,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    };
+  }
+);
+
+/**
  * 캠프 초대 삭제
  */
 export const deleteCampInvitationAction = withErrorHandling(
@@ -1315,10 +1361,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
   async (groupId: string) => {
     console.log("[getCampPlanGroupForReview] 함수 호출됨, groupId:", groupId);
 
-    const { role } = await getCurrentUserRole();
-    if (role !== "admin" && role !== "consultant") {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    await requireAdminOrConsultant();
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {
@@ -1661,10 +1704,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
     step?: number
   ): Promise<{ success: boolean; error?: string }> => {
     // 권한 검증
-    const { role } = await getCurrentUserRole();
-    if (role !== "admin" && role !== "consultant") {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    await requireAdminOrConsultant();
 
     // 입력값 검증
     if (!groupId || typeof groupId !== "string") {
@@ -3060,10 +3100,7 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
       weekly_days?: number;
     }> | null
   ) => {
-    const { role } = await getCurrentUserRole();
-    if (role !== "admin" && role !== "consultant") {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    await requireAdminOrConsultant();
 
     const tenantContext = await getTenantContext();
     if (!tenantContext?.tenantId) {

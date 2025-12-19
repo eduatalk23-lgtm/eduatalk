@@ -3,8 +3,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { redirect } from "next/navigation";
-import { getCampTemplatesForTenant } from "@/lib/data/campTemplates";
+import { getCampTemplatesForTenantWithPagination } from "@/lib/data/campTemplates";
+import { filterCampTemplates, type CampTemplateFilters } from "@/lib/utils/campFilters";
 import { TemplateCard } from "./_components/TemplateCard";
+import { CampTemplatesPagination } from "./_components/CampTemplatesPagination";
 
 export default async function CampTemplatesPage({
   searchParams,
@@ -31,36 +33,40 @@ export default async function CampTemplatesPage({
   const searchQuery = params.search || "";
   const statusFilter = params.status || "";
   const programTypeFilter = params.program_type || "";
+  const page = parseInt(params.page || "1", 10);
+  const limit = parseInt(params.limit || "20", 10);
 
-  let templates: Awaited<ReturnType<typeof getCampTemplatesForTenant>> = [];
+  // 필터 옵션
+  const filters: CampTemplateFilters = {
+    search: searchQuery,
+    status: statusFilter as CampTemplateFilters["status"],
+    programType: programTypeFilter as CampTemplateFilters["programType"],
+  };
+
+  // 페이지네이션된 데이터 조회
+  let result: Awaited<ReturnType<typeof getCampTemplatesForTenantWithPagination>>;
   try {
-    templates = await getCampTemplatesForTenant(tenantContext.tenantId);
+    result = await getCampTemplatesForTenantWithPagination(tenantContext.tenantId, {
+      page,
+      pageSize: limit,
+    });
   } catch (error) {
     console.error("[CampTemplatesPage] 템플릿 목록 조회 실패", error);
-    // 에러 발생 시 빈 배열로 처리
-    templates = [];
+    // 에러 발생 시 빈 결과로 처리
+    result = {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: limit,
+    };
   }
 
-  // 필터링
-  let filteredTemplates = templates;
-  if (searchQuery.trim()) {
-    filteredTemplates = filteredTemplates.filter(
-      (t) =>
-        t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (t.description &&
-          t.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }
-  if (statusFilter) {
-    filteredTemplates = filteredTemplates.filter(
-      (t) => t.status === statusFilter
-    );
-  }
-  if (programTypeFilter) {
-    filteredTemplates = filteredTemplates.filter(
-      (t) => t.program_type === programTypeFilter
-    );
-  }
+  // 클라이언트 사이드 필터링 (검색어, 상태, 프로그램 유형)
+  const filteredTemplates = filterCampTemplates(result.items, filters);
+  
+  // 필터링 후에도 페이지네이션을 유지하기 위해 전체 개수는 원본 total 사용
+  // 실제로는 서버 사이드 필터링이 더 효율적이지만, 현재는 클라이언트 필터링으로 구현
+  const totalPages = Math.ceil(result.total / limit);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -156,8 +162,9 @@ export default async function CampTemplatesPage({
 
         {/* 결과 개수 */}
         <div className="text-sm text-gray-600">
-          총 <span className="font-semibold">{filteredTemplates.length}</span>
-          개의 템플릿이 검색되었습니다.
+          총 <span className="font-semibold">{result.total}</span>
+          개의 템플릿 중 <span className="font-semibold">{filteredTemplates.length}</span>
+          개가 표시됩니다.
         </div>
 
         {/* 템플릿 목록 */}
@@ -177,11 +184,19 @@ export default async function CampTemplatesPage({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              {filteredTemplates.map((template) => (
-                <TemplateCard key={template.id} template={template} />
-              ))}
-            </div>
+            <>
+              <div className="flex flex-col gap-4">
+                {filteredTemplates.map((template) => (
+                  <TemplateCard key={template.id} template={template} />
+                ))}
+              </div>
+              {/* 페이지네이션 */}
+              <CampTemplatesPagination
+                currentPage={page}
+                totalPages={totalPages}
+                pageSize={limit}
+              />
+            </>
           )}
         </div>
       </div>

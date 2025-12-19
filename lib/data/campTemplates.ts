@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
 
 /**
  * 캠프 템플릿 조회
@@ -146,6 +147,81 @@ export async function getCampTemplatesForTenant(
 }
 
 /**
+ * 캠프 템플릿 목록 조회 (페이지네이션 지원)
+ */
+export async function getCampTemplatesForTenantWithPagination(
+  tenantId: string,
+  options: PaginationOptions = {}
+): Promise<ListResult<CampTemplate>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    
+    const page = options.page || 1;
+    const pageSize = options.pageSize || options.limit || 20;
+    const offset = options.offset ?? (page - 1) * pageSize;
+
+    // 전체 개수 조회
+    const { count, error: countError } = await supabase
+      .from("camp_templates")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId);
+
+    if (countError) {
+      console.error("[data/campTemplates] 템플릿 개수 조회 실패", {
+        message: countError.message,
+        code: countError.code,
+      });
+    }
+
+    // 데이터 조회
+    const { data, error } = await supabase
+      .from("camp_templates")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) {
+      console.error("[data/campTemplates] 템플릿 목록 조회 실패", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      return {
+        items: [],
+        total: 0,
+        page,
+        pageSize,
+      };
+    }
+
+    const total = count || 0;
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      items: (data || []) as CampTemplate[],
+      total,
+      page,
+      pageSize,
+    };
+  } catch (error) {
+    // 예상치 못한 에러 처리
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[data/campTemplates] 템플릿 목록 조회 중 예외 발생", {
+      message: errorMessage,
+      error,
+    });
+    return {
+      items: [],
+      total: 0,
+      page: options.page || 1,
+      pageSize: options.pageSize || options.limit || 20,
+    };
+  }
+}
+
+/**
  * 학생의 캠프 초대 목록 조회
  */
 export async function getCampInvitationsForStudent(
@@ -258,6 +334,93 @@ export async function getCampInvitationsForTemplate(
     student_grade: invitation.students?.grade || null,
     student_class: invitation.students?.class || null,
   }));
+}
+
+/**
+ * 템플릿별 캠프 초대 목록 조회 (페이지네이션 지원)
+ */
+export async function getCampInvitationsForTemplateWithPagination(
+  templateId: string,
+  tenantId: string,
+  options: PaginationOptions = {}
+): Promise<ListResult<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    
+    const page = options.page || 1;
+    const pageSize = options.pageSize || options.limit || 20;
+    const offset = options.offset ?? (page - 1) * pageSize;
+
+    // 전체 개수 조회
+    const { count, error: countError } = await supabase
+      .from("camp_invitations")
+      .select("*", { count: "exact", head: true })
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId);
+
+    if (countError) {
+      console.error("[data/campTemplates] 초대 개수 조회 실패", {
+        message: countError.message,
+        code: countError.code,
+      });
+    }
+
+    // 데이터 조회
+    const { data, error } = await supabase
+      .from("camp_invitations")
+      .select(`
+        *,
+        students:student_id (
+          name,
+          grade,
+          class
+        )
+      `)
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId)
+      .order("invited_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (error) {
+      console.error("[data/campTemplates] 템플릿별 초대 목록 조회 실패", error);
+      return {
+        items: [],
+        total: 0,
+        page,
+        pageSize,
+      };
+    }
+
+    // 학생 정보를 평탄화
+    const items = (data || []).map((invitation: any) => ({
+      ...invitation,
+      student_name: invitation.students?.name || null,
+      student_grade: invitation.students?.grade || null,
+      student_class: invitation.students?.class || null,
+    }));
+
+    const total = count || 0;
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+    };
+  } catch (error) {
+    // 예상치 못한 에러 처리
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[data/campTemplates] 템플릿별 초대 목록 조회 중 예외 발생", {
+      message: errorMessage,
+      error,
+    });
+    return {
+      items: [],
+      total: 0,
+      page: options.page || 1,
+      pageSize: options.pageSize || options.limit || 20,
+    };
+  }
 }
 
 export type CampTemplateImpactSummary = {
