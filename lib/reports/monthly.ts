@@ -525,44 +525,37 @@ export async function getMonthlyWeakSubjectTrend(
     const lastMonthStartStr = lastMonthStart.toISOString().slice(0, 10);
     const lastMonthEndStr = lastMonthEnd.toISOString().slice(0, 10);
 
-    const [thisMonthInternal, thisMonthMock, lastMonthInternal, lastMonthMock] = await Promise.all([
-      // 이번 달 내신 성적
-      getInternalScores(studentId, tenantId).then((scores) =>
-        scores.filter(
-          (score) =>
-            score.created_at &&
-            score.created_at >= monthStartStr &&
-            score.created_at <= monthEndStr
-        )
-      ),
-      // 이번 달 모의고사 성적
-      getMockScores(studentId, tenantId).then((scores) =>
-        scores.filter(
-          (score) =>
-            score.exam_date &&
-            score.exam_date >= monthStartStr &&
-            score.exam_date <= monthEndStr
-        )
-      ),
-      // 지난 달 내신 성적
-      getInternalScores(studentId, tenantId).then((scores) =>
-        scores.filter(
-          (score) =>
-            score.created_at &&
-            score.created_at >= lastMonthStartStr &&
-            score.created_at <= lastMonthEndStr
-        )
-      ),
-      // 지난 달 모의고사 성적
-      getMockScores(studentId, tenantId).then((scores) =>
-        scores.filter(
-          (score) =>
-            score.exam_date &&
-            score.exam_date >= lastMonthStartStr &&
-            score.exam_date <= lastMonthEndStr
-        )
-      ),
+    // 성적 조회 (날짜 필터링 포함)
+    const [allInternal, allMock] = await Promise.all([
+      getInternalScores(studentId, tenantId),
+      getMockScores(studentId, tenantId),
     ]);
+
+    // 날짜 필터링
+    const thisMonthInternal = allInternal.filter(
+      (score) =>
+        score.created_at &&
+        score.created_at >= monthStartStr &&
+        score.created_at <= monthEndStr
+    );
+    const thisMonthMock = allMock.filter(
+      (score) =>
+        score.exam_date &&
+        score.exam_date >= monthStartStr &&
+        score.exam_date <= monthEndStr
+    );
+    const lastMonthInternal = allInternal.filter(
+      (score) =>
+        score.created_at &&
+        score.created_at >= lastMonthStartStr &&
+        score.created_at <= lastMonthEndStr
+    );
+    const lastMonthMock = allMock.filter(
+      (score) =>
+        score.exam_date &&
+        score.exam_date >= lastMonthStartStr &&
+        score.exam_date <= lastMonthEndStr
+    );
 
     // 과목별 등급 계산 (subject_group_id 기준)
     const subjectGrades = new Map<string, { thisMonth: number | null; lastMonth: number | null }>();
