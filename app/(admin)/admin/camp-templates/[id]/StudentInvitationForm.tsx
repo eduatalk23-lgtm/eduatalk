@@ -48,21 +48,44 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         .order("name", { ascending: true })
         .limit(100);
 
-      if (studentsError) {
-        // 에러 객체의 세부 정보를 포함하여 로깅
-        const errorDetails = {
-          message: studentsError.message,
-          code: studentsError.code,
-          details: studentsError.details,
-          hint: studentsError.hint,
-          error: studentsError,
-        };
-        console.error("학생 목록 조회 실패:", errorDetails);
-        toast.showError(
-          studentsError.message 
-            ? `학생 목록을 불러오는데 실패했습니다: ${studentsError.message}`
-            : "학생 목록을 불러오는데 실패했습니다."
-        );
+      // 에러 체크: null이 아니고, 실제로 에러 속성이 있는지 확인
+      if (studentsError && (studentsError.message || studentsError.code || Object.keys(studentsError).length > 0)) {
+        // 에러 객체의 세부 정보를 포함하여 로깅 (직렬화하여 모든 속성 확인)
+        try {
+          const errorDetails = {
+            message: studentsError.message || null,
+            code: studentsError.code || null,
+            details: studentsError.details || null,
+            hint: studentsError.hint || null,
+            // 에러 객체를 직렬화하여 숨겨진 속성도 확인
+            serialized: JSON.stringify(studentsError, Object.getOwnPropertyNames(studentsError)),
+            // 에러 객체의 모든 키 확인
+            keys: Object.keys(studentsError),
+            // 에러 객체의 모든 속성 확인
+            allProperties: Object.getOwnPropertyNames(studentsError),
+            // 에러 타입 확인
+            errorType: typeof studentsError,
+            errorConstructor: studentsError.constructor?.name,
+            // 원본 에러 객체 (직접 참조)
+            rawError: studentsError,
+          };
+          console.error("학생 목록 조회 실패:", errorDetails);
+        } catch (serializeError) {
+          // 직렬화 실패 시 최소한의 정보라도 출력
+          console.error("학생 목록 조회 실패 (직렬화 불가):", {
+            error: studentsError,
+            serializeError: serializeError instanceof Error ? serializeError.message : String(serializeError),
+          });
+        }
+        
+        // 에러 메시지가 있는 경우 사용, 없으면 기본 메시지
+        const errorMessage = studentsError.message 
+          ? `학생 목록을 불러오는데 실패했습니다: ${studentsError.message}`
+          : studentsError.code
+          ? `학생 목록을 불러오는데 실패했습니다 (코드: ${studentsError.code})`
+          : "학생 목록을 불러오는데 실패했습니다.";
+        
+        toast.showError(errorMessage);
         setLoading(false);
         return;
       }
