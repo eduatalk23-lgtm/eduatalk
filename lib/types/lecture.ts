@@ -39,7 +39,9 @@ export interface MasterLecture {
   // ④ 회차/시간/난이도
   total_episodes: number;
   total_duration?: number | null;
+  /** @deprecated difficulty_level_id를 사용하세요. 하위 호환성을 위해 유지됩니다. */
   difficulty_level?: string | null;
+  difficulty_level_id?: string | null;
   overall_difficulty?: number | null;
   target_exam_type?: string[] | null;
 

@@ -128,7 +128,9 @@ export type ContentDurationInfo = {
   duration?: number | null; // 전체 강의 시간 (fallback용)
   total_page_or_time?: number | null;
   total_episodes?: number | null; // 강의 총 회차 수 (정확한 계산용)
+  /** @deprecated difficulty_level_id를 사용하세요. 하위 호환성을 위해 유지됩니다. */
   difficulty_level?: string | null; // 난이도 (교재/강의)
+  difficulty_level_id?: string | null;
   episodes?: EpisodeInfo[] | null; // 강의 episode별 duration 정보
 };
 

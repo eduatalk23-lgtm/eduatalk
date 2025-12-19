@@ -86,7 +86,9 @@ export type ContentMetadata = {
   subject?: string | null;
   semester?: string | null;
   revision?: string | null;
+  /** @deprecated difficulty_level_id를 사용하세요. 하위 호환성을 위해 유지됩니다. */
   difficulty_level?: string | null;
+  difficulty_level_id?: string | null;
   publisher?: string | null;
   platform?: string | null;
 };
