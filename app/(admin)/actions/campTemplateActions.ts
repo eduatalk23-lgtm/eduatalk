@@ -32,6 +32,18 @@ import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMaste
 import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
 import { getRangeRecommendationConfig } from "@/lib/recommendations/config/configManager";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
+import {
+  validateCampTemplateId,
+  validateStudentIds,
+  validateInvitationIds,
+  validateCampInvitationId,
+  validateCampInvitationStatus,
+  validateTenantContext,
+  validateCampTemplateAccess,
+  validateCampTemplateActive,
+  validateCampInvitationAccess,
+} from "@/lib/validation/campValidation";
+import { buildCampInvitationStatusUpdate } from "@/lib/utils/campInvitationHelpers";
 
 /**
  * 캠프 템플릿 목록 조회
@@ -957,62 +969,15 @@ export const sendCampInvitationsAction = withErrorHandling(
     await requireAdminOrConsultant();
 
     // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      throw new AppError(
-        "최소 1명 이상의 학생을 선택해주세요.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
+    validateCampTemplateId(templateId);
+    validateStudentIds(studentIds);
 
     // 중복 제거
     const uniqueStudentIds = Array.from(new Set(studentIds));
 
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인 (강화된 검증)
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
-
-    // 템플릿이 활성 상태인지 확인 (active 상태만 초대 가능)
-    if (template.status !== "active") {
-      const statusMessage =
-        template.status === "archived"
-          ? "보관된 템플릿에는 초대를 발송할 수 없습니다."
-          : template.status === "draft"
-          ? "초안 상태의 템플릿에는 초대를 발송할 수 없습니다. 템플릿을 활성화한 후 초대를 발송해주세요."
-          : "활성 상태의 템플릿만 초대를 발송할 수 있습니다.";
-      throw new AppError(statusMessage, ErrorCode.VALIDATION_ERROR, 400, true);
-    }
+    // 테넌트 컨텍스트 및 템플릿 권한 확인
+    const tenantId = await validateTenantContext();
+    await validateCampTemplateActive(templateId, tenantId);
 
     const supabase = await createSupabaseServerClient();
 
@@ -1021,14 +986,14 @@ export const sendCampInvitationsAction = withErrorHandling(
       .from("camp_invitations")
       .select("student_id")
       .eq("camp_template_id", templateId)
-      .in("student_id", studentIds);
+      .in("student_id", uniqueStudentIds);
 
     const existingStudentIds = new Set(
       (existingInvitations || []).map((inv) => inv.student_id)
     );
 
     // 새로 초대할 학생만 필터링
-    const newStudentIds = studentIds.filter(
+    const newStudentIds = uniqueStudentIds.filter(
       (id) => !existingStudentIds.has(id)
     );
 
@@ -1042,7 +1007,7 @@ export const sendCampInvitationsAction = withErrorHandling(
 
     // 초대 생성
     const invitations = newStudentIds.map((studentId) => ({
-      tenant_id: tenantContext.tenantId,
+      tenant_id: tenantId,
       camp_template_id: templateId,
       student_id: studentId,
       status: "pending",
@@ -1069,32 +1034,14 @@ export const getCampInvitationsForTemplate = withErrorHandling(
     await requireAdminOrConsultant();
 
     // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+    validateCampTemplateId(templateId);
+    const tenantId = await validateTenantContext();
 
     // 템플릿 존재 확인 (템플릿이 없어도 초대 목록은 조회 가능 - 삭제된 템플릿의 초대도 볼 수 있어야 함)
     const template = await getCampTemplate(templateId);
     if (template) {
       // 템플릿이 존재하는 경우, 권한 확인
-      if (template.tenant_id !== tenantContext.tenantId) {
-        throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-      }
+      await validateCampTemplateAccess(templateId, tenantId);
     }
     // 템플릿이 없는 경우 (삭제된 경우 등)에도 초대 목록은 조회 가능
     // 초대 목록 자체가 tenant_id로 필터링되므로 보안 문제 없음
@@ -1114,7 +1061,7 @@ export const getCampInvitationsForTemplate = withErrorHandling(
       `
       )
       .eq("camp_template_id", templateId)
-      .eq("tenant_id", tenantContext.tenantId)
+      .eq("tenant_id", tenantId)
       .order("invited_at", { ascending: false });
 
     if (error) {
@@ -1146,29 +1093,13 @@ export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandli
     await requireAdminOrConsultant();
 
     // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+    validateCampTemplateId(templateId);
+    const tenantId = await validateTenantContext();
 
     // 페이지네이션된 초대 목록 조회
     const result = await getCampInvitationsForTemplateWithPagination(
       templateId,
-      tenantContext.tenantId,
+      tenantId,
       {
         page,
         pageSize,
@@ -1196,93 +1127,24 @@ export const updateCampInvitationStatusAction = withErrorHandling(
     await requireAdminOrConsultant();
 
     // 입력값 검증
-    if (!invitationId || typeof invitationId !== "string") {
-      throw new AppError(
-        "초대 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
+    validateCampInvitationId(invitationId);
+    validateCampInvitationStatus(status);
 
-    if (!["pending", "accepted", "declined"].includes(status)) {
-      throw new AppError(
-        "올바른 상태를 선택해주세요.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+    // 테넌트 컨텍스트 및 초대 권한 확인
+    const tenantId = await validateTenantContext();
+    await validateCampInvitationAccess(invitationId, tenantId);
 
     const supabase = await createSupabaseServerClient();
 
-    // 초대 존재 및 권한 확인
-    const { data: invitation, error: checkError } = await supabase
-      .from("camp_invitations")
-      .select("id, tenant_id")
-      .eq("id", invitationId)
-      .eq("tenant_id", tenantContext.tenantId)
-      .maybeSingle();
-
-    if (checkError) {
-      throw new AppError(
-        "초대 정보를 확인하는데 실패했습니다.",
-        ErrorCode.DATABASE_ERROR,
-        500,
-        true,
-        { originalError: checkError.message }
-      );
-    }
-
-    if (!invitation) {
-      throw new AppError(
-        "초대를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
     // 상태 업데이트 데이터 준비
-    const updateData: {
-      status: string;
-      updated_at: string;
-      accepted_at?: string | null;
-      declined_at?: string | null;
-    } = {
-      status,
-      updated_at: new Date().toISOString(),
-    };
-
-    // 상태에 따라 타임스탬프 설정
-    if (status === "accepted") {
-      updateData.accepted_at = new Date().toISOString();
-      updateData.declined_at = null;
-    } else if (status === "declined") {
-      updateData.declined_at = new Date().toISOString();
-      updateData.accepted_at = null;
-    } else {
-      // pending 상태로 변경 시 타임스탬프 초기화
-      updateData.accepted_at = null;
-      updateData.declined_at = null;
-    }
+    const updateData = buildCampInvitationStatusUpdate(status);
 
     // 상태 업데이트
     const { error: updateError } = await supabase
       .from("camp_invitations")
       .update(updateData)
       .eq("id", invitationId)
-      .eq("tenant_id", tenantContext.tenantId);
+      .eq("tenant_id", tenantId);
 
     if (updateError) {
       throw new AppError(
@@ -1430,62 +1292,15 @@ export const resendCampInvitationsAction = withErrorHandling(
     await requireAdminOrConsultant();
 
     // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    if (!Array.isArray(invitationIds) || invitationIds.length === 0) {
-      throw new AppError(
-        "재발송할 초대를 선택해주세요.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
+    validateCampTemplateId(templateId);
+    validateInvitationIds(invitationIds);
 
     // 중복 제거
     const uniqueInvitationIds = Array.from(new Set(invitationIds));
 
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인 (강화된 검증)
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
-
-    // 템플릿이 활성 상태인지 확인 (active 상태만 재발송 가능)
-    if (template.status !== "active") {
-      const statusMessage =
-        template.status === "archived"
-          ? "보관된 템플릿에는 초대를 재발송할 수 없습니다."
-          : template.status === "draft"
-          ? "초안 상태의 템플릿에는 초대를 재발송할 수 없습니다. 템플릿을 활성화한 후 재발송해주세요."
-          : "활성 상태의 템플릿만 초대를 재발송할 수 있습니다.";
-      throw new AppError(statusMessage, ErrorCode.VALIDATION_ERROR, 400, true);
-    }
+    // 테넌트 컨텍스트 및 템플릿 권한 확인
+    const tenantId = await validateTenantContext();
+    await validateCampTemplateActive(templateId, tenantId);
 
     // 초대 조회 및 학생 ID 추출
     const { getCampInvitation } = await import("@/lib/data/campTemplates");
