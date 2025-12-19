@@ -245,166 +245,56 @@ async function ensureUserRecord(
 /**
  * 연결 코드로 학생 계정 연결
  * 기존 학생 레코드를 새 사용자 ID로 연결
+ * 
+ * PostgreSQL 함수를 사용하여 트랜잭션 보장
  */
 async function linkStudentWithConnectionCode(
   userId: string,
   connectionCode: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 연결 코드 검증 (공통 모듈 사용)
-    const { validateConnectionCode } = await import(
-      "@/lib/utils/connectionCodeUtils"
-    );
-    const validationResult = await validateConnectionCode(connectionCode);
-
-    if (!validationResult.success || !validationResult.studentId) {
-      return {
-        success: false,
-        error: validationResult.error || "유효하지 않은 연결 코드입니다.",
-      };
-    }
-
-    const existingStudentId = validationResult.studentId;
-
-    // Admin 클라이언트 사용 (RLS 우회)
+    // Admin 클라이언트 사용 (RLS 우회, SECURITY DEFINER 함수 호출)
     const adminResult = getAdminClientOrError();
     if (!adminResult.success) {
       return { success: false, error: adminResult.error };
     }
     const supabase = adminResult.client;
 
-    // 기존 학생 레코드 데이터 조회
-    const { data: existingStudent, error: studentError } = await supabase
-      .from("students")
-      .select("*")
-      .eq("id", existingStudentId)
-      .maybeSingle();
+    // PostgreSQL 함수 호출 (트랜잭션 보장)
+    const { data, error } = await supabase.rpc(
+      "link_student_with_connection_code",
+      {
+        p_user_id: userId,
+        p_connection_code: connectionCode,
+      }
+    );
 
-    if (studentError || !existingStudent) {
+    if (error) {
+      console.error("[auth] 연결 코드로 학생 계정 연결 실패", error);
       return {
         success: false,
-        error: "연결할 학생 정보를 찾을 수 없습니다.",
+        error: error.message || "학생 계정 연결에 실패했습니다.",
       };
     }
 
-    // 기존 프로필 및 진로 정보 조회
-    const [profileResult, careerResult] = await Promise.all([
-      supabase
-        .from("student_profiles")
-        .select("*")
-        .eq("id", existingStudentId)
-        .maybeSingle(),
-      supabase
-        .from("student_career_goals")
-        .select("*")
-        .eq("student_id", existingStudentId)
-        .maybeSingle(),
-    ]);
-
-    // 트랜잭션 처리: 기존 레코드 삭제 후 새 ID로 재생성
-    // 1. 새 ID로 students 레코드 생성
-    const { error: insertError } = await supabase.from("students").insert({
-      id: userId,
-      tenant_id: existingStudent.tenant_id,
-      name: existingStudent.name,
-      grade: existingStudent.grade,
-      class: existingStudent.class,
-      birth_date: existingStudent.birth_date,
-      school_id: existingStudent.school_id,
-      school_type: existingStudent.school_type,
-      division: existingStudent.division,
-      student_number: existingStudent.student_number,
-      enrolled_at: existingStudent.enrolled_at,
-      status: existingStudent.status,
-      is_active: existingStudent.is_active,
-    });
-
-    if (insertError) {
-      console.error("[auth] 학생 레코드 재생성 실패", insertError);
+    // 함수 반환값 확인
+    if (!data || !data.success) {
+      const errorMessage = data?.error || "학생 계정 연결에 실패했습니다.";
+      console.error("[auth] 연결 코드로 학생 계정 연결 실패", {
+        userId,
+        connectionCode,
+        error: errorMessage,
+      });
       return {
         success: false,
-        error: `학생 레코드 연결에 실패했습니다: ${insertError.message}`,
+        error: errorMessage,
       };
-    }
-
-    // 2. 프로필 정보 재생성 (있는 경우)
-    if (profileResult.data) {
-      const { error: profileError } = await supabase
-        .from("student_profiles")
-        .insert({
-          id: userId,
-          tenant_id: profileResult.data.tenant_id,
-          gender: profileResult.data.gender,
-          phone: profileResult.data.phone,
-          mother_phone: profileResult.data.mother_phone,
-          father_phone: profileResult.data.father_phone,
-          address: profileResult.data.address,
-          address_detail: profileResult.data.address_detail,
-          postal_code: profileResult.data.postal_code,
-          emergency_contact: profileResult.data.emergency_contact,
-          emergency_contact_phone: profileResult.data.emergency_contact_phone,
-          medical_info: profileResult.data.medical_info,
-          bio: profileResult.data.bio,
-          interests: profileResult.data.interests,
-        });
-
-      if (profileError) {
-        console.error("[auth] 프로필 정보 재생성 실패", profileError);
-        // 프로필 재생성 실패는 치명적이지 않으므로 경고만
-      }
-    }
-
-    // 3. 진로 정보 재생성 (있는 경우)
-    if (careerResult.data) {
-      const { error: careerError } = await supabase
-        .from("student_career_goals")
-        .insert({
-          student_id: userId,
-          tenant_id: careerResult.data.tenant_id,
-          exam_year: careerResult.data.exam_year,
-          curriculum_revision: careerResult.data.curriculum_revision,
-          desired_university_ids: careerResult.data.desired_university_ids,
-          desired_career_field: careerResult.data.desired_career_field,
-          target_major: careerResult.data.target_major,
-          target_major_2: careerResult.data.target_major_2,
-          target_score: careerResult.data.target_score,
-          target_university_type: careerResult.data.target_university_type,
-          notes: careerResult.data.notes,
-        });
-
-      if (careerError) {
-        console.error("[auth] 진로 정보 재생성 실패", careerError);
-        // 진로 정보 재생성 실패는 치명적이지 않으므로 경고만
-      }
-    }
-
-    // 4. 기존 레코드 삭제 (CASCADE로 관련 데이터 자동 삭제)
-    const { error: deleteError } = await supabase
-      .from("students")
-      .delete()
-      .eq("id", existingStudentId);
-
-    if (deleteError) {
-      console.error("[auth] 기존 학생 레코드 삭제 실패", deleteError);
-      // 삭제 실패는 경고만 (이미 새 레코드가 생성되었으므로)
-    }
-
-    // 5. 연결 코드 사용 처리
-    const { error: codeError } = await supabase
-      .from("student_connection_codes")
-      .update({ used_at: new Date().toISOString() })
-      .eq("connection_code", connectionCode)
-      .is("used_at", null);
-
-    if (codeError) {
-      console.error("[auth] 연결 코드 사용 처리 실패", codeError);
-      // 코드 사용 처리 실패는 경고만
     }
 
     console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
       userId,
-      existingStudentId,
       connectionCode,
+      result: data,
     });
 
     return { success: true };
