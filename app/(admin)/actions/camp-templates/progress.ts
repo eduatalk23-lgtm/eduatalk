@@ -14,9 +14,9 @@ import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroup
 import type {
   SchedulerOptions,
   PlanStatus,
-  PlanGroupSchedulerOptions,
   DailyScheduleInfo,
 } from "@/lib/types/plan";
+import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
 import type { PlanContentInsert } from "@/lib/types/plan/schema";
 import type { RecommendationMetadata } from "@/lib/types/content-selection";
 import type {
@@ -64,10 +64,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
     );
 
     if (!result.group) {
-      console.error(
-        "[getCampPlanGroupForReview] 플랜 그룹을 찾을 수 없음, groupId:",
-        groupId
-      );
+      logError(new Error("플랜 그룹을 찾을 수 없음"), {
+        function: "getCampPlanGroupForReview",
+        groupId,
+      });
       throw new AppError(
         "플랜 그룹을 찾을 수 없습니다.",
         ErrorCode.NOT_FOUND,
@@ -114,10 +114,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
         .maybeSingle();
 
       if (templateError) {
-        console.error(
-          "[getCampPlanGroupForReview] 템플릿 조회 에러:",
-          templateError
-        );
+        logError(templateError, {
+          function: "getCampPlanGroupForReview",
+          templateId: result.group.camp_template_id,
+        });
       } else if (!template) {
         console.warn(
           "[getCampPlanGroupForReview] 템플릿을 찾을 수 없음:",
@@ -143,10 +143,9 @@ export const getCampPlanGroupForReview = withErrorHandling(
               .maybeSingle();
 
           if (blockSetError) {
-            console.error(
-              "[getCampPlanGroupForReview] 템플릿 블록 세트 조회 에러:",
-              {
-                error: blockSetError,
+            logError(blockSetError, {
+              function: "getCampPlanGroupForReview",
+              templateId: result.group.camp_template_id,
                 tenantBlockSetId,
                 templateId: result.group.camp_template_id,
               }
@@ -164,7 +163,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
               .order("start_time", { ascending: true });
 
             if (blocksError) {
-              console.error(
+              logError(
                 "[getCampPlanGroupForReview] 템플릿 블록 조회 에러:",
                 {
                   error: blocksError,
@@ -340,7 +339,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
           missingByType,
         });
       } catch (error) {
-        console.error(
+        logError(
           "[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:",
           {
             error: error instanceof Error ? error.message : String(error),
@@ -848,10 +847,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
                         `[campTemplateActions] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
                       );
                     } catch (copyError) {
-                      console.error(
-                        `[campTemplateActions] 마스터 교재 복사 실패: ${content.content_id}`,
-                        copyError
-                      );
+                      logError(copyError, {
+                        function: "continueCampStepsForAdmin",
+                        contentId: content.content_id,
+                        contentType: "book",
+                      });
                       // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
                       isValidContent = true;
                       actualContentId = content.content_id;
@@ -912,7 +912,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                         `[campTemplateActions] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
                       );
                     } catch (copyError) {
-                      console.error(
+                      logError(
                         `[campTemplateActions] 마스터 강의 복사 실패: ${content.content_id}`,
                         copyError
                       );
@@ -1095,10 +1095,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .eq("plan_group_id", groupId);
 
         if (deleteError) {
-          console.error(
-            "[campTemplateActions] 기존 제외일 삭제 실패",
-            deleteError
-          );
+          logError(deleteError, {
+            function: "continueCampStepsForAdmin",
+            groupId,
+            action: "deleteExclusions",
+          });
         }
 
         if (creationData.exclusions.length > 0) {
@@ -1378,7 +1379,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                           `[campTemplateActions] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
                         );
                       } catch (copyError) {
-                        console.error(
+                        logError(
                           `[campTemplateActions] 마스터 교재 복사 실패: ${content.content_id}`,
                           copyError
                         );
@@ -1442,7 +1443,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                           `[campTemplateActions] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
                         );
                       } catch (copyError) {
-                        console.error(
+                        logError(
                           `[campTemplateActions] 마스터 강의 복사 실패: ${content.content_id}`,
                           copyError
                         );
@@ -1543,7 +1544,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
               });
             } else {
               // 콘텐츠 저장 실패: 모든 콘텐츠가 필터링됨
-              console.error(
+              logError(
                 `[campTemplateActions] 학생(${result.group.student_id})이 가지고 있는 유효한 콘텐츠가 없습니다.`,
                 {
                   creationDataContentsCount: creationDataForContents.contents.length,
@@ -1719,17 +1720,22 @@ export const continueCampStepsForAdmin = withErrorHandling(
             .eq("id", groupId);
 
           if (statusUpdateError) {
-            console.error(
-              "[campTemplateActions] 플랜 그룹 상태 업데이트 실패:",
-              statusUpdateError
-            );
+            logError(statusUpdateError, {
+              function: "continueCampStepsForAdmin",
+              groupId,
+              action: "updatePlanGroupStatus",
+            });
             // 상태 업데이트 실패는 경고만 (플랜은 생성됨)
             console.warn(
               "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
             );
           }
         } catch (planError) {
-          console.error("[campTemplateActions] 플랜 생성 실패:", planError);
+          logError(planError, {
+            function: "continueCampStepsForAdmin",
+            groupId,
+            action: "generatePlan",
+          });
           throw new AppError(
             planError instanceof Error
               ? planError.message
@@ -1747,7 +1753,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
       }
     } catch (error) {
-      console.error("[campTemplateActions] 캠프 남은 단계 진행 실패:", error);
+      logError(error, {
+        function: "continueCampStepsForAdmin",
+        groupId,
+      });
       throw new AppError(
         error instanceof Error
           ? error.message
@@ -1924,7 +1933,11 @@ export const updateCampPlanGroupStatus = withErrorHandling(
         .eq("plan_group_id", groupId);
 
       if (plansError) {
-        console.error("[campTemplateActions] 플랜 개수 확인 실패", plansError);
+        logError(plansError, {
+          function: "updateCampPlanGroupStatus",
+          groupId,
+          action: "checkPlanCount",
+        });
         throw new AppError(
           "플랜 개수 확인에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
@@ -1954,7 +1967,7 @@ export const updateCampPlanGroupStatus = withErrorHandling(
         .is("deleted_at", null);
 
       if (activeGroupsError) {
-        console.error(
+        logError(
           "[campTemplateActions] 활성 플랜 그룹 조회 실패",
           activeGroupsError
         );
@@ -1976,7 +1989,7 @@ export const updateCampPlanGroupStatus = withErrorHandling(
             .in("id", activeGroupIds);
 
           if (deactivateError) {
-            console.error(
+            logError(
               "[campTemplateActions] 같은 모드(캠프 모드)의 다른 활성 플랜 그룹 비활성화 실패",
               deactivateError
             );
@@ -2093,7 +2106,7 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
         .in("plan_group_id", uniqueGroupIds);
 
       if (plansError) {
-        console.error(
+        logError(
           "[campTemplateActions] 플랜 개수 일괄 확인 실패",
           plansError
         );
@@ -2186,7 +2199,7 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
 
       if (updateError) {
         // 일괄 업데이트 실패 시 개별 업데이트 시도
-        console.error(
+        logError(
           "[campTemplateActions] 일괄 상태 업데이트 실패, 개별 업데이트 시도",
           updateError
         );
@@ -2357,7 +2370,7 @@ export const bulkApplyRecommendedContents = withErrorHandling(
                 .in("id", recommendedContentIds);
 
               if (deleteError) {
-                console.error(
+                logError(
                   `[bulkApplyRecommendedContents] 기존 추천 콘텐츠 삭제 실패:`,
                   deleteError
                 );
@@ -2526,7 +2539,7 @@ export const bulkApplyRecommendedContents = withErrorHandling(
           successCount++;
         }
       } catch (error) {
-        console.error(
+        logError(
           `[bulkApplyRecommendedContents] 그룹 ${groupId} 처리 실패:`,
           error
         );
@@ -2767,7 +2780,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
           groupId,
         };
       } catch (error) {
-        console.error(
+        logError(
           `[bulkCreatePlanGroupsForCamp] 초대 ${invitationId} 처리 실패:`,
           error
         );
@@ -2823,7 +2836,7 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
               groupId: result.groupId,
             }
           ).catch((err) => {
-            console.error(
+            logError(
               `[bulkCreatePlanGroupsForCamp] 초대 ${result.invitationId} 알림 발송 실패:`,
               err
             );
@@ -2944,7 +2957,7 @@ export const bulkAdjustPlanRanges = withErrorHandling(
             .eq("content_type", adjustment.contentType);
 
           if (updateError) {
-            console.error(
+            logError(
               `[bulkAdjustPlanRanges] 콘텐츠 범위 업데이트 실패:`,
               {
                 groupId,
@@ -2964,7 +2977,7 @@ export const bulkAdjustPlanRanges = withErrorHandling(
           successCount++;
         }
       } catch (error) {
-        console.error(
+        logError(
           `[bulkAdjustPlanRanges] 그룹 ${groupId} 처리 실패:`,
           error
         );
@@ -3100,7 +3113,11 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
                     totalAmount = bookInfo?.total_pages || 0;
                   }
                 } catch (error) {
-                  console.error(`마스터 교재 ${book.master_content_id} 조회 실패:`, error);
+                  logError(error, {
+                    function: "getPlanGroupContentsForRangeAdjustment",
+                    masterContentId: book.master_content_id,
+                    contentType: "book",
+                  });
                   // 마스터 교재 조회 실패 시 Admin 클라이언트로 직접 조회 시도
                   const { data: bookInfo } = await adminSupabase
                     .from("master_books")
@@ -3146,7 +3163,11 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
                     totalAmount = lectureInfo?.total_episodes || 0;
                   }
                 } catch (error) {
-                  console.error(`마스터 강의 ${lecture.master_content_id} 조회 실패:`, error);
+                  logError(error, {
+                    function: "getPlanGroupContentsForRangeAdjustment",
+                    masterContentId: lecture.master_content_id,
+                    contentType: "lecture",
+                  });
                   // 마스터 강의 조회 실패 시 Admin 클라이언트로 직접 조회 시도
                   const { data: lectureInfo } = await adminSupabase
                     .from("master_lectures")
@@ -3176,7 +3197,11 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
             currentEndRange: content.end_range,
           });
         } catch (error) {
-          console.error(`콘텐츠 ${content.content_id} 정보 조회 실패:`, error);
+          logError(error, {
+            function: "getPlanGroupContentsForRangeAdjustment",
+            contentId: content.content_id,
+            contentType: content.content_type,
+          });
         }
       }
 
@@ -3453,7 +3478,7 @@ export const bulkGeneratePlans = withErrorHandling(
           await generatePlansFromGroupAction(groupId);
           successCount++;
         } catch (generateError) {
-          console.error(
+          logError(
             `[bulkGeneratePlans] 그룹 ${groupId} 플랜 생성 실패:`,
             generateError
           );
@@ -3466,7 +3491,7 @@ export const bulkGeneratePlans = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error(
+        logError(
           `[bulkGeneratePlans] 그룹 ${groupId} 처리 실패:`,
           error
         );

@@ -14,6 +14,7 @@ import {
   AppError,
   ErrorCode,
   withErrorHandling,
+  logError,
 } from "@/lib/errors";
 import type { CampTemplateUpdate } from "@/lib/domains/camp/types";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -119,11 +120,11 @@ export const getCampTemplateById = withErrorHandling(
     if (templateError) {
       // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러
       if (templateError.code !== "PGRST116") {
-        console.error("[getCampTemplateById] 템플릿 조회 실패", {
+        logError(templateError, {
+          function: "getCampTemplateById",
           templateId,
           tenantId: tenantContext.tenantId,
           errorCode: templateError.code,
-          errorMessage: templateError.message,
         });
         throw new AppError(
           "템플릿 조회 중 오류가 발생했습니다.",
@@ -445,7 +446,12 @@ export const createCampTemplateAction = withErrorHandling(
       try {
         await linkBlockSetToTemplate(result.templateId, blockSetId);
       } catch (linkError) {
-        console.error("[createCampTemplateAction] 블록 세트 연결 실패:", linkError);
+        logError(linkError, {
+          function: "createCampTemplateAction",
+          templateId: result.templateId,
+          blockSetId,
+          action: "linkBlockSetToTemplate",
+        });
         // 연결 실패해도 템플릿 생성은 성공으로 처리 (나중에 수동으로 연결 가능)
       }
     }
@@ -667,7 +673,12 @@ export const updateCampTemplateAction = withErrorHandling(
       try {
         await linkBlockSetToTemplate(templateId, blockSetId);
       } catch (linkError) {
-        console.error("[updateCampTemplateAction] 블록 세트 연결 실패:", linkError);
+        logError(linkError, {
+          function: "updateCampTemplateAction",
+          templateId,
+          blockSetId,
+          action: "linkBlockSetToTemplate",
+        });
         // 연결 실패해도 템플릿 수정은 성공으로 처리
       }
     } else {
@@ -675,7 +686,11 @@ export const updateCampTemplateAction = withErrorHandling(
       try {
         await unlinkBlockSetFromTemplate(templateId);
       } catch (unlinkError) {
-        console.error("[updateCampTemplateAction] 블록 세트 연결 해제 실패:", unlinkError);
+        logError(unlinkError, {
+          function: "updateCampTemplateAction",
+          templateId,
+          action: "unlinkBlockSetFromTemplate",
+        });
         // 연결 해제 실패해도 템플릿 수정은 성공으로 처리
       }
     }
@@ -834,15 +849,14 @@ export const deleteCampTemplateAction = withErrorHandling(
     const planGroupResult = await deletePlanGroupsByTemplateId(templateId);
 
     if (!planGroupResult.success) {
-      console.error(
-        "[campTemplateActions] 플랜 그룹 삭제 실패",
-        planGroupResult.error
-      );
+      logError(new Error(planGroupResult.error || "플랜 그룹 삭제 실패"), {
+        function: "deleteCampTemplateAction",
+        templateId,
+        tenantId: tenantContext.tenantId,
+        action: "deletePlanGroupsByTemplateId",
+      });
       // 플랜 그룹 삭제 실패해도 템플릿 삭제는 계속 진행
       // (데이터 정합성 문제가 있을 수 있지만, 템플릿 삭제 자체는 완료)
-      console.warn(
-        "[campTemplateActions] 플랜 그룹 삭제 실패했지만 템플릿 삭제는 계속 진행합니다."
-      );
     } else if (planGroupResult.deletedGroupIds && planGroupResult.deletedGroupIds.length > 0) {
       console.log(
         `[campTemplateActions] 템플릿 삭제 전 ${planGroupResult.deletedGroupIds.length}개의 플랜 그룹 삭제 완료`
@@ -881,6 +895,14 @@ export const deleteCampTemplateAction = withErrorHandling(
     if (!deletedSuccessfully) {
       try {
         const adminSupabase = createSupabaseAdminClient();
+        if (!adminSupabase) {
+          throw new AppError(
+            "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+            ErrorCode.INTERNAL_ERROR,
+            500,
+            true
+          );
+        }
         const { data: adminDeletedRows, error: adminError } = await adminSupabase
           .from("camp_templates")
           .delete()
@@ -889,7 +911,12 @@ export const deleteCampTemplateAction = withErrorHandling(
           .select();
 
         if (adminError) {
-          console.error("[deleteCampTemplateAction] Admin Client 삭제 에러:", adminError);
+          logError(adminError, {
+            function: "deleteCampTemplateAction",
+            templateId,
+            tenantId: tenantContext.tenantId,
+            action: "adminClientDelete",
+          });
           throw new AppError(
             "템플릿 삭제에 실패했습니다.",
             ErrorCode.DATABASE_ERROR,
@@ -915,7 +942,12 @@ export const deleteCampTemplateAction = withErrorHandling(
           });
         }
       } catch (adminError) {
-        console.error("[deleteCampTemplateAction] Admin Client 삭제 실패:", adminError);
+        logError(adminError, {
+          function: "deleteCampTemplateAction",
+          templateId,
+          tenantId: tenantContext.tenantId,
+          action: "adminClientDelete",
+        });
         throw new AppError(
           "템플릿 삭제에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,

@@ -6,6 +6,7 @@ import {
   AppError,
   ErrorCode,
   withErrorHandling,
+  logError,
 } from "@/lib/errors";
 import type { CampInvitation } from "@/lib/domains/camp/types";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -102,7 +103,12 @@ export const sendCampInvitationsAction = withErrorHandling(
       .select("id");
 
     if (error) {
-      console.error("[actions/campTemplateActions] 초대 발송 실패", error);
+      logError(error, {
+        function: "sendCampInvitationsAction",
+        templateId,
+        tenantId,
+        action: "insertInvitations",
+      });
       return { success: false, error: error.message };
     }
 
@@ -116,17 +122,19 @@ export const sendCampInvitationsAction = withErrorHandling(
       Promise.all(
         insertedInvitations.map((inv) =>
           sendCampInvitationNotification(inv.id).catch((err) => {
-            console.error(
-              `[actions/campTemplateActions] 초대 ${inv.id} 이메일 발송 실패:`,
-              err
-            );
+            logError(err, {
+              function: "sendCampInvitationsAction",
+              invitationId: inv.id,
+              action: "sendCampInvitationNotification",
+            });
           })
         )
       ).catch((err) => {
-        console.error(
-          "[actions/campTemplateActions] 일괄 이메일 발송 중 오류:",
-          err
-        );
+        logError(err, {
+          function: "sendCampInvitationsAction",
+          templateId,
+          action: "batchEmailNotification",
+        });
       });
     }
 
