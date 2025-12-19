@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ContentCard } from "./ContentCard";
 import { Pagination } from "./Pagination";
 import {
@@ -32,7 +33,7 @@ export type ContentListItem = {
   master_lecture_id?: string | null | undefined; // 강의용
   linkedBook?: { id: string; title: string } | null;
   // 알 수 없는 필드가 있을 경우를 위한 fallback
-} & Record<string, any>;
+} & Record<string, unknown>;
 
 type ContentsListProps = {
   activeTab: TabKey;
@@ -212,7 +213,7 @@ type ContentFilters = {
 };
 
 async function fetchContentsByTab(
-  supabase: any,
+  supabase: SupabaseClient,
   tab: TabKey,
   studentId: string,
   filters: ContentFilters = {},

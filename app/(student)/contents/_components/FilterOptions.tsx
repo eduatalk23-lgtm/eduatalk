@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { FilterBar } from "./FilterBar";
 import { FilterDrawer } from "./FilterDrawer";
@@ -95,7 +96,7 @@ export function FilterOptions(props: FilterOptionsProps) {
 }
 
 async function fetchDistinctValues(
-  supabase: any,
+  supabase: SupabaseClient,
   tab: TabKey,
   studentId: string,
   fieldName: string

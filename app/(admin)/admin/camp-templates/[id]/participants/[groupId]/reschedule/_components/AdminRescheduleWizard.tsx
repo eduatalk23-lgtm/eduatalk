@@ -14,6 +14,7 @@ import { AdjustmentStep } from "@/app/(student)/plan/group/[id]/reschedule/_comp
 import { AdminPreviewStep } from "./AdminPreviewStep";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
+import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type AdminRescheduleWizardProps = {
@@ -83,7 +84,7 @@ export function AdminRescheduleWizard({
     setCurrentStep(3);
   };
 
-  const handleStep3Load = async (preview: any) => {
+  const handleStep3Load = async (preview: ReschedulePreviewResult) => {
     setPreviewResult(preview);
   };
 

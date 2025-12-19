@@ -13,6 +13,7 @@ import { AdjustmentStep } from "./AdjustmentStep";
 import { PreviewStep } from "./PreviewStep";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
+import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type RescheduleWizardProps = {
@@ -52,7 +53,7 @@ export function RescheduleWizard({
   const [placementDateRange, setPlacementDateRange] = useState<DateRange | null>(null);
   const [includeToday, setIncludeToday] = useState(false);
   const [adjustments, setAdjustments] = useState<AdjustmentInput[]>([]);
-  const [previewResult, setPreviewResult] = useState<any>(null);
+  const [previewResult, setPreviewResult] = useState<ReschedulePreviewResult | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
     new Set()
   );
@@ -82,7 +83,7 @@ export function RescheduleWizard({
   };
 
   // Step 3 미리보기 로드
-  const handleStep3Load = async (preview: any) => {
+  const handleStep3Load = async (preview: ReschedulePreviewResult) => {
     setPreviewResult(preview);
   };
 
