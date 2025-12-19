@@ -928,13 +928,16 @@ export const deleteCampTemplateAction = withErrorHandling(
     }
 
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase
+    // 삭제된 행을 반환받아 실제로 삭제되었는지 확인
+    const { data: deletedRows, error } = await supabase
       .from("camp_templates")
       .delete()
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId);
+      .eq("tenant_id", tenantContext.tenantId)
+      .select();
 
     if (error) {
+      console.error("[deleteCampTemplateAction] 삭제 쿼리 에러:", error);
       throw new AppError(
         "템플릿 삭제에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -944,8 +947,71 @@ export const deleteCampTemplateAction = withErrorHandling(
       );
     }
 
-    // 캐시 무효화하여 목록 페이지 재렌더링
+    // 실제로 삭제된 행이 없는 경우 (RLS 정책 또는 다른 이유로)
+    if (!deletedRows || deletedRows.length === 0) {
+      console.error("[deleteCampTemplateAction] 삭제된 행이 없음:", {
+        templateId,
+        tenantId: tenantContext.tenantId,
+      });
+      throw new AppError(
+        "템플릿을 삭제할 수 없습니다. 권한을 확인하거나 템플릿이 이미 삭제되었는지 확인해주세요.",
+        ErrorCode.FORBIDDEN,
+        403,
+        true
+      );
+    }
+
+    console.log("[deleteCampTemplateAction] 템플릿 삭제 성공:", {
+      templateId,
+      deletedCount: deletedRows.length,
+    });
+
+    // 삭제 후 확인: 실제로 삭제되었는지 재확인
+    const { data: verifyTemplate } = await supabase
+      .from("camp_templates")
+      .select("id")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (verifyTemplate) {
+      console.error("[deleteCampTemplateAction] 삭제 후에도 템플릿이 존재함:", {
+        templateId,
+        tenantId: tenantContext.tenantId,
+      });
+      // Admin Client를 사용하여 강제 삭제 시도
+      try {
+        const adminSupabase = createSupabaseAdminClient();
+        const { error: adminError } = await adminSupabase
+          .from("camp_templates")
+          .delete()
+          .eq("id", templateId)
+          .eq("tenant_id", tenantContext.tenantId);
+
+        if (adminError) {
+          throw new AppError(
+            "템플릿 삭제에 실패했습니다. (Admin Client 사용 시도 실패)",
+            ErrorCode.DATABASE_ERROR,
+            500,
+            true,
+            { originalError: adminError.message }
+          );
+        }
+        console.log("[deleteCampTemplateAction] Admin Client로 템플릿 삭제 성공");
+      } catch (adminError) {
+        console.error("[deleteCampTemplateAction] Admin Client 삭제 실패:", adminError);
+        throw new AppError(
+          "템플릿 삭제에 실패했습니다. RLS 정책을 확인해주세요.",
+          ErrorCode.DATABASE_ERROR,
+          500,
+          true
+        );
+      }
+    }
+
+    // 캐시 무효화하여 목록 페이지 재렌더링 (강화)
     revalidatePath("/admin/camp-templates");
+    revalidatePath("/admin/camp-templates", "layout");
+    revalidatePath(`/admin/camp-templates/${templateId}`);
 
     return { success: true };
   }

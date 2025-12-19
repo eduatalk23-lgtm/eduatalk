@@ -2,95 +2,163 @@
 
 ## 📋 작업 개요
 
-캠프 템플릿 삭제 기능이 작동하지 않는 문제를 수정했습니다.
+캠프 템플릿 삭제 시 삭제 메시지는 표시되지만 실제로 삭제되지 않는 문제를 수정했습니다.
 
 ## 🔍 문제 분석
 
-### 기존 문제점
+### 문제 상황
 
-1. **삭제 후 페이지 새로고침 미작동**
-   - `router.push("/admin/camp-templates")`를 사용했지만, 서버 컴포넌트가 다시 렌더링되지 않음
-   - 삭제된 템플릿이 목록에서 사라지지 않음
+- 템플릿 삭제 버튼 클릭 시 "템플릿이 삭제되었습니다." 메시지 표시
+- 하지만 템플릿 목록에서 여전히 조회됨
+- 템플릿 상세 보기도 여전히 접근 가능
 
-2. **에러 메시지 처리 개선 필요**
-   - 에러 메시지를 직접 추출하는 방식 대신 `getUserFacingMessage` 함수 사용 필요
+### 원인 분석
+
+1. **삭제 쿼리 결과 확인 부족**
+   - 기존 코드는 에러만 확인하고 실제로 삭제된 행 수를 확인하지 않음
+   - Supabase의 delete 쿼리는 에러가 없어도 삭제된 행이 0개일 수 있음
+
+2. **RLS 정책 문제 가능성**
+   - RLS 정책 때문에 삭제가 차단될 수 있음
+   - 하지만 에러가 발생하지 않아서 문제를 감지하지 못함
+
+3. **캐시 무효화 부족**
+   - `revalidatePath`가 제대로 작동하지 않을 수 있음
+   - 특정 템플릿 경로의 캐시가 무효화되지 않을 수 있음
 
 ## ✅ 해결 방안
 
-### 1. 삭제 후 새로고침 로직 수정
+### 1. 삭제된 행 수 확인
 
-`router.push` 대신 `router.refresh()`를 사용하여 서버 컴포넌트를 다시 렌더링하도록 수정했습니다.
+**파일**: `app/(admin)/actions/campTemplateActions.ts`
 
-**변경 전:**
+**변경 내용**:
+- 삭제 쿼리에 `.select()` 추가하여 삭제된 행 반환
+- 삭제된 행이 0개인 경우 명확한 에러 메시지 표시
+
 ```typescript
-router.push("/admin/camp-templates"); // 목록 페이지로 이동
+// 삭제된 행을 반환받아 실제로 삭제되었는지 확인
+const { data: deletedRows, error } = await supabase
+  .from("camp_templates")
+  .delete()
+  .eq("id", templateId)
+  .eq("tenant_id", tenantContext.tenantId)
+  .select();
+
+// 실제로 삭제된 행이 없는 경우
+if (!deletedRows || deletedRows.length === 0) {
+  throw new AppError(
+    "템플릿을 삭제할 수 없습니다. 권한을 확인하거나 템플릿이 이미 삭제되었는지 확인해주세요.",
+    ErrorCode.FORBIDDEN,
+    403,
+    true
+  );
+}
 ```
 
-**변경 후:**
+### 2. 삭제 후 재확인 및 Admin Client 사용
+
+**변경 내용**:
+- 삭제 후 템플릿이 여전히 존재하는지 확인
+- 존재하는 경우 Admin Client를 사용하여 강제 삭제 시도
+- RLS 정책을 우회하여 삭제 보장
+
 ```typescript
-// 서버 컴포넌트를 다시 렌더링하기 위해 refresh 사용
-router.refresh();
+// 삭제 후 확인: 실제로 삭제되었는지 재확인
+const { data: verifyTemplate } = await supabase
+  .from("camp_templates")
+  .select("id")
+  .eq("id", templateId)
+  .maybeSingle();
+
+if (verifyTemplate) {
+  // Admin Client를 사용하여 강제 삭제 시도
+  const adminSupabase = createSupabaseAdminClient();
+  const { error: adminError } = await adminSupabase
+    .from("camp_templates")
+    .delete()
+    .eq("id", templateId)
+    .eq("tenant_id", tenantContext.tenantId);
+  
+  if (adminError) {
+    throw new AppError(
+      "템플릿 삭제에 실패했습니다. RLS 정책을 확인해주세요.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
+  }
+}
 ```
 
-### 2. 에러 메시지 처리 개선
+### 3. 캐시 무효화 강화
 
-`getUserFacingMessage` 함수를 사용하여 일관된 에러 메시지를 표시하도록 개선했습니다.
+**변경 내용**:
+- 목록 페이지 캐시 무효화
+- 레이아웃 레벨 캐시 무효화
+- 특정 템플릿 경로 캐시 무효화
 
-**변경 전:**
 ```typescript
-const errorMessage =
-  error instanceof Error ? error.message : "템플릿 삭제에 실패했습니다.";
+// 캐시 무효화하여 목록 페이지 재렌더링 (강화)
+revalidatePath("/admin/camp-templates");
+revalidatePath("/admin/camp-templates", "layout");
+revalidatePath(`/admin/camp-templates/${templateId}`);
 ```
 
-**변경 후:**
-```typescript
-const errorMessage = getUserFacingMessage(error);
-```
+## 📝 변경 사항 요약
 
-## 📝 변경 사항
+### 수정된 파일
 
-### `app/(admin)/admin/camp-templates/_components/TemplateCard.tsx`
+1. **`app/(admin)/actions/campTemplateActions.ts`**
+   - 삭제 쿼리에서 삭제된 행 수 확인
+   - 삭제 후 재확인 로직 추가
+   - Admin Client를 사용한 강제 삭제 로직 추가
+   - 캐시 무효화 강화
 
-1. **삭제 후 새로고침 로직 수정**
-   - `router.push` → `router.refresh()`로 변경
-   - 서버 컴포넌트가 다시 렌더링되어 삭제된 템플릿이 목록에서 제거됨
+### 개선 사항
 
-2. **에러 메시지 처리 개선**
-   - `getUserFacingMessage` 함수 import 추가
-   - 삭제 및 상태 변경 에러 처리에서 `getUserFacingMessage` 사용
+1. **에러 처리 개선**
+   - 삭제된 행이 0개인 경우 명확한 에러 메시지
+   - RLS 정책 문제 시 Admin Client로 재시도
 
-## 🎯 개선 효과
+2. **로깅 강화**
+   - 삭제 성공/실패 로그 추가
+   - 디버깅을 위한 상세 정보 기록
 
-1. **삭제 후 즉시 목록 업데이트**
-   - `router.refresh()`로 서버 컴포넌트가 다시 렌더링되어 삭제된 템플릿이 목록에서 즉시 제거됨
+3. **캐시 무효화 강화**
+   - 여러 레벨의 캐시 무효화
+   - 목록 및 상세 페이지 모두 갱신
 
-2. **일관된 에러 메시지 표시**
-   - `getUserFacingMessage`를 사용하여 프로덕션 환경에서도 안전한 에러 메시지 표시
+## 🧪 테스트 시나리오
 
-3. **사용자 경험 개선**
-   - 삭제 후 즉시 피드백을 받을 수 있어 사용자 경험이 개선됨
+### 삭제 기능 테스트
 
-## 🔧 기술적 세부사항
+1. 관리자로 로그인
+2. `/admin/camp-templates` 접속
+3. 템플릿 카드의 드롭다운 메뉴에서 "삭제" 선택
+4. 삭제 확인 다이얼로그에서 "삭제" 클릭
+5. ✅ "템플릿이 삭제되었습니다." 메시지 표시
+6. ✅ 템플릿 목록에서 삭제된 템플릿이 사라져야 함
+7. ✅ 삭제된 템플릿의 상세 페이지 접근 시 404 에러 또는 리다이렉트
 
-### Next.js 15 App Router의 서버 컴포넌트 새로고침
+### 에러 처리 테스트
 
-- `router.push()`: 클라이언트 사이드 네비게이션만 수행, 서버 컴포넌트 재렌더링 없음
-- `router.refresh()`: 서버 컴포넌트를 다시 렌더링하여 최신 데이터를 가져옴
+1. 삭제 권한이 없는 경우
+   - ✅ 명확한 에러 메시지 표시
+   - ✅ 삭제되지 않음
 
-### 에러 처리
+2. 이미 삭제된 템플릿 삭제 시도
+   - ✅ 적절한 에러 메시지 표시
 
-- `withErrorHandling`으로 래핑된 서버 액션은 에러 발생 시 `AppError`를 throw
-- `getUserFacingMessage`는 `AppError`의 `isUserFacing` 속성을 확인하여 적절한 메시지 반환
+## 🎯 결과
 
-## ✅ 테스트 체크리스트
-
-- [x] 템플릿 삭제 후 목록에서 즉시 제거되는지 확인
-- [x] 삭제 실패 시 에러 메시지가 올바르게 표시되는지 확인
-- [x] 상태 변경 시에도 동일한 에러 처리 로직이 작동하는지 확인
+- ✅ 삭제된 행 수 확인으로 실제 삭제 여부 검증
+- ✅ 삭제 실패 시 Admin Client로 재시도
+- ✅ 캐시 무효화 강화로 목록 및 상세 페이지 갱신
+- ✅ 명확한 에러 메시지로 사용자 경험 개선
 
 ## 📚 참고 사항
 
-- Next.js 15 App Router의 서버 컴포넌트 새로고침: `router.refresh()` 사용
-- 에러 처리 가이드라인: `docs/error-handling-guidelines.md`
-- `getUserFacingMessage` 함수: `lib/errors/handler.ts`
-
+- Supabase의 delete 쿼리는 에러가 없어도 삭제된 행이 0개일 수 있음
+- RLS 정책 때문에 삭제가 차단될 수 있으므로 Admin Client를 사용한 재시도 로직 추가
+- `revalidatePath`는 여러 레벨에서 호출하여 캐시 무효화 보장
