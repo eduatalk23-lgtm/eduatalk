@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
@@ -52,13 +55,25 @@ export async function deleteConsultingNote(
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // 권한 확인
+    const { role } = await requireAdminOrConsultant();
     const user = await getCurrentUser();
-
-    if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-      return { success: false, error: "권한이 없습니다." };
+    
+    if (!user) {
+      return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
     }
 
-    const supabase = await createSupabaseServerClient();
+    // 테넌트 컨텍스트 확인
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    }
 
     // 상담노트 조회 및 권한 확인
     const { data: note, error: fetchError } = await supabase
@@ -73,18 +88,23 @@ export async function deleteConsultingNote(
     }
 
     // 본인이 작성한 노트만 삭제 가능 (또는 admin은 모든 노트 삭제 가능)
-    if (user.role !== "admin" && note.consultant_id !== user.userId) {
+    if (role !== "admin" && note.consultant_id !== user.userId) {
       return { success: false, error: "권한이 없습니다." };
     }
 
-    const { error } = await supabase
+    const { data: deletedRows, error } = await supabase
       .from("student_consulting_notes")
       .delete()
-      .eq("id", noteId);
+      .eq("id", noteId)
+      .select();
 
     if (error) {
       console.error("[consultingNotes] 상담노트 삭제 실패", error);
       return { success: false, error: error.message };
+    }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      return { success: false, error: "상담노트를 찾을 수 없습니다." };
     }
 
     revalidatePath(`/admin/students/${studentId}`);

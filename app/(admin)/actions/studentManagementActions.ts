@@ -1,9 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { AppError, ErrorCode } from "@/lib/errors";
 
 /**
  * 학생 계정 비활성화/활성화
@@ -12,18 +15,27 @@ export async function toggleStudentStatus(
   studentId: string,
   isActive: boolean
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+  // 권한 확인
+  await requireAdminOrConsultant();
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("students")
     .update({ is_active: isActive })
-    .eq("id", studentId);
+    .eq("id", studentId)
+    .eq("tenant_id", tenantContext.tenantId)
+    .select();
 
   if (error) {
     console.error("[admin/studentManagement] 학생 상태 변경 실패", error);
@@ -31,6 +43,10 @@ export async function toggleStudentStatus(
       success: false,
       error: error.message || "상태 변경에 실패했습니다.",
     };
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    return { success: false, error: "학생을 찾을 수 없습니다." };
   }
 
   revalidatePath("/admin/students");
@@ -46,13 +62,23 @@ export async function toggleStudentStatus(
 export async function deleteStudent(
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
+  // 권한 확인 (관리자만)
+  const { role } = await requireAdminOrConsultant();
   if (role !== "admin") {
     return { success: false, error: "관리자만 학생을 삭제할 수 있습니다." };
   }
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+  }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   try {
     // NO ACTION 제약조건이 있는 테이블들을 먼저 삭제 (순서 중요)
@@ -152,10 +178,12 @@ export async function deleteStudent(
     }
 
     // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
-    const { error: deleteError } = await supabase
+    const { data: deletedRows, error: deleteError } = await supabase
       .from("students")
       .delete()
-      .eq("id", studentId);
+      .eq("id", studentId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .select();
 
     if (deleteError) {
       console.error(
@@ -165,6 +193,13 @@ export async function deleteStudent(
       return {
         success: false,
         error: deleteError.message || "학생 삭제에 실패했습니다.",
+      };
+    }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      return {
+        success: false,
+        error: "학생을 찾을 수 없습니다.",
       };
     }
 
@@ -191,22 +226,30 @@ export async function bulkToggleStudentStatus(
   studentIds: string[],
   isActive: boolean
 ): Promise<{ success: boolean; error?: string; updatedCount?: number }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+  // 권한 확인
+  await requireAdminOrConsultant();
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
   }
 
   if (studentIds.length === 0) {
     return { success: false, error: "선택된 학생이 없습니다." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   const { data, error, count } = await supabase
     .from("students")
     .update({ is_active: isActive })
     .in("id", studentIds)
+    .eq("tenant_id", tenantContext.tenantId)
     .select("id");
 
   if (error) {
@@ -230,17 +273,27 @@ export async function bulkToggleStudentStatus(
 export async function bulkDeleteStudents(
   studentIds: string[]
 ): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
-  const { role } = await getCurrentUserRole();
-
+  // 권한 확인 (관리자만)
+  const { role } = await requireAdminOrConsultant();
   if (role !== "admin") {
     return { success: false, error: "관리자만 학생을 삭제할 수 있습니다." };
+  }
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
   }
 
   if (studentIds.length === 0) {
     return { success: false, error: "선택된 학생이 없습니다." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
   let successCount = 0;
   const errors: string[] = [];
 
@@ -312,13 +365,20 @@ export async function bulkDeleteStudents(
       }
 
       // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
-      const { error: deleteError } = await supabase
+      const { data: deletedRows, error: deleteError } = await supabase
         .from("students")
         .delete()
-        .eq("id", studentId);
+        .eq("id", studentId)
+        .eq("tenant_id", tenantContext.tenantId)
+        .select();
 
       if (deleteError) {
         errors.push(`${studentId}: 학생 삭제 실패 - ${deleteError.message}`);
+        continue;
+      }
+
+      if (!deletedRows || deletedRows.length === 0) {
+        errors.push(`${studentId}: 학생을 찾을 수 없습니다.`);
         continue;
       }
 
@@ -356,27 +416,43 @@ export async function updateStudentClass(
   studentId: string,
   classValue: string | null
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+  // 권한 확인
+  await requireAdminOrConsultant();
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   // 빈 문자열을 null로 변환
   const normalizedClass = classValue?.trim() || null;
 
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("students")
     .update({ class: normalizedClass })
-    .eq("id", studentId);
+    .eq("id", studentId)
+    .eq("tenant_id", tenantContext.tenantId)
+    .select();
 
   if (error) {
     console.error("[admin/studentManagement] 학생 반 정보 변경 실패", error);
     return {
       success: false,
       error: error.message || "반 정보 변경에 실패했습니다.",
+    };
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    return {
+      success: false,
+      error: "학생을 찾을 수 없습니다.",
     };
   }
 
@@ -422,13 +498,20 @@ export async function updateStudentInfo(
     };
   }
 ): Promise<{ success: boolean; error?: string }> {
-  const { role } = await getCurrentUserRole();
-
-  if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: "권한이 없습니다." };
+  // 권한 확인
+  await requireAdminOrConsultant();
+  
+  // 테넌트 컨텍스트 확인
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   // 기존 학생 정보 조회
   const { getStudentById } = await import("@/lib/data/students");

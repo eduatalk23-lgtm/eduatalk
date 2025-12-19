@@ -17,6 +17,7 @@ import type {
 } from "@/lib/domains/attendance/types";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getStudentPhones } from "@/lib/utils/studentPhoneUtils";
@@ -367,7 +368,15 @@ export async function updateAttendanceRecord(
       );
     }
     
-    const supabase = await createSupabaseServerClient();
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500
+      );
+    }
     
     // 3. 기존 기록 조회 및 원본 백업
     const { data: existingRecord, error: fetchError } = await supabase
@@ -425,16 +434,26 @@ export async function updateAttendanceRecord(
     }
     
     // 6. 트랜잭션: 기록 수정 + 이력 저장
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from("attendance_records")
       .update(updateData)
-      .eq("id", recordId);
+      .eq("id", recordId)
+      .eq("tenant_id", tenantContext.tenantId)
+      .select();
     
     if (updateError) {
       throw new AppError(
         `출석 기록 수정 실패: ${updateError.message}`,
         ErrorCode.DATABASE_ERROR,
         500
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new AppError(
+        "출석 기록을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404
       );
     }
     

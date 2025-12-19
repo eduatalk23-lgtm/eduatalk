@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { blockSchema, validateFormData } from "@/lib/validation/schemas";
 
@@ -78,10 +80,8 @@ async function _createTenantBlockSet(formData: FormData): Promise<{ blockSetId: 
  * 테넌트 블록 세트 수정
  */
 async function _updateTenantBlockSet(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -104,7 +104,11 @@ async function _updateTenantBlockSet(formData: FormData): Promise<void> {
     throw new AppError("세트 이름은 100자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AppError("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.", ErrorCode.INTERNAL_ERROR, 500, true);
+  }
 
   // 세트 존재 및 권한 확인
   const { data: existingSet } = await supabase
@@ -133,14 +137,15 @@ async function _updateTenantBlockSet(formData: FormData): Promise<void> {
     }
   }
 
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("tenant_block_sets")
     .update({
       name: name.trim(),
       description: description && typeof description === "string" ? description.trim() : null,
     })
     .eq("id", setId)
-    .eq("tenant_id", tenantContext.tenantId);
+    .eq("tenant_id", tenantContext.tenantId)
+    .select();
 
   if (error) {
     throw new AppError(
@@ -152,6 +157,10 @@ async function _updateTenantBlockSet(formData: FormData): Promise<void> {
     );
   }
 
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new AppError("블록 세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
+  }
+
   revalidatePath("/admin/time-management");
 }
 
@@ -159,10 +168,8 @@ async function _updateTenantBlockSet(formData: FormData): Promise<void> {
  * 테넌트 블록 세트 삭제
  */
 async function _deleteTenantBlockSet(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -175,7 +182,11 @@ async function _deleteTenantBlockSet(formData: FormData): Promise<void> {
     throw new AppError("세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AppError("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.", ErrorCode.INTERNAL_ERROR, 500, true);
+  }
 
   // 세트 존재 및 권한 확인
   const { data: existingSet } = await supabase
@@ -190,11 +201,12 @@ async function _deleteTenantBlockSet(formData: FormData): Promise<void> {
   }
 
   // CASCADE로 블록도 함께 삭제됨
-  const { error } = await supabase
+  const { data: deletedRows, error } = await supabase
     .from("tenant_block_sets")
     .delete()
     .eq("id", setId)
-    .eq("tenant_id", tenantContext.tenantId);
+    .eq("tenant_id", tenantContext.tenantId)
+    .select();
 
   if (error) {
     throw new AppError(
@@ -204,6 +216,10 @@ async function _deleteTenantBlockSet(formData: FormData): Promise<void> {
       true,
       { originalError: error.message }
     );
+  }
+
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new AppError("블록 세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   revalidatePath("/admin/time-management");
@@ -500,10 +516,8 @@ async function _addTenantBlocksToMultipleDays(formData: FormData): Promise<void>
  * 테넌트 블록 삭제
  */
 async function _deleteTenantBlock(formData: FormData): Promise<void> {
-  const { role } = await getCurrentUserRole();
-  if (role !== "admin" && role !== "consultant") {
-    throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  // 권한 확인
+  await requireAdminOrConsultant();
 
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -516,7 +530,11 @@ async function _deleteTenantBlock(formData: FormData): Promise<void> {
     throw new AppError("블록 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AppError("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.", ErrorCode.INTERNAL_ERROR, 500, true);
+  }
 
   // 블록 존재 확인
   const { data: block } = await supabase
@@ -544,7 +562,11 @@ async function _deleteTenantBlock(formData: FormData): Promise<void> {
     throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
   }
 
-  const { error } = await supabase.from("tenant_blocks").delete().eq("id", blockId);
+  const { data: deletedRows, error } = await supabase
+    .from("tenant_blocks")
+    .delete()
+    .eq("id", blockId)
+    .select();
 
   if (error) {
     throw new AppError(
@@ -554,6 +576,10 @@ async function _deleteTenantBlock(formData: FormData): Promise<void> {
       true,
       { originalError: error.message }
     );
+  }
+
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new AppError("블록을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   revalidatePath("/admin/time-management");

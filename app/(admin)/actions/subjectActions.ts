@@ -125,19 +125,24 @@ export async function updateSubjectGroup(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  const { error } = await supabaseAdmin
+  const { data: updatedRows, error } = await supabaseAdmin
     .from("subject_groups")
     .update({
       curriculum_revision_id: curriculumRevisionId,
       name,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     if (error.code === "23505") {
       throw new Error("이미 존재하는 교과 그룹명입니다.");
     }
     throw new Error(`교과 그룹 수정에 실패했습니다: ${error.message}`);
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("교과 그룹을 찾을 수 없습니다.");
   }
 
   revalidatePath("/admin/subjects");
@@ -172,13 +177,18 @@ export async function deleteSubjectGroup(id: string): Promise<void> {
     throw new Error("과목이 있는 교과 그룹은 삭제할 수 없습니다. 먼저 모든 과목을 삭제해주세요.");
   }
 
-  const { error } = await supabaseAdmin
+  const { data: deletedRows, error } = await supabaseAdmin
     .from("subject_groups")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     throw new Error(`교과 그룹 삭제에 실패했습니다: ${error.message}`);
+  }
+
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new Error("교과 그룹을 찾을 수 없습니다.");
   }
 
   revalidatePath("/admin/subjects");
@@ -257,20 +267,25 @@ export async function updateSubject(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  const { error } = await supabaseAdmin
+  const { data: updatedRows, error } = await supabaseAdmin
     .from("subjects")
     .update({
       subject_group_id: subjectGroupId,
       name,
       subject_type_id: subjectTypeId,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     if (error.code === "23505") {
       throw new Error("이미 존재하는 과목명입니다.");
     }
     throw new Error(`과목 수정에 실패했습니다: ${error.message}`);
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("과목을 찾을 수 없습니다.");
   }
 
   revalidatePath("/admin/subjects");
@@ -290,13 +305,18 @@ export async function deleteSubject(id: string): Promise<void> {
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  const { error } = await supabaseAdmin
+  const { data: deletedRows, error } = await supabaseAdmin
     .from("subjects")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     throw new Error(`과목 삭제에 실패했습니다: ${error.message}`);
+  }
+
+  if (!deletedRows || deletedRows.length === 0) {
+    throw new Error("과목을 찾을 수 없습니다.");
   }
 
   revalidatePath("/admin/subjects");
@@ -380,20 +400,25 @@ export async function updateSubjectType(
     throw new Error("관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.");
   }
 
-  const { error } = await supabaseAdmin
+  const { data: updatedRows, error } = await supabaseAdmin
     .from("subject_types")
     .update({
       curriculum_revision_id: curriculumRevisionId,
       name,
       is_active: isActive,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select();
 
   if (error) {
     if (error.code === "23505") {
       throw new Error("이미 존재하는 과목구분명입니다.");
     }
     throw new Error(`과목구분 수정에 실패했습니다: ${error.message}`);
+  }
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error("과목구분을 찾을 수 없습니다.");
   }
 
   revalidatePath("/admin/content-metadata");
