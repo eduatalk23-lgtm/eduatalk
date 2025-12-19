@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole, type CurrentUserRole } from "./getCurrentUserRole";
 import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
@@ -14,8 +15,11 @@ export type CurrentUser = {
 /**
  * 현재 로그인한 사용자 정보를 조회합니다.
  * getCurrentUserRole을 확장하여 이메일 정보도 포함합니다.
+ * 
+ * React의 cache 함수를 사용하여 동일한 요청 내에서 중복 호출을 방지합니다.
+ * (Next.js Request Memoization 활용)
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   try {
     const supabase = await createSupabaseServerClient();
     
@@ -116,5 +120,5 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     }
     return null;
   }
-}
+});
 

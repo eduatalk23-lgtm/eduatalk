@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type TenantContext = {
@@ -16,8 +17,11 @@ export type TenantContext = {
  * - Admin/Consultant: tenantId = 해당 기관 ID, role = 'admin' | 'consultant'
  * - Parent: tenantId = 해당 기관 ID, role = 'parent'
  * - Student: tenantId = 해당 기관 ID, role = 'student'
+ * 
+ * React의 cache 함수를 사용하여 동일한 요청 내에서 중복 호출을 방지합니다.
+ * (Next.js Request Memoization 활용)
  */
-export async function getTenantContext(): Promise<TenantContext | null> {
+export const getTenantContext = cache(async (): Promise<TenantContext | null> => {
   try {
     const supabase = await createSupabaseServerClient();
     const {
@@ -120,7 +124,7 @@ export async function getTenantContext(): Promise<TenantContext | null> {
     console.error("[tenant] getTenantContext 실패", error);
     return null;
   }
-}
+});
 
 /**
  * 현재 사용자가 Super Admin인지 확인합니다.
