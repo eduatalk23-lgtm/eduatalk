@@ -49,8 +49,29 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         .limit(100);
 
       if (studentsError) {
-        console.error("학생 목록 조회 실패:", studentsError);
-        toast.showError("학생 목록을 불러오는데 실패했습니다.");
+        // 에러 객체의 세부 정보를 포함하여 로깅
+        const errorDetails = {
+          message: studentsError.message,
+          code: studentsError.code,
+          details: studentsError.details,
+          hint: studentsError.hint,
+          error: studentsError,
+        };
+        console.error("학생 목록 조회 실패:", errorDetails);
+        toast.showError(
+          studentsError.message 
+            ? `학생 목록을 불러오는데 실패했습니다: ${studentsError.message}`
+            : "학생 목록을 불러오는데 실패했습니다."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // 데이터가 null인 경우 처리
+      if (allStudents === null) {
+        console.warn("학생 목록이 null로 반환되었습니다.");
+        setStudents([]);
+        setLoading(false);
         return;
       }
 
@@ -61,7 +82,15 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         .eq("camp_template_id", templateId);
 
       if (invitationsError) {
-        console.error("초대 목록 조회 실패:", invitationsError);
+        // 에러 객체의 세부 정보를 포함하여 로깅
+        const errorDetails = {
+          message: invitationsError.message,
+          code: invitationsError.code,
+          details: invitationsError.details,
+          hint: invitationsError.hint,
+          error: invitationsError,
+        };
+        console.error("초대 목록 조회 실패:", errorDetails);
         // 초대 목록 조회 실패해도 학생 목록은 표시
       }
 
