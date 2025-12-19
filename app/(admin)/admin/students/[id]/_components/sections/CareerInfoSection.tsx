@@ -1,15 +1,16 @@
 "use client";
 
-import { useController } from "react-hook-form";
+import { useController, type Control } from "react-hook-form";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolMultiSelect from "@/components/ui/SchoolMultiSelect";
 import {
   CURRICULUM_REVISION_OPTIONS,
   CAREER_FIELD_OPTIONS,
 } from "@/lib/utils/studentProfile";
+import type { AdminStudentFormData } from "../../_types/studentFormTypes";
 
 type CareerInfoSectionProps = {
-  control: any; // React Hook Form의 Control 타입
+  control: Control<AdminStudentFormData>;
 };
 
 export default function CareerInfoSection({

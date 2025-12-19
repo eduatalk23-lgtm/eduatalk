@@ -167,8 +167,9 @@ export default function BlocksViewer({
                         }
                         // 서버 컴포넌트 새로고침은 loadData 완료 후
                         router.refresh();
-                      } catch (error: any) {
-                        alert(error.message || "세트 삭제에 실패했습니다.");
+                      } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : "세트 삭제에 실패했습니다.";
+                        alert(errorMessage);
                       }
                     }}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
@@ -285,7 +286,7 @@ function BlockSetCreateForm({
           
           try {
             await addBlocksToMultipleDays(blockFormData);
-          } catch (blockError: any) {
+          } catch (blockError: unknown) {
             // 블록 추가 실패해도 세트는 생성되었으므로 성공으로 처리
             console.warn("블록 추가 실패:", blockError);
           }
@@ -294,8 +295,9 @@ function BlockSetCreateForm({
         router.refresh();
         onSuccess(result.blockSetId);
         return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 생성에 실패했습니다." };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "세트 생성에 실패했습니다.";
+        return { error: errorMessage };
       }
     },
     { error: null }

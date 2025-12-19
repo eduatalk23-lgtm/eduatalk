@@ -68,16 +68,18 @@ export default function ExclusionManagement({
       } else {
         setPlanExclusions((exclusions as PlanExclusion[]) ?? []);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("학습 제외 일정 로드 실패:", error);
       
       // 네트워크 에러 구분
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorCode = error && typeof error === "object" && "code" in error ? error.code : undefined;
       const isNetworkError = 
-        error?.message?.includes("Failed to fetch") ||
-        error?.message?.includes("NetworkError") ||
-        error?.message?.includes("network") ||
-        error?.code === "ECONNABORTED" ||
-        error?.code === "ETIMEDOUT";
+        errorMessage.includes("Failed to fetch") ||
+        errorMessage.includes("NetworkError") ||
+        errorMessage.includes("network") ||
+        errorCode === "ECONNABORTED" ||
+        errorCode === "ETIMEDOUT";
       
       if (isNetworkError) {
         console.warn("네트워크 에러 발생 - 일부 데이터가 로드되지 않았을 수 있습니다.");
@@ -182,8 +184,9 @@ export default function ExclusionManagement({
 
         // 데이터 다시 로드
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "제외일 추가에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "제외일 추가에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };
@@ -200,8 +203,9 @@ export default function ExclusionManagement({
 
         // 데이터 다시 로드
         await loadData();
-      } catch (error: any) {
-        alert(error.message || "제외일 삭제에 실패했습니다.");
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "제외일 삭제에 실패했습니다.";
+        alert(errorMessage);
       }
     });
   };

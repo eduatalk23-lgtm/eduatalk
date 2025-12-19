@@ -7,7 +7,7 @@ import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useStudentInfoForm } from "../_hooks/useStudentInfoForm";
 import { transformFormDataToUpdatePayload } from "../_utils/studentFormTransform";
 import { updateStudentInfo } from "@/app/(admin)/actions/studentManagementActions";
-import type { StudentInfoData } from "../_types/studentFormTypes";
+import type { StudentInfoData, AdminStudentFormData } from "../_types/studentFormTypes";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import ProfileInfoSection from "./sections/ProfileInfoSection";
 import CareerInfoSection from "./sections/CareerInfoSection";
@@ -50,12 +50,12 @@ export default function StudentInfoEditForm({
 
   // 저장 핸들러
   const onSubmit = useCallback(
-    async (formData: any) => {
+    async (formData: AdminStudentFormData) => {
       startTransition(async () => {
         // 변경된 필드만 포함하는 페이로드 생성
         const payload = transformFormDataToUpdatePayload(
           formData,
-          dirtyFields as any
+          dirtyFields
         );
 
         const result = await updateStudentInfo(studentId, payload);

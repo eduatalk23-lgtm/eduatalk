@@ -1,6 +1,6 @@
 "use client";
 
-import { useController } from "react-hook-form";
+import { useController, type Control } from "react-hook-form";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import type { AdminStudentFormData } from "../../_types/studentFormTypes";
@@ -8,7 +8,7 @@ import { STUDENT_DIVISIONS } from "@/lib/constants/students";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
 
 type BasicInfoSectionProps = {
-  control: any; // React Hook Form의 Control 타입
+  control: Control<AdminStudentFormData>;
   schoolType?: "중학교" | "고등학교" | undefined;
   setSchoolType: (type: "중학교" | "고등학교" | undefined) => void;
 };

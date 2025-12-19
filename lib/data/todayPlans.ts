@@ -74,8 +74,8 @@ async function getPlansFromView(options: {
 
   // Fallback 함수: 기존 방식으로 조회
   const fallbackQuery = async (): Promise<{
-    data: any[] | null;
-    error: any;
+    data: Plan[] | null;
+    error: Error | null;
   }> => {
     try {
       const plans = await getPlansForStudent({
@@ -150,7 +150,7 @@ async function getPlansFromView(options: {
   }
 
   // View 결과를 Plan 타입으로 변환 (denormalized 필드 우선, View 필드는 fallback)
-  const plans = (result.data || []).map((row: any) => {
+  const plans = (result.data || []).map((row: Record<string, unknown>) => {
     const plan: Plan = {
       id: row.id,
       tenant_id: row.tenant_id,
@@ -638,11 +638,11 @@ export async function getTodayPlans(
   // Optimized: Remove destructuring and spread operations for better performance
 
   // Helper function to exclude denormalized fields (more efficient than destructuring)
-  const excludeFields = <T extends Record<string, any>>(
+  const excludeFields = <T extends Record<string, unknown>>(
     obj: T,
     fieldsToExclude: Set<string>
-  ): Omit<T, keyof T & string> => {
-    const result: any = {};
+  ): Partial<T> => {
+    const result: Partial<T> = {};
     for (const key in obj) {
       if (!fieldsToExclude.has(key)) {
         result[key] = obj[key];

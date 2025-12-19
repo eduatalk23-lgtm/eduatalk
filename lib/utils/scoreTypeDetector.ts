@@ -6,6 +6,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { InternalScore, MockScore } from "@/lib/data/studentScores";
 
 export type ScoreType = "internal" | "mock" | null;
 
@@ -56,8 +57,11 @@ export async function getScoreById(
   scoreId: string,
   studentId: string
 ): Promise<{
-  type: ScoreType;
-  data: any;
+  type: "internal";
+  data: InternalScore;
+} | {
+  type: "mock";
+  data: MockScore;
 } | null> {
   const supabase = await createSupabaseServerClient();
   const type = await detectScoreType(scoreId, studentId);

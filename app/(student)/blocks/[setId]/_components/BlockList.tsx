@@ -39,9 +39,10 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
       await updateBlock(formData);
       setEditingId(null);
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("블록 수정 실패:", error);
-      alert(error.message || "블록 수정에 실패했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "블록 수정에 실패했습니다.";
+      alert(errorMessage);
     }
   };
 
@@ -54,9 +55,10 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
       await deleteBlock(formData);
       setDeletingId(null);
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("블록 삭제 실패:", error);
-      alert(error.message || "블록 삭제에 실패했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "블록 삭제에 실패했습니다.";
+      alert(errorMessage);
     }
   };
 
@@ -186,8 +188,9 @@ function BlockEditForm({ block, onSave, onCancel }: BlockEditFormProps) {
       try {
         await onSave(formData);
         return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "수정에 실패했습니다." };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "수정에 실패했습니다.";
+        return { error: errorMessage };
       }
     },
     { error: null }
