@@ -126,7 +126,17 @@ export const getCampTemplates = withErrorHandling(async () => {
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  // Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AppError(
+      "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true
+    );
+  }
+
   const { data, error } = await supabase
     .from("camp_templates")
     .select("*")

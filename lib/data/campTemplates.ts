@@ -126,12 +126,18 @@ export async function createCampTemplate(data: {
 
 /**
  * 캠프 템플릿 목록 조회 (관리자용)
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function getCampTemplatesForTenant(
   tenantId: string
 ): Promise<CampTemplate[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+      return [];
+    }
 
     const { data, error } = await supabase
       .from("camp_templates")
