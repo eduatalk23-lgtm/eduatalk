@@ -1,7 +1,7 @@
 # 학생 목록 조회 에러 처리 개선
 
 ## 작업 일시
-2024-12-15
+2024-12-15 (2차 수정)
 
 ## 문제 상황
 - `StudentInvitationForm` 컴포넌트에서 학생 목록 조회 시 에러가 발생
@@ -67,8 +67,53 @@ if (allStudents === null) {
 3. null 데이터에 대한 안전한 처리
 4. 디버깅 용이성 향상
 
+## 2차 수정 (에러 객체 상세 분석)
+
+### 문제
+- 에러 객체가 여전히 빈 객체 `{}`로 출력됨
+- 에러 객체의 실제 구조를 파악할 수 없음
+
+### 추가 개선 사항
+
+1. **에러 객체 직렬화**
+   - `JSON.stringify`와 `Object.getOwnPropertyNames`를 사용하여 모든 속성 확인
+   - 숨겨진 속성도 포함하여 직렬화
+
+2. **에러 객체 상세 분석**
+   - 에러 타입 (`typeof`)
+   - 에러 생성자 이름 (`constructor.name`)
+   - 모든 키와 속성 목록
+   - 직렬화된 에러 객체
+
+3. **에러 체크 로직 개선**
+   - 단순 truthy 체크 대신 실제 에러 속성 존재 여부 확인
+   - `message`, `code`, 또는 객체에 키가 있는지 확인
+
+4. **직렬화 실패 대비**
+   - 직렬화 중 에러 발생 시 대체 로깅 제공
+
+```typescript
+// 에러 체크: null이 아니고, 실제로 에러 속성이 있는지 확인
+if (studentsError && (studentsError.message || studentsError.code || Object.keys(studentsError).length > 0)) {
+  const errorDetails = {
+    message: studentsError.message || null,
+    code: studentsError.code || null,
+    details: studentsError.details || null,
+    hint: studentsError.hint || null,
+    serialized: JSON.stringify(studentsError, Object.getOwnPropertyNames(studentsError)),
+    keys: Object.keys(studentsError),
+    allProperties: Object.getOwnPropertyNames(studentsError),
+    errorType: typeof studentsError,
+    errorConstructor: studentsError.constructor?.name,
+    rawError: studentsError,
+  };
+  console.error("학생 목록 조회 실패:", errorDetails);
+}
+```
+
 ## 향후 개선 사항
 - RLS 정책 확인 및 권한 문제 해결
 - 네트워크 에러 처리 강화
 - 재시도 로직 추가 고려
+- `handleSupabaseQueryArray` 유틸리티 활용 검토
 

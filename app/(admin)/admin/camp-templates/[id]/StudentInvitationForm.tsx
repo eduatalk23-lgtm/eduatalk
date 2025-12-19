@@ -50,33 +50,64 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
 
       // 에러 체크: null이 아니고, 실제로 에러 속성이 있는지 확인
       if (studentsError && (studentsError.message || studentsError.code || Object.keys(studentsError).length > 0)) {
-        // 에러 객체의 세부 정보를 포함하여 로깅 (직렬화하여 모든 속성 확인)
-        try {
-          const errorDetails = {
-            message: studentsError.message || null,
-            code: studentsError.code || null,
-            details: studentsError.details || null,
-            hint: studentsError.hint || null,
-            // 에러 객체를 직렬화하여 숨겨진 속성도 확인
-            serialized: JSON.stringify(studentsError, Object.getOwnPropertyNames(studentsError)),
-            // 에러 객체의 모든 키 확인
-            keys: Object.keys(studentsError),
-            // 에러 객체의 모든 속성 확인
-            allProperties: Object.getOwnPropertyNames(studentsError),
-            // 에러 타입 확인
-            errorType: typeof studentsError,
-            errorConstructor: studentsError.constructor?.name,
-            // 원본 에러 객체 (직접 참조)
-            rawError: studentsError,
-          };
-          console.error("학생 목록 조회 실패:", errorDetails);
-        } catch (serializeError) {
-          // 직렬화 실패 시 최소한의 정보라도 출력
-          console.error("학생 목록 조회 실패 (직렬화 불가):", {
-            error: studentsError,
-            serializeError: serializeError instanceof Error ? serializeError.message : String(serializeError),
-          });
+        // 에러 객체의 속성을 안전하게 추출하여 로깅
+        const errorInfo: Record<string, unknown> = {};
+        
+        // 기본 속성 추출
+        if (studentsError.message) {
+          errorInfo.message = studentsError.message;
         }
+        if (studentsError.code) {
+          errorInfo.code = studentsError.code;
+        }
+        if (studentsError.details) {
+          errorInfo.details = studentsError.details;
+        }
+        if (studentsError.hint) {
+          errorInfo.hint = studentsError.hint;
+        }
+        
+        // 에러 객체의 모든 열거 가능한 속성 추출
+        try {
+          Object.keys(studentsError).forEach((key) => {
+            const value = (studentsError as Record<string, unknown>)[key];
+            // 순환 참조 방지 및 직렬화 가능한 값만 포함
+            if (value !== null && typeof value !== "function" && typeof value !== "object") {
+              errorInfo[key] = value;
+            } else if (typeof value === "object" && value !== null) {
+              try {
+                // 객체인 경우 JSON 직렬화 시도
+                JSON.stringify(value);
+                errorInfo[key] = value;
+              } catch {
+                // 직렬화 불가능한 경우 문자열로 변환
+                errorInfo[key] = String(value);
+              }
+            }
+          });
+        } catch (e) {
+          // 속성 추출 실패 시 최소한의 정보라도 로깅
+          errorInfo.errorString = String(studentsError);
+        }
+        
+        // 에러 타입 정보 추가
+        errorInfo.errorType = typeof studentsError;
+        errorInfo.errorConstructor = studentsError.constructor?.name || "Unknown";
+        errorInfo.keys = Object.keys(studentsError);
+        errorInfo.allProperties = Object.getOwnPropertyNames(studentsError);
+        
+        // 직렬화 시도 (디버깅용)
+        try {
+          errorInfo.serialized = JSON.stringify(studentsError, Object.getOwnPropertyNames(studentsError));
+        } catch (e) {
+          errorInfo.serialized = "직렬화 실패: " + (e instanceof Error ? e.message : String(e));
+        }
+        
+        // 개별 속성을 먼저 로깅 (가장 중요)
+        console.error("학생 목록 조회 실패 - 메시지:", studentsError.message || "없음");
+        console.error("학생 목록 조회 실패 - 코드:", studentsError.code || "없음");
+        console.error("학생 목록 조회 실패 - 상세 정보:", errorInfo);
+        console.error("학생 목록 조회 실패 - 원본 에러 객체:", studentsError);
         
         // 에러 메시지가 있는 경우 사용, 없으면 기본 메시지
         const errorMessage = studentsError.message 
