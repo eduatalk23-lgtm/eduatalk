@@ -35,12 +35,31 @@ function BasicInfoSection() {
     [updateFormData, errors, setErrors]
   );
 
-  /* import School type at top of file separately if needed, but here we just use it in callback */
+  // SchoolSelect의 onChange 핸들러 - ID 또는 이름을 받아서 school_id 업데이트
+  const handleSchoolChange = useCallback(
+    (value: string) => {
+      // SchoolSelect는 school.id 또는 school.name을 전달
+      // ID 형식인지 확인 (SCHOOL_123 또는 UNIV_456)
+      const isUnifiedId = /^(SCHOOL_|UNIV_)\d+$/.test(value);
+      const schoolId = isUnifiedId ? value : "";
+      
+      updateFormData({ school_id: schoolId });
+      
+      // 에러가 있으면 제거
+      if (errors.school_id) {
+        setErrors((prev) => ({ ...prev, school_id: undefined }));
+      }
+    },
+    [updateFormData, errors, setErrors]
+  );
+
+  // SchoolSelect의 onSchoolSelect 핸들러 - 학교 선택 시 추가 처리
   const handleSchoolSelect = useCallback(
     async (school: { id: string; name: string; type?: "중학교" | "고등학교" | "대학교" | null }) => {
+      // school_id 업데이트 (이미 handleSchoolChange에서 처리되지만, 확실히 하기 위해)
       updateFormData({ school_id: school.id || "" });
       
-      // 학교 타입 조회
+      // 학교 타입 조회 및 설정
       if (school.type === "중학교" || school.type === "고등학교") {
         setSchoolType(school.type);
       } else {
@@ -93,9 +112,7 @@ function BasicInfoSection() {
           <label className={getFormLabelClasses()}>학교</label>
           <SchoolSelect
             value={formData.school_id}
-            onChange={() => {
-              // SchoolSelect는 학교명을 반환하지만, onSchoolSelect에서 ID를 저장
-            }}
+            onChange={handleSchoolChange}
             onSchoolSelect={handleSchoolSelect}
             placeholder="학교를 검색하세요"
           />
