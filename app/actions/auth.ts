@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode, withErrorHandling, logError } from "@/lib/errors";
 import { saveUserSession } from "@/lib/auth/sessionManager";
 import { getDefaultTenant } from "@/lib/data/tenants";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
@@ -11,6 +11,7 @@ import type { UserWithSignupMetadata } from "@/lib/types/auth";
 import { z } from "zod";
 import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
 import { saveUserConsents } from "@/lib/data/userConsents";
+import { StudentError, StudentErrorCodes, toStudentError } from "@/lib/errors/studentErrors";
 
 /**
  * Admin 클라이언트 생성 및 null 체크 헬퍼
@@ -256,7 +257,21 @@ async function linkStudentWithConnectionCode(
     // Admin 클라이언트 사용 (RLS 우회, SECURITY DEFINER 함수 호출)
     const adminResult = getAdminClientOrError();
     if (!adminResult.success) {
-      return { success: false, error: adminResult.error };
+      const studentError = toStudentError(
+        new Error(adminResult.error),
+        StudentErrorCodes.RLS_POLICY_VIOLATION,
+        { userId, connectionCode }
+      );
+      logError(studentError, {
+        function: "linkStudentWithConnectionCode",
+        userId,
+        connectionCode,
+        reason: "Admin client creation failed",
+      });
+      return {
+        success: false,
+        error: studentError.userMessage,
+      };
     }
     const supabase = adminResult.client;
 
@@ -270,44 +285,70 @@ async function linkStudentWithConnectionCode(
     );
 
     if (error) {
-      console.error("[auth] 연결 코드로 학생 계정 연결 실패", error);
+      const studentError = toStudentError(
+        error,
+        StudentErrorCodes.LINK_STUDENT_FAILED,
+        { userId, connectionCode }
+      );
+      logError(studentError, {
+        function: "linkStudentWithConnectionCode",
+        userId,
+        connectionCode,
+        supabaseError: error,
+      });
       return {
         success: false,
-        error: error.message || "학생 계정 연결에 실패했습니다.",
+        error: studentError.userMessage,
       };
     }
 
     // 함수 반환값 확인
     if (!data || !data.success) {
       const errorMessage = data?.error || "학생 계정 연결에 실패했습니다.";
-      console.error("[auth] 연결 코드로 학생 계정 연결 실패", {
+      const studentError = toStudentError(
+        new Error(errorMessage),
+        StudentErrorCodes.LINK_STUDENT_FAILED,
+        { userId, connectionCode, functionError: errorMessage }
+      );
+      logError(studentError, {
+        function: "linkStudentWithConnectionCode",
         userId,
         connectionCode,
-        error: errorMessage,
+        functionResponse: data,
       });
       return {
         success: false,
-        error: errorMessage,
+        error: studentError.userMessage,
       };
     }
 
+    // 성공 로깅 (구조화된 로깅)
     console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
+      function: "linkStudentWithConnectionCode",
       userId,
       connectionCode,
-      result: data,
+      result: {
+        studentId: data.student_id,
+        oldStudentId: data.old_student_id,
+      },
     });
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[auth] linkStudentWithConnectionCode 예외", {
+    const studentError = toStudentError(
+      error,
+      StudentErrorCodes.UNKNOWN_ERROR,
+      { userId, connectionCode }
+    );
+    logError(studentError, {
+      function: "linkStudentWithConnectionCode",
       userId,
       connectionCode,
-      error: errorMessage,
+      exception: true,
     });
     return {
       success: false,
-      error: errorMessage,
+      error: studentError.userMessage,
     };
   }
 }
