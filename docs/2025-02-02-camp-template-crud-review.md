@@ -37,10 +37,12 @@
    - 특징: Admin 클라이언트 사용 (RLS 우회)
 
 #### 페이지
+
 - **생성 페이지**: `app/(admin)/admin/camp-templates/new/page.tsx`
 - **폼 컴포넌트**: `app/(admin)/admin/camp-templates/new/NewCampTemplateForm.tsx`
 
 #### 개선 사항
+
 - ✅ 입력값 검증이 충실함
 - ✅ 에러 처리 (`AppError`, `withErrorHandling`) 적용
 - ✅ 권한 검증 (`requireAdminOrConsultant`) 적용
@@ -72,11 +74,13 @@
    - 기능: 권한 검증 후 템플릿 조회
 
 #### 페이지
+
 - **목록 페이지**: `app/(admin)/admin/camp-templates/page.tsx`
 - **상세 페이지**: `app/(admin)/admin/camp-templates/[id]/page.tsx`
 - **컴포넌트**: `TemplateCard.tsx` - 템플릿 카드 표시
 
 #### 개선 사항
+
 - ✅ 서버 사이드 필터링으로 성능 최적화
 - ✅ 페이지네이션 구현 완료
 - ✅ 빈 결과 상태 UI 제공
@@ -109,15 +113,18 @@
    - 검증: 상태 유효성 검증
 
 #### 페이지
+
 - **수정 페이지**: `app/(admin)/admin/camp-templates/[id]/edit/page.tsx`
 - **폼 컴포넌트**: `app/(admin)/admin/camp-templates/[id]/edit/CampTemplateEditForm.tsx`
 
 #### 제한 사항
+
 - ⚠️ **활성 상태의 템플릿은 수정 불가**
   - `edit/page.tsx:36`에서 활성 상태 템플릿 수정 시 경고 메시지 표시
   - 초안 상태로 변경 후 수정 가능
 
 #### 개선 사항
+
 - ✅ 권한 검증 및 템플릿 소유권 확인
 - ✅ 블록 세트 연결/해제 처리
 - ✅ 활성 상태 템플릿 수정 방지 (데이터 무결성 보장)
@@ -144,12 +151,14 @@
    - 초대 삭제: 템플릿 삭제 시 외래키 제약조건으로 처리될 것으로 예상
 
 #### UI 컴포넌트
+
 - **삭제 다이얼로그**: `TemplateCard.tsx:236-265`
   - 확인 다이얼로그 제공
   - 삭제 중 상태 표시
   - 성공/실패 토스트 메시지
 
 #### 개선 사항
+
 - ✅ 관련 플랜 그룹 자동 삭제 (데이터 정합성)
 - ✅ 삭제 확인 다이얼로그 제공
 - ✅ 삭제 후 목록 페이지 자동 새로고침
@@ -212,12 +221,12 @@
 
 ## 📊 기능 완성도
 
-| 기능 | 구현 상태 | 완성도 | 비고 |
-|------|----------|--------|------|
-| Create | ✅ | 100% | 초안 생성, 전체 생성 모두 구현 |
-| Read | ✅ | 100% | 목록, 상세, 필터링, 페이지네이션 모두 구현 |
-| Update | ✅ | 95% | 활성 상태 템플릿 수정 방지 (의도된 제한) |
-| Delete | ✅ | 100% | 관련 데이터 삭제 포함 |
+| 기능   | 구현 상태 | 완성도 | 비고                                       |
+| ------ | --------- | ------ | ------------------------------------------ |
+| Create | ✅        | 100%   | 초안 생성, 전체 생성 모두 구현             |
+| Read   | ✅        | 100%   | 목록, 상세, 필터링, 페이지네이션 모두 구현 |
+| Update | ✅        | 95%    | 활성 상태 템플릿 수정 방지 (의도된 제한)   |
+| Delete | ✅        | 100%   | 관련 데이터 삭제 포함                      |
 
 ---
 
@@ -246,7 +255,7 @@ export async function updateCampTemplate(
 const { deleteCampInvitations } = await import("@/lib/data/campTemplates");
 const invitations = await getCampInvitationsForTemplate(templateId);
 if (invitations.length > 0) {
-  const invitationIds = invitations.map(inv => inv.id);
+  const invitationIds = invitations.map((inv) => inv.id);
   await deleteCampInvitations(invitationIds);
 }
 // 3. 템플릿 삭제
@@ -263,12 +272,14 @@ if (invitations.length > 0) {
 캠프 템플릿 CRUD 기능은 **전반적으로 잘 구현**되어 있습니다.
 
 ### 강점
+
 - ✅ 완전한 CRUD 기능 구현
 - ✅ 충실한 입력값 검증 및 에러 처리
 - ✅ 적절한 권한 검증 및 데이터 정합성 보장
 - ✅ 사용자 친화적인 UI/UX
 
 ### 개선 권장
+
 - ⚠️ 데이터 레이어 함수 분리 (updateCampTemplate)
 - ⚠️ 초대 삭제 로직 명시화
 - ⚠️ 복사 기능 UI 확인
@@ -278,4 +289,3 @@ if (invitations.length > 0) {
 ---
 
 **검토 완료일**: 2025-02-02
-

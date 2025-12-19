@@ -16,6 +16,8 @@ type UsePlanSubmissionProps = {
   initialData?: {
     templateId?: string;
     groupId?: string;
+    student_id?: string;
+    studentId?: string;
   };
   onSaveRequest?: (saveFn: () => Promise<void>) => void;
   mode: {

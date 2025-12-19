@@ -109,9 +109,13 @@ export function usePlanDraft({
         } else {
           // 관리자 모드일 때는 draftGroupId를 옵션으로 전달 (기존 그룹에서 student_id 조회용)
           // initialData에 student_id 또는 studentId가 있으면 그것을 사용
+          // initialData에 groupId가 있으면 그것을 draftGroupId로 사용
           const studentId = initialData?.student_id || initialData?.studentId;
+          const groupIdFromInitialData = initialData?.groupId;
           const options = studentId
             ? { studentId }
+            : groupIdFromInitialData
+            ? { draftGroupId: groupIdFromInitialData }
             : draftGroupId
             ? { draftGroupId }
             : undefined;
