@@ -746,6 +746,7 @@ export const submitCampParticipation = withErrorHandling(
     let groupId: string;
 
     // 기존 draft가 있으면 업데이트, 없으면 새로 생성
+    // 단, 재 초대 시 이전 플랜 그룹이 남아있을 수 있으므로 확인
     if (existingGroup && existingGroup.status === "draft") {
       // 기존 draft 업데이트
       const { updatePlanGroupDraftAction } = await import("./planGroupActions");
@@ -767,6 +768,60 @@ export const submitCampParticipation = withErrorHandling(
       await updatePlanGroupDraftAction(existingGroup.id, updateData);
       groupId = existingGroup.id;
     } else {
+      // 재 초대 시 이전 플랜 그룹이 남아있을 수 있으므로 확인 및 삭제
+      // camp_template_id와 student_id로 플랜 그룹 조회 (camp_invitation_id가 NULL이거나 다른 경우)
+      const { data: existingGroupByTemplate, error: checkExistingError } = await supabase
+        .from("plan_groups")
+        .select("id, status, camp_invitation_id")
+        .eq("camp_template_id", invitation.camp_template_id)
+        .eq("student_id", user.userId)
+        .eq("plan_type", "camp")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (checkExistingError && checkExistingError.code !== "PGRST116") {
+        console.warn("[campActions] 기존 플랜 그룹 확인 중 에러 (무시하고 계속 진행):", checkExistingError);
+      }
+
+      // 이전 플랜 그룹이 있고, 현재 초대와 연결되지 않은 경우 삭제
+      if (existingGroupByTemplate && existingGroupByTemplate.camp_invitation_id !== invitationId) {
+        console.log("[campActions] 재 초대 시 이전 플랜 그룹 발견, 삭제 진행:", {
+          existingGroupId: existingGroupByTemplate.id,
+          existingInvitationId: existingGroupByTemplate.camp_invitation_id,
+          currentInvitationId: invitationId,
+          status: existingGroupByTemplate.status,
+        });
+
+        // 이전 플랜 그룹 삭제 (관련 데이터 포함)
+        const { deletePlanGroupByInvitationId } = await import("@/lib/data/planGroups");
+        // camp_invitation_id가 NULL이거나 다른 경우이므로, 직접 플랜 그룹 삭제
+        const { error: deleteExistingError } = await supabase
+          .from("student_plan")
+          .delete()
+          .eq("plan_group_id", existingGroupByTemplate.id);
+
+        if (deleteExistingError) {
+          console.warn("[campActions] 이전 플랜 삭제 실패 (무시하고 계속 진행):", deleteExistingError);
+        } else {
+          // plan_contents, plan_exclusions 삭제
+          await supabase.from("plan_contents").delete().eq("plan_group_id", existingGroupByTemplate.id);
+          await supabase.from("plan_exclusions").delete().eq("plan_group_id", existingGroupByTemplate.id);
+          
+          // plan_groups 삭제
+          const { error: deleteGroupError } = await supabase
+            .from("plan_groups")
+            .delete()
+            .eq("id", existingGroupByTemplate.id);
+
+          if (deleteGroupError) {
+            console.warn("[campActions] 이전 플랜 그룹 삭제 실패 (무시하고 계속 진행):", deleteGroupError);
+          } else {
+            console.log("[campActions] 이전 플랜 그룹 삭제 완료:", existingGroupByTemplate.id);
+          }
+        }
+      }
       // 새 플랜 그룹 생성
       // 캠프 모드에서 Step 3 제출 시 콘텐츠가 없어도 제출 가능하도록 콘텐츠 검증 건너뛰기
       const planGroupData = {
