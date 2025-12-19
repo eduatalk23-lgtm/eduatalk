@@ -159,11 +159,31 @@
 
 ---
 
-## 🔄 다음 단계
+## ✅ Phase 3-5: API 응답 개선
 
-### Phase 3-5: API 응답 개선 (예정)
-- API 응답에 `difficulty_level_id` 포함
-- 클라이언트에서 `difficulty_level_id` 우선 사용
+### 작업 내용
+
+**파일**: 
+- `app/api/master-content-details/route.ts`
+- `app/api/student-content-details/route.ts`
+
+1. **API 응답 개선**
+   - 마스터 콘텐츠 metadata에 `difficulty_level_id` 포함
+   - 학생 콘텐츠 metadata에 `difficulty_level_id` 포함
+   - selectFields에 `difficulty_level_id` 추가
+
+2. **타입 정의 개선**
+   - `StudentBook`, `StudentLecture` 타입에 `difficulty_level_id` 추가
+
+### 개선 효과
+
+- ✅ API 응답에 `difficulty_level_id` 포함
+- ✅ 클라이언트에서 `difficulty_level_id` 우선 사용 가능
+- ✅ 하위 호환성 유지 (`difficulty_level`도 포함)
+
+---
+
+## 🔄 다음 단계
 
 ### Phase 3-6: Deprecated 표시 및 문서화 (예정)
 - `difficulty_level` 사용처에 deprecated 주석 추가
