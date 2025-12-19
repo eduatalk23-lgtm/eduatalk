@@ -5,13 +5,26 @@ import { recordAttendanceAction } from "@/app/(admin)/actions/attendanceActions"
 import type { CreateAttendanceRecordInput } from "@/lib/domains/attendance/types";
 
 /**
+ * 출석 기록 생성/수정 Mutation 반환 타입
+ */
+export type RecordAttendanceResult = {
+  success: boolean;
+  error?: string;
+  smsResult?: {
+    success: boolean;
+    error?: string;
+    skipped?: boolean;
+  };
+};
+
+/**
  * 출석 기록 생성/수정 Mutation
  * 성공 시 출석 목록 및 통계 쿼리를 자동으로 무효화합니다.
  */
 export function useRecordAttendance() {
   const queryClient = useQueryClient();
 
-  return useMutation({
+  return useMutation<RecordAttendanceResult, Error, CreateAttendanceRecordInput>({
     mutationFn: async (input: CreateAttendanceRecordInput) => {
       const result = await recordAttendanceAction(input);
       if (!result.success) {

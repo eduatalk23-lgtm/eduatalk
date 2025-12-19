@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRecordAttendance } from "@/lib/hooks/useAttendance";
 import { handleSupabaseError } from "@/lib/utils/errorHandling";
+import { useToast } from "@/components/ui/ToastProvider";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
@@ -27,8 +28,7 @@ export function AttendanceRecordForm({
   onSuccess,
 }: AttendanceRecordFormProps) {
   const recordAttendance = useRecordAttendance();
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const { showSuccess, showError, showWarning } = useToast();
 
   // 오늘 날짜를 기본값으로 사용
   const today = defaultDate || new Date().toISOString().slice(0, 10);
@@ -45,11 +45,9 @@ export function AttendanceRecordForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
 
     try {
-      await recordAttendance.mutateAsync({
+      const result = await recordAttendance.mutateAsync({
         student_id: studentId,
         attendance_date: formData.attendance_date,
         check_in_time: formData.check_in_time || null,
@@ -60,7 +58,14 @@ export function AttendanceRecordForm({
         notes: formData.notes || null,
       });
 
-      setSuccess(true);
+      // 출석 기록 저장 성공
+      showSuccess("출석 기록이 저장되었습니다.");
+
+      // SMS 발송 실패 시 경고 표시
+      if (result.smsResult && !result.smsResult.success && !result.smsResult.skipped) {
+        showWarning(`출석 기록은 저장되었지만 SMS 발송에 실패했습니다: ${result.smsResult.error || "알 수 없는 오류"}`);
+      }
+
       if (onSuccess) {
         onSuccess();
       }
@@ -75,11 +80,10 @@ export function AttendanceRecordForm({
           status: "present",
           notes: "",
         });
-        setSuccess(false);
-      }, 2000);
+      }, 1000);
     } catch (err: unknown) {
       const errorMessage = handleSupabaseError(err);
-      setError(errorMessage || "출석 기록 저장 중 오류가 발생했습니다.");
+      showError(errorMessage || "출석 기록 저장 중 오류가 발생했습니다.");
     }
   };
 
@@ -202,18 +206,6 @@ export function AttendanceRecordForm({
           rows={3}
         />
       </div>
-
-      {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-lg bg-green-50 p-3 text-sm text-green-600">
-          출석 기록이 저장되었습니다.
-        </div>
-      )}
 
       <Button type="submit" disabled={recordAttendance.isPending}>
         {recordAttendance.isPending ? "저장 중..." : "저장"}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import {
   bgSurface,
@@ -19,6 +20,7 @@ import {
   getCheckMethodLabel,
   getAttendanceStatusLabel,
 } from "@/lib/utils/attendanceUtils";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 import type { AttendanceTableRow } from "./types";
 
 type AttendanceTableProps = {
@@ -26,6 +28,7 @@ type AttendanceTableProps = {
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onSelectAll: (checked: boolean) => void;
+  onDelete?: (recordId: string, studentId: string) => void;
 };
 
 export function AttendanceTable({
@@ -33,9 +36,38 @@ export function AttendanceTable({
   selectedIds,
   onToggleSelect,
   onSelectAll,
+  onDelete,
 }: AttendanceTableProps) {
   const allSelected = records.length > 0 && records.every((r) => selectedIds.has(r.id));
   const someSelected = records.some((r) => selectedIds.has(r.id));
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<{ id: string; studentId: string; studentName: string; date: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteClick = (record: AttendanceTableRow) => {
+    setRecordToDelete({
+      id: record.id,
+      studentId: record.student_id,
+      studentName: record.student_name ?? "이름 없음",
+      date: record.attendance_date,
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!recordToDelete || !onDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(recordToDelete.id, recordToDelete.studentId);
+      setDeleteDialogOpen(false);
+      setRecordToDelete(null);
+    } catch (error) {
+      console.error("삭제 실패:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (records.length === 0) {
     return (
@@ -150,6 +182,17 @@ export function AttendanceTable({
                     >
                       수정
                     </Link>
+                    {onDelete && (
+                      <button
+                        onClick={() => handleDeleteClick(record)}
+                        className={cn(
+                          "text-sm text-red-600 hover:text-red-700 hover:underline",
+                          "dark:text-red-400 dark:hover:text-red-300"
+                        )}
+                      >
+                        삭제
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -157,6 +200,20 @@ export function AttendanceTable({
           })}
         </tbody>
       </table>
+
+      {recordToDelete && (
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="출석 기록 삭제"
+          description={`${recordToDelete.studentName}의 ${recordToDelete.date} 출석 기록을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+          confirmLabel="삭제"
+          cancelLabel="취소"
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
+          isLoading={isDeleting}
+        />
+      )}
     </div>
   );
 }

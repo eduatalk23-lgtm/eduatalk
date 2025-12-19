@@ -27,7 +27,15 @@ import type { UpdateAttendanceRecordRequest, AttendanceRecordHistory } from "@/l
  */
 export async function recordAttendanceAction(
   input: CreateAttendanceRecordInput
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ 
+  success: boolean; 
+  error?: string;
+  smsResult?: { 
+    success: boolean; 
+    error?: string; 
+    skipped?: boolean;
+  };
+}> {
   const handler = withErrorHandling(async () => {
     await requireAdminAuth();
 
@@ -53,6 +61,8 @@ export async function recordAttendanceAction(
     const record = await recordAttendance(input);
 
     // 출석 기록 저장 후 자동 SMS 발송 (비동기, 실패해도 출석 기록은 저장됨)
+    let smsResult: { success: boolean; error?: string; skipped?: boolean } | undefined;
+    
     try {
       const tenantContext = await getTenantContext();
       const supabase = await createSupabaseServerClient();
@@ -67,10 +77,10 @@ export async function recordAttendanceAction(
       // getStudentPhones 함수를 사용하여 연락처 정보 조회 (통합 로직)
       const phoneData = await getStudentPhones(input.student_id);
 
-      // 학원명 조회
+      // 학원명 및 SMS 설정 조회
       const { data: tenant } = await supabase
         .from("tenants")
-        .select("name")
+        .select("name, attendance_sms_show_failure_to_user")
         .eq("id", tenantContext?.tenantId)
         .single();
 
@@ -88,6 +98,9 @@ export async function recordAttendanceAction(
           { month: "long", day: "numeric" }
         );
 
+        let smsType: "attendance_check_in" | "attendance_check_out" | "attendance_absent" | "attendance_late" | null = null;
+        let smsVariables: Record<string, string> = {};
+
         // 입실 알림: present 상태이고 check_in_time이 있는 경우
         if (
           record.status === "present" &&
@@ -101,20 +114,15 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMSIfEnabled(
-            input.student_id,
-            "attendance_check_in",
-            {
-              학원명: academyName,
-              학생명: studentName,
-              시간: checkInTime,
-            },
-            false // 관리자가 기록한 경우
-          );
+          smsType = "attendance_check_in";
+          smsVariables = {
+            학원명: academyName,
+            학생명: studentName,
+            시간: checkInTime,
+          };
         }
-
         // 퇴실 알림: present 상태이고 check_out_time이 있는 경우
-        if (
+        else if (
           record.status === "present" &&
           record.check_out_time
         ) {
@@ -125,34 +133,24 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMSIfEnabled(
-            input.student_id,
-            "attendance_check_out",
-            {
-              학원명: academyName,
-              학생명: studentName,
-              시간: checkOutTime,
-            },
-            false // 관리자가 기록한 경우
-          );
+          smsType = "attendance_check_out";
+          smsVariables = {
+            학원명: academyName,
+            학생명: studentName,
+            시간: checkOutTime,
+          };
         }
-
         // 결석 알림: absent 상태인 경우
-        if (record.status === "absent") {
-          await sendAttendanceSMSIfEnabled(
-            input.student_id,
-            "attendance_absent",
-            {
-              학원명: academyName,
-              학생명: studentName,
-              날짜: attendanceDate,
-            },
-            false // 관리자가 기록한 경우
-          );
+        else if (record.status === "absent") {
+          smsType = "attendance_absent";
+          smsVariables = {
+            학원명: academyName,
+            학생명: studentName,
+            날짜: attendanceDate,
+          };
         }
-
         // 지각 알림: late 상태인 경우
-        if (record.status === "late" && record.check_in_time) {
+        else if (record.status === "late" && record.check_in_time) {
           const checkInTime = new Date(
             `${input.attendance_date}T${record.check_in_time}`
           ).toLocaleTimeString("ko-KR", {
@@ -160,26 +158,48 @@ export async function recordAttendanceAction(
             minute: "2-digit",
           });
 
-          await sendAttendanceSMSIfEnabled(
+          smsType = "attendance_late";
+          smsVariables = {
+            학원명: academyName,
+            학생명: studentName,
+            시간: checkInTime,
+          };
+        }
+
+        // SMS 발송
+        if (smsType) {
+          const result = await sendAttendanceSMSIfEnabled(
             input.student_id,
-            "attendance_late",
-            {
-              학원명: academyName,
-              학생명: studentName,
-              시간: checkInTime,
-            },
+            smsType,
+            smsVariables,
             false // 관리자가 기록한 경우
           );
+
+          // SMS 발송 결과 저장 (설정에 따라 사용자에게 표시)
+          smsResult = {
+            success: result.success,
+            error: result.error,
+            skipped: result.skipped,
+          };
         }
       }
     } catch (error) {
       // SMS 발송 실패는 로그만 남기고 출석 기록 저장은 정상 처리
       console.error("[Attendance] SMS 발송 중 오류:", error);
+      const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+      smsResult = {
+        success: false,
+        error: errorMessage,
+        skipped: false,
+      };
     }
 
     revalidatePath("/admin/attendance");
     revalidatePath(`/admin/students/${input.student_id}`);
-    return { success: true };
+    return { 
+      success: true,
+      smsResult,
+    };
   });
   return await handler();
 }
