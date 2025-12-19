@@ -1,6 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole, type CurrentUserRole } from "./getCurrentUserRole";
 import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
+import { analyzeAuthError, logAuthError } from "./errorHandlers";
+import { isRefreshTokenError } from "./rateLimitHandler";
 
 export type CurrentUser = {
   userId: string;
@@ -21,19 +23,12 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     // Supabase가 내부적으로 에러를 로깅하기 전에 처리하기 위함
     const initialResult = await supabase.auth.getUser();
     
-    // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+    // 에러 처리: 공통 에러 분석 유틸리티 사용
     if (initialResult.error) {
-      const errorMessage = initialResult.error.message?.toLowerCase() || "";
-      const errorCode = initialResult.error.code?.toLowerCase() || "";
+      const errorInfo = analyzeAuthError(initialResult.error);
       
-      const isRefreshTokenError = 
-        errorMessage.includes("refresh token") ||
-        errorMessage.includes("refresh_token") ||
-        errorMessage.includes("session") ||
-        errorCode === "refresh_token_not_found";
-      
-      if (isRefreshTokenError) {
-        // Refresh token 에러는 조용히 처리하고 null 반환
+      // Refresh token 에러인 경우 즉시 반환 (재시도 불필요)
+      if (errorInfo.isRefreshTokenError) {
         return null;
       }
       
@@ -41,22 +36,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       // (에러가 있어도 user가 없으면 null 반환)
       if (!isRateLimitError(initialResult.error)) {
         // Rate limit이 아닌 다른 에러 처리
-        const errorMessage = initialResult.error.message?.toLowerCase() || "";
-        const errorCode = initialResult.error.code?.toLowerCase() || "";
-        
-        const isUserNotFound =
-          errorCode === "user_not_found" ||
-          errorMessage.includes("user from sub claim") ||
-          errorMessage.includes("user from sub claim in jwt does not exist") ||
-          (initialResult.error.status === 403 && errorMessage.includes("does not exist"));
-        
-        if (!isUserNotFound) {
-          console.error("[auth] getCurrentUser: getUser 실패", {
-            message: initialResult.error.message,
-            status: initialResult.error.status,
-            code: initialResult.error.code,
-          });
-        }
+        logAuthError("[auth] getCurrentUser: getUser", errorInfo);
         return null;
       }
     }
@@ -92,23 +72,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
           return null;
         }
         
-        // 다른 에러 처리
-        const errorMessage = authError.message?.toLowerCase() || "";
-        const errorCode = authError.code?.toLowerCase() || "";
-        
-        const isUserNotFound =
-          errorCode === "user_not_found" ||
-          errorMessage.includes("user from sub claim") ||
-          errorMessage.includes("user from sub claim in jwt does not exist") ||
-          (authError.status === 403 && errorMessage.includes("does not exist"));
-        
-        if (!isUserNotFound) {
-          console.error("[auth] getCurrentUser: getUser 실패", {
-            message: authError.message,
-            status: authError.status,
-            code: authError.code,
-          });
-        }
+        // 다른 에러 처리: 공통 에러 분석 유틸리티 사용
+        const errorInfo = analyzeAuthError(authError);
+        logAuthError("[auth] getCurrentUser: getUser", errorInfo);
         return null;
       }
       
@@ -143,15 +109,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       email: user.email ?? null,
     };
   } catch (error) {
-    // refresh token 에러는 조용히 처리
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isRefreshTokenError = 
-      errorMessage.toLowerCase().includes("refresh token") ||
-      errorMessage.toLowerCase().includes("refresh_token") ||
-      errorMessage.toLowerCase().includes("session");
-    
-    if (!isRefreshTokenError) {
-      console.error("[auth] getCurrentUser 실패", error);
+    // 에러 처리: 공통 에러 분석 유틸리티 사용
+    const errorInfo = analyzeAuthError(error);
+    if (!errorInfo.isRefreshTokenError) {
+      logAuthError("[auth] getCurrentUser", errorInfo);
     }
     return null;
   }

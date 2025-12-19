@@ -1,11 +1,13 @@
 # 보안 취약점 수정: Service Role Key Fallback 제거
 
 ## 작업 일자
+
 2025-02-04
 
 ## 문제 상황
 
 ### 발견된 보안 취약점
+
 `lib/supabase/server.ts`의 `createSupabaseAdminClient` 함수에서 Service Role Key가 없을 때 Anon Key로 대체하는 로직이 있었습니다.
 
 **위험도**: 🔴 높음
@@ -13,15 +15,18 @@
 ### 취약점 상세
 
 **기존 코드**:
+
 ```typescript
 export function createSupabaseAdminClient() {
   // Service Role Key가 없는 경우 에러 처리하거나 Anon Key로 대체 (보안상 취약할 수 있음)
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   // ...
 }
 ```
 
 **문제점**:
+
 - Service Role Key가 없을 때 Anon Key로 대체하는 것은 **심각한 보안 취약점**입니다
 - Anon Key는 RLS 정책의 제약을 받지만, Service Role Key는 RLS를 완전히 우회합니다
 - 이로 인해 의도하지 않은 권한 상승이 발생할 수 있습니다
@@ -32,6 +37,7 @@ export function createSupabaseAdminClient() {
 ## 수정 내용
 
 ### 파일
+
 - `lib/supabase/server.ts`
 
 ### 변경 사항
@@ -53,6 +59,7 @@ export function createSupabaseAdminClient() {
    - 하위 호환성을 위해 함수는 유지
 
 **수정된 코드**:
+
 ```typescript
 export function createSupabaseAdminClient() {
   // lib/supabase/admin.ts의 구현을 따름 (보안상 안전)
@@ -63,7 +70,7 @@ export function createSupabaseAdminClient() {
     if (process.env.NODE_ENV === "development") {
       throw new Error(
         "SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다. " +
-        "Admin 클라이언트를 생성할 수 없습니다."
+          "Admin 클라이언트를 생성할 수 없습니다."
       );
     }
     // 프로덕션 환경에서는 null 반환 (호출하는 쪽에서 처리)
@@ -109,10 +116,12 @@ export function createSupabaseAdminClient() {
 ## 검증
 
 ### 린터 검사
+
 - ✅ ESLint 에러 없음
 - ✅ TypeScript 컴파일 에러 없음
 
 ### 기능 테스트
+
 - ✅ 기존 코드와의 호환성 확인
 - ✅ `lib/supabase/admin.ts`와 일관된 동작 확인
 
@@ -121,10 +130,12 @@ export function createSupabaseAdminClient() {
 ## 권장 사항
 
 ### 1. `lib/supabase/admin.ts` 사용 권장
+
 - `server.ts`의 `createSupabaseAdminClient`는 deprecated로 표시됨
 - 새로운 코드는 `@/lib/supabase/admin`에서 import하여 사용
 
 ### 2. Null 체크 패턴
+
 기존 코드에서 사용 중인 패턴:
 
 ```typescript
@@ -163,4 +174,3 @@ function getAdminClientOrError() {
 보안 취약점이 성공적으로 수정되었습니다. Service Role Key가 없을 때 Anon Key로 대체하는 위험한 로직이 제거되었고, `lib/supabase/admin.ts`와 일관된 안전한 패턴을 따르도록 개선되었습니다.
 
 기존 기능에는 영향이 없으며, 개발 환경에서 설정 누락을 빠르게 인지할 수 있도록 개선되었습니다.
-

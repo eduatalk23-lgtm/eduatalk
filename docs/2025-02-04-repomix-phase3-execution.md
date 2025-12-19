@@ -37,16 +37,12 @@ Repomix Phase 3 분석을 실행하여 프로젝트의 학생 핵심 학습 관�
 
 1. **PlanGroupWizard.tsx** - 9,695 토큰 (1.7%)
    - 플랜 그룹 생성 위저드 컴포넌트
-   
 2. **AdjustmentStep.tsx** - 8,176 토큰 (1.5%)
    - 재스케줄링 조정 단계 컴포넌트
-   
 3. **scheduler.ts** - 7,330 토큰 (1.3%)
    - 스케줄러 로직
-   
 4. **useRecommendations.ts** - 7,091 토큰 (1.3%)
    - 추천 콘텐츠 훅
-   
 5. **Step6Simplified.tsx** - 6,577 토큰 (1.2%)
    - 플랜 생성 6단계 컴포넌트
 
@@ -168,4 +164,3 @@ repomix-phase3-student-core.xml을 분석하고, 학생의 핵심 학습 관리 
 ---
 
 **작업 완료 시간**: 2025-02-04
-
