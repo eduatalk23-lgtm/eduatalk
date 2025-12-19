@@ -47,7 +47,7 @@ export function ContentHeader({
     <div className={cn("flex flex-col gap-6 md:flex-row md:gap-8", className)}>
       {coverImageUrl && (
         <div className="flex flex-shrink-0 justify-center md:justify-start">
-          <div className="relative h-48 w-32 overflow-hidden rounded-xl border-2 border-gray-200 bg-gray-100 shadow-[var(--elevation-4)] transition-base hover:scale-105 sm:h-64 sm:w-40 md:h-72 md:w-48">
+          <div className="relative h-48 w-32 overflow-hidden rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-[var(--elevation-4)] transition-base hover:scale-105 sm:h-64 sm:w-40 md:h-72 md:w-48">
             <Image
               src={coverImageUrl}
               alt={`${title} 표지`}
@@ -61,27 +61,27 @@ export function ContentHeader({
       )}
       <div className="flex flex-1 flex-col gap-4">
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center rounded-lg bg-indigo-100 p-1.5">
-            <IconComponent className="h-4 w-4 text-indigo-600" aria-hidden="true" />
+          <div className="flex items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-1.5">
+            <IconComponent className="h-4 w-4 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
             {icon || (resolvedContentType === "book" ? "교재" : resolvedContentType === "lecture" ? "강의" : "커스텀 콘텐츠")}
           </p>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl leading-tight">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 sm:text-3xl lg:text-4xl leading-tight">
           {title}
         </h1>
         {(subtitle || createdAt) && (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
             {subtitle && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-gray-400" aria-hidden="true" />
+                <span className="h-1 w-1 rounded-full bg-gray-400 dark:bg-gray-500" aria-hidden="true" />
                 {subtitle}
               </span>
             )}
             {createdAt && (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-1 w-1 rounded-full bg-gray-400" aria-hidden="true" />
+                <span className="h-1 w-1 rounded-full bg-gray-400 dark:bg-gray-500" aria-hidden="true" />
                 등록일 <time dateTime={createdAt} className="font-medium">{formatDate(createdAt)}</time>
               </span>
             )}

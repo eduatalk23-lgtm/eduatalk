@@ -128,10 +128,10 @@ export function PlanGroupListItem({
   return (
     <li
       className={cn(
-        "group relative rounded-xl border bg-white p-4 shadow-[var(--elevation-1)] transition-base",
+        "group relative rounded-xl border bg-white dark:bg-gray-800 p-4 shadow-[var(--elevation-1)] transition-base",
         isSelected
-          ? "border-blue-500 bg-blue-50 shadow-[var(--elevation-4)] ring-2 ring-blue-200"
-          : "border-gray-200 hover:border-gray-300 hover:shadow-[var(--elevation-8)] hover:-translate-y-0.5"
+          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 shadow-[var(--elevation-4)] ring-2 ring-blue-200 dark:ring-blue-800"
+          : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-[var(--elevation-8)] hover:-translate-y-0.5"
       )}
     >
       <div className="flex flex-col gap-3">
@@ -147,7 +147,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   onToggleSelect();
                 }}
-                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-700 transition-base hover:bg-gray-100 hover:text-gray-900 relative z-20"
+                className="inline-flex items-center justify-center rounded-lg p-1 text-gray-700 dark:text-gray-300 transition-base hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100 relative z-20"
                 title={isSelected ? "선택 해제" : "선택"}
                 aria-label={isSelected ? "선택 해제" : "선택"}
               >
@@ -186,7 +186,7 @@ export function PlanGroupListItem({
               variant="ghost"
               size="sm"
               onClick={handleViewClick}
-              className="text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+              className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <div className="flex items-center gap-1">
                 <Eye className="h-4 w-4" />
@@ -204,7 +204,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   setDeleteDialogOpen(true);
                 }}
-                className="text-gray-700 hover:text-red-600 hover:bg-red-50"
+                className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
               >
                 <div className="flex items-center gap-1">
                   <Trash2 className="h-4 w-4" />
@@ -216,7 +216,7 @@ export function PlanGroupListItem({
                 variant="ghost"
                 size="sm"
                 disabled
-                className="text-gray-300 cursor-not-allowed"
+                className="text-gray-300 dark:text-gray-600 cursor-not-allowed"
                 title="캠프 플랜은 삭제할 수 없습니다"
               >
                 <div className="flex items-center gap-1">
@@ -238,7 +238,7 @@ export function PlanGroupListItem({
                 disabled={isPending || !canToggle}
                 className={cn(
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50",
-                  isActive ? "bg-green-600" : "bg-gray-200"
+                  isActive ? "bg-green-600 dark:bg-green-500" : "bg-gray-200 dark:bg-gray-700"
                 )}
                 aria-label={isActive ? "비활성화" : "활성화"}
                 title={
@@ -279,7 +279,7 @@ export function PlanGroupListItem({
 
         {/* 제목 영역: 제목 (좌측) + 상태 뱃지 (우측) */}
         <div className="flex items-center justify-between gap-3">
-          <h3 className="break-words text-base font-semibold text-gray-900">
+          <h3 className="break-words text-base font-semibold text-gray-900 dark:text-gray-100">
             {group.name || "플랜 그룹"}
           </h3>
           {/* 상태 뱃지 (완료 또는 활성 상태만 표시) */}
@@ -296,13 +296,13 @@ export function PlanGroupListItem({
           <div className="flex flex-col gap-3">
             {/* 진행률 */}
             {hasPlans && planCount > 0 && totalCount > 0 && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 p-2.5">
+              <div className="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-2.5">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-gray-600">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       진행률
                     </span>
-                    <span className="text-xs font-semibold text-gray-900">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
                       {completedCount}/{totalCount}개 완료
                     </span>
                   </div>
@@ -320,7 +320,7 @@ export function PlanGroupListItem({
                         }
                       />
                     </div>
-                    <span className="text-xs font-medium text-gray-600">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                       {Math.round((completedCount / totalCount) * 100)}%
                     </span>
                   </div>
@@ -329,9 +329,9 @@ export function PlanGroupListItem({
             )}
 
             {/* 목적 */}
-            <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-800">목적: </span>
-              <span className="font-medium text-gray-900">
+            <div className="break-words text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-gray-800 dark:text-gray-300">목적: </span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {group.plan_purpose
                   ? planPurposeLabels[group.plan_purpose] || group.plan_purpose
                   : "—"}
@@ -339,9 +339,9 @@ export function PlanGroupListItem({
             </div>
 
             {/* 스케줄러 */}
-            <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-800">스케줄러: </span>
-              <span className="font-medium text-gray-900">
+            <div className="break-words text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-gray-800 dark:text-gray-300">스케줄러: </span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {group.scheduler_type
                   ? schedulerTypeLabels[group.scheduler_type] ||
                     group.scheduler_type
@@ -350,9 +350,9 @@ export function PlanGroupListItem({
             </div>
 
             {/* 기간 */}
-            <div className="break-words text-sm text-gray-600">
-              <span className="text-gray-800">기간: </span>
-              <span className="font-medium text-gray-900">
+            <div className="break-words text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-gray-800 dark:text-gray-300">기간: </span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">
                 {group.period_start && group.period_end
                   ? `${new Date(group.period_start).toLocaleDateString(
                       "ko-KR",
@@ -366,8 +366,8 @@ export function PlanGroupListItem({
             </div>
 
             {/* 하단 메타 정보 */}
-            <div className="flex items-center justify-between border-t border-gray-100 pt-2">
-              <p className="text-xs text-gray-800">
+            <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700 pt-2">
+              <p className="text-xs text-gray-800 dark:text-gray-300">
                 {group.created_at
                   ? new Date(group.created_at).toLocaleDateString("ko-KR", {
                       year: "numeric",
@@ -377,7 +377,7 @@ export function PlanGroupListItem({
                   : "—"}
               </p>
               {hasPlans && planCount > 0 && totalCount === 0 && (
-                <span className="text-xs text-gray-800">
+                <span className="text-xs text-gray-800 dark:text-gray-300">
                   {planCount}개 플랜
                 </span>
               )}
