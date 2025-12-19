@@ -19,6 +19,7 @@ type StudentInfoEditFormProps = {
   isActive: boolean | null;
   initialData: StudentInfoData | null;
   isAdmin: boolean;
+  studentEmail: string | null;
 };
 
 export default function StudentInfoEditForm({
@@ -27,6 +28,7 @@ export default function StudentInfoEditForm({
   isActive,
   initialData,
   isAdmin,
+  studentEmail,
 }: StudentInfoEditFormProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
@@ -125,7 +127,7 @@ export default function StudentInfoEditForm({
 
           {/* 오른쪽: 프로필 정보 */}
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <ProfileInfoSection control={control} />
+            <ProfileInfoSection control={control} studentEmail={studentEmail} />
           </div>
         </div>
       </form>

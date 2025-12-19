@@ -58,12 +58,14 @@ export function StudentTable({
               />
             </th>
             <th className={tableHeaderBase}>이름</th>
+            <th className={tableHeaderBase}>성별</th>
             <th className={tableHeaderBase}>구분</th>
             <th className={tableHeaderBase}>학교</th>
             <th className={tableHeaderBase}>학년</th>
             <th className={tableHeaderBase}>학생 연락처</th>
             <th className={tableHeaderBase}>모 연락처</th>
             <th className={tableHeaderBase}>부 연락처</th>
+            <th className={tableHeaderBase}>계정</th>
             <th className={tableHeaderBase}>상태</th>
           </tr>
         </thead>
@@ -101,6 +103,9 @@ export function StudentTable({
                   </Link>
                 </td>
                 <td className={cn(tableCellBase, textMuted)}>
+                  {student.gender ?? "-"}
+                </td>
+                <td className={cn(tableCellBase, textMuted)}>
                   {student.division ? (
                     <span
                       className={cn(
@@ -132,6 +137,9 @@ export function StudentTable({
                 </td>
                 <td className={cn(tableCellBase, textMuted)}>
                   {student.father_phone ?? "-"}
+                </td>
+                <td className={cn(tableCellBase, textMuted)}>
+                  {student.email ?? "-"}
                 </td>
                 <td className={cn(tableCellBase, textMuted)}>
                   {student.is_active === false ? (

@@ -6,10 +6,12 @@ import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
 
 type ProfileInfoSectionProps = {
   control: any; // React Hook Form의 Control 타입
+  studentEmail: string | null;
 };
 
 export default function ProfileInfoSection({
   control,
+  studentEmail,
 }: ProfileInfoSectionProps) {
   const genderField = useController({
     name: "gender",
@@ -57,6 +59,18 @@ export default function ProfileInfoSection({
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">프로필 정보</h3>
         <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              계정 (이메일)
+            </label>
+            <div className="rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+              {studentEmail ?? "-"}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              이메일은 수정할 수 없습니다.
+            </p>
+          </div>
+
           <FormSelect
             {...genderField.field}
             label="성별"

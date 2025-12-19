@@ -90,6 +90,11 @@ export default async function AdminStudentDetailPage({
   const profile = profileResult.data;
   const careerGoal = careerGoalResult.data;
 
+  // 이메일 조회
+  const { getAuthUserMetadata } = await import("@/lib/utils/authUserMetadata");
+  const userMetadata = await getAuthUserMetadata(adminClient, [studentId]);
+  const email = userMetadata.get(studentId)?.email ?? null;
+
   // 통합 데이터 구성
   const studentInfoData: StudentInfoData = {
     // students 테이블
@@ -144,6 +149,7 @@ export default async function AdminStudentDetailPage({
                 isActive={student.is_active ?? true}
                 initialData={studentInfoData}
                 isAdmin={role === "admin"}
+                studentEmail={email}
               />
               <Suspense fallback={<ParentLinksSectionSkeleton />}>
                 <ParentLinksSection studentId={studentId} />

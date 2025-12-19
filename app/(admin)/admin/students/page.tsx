@@ -142,10 +142,18 @@ export default async function AdminStudentsPage({
   // 배치 쿼리로 학교 정보 및 연락처 정보 일괄 조회 (N+1 문제 해결)
   const studentIds = filteredStudents.map((s) => s.id);
   
+  // 성별과 이메일 조회를 위한 import 및 admin client
+  const { getStudentGendersBatch } = await import("@/lib/data/studentProfiles");
+  const { getAuthUserMetadata } = await import("@/lib/utils/authUserMetadata");
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+  
   // 병렬로 데이터 페칭
-  const [phoneDataList, schoolMap] = await Promise.all([
+  const [phoneDataList, schoolMap, genderMap, userMetadata] = await Promise.all([
     getStudentPhonesBatch(studentIds),
     getStudentSchoolsBatch(supabase, filteredStudents),
+    getStudentGendersBatch(studentIds),
+    getAuthUserMetadata(adminClient, studentIds),
   ]);
 
   // 연락처 데이터를 Map으로 변환
@@ -157,6 +165,8 @@ export default async function AdminStudentsPage({
   const studentsWithData = filteredStudents.map((student) => {
     const phoneData = phoneDataMap.get(student.id);
     const schoolName = schoolMap.get(student.id) ?? "-";
+    const gender = genderMap.get(student.id) ?? null;
+    const email = userMetadata.get(student.id)?.email ?? null;
     
     return {
       id: student.id,
@@ -169,6 +179,8 @@ export default async function AdminStudentsPage({
       mother_phone: phoneData?.mother_phone ?? null,
       father_phone: phoneData?.father_phone ?? null,
       is_active: student.is_active,
+      gender,
+      email,
     };
   });
 

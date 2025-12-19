@@ -15,5 +15,7 @@ export type StudentListRow = {
   mother_phone: string | null;
   father_phone: string | null;
   is_active: boolean | null;
+  gender: "남" | "여" | null;
+  email: string | null;
 };
 

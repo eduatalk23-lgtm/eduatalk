@@ -98,9 +98,43 @@ export async function upsertStudentProfile(
   return { success: true };
 }
 
+/**
+ * 여러 학생의 성별 정보 일괄 조회
+ */
+export async function getStudentGendersBatch(
+  studentIds: string[]
+): Promise<Map<string, "남" | "여" | null>> {
+  if (studentIds.length === 0) {
+    return new Map();
+  }
 
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
 
+  const { data: profiles, error } = await adminClient
+    .from("student_profiles")
+    .select("id, gender")
+    .in("id", studentIds);
 
+  if (error) {
+    console.error("[data/studentProfiles] 성별 조회 실패", error);
+    return new Map();
+  }
+
+  const genderMap = new Map<string, "남" | "여" | null>();
+  profiles?.forEach((p) => {
+    genderMap.set(p.id, (p.gender as "남" | "여" | null) ?? null);
+  });
+
+  // 누락된 학생은 null로 설정
+  studentIds.forEach((id) => {
+    if (!genderMap.has(id)) {
+      genderMap.set(id, null);
+    }
+  });
+
+  return genderMap;
+}
 
 
 
