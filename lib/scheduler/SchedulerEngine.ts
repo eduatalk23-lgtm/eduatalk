@@ -18,13 +18,12 @@ import {
 } from "@/lib/types/plan";
 import {
   calculateStudyReviewCycle,
-  getContentAllocation,
   calculateSubjectAllocationDates,
   divideContentRange,
   type CycleDayInfo,
   type SubjectAllocation,
 } from "@/lib/plan/1730TimetableLogic";
-import { validateAllocations } from "@/lib/utils/subjectAllocation";
+import { validateAllocations, getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 import type {
   BlockInfo,
   ContentInfo,
@@ -191,12 +190,13 @@ export class SchedulerEngine {
     this.contentAllocationMap = new Map();
 
     contents.forEach((content) => {
-      const allocation = getContentAllocation(
+      const allocation = getEffectiveAllocation(
         {
           content_type: content.content_type,
           content_id: content.content_id,
           subject_category: content.subject_category || undefined,
           subject: content.subject || undefined,
+          subject_id: content.subject_id,
         },
         contentAllocations,
         subjectAllocations

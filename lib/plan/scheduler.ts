@@ -9,13 +9,12 @@ import {
 } from "@/lib/types/plan";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import {
-  getContentAllocation,
   calculateSubjectAllocationDates,
   divideContentRange,
   calculateStudyReviewCycle,
   type CycleDayInfo,
 } from "@/lib/plan/1730TimetableLogic";
-import { validateAllocations } from "@/lib/utils/subjectAllocation";
+import { validateAllocations, getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 import { SchedulerEngine, type SchedulerContext } from "@/lib/scheduler/SchedulerEngine";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";

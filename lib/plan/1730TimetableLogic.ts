@@ -130,67 +130,12 @@ export function calculateStudyReviewCycle(
 }
 
 /**
- * 콘텐츠의 전략/취약 설정을 가져옴 (폴백 메커니즘)
+ * @deprecated 이 함수는 제거되었습니다.
  * 
- * @deprecated 이 함수는 하위 호환성을 위해 유지되지만, 
- * 새로운 코드에서는 `lib/utils/subjectAllocation.ts`의 `getEffectiveAllocation` 함수를 사용하세요.
+ * 새로운 코드에서는 `lib/utils/subjectAllocation.ts`의 `getEffectiveAllocation` 함수를 직접 사용하세요.
  * 
- * @param content - 콘텐츠 정보 (content_type, content_id, subject_category, subject, subject_id 포함)
- * @param contentAllocations - 콘텐츠별 설정 (선택사항)
- * @param subjectAllocations - 교과별 설정 (선택사항)
- * @returns 전략/취약 설정 및 주당 배정 일수
+ * @see lib/utils/subjectAllocation.ts - getEffectiveAllocation
  */
-export function getContentAllocation(
-  content: { 
-    content_type: string; 
-    content_id: string; 
-    subject_category?: string;
-    subject?: string | null;
-    subject_id?: string;
-  },
-  contentAllocations?: Array<{
-    content_type: string;
-    content_id: string;
-    subject_type: "strategy" | "weakness";
-    weekly_days?: number;
-  }>,
-  subjectAllocations?: Array<{
-    subject_id?: string;
-    subject_name: string;
-    subject_type: "strategy" | "weakness";
-    weekly_days?: number;
-  }>
-): { subject_type: "strategy" | "weakness"; weekly_days?: number } {
-  // 공통 유틸리티 함수 사용 (로깅 활성화)
-  const result = getEffectiveAllocation(
-    {
-      content_type: content.content_type,
-      content_id: content.content_id,
-      subject_category: content.subject_category || undefined,
-      subject: content.subject || undefined,
-      subject_id: content.subject_id,
-    },
-    contentAllocations?.map((a) => ({
-      content_type: a.content_type as "book" | "lecture" | "custom",
-      content_id: a.content_id,
-      subject_type: a.subject_type,
-      weekly_days: a.weekly_days,
-    })),
-    subjectAllocations?.map((a) => ({
-      subject_id: a.subject_id,
-      subject_name: a.subject_name,
-      subject_type: a.subject_type,
-      weekly_days: a.weekly_days,
-    })),
-    true // 서버 로직에서는 로깅 활성화
-  );
-
-  // 기존 반환 타입과 호환되도록 source 필드 제거
-  return {
-    subject_type: result.subject_type,
-    weekly_days: result.weekly_days,
-  };
-}
 
 /**
  * 전략과목/취약과목 배정 날짜 계산
