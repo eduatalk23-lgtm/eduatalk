@@ -788,7 +788,7 @@ export function CampParticipantsList({
                       </td>
                       <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
                         <Link
-                          href={`/admin/camp-templates/${templateId}/participants/${participant.student_id}`}
+                          href={`/admin/camp-templates/${templateId}/participants/student/${participant.student_id}`}
                           className="text-indigo-600 hover:text-indigo-800 hover:underline"
                         >
                           {participant.student_name}
