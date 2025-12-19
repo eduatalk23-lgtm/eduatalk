@@ -14,37 +14,41 @@
 ## 🔍 현재 상태 확인 필요
 
 ### 1. 테이블 존재 여부 확인
+
 ```sql
 SELECT EXISTS (
-  SELECT FROM information_schema.tables 
-  WHERE table_schema = 'public' 
+  SELECT FROM information_schema.tables
+  WHERE table_schema = 'public'
   AND table_name = 'student_scores'
 );
 ```
 
 ### 2. 데이터 존재 여부 확인
+
 ```sql
 SELECT COUNT(*) FROM student_scores;
 ```
 
 ### 3. 참조 관계 확인
+
 ```sql
 -- 외래 키 참조 확인
-SELECT 
-  tc.table_name, 
+SELECT
+  tc.table_name,
   kcu.column_name,
   ccu.table_name AS foreign_table_name,
   ccu.column_name AS foreign_column_name
-FROM information_schema.table_constraints AS tc 
+FROM information_schema.table_constraints AS tc
 JOIN information_schema.key_column_usage AS kcu
   ON tc.constraint_name = kcu.constraint_name
 JOIN information_schema.constraint_column_usage AS ccu
   ON ccu.constraint_name = tc.constraint_name
-WHERE tc.constraint_type = 'FOREIGN KEY' 
+WHERE tc.constraint_type = 'FOREIGN KEY'
   AND ccu.table_name = 'student_scores';
 ```
 
 ### 4. 코드베이스 참조 확인
+
 - ✅ 이미 완료: 모든 코드에서 새 구조로 마이그레이션 완료
 - 레거시 함수들은 deprecated 표시만 되어 있음
 
@@ -55,20 +59,23 @@ WHERE tc.constraint_type = 'FOREIGN KEY'
 ### Option 1: 안전한 정리 (권장)
 
 #### Step 1: 데이터 백업
+
 ```sql
 -- 백업 테이블 생성
-CREATE TABLE student_scores_backup AS 
+CREATE TABLE student_scores_backup AS
 SELECT * FROM student_scores;
 ```
 
 #### Step 2: 데이터 마이그레이션 확인
+
 - 모든 데이터가 `student_internal_scores` 또는 `student_mock_scores`로 마이그레이션되었는지 확인
 - 데이터 불일치가 없는지 검증
 
 #### Step 3: 테이블 제거
+
 ```sql
 -- 외래 키 제약 조건 제거 (있는 경우)
-ALTER TABLE student_scores 
+ALTER TABLE student_scores
 DROP CONSTRAINT IF EXISTS <constraint_name>;
 
 -- 테이블 제거
@@ -78,12 +85,14 @@ DROP TABLE IF EXISTS student_scores CASCADE;
 ### Option 2: 점진적 정리
 
 #### Step 1: 테이블 이름 변경 (보관)
+
 ```sql
-ALTER TABLE student_scores 
+ALTER TABLE student_scores
 RENAME TO student_scores_deprecated;
 ```
 
 #### Step 2: 일정 기간 후 제거
+
 - 1-2개월 후 최종 제거
 - 문제 발생 시 빠른 복구 가능
 
@@ -92,17 +101,21 @@ RENAME TO student_scores_deprecated;
 ## ⚠️ 주의사항
 
 ### 1. 데이터 손실 방지
+
 - 반드시 백업 후 진행
 - 마이그레이션 데이터 검증 필수
 
 ### 2. 의존성 확인
+
 - 다른 테이블에서 참조하는지 확인
 - 뷰, 함수, 트리거에서 사용하는지 확인
 
 ### 3. RLS 정책
+
 - RLS 정책이 있다면 함께 제거
 
 ### 4. 인덱스
+
 - 테이블 제거 시 인덱스도 자동 제거됨
 
 ---
@@ -126,12 +139,12 @@ RENAME TO student_scores_deprecated;
 -- ============================================
 
 -- 백업 테이블이 없으면 생성
-CREATE TABLE IF NOT EXISTS student_scores_backup AS 
+CREATE TABLE IF NOT EXISTS student_scores_backup AS
 SELECT * FROM student_scores WHERE false; -- 스키마만 복사
 
 -- 기존 데이터 백업 (데이터가 있는 경우)
-INSERT INTO student_scores_backup 
-SELECT * FROM student_scores 
+INSERT INTO student_scores_backup
+SELECT * FROM student_scores
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -164,8 +177,8 @@ DROP TABLE IF EXISTS student_scores CASCADE;
 -- 4. 코멘트 추가
 -- ============================================
 
-COMMENT ON TABLE student_scores_backup IS 
-    '레거시 student_scores 테이블 백업 (2025-02-04). 
+COMMENT ON TABLE student_scores_backup IS
+    '레거시 student_scores 테이블 백업 (2025-02-04).
      모든 데이터는 student_internal_scores 또는 student_mock_scores로 마이그레이션되었습니다.
      안전 확인 후 삭제 가능.';
 ```
@@ -175,6 +188,7 @@ COMMENT ON TABLE student_scores_backup IS
 ## ✅ 체크리스트
 
 ### 정리 전
+
 - [ ] 테이블 존재 여부 확인
 - [ ] 데이터 존재 여부 확인
 - [ ] 데이터 백업 생성
@@ -183,12 +197,14 @@ COMMENT ON TABLE student_scores_backup IS
 - [ ] 코드베이스 참조 확인 (완료)
 
 ### 정리 중
+
 - [ ] 백업 테이블 생성
 - [ ] 외래 키 제약 조건 제거
 - [ ] 테이블 제거
 - [ ] 마이그레이션 파일 생성
 
 ### 정리 후
+
 - [ ] 애플리케이션 테스트
 - [ ] 데이터 무결성 확인
 - [ ] 백업 테이블 보관 기간 결정
@@ -204,4 +220,3 @@ COMMENT ON TABLE student_scores_backup IS
 
 **작성자**: AI Assistant  
 **마지막 업데이트**: 2025-02-04
-
