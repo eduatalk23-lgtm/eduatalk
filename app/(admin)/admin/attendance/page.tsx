@@ -23,6 +23,7 @@ import type {
   AttendanceStatus,
 } from "@/lib/domains/attendance/types";
 import { ATTENDANCE_LIST_PAGE_SIZE, type AttendanceSortOption } from "@/lib/constants/attendance";
+import { logError } from "@/lib/errors";
 
 type AttendancePageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -102,11 +103,6 @@ async function AttendanceContent({
     const errorMessage = handleSupabaseError(error);
     const errorDetails = extractErrorDetails(error);
     
-    // 에러 객체 전체를 먼저 로깅
-    console.error("[admin/attendance] 출석 기록 조회 실패 - 원본 에러:", error);
-    console.error("[admin/attendance] 에러 타입:", typeof error);
-    console.error("[admin/attendance] 에러 constructor:", errorDetails);
-    
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
       message: errorMessage,
@@ -133,7 +129,14 @@ async function AttendanceContent({
       }
     }
     
-    console.error("[admin/attendance] 출석 기록 조회 실패 - 상세 정보:", errorInfo);
+    // 구조화된 로깅 사용
+    logError(error, {
+      context: "[admin/attendance]",
+      operation: "출석 기록 조회",
+      errorInfo,
+      filters,
+      tenantId: tenantContext.tenantId,
+    });
     
     // 테이블이 없는 경우 (PGRST205, 42P01 에러 또는 AppError로 변환된 경우)
     const errorCode = error?.code || errorInfo.code;

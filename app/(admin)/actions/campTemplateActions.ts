@@ -18,6 +18,7 @@ import {
   ErrorCode,
   withErrorHandling,
   getUserFacingMessage,
+  logError,
 } from "@/lib/errors";
 import type {
   CampTemplateUpdate,
@@ -52,6 +53,62 @@ import {
   validateCampInvitationAccess,
 } from "@/lib/validation/campValidation";
 import { buildCampInvitationStatusUpdate } from "@/lib/utils/campInvitationHelpers";
+import type { PlanStatus } from "@/lib/types/plan/domain";
+import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
+import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
+
+/**
+ * 플랜 미리보기 데이터 타입
+ */
+type PreviewPlan = {
+  plan_date: string;
+  block_index: number;
+  content_type: "book" | "lecture" | "custom";
+  content_id: string;
+  content_title: string | null;
+  content_subject: string | null;
+  content_subject_category: string | null;
+  content_category: string | null;
+  planned_start_page_or_time: number;
+  planned_end_page_or_time: number;
+  chapter: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  day_type: "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정" | null;
+  week: number | null;
+  day: number | null;
+  is_partial: boolean;
+  is_continued: boolean;
+  plan_number: number | null;
+};
+
+/**
+ * 제외일 타입
+ */
+type Exclusion = {
+  exclusion_date: string;
+  exclusion_type: string;
+  reason?: string | null;
+};
+
+/**
+ * 학원 일정 타입
+ */
+type AcademySchedule = {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  academy_name?: string;
+  subject?: string;
+  travel_time?: number;
+};
+
+/**
+ * 학생 정보 타입 (Supabase 조회 결과)
+ */
+type StudentInfo = {
+  name: string;
+};
 
 /**
  * 캠프 템플릿 목록 조회
@@ -1898,7 +1955,23 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
 
       // 플랜 그룹 메타데이터 업데이트 (관리자가 직접 Supabase 사용)
-      const updatePayload: Record<string, any> = {
+      const updatePayload: Partial<{
+        updated_at: string;
+        name: string | null;
+        plan_purpose: string | null;
+        scheduler_type: string | null;
+        scheduler_options: PlanGroupSchedulerOptions | null;
+        period_start: string;
+        period_end: string;
+        target_date: string | null;
+        block_set_id: string | null;
+        daily_schedule: DailyScheduleInfo[] | null;
+        subject_constraints: unknown | null;
+        additional_period_reallocation: unknown | null;
+        non_study_time_blocks: unknown | null;
+        plan_type: string | null;
+        camp_template_id: string | null;
+      }> = {
         updated_at: new Date().toISOString(),
       };
 
@@ -3177,7 +3250,7 @@ export const updateCampPlanGroupSubjectAllocations = withErrorHandling(
       .maybeSingle();
 
     const currentSchedulerOptions =
-      (currentGroup?.scheduler_options as any) || {};
+      (currentGroup?.scheduler_options as PlanGroupSchedulerOptions | null) || {};
     const updatedSchedulerOptions = {
       ...currentSchedulerOptions,
       subject_allocations: subjectAllocations,
@@ -3256,8 +3329,8 @@ export const updateCampPlanGroupStatus = withErrorHandling(
     // 상태 전이 검증
     const { PlanValidator } = await import("@/lib/validation/planValidator");
     const statusValidation = PlanValidator.validateStatusTransition(
-      group.status as any,
-      status as any
+      group.status as PlanStatus,
+      status as PlanStatus
     );
     if (!statusValidation.valid) {
       throw new AppError(
@@ -3509,8 +3582,8 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
 
     for (const group of groups) {
       const statusValidation = PlanValidator.validateStatusTransition(
-        group.status as any,
-        status as any
+        group.status as PlanStatus,
+        status as PlanStatus
       );
 
       if (!statusValidation.valid) {
@@ -3966,13 +4039,13 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
     }
 
     // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
-    const templateExclusions = (templateData.exclusions || []).map((exclusion: any) => ({
+    const templateExclusions = (templateData.exclusions || []).map((exclusion: Exclusion) => ({
       ...exclusion,
       source: "template" as const,
       is_locked: true,
     }));
 
-    const templateAcademySchedules = (templateData.academy_schedules || []).map((schedule: any) => ({
+    const templateAcademySchedules = (templateData.academy_schedules || []).map((schedule: AcademySchedule) => ({
       ...schedule,
       source: "template" as const,
       is_locked: true,
@@ -4544,7 +4617,7 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
         
         // daily_schedule이 있으면 그것을 기반으로 계산
         if (group.daily_schedule && Array.isArray(group.daily_schedule)) {
-          const dailySchedule = group.daily_schedule as any[];
+          const dailySchedule = group.daily_schedule as DailyScheduleInfo[];
           
           dailySchedule.forEach((day) => {
             // 학습일만 카운트
@@ -4557,7 +4630,7 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
               totalHours += day.study_hours;
             } else if (day.time_slots && Array.isArray(day.time_slots)) {
               // time_slots가 있으면 그것을 기반으로 계산
-              day.time_slots.forEach((slot: any) => {
+              day.time_slots.forEach((slot) => {
                 if (slot.type === "학습시간" && slot.start && slot.end) {
                   try {
                     const startMinutes = timeToMinutes(slot.start);
@@ -4612,7 +4685,11 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
           recommendedRanges = recommendationResult.ranges;
           unavailableReasons = recommendationResult.unavailableReasons;
         } catch (error) {
-          console.error("[getPlanGroupContentsForRangeAdjustment] 범위 추천 계산 실패:", error);
+          logError(error, {
+            context: "[getPlanGroupContentsForRangeAdjustment]",
+            operation: "범위 추천 계산",
+            groupId,
+          });
           // 범위 추천 실패해도 기본 정보는 반환
         }
       }
@@ -4625,7 +4702,11 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
         unavailableReasons: Object.fromEntries(unavailableReasons),
       };
     } catch (error) {
-      console.error(`[getPlanGroupContentsForRangeAdjustment] 그룹 ${groupId} 처리 실패:`, error);
+      logError(error, {
+        context: "[getPlanGroupContentsForRangeAdjustment]",
+        operation: "그룹 처리",
+        groupId,
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
@@ -4642,13 +4723,13 @@ export const bulkPreviewPlans = withErrorHandling(
     groupIds: string[]
   ): Promise<{
     success: boolean;
-    previews: Array<{
-      groupId: string;
-      studentName: string;
-      planCount: number;
-      previewData?: Array<any>;
-      error?: string;
-    }>;
+      previews: Array<{
+        groupId: string;
+        studentName: string;
+        planCount: number;
+        previewData?: PreviewPlan[];
+        error?: string;
+      }>;
   }> => {
     await requireAdminOrConsultant();
 
@@ -4671,7 +4752,7 @@ export const bulkPreviewPlans = withErrorHandling(
       groupId: string;
       studentName: string;
       planCount: number;
-      previewData?: Array<any>;
+      previewData?: PreviewPlan[];
       error?: string;
     }> = [];
 
@@ -4695,7 +4776,7 @@ export const bulkPreviewPlans = withErrorHandling(
           continue;
         }
 
-        const studentName = (group.students as any)?.name || "알 수 없음";
+        const studentName = (group.students as StudentInfo | null)?.name || "알 수 없음";
 
         // 플랜 미리보기 실행
         try {
@@ -4718,10 +4799,11 @@ export const bulkPreviewPlans = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error(
-          `[bulkPreviewPlans] 그룹 ${groupId} 처리 실패:`,
-          error
-        );
+        logError(error, {
+          context: "[bulkPreviewPlans]",
+          operation: "플랜 미리보기",
+          groupId,
+        });
         previews.push({
           groupId,
           studentName: "알 수 없음",

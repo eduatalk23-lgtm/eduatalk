@@ -12,8 +12,25 @@ import {
   formatSMSTemplate,
   type SMSTemplateType,
 } from "@/lib/services/smsTemplates";
-import { AppError, ErrorCode } from "@/lib/errors";
+import { AppError, ErrorCode, logError } from "@/lib/errors";
 import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
+import type { Student } from "@/lib/utils/studentFilterUtils";
+
+/**
+ * SMS 수신자 타입
+ */
+type Recipient = {
+  studentId: string;
+  phone: string;
+};
+
+/**
+ * 학생 정보 타입 (Supabase 조회 결과)
+ */
+type StudentRow = {
+  id: string;
+  name: string | null;
+};
 
 /**
  * 단일 SMS 발송
@@ -131,21 +148,21 @@ export async function POST(request: NextRequest) {
       if (recipients && Array.isArray(recipients) && recipients.length > 0) {
         // 학생 정보 조회 (학생명 치환용)
         const studentIdsFromRecipients = Array.from(
-          new Set(recipients.map((r: any) => r.studentId))
+          new Set(recipients.map((r: Recipient) => r.studentId))
         );
         const { data: students } = await supabase
           .from("students")
           .select("id, name")
           .in("id", studentIdsFromRecipients);
 
-        const studentMap = new Map(
-          (students || []).map((s: any) => [s.id, s])
+        const studentMap = new Map<string, StudentRow>(
+          (students || []).map((s: StudentRow) => [s.id, s])
         );
 
         // 각 recipient에 대해 메시지 생성
         finalRecipients = recipients
-          .filter((r: any) => r.phone)
-          .map((recipient: any) => {
+          .filter((r: Recipient) => r.phone)
+          .map((recipient: Recipient) => {
             const student = studentMap.get(recipient.studentId);
             let finalMessage = message;
 
@@ -184,7 +201,11 @@ export async function POST(request: NextRequest) {
           .in("id", studentIds);
 
         if (studentsError) {
-          console.error("[SMS API] 학생 정보 조회 실패:", studentsError);
+          logError(studentsError, {
+            context: "[SMS API]",
+            operation: "학생 정보 조회",
+            studentIds,
+          });
           return NextResponse.json(
             {
               success: false,
@@ -210,7 +231,7 @@ export async function POST(request: NextRequest) {
 
         // 전송 대상자에 따라 전화번호 선택
         const getPhoneByRecipientType = (
-          student: any,
+          student: StudentRow,
           type: "student" | "mother" | "father"
         ): string | null => {
           const phoneData = phoneDataMap.get(student.id);
@@ -230,7 +251,7 @@ export async function POST(request: NextRequest) {
 
         // SMS 발송 대상 준비
         finalRecipients = students
-          .map((student: any) => {
+          .map((student: StudentRow) => {
             const phone = getPhoneByRecipientType(
               student,
               recipientType || "mother"
@@ -304,8 +325,11 @@ export async function POST(request: NextRequest) {
     const errorMessage = handleSupabaseError(error);
     const errorDetails = extractErrorDetails(error);
     
-    console.error("[SMS API] 오류:", error);
-    console.error("[SMS API] 에러 상세:", errorDetails);
+    logError(error, {
+      context: "[SMS API]",
+      operation: "SMS 발송",
+      errorDetails,
+    });
 
     // AppError인 경우
     if (error instanceof AppError) {
