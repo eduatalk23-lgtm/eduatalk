@@ -21,6 +21,7 @@ import { findAttendanceRecordsWithPagination } from "@/lib/domains/attendance/re
 import type {
   AttendanceFilters,
   AttendanceStatus,
+  CheckMethod,
 } from "@/lib/domains/attendance/types";
 import { ATTENDANCE_LIST_PAGE_SIZE, type AttendanceSortOption } from "@/lib/constants/attendance";
 import { logError } from "@/lib/errors";
@@ -50,6 +51,8 @@ async function AttendanceContent({
   const startDateFilter = searchParams.start_date?.trim() ?? "";
   const endDateFilter = searchParams.end_date?.trim() ?? "";
   const statusFilter = searchParams.status?.trim() as AttendanceStatus | undefined;
+  const checkInMethodFilter = searchParams.check_in_method?.trim() as CheckMethod | undefined;
+  const checkOutMethodFilter = searchParams.check_out_method?.trim() as CheckMethod | undefined;
   const sortBy: AttendanceSortOption = (searchParams.sort as AttendanceSortOption) || "date";
   const page = parseInt(searchParams.page || "1", 10);
   const pageSize = ATTENDANCE_LIST_PAGE_SIZE;
@@ -59,6 +62,8 @@ async function AttendanceContent({
     start_date: startDateFilter || undefined,
     end_date: endDateFilter || undefined,
     status: statusFilter,
+    check_in_method: checkInMethodFilter,
+    check_out_method: checkOutMethodFilter,
   };
 
   // 학생명으로 필터링 (통합 검색 함수 사용)
@@ -208,6 +213,7 @@ async function AttendanceContent({
               {allStudents && allStudents.length > 0 ? (
                 <AttendanceRecordFormWithStudentSelect
                   students={allStudents}
+                  tenantId={tenantContext.tenantId}
                 />
               ) : (
                 <p className="text-sm text-gray-500">등록된 학생이 없습니다.</p>
@@ -230,6 +236,8 @@ async function AttendanceContent({
           startDateFilter={startDateFilter}
           endDateFilter={endDateFilter}
           statusFilter={statusFilter}
+          checkInMethodFilter={checkInMethodFilter}
+          checkOutMethodFilter={checkOutMethodFilter}
           sortBy={sortBy}
         />
 

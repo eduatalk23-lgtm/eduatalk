@@ -6,6 +6,7 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { EditAttendanceRecordForm } from "./_components/EditAttendanceRecordForm";
+import { AttendanceHistoryList } from "./_components/AttendanceHistoryList";
 
 export default async function EditAttendanceRecordPage({
   params,
@@ -42,6 +43,8 @@ export default async function EditAttendanceRecordPage({
       <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">출석 기록 수정</h1>
       
       <EditAttendanceRecordForm recordId={id} initialData={record} />
+      
+      <AttendanceHistoryList recordId={id} />
     </div>
   );
 }

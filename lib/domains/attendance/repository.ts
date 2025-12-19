@@ -10,6 +10,7 @@ import type {
   CreateAttendanceRecordInput,
   UpdateAttendanceRecordInput,
   AttendanceFilters,
+  CheckMethod,
 } from "./types";
 
 type SupabaseServerClient = Awaited<
@@ -204,6 +205,14 @@ export async function findAttendanceRecordsByDateRange(
     query = query.eq("status", filters.status);
   }
 
+  if (filters.check_in_method) {
+    query = query.eq("check_in_method", filters.check_in_method);
+  }
+
+  if (filters.check_out_method) {
+    query = query.eq("check_out_method", filters.check_out_method);
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -291,6 +300,14 @@ export async function findAttendanceRecordsWithPagination(
 
   if (filters.status) {
     query = query.eq("status", filters.status);
+  }
+
+  if (filters.check_in_method) {
+    query = query.eq("check_in_method", filters.check_in_method);
+  }
+
+  if (filters.check_out_method) {
+    query = query.eq("check_out_method", filters.check_out_method);
   }
 
   // 정렬
@@ -409,6 +426,14 @@ export async function countAttendanceRecords(
 
   if (filters.status) {
     query = query.eq("status", filters.status);
+  }
+
+  if (filters.check_in_method) {
+    query = query.eq("check_in_method", filters.check_in_method);
+  }
+
+  if (filters.check_out_method) {
+    query = query.eq("check_out_method", filters.check_out_method);
   }
 
   const { count, error } = await query;

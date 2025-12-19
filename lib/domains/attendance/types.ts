@@ -103,6 +103,8 @@ export type AttendanceFilters = {
   start_date?: string; // YYYY-MM-DD
   end_date?: string; // YYYY-MM-DD
   status?: AttendanceStatus;
+  check_in_method?: CheckMethod;
+  check_out_method?: CheckMethod;
 };
 
 // ============================================

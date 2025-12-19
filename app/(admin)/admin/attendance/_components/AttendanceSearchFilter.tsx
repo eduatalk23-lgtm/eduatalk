@@ -217,6 +217,30 @@ export function AttendanceSearchFilter({
                 </select>
               </div>
 
+              {/* 퇴실 방법 필터 */}
+              <div className="flex flex-col gap-1">
+                <label className={cn("text-sm font-medium", textSecondary)}>
+                  퇴실 방법
+                </label>
+                <select
+                  name="check_out_method"
+                  defaultValue={checkOutMethodFilter || ""}
+                  className={cn(
+                    "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
+                    borderInput,
+                    bgSurface,
+                    textPrimary,
+                    "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                  )}
+                >
+                  <option value="">전체</option>
+                  <option value="manual">수동</option>
+                  <option value="qr">QR코드</option>
+                  <option value="location">위치기반</option>
+                  <option value="auto">자동</option>
+                </select>
+              </div>
+
               {/* 정렬 */}
               <div className="flex flex-col gap-1">
                 <label className={cn("text-sm font-medium", textSecondary)}>

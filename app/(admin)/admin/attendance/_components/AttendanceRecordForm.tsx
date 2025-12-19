@@ -8,6 +8,7 @@ import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import Select from "@/components/atoms/Select";
+import { StudentSearchSelect } from "./StudentSearchSelect";
 import type { AttendanceStatus, CheckMethod } from "@/lib/domains/attendance/types";
 import {
   ATTENDANCE_STATUS_LABELS,
@@ -218,12 +219,14 @@ type AttendanceRecordFormWithStudentSelectProps = {
   students: Array<{ id: string; name: string | null }>;
   defaultDate?: string;
   onSuccess?: () => void;
+  tenantId?: string | null;
 };
 
 export function AttendanceRecordFormWithStudentSelect({
   students,
   defaultDate,
   onSuccess,
+  tenantId,
 }: AttendanceRecordFormWithStudentSelectProps) {
   const [selectedStudentId, setSelectedStudentId] = useState(
     students[0]?.id || ""
@@ -231,7 +234,7 @@ export function AttendanceRecordFormWithStudentSelect({
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId);
 
-  if (!selectedStudent) {
+  if (students.length === 0) {
     return (
       <p className="text-sm text-gray-500">등록된 학생이 없습니다.</p>
     );
@@ -239,27 +242,21 @@ export function AttendanceRecordFormWithStudentSelect({
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label htmlFor="student_select">학생 선택 *</Label>
-        <Select
-          id="student_select"
-          value={selectedStudentId}
-          onChange={(e) => setSelectedStudentId(e.target.value)}
-          required
-        >
-          {students.map((student) => (
-            <option key={student.id} value={student.id}>
-              {student.name || "이름 없음"}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <AttendanceRecordForm
-        studentId={selectedStudentId}
-        studentName={selectedStudent.name || ""}
-        defaultDate={defaultDate}
-        onSuccess={onSuccess}
+      <StudentSearchSelect
+        students={students}
+        value={selectedStudentId}
+        onChange={setSelectedStudentId}
+        tenantId={tenantId}
+        required
       />
+      {selectedStudent && (
+        <AttendanceRecordForm
+          studentId={selectedStudentId}
+          studentName={selectedStudent.name || ""}
+          defaultDate={defaultDate}
+          onSuccess={onSuccess}
+        />
+      )}
     </div>
   );
 }
