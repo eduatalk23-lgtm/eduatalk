@@ -67,5 +67,6 @@ next-env.d.ts
 .mcp.json
 ~/.config/cursor/mcp.json
 
-# other
+# repomix analysis files
 repomix-output.xml
+repomix-phase*.xml
