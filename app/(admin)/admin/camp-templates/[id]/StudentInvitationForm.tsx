@@ -41,10 +41,10 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     try {
       const supabase = createSupabaseBrowserClient();
       
-      // 1. 모든 학생 목록 조회
+      // 1. 모든 학생 목록 조회 (phone 컬럼은 students 테이블에 없으므로 제거)
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, class, division, phone, mother_phone, father_phone, is_active")
+        .select("id, name, grade, class, division, is_active")
         .order("name", { ascending: true })
         .limit(100);
 
@@ -158,7 +158,60 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         (student) => !invitedStudentIds.has(student.id)
       );
 
-      setStudents(availableStudents);
+      // 5. 전화번호 정보 별도 조회 (student_profiles 테이블에서)
+      const studentIds = availableStudents.map((s) => s.id);
+      let phoneDataMap = new Map<string, {
+        phone: string | null;
+        mother_phone: string | null;
+        father_phone: string | null;
+      }>();
+      
+      if (studentIds.length > 0) {
+        try {
+          // student_profiles 테이블에서 전화번호 조회
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("student_profiles")
+            .select("id, phone, mother_phone, father_phone")
+            .in("id", studentIds);
+
+          if (profilesError) {
+            console.warn("전화번호 조회 실패 (계속 진행):", profilesError);
+            // 전화번호 조회 실패해도 학생 목록은 표시
+          } else if (profilesData) {
+            phoneDataMap = new Map(
+              profilesData.map((profile) => [
+                profile.id,
+                {
+                  phone: profile.phone ?? null,
+                  mother_phone: profile.mother_phone ?? null,
+                  father_phone: profile.father_phone ?? null,
+                },
+              ])
+            );
+          }
+        } catch (phoneError) {
+          console.warn("전화번호 조회 중 오류 발생 (계속 진행):", phoneError);
+          // 전화번호 조회 실패해도 학생 목록은 표시
+        }
+      }
+
+      // 6. 전화번호 정보를 학생 정보와 병합
+      const studentsWithPhones: Student[] = availableStudents.map((student) => {
+        const phoneData = phoneDataMap.get(student.id);
+        return {
+          id: student.id,
+          name: student.name,
+          grade: student.grade,
+          class: student.class,
+          division: student.division,
+          phone: phoneData?.phone ?? null,
+          mother_phone: phoneData?.mother_phone ?? null,
+          father_phone: phoneData?.father_phone ?? null,
+          is_active: student.is_active,
+        };
+      });
+
+      setStudents(studentsWithPhones);
     } catch (error) {
       console.error("학생 목록 로드 실패:", error);
       toast.showError("학생 목록을 불러오는데 실패했습니다.");
