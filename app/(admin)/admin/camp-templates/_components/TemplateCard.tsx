@@ -32,7 +32,9 @@ export function TemplateCard({ template }: TemplateCardProps) {
         toast.showSuccess("템플릿이 삭제되었습니다.");
         setShowDeleteDialog(false); // 다이얼로그 먼저 닫기
         setIsDeleting(false); // 상태 리셋
-        // 서버 컴포넌트를 다시 렌더링하기 위해 refresh 사용
+        // 현재 URL로 리다이렉트하여 서버 컴포넌트를 다시 렌더링
+        // revalidatePath가 호출되었으므로 최신 데이터가 로드됨
+        router.push("/admin/camp-templates");
         router.refresh();
       } else {
         toast.showError(result.error || "템플릿 삭제에 실패했습니다.");

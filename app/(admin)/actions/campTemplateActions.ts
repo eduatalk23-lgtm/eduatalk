@@ -944,6 +944,9 @@ export const deleteCampTemplateAction = withErrorHandling(
       );
     }
 
+    // 캐시 무효화하여 목록 페이지 재렌더링
+    revalidatePath("/admin/camp-templates");
+
     return { success: true };
   }
 );
