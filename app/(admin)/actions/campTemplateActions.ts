@@ -1013,13 +1013,38 @@ export const sendCampInvitationsAction = withErrorHandling(
       status: "pending",
     }));
 
-    const { error } = await supabase
+    const { data: insertedInvitations, error } = await supabase
       .from("camp_invitations")
-      .insert(invitations);
+      .insert(invitations)
+      .select("id");
 
     if (error) {
       console.error("[actions/campTemplateActions] 초대 발송 실패", error);
       return { success: false, error: error.message };
+    }
+
+    // 이메일 알림 발송 (비동기, 실패해도 초대는 성공으로 처리)
+    if (insertedInvitations && insertedInvitations.length > 0) {
+      const { sendCampInvitationNotification } = await import(
+        "@/lib/services/campNotificationService"
+      );
+
+      // 각 초대에 대해 이메일 발송 (병렬 처리)
+      Promise.all(
+        insertedInvitations.map((inv) =>
+          sendCampInvitationNotification(inv.id).catch((err) => {
+            console.error(
+              `[actions/campTemplateActions] 초대 ${inv.id} 이메일 발송 실패:`,
+              err
+            );
+          })
+        )
+      ).catch((err) => {
+        console.error(
+          "[actions/campTemplateActions] 일괄 이메일 발송 중 오류:",
+          err
+        );
+      });
     }
 
     return { success: true, count: newStudentIds.length };
