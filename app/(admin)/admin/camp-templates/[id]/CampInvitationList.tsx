@@ -104,6 +104,12 @@ export function CampInvitationList({
   // props로 받은 데이터를 그대로 사용 (상위 컴포넌트에서 useQuery 사용 시 자동 반영됨)
   const invitationsWithOptimistic = invitations;
   
+  // 필터 변경 시 입력값 동기화 (모든 hooks는 early return 전에 선언되어야 함)
+  useEffect(() => {
+    setSearchInput(filters.search || "");
+    setStatusInput(filters.status || "");
+  }, [filters]);
+  
   if (loading) {
     return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
   }
@@ -245,12 +251,6 @@ export function CampInvitationList({
     setStatusInput("");
     onFilterChange?.({});
   };
-
-  // 필터 변경 시 입력값 동기화
-  useEffect(() => {
-    setSearchInput(filters.search || "");
-    setStatusInput(filters.status || "");
-  }, [filters]);
 
   return (
     <div className="flex flex-col gap-4">
