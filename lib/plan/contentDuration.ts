@@ -12,46 +12,32 @@ import type { ContentDurationInfo, EpisodeInfo } from "@/lib/types/plan-generati
 import {
   hasValidEpisodes as hasValidEpisodesTypeGuard,
 } from "@/lib/types/plan-generation";
-import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+import { SCHEDULER_CONFIG } from "@/lib/config/schedulerConfig";
 
 // ============================================
 // 상수 정의
 // ============================================
+// 주의: 상수들은 SCHEDULER_CONFIG에서 중앙 관리됩니다.
+// 기존 상수들은 하위 호환성을 위해 export만 유지 (내부에서는 SCHEDULER_CONFIG 사용)
 
 /**
  * 기본 소요시간 상수 (분 단위)
+ * @deprecated SCHEDULER_CONFIG.DURATION.DEFAULT_BASE를 사용하세요
  */
-export const DEFAULT_BASE_TIME_MINUTES = 60; // 1시간
+export const DEFAULT_BASE_TIME_MINUTES = SCHEDULER_CONFIG.DURATION.DEFAULT_BASE;
 
 /**
  * 강의 회차당 기본 소요시간 (분 단위)
+ * @deprecated SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE를 사용하세요
  */
-export const DEFAULT_EPISODE_DURATION_MINUTES = 30;
+export const DEFAULT_EPISODE_DURATION_MINUTES = SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE;
 
 /**
  * 복습일 소요시간 비율 (기본값)
+ * @deprecated SCHEDULER_CONFIG.REVIEW.TIME_RATIO를 사용하세요
  */
-export const DEFAULT_REVIEW_TIME_RATIO = 0.5; // 50%
+export const DEFAULT_REVIEW_TIME_RATIO = SCHEDULER_CONFIG.REVIEW.TIME_RATIO;
 
-/**
- * 페이지당 기본 소요시간 (분 단위)
- */
-const DEFAULT_MINUTES_PER_PAGE = 60 / defaultRangeRecommendationConfig.pagesPerHour;
-
-/**
- * 난이도별 페이지당 소요시간 (분 단위)
- */
-const PAGE_DURATION_BY_DIFFICULTY: Readonly<Record<string, number>> = {
-  기초: 4,   // 페이지당 4분
-  기본: 6,   // 페이지당 6분 (현재 기본값)
-  심화: 8,   // 페이지당 8분
-  최상: 10,  // 페이지당 10분
-} as const;
-
-/**
- * 커스텀 콘텐츠 페이지/시간 구분 기준값
- */
-const CUSTOM_CONTENT_PAGE_THRESHOLD = 100;
 
 // ============================================
 // 캐싱 메커니즘
@@ -237,8 +223,8 @@ function calculateContentDurationInternal(
   // 범위가 유효하지 않은 경우 기본값 반환
   if (amount <= 0) {
     return dayType === "복습일"
-      ? Math.round(DEFAULT_BASE_TIME_MINUTES * DEFAULT_REVIEW_TIME_RATIO)
-      : DEFAULT_BASE_TIME_MINUTES;
+      ? Math.round(SCHEDULER_CONFIG.DURATION.DEFAULT_BASE * SCHEDULER_CONFIG.REVIEW.TIME_RATIO)
+      : SCHEDULER_CONFIG.DURATION.DEFAULT_BASE;
   }
 
   let baseTime = 0;
@@ -261,7 +247,7 @@ function calculateContentDurationInternal(
           episodesWithDuration++;
         } else {
           // Episode 정보가 없는 경우 기본값 사용
-          totalDuration += DEFAULT_EPISODE_DURATION_MINUTES;
+          totalDuration += SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE;
           episodesWithoutDuration++;
         }
       }
@@ -294,11 +280,11 @@ function calculateContentDurationInternal(
         baseTime = Math.round(avgDurationPerEpisode * amount);
       } else {
         // total_episodes가 없으면 기본값: 회차당 30분
-        baseTime = amount * DEFAULT_EPISODE_DURATION_MINUTES;
+        baseTime = amount * SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE;
       }
     } else {
       // duration 정보가 없으면 기본값: 회차당 30분
-      baseTime = amount * DEFAULT_EPISODE_DURATION_MINUTES;
+      baseTime = amount * SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE;
     }
   } else if (content.content_type === "book") {
     // 책: 난이도별 페이지당 소요시간 적용
@@ -306,9 +292,9 @@ function calculateContentDurationInternal(
     
     // 난이도별 페이지당 소요시간 (분)
     const minutesPerPage =
-      difficultyLevel && difficultyLevel in PAGE_DURATION_BY_DIFFICULTY
-        ? PAGE_DURATION_BY_DIFFICULTY[difficultyLevel]
-        : DEFAULT_MINUTES_PER_PAGE;
+      difficultyLevel && difficultyLevel in SCHEDULER_CONFIG.DIFFICULTY_MULTIPLIER
+        ? SCHEDULER_CONFIG.DIFFICULTY_MULTIPLIER[difficultyLevel]
+        : SCHEDULER_CONFIG.DURATION.DEFAULT_PAGE;
     
     baseTime = Math.round(amount * minutesPerPage);
   } else {
@@ -317,9 +303,9 @@ function calculateContentDurationInternal(
       durationInfo.total_page_or_time !== null &&
       durationInfo.total_page_or_time !== undefined
     ) {
-      if (durationInfo.total_page_or_time >= CUSTOM_CONTENT_PAGE_THRESHOLD) {
+      if (durationInfo.total_page_or_time >= SCHEDULER_CONFIG.LIMITS.CUSTOM_CONTENT_PAGE_THRESHOLD) {
         // 페이지로 간주
-        baseTime = Math.round(amount * DEFAULT_MINUTES_PER_PAGE);
+        baseTime = Math.round(amount * SCHEDULER_CONFIG.DURATION.DEFAULT_PAGE);
       } else {
         // 시간(분)으로 간주: 전체 시간을 전체 범위로 나눈 값 * 배정된 범위
         // 전체 범위는 알 수 없으므로, 기본값으로 페이지당 시간 사용
@@ -329,17 +315,17 @@ function calculateContentDurationInternal(
         
         // 계산 결과가 유효하지 않으면 기본값 사용
         baseTime =
-          calculatedTime > 0 ? calculatedTime : Math.round(amount * DEFAULT_MINUTES_PER_PAGE);
+          calculatedTime > 0 ? calculatedTime : Math.round(amount * SCHEDULER_CONFIG.DURATION.DEFAULT_PAGE);
       }
     } else {
       // 정보가 없으면 기본값: 페이지당 시간
-      baseTime = Math.round(amount * DEFAULT_MINUTES_PER_PAGE);
+      baseTime = Math.round(amount * SCHEDULER_CONFIG.DURATION.DEFAULT_PAGE);
     }
   }
 
   // 복습일이면 소요시간 단축 (설정값 또는 기본값 50% 사용)
   if (dayType === "복습일") {
-    const ratio = reviewTimeRatio ?? DEFAULT_REVIEW_TIME_RATIO;
+    const ratio = reviewTimeRatio ?? SCHEDULER_CONFIG.REVIEW.TIME_RATIO;
     return Math.round(baseTime * ratio);
   }
 
