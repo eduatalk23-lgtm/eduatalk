@@ -454,8 +454,30 @@ function PlanGroupWizardInner({
     setSubmitting(isSubmittingFromHook);
   }, [isSubmittingFromHook, setSubmitting]);
 
-  // Alias for backward compatibility / readability
-  const handleSaveDraft = executeSave;
+  // 템플릿 모드일 때는 onTemplateSave 호출, 그 외에는 executeSave 호출
+  const handleSaveDraft = useCallback(
+    async (silent: boolean = false) => {
+      if (isTemplateMode && onTemplateSave) {
+        // 템플릿 모드: onTemplateSave 콜백 호출
+        try {
+          await onTemplateSave(wizardData);
+        } catch (error) {
+          console.error("[PlanGroupWizard] Template save failed:", error);
+          if (!silent) {
+            toast.showError(
+              error instanceof Error
+                ? error.message
+                : "템플릿 저장에 실패했습니다."
+            );
+          }
+        }
+      } else {
+        // 일반 모드: 기존 로직 사용
+        await executeSave(silent);
+      }
+    },
+    [isTemplateMode, onTemplateSave, wizardData, executeSave, toast]
+  );
   
   // 초기 검증 에러 처리 (usePlanSubmission/validation 초기화와 충돌 방지 위해 hook 이후에 처리하거나 hook 내부로 이동 권장되지만, 우선 여기서 상태 동기화)
   useEffect(() => {
