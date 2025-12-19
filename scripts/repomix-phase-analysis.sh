@@ -58,9 +58,9 @@ run_phase3() {
 }
 
 run_phase4() {
-    log_info "Phase 4: 학생 도메인 확장 분석 시작..."
-    npx repomix "app/(student)/contents" "app/(student)/today" "app/(student)/dashboard" "app/(student)/analysis" "app/(student)/blocks" "app/(student)/camp" lib/data lib/recommendations -o repomix-phase4-student-extended.xml
-    log_success "Phase 4 완료: repomix-phase4-student-extended.xml"
+    log_info "Phase 4: 관리자 및 컨설턴트 모듈 분석 시작..."
+    npx repomix "app/(admin)" "lib/data/admin" "lib/auth" -o repomix-phase4-admin-consultant.xml
+    log_success "Phase 4 완료: repomix-phase4-admin-consultant.xml"
 }
 
 run_phase5() {
@@ -95,7 +95,7 @@ main() {
         echo "  1 - 핵심 인프라 (lib/supabase, lib/auth)"
         echo "  2 - 공통 유틸리티 (lib/utils, lib/types, components/ui)"
         echo "  3 - 학생 핵심 (plan, scores, metrics, goals)"
-        echo "  4 - 학생 확장 (contents, today, dashboard, analysis, blocks, camp)"
+        echo "  4 - 관리자 및 컨설턴트 (app/(admin), lib/data/admin, 권한 관리)"
         echo "  5 - 관리자 (app/(admin), lib/data/admin)"
         echo "  6 - 나머지 (parent, superadmin, actions, api, 기타)"
         echo "  all - 모든 Phase 실행"
