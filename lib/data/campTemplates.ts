@@ -204,33 +204,21 @@ export async function getCampTemplatesForTenantWithPagination(
         .select("*")
         .eq("tenant_id", tenantId);
 
-      // 필터 설정
-      const filterConfig: FilterConfig<typeof filters> = {
-        search: {
-          operator: "ilike",
-          transform: (value) => {
-            const searchLower = String(value).toLowerCase().trim();
-            // name 또는 description에 대한 검색은 별도 처리 필요
-            return searchLower;
-          },
-        },
-        status: {
-          operator: "eq",
-        },
-        programType: {
-          operator: "eq",
-        },
-      };
-
       // 검색어 필터링 (name 또는 description) - 특수 처리
       if (filters.search?.trim()) {
         const searchLower = filters.search.toLowerCase().trim();
         query = query.or(`name.ilike.%${searchLower}%,description.ilike.%${searchLower}%`);
       }
 
-      // 나머지 필터 적용
-      const { search, ...otherFilters } = filters;
-      query = applyFilters(query, otherFilters, filterConfig);
+      // 상태 필터
+      if (filters.status) {
+        query = query.eq("status", filters.status);
+      }
+
+      // 프로그램 유형 필터 (programType -> program_type 매핑)
+      if (filters.programType) {
+        query = query.eq("program_type", filters.programType);
+      }
 
       return query;
     };
