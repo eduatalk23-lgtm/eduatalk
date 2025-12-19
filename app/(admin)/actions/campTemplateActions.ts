@@ -1,60 +1,30 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { revalidateCampTemplatePaths } from "@/lib/utils/revalidation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import {
-  getCampTemplate,
-  createCampTemplate,
-  getCampInvitationsForTemplate as getCampInvitationsForTemplateData,
-  getCampInvitationsForTemplateWithPagination,
-  copyCampTemplate,
-} from "@/lib/data/campTemplates";
-import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import {
-  AppError,
-  ErrorCode,
-  withErrorHandling,
-  getUserFacingMessage,
-  logError,
-} from "@/lib/errors";
-import type {
-  CampTemplateUpdate,
-  CampInvitation,
-  CampInvitationUpdate,
-} from "@/lib/domains/camp/types";
-import type { SchedulerOptions, PlanContentInsert } from "@/lib/types/plan";
-import type { RecommendationMetadata } from "@/lib/types/content-selection";
-import type { Tables } from "@/lib/supabase/database.types";
-import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import {
-  linkBlockSetToTemplate,
-  unlinkBlockSetFromTemplate,
-} from "./campTemplateBlockSets";
-import { getRecommendedMasterContents } from "@/lib/recommendations/masterContentRecommendation";
-import { createPlanContents, getPlanContents } from "@/lib/data/planGroups";
-import { timeToMinutes } from "@/lib/plan/assignPlanTimes";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
-import { calculateRecommendedRanges, type ScheduleSummary } from "@/lib/plan/rangeRecommendation";
-import { getRangeRecommendationConfig } from "@/lib/recommendations/config/configManager";
-import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
-import {
-  validateCampTemplateId,
-  validateStudentIds,
-  validateInvitationIds,
-  validateCampInvitationId,
-  validateCampInvitationStatus,
-  validateTenantContext,
-  validateCampTemplateAccess,
-  validateCampTemplateActive,
-  validateCampInvitationAccess,
-} from "@/lib/validation/campValidation";
-import { buildCampInvitationStatusUpdate } from "@/lib/utils/campInvitationHelpers";
-import type { PlanStatus } from "@/lib/types/plan/domain";
-import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
-import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
+// CRUD 함수들 re-export
+export {
+  getCampTemplates,
+  getCampTemplateById,
+  createCampTemplateDraftAction,
+  createCampTemplateAction,
+  updateCampTemplateAction,
+  updateCampTemplateStatusAction,
+  deleteCampTemplateAction,
+  copyCampTemplateAction,
+} from "./camp-templates/crud";
+
+// 참여자 관리 함수들 re-export
+export {
+  sendCampInvitationsAction,
+  getCampInvitationsForTemplate,
+  getCampInvitationsForTemplateWithPaginationAction,
+  updateCampInvitationStatusAction,
+  deleteCampInvitationAction,
+  deleteCampInvitationsAction,
+  resendCampInvitationsAction,
+} from "./camp-templates/participants";
+
+// 진행/검토 함수들은 아직 기존 파일에 있음 (progress.ts로 이동 예정)
+// 아래부터는 진행/검토 관련 함수들만 남김
 
 /**
  * 플랜 미리보기 데이터 타입
