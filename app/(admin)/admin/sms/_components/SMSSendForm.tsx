@@ -12,6 +12,7 @@ import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import Select from "@/components/atoms/Select";
 import { useToast } from "@/components/ui/ToastProvider";
+import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import { SMSPreviewModal } from "./SMSPreviewModal";
 import { SMSSendSummary } from "./SMSSendSummary";
 import SMSFilterPanel, {
@@ -332,9 +333,10 @@ export function SMSSendForm({
             );
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const errorMessage = handleSupabaseError(error);
         console.error("[SMS] 발송 실패:", error);
-        showError(error.message || "SMS 발송 중 오류가 발생했습니다.");
+        showError(errorMessage || "SMS 발송 중 오류가 발생했습니다.");
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

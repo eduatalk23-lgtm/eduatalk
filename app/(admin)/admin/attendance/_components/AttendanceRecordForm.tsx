@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRecordAttendance } from "@/lib/hooks/useAttendance";
+import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
@@ -76,8 +77,9 @@ export function AttendanceRecordForm({
         });
         setSuccess(false);
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || "출석 기록 저장 중 오류가 발생했습니다.");
+    } catch (err: unknown) {
+      const errorMessage = handleSupabaseError(err);
+      setError(errorMessage || "출석 기록 저장 중 오류가 발생했습니다.");
     }
   };
 

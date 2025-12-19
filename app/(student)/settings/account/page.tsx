@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword } from "@/app/(student)/actions/accountActions";
+import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import { useToast } from "@/components/ui/ToastProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -54,8 +55,9 @@ export default function AccountSettingsPage() {
       } else {
         showError(result.error || "비밀번호 변경에 실패했습니다.");
       }
-    } catch (err: any) {
-      showError(err.message || "비밀번호 변경 중 오류가 발생했습니다.");
+    } catch (err: unknown) {
+      const errorMessage = handleSupabaseError(err);
+      showError(errorMessage || "비밀번호 변경 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }

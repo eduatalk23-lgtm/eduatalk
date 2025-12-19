@@ -299,8 +299,13 @@ export async function POST(request: NextRequest) {
         errors,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const { handleSupabaseError, extractErrorDetails } = await import("@/lib/utils/errorHandling");
+    const errorMessage = handleSupabaseError(error);
+    const errorDetails = extractErrorDetails(error);
+    
     console.error("[SMS API] 오류:", error);
+    console.error("[SMS API] 에러 상세:", errorDetails);
 
     // AppError인 경우
     if (error instanceof AppError) {

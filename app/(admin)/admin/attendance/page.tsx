@@ -96,18 +96,23 @@ async function AttendanceContent({
       },
       tenantContext.tenantId
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // 에러 처리 유틸리티 사용
+    const { handleSupabaseError, extractErrorDetails } = await import("@/lib/utils/errorHandling");
+    const errorMessage = handleSupabaseError(error);
+    const errorDetails = extractErrorDetails(error);
+    
     // 에러 객체 전체를 먼저 로깅
     console.error("[admin/attendance] 출석 기록 조회 실패 - 원본 에러:", error);
     console.error("[admin/attendance] 에러 타입:", typeof error);
-    console.error("[admin/attendance] 에러 constructor:", error?.constructor?.name);
+    console.error("[admin/attendance] 에러 constructor:", errorDetails);
     
     // Supabase 에러 객체의 주요 속성 추출
     const errorInfo: Record<string, unknown> = {
-      message: error?.message || error?.toString() || String(error) || "알 수 없는 에러",
-      code: error?.code || "UNKNOWN",
-      name: error?.name,
-      stack: error?.stack,
+      message: errorMessage,
+      code: errorDetails.code || "UNKNOWN",
+      name: errorDetails.code,
+      stack: errorDetails.details,
     };
     
     // Supabase PostgrestError 속성 확인
