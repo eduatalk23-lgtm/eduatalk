@@ -5,6 +5,51 @@
 
 export type ContentType = "book" | "lecture" | "custom";
 
+/**
+ * ContentType 타입 가드 함수들
+ */
+
+/**
+ * 콘텐츠 타입이 "book"인지 확인
+ * @param type 콘텐츠 타입
+ * @returns "book" 타입 여부
+ */
+export function isBookType(type: ContentType): type is "book" {
+  return type === "book";
+}
+
+/**
+ * 콘텐츠 타입이 "lecture"인지 확인
+ * @param type 콘텐츠 타입
+ * @returns "lecture" 타입 여부
+ */
+export function isLectureType(type: ContentType): type is "lecture" {
+  return type === "lecture";
+}
+
+/**
+ * 콘텐츠 타입이 "custom"인지 확인
+ * @param type 콘텐츠 타입
+ * @returns "custom" 타입 여부
+ */
+export function isCustomType(type: ContentType): type is "custom" {
+  return type === "custom";
+}
+
+/**
+ * Exhaustive checking 헬퍼 함수
+ * 모든 ContentType 케이스가 처리되었는지 컴파일 타임에 확인
+ * @param type 콘텐츠 타입
+ * @param value never 타입 (처리되지 않은 케이스)
+ * @throws Error 처리되지 않은 타입인 경우
+ */
+export function assertExhaustiveContentType(
+  type: ContentType,
+  value: never
+): never {
+  throw new Error(`Unhandled content type: ${type}`);
+}
+
 export type ContentDetail = {
   id: string;
   page_number?: number;
@@ -175,21 +220,27 @@ export function transformBatchResponse(
     return null;
   }
 
-  if (contentType === "book") {
-    return {
-      details: contentData.details || [],
-      total_pages: contentData.total_pages ?? null,
-      metadata: contentData.metadata,
-    };
-  } else if (contentType === "lecture") {
-    return {
-      episodes: contentData.episodes || [],
-      total_episodes: contentData.total_episodes ?? null,
-      metadata: contentData.metadata,
-    };
+  switch (contentType) {
+    case "book":
+      return {
+        details: contentData.details || [],
+        total_pages: contentData.total_pages ?? null,
+        metadata: contentData.metadata,
+      };
+    case "lecture":
+      return {
+        episodes: contentData.episodes || [],
+        total_episodes: contentData.total_episodes ?? null,
+        metadata: contentData.metadata,
+      };
+    case "custom":
+      // 커스텀 콘텐츠는 상세 정보가 없을 수 있음
+      return {
+        metadata: contentData.metadata,
+      };
+    default:
+      return assertExhaustiveContentType(contentType, contentType);
   }
-
-  return null;
 }
 
 /**
@@ -208,18 +259,26 @@ export function transformSingleResponse(
   },
   contentType: ContentType
 ): ContentDetailsResponse {
-  if (contentType === "book") {
-    return {
-      details: response.details || [],
-      total_pages: response.total_pages ?? null,
-      metadata: response.metadata,
-    };
-  } else {
-    return {
-      episodes: response.episodes || [],
-      total_episodes: response.total_episodes ?? null,
-      metadata: response.metadata,
-    };
+  switch (contentType) {
+    case "book":
+      return {
+        details: response.details || [],
+        total_pages: response.total_pages ?? null,
+        metadata: response.metadata,
+      };
+    case "lecture":
+      return {
+        episodes: response.episodes || [],
+        total_episodes: response.total_episodes ?? null,
+        metadata: response.metadata,
+      };
+    case "custom":
+      // 커스텀 콘텐츠는 상세 정보가 없을 수 있음
+      return {
+        metadata: response.metadata,
+      };
+    default:
+      return assertExhaustiveContentType(contentType, contentType);
   }
 }
 
