@@ -56,37 +56,40 @@ if (!deletedRows || deletedRows.length === 0) {
 }
 ```
 
-### 2. 삭제 후 재확인 및 Admin Client 사용
+### 2. Admin Client 자동 재시도 로직
 
 **변경 내용**:
-- 삭제 후 템플릿이 여전히 존재하는지 확인
-- 존재하는 경우 Admin Client를 사용하여 강제 삭제 시도
+- 먼저 일반 클라이언트로 삭제 시도
+- 삭제된 행이 0개이거나 에러 발생 시 Admin Client로 자동 재시도
 - RLS 정책을 우회하여 삭제 보장
 
 ```typescript
-// 삭제 후 확인: 실제로 삭제되었는지 재확인
-const { data: verifyTemplate } = await supabase
+// 먼저 일반 클라이언트로 삭제 시도
+const { data: deletedRows, error } = await supabase
   .from("camp_templates")
-  .select("id")
+  .delete()
   .eq("id", templateId)
-  .maybeSingle();
+  .eq("tenant_id", tenantContext.tenantId)
+  .select();
 
-if (verifyTemplate) {
-  // Admin Client를 사용하여 강제 삭제 시도
+let deletedSuccessfully = false;
+
+if (deletedRows && deletedRows.length > 0) {
+  // 일반 클라이언트로 삭제 성공
+  deletedSuccessfully = true;
+} else {
+  // 삭제된 행이 없음 (RLS 정책으로 차단되었을 가능성)
+  // Admin Client로 재시도
   const adminSupabase = createSupabaseAdminClient();
-  const { error: adminError } = await adminSupabase
+  const { data: adminDeletedRows, error: adminError } = await adminSupabase
     .from("camp_templates")
     .delete()
     .eq("id", templateId)
-    .eq("tenant_id", tenantContext.tenantId);
+    .eq("tenant_id", tenantContext.tenantId)
+    .select();
   
-  if (adminError) {
-    throw new AppError(
-      "템플릿 삭제에 실패했습니다. RLS 정책을 확인해주세요.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
+  if (!adminError && adminDeletedRows && adminDeletedRows.length > 0) {
+    deletedSuccessfully = true;
   }
 }
 ```
