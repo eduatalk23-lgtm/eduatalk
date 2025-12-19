@@ -183,11 +183,66 @@
 
 ---
 
-## 🔄 다음 단계
+## ✅ Phase 3-6: Deprecated 표시 및 문서화
 
-### Phase 3-6: Deprecated 표시 및 문서화 (예정)
-- `difficulty_level` 사용처에 deprecated 주석 추가
-- 마이그레이션 가이드 문서화
+### 작업 내용
+
+**파일**: 
+- `lib/types/lecture.ts`
+- `lib/data/contentMetadata.ts`
+- `lib/types/content-selection.ts`
+- `lib/types/plan-generation.ts`
+- `docs/2025-02-04-difficulty-level-migration-guide.md` (신규)
+
+1. **타입 정의에 deprecated 주석 추가**
+   - `MasterLecture.difficulty_level`
+   - `ContentMetadata.difficulty_level` (2곳)
+   - `ContentDurationInfo.difficulty_level`
+
+2. **마이그레이션 가이드 문서 작성**
+   - 데이터베이스 스키마 설명
+   - 코드 마이그레이션 가이드 (Before/After 예시)
+   - 유틸리티 함수 사용법
+   - 컴포넌트 사용법
+   - API 응답 형식
+   - 체크리스트 및 주의사항
+
+### 개선 효과
+
+- ✅ 개발자 가이드 제공
+- ✅ 마이그레이션 부담 감소
+- ✅ 일관된 사용 패턴 유도
+
+---
+
+## 🎉 Phase 3 전체 완료
+
+모든 Phase가 완료되었습니다!
+
+### 완료된 작업 요약
+
+1. **Phase 3-1**: 데이터베이스 스키마 확장
+2. **Phase 3-2**: 마스터 콘텐츠 쿼리 개선
+3. **Phase 3-3**: 학생 콘텐츠 쿼리 개선
+4. **Phase 3-4**: UI 컴포넌트 타입 개선
+5. **Phase 3-5**: API 응답 개선
+6. **Phase 3-6**: Deprecated 표시 및 문서화
+
+### 최종 통계
+
+- 마이그레이션 파일: 1개
+- 추가된 컬럼: 3개 (books, lectures, student_custom_contents)
+- Foreign Key 제약조건: 3개
+- 인덱스: 3개
+- 수정된 파일: 15개 이상
+- 신규 파일: 2개 (difficultyLevelConverter.ts, migration-guide.md)
+- 타입 정의 개선: 8개 이상
+- API 응답 개선: 2개
+
+### 참고 문서
+
+- [Phase 3 마이그레이션 문서](./2025-02-04-phase3-difficulty-level-migration.md)
+- [마이그레이션 가이드](./2025-02-04-difficulty-level-migration-guide.md)
 
 ---
 
