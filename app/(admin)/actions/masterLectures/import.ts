@@ -84,13 +84,45 @@ export async function importMasterLecturesFromExcel(
 
     // 2. 새 데이터 삽입
     const lecturesData = sheets.master_lectures || [];
-    const lecturesToInsert: any[] = [];
+    const lecturesToInsert: Array<{
+      title: string;
+      tenant_id?: string | null;
+      linked_book_id?: string | null;
+      revision?: string | null;
+      content_category?: string | null;
+      semester?: string | null;
+      subject_category?: string | null;
+      subject?: string | null;
+      platform?: string | null;
+      instructor?: string | null;
+      total_episodes?: number | null;
+      difficulty_level?: string | null;
+      difficulty_level_id?: string | null;
+      duration?: number | null;
+      notes?: string | null;
+    }> = [];
 
     for (const row of lecturesData) {
       try {
         const validated = masterLectureSchema.parse(row);
         
-        const lectureData: any = {
+        const lectureData: {
+          title: string;
+          tenant_id?: string | null;
+          linked_book_id?: string | null;
+          revision?: string | null;
+          content_category?: string | null;
+          semester?: string | null;
+          subject_category?: string | null;
+          subject?: string | null;
+          platform?: string | null;
+          instructor?: string | null;
+          total_episodes?: number | null;
+          difficulty_level?: string | null;
+          difficulty_level_id?: string | null;
+          duration?: number | null;
+          notes?: string | null;
+        } = {
           title: validated.title,
           tenant_id: validated.tenant_id || null,
           linked_book_id: validated.linked_book_id || null,

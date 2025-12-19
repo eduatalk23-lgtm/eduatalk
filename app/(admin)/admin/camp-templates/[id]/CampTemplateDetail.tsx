@@ -21,6 +21,7 @@ import {
   schedulerTypeLabels,
 } from "@/lib/constants/planLabels";
 import { usePagination } from "@/lib/hooks/usePagination";
+import type { CampInvitation } from "@/lib/types/plan";
 
 type CampTemplateDetailProps = {
   template: CampTemplate;
@@ -56,7 +57,7 @@ export function CampTemplateDetail({
   const templateData = template.template_data;
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
-  const [invitations, setInvitations] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<CampInvitation[]>([]);
   const [loadingInvitations, setLoadingInvitations] = useState(true);
   const [invitationTotal, setInvitationTotal] = useState(0);
   

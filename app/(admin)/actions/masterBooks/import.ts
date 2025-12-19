@@ -128,13 +128,65 @@ export async function importMasterBooksFromExcel(
 
     // 2. 새 데이터 삽입
     const booksData = sheets.master_books || [];
-    const booksToInsert: any[] = [];
+    const booksToInsert: Array<{
+      title: string;
+      tenant_id?: string | null;
+      is_active?: boolean;
+      curriculum_revision_id?: string | null;
+      subject_id?: string | null;
+      grade_min?: number | null;
+      grade_max?: number | null;
+      school_type?: string | null;
+      revision?: string | null;
+      content_category?: string | null;
+      semester?: string | null;
+      subtitle?: string | null;
+      publisher?: string | null;
+      publisher_name?: string | null;
+      isbn_10?: string | null;
+      isbn_13?: string | null;
+      edition?: string | null;
+      published_date?: string | null;
+      total_pages?: number | null;
+      target_exam_type?: string | null;
+      description?: string | null;
+      difficulty_level?: string | null;
+      difficulty_level_id?: string | null;
+      notes?: string | null;
+      cover_image_url?: string | null;
+    }> = [];
 
     for (const row of booksData) {
       try {
         const validated = masterBookSchema.parse(row);
         
-        const bookData: any = {
+        const bookData: {
+          title: string;
+          tenant_id?: string | null;
+          is_active?: boolean;
+          curriculum_revision_id?: string | null;
+          subject_id?: string | null;
+          grade_min?: number | null;
+          grade_max?: number | null;
+          school_type?: string | null;
+          revision?: string | null;
+          content_category?: string | null;
+          semester?: string | null;
+          subtitle?: string | null;
+          publisher?: string | null;
+          publisher_name?: string | null;
+          isbn_10?: string | null;
+          isbn_13?: string | null;
+          edition?: string | null;
+          published_date?: string | null;
+          total_pages?: number | null;
+          target_exam_type?: string | null;
+          description?: string | null;
+          difficulty_level?: string | null;
+          difficulty_level_id?: string | null;
+          notes?: string | null;
+          cover_image_url?: string | null;
+        } = {
           title: validated.title,
           tenant_id: validated.tenant_id || null,
           is_active: validated.is_active ?? true,

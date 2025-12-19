@@ -169,7 +169,7 @@ export function useRecommendations({
     
     // WizardData에서 직접 가져오기
     data.student_contents.forEach((c: WizardData["student_contents"][number]) => {
-      const masterContentId = (c as any).master_content_id;
+      const masterContentId = c.master_content_id;
       if (masterContentId) {
         studentMasterIds.add(masterContentId);
       }
@@ -179,7 +179,7 @@ export function useRecommendations({
     const studentContentsWithoutMasterId = data.student_contents.filter(
       (c: WizardData["student_contents"][number]) =>
         (c.content_type === "book" || c.content_type === "lecture") &&
-        !(c as any).master_content_id
+        !c.master_content_id
     ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
     if (studentContentsWithoutMasterId.length > 0) {

@@ -6,6 +6,7 @@ import { getSubjectById } from "@/lib/data/subjects";
 import { ScoreForm } from "../../_components/ScoreForm";
 import { getContainerClass } from "@/lib/constants/layout";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import type { InternalScore, MockScore } from "@/lib/data/studentScores";
 
 type ScoreRow = {
   id: string;
@@ -27,7 +28,7 @@ type EditScorePageProps = {
  * 내신 성적을 레거시 ScoreRow 형태로 변환
  */
 function convertInternalScoreToLegacy(
-  score: any,
+  score: InternalScore,
   subject: { name: string; subjectGroup: { name: string } } | null
 ): ScoreRow {
   return {
@@ -47,7 +48,7 @@ function convertInternalScoreToLegacy(
  * 모의고사 성적을 레거시 ScoreRow 형태로 변환
  */
 function convertMockScoreToLegacy(
-  score: any,
+  score: MockScore,
   subject: { name: string; subjectGroup: { name: string } } | null
 ): ScoreRow {
   return {

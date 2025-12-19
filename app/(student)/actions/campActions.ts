@@ -12,6 +12,7 @@ import { createPlanGroupAction } from "./planGroupActions";
 import { WizardData } from "../plan/new-group/_components/PlanGroupWizard";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SchedulerOptions } from "@/lib/types/plan";
 
 /**
  * 학생의 캠프 초대 목록 조회
@@ -598,7 +599,7 @@ export const submitCampParticipation = withErrorHandling(
         (c) => !c.master_content_id
       ).length,
       contentsWithDetailIds: creationData.contents.filter(
-        (c) => (c as any).start_detail_id || (c as any).end_detail_id
+        (c) => ("start_detail_id" in c && c.start_detail_id) || ("end_detail_id" in c && c.end_detail_id)
       ).length,
     });
 
@@ -610,7 +611,12 @@ export const submitCampParticipation = withErrorHandling(
     // template_block_set_id는 이미 mergedData.scheduler_options에 추가되어 있음
     // syncWizardDataToCreationData에서 scheduler_options를 병합할 때 보존됨
     // 추가 확인: creationData.scheduler_options에 template_block_set_id가 있는지 확인
-    if (!(creationData.scheduler_options as any)?.template_block_set_id && blockSetId) {
+    type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
+      template_block_set_id?: string;
+    };
+    
+    const schedulerOptions = creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
+    if (!schedulerOptions?.template_block_set_id && blockSetId) {
       console.warn(
         "[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:",
         {
@@ -621,7 +627,7 @@ export const submitCampParticipation = withErrorHandling(
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
-      (creationData.scheduler_options as any).template_block_set_id =
+      (creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet).template_block_set_id =
         blockSetId;
       console.log(
         "[campActions] creationData.scheduler_options에 template_block_set_id 추가 완료:",
@@ -633,8 +639,7 @@ export const submitCampParticipation = withErrorHandling(
       console.log(
         "[campActions] creationData.scheduler_options에 template_block_set_id 확인됨:",
         {
-          template_block_set_id: (creationData.scheduler_options as any)
-            ?.template_block_set_id,
+          template_block_set_id: schedulerOptions?.template_block_set_id,
         }
       );
     }
@@ -757,12 +762,15 @@ export const submitCampParticipation = withErrorHandling(
         camp_invitation_id: invitationId,
       };
 
+      type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
+        template_block_set_id?: string;
+      };
+      
+      const updateSchedulerOptions = updateData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
       console.log("[campActions] 플랜 그룹 업데이트 전 최종 데이터 확인:", {
         scheduler_options: updateData.scheduler_options,
-        has_template_block_set_id: !!(updateData.scheduler_options as any)
-          ?.template_block_set_id,
-        template_block_set_id: (updateData.scheduler_options as any)
-          ?.template_block_set_id,
+        has_template_block_set_id: !!updateSchedulerOptions?.template_block_set_id,
+        template_block_set_id: updateSchedulerOptions?.template_block_set_id,
       });
 
       await updatePlanGroupDraftAction(existingGroup.id, updateData);
@@ -831,12 +839,15 @@ export const submitCampParticipation = withErrorHandling(
         camp_invitation_id: invitationId,
       };
 
+      type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
+        template_block_set_id?: string;
+      };
+      
+      const planGroupSchedulerOptions = planGroupData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
       console.log("[campActions] 플랜 그룹 생성 전 최종 데이터 확인:", {
         scheduler_options: planGroupData.scheduler_options,
-        has_template_block_set_id: !!(planGroupData.scheduler_options as any)
-          ?.template_block_set_id,
-        template_block_set_id: (planGroupData.scheduler_options as any)
-          ?.template_block_set_id,
+        has_template_block_set_id: !!planGroupSchedulerOptions?.template_block_set_id,
+        template_block_set_id: planGroupSchedulerOptions?.template_block_set_id,
       });
 
       const result = await createPlanGroupAction(planGroupData, {

@@ -205,7 +205,7 @@ export function RescheduleWizard({
             contents={contents}
             existingPlans={existingPlans.map((p) => ({
               ...p,
-              plan_date: (p as any).plan_date || "",
+              plan_date: "plan_date" in p && typeof p.plan_date === "string" ? p.plan_date : "",
             }))}
             onComplete={handleStep1Complete}
             initialDateRange={initialDateRange}
@@ -222,7 +222,7 @@ export function RescheduleWizard({
             groupPeriodEnd={group.period_end}
             existingPlans={existingPlans.map((p) => ({
               ...p,
-              plan_date: (p as any).plan_date || "",
+              plan_date: "plan_date" in p && typeof p.plan_date === "string" ? p.plan_date : "",
             }))}
           />
         )}

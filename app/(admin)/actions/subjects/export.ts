@@ -8,6 +8,7 @@ import {
   getSubjectGroups,
   getSubjectsByGroup,
   getSubjectTypes,
+  type Subject,
 } from "@/lib/data/subjects";
 
 /**
@@ -32,7 +33,7 @@ export async function exportSubjectsToExcel(): Promise<Buffer> {
   const allSubjectGroups = await getSubjectGroups();
 
   // 3. 과목 조회 (모든 교과 그룹)
-  const allSubjects: any[] = [];
+  const allSubjects: Subject[] = [];
   for (const group of allSubjectGroups) {
     const subjects = await getSubjectsByGroup(group.id);
     allSubjects.push(...subjects);

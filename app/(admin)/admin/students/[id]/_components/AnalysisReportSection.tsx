@@ -82,7 +82,13 @@ export async function AnalysisReportSection({
             <div className="space-y-2">
               {analysis.riskAnalysis
                 .slice(0, 5)
-                .map((risk: any, index: number) => {
+                .map((risk: {
+                  subject: string;
+                  risk_score: number;
+                  recent_grade_trend: number | null;
+                  consistency_score: number | null;
+                  mastery_estimate: number | null;
+                }, index: number) => {
                   const riskLevel =
                     risk.risk_score >= 70
                       ? "high"
