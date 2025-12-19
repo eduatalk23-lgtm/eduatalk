@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { StudentPlanRow } from '@/lib/types/plan';
 
 // ============================================
 // 타입 정의
@@ -29,7 +30,7 @@ export interface PlanVersionHistory {
   version: number;
   is_active: boolean;
   created_at: string;
-  plan_data: any; // 플랜 전체 데이터
+  plan_data: StudentPlanRow; // 플랜 전체 데이터
 }
 
 // ============================================
@@ -48,7 +49,7 @@ export interface PlanVersionHistory {
 export async function getLatestVersionPlan(
   supabase: SupabaseClient,
   versionGroupId: string
-): Promise<any | null> {
+): Promise<StudentPlanRow | null> {
   const { data, error } = await supabase
     .from('student_plan')
     .select('*')
@@ -77,7 +78,7 @@ export async function getLatestVersionPlan(
 export async function getActiveVersionPlan(
   supabase: SupabaseClient,
   versionGroupId: string
-): Promise<any | null> {
+): Promise<StudentPlanRow | null> {
   const { data, error } = await supabase
     .from('student_plan')
     .select('*')
@@ -103,9 +104,12 @@ export async function getActiveVersionPlan(
  * @returns 새 버전 플랜 데이터
  */
 export function createNewVersion(
-  originalPlan: any,
-  changes: Partial<any>
-): any {
+  originalPlan: StudentPlanRow,
+  changes: Partial<StudentPlanRow>
+): Omit<StudentPlanRow, 'id' | 'created_at' | 'updated_at'> & {
+  version: number;
+  is_active: boolean;
+} {
   // 최신 버전 번호 계산
   const newVersion = (originalPlan.version || 1) + 1;
 
@@ -133,7 +137,7 @@ export function createNewVersion(
 export async function getVersionHistory(
   supabase: SupabaseClient,
   versionGroupId: string
-): Promise<any[]> {
+): Promise<StudentPlanRow[]> {
   const { data, error } = await supabase
     .from('student_plan')
     .select('*')

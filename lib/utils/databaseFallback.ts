@@ -4,6 +4,8 @@
  * 다양한 에러 타입에 대한 fallback 처리를 지원합니다.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError } from "@supabase/supabase-js";
 import { ErrorCodeCheckers, POSTGREST_ERROR_CODES, POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 /**
@@ -12,7 +14,7 @@ import { ErrorCodeCheckers, POSTGREST_ERROR_CODES, POSTGRES_ERROR_CODES } from "
  * 
  * @deprecated ErrorCodeCheckers.isColumnNotFound 사용 권장
  */
-export function isColumnMissingError(error: any): boolean {
+export function isColumnMissingError(error: unknown): boolean {
   return ErrorCodeCheckers.isColumnNotFound(error);
 }
 
@@ -22,7 +24,7 @@ export function isColumnMissingError(error: any): boolean {
  * 
  * @deprecated ErrorCodeCheckers.isViewNotFound 사용 권장
  */
-export function isViewNotFoundError(error: any): boolean {
+export function isViewNotFoundError(error: unknown): boolean {
   return ErrorCodeCheckers.isViewNotFound(error);
 }
 
@@ -34,7 +36,7 @@ export function isViewNotFoundError(error: any): boolean {
  * @returns View 존재 여부
  */
 export async function checkViewExists(
-  supabase: any,
+  supabase: SupabaseClient,
   viewName: string
 ): Promise<boolean> {
   try {
@@ -85,11 +87,11 @@ export async function checkViewExists(
  * );
  * ```
  */
-export async function withErrorFallback<T, E = any>(
-  operation: () => Promise<{ data: T | null; error: E }>,
-  fallbackOperation: () => Promise<{ data: T | null; error: E }>,
+export async function withErrorFallback<T, E = PostgrestError>(
+  operation: () => Promise<{ data: T | null; error: E | null }>,
+  fallbackOperation: () => Promise<{ data: T | null; error: E | null }>,
   shouldFallback: (error: E) => boolean
-): Promise<{ data: T | null; error: E }> {
+): Promise<{ data: T | null; error: E | null }> {
   const result = await operation();
   
   if (result.error && shouldFallback(result.error)) {
@@ -115,10 +117,10 @@ export async function withErrorFallback<T, E = any>(
  * @returns 쿼리 결과
  */
 export async function withColumnFallback<T>(
-  query: () => Promise<{ data: T | null; error: any }>,
-  fallbackQuery: () => Promise<{ data: T | null; error: any }>,
+  query: () => Promise<{ data: T | null; error: PostgrestError | null }>,
+  fallbackQuery: () => Promise<{ data: T | null; error: PostgrestError | null }>,
   missingColumn: string
-): Promise<{ data: T | null; error: any }> {
+): Promise<{ data: T | null; error: PostgrestError | null }> {
   return withErrorFallback(
     query,
     fallbackQuery,
@@ -179,7 +181,7 @@ export function assignBlockIndex<T extends { start_time: string }>(
  * @returns 블록 데이터 (block_index 포함)
  */
 export async function fetchBlocksWithFallback(
-  queryClient: any,
+  queryClient: SupabaseClient,
   filters: {
     block_set_id?: string | null;
     student_id: string;
@@ -193,7 +195,7 @@ export async function fetchBlocksWithFallback(
     end_time: string;
     block_index: number;
   }> | null;
-  error: any;
+  error: PostgrestError | null;
 }> {
   const baseQuery = queryClient
     .from("student_block_schedule")
