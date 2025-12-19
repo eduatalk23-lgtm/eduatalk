@@ -19,6 +19,14 @@ import {
   withErrorHandling,
   getUserFacingMessage,
 } from "@/lib/errors";
+import type {
+  CampTemplateUpdate,
+  CampInvitation,
+  CampInvitationUpdate,
+} from "@/lib/domains/camp/types";
+import type { SchedulerOptions, PlanContentInsert } from "@/lib/types/plan";
+import type { RecommendationMetadata } from "@/lib/types/content-selection";
+import type { Tables } from "@/lib/supabase/database.types";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import {
   linkBlockSetToTemplate,
@@ -667,25 +675,17 @@ export const updateCampTemplateAction = withErrorHandling(
     }
 
     const supabase = await createSupabaseServerClient();
-    const updateData: any = {
+    const updateData: CampTemplateUpdate = {
       name,
-      description,
-      program_type: programType,
-      status: status || "draft",
-      template_data: templateDataWithoutBlockSetId, // block_set_id 제거된 데이터
+      description: description || null,
+      program_type: (programType as CampTemplateUpdate["program_type"]) || null,
+      status: (status || "draft") as CampTemplateUpdate["status"],
+      template_data: templateDataWithoutBlockSetId as CampTemplateUpdate["template_data"], // block_set_id 제거된 데이터
       updated_at: new Date().toISOString(),
+      camp_start_date: campStartDate || null,
+      camp_end_date: campEndDate || null,
+      camp_location: campLocation || null,
     };
-
-    // 날짜/장소 필드 추가
-    if (campStartDate !== null) {
-      updateData.camp_start_date = campStartDate || null;
-    }
-    if (campEndDate !== null) {
-      updateData.camp_end_date = campEndDate || null;
-    }
-    if (campLocation !== null) {
-      updateData.camp_location = campLocation || null;
-    }
 
     const { error } = await supabase
       .from("camp_templates")
@@ -1100,11 +1100,19 @@ export const getCampInvitationsForTemplate = withErrorHandling(
     }
 
     // 학생 정보를 평탄화
-    const formattedInvitations = (invitations || []).map((invitation: any) => ({
+    type InvitationWithStudent = CampInvitation & {
+      students?: {
+        name: string | null;
+        grade: number | null;
+        class: string | null;
+      } | null;
+    };
+    
+    const formattedInvitations = (invitations || []).map((invitation: InvitationWithStudent) => ({
       ...invitation,
-      student_name: invitation.students?.name || null,
-      student_grade: invitation.students?.grade || null,
-      student_class: invitation.students?.class || null,
+      student_name: invitation.students?.name ?? null,
+      student_grade: invitation.students?.grade ?? null,
+      student_class: invitation.students?.class ?? null,
     }));
 
     return { success: true, invitations: formattedInvitations };
@@ -1482,7 +1490,7 @@ export const getCampPlanGroupForReview = withErrorHandling(
       } else {
         // block_set_id 찾기: 공통 함수 사용
         const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
-        const schedulerOptions = (result.group.scheduler_options as any) || {};
+        const schedulerOptions: SchedulerOptions = (result.group.scheduler_options as SchedulerOptions | null) ?? {};
         const tenantBlockSetId = await getTemplateBlockSetId(
           result.group.camp_template_id,
           schedulerOptions
@@ -1863,7 +1871,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         
         // 캠프 모드에서 템플릿 블록 세트 ID 조회 (공통 함수 사용)
         const { getTemplateBlockSetId } = await import("@/lib/plan/blocks");
-        const schedulerOptions = (result.group.scheduler_options as any) || {};
+        const schedulerOptions: SchedulerOptions = (result.group.scheduler_options as SchedulerOptions | null) ?? {};
         const tenantBlockSetId = await getTemplateBlockSetId(
           result.group.camp_template_id,
           schedulerOptions
@@ -2015,29 +2023,20 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
 
         // 병합할 콘텐츠 목록 생성
-        const contentsToSave: Array<{
-          content_type: string;
-          content_id: string;
-          start_range: number;
-          end_range: number;
-          display_order: number;
-          master_content_id?: string | null;
-          is_auto_recommended?: boolean;
-          recommendation_source?: "auto" | "admin" | "template" | null;
-          recommendation_reason?: string | null;
-          recommendation_metadata?: any;
-        }> = [];
+        const contentsToSave: PlanContentInsert[] = [];
         
         // 학생 콘텐츠 처리
         if (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length > 0) {
           // wizardData의 student_contents를 creationData 형식으로 변환하여 추가
-          const studentContentsForCreation = wizardData.student_contents.map((c, idx) => ({
+          const studentContentsForCreation: PlanContentInsert[] = wizardData.student_contents.map((c, idx) => ({
+            tenant_id: tenantContext.tenantId,
+            plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
             start_range: c.start_range,
             end_range: c.end_range,
             display_order: idx,
-            master_content_id: (c as any).master_content_id || null,
+            master_content_id: c.master_content_id ?? null,
             is_auto_recommended: false, // 학생 콘텐츠는 항상 false
             recommendation_source: null,
             recommendation_reason: null,
@@ -2050,13 +2049,15 @@ export const continueCampStepsForAdmin = withErrorHandling(
         ) {
           // wizardData에 student_contents가 없거나 빈 배열인 경우 기존 학생 콘텐츠 보존
           // 빈 배열을 전달하면 hasStudentContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
-          const preservedStudentContents = existingStudentContents.map((c) => ({
+          const preservedStudentContents: PlanContentInsert[] = existingStudentContents.map((c) => ({
+            tenant_id: tenantContext.tenantId,
+            plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
             start_range: c.start_range,
             end_range: c.end_range,
             display_order: c.display_order ?? 0,
-            master_content_id: (c as any).master_content_id || null,
+            master_content_id: c.master_content_id ?? null,
             is_auto_recommended: false, // 학생 콘텐츠는 항상 false
             recommendation_source: null,
             recommendation_reason: null,
@@ -2077,28 +2078,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
         if (hasRecommendedContents && wizardData.recommended_contents && wizardData.recommended_contents.length > 0) {
           // wizardData의 recommended_contents를 creationData 형식으로 변환하여 추가
           // 관리자가 추가하는 경우는 항상 is_auto_recommended: false, recommendation_source: "admin"으로 강제 설정
-          const recommendedContentsForCreation: Array<{
-            content_type: string;
-            content_id: string;
-            start_range: number;
-            end_range: number;
-            display_order: number;
-            master_content_id?: string | null;
-            is_auto_recommended?: boolean;
-            recommendation_source?: "auto" | "admin" | "template" | null;
-            recommendation_reason?: string | null;
-            recommendation_metadata?: any;
-          }> = wizardData.recommended_contents.map((c, idx) => ({
+          const recommendedContentsForCreation: PlanContentInsert[] = wizardData.recommended_contents.map((c, idx) => ({
+            tenant_id: tenantContext.tenantId,
+            plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
             start_range: c.start_range,
             end_range: c.end_range,
-            display_order: (contentsToSave.length + idx),
-            master_content_id: (c as any).master_content_id || null,
+            display_order: contentsToSave.length + idx,
+            master_content_id: (c as { master_content_id?: string | null }).master_content_id ?? null,
             is_auto_recommended: false, // 관리자 추가는 항상 false
-            recommendation_source: "admin" as const, // 관리자 추가는 항상 "admin"으로 강제 설정
-            recommendation_reason: (c as any).recommendation_reason || null,
-            recommendation_metadata: (c as any).recommendation_metadata || null,
+            recommendation_source: "admin", // 관리자 추가는 항상 "admin"으로 강제 설정
+            recommendation_reason: c.recommendation_reason ?? null,
+            recommendation_metadata: (c.recommendation_metadata as RecommendationMetadata | null) ?? null,
           }));
           contentsToSave.push(...recommendedContentsForCreation);
         } else if (
@@ -2107,17 +2099,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
         ) {
           // wizardData에 recommended_contents가 없거나 빈 배열인 경우 기존 추천 콘텐츠 보존
           // 빈 배열을 전달하면 hasRecommendedContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
-          const preservedRecommendedContents = existingRecommendedContents.map((c) => ({
+          const preservedRecommendedContents: PlanContentInsert[] = existingRecommendedContents.map((c) => ({
+            tenant_id: tenantContext.tenantId,
+            plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
             start_range: c.start_range,
             end_range: c.end_range,
-            display_order: (contentsToSave.length + (c.display_order ?? 0)),
-            master_content_id: (c as any).master_content_id || null,
+            display_order: contentsToSave.length + (c.display_order ?? 0),
+            master_content_id: c.master_content_id ?? null,
             is_auto_recommended: c.is_auto_recommended ?? false,
-            recommendation_source: c.recommendation_source || null,
-            recommendation_reason: (c as any).recommendation_reason || null,
-            recommendation_metadata: (c as any).recommendation_metadata || null,
+            recommendation_source: c.recommendation_source ?? null,
+            recommendation_reason: c.recommendation_reason ?? null,
+            recommendation_metadata: (c.recommendation_metadata as RecommendationMetadata | null) ?? null,
           }));
           contentsToSave.push(...preservedRecommendedContents);
           
@@ -2150,7 +2144,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
             is_auto_recommended?: boolean;
             recommendation_source?: "auto" | "admin" | "template" | null;
             recommendation_reason?: string | null;
-            recommendation_metadata?: any;
+            recommendation_metadata?: RecommendationMetadata | null;
           }> = [];
 
           for (const content of contentsToSave) {
@@ -2305,12 +2299,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
             }
 
             if (isValidContent) {
-              const contentWithRecommendation = content as typeof content & {
-                is_auto_recommended?: boolean;
-                recommendation_source?: "auto" | "admin" | "template" | string | null;
-                recommendation_reason?: string | null;
-                recommendation_metadata?: any;
-              };
+            const contentWithRecommendation = content as typeof content & {
+              is_auto_recommended?: boolean;
+              recommendation_source?: "auto" | "admin" | "template" | string | null;
+              recommendation_reason?: string | null;
+              recommendation_metadata?: RecommendationMetadata | null;
+            };
               const recommendationSource = contentWithRecommendation.recommendation_source;
               const validRecommendationSource: "auto" | "admin" | "template" | null = 
                 recommendationSource === "auto" || recommendationSource === "admin" || recommendationSource === "template"
@@ -2326,7 +2320,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 is_auto_recommended: contentWithRecommendation.is_auto_recommended ?? false,
                 recommendation_source: validRecommendationSource,
                 recommendation_reason: contentWithRecommendation.recommendation_reason || null,
-                recommendation_metadata: contentWithRecommendation.recommendation_metadata || null,
+                recommendation_metadata: contentWithRecommendation.recommendation_metadata ?? null,
               });
             }
           }
@@ -2855,7 +2849,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 is_auto_recommended: boolean;
                 recommendation_source: "auto" | "admin" | "template" | null;
                 recommendation_reason: string | null;
-                recommendation_metadata: any;
+                recommendation_metadata: RecommendationMetadata | null;
               }> = validContents.map((c, idx) => {
                 const isRecommended = recommendedContentIds.has(c.content_id) || 
                   (c.master_content_id && recommendedContentIds.has(c.master_content_id));
@@ -2875,8 +2869,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   master_content_id: c.master_content_id || null,
                   is_auto_recommended: false, // 관리자 추가는 항상 false
                   recommendation_source: (isRecommended ? "admin" : null) as "auto" | "admin" | "template" | null, // 관리자 추가는 항상 "admin"으로 강제 설정
-                  recommendation_reason: (recommendedContent as any)?.recommendation_reason ?? null,
-                  recommendation_metadata: (recommendedContent as any)?.recommendation_metadata ?? null,
+                  recommendation_reason: recommendedContent?.recommendation_reason ?? null,
+                  recommendation_metadata: (recommendedContent?.recommendation_metadata as RecommendationMetadata | null) ?? null,
                 };
               });
 

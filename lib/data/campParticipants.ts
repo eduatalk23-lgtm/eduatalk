@@ -3,6 +3,7 @@
  */
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { CampInvitation } from "@/lib/domains/camp/types";
 
 export type Participant = {
   invitation_id: string;
@@ -146,7 +147,7 @@ async function loadPlanGroupsForTemplate(
   );
 
   if (invitationsWithPlanGroups.length > 0) {
-    const studentIds = invitationsWithPlanGroups.map((inv: any) => inv.student_id);
+    const studentIds = invitationsWithPlanGroups.map((inv: CampInvitation) => inv.student_id);
     const { data: method2Data, error: method2Error } = await supabase
       .from("plan_groups")
       .select(
@@ -201,7 +202,7 @@ async function getInvitationIdsForTemplate(
     .select("id")
     .eq("camp_template_id", templateId);
 
-  return (invitations || []).map((inv: any) => inv.id);
+  return (invitations || []).map((inv: CampInvitation) => inv.id);
 }
 
 /**
@@ -210,14 +211,14 @@ async function getInvitationIdsForTemplate(
 async function getInvitationsForFallback(
   templateId: string,
   supabase: ReturnType<typeof createSupabaseBrowserClient>
-): Promise<any[]> {
+): Promise<CampInvitation[]> {
   const { data: invitations } = await supabase
     .from("camp_invitations")
     .select("id, student_id, status")
     .eq("camp_template_id", templateId)
     .in("status", ["accepted", "pending"]);
 
-  return invitations || [];
+  return (invitations as CampInvitation[] | null) ?? [];
 }
 
 /**
@@ -225,7 +226,7 @@ async function getInvitationsForFallback(
  */
 async function updateMissingInvitationIds(
   planGroups: PlanGroupData[],
-  invitations: any[],
+  invitations: CampInvitation[],
   supabase: ReturnType<typeof createSupabaseBrowserClient>
 ): Promise<void> {
   const groupsToUpdate: Array<{
@@ -238,10 +239,10 @@ async function updateMissingInvitationIds(
       // student_id로 매칭되는 초대 찾기 (accepted 우선, 없으면 pending)
       const matchingInvitation =
         invitations.find(
-          (inv: any) => inv.student_id === pg.student_id && inv.status === "accepted"
+          (inv) => inv.student_id === pg.student_id && inv.status === "accepted"
         ) ||
         invitations.find(
-          (inv: any) => inv.student_id === pg.student_id && inv.status === "pending"
+          (inv) => inv.student_id === pg.student_id && inv.status === "pending"
         );
 
       if (matchingInvitation) {
@@ -374,7 +375,15 @@ function mergeParticipantData(
   });
 
   // 데이터 병합
-  const data = invitationsData.map((invitation: any) => {
+  type InvitationWithStudent = CampInvitation & {
+    students?: {
+      name: string | null;
+      grade: number | null;
+      class: string | null;
+    } | null;
+  };
+  
+  const data = (invitationsData as InvitationWithStudent[] | null)?.map((invitation) => {
     let planGroup = planGroupsMap.get(invitation.id);
 
     // camp_invitation_id로 매핑되지 않은 경우, student_id로 fallback 시도
@@ -384,7 +393,7 @@ function mergeParticipantData(
         // 가장 최근 플랜 그룹 선택 (camp_template_id가 일치하는 것 우선)
         const matchingGroup =
           studentPlanGroups.find(
-            (pg: any) => pg.camp_template_id === templateId
+            (pg) => pg.camp_template_id === templateId
           ) || studentPlanGroups[0];
 
         planGroup = matchingGroup;
@@ -409,10 +418,10 @@ function mergeParticipantData(
       ...invitation,
       plan_group: planGroup || null,
     };
-  });
+  }) ?? [];
 
   // 데이터 변환
-  return data.map((invitation: any) => {
+  return data.map((invitation) => {
     // pending 상태이지만 플랜 그룹이 있는 경우: 제출 완료 상태로 표시
     const isSubmitted =
       invitation.status === "pending" && invitation.plan_group !== null;

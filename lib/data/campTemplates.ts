@@ -5,6 +5,10 @@ import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
 import { applyFilters, type FilterConfig } from "@/lib/utils/supabaseQueryBuilder";
+import type {
+  CampTemplateUpdate,
+  CampInvitationUpdate,
+} from "@/lib/domains/camp/types";
 
 /**
  * 캠프 템플릿 조회
@@ -320,16 +324,12 @@ export async function updateCampInvitationStatus(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const updateData: any = {
+  const updateData: CampInvitationUpdate = {
     status,
     updated_at: new Date().toISOString(),
+    accepted_at: status === "accepted" ? new Date().toISOString() : null,
+    declined_at: status === "declined" ? new Date().toISOString() : null,
   };
-
-  if (status === "accepted") {
-    updateData.accepted_at = new Date().toISOString();
-  } else {
-    updateData.declined_at = new Date().toISOString();
-  }
 
   const { error } = await supabase
     .from("camp_invitations")
@@ -370,12 +370,20 @@ export async function getCampInvitationsForTemplate(
   }
 
   // 학생 정보를 평탄화
-  return (data || []).map((invitation: any) => ({
+  type InvitationWithStudent = CampInvitation & {
+    students?: {
+      name: string | null;
+      grade: number | null;
+      class: string | null;
+    } | null;
+  };
+  
+  return (data as InvitationWithStudent[] | null)?.map((invitation) => ({
     ...invitation,
-    student_name: invitation.students?.name || null,
-    student_grade: invitation.students?.grade || null,
-    student_class: invitation.students?.class || null,
-  }));
+    student_name: invitation.students?.name ?? null,
+    student_grade: invitation.students?.grade ?? null,
+    student_class: invitation.students?.class ?? null,
+  })) ?? [];
 }
 
 /**
@@ -451,12 +459,20 @@ export async function getCampInvitationsForTemplateWithPagination(
     }
 
     // 학생 정보를 평탄화
-    let items = (data || []).map((invitation: any) => ({
+    type InvitationWithStudent = CampInvitation & {
+      students?: {
+        name: string | null;
+        grade: number | null;
+        class: string | null;
+      } | null;
+    };
+    
+    let items = (data as InvitationWithStudent[] | null)?.map((invitation) => ({
       ...invitation,
-      student_name: invitation.students?.name || null,
-      student_grade: invitation.students?.grade || null,
-      student_class: invitation.students?.class || null,
-    }));
+      student_name: invitation.students?.name ?? null,
+      student_grade: invitation.students?.grade ?? null,
+      student_class: invitation.students?.class ?? null,
+    })) ?? [];
 
     // 학생명 검색 필터 (클라이언트 사이드에서 처리 - Supabase의 관계형 쿼리에서 ilike 사용이 복잡함)
     if (filters.search?.trim()) {

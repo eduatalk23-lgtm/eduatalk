@@ -11,6 +11,8 @@ import {
   type RecipientType,
 } from "@/lib/utils/studentFilterUtils";
 import type { RecipientType as SMSRecipientType } from "./SMSFilterPanel";
+import { mapStudentSearchResults, mapToStudentType } from "@/lib/utils/studentSearchMapper";
+import type { StudentSearchApiResponse } from "@/lib/domains/student/types";
 
 type SingleRecipientSearchProps = {
   students: Student[];
@@ -65,17 +67,11 @@ export function SingleRecipientSearch({
       
       if (result.success && result.data?.students) {
         // 검색 결과를 Student 타입으로 변환
-        const searchResults: Student[] = result.data.students.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          grade: s.grade,
-          class: s.class,
-          division: s.division,
-          phone: s.phone,
-          mother_phone: s.mother_phone,
-          father_phone: s.father_phone,
-          is_active: true,
-        }));
+        const searchResults = mapToStudentType(
+          mapStudentSearchResults(
+            result.data.students as StudentSearchApiResponse[]
+          )
+        );
 
         setFilteredStudents(searchResults);
 

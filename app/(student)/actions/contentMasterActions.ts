@@ -14,13 +14,14 @@ import {
 import { searchMasterBooks, searchMasterLectures } from "@/lib/data/contentMasters";
 import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import type { ContentMasterSearchResult } from "@/lib/types/content-selection";
 
 /**
  * 콘텐츠 마스터 검색
  */
 async function _searchContentMasters(
   filters: ContentMasterFilters
-): Promise<{ data: any[]; total: number }> {
+): Promise<{ data: ContentMasterSearchResult[]; total: number }> {
   const user = await getCurrentUser();
   const { role } = await getCurrentUserRole();
   if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {

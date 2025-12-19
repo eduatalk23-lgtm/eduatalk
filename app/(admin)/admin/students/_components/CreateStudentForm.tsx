@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useController } from "react-hook-form";
+import type { FormControl } from "@/lib/types/forms";
 import { DialogFooter } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
@@ -186,7 +187,7 @@ function BasicInfoTab({
   schoolType,
   setSchoolType,
 }: {
-  control: any;
+  control: FormControl<CreateStudentFormData>;
   schoolType?: "중학교" | "고등학교" | undefined;
   setSchoolType: (type: "중학교" | "고등학교" | undefined) => void;
 }) {
@@ -308,7 +309,7 @@ function BasicInfoTab({
 }
 
 // 프로필 정보 탭
-function ProfileInfoTab({ control }: { control: any }) {
+function ProfileInfoTab({ control }: { control: FormControl<CreateStudentFormData> }) {
   const genderField = useController({
     name: "gender",
     control,
@@ -403,7 +404,7 @@ function ProfileInfoTab({ control }: { control: any }) {
 }
 
 // 진로 정보 탭
-function CareerInfoTab({ control }: { control: any }) {
+function CareerInfoTab({ control }: { control: FormControl<CreateStudentFormData> }) {
   const examYearField = useController({
     name: "exam_year",
     control,

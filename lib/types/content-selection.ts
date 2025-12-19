@@ -14,6 +14,49 @@ import type { ContentType, ExclusionType } from "@/lib/types/common";
 export type { ContentType, ExclusionType };
 
 // ============================================================================
+// 콘텐츠 마스터 검색 결과 타입
+// ============================================================================
+
+/**
+ * 콘텐츠 마스터 검색 결과 (공통 필드)
+ */
+export type ContentMasterSearchResultBase = {
+  id: string;
+  title: string;
+  subject_category: string | null;
+  subject: string | null;
+  semester: string | null;
+  revision: string | null;
+  difficulty_level: string | null;
+  publisher?: string | null;
+  platform?: string | null;
+  content_type: "book" | "lecture";
+};
+
+/**
+ * 교재 마스터 검색 결과
+ */
+export type BookMasterSearchResult = ContentMasterSearchResultBase & {
+  content_type: "book";
+  total_pages: number | null;
+  publisher?: string | null;
+};
+
+/**
+ * 강의 마스터 검색 결과
+ */
+export type LectureMasterSearchResult = ContentMasterSearchResultBase & {
+  content_type: "lecture";
+  total_episodes: number | null;
+  platform?: string | null;
+};
+
+/**
+ * 콘텐츠 마스터 검색 결과 (통합)
+ */
+export type ContentMasterSearchResult = BookMasterSearchResult | LectureMasterSearchResult;
+
+// ============================================================================
 // 콘텐츠 관련 타입
 // ============================================================================
 
@@ -85,6 +128,23 @@ export type ContentRange = {
 // ============================================================================
 // 추천 콘텐츠 관련 타입
 // ============================================================================
+
+/**
+ * 추천 메타데이터 타입
+ * 
+ * plan_contents.recommendation_metadata JSONB 필드에 저장되는 구조
+ */
+export type RecommendationMetadata = {
+  scoreDetails?: {
+    schoolGrade?: number | null;
+    schoolAverageGrade?: number | null;
+    mockPercentile?: number | null;
+    mockGrade?: number | null;
+    riskScore?: number;
+  };
+  priority?: number;
+  [key: string]: unknown; // 확장 가능한 필드
+};
 
 /**
  * 추천 콘텐츠

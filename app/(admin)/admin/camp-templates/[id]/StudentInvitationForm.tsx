@@ -5,6 +5,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { sendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { extractUniqueGrades, extractUniqueClasses, type Student, type StudentFilter } from "@/lib/utils/studentFilterUtils";
+import { mapStudentSearchResults, mapToStudentType } from "@/lib/utils/studentSearchMapper";
+import type { StudentSearchApiResponse } from "@/lib/domains/student/types";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type StudentInvitationFormProps = {
@@ -75,7 +77,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         // 에러 객체의 모든 열거 가능한 속성 추출
         try {
           Object.keys(studentsError).forEach((key) => {
-            const value = (studentsError as Record<string, unknown>)[key];
+            const value = (studentsError as unknown as Record<string, unknown>)[key];
             // 순환 참조 방지 및 직렬화 가능한 값만 포함
             if (value !== null && typeof value !== "function" && typeof value !== "object") {
               errorInfo[key] = value;
@@ -268,17 +270,11 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
 
       if (result.success && result.data?.students) {
         // 검색 결과를 Student 타입으로 변환
-        const searchResults_: Student[] = result.data.students.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          grade: s.grade,
-          class: s.class,
-          division: s.division,
-          phone: s.phone,
-          mother_phone: s.mother_phone,
-          father_phone: s.father_phone,
-          is_active: s.is_active ?? true,
-        }));
+        const searchResults_ = mapToStudentType(
+          mapStudentSearchResults(
+            result.data.students as StudentSearchApiResponse[]
+          )
+        );
 
         setSearchResults(searchResults_);
       } else {
@@ -472,7 +468,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
               if (student) {
                 failedStudents.push({
                   id: studentId,
-                  name: student.name,
+                  name: student.name ?? "",
                   error: "초대 발송 실패 (이미 초대되었거나 오류 발생)",
                 });
               }
@@ -486,7 +482,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
             if (student) {
               failedStudents.push({
                 id: studentId,
-                name: student.name,
+                name: student.name ?? "",
                 error: result.error || "초대 발송 실패",
               });
             }
@@ -501,7 +497,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
           if (student) {
             failedStudents.push({
               id: studentId,
-              name: student.name,
+              name: student.name ?? "",
               error: errorMessage,
             });
           }
