@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import Button from "@/components/atoms/Button";
 import Select from "@/components/atoms/Select";
 import {
-  filterStudents,
   getPhoneByRecipientType,
   type Student,
   type RecipientType,
@@ -36,10 +35,67 @@ export function SingleRecipientSearch({
   const [searchQuery, setSearchQuery] = useState("");
   // 실제 검색 실행된 검색어
   const [executedSearchQuery, setExecutedSearchQuery] = useState("");
+  // 검색 결과 상태
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   // 검색 실행 함수
-  const handleSearch = () => {
-    setExecutedSearchQuery(searchQuery.trim());
+  const handleSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setFilteredStudents([]);
+      setExecutedSearchQuery("");
+      return;
+    }
+
+    setExecutedSearchQuery(query);
+    setIsSearching(true);
+
+    try {
+      // 통합 검색 API 호출
+      const response = await fetch(
+        `/api/students/search?q=${encodeURIComponent(query)}&limit=10`
+      );
+
+      if (!response.ok) {
+        throw new Error("검색에 실패했습니다.");
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data?.students) {
+        // 검색 결과를 Student 타입으로 변환
+        const searchResults: Student[] = result.data.students.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          grade: s.grade,
+          class: s.class,
+          division: s.division,
+          phone: s.phone,
+          mother_phone: s.mother_phone,
+          father_phone: s.father_phone,
+          is_active: true,
+        }));
+
+        setFilteredStudents(searchResults);
+
+        // 디버깅: 검색 결과 확인
+        if (process.env.NODE_ENV === "development") {
+          console.log("[SingleRecipientSearch] 검색 결과:", {
+            query,
+            resultCount: searchResults.length,
+            recipientType: recipientType || "mother",
+          });
+        }
+      } else {
+        setFilteredStudents([]);
+      }
+    } catch (error) {
+      console.error("[SingleRecipientSearch] 검색 오류:", error);
+      setFilteredStudents([]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   // Enter 키 처리
@@ -49,47 +105,6 @@ export function SingleRecipientSearch({
       handleSearch();
     }
   };
-
-  // 검색 필터링된 학생 목록 (공통 유틸리티 함수 사용)
-  // executedSearchQuery 기반으로 필터링
-  const filteredStudents = useMemo(() => {
-    if (!executedSearchQuery) {
-      return [];
-    }
-
-    const query = executedSearchQuery.toLowerCase().trim();
-
-    // 디버깅: 검색 전 학생 데이터 확인
-    if (process.env.NODE_ENV === "development") {
-      console.log("[SingleRecipientSearch] 검색 실행:", {
-        query,
-        totalStudents: students.length,
-        recipientType: recipientType || "mother",
-      });
-    }
-
-    // 공통 유틸리티 함수 사용
-    const results = filterStudents(students, { search: query }).slice(0, 10); // 최대 10개만 표시
-
-    // 디버깅: 검색 결과 확인
-    if (process.env.NODE_ENV === "development") {
-      console.log("[SingleRecipientSearch] 검색 결과:", {
-        query,
-        resultCount: results.length,
-        recipientType: recipientType || "mother",
-        results: results.map((s) => ({
-          name: s.name,
-          phone: s.phone,
-          mother_phone: s.mother_phone,
-          father_phone: s.father_phone,
-          grade: s.grade,
-          class: s.class,
-        })),
-      });
-    }
-
-    return results;
-  }, [students, executedSearchQuery, recipientType]);
 
   const handleSelect = (student: Student) => {
     const phone = getPhoneByRecipientType(student, recipientType as RecipientType);
@@ -138,9 +153,9 @@ export function SingleRecipientSearch({
           type="button"
           variant="primary"
           onClick={handleSearch}
-          disabled={!searchQuery.trim()}
+          disabled={!searchQuery.trim() || isSearching}
         >
-          검색
+          {isSearching ? "검색 중..." : "검색"}
         </Button>
       </div>
 

@@ -77,12 +77,32 @@ export default async function AdminConsultingPage({
     (students ?? []).map((s: StudentRow) => [s.id, s.name ?? "이름 없음"])
   );
 
-  // 검색 필터링 (학생 이름으로)
+  // 검색 필터링 (학생 이름으로 - 통합 검색 함수 사용)
   let filteredNotes = noteRows;
   if (searchQuery) {
+    // 통합 검색 함수로 학생 검색
+    const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
+    const { getTenantContext } = await import("@/lib/tenant/getTenantContext");
+    const tenantContext = await getTenantContext();
+    
+    const searchResult = await searchStudentsUnified({
+      query: searchQuery,
+      filters: {
+        isActive: true,
+      },
+      limit: 1000,
+      role: "admin",
+      tenantId: tenantContext?.tenantId ?? null,
+    });
+
+    const searchedStudentIds = new Set(searchResult.students.map((s) => s.id));
+
+    // 검색된 학생 ID와 노트 내용으로 필터링
     filteredNotes = noteRows.filter((note) => {
       const studentName = studentMap.get(note.student_id ?? "") ?? "";
-      return studentName.includes(searchQuery) || (note.note ?? "").includes(searchQuery);
+      const matchesStudent = searchedStudentIds.has(note.student_id ?? "");
+      const matchesNote = (note.note ?? "").includes(searchQuery);
+      return matchesStudent || matchesNote;
     });
   }
 

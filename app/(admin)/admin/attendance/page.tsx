@@ -60,19 +60,24 @@ async function AttendanceContent({
     status: statusFilter,
   };
 
-  // 학생명으로 필터링 (학생 ID 조회 필요)
+  // 학생명으로 필터링 (통합 검색 함수 사용)
+  let studentIdsForFilter: string[] = [];
   if (studentNameFilter) {
-    // 학생 검색 제한 제거: 충분히 큰 범위로 조회 (실제로는 대부분의 학원에서 1000명 이하)
-    const { data: students } = await supabase
-      .from("students")
-      .select("id")
-      .eq("tenant_id", tenantContext.tenantId)
-      .ilike("name", `%${studentNameFilter}%`)
-      .range(0, 999); // 1000명까지 조회 가능
+    const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
+    const searchResult = await searchStudentsUnified({
+      query: studentNameFilter,
+      filters: {
+        isActive: true,
+      },
+      limit: 1000, // 충분히 큰 범위로 조회
+      role: "admin",
+      tenantId: tenantContext.tenantId,
+    });
+    studentIdsForFilter = searchResult.students.map((s) => s.id);
 
-    if (students && students.length > 0) {
+    if (studentIdsForFilter.length > 0) {
       // 여러 학생 ID로 필터링
-      filters.student_ids = students.map((s) => s.id);
+      filters.student_ids = studentIdsForFilter;
     } else {
       // 학생이 없으면 빈 결과 반환
       filters.student_ids = ["00000000-0000-0000-0000-000000000000"]; // 존재하지 않는 ID

@@ -136,79 +136,118 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 검색 필터 (이름)
+    // 통합 검색 함수 사용 (이름 + 연락처 검색 지원)
+    let students: Array<{
+      id: string;
+      name: string | null;
+      grade: string | null;
+      division: StudentDivision | null;
+      phone: string | null;
+      mother_phone: string | null;
+      father_phone: string | null;
+    }> = [];
+
     if (search) {
-      query = query.ilike("name", `%${search}%`);
-    }
+      // 통합 검색 함수 사용
+      const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
+      const { getTenantContext } = await import("@/lib/tenant/getTenantContext");
+      const tenantContext = await getTenantContext();
 
-    const { data: students, error: studentsError } = await query;
+      const searchResult = await searchStudentsUnified({
+        query: search,
+        filters: {
+          grade: grades.length > 0 ? grades[0] : undefined, // 첫 번째 학년만 사용 (기존 로직 유지)
+          division: divisions.length > 0 ? divisions[0] : undefined,
+          isActive: true,
+        },
+        limit: 1000, // SMS 발송은 많은 학생을 조회할 수 있음
+        role: "admin",
+        tenantId: tenantContext?.tenantId ?? null,
+      });
 
-    if (studentsError) {
-      console.error("[SMS Students API] 학생 조회 실패:", studentsError);
-      return NextResponse.json(
-        {
+      students = searchResult.students.map((s) => ({
+        id: s.id,
+        name: s.name,
+        grade: s.grade,
+        division: s.division,
+        phone: s.phone,
+        mother_phone: s.mother_phone,
+        father_phone: s.father_phone,
+      }));
+    } else {
+      // 검색어가 없으면 기존 방식 사용
+      const { data: studentsData, error: studentsError } = await query;
+
+      if (studentsError) {
+        console.error("[SMS Students API] 학생 조회 실패:", studentsError);
+        return NextResponse.json(
+          {
+            recipients: [],
+            total: 0,
+            error: "학생 정보를 조회하는 중 오류가 발생했습니다.",
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!studentsData || studentsData.length === 0) {
+        return NextResponse.json({
           recipients: [],
           total: 0,
-          error: "학생 정보를 조회하는 중 오류가 발생했습니다.",
-        },
-        { status: 500 }
-      );
-    }
+        });
+      }
 
-    if (!students || students.length === 0) {
-      return NextResponse.json({
-        recipients: [],
-        total: 0,
+      // 학생 ID 목록 추출
+      const studentIds = studentsData.map((s) => s.id);
+
+      // 연락처 정보 일괄 조회
+      const phoneDataList = await getStudentPhonesBatch(studentIds);
+      const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
+
+      students = studentsData.map((s) => {
+        const phoneData = phoneDataMap.get(s.id);
+        return {
+          id: s.id,
+          name: s.name,
+          grade: s.grade,
+          division: s.division as StudentDivision | null,
+          phone: phoneData?.phone ?? null,
+          mother_phone: phoneData?.mother_phone ?? null,
+          father_phone: phoneData?.father_phone ?? null,
+        };
       });
     }
-
-    // 학생 ID 목록 추출
-    const studentIds = students.map((s) => s.id);
-
-    // 연락처 정보 일괄 조회
-    const phoneDataList = await getStudentPhonesBatch(studentIds);
-    const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
 
     // 연락처 단위로 recipients 생성
     const recipients: SMSRecipient[] = [];
 
     for (const student of students) {
-      const phoneData = phoneDataMap.get(student.id);
-      if (!phoneData) continue;
-
       // 각 recipientType에 대해 연락처가 있으면 추가
       for (const recipientType of recipientTypes) {
         let phone: string | null = null;
 
         switch (recipientType) {
           case "student":
-            phone = phoneData.phone;
+            phone = student.phone;
             break;
           case "mother":
-            phone = phoneData.mother_phone;
+            phone = student.mother_phone;
             break;
           case "father":
-            phone = phoneData.father_phone;
+            phone = student.father_phone;
             break;
         }
 
-        // 연락처가 있고, 검색어가 있으면 전화번호로도 검색
+        // 연락처가 있으면 추가 (통합 검색 함수에서 이미 필터링됨)
         if (phone) {
-          const matchesSearch =
-            !search ||
-            student.name?.toLowerCase().includes(search.toLowerCase()) ||
-            phone.includes(search);
-
-          if (matchesSearch) {
-            recipients.push({
-              studentId: student.id,
-              studentName: student.name || "이름 없음",
-              grade: student.grade || null,
-              division: (student.division as StudentDivision) || null,
-              recipientType,
-              phone,
-            });
-          }
+          recipients.push({
+            studentId: student.id,
+            studentName: student.name || "이름 없음",
+            grade: student.grade || null,
+            division: student.division || null,
+            recipientType,
+            phone,
+          });
         }
       }
     }

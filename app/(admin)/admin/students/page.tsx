@@ -73,36 +73,81 @@ export default async function AdminStudentsPage({
         }
       );
 
-  let query = selectStudents();
+  // 통합 검색 함수 사용 (이름 + 연락처 검색 지원)
+  let students: StudentRow[] = [];
+  let count = 0;
+  let error: { message: string; code: string; details?: string; hint?: string } | null = null;
 
   if (searchQuery) {
-    query = query.ilike("name", `%${searchQuery}%`);
+    // 통합 검색 함수 사용
+    const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
+    const { getTenantContext } = await import("@/lib/tenant/getTenantContext");
+    const tenantContext = await getTenantContext();
+    
+    const searchResult = await searchStudentsUnified({
+      query: searchQuery,
+      filters: {
+        grade: gradeFilter || undefined,
+        class: classFilter || undefined,
+        division: divisionFilter,
+        isActive: showInactiveFilter ? undefined : true,
+      },
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      role: "admin",
+      tenantId: tenantContext?.tenantId ?? null,
+    });
+
+    // 검색 결과를 StudentRow 형식으로 변환
+    students = searchResult.students.map((s) => ({
+      id: s.id,
+      name: s.name,
+      grade: s.grade,
+      class: s.class,
+      school_id: null,
+      school_type: null,
+      division: s.division,
+      created_at: null,
+      is_active: null,
+    })) as StudentRow[];
+    count = searchResult.total;
+  } else {
+    // 검색어가 없으면 기존 방식 사용
+    let query = selectStudents();
+
+    if (gradeFilter) {
+      query = query.eq("grade", gradeFilter);
+    }
+
+    if (classFilter) {
+      query = query.eq("class", classFilter);
+    }
+
+    // division 필터링
+    if (divisionFilter) {
+      query = query.eq("division", divisionFilter);
+    }
+
+    // is_active 필터링
+    if (!showInactiveFilter) {
+      query = query.eq("is_active", true);
+    }
+
+    // 페이지네이션 적용
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const result = await query;
+    students = (result.data as StudentRow[] | null) ?? [];
+    count = result.count ?? 0;
+    error = result.error ? {
+      message: result.error.message,
+      code: result.error.code,
+      details: result.error.details,
+      hint: result.error.hint,
+    } : null;
   }
-
-  if (gradeFilter) {
-    query = query.eq("grade", gradeFilter);
-  }
-
-  if (classFilter) {
-    query = query.eq("class", classFilter);
-  }
-
-  // division 필터링
-  if (divisionFilter) {
-    query = query.eq("division", divisionFilter);
-  }
-
-  // is_active 필터링
-  if (!showInactiveFilter) {
-    query = query.eq("is_active", true);
-  }
-
-  // 페이지네이션 적용
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-  query = query.range(from, to);
-
-  let { data: students, error, count } = await query;
 
   if (error) {
     console.error("[admin/students] 학생 목록 조회 실패", {

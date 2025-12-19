@@ -75,42 +75,27 @@ export async function searchStudentsForLink(
       (existingLinks || []).map((link) => link.student_id)
     );
 
-    // 학생 검색 (이름으로 검색)
-    const selectStudents = () =>
-      supabase
-        .from("students")
-        .select("id, name, grade, class")
-        .ilike("name", `%${searchQuery}%`)
-        .limit(10);
+    // 통합 검색 함수 사용 (이름 + 연락처 검색 지원)
+    const { searchStudentsUnified } = await import("@/lib/data/studentSearch");
+    
+    const searchResult = await searchStudentsUnified({
+      query: searchQuery,
+      filters: {
+        isActive: true,
+      },
+      limit: 10,
+      role: "parent",
+      excludeStudentIds: Array.from(excludedStudentIds),
+    });
 
-    let { data: students, error } = await selectStudents();
-
-    // 컬럼 없음 에러 처리 (42703)
-    if (error && error.code === "42703") {
-      ({ data: students, error } = await selectStudents());
-    }
-
-    if (error) {
-      console.error("[parent/linkRequest] 학생 검색 실패", error);
-      return {
-        success: false,
-        error: error.message || "학생 검색에 실패했습니다.",
-      };
-    }
-
-    if (!students) {
+    if (!searchResult.students) {
       return { success: true, data: [] };
     }
 
-    // 이미 연결되거나 요청 중인 학생 제외
-    const filtered = students.filter(
-      (student) => !excludedStudentIds.has(student.id)
-    );
-
     // 데이터 변환
-    const searchResults: SearchableStudent[] = filtered.map((student) => ({
+    const searchResults: SearchableStudent[] = searchResult.students.map((student) => ({
       id: student.id,
-      name: student.name,
+      name: student.name ?? null,
       grade: student.grade,
       class: student.class,
     }));
