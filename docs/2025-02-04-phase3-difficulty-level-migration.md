@@ -126,11 +126,40 @@
 
 ---
 
-## 🔄 다음 단계
+## ✅ Phase 3-4: UI 컴포넌트 타입 개선
 
-### Phase 3-4: UI 컴포넌트 타입 개선 (예정)
-- 폼 컴포넌트에서 `difficulty_level_id` 사용
-- 타입 정의 개선
+### 작업 내용
+
+**파일**: 
+- `app/(student)/contents/books/[id]/edit/BookEditForm.tsx`
+- `app/(student)/contents/lectures/[id]/edit/LectureEditForm.tsx`
+- `app/(student)/actions/contentActions.ts`
+- `lib/data/studentContents.ts`
+- `app/types/content.ts`
+- `lib/data/studentContents.ts` (타입 정의)
+
+1. **폼 컴포넌트 개선**
+   - 하드코딩된 난이도 옵션 제거
+   - `DifficultySelectField` 컴포넌트 사용 (`difficulty_level_id` 지원)
+   - 동적 난이도 옵션 로드 (`difficulty_levels` 테이블 기반)
+
+2. **액션 함수 개선**
+   - `updateBook`, `updateLecture`에서 `difficulty_level_id` 처리
+   - 하위 호환성 유지 (`difficulty_level` 문자열도 지원)
+
+3. **타입 정의 개선**
+   - `Book`, `Lecture` 타입에 `difficulty_level_id` 추가
+   - `difficulty_level`에 `@deprecated` 주석 추가
+
+### 개선 효과
+
+- ✅ `difficulty_level_id` 우선 사용
+- ✅ 동적 난이도 옵션 로드
+- ✅ 하위 호환성 유지
+
+---
+
+## 🔄 다음 단계
 
 ### Phase 3-5: API 응답 개선 (예정)
 - API 응답에 `difficulty_level_id` 포함
