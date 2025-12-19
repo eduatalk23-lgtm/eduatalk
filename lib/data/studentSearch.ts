@@ -49,19 +49,37 @@ export type StudentSearchResponse = {
  * @returns 검색 타입 ("name" | "phone" | "all")
  */
 export function detectSearchType(query: string): "name" | "phone" | "all" {
-  const normalizedQuery = query.trim().replace(/[-\s]/g, "");
+  const trimmedQuery = query.trim();
   
-  // 숫자만 4자리 이상이면 연락처 검색
+  if (!trimmedQuery) {
+    return "name";
+  }
+  
+  // 숫자만 추출 (하이픈, 공백 제거)
+  const normalizedQuery = trimmedQuery.replace(/[-\s]/g, "");
+  
+  // 숫자만 추출하여 4자리 이상인지 확인
+  const digitsOnly = normalizedQuery.replace(/\D/g, "");
+  const hasEnoughDigits = digitsOnly.length >= 4;
+  
+  // 한글이 포함되어 있는지 확인
+  const hasKorean = /[가-힣]/.test(trimmedQuery);
+  
+  // 숫자만 4자리 이상이고 한글이 없는 경우 → 연락처 검색
   const isPhoneSearch = /^\d{4,}$/.test(normalizedQuery);
   
-  // 한글이 포함되어 있으면 이름 검색
-  const isNameSearch = /[가-힣]/.test(query);
-  
-  if (isPhoneSearch && isNameSearch) {
+  // 숫자와 한글이 모두 포함된 경우 → 전체 검색
+  if (hasEnoughDigits && hasKorean) {
     return "all";
-  } else if (isPhoneSearch) {
+  }
+  
+  // 숫자만 4자리 이상인 경우 → 연락처 검색
+  if (isPhoneSearch) {
     return "phone";
-  } else if (isNameSearch) {
+  }
+  
+  // 한글이 포함된 경우 → 이름 검색
+  if (hasKorean) {
     return "name";
   }
   
