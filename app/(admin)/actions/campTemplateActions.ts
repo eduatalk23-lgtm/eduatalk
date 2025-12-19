@@ -849,14 +849,15 @@ export const updateCampTemplateStatusAction = withErrorHandling(
 
     // 상태 변경
     const supabase = await createSupabaseServerClient();
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("camp_templates")
       .update({
         status,
         updated_at: new Date().toISOString(),
       })
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId);
+      .eq("tenant_id", tenantContext.tenantId)
+      .select();
 
     if (error) {
       throw new AppError(
