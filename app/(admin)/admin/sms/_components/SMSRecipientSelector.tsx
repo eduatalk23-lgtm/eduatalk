@@ -5,34 +5,24 @@ import Label from "@/components/atoms/Label";
 import Input from "@/components/atoms/Input";
 import Select from "@/components/atoms/Select";
 import Button from "@/components/atoms/Button";
+import {
+  filterStudents,
+  getPhoneByRecipientType,
+  extractUniqueGrades,
+  extractUniqueClasses,
+  type Student,
+  type StudentFilter,
+  type RecipientType,
+} from "@/lib/utils/studentFilterUtils";
 
-import type { RecipientType } from "./SMSFilterPanel";
-
-type Student = {
-  id: string;
-  name: string | null;
-  grade?: string | null;
-  class?: string | null;
-  phone: string | null;
-  mother_phone: string | null;
-  father_phone: string | null;
-  is_active?: boolean | null;
-};
+import type { RecipientType as SMSRecipientType } from "./SMSFilterPanel";
 
 type SMSRecipientSelectorProps = {
   students: Student[];
   selectedStudentIds: Set<string>;
   onSelectionChange: (selectedIds: Set<string>) => void;
-  recipientType?: RecipientType;
-  onRecipientTypeChange?: (type: RecipientType) => void;
-};
-
-type StudentFilter = {
-  search: string;
-  grade: string;
-  class: string;
-  isActive: string; // "all" | "active" | "inactive"
-  hasParentContact: string; // "all" | "yes" | "no"
+  recipientType?: SMSRecipientType;
+  onRecipientTypeChange?: (type: SMSRecipientType) => void;
 };
 
 export function SMSRecipientSelector({
@@ -47,83 +37,23 @@ export function SMSRecipientSelector({
     grade: "",
     class: "",
     isActive: "all",
-    hasParentContact: "all", // 모든 학생 조회 가능하도록 변경
   });
 
-  // 고유 학년 목록 추출
-  const uniqueGrades = useMemo(() => {
-    const grades = new Set<string>();
-    students.forEach((s) => {
-      if (s.grade) grades.add(s.grade);
-    });
-    return Array.from(grades).sort();
-  }, [students]);
+  // 고유 학년 목록 추출 (공통 유틸리티 함수 사용)
+  const uniqueGrades = useMemo(() => extractUniqueGrades(students), [students]);
 
-  // 고유 반 목록 추출
-  const uniqueClasses = useMemo(() => {
-    const classes = new Set<string>();
-    students.forEach((s) => {
-      if (s.class) classes.add(s.class);
-    });
-    return Array.from(classes).sort();
-  }, [students]);
+  // 고유 반 목록 추출 (공통 유틸리티 함수 사용)
+  const uniqueClasses = useMemo(() => extractUniqueClasses(students), [students]);
 
-  // 필터링된 학생 목록
+  // 필터링된 학생 목록 (공통 유틸리티 함수 사용)
   const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
-      // 검색 필터
-      if (filter.search) {
-        const searchLower = filter.search.toLowerCase();
-        const nameMatch = student.name?.toLowerCase().includes(searchLower);
-        const phoneMatch = student.phone?.includes(filter.search);
-        const motherPhoneMatch = student.mother_phone?.includes(filter.search);
-        const fatherPhoneMatch = student.father_phone?.includes(filter.search);
-        if (!nameMatch && !phoneMatch && !motherPhoneMatch && !fatherPhoneMatch) return false;
-      }
-
-      // 학년 필터
-      if (filter.grade && student.grade !== filter.grade) {
-        return false;
-      }
-
-      // 반 필터
-      if (filter.class && student.class !== filter.class) {
-        return false;
-      }
-
-      // 활성 상태 필터
-      if (filter.isActive === "active" && student.is_active !== true) {
-        return false;
-      }
-      if (filter.isActive === "inactive" && student.is_active !== false) {
-        return false;
-      }
-
-      // 학부모 연락처 필터 (모든 학생 조회 가능하도록 변경)
-      // hasParentContact 필터는 더 이상 사용하지 않음 (모든 학생 조회)
-
-      return true;
-    });
+    return filterStudents(students, filter);
   }, [students, filter]);
-
-  // 전송 대상자에 따라 전화번호 선택
-  const getPhoneByRecipientType = (student: Student, type: RecipientType): string | null => {
-    switch (type) {
-      case "student":
-        return student.phone;
-      case "mother":
-        return student.mother_phone;
-      case "father":
-        return student.father_phone;
-      default:
-        return student.mother_phone ?? student.father_phone ?? student.phone;
-    }
-  };
 
   // 필터링된 학생 중 선택 가능한 학생 (선택한 대상자 타입에 따라)
   const selectableStudents = useMemo(() => {
     return filteredStudents.filter((s) => {
-      const phone = getPhoneByRecipientType(s, recipientType);
+      const phone = getPhoneByRecipientType(s, recipientType as RecipientType);
       return !!phone;
     });
   }, [filteredStudents, recipientType]);
@@ -296,7 +226,7 @@ export function SMSRecipientSelector({
                       ? `${student.grade}학년`
                       : ""}
                     {(() => {
-                      const phone = getPhoneByRecipientType(student, recipientType);
+                      const phone = getPhoneByRecipientType(student, recipientType as RecipientType);
                       const recipientTypeLabel = 
                         recipientType === "student" ? "학생" :
                         recipientType === "mother" ? "어머니" : "아버지";

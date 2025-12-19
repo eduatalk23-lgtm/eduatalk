@@ -5,29 +5,24 @@ import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";
 import Button from "@/components/atoms/Button";
 import Select from "@/components/atoms/Select";
-import type { RecipientType } from "./SMSFilterPanel";
-
-type Student = {
-  id: string;
-  name: string | null;
-  grade?: string | null;
-  class?: string | null;
-  phone: string | null;
-  mother_phone: string | null;
-  father_phone: string | null;
-  is_active?: boolean | null;
-};
+import {
+  filterStudents,
+  getPhoneByRecipientType,
+  type Student,
+  type RecipientType,
+} from "@/lib/utils/studentFilterUtils";
+import type { RecipientType as SMSRecipientType } from "./SMSFilterPanel";
 
 type SingleRecipientSearchProps = {
   students: Student[];
   onSelect: (
     phone: string,
     studentName?: string,
-    recipientType?: RecipientType
+    recipientType?: SMSRecipientType
   ) => void;
   selectedPhone?: string;
-  recipientType?: RecipientType;
-  onRecipientTypeChange?: (type: RecipientType) => void;
+  recipientType?: SMSRecipientType;
+  onRecipientTypeChange?: (type: SMSRecipientType) => void;
 };
 
 export function SingleRecipientSearch({
@@ -55,24 +50,7 @@ export function SingleRecipientSearch({
     }
   };
 
-  // 전송 대상자에 따라 전화번호 선택
-  const getPhoneByRecipientType = (
-    student: Student,
-    type: RecipientType
-  ): string | null => {
-    switch (type) {
-      case "student":
-        return student.phone;
-      case "mother":
-        return student.mother_phone;
-      case "father":
-        return student.father_phone;
-      default:
-        return student.mother_phone ?? student.father_phone ?? student.phone;
-    }
-  };
-
-  // 검색 필터링된 학생 목록 (연락처 필터 제거 - 모든 학생 조회 가능)
+  // 검색 필터링된 학생 목록 (공통 유틸리티 함수 사용)
   // executedSearchQuery 기반으로 필터링
   const filteredStudents = useMemo(() => {
     if (!executedSearchQuery) {
@@ -90,31 +68,8 @@ export function SingleRecipientSearch({
       });
     }
 
-    const results = students
-      .filter((student) => {
-        // 연락처 필터 제거 - 모든 학생 검색 가능
-        const nameMatch = student.name?.toLowerCase().includes(query);
-        const phoneMatch = student.phone?.includes(query);
-        const motherPhoneMatch = student.mother_phone?.includes(query);
-        const fatherPhoneMatch = student.father_phone?.includes(query);
-        // grade와 class는 문자열이 아닐 수 있으므로 String()으로 변환
-        const gradeMatch = student.grade
-          ? String(student.grade).toLowerCase().includes(query)
-          : false;
-        const classMatch = student.class
-          ? String(student.class).toLowerCase().includes(query)
-          : false;
-
-        return (
-          nameMatch ||
-          phoneMatch ||
-          motherPhoneMatch ||
-          fatherPhoneMatch ||
-          gradeMatch ||
-          classMatch
-        );
-      })
-      .slice(0, 10); // 최대 10개만 표시
+    // 공통 유틸리티 함수 사용
+    const results = filterStudents(students, { search: query }).slice(0, 10); // 최대 10개만 표시
 
     // 디버깅: 검색 결과 확인
     if (process.env.NODE_ENV === "development") {
@@ -137,7 +92,7 @@ export function SingleRecipientSearch({
   }, [students, executedSearchQuery, recipientType]);
 
   const handleSelect = (student: Student) => {
-    const phone = getPhoneByRecipientType(student, recipientType);
+    const phone = getPhoneByRecipientType(student, recipientType as RecipientType);
     if (phone) {
       onSelect(phone, student.name || undefined, recipientType);
       setSearchQuery(""); // 검색어 초기화
@@ -195,7 +150,7 @@ export function SingleRecipientSearch({
           <div className="max-h-64 overflow-y-auto">
             <div className="divide-y divide-gray-200">
               {filteredStudents.map((student) => {
-                const phone = getPhoneByRecipientType(student, recipientType);
+                const phone = getPhoneByRecipientType(student, recipientType as RecipientType);
                 const isSelected = selectedPhone === phone;
                 const recipientTypeLabel =
                   recipientType === "student"

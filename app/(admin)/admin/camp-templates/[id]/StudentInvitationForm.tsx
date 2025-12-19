@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { sendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { filterStudents, extractUniqueGrades, extractUniqueClasses, type Student, type StudentFilter } from "@/lib/utils/studentFilterUtils";
 
 type StudentInvitationFormProps = {
   templateId: string;
@@ -11,19 +12,17 @@ type StudentInvitationFormProps = {
   onInvitationSent?: () => void;
 };
 
-type Student = {
-  id: string;
-  name: string;
-  grade: string;
-  class: string;
-};
-
 export function StudentInvitationForm({ templateId, templateStatus, onInvitationSent }: StudentInvitationFormProps) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<StudentFilter>({
+    search: "",
+    grade: "",
+    class: "",
+    isActive: "all",
+  });
   const [loading, setLoading] = useState(true);
 
   // 학생 목록 로드 (useCallback으로 메모이제이션)
@@ -34,7 +33,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
       // 1. 모든 학생 목록 조회
       const { data: allStudents, error: studentsError } = await supabase
         .from("students")
-        .select("id, name, grade, class")
+        .select("id, name, grade, class, division, phone, mother_phone, father_phone, is_active")
         .order("name", { ascending: true })
         .limit(100);
 
@@ -79,10 +78,14 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     loadStudents();
   }, [loadStudents]);
 
-  // 검색 필터링
-  const filteredStudents = students.filter((student) =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 필터링된 학생 목록 (공통 유틸리티 함수 사용)
+  const filteredStudents = filterStudents(students, filter);
+  
+  // 고유 학년 목록 추출
+  const uniqueGrades = extractUniqueGrades(students);
+  
+  // 고유 반 목록 추출
+  const uniqueClasses = extractUniqueClasses(students);
 
   const handleToggleStudent = (studentId: string) => {
     setSelectedStudentIds((prev) => {
@@ -181,14 +184,15 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
         </div>
       )}
 
-      {/* 검색 및 선택 */}
+      {/* 필터 및 선택 */}
       <div className="flex flex-col gap-3">
+        {/* 검색 필터 */}
         <div className="flex items-center gap-3">
           <input
             type="text"
-            placeholder="학생명 검색..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="이름, 전화번호, 학년, 반 검색..."
+            value={filter.search || ""}
+            onChange={(e) => setFilter((prev) => ({ ...prev, search: e.target.value }))}
             disabled={isDisabled}
             className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
           />
@@ -200,6 +204,49 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
           >
             {selectedStudentIds.size === filteredStudents.length ? "전체 해제" : "전체 선택"}
           </button>
+        </div>
+        
+        {/* 고급 필터 (학년, 반) */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label htmlFor="filter-grade" className="block text-sm font-medium text-gray-700 mb-1">
+              학년
+            </label>
+            <select
+              id="filter-grade"
+              value={filter.grade || ""}
+              onChange={(e) => setFilter((prev) => ({ ...prev, grade: e.target.value || undefined }))}
+              disabled={isDisabled}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+            >
+              <option value="">전체</option>
+              {uniqueGrades.map((grade) => (
+                <option key={grade} value={grade}>
+                  {grade}학년
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label htmlFor="filter-class" className="block text-sm font-medium text-gray-700 mb-1">
+              반
+            </label>
+            <select
+              id="filter-class"
+              value={filter.class || ""}
+              onChange={(e) => setFilter((prev) => ({ ...prev, class: e.target.value || undefined }))}
+              disabled={isDisabled}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+            >
+              <option value="">전체</option>
+              {uniqueClasses.map((cls) => (
+                <option key={cls} value={cls}>
+                  {cls}반
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* 선택된 학생 수 */}
@@ -214,7 +261,7 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
       <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
         {filteredStudents.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-700">
-            {searchQuery ? "검색 결과가 없습니다." : "학생이 없습니다."}
+            {filter.search || filter.grade || filter.class ? "필터 조건에 맞는 학생이 없습니다." : "학생이 없습니다."}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
