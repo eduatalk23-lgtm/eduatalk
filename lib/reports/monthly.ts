@@ -1,6 +1,8 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 import { getSubjectFromContent } from "@/lib/studySessions/summary";
+import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
+import { getSubjectGroupById } from "@/lib/data/subjects";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -490,6 +492,20 @@ export async function getMonthlyWeakSubjectTrend(
   monthEnd: Date
 ): Promise<MonthlyWeakSubjectTrend> {
   try {
+    // 학생 정보 조회 (tenantId 필요)
+    const { data: student } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (!student || !student.tenant_id) {
+      console.error("[reports/monthly] 학생 정보 또는 tenant_id를 찾을 수 없습니다.");
+      return { subjects: [] };
+    }
+
+    const tenantId = student.tenant_id;
+
     // 성적 기반 취약 과목 조회
     const { getRiskIndexBySubject } = await import("@/lib/scheduler/scoreLoader");
     const riskMap = await getRiskIndexBySubject(studentId);
@@ -497,18 +513,133 @@ export async function getMonthlyWeakSubjectTrend(
     // 월간 학습시간 조회
     const studyTime = await getMonthlyStudyTime(supabase, studentId, monthStart, monthEnd);
 
-    // 과목별 성적 변화 계산
-    // ⚠️ DEPRECATED: student_scores 테이블은 더 이상 존재하지 않습니다.
-    // student_internal_scores와 student_mock_scores를 조합하여 사용해야 합니다.
-    // 현재는 성적 변화 계산을 건너뛰고 riskMap만 사용합니다.
-    console.warn(
-      "[DEPRECATED] getMonthlyWeakSubjectTrend의 student_scores 참조는 제거되었습니다. " +
-      "student_internal_scores와 student_mock_scores를 조합하여 사용하도록 수정이 필요합니다."
+    // 지난 달 범위 계산
+    const lastMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1);
+    lastMonthStart.setHours(0, 0, 0, 0);
+    const lastMonthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth(), 0);
+    lastMonthEnd.setHours(23, 59, 59, 999);
+
+    // 이번 달 성적 조회
+    const monthStartStr = monthStart.toISOString().slice(0, 10);
+    const monthEndStr = monthEnd.toISOString().slice(0, 10);
+    const lastMonthStartStr = lastMonthStart.toISOString().slice(0, 10);
+    const lastMonthEndStr = lastMonthEnd.toISOString().slice(0, 10);
+
+    const [thisMonthInternal, thisMonthMock, lastMonthInternal, lastMonthMock] = await Promise.all([
+      // 이번 달 내신 성적
+      getInternalScores(studentId, tenantId).then((scores) =>
+        scores.filter(
+          (score) =>
+            score.created_at &&
+            score.created_at >= monthStartStr &&
+            score.created_at <= monthEndStr
+        )
+      ),
+      // 이번 달 모의고사 성적
+      getMockScores(studentId, tenantId).then((scores) =>
+        scores.filter(
+          (score) =>
+            score.exam_date &&
+            score.exam_date >= monthStartStr &&
+            score.exam_date <= monthEndStr
+        )
+      ),
+      // 지난 달 내신 성적
+      getInternalScores(studentId, tenantId).then((scores) =>
+        scores.filter(
+          (score) =>
+            score.created_at &&
+            score.created_at >= lastMonthStartStr &&
+            score.created_at <= lastMonthEndStr
+        )
+      ),
+      // 지난 달 모의고사 성적
+      getMockScores(studentId, tenantId).then((scores) =>
+        scores.filter(
+          (score) =>
+            score.exam_date &&
+            score.exam_date >= lastMonthStartStr &&
+            score.exam_date <= lastMonthEndStr
+        )
+      ),
+    ]);
+
+    // 과목별 등급 계산 (subject_group_id 기준)
+    const subjectGrades = new Map<string, { thisMonth: number | null; lastMonth: number | null }>();
+
+    // 모든 고유한 subject_group_id 수집
+    const subjectGroupIds = new Set<string>();
+    [...thisMonthInternal, ...thisMonthMock, ...lastMonthInternal, ...lastMonthMock].forEach(
+      (score) => {
+        if (score.subject_group_id) {
+          subjectGroupIds.add(score.subject_group_id);
+        }
+      }
     );
 
-    // 과목별 최신 등급 (현재는 빈 Map으로 설정)
-    // TODO: student_internal_scores와 student_mock_scores를 조합하여 과목별 등급 계산
-    const subjectGrades = new Map<string, { thisMonth: number | null; lastMonth: number | null }>();
+    // 과목 그룹 ID → 과목명 매핑 (한 번에 조회 - 최적화)
+    const subjectGroupMap = new Map<string, string>();
+    if (subjectGroupIds.size > 0) {
+      const { data: groups, error: groupsError } = await supabase
+        .from("subject_groups")
+        .select("id, name")
+        .in("id", Array.from(subjectGroupIds));
+
+      if (!groupsError && groups) {
+        groups.forEach((group) => {
+          subjectGroupMap.set(group.id, group.name);
+        });
+      }
+    }
+
+    // 이번 달 등급 계산
+    const thisMonthGradeMap = new Map<string, number[]>();
+    for (const score of thisMonthInternal) {
+      if (score.subject_group_id && score.rank_grade !== null) {
+        const grades = thisMonthGradeMap.get(score.subject_group_id) || [];
+        grades.push(score.rank_grade);
+        thisMonthGradeMap.set(score.subject_group_id, grades);
+      }
+    }
+    for (const score of thisMonthMock) {
+      if (score.subject_group_id && score.grade_score !== null) {
+        const grades = thisMonthGradeMap.get(score.subject_group_id) || [];
+        grades.push(score.grade_score);
+        thisMonthGradeMap.set(score.subject_group_id, grades);
+      }
+    }
+
+    // 지난 달 등급 계산
+    const lastMonthGradeMap = new Map<string, number[]>();
+    for (const score of lastMonthInternal) {
+      if (score.subject_group_id && score.rank_grade !== null) {
+        const grades = lastMonthGradeMap.get(score.subject_group_id) || [];
+        grades.push(score.rank_grade);
+        lastMonthGradeMap.set(score.subject_group_id, grades);
+      }
+    }
+    for (const score of lastMonthMock) {
+      if (score.subject_group_id && score.grade_score !== null) {
+        const grades = lastMonthGradeMap.get(score.subject_group_id) || [];
+        grades.push(score.grade_score);
+        lastMonthGradeMap.set(score.subject_group_id, grades);
+      }
+    }
+
+    // 과목별 평균 등급 계산
+    for (const [subjectGroupId, grades] of thisMonthGradeMap.entries()) {
+      const avgGrade = grades.reduce((sum, g) => sum + g, 0) / grades.length;
+      const subjectName = subjectGroupMap.get(subjectGroupId) || subjectGroupId;
+      const existing = subjectGrades.get(subjectName) || { thisMonth: null, lastMonth: null };
+      subjectGrades.set(subjectName, { ...existing, thisMonth: Math.round(avgGrade * 10) / 10 });
+    }
+
+    for (const [subjectGroupId, grades] of lastMonthGradeMap.entries()) {
+      const avgGrade = grades.reduce((sum, g) => sum + g, 0) / grades.length;
+      const subjectName = subjectGroupMap.get(subjectGroupId) || subjectGroupId;
+      const existing = subjectGrades.get(subjectName) || { thisMonth: null, lastMonth: null };
+      subjectGrades.set(subjectName, { ...existing, lastMonth: Math.round(avgGrade * 10) / 10 });
+    }
 
     // 취약 과목 리스트 생성
     const subjects: MonthlyWeakSubjectTrend["subjects"] = Array.from(riskMap.entries())
