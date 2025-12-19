@@ -2,7 +2,7 @@
 
 ## 작업 일시
 
-2024-12-15 (3차 수정)
+2024-12-15 (4차 수정 - 근본 원인 해결)
 
 ## 문제 상황
 
@@ -184,6 +184,62 @@ console.error("학생 목록 조회 실패 - 코드:", studentsError.code || "�
 console.error("학생 목록 조회 실패 - 상세 정보:", errorInfo);
 console.error("학생 목록 조회 실패 - 원본 에러 객체:", studentsError);
 ```
+
+## 4차 수정 (근본 원인 해결)
+
+### 문제
+- 에러 메시지: "column students.phone does not exist"
+- 에러 코드: "42703" (컬럼이 존재하지 않음)
+- `students` 테이블에 `phone`, `mother_phone`, `father_phone` 컬럼이 없음
+
+### 원인 분석
+- `students` 테이블에는 전화번호 컬럼이 없음
+- 전화번호는 `student_profiles` 테이블에 존재
+- 쿼리에서 존재하지 않는 컬럼을 조회하려고 시도
+
+### 해결 방법
+
+1. **존재하지 않는 컬럼 제거**
+   - `students` 테이블 쿼리에서 `phone`, `mother_phone`, `father_phone` 제거
+   - 기본 정보만 조회: `id, name, grade, class, division, is_active`
+
+2. **전화번호 별도 조회**
+   - `student_profiles` 테이블에서 전화번호 정보 별도 조회
+   - 브라우저 클라이언트를 사용하여 직접 조회
+
+3. **데이터 병합**
+   - 학생 기본 정보와 전화번호 정보를 병합
+   - `Student` 타입에 맞게 데이터 구조화
+
+```typescript
+// 1. students 테이블에서 기본 정보만 조회
+const { data: allStudents } = await supabase
+  .from("students")
+  .select("id, name, grade, class, division, is_active")
+  .order("name", { ascending: true })
+  .limit(100);
+
+// 2. student_profiles 테이블에서 전화번호 별도 조회
+const { data: profilesData } = await supabase
+  .from("student_profiles")
+  .select("id, phone, mother_phone, father_phone")
+  .in("id", studentIds);
+
+// 3. 데이터 병합
+const studentsWithPhones = availableStudents.map((student) => {
+  const phoneData = phoneDataMap.get(student.id);
+  return {
+    ...student,
+    phone: phoneData?.phone ?? null,
+    mother_phone: phoneData?.mother_phone ?? null,
+    father_phone: phoneData?.father_phone ?? null,
+  };
+});
+```
+
+### 데이터베이스 스키마 확인
+- `students` 테이블: 전화번호 컬럼 없음
+- `student_profiles` 테이블: `phone`, `mother_phone`, `father_phone` 컬럼 존재
 
 ## 향후 개선 사항
 
