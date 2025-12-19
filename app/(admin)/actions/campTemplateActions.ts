@@ -1112,13 +1112,17 @@ export const getCampInvitationsForTemplate = withErrorHandling(
 );
 
 /**
- * 템플릿별 캠프 초대 목록 조회 (페이지네이션 지원)
+ * 템플릿별 캠프 초대 목록 조회 (페이지네이션 지원, 서버 사이드 필터링)
  */
 export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandling(
   async (
     templateId: string,
     page: number = 1,
-    pageSize: number = 20
+    pageSize: number = 20,
+    filters?: {
+      search?: string;
+      status?: string;
+    }
   ) => {
     await requireAdminOrConsultant();
 
@@ -1126,13 +1130,14 @@ export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandli
     validateCampTemplateId(templateId);
     const tenantId = await validateTenantContext();
 
-    // 페이지네이션된 초대 목록 조회
+    // 페이지네이션된 초대 목록 조회 (필터 적용)
     const result = await getCampInvitationsForTemplateWithPagination(
       templateId,
       tenantId,
       {
         page,
         pageSize,
+        filters,
       }
     );
 
