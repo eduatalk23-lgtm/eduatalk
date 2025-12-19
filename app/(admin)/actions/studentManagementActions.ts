@@ -468,9 +468,15 @@ export async function updateStudentInfo(
       grade: payload.basic.grade ?? existingStudent.grade ?? "",
       class: payload.basic.class ?? existingStudent.class ?? "",
       birth_date: payload.basic.birth_date ?? existingStudent.birth_date ?? "",
-      school_id: payload.basic.school_id,
-      division: payload.basic.division,
-      status: payload.basic.status,
+      school_id: payload.basic.school_id !== undefined 
+        ? payload.basic.school_id 
+        : existingStudent.school_id ?? null,
+      division: payload.basic.division !== undefined
+        ? payload.basic.division
+        : existingStudent.division ?? null,
+      status: payload.basic.status !== undefined
+        ? payload.basic.status
+        : existingStudent.status ?? null,
     });
 
     if (!basicResult.success) {
