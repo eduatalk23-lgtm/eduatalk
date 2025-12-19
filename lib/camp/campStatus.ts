@@ -41,16 +41,19 @@ export type CampStatusInfo = {
  * @param planGroupStatus - 플랜 그룹 상태 (null 가능)
  * @param hasPlans - 플랜이 생성되었는지 여부
  * @param isDraft - 플랜 그룹이 draft 상태인지 여부
+ * @param planGroupId - 플랜 그룹 ID (null이면 플랜 그룹이 없음을 의미)
  * @returns 통합된 캠프 상태
  */
 export function getCampStatus(
   invitationStatus: CampInvitationStatus,
   planGroupStatus: PlanStatus | null,
   hasPlans: boolean,
-  isDraft: boolean = false
+  isDraft: boolean = false,
+  planGroupId: string | null = null
 ): CampStatus {
   // 1. 초대가 pending이고 플랜 그룹이 draft인 경우 (폼 작성 중)
-  if (invitationStatus === "pending" && isDraft) {
+  // 단, planGroupId가 있어야 함 (플랜 그룹이 실제로 존재해야 함)
+  if (invitationStatus === "pending" && isDraft && planGroupId) {
     return "PENDING_FORM";
   }
 
@@ -79,8 +82,13 @@ export function getCampStatus(
     return "READY_TO_START";
   }
 
-  // 기본값: 폼 작성 중 (pending 상태)
+  // 기본값: 폼 작성 중 (pending 상태이지만 planGroupId가 없으면 이 조건에 도달하지 않음)
+  // 초대 삭제 후 재생성 시 planGroupId가 null이므로 이 조건에 도달하지 않음
   if (invitationStatus === "pending") {
+    // planGroupId가 없으면 "작성 중"이 아니라 다른 상태로 처리
+    // 하지만 현재 상태 타입에는 "참여하기" 상태가 없으므로, 
+    // UI에서는 planGroupId가 null이면 "참여하기" 버튼을 표시하도록 처리
+    // 여기서는 일단 PENDING_FORM을 반환하되, UI에서 planGroupId를 확인하여 처리
     return "PENDING_FORM";
   }
 
@@ -103,6 +111,22 @@ export function getCampStatusInfo(
 ): CampStatusInfo {
   switch (status) {
     case "PENDING_FORM":
+      // planGroupId가 없으면 "작성 중"이 아니라 "참여하기" 상태
+      // UI에서 planGroupId가 null이면 "참여하기" 버튼을 표시하도록 처리
+      if (!planGroupId) {
+        return {
+          status: "PENDING_FORM",
+          label: "", // 배지를 표시하지 않음 (CampInvitationActions에서 "참여하기" 버튼 표시)
+          color: "yellow",
+          description: "참여 정보를 작성해주세요.",
+          canEdit: true,
+          canStart: false,
+          nextStep: "참여 정보 제출",
+          badgeClassName: "", // 빈 문자열로 배지를 표시하지 않음
+          linkHref: undefined,
+          linkLabel: undefined,
+        };
+      }
       return {
         status: "PENDING_FORM",
         label: "작성 중",
@@ -205,17 +229,35 @@ export function getCampStatusFromInvitation(invitation: {
   id: string;
   planGroupId?: string | null;
 }): CampStatusInfo {
+  const planGroupId = invitation.planGroupId ?? null;
+  
   const campStatus = getCampStatus(
     invitation.status,
     invitation.planGroupStatus,
     invitation.hasPlans,
-    invitation.isDraft ?? false
+    invitation.isDraft ?? false,
+    planGroupId
   );
 
-  return getCampStatusInfo(
+  // planGroupId가 없고 pending 상태이면 "작성 중"이 아니라 "참여하기" 상태로 처리
+  // UI에서 planGroupId가 null이면 "참여하기" 버튼을 표시하도록 처리
+  // 여기서는 상태 정보를 조정하여 "이어서 작성하기" 링크를 표시하지 않도록 함
+  const statusInfo = getCampStatusInfo(
     campStatus,
     invitation.id,
-    invitation.planGroupId ?? null
+    planGroupId
   );
+
+  // planGroupId가 없고 pending 상태이면 "이어서 작성하기" 링크를 제거
+  if (invitation.status === "pending" && !planGroupId && campStatus === "PENDING_FORM") {
+    return {
+      ...statusInfo,
+      linkHref: undefined,
+      linkLabel: undefined,
+      description: "참여 정보를 작성해주세요.",
+    };
+  }
+
+  return statusInfo;
 }
 

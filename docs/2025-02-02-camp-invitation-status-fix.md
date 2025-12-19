@@ -25,7 +25,7 @@
 
 ## 수정 내용
 
-### `app/(student)/camp/page.tsx`
+### 1. `app/(student)/camp/page.tsx`
 
 **변경 전**:
 ```typescript
@@ -38,6 +38,71 @@ isDraft: planGroup.status === "draft",
 // 초대 삭제 후 재생성 시 이전 플랜 그룹이 남아있을 수 있으므로,
 // 초대 상태가 pending이고 플랜 그룹이 draft 상태일 때만 작성 중으로 표시
 const isDraft = invitation.status === "pending" && planGroup.status === "draft";
+```
+
+### 2. `lib/camp/campStatus.ts`
+
+**변경 사항**:
+- `getCampStatus` 함수에 `planGroupId` 파라미터 추가
+- `planGroupId`가 없으면 "작성 중" 상태로 표시하지 않도록 수정
+- `getCampStatusInfo` 함수에서 `planGroupId`가 없으면 배지 레이블을 빈 문자열로 설정
+- `getCampStatusFromInvitation` 함수에서 `planGroupId`가 없으면 "이어서 작성하기" 링크를 제거
+
+**변경 전**:
+```typescript
+export function getCampStatus(
+  invitationStatus: CampInvitationStatus,
+  planGroupStatus: PlanStatus | null,
+  hasPlans: boolean,
+  isDraft: boolean = false
+): CampStatus {
+  // ...
+  if (invitationStatus === "pending" && isDraft) {
+    return "PENDING_FORM";
+  }
+  // ...
+  if (invitationStatus === "pending") {
+    return "PENDING_FORM"; // planGroupId가 없어도 "작성 중"으로 표시됨
+  }
+}
+```
+
+**변경 후**:
+```typescript
+export function getCampStatus(
+  invitationStatus: CampInvitationStatus,
+  planGroupStatus: PlanStatus | null,
+  hasPlans: boolean,
+  isDraft: boolean = false,
+  planGroupId: string | null = null
+): CampStatus {
+  // planGroupId가 있어야만 "작성 중" 상태로 표시
+  if (invitationStatus === "pending" && isDraft && planGroupId) {
+    return "PENDING_FORM";
+  }
+  // ...
+}
+```
+
+### 3. `app/(student)/camp/_components/CampInvitationCard.tsx`
+
+**변경 사항**:
+- `statusInfo.label`이 있을 때만 배지를 표시하도록 수정
+
+**변경 전**:
+```typescript
+<span className={statusInfo.badgeClassName}>
+  {statusInfo.label}
+</span>
+```
+
+**변경 후**:
+```typescript
+{statusInfo.label && (
+  <span className={statusInfo.badgeClassName}>
+    {statusInfo.label}
+  </span>
+)}
 ```
 
 ## 테스트 시나리오

@@ -111,9 +111,11 @@ export function CampInvitationCard({
                 <>
                   {/* 상태 뱃지 및 설명 */}
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={statusInfo.badgeClassName}>
-                      {statusInfo.label}
-                    </span>
+                    {statusInfo.label && (
+                      <span className={statusInfo.badgeClassName}>
+                        {statusInfo.label}
+                      </span>
+                    )}
                     {statusInfo.linkHref && statusInfo.linkLabel && (
                       <Link
                         href={statusInfo.linkHref}
