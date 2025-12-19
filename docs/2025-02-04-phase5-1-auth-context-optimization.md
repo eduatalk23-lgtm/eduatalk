@@ -19,11 +19,13 @@
 ## 🎯 목표 달성
 
 ### 클라이언트 사이드 최적화
+
 - ✅ `AuthContext` 생성 및 `useAuth()` 훅 제공
 - ✅ React Query를 통한 자동 캐싱 및 갱신
 - ✅ `/api/auth/me` 엔드포인트 생성
 
 ### 서버 사이드 최적화
+
 - ✅ `getCurrentUser()`에 React `cache` 적용
 - ✅ `getTenantContext()`에 React `cache` 적용
 - ✅ 동일 요청 내 DB 쿼리 중복 제거
@@ -79,6 +81,7 @@ export async function GET(request: NextRequest) {
 ```
 
 **특징**:
+
 - 표준 API 응답 형식 사용 (`apiSuccess`, `apiUnauthorized`, `handleApiError`)
 - 서버 사이드 `getCurrentUser()` 호출 (캐싱 적용됨)
 
@@ -100,6 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 ```
 
 **특징**:
+
 - React Query를 사용한 자동 캐싱
 - `staleTime`: 5분 (STABLE 데이터 기준)
 - `gcTime`: 15분
@@ -107,6 +111,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 - `refetchOnReconnect`: true (네트워크 재연결 시 자동 리페치)
 
 **사용 예시**:
+
 ```typescript
 "use client";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -133,11 +138,13 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 ```
 
 **특징**:
+
 - React의 `cache` 함수로 동일 요청 내 중복 호출 방지
 - Next.js의 Request Memoization 활용
 - 서버 컴포넌트, Server Actions, API Routes에서 자동 적용
 
 **동작 방식**:
+
 ```typescript
 // 같은 요청 내에서 여러 번 호출해도 한 번만 실행됨
 const user1 = await getCurrentUser(); // DB 쿼리 실행
@@ -150,14 +157,17 @@ const user3 = await getCurrentUser(); // 캐시된 결과 반환 (DB 쿼리 없�
 ## 📊 예상 효과
 
 ### 데이터베이스 쿼리 감소
+
 - **서버 사이드**: 동일 요청 내 중복 호출 제거로 **30-50% 감소** 예상
 - **클라이언트 사이드**: React Query 캐싱으로 불필요한 API 호출 제거
 
 ### 응답 속도 개선
+
 - **서버 사이드**: 중복 DB 쿼리 제거로 응답 시간 단축
 - **클라이언트 사이드**: 캐시된 데이터 즉시 사용 가능
 
 ### 네트워크 요청 감소
+
 - 클라이언트에서 사용자 정보를 한 번만 로드하고 재사용
 - React Query의 자동 캐싱으로 불필요한 요청 방지
 
@@ -168,6 +178,7 @@ const user3 = await getCurrentUser(); // 캐시된 결과 반환 (DB 쿼리 없�
 ### 클라이언트 컴포넌트에서 사용자 정보가 필요한 경우
 
 **이전 방식** (비권장):
+
 ```typescript
 "use client";
 import { useEffect, useState } from "react";
@@ -186,6 +197,7 @@ export function MyComponent() {
 ```
 
 **새로운 방식** (권장):
+
 ```typescript
 "use client";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -203,6 +215,7 @@ export function MyComponent() {
 ### 서버 컴포넌트에서 사용자 정보가 필요한 경우
 
 **기존 방식 유지** (변경 불필요):
+
 ```typescript
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
@@ -224,6 +237,7 @@ export default async function MyPage() {
 ## ✅ 체크리스트
 
 ### 구현 완료
+
 - [x] `/api/auth/me` 엔드포인트 생성
 - [x] `AuthContext` 생성
 - [x] `useAuth()` 훅 제공
@@ -233,6 +247,7 @@ export default async function MyPage() {
 - [x] 린터 에러 확인 및 수정
 
 ### 향후 작업 (Phase 5.2)
+
 - [ ] 주요 클라이언트 컴포넌트에서 `useAuth()` 사용하도록 마이그레이션
 - [ ] 성능 모니터링 및 최적화 효과 측정
 - [ ] 문서화 및 가이드라인 작성
@@ -250,4 +265,3 @@ export default async function MyPage() {
 **작성자**: AI Assistant  
 **검토자**: (대기 중)  
 **승인자**: (대기 중)
-

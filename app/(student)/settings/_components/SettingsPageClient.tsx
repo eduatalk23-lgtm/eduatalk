@@ -23,6 +23,7 @@ import ExamInfoSection from "./sections/ExamInfoSection";
 import CareerInfoSection from "./sections/CareerInfoSection";
 import type { StudentFormData } from "../types";
 import { getSchoolById } from "@/app/(student)/actions/schoolActions";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 type SettingsPageClientProps = {
   initialData: StudentData | null;
@@ -35,6 +36,7 @@ export default function SettingsPageClient({
 }: SettingsPageClientProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [schoolType, setSchoolType] = useState<
@@ -57,21 +59,22 @@ export default function SettingsPageClient({
 
   useEffect(() => {
     async function loadInitialFormData() {
+      // 사용자 정보가 로딩 중이면 대기
+      if (isAuthLoading) {
+        return;
+      }
+
       try {
+        // useAuth에서 가져온 사용자 정보 사용
+        // user?.email은 CurrentUser 타입에 포함되어 있지만, display_name은 user_metadata에 있음
+        // display_name은 서버에서 가져온 initialData나 별도로 조회해야 할 수 있음
+        // 일단 email을 사용하거나, initialData가 있으면 그대로 사용
+        const userDisplayName = user?.email || undefined;
+        
         if (initialData) {
-          const supabase = (await import("@/lib/supabase/client")).supabase;
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          const userDisplayName = user?.user_metadata?.display_name as string | undefined;
           const formData = await transformStudentToFormData(initialData, userDisplayName);
           setResolvedInitialFormData(formData);
         } else {
-          const supabase = (await import("@/lib/supabase/client")).supabase;
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
-          const userDisplayName = user?.user_metadata?.display_name as string | undefined;
           const formData = await transformStudentToFormData(null, userDisplayName);
           setResolvedInitialFormData(formData);
         }
@@ -98,7 +101,7 @@ export default function SettingsPageClient({
     }
 
     loadInitialFormData();
-  }, [initialData]);
+  }, [initialData, user, isAuthLoading]);
 
   const isInitialSetup = !initialData;
 
@@ -333,7 +336,7 @@ export default function SettingsPageClient({
     resetForm,
   };
 
-  if (isLoadingInitialData || !resolvedInitialFormData) {
+  if (isAuthLoading || isLoadingInitialData || !resolvedInitialFormData) {
     return (
       <PageContainer widthType="FORM">
         <div className="flex flex-col gap-6">
