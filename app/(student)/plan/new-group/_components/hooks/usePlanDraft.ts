@@ -107,7 +107,16 @@ export function usePlanDraft({
           await updatePlanGroupDraftAction(draftGroupId, creationData);
           if (!silent) toast.showSuccess("저장되었습니다.");
         } else {
-          const result = await savePlanGroupDraftAction(creationData);
+          // 관리자 모드일 때는 draftGroupId를 옵션으로 전달 (기존 그룹에서 student_id 조회용)
+          // initialData에 student_id 또는 studentId가 있으면 그것을 사용
+          const studentId = initialData?.student_id || initialData?.studentId;
+          const options = studentId
+            ? { studentId }
+            : draftGroupId
+            ? { draftGroupId }
+            : undefined;
+
+          const result = await savePlanGroupDraftAction(creationData, options);
           if (result?.groupId) {
             setDraftGroupId(result.groupId);
             if (!silent) toast.showSuccess("저장되었습니다.");

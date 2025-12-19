@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -335,11 +337,74 @@ export const createPlanGroupAction = withErrorHandling(
 
 /**
  * 플랜 그룹 임시저장 (draft 상태로 저장, 검증 완화)
+ * 
+ * 학생 또는 관리자 권한을 허용합니다.
+ * 관리자 모드일 때는 기존 그룹에서 student_id를 가져옵니다.
  */
 async function _savePlanGroupDraft(
-  data: PlanGroupCreationData
+  data: PlanGroupCreationData,
+  options?: {
+    draftGroupId?: string | null; // 기존 그룹 ID (관리자 모드에서 student_id 조회용)
+    studentId?: string | null; // 관리자 모드에서 직접 지정하는 student_id
+  }
 ): Promise<{ groupId: string }> {
-  const user = await requireStudentAuth();
+  // 권한 확인: 학생 또는 관리자/컨설턴트
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  let studentId: string;
+  let userId: string;
+
+  // 관리자/컨설턴트 권한 확인
+  const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
+  
+  if (isAdmin) {
+    // 관리자 모드: student_id를 옵션에서 가져오거나 기존 그룹에서 조회
+    await requireAdminOrConsultant();
+    userId = currentUser.userId;
+
+    if (options?.studentId) {
+      studentId = options.studentId;
+    } else if (options?.draftGroupId) {
+      // 기존 그룹에서 student_id 조회
+      const supabase = await createSupabaseServerClient();
+      const { data: existingGroup } = await supabase
+        .from("plan_groups")
+        .select("student_id")
+        .eq("id", options.draftGroupId)
+        .maybeSingle();
+
+      if (!existingGroup?.student_id) {
+        throw new AppError(
+          "학생 ID를 찾을 수 없습니다. 기존 그룹이 없거나 학생 정보가 없습니다.",
+          ErrorCode.NOT_FOUND,
+          404,
+          true
+        );
+      }
+      studentId = existingGroup.student_id;
+    } else {
+      throw new AppError(
+        "관리자 모드에서는 student_id 또는 draftGroupId가 필요합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+  } else {
+    // 학생 모드: 현재 사용자가 학생
+    const studentAuth = await requireStudentAuth();
+    studentId = studentAuth.userId;
+    userId = studentAuth.userId;
+  }
+
   const tenantContext = await requireTenantContext();
 
   // 최소 검증만 수행 (이름만 필수)
@@ -357,7 +422,7 @@ async function _savePlanGroupDraft(
   const supabase = await createSupabaseServerClient();
   const existingGroup = await findExistingDraftPlanGroup(
     supabase,
-    user.userId,
+    studentId, // student_id로 조회
     data.name,
     data.camp_invitation_id || null
   );
@@ -384,7 +449,7 @@ async function _savePlanGroupDraft(
 
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
-    student_id: user.userId,
+    student_id: studentId, // 관리자 모드에서는 지정된 student_id 사용
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type || null,
@@ -477,7 +542,17 @@ async function _savePlanGroupDraft(
   return { groupId };
 }
 
-export const savePlanGroupDraftAction = withErrorHandling(_savePlanGroupDraft);
+export const savePlanGroupDraftAction = withErrorHandling(
+  async (
+    data: PlanGroupCreationData,
+    options?: {
+      draftGroupId?: string | null;
+      studentId?: string | null;
+    }
+  ) => {
+    return await _savePlanGroupDraft(data, options);
+  }
+);
 
 /**
  * 플랜 그룹 복사
