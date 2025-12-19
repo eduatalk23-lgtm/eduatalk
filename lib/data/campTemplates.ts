@@ -13,9 +13,15 @@ import type {
 
 /**
  * 캠프 템플릿 조회
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function getCampTemplate(templateId: string): Promise<CampTemplate | null> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+    return null;
+  }
 
   const { data, error } = await supabase
     .from("camp_templates")
@@ -341,11 +347,17 @@ export async function getCampInvitationsForStudent(
 
 /**
  * 캠프 초대 조회
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function getCampInvitation(
   invitationId: string
 ): Promise<CampInvitation | null> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+    return null;
+  }
 
   const { data, error } = await supabase
     .from("camp_invitations")
@@ -394,11 +406,17 @@ export async function updateCampInvitationStatus(
 
 /**
  * 템플릿별 캠프 초대 목록 조회 (관리자용)
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function getCampInvitationsForTemplate(
   templateId: string
 ): Promise<Array<CampInvitation & { student_name?: string; student_grade?: string; student_class?: string }>> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+    return [];
+  }
 
   const { data, error } = await supabase
     .from("camp_invitations")
@@ -437,6 +455,7 @@ export async function getCampInvitationsForTemplate(
 
 /**
  * 템플릿별 캠프 초대 목록 조회 (페이지네이션 지원, 서버 사이드 필터링)
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function getCampInvitationsForTemplateWithPagination(
   templateId: string,
@@ -449,7 +468,17 @@ export async function getCampInvitationsForTemplateWithPagination(
   } = {}
 ): Promise<ListResult<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+      return {
+        items: [],
+        total: 0,
+        page: options.page || 1,
+        pageSize: options.pageSize || options.limit || 20,
+      };
+    }
     
     const page = options.page || 1;
     const pageSize = options.pageSize || options.limit || 20;
@@ -580,11 +609,29 @@ export type CampTemplateImpactSummary = {
   hasActivatedPlans: boolean;
 };
 
+/**
+ * 템플릿별 캠프 영향 요약 조회
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+ */
 export async function getCampTemplateImpactSummary(
   templateId: string,
   tenantId: string
 ): Promise<CampTemplateImpactSummary> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+    return {
+      invitationStats: { pending: 0, accepted: 0, declined: 0 },
+      planGroupStats: { draft: 0, saved: 0, active: 0, paused: 0, completed: 0, cancelled: 0 },
+      totalInvitations: 0,
+      submittedInvitationCount: 0,
+      hasPendingInvites: false,
+      hasAcceptedInvites: false,
+      hasReviewInProgress: false,
+      hasActivatedPlans: false,
+    };
+  }
 
   const invitationStats = {
     pending: 0,
@@ -661,11 +708,16 @@ export async function getCampTemplateImpactSummary(
 
 /**
  * 캠프 초대 삭제
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function deleteCampInvitation(
   invitationId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   // 1. 초대 삭제 전에 관련된 플랜 그룹 삭제
   const { deletePlanGroupByInvitationId } = await import(
@@ -685,14 +737,19 @@ export async function deleteCampInvitation(
   }
 
   // 2. 초대 삭제
-  const { error } = await supabase
+  const { data: deletedRows, error } = await supabase
     .from("camp_invitations")
     .delete()
-    .eq("id", invitationId);
+    .eq("id", invitationId)
+    .select();
 
   if (error) {
     console.error("[data/campTemplates] 초대 삭제 실패", error);
     return { success: false, error: error.message };
+  }
+
+  if (!deletedRows || deletedRows.length === 0) {
+    return { success: false, error: "초대를 찾을 수 없습니다." };
   }
 
   return { success: true };
@@ -700,11 +757,16 @@ export async function deleteCampInvitation(
 
 /**
  * 캠프 초대 일괄 삭제
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
 export async function deleteCampInvitations(
   invitationIds: string[]
 ): Promise<{ success: boolean; error?: string; count?: number }> {
-  const supabase = await createSupabaseServerClient();
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+  }
 
   // 1. 각 초대에 대해 플랜 그룹 삭제
   const { deletePlanGroupByInvitationId } = await import(
@@ -735,12 +797,13 @@ export async function deleteCampInvitations(
   }
 
   // 2. 초대 일괄 삭제
-  const { error } = await supabase
+  const { data: deletedRows, error } = await supabase
     .from("camp_invitations")
     .delete()
-    .in("id", invitationIds);
+    .in("id", invitationIds)
+    .select();
   
-  const count = error ? 0 : invitationIds.length;
+  const count = error ? 0 : (deletedRows?.length || 0);
 
   if (error) {
     console.error("[data/campTemplates] 초대 일괄 삭제 실패", error);
@@ -864,11 +927,22 @@ export type CampStatistics = {
   participationRate: number; // 참여율 (수락 / 전체 초대)
 };
 
+/**
+ * 테넌트별 캠프 통계 조회
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+ */
 export async function getCampStatisticsForTenant(
   tenantId: string
 ): Promise<{ success: boolean; data?: CampStatistics; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      return {
+        success: false,
+        error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+      };
+    }
 
     // 활성 템플릿 수 조회
     const { count: activeTemplatesCount, error: templatesError } = await supabase
@@ -957,12 +1031,23 @@ export type CampTemplateStatistics = {
   activePlanGroupsCount: number;
 };
 
+/**
+ * 템플릿별 캠프 통계 조회
+ * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+ */
 export async function getCampTemplateStatistics(
   templateId: string,
   tenantId: string
 ): Promise<{ success: boolean; data?: CampTemplateStatistics; error?: string }> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      return {
+        success: false,
+        error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+      };
+    }
 
     // 초대 통계 조회
     const { data: invitations, error: invitationsError } = await supabase

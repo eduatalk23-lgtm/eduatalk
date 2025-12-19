@@ -174,26 +174,15 @@ export const getCampTemplateById = withErrorHandling(
       );
     }
 
-    // tenant_id로 필터링하여 조회 (RLS 정책 및 권한 검증 강화)
-    const supabase = await createSupabaseServerClient();
-
-    // 먼저 tenant_id 없이 조회하여 템플릿 존재 여부 확인 (디버깅용)
-    const { data: templateWithoutTenant, error: checkError } = await supabase
-      .from("camp_templates")
-      .select("id, tenant_id, name")
-      .eq("id", templateId)
-      .maybeSingle();
-
-    if (
-      process.env.NODE_ENV === "development" &&
-      checkError &&
-      checkError.code !== "PGRST116"
-    ) {
-      console.warn("[getCampTemplateById] tenant_id 없이 조회 시도 실패", {
-        templateId,
-        errorCode: checkError.code,
-        errorMessage: checkError.message,
-      });
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
     }
 
     // tenant_id로 필터링하여 조회
@@ -249,18 +238,9 @@ export const getCampTemplateById = withErrorHandling(
         console.warn("[getCampTemplateById] 템플릿을 찾을 수 없음", debugInfo);
       }
 
-      // tenant_id 불일치인 경우와 존재하지 않는 경우를 구분
-      const errorMessage =
-        templateWithoutTenant &&
-        templateWithoutTenant.tenant_id !== tenantContext.tenantId
-          ? "다른 기관의 템플릿이거나 권한이 없습니다."
-          : "템플릿을 찾을 수 없습니다.";
-
-      throw new AppError(errorMessage, ErrorCode.NOT_FOUND, 404, true, {
+      throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true, {
         templateId,
         tenantId: tenantContext.tenantId,
-        templateExists: !!templateWithoutTenant,
-        templateTenantId: templateWithoutTenant?.tenant_id,
       });
     }
 
@@ -731,7 +711,17 @@ export const updateCampTemplateAction = withErrorHandling(
       );
     }
 
-    const supabase = await createSupabaseServerClient();
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
     const updateData: CampTemplateUpdate = {
       name,
       description: description || null,
@@ -744,11 +734,12 @@ export const updateCampTemplateAction = withErrorHandling(
       camp_location: campLocation || null,
     };
 
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from("camp_templates")
       .update(updateData)
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId);
+      .eq("tenant_id", tenantContext.tenantId)
+      .select();
 
     if (error) {
       throw new AppError(
@@ -757,6 +748,15 @@ export const updateCampTemplateAction = withErrorHandling(
         500,
         true,
         { originalError: error.message }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
       );
     }
 
@@ -855,6 +855,15 @@ export const updateCampTemplateStatusAction = withErrorHandling(
         500,
         true,
         { originalError: error.message }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new AppError(
+        "템플릿을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
       );
     }
 
@@ -1226,8 +1235,18 @@ export const getCampInvitationsForTemplate = withErrorHandling(
     // 템플릿이 없는 경우 (삭제된 경우 등)에도 초대 목록은 조회 가능
     // 초대 목록 자체가 tenant_id로 필터링되므로 보안 문제 없음
 
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
     // 초대 목록 조회 (tenant_id로 필터링하여 권한 확인)
-    const supabase = await createSupabaseServerClient();
     const { data: invitations, error } = await supabase
       .from("camp_invitations")
       .select(
@@ -1327,17 +1346,27 @@ export const updateCampInvitationStatusAction = withErrorHandling(
     const tenantId = await validateTenantContext();
     await validateCampInvitationAccess(invitationId, tenantId);
 
-    const supabase = await createSupabaseServerClient();
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
 
     // 상태 업데이트 데이터 준비
     const updateData = buildCampInvitationStatusUpdate(status);
 
     // 상태 업데이트
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from("camp_invitations")
       .update(updateData)
       .eq("id", invitationId)
-      .eq("tenant_id", tenantId);
+      .eq("tenant_id", tenantId)
+      .select();
 
     if (updateError) {
       throw new AppError(
@@ -1346,6 +1375,15 @@ export const updateCampInvitationStatusAction = withErrorHandling(
         500,
         true,
         { originalError: updateError.message }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
       );
     }
 
