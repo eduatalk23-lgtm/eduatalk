@@ -187,6 +187,16 @@ export async function getCampTemplatesForTenantWithPagination(
     const offset = options.offset ?? (page - 1) * pageSize;
     const filters = options.filters || {};
 
+    // 디버깅: tenantId 확인
+    if (process.env.NODE_ENV === "development") {
+      console.log("[data/campTemplates] 템플릿 조회 시작", {
+        tenantId,
+        filters,
+        page,
+        pageSize,
+      });
+    }
+
     // 쿼리 빌더 함수 (필터 적용) - supabaseQueryBuilder 사용
     const buildQuery = () => {
       let query = supabase
@@ -234,6 +244,8 @@ export async function getCampTemplatesForTenantWithPagination(
       console.error("[data/campTemplates] 템플릿 개수 조회 실패", {
         message: countError.message,
         code: countError.code,
+        tenantId,
+        filters,
       });
     }
 
@@ -249,6 +261,8 @@ export async function getCampTemplatesForTenantWithPagination(
         code: error.code,
         details: error.details,
         hint: error.hint,
+        tenantId,
+        filters,
       });
       return {
         items: [],
@@ -258,7 +272,39 @@ export async function getCampTemplatesForTenantWithPagination(
       };
     }
 
-    const total = count || 0;
+    // count가 null이거나 undefined인 경우, 데이터 길이로 대체 시도
+    let total = count ?? null;
+    if (total === null) {
+      // count 쿼리가 실패했거나 null인 경우, 전체 데이터를 조회하여 개수 확인
+      const { data: allData, error: allDataError } = await buildQuery()
+        .select("id");
+      
+      if (!allDataError && allData) {
+        total = allData.length;
+        console.warn("[data/campTemplates] count 쿼리 실패, 데이터 길이로 대체", {
+          total,
+          tenantId,
+        });
+      } else {
+        total = 0;
+        console.error("[data/campTemplates] 전체 데이터 조회도 실패", {
+          error: allDataError?.message,
+          tenantId,
+        });
+      }
+    }
+
+    // 디버깅 로그
+    if (process.env.NODE_ENV === "development") {
+      console.log("[data/campTemplates] 템플릿 조회 결과", {
+        total,
+        itemsCount: data?.length || 0,
+        tenantId,
+        filters,
+        page,
+        pageSize,
+      });
+    }
 
     return {
       items: (data || []) as CampTemplate[],
