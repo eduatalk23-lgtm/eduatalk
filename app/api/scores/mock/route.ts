@@ -1,7 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentTerm, calculateSchoolYear } from "@/lib/data/studentTerms";
 import type { MockScoreInputForm, MockScoreInsert } from "@/lib/types/scoreInput";
+import {
+  apiSuccess,
+  apiCreated,
+  apiBadRequest,
+  handleApiError,
+} from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,17 +24,11 @@ export async function POST(request: NextRequest) {
 
     // 유효성 검증
     if (!studentId || !tenantId) {
-      return NextResponse.json(
-        { error: "필수 파라미터가 누락되었습니다." },
-        { status: 400 }
-      );
+      return apiBadRequest("필수 파라미터가 누락되었습니다.");
     }
 
     if (!scores || scores.length === 0) {
-      return NextResponse.json(
-        { error: "성적 데이터가 없습니다." },
-        { status: 400 }
-      );
+      return apiBadRequest("성적 데이터가 없습니다.");
     }
 
     const supabase = await createSupabaseServerClient();
@@ -83,27 +83,14 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error("[API] 모의고사 성적 저장 실패", error);
-      return NextResponse.json(
-        { error: "성적 저장에 실패했습니다.", details: error.message },
-        { status: 500 }
-      );
+      return handleApiError(error, "[api/scores/mock] 모의고사 성적 저장 실패");
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "모의고사 성적이 저장되었습니다.",
-      data: { mock_scores: data },
+    return apiCreated({
+      mock_scores: data,
     });
   } catch (error) {
-    console.error("[API] 모의고사 성적 저장 중 오류", error);
-    return NextResponse.json(
-      {
-        error: "서버 오류가 발생했습니다.",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/scores/mock]");
   }
 }
 

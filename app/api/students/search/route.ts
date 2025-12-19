@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
@@ -6,6 +6,13 @@ import {
   type StudentSearchParams,
 } from "@/lib/data/studentSearch";
 import type { StudentDivision } from "@/lib/constants/students";
+import {
+  apiSuccess,
+  apiUnauthorized,
+  apiForbidden,
+  apiBadRequest,
+  handleApiError,
+} from "@/lib/api";
 
 /**
  * 학생 통합 검색 API
@@ -28,24 +35,12 @@ export async function GET(request: NextRequest) {
     const { userId, role } = await getCurrentUserRole();
 
     if (!userId || !role) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "인증이 필요합니다.",
-        },
-        { status: 401 }
-      );
+      return apiUnauthorized("인증이 필요합니다.");
     }
 
     // 권한 확인 (admin 또는 parent만 접근 가능)
     if (role !== "admin" && role !== "parent" && role !== "consultant") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "접근 권한이 없습니다.",
-        },
-        { status: 403 }
-      );
+      return apiForbidden("접근 권한이 없습니다.");
     }
 
     // Tenant Context 조회
@@ -70,13 +65,7 @@ export async function GET(request: NextRequest) {
 
     // 검색어 필수 확인
     if (!query.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "검색어를 입력해주세요.",
-        },
-        { status: 400 }
-      );
+      return apiBadRequest("검색어를 입력해주세요.");
     }
 
     // 필터 파싱
@@ -121,28 +110,12 @@ export async function GET(request: NextRequest) {
 
     const result = await searchStudentsUnified(searchParams_);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        students: result.students,
-        total: result.total,
-      },
+    return apiSuccess({
+      students: result.students,
+      total: result.total,
     });
-  } catch (error: unknown) {
-    console.error("[API] 학생 검색 오류:", error);
-
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "학생 검색 중 오류가 발생했습니다.";
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: errorMessage,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, "[api/students/search]");
   }
 }
 

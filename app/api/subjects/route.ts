@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getSubjectsByGroup } from "@/lib/data/subjects";
+import {
+  apiSuccess,
+  apiBadRequest,
+  handleApiError,
+} from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,36 +12,14 @@ export async function GET(request: NextRequest) {
     const subjectGroupId = searchParams.get("subject_group_id") || undefined;
 
     if (!subjectGroupId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "subject_group_id가 필요합니다.",
-        },
-        { status: 400 }
-      );
+      return apiBadRequest("subject_group_id가 필요합니다.");
     }
 
     const subjects = await getSubjectsByGroup(subjectGroupId);
 
-    console.log("[api/subjects] 과목 조회 결과:", {
-      subjectGroupId,
-      count: subjects.length,
-      subjects: subjects.map((s) => ({ id: s.id, name: s.name })),
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: subjects,
-    });
+    return apiSuccess(subjects);
   } catch (error) {
-    console.error("[api/subjects] 조회 실패:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "과목 목록 조회에 실패했습니다.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "[api/subjects]");
   }
 }
 

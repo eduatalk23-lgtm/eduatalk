@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 import type { StudentDivision } from "@/lib/constants/students";
+import {
+  apiSuccess,
+  apiBadRequest,
+  apiNotFound,
+  handleApiError,
+} from "@/lib/api";
 
 export type RecipientType = "student" | "mother" | "father";
 
@@ -37,14 +43,7 @@ export async function GET(request: NextRequest) {
     const tenantContext = await getTenantContext();
 
     if (!tenantContext?.tenantId) {
-      return NextResponse.json(
-        {
-          recipients: [],
-          total: 0,
-          error: "기관 정보를 찾을 수 없습니다.",
-        },
-        { status: 404 }
-      );
+      return apiNotFound("기관 정보를 찾을 수 없습니다.");
     }
 
     // Query Parameters 파싱
@@ -56,14 +55,7 @@ export async function GET(request: NextRequest) {
 
     // recipientTypes는 필수
     if (!recipientTypesParam) {
-      return NextResponse.json(
-        {
-          recipients: [],
-          total: 0,
-          error: "전송 대상자를 선택해주세요.",
-        },
-        { status: 400 }
-      );
+      return apiBadRequest("전송 대상자를 선택해주세요.");
     }
 
     // recipientTypes 파싱
@@ -75,14 +67,7 @@ export async function GET(request: NextRequest) {
       );
 
     if (recipientTypes.length === 0) {
-      return NextResponse.json(
-        {
-          recipients: [],
-          total: 0,
-          error: "유효한 전송 대상자를 선택해주세요.",
-        },
-        { status: 400 }
-      );
+      return apiBadRequest("유효한 전송 대상자를 선택해주세요.");
     }
 
     // grades 파싱
@@ -179,19 +164,11 @@ export async function GET(request: NextRequest) {
       const { data: studentsData, error: studentsError } = await query;
 
       if (studentsError) {
-        console.error("[SMS Students API] 학생 조회 실패:", studentsError);
-        return NextResponse.json(
-          {
-            recipients: [],
-            total: 0,
-            error: "학생 정보를 조회하는 중 오류가 발생했습니다.",
-          },
-          { status: 500 }
-        );
+        return handleApiError(studentsError, "[api/admin/sms/students] 학생 조회 실패");
       }
 
       if (!studentsData || studentsData.length === 0) {
-        return NextResponse.json({
+        return apiSuccess({
           recipients: [],
           total: 0,
         });
@@ -252,24 +229,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       recipients,
       total: recipients.length,
     });
-  } catch (error: unknown) {
-    console.error("[SMS Students API] 오류:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
-
-    return NextResponse.json(
-      {
-        recipients: [],
-        total: 0,
-        error: errorMessage,
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    return handleApiError(error, "[api/admin/sms/students]");
   }
 }
 
