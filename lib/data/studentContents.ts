@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
+import { convertDifficultyLevelToId } from "@/lib/utils/difficultyLevelConverter";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -223,12 +224,19 @@ export async function createBook(
     subject?: string | null;
     publisher?: string | null;
     difficulty_level?: string | null;
+    difficulty_level_id?: string | null;
     total_pages?: number | null;
     notes?: string | null;
     cover_image_url?: string | null;
   }
 ): Promise<{ success: boolean; bookId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
+
+  // difficulty_level_id가 없으면 difficulty_level 문자열을 변환
+  let difficultyLevelId = book.difficulty_level_id;
+  if (!difficultyLevelId && book.difficulty_level) {
+    difficultyLevelId = await convertDifficultyLevelToId(supabase, book.difficulty_level, "book");
+  }
 
   const payload = {
     tenant_id: book.tenant_id || null,
@@ -239,7 +247,8 @@ export async function createBook(
     subject_category: book.subject_category || null,
     subject: book.subject || null,
     publisher: book.publisher || null,
-    difficulty_level: book.difficulty_level || null,
+    difficulty_level: book.difficulty_level || null, // 하위 호환성 유지
+    difficulty_level_id: difficultyLevelId || null,
     total_pages: book.total_pages || null,
     notes: book.notes || null,
     cover_image_url: book.cover_image_url || null,
@@ -283,12 +292,19 @@ export async function createLecture(
     subject?: string | null;
     platform?: string | null;
     difficulty_level?: string | null;
+    difficulty_level_id?: string | null;
     duration?: number | null;
     linked_book_id?: string | null;
     notes?: string | null;
   }
 ): Promise<{ success: boolean; lectureId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
+
+  // difficulty_level_id가 없으면 difficulty_level 문자열을 변환
+  let difficultyLevelId = lecture.difficulty_level_id;
+  if (!difficultyLevelId && lecture.difficulty_level) {
+    difficultyLevelId = await convertDifficultyLevelToId(supabase, lecture.difficulty_level, "lecture");
+  }
 
   const payload = {
     tenant_id: lecture.tenant_id || null,
@@ -299,7 +315,8 @@ export async function createLecture(
     subject_category: lecture.subject_category || null,
     subject: lecture.subject || null,
     platform: lecture.platform || null,
-    difficulty_level: lecture.difficulty_level || null,
+    difficulty_level: lecture.difficulty_level || null, // 하위 호환성 유지
+    difficulty_level_id: difficultyLevelId || null,
     duration: lecture.duration || null,
     linked_book_id: lecture.linked_book_id || null,
     notes: lecture.notes || null,
@@ -394,7 +411,15 @@ export async function updateBook(
   if (updates.subject_category !== undefined) payload.subject_category = updates.subject_category;
   if (updates.subject !== undefined) payload.subject = updates.subject;
   if (updates.publisher !== undefined) payload.publisher = updates.publisher;
-  if (updates.difficulty_level !== undefined) payload.difficulty_level = updates.difficulty_level;
+  if (updates.difficulty_level !== undefined) {
+    payload.difficulty_level = updates.difficulty_level;
+    // difficulty_level이 변경되면 difficulty_level_id도 업데이트
+    if (updates.difficulty_level) {
+      payload.difficulty_level_id = await convertDifficultyLevelToId(supabase, updates.difficulty_level, "book");
+    } else {
+      payload.difficulty_level_id = null;
+    }
+  }
   if (updates.total_pages !== undefined) payload.total_pages = updates.total_pages;
   if (updates.notes !== undefined) payload.notes = updates.notes;
   if (updates.cover_image_url !== undefined) payload.cover_image_url = updates.cover_image_url;
@@ -434,7 +459,15 @@ export async function updateLecture(
   if (updates.subject_category !== undefined) payload.subject_category = updates.subject_category;
   if (updates.subject !== undefined) payload.subject = updates.subject;
   if (updates.platform !== undefined) payload.platform = updates.platform;
-  if (updates.difficulty_level !== undefined) payload.difficulty_level = updates.difficulty_level;
+  if (updates.difficulty_level !== undefined) {
+    payload.difficulty_level = updates.difficulty_level;
+    // difficulty_level이 변경되면 difficulty_level_id도 업데이트
+    if (updates.difficulty_level) {
+      payload.difficulty_level_id = await convertDifficultyLevelToId(supabase, updates.difficulty_level, "lecture");
+    } else {
+      payload.difficulty_level_id = null;
+    }
+  }
   if (updates.duration !== undefined) payload.duration = updates.duration;
   if (updates.total_episodes !== undefined) payload.total_episodes = updates.total_episodes;
   if (updates.linked_book_id !== undefined) payload.linked_book_id = updates.linked_book_id;
