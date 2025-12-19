@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/atoms/Badge";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
-import { maskPhoneNumber } from "@/lib/utils/phoneMasking";
+import { maskPhoneNumber } from "@/lib/utils/phone";
 import type { SMSLog } from "@/app/(admin)/actions/smsLogActions";
 
 type SMSLogsTableProps = {

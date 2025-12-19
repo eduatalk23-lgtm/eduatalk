@@ -51,28 +51,9 @@ export function formatGradeDisplay(
 }
 
 /**
- * 전화번호 유틸리티 (하위 호환성)
- * 
- * @deprecated lib/utils/phone.ts의 함수들을 사용하세요.
- * 하위 호환성을 위해 유지됩니다.
- */
-import {
-  extractPhoneDigits,
-  normalizePhoneNumber,
-  formatPhoneNumber,
-  validatePhoneNumber,
-} from "./phone";
-
-export {
-  extractPhoneDigits,
-  normalizePhoneNumber,
-  formatPhoneNumber,
-  validatePhoneNumber,
-};
-
-/**
  * 폼 필드별 유효성 검증
  */
+import { validatePhoneNumber } from "./phone";
 export type ValidationErrors = Partial<Record<keyof {
   name: string;
   school_id: string;
