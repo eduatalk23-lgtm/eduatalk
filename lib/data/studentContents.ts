@@ -15,7 +15,8 @@ export type Book = {
   subject_category?: string | null;
   subject?: string | null;
   publisher?: string | null;
-  difficulty_level?: string | null;
+  difficulty_level?: string | null; // @deprecated: difficulty_level_id 사용 권장
+  difficulty_level_id?: string | null;
   total_pages?: number | null;
   notes?: string | null;
   cover_image_url?: string | null;
@@ -34,7 +35,8 @@ export type Lecture = {
   subject_category?: string | null;
   subject?: string | null;
   platform?: string | null;
-  difficulty_level?: string | null;
+  difficulty_level?: string | null; // @deprecated: difficulty_level_id 사용 권장
+  difficulty_level_id?: string | null;
   duration?: number | null; // 분 단위
   total_episodes?: number | null; // 총 에피소드 수
   linked_book_id?: string | null;
@@ -411,7 +413,10 @@ export async function updateBook(
   if (updates.subject_category !== undefined) payload.subject_category = updates.subject_category;
   if (updates.subject !== undefined) payload.subject = updates.subject;
   if (updates.publisher !== undefined) payload.publisher = updates.publisher;
-  if (updates.difficulty_level !== undefined) {
+  // difficulty_level_id 우선 사용, 없으면 difficulty_level 문자열 변환
+  if (updates.difficulty_level_id !== undefined) {
+    payload.difficulty_level_id = updates.difficulty_level_id || null;
+  } else if (updates.difficulty_level !== undefined) {
     payload.difficulty_level = updates.difficulty_level;
     // difficulty_level이 변경되면 difficulty_level_id도 업데이트
     if (updates.difficulty_level) {
@@ -459,7 +464,10 @@ export async function updateLecture(
   if (updates.subject_category !== undefined) payload.subject_category = updates.subject_category;
   if (updates.subject !== undefined) payload.subject = updates.subject;
   if (updates.platform !== undefined) payload.platform = updates.platform;
-  if (updates.difficulty_level !== undefined) {
+  // difficulty_level_id 우선 사용, 없으면 difficulty_level 문자열 변환
+  if (updates.difficulty_level_id !== undefined) {
+    payload.difficulty_level_id = updates.difficulty_level_id || null;
+  } else if (updates.difficulty_level !== undefined) {
     payload.difficulty_level = updates.difficulty_level;
     // difficulty_level이 변경되면 difficulty_level_id도 업데이트
     if (updates.difficulty_level) {

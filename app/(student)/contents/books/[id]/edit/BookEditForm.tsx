@@ -4,7 +4,8 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateBook } from "@/app/(student)/actions/contentActions";
 import { Book } from "@/app/types/content";
-import FormField, { FormSelect } from "@/components/molecules/FormField";
+import FormField from "@/components/molecules/FormField";
+import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
 
@@ -60,18 +61,11 @@ export function BookEditForm({ book }: { book: Book }) {
         />
 
         {/* 교과 */}
-        <FormSelect
+        <FormField
           name="subject_category"
           label="교과"
           defaultValue={book.subject_category ?? ""}
-          placeholder="선택하세요"
-          options={[
-            { value: "국어", label: "국어" },
-            { value: "수학", label: "수학" },
-            { value: "영어", label: "영어" },
-            { value: "사회", label: "사회" },
-            { value: "과학", label: "과학" },
-          ]}
+          placeholder="예: 국어, 수학, 영어"
         />
 
         {/* 과목 */}
@@ -101,18 +95,10 @@ export function BookEditForm({ book }: { book: Book }) {
         />
 
         {/* 난이도 */}
-        <FormSelect
-          name="difficulty"
-          label="난이도"
-          defaultValue={book.difficulty_level ?? ""}
-          placeholder="선택하세요"
-          options={[
-            { value: "하", label: "하" },
-            { value: "중", label: "중" },
-            { value: "중상", label: "중상" },
-            { value: "상", label: "상" },
-            { value: "최상", label: "최상" },
-          ]}
+        <DifficultySelectField
+          contentType="book"
+          defaultValue={book.difficulty_level_id ?? undefined}
+          name="difficulty_level_id"
         />
 
         {/* 메모 */}

@@ -131,18 +131,10 @@ export function LectureEditForm({ lecture, studentBooks: initialStudentBooks, li
         />
 
         {/* 난이도 */}
-        <FormSelect
-          name="difficulty"
-          label="난이도"
-          defaultValue={lecture.difficulty_level ?? ""}
-          placeholder="선택하세요"
-          options={[
-            { value: "하", label: "하" },
-            { value: "중", label: "중" },
-            { value: "중상", label: "중상" },
-            { value: "상", label: "상" },
-            { value: "최상", label: "최상" },
-          ]}
+        <DifficultySelectField
+          contentType="lecture"
+          defaultValue={lecture.difficulty_level_id ?? undefined}
+          name="difficulty_level_id"
         />
 
         {/* 메모 */}

@@ -211,7 +211,7 @@ export async function updateBook(id: string, formData: FormData) {
   const subjectCategory = String(formData.get("subject_category") || "");
   const subject = String(formData.get("subject") || "");
   const publisher = String(formData.get("publisher") || "");
-  const difficulty = String(formData.get("difficulty") || "");
+  const difficultyLevelId = String(formData.get("difficulty_level_id") || "");
   const totalPages = getNumberFromFormData(formData, "total_pages", { min: 1 });
   const notes = String(formData.get("notes") || "");
   const coverImageUrl = String(formData.get("cover_image_url") || "");
@@ -223,7 +223,7 @@ export async function updateBook(id: string, formData: FormData) {
     subject_category: subjectCategory || null,
     subject: subject || null,
     publisher: publisher || null,
-    difficulty_level: difficulty || null,
+    difficulty_level_id: difficultyLevelId || null,
     total_pages: totalPages,
     notes: notes || null,
     cover_image_url: coverImageUrl || null,
@@ -294,7 +294,7 @@ export async function addLecture(formData: FormData) {
   const subjectCategory = String(formData.get("subject_category") || "");
   const subject = String(formData.get("subject") || "");
   const platform = String(formData.get("platform") || "");
-  const difficulty = String(formData.get("difficulty") || "");
+  const difficultyLevelId = String(formData.get("difficulty_level_id") || "");
   const duration = getNumberFromFormData(formData, "duration", { min: 0 });
   const notes = String(formData.get("notes") || "");
 
@@ -372,7 +372,7 @@ export async function updateLecture(id: string, formData: FormData) {
   const subjectCategory = String(formData.get("subject_category") || "");
   const subject = String(formData.get("subject") || "");
   const platform = String(formData.get("platform") || "");
-  const difficulty = String(formData.get("difficulty") || "");
+  const difficultyLevelId = String(formData.get("difficulty_level_id") || "");
   const duration = getNumberFromFormData(formData, "duration", { min: 0 });
   const linkedBookId = String(formData.get("linked_book_id") || "");
   const notes = String(formData.get("notes") || "");
@@ -384,7 +384,7 @@ export async function updateLecture(id: string, formData: FormData) {
     subject_category: subjectCategory || undefined,
     subject: subject || undefined,
     platform: platform || undefined,
-    difficulty_level: difficulty || undefined,
+    difficulty_level_id: difficultyLevelId || undefined,
     duration: duration,
     linked_book_id: linkedBookId || undefined,
     notes: notes || undefined,
