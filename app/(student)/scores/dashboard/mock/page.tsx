@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ScoreTypeTabs } from "../../_components/ScoreTypeTabs";
 import { DashboardSubTabs } from "../_components/DashboardSubTabs";
-import { fetchMockScores } from "../_utils/scoreQueries";
+import { getMockScores } from "@/lib/data/studentScores";
+import { getActiveCurriculumRevision, getSubjectHierarchyOptimized } from "@/lib/data/subjects";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import type { MockScoreRow } from "@/lib/types/legacyScoreTypes";
 import { Card } from "@/components/molecules/Card";
 import { MockExamTrendSection } from "../_components/MockExamTrendSection";
 import { MockSummarySection } from "./_components/MockSummarySection";
@@ -17,6 +20,69 @@ import { MockPercentileDistributionChart } from "./_components/MockPercentileDis
 import { getContainerClass } from "@/lib/constants/layout";
 import { PageHeader } from "@/components/layout/PageHeader";
 
+/**
+ * exam_title에서 시험 유형 추출
+ */
+function extractExamType(examTitle: string): string {
+  if (examTitle.includes("평가원")) return "평가원";
+  if (examTitle.includes("교육청")) return "교육청";
+  if (examTitle.includes("사설")) return "사설";
+  return examTitle; // 기본값으로 exam_title 전체 반환
+}
+
+/**
+ * exam_date에서 회차(월) 추출
+ */
+function extractExamRound(examDate: string): string | null {
+  try {
+    const date = new Date(examDate);
+    const month = date.getMonth() + 1; // 0-based이므로 +1
+    return `${month}월`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * MockScore를 MockScoreRow로 변환
+ */
+async function transformMockScoresToRows(
+  mockScores: Awaited<ReturnType<typeof getMockScores>>,
+  subjectHierarchy: Awaited<ReturnType<typeof getSubjectHierarchyOptimized>>
+): Promise<MockScoreRow[]> {
+  // 교과군 및 과목 매핑 생성
+  const subjectGroupMap = new Map<string, string>();
+  const subjectMap = new Map<string, string>();
+
+  subjectHierarchy.subjectGroups.forEach((group) => {
+    subjectGroupMap.set(group.id, group.name);
+    group.subjects.forEach((subject) => {
+      subjectMap.set(subject.id, subject.name);
+    });
+  });
+
+  return mockScores.map((score): MockScoreRow => {
+    const subjectGroup = subjectGroupMap.get(score.subject_group_id) || "";
+    const subjectName = subjectMap.get(score.subject_id) || null;
+    const examType = extractExamType(score.exam_title);
+    const examRound = score.exam_date ? extractExamRound(score.exam_date) : null;
+
+    return {
+      id: score.id,
+      student_id: score.student_id,
+      grade: score.grade,
+      subject_group: subjectGroup,
+      exam_type: examType,
+      subject_name: subjectName,
+      raw_score: score.raw_score,
+      percentile: score.percentile,
+      grade_score: score.grade_score,
+      exam_round: examRound,
+      created_at: score.created_at,
+    };
+  });
+}
+
 export default async function MockScoresDashboardPage() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -25,8 +91,42 @@ export default async function MockScoresDashboardPage() {
 
   if (!user) redirect("/login");
 
+  // Tenant context 조회
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    console.error("[mock-dashboard] tenantId를 찾을 수 없습니다.");
+    redirect("/login");
+  }
+
+  // 활성 개정교육과정 조회
+  const curriculumRevision = await getActiveCurriculumRevision();
+  if (!curriculumRevision) {
+    console.error("[mock-dashboard] 활성 개정교육과정을 찾을 수 없습니다.");
+    return (
+      <section className={getContainerClass("DASHBOARD", "md")}>
+        <div className="flex flex-col gap-6">
+          <PageHeader
+            title="모의고사 성적 대시보드"
+            description="모의고사 성적을 시험 유형·회차별로 분석하고 시각화합니다."
+          />
+          <Card>
+            <div className="p-8 text-center text-gray-600">
+              개정교육과정 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.
+            </div>
+          </Card>
+        </div>
+      </section>
+    );
+  }
+
+  // 교과/과목 계층 구조 조회
+  const subjectHierarchy = await getSubjectHierarchyOptimized(curriculumRevision.id);
+
   // 모의고사 성적 조회
-  const mockScores = await fetchMockScores(user.id);
+  const mockScoresData = await getMockScores(user.id, tenantContext.tenantId);
+
+  // MockScore를 MockScoreRow로 변환
+  const mockScores = await transformMockScoresToRows(mockScoresData, subjectHierarchy);
 
   return (
     <section className={getContainerClass("DASHBOARD", "md")}>
