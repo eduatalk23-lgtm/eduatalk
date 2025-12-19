@@ -213,10 +213,10 @@ export default async function AdminSMSPage({
       count: studentsWithPhones.length,
       withPhone: studentsWithAnyPhone.length,
       withoutPhone: studentsWithPhones.length - studentsWithAnyPhone.length,
-      profilesCount: profiles.length,
+      profilesCount: phoneDataList.length,
       tenantId: tenantContext?.tenantId,
       hasError: !!studentsError,
-      errorCode: studentsError?.code ?? null,
+      errorCode: (studentsError as PostgrestError)?.code ?? null,
       sampleStudent: studentsWithPhones[0]
         ? {
             id: studentsWithPhones[0].id,
@@ -305,20 +305,20 @@ export default async function AdminSMSPage({
       </div>
 
       {/* 학생 목록 조회 에러 안내 */}
-      {studentsError && (
+      {!!studentsError && (
         <div className="flex flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-800">
             학생 목록을 불러오는 중 오류가 발생했습니다.
           </p>
           <p className="text-xs text-red-700">
-            에러 코드: {studentsError?.code ?? "알 수 없음"}
+            에러 코드: {(studentsError as PostgrestError)?.code ?? "알 수 없음"}
           </p>
           <p className="text-xs text-red-600">
-            {studentsError?.message ?? "알 수 없는 오류"}
+            {(studentsError as PostgrestError)?.message ?? "알 수 없는 오류"}
           </p>
-          {studentsError?.hint && (
+          {(studentsError as PostgrestError)?.hint && (
             <p className="text-xs text-red-600">
-              힌트: {studentsError?.hint}
+              힌트: {(studentsError as PostgrestError)?.hint}
             </p>
           )}
         </div>
@@ -337,19 +337,7 @@ export default async function AdminSMSPage({
       )}
 
       {/* SMS 발송 폼 - 항상 표시 */}
-      <SMSSendForm
-        students={studentsWithPhones.map((s) => ({
-          id: s.id,
-          name: s.name ?? null,
-          grade: s.grade ?? null,
-          class: s.class ?? null,
-          phone: s.phone ?? null,
-          mother_phone: s.mother_phone ?? null,
-          father_phone: s.father_phone ?? null,
-          is_active: s.is_active ?? null,
-        }))}
-        academyName={academyName}
-      />
+      <SMSSendForm academyName={academyName} />
 
       {/* 통계 */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">

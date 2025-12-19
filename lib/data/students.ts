@@ -115,7 +115,7 @@ export async function listStudentsByTenant(
         .from("students")
         .select(selectFields)
         .order("created_at", { ascending: false });
-      return queryResult;
+      return queryResult as { data: Student[] | null; error: import("@supabase/supabase-js").PostgrestError | null };
     },
     {
       context: "[data/students] listStudentsByTenant",
@@ -346,7 +346,18 @@ export async function getActiveStudentsForSMS(): Promise<{
     .eq("is_active", true)
     .order("name", { ascending: true });
 
-  return { data: data ?? [], error };
+  return { 
+    data: (data ?? []) as unknown as Array<{
+      id: string;
+      name?: string | null;
+      grade?: string | null;
+      class?: string | null;
+      mother_phone?: string | null;
+      father_phone?: string | null;
+      is_active?: boolean | null;
+    }>, 
+    error 
+  };
 }
 
 /**
@@ -412,7 +423,7 @@ export async function getStudentsByDivision(
     return [];
   }
 
-  return (data as Student[]) ?? [];
+  return (data as unknown as Student[]) ?? [];
 }
 
 /**

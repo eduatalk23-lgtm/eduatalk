@@ -99,6 +99,10 @@ export async function getStudentPhonesBatch(
     father_phone?: string | null;
   }> = [];
 
+  if (!adminClient) {
+    throw new Error("Admin client를 초기화할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY를 확인해주세요.");
+  }
+
   const { data: profilesData, error: profilesError } = await adminClient
     .from("student_profiles")
     .select("id, phone, mother_phone, father_phone")
@@ -215,8 +219,8 @@ export async function getStudentPhonesBatch(
       phone: profile?.phone ?? null,
       mother_phone: motherPhone,
       father_phone: fatherPhone,
-      mother_phone_source: motherPhoneSource,
-      father_phone_source: fatherPhoneSource,
+      mother_phone_source: motherPhoneSource as "linked_account" | "student_profile" | null | undefined,
+      father_phone_source: fatherPhoneSource as "linked_account" | "student_profile" | null | undefined,
     };
   });
 

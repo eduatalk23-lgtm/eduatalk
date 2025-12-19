@@ -111,6 +111,10 @@ export async function getStudentGendersBatch(
   const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
   const adminClient = createSupabaseAdminClient();
 
+  if (!adminClient) {
+    throw new Error("Admin client를 초기화할 수 없습니다. SUPABASE_SERVICE_ROLE_KEY를 확인해주세요.");
+  }
+
   const { data: profiles, error } = await adminClient
     .from("student_profiles")
     .select("id, gender")

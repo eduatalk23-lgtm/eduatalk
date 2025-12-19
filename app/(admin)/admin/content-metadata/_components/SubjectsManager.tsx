@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/atoms/Button";
-import { Input } from "@/components/atoms/Input";
+import Button from "@/components/atoms/Button";
+import Input from "@/components/atoms/Input";
 import {
   getSubjectsAction,
   createSubjectAction,
@@ -16,6 +16,7 @@ import type { Subject, SubjectCategory, CurriculumRevision } from "@/lib/data/co
 import {
   bgSurfaceVar,
   borderDefaultVar,
+  divideDefaultVar,
   textPrimaryVar,
   textSecondaryVar,
   textTertiaryVar,

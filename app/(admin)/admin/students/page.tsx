@@ -151,7 +151,14 @@ export default async function AdminStudentsPage({
   // 병렬로 데이터 페칭
   const [phoneDataList, schoolMap, genderMap, userMetadata] = await Promise.all([
     getStudentPhonesBatch(studentIds),
-    getStudentSchoolsBatch(supabase, filteredStudents),
+    getStudentSchoolsBatch(
+      supabase,
+      filteredStudents.map((s) => ({
+        id: s.id,
+        school_id: s.school_id ?? null,
+        school_type: s.school_type ?? null,
+      }))
+    ),
     getStudentGendersBatch(studentIds),
     getAuthUserMetadata(adminClient, studentIds),
   ]);
@@ -170,15 +177,15 @@ export default async function AdminStudentsPage({
     
     return {
       id: student.id,
-      name: student.name,
+      name: student.name ?? null,
       grade: student.grade ? String(student.grade) : null,
-      class: student.class,
+      class: student.class ?? null,
       division: student.division ?? null,
       schoolName,
       phone: phoneData?.phone ?? null,
       mother_phone: phoneData?.mother_phone ?? null,
       father_phone: phoneData?.father_phone ?? null,
-      is_active: student.is_active,
+      is_active: student.is_active ?? null,
       gender,
       email,
     };

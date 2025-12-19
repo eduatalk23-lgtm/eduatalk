@@ -35,7 +35,7 @@ export function CreateStudentForm({
   setIsSubmitting,
 }: CreateStudentFormProps) {
   const [activeTab, setActiveTab] = useState<"basic" | "profile" | "career">("basic");
-  const { form, control, handleSubmit } = useCreateStudentForm();
+  const { form, control } = useCreateStudentForm();
   const { showError } = useToast();
   const [schoolType, setSchoolType] = useState<"중학교" | "고등학교" | undefined>();
 
@@ -115,7 +115,7 @@ export function CreateStudentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+    <form onSubmit={(form.handleSubmit as any)(onSubmit)} className="flex flex-col gap-6">
       {/* 탭 네비게이션 */}
       <div className="flex gap-2 border-b">
         <button

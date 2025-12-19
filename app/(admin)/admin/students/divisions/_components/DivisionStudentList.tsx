@@ -66,7 +66,7 @@ export function DivisionStudentList({
 
   const handleToggleSelect = useCallback(
     (id: string) => {
-      updateSelectedIds((prev) => {
+      setSelectedIds((prev) => {
         const next = new Set(prev);
         if (next.has(id)) {
           next.delete(id);
@@ -76,7 +76,7 @@ export function DivisionStudentList({
         return next;
       });
     },
-    [updateSelectedIds]
+    [setSelectedIds]
   );
 
   const handleSelectAll = useCallback(

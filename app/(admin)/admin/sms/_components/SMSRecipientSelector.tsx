@@ -6,7 +6,7 @@ import Input from "@/components/atoms/Input";
 import Select from "@/components/atoms/Select";
 import Button from "@/components/atoms/Button";
 
-import type { RecipientType } from "./SMSSendForm";
+import type { RecipientType } from "./SMSFilterPanel";
 
 type Student = {
   id: string;
