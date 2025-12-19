@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         if (includeMetadata) {
           const { data: bookData } = await supabase
             .from("master_books")
-            .select("subject, semester, revision, difficulty_level, publisher")
+            .select("subject, semester, revision, difficulty_level, difficulty_level_id, publisher")
             .eq("id", contentId)
             .maybeSingle();
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         if (includeMetadata) {
           const { data: lectureData } = await supabase
             .from("master_lectures")
-            .select("subject, semester, revision, difficulty_level, platform")
+            .select("subject, semester, revision, difficulty_level, difficulty_level_id, platform")
             .eq("id", contentId)
             .maybeSingle();
 

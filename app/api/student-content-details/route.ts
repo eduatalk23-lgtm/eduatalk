@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       // 병렬 처리: 상세 정보와 메타데이터를 동시에 조회
       // books 테이블 조회를 단일 쿼리로 통합 (total_pages, master_content_id, 메타데이터 필드 포함)
       const selectFields = includeMetadata
-        ? "total_pages, master_content_id, subject, semester, revision, difficulty_level, publisher"
+        ? "total_pages, master_content_id, subject, semester, revision, difficulty_level, difficulty_level_id, publisher"
         : "total_pages, master_content_id";
 
       const [details, { data: studentBookRaw }] = await Promise.all([
@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
         semester?: string | null;
         revision?: string | null;
         difficulty_level?: string | null;
+        difficulty_level_id?: string | null;
         publisher?: string | null;
       };
 
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
               semester: studentBook.semester,
               revision: studentBook.revision,
               difficulty_level: studentBook.difficulty_level,
+              difficulty_level_id: studentBook.difficulty_level_id,
               publisher: studentBook.publisher,
             }
           : undefined,
@@ -110,7 +112,7 @@ export async function GET(request: NextRequest) {
       // 병렬 처리: episode 정보와 메타데이터를 동시에 조회
       // lectures 테이블 조회를 단일 쿼리로 통합 (master_content_id, total_episodes, 메타데이터 필드 포함)
       const selectFields = includeMetadata
-        ? "master_content_id, total_episodes, subject, semester, revision, difficulty_level, platform"
+        ? "master_content_id, total_episodes, subject, semester, revision, difficulty_level, difficulty_level_id, platform"
         : "master_content_id, total_episodes";
 
       const [episodes, { data: studentLectureRaw }] = await Promise.all([
@@ -130,6 +132,7 @@ export async function GET(request: NextRequest) {
         semester?: string | null;
         revision?: string | null;
         difficulty_level?: string | null;
+        difficulty_level_id?: string | null;
         platform?: string | null;
       };
 
@@ -157,6 +160,7 @@ export async function GET(request: NextRequest) {
               semester: studentLecture.semester,
               revision: studentLecture.revision,
               difficulty_level: studentLecture.difficulty_level,
+              difficulty_level_id: studentLecture.difficulty_level_id,
               platform: studentLecture.platform,
             }
           : undefined,
