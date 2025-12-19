@@ -10,7 +10,7 @@ import {
   useRecharts,
   ChartLoadingSkeleton,
 } from "@/components/charts/LazyRecharts";
-import type { MockScoreRow } from "../_utils/scoreQueries";
+import type { MockScoreRow } from "@/lib/types/legacyScoreTypes";
 import { getChartColor } from "@/lib/constants/colors";
 import { EmptyState } from "@/components/molecules/EmptyState";
 

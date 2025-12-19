@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { MockScoreRow } from "../../_utils/scoreQueries";
+import type { MockScoreRow } from "@/lib/types/legacyScoreTypes";
 import { getRiskColorClasses, textPrimary, textMuted, borderDefault, bgPage } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 

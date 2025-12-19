@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { MockScoreRow } from "../../_utils/scoreQueries";
+import type { MockScoreRow } from "@/lib/types/legacyScoreTypes";
 import { Card } from "@/components/molecules/Card";
 import { getGradeColor, getTrendColor } from "@/lib/constants/colors";
 

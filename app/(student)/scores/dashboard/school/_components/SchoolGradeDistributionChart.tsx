@@ -5,7 +5,7 @@ import {
   useRecharts,
   ChartLoadingSkeleton,
 } from "@/components/charts/LazyRecharts";
-import type { SchoolScoreRow } from "../../_utils/scoreQueries";
+import type { SchoolScoreRow } from "@/lib/types/legacyScoreTypes";
 import { getChartColor } from "@/lib/constants/colors";
 
 type SchoolGradeDistributionChartProps = {

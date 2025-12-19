@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { SchoolScoreRow } from "../../_utils/scoreQueries";
+import type { SchoolScoreRow } from "@/lib/types/legacyScoreTypes";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { getRiskColorClasses, textPrimary, textMuted, getBadgeStyle } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
