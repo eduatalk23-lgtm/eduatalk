@@ -25,7 +25,6 @@ import type {
 } from "@/lib/types/plan-generation";
 import type { ScheduledPlan } from "@/lib/plan/scheduler";
 import type { PlanGroup } from "@/lib/types/plan";
-import { timeToMinutes as timeToMinutesUtil, minutesToTime as minutesToTimeUtil } from "@/lib/utils/time";
 
 // ============================================
 // 타입 정의
@@ -66,22 +65,10 @@ export type DateProcessingContext = {
 // ============================================
 // 유틸리티 함수
 // ============================================
-
-/**
- * 시간 문자열을 분으로 변환
- * @deprecated 공통 함수 사용 권장: import { timeToMinutes } from "@/lib/utils/time"
- */
-export function timeToMinutes(time: string): number {
-  return timeToMinutesUtil(time);
-}
-
-/**
- * 분을 시간 문자열로 변환
- * @deprecated 공통 함수 사용 권장: import { minutesToTime } from "@/lib/utils/time"
- */
-export function minutesToTime(minutes: number): string {
-  return minutesToTimeUtil(minutes);
-}
+// 
+// @deprecated timeToMinutes와 minutesToTime 함수는 제거되었습니다.
+// 대신 @/lib/utils/time에서 직접 import하여 사용하세요:
+// import { timeToMinutes, minutesToTime } from "@/lib/utils/time"
 
 /**
  * 학습 시간 슬롯을 추출하고 정렬합니다.

@@ -89,37 +89,11 @@ export type PlanGenerationData = {
 
 /**
  * 블록 정보 조회
+ * 
+ * @deprecated 이 함수는 제거되었습니다. 대신 `getBlockSetForPlanGroup`를 직접 사용하세요.
+ * 
+ * @see lib/plan/blocks.ts - getBlockSetForPlanGroup
  */
-/**
- * @deprecated 이 함수는 더 이상 사용되지 않습니다. 대신 `getBlockSetForPlanGroup`를 사용하세요.
- * 하위 호환성을 위해 유지되지만, 새로운 코드에서는 사용하지 마세요.
- */
-export async function prepareBaseBlocks(
-  supabase: SupabaseServerClient,
-  group: PlanGroup,
-  studentId: string
-): Promise<BlockInfo[]> {
-  // 새로운 헬퍼 함수 사용
-  const { getBlockSetForPlanGroup } = await import("@/lib/plan/blocks");
-  const { getCurrentUser } = await import("@/lib/auth/getCurrentUser");
-  const { requireTenantContext } = await import("@/lib/tenant/requireTenantContext");
-
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("로그인이 필요합니다.");
-  }
-
-  const tenantContext = await requireTenantContext();
-  const role = user.role as "student" | "admin" | "consultant";
-
-  return getBlockSetForPlanGroup(
-    group,
-    studentId,
-    user.userId,
-    role,
-    tenantContext.tenantId
-  );
-}
 
 /**
  * 마스터 콘텐츠를 학생 콘텐츠로 복사하고 ID 매핑 생성
