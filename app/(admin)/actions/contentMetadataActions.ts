@@ -150,7 +150,7 @@ export const getSubjectsAction = withErrorHandling(async (subjectCategoryId?: st
     id: subject.id,
     name: subject.name,
     subject_category_id: subject.subject_group_id,
-    display_order: (subject as any).display_order ?? 0,
+    display_order: subject.display_order ?? 0,
     is_active: true,
   }));
 });
