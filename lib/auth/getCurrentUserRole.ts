@@ -8,6 +8,11 @@ import {
 } from "@/lib/auth/rateLimitHandler";
 import { analyzeAuthError, logAuthError } from "./errorHandlers";
 import { isRefreshTokenError } from "./rateLimitHandler";
+import {
+  extractSignupRole,
+  extractTenantId,
+  type SignupRole,
+} from "@/lib/types/auth";
 
 export type UserRole =
   | "student"
@@ -16,11 +21,6 @@ export type UserRole =
   | "parent"
   | "superadmin"
   | null;
-
-/**
- * 회원가입 시 선택한 역할 타입
- */
-export type SignupRole = "student" | "parent";
 
 export type CurrentUserRole = {
   userId: string | null;
@@ -271,15 +271,9 @@ export async function getCurrentUserRole(
       return { userId: null, role: null, tenantId: null };
     }
 
-    // user_metadata에서 signup_role과 tenant_id 미리 추출 (재사용)
-    const signupRole = user.user_metadata?.signup_role as
-      | string
-      | null
-      | undefined;
-    const tenantIdFromMetadata = user.user_metadata?.tenant_id as
-      | string
-      | null
-      | undefined;
+    // user_metadata에서 signup_role과 tenant_id 미리 추출 (타입 가드 사용)
+    const signupRole = extractSignupRole(user.user_metadata);
+    const tenantIdFromMetadata = extractTenantId(user.user_metadata);
 
     // 1. admin_users 테이블에서 조회 (최우선)
     const adminRole = await fetchAdminRole(supabase, user.id);
@@ -322,9 +316,9 @@ export async function getCurrentUserRole(
       }
       return {
         userId: user.id,
-        role: signupRole as "student" | "parent",
+        role: signupRole, // 타입 가드로 이미 SignupRole 타입 보장됨
         tenantId: tenantIdFromMetadata ?? null,
-        signupRole: signupRole as SignupRole,
+        signupRole: signupRole, // 타입 가드로 이미 SignupRole 타입 보장됨
       };
     }
 

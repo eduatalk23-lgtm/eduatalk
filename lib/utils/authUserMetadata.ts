@@ -3,6 +3,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { extractDisplayName } from "@/lib/types/auth";
 
 /**
  * 특정 사용자 ID 목록의 메타데이터만 조회 (전체 조회 대신)
@@ -41,7 +42,7 @@ export async function getAuthUserMetadata(
       if (userIdSet.has(user.id)) {
         metadataMap.set(user.id, {
           email: user.email || null,
-          name: (user.user_metadata?.display_name as string) || null,
+          name: extractDisplayName(user.user_metadata) ?? null,
         });
       }
     });
@@ -82,7 +83,7 @@ export async function getAllAuthUserMetadata(
     authData.users.forEach((user) => {
       metadataMap.set(user.id, {
         email: user.email || null,
-        name: (user.user_metadata?.display_name as string) || null,
+        name: extractDisplayName(user.user_metadata) ?? null,
       });
     });
   } catch (error) {

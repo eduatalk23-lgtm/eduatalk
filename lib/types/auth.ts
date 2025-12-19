@@ -65,3 +65,79 @@ export interface ConsentMetadata {
   user_agent?: string;
 }
 
+/**
+ * user_metadata가 SignupMetadata 타입인지 확인하는 타입 가드
+ */
+export function isSignupMetadata(
+  metadata: unknown
+): metadata is SignupMetadata {
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+
+  const m = metadata as Record<string, unknown>;
+
+  // signup_role이 유효한 값인지 확인
+  if (m.signup_role !== undefined && m.signup_role !== null) {
+    if (m.signup_role !== "student" && m.signup_role !== "parent") {
+      return false;
+    }
+  }
+
+  // tenant_id가 문자열이거나 null인지 확인
+  if (
+    m.tenant_id !== undefined &&
+    m.tenant_id !== null &&
+    typeof m.tenant_id !== "string"
+  ) {
+    return false;
+  }
+
+  // display_name이 문자열이거나 null인지 확인
+  if (
+    m.display_name !== undefined &&
+    m.display_name !== null &&
+    typeof m.display_name !== "string"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * user_metadata에서 signup_role을 안전하게 추출
+ */
+export function extractSignupRole(
+  metadata: unknown
+): SignupRole | null | undefined {
+  if (!isSignupMetadata(metadata)) {
+    return undefined;
+  }
+  return metadata.signup_role ?? null;
+}
+
+/**
+ * user_metadata에서 tenant_id를 안전하게 추출
+ */
+export function extractTenantId(
+  metadata: unknown
+): string | null | undefined {
+  if (!isSignupMetadata(metadata)) {
+    return undefined;
+  }
+  return metadata.tenant_id ?? null;
+}
+
+/**
+ * user_metadata에서 display_name을 안전하게 추출
+ */
+export function extractDisplayName(
+  metadata: unknown
+): string | null | undefined {
+  if (!isSignupMetadata(metadata)) {
+    return undefined;
+  }
+  return metadata.display_name ?? null;
+}
+
