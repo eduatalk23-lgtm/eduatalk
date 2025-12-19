@@ -20,15 +20,15 @@
 
 #### `app/actions/scores.ts` (DEPRECATED)
 - ✅ **이미 deprecated 표시됨**
-- `addStudentScore` - 사용처 미확인 (추가 조사 필요)
+- `addStudentScore` - **사용하지 않음** (성적 추가 페이지 없음, 새 구조 사용)
 - `updateStudentScore` - **사용 중**: `app/(student)/scores/[id]/edit/page.tsx`
 - `deleteStudentScore` - **사용 중**: `app/(student)/scores/_components/DeleteScoreButton.tsx`
 
 #### `app/(student)/scores/dashboard/_utils.ts` (DEPRECATED)
 - ✅ **이미 deprecated 표시됨**
 - `fetchAllScores` - **사용 중**: 
-  - `app/(student)/scores/dashboard/page.tsx` (추정)
   - `app/(parent)/parent/_components/ParentDashboardContent.tsx`
+  - ⚠️ `app/(student)/scores/dashboard/page.tsx`는 이미 deprecated, 통합 대시보드로 리다이렉트됨
 
 #### `app/(student)/analysis/_utils.ts` (DEPRECATED)
 - ✅ **이미 deprecated 표시됨**
@@ -86,18 +86,14 @@
 ### Step 1: 사용처 추가 확인
 
 #### 1.1 `addStudentScore` 사용처 확인
-```bash
-# grep으로 모든 사용처 확인
-grep -r "addStudentScore" app/ --include="*.tsx" --include="*.ts"
-```
+- ✅ **확인 완료**: 사용하지 않음
+- 성적 추가 페이지(`/scores/new`) 없음
+- 새 구조의 `createInternalScore`, `createMockScore` 사용
 
-#### 1.2 성적 추가 페이지 확인
-- `app/(student)/scores/new/page.tsx` 존재 여부 확인
-- 또는 다른 성적 추가 경로 확인
-
-#### 1.3 대시보드 페이지 확인
-- `app/(student)/scores/dashboard/page.tsx` 확인
-- `fetchAllScores` 사용 여부 확인
+#### 1.2 대시보드 페이지 확인
+- ✅ **확인 완료**: `app/(student)/scores/dashboard/page.tsx`는 이미 deprecated
+- 통합 대시보드(`/scores/dashboard/unified`)로 리다이렉트됨
+- `fetchAllScores`는 부모 대시보드에서만 사용 중
 
 ### Step 2: 새 구조 함수 확인
 
@@ -192,9 +188,10 @@ grep -r "addStudentScore" app/ --include="*.tsx" --include="*.ts"
 #### 3.6 레거시 액션 파일 (`app/actions/scores.ts`)
 
 **작업 내용**:
-1. 사용처 확인 후 제거 또는 에러 처리
-2. 사용 중이면 새 구조로 마이그레이션
-3. 사용하지 않으면 제거
+1. `addStudentScore` - 사용하지 않음, 제거 가능
+2. `updateStudentScore` - 사용 중, 새 구조로 마이그레이션 필요
+3. `deleteStudentScore` - 사용 중, 새 구조로 마이그레이션 필요
+4. 파일 전체를 deprecated로 유지하거나, 사용 중인 함수만 새 구조로 마이그레이션
 
 #### 3.7 레거시 데이터 함수 (`lib/data/studentScores.ts`)
 
