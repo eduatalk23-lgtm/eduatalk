@@ -43,13 +43,16 @@ type ParentStudentLinkRow = {
   id: string;
   parent_id: string;
   relation: string;
-  parent_users: {
-    id: string;
-    name: string | null;
-  } | {
-    id: string;
-    name: string | null;
-  }[] | null;
+  parent_users:
+    | {
+        id: string;
+        name: string | null;
+      }
+    | {
+        id: string;
+        name: string | null;
+      }[]
+    | null;
 };
 
 type ParentStudentLinkWithStudentRow = {
@@ -58,24 +61,30 @@ type ParentStudentLinkWithStudentRow = {
   parent_id: string;
   relation: string;
   created_at: string;
-  students: {
-    id: string;
-    name: string | null;
-    grade: string | null;
-    class: string | null;
-  } | {
-    id: string;
-    name: string | null;
-    grade: string | null;
-    class: string | null;
-  }[] | null;
-  parent_users: {
-    id: string;
-    name: string | null;
-  } | {
-    id: string;
-    name: string | null;
-  }[] | null;
+  students:
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }[]
+    | null;
+  parent_users:
+    | {
+        id: string;
+        name: string | null;
+      }
+    | {
+        id: string;
+        name: string | null;
+      }[]
+    | null;
 };
 
 type SearchableParentRow = {
@@ -92,7 +101,10 @@ export async function getStudentParents(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -101,7 +113,8 @@ export async function getStudentParents(
     const selectLinks = () =>
       supabase
         .from("parent_student_links")
-        .select(`
+        .select(
+          `
           id,
           relation,
           parent_id,
@@ -109,7 +122,8 @@ export async function getStudentParents(
             id,
             name
           )
-        `)
+        `
+        )
         .eq("student_id", studentId);
 
     let { data: links, error } = await selectLinks();
@@ -134,7 +148,9 @@ export async function getStudentParents(
     // 데이터 변환
     const parents: StudentParent[] = links
       .map((link: ParentStudentLinkRow): StudentParent | null => {
-        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
+        const parentUser = Array.isArray(link.parent_users)
+          ? link.parent_users[0]
+          : link.parent_users;
         if (!parentUser) return null;
 
         return {
@@ -167,7 +183,10 @@ export async function searchParents(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
+    };
   }
 
   // 최소 2글자 이상 검색
@@ -184,10 +203,12 @@ export async function searchParents(
     const selectParents = () =>
       supabase
         .from("parent_users")
-        .select(`
+        .select(
+          `
           id,
           name
-        `)
+        `
+        )
         .ilike("name", `%${searchQuery}%`)
         .limit(10);
 
@@ -250,13 +271,24 @@ export async function createParentStudentLink(
   const { role } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
+    };
   }
 
   // relation 값 검증
-  const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
+  const validRelations: ParentRelation[] = [
+    "father",
+    "mother",
+    "guardian",
+    "other",
+  ];
   if (!validRelations.includes(relation)) {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION,
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -279,7 +311,10 @@ export async function createParentStudentLink(
     }
 
     if (existing) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS,
+      };
     }
 
     // 연결 생성
@@ -296,7 +331,10 @@ export async function createParentStudentLink(
     if (error) {
       // UNIQUE 제약조건 에러 처리
       if (error.code === "23505") {
-        return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS };
+        return {
+          success: false,
+          error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_ALREADY_EXISTS,
+        };
       }
 
       console.error("[admin/parentStudentLink] 연결 생성 실패", error);
@@ -327,7 +365,7 @@ export async function deleteParentStudentLink(
 ): Promise<{ success: boolean; error?: string }> {
   // 권한 확인
   await requireAdminOrConsultant();
-  
+
   // 테넌트 컨텍스트 확인
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -337,7 +375,11 @@ export async function deleteParentStudentLink(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   try {
@@ -357,7 +399,10 @@ export async function deleteParentStudentLink(
     }
 
     if (!link) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND,
+      };
     }
 
     const studentId = link.student_id;
@@ -408,9 +453,17 @@ export async function updateLinkRelation(
   await requireAdminOrConsultant();
 
   // relation 값 검증
-  const validRelations: ParentRelation[] = ["father", "mother", "guardian", "other"];
+  const validRelations: ParentRelation[] = [
+    "father",
+    "mother",
+    "guardian",
+    "other",
+  ];
   if (!validRelations.includes(relation)) {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.INVALID_RELATION,
+    };
   }
 
   // 테넌트 컨텍스트 확인
@@ -422,7 +475,11 @@ export async function updateLinkRelation(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   try {
@@ -442,7 +499,10 @@ export async function updateLinkRelation(
     }
 
     if (!link) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.LINK_NOT_FOUND,
+      };
     }
 
     const studentId = link.student_id;
@@ -485,9 +545,7 @@ export async function updateLinkRelation(
 /**
  * 승인 대기 중인 연결 요청 목록 조회
  */
-export async function getPendingLinkRequests(
-  tenantId?: string
-): Promise<{
+export async function getPendingLinkRequests(tenantId?: string): Promise<{
   success: boolean;
   data?: PendingLinkRequest[];
   error?: string;
@@ -495,7 +553,10 @@ export async function getPendingLinkRequests(
   const { role, tenantId: userTenantId } = await getCurrentUserRole();
 
   if (role !== "admin" && role !== "consultant") {
-    return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED };
+    return {
+      success: false,
+      error: PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
+    };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -531,7 +592,8 @@ export async function getPendingLinkRequests(
     const selectLinks = () => {
       let query = supabase
         .from("parent_student_links")
-        .select(`
+        .select(
+          `
           id,
           student_id,
           parent_id,
@@ -547,7 +609,8 @@ export async function getPendingLinkRequests(
             id,
             name
           )
-        `)
+        `
+        )
         .or("is_approved.is.null,is_approved.eq.false")
         .order("created_at", { ascending: false });
 
@@ -584,7 +647,9 @@ export async function getPendingLinkRequests(
     // parent_users.id 목록 수집
     const parentIds = links
       .map((link) => {
-        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
+        const parentUser = Array.isArray(link.parent_users)
+          ? link.parent_users[0]
+          : link.parent_users;
         return parentUser?.id;
       })
       .filter((id): id is string => id !== undefined);
@@ -602,10 +667,14 @@ export async function getPendingLinkRequests(
     // 데이터 변환
     const requests: PendingLinkRequest[] = links
       .map((link: ParentStudentLinkWithStudentRow) => {
-        const student = Array.isArray(link.students) ? link.students[0] : link.students;
+        const student = Array.isArray(link.students)
+          ? link.students[0]
+          : link.students;
         if (!student) return null;
 
-        const parentUser = Array.isArray(link.parent_users) ? link.parent_users[0] : link.parent_users;
+        const parentUser = Array.isArray(link.parent_users)
+          ? link.parent_users[0]
+          : link.parent_users;
         if (!parentUser) return null;
 
         return {
@@ -644,7 +713,7 @@ export async function approveLinkRequest(
 ): Promise<{ success: boolean; error?: string }> {
   // 권한 확인
   await requireAdminOrConsultant();
-  
+
   // 테넌트 컨텍스트 확인
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -654,7 +723,11 @@ export async function approveLinkRequest(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   try {
@@ -674,12 +747,18 @@ export async function approveLinkRequest(
     }
 
     if (!link) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND,
+      };
     }
 
     // 이미 승인된 경우
     if (link.is_approved === true) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_APPROVED };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_ALREADY_APPROVED,
+      };
     }
 
     // 승인 처리
@@ -728,7 +807,7 @@ export async function rejectLinkRequest(
 ): Promise<{ success: boolean; error?: string }> {
   // 권한 확인
   await requireAdminOrConsultant();
-  
+
   // 테넌트 컨텍스트 확인
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
@@ -738,7 +817,11 @@ export async function rejectLinkRequest(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   try {
@@ -758,7 +841,10 @@ export async function rejectLinkRequest(
     }
 
     if (!link) {
-      return { success: false, error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND };
+      return {
+        success: false,
+        error: PARENT_STUDENT_LINK_MESSAGES.errors.REQUEST_NOT_FOUND,
+      };
     }
 
     const studentId = link.student_id;
@@ -801,20 +887,21 @@ export async function rejectLinkRequest(
 /**
  * 여러 연결 요청을 한 번에 승인
  */
-export async function approveLinkRequests(
-  linkIds: string[]
-): Promise<{
+export async function approveLinkRequests(linkIds: string[]): Promise<{
   success: boolean;
   approvedCount?: number;
   errors?: Array<{ linkId: string; error: string }>;
 }> {
   // 권한 확인
   await requireAdminOrConsultant();
-  
+
   // 테넌트 컨텍스트 확인
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
-    return { success: false, errors: [{ linkId: "", error: "기관 정보를 찾을 수 없습니다." }] };
+    return {
+      success: false,
+      errors: [{ linkId: "", error: "기관 정보를 찾을 수 없습니다." }],
+    };
   }
 
   if (!linkIds || linkIds.length === 0) {
@@ -824,7 +911,16 @@ export async function approveLinkRequests(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, errors: [{ linkId: "", error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." }] };
+    return {
+      success: false,
+      errors: [
+        {
+          linkId: "",
+          error:
+            "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        },
+      ],
+    };
   }
   const errors: Array<{ linkId: string; error: string }> = [];
   let approvedCount = 0;
@@ -938,20 +1034,21 @@ export async function approveLinkRequests(
 /**
  * 여러 연결 요청을 한 번에 거부 (삭제)
  */
-export async function rejectLinkRequests(
-  linkIds: string[]
-): Promise<{
+export async function rejectLinkRequests(linkIds: string[]): Promise<{
   success: boolean;
   rejectedCount?: number;
   errors?: Array<{ linkId: string; error: string }>;
 }> {
   // 권한 확인
   await requireAdminOrConsultant();
-  
+
   // 테넌트 컨텍스트 확인
   const tenantContext = await getTenantContext();
   if (!tenantContext?.tenantId) {
-    return { success: false, errors: [{ linkId: "", error: "기관 정보를 찾을 수 없습니다." }] };
+    return {
+      success: false,
+      errors: [{ linkId: "", error: "기관 정보를 찾을 수 없습니다." }],
+    };
   }
 
   if (!linkIds || linkIds.length === 0) {
@@ -961,7 +1058,16 @@ export async function rejectLinkRequests(
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, errors: [{ linkId: "", error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." }] };
+    return {
+      success: false,
+      errors: [
+        {
+          linkId: "",
+          error:
+            "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        },
+      ],
+    };
   }
   const errors: Array<{ linkId: string; error: string }> = [];
   let rejectedCount = 0;
@@ -1061,4 +1167,3 @@ export async function rejectLinkRequests(
     };
   }
 }
-
