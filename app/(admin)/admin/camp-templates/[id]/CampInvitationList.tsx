@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CampInvitation } from "@/lib/types/plan";
-import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
+import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Pagination } from "@/components/organisms/Pagination";
 
@@ -271,21 +271,34 @@ export function CampInvitationList({
                     : "—"}
                 </td>
                 <td className="border-b border-gray-100 px-4 py-3 text-sm">
-                  {invitation.status === "pending" && (
-                    <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-                      대기중
-                    </span>
-                  )}
-                  {invitation.status === "accepted" && (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800">
-                      수락
-                    </span>
-                  )}
-                  {invitation.status === "declined" && (
-                    <span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800">
-                      거절
-                    </span>
-                  )}
+                  <select
+                    value={invitation.status}
+                    onChange={(e) => {
+                      const newStatus = e.target.value as "pending" | "accepted" | "declined";
+                      if (newStatus !== invitation.status) {
+                        startTransition(async () => {
+                          try {
+                            const result = await updateCampInvitationStatusAction(invitation.id, newStatus);
+                            if (result.success) {
+                              toast.showSuccess("초대 상태가 변경되었습니다.");
+                              onRefresh?.();
+                            } else {
+                              toast.showError(result.error || "초대 상태 변경에 실패했습니다.");
+                            }
+                          } catch (error) {
+                            console.error("초대 상태 변경 실패:", error);
+                            toast.showError("초대 상태 변경에 실패했습니다.");
+                          }
+                        });
+                      }
+                    }}
+                    disabled={isPending}
+                    className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="pending">대기중</option>
+                    <option value="accepted">수락</option>
+                    <option value="declined">거절</option>
+                  </select>
                 </td>
                 <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-800">
                   {invitation.invited_at

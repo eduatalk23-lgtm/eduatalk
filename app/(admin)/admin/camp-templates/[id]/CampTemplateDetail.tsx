@@ -9,12 +9,13 @@ import {
   getCampInvitationsForTemplateWithPaginationAction,
   deleteCampTemplateAction,
   updateCampTemplateStatusAction,
+  copyCampTemplateAction,
 } from "@/app/(admin)/actions/campTemplateActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { StudentInvitationForm } from "./StudentInvitationForm";
 import { CampInvitationList } from "./CampInvitationList";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Copy } from "lucide-react";
 import {
   planPurposeLabels,
   schedulerTypeLabels,
@@ -64,6 +65,7 @@ export function CampTemplateDetail({
     "draft" | "active" | "archived"
   >(template.status);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
@@ -192,6 +194,31 @@ export function CampTemplateDetail({
     }
   };
 
+  const handleCopy = async () => {
+    if (!confirm("이 템플릿을 복사하시겠습니까?")) {
+      return;
+    }
+
+    setIsCopying(true);
+    try {
+      const result = await copyCampTemplateAction(template.id);
+      if (result.success && result.templateId) {
+        toast.showSuccess("템플릿이 복사되었습니다.");
+        // 복사된 템플릿 상세 페이지로 리다이렉트
+        router.push(`/admin/camp-templates/${result.templateId}`);
+      } else {
+        toast.showError(result.error || "템플릿 복사에 실패했습니다.");
+        setIsCopying(false);
+      }
+    } catch (error) {
+      console.error("템플릿 복사 실패:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "템플릿 복사에 실패했습니다.";
+      toast.showError(errorMessage);
+      setIsCopying(false);
+    }
+  };
+
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">
@@ -219,6 +246,17 @@ export function CampTemplateDetail({
 
             {/* 우측: 나머지 버튼들 */}
             <div className="flex flex-wrap items-center gap-3">
+              {/* 템플릿 복사 버튼 */}
+              <button
+                type="button"
+                onClick={handleCopy}
+                disabled={isCopying}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Copy size={16} />
+                {isCopying ? "복사 중..." : "템플릿 복사"}
+              </button>
+
               {/* 상태 변경 드롭다운 */}
               <div className="flex items-center gap-2">
                 <label htmlFor="status-select" className="text-sm font-medium text-gray-700">

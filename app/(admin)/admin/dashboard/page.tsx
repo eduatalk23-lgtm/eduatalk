@@ -14,6 +14,8 @@ import {
   getCachedAtRiskStudents,
   getCachedConsultingNotes,
 } from "@/lib/cache/dashboard";
+import { getCampStatisticsForTenant } from "@/lib/data/campTemplates";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatCard } from "@/components/molecules/StatCard";
 import { getWeekRange } from "@/lib/date/weekRange";
@@ -453,6 +455,11 @@ export default async function AdminDashboardPage() {
   const { weekStart, weekEnd } = getWeekRange();
 
   // 캐싱을 적용한 데이터 조회
+  const tenantContext = await getTenantContext();
+  const campStats = tenantContext?.tenantId
+    ? await getCampStatisticsForTenant(tenantContext.tenantId)
+    : null;
+
   const [
     studentStats,
     topStudyTime,
@@ -726,6 +733,65 @@ export default async function AdminDashboardPage() {
             )}
           </div>
         </div>
+
+        {/* 캠프 통계 섹션 */}
+        {campStats && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                캠프 통계
+              </h2>
+              <Link
+                href="/admin/camp-templates"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+              >
+                캠프 관리 →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
+                <div className="flex flex-col gap-1">
+                  <div className={cn("text-sm font-medium", textMuted)}>활성 템플릿</div>
+                  <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>
+                    {campStats.activeTemplates}
+                  </div>
+                </div>
+              </div>
+              <div className={cn("rounded-xl border p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow", bgSurface, borderDefault)}>
+                <div className="flex flex-col gap-1">
+                  <div className={cn("text-sm font-medium", textMuted)}>전체 초대</div>
+                  <div className={cn("text-3xl md:text-4xl font-bold", textPrimary)}>
+                    {campStats.totalInvitations}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-medium text-green-700 dark:text-green-300">수락</div>
+                  <div className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">
+                    {campStats.acceptedInvitations}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-yellow-900/30 dark:to-yellow-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300">대기중</div>
+                  <div className="text-3xl md:text-4xl font-bold text-yellow-600 dark:text-yellow-400">
+                    {campStats.pendingInvitations}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 p-5 md:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-medium text-indigo-700 dark:text-indigo-300">참여율</div>
+                  <div className="text-3xl md:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                    {campStats.participationRate}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

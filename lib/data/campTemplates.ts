@@ -615,3 +615,271 @@ export async function deleteCampInvitations(
   return { success: true, count: count || 0 };
 }
 
+/**
+ * 캠프 템플릿 복사
+ * 템플릿 데이터와 블록 세트 연결을 복사합니다. 초대 정보는 복사하지 않습니다.
+ */
+export async function copyCampTemplate(
+  templateId: string,
+  newName?: string
+): Promise<{ success: boolean; templateId?: string; error?: string }> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 원본 템플릿 조회
+    const originalTemplate = await getCampTemplate(templateId);
+    if (!originalTemplate) {
+      return { success: false, error: "템플릿을 찾을 수 없습니다." };
+    }
+
+    // 새 템플릿 이름 생성
+    const copiedName = newName || `${originalTemplate.name} (복사본)`;
+
+    // 새 템플릿 생성
+    const newTemplateResult = await createCampTemplate({
+      tenant_id: originalTemplate.tenant_id,
+      name: copiedName,
+      description: originalTemplate.description || undefined,
+      program_type: originalTemplate.program_type,
+      template_data: originalTemplate.template_data,
+      created_by: originalTemplate.created_by || undefined,
+      camp_start_date: originalTemplate.camp_start_date || undefined,
+      camp_end_date: originalTemplate.camp_end_date || undefined,
+      camp_location: originalTemplate.camp_location || undefined,
+    });
+
+    if (!newTemplateResult.success || !newTemplateResult.templateId) {
+      return {
+        success: false,
+        error: newTemplateResult.error || "템플릿 복사에 실패했습니다.",
+      };
+    }
+
+    const newTemplateId = newTemplateResult.templateId;
+
+    // 블록 세트 연결 복사 (camp_template_block_sets 테이블)
+    const { data: originalBlockSetLink, error: blockSetLinkError } =
+      await supabase
+        .from("camp_template_block_sets")
+        .select("tenant_block_set_id")
+        .eq("camp_template_id", templateId)
+        .maybeSingle();
+
+    if (blockSetLinkError && blockSetLinkError.code !== "PGRST116") {
+      // PGRST116은 결과가 없을 때 발생하는 정상적인 에러
+      console.error(
+        "[data/campTemplates] 블록 세트 연결 조회 실패",
+        blockSetLinkError
+      );
+    } else if (originalBlockSetLink) {
+      // 블록 세트 연결이 있으면 복사
+      const { error: insertError } = await supabase
+        .from("camp_template_block_sets")
+        .insert({
+          camp_template_id: newTemplateId,
+          tenant_block_set_id: originalBlockSetLink.tenant_block_set_id,
+        });
+
+      if (insertError) {
+        console.error(
+          "[data/campTemplates] 블록 세트 연결 복사 실패",
+          insertError
+        );
+        // 블록 세트 연결 실패해도 템플릿 복사는 성공으로 처리 (경고만)
+      }
+    }
+
+    return { success: true, templateId: newTemplateId };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    console.error("[data/campTemplates] 템플릿 복사 중 예외 발생", {
+      message: errorMessage,
+      error,
+    });
+    return {
+      success: false,
+      error: errorMessage || "템플릿 복사에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * 테넌트별 캠프 통계 조회
+ */
+export type CampStatistics = {
+  activeTemplates: number;
+  totalInvitations: number;
+  acceptedInvitations: number;
+  declinedInvitations: number;
+  pendingInvitations: number;
+  participationRate: number; // 참여율 (수락 / 전체 초대)
+};
+
+export async function getCampStatisticsForTenant(
+  tenantId: string
+): Promise<CampStatistics> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 활성 템플릿 수 조회
+    const { count: activeTemplatesCount, error: templatesError } = await supabase
+      .from("camp_templates")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("status", "active");
+
+    if (templatesError) {
+      console.error(
+        "[data/campTemplates] 활성 템플릿 수 조회 실패",
+        templatesError
+      );
+    }
+
+    // 초대 통계 조회
+    const { data: invitations, error: invitationsError } = await supabase
+      .from("camp_invitations")
+      .select("status")
+      .eq("tenant_id", tenantId);
+
+    if (invitationsError) {
+      console.error(
+        "[data/campTemplates] 초대 통계 조회 실패",
+        invitationsError
+      );
+    }
+
+    const totalInvitations = invitations?.length || 0;
+    const acceptedInvitations =
+      invitations?.filter((inv) => inv.status === "accepted").length || 0;
+    const declinedInvitations =
+      invitations?.filter((inv) => inv.status === "declined").length || 0;
+    const pendingInvitations =
+      invitations?.filter((inv) => inv.status === "pending").length || 0;
+
+    const participationRate =
+      totalInvitations > 0
+        ? Math.round((acceptedInvitations / totalInvitations) * 100)
+        : 0;
+
+    return {
+      activeTemplates: activeTemplatesCount || 0,
+      totalInvitations,
+      acceptedInvitations,
+      declinedInvitations,
+      pendingInvitations,
+      participationRate,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[data/campTemplates] 캠프 통계 조회 중 예외 발생", {
+      message: errorMessage,
+      error,
+    });
+    return {
+      activeTemplates: 0,
+      totalInvitations: 0,
+      acceptedInvitations: 0,
+      declinedInvitations: 0,
+      pendingInvitations: 0,
+      participationRate: 0,
+    };
+  }
+}
+
+/**
+ * 템플릿별 캠프 통계 조회
+ */
+export type CampTemplateStatistics = {
+  totalInvitations: number;
+  acceptedInvitations: number;
+  declinedInvitations: number;
+  pendingInvitations: number;
+  participationRate: number;
+  planGroupsCount: number;
+  activePlanGroupsCount: number;
+};
+
+export async function getCampTemplateStatistics(
+  templateId: string,
+  tenantId: string
+): Promise<CampTemplateStatistics> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 초대 통계 조회
+    const { data: invitations, error: invitationsError } = await supabase
+      .from("camp_invitations")
+      .select("status")
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId);
+
+    if (invitationsError) {
+      console.error(
+        "[data/campTemplates] 템플릿별 초대 통계 조회 실패",
+        invitationsError
+      );
+    }
+
+    const totalInvitations = invitations?.length || 0;
+    const acceptedInvitations =
+      invitations?.filter((inv) => inv.status === "accepted").length || 0;
+    const declinedInvitations =
+      invitations?.filter((inv) => inv.status === "declined").length || 0;
+    const pendingInvitations =
+      invitations?.filter((inv) => inv.status === "pending").length || 0;
+
+    const participationRate =
+      totalInvitations > 0
+        ? Math.round((acceptedInvitations / totalInvitations) * 100)
+        : 0;
+
+    // 플랜 그룹 통계 조회
+    const { data: planGroups, error: planGroupsError } = await supabase
+      .from("plan_groups")
+      .select("status")
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null);
+
+    if (planGroupsError) {
+      console.error(
+        "[data/campTemplates] 템플릿별 플랜 그룹 통계 조회 실패",
+        planGroupsError
+      );
+    }
+
+    const planGroupsCount = planGroups?.length || 0;
+    const activePlanGroupsCount =
+      planGroups?.filter((pg) => pg.status === "active").length || 0;
+
+    return {
+      totalInvitations,
+      acceptedInvitations,
+      declinedInvitations,
+      pendingInvitations,
+      participationRate,
+      planGroupsCount,
+      activePlanGroupsCount,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(
+      "[data/campTemplates] 템플릿별 캠프 통계 조회 중 예외 발생",
+      {
+        message: errorMessage,
+        error,
+      }
+    );
+    return {
+      totalInvitations: 0,
+      acceptedInvitations: 0,
+      declinedInvitations: 0,
+      pendingInvitations: 0,
+      participationRate: 0,
+      planGroupsCount: 0,
+      activePlanGroupsCount: 0,
+    };
+  }
+}
+
