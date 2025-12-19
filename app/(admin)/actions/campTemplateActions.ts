@@ -1119,13 +1119,23 @@ export const sendCampInvitationsAction = withErrorHandling(
     const tenantId = await validateTenantContext();
     await validateCampTemplateActive(templateId, tenantId);
 
-    const supabase = await createSupabaseServerClient();
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
 
     // 기존 초대 확인 (중복 방지)
     const { data: existingInvitations } = await supabase
       .from("camp_invitations")
       .select("student_id")
       .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId)
       .in("student_id", uniqueStudentIds);
 
     const existingStudentIds = new Set(
