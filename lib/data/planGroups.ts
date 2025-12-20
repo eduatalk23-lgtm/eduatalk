@@ -1,7 +1,7 @@
 // 플랜 그룹 데이터 액세스 레이어
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { POSTGRES_ERROR_CODES, POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
   PlanGroup,
@@ -18,10 +18,18 @@ import {
   PlanContentWithDetails,
 } from "@/lib/types/plan";
 import { isPlanContentWithDetails } from "@/lib/types/guards";
-import { logError } from "@/lib/errors/handler";
-import { checkColumnExists } from "@/lib/utils/migrationStatus";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import {
+  createTypedQuery,
+  createTypedConditionalQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import type { Database } from "@/lib/supabase/database.types";
+import type { SupabaseServerClient } from "@/lib/data/core/types";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+// Database 타입에서 테이블 타입 추출
+type PlanGroupRow = Database["public"]["Tables"]["plan_groups"]["Row"];
+type PlanGroupInsert = Database["public"]["Tables"]["plan_groups"]["Insert"];
+type PlanGroupUpdate = Database["public"]["Tables"]["plan_groups"]["Update"];
 
 /**
  * 플랜 그룹 생성 시 사용하는 payload 타입
@@ -47,36 +55,6 @@ type PlanGroupPayload = {
   camp_invitation_id?: string | null;
 };
 
-/**
- * PostgrestError 타입 가드 함수
- */
-function isPostgrestError(error: unknown): error is PostgrestError {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    "code" in error
-  );
-}
-
-/**
- * 에러에서 details와 hint를 안전하게 추출
- */
-function getErrorDetails(error: unknown): {
-  details: unknown;
-  hint: string | null;
-} {
-  if (isPostgrestError(error)) {
-    return {
-      details: error.details ?? null,
-      hint: error.hint ?? null,
-    };
-  }
-  return {
-    details: null,
-    hint: null,
-  };
-}
 
 /**
  * Supabase 클라이언트 생성 (Admin 모드 지원)
@@ -128,11 +106,8 @@ async function getOrCreateAcademy(
     .single();
 
   if (academyError || !newAcademy) {
-    logError(academyError || new Error("학원 생성 실패"), {
-      function: "getOrCreateAcademy",
-      studentId,
-      tenantId,
-      academyName,
+    handleQueryError(academyError as PostgrestError | null, {
+      context: "[data/planGroups] getOrCreateAcademy",
     });
     return null;
   }
@@ -201,66 +176,53 @@ export async function getPlanGroupsForStudent(
 
   query = query.order("created_at", { ascending: false });
 
-  let { data, error } = await query;
-  let planGroupsData: PlanGroup[] | null = data as PlanGroup[] | null;
+  const result = await createTypedConditionalQuery<PlanGroup[]>(
+    async () => {
+      const queryResult = await query;
+      return { data: queryResult.data as PlanGroup[] | null, error: queryResult.error };
+    },
+    {
+      context: "[data/planGroups] getPlanGroupsForStudent",
+      defaultValue: [],
+      fallbackQuery: async () => {
+        // fallback: scheduler_options 컬럼이 없는 경우
+        const fallbackQuery = supabase
+          .from("plan_groups")
+          .select(
+            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+          )
+          .eq("student_id", filters.studentId);
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-    // 마이그레이션 상태 확인 (캐시 사용)
-    const hasSchedulerOptions = await checkColumnExists(
-      "plan_groups",
-      "scheduler_options"
-    );
+        if (filters.tenantId) {
+          fallbackQuery.eq("tenant_id", filters.tenantId);
+        }
 
-    if (!hasSchedulerOptions) {
-      // fallback: 컬럼이 없는 경우 (scheduler_options 제외)
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getPlanGroupsForStudent] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
-          studentId: filters.studentId,
-          tenantId: filters.tenantId,
+        if (!filters.includeDeleted) {
+          fallbackQuery.is("deleted_at", null);
+        }
+
+        const fallbackResult = await fallbackQuery.order("created_at", {
+          ascending: false,
         });
-      }
-
-      const fallbackQuery = supabase
-        .from("plan_groups")
-        .select(
-          "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
-        )
-        .eq("student_id", filters.studentId);
-
-      if (filters.tenantId) {
-        fallbackQuery.eq("tenant_id", filters.tenantId);
-      }
-
-      if (!filters.includeDeleted) {
-        fallbackQuery.is("deleted_at", null);
-      }
-
-      const fallbackResult = await fallbackQuery.order("created_at", {
-        ascending: false,
-      });
-      error = fallbackResult.error;
-
-      // fallback 성공 시 scheduler_options를 null로 설정
-      if (fallbackResult.data && !error) {
-        planGroupsData = fallbackResult.data.map((group: any) => ({
-          ...group,
-          scheduler_options: null,
-        })) as PlanGroup[];
-      } else {
-        planGroupsData = (fallbackResult.data as PlanGroup[] | null) ?? null;
-      }
+        
+        // fallback 성공 시 scheduler_options를 null로 설정
+        if (fallbackResult.data && !fallbackResult.error) {
+          return {
+            data: fallbackResult.data.map((group: any) => ({
+              ...group,
+              scheduler_options: null,
+            })) as PlanGroup[],
+            error: null,
+          };
+        }
+        
+        return { data: fallbackResult.data as PlanGroup[] | null, error: fallbackResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
-  }
+  );
 
-  if (error) {
-    logError(error, {
-      function: "getPlanGroupsForStudent",
-      filters,
-    });
-    return [];
-  }
-
-  return planGroupsData ?? [];
+  return result ?? [];
 }
 
 /**
@@ -315,80 +277,48 @@ export async function getPlanGroupById(
     query = query.eq("tenant_id", tenantId);
   }
 
-  let { data, error } = await query.maybeSingle<PlanGroup>();
+  const result = await createTypedConditionalQuery<PlanGroup>(
+    async () => {
+      const queryResult = await query.maybeSingle();
+      return { data: queryResult.data, error: queryResult.error };
+    },
+    {
+      context: "[data/planGroups] getPlanGroupById",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: scheduler_options 컬럼이 없는 경우
+        const fallbackSelect = () =>
+          supabase
+            .from("plan_groups")
+            .select(
+              "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+            )
+            .eq("id", groupId)
+            .eq("student_id", studentId)
+            .is("deleted_at", null);
 
-  // 컬럼이 없는 경우 fallback 처리
-  // 마이그레이션 상태를 먼저 확인하여 불필요한 재시도 방지
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-    // scheduler_options 컬럼 존재 여부 확인 (캐시 사용)
-    const hasSchedulerOptions = await checkColumnExists(
-      "plan_groups",
-      "scheduler_options"
-    );
+        let fallbackQuery = fallbackSelect();
+        if (tenantId) {
+          fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+        }
 
-    if (!hasSchedulerOptions) {
-      // scheduler_options 컬럼이 없으면 fallback 쿼리 사용
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getPlanGroupById] scheduler_options 컬럼이 없어 fallback 쿼리 사용", {
-          groupId,
-          studentId,
-          tenantId,
-        });
-      }
-        supabase
-          .from("plan_groups")
-          .select(
-            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
-          )
-          .eq("id", groupId)
-          .eq("student_id", studentId)
-          .is("deleted_at", null);
-
-      const fallbackSelect = () =>
-        supabase
-          .from("plan_groups")
-          .select(
-            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
-          );
-
-      let fallbackQuery = fallbackSelect();
-      if (tenantId) {
-        fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
-      }
-
-      ({ data, error } = await fallbackQuery.maybeSingle<PlanGroup>());
-
-      // fallback 성공 시 scheduler_options를 null로 설정
-      if (data && !error) {
-        data = { ...data, scheduler_options: null } as PlanGroup;
-      }
-    } else {
-      // scheduler_options 컬럼은 있지만 다른 컬럼이 없는 경우
-      // 원래 쿼리를 다시 시도하거나 에러 처리
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[getPlanGroupById] 컬럼 에러 발생 (scheduler_options는 존재)", {
-          groupId,
-          studentId,
-          tenantId,
-        });
-      }
+        const fallbackResult = await fallbackQuery.maybeSingle();
+        
+        // fallback 성공 시 scheduler_options를 null로 설정
+        if (fallbackResult.data && !fallbackResult.error) {
+          return {
+            data: { ...fallbackResult.data, scheduler_options: null } as PlanGroup,
+            error: null,
+          };
+        }
+        
+        return { data: fallbackResult.data, error: fallbackResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
-  }
+  );
 
-  if (error && isPostgrestError(error) && error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED) {
-    const { details, hint } = getErrorDetails(error);
-    logError(error, {
-      function: "getPlanGroupById",
-      groupId,
-      studentId,
-      tenantId,
-      details,
-      hint,
-    });
-    return null;
-  }
-
-  return data ?? null;
+  return result;
 }
 
 /**
@@ -514,57 +444,48 @@ export async function createPlanGroup(
     payload.camp_invitation_id = group.camp_invitation_id;
   }
 
-  let { data, error } = await supabase
-    .from("plan_groups")
-    .insert(payload)
-    .select("id")
-    .single();
-
-  // 컬럼이 없는 경우 fallback 처리
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-    // scheduler_options가 포함된 경우 제외하고 재시도
-    if (payload.scheduler_options !== undefined) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[createPlanGroup] scheduler_options 컬럼이 없어 fallback 생성 사용", {
-          studentId: group.student_id,
-          tenantId: group.tenant_id,
-        });
-      }
-      
-      const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
-      ({ data, error } = await supabase
+  const result = await createTypedConditionalQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
         .from("plan_groups")
-        .insert(fallbackPayload)
+        .insert(payload as PlanGroupInsert)
         .select("id")
-        .single());
-      
-      // fallback 성공 시 경고만 출력
-      if (!error && process.env.NODE_ENV === "development") {
-        console.warn("[createPlanGroup] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
-      }
-    } else {
-      // 다른 컬럼 문제인 경우 일반 fallback
-      const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-      ({ data, error } = await supabase
-        .from("plan_groups")
-        .insert(fallbackPayload)
-        .select("id")
-        .single());
+        .single();
+      return { data: queryResult.data, error: queryResult.error };
+    },
+    {
+      context: "[data/planGroups] createPlanGroup",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: scheduler_options가 포함된 경우 제외하고 재시도
+        if (payload.scheduler_options !== undefined) {
+          const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+          const queryResult = await supabase
+            .from("plan_groups")
+            .insert(fallbackPayload as PlanGroupInsert)
+            .select("id")
+            .single();
+          return { data: queryResult.data, error: queryResult.error };
+        } else {
+          // 다른 컬럼 문제인 경우 일반 fallback
+          const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+          const queryResult = await supabase
+            .from("plan_groups")
+            .insert(fallbackPayload as PlanGroupInsert)
+            .select("id")
+            .single();
+          return { data: queryResult.data, error: queryResult.error };
+        }
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
+  );
+
+  if (!result) {
+    return { success: false, error: "플랜 그룹 생성 실패" };
   }
 
-  if (error) {
-    logError(error, {
-      function: "createPlanGroup",
-      studentId: group.student_id,
-      tenantId: group.tenant_id,
-      payload: Object.keys(payload),
-      errorString: JSON.stringify(error, Object.getOwnPropertyNames(error)),
-    });
-    return { success: false, error: error.message || String(error) };
-  }
-
-  return { success: true, groupId: data?.id };
+  return { success: true, groupId: result.id };
 }
 
 /**
@@ -606,58 +527,45 @@ export async function updatePlanGroup(
   if (updates.additional_period_reallocation !== undefined) payload.additional_period_reallocation = updates.additional_period_reallocation;
   if (updates.non_study_time_blocks !== undefined) payload.non_study_time_blocks = updates.non_study_time_blocks;
 
-  let { error } = await supabase
-    .from("plan_groups")
-    .update(payload)
-    .eq("id", groupId)
-    .eq("student_id", studentId)
-    .is("deleted_at", null);
-
-  // 컬럼이 없는 경우 fallback 처리
-  if (error && (error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN || error.code === POSTGREST_ERROR_CODES.NO_CONTENT)) {
-    // scheduler_options가 포함된 경우 제외하고 재시도
-    if (payload.scheduler_options !== undefined) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[updatePlanGroup] scheduler_options 컬럼이 없어 fallback 업데이트 사용", {
-          groupId,
-          studentId,
-        });
-      }
-      
-      const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
-      ({ error } = await supabase
+  const result = await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
         .from("plan_groups")
-        .update(fallbackPayload)
+        .update(payload as PlanGroupUpdate)
         .eq("id", groupId)
         .eq("student_id", studentId)
-        .is("deleted_at", null));
-      
-      // scheduler_options가 없어도 다른 필드는 업데이트 성공
-      if (!error) {
-        if (process.env.NODE_ENV === "development") {
-          console.warn("[updatePlanGroup] scheduler_options 컬럼이 없어 해당 필드는 저장되지 않았습니다. 마이그레이션을 실행해주세요.");
+        .is("deleted_at", null);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/planGroups] updatePlanGroup",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: scheduler_options가 포함된 경우 제외하고 재시도
+        if (payload.scheduler_options !== undefined) {
+          const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+          const queryResult = await supabase
+            .from("plan_groups")
+            .update(fallbackPayload as PlanGroupUpdate)
+            .eq("id", groupId)
+            .eq("student_id", studentId)
+            .is("deleted_at", null);
+          return { data: null, error: queryResult.error };
+        } else {
+          // 다른 컬럼 문제인 경우 일반 fallback
+          const queryResult = await supabase
+            .from("plan_groups")
+            .update(payload as PlanGroupUpdate)
+            .eq("id", groupId);
+          return { data: null, error: queryResult.error };
         }
-        return { success: true };
-      }
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
-    
-    // 다른 컬럼 문제인 경우 일반 fallback
-    ({ error } = await supabase
-      .from("plan_groups")
-      .update(payload)
-      .eq("id", groupId));
-  }
+  );
 
-  if (error) {
-    logError(error, {
-      function: "updatePlanGroup",
-      groupId,
-      studentId,
-      payload: Object.keys(payload),
-    });
-    return { success: false, error: error.message || String(error) };
-  }
-
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
 
@@ -678,10 +586,8 @@ export async function deletePlanGroup(
     .is("deleted_at", null);
 
   if (error) {
-    logError(error, {
-      function: "deletePlanGroup",
-      groupId,
-      studentId,
+    handleQueryError(error, {
+      context: "[data/planGroups] deletePlanGroup",
     });
     return { success: false, error: error.message };
   }
@@ -724,10 +630,8 @@ export async function deletePlanGroupByInvitationId(
     .maybeSingle();
 
   if (fetchError1 && fetchError1.code !== "PGRST116") {
-    logError(fetchError1, {
-      function: "deletePlanGroupByInvitationId",
-      invitationId,
-      step: "fetch_by_invitation_id",
+    handleQueryError(fetchError1, {
+      context: "[data/planGroups] deletePlanGroupByInvitationId - fetch_by_invitation_id",
     });
     return { success: false, error: fetchError1.message };
   }
@@ -746,13 +650,8 @@ export async function deletePlanGroupByInvitationId(
       .maybeSingle();
 
     if (fetchError2 && fetchError2.code !== "PGRST116") {
-      logError(fetchError2, {
-        function: "deletePlanGroupByInvitationId",
-        invitationId,
-        templateId,
-        studentId,
-        step: "fetch_by_template_and_student",
-        level: "warn",
+      handleQueryError(fetchError2, {
+        context: "[data/planGroups] deletePlanGroupByInvitationId - fetch_by_template_and_student",
       });
       // 에러가 있어도 계속 진행 (camp_invitation_id로 찾은 플랜 그룹은 삭제 가능)
     } else {
@@ -778,10 +677,8 @@ export async function deletePlanGroupByInvitationId(
     .eq("plan_group_id", groupId);
 
   if (deletePlansError) {
-    logError(deletePlansError, {
-      function: "deletePlanGroupByInvitationId",
-      groupId,
-      studentId: finalStudentId,
+    handleQueryError(deletePlansError, {
+      context: "[data/planGroups] deletePlanGroupByInvitationId",
     });
     return {
       success: false,
@@ -796,11 +693,8 @@ export async function deletePlanGroupByInvitationId(
     .eq("plan_group_id", groupId);
 
   if (deleteContentsError) {
-    logError(deleteContentsError, {
-      function: "deletePlanGroupByInvitationId",
-      groupId,
-      studentId: finalStudentId,
-      level: "warn",
+    handleQueryError(deleteContentsError, {
+      context: "[data/planGroups] deletePlanGroupByInvitationId - deleteContents",
     });
     // 콘텐츠 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
   }
@@ -812,11 +706,8 @@ export async function deletePlanGroupByInvitationId(
     .eq("plan_group_id", groupId);
 
   if (deleteExclusionsError) {
-    logError(deleteExclusionsError, {
-      function: "deletePlanGroupByInvitationId",
-      groupId,
-      studentId: finalStudentId,
-      level: "warn",
+    handleQueryError(deleteExclusionsError, {
+      context: "[data/planGroups] deletePlanGroupByInvitationId - deleteExclusions",
     });
     // 제외일 삭제 실패해도 계속 진행 (외래키 제약으로 자동 삭제될 수 있음)
   }
@@ -835,10 +726,8 @@ export async function deletePlanGroupByInvitationId(
     .eq("id", groupId);
 
   if (deleteGroupError) {
-    logError(deleteGroupError, {
-      function: "deletePlanGroupByInvitationId",
-      groupId,
-      studentId: finalStudentId,
+    handleQueryError(deleteGroupError, {
+      context: "[data/planGroups] deletePlanGroupByInvitationId",
     });
     return {
       success: false,
@@ -875,9 +764,8 @@ export async function deletePlanGroupsByTemplateId(
     .is("deleted_at", null);
 
   if (fetchError) {
-    logError(fetchError, {
-      function: "deletePlanGroupsByTemplateId",
-      templateId,
+    handleQueryError(fetchError, {
+      context: "[data/planGroups] deletePlanGroupsByTemplateId",
     });
     return { success: false, error: fetchError.message };
   }
@@ -899,10 +787,8 @@ export async function deletePlanGroupsByTemplateId(
       .eq("plan_group_id", groupId);
 
     if (deletePlansError) {
-      logError(deletePlansError, {
-        function: "deletePlanGroupsByTemplateId",
-        groupId,
-        level: "warn",
+      handleQueryError(deletePlansError, {
+        context: "[data/planGroups] deletePlanGroupsByTemplateId - deletePlans",
       });
       // 개별 플랜 삭제 실패해도 계속 진행
     }
@@ -914,10 +800,8 @@ export async function deletePlanGroupsByTemplateId(
       .eq("plan_group_id", groupId);
 
     if (deleteContentsError) {
-      logError(deleteContentsError, {
-        function: "deletePlanGroupsByTemplateId",
-        groupId,
-        level: "warn",
+      handleQueryError(deleteContentsError, {
+        context: "[data/planGroups] deletePlanGroupsByTemplateId - deleteContents",
       });
       // 콘텐츠 삭제 실패해도 계속 진행
     }
@@ -929,10 +813,8 @@ export async function deletePlanGroupsByTemplateId(
       .eq("plan_group_id", groupId);
 
     if (deleteExclusionsError) {
-      logError(deleteExclusionsError, {
-        function: "deletePlanGroupsByTemplateId",
-        groupId,
-        level: "warn",
+      handleQueryError(deleteExclusionsError, {
+        context: "[data/planGroups] deletePlanGroupsByTemplateId - deleteExclusions",
       });
       // 제외일 삭제 실패해도 계속 진행
     }
@@ -944,10 +826,8 @@ export async function deletePlanGroupsByTemplateId(
       .eq("id", groupId);
 
     if (deleteGroupError) {
-      logError(deleteGroupError, {
-        function: "deletePlanGroupsByTemplateId",
-        groupId,
-        level: "warn",
+      handleQueryError(deleteGroupError, {
+        context: "[data/planGroups] deletePlanGroupsByTemplateId - deleteGroup",
       });
       // 개별 플랜 그룹 삭제 실패는 기록만 하고 계속 진행
     } else {
@@ -996,7 +876,7 @@ export async function getPlanContents(
     });
   }
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // 컬럼이 없는 경우 fallback 쿼리 시도
     const fallbackSelect = () =>
       supabase
@@ -1014,13 +894,8 @@ export async function getPlanContents(
   }
 
   if (error) {
-    const { details, hint } = getErrorDetails(error);
-    logError(error, {
-      function: "getPlanContents",
-      groupId,
-      tenantId,
-      details,
-      hint,
+    handleQueryError(error, {
+      context: "[data/planGroups] getPlanContents",
     });
     
     // 에러가 발생해도 빈 배열 반환 (페이지가 깨지지 않도록)
@@ -1100,7 +975,7 @@ export async function createPlanContents(
 
   let { error } = await supabase.from("plan_contents").insert(payload);
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[createPlanContents] 컬럼이 없어 fallback 쿼리 사용", {
         groupId,
@@ -1123,10 +998,8 @@ export async function createPlanContents(
   }
 
   if (error) {
-    logError(error, {
-      function: "createPlanContents",
-      groupId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] createPlanContents",
     });
     return { success: false, error: error.message };
   }
@@ -1157,15 +1030,13 @@ export async function getPlanExclusions(
 
   let { data, error } = await query;
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data, error } = await selectExclusions());
   }
 
   if (error) {
-    logError(error, {
-      function: "getPlanExclusions",
-      groupId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] getPlanExclusions",
     });
     return [];
   }
@@ -1196,15 +1067,13 @@ export async function getStudentExclusions(
 
   let { data, error } = await query;
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data, error } = await selectExclusions());
   }
 
   if (error) {
-    logError(error, {
-      function: "getStudentExclusions",
-      studentId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] getStudentExclusions",
     });
     return [];
   }
@@ -1265,11 +1134,8 @@ async function createExclusions(
       await currentExclusionsQuery;
 
     if (exclusionsError) {
-      logError(exclusionsError, {
-        function: "createExclusions",
-        planGroupId,
-        tenantId,
-        level: "warn",
+      handleQueryError(exclusionsError as PostgrestError | null, {
+        context: "[data/planGroups] createExclusions - checkExclusions",
       });
     }
 
@@ -1360,11 +1226,8 @@ async function createExclusions(
           .eq("id", id);
 
         if (updateError) {
-          logError(updateError, {
-            function: "createExclusions",
-            level: "warn",
-            exclusionId: id,
-            planGroupId,
+          handleQueryError(updateError, {
+            context: "[data/planGroups] createExclusions - updateExclusion",
           });
           // 업데이트 실패 시 새로 생성 목록에 추가
           toInsert.push(exclusion);
@@ -1391,7 +1254,7 @@ async function createExclusions(
 
       let { error } = await supabase.from("plan_exclusions").insert(payload);
 
-      if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+      if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
         const fallbackPayload = payload.map(
           ({ tenant_id: _tenantId, ...rest }) => rest
         );
@@ -1401,7 +1264,7 @@ async function createExclusions(
       }
 
       // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
-      if (error && (error.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION || error.message?.includes("duplicate"))) {
+      if (error && (ErrorCodeCheckers.isUniqueViolation(error) || error.message?.includes("duplicate"))) {
         return {
           success: false,
           error: "이미 등록된 제외일이 있습니다.",
@@ -1409,10 +1272,8 @@ async function createExclusions(
       }
 
       if (error) {
-        logError(error, {
-          function: "createExclusions",
-          planGroupId,
-          tenantId,
+        handleQueryError(error, {
+          context: "[data/planGroups] createExclusions",
         });
         return { success: false, error: error.message };
       }
@@ -1444,11 +1305,8 @@ async function createExclusions(
     await existingExclusionsQuery;
 
   if (existingError) {
-    logError(existingError, {
-      function: "createExclusions",
-      studentId,
-      tenantId,
-      level: "warn",
+    handleQueryError(existingError as PostgrestError | null, {
+      context: "[data/planGroups] createExclusions - checkExisting",
     });
   }
 
@@ -1479,7 +1337,7 @@ async function createExclusions(
 
   let { error } = await supabase.from("plan_exclusions").insert(payload);
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     const fallbackPayload = payload.map(
       ({ tenant_id: _tenantId, ...rest }) => rest
     );
@@ -1495,10 +1353,8 @@ async function createExclusions(
   }
 
   if (error) {
-    logError(error, {
-      function: "createExclusions",
-      studentId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] createExclusions",
     });
     return { success: false, error: error.message };
   }
@@ -1585,7 +1441,7 @@ export async function getAcademySchedules(
   let schedulesData: AcademySchedule[] | null = data as AcademySchedule[] | null;
 
   // tenant_id 컬럼 없는 경우 재시도
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     if (process.env.NODE_ENV === "development") {
       console.warn("[getAcademySchedules] tenant_id 컬럼 없음, 재시도", { groupId, tenantId });
     }
@@ -1614,10 +1470,8 @@ export async function getAcademySchedules(
   }
 
   if (error) {
-    logError(error, {
-      function: "getAcademySchedules",
-      groupId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] getAcademySchedules",
     });
     return [];
   }
@@ -1669,7 +1523,7 @@ export async function getStudentAcademySchedules(
   let { data, error } = await query;
   let studentSchedulesData: AcademySchedule[] | null = (data as AcademySchedule[] | null) ?? null;
 
-  if (error && isPostgrestError(error) && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // academy_id가 없는 경우를 대비한 fallback
     const fallbackSelect = () =>
       supabase
@@ -1702,10 +1556,8 @@ export async function getStudentAcademySchedules(
   }
 
   if (error) {
-    logError(error, {
-      function: "getStudentAcademySchedules",
-      studentId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] getStudentAcademySchedules",
     });
     return [];
   }
@@ -1906,10 +1758,8 @@ export async function createPlanAcademySchedules(
         .eq("id", id);
 
       if (updateError) {
-        logError(updateError, {
-          function: "createPlanAcademySchedules",
-          level: "warn",
-          scheduleId: id,
+        handleQueryError(updateError, {
+          context: "[data/planGroups] createPlanAcademySchedules - updateSchedule",
         });
         toInsert.push(schedule);
       } else if (process.env.NODE_ENV === "development") {
@@ -1963,16 +1813,14 @@ export async function createPlanAcademySchedules(
 
     let { error } = await supabase.from("academy_schedules").insert(payload);
 
-    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+    if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
       const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
       ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
     }
 
     if (error) {
-      logError(error, {
-        function: "createPlanAcademySchedules",
-        groupId,
-        tenantId,
+      handleQueryError(error, {
+        context: "[data/planGroups] createPlanAcademySchedules",
       });
       return { success: false, error: error.message };
     }
@@ -2094,16 +1942,14 @@ export async function createStudentAcademySchedules(
 
   let { error } = await supabase.from("academy_schedules").insert(payload);
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
     ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
   }
 
   if (error) {
-    logError(error, {
-      function: "createStudentAcademySchedules",
-      studentId,
-      tenantId,
+    handleQueryError(error, {
+      context: "[data/planGroups] createStudentAcademySchedules",
     });
     return { success: false, error: error.message };
   }
@@ -2136,7 +1982,7 @@ export async function getPlanGroupByIdForAdmin(
 
   let { data, error } = await selectGroup().maybeSingle<PlanGroup>();
 
-  if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
     // 컬럼이 없는 경우 fallback
     const fallbackSelect = () =>
       supabase
@@ -2155,11 +2001,9 @@ export async function getPlanGroupByIdForAdmin(
     }
   }
 
-  if (error && error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED) {
-    logError(error, {
-      function: "getPlanGroupByIdForAdmin",
-      groupId,
-      tenantId,
+  if (error && !ErrorCodeCheckers.isNoRowsReturned(error)) {
+    handleQueryError(error, {
+      context: "[data/planGroups] getPlanGroupByIdForAdmin",
     });
     return null;
   }
@@ -2197,27 +2041,18 @@ export async function getPlanGroupWithDetails(
 
   // 실패한 조회가 있으면 로깅
   if (contentsResult.status === "rejected") {
-    logError(contentsResult.reason, {
-      function: "getPlanGroupWithDetails",
-      groupId,
-      tenantId,
-      level: "warn",
+    handleQueryError(contentsResult.reason as PostgrestError, {
+      context: "[data/planGroups] getPlanGroupWithDetails - contents",
     });
   }
   if (exclusionsResult.status === "rejected") {
-    logError(exclusionsResult.reason, {
-      function: "getPlanGroupWithDetails",
-      groupId,
-      tenantId,
-      level: "warn",
+    handleQueryError(exclusionsResult.reason as PostgrestError, {
+      context: "[data/planGroups] getPlanGroupWithDetails - exclusions",
     });
   }
   if (academySchedulesResult.status === "rejected") {
-    logError(academySchedulesResult.reason, {
-      function: "getPlanGroupWithDetails",
-      studentId,
-      tenantId,
-      level: "warn",
+    handleQueryError(academySchedulesResult.reason as PostgrestError, {
+      context: "[data/planGroups] getPlanGroupWithDetails - academySchedules",
     });
   }
 
@@ -2283,7 +2118,7 @@ export async function getPlanGroupWithDetailsForAdmin(
     let { data, error } = await selectSchedules();
     adminSchedulesData = data as AcademySchedule[] | null;
 
-    if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+    if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
       // academy_id가 없는 경우를 대비한 fallback
       const fallbackSelect = () =>
         adminClient
@@ -2311,11 +2146,8 @@ export async function getPlanGroupWithDetailsForAdmin(
     }
 
     if (error) {
-      logError(error, {
-        function: "getPlanGroupWithDetailsForAdmin",
-        groupId,
-        studentId: group.student_id,
-        tenantId,
+      handleQueryError(error, {
+        context: "[data/planGroups] getPlanGroupWithDetailsForAdmin",
       });
       // 에러 발생 시 빈 배열 반환
       return [];
