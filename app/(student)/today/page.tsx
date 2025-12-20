@@ -5,9 +5,11 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getTodayPlans } from "@/lib/data/todayPlans";
 import { perfTime } from "@/lib/utils/perfLog";
 import { Suspense } from "react";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { getQueryClient } from "@/lib/providers/getQueryClient";
+import { todayPlansQueryOptions } from "@/lib/hooks/useTodayPlans";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPlansSection } from "./_components/TodayPlansSection";
 import { TodayAchievementsSection } from "./_components/TodayAchievementsSection";
@@ -130,22 +132,30 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     );
   }
 
-  // Step 4: todayPlans 캐시 사용
-  // Statistics는 Suspense로 별도 처리하므로 includeProgress: false
-  const todayPlansTimer = perfTime("[today] data - todayPlans");
-  const todayPlansDataPromise = getTodayPlans({
-    studentId: userId,
-    tenantId: tenantContext?.tenantId || null,
-    date: targetProgressDate,
-    camp: false, // 일반 모드
-    includeProgress: false, // Statistics는 Suspense로 별도 처리
-    narrowQueries: true,
-    useCache: true,
-    cacheTtlSeconds: 120,
-  }).catch((error) => {
-    console.error("[TodayPage] todayPlans 조회 실패", error);
-    return null;
-  });
+  // React Query를 사용하여 데이터 프리패칭
+  const queryClient = getQueryClient();
+  const prefetchTimer = perfTime("[today] prefetch - todayPlans");
+
+  try {
+    // Today Plans 프리패칭
+    // Statistics는 Suspense로 별도 처리하므로 includeProgress: false
+    await queryClient.prefetchQuery(
+      todayPlansQueryOptions(
+        userId,
+        tenantContext?.tenantId || null,
+        targetProgressDate,
+        {
+          camp: false, // 일반 모드
+          includeProgress: false, // Statistics는 Suspense로 별도 처리
+        }
+      )
+    );
+  } catch (error) {
+    // Prefetch 실패 시에도 페이지는 렌더링되도록 에러만 로깅
+    console.error("[TodayPage] todayPlans prefetch 실패", error);
+  }
+
+  prefetchTimer.end();
 
   // 완료된 플랜 정보 조회 (토스트용)
   let completedPlanTitle: string | null = null;
@@ -164,23 +174,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     }
   }
 
-  const [todayPlansData] = await Promise.all([todayPlansDataPromise]);
-  todayPlansTimer.end();
-
-  // todayPlansData를 PlansResponse 형태로 변환
-  // Statistics는 Suspense로 별도 처리하므로 todayProgress 제외
-  const plansDataForContext = todayPlansData
-    ? {
-        plans: todayPlansData.plans,
-        sessions: todayPlansData.sessions,
-        planDate: todayPlansData.planDate,
-        isToday: todayPlansData.isToday,
-        serverNow: todayPlansData.serverNow,
-        // todayProgress는 Suspense로 별도 처리
-        todayProgress: undefined,
-      }
-    : undefined;
-
   // 초기 progress는 기본값 (Suspense로 실제 값이 로딩됨)
   const initialProgress = {
     todayStudyMinutes: 0,
@@ -190,35 +183,35 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   };
 
   const page = (
-    <TodayPageContextProvider
-      initialProgressDate={targetProgressDate}
-      initialProgress={initialProgress}
-      initialPlansData={plansDataForContext}
-    >
-      <div className={getContainerClass("DASHBOARD", "md")}>
-        <div className="flex flex-col gap-6">
-          <TodayHeader />
-          <CurrentLearningSection />
-          <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-8">
-              <TodayPlansSection
-                initialMode={requestedView}
-                initialPlanDate={requestedDate}
-                userId={userId}
-                initialPlansData={plansDataForContext}
-              />
-            </div>
-            <div className="lg:col-span-4">
-              <div className="sticky top-6 flex flex-col gap-4">
-                {/* Statistics를 Suspense로 비동기 처리 */}
-                <TodayAchievementsAsyncWithSuspense selectedDate={targetProgressDate} />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <TodayPageContextProvider
+        initialProgressDate={targetProgressDate}
+        initialProgress={initialProgress}
+      >
+        <div className={getContainerClass("DASHBOARD", "md")}>
+          <div className="flex flex-col gap-6">
+            <TodayHeader />
+            <CurrentLearningSection />
+            <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+              <div className="lg:col-span-8">
+                <TodayPlansSection
+                  initialMode={requestedView}
+                  initialPlanDate={requestedDate}
+                  userId={userId}
+                />
+              </div>
+              <div className="lg:col-span-4">
+                <div className="sticky top-6 flex flex-col gap-4">
+                  {/* Statistics를 Suspense로 비동기 처리 */}
+                  <TodayAchievementsAsyncWithSuspense selectedDate={targetProgressDate} />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </TodayPageContextProvider>
+      </TodayPageContextProvider>
+    </HydrationBoundary>
   );
   pageTimer.end();
   return page;
