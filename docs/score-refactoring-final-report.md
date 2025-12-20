@@ -29,23 +29,27 @@ TimeLevelUp 프로젝트의 성적 관리 시스템을 레거시 스키마(`stud
 ### Phase 1-3: 기반 구축 및 스키마 설계
 
 **주요 작업**:
+
 - 신규 테이블 스키마 설계 (`student_internal_scores`, `student_mock_scores`)
 - FK 관계 설계 (교과/과목/과목구분 계층)
 - 마이그레이션 스크립트 작성
 - 데이터 마이그레이션 API 구현
 
 **성과**:
+
 - 정규화된 데이터베이스 구조 확립
 - 데이터 무결성 보장 (FK 제약조건)
 
 ### Phase 4: 데이터 소스 전환
 
 **주요 작업**:
+
 - `getSchoolScores()` → `getInternalScores()` 전환
 - 레거시 액션 → 신규 Server Actions 전환
 - 매퍼 함수 생성 (임시 호환성 유지)
 
 **성과**:
+
 - 신규 테이블로 데이터 조회/변경 완전 전환
 - 레거시 테이블 의존성 제거
 
@@ -54,11 +58,13 @@ TimeLevelUp 프로젝트의 성적 관리 시스템을 레거시 스키마(`stud
 ### Phase 5: 네이티브 타입 적용 및 매퍼 제거
 
 **주요 작업**:
+
 - UI 컴포넌트 타입 리팩토링 (`SchoolScore` → `InternalScore`)
 - 매퍼 함수 완전 제거
 - 레거시 함수 삭제
 
 **성과**:
+
 - 타입 변환 오버헤드 제거
 - 코드 복잡도 감소
 - 타입 안전성 향상
@@ -68,11 +74,13 @@ TimeLevelUp 프로젝트의 성적 관리 시스템을 레거시 스키마(`stud
 ### Phase 6: 최종 정리 및 문서화
 
 **주요 작업**:
+
 - 잔여 레거시 파일 삭제
 - 아키텍처 문서 작성
 - 유지보수 가이드 작성
 
 **성과**:
+
 - 프로젝트 완전 종료
 - 향후 유지보수 기반 마련
 
@@ -105,6 +113,7 @@ CREATE TABLE student_school_scores (
 ```
 
 **문제점**:
+
 - ❌ 데이터 중복 (과목명이 각 레코드에 저장)
 - ❌ 데이터 무결성 보장 어려움
 - ❌ 과목 정보 변경 시 모든 레코드 수정 필요
@@ -133,6 +142,7 @@ CREATE TABLE student_internal_scores (
 ```
 
 **개선점**:
+
 - ✅ 데이터 정규화 (과목 정보는 별도 테이블)
 - ✅ FK 제약조건으로 데이터 무결성 보장
 - ✅ 과목 정보 변경 시 한 곳만 수정
@@ -143,30 +153,33 @@ CREATE TABLE student_internal_scores (
 
 ```typescript
 // 레거시 액션 (여러 파일에 분산)
-app/(student)/actions/scoreActions.ts
-  - addSchoolScore()
-  - updateSchoolScoreAction()
-  - deleteSchoolScoreAction()
+app / student / actions / scoreActions.ts -
+  addSchoolScore() -
+  updateSchoolScoreAction() -
+  deleteSchoolScoreAction();
 
-app/actions/scores/school.ts (재export)
+app / actions / scores / school.ts(재export);
 ```
 
 #### After
 
 ```typescript
 // 통합된 Server Actions
-app/actions/scores-internal.ts
-  - createInternalScore()
-  - updateInternalScore()
-  - deleteInternalScore()
+app / actions / scores -
+  internal.ts -
+  createInternalScore() -
+  updateInternalScore() -
+  deleteInternalScore();
 
-app/actions/scores-mock.ts
-  - createMockScore()
-  - updateMockScore()
-  - deleteMockScore()
+app / actions / scores -
+  mock.ts -
+  createMockScore() -
+  updateMockScore() -
+  deleteMockScore();
 ```
 
 **개선점**:
+
 - ✅ 액션 파일 통일 (도메인별 분리)
 - ✅ `getCurrentUser()`로 `tenant_id`, `student_id` 자동 획득
 - ✅ `getOrCreateStudentTerm()`로 `student_term_id` 자동 처리
@@ -191,6 +204,7 @@ const scores: InternalScore[] = await getInternalScores(...); // 매퍼 제거
 ```
 
 **개선점**:
+
 - ✅ 타입 변환 오버헤드 제거
 - ✅ 코드 가독성 향상
 - ✅ 타입 안전성 강화
@@ -199,14 +213,12 @@ const scores: InternalScore[] = await getInternalScores(...); // 매퍼 제거
 
 ```typescript
 // useScoreFilter 훅 (재사용 가능한 필터링/정렬 로직)
-const {
-  filteredAndSortedScores,
-  availableSubjectGroups,
-  availableGrades,
-} = useScoreFilter<InternalScore>(scoresWithInfo, filters, sortOptions);
+const { filteredAndSortedScores, availableSubjectGroups, availableGrades } =
+  useScoreFilter<InternalScore>(scoresWithInfo, filters, sortOptions);
 ```
 
 **개선점**:
+
 - ✅ 필터링/정렬 로직 재사용
 - ✅ 코드 중복 제거
 - ✅ 테스트 용이성 향상
@@ -249,12 +261,14 @@ After:
 ### 삭제된 파일 (총 10개)
 
 #### 컴포넌트 파일
+
 1. `SchoolScoreForm.tsx` → `ScoreFormModal`로 대체
 2. `SchoolScoresTable.tsx` → `ScoreCardGrid`로 대체
 3. `SchoolScoreEditForm.tsx` → `ScoreFormModal`로 대체
 4. `MockScoresTable.tsx` → `MockScoreCardGrid`로 대체
 
 #### 대시보드 컴포넌트
+
 5. `SchoolSummarySection.tsx`
 6. `SchoolDetailedMetrics.tsx`
 7. `SchoolWeakSubjectSection.tsx`
@@ -265,16 +279,19 @@ After:
 ### 삭제된 함수 (총 10개)
 
 #### 매퍼 함수
+
 - `mapInternalScoreToSchoolScore()`
 - `mapInternalScoresToSchoolScores()`
 
 #### 레거시 데이터 접근 함수
+
 - `getSchoolScores()`
 - `createSchoolScore()`
 - `updateSchoolScore()`
 - `deleteSchoolScore()`
 
 #### 레거시 서버 액션
+
 - `addSchoolScore()`
 - `updateSchoolScoreAction()`
 - `deleteSchoolScoreAction()`
@@ -343,14 +360,14 @@ Page (Server Component)
 
 ### 필드명 매핑 규칙
 
-| InternalScore 필드 | UI 표시 필드 | 설명 |
-|-------------------|-------------|------|
-| `rank_grade` | 등급 | 석차등급 (1~9) |
-| `avg_score` | 과목평균 | 과목 평균 점수 |
-| `std_dev` | 표준편차 | 표준편차 |
-| `raw_score` | 원점수 | 원점수 |
-| `credit_hours` | 학점수 | 이수단위 |
-| `total_students` | 수강자수 | 수강자 수 |
+| InternalScore 필드 | UI 표시 필드 | 설명           |
+| ------------------ | ------------ | -------------- |
+| `rank_grade`       | 등급         | 석차등급 (1~9) |
+| `avg_score`        | 과목평균     | 과목 평균 점수 |
+| `std_dev`          | 표준편차     | 표준편차       |
+| `raw_score`        | 원점수       | 원점수         |
+| `credit_hours`     | 학점수       | 이수단위       |
+| `total_students`   | 수강자수     | 수강자 수      |
 
 ---
 
@@ -428,8 +445,8 @@ export type InternalScore = {
 
 ```typescript
 // _createInternalScore 함수
-const new_field_name = formData.get("new_field_name") 
-  ? parseFloat(formData.get("new_field_name") as string) 
+const new_field_name = formData.get("new_field_name")
+  ? parseFloat(formData.get("new_field_name") as string)
   : null;
 
 // insert 시 추가
@@ -474,7 +491,7 @@ const scoresWithInfo = useMemo(() => {
   return scores.map((score) => {
     const group = subjectGroups.find((g) => g.id === score.subject_group_id);
     const subject = group?.subjects.find((s) => s.id === score.subject_id);
-    
+
     return {
       score,
       subjectGroupName: group?.name || "",
@@ -529,7 +546,7 @@ const {
 
 ```sql
 -- 프로덕션 환경에서는 백업 테이블로 이름 변경
-ALTER TABLE student_school_scores 
+ALTER TABLE student_school_scores
 RENAME TO student_school_scores_backup_20250205;
 
 -- 개발 환경에서는 삭제
@@ -550,7 +567,7 @@ psql -h [host] -U [user] -d [database] -f supabase/migrations/20250205000000_dro
 
 ```sql
 -- 백업 테이블에서 복원
-CREATE TABLE student_school_scores AS 
+CREATE TABLE student_school_scores AS
 SELECT * FROM student_school_scores_backup_20250205;
 ```
 
@@ -637,29 +654,29 @@ SELECT * FROM student_school_scores_backup_20250205;
 
 ### 코드 변경량
 
-| 항목 | Before | After | 변화 |
-|------|--------|-------|------|
-| 총 코드 라인 | ~5,000 | ~3,500 | -30% |
-| 레거시 코드 | ~2,000 | 0 | -100% |
-| 테스트 코드 | 0 | ~500 | +500 |
-| 문서 | ~500 | ~1,500 | +200% |
+| 항목         | Before | After  | 변화  |
+| ------------ | ------ | ------ | ----- |
+| 총 코드 라인 | ~5,000 | ~3,500 | -30%  |
+| 레거시 코드  | ~2,000 | 0      | -100% |
+| 테스트 코드  | 0      | ~500   | +500  |
+| 문서         | ~500   | ~1,500 | +200% |
 
 ### 파일 변경량
 
-| 항목 | 개수 |
-|------|------|
-| 삭제된 파일 | 10 |
-| 수정된 파일 | 20+ |
-| 신규 생성 파일 | 15+ |
-| 마이그레이션 파일 | 2 |
+| 항목              | 개수 |
+| ----------------- | ---- |
+| 삭제된 파일       | 10   |
+| 수정된 파일       | 20+  |
+| 신규 생성 파일    | 15+  |
+| 마이그레이션 파일 | 2    |
 
 ### 성능 개선
 
-| 항목 | Before | After | 개선율 |
-|------|--------|-------|--------|
-| 타입 변환 오버헤드 | ~50ms | 0ms | 100% |
-| 코드 복잡도 | 높음 | 낮음 | -40% |
-| 타입 안전성 | 중간 | 높음 | +50% |
+| 항목               | Before | After | 개선율 |
+| ------------------ | ------ | ----- | ------ |
+| 타입 변환 오버헤드 | ~50ms  | 0ms   | 100%   |
+| 코드 복잡도        | 높음   | 낮음  | -40%   |
+| 타입 안전성        | 중간   | 높음  | +50%   |
 
 ---
 
@@ -697,6 +714,7 @@ SELECT * FROM student_school_scores_backup_20250205;
 성적 관리 시스템의 대규모 리팩토링 프로젝트(Phase 1 ~ Phase 6)가 성공적으로 완료되었습니다.
 
 **주요 성과**:
+
 - ✅ 레거시 코드 완전 제거
 - ✅ 정규화된 데이터베이스 구조 확립
 - ✅ 타입 안전성 강화
@@ -705,6 +723,7 @@ SELECT * FROM student_school_scores_backup_20250205;
 - ✅ 문서화 완료
 
 **향후 유지보수**:
+
 - 아키텍처 문서(`docs/score-architecture.md`) 참고
 - 유지보수 가이드(본 문서) 참고
 - 테스트 코드를 통한 회귀 테스트 수행
@@ -714,4 +733,3 @@ SELECT * FROM student_school_scores_backup_20250205;
 **프로젝트 완료일**: 2025-02-05  
 **최종 검증자**: AI Assistant  
 **상태**: ✅ **PROJECT CLOSED**
-

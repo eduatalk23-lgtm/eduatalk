@@ -1,9 +1,18 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
+import { safeQueryArray } from "@/lib/supabase/safeQuery";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
+
+type PlanRow = {
+  id: string;
+  completed_amount: number | null;
+  actual_end_time: string | null;
+  progress: number | null;
+  content_id: string | null;
+};
 
 export type PlanCompletionMetrics = {
   totalPlans: number;
@@ -24,28 +33,22 @@ export async function getPlanCompletion(
     const weekStartStr = weekStart.toISOString().slice(0, 10);
     const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
-    const selectPlans = () =>
-      supabase
-        .from("student_plan")
-        .select("id,completed_amount,actual_end_time,progress,content_id")
-        .gte("plan_date", weekStartStr)
-        .lte("plan_date", weekEndStr);
-
-    let { data: plans, error } = await selectPlans().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: plans, error } = await selectPlans());
-    }
-
-    if (error) throw error;
-
-    const planRows = (plans as Array<{
-      id: string;
-      completed_amount?: number | null;
-      actual_end_time?: string | null;
-      progress?: number | null;
-      content_id?: string | null;
-    }> | null) ?? [];
+    const planRows = await safeQueryArray<PlanRow>(
+      () =>
+        supabase
+          .from("student_plan")
+          .select("id,completed_amount,actual_end_time,progress,content_id")
+          .eq("student_id", studentId)
+          .gte("plan_date", weekStartStr)
+          .lte("plan_date", weekEndStr),
+      () =>
+        supabase
+          .from("student_plan")
+          .select("id,completed_amount,actual_end_time,progress,content_id")
+          .gte("plan_date", weekStartStr)
+          .lte("plan_date", weekEndStr),
+      { context: "[metrics/getPlanCompletion] 플랜 조회" }
+    );
 
     // 학습 플랜만 필터링 (더미 콘텐츠 제외)
     const learningPlans = filterLearningPlans(planRows);

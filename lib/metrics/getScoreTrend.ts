@@ -1,8 +1,16 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { safeQueryArray } from "@/lib/supabase/safeQuery";
+import { SCORE_CONSTANTS, SCORE_TREND_CONSTANTS } from "@/lib/metrics/constants";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
+
+type ScoreRow = {
+  subject_group: string | null;
+  grade_score: number | null;
+  test_date: string | null;
+};
 
 export type ScoreTrendMetrics = {
   hasDecliningTrend: boolean; // 최근 2회 연속 등급 하락
@@ -24,51 +32,41 @@ export async function getScoreTrend(
   studentId: string
 ): Promise<ScoreTrendMetrics> {
   try {
-    // 내신 성적 조회
-    const selectSchoolScores = () =>
-      supabase
-        .from("student_school_scores")
-        .select("subject_group,grade_score,test_date")
-        .order("test_date", { ascending: false })
-        .limit(20);
-
-    let { data: schoolScores, error: schoolError } = await selectSchoolScores().eq(
-      "student_id",
-      studentId
-    );
-
-    if (schoolError && schoolError.code === "42703") {
-      ({ data: schoolScores, error: schoolError } = await selectSchoolScores());
-    }
-
-    // 모의고사 성적 조회
-    const selectMockScores = () =>
-      supabase
-        .from("student_mock_scores")
-        .select("subject_group,grade_score,test_date")
-        .order("test_date", { ascending: false })
-        .limit(20);
-
-    let { data: mockScores, error: mockError } = await selectMockScores().eq(
-      "student_id",
-      studentId
-    );
-
-    if (mockError && mockError.code === "42703") {
-      ({ data: mockScores, error: mockError } = await selectMockScores());
-    }
-
-    const schoolRows = (schoolScores as Array<{
-      subject_group?: string | null;
-      grade_score?: number | null;
-      test_date?: string | null;
-    }> | null) ?? [];
-
-    const mockRows = (mockScores as Array<{
-      subject_group?: string | null;
-      grade_score?: number | null;
-      test_date?: string | null;
-    }> | null) ?? [];
+    // 내신 성적 및 모의고사 성적 병렬 조회
+    const [schoolRows, mockRows] = await Promise.all([
+      safeQueryArray<ScoreRow>(
+        () =>
+          supabase
+            .from("student_school_scores")
+            .select("subject_group,grade_score,test_date")
+            .eq("student_id", studentId)
+            .order("test_date", { ascending: false })
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+        () =>
+          supabase
+            .from("student_school_scores")
+            .select("subject_group,grade_score,test_date")
+            .order("test_date", { ascending: false })
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+        { context: "[metrics/getScoreTrend] 내신 성적 조회" }
+      ),
+      safeQueryArray<ScoreRow>(
+        () =>
+          supabase
+            .from("student_mock_scores")
+            .select("subject_group,grade_score,test_date")
+            .eq("student_id", studentId)
+            .order("test_date", { ascending: false })
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+        () =>
+          supabase
+            .from("student_mock_scores")
+            .select("subject_group,grade_score,test_date")
+            .order("test_date", { ascending: false })
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+        { context: "[metrics/getScoreTrend] 모의고사 성적 조회" }
+      ),
+    ]);
 
     // 모든 성적을 하나의 배열로 합치기
     const allScores: Array<{
@@ -116,18 +114,18 @@ export async function getScoreTrend(
 
     subjectMap.forEach((scores, subject) => {
       // 최근 2회 연속 하락 확인
-      if (scores.length >= 2) {
+      if (scores.length >= SCORE_CONSTANTS.DECLINING_TREND_THRESHOLD) {
         const sorted = scores.sort((a, b) => b.testDate.localeCompare(a.testDate));
-        const recent2 = sorted.slice(0, 2);
+        const recent2 = sorted.slice(0, SCORE_CONSTANTS.DECLINING_TREND_THRESHOLD);
         // 등급이 높아질수록 나쁨 (1등급이 최고, 9등급이 최악)
         if (recent2[0].grade > recent2[1].grade) {
           decliningSubjects.push(subject);
         }
       }
 
-      // 7등급 이하 과목 확인
+      // 저등급 과목 확인
       const latestGrade = scores.sort((a, b) => b.testDate.localeCompare(a.testDate))[0]?.grade;
-      if (latestGrade !== undefined && latestGrade >= 7) {
+      if (latestGrade !== undefined && latestGrade >= SCORE_CONSTANTS.LOW_GRADE_THRESHOLD) {
         lowGradeSubjects.push(subject);
       }
     });
@@ -138,7 +136,7 @@ export async function getScoreTrend(
       hasDecliningTrend,
       decliningSubjects,
       lowGradeSubjects,
-      recentScores: allScores.slice(0, 10), // 최근 10개만 반환
+      recentScores: allScores.slice(0, SCORE_TREND_CONSTANTS.RETURN_SCORES_LIMIT),
     };
   } catch (error) {
     console.error("[metrics/getScoreTrend] 성적 추이 조회 실패", error);

@@ -13,6 +13,7 @@ import {
   getStartOfDayUTC,
   getEndOfDayUTC,
 } from "@/lib/utils/dateUtils";
+import { TODAY_PROGRESS_CONSTANTS } from "@/lib/metrics/constants";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -115,15 +116,16 @@ export async function calculateTodayProgress(
     const executionRate =
       planTotalCount > 0 ? (planCompletedCount / planTotalCount) * 100 : 0;
 
-    // 예상 학습 시간 계산 (플랜 기반, 평균 60분 가정)
-    const expectedMinutes = planTotalCount * 60;
+    // 예상 학습 시간 계산 (플랜 기반)
+    const expectedMinutes = planTotalCount * TODAY_PROGRESS_CONSTANTS.EXPECTED_MINUTES_PER_PLAN;
     const focusTimerRate =
       expectedMinutes > 0
         ? Math.min((todayStudyMinutes / expectedMinutes) * 100, 100)
         : 0;
 
     const achievementScore = Math.round(
-      executionRate * 0.7 + focusTimerRate * 0.3
+      executionRate * TODAY_PROGRESS_CONSTANTS.EXECUTION_RATE_WEIGHT +
+        focusTimerRate * TODAY_PROGRESS_CONSTANTS.FOCUS_TIMER_WEIGHT
     );
 
     return {

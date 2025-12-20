@@ -19,6 +19,8 @@ export type StudyTimeMetrics = {
 
 /**
  * 주간 학습시간 메트릭 조회
+ * 
+ * 최적화: 이번 주와 지난 주 데이터를 한 번의 쿼리로 조회한 뒤 메모리에서 분리
  */
 export async function getStudyTime(
   supabase: SupabaseServerClient,
@@ -45,21 +47,32 @@ export async function getStudyTime(
     const lastWeekStartUTC = getStartOfDayUTC(lastWeekStartStr, "Asia/Seoul");
     const lastWeekEndUTC = getEndOfDayUTC(lastWeekEndStr, "Asia/Seoul");
 
-    // 이번 주 및 지난 주 세션 조회 (UTC 범위 사용)
-    const [thisWeekSessions, lastWeekSessions] = await Promise.all([
-      getSessionsByDateRange(
-        supabase,
-        studentId,
-        weekStartUTC.toISOString().slice(0, 10),
-        weekEndUTC.toISOString().slice(0, 10)
-      ),
-      getSessionsByDateRange(
-        supabase,
-        studentId,
-        lastWeekStartUTC.toISOString().slice(0, 10),
-        lastWeekEndUTC.toISOString().slice(0, 10)
-      ),
-    ]);
+    // 이번 주와 지난 주를 포함하는 전체 범위로 한 번에 조회
+    const overallStartUTC = lastWeekStartUTC < weekStartUTC ? lastWeekStartUTC : weekStartUTC;
+    const overallEndUTC = lastWeekEndUTC > weekEndUTC ? lastWeekEndUTC : weekEndUTC;
+
+    const allSessions = await getSessionsByDateRange(
+      supabase,
+      studentId,
+      overallStartUTC.toISOString().slice(0, 10),
+      overallEndUTC.toISOString().slice(0, 10)
+    );
+
+    // 이번 주와 지난 주로 분리 (UTC 기준 날짜 비교)
+    const weekStartUTCStr = weekStartUTC.toISOString().slice(0, 10);
+    const weekEndUTCStr = weekEndUTC.toISOString().slice(0, 10);
+    const lastWeekStartUTCStr = lastWeekStartUTC.toISOString().slice(0, 10);
+    const lastWeekEndUTCStr = lastWeekEndUTC.toISOString().slice(0, 10);
+
+    const thisWeekSessions = allSessions.filter((session) => {
+      const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
+      return sessionDate >= weekStartUTCStr && sessionDate <= weekEndUTCStr;
+    });
+
+    const lastWeekSessions = allSessions.filter((session) => {
+      const sessionDate = new Date(session.started_at).toISOString().slice(0, 10);
+      return sessionDate >= lastWeekStartUTCStr && sessionDate <= lastWeekEndUTCStr;
+    });
 
     // 학습시간 계산 (초 단위)
     const thisWeekSeconds = thisWeekSessions.reduce(

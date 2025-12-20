@@ -1,10 +1,27 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
-import { getSubjectFromContent } from "@/lib/studySessions/summary";
+import { safeQueryArray } from "@/lib/supabase/safeQuery";
+import { WEAK_SUBJECT_CONSTANTS } from "@/lib/metrics/constants";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
+
+type PlanRow = {
+  id: string;
+  content_type: string | null;
+  content_id: string | null;
+};
+
+type ContentRow = {
+  id: string;
+  subject: string | null;
+};
+
+type AnalysisRow = {
+  subject: string | null;
+  risk_score: number | null;
+};
 
 export type WeakSubjectMetrics = {
   weakSubjects: string[]; // 취약 과목 목록
@@ -15,6 +32,8 @@ export type WeakSubjectMetrics = {
 
 /**
  * 취약 과목 메트릭 조회
+ * 
+ * N+1 쿼리 최적화: 플랜과 콘텐츠 정보를 배치로 조회
  */
 export async function getWeakSubjects(
   supabase: SupabaseServerClient,
@@ -34,71 +53,179 @@ export async function getWeakSubjects(
       weekEndStr
     );
 
-    // 과목별 학습시간 계산
-    const subjectTimeMap = new Map<string, number>();
+    // 1. plan_id와 content_type/content_id 수집
+    const planIds = new Set<string>();
+    const directContentKeys = new Set<string>(); // "contentType:contentId" 형식
 
-    for (const session of sessions) {
-      if (!session.duration_seconds) continue;
-
-      let subject: string | null = null;
+    sessions.forEach((session) => {
       if (session.plan_id) {
-        // 플랜 정보 조회
-        const selectPlan = () =>
+        planIds.add(session.plan_id);
+      } else if (session.content_type && session.content_id) {
+        directContentKeys.add(`${session.content_type}:${session.content_id}`);
+      }
+    });
+
+    // 2. 플랜 정보 배치 조회
+    const planMap = new Map<string, { contentType: string; contentId: string }>();
+    if (planIds.size > 0) {
+      const plans = await safeQueryArray<PlanRow>(
+        () =>
           supabase
             .from("student_plan")
-            .select("content_type,content_id")
-            .eq("id", session.plan_id);
+            .select("id,content_type,content_id")
+            .eq("student_id", studentId)
+            .in("id", Array.from(planIds)),
+        () =>
+          supabase
+            .from("student_plan")
+            .select("id,content_type,content_id")
+            .in("id", Array.from(planIds)),
+        { context: "[metrics/getWeakSubjects] 플랜 조회" }
+      );
 
-        let { data: plan, error } = await selectPlan().eq("student_id", studentId).maybeSingle();
-
-        if (error && error.code === "42703") {
-          ({ data: plan, error } = await selectPlan().maybeSingle());
+      plans.forEach((plan) => {
+        if (plan.content_type && plan.content_id) {
+          planMap.set(plan.id, {
+            contentType: plan.content_type,
+            contentId: plan.content_id,
+          });
         }
+      });
+    }
 
-        if (!error && plan && plan.content_type && plan.content_id) {
-          subject = await getSubjectFromContent(
-            supabase,
-            studentId,
-            plan.content_type,
-            plan.content_id
-          );
+    // 3. 콘텐츠 키 수집 (플랜에서 추출 + 직접 세션에서 추출)
+    const contentKeys = new Map<string, { contentType: string; contentId: string }>();
+    
+    // 플랜에서 추출
+    planMap.forEach((content, planId) => {
+      contentKeys.set(`${content.contentType}:${content.contentId}`, content);
+    });
+    
+    // 직접 세션에서 추출
+    directContentKeys.forEach((key) => {
+      const [contentType, contentId] = key.split(":");
+      if (contentType && contentId) {
+        contentKeys.set(key, { contentType, contentId });
+      }
+    });
+
+    // 4. 콘텐츠 타입별로 분류
+    const bookIds: string[] = [];
+    const lectureIds: string[] = [];
+    const customIds: string[] = [];
+
+    contentKeys.forEach(({ contentType, contentId }) => {
+      if (contentType === "book") {
+        bookIds.push(contentId);
+      } else if (contentType === "lecture") {
+        lectureIds.push(contentId);
+      } else if (contentType === "custom") {
+        customIds.push(contentId);
+      }
+    });
+
+    // 5. 콘텐츠 정보 배치 조회 (병렬)
+    const [booksResult, lecturesResult, customResult] = await Promise.all([
+      bookIds.length > 0
+        ? safeQueryArray<ContentRow>(
+            () =>
+              supabase
+                .from("books")
+                .select("id,subject")
+                .eq("student_id", studentId)
+                .in("id", bookIds),
+            undefined,
+            { context: "[metrics/getWeakSubjects] 책 조회" }
+          )
+        : Promise.resolve([]),
+      lectureIds.length > 0
+        ? safeQueryArray<ContentRow>(
+            () =>
+              supabase
+                .from("lectures")
+                .select("id,subject")
+                .eq("student_id", studentId)
+                .in("id", lectureIds),
+            undefined,
+            { context: "[metrics/getWeakSubjects] 강의 조회" }
+          )
+        : Promise.resolve([]),
+      customIds.length > 0
+        ? safeQueryArray<ContentRow>(
+            () =>
+              supabase
+                .from("student_custom_contents")
+                .select("id,subject")
+                .eq("student_id", studentId)
+                .in("id", customIds),
+            undefined,
+            { context: "[metrics/getWeakSubjects] 커스텀 콘텐츠 조회" }
+          )
+        : Promise.resolve([]),
+    ]);
+
+    // 6. 콘텐츠 ID -> 과목 매핑 생성
+    const contentSubjectMap = new Map<string, string | null>();
+    booksResult.forEach((book) => {
+      contentSubjectMap.set(`book:${book.id}`, book.subject);
+    });
+    lecturesResult.forEach((lecture) => {
+      contentSubjectMap.set(`lecture:${lecture.id}`, lecture.subject);
+    });
+    customResult.forEach((custom) => {
+      contentSubjectMap.set(`custom:${custom.id}`, custom.subject);
+    });
+
+    // 7. 세션별로 과목 매핑하여 학습시간 계산
+    const subjectTimeMap = new Map<string, number>();
+
+    sessions.forEach((session) => {
+      if (!session.duration_seconds) return;
+
+      let subject: string | null = null;
+
+      if (session.plan_id) {
+        const planContent = planMap.get(session.plan_id);
+        if (planContent) {
+          const contentKey = `${planContent.contentType}:${planContent.contentId}`;
+          subject = contentSubjectMap.get(contentKey) ?? null;
         }
       } else if (session.content_type && session.content_id) {
-        subject = await getSubjectFromContent(
-          supabase,
-          studentId,
-          session.content_type,
-          session.content_id
-        );
+        const contentKey = `${session.content_type}:${session.content_id}`;
+        subject = contentSubjectMap.get(contentKey) ?? null;
       }
 
       if (subject) {
         const current = subjectTimeMap.get(subject) || 0;
         subjectTimeMap.set(subject, current + Math.floor(session.duration_seconds / 60));
       }
-    }
+    });
 
-    // 취약 과목 조회 (student_analysis 테이블)
-    const selectAnalysis = () =>
-      supabase
-        .from("student_analysis")
-        .select("subject,risk_score")
-        .order("risk_score", { ascending: false });
+    // 8. 취약 과목 조회 (student_analysis 테이블)
+    const analyses = await safeQueryArray<AnalysisRow>(
+      () =>
+        supabase
+          .from("student_analysis")
+          .select("subject,risk_score")
+          .eq("student_id", studentId)
+          .order("risk_score", { ascending: false }),
+      () =>
+        supabase
+          .from("student_analysis")
+          .select("subject,risk_score")
+          .order("risk_score", { ascending: false }),
+      { context: "[metrics/getWeakSubjects] 분석 조회" }
+    );
 
-    let { data: analyses, error } = await selectAnalysis().eq("student_id", studentId);
-
-    if (error && error.code === "42703") {
-      ({ data: analyses, error } = await selectAnalysis());
-    }
-
-    const analysisRows = (analyses as Array<{
-      subject?: string | null;
-      risk_score?: number | null;
-    }> | null) ?? [];
-
-    // 위험도가 높은 과목을 취약 과목으로 간주 (risk_score >= 50)
-    const weakSubjects = analysisRows
-      .filter((a) => a.subject && a.risk_score !== null && a.risk_score !== undefined && a.risk_score >= 50)
+    // 위험도가 높은 과목을 취약 과목으로 간주
+    const weakSubjects = analyses
+      .filter(
+        (a) =>
+          a.subject &&
+          a.risk_score !== null &&
+          a.risk_score !== undefined &&
+          a.risk_score >= WEAK_SUBJECT_CONSTANTS.RISK_SCORE_THRESHOLD
+      )
       .map((a) => a.subject!);
 
     // 전체 학습시간 계산
