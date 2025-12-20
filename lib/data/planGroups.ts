@@ -1345,7 +1345,7 @@ async function createExclusions(
   }
 
   // 중복 키 에러 처리
-  if (error && (error.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION || error.message?.includes("duplicate"))) {
+  if (error && (ErrorCodeCheckers.isUniqueViolation(error) || error.message?.includes("duplicate"))) {
     return {
       success: false,
       error: "이미 등록된 제외일이 있습니다.",

@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
-import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -326,7 +326,7 @@ export async function endSession(
       .select()
       .maybeSingle();
 
-    if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+    if (result.error && ErrorCodeCheckers.isColumnNotFound(result.error)) {
       const fallbackResult = await supabase
         .from("student_study_sessions")
         .update(payload)
@@ -369,7 +369,7 @@ export async function deleteSession(
       .select()
       .maybeSingle();
 
-    if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
+    if (result.error && ErrorCodeCheckers.isColumnNotFound(result.error)) {
       const fallbackResult = await supabase
         .from("student_study_sessions")
         .delete()
