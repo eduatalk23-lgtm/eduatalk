@@ -33,7 +33,12 @@ export function Step6FinalReview({
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
-  const onUpdate = onUpdateProp ?? contextUpdateData;
+  const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {});
+  
+  // data가 없으면 에러 (필수 데이터)
+  if (!data) {
+    throw new Error("Step6FinalReview: data is required. Provide data prop or use PlanWizardProvider.");
+  }
 
   // Hooks - contentTotals도 useContentInfos에서 함께 가져옴 (API 호출 통합)
   const { contentInfos, loading, contentTotals, loadingContentTotals } = useContentInfos({

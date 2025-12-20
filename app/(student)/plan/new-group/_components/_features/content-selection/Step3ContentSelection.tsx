@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   Step3ContentSelectionProps,
   RecommendationSettings,
@@ -31,7 +31,7 @@ import type { WizardData } from "@/lib/schemas/planWizardSchema";
  * 기존 Step3Contents + Step4RecommendedContents를 통합
  * 탭 UI로 학생 콘텐츠와 추천 콘텐츠를 한 화면에서 관리
  */
-export function Step3ContentSelection({
+function Step3ContentSelectionComponent({
   data: dataProp,
   onUpdate: onUpdateProp,
   contents,
@@ -55,9 +55,14 @@ export function Step3ContentSelection({
   const contextUpdateData = context?.updateData;
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
-  const data = dataProp ?? contextData;
+  const data = (dataProp ?? contextData) as NonNullable<typeof dataProp> | NonNullable<typeof contextData>;
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
+  
+  // data가 없으면 에러 (필수 데이터)
+  if (!data) {
+    throw new Error("Step3ContentSelection: data is required. Provide data prop or use PlanWizardProvider.");
+  }
 
   // 모드 통합 관리
   const mode = useMemo(() => createWizardMode({
@@ -116,7 +121,12 @@ export function Step3ContentSelection({
     isTemplateMode: mode.isTemplateMode,
     editable,
     subjectConstraints: data.subject_constraints,
-    onUpdate,
+    onUpdate: (updates) => {
+      // onUpdate가 WizardData 전체를 받을 수 있도록 래핑
+      if (onUpdate) {
+        onUpdate(updates as any);
+      }
+    },
   });
 
   // 최대 콘텐츠 개수
@@ -192,7 +202,9 @@ export function Step3ContentSelection({
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
     (contents: typeof data.student_contents) => {
-      onUpdate({ student_contents: contents });
+      if (onUpdate) {
+        onUpdate({ student_contents: contents } as any);
+      }
     },
     [onUpdate]
   );
@@ -200,7 +212,9 @@ export function Step3ContentSelection({
   // 추천 콘텐츠 업데이트
   const handleRecommendedContentsUpdate = useCallback(
     (contents: typeof data.recommended_contents) => {
-      onUpdate({ recommended_contents: contents });
+      if (onUpdate) {
+        onUpdate({ recommended_contents: contents } as any);
+      }
 
       // 선택된 ID 업데이트
       setSelectedRecommendedIds(new Set(contents.map((c) => c.content_id)));
@@ -397,3 +411,6 @@ export function Step3ContentSelection({
     </div>
   );
 }
+
+// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step3ContentSelection = memo(Step3ContentSelectionComponent);

@@ -417,10 +417,12 @@ export type RecommendedContentsPanelProps = {
 
 /**
  * Step3ContentSelection Props (메인 컴포넌트)
+ * 
+ * data와 onUpdate는 optional입니다. Context에서 가져올 수 있으면 생략 가능합니다.
  */
 export type Step3ContentSelectionProps = {
-  // WizardData
-  data: {
+  // WizardData (optional: Context에서 가져올 수 있음)
+  data?: {
     student_contents: SelectedContent[];
     recommended_contents: SelectedContent[];
     schedule_summary?: any;
@@ -440,7 +442,26 @@ export type Step3ContentSelectionProps = {
       constraint_handling?: "strict" | "warning" | "auto_fix";
     };
   };
-  onUpdate: (updates: Partial<Step3ContentSelectionProps["data"]>) => void;
+  /** 데이터 업데이트 함수 (optional: Context에서 가져올 수 있음) */
+  onUpdate?: (updates: Partial<{
+    student_contents: SelectedContent[];
+    recommended_contents: SelectedContent[];
+    subject_constraints?: {
+      enable_required_subjects_validation?: boolean;
+      required_subjects?: Array<{
+        subject_group_id: string;
+        subject_category: string;
+        min_count: number;
+        subjects_by_curriculum?: Array<{
+          curriculum_revision_id: string;
+          subject_id?: string;
+          subject_name?: string;
+        }>;
+      }>;
+      excluded_subjects?: string[];
+      constraint_handling?: "strict" | "warning" | "auto_fix";
+    };
+  }>) => void;
   
   // 콘텐츠 목록
   contents: StudentContentsPanelProps["contents"];

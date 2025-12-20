@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
-import { validateStep as validateStepUtil } from "../utils/validationUtils";
+import { validateStep as validateStepUtil } from "../utils/planValidation";
 
 // 필드 ID별 오류 메시지 맵 타입
 export type FieldErrors = Map<string, string>;
@@ -102,8 +102,8 @@ export function useWizardValidation({
     (step: WizardStep): boolean => {
       // 공통 검증 함수 사용
       const result = validateStepUtil(
-        wizardData,
         step,
+        wizardData,
         isTemplateMode,
         isCampMode
       );

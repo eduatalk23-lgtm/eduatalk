@@ -354,7 +354,8 @@ export async function GET(
     const strategy = analyzeAdmissionStrategy(
       internalPct,
       mock.avgPercentile,
-      internal.zIndex
+      internal.zIndex,
+      mock.best3GradeSum
     );
 
     // 6) 응답 조립

@@ -2,8 +2,10 @@
 import { WizardData } from "../../../PlanGroupWizard";
 
 export type Step6FinalReviewProps = {
-  data: WizardData;
-  onUpdate: (updates: Partial<WizardData>) => void;
+  /** WizardData (optional: Context에서 가져올 수 있음) */
+  data?: WizardData;
+  /** 데이터 업데이트 함수 (optional: Context에서 가져올 수 있음) */
+  onUpdate?: (updates: Partial<WizardData>) => void;
   contents?: {
     books: Array<{ id: string; title: string; subtitle?: string | null }>;
     lectures: Array<{ id: string; title: string; subtitle?: string | null }>;

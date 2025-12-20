@@ -8,7 +8,7 @@
 /**
  * 전략 유형
  */
-export type StrategyType = "BALANCED" | "MOCK_ADVANTAGE" | "INTERNAL_ADVANTAGE";
+export type StrategyType = "BALANCED" | "MOCK_ADVANTAGE" | "INTERNAL_ADVANTAGE" | "SPECIAL_HIGH_SCHOOL";
 
 /**
  * 학생 프로필 정보

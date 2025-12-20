@@ -2,21 +2,6 @@
   "name": "project",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "analyze": "ANALYZE=true next build",
-    "seed:score-dashboard-dummy": "tsx scripts/seedScoreDashboardDummy.ts",
-    "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
-    "test:score-dashboard": "tsx scripts/testScoreDashboard.ts",
-    "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts",
-    "generate:icons": "tsx scripts/generate-pwa-icons.ts",
-    "check-legacy-scores-table": "tsx scripts/check-legacy-student-scores-table.ts"
-  },
   "dependencies": {
     "@date-fns/tz": "^1.4.1",
     "@hookform/resolvers": "^5.2.2",
@@ -55,6 +40,7 @@
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.0.3",
+    "@playwright/test": "^1.48.0",
     "@tailwindcss/postcss": "^4",
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/node": "^20.19.25",
@@ -72,5 +58,24 @@
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.0.15"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "analyze": "ANALYZE=true next build",
+    "seed:score-dashboard-dummy": "tsx scripts/seedScoreDashboardDummy.ts",
+    "cleanup:score-dashboard-dummy": "tsx scripts/cleanupScoreDashboardDummy.ts",
+    "test:score-dashboard": "tsx scripts/testScoreDashboard.ts",
+    "test:ppurio-sms": "tsx scripts/test-ppurio-sms.ts",
+    "generate:icons": "tsx scripts/generate-pwa-icons.ts",
+    "check-legacy-scores-table": "tsx scripts/check-legacy-student-scores-table.ts",
+    "validate:legacy-data": "tsx scripts/validate-legacy-plan-data.ts"
   }
 }

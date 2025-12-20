@@ -7,6 +7,7 @@ import { MockScoreCard } from "./MockScoreCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useScoreFilter } from "@/lib/hooks/useScoreFilter";
 
 type MockScoreCardGridProps = {
   initialGrade?: number;
@@ -68,129 +69,48 @@ export function MockScoreCardGrid({
     });
   }, [scores, subjectGroups, subjectTypes]);
 
-  // 필터링 및 정렬
-  const filteredAndSortedScores = useMemo(() => {
-    let filtered = [...scoresWithInfo];
-
-    // 학년 필터링
-    if (filterGrade !== "all") {
-      filtered = filtered.filter(
-        (item) => item.score.grade === parseInt(filterGrade)
-      );
-    }
-
-    // 시험 유형 필터링 (exam_title에서 추출)
-    if (filterExamType !== "all") {
-      filtered = filtered.filter(
-        (item) => item.score.exam_title.includes(filterExamType)
-      );
-    }
-
-    // 회차 필터링 (exam_date에서 월 추출)
-    if (filterMonth !== "all") {
-      filtered = filtered.filter(
-        (item) => {
-          const month = (new Date(item.score.exam_date).getMonth() + 1).toString();
-          return month === filterMonth;
+  // useScoreFilter 훅 사용
+  const {
+    filteredAndSortedScores,
+    availableSubjectGroups,
+    availableSubjectTypes,
+    availableSubjects,
+    availableGrades,
+  } = useScoreFilter<MockScore>(
+    scoresWithInfo,
+    {
+      grade: filterGrade,
+      examType: filterExamType,
+      month: filterMonth,
+      subjectGroup: filterSubjectGroup,
+      subject: filterSubject,
+      subjectType: filterSubjectType,
+    },
+    {
+      field: sortField,
+      order: sortOrder,
+      getValue: (item, field) => {
+        switch (field) {
+          case "grade":
+            return item.score.grade ?? 0;
+          case "examType":
+            return item.score.exam_title ?? "";
+          case "month":
+            return (new Date(item.score.exam_date).getMonth() + 1).toString();
+          case "grade_score":
+            return item.score.grade_score ?? 999;
+          case "standard_score":
+            return item.score.standard_score ?? 0;
+          case "percentile":
+            return item.score.percentile ?? 0;
+          case "subject_name":
+            return item.subjectName;
+          default:
+            return null;
         }
-      );
+      },
     }
-
-    // 교과 필터링
-    if (filterSubjectGroup !== "all") {
-      filtered = filtered.filter(
-        (item) => item.subjectGroupName === filterSubjectGroup
-      );
-    }
-
-    // 과목 필터링
-    if (filterSubject !== "all") {
-      filtered = filtered.filter(
-        (item) => item.subjectName === filterSubject
-      );
-    }
-
-    // 과목 유형 필터링
-    if (filterSubjectType !== "all") {
-      filtered = filtered.filter((item) => item.subjectTypeName === filterSubjectType);
-    }
-
-    // 정렬
-    filtered.sort((a, b) => {
-      let aValue: number | string | null = null;
-      let bValue: number | string | null = null;
-
-      switch (sortField) {
-        case "grade":
-          aValue = a.score.grade ?? 0;
-          bValue = b.score.grade ?? 0;
-          break;
-        case "examType":
-          aValue = a.score.exam_title ?? "";
-          bValue = b.score.exam_title ?? "";
-          break;
-        case "month":
-          aValue = (new Date(a.score.exam_date).getMonth() + 1).toString();
-          bValue = (new Date(b.score.exam_date).getMonth() + 1).toString();
-          break;
-        case "grade_score":
-          aValue = a.score.grade_score ?? 999;
-          bValue = b.score.grade_score ?? 999;
-          break;
-        case "standard_score":
-          aValue = a.score.standard_score ?? 0;
-          bValue = b.score.standard_score ?? 0;
-          break;
-        case "percentile":
-          aValue = a.score.percentile ?? 0;
-          bValue = b.score.percentile ?? 0;
-          break;
-        case "subject_name":
-          aValue = a.subjectName;
-          bValue = b.subjectName;
-          break;
-      }
-
-      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }, [scoresWithInfo, sortField, sortOrder, filterGrade, filterExamType, filterMonth, filterSubjectGroup, filterSubject, filterSubjectType]);
-
-  // 고유한 교과 및 과목 유형 목록
-  const availableSubjectGroups = useMemo(() => {
-    const groups = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectGroupName) groups.add(item.subjectGroupName);
-    });
-    return Array.from(groups).sort();
-  }, [scoresWithInfo]);
-
-  const availableSubjectTypes = useMemo(() => {
-    const types = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectTypeName) types.add(item.subjectTypeName);
-    });
-    return Array.from(types).sort();
-  }, [scoresWithInfo]);
-
-  const availableSubjects = useMemo(() => {
-    const subjects = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectName) subjects.add(item.subjectName);
-    });
-    return Array.from(subjects).sort();
-  }, [scoresWithInfo]);
-
-  const availableGrades = useMemo(() => {
-    const grades = new Set<number>();
-    scoresWithInfo.forEach((item) => {
-      if (item.score.grade) grades.add(item.score.grade);
-    });
-    return Array.from(grades).sort();
-  }, [scoresWithInfo]);
+  );
 
   const availableExamTypes = useMemo(() => {
     const types = new Set<string>();

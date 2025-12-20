@@ -25,8 +25,8 @@ type MockScoreFormData = {
   exam_round: string; // 회차 (월) - 탭의 월 값으로 자동 설정됨 (UI에서 입력 불가)
 };
 
-// 기본 교과 목록 (항상 표시) - 모의고사 기본 세트
-const DEFAULT_SUBJECT_GROUP_NAMES = ["국어", "수학", "영어", "사회", "과학"];
+// 기본 교과 목록은 더 이상 하드코딩하지 않음
+// subjectGroups props를 통해 동적으로 처리
 
 export default function MockScoresTable({
   grade,
@@ -68,46 +68,54 @@ export default function MockScoresTable({
       });
     });
 
-    // 기본 교과 목록을 기반으로 배열 생성
-    const result: MockScoreFormData[] = DEFAULT_SUBJECT_GROUP_NAMES.map((groupName) => {
-      // 해당 교과 그룹 찾기
+    // subjectGroups를 기반으로 배열 생성 (동적 처리)
+    // 모의고사 기본 세트: 국어, 수학, 영어, 사회, 과학 (하위 호환성을 위해 기본값 유지)
+    const defaultSubjectGroupNames = ["국어", "수학", "영어", "사회", "과학"];
+    
+    // 먼저 기본 교과 그룹들을 찾아서 배열 생성
+    const result: MockScoreFormData[] = [];
+    
+    // 기본 교과 그룹들을 순회하며 행 생성
+    for (const groupName of defaultSubjectGroupNames) {
       const defaultGroup = subjectGroups.find((g) => g.name === groupName);
       if (!defaultGroup) {
-        // 교과 그룹이 없으면 빈 행
-      return {
-        subject_group_id: "",
-        subject_id: "",
-        standard_score: "",
-        percentile: "",
-        grade_score: "",
-        exam_round: month, // 탭의 월 값을 자동 사용
-      };
+        // 교과 그룹이 없으면 빈 행 추가
+        result.push({
+          subject_group_id: "",
+          subject_id: "",
+          standard_score: "",
+          percentile: "",
+          grade_score: "",
+          exam_round: month,
+        });
+        continue;
       }
 
       // 국어/수학/영어는 과목을 사용하지 않음
       const shouldUseSubject = ["사회", "과학"].includes(groupName);
       const firstSubject = defaultGroup.subjects[0];
-      const key = firstSubject ? `${groupName}:${firstSubject.name}` : null;
-      const existingScore = key ? scoreMap.get(key) : undefined;
+      const key = firstSubject ? `${defaultGroup.id}:${firstSubject.id}` : `${defaultGroup.id}:`;
+      const existingScore = scoreMap.get(key);
 
       if (existingScore) {
-        return existingScore;
+        result.push(existingScore);
+      } else {
+        result.push({
+          subject_group_id: defaultGroup.id,
+          subject_id: shouldUseSubject ? (firstSubject?.id || "") : "",
+          standard_score: "",
+          percentile: "",
+          grade_score: "",
+          exam_round: month,
+        });
       }
-
-      return {
-        subject_group_id: defaultGroup.id,
-        subject_id: shouldUseSubject ? (firstSubject?.id || "") : "",
-        standard_score: "",
-        percentile: "",
-        grade_score: "",
-        exam_round: month, // 탭의 월 값을 자동 사용
-      };
-    });
+    }
 
     // 기본 교과 외 추가된 성적들 추가
     scoreMap.forEach((score, key) => {
-      const [groupName] = key.split(":");
-      if (!DEFAULT_SUBJECT_GROUP_NAMES.includes(groupName)) {
+      const [groupId] = key.split(":");
+      const group = subjectGroups.find((g) => g.id === groupId);
+      if (group && !defaultSubjectGroupNames.includes(group.name)) {
         result.push(score);
       }
     });

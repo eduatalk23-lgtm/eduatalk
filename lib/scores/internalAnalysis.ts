@@ -166,13 +166,24 @@ export async function getInternalAnalysis(
     // 교과군별로 그룹화 (조인 결과에서 직접 subject_group.name 사용)
     const subjectGroups: Record<string, { totalGradeCredit: number; totalCredit: number }> = {};
 
+    // 타입 안전성을 위해 Supabase의 타입 추론 활용
+    type SubjectQueryResult = {
+      rank_grade: number | null;
+      credit_hours: number | null;
+      subject_group_id: string | null;
+      subject_group: {
+        id: string;
+        name: string;
+      } | null;
+    };
+
     for (const row of subjectData) {
       // Relational Query 결과에서 subject_group.name 추출
-      const rowWithJoin = {
-        ...row,
-        subject_group: Array.isArray(row.subject_group) ? row.subject_group[0] : row.subject_group,
-      } as InternalScoreWithSubjectGroup;
-      const subjectGroupName = rowWithJoin.subject_group?.name;
+      const typedRow = row as SubjectQueryResult;
+      const subjectGroup = Array.isArray(typedRow.subject_group) 
+        ? typedRow.subject_group[0] 
+        : typedRow.subject_group;
+      const subjectGroupName = subjectGroup?.name;
       if (!subjectGroupName) continue;
 
       const rankGrade = Number(row.rank_grade) || 0;

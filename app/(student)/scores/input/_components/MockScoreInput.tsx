@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import type { MockScoreInputForm } from "@/lib/types/scoreInput";
+import { createMockScoresBatch } from "@/app/actions/scores-internal";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type MockScoreInputProps = {
   studentId: string;
@@ -29,12 +31,36 @@ export default function MockScoreInput({
   subjectGroups,
 }: MockScoreInputProps) {
   const router = useRouter();
+  const { showSuccess, showError } = useToast();
   const [examDate, setExamDate] = useState<string>("");
   const [examTitle, setExamTitle] = useState<string>("");
   const [grade, setGrade] = useState<number>(1);
   const [scores, setScores] = useState<ScoreRow[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // 페이지 이탈 방지
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  // 성적 변경 감지
+  useEffect(() => {
+    if (scores.length > 0 || examDate || examTitle) {
+      setHasUnsavedChanges(true);
+    }
+  }, [scores, examDate, examTitle]);
 
   // 새로운 성적 행 추가
   const addScoreRow = () => {
@@ -119,35 +145,37 @@ export default function MockScoreInput({
       }
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const response = await fetch("/api/scores/mock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          studentId,
-          tenantId,
-          scores: scores.map((s) => {
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.append("student_id", studentId);
+        formData.append("tenant_id", tenantId);
+        formData.append("scores", JSON.stringify(
+          scores.map((s) => {
             const { id, ...scoreData } = s;
             return scoreData;
-          }),
-        }),
-      });
+          })
+        ));
 
-      const result = await response.json();
+        const result = await createMockScoresBatch(formData);
 
-      if (!response.ok) {
-        throw new Error(result.error || "성적 저장에 실패했습니다.");
+        if (!result.success) {
+          throw new Error("성적 저장에 실패했습니다.");
+        }
+
+        // 성공 메시지 표시
+        const savedCount = scores.length;
+        showSuccess(`${savedCount}건의 성적이 저장되었습니다.`);
+        setHasUnsavedChanges(false);
+
+        // 성공 시 통합 대시보드로 이동
+        router.push("/scores/dashboard/unified");
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
+        setError(errorMessage);
+        showError(errorMessage);
       }
-
-      // 성공 시 통합 대시보드로 이동
-      router.push("/scores/dashboard/unified");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -385,10 +413,10 @@ export default function MockScoreInput({
         </button>
         <button
           type="submit"
-          disabled={isSubmitting || scores.length === 0}
+          disabled={isPending || scores.length === 0}
           className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
-          {isSubmitting ? "저장 중..." : "저장하기"}
+          {isPending ? "저장 중..." : "저장하기"}
         </button>
       </div>
     </form>

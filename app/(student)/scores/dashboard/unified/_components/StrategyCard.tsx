@@ -19,25 +19,33 @@ const strategyStyles: Record<
   }
 > = {
   BALANCED: {
-    badgeBg: "bg-green-100",
-    badgeText: "text-green-800",
+    badgeBg: "bg-green-100 dark:bg-green-900/30",
+    badgeText: "text-green-800 dark:text-green-300",
     label: "균형형",
   },
   MOCK_ADVANTAGE: {
-    badgeBg: "bg-blue-100",
-    badgeText: "text-blue-800",
+    badgeBg: "bg-blue-100 dark:bg-blue-900/30",
+    badgeText: "text-blue-800 dark:text-blue-300",
     label: "모의고사 우세",
   },
   INTERNAL_ADVANTAGE: {
-    badgeBg: "bg-purple-100",
-    badgeText: "text-purple-800",
+    badgeBg: "bg-purple-100 dark:bg-purple-900/30",
+    badgeText: "text-purple-800 dark:text-purple-300",
     label: "내신 우세",
+  },
+  SPECIAL_HIGH_SCHOOL: {
+    badgeBg: "bg-amber-100 dark:bg-amber-900/30",
+    badgeText: "text-amber-800 dark:text-amber-300",
+    label: "특목/자사고 패턴",
   },
 };
 
 export function StrategyCard({ strategy }: StrategyCardProps) {
   const { type, message, data } = strategy;
-  const style = strategyStyles[type];
+  const style = strategyStyles[type] || strategyStyles.BALANCED;
+
+  // 메시지를 줄바꿈으로 분리
+  const messageLines = message.split("\n").filter((line) => line.trim());
 
   return (
     <SectionCard
@@ -56,8 +64,26 @@ export function StrategyCard({ strategy }: StrategyCardProps) {
       </span>
 
       {/* 전략 메시지 */}
-      <div className="rounded-lg bg-gray-50 p-4">
-        <p className="text-sm leading-relaxed text-gray-800">{message}</p>
+      <div className="flex flex-col gap-2 rounded-lg bg-gray-50 p-4">
+        {messageLines.map((line, index) => {
+          const isWarning = line.includes("⚠️");
+          const isSuccess = line.includes("✅");
+          return (
+            <p
+              key={index}
+              className={cn(
+                "text-sm leading-relaxed",
+                isWarning
+                  ? "text-orange-800 font-medium"
+                  : isSuccess
+                    ? "text-green-800 font-medium"
+                    : "text-gray-800"
+              )}
+            >
+              {line}
+            </p>
+          );
+        })}
       </div>
 
       {/* 비교 데이터 */}

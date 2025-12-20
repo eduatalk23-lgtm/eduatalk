@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, memo } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BlockSetSection } from "./components/BlockSetSection";
 import { PeriodSection } from "./components/PeriodSection";
@@ -24,9 +24,10 @@ import { FieldErrors } from "../../hooks/useWizardValidation";
 import { FieldError } from "../../_components/FieldError";
 import { getFieldErrorClasses } from "../../_components/fieldErrorUtils";
 import { cn } from "@/lib/cn";
-import { isFieldLocked, canStudentInput, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
+import { isFieldLocked, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
 import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
+import { useFieldPermission } from "../../hooks/useFieldPermission";
 
 type Step1BasicInfoProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -77,7 +78,7 @@ const schedulerTypes = [
   { value: "1730_timetable", label: "1730 Timetable" },
 ] as const;
 
-export function Step1BasicInfo({
+function Step1BasicInfoComponent({
   data: dataProp,
   onUpdate: onUpdateProp,
   blockSets,
@@ -153,35 +154,23 @@ export function Step1BasicInfo({
     return !editable || additionalCondition;
   };
 
-  // 학생 모드에서 입력 가능 여부 확인 (공통 유틸리티 사용)
-  const checkCanStudentInput = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>): boolean => {
-    return canStudentInput(fieldName, lockedFields, editable, isCampMode);
-  };
+  // 필드 권한 관리 훅 사용
+  const { getFieldPermission } = useFieldPermission({
+    lockedFields,
+    editable,
+    isCampMode,
+  });
 
-  // 각 필드별 입력 가능 여부 (공통 유틸리티 사용)
-  const canStudentInputName = checkCanStudentInput("allow_student_name");
-  const canStudentInputPlanPurpose = checkCanStudentInput(
-    "allow_student_plan_purpose"
-  );
-  const canStudentInputSchedulerType = checkCanStudentInput(
-    "allow_student_scheduler_type"
-  );
-  const canStudentInputPeriod = checkCanStudentInput("allow_student_period");
-  const canStudentInputBlockSetId = checkCanStudentInput(
-    "allow_student_block_set_id"
-  );
-  const canStudentInputStudentLevel = checkCanStudentInput(
-    "allow_student_student_level"
-  );
-  const canStudentInputSubjectAllocations = checkCanStudentInput(
-    "allow_student_subject_allocations"
-  );
-  const canStudentInputStudyReviewCycle = checkCanStudentInput(
-    "allow_student_study_review_cycle"
-  );
-  const canStudentInputAdditionalPeriodReallocation = checkCanStudentInput(
-    "allow_student_additional_period_reallocation"
-  );
+  // 각 필드별 입력 가능 여부 (useFieldPermission 훅 사용)
+  const canStudentInputName = getFieldPermission("allow_student_name");
+  const canStudentInputPlanPurpose = getFieldPermission("allow_student_plan_purpose");
+  const canStudentInputSchedulerType = getFieldPermission("allow_student_scheduler_type");
+  const canStudentInputPeriod = getFieldPermission("allow_student_period");
+  const canStudentInputBlockSetId = getFieldPermission("allow_student_block_set_id");
+  const canStudentInputStudentLevel = getFieldPermission("allow_student_student_level");
+  const canStudentInputSubjectAllocations = getFieldPermission("allow_student_subject_allocations");
+  const canStudentInputStudyReviewCycle = getFieldPermission("allow_student_study_review_cycle");
+  const canStudentInputAdditionalPeriodReallocation = getFieldPermission("allow_student_additional_period_reallocation");
 
   // 오늘 날짜를 로컬 타임존 기준으로 가져오기 (타임존 문제 방지)
   const todayParts = getTodayParts();
@@ -744,3 +733,6 @@ export function Step1BasicInfo({
     </div>
   );
 }
+
+// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step1BasicInfo = memo(Step1BasicInfoComponent);

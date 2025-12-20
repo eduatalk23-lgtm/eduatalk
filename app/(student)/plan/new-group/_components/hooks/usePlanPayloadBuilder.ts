@@ -170,7 +170,7 @@ export function usePlanPayloadBuilder(
       target_date: wizardData.target_date || null,
       block_set_id: wizardData.block_set_id || null, // Allow null for drafts
 
-      contents: uniqueContents.map((c): ExtendedPlanContentInput => {
+      contents: uniqueContents.map((c): PlanContentInput => {
          // Determine master_content_id precedence
          let masterId = c.master_content_id;
 
@@ -180,26 +180,21 @@ export function usePlanPayloadBuilder(
              masterId = c.content_id;
          }
 
-         return {
+         // 타입 안전하게 PlanContentInput에 정의된 필드만 포함
+         // ExtendedPlanContentInput의 추가 필드(title, subject_category 등)는 제외
+         const planContent: PlanContentInput = {
             content_type: c.content_type,
             content_id: c.content_id,
-            master_content_id: masterId || null,
+            master_content_id: masterId ?? null,
             start_range: c.start_range,
             end_range: c.end_range,
             start_detail_id: c.start_detail_id ?? null,
             end_detail_id: c.end_detail_id ?? null,
-            display_order: c.display_order,
-
-            // Optional / Metadata fields that PlanGroupCreationData might accept
-            // (Need to cast or ensure type definition supports them)
-            // The type definition says PlanContentInput does NOT have these recommendation fields ??
-            // However, the backend accepts these fields, so we include them with proper typing
-            is_auto_recommended: c.is_auto_recommended,
-            recommendation_source: c.recommendation_source,
-            recommendation_reason: c.recommendation_reason,
-            recommendation_metadata: c.recommendation_metadata
+            display_order: c.display_order ?? undefined,
          };
-      }) as unknown as PlanContentInput[], // Backend accepts extended fields but type definition is strict
+
+         return planContent;
+      }),
 
       exclusions: (wizardData.exclusions || []).map(e => ({
           exclusion_date: e.exclusion_date,

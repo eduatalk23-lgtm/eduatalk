@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext } from "react";
+import React, { useContext, memo } from "react";
 import { WizardData, WizardStep } from "../../PlanGroupWizard";
 import { TimeSettingsPanel } from "./components/TimeSettingsPanel";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
@@ -30,7 +30,7 @@ type Step2TimeSettingsProps = {
  * 
  * 시간 설정 전용 단계 (미리보기는 Step 3으로 분리)
  */
-export function Step2TimeSettings({
+function Step2TimeSettingsComponent({
   data: dataProp,
   onUpdate: onUpdateProp,
   periodStart: periodStartProp,
@@ -95,4 +95,7 @@ export function Step2TimeSettings({
     </div>
   );
 }
+
+// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step2TimeSettings = memo(Step2TimeSettingsComponent);
 

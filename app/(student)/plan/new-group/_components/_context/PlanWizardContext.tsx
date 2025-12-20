@@ -5,21 +5,26 @@ import {
   useContext,
   useReducer,
   useCallback,
+  useEffect,
+  useMemo,
   type ReactNode,
 } from "react";
 import type { WizardData, WizardStep } from "../PlanGroupWizard";
+import { hasWizardDataChanged } from "../utils/wizardDataComparison";
 
 /**
  * Wizard 상태 타입
  */
 export type WizardState = {
   wizardData: WizardData;
+  initialWizardData: WizardData; // 초기 데이터 (변경 사항 감지용)
   currentStep: WizardStep;
   validationErrors: string[];
   validationWarnings: string[];
   fieldErrors: Map<string, string>;
   draftGroupId: string | null;
   isSubmitting: boolean;
+  isDirty: boolean; // 변경 사항이 있는지 여부
 };
 
 /**
@@ -37,27 +42,36 @@ export type WizardAction =
   | { type: "CLEAR_FIELD_ERROR"; payload: string }
   | { type: "CLEAR_VALIDATION" }
   | { type: "SET_DRAFT_ID"; payload: string | null }
-  | { type: "SET_SUBMITTING"; payload: boolean };
+  | { type: "SET_SUBMITTING"; payload: boolean }
+  | { type: "RESET_DIRTY_STATE" };
 
 /**
  * Wizard Reducer
  */
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
-    case "UPDATE_DATA":
+    case "UPDATE_DATA": {
+      const newWizardData = { ...state.wizardData, ...action.payload };
+      const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
       return {
         ...state,
-        wizardData: { ...state.wizardData, ...action.payload },
+        wizardData: newWizardData,
+        isDirty,
         validationErrors: [],
         validationWarnings: [],
       };
-    case "UPDATE_DATA_FN":
+    }
+    case "UPDATE_DATA_FN": {
+      const newWizardData = { ...state.wizardData, ...action.payload(state.wizardData) };
+      const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
       return {
         ...state,
-        wizardData: { ...state.wizardData, ...action.payload(state.wizardData) },
+        wizardData: newWizardData,
+        isDirty,
         validationErrors: [],
         validationWarnings: [],
       };
+    }
     case "NEXT_STEP":
       return {
         ...state,
@@ -113,6 +127,13 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return {
         ...state,
         isSubmitting: action.payload,
+      };
+    case "RESET_DIRTY_STATE":
+      // 저장 후 초기 데이터를 현재 데이터로 업데이트하여 dirty 상태 리셋
+      return {
+        ...state,
+        initialWizardData: { ...state.wizardData },
+        isDirty: false,
       };
     default:
       return state;
@@ -234,12 +255,14 @@ function createInitialState(
 
   return {
     wizardData: defaultWizardData,
+    initialWizardData: { ...defaultWizardData }, // 초기 데이터 복사본 저장
     currentStep: (initialStep || initialData?._startStep || 1) as WizardStep,
     validationErrors: initialData?._validationErrors || [],
     validationWarnings: [],
     fieldErrors: new Map(),
     draftGroupId: initialDraftId || initialData?.groupId || null,
     isSubmitting: false,
+    isDirty: false, // 초기 상태는 변경 사항 없음
   };
 }
 
@@ -262,6 +285,9 @@ type PlanWizardContextType = {
   clearValidation: () => void;
   setDraftId: (id: string | null) => void;
   setSubmitting: (isSubmitting: boolean) => void;
+  // 변경 사항 감지
+  isDirty: boolean;
+  resetDirtyState: () => void; // 저장 후 dirty 상태 리셋
 };
 
 export const PlanWizardContext = createContext<PlanWizardContextType | null>(null);
@@ -341,6 +367,17 @@ export function PlanWizardProvider({
     dispatch({ type: "SET_SUBMITTING", payload: isSubmitting });
   }, []);
 
+  // 변경 사항 감지 (메모이제이션)
+  const isDirty = useMemo(() => {
+    return hasWizardDataChanged(state.initialWizardData, state.wizardData);
+  }, [state.initialWizardData, state.wizardData]);
+
+  // 저장 후 dirty 상태 리셋
+  const resetDirtyState = useCallback(() => {
+    // initialWizardData를 현재 wizardData로 업데이트하여 dirty 상태 리셋
+    dispatch({ type: "RESET_DIRTY_STATE" });
+  }, []);
+
   const value: PlanWizardContextType = {
     state,
     dispatch,
@@ -356,6 +393,8 @@ export function PlanWizardProvider({
     clearValidation,
     setDraftId,
     setSubmitting,
+    isDirty,
+    resetDirtyState,
   };
 
   return (

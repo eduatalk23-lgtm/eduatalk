@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchScoreDashboard } from "@/lib/api/scoreDashboard";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -15,6 +16,7 @@ import { MockAnalysisCard } from "./_components/MockAnalysisCard";
 import { StrategyCard } from "./_components/StrategyCard";
 import { Card } from "@/components/molecules/Card";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 import Link from "next/link";
 import { getContainerClass } from "@/lib/constants/layout";
 
@@ -186,16 +188,24 @@ export default async function UnifiedScoreDashboardPage() {
         {/* 대시보드 카드 섹션 */}
         <div className="flex flex-col gap-6">
           {/* 학생 프로필 */}
-          <StudentProfileCard profile={studentProfile} />
+          <Suspense fallback={<LoadingSkeleton variant="card" />}>
+            <StudentProfileCard profile={studentProfile} />
+          </Suspense>
 
           {/* 2열 레이아웃: 내신 + 모의고사 */}
           <div className="grid gap-6 md:grid-cols-2">
-            <InternalAnalysisCard analysis={internalAnalysis} />
-            <MockAnalysisCard analysis={mockAnalysis} />
+            <Suspense fallback={<LoadingSkeleton variant="card" />}>
+              <InternalAnalysisCard analysis={internalAnalysis} />
+            </Suspense>
+            <Suspense fallback={<LoadingSkeleton variant="card" />}>
+              <MockAnalysisCard analysis={mockAnalysis} />
+            </Suspense>
           </div>
 
           {/* 수시/정시 전략 */}
-          <StrategyCard strategy={strategyResult} />
+          <Suspense fallback={<LoadingSkeleton variant="card" />}>
+            <StrategyCard strategy={strategyResult} />
+          </Suspense>
         </div>
 
         {/* 추가 액션 */}

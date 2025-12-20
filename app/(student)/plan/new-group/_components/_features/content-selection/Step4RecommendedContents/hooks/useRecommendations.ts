@@ -115,10 +115,7 @@ export function useRecommendations({
         data.recommended_contents.map((c: WizardData["recommended_contents"][number]) => c.content_id)
       );
       
-      console.log("[useRecommendations] useEffect: 추가된 콘텐츠 감지:", {
-        addedContentIds: Array.from(addedContentIds),
-        currentRecommendedContentsCount: data.recommended_contents.length,
-      });
+      // 추가된 콘텐츠 감지 (디버깅은 PlanWizardDebugger 사용)
       
       // recommendedContents에서 제거
       setRecommendedContents((prev) => {

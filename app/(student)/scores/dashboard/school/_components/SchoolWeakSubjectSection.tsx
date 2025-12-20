@@ -6,6 +6,10 @@ import { EmptyState } from "@/components/molecules/EmptyState";
 import { getRiskColorClasses, textPrimary, textMuted, getBadgeStyle } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
+/**
+ * @deprecated 이 컴포넌트는 레거시 내신 성적 대시보드용입니다.
+ * 새로운 통합 성적 대시보드(/scores/dashboard/unified)에서는 사용되지 않습니다.
+ */
 type SchoolWeakSubjectSectionProps = {
   schoolScores: SchoolScoreRow[];
 };

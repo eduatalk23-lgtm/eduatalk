@@ -1,7 +1,11 @@
+"use client";
+
 import { SectionCard } from "@/components/ui/SectionCard";
 import type { InternalAnalysis } from "@/lib/types/scoreDashboard";
 import { MetricCard } from "./MetricCard";
 import { InfoMessage } from "./InfoMessage";
+import { useRecharts } from "@/components/charts/LazyRecharts";
+import { ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 
 interface InternalAnalysisCardProps {
   analysis: InternalAnalysis;
@@ -9,11 +13,18 @@ interface InternalAnalysisCardProps {
 
 export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
   const { totalGpa, zIndex, subjectStrength } = analysis;
+  const { recharts, loading } = useRecharts();
 
   // subjectStrength를 배열로 변환 (정렬)
   const subjectEntries = Object.entries(subjectStrength).sort(
     ([, gpaA], [, gpaB]) => gpaB - gpaA // 높은 GPA 순
   );
+
+  // 차트 데이터 준비
+  const chartData = subjectEntries.map(([name, gpa]) => ({
+    name,
+    gpa: Number(gpa.toFixed(2)),
+  }));
 
   return (
     <SectionCard
@@ -34,30 +45,96 @@ export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
         />
       </div>
 
-      {/* 교과군별 GPA */}
+      {/* 교과군별 GPA 차트 */}
       <div className="flex flex-col gap-2">
-        <div className="text-sm font-semibold text-gray-700">
+        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           교과군별 평점
         </div>
         {subjectEntries.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {subjectEntries.map(([subjectName, gpa]) => (
-              <div
-                key={subjectName}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
-              >
-                <div className="text-sm font-medium text-gray-700">
-                  {subjectName}
-                </div>
-                <div className="text-sm font-bold text-gray-900">
-                  {gpa.toFixed(2)}
-                </div>
+          <>
+            {/* 막대 차트 */}
+            {loading || !recharts ? (
+              <ChartLoadingSkeleton height={200} />
+            ) : (
+              <div className="h-[200px] w-full">
+                {(() => {
+                  const {
+                    BarChart,
+                    Bar,
+                    XAxis,
+                    YAxis,
+                    CartesianGrid,
+                    Tooltip,
+                    ResponsiveContainer,
+                  } = recharts;
+
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          className="stroke-gray-200 dark:stroke-gray-700"
+                        />
+                        <XAxis
+                          dataKey="name"
+                          className="text-xs text-gray-600 dark:text-gray-400"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis
+                          domain={[0, 5]}
+                          className="text-xs text-gray-600 dark:text-gray-400"
+                        />
+                        <Tooltip
+                          formatter={(value: number) => [
+                            `${value.toFixed(2)}`,
+                            "GPA",
+                          ]}
+                          contentStyle={{
+                            backgroundColor: "white",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "8px",
+                          }}
+                          labelStyle={{ color: "#374151" }}
+                        />
+                        <Bar
+                          dataKey="gpa"
+                          fill="#6366f1"
+                          radius={[8, 8, 0, 0]}
+                          className="dark:fill-indigo-500"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
               </div>
-            ))}
-          </div>
+            )}
+            {/* 리스트 (모바일에서 더 나은 가독성을 위해) */}
+            <div className="flex flex-col gap-2 md:hidden">
+              {subjectEntries.map(([subjectName, gpa]) => (
+                <div
+                  key={subjectName}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
+                >
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {subjectName}
+                  </div>
+                  <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    {gpa.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 py-8">
-            <p className="text-sm text-gray-500">교과군 데이터가 없습니다</p>
+          <div className="flex items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 py-8">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              교과군 데이터가 없습니다
+            </p>
           </div>
         )}
       </div>

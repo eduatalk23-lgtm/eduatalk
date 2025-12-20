@@ -173,7 +173,10 @@ export function validateContents(
 }
 
 /**
- * 통합 검증 함수
+ * 통합 검증 함수 (하위 호환성 유지)
+ * 
+ * @deprecated 이 함수는 하위 호환성을 위해 유지됩니다.
+ * 새로운 코드는 planValidation.ts의 validateStep을 사용하세요.
  * 
  * @param wizardData 위저드 데이터
  * @param step 검증할 단계
@@ -188,59 +191,21 @@ export type StepValidationResult = {
   fieldErrors: Map<string, string>;
 };
 
+// planValidation.ts의 통합 검증 함수 import
+import { validateStep as validateStepFromPlanValidation } from "./planValidation";
+
 export function validateStep(
   wizardData: WizardData,
   step: number,
   isTemplateMode: boolean,
   isCampMode: boolean
 ): StepValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const fieldErrors = new Map<string, string>();
-
-  if (step === 1) {
-    // 필수 필드 검증
-    const requiredFieldsResult = validateRequiredFields(wizardData, isTemplateMode);
-    errors.push(...requiredFieldsResult.errors);
-    requiredFieldsResult.fieldErrors.forEach((value, key) => {
-      fieldErrors.set(key, value);
-    });
-
-    // 기간 검증
-    const periodResult = validatePeriod(wizardData, isCampMode);
-    if (!periodResult.isValid && periodResult.error) {
-      errors.push(periodResult.error);
-      fieldErrors.set("period_start", periodResult.error);
-    }
-
-    // PlanValidator의 기간 검증에서 경고도 가져오기
-    if (wizardData.period_start && wizardData.period_end) {
-      const periodValidation = PlanValidator.validatePeriod(
-        wizardData.period_start,
-        wizardData.period_end
-      );
-      warnings.push(...periodValidation.warnings);
-    }
-  }
-
-  if (step === 4) {
-    // 콘텐츠 검증
-    const contentResult = validateContents(wizardData, isTemplateMode);
-    if (!contentResult.isValid) {
-      if (contentResult.error) {
-        errors.push(contentResult.error);
-      }
-      if (contentResult.fieldError) {
-        fieldErrors.set(contentResult.fieldError, contentResult.error || "");
-      }
-    }
-  }
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    warnings,
-    fieldErrors,
-  };
+  // planValidation.ts의 통합 검증 함수 사용
+  return validateStepFromPlanValidation(
+    step as 1 | 2 | 3 | 4 | 5 | 6 | 7,
+    wizardData,
+    isTemplateMode,
+    isCampMode
+  );
 }
 

@@ -1,3 +1,12 @@
+/**
+ * @deprecated 이 API Route는 더 이상 사용되지 않습니다.
+ * 
+ * 대체 방법: app/actions/scores-internal.ts의 createInternalScoresBatch Server Action을 사용하세요.
+ * 
+ * InternalScoreInput 컴포넌트가 이미 Server Actions를 사용하도록 변경되었습니다.
+ * 
+ * 이 파일은 하위 호환성을 위해 유지되지만, 향후 삭제될 예정입니다.
+ */
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrCreateStudentTerm } from "@/lib/data/studentTerms";

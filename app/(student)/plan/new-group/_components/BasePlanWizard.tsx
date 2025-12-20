@@ -9,6 +9,7 @@ import { Step3ContentSelection } from "./_features/content-selection/Step3Conten
 import { Step6FinalReview } from "./_features/content-selection/Step6FinalReview";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult";
+import { StepErrorBoundary } from "./common/StepErrorBoundary";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "./PlanGroupWizard";
 import type { WizardMode } from "./utils/modeUtils";
@@ -51,7 +52,6 @@ export type BasePlanWizardProps = {
   onSave: () => void;
   onComplete: () => void;
   onCancel: () => void;
-  onUpdateWizardData: (updates: Partial<WizardData> | ((prev: WizardData) => Partial<WizardData>)) => void;
   onSetStep: (step: WizardStep) => void;
   onBlockSetsLoaded: (blockSets: Array<{ id: string; name: string }>) => void;
 };
@@ -78,7 +78,6 @@ export function BasePlanWizard({
   onSave,
   onComplete,
   onCancel,
-  onUpdateWizardData,
   onSetStep,
   onBlockSetsLoaded,
 }: BasePlanWizardProps) {
@@ -188,108 +187,94 @@ export function BasePlanWizard({
       {/* 단계별 폼 */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         {currentStep === 1 && (
-          <Step1BasicInfo
-            data={wizardData}
-            onUpdate={onUpdateWizardData}
-            blockSets={blockSets}
-            onBlockSetsLoaded={onBlockSetsLoaded}
-            isTemplateMode={isTemplateMode}
-            editable={!mode.isAdminContinueMode}
-            campTemplateInfo={
-              mode.isCampMode
-                ? {
-                    name: wizardData.name || "",
-                    program_type: "캠프",
-                  }
-                : undefined
-            }
-            fieldErrors={fieldErrors}
-          />
+          <StepErrorBoundary stepName="기본 정보" step={currentStep} wizardData={wizardData}>
+            <Step1BasicInfo
+              blockSets={blockSets}
+              onBlockSetsLoaded={onBlockSetsLoaded}
+              isTemplateMode={isTemplateMode}
+              editable={!mode.isAdminContinueMode}
+              campTemplateInfo={
+                mode.isCampMode
+                  ? {
+                      name: wizardData.name || "",
+                      program_type: "캠프",
+                    }
+                  : undefined
+              }
+              fieldErrors={fieldErrors}
+            />
+          </StepErrorBoundary>
         )}
         {currentStep === 2 && (
-          <Step2TimeSettings
-            data={wizardData}
-            onUpdate={onUpdateWizardData}
-            periodStart={wizardData.period_start}
-            periodEnd={wizardData.period_end}
-            groupId={draftGroupId || undefined}
-            onNavigateToStep={(step) => onSetStep(step as WizardStep)}
-            campMode={mode.isCampMode}
-            isTemplateMode={isTemplateMode}
-            templateExclusions={mode.isCampMode ? wizardData.exclusions : undefined}
-            editable={!mode.isAdminContinueMode}
-            studentId={initialData?.student_id}
-            isAdminMode={mode.isAdminMode}
-            isAdminContinueMode={mode.isAdminContinueMode}
-          />
+          <StepErrorBoundary stepName="시간 설정" step={currentStep} wizardData={wizardData}>
+            <Step2TimeSettings
+              groupId={draftGroupId || undefined}
+              onNavigateToStep={(step) => onSetStep(step as WizardStep)}
+              campMode={mode.isCampMode}
+              isTemplateMode={isTemplateMode}
+              templateExclusions={mode.isCampMode ? wizardData.exclusions : undefined}
+              editable={!mode.isAdminContinueMode}
+              studentId={initialData?.student_id}
+              isAdminMode={mode.isAdminMode}
+              isAdminContinueMode={mode.isAdminContinueMode}
+            />
+          </StepErrorBoundary>
         )}
         {currentStep === 3 && (
-          <Step3SchedulePreview
-            data={wizardData}
-            onUpdate={onUpdateWizardData}
-            blockSets={blockSets}
-            isTemplateMode={isTemplateMode}
-            campMode={mode.isCampMode}
-            campTemplateId={mode.isCampMode ? initialData?.templateId : undefined}
-            onNavigateToStep={(step) => onSetStep(step as WizardStep)}
-          />
+          <StepErrorBoundary stepName="스케줄 미리보기" step={currentStep} wizardData={wizardData}>
+            <Step3SchedulePreview
+              blockSets={blockSets}
+              isTemplateMode={isTemplateMode}
+              campMode={mode.isCampMode}
+              campTemplateId={mode.isCampMode ? initialData?.templateId : undefined}
+              onNavigateToStep={(step) => onSetStep(step as WizardStep)}
+            />
+          </StepErrorBoundary>
         )}
         {currentStep === 4 && (
-          <Step3ContentSelection
-            data={wizardData}
-            onUpdate={(updates) => {
-              // custom 타입 필터링
-              const filteredUpdates: Partial<WizardData> = { ...updates } as Partial<WizardData>;
-              if (updates.student_contents) {
-                filteredUpdates.student_contents = updates.student_contents.filter(
-                  (c) => c.content_type === "book" || c.content_type === "lecture"
-                ) as WizardData["student_contents"];
-              }
-              if (updates.recommended_contents) {
-                filteredUpdates.recommended_contents = updates.recommended_contents.filter(
-                  (c) => c.content_type === "book" || c.content_type === "lecture"
-                ) as WizardData["recommended_contents"];
-              }
-              onUpdateWizardData(filteredUpdates);
-            }}
-            contents={initialContents}
-            isCampMode={mode.isCampMode}
-            isTemplateMode={isTemplateMode}
-            isEditMode={isEditMode}
-            studentId={initialData?.student_id}
-            editable={isEditMode || mode.isAdminContinueMode || !mode.isCampMode}
-            isAdminContinueMode={mode.isAdminContinueMode}
-            fieldErrors={fieldErrors}
-          />
+          <StepErrorBoundary stepName="콘텐츠 선택" step={currentStep} wizardData={wizardData}>
+            <Step3ContentSelection
+              contents={initialContents}
+              isEditMode={isEditMode}
+              isCampMode={mode.isCampMode}
+              isTemplateMode={isTemplateMode}
+              studentId={initialData?.student_id}
+              editable={isEditMode || mode.isAdminContinueMode || !mode.isCampMode}
+              isAdminContinueMode={mode.isAdminContinueMode}
+              fieldErrors={fieldErrors}
+            />
+          </StepErrorBoundary>
         )}
         {/* Step 5: 학습범위 점검 (학습 분량 설정) */}
         {currentStep === 5 && !isTemplateMode && (
-          <Step6FinalReview
-            data={wizardData}
-            onUpdate={onUpdateWizardData}
-            contents={initialContents}
-            isCampMode={mode.isCampMode}
-            studentId={initialData?.student_id}
-          />
+          <StepErrorBoundary stepName="학습범위 점검" step={currentStep} wizardData={wizardData}>
+            <Step6FinalReview
+              contents={initialContents}
+              isCampMode={mode.isCampMode}
+              studentId={initialData?.student_id}
+            />
+          </StepErrorBoundary>
         )}
         {/* Step 6: 최종 확인 */}
         {currentStep === 6 && !isTemplateMode && (
-          <Step6Simplified
-            data={wizardData}
-            onEditStep={(step) => onSetStep(step)}
-            isCampMode={mode.isCampMode}
-            isAdminContinueMode={mode.isAdminContinueMode}
-            onUpdate={mode.isAdminContinueMode ? onUpdateWizardData : undefined}
-            contents={mode.isAdminContinueMode ? initialContents : undefined}
-            studentId={initialData?.student_id}
-          />
+          <StepErrorBoundary stepName="최종 확인" step={currentStep} wizardData={wizardData}>
+            <Step6Simplified
+              onEditStep={(step) => onSetStep(step)}
+              isCampMode={mode.isCampMode}
+              isAdminContinueMode={mode.isAdminContinueMode}
+              contents={mode.isAdminContinueMode ? initialContents : undefined}
+              studentId={initialData?.student_id}
+            />
+          </StepErrorBoundary>
         )}
         {currentStep === 7 && draftGroupId && !isTemplateMode && (
-          <Step7ScheduleResult
-            groupId={draftGroupId}
-            isAdminContinueMode={mode.isAdminContinueMode}
-            onComplete={onComplete}
-          />
+          <StepErrorBoundary stepName="스케줄 결과" step={currentStep} wizardData={wizardData}>
+            <Step7ScheduleResult
+              groupId={draftGroupId}
+              isAdminContinueMode={mode.isAdminContinueMode}
+              onComplete={onComplete}
+            />
+          </StepErrorBoundary>
         )}
       </div>
 

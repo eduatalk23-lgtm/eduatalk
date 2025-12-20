@@ -42,6 +42,7 @@ type UsePlanDraftProps = {
   isCampMode: boolean;
   campInvitationId?: string;
   initialData?: InitialData;
+  onSaveSuccess?: () => void; // 저장 성공 시 콜백 (dirty 상태 리셋용)
 };
 
 type UsePlanDraftReturn = {
@@ -65,6 +66,7 @@ export function usePlanDraft({
   isCampMode,
   campInvitationId,
   initialData,
+  onSaveSuccess,
 }: UsePlanDraftProps): UsePlanDraftReturn {
   const toast = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -121,6 +123,8 @@ export function usePlanDraft({
         if (draftGroupId) {
           await updatePlanGroupDraftAction(draftGroupId, creationData);
           if (!silent) toast.showSuccess("저장되었습니다.");
+          // 저장 성공 시 콜백 호출 (dirty 상태 리셋)
+          onSaveSuccess?.();
         } else {
           // 관리자 모드일 때는 draftGroupId를 옵션으로 전달 (기존 그룹에서 student_id 조회용)
           // initialData에 student_id 또는 studentId가 있으면 그것을 사용
@@ -139,6 +143,8 @@ export function usePlanDraft({
           if (result?.groupId) {
             setDraftGroupId(result.groupId);
             if (!silent) toast.showSuccess("저장되었습니다.");
+            // 저장 성공 시 콜백 호출 (dirty 상태 리셋)
+            onSaveSuccess?.();
           } else {
             throw new PlanGroupError(
               "Draft 생성 결과가 없습니다.",
@@ -172,6 +178,7 @@ export function usePlanDraft({
       campInvitationId,
       initialData,
       wizardData,
+      onSaveSuccess,
     ]
   );
 

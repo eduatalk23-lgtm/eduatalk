@@ -1,10 +1,25 @@
+/**
+ * usePlanSubmission - 플랜 제출 로직 훅
+ * 
+ * 플랜 그룹 생성 및 플랜 생성 로직을 통합 관리합니다.
+ * 저장 성공 시 dirty 상태를 리셋하여 이탈 방지 로직과 연동됩니다.
+ */
+
 import { useCallback } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
 import { usePlanValidator } from "./usePlanValidator";
 import { usePlanDraft } from "./usePlanDraft";
 import { usePlanGenerator } from "./usePlanGenerator";
 import { useWizardNavigation } from "./useWizardNavigation";
+import {
+  toPlanGroupError,
+  PlanGroupErrorCodes,
+} from "@/lib/errors/planGroupErrors";
 
+/**
+ * usePlanSubmission Props
+ */
 type UsePlanSubmissionProps = {
   wizardData: WizardData;
   draftGroupId: string | null;
@@ -27,8 +42,18 @@ type UsePlanSubmissionProps = {
     isAdminContinueMode: boolean;
     isEditMode: boolean;
   };
+  /** 저장 성공 시 콜백 (dirty 상태 리셋용) */
+  onSaveSuccess?: () => void;
 };
 
+/**
+ * usePlanSubmission 훅
+ * 
+ * 플랜 그룹 생성 및 플랜 생성 로직을 제공합니다.
+ * 
+ * @param props 위저드 데이터 및 설정
+ * @returns 제출 함수 및 상태
+ */
 export function usePlanSubmission({
   wizardData,
   draftGroupId,
@@ -39,7 +64,10 @@ export function usePlanSubmission({
   campInvitationId,
   initialData,
   mode,
+  onSaveSuccess,
 }: UsePlanSubmissionProps) {
+  const toast = useToast();
+  
   // 분리된 훅들 사용
   const { validatePeriod } = usePlanValidator({
     wizardData,
@@ -56,6 +84,7 @@ export function usePlanSubmission({
     isCampMode: mode.isCampMode,
     campInvitationId,
     initialData,
+    onSaveSuccess, // 저장 성공 시 콜백 전달
   });
 
   const { generatePlans, createOrUpdatePlanGroup, isGenerating } = usePlanGenerator({
@@ -123,7 +152,13 @@ export function usePlanSubmission({
             })
             .catch((error) => {
               console.error("[usePlanSubmission] Background save failed", error);
-              // 에러는 createOrUpdatePlanGroup 내부에서 토스트로 표시됨
+              const planGroupError = toPlanGroupError(
+                error,
+                PlanGroupErrorCodes.UNKNOWN_ERROR
+              );
+              // 사용자에게 명확한 에러 메시지 표시
+              toast.showError(planGroupError.userMessage);
+              setValidationErrors([planGroupError.userMessage]);
             });
           return;
         }
@@ -143,7 +178,13 @@ export function usePlanSubmission({
         }
       } catch (error) {
         console.error("[usePlanSubmission] Submit failed", error);
-        // 에러는 각 훅에서 처리됨
+        const planGroupError = toPlanGroupError(
+          error,
+          PlanGroupErrorCodes.UNKNOWN_ERROR
+        );
+        // 사용자에게 명확한 에러 메시지 표시
+        toast.showError(planGroupError.userMessage);
+        setValidationErrors([planGroupError.userMessage]);
       }
     },
     [
@@ -156,6 +197,7 @@ export function usePlanSubmission({
       goToStep,
       goNext,
       setValidationErrors,
+      toast,
     ]
   );
   

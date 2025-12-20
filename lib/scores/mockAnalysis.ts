@@ -9,6 +9,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -58,21 +59,45 @@ export type MockAnalysis = {
  * 모의고사 통계 계산
  *
  * @param rows - 모의고사 과목 데이터 배열
+ * @param subjectGroupMap - 교과군 이름 → ID 매핑 (동적 처리용)
  * @returns 모의고사 통계 (recentExam 제외)
  */
-function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
-  // 국어, 수학 조회
+function calculateMockStats(
+  rows: MockRow[],
+  subjectGroupMap: Map<string, string> = new Map()
+): Omit<MockAnalysis, "recentExam"> {
+  // subject_groups 테이블에서 특정 교과군 찾기
+  // 기본적으로 "국어", "수학", "사회", "과학", "영어" 교과군을 찾지만,
+  // subjectGroupMap을 통해 동적으로 매핑 가능
+  const findSubjectGroup = (targetNames: string[]): string[] => {
+    const foundNames: string[] = [];
+    for (const [name, id] of subjectGroupMap.entries()) {
+      if (targetNames.includes(name)) {
+        foundNames.push(name);
+      }
+    }
+    // subjectGroupMap에 없으면 기본 이름 사용 (하위 호환성)
+    return foundNames.length > 0 ? foundNames : targetNames;
+  };
+
+  // 국어, 수학 교과군 찾기
+  const koreanMathNames = findSubjectGroup(["국어", "수학"]);
+  const koreanName = koreanMathNames.find((n) => n === "국어") || koreanMathNames[0];
+  const mathName = koreanMathNames.find((n) => n === "수학") || koreanMathNames[1];
+
   const getOne = (name: string) =>
     rows.find((r) => r.subject_group_name === name && r.percentile != null);
 
-  const korean = getOne("국어");
-  const math = getOne("수학");
+  const korean = koreanName ? getOne(koreanName) : null;
+  const math = mathName ? getOne(mathName) : null;
 
   // 탐구(사/과) 중 상위 2과목 백분위 평균
+  // "사회", "과학" 교과군 찾기
+  const inquiryNames = findSubjectGroup(["사회", "과학"]);
   const inquiryRows = rows
     .filter(
       (r) =>
-        ["사회", "과학"].includes(r.subject_group_name) && r.percentile != null
+        inquiryNames.includes(r.subject_group_name) && r.percentile != null
     )
     .sort((a, b) => (b.percentile ?? 0) - (a.percentile ?? 0))
     .slice(0, 2);
@@ -98,9 +123,11 @@ function calculateMockStats(rows: MockRow[]): Omit<MockAnalysis, "recentExam"> {
     inquiryRows.reduce((s, r) => s + (r.standard_score ?? 0), 0);
 
   // 국·수·영·탐 중 상위 3개 등급 합
+  // "국어", "수학", "영어", "사회", "과학" 교과군 찾기
+  const gradeSubjectNames = findSubjectGroup(["국어", "수학", "영어", "사회", "과학"]);
   const gradeCandidates = rows.filter(
     (r) =>
-      ["국어", "수학", "영어", "사회", "과학"].includes(r.subject_group_name) &&
+      gradeSubjectNames.includes(r.subject_group_name) &&
       r.grade_score != null
   );
 
@@ -233,7 +260,24 @@ export async function getMockAnalysis(
   }
 
   // 데이터 변환 (조인 결과에서 직접 subject_group_name 추출)
-  const rows: MockRow[] = (mockScores as unknown as MockScoreWithRelations[])
+  // 타입 안전성을 위해 Supabase의 타입 추론 활용
+  type MockScoreQueryResult = {
+    percentile: number | null;
+    standard_score: number | null;
+    grade_score: number | null;
+    subject_id: string | null;
+    subject: {
+      id: string;
+      name: string;
+      subject_group_id: string | null;
+      subject_group: {
+        id: string;
+        name: string;
+      } | null;
+    } | null;
+  };
+
+  const rows: MockRow[] = (mockScores as MockScoreQueryResult[])
     .map((score) => {
       // Relational Query 결과에서 subject_group_name 추출
       const subjectGroupName =
@@ -255,8 +299,24 @@ export async function getMockAnalysis(
     JSON.stringify(rows, null, 2)
   );
 
-  // 통계 계산
-  const stats = calculateMockStats(rows);
+  // subject_groups 테이블에서 교과군 목록 조회 (동적 처리)
+  const adminClient = createSupabaseAdminClient();
+  const groupsClient = adminClient || supabase;
+  const { data: subjectGroupsData } = await groupsClient
+    .from("subject_groups")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  // 교과군 이름 → ID 매핑 생성
+  const subjectGroupMap = new Map<string, string>();
+  if (subjectGroupsData) {
+    for (const group of subjectGroupsData) {
+      subjectGroupMap.set(group.name, group.id);
+    }
+  }
+
+  // 통계 계산 (동적 교과군 매핑 전달)
+  const stats = calculateMockStats(rows, subjectGroupMap);
 
   console.log(
     "[scores/mockAnalysis] 계산된 통계:",

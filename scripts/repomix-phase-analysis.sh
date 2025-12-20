@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Repomix Phase별 분석 스크립트
-# 프로젝트 규모가 크기 때문에 6단계로 나누어 분석합니다.
+# 프로젝트 규모가 크기 때문에 세분화된 단계로 나누어 분석합니다.
+# Phase 3와 Phase 4는 규모가 커서 더 작은 단위로 분할했습니다.
 
 set -e  # 에러 발생 시 스크립트 중단
 
@@ -51,16 +52,42 @@ run_phase2() {
     log_success "Phase 2 완료: repomix-phase2-utils.xml"
 }
 
-run_phase3() {
-    log_info "Phase 3: 학생 도메인 핵심 분석 시작... (가장 큰 파일, 시간이 걸릴 수 있습니다)"
-    npx repomix "app/(student)/plan" "app/(student)/scores" lib/plan lib/scores lib/metrics lib/goals -o repomix-phase3-student-core.xml
-    log_success "Phase 3 완료: repomix-phase3-student-core.xml"
+# Phase 3 분할: 학생 도메인 핵심
+run_phase3_1() {
+    log_info "Phase 3-1: 학생 플랜 관리 분석 시작..."
+    npx repomix "app/(student)/plan" lib/plan -o repomix-phase3-1-plan.xml
+    log_success "Phase 3-1 완료: repomix-phase3-1-plan.xml"
 }
 
-run_phase4() {
-    log_info "Phase 4: 관리자 및 컨설턴트 모듈 분석 시작..."
-    npx repomix "app/(admin)" "lib/data/admin" "lib/auth" -o repomix-phase4-admin-consultant.xml
-    log_success "Phase 4 완료: repomix-phase4-admin-consultant.xml"
+run_phase3_2() {
+    log_info "Phase 3-2: 학생 성적 관리 분석 시작..."
+    npx repomix "app/(student)/scores" lib/scores -o repomix-phase3-2-scores.xml
+    log_success "Phase 3-2 완료: repomix-phase3-2-scores.xml"
+}
+
+run_phase3_3() {
+    log_info "Phase 3-3: 학습 지표 및 목표 분석 시작..."
+    npx repomix lib/metrics lib/goals -o repomix-phase3-3-metrics-goals.xml
+    log_success "Phase 3-3 완료: repomix-phase3-3-metrics-goals.xml"
+}
+
+# Phase 4 분할: 관리자 및 컨설턴트 모듈
+run_phase4_1() {
+    log_info "Phase 4-1: 관리자 핵심 기능 분석 시작..."
+    npx repomix "app/(admin)/admin/dashboard" "app/(admin)/admin/students" "app/(admin)/admin/schools" "app/(admin)/actions" -o repomix-phase4-1-admin-core.xml
+    log_success "Phase 4-1 완료: repomix-phase4-1-admin-core.xml"
+}
+
+run_phase4_2() {
+    log_info "Phase 4-2: 관리자 콘텐츠 관리 분석 시작..."
+    npx repomix "app/(admin)/admin/master-books" "app/(admin)/admin/master-lectures" "app/(admin)/admin/master-custom-contents" "app/(admin)/admin/content-metadata" "app/(admin)/actions/masterBooks" "app/(admin)/actions/masterLectures" -o repomix-phase4-2-admin-content.xml
+    log_success "Phase 4-2 완료: repomix-phase4-2-admin-content.xml"
+}
+
+run_phase4_3() {
+    log_info "Phase 4-3: 관리자 캠프 및 기타 기능 분석 시작..."
+    npx repomix "app/(admin)/admin/camp-templates" "app/(admin)/admin/attendance" "app/(admin)/admin/subjects" "app/(admin)/admin/time-management" "app/(admin)/admin/sms" "app/(admin)/admin/consulting" "app/(admin)/actions/camp-templates" "lib/data/admin" -o repomix-phase4-3-admin-others.xml
+    log_success "Phase 4-3 완료: repomix-phase4-3-admin-others.xml"
 }
 
 run_phase5() {
@@ -94,10 +121,16 @@ main() {
         echo "Phase 목록:"
         echo "  1 - 핵심 인프라 (lib/supabase, lib/auth)"
         echo "  2 - 공통 유틸리티 (lib/utils, lib/types, components/ui)"
-        echo "  3 - 학생 핵심 (plan, scores, metrics, goals)"
-        echo "  4 - 관리자 및 컨설턴트 (app/(admin), lib/data/admin, 권한 관리)"
+        echo "  3-1 - 학생 플랜 관리 (app/(student)/plan, lib/plan)"
+        echo "  3-2 - 학생 성적 관리 (app/(student)/scores, lib/scores)"
+        echo "  3-3 - 학습 지표 및 목표 (lib/metrics, lib/goals)"
+        echo "  4-1 - 관리자 핵심 기능 (dashboard, students, schools)"
+        echo "  4-2 - 관리자 콘텐츠 관리 (master-*, content-metadata)"
+        echo "  4-3 - 관리자 캠프 및 기타 (camp-templates, attendance, 기타)"
         echo "  5 - 데이터 페칭 및 API (lib/api, lib/data, app/api, lib/hooks)"
         echo "  6 - 나머지 (parent, superadmin, actions, api, 기타)"
+        echo "  3 - Phase 3 전체 (3-1, 3-2, 3-3)"
+        echo "  4 - Phase 4 전체 (4-1, 4-2, 4-3)"
         echo "  all - 모든 Phase 실행"
         echo ""
         exit 1
@@ -112,11 +145,45 @@ main() {
         2)
             run_phase2
             ;;
+        3-1)
+            run_phase3_1
+            ;;
+        3-2)
+            run_phase3_2
+            ;;
+        3-3)
+            run_phase3_3
+            ;;
         3)
-            run_phase3
+            log_info "Phase 3 전체 실행을 시작합니다..."
+            echo ""
+            run_phase3_1
+            echo ""
+            run_phase3_2
+            echo ""
+            run_phase3_3
+            echo ""
+            log_success "Phase 3 전체 분석이 완료되었습니다!"
+            ;;
+        4-1)
+            run_phase4_1
+            ;;
+        4-2)
+            run_phase4_2
+            ;;
+        4-3)
+            run_phase4_3
             ;;
         4)
-            run_phase4
+            log_info "Phase 4 전체 실행을 시작합니다..."
+            echo ""
+            run_phase4_1
+            echo ""
+            run_phase4_2
+            echo ""
+            run_phase4_3
+            echo ""
+            log_success "Phase 4 전체 분석이 완료되었습니다!"
             ;;
         5)
             run_phase5
@@ -131,9 +198,19 @@ main() {
             echo ""
             run_phase2
             echo ""
-            run_phase3
+            log_info "Phase 3 분할 실행 시작..."
+            run_phase3_1
             echo ""
-            run_phase4
+            run_phase3_2
+            echo ""
+            run_phase3_3
+            echo ""
+            log_info "Phase 4 분할 실행 시작..."
+            run_phase4_1
+            echo ""
+            run_phase4_2
+            echo ""
+            run_phase4_3
             echo ""
             run_phase5
             echo ""
@@ -143,7 +220,7 @@ main() {
             ;;
         *)
             log_error "잘못된 Phase 번호입니다: $PHASE"
-            echo "사용 가능한 값: 1, 2, 3, 4, 5, 6, all"
+            echo "사용 가능한 값: 1, 2, 3-1, 3-2, 3-3, 3, 4-1, 4-2, 4-3, 4, 5, 6, all"
             exit 1
             ;;
     esac

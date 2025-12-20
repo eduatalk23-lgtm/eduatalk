@@ -27,6 +27,7 @@ import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCod
 import type { SchedulerOptions } from "@/lib/types/plan";
 import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
 import { BasePlanWizard } from "./BasePlanWizard";
+import { PlanWizardDebugger } from "./debug/PlanWizardDebugger";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
@@ -396,6 +397,8 @@ function PlanGroupWizardInner({
     clearValidation,
     setDraftId,
     setSubmitting,
+    isDirty,
+    resetDirtyState,
   } = usePlanWizard();
 
   // 모드 통합 관리
@@ -440,6 +443,7 @@ function PlanGroupWizardInner({
       initialData,
       onSaveRequest,
       mode,
+      onSaveSuccess: resetDirtyState, // 저장 성공 시 dirty 상태 리셋
   });
 
   // isSubmitting 상태 동기화
@@ -454,6 +458,8 @@ function PlanGroupWizardInner({
         // 템플릿 모드: onTemplateSave 콜백 호출
         try {
           await onTemplateSave(wizardData);
+          // 저장 성공 시 dirty 상태 리셋
+          resetDirtyState();
         } catch (error) {
           console.error("[PlanGroupWizard] Template save failed:", error);
           if (!silent) {
@@ -467,9 +473,10 @@ function PlanGroupWizardInner({
       } else {
         // 일반 모드: 기존 로직 사용
         await executeSave(silent);
+        // 저장 성공 시 dirty 상태 리셋 (executeSave 내부에서 처리)
       }
     },
-    [isTemplateMode, onTemplateSave, wizardData, executeSave, toast]
+    [isTemplateMode, onTemplateSave, wizardData, executeSave, toast, resetDirtyState]
   );
   
   // 초기 검증 에러 처리 (usePlanSubmission/validation 초기화와 충돌 방지 위해 hook 이후에 처리하거나 hook 내부로 이동 권장되지만, 우선 여기서 상태 동기화)
@@ -705,21 +712,44 @@ function PlanGroupWizardInner({
     }
   }, [isTemplateMode, onSaveRequest]);
 
-  // 취소 핸들러
+  // 이탈 방지: beforeunload 이벤트 처리
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // 표준에 따라 메시지를 설정해야 함
+      e.preventDefault();
+      e.returnValue = ""; // Chrome에서는 빈 문자열이 필요
+      return ""; // 일부 브라우저에서는 반환값 필요
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isDirty]);
+
+  // 취소 핸들러 (변경 사항 감지)
   const handleCancel = useCallback(() => {
-    if (confirm("변경사항을 저장하지 않고 나가시겠습니까?")) {
-      // 관리자 모드일 때는 캠프 템플릿 참여자 목록으로 이동
-      if (mode.isAdminMode || mode.isAdminContinueMode) {
-        const templateId = initialData?.templateId;
-        if (templateId) {
-          router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
-          return;
-        }
+    // 변경 사항이 있으면 확인
+    if (isDirty) {
+      if (!confirm("변경사항이 저장되지 않을 수 있습니다. 정말 나가시겠습니까?")) {
+        return;
       }
-      // 일반 모드일 때는 기존 로직 사용
-      router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
     }
-  }, [mode, initialData, router, isEditMode, draftGroupId]);
+    
+    // 관리자 모드일 때는 캠프 템플릿 참여자 목록으로 이동
+    if (mode.isAdminMode || mode.isAdminContinueMode) {
+      const templateId = initialData?.templateId;
+      if (templateId) {
+        router.push(`/admin/camp-templates/${templateId}/participants`, { scroll: true });
+        return;
+      }
+    }
+    // 일반 모드일 때는 기존 로직 사용
+    router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
+  }, [isDirty, mode, initialData, router, isEditMode, draftGroupId]);
 
   return (
     <>
@@ -739,7 +769,6 @@ function PlanGroupWizardInner({
         onSave={() => handleSaveDraft(false)}
         onComplete={handleStep7Complete}
         onCancel={handleCancel}
-        onUpdateWizardData={updateWizardData}
         onSetStep={setStep}
         onBlockSetsLoaded={setBlockSets}
       />
@@ -753,6 +782,13 @@ function PlanGroupWizardInner({
           activeGroupNames={activeGroupNames}
         />
       )}
+
+      {/* 디버깅 패널 (관리자 모드 또는 개발 환경에서만 표시) */}
+      <PlanWizardDebugger
+        isAdminMode={isAdminMode}
+        isTemplateMode={isTemplateMode}
+        isCampMode={isCampMode}
+      />
     </>
   );
 }
