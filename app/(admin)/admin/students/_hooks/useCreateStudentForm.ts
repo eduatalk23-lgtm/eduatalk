@@ -21,51 +21,55 @@ export function useCreateStudentForm({
   defaultValues: initialDefaultValues,
 }: UseCreateStudentFormProps = {}) {
   // 기본값 설정 (Zod 스키마에서 추론한 타입 사용)
-  const defaultValues = useMemo<CreateStudentFormSchema>(
-    () => ({
-      // 기본 정보
-      name: "",
-      grade: "",
-      class: "",
-      birth_date: "",
-      school_id: "",
-      school_type: undefined,
-      division: undefined,
-      student_number: "",
-      enrolled_at: "",
-      status: "enrolled",
-      // 프로필 정보
-      gender: undefined,
-      phone: "",
-      mother_phone: "",
-      father_phone: "",
-      address: "",
-      address_detail: "",
-      postal_code: "",
-      emergency_contact: "",
-      emergency_contact_phone: "",
-      medical_info: "",
-      bio: "",
-      interests: [],
-      // 진로 정보
-      exam_year: undefined,
-      curriculum_revision: undefined,
-      desired_university_ids: [],
-      desired_career_field: "",
-      target_major: "",
-      target_major_2: "",
-      target_score: undefined,
-      target_university_type: "",
-      notes: "",
-      ...initialDefaultValues,
-    }),
+  // optional 필드는 undefined로, default 필드는 기본값으로 설정
+  const defaultValues = useMemo(
+    () =>
+      ({
+        // 기본 정보
+        name: "",
+        grade: "",
+        class: "",
+        birth_date: "",
+        school_id: "",
+        school_type: undefined,
+        division: undefined,
+        student_number: "",
+        enrolled_at: "",
+        status: "enrolled" as const,
+        // 프로필 정보
+        gender: undefined,
+        phone: "",
+        mother_phone: "",
+        father_phone: "",
+        address: "",
+        address_detail: "",
+        postal_code: "",
+        emergency_contact: "",
+        emergency_contact_phone: "",
+        medical_info: "",
+        bio: "",
+        interests: [],
+        // 진로 정보
+        exam_year: undefined,
+        curriculum_revision: undefined,
+        desired_university_ids: [],
+        desired_career_field: "",
+        target_major: "",
+        target_major_2: "",
+        target_score: undefined,
+        target_university_type: "",
+        notes: "",
+        ...initialDefaultValues,
+      }) satisfies Partial<CreateStudentFormSchema>,
     [initialDefaultValues]
   );
 
   // React Hook Form 설정 (Zod 스키마 통합)
+  // defaultValues는 Partial 타입이지만, react-hook-form이 이를 올바르게 처리합니다
+  // zodResolver의 타입 추론이 default() 필드를 optional로 만들기 때문에 타입 단언 필요
   const form = useForm<CreateStudentFormSchema>({
-    resolver: zodResolver(createStudentFormSchema),
-    defaultValues,
+    resolver: zodResolver(createStudentFormSchema) as any,
+    defaultValues: defaultValues as Partial<CreateStudentFormSchema>,
     mode: "onChange",
     shouldUnregister: false,
   });

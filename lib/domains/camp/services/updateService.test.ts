@@ -6,11 +6,15 @@ import {
   updateAcademySchedules,
 } from "./updateService";
 import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
-import type { DailyScheduleInfo } from "@/lib/types/plan";
+import type { DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 
 // Mock dependencies
 vi.mock("@/lib/utils/schedulerOptionsMerge");
-vi.mock("@/lib/data/planGroups");
+vi.mock("@/lib/data/planGroups", () => ({
+  createPlanExclusions: vi.fn(),
+  getStudentAcademySchedules: vi.fn(),
+  createStudentAcademySchedules: vi.fn(),
+}));
 vi.mock("@/lib/errors");
 
 describe("updateService", () => {
@@ -143,8 +147,8 @@ describe("updateService", () => {
         delete: vi.fn().mockReturnValue(mockDelete),
       });
 
-      const { createPlanExclusions } = await import("@/lib/data/planGroups");
-      vi.mocked(createPlanExclusions).mockResolvedValue({ success: true });
+      const planGroups = await import("@/lib/data/planGroups");
+      vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({ success: true });
 
       await updatePlanExclusions(mockSupabase, groupId, tenantId, []);
 
@@ -173,8 +177,8 @@ describe("updateService", () => {
         delete: vi.fn().mockReturnValue(mockDelete),
       });
 
-      const { createPlanExclusions } = await import("@/lib/data/planGroups");
-      vi.mocked(createPlanExclusions).mockResolvedValue({ success: true });
+      const planGroups = await import("@/lib/data/planGroups");
+      vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({ success: true });
 
       await updatePlanExclusions(
         mockSupabase,
@@ -183,7 +187,7 @@ describe("updateService", () => {
         exclusions
       );
 
-      expect(createPlanExclusions).toHaveBeenCalledWith(
+      expect(planGroups.createPlanExclusions).toHaveBeenCalledWith(
         groupId,
         tenantId,
         expect.arrayContaining([
@@ -217,8 +221,8 @@ describe("updateService", () => {
         delete: vi.fn().mockReturnValue(mockDelete),
       });
 
-      const { createPlanExclusions } = await import("@/lib/data/planGroups");
-      vi.mocked(createPlanExclusions).mockResolvedValue({
+      const planGroups = await import("@/lib/data/planGroups");
+      vi.mocked(planGroups.createPlanExclusions).mockResolvedValue({
         success: false,
         error: "생성 실패",
       });
@@ -230,16 +234,10 @@ describe("updateService", () => {
   });
 
   describe("updateAcademySchedules", () => {
-    beforeEach(() => {
-      vi.mock("@/lib/data/planGroups", () => ({
-        getStudentAcademySchedules: vi.fn().mockResolvedValue([]),
-        createStudentAcademySchedules: vi.fn().mockResolvedValue({
-          success: true,
-        }),
-      }));
-    });
-
     it("학원 일정이 undefined이면 아무것도 하지 않아야 함", async () => {
+      const planGroups = await import("@/lib/data/planGroups");
+      vi.mocked(planGroups.getStudentAcademySchedules).mockClear();
+
       await updateAcademySchedules(
         mockSupabase,
         studentId,
@@ -247,28 +245,30 @@ describe("updateService", () => {
         undefined
       );
 
-      const { getStudentAcademySchedules } = await import(
-        "@/lib/data/planGroups"
-      );
-      expect(getStudentAcademySchedules).not.toHaveBeenCalled();
+      expect(planGroups.getStudentAcademySchedules).not.toHaveBeenCalled();
     });
 
     it("중복되지 않은 새로운 학원 일정만 추가해야 함", async () => {
-      const { getStudentAcademySchedules, createStudentAcademySchedules } =
-        await import("@/lib/data/planGroups");
+      const planGroups = await import("@/lib/data/planGroups");
 
-      // 기존 일정 모킹
-      vi.mocked(getStudentAcademySchedules).mockResolvedValue([
+      // 기존 일정 모킹 (AcademySchedule 타입의 부분 타입 사용)
+      vi.mocked(planGroups.getStudentAcademySchedules).mockResolvedValue([
         {
+          id: "schedule-1",
+          tenant_id: tenantId,
+          student_id: studentId,
+          academy_id: "academy-1",
           day_of_week: 1,
           start_time: "09:00",
           end_time: "12:00",
-          academy_name: "기존 학원",
           subject: "수학",
-        },
+          created_at: "2025-01-01T00:00:00Z",
+          updated_at: "2025-01-01T00:00:00Z",
+          academy_name: "기존 학원",
+        } as AcademySchedule,
       ]);
 
-      vi.mocked(createStudentAcademySchedules).mockResolvedValue({
+      vi.mocked(planGroups.createStudentAcademySchedules).mockResolvedValue({
         success: true,
       });
 
@@ -297,7 +297,7 @@ describe("updateService", () => {
       );
 
       // 중복되지 않은 것만 추가되어야 함
-      expect(createStudentAcademySchedules).toHaveBeenCalledWith(
+      expect(planGroups.createStudentAcademySchedules).toHaveBeenCalledWith(
         studentId,
         tenantId,
         [
@@ -314,21 +314,26 @@ describe("updateService", () => {
     });
 
     it("모든 학원 일정이 이미 존재하면 추가하지 않아야 함", async () => {
-      const { getStudentAcademySchedules, createStudentAcademySchedules } =
-        await import("@/lib/data/planGroups");
+      const planGroups = await import("@/lib/data/planGroups");
 
-      // 기존 일정 모킹
-      vi.mocked(getStudentAcademySchedules).mockResolvedValue([
+      // 기존 일정 모킹 (AcademySchedule 타입의 부분 타입 사용)
+      vi.mocked(planGroups.getStudentAcademySchedules).mockResolvedValue([
         {
+          id: "schedule-1",
+          tenant_id: tenantId,
+          student_id: studentId,
+          academy_id: "academy-1",
           day_of_week: 1,
           start_time: "09:00",
           end_time: "12:00",
-          academy_name: "기존 학원",
           subject: "수학",
-        },
+          created_at: "2025-01-01T00:00:00Z",
+          updated_at: "2025-01-01T00:00:00Z",
+          academy_name: "기존 학원",
+        } as AcademySchedule,
       ]);
 
-      vi.mocked(createStudentAcademySchedules).mockResolvedValue({
+      vi.mocked(planGroups.createStudentAcademySchedules).mockResolvedValue({
         success: true,
       });
 
@@ -350,15 +355,14 @@ describe("updateService", () => {
       );
 
       // 추가되지 않아야 함
-      expect(createStudentAcademySchedules).not.toHaveBeenCalled();
+      expect(planGroups.createStudentAcademySchedules).not.toHaveBeenCalled();
     });
 
     it("학원 일정 생성 실패 시 AppError를 throw해야 함", async () => {
-      const { getStudentAcademySchedules, createStudentAcademySchedules } =
-        await import("@/lib/data/planGroups");
+      const planGroups = await import("@/lib/data/planGroups");
 
-      vi.mocked(getStudentAcademySchedules).mockResolvedValue([]);
-      vi.mocked(createStudentAcademySchedules).mockResolvedValue({
+      vi.mocked(planGroups.getStudentAcademySchedules).mockResolvedValue([]);
+      vi.mocked(planGroups.createStudentAcademySchedules).mockResolvedValue({
         success: false,
         error: "생성 실패",
       });

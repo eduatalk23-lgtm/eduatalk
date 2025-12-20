@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. 권한 확인
     const userRole = await getCurrentUserRole();
-    if (userRole !== "admin" && userRole !== "superadmin") {
+    if (userRole.role !== "admin" && userRole.role !== "superadmin") {
       return NextResponse.json(
         { success: false, error: "관리자 권한이 필요합니다." },
         { status: 403 }
@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
     }
 
     const adminClient = createSupabaseAdminClient();
+    if (!adminClient) {
+      return NextResponse.json(
+        { success: false, error: "Admin 클라이언트를 생성할 수 없습니다. 환경 변수를 확인해주세요." },
+        { status: 500 }
+      );
+    }
 
     // 3. 활성화된 개정교육과정 조회 (기본값)
     const activeRevision = await getActiveCurriculumRevision();

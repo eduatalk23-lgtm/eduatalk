@@ -155,8 +155,19 @@ describe("contentService", () => {
         ],
       };
 
-      const existingStudentContents: typeof wizardData.student_contents = [];
-      const existingRecommendedContents: typeof wizardData.student_contents = [];
+      const existingStudentContents: Array<{
+        content_type: string;
+        content_id: string;
+        start_range: number;
+        end_range: number;
+        display_order: number | null;
+        master_content_id: string | null;
+        is_auto_recommended: boolean | null;
+        recommendation_source: "auto" | "admin" | "template" | null;
+        recommendation_reason: string | null;
+        recommendation_metadata: Json | null;
+      }> = [];
+      const existingRecommendedContents: typeof existingStudentContents = [];
 
       const result = await prepareContentsToSave(
         mockSupabase,
@@ -187,8 +198,19 @@ describe("contentService", () => {
         ],
       };
 
-      const existingStudentContents: typeof wizardData.student_contents = [];
-      const existingRecommendedContents: typeof wizardData.student_contents = [];
+      const existingStudentContents: Array<{
+        content_type: string;
+        content_id: string;
+        start_range: number;
+        end_range: number;
+        display_order: number | null;
+        master_content_id: string | null;
+        is_auto_recommended: boolean | null;
+        recommendation_source: "auto" | "admin" | "template" | null;
+        recommendation_reason: string | null;
+        recommendation_metadata: Json | null;
+      }> = [];
+      const existingRecommendedContents: typeof existingStudentContents = [];
 
       const result = await prepareContentsToSave(
         mockSupabase,
@@ -295,8 +317,19 @@ describe("contentService", () => {
         ],
       };
 
-      const existingStudentContents: typeof wizardData.student_contents = [];
-      const existingRecommendedContents: typeof wizardData.student_contents = [];
+      const existingStudentContents: Array<{
+        content_type: string;
+        content_id: string;
+        start_range: number;
+        end_range: number;
+        display_order: number | null;
+        master_content_id: string | null;
+        is_auto_recommended: boolean | null;
+        recommendation_source: "auto" | "admin" | "template" | null;
+        recommendation_reason: string | null;
+        recommendation_metadata: Json | null;
+      }> = [];
+      const existingRecommendedContents: typeof existingStudentContents = [];
 
       const result = await prepareContentsToSave(
         mockSupabase,
