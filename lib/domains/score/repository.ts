@@ -135,9 +135,10 @@ export async function findSchoolScores(
     grade_score: score.rank_grade, // rank_grade → grade_score (하위 호환성)
     total_students: score.total_students,
     rank_grade: score.rank_grade,
+    class_rank: null, // 신규 테이블에 없음 (필요 시 추가)
     created_at: score.created_at,
     updated_at: score.updated_at,
-  })) as SchoolScore[];
+  })) as unknown as SchoolScore[];
 }
 
 /**
@@ -184,9 +185,10 @@ export async function findSchoolScoreById(
     grade_score: score.rank_grade, // rank_grade → grade_score (하위 호환성)
     total_students: score.total_students,
     rank_grade: score.rank_grade,
+    class_rank: null, // 신규 테이블에 없음 (필요 시 추가)
     created_at: score.created_at,
     updated_at: score.updated_at,
-  } as SchoolScore;
+  } as unknown as SchoolScore;
 }
 
 /**
