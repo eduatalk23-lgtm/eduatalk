@@ -367,35 +367,19 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
     throw new AppError("추가할 요일을 최소 1개 이상 선택해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   if (!user) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
   // 활성 블록 세트 조회
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .select("active_block_set_id, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  if (studentError) {
-    throw new AppError(
-      studentError.message || "학생 정보를 조회하는 중 오류가 발생했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true,
-      { supabaseError: studentError }
-    );
-  }
-
-  if (!student) {
+  const student = await getStudentById(user.userId, user.tenantId);
+  if (!student || !student.tenant_id) {
     throw new AppError("학생 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
+
+  const studentWithActiveSet = student as Student & { active_block_set_id?: string | null };
 
   // block_set_id가 제공되면 해당 세트 사용, 없으면 활성 세트 사용
   let activeSetId: string | null = null;
@@ -429,20 +413,14 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
   // 각 대상 요일로 블록 추가 (겹치는 블록은 스킵하고 나머지만 추가)
   const insertPromises = targetDayNums.map(async (targetDay) => {
     // 대상 요일의 기존 블록 조회 (같은 세트 내에서만)
-    const { data: existingBlocks } = await supabase
-      .from("student_block_schedule")
-      .select("start_time, end_time")
-      .eq("student_id", user.id)
-      .eq("day_of_week", targetDay)
-      .eq("block_set_id", activeSetId);
+    const existingBlocks = await getBlocksBySetId(activeSetId, user.userId, targetDay);
 
     // 겹침 검증
-    const existingBlocksArray = existingBlocks || [];
-    const hasOverlap = existingBlocksArray.length > 0 && checkBlockOverlap(
+    const hasOverlap = existingBlocks.length > 0 && checkBlockOverlap(
       { startTime, endTime },
-      existingBlocksArray.map((b) => ({
-        startTime: b.start_time ?? "",
-        endTime: b.end_time ?? "",
+      existingBlocks.map((b) => ({
+        startTime: b.start_time,
+        endTime: b.end_time,
       }))
     );
 
@@ -454,21 +432,21 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
       };
     }
 
-    // 블록 삽입
-    const { error } = await supabase.from("student_block_schedule").insert({
+    // lib/data/blockSets.ts의 createBlock 사용
+    const result = await createBlock({
       tenant_id: student.tenant_id,
-      student_id: user.id,
+      student_id: user.userId,
       block_set_id: activeSetId,
       day_of_week: targetDay,
       start_time: startTime,
       end_time: endTime,
     });
 
-    if (error) {
+    if (!result.success) {
       return { 
         targetDay, 
         skipped: true, 
-        reason: error.message || "블록 추가 중 오류가 발생했습니다"
+        reason: result.error || "블록 추가 중 오류가 발생했습니다"
       };
     }
 
