@@ -584,11 +584,12 @@ export async function getWeeklyWeakSubjectTrend(
     }> | null) ?? [];
 
     // 성적 데이터 조회 (최근 변화 추적)
+    // student_internal_scores 테이블 사용
     const selectScores = () =>
       supabase
-        .from("student_school_scores")
-        .select("subject_group,grade_score,test_date")
-        .order("test_date", { ascending: false })
+        .from("student_internal_scores")
+        .select("rank_grade,created_at,subject_groups:subject_group_id(name)")
+        .order("created_at", { ascending: false })
         .limit(20);
 
     let { data: scores, error: scoreError } = await selectScores().eq("student_id", studentId);
@@ -598,18 +599,19 @@ export async function getWeeklyWeakSubjectTrend(
     }
 
     const scoreRows = (scores as Array<{
-      subject_group?: string | null;
-      grade_score?: number | null;
-      test_date?: string | null;
+      rank_grade?: number | null;
+      created_at?: string | null;
+      subject_groups?: { name: string } | null;
     }> | null) ?? [];
 
     // 과목별 최근 성적 변화 계산
     const subjectScoreMap = new Map<string, Array<{ grade: number; date: string }>>();
     scoreRows.forEach((score) => {
-      if (!score.subject_group || score.grade_score === null || score.grade_score === undefined) return;
-      const existing = subjectScoreMap.get(score.subject_group) || [];
-      existing.push({ grade: score.grade_score, date: score.test_date || "" });
-      subjectScoreMap.set(score.subject_group, existing);
+      const subjectGroup = score.subject_groups?.name;
+      if (!subjectGroup || score.rank_grade === null || score.rank_grade === undefined) return;
+      const existing = subjectScoreMap.get(subjectGroup) || [];
+      existing.push({ grade: score.rank_grade, date: score.created_at || "" });
+      subjectScoreMap.set(subjectGroup, existing);
     });
 
     // 취약과목 리스트 생성
