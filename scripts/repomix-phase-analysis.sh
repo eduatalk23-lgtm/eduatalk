@@ -84,10 +84,37 @@ run_phase4_2() {
     log_success "Phase 4-2 완료: repomix-phase4-2-admin-content.xml"
 }
 
+# Phase 4-3 분할: 관리자 캠프 및 기타 기능 (규모가 커서 3개로 분할)
+run_phase4_3_1() {
+    log_info "Phase 4-3-1: 관리자 캠프 템플릿 분석 시작..."
+    npx repomix "app/(admin)/admin/camp-templates" "app/(admin)/actions/camp-templates" -o repomix-phase4-3-1-camp-templates.xml
+    log_success "Phase 4-3-1 완료: repomix-phase4-3-1-camp-templates.xml"
+}
+
+run_phase4_3_2() {
+    log_info "Phase 4-3-2: 관리자 출석 및 SMS 분석 시작..."
+    npx repomix "app/(admin)/admin/attendance" "app/(admin)/admin/sms" -o repomix-phase4-3-2-attendance-sms.xml
+    log_success "Phase 4-3-2 완료: repomix-phase4-3-2-attendance-sms.xml"
+}
+
+run_phase4_3_3() {
+    log_info "Phase 4-3-3: 관리자 교과목, 시간관리 및 기타 분석 시작..."
+    npx repomix "app/(admin)/admin/subjects" "app/(admin)/admin/time-management" "app/(admin)/admin/consulting" "lib/data/admin" -o repomix-phase4-3-3-subjects-others.xml
+    log_success "Phase 4-3-3 완료: repomix-phase4-3-3-subjects-others.xml"
+}
+
+# 하위 호환성을 위한 기존 함수 (deprecated)
 run_phase4_3() {
-    log_info "Phase 4-3: 관리자 캠프 및 기타 기능 분석 시작..."
-    npx repomix "app/(admin)/admin/camp-templates" "app/(admin)/admin/attendance" "app/(admin)/admin/subjects" "app/(admin)/admin/time-management" "app/(admin)/admin/sms" "app/(admin)/admin/consulting" "app/(admin)/actions/camp-templates" "lib/data/admin" -o repomix-phase4-3-admin-others.xml
-    log_success "Phase 4-3 완료: repomix-phase4-3-admin-others.xml"
+    log_warning "Phase 4-3은 더 이상 사용되지 않습니다. 4-3-1, 4-3-2, 4-3-3을 사용하세요."
+    log_info "Phase 4-3 전체 실행을 시작합니다..."
+    echo ""
+    run_phase4_3_1
+    echo ""
+    run_phase4_3_2
+    echo ""
+    run_phase4_3_3
+    echo ""
+    log_success "Phase 4-3 전체 분석이 완료되었습니다!"
 }
 
 run_phase5() {
@@ -126,11 +153,14 @@ main() {
         echo "  3-3 - 학습 지표 및 목표 (lib/metrics, lib/goals)"
         echo "  4-1 - 관리자 핵심 기능 (dashboard, students, schools)"
         echo "  4-2 - 관리자 콘텐츠 관리 (master-*, content-metadata)"
-        echo "  4-3 - 관리자 캠프 및 기타 (camp-templates, attendance, 기타)"
+        echo "  4-3-1 - 관리자 캠프 템플릿 (camp-templates, actions/camp-templates)"
+        echo "  4-3-2 - 관리자 출석 및 SMS (attendance, sms)"
+        echo "  4-3-3 - 관리자 교과목 및 기타 (subjects, time-management, consulting)"
         echo "  5 - 데이터 페칭 및 API (lib/api, lib/data, app/api, lib/hooks)"
         echo "  6 - 나머지 (parent, superadmin, actions, api, 기타)"
         echo "  3 - Phase 3 전체 (3-1, 3-2, 3-3)"
-        echo "  4 - Phase 4 전체 (4-1, 4-2, 4-3)"
+        echo "  4 - Phase 4 전체 (4-1, 4-2, 4-3-1, 4-3-2, 4-3-3)"
+        echo "  4-3 - Phase 4-3 전체 (4-3-1, 4-3-2, 4-3-3) - deprecated"
         echo "  all - 모든 Phase 실행"
         echo ""
         exit 1
@@ -171,6 +201,15 @@ main() {
         4-2)
             run_phase4_2
             ;;
+        4-3-1)
+            run_phase4_3_1
+            ;;
+        4-3-2)
+            run_phase4_3_2
+            ;;
+        4-3-3)
+            run_phase4_3_3
+            ;;
         4-3)
             run_phase4_3
             ;;
@@ -181,7 +220,12 @@ main() {
             echo ""
             run_phase4_2
             echo ""
-            run_phase4_3
+            log_info "Phase 4-3 분할 실행 시작..."
+            run_phase4_3_1
+            echo ""
+            run_phase4_3_2
+            echo ""
+            run_phase4_3_3
             echo ""
             log_success "Phase 4 전체 분석이 완료되었습니다!"
             ;;
@@ -210,7 +254,12 @@ main() {
             echo ""
             run_phase4_2
             echo ""
-            run_phase4_3
+            log_info "Phase 4-3 분할 실행 시작..."
+            run_phase4_3_1
+            echo ""
+            run_phase4_3_2
+            echo ""
+            run_phase4_3_3
             echo ""
             run_phase5
             echo ""
@@ -220,7 +269,7 @@ main() {
             ;;
         *)
             log_error "잘못된 Phase 번호입니다: $PHASE"
-            echo "사용 가능한 값: 1, 2, 3-1, 3-2, 3-3, 3, 4-1, 4-2, 4-3, 4, 5, 6, all"
+            echo "사용 가능한 값: 1, 2, 3-1, 3-2, 3-3, 3, 4-1, 4-2, 4-3-1, 4-3-2, 4-3-3, 4-3, 4, 5, 6, all"
             exit 1
             ;;
     esac
