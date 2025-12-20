@@ -141,6 +141,16 @@ export type BlockAddFormInput = z.infer<typeof blockAddFormSchema>;
 
 /**
  * 시간 문자열 검증 헬퍼
+ * 
+ * @param time 검증할 시간 문자열 (HH:MM 형식)
+ * @returns 유효한 시간 형식이면 true, 그렇지 않으면 false
+ * 
+ * @example
+ * ```typescript
+ * validateTimeString("09:30"); // true
+ * validateTimeString("25:00"); // false (시간 범위 초과)
+ * validateTimeString("9:30");  // false (형식 불일치)
+ * ```
  */
 export function validateTimeString(time: string): boolean {
   return timeStringSchema.safeParse(time).success;
@@ -148,6 +158,16 @@ export function validateTimeString(time: string): boolean {
 
 /**
  * 요일 검증 헬퍼
+ * 
+ * @param day 검증할 요일 값
+ * @returns 유효한 요일(0-6)이면 true, 그렇지 않으면 false
+ * 
+ * @example
+ * ```typescript
+ * validateDayOfWeek(0); // true (일요일)
+ * validateDayOfWeek(6); // true (토요일)
+ * validateDayOfWeek(7); // false (범위 초과)
+ * ```
  */
 export function validateDayOfWeek(day: number): day is DayOfWeek {
   return dayOfWeekSchema.safeParse(day).success;

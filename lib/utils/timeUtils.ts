@@ -198,7 +198,15 @@ export function validateBlocks(blocks: Block[]): BlockValidationResult {
  * 블록 배열의 통계 정보와 함께 반환
  * 
  * @param blocks 시간 블록 배열
- * @returns 통계 정보가 포함된 객체
+ * @returns 블록 배열과 통계 정보를 포함한 객체
+ * 
+ * @example
+ * ```typescript
+ * const result = getBlocksWithStats(blocks);
+ * console.log(result.blocks); // Block[]
+ * console.log(result.stats.blockCount); // number
+ * console.log(result.stats.totalHours); // number
+ * ```
  */
 export function getBlocksWithStats(blocks: Block[]) {
   const stats = calculateBlockStats(blocks);
