@@ -52,21 +52,32 @@ export default function StudentInfoEditForm({
   const onSubmit = useCallback(
     async (formData: AdminStudentFormData) => {
       startTransition(async () => {
-        // 변경된 필드만 포함하는 페이로드 생성
-        const payload = transformFormDataToUpdatePayload(
-          formData,
-          dirtyFields
-        );
+        try {
+          // 변경된 필드만 포함하는 페이로드 생성
+          const payload = transformFormDataToUpdatePayload(
+            formData,
+            dirtyFields
+          );
 
-        const result = await updateStudentInfo(studentId, payload);
+          const result = await updateStudentInfo(studentId, payload);
 
-        if (result.success) {
-          showSuccess("학생 정보가 업데이트되었습니다.");
-          router.refresh();
-          // 폼 리셋하여 dirty 상태 초기화
-          reset();
-        } else {
-          showError(result.error || "학생 정보 업데이트에 실패했습니다.");
+          if (result.success) {
+            showSuccess("학생 정보가 업데이트되었습니다.");
+            router.refresh();
+            // 폼 리셋하여 dirty 상태 초기화
+            reset();
+          } else {
+            // 서버에서 반환된 구체적인 에러 메시지를 우선적으로 표시
+            showError(result.error || "학생 정보 업데이트에 실패했습니다.");
+          }
+        } catch (error) {
+          console.error("학생 정보 업데이트 실패:", error);
+          // 예상치 못한 에러 발생 시에도 구체적인 메시지 표시
+          showError(
+            error instanceof Error
+              ? error.message
+              : "학생 정보 업데이트 중 오류가 발생했습니다."
+          );
         }
       });
     },

@@ -41,6 +41,25 @@ type ExistingPlanContent = {
 
 /**
  * 기존 콘텐츠를 학생 콘텐츠와 추천 콘텐츠로 분류
+ * 
+ * 플랜 그룹에 이미 저장된 콘텐츠를 두 가지 카테고리로 분류합니다:
+ * - **학생 콘텐츠**: 학생이 직접 등록한 콘텐츠 (is_auto_recommended와 recommendation_source가 모두 없음)
+ * - **추천 콘텐츠**: 시스템이나 관리자가 추천한 콘텐츠
+ *   - `is_auto_recommended: true` 또는 `recommendation_source: "auto"` → Step 4에서 자동 배정된 콘텐츠
+ *   - `recommendation_source: "admin"` → 관리자가 일괄 적용한 콘텐츠
+ *   - `recommendation_source: "template"` → 템플릿에서 가져온 콘텐츠
+ * 
+ * 이 분류는 `prepareContentsToSave`에서 기존 콘텐츠를 보존할 때 사용됩니다.
+ * 
+ * @param existingPlanContents - 플랜 그룹에 저장된 기존 콘텐츠 목록 (null 가능)
+ * @returns 학생 콘텐츠와 추천 콘텐츠로 분류된 객체
+ * 
+ * @example
+ * ```typescript
+ * const { studentContents, recommendedContents } = classifyExistingContents(existingContents);
+ * // studentContents: 학생이 직접 등록한 콘텐츠만 포함
+ * // recommendedContents: 추천된 콘텐츠만 포함
+ * ```
  */
 export function classifyExistingContents(
   existingPlanContents: ExistingPlanContent[] | null
@@ -121,6 +140,35 @@ function convertExistingToPlanContentInsert(
 
 /**
  * 학생이 실제로 가지고 있는 콘텐츠인지 검증하고 실제 콘텐츠 ID 반환
+ * 
+ * 캠프 템플릿에서 콘텐츠를 배정할 때, 학생이 실제로 소유하지 않은 콘텐츠는
+ * 플랜에 포함할 수 없습니다. 이 함수는 다음 순서로 검증합니다:
+ * 
+ * **교재(book)의 경우:**
+ * 1. 학생 교재로 직접 조회 (content_id가 학생의 books 테이블에 존재하는지)
+ * 2. 마스터 교재인지 확인 (master_books 테이블에 존재하는지)
+ * 3. 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
+ * 4. 학생 교재가 없으면 마스터 교재를 학생 교재로 자동 복사 (캠프 모드)
+ * 
+ * **강의(lecture)의 경우:**
+ * 1. 학생 강의로 직접 조회
+ * 2. 마스터 강의인지 확인
+ * 3. 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
+ * 4. 학생 강의가 없으면 마스터 강의를 학생 강의로 자동 복사
+ * 
+ * **커스텀 콘텐츠(custom)의 경우:**
+ * - 학생 ID로 직접 조회 (student_custom_contents 테이블)
+ * 
+ * @param supabase - Supabase 클라이언트
+ * @param content - 검증할 콘텐츠 정보 (PlanContentInsert 형식)
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID (마스터 콘텐츠 복사 시 필요)
+ * @returns 검증 결과와 실제 콘텐츠 ID
+ *   - `isValid: true` - 학생이 소유한 콘텐츠이며, actualContentId에 실제 ID 반환
+ *   - `isValid: false` - 학생이 소유하지 않은 콘텐츠 (플랜에서 제외됨)
+ * 
+ * @throws 마스터 콘텐츠 복사 실패 시에도 에러를 throw하지 않고, 마스터 콘텐츠 ID를 그대로 사용
+ *   (플랜 생성 시 자동 복사됨)
  */
 export async function validateAndResolveContent(
   supabase: SupabaseClient,
@@ -284,6 +332,47 @@ export async function validateAndResolveContent(
 
 /**
  * 콘텐츠 목록을 생성 (기존 콘텐츠 보존 로직 포함)
+ * 
+ * 캠프 템플릿 진행 시, 사용자가 특정 단계에서 콘텐츠를 선택하지 않았거나
+ * 빈 배열을 전달한 경우, 기존에 저장된 콘텐츠를 보존해야 합니다.
+ * 
+ * **보존 로직:**
+ * - `wizardData.student_contents`가 `undefined`이거나 빈 배열인 경우:
+ *   → 기존 학생 콘텐츠(`existingStudentContents`)를 보존
+ * - `wizardData.recommended_contents`가 `undefined`이거나 빈 배열인 경우:
+ *   → 기존 추천 콘텐츠(`existingRecommendedContents`)를 보존
+ * 
+ * **대체 로직:**
+ * - `wizardData.student_contents`에 새로운 콘텐츠가 있으면:
+ *   → 기존 학생 콘텐츠를 무시하고 새로운 콘텐츠로 대체
+ * - `wizardData.recommended_contents`에 새로운 콘텐츠가 있으면:
+ *   → 기존 추천 콘텐츠를 무시하고 새로운 콘텐츠로 대체
+ * 
+ * **표시 순서:**
+ * - 학생 콘텐츠가 먼저, 그 다음 추천 콘텐츠가 `display_order`에 따라 정렬됨
+ * 
+ * @param supabase - Supabase 클라이언트 (현재는 사용하지 않지만 향후 확장 가능)
+ * @param groupId - 플랜 그룹 ID
+ * @param tenantId - 테넌트 ID
+ * @param wizardData - 위저드에서 전달된 콘텐츠 데이터
+ *   - `student_contents`: 학생이 선택한 콘텐츠 (undefined 가능)
+ *   - `recommended_contents`: 추천된 콘텐츠 (undefined 가능)
+ * @param existingStudentContents - 기존에 저장된 학생 콘텐츠 목록
+ * @param existingRecommendedContents - 기존에 저장된 추천 콘텐츠 목록
+ * @returns 저장할 콘텐츠 목록 (PlanContentInsert 형식)
+ * 
+ * @example
+ * ```typescript
+ * // 새로운 학생 콘텐츠만 있고 추천 콘텐츠는 없는 경우
+ * const contents = await prepareContentsToSave(
+ *   supabase,
+ *   groupId,
+ *   tenantId,
+ *   { student_contents: [newContent] }, // 추천 콘텐츠 없음
+ *   [], // 기존 학생 콘텐츠 없음
+ *   [existingRecommended] // 기존 추천 콘텐츠 보존됨
+ * );
+ * ```
  */
 export async function prepareContentsToSave(
   supabase: SupabaseClient,
@@ -385,6 +474,39 @@ export async function prepareContentsToSave(
 
 /**
  * 콘텐츠 저장 (학생이 실제로 가지고 있는 콘텐츠만 필터링)
+ * 
+ * 플랜 그룹에 콘텐츠를 저장하기 전에, 각 콘텐츠가 학생이 실제로 소유한 것인지
+ * 검증하고, 마스터 콘텐츠인 경우 학생 콘텐츠로 자동 복사합니다.
+ * 
+ * **처리 흐름:**
+ * 1. 각 콘텐츠에 대해 `validateAndResolveContent`를 호출하여 검증
+ * 2. 유효한 콘텐츠만 필터링하여 `validContents` 배열에 추가
+ * 3. 유효한 콘텐츠가 있으면 `createPlanContents`를 호출하여 저장
+ * 4. 유효한 콘텐츠가 없으면 경고만 출력하고 에러는 발생시키지 않음
+ *   (학생이 콘텐츠를 소유하지 않은 경우는 정상적인 상황일 수 있음)
+ * 
+ * **에러 처리:**
+ * - 콘텐츠 저장 실패 시 `AppError`를 throw하여 상위에서 처리하도록 함
+ * - 유효한 콘텐츠가 없는 경우는 에러가 아닌 경고로 처리
+ * 
+ * @param supabase - Supabase 클라이언트
+ * @param groupId - 플랜 그룹 ID
+ * @param tenantId - 테넌트 ID
+ * @param studentId - 학생 ID
+ * @param contentsToSave - 저장할 콘텐츠 목록
+ * 
+ * @throws {AppError} 콘텐츠 저장 실패 시
+ * 
+ * @example
+ * ```typescript
+ * await savePlanContents(
+ *   supabase,
+ *   groupId,
+ *   tenantId,
+ *   studentId,
+ *   contentsToSave
+ * );
+ * ```
  */
 export async function savePlanContents(
   supabase: SupabaseClient,
