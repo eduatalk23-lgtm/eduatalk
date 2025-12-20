@@ -6,7 +6,6 @@ import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { createInternalScore, updateInternalScore } from "@/app/actions/scores-internal";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type ScoreFormModalProps = {
@@ -254,15 +253,10 @@ export function ScoreFormModal({
           throw new Error("교과 또는 과목을 찾을 수 없습니다.");
         }
 
-        // tenant_id 가져오기
-        const tenantContext = await getTenantContext();
-        if (!tenantContext?.tenantId) {
-          throw new Error("기관 정보를 찾을 수 없습니다.");
-        }
-
+        // tenant_id는 서버 액션에서 getCurrentUser로 가져옴
         const submitFormData = new FormData();
         submitFormData.append("student_id", ""); // 서버 액션에서 getCurrentUser로 가져옴
-        submitFormData.append("tenant_id", tenantContext.tenantId);
+        submitFormData.append("tenant_id", ""); // 서버 액션에서 getCurrentUser로 가져옴
         submitFormData.append("grade", formData.grade);
         submitFormData.append("semester", formData.semester);
         submitFormData.append("subject_group_id", group.id);

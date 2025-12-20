@@ -45,7 +45,10 @@ async function _createInternalScore(formData: FormData) {
   const notes = formData.get("notes") as string | null;
 
   // 필수 필드 검증
-  if (!student_id || !tenant_id || !curriculum_revision_id || !subject_group_id || !subject_type_id || !subject_id) {
+  if (!tenant_id) {
+    throw new AppError("기관 정보를 찾을 수 없습니다. 학생 설정을 완료해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
+  if (!curriculum_revision_id || !subject_group_id || !subject_type_id || !subject_id) {
     throw new AppError("필수 필드가 누락되었습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
@@ -197,7 +200,7 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   }
 
   // FormData에서 값 추출
-  const tenant_id = formData.get("tenant_id") as string;
+  const tenant_id = user.tenantId || (formData.get("tenant_id") as string); // getCurrentUser에서 가져온 tenantId 우선 사용
   const grade = formData.get("grade") ? parseInt(formData.get("grade") as string) : undefined;
   const semester = formData.get("semester") ? parseInt(formData.get("semester") as string) : undefined;
   const curriculum_revision_id = formData.get("curriculum_revision_id") as string | undefined;
@@ -212,7 +215,7 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   const total_students = formData.get("total_students") ? parseInt(formData.get("total_students") as string) : undefined;
 
   if (!tenant_id) {
-    throw new AppError("기관 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+    throw new AppError("기관 정보를 찾을 수 없습니다. 학생 설정을 완료해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
   // 업데이트할 필드만 구성
