@@ -117,19 +117,9 @@ export async function importMasterBooksFromExcel(
   const errors: string[] = [];
 
   try {
-    // 1. 기존 데이터 삭제
-    const { error: deleteError } = await supabase
-      .from("master_books")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (deleteError) {
-      throw new Error(`기존 데이터 삭제 실패: ${deleteError.message}`);
-    }
-
-    // 2. 새 데이터 삽입
+    // Excel 데이터 파싱 및 검증
     const booksData = sheets.master_books || [];
-    const booksToInsert: Array<{
+    const booksToUpsert: Array<{
       id?: string;
       title: string;
       tenant_id?: string | null;
@@ -253,7 +243,7 @@ export async function importMasterBooksFromExcel(
           bookData.id = validated.id;
         }
 
-        booksToInsert.push(bookData);
+        booksToUpsert.push(bookData);
       } catch (error) {
         errors.push(
           `교재 처리 실패 (${JSON.stringify(row)}): ${error instanceof Error ? error.message : "알 수 없는 오류"}`
@@ -261,16 +251,20 @@ export async function importMasterBooksFromExcel(
       }
     }
 
-    // 배치 삽입 (Supabase는 최대 1000개까지 한 번에 삽입 가능)
+    // 배치 Upsert (Supabase는 최대 1000개까지 한 번에 처리 가능)
+    // ID가 있으면 업데이트, 없으면 신규 생성
     const batchSize = 1000;
-    for (let i = 0; i < booksToInsert.length; i += batchSize) {
-      const batch = booksToInsert.slice(i, i + batchSize);
-      const { error: insertError } = await supabase
+    for (let i = 0; i < booksToUpsert.length; i += batchSize) {
+      const batch = booksToUpsert.slice(i, i + batchSize);
+      const { error: upsertError } = await supabase
         .from("master_books")
-        .insert(batch);
+        .upsert(batch, {
+          onConflict: "id", // id 컬럼을 기준으로 충돌 처리
+          ignoreDuplicates: false, // 중복 시 업데이트
+        });
 
-      if (insertError) {
-        throw new Error(`데이터 삽입 실패: ${insertError.message}`);
+      if (upsertError) {
+        throw new Error(`데이터 Upsert 실패: ${upsertError.message}`);
       }
     }
 
@@ -286,7 +280,7 @@ export async function importMasterBooksFromExcel(
 
     return {
       success: true,
-      message: `데이터를 성공적으로 가져왔습니다. (${booksToInsert.length}개 교재)`,
+      message: `데이터를 성공적으로 가져왔습니다. (${booksToUpsert.length}개 교재)`,
     };
   } catch (error) {
     return {

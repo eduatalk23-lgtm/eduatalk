@@ -73,19 +73,9 @@ export async function importMasterLecturesFromExcel(
   const errors: string[] = [];
 
   try {
-    // 1. 기존 데이터 삭제
-    const { error: deleteError } = await supabase
-      .from("master_lectures")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-
-    if (deleteError) {
-      throw new Error(`기존 데이터 삭제 실패: ${deleteError.message}`);
-    }
-
-    // 2. 새 데이터 삽입
+    // Excel 데이터 파싱 및 검증
     const lecturesData = sheets.master_lectures || [];
-    const lecturesToInsert: Array<{
+    const lecturesToUpsert: Array<{
       id?: string;
       title: string;
       tenant_id?: string | null;
@@ -152,7 +142,7 @@ export async function importMasterLecturesFromExcel(
           lectureData.id = validated.id;
         }
 
-        lecturesToInsert.push(lectureData);
+        lecturesToUpsert.push(lectureData);
       } catch (error) {
         errors.push(
           `강의 처리 실패 (${JSON.stringify(row)}): ${error instanceof Error ? error.message : "알 수 없는 오류"}`
@@ -160,16 +150,20 @@ export async function importMasterLecturesFromExcel(
       }
     }
 
-    // 배치 삽입 (Supabase는 최대 1000개까지 한 번에 삽입 가능)
+    // 배치 Upsert (Supabase는 최대 1000개까지 한 번에 처리 가능)
+    // ID가 있으면 업데이트, 없으면 신규 생성
     const batchSize = 1000;
-    for (let i = 0; i < lecturesToInsert.length; i += batchSize) {
-      const batch = lecturesToInsert.slice(i, i + batchSize);
-      const { error: insertError } = await supabase
+    for (let i = 0; i < lecturesToUpsert.length; i += batchSize) {
+      const batch = lecturesToUpsert.slice(i, i + batchSize);
+      const { error: upsertError } = await supabase
         .from("master_lectures")
-        .insert(batch);
+        .upsert(batch, {
+          onConflict: "id", // id 컬럼을 기준으로 충돌 처리
+          ignoreDuplicates: false, // 중복 시 업데이트
+        });
 
-      if (insertError) {
-        throw new Error(`데이터 삽입 실패: ${insertError.message}`);
+      if (upsertError) {
+        throw new Error(`데이터 Upsert 실패: ${upsertError.message}`);
       }
     }
 
@@ -185,7 +179,7 @@ export async function importMasterLecturesFromExcel(
 
     return {
       success: true,
-      message: `데이터를 성공적으로 가져왔습니다. (${lecturesToInsert.length}개 강의)`,
+      message: `데이터를 성공적으로 가져왔습니다. (${lecturesToUpsert.length}개 강의)`,
     };
   } catch (error) {
     return {

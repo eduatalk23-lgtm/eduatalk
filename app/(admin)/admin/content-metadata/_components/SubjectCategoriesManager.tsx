@@ -8,6 +8,7 @@ import {
   getCurriculumRevisionsAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
 import { getSubjectGroupsAction } from "@/app/(admin)/actions/subjectActions";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
 import { cn } from "@/lib/cn";
 import {
@@ -26,6 +27,7 @@ import {
 } from "@/lib/utils/darkMode";
 
 export function SubjectCategoriesManager() {
+  const toast = useToast();
   const [items, setItems] = useState<SubjectCategory[]>([]);
   const [revisions, setRevisions] = useState<CurriculumRevision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export function SubjectCategoriesManager() {
       setItems(categories);
     } catch (error) {
       console.error("교과 조회 실패:", error);
-      alert("교과를 불러오는데 실패했습니다.");
+      toast.showError("교과를 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -83,11 +85,11 @@ export function SubjectCategoriesManager() {
 
   async function handleCreate() {
     if (!formData.name.trim()) {
-      alert("이름을 입력해주세요.");
+      toast.showError("이름을 입력해주세요.");
       return;
     }
     if (!selectedRevisionId) {
-      alert("개정교육과정을 선택해주세요.");
+      toast.showError("개정교육과정을 선택해주세요.");
       return;
     }
 
@@ -95,16 +97,17 @@ export function SubjectCategoriesManager() {
       await createSubjectCategoryAction(selectedRevisionId, formData.name, formData.display_order);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
+      toast.showSuccess("교과가 생성되었습니다.");
       loadItems();
     } catch (error) {
       console.error("교과 생성 실패:", error);
-      alert(error instanceof Error ? error.message : "생성에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "생성에 실패했습니다.");
     }
   }
 
   async function handleUpdate(id: string) {
     if (!formData.name.trim()) {
-      alert("이름을 입력해주세요.");
+      toast.showError("이름을 입력해주세요.");
       return;
     }
 
@@ -115,10 +118,11 @@ export function SubjectCategoriesManager() {
       });
       setEditingId(null);
       setFormData({ name: "", display_order: 0 });
+      toast.showSuccess("교과가 수정되었습니다.");
       loadItems();
     } catch (error) {
       console.error("교과 수정 실패:", error);
-      alert(error instanceof Error ? error.message : "수정에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "수정에 실패했습니다.");
     }
   }
 
@@ -127,10 +131,11 @@ export function SubjectCategoriesManager() {
 
     try {
       await deleteSubjectCategoryAction(id);
+      toast.showSuccess("교과가 삭제되었습니다.");
       loadItems();
     } catch (error) {
       console.error("교과 삭제 실패:", error);
-      alert(error instanceof Error ? error.message : "삭제에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     }
   }
 

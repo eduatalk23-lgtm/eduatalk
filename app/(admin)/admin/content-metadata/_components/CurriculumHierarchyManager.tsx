@@ -13,6 +13,7 @@ import {
   updateSubjectGroup,
   deleteSubjectGroup,
   getSubjectsByGroupAction,
+  getSubjectsByRevisionAction,
   createSubject,
   updateSubject,
   deleteSubject,
@@ -99,31 +100,35 @@ export function CurriculumHierarchyManager() {
 
     setLoading(true);
     try {
-      const [groups, types] = await Promise.all([
+      // 병렬로 교과, 과목구분, 모든 과목을 한 번에 조회 (N+1 문제 해결)
+      const [groups, types, allSubjects] = await Promise.all([
         getSubjectGroupsAction(selectedRevisionId),
         getSubjectTypesAction(selectedRevisionId),
+        getSubjectsByRevisionAction(selectedRevisionId),
       ]);
 
       console.log("[CurriculumHierarchyManager] 교과 조회 결과:", groups);
       console.log("[CurriculumHierarchyManager] 과목구분 조회 결과:", types);
+      console.log("[CurriculumHierarchyManager] 전체 과목 조회 결과:", allSubjects);
 
       setSubjectGroups(groups || []);
       setSubjectTypes(types || []);
 
-      // 각 교과별 과목 조회 (병렬 처리)
-      const subjectsPromises = groups.map(async (group) => {
-        try {
-          const subjects = await getSubjectsByGroupAction(group.id);
-          console.log(`[CurriculumHierarchyManager] 교과 "${group.name}"의 과목 조회 결과:`, subjects);
-          return [group.id, subjects] as [string, Subject[]];
-        } catch (error) {
-          console.error(`[CurriculumHierarchyManager] 교과 "${group.name}"의 과목 조회 실패:`, error);
-          return [group.id, []] as [string, Subject[]];
+      // 클라이언트 측에서 groupId별로 과목 분류
+      const newSubjectsMap = new Map<string, Subject[]>();
+      (allSubjects || []).forEach((subject) => {
+        const groupId = subject.subject_group_id;
+        if (!newSubjectsMap.has(groupId)) {
+          newSubjectsMap.set(groupId, []);
         }
+        newSubjectsMap.get(groupId)!.push(subject);
       });
 
-      const subjectsResults = await Promise.all(subjectsPromises);
-      const newSubjectsMap = new Map(subjectsResults);
+      // 각 그룹별로 정렬
+      newSubjectsMap.forEach((subjects, groupId) => {
+        subjects.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+      });
+
       setSubjectsMap(newSubjectsMap);
     } catch (error) {
       console.error("계층 데이터 조회 실패:", error);

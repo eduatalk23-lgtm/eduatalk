@@ -132,6 +132,63 @@ export async function getSubjectsByGroup(
 }
 
 /**
+ * 개정교육과정 ID로 모든 과목을 한 번에 조회 (성능 최적화)
+ * @param curriculumRevisionId 개정교육과정 ID (필수)
+ * @returns 과목 목록 (subject_group_id 포함)
+ */
+export async function getSubjectsByRevision(
+  curriculumRevisionId: string
+): Promise<Subject[]> {
+  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+
+  // 1. 먼저 해당 개정교육과정의 교과 그룹 ID 목록 조회
+  const { data: groups, error: groupsError } = await supabase
+    .from("subject_groups")
+    .select("id")
+    .eq("curriculum_revision_id", curriculumRevisionId);
+
+  if (groupsError) {
+    console.error("[data/subjects] 교과 그룹 조회 실패", groupsError);
+    return [];
+  }
+
+  if (!groups || groups.length === 0) {
+    return [];
+  }
+
+  const groupIds = groups.map((g) => g.id);
+
+  // 2. 해당 교과 그룹에 속한 모든 과목 조회 (JOIN 사용)
+  const { data, error } = await supabase
+    .from("subjects")
+    .select(`
+      *,
+      subject_types:subject_type_id (
+        id,
+        name
+      )
+    `)
+    .in("subject_group_id", groupIds)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[data/subjects] 개정교육과정별 과목 조회 실패", error);
+    return [];
+  }
+
+  // JOIN 결과를 평탄화
+  type SubjectWithJoin = Subject & {
+    subject_types?: { name: string } | null;
+  };
+  return ((data as SubjectWithJoin[]) ?? []).map((subject) => ({
+    ...subject,
+    subject_type: subject.subject_types?.name || null,
+  })) as Subject[];
+}
+
+/**
  * 교과 그룹 이름으로 과목 목록 조회 (전역 관리)
  * @param subjectGroupName 교과 그룹 이름
  * @param curriculumRevisionId 개정교육과정 ID (선택사항, 없으면 첫 번째로 찾은 교과 그룹 사용)

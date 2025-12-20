@@ -8,10 +8,12 @@ import {
   deleteSubjectType,
 } from "@/app/(admin)/actions/subjectActions";
 import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { SubjectType } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 export function SubjectTypesManager() {
+  const toast = useToast();
   const [items, setItems] = useState<SubjectType[]>([]);
   const [revisions, setRevisions] = useState<CurriculumRevision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,13 +24,14 @@ export function SubjectTypesManager() {
 
   useEffect(() => {
     loadRevisions();
-    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedRevisionId) {
       loadItems();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRevisionId]);
 
   async function loadRevisions() {
@@ -43,6 +46,7 @@ export function SubjectTypesManager() {
       }
     } catch (error) {
       console.error("개정교육과정 조회 실패:", error);
+      toast.showError("개정교육과정을 불러오는데 실패했습니다.");
     }
   }
 
@@ -53,7 +57,7 @@ export function SubjectTypesManager() {
       setItems(data);
     } catch (error) {
       console.error("과목구분 조회 실패:", error);
-      alert("과목구분을 불러오는데 실패했습니다.");
+      toast.showError("과목구분을 불러오는데 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -61,11 +65,11 @@ export function SubjectTypesManager() {
 
   async function handleCreate() {
     if (!formData.name.trim()) {
-      alert("이름을 입력해주세요.");
+      toast.showError("이름을 입력해주세요.");
       return;
     }
     if (!selectedRevisionId) {
-      alert("개정교육과정을 선택해주세요.");
+      toast.showError("개정교육과정을 선택해주세요.");
       return;
     }
 
@@ -79,16 +83,17 @@ export function SubjectTypesManager() {
       await createSubjectType(formDataObj);
       setFormData({ name: "", display_order: 0, is_active: true });
       setIsCreating(false);
+      toast.showSuccess("과목구분이 생성되었습니다.");
       loadItems();
     } catch (error) {
       console.error("과목구분 생성 실패:", error);
-      alert(error instanceof Error ? error.message : "생성에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "생성에 실패했습니다.");
     }
   }
 
   async function handleUpdate(id: string) {
     if (!formData.name.trim()) {
-      alert("이름을 입력해주세요.");
+      toast.showError("이름을 입력해주세요.");
       return;
     }
 
@@ -102,10 +107,11 @@ export function SubjectTypesManager() {
       await updateSubjectType(id, formDataObj);
       setEditingId(null);
       setFormData({ name: "", display_order: 0, is_active: true });
+      toast.showSuccess("과목구분이 수정되었습니다.");
       loadItems();
     } catch (error) {
       console.error("과목구분 수정 실패:", error);
-      alert(error instanceof Error ? error.message : "수정에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "수정에 실패했습니다.");
     }
   }
 
@@ -114,10 +120,11 @@ export function SubjectTypesManager() {
 
     try {
       await deleteSubjectType(id);
+      toast.showSuccess("과목구분이 삭제되었습니다.");
       loadItems();
     } catch (error) {
       console.error("과목구분 삭제 실패:", error);
-      alert(error instanceof Error ? error.message : "삭제에 실패했습니다.");
+      toast.showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     }
   }
 

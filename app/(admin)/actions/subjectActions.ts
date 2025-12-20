@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSubjectGroups, getSubjectsByGroup, getSubjectTypes, getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
+import { getSubjectGroups, getSubjectsByGroup, getSubjectsByRevision, getSubjectTypes, getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 
 // 교과 그룹 목록 조회 (전역 관리)
@@ -41,6 +41,18 @@ export async function getSubjectsByGroupAction(
   }
 
   return getSubjectsByGroup(subjectGroupId);
+}
+
+// 개정교육과정 ID로 모든 과목을 한 번에 조회 (성능 최적화)
+export async function getSubjectsByRevisionAction(
+  curriculumRevisionId: string
+): Promise<Subject[]> {
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
+    throw new Error("관리자 권한이 필요합니다.");
+  }
+
+  return getSubjectsByRevision(curriculumRevisionId);
 }
 
 // 과목구분 목록 조회 (개정교육과정별)
