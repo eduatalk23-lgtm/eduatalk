@@ -123,10 +123,61 @@ run_phase5() {
     log_success "Phase 5 완료: repomix-phase5-data-fetching.xml"
 }
 
+# Phase 6 분할: 나머지 영역 및 공통 분석 (규모가 커서 6개로 분할)
+run_phase6_1() {
+    log_info "Phase 6-1: 인증 및 공통 페이지 분석 시작..."
+    npx repomix app/login app/signup -o repomix-phase6-1-auth-pages.xml
+    log_success "Phase 6-1 완료: repomix-phase6-1-auth-pages.xml"
+}
+
+run_phase6_2() {
+    log_info "Phase 6-2: 부모 모듈 분석 시작..."
+    npx repomix "app/(parent)" -o repomix-phase6-2-parent.xml
+    log_success "Phase 6-2 완료: repomix-phase6-2-parent.xml"
+}
+
+run_phase6_3() {
+    log_info "Phase 6-3: 슈퍼 관리자 모듈 분석 시작..."
+    npx repomix "app/(superadmin)" -o repomix-phase6-3-superadmin.xml
+    log_success "Phase 6-3 완료: repomix-phase6-3-superadmin.xml"
+}
+
+run_phase6_4() {
+    log_info "Phase 6-4: Server Actions 분석 시작..."
+    npx repomix app/actions -o repomix-phase6-4-server-actions.xml
+    log_success "Phase 6-4 완료: repomix-phase6-4-server-actions.xml"
+}
+
+run_phase6_5() {
+    log_info "Phase 6-5: 공통 컴포넌트 분석 시작..."
+    npx repomix components/navigation components/layout -o repomix-phase6-5-common-components.xml
+    log_success "Phase 6-5 완료: repomix-phase6-5-common-components.xml"
+}
+
+run_phase6_6() {
+    log_info "Phase 6-6: 비즈니스 로직 라이브러리 분석 시작..."
+    npx repomix lib/domains lib/coaching lib/risk lib/reschedule -o repomix-phase6-6-business-logic.xml
+    log_success "Phase 6-6 완료: repomix-phase6-6-business-logic.xml"
+}
+
+# 하위 호환성을 위한 기존 함수 (deprecated)
 run_phase6() {
-    log_info "Phase 6: 나머지 영역 및 공통 분석 시작..."
-    npx repomix "app/(parent)" "app/(superadmin)" app/login app/signup app/actions app/api components/navigation components/layout lib/domains lib/coaching lib/risk lib/reschedule -o repomix-phase6-others.xml
-    log_success "Phase 6 완료: repomix-phase6-others.xml"
+    log_warning "Phase 6은 더 이상 사용되지 않습니다. 6-1, 6-2, 6-3, 6-4, 6-5, 6-6을 사용하세요."
+    log_info "Phase 6 전체 실행을 시작합니다..."
+    echo ""
+    run_phase6_1
+    echo ""
+    run_phase6_2
+    echo ""
+    run_phase6_3
+    echo ""
+    run_phase6_4
+    echo ""
+    run_phase6_5
+    echo ""
+    run_phase6_6
+    echo ""
+    log_success "Phase 6 전체 분석이 완료되었습니다!"
 }
 
 # 메인 함수
@@ -157,10 +208,16 @@ main() {
         echo "  4-3-2 - 관리자 출석 및 SMS (attendance, sms)"
         echo "  4-3-3 - 관리자 교과목 및 기타 (subjects, time-management, consulting)"
         echo "  5 - 데이터 페칭 및 API (lib/api, lib/data, app/api, lib/hooks)"
-        echo "  6 - 나머지 (parent, superadmin, actions, api, 기타)"
+        echo "  6-1 - 인증 및 공통 페이지 (login, signup)"
+        echo "  6-2 - 부모 모듈 (app/(parent))"
+        echo "  6-3 - 슈퍼 관리자 모듈 (app/(superadmin))"
+        echo "  6-4 - Server Actions (app/actions)"
+        echo "  6-5 - 공통 컴포넌트 (components/navigation, components/layout)"
+        echo "  6-6 - 비즈니스 로직 라이브러리 (lib/domains, lib/coaching, lib/risk, lib/reschedule)"
         echo "  3 - Phase 3 전체 (3-1, 3-2, 3-3)"
         echo "  4 - Phase 4 전체 (4-1, 4-2, 4-3-1, 4-3-2, 4-3-3)"
         echo "  4-3 - Phase 4-3 전체 (4-3-1, 4-3-2, 4-3-3) - deprecated"
+        echo "  6 - Phase 6 전체 (6-1, 6-2, 6-3, 6-4, 6-5, 6-6) - deprecated"
         echo "  all - 모든 Phase 실행"
         echo ""
         exit 1
@@ -232,6 +289,24 @@ main() {
         5)
             run_phase5
             ;;
+        6-1)
+            run_phase6_1
+            ;;
+        6-2)
+            run_phase6_2
+            ;;
+        6-3)
+            run_phase6_3
+            ;;
+        6-4)
+            run_phase6_4
+            ;;
+        6-5)
+            run_phase6_5
+            ;;
+        6-6)
+            run_phase6_6
+            ;;
         6)
             run_phase6
             ;;
@@ -263,13 +338,24 @@ main() {
             echo ""
             run_phase5
             echo ""
-            run_phase6
+            log_info "Phase 6 분할 실행 시작..."
+            run_phase6_1
+            echo ""
+            run_phase6_2
+            echo ""
+            run_phase6_3
+            echo ""
+            run_phase6_4
+            echo ""
+            run_phase6_5
+            echo ""
+            run_phase6_6
             echo ""
             log_success "모든 Phase 분석이 완료되었습니다!"
             ;;
         *)
             log_error "잘못된 Phase 번호입니다: $PHASE"
-            echo "사용 가능한 값: 1, 2, 3-1, 3-2, 3-3, 3, 4-1, 4-2, 4-3-1, 4-3-2, 4-3-3, 4-3, 4, 5, 6, all"
+            echo "사용 가능한 값: 1, 2, 3-1, 3-2, 3-3, 3, 4-1, 4-2, 4-3-1, 4-3-2, 4-3-3, 4-3, 4, 5, 6-1, 6-2, 6-3, 6-4, 6-5, 6-6, 6, all"
             exit 1
             ;;
     esac
