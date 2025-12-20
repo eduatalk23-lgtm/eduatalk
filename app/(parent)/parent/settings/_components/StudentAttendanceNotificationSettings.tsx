@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { updateStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
 import { cn } from "@/lib/cn";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type StudentAttendanceNotificationSettingsProps = {
   studentId: string;
@@ -50,10 +51,10 @@ export function StudentAttendanceNotificationSettings({
         settings
       );
 
-      if (result.success) {
+      if (isSuccessResponse(result)) {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
-      } else {
+      } else if (isErrorResponse(result)) {
         setError(result.error || "저장에 실패했습니다.");
       }
     } catch (err: any) {

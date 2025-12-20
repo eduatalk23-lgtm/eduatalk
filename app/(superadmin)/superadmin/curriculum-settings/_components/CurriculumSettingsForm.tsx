@@ -6,6 +6,7 @@ import {
   updateCurriculumSettings,
   type CurriculumSettingsData,
 } from "@/app/(superadmin)/actions/curriculumSettingsActions";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 export function CurriculumSettingsForm() {
   const [settings, setSettings] = useState<CurriculumSettingsData>({
@@ -26,9 +27,9 @@ export function CurriculumSettingsForm() {
       setError(null);
       try {
         const result = await getCurriculumSettings();
-        if (result.success && result.data) {
+        if (isSuccessResponse(result) && result.data) {
           setSettings(result.data);
-        } else {
+        } else if (isErrorResponse(result)) {
           setError(result.error || "설정을 불러오는데 실패했습니다.");
         }
       } catch (err) {
@@ -48,22 +49,22 @@ export function CurriculumSettingsForm() {
     setError(null);
     setSuccess(false);
 
-    try {
-      const formData = new FormData(e.currentTarget);
-      const result = await updateCurriculumSettings(formData);
+      try {
+        const formData = new FormData(e.currentTarget);
+        const result = await updateCurriculumSettings(formData);
 
-      if (result.success) {
-        setSuccess(true);
-        // 성공 메시지 3초 후 자동 제거
-        setTimeout(() => setSuccess(false), 3000);
-      } else {
-        setError(result.error || "설정 저장에 실패했습니다.");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "설정 저장에 실패했습니다."
-      );
-    } finally {
+        if (isSuccessResponse(result)) {
+          setSuccess(true);
+          // 성공 메시지 3초 후 자동 제거
+          setTimeout(() => setSuccess(false), 3000);
+        } else if (isErrorResponse(result)) {
+          setError(result.error || "설정 저장에 실패했습니다.");
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "설정 저장에 실패했습니다."
+        );
+      } finally {
       setIsSaving(false);
     }
   };

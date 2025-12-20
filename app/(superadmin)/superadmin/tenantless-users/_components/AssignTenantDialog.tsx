@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { assignTenantToUser, assignTenantToMultipleUsers, getActiveTenants, type TenantlessUser } from "@/app/(superadmin)/actions/tenantlessUserActions";
 import { Dialog } from "@/components/ui/Dialog";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type AssignTenantDialogProps = {
   open: boolean;
@@ -90,15 +91,15 @@ export function AssignTenantDialog({
           return;
         }
 
-        if (result.success) {
+        if (isSuccessResponse(result)) {
           onComplete();
           onOpenChange(false);
           alert(
             userId
               ? "테넌트가 할당되었습니다."
-              : `${(result as { assignedCount?: number }).assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`
+              : `${result.data?.assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`
           );
-        } else {
+        } else if (isErrorResponse(result)) {
           setError(result.error || "테넌트 할당에 실패했습니다.");
         }
       } catch (err) {

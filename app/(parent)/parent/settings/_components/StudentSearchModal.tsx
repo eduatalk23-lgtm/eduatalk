@@ -10,6 +10,7 @@ import {
   type SearchableStudent,
   type ParentRelation,
 } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type StudentSearchModalProps = {
   isOpen: boolean;
@@ -44,9 +45,9 @@ export function StudentSearchModal({
       setIsSearching(true);
       const result = await searchStudentsForLink(query.trim(), parentId);
 
-      if (result.success && result.data) {
+      if (isSuccessResponse(result) && result.data) {
         setSearchResults(result.data);
-      } else {
+      } else if (isErrorResponse(result)) {
         setSearchResults([]);
         if (result.error) {
           showError(result.error);
@@ -94,11 +95,11 @@ export function StudentSearchModal({
     startTransition(async () => {
       const result = await createLinkRequest(studentId, parentId, selectedRelation);
 
-      if (result.success) {
+      if (isSuccessResponse(result)) {
         showSuccess("연결 요청이 생성되었습니다.");
         onSuccess?.();
         onClose();
-      } else {
+      } else if (isErrorResponse(result)) {
         showError(result.error || "연결 요청 생성에 실패했습니다.");
       }
     });

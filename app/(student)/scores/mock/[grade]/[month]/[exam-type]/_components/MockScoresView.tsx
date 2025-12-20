@@ -9,6 +9,7 @@ import { MockScoreFormModal } from "./MockScoreFormModal";
 import { Dialog } from "@/components/ui/Dialog";
 import { deleteMockScoreAction } from "@/app/(student)/actions/scoreActions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type MockScoresViewProps = {
   initialGrade?: number;
@@ -54,15 +55,15 @@ export function MockScoresView({
     if (!deletingScoreId) return;
 
     startTransition(async () => {
-      try {
-        await deleteMockScoreAction(deletingScoreId);
+      const result = await deleteMockScoreAction(deletingScoreId);
+      
+      if (isSuccessResponse(result)) {
         showSuccess("성적이 성공적으로 삭제되었습니다.");
         setDeleteConfirmOpen(false);
         setDeletingScoreId(null);
         router.refresh();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "삭제에 실패했습니다.";
-        showError(errorMessage);
+      } else if (isErrorResponse(result)) {
+        showError(result.error || "삭제에 실패했습니다.");
       }
     });
   };
