@@ -557,3 +557,213 @@ export async function deleteMockScore(
   // error가 없으면 성공으로 간주
   return { success: true };
 }
+
+/**
+ * 내신 성적 일괄 생성
+ * 
+ * @param scores - 내신 성적 배열
+ * @param commonFields - 공통 필드 (tenant_id, student_id, curriculum_revision_id, school_year)
+ * @returns 생성 결과
+ */
+export async function createInternalScoresBatch(
+  scores: Array<{
+    subject_group_id: string;
+    subject_id: string;
+    subject_type_id: string;
+    grade: number;
+    semester: number;
+    credit_hours: number;
+    rank_grade: number;
+    raw_score?: number | null;
+    avg_score?: number | null;
+    std_dev?: number | null;
+    total_students?: number | null;
+  }>,
+  commonFields: {
+    tenant_id: string;
+    student_id: string;
+    curriculum_revision_id: string;
+    school_year?: number;
+  }
+): Promise<{ success: boolean; scores?: InternalScore[]; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  if (scores.length === 0) {
+    return {
+      success: false,
+      error: "성적 데이터가 없습니다.",
+    };
+  }
+
+  const school_year = commonFields.school_year ?? calculateSchoolYear();
+
+  // 각 성적별로 student_term_id 조회/생성 및 저장
+  const insertedScores: InternalScoreInsert[] = [];
+
+  for (const score of scores) {
+    // student_term_id 조회/생성
+    let student_term_id: string;
+    try {
+      student_term_id = await getOrCreateStudentTerm({
+        tenant_id: commonFields.tenant_id,
+        student_id: commonFields.student_id,
+        school_year,
+        grade: score.grade,
+        semester: score.semester,
+        curriculum_revision_id: commonFields.curriculum_revision_id,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "student_term 조회/생성 실패";
+      handleQueryError(error as unknown, {
+        context: "[data/studentScores] createInternalScoresBatch - student_term",
+      });
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    insertedScores.push({
+      tenant_id: commonFields.tenant_id,
+      student_id: commonFields.student_id,
+      student_term_id,
+      curriculum_revision_id: commonFields.curriculum_revision_id,
+      subject_group_id: score.subject_group_id,
+      subject_type_id: score.subject_type_id,
+      subject_id: score.subject_id,
+      grade: score.grade,
+      semester: score.semester,
+      credit_hours: score.credit_hours,
+      rank_grade: score.rank_grade,
+      raw_score: score.raw_score ?? null,
+      avg_score: score.avg_score ?? null,
+      std_dev: score.std_dev ?? null,
+      total_students: score.total_students ?? null,
+    });
+  }
+
+  // 일괄 삽입
+  const result = await createTypedQuery<InternalScore[]>(
+    async () => {
+      return await supabase
+        .from("student_internal_scores")
+        .insert(insertedScores)
+        .select();
+    },
+    {
+      context: "[data/studentScores] createInternalScoresBatch",
+      defaultValue: [],
+    }
+  );
+
+  if (!result || result.length === 0) {
+    return {
+      success: false,
+      error: "내신 성적 등록에 실패했습니다.",
+    };
+  }
+
+  return { success: true, scores: result };
+}
+
+/**
+ * 모의고사 성적 일괄 생성
+ * 
+ * @param scores - 모의고사 성적 배열
+ * @param commonFields - 공통 필드 (tenant_id, student_id, curriculum_revision_id)
+ * @returns 생성 결과
+ */
+export async function createMockScoresBatch(
+  scores: Array<{
+    exam_date: string;
+    exam_title: string;
+    grade: number;
+    subject_id: string;
+    subject_group_id: string;
+    grade_score: number;
+    standard_score?: number | null;
+    percentile?: number | null;
+    raw_score?: number | null;
+  }>,
+  commonFields: {
+    tenant_id: string;
+    student_id: string;
+    curriculum_revision_id: string;
+  }
+): Promise<{ success: boolean; scores?: MockScore[]; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  if (scores.length === 0) {
+    return {
+      success: false,
+      error: "성적 데이터가 없습니다.",
+    };
+  }
+
+  // 각 성적별로 student_term_id 조회 및 저장
+  const insertedScores: MockScoreInsert[] = [];
+
+  for (const score of scores) {
+    // 시험일로부터 학년도 계산
+    const examDate = new Date(score.exam_date);
+    const school_year = calculateSchoolYear(examDate);
+
+    // student_term_id 조회 (모의고사는 학기 정보가 없을 수 있으므로 nullable)
+    let student_term_id: string | null = null;
+    try {
+      const { getStudentTerm } = await import("@/lib/data/studentTerms");
+      const term = await getStudentTerm({
+        tenant_id: commonFields.tenant_id,
+        student_id: commonFields.student_id,
+        school_year,
+        grade: score.grade,
+        semester: 1, // 기본값으로 1학기
+      });
+      if (term) {
+        student_term_id = term.id;
+      }
+    } catch (error) {
+      // 모의고사 성적의 경우 student_term_id가 없어도 저장 가능
+      // 에러는 무시하고 계속 진행
+    }
+
+    insertedScores.push({
+      tenant_id: commonFields.tenant_id,
+      student_id: commonFields.student_id,
+      student_term_id,
+      exam_date: score.exam_date,
+      exam_title: score.exam_title,
+      grade: score.grade,
+      subject_id: score.subject_id,
+      subject_group_id: score.subject_group_id,
+      grade_score: score.grade_score,
+      standard_score: score.standard_score ?? null,
+      percentile: score.percentile ?? null,
+      raw_score: score.raw_score ?? null,
+    });
+  }
+
+  // 일괄 삽입
+  const result = await createTypedQuery<MockScore[]>(
+    async () => {
+      return await supabase
+        .from("student_mock_scores")
+        .insert(insertedScores)
+        .select();
+    },
+    {
+      context: "[data/studentScores] createMockScoresBatch",
+      defaultValue: [],
+    }
+  );
+
+  if (!result || result.length === 0) {
+    return {
+      success: false,
+      error: "모의고사 성적 등록에 실패했습니다.",
+    };
+  }
+
+  return { success: true, scores: result };
+}
