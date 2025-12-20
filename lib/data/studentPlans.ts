@@ -310,163 +310,50 @@ export async function getPlansForStudent(
   );
 
   // 에러가 발생한 경우는 safeQueryArray가 이미 처리했으므로, 여기서는 서버 에러 재시도 로직만 처리
+  // data가 비어있고 planGroupIds가 있는 경우에만 추가 처리
   if (data.length === 0 && (filters.planGroupIds?.length ?? 0) > 0) {
-    // 서버 에러 재시도 로직은 기존 코드 유지 (복잡한 비즈니스 로직)
-    const supabaseError = { code: "500" } as PostgrestError;
-    const isServerError = supabaseError?.code === "500";
+    // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
+    console.warn(
+      "[data/studentPlans] planGroupIds 필터링 결과가 비어있음, 전체 조회로 폴백"
+    );
 
-  if (error) {
-    const supabaseError = error as PostgrestError;
-    const errorMessage = supabaseError?.message || String(error);
-
-    // HTML 응답이 반환된 경우 (500 에러 등) 감지
-    const isHtmlError =
-      typeof errorMessage === "string" &&
-      errorMessage.includes("<!DOCTYPE html>");
-    const isServerError =
-      isHtmlError ||
-      supabaseError?.code === "500";
-
-    // 서버 에러인 경우 재시도 로직
-    if (isServerError) {
-      console.warn("[data/studentPlans] 서버 에러 발생, 재시도 중...", {
-        errorCode: supabaseError?.code,
-        isHtmlError,
-      });
-
-      // 최대 2번 재시도 (총 3번 시도)
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          // 재시도 전 대기 (지수 백오프: 1초, 2초)
-          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-
-          // 간단한 쿼리로 재시도
-          const retryQuery = supabase
-            .from("student_plan")
-            .select("*")
-            .eq("student_id", filters.studentId)
-            .limit(1000); // 제한을 두어 복잡한 쿼리 방지
-
-          if (filters.tenantId) {
-            retryQuery.eq("tenant_id", filters.tenantId);
-          }
-
-          if (filters.planDate) {
-            const planDateStr =
-              typeof filters.planDate === "string"
-                ? filters.planDate.slice(0, 10)
-                : String(filters.planDate).slice(0, 10);
-            retryQuery.eq("plan_date", planDateStr);
-          } else if (filters.dateRange) {
-            const startStr =
+    // planGroupIds 없이 다시 시도
+    const fallbackFilters: PlanFilters = {
+      studentId: filters.studentId,
+      tenantId: filters.tenantId,
+      planDate: filters.planDate
+        ? typeof filters.planDate === "string"
+          ? filters.planDate.slice(0, 10)
+          : String(filters.planDate).slice(0, 10)
+        : undefined,
+      dateRange: filters.dateRange
+        ? {
+            start:
               typeof filters.dateRange.start === "string"
                 ? filters.dateRange.start.slice(0, 10)
-                : String(filters.dateRange.start).slice(0, 10);
-            const endStr =
+                : String(filters.dateRange.start).slice(0, 10),
+            end:
               typeof filters.dateRange.end === "string"
                 ? filters.dateRange.end.slice(0, 10)
-                : String(filters.dateRange.end).slice(0, 10);
-            retryQuery.gte("plan_date", startStr).lte("plan_date", endStr);
+                : String(filters.dateRange.end).slice(0, 10),
           }
+        : undefined,
+      contentType: filters.contentType,
+      // planGroupIds는 제외
+    };
 
-          const { data: retryData, error: retryError } = await retryQuery
-            .order("plan_date", { ascending: true })
-            .order("block_index", { ascending: true });
-
-          if (!retryError && retryData) {
-            // 애플리케이션 레벨에서 추가 필터링
-            let filtered = retryData as Plan[];
-
-            if (filters.contentType) {
-              filtered = filtered.filter(
-                (plan) => plan.content_type === filters.contentType
-              );
-            }
-
-            if (filters.planGroupIds && filters.planGroupIds.length > 0) {
-              const activeGroupIdsSet = new Set(filters.planGroupIds);
-              filtered = filtered.filter(
-                (plan) =>
-                  plan.plan_group_id &&
-                  activeGroupIdsSet.has(plan.plan_group_id)
-              );
-            }
-
-            return filtered;
-          }
-        } catch (retryError) {
-          console.warn(
-            `[data/studentPlans] 재시도 ${attempt}번째 실패:`,
-            retryError
-          );
-        }
-      }
-
-      console.error("[data/studentPlans] 모든 재시도 실패, 빈 배열 반환");
-      return [];
-    }
-
-    // 일반 에러 처리
-    console.error("[data/studentPlans] 플랜 조회 실패", {
-      errorCode: supabaseError?.code,
-      errorMessage: isHtmlError
-        ? "서버 에러 (HTML 응답)"
-        : errorMessage.substring(0, 200),
-      filters: {
-        studentId: filters.studentId,
-        dateRange: filters.dateRange,
-        planDate: filters.planDate,
-        contentType: filters.contentType,
-        planGroupIdsCount: filters.planGroupIds?.length || 0,
-      },
-    });
-
-    // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
-    if (filters.planGroupIds && filters.planGroupIds.length > 0) {
-      console.warn(
-        "[data/studentPlans] planGroupIds 필터링 실패, 전체 조회로 폴백"
+    try {
+      const fallbackData = await getPlansForStudent(fallbackFilters);
+      // 애플리케이션 레벨에서 필터링
+      const activeGroupIdsSet = new Set(filters.planGroupIds);
+      const filtered = fallbackData.filter(
+        (plan) =>
+          plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
       );
-
-      // planGroupIds 없이 다시 시도
-      const fallbackFilters: PlanFilters = {
-        studentId: filters.studentId,
-        tenantId: filters.tenantId,
-        planDate: filters.planDate
-          ? typeof filters.planDate === "string"
-            ? filters.planDate.slice(0, 10)
-            : String(filters.planDate).slice(0, 10)
-          : undefined,
-        dateRange: filters.dateRange
-          ? {
-              start:
-                typeof filters.dateRange.start === "string"
-                  ? filters.dateRange.start.slice(0, 10)
-                  : String(filters.dateRange.start).slice(0, 10),
-              end:
-                typeof filters.dateRange.end === "string"
-                  ? filters.dateRange.end.slice(0, 10)
-                  : String(filters.dateRange.end).slice(0, 10),
-            }
-          : undefined,
-        contentType: filters.contentType,
-        // planGroupIds는 제외
-      };
-
-      try {
-        const fallbackData = await getPlansForStudent(fallbackFilters);
-        // 애플리케이션 레벨에서 필터링
-        const activeGroupIdsSet = new Set(filters.planGroupIds);
-        const filtered = fallbackData.filter(
-          (plan) =>
-            plan.plan_group_id && activeGroupIdsSet.has(plan.plan_group_id)
-        );
-        return filtered;
-      } catch (fallbackError) {
-        console.error("[data/studentPlans] 폴백 조회도 실패:", fallbackError);
-      }
+      return filtered;
+    } catch (fallbackError) {
+      console.error("[data/studentPlans] 폴백 조회도 실패:", fallbackError);
     }
-
-    return [];
   }
 
   return ((data as Plan[] | null) ?? []).map((plan) => ({

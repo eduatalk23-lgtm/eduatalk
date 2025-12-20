@@ -7,6 +7,21 @@ export default defineConfig({
     globals: true,
     include: ['lib/**/*.test.ts', 'app/**/*.test.ts', '__tests__/**/*.test.ts'],
     exclude: ['node_modules', '.next'],
+    deps: {
+      // 특정 모듈을 실제로 로드하지 않고 모킹만 사용
+      inline: [
+        /^@\/lib\/data\/studentPlans/,
+        /^@\/lib\/data\/studentSessions/,
+        /^@\/lib\/data\/planGroups/,
+        /^@\/lib\/metrics\/studyTime/,
+        /^@\/lib\/utils\/planUtils/,
+        /^@\/lib\/utils\/dateUtils/,
+      ],
+    },
+    // esbuild 설정
+    esbuild: {
+      target: 'node18',
+    },
   },
   resolve: {
     alias: {

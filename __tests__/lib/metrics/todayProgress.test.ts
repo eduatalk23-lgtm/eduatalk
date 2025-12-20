@@ -1,81 +1,79 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock dependencies - __mocks__ 디렉토리 패턴 사용
+vi.mock("@/lib/data/studentPlans");
+vi.mock("@/lib/data/studentSessions");
+vi.mock("@/lib/data/planGroups");
+vi.mock("@/lib/metrics/studyTime");
+vi.mock("@/lib/utils/planUtils");
+vi.mock("@/lib/utils/dateUtils");
+
+// 이제 import 가능
 import { calculateTodayProgress } from "@/lib/metrics/todayProgress";
 import { TODAY_PROGRESS_CONSTANTS } from "@/lib/metrics/constants";
+import { getPlansForStudent } from "@/lib/data/studentPlans";
+import { getSessionsInRange } from "@/lib/data/studentSessions";
+import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
+import { calculatePlanStudySeconds, buildActiveSessionMap } from "@/lib/metrics/studyTime";
+import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
+import { getTodayInTimezone, getStartOfDayUTC, getEndOfDayUTC } from "@/lib/utils/dateUtils";
 
-// Mock dependencies - 동적 import로 모킹
-vi.mock("@/lib/data/studentPlans", async () => {
-  const actual = await vi.importActual("@/lib/data/studentPlans");
-  return {
-    ...actual,
-    getPlansForStudent: vi.fn(),
-  };
-});
-
-vi.mock("@/lib/data/studentSessions", async () => {
-  const actual = await vi.importActual("@/lib/data/studentSessions");
-  return {
-    ...actual,
-    getSessionsInRange: vi.fn(),
-  };
-});
-
-vi.mock("@/lib/data/planGroups", async () => {
-  const actual = await vi.importActual("@/lib/data/planGroups");
-  return {
-    ...actual,
-    getPlanGroupsForStudent: vi.fn(),
-  };
-});
-
-vi.mock("@/lib/metrics/studyTime", async () => {
-  const actual = await vi.importActual("@/lib/metrics/studyTime");
-  return {
-    ...actual,
-    calculatePlanStudySeconds: vi.fn(),
-    buildActiveSessionMap: vi.fn(),
-  };
-});
-
-vi.mock("@/lib/utils/planUtils", async () => {
-  return {
-    isCompletedPlan: vi.fn((plan: any) => {
-      // actual_end_time이 있으면 완료로 간주
-      return !!plan.actual_end_time;
-    }),
-    filterLearningPlans: vi.fn((plans: any[]) => {
-      // 더미 콘텐츠 제외 (content_id가 "dummy"로 시작하지 않는 것만)
-      return plans.filter((p) => !p.content_id?.startsWith("dummy"));
-    }),
-  };
-});
+// Mock 함수 참조
+const mockGetPlansForStudent = vi.mocked(getPlansForStudent);
+const mockGetSessionsInRange = vi.mocked(getSessionsInRange);
+const mockGetPlanGroupsForStudent = vi.mocked(getPlanGroupsForStudent);
+const mockCalculatePlanStudySeconds = vi.mocked(calculatePlanStudySeconds);
+const mockBuildActiveSessionMap = vi.mocked(buildActiveSessionMap);
+const mockIsCompletedPlan = vi.mocked(isCompletedPlan);
+const mockFilterLearningPlans = vi.mocked(filterLearningPlans);
+const mockGetTodayInTimezone = vi.mocked(getTodayInTimezone);
+const mockGetStartOfDayUTC = vi.mocked(getStartOfDayUTC);
+const mockGetEndOfDayUTC = vi.mocked(getEndOfDayUTC);
 
 describe("calculateTodayProgress", () => {
   const studentId = "student-123";
   const tenantId = "tenant-123";
   const targetDate = "2025-01-15";
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    // 동적 import로 모킹된 함수 가져오기
-    const { getPlansForStudent } = await import("@/lib/data/studentPlans");
-    const { getSessionsInRange } = await import("@/lib/data/studentSessions");
-    const { getPlanGroupsForStudent } = await import("@/lib/data/planGroups");
-    const { calculatePlanStudySeconds, buildActiveSessionMap } = await import("@/lib/metrics/studyTime");
+    // 기본 Mock Return Value 설정
+    mockGetPlansForStudent.mockResolvedValue([]);
+    mockGetSessionsInRange.mockResolvedValue([]);
+    mockGetPlanGroupsForStudent.mockResolvedValue([]);
+    mockCalculatePlanStudySeconds.mockReturnValue(0);
+    mockBuildActiveSessionMap.mockReturnValue(new Map());
     
-    vi.mocked(getPlansForStudent).mockResolvedValue([]);
-    vi.mocked(getSessionsInRange).mockResolvedValue([]);
-    vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-    vi.mocked(calculatePlanStudySeconds).mockReturnValue(0);
-    vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+    // dateUtils 모킹 함수 기본값 설정
+    mockGetTodayInTimezone.mockReturnValue("2025-01-15");
+    mockGetStartOfDayUTC.mockImplementation((date: string | Date, timezone: string = "Asia/Seoul") => {
+      const dateStr = typeof date === "string" ? date : date.toISOString().split("T")[0];
+      const d = new Date(dateStr + "T00:00:00Z");
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    });
+    mockGetEndOfDayUTC.mockImplementation((date: string | Date, timezone: string = "Asia/Seoul") => {
+      const dateStr = typeof date === "string" ? date : date.toISOString().split("T")[0];
+      const d = new Date(dateStr + "T23:59:59.999Z");
+      d.setUTCHours(23, 59, 59, 999);
+      return d;
+    });
+    
+    // planUtils 모킹 함수 기본값 설정
+    mockIsCompletedPlan.mockImplementation((plan: any) => !!plan?.actual_end_time);
+    mockFilterLearningPlans.mockImplementation((plans: any[]) => {
+      if (!Array.isArray(plans)) return [];
+      return plans.filter((plan) => {
+        if (!plan) return false;
+        const contentId = plan.content_id;
+        if (!contentId) return true;
+        return !contentId.startsWith("dummy");
+      });
+    });
   });
 
   describe("학습시간 합산 검증", () => {
     it("여러 플랜의 학습시간을 올바르게 합산해야 함", async () => {
-      const { getPlansForStudent } = await import("@/lib/data/studentPlans");
-      const { getSessionsInRange } = await import("@/lib/data/studentSessions");
-      const { getPlanGroupsForStudent } = await import("@/lib/data/planGroups");
-      const { calculatePlanStudySeconds, buildActiveSessionMap } = await import("@/lib/metrics/studyTime");
-
       const mockPlans = [
         {
           id: "plan-1",
@@ -97,13 +95,13 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds)
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds
         .mockReturnValueOnce(3600) // plan-1: 60분
         .mockReturnValueOnce(5400); // plan-2: 90분
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -136,13 +134,13 @@ describe("calculateTodayProgress", () => {
         },
       ];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions as any);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions as any);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockBuildActiveSessionMap.mockReturnValue(
         new Map([["plan-1", mockSessions[0] as any]])
       );
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(1800); // 30분
+      mockCalculatePlanStudySeconds.mockReturnValue(1800); // 30분
 
       const result = await calculateTodayProgress(
         studentId,
@@ -151,7 +149,7 @@ describe("calculateTodayProgress", () => {
       );
 
       // calculatePlanStudySeconds가 호출되었는지 확인
-      expect(calculatePlanStudySeconds).toHaveBeenCalled();
+      expect(mockCalculatePlanStudySeconds).toHaveBeenCalled();
       expect(result.todayStudyMinutes).toBe(30);
     });
 
@@ -169,11 +167,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3000); // 50분 (60분 - 10분)
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3000); // 50분 (60분 - 10분)
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -209,13 +207,13 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds)
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds
         .mockReturnValueOnce(3600) // plan-1: 60분
         .mockReturnValueOnce(0); // plan-2: 0분
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -246,11 +244,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600); // 60분
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600); // 60분
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -279,11 +277,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600);
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -313,11 +311,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(7200); // 120분 (예상 60분의 2배)
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(7200); // 120분 (예상 60분의 2배)
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -331,9 +329,9 @@ describe("calculateTodayProgress", () => {
     });
 
     it("플랜이 없으면 achievementScore는 0이어야 함", async () => {
-      vi.mocked(getPlansForStudent).mockResolvedValue([]);
-      vi.mocked(getSessionsInRange).mockResolvedValue([]);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
+      mockGetPlansForStudent.mockResolvedValue([]);
+      mockGetSessionsInRange.mockResolvedValue([]);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
 
       const result = await calculateTodayProgress(
         studentId,
@@ -384,13 +382,13 @@ describe("calculateTodayProgress", () => {
         },
       ];
 
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue(
+      mockGetPlanGroupsForStudent.mockResolvedValue(
         mockPlanGroups as any
       );
-      vi.mocked(getPlansForStudent).mockResolvedValue([mockPlans[1]] as any); // 캠프 제외된 결과
-      vi.mocked(getSessionsInRange).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue([mockPlans[1]] as any); // 캠프 제외된 결과
+      mockGetSessionsInRange.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600);
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -426,11 +424,11 @@ describe("calculateTodayProgress", () => {
         },
       ];
 
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600);
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -465,14 +463,14 @@ describe("calculateTodayProgress", () => {
         },
       ];
 
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue(
+      mockGetPlanGroupsForStudent.mockResolvedValue(
         mockPlanGroups as any
       );
 
       await calculateTodayProgress(studentId, tenantId, targetDate, true);
 
       // getPlansForStudent가 planGroupIds로 필터링되어 호출되어야 함
-      expect(getPlansForStudent).toHaveBeenCalledWith(
+      expect(mockGetPlansForStudent).toHaveBeenCalledWith(
         expect.objectContaining({
           planGroupIds: ["group-3"], // 캠프 그룹 제외
         })
@@ -511,11 +509,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600);
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -552,11 +550,11 @@ describe("calculateTodayProgress", () => {
 
       const mockSessions: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans as any);
-      vi.mocked(getSessionsInRange).mockResolvedValue(mockSessions);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
-      vi.mocked(calculatePlanStudySeconds).mockReturnValue(3600);
-      vi.mocked(buildActiveSessionMap).mockReturnValue(new Map());
+      mockGetPlansForStudent.mockResolvedValue(mockPlans as any);
+      mockGetSessionsInRange.mockResolvedValue(mockSessions);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
+      mockCalculatePlanStudySeconds.mockReturnValue(3600);
+      mockBuildActiveSessionMap.mockReturnValue(new Map());
 
       const result = await calculateTodayProgress(
         studentId,
@@ -571,18 +569,18 @@ describe("calculateTodayProgress", () => {
     it("targetDate가 없으면 오늘 날짜를 사용해야 함", async () => {
       const mockPlans: any[] = [];
 
-      vi.mocked(getPlansForStudent).mockResolvedValue(mockPlans);
-      vi.mocked(getSessionsInRange).mockResolvedValue([]);
-      vi.mocked(getPlanGroupsForStudent).mockResolvedValue([]);
+      mockGetPlansForStudent.mockResolvedValue(mockPlans);
+      mockGetSessionsInRange.mockResolvedValue([]);
+      mockGetPlanGroupsForStudent.mockResolvedValue([]);
 
       await calculateTodayProgress(studentId, tenantId);
 
       // getPlansForStudent가 호출되었는지 확인 (오늘 날짜로)
-      expect(getPlansForStudent).toHaveBeenCalled();
+      expect(mockGetPlansForStudent).toHaveBeenCalled();
     });
 
     it("에러 발생 시 빈 결과를 반환해야 함", async () => {
-      vi.mocked(getPlansForStudent).mockRejectedValue(
+      mockGetPlansForStudent.mockRejectedValue(
         new Error("Database error")
       );
 
@@ -599,4 +597,3 @@ describe("calculateTodayProgress", () => {
     });
   });
 });
-
