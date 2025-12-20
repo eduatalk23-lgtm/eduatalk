@@ -55,12 +55,12 @@ describe("updateService", () => {
         plan_type: "camp",
       };
 
-      // Mock update query
-      const mockUpdate = {
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      };
+      // Mock update query chain
+      const mockEq2 = vi.fn().mockResolvedValue({ error: null });
+      const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
       (mockSupabase.from as ReturnType<typeof vi.fn>).mockReturnValue({
-        update: vi.fn().mockReturnValue(mockUpdate),
+        update: mockUpdate,
       });
 
       await updatePlanGroupMetadata(
@@ -71,8 +71,9 @@ describe("updateService", () => {
       );
 
       expect(mockSupabase.from).toHaveBeenCalledWith("plan_groups");
-      expect(mockUpdate.eq).toHaveBeenCalledWith("id", groupId);
-      expect(mockUpdate.eq).toHaveBeenCalledWith("tenant_id", tenantId);
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockEq1).toHaveBeenCalledWith("id", groupId);
+      expect(mockEq2).toHaveBeenCalledWith("tenant_id", tenantId);
     });
 
     it("plan_purpose를 정규화해야 함 (수능 → 모의고사(수능))", async () => {
@@ -85,11 +86,12 @@ describe("updateService", () => {
         plan_purpose: "수능",
       };
 
-      const mockUpdate = {
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      };
+      // Mock update query chain
+      const mockEq2 = vi.fn().mockResolvedValue({ error: null });
+      const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+      const mockUpdate = vi.fn().mockReturnValue({ eq: mockEq1 });
       (mockSupabase.from as ReturnType<typeof vi.fn>).mockReturnValue({
-        update: vi.fn().mockReturnValue(mockUpdate),
+        update: mockUpdate,
       });
 
       await updatePlanGroupMetadata(
@@ -100,10 +102,7 @@ describe("updateService", () => {
       );
 
       // update 호출 시 plan_purpose가 "모의고사(수능)"으로 정규화되었는지 확인
-      const updateCall = (mockSupabase.from as ReturnType<typeof vi.fn>).mock
-        .results[0].value.update as ReturnType<typeof vi.fn>;
-      const updatePayload = updateCall.mock.calls[0][0];
-
+      const updatePayload = mockUpdate.mock.calls[0][0];
       expect(updatePayload.plan_purpose).toBe("모의고사(수능)");
     });
 

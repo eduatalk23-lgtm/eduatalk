@@ -57,19 +57,23 @@ export async function getGoalStatus(
 
     // 모든 목표의 진행률 데이터를 한 번에 조회
     const allProgressRows = await safeQueryArray<GoalProgress>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from("student_goal_progress")
           .select("*")
           .eq("student_id", studentId)
           .in("goal_id", goalIds)
-          .order("recorded_at", { ascending: false }),
-      () =>
-        supabase
+          .order("recorded_at", { ascending: false });
+        return { data: result.data as GoalProgress[] | null, error: result.error };
+      },
+      async () => {
+        const result = await supabase
           .from("student_goal_progress")
           .select("*")
           .in("goal_id", goalIds)
-          .order("recorded_at", { ascending: false }),
+          .order("recorded_at", { ascending: false });
+        return { data: result.data as GoalProgress[] | null, error: result.error };
+      },
       { context: "[metrics/getGoalStatus] 진행률 조회" }
     );
 

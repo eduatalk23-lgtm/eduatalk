@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -304,8 +305,14 @@ export async function getPlansForStudent(
   };
 
   const data = await safeQueryArray<Plan>(
-    () => query,
-    () => buildFallbackQuery(),
+    async () => {
+      const result = await query;
+      return { data: result.data as Plan[] | null, error: result.error };
+    },
+    async () => {
+      const result = await buildFallbackQuery();
+      return { data: result.data as Plan[] | null, error: result.error };
+    },
     { context: "[data/studentPlans] 플랜 조회" }
   );
 
@@ -387,8 +394,14 @@ export async function getPlanById(
   }
 
   return safeQuerySingle<Plan>(
-    () => query.maybeSingle<Plan>(),
-    () => selectPlan().maybeSingle<Plan>(),
+    async () => {
+      const result = await query.maybeSingle<Plan>();
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await selectPlan().maybeSingle<Plan>();
+      return { data: result.data, error: result.error };
+    },
     { context: "[data/studentPlans] 플랜 조회" }
   );
 }
@@ -462,24 +475,27 @@ export async function createPlan(
   }
 
   const result = await safeQuerySingle<{ id: string }>(
-    () =>
-      supabase
+    async () => {
+      const queryResult = await supabase
         .from("student_plan")
         .insert(payload)
         .select("id")
-        .single(),
-    () => {
+        .single();
+      return { data: queryResult.data, error: queryResult.error };
+    },
+    async () => {
       // fallback: tenant_id, student_id 컬럼이 없는 경우
       const {
         tenant_id: _tenantId,
         student_id: _studentId,
         ...fallbackPayload
       } = payload;
-      return supabase
+      const queryResult = await supabase
         .from("student_plan")
         .insert(fallbackPayload)
         .select("id")
         .single();
+      return { data: queryResult.data, error: queryResult.error };
     },
     { context: "[data/studentPlans] 플랜 생성" }
   );

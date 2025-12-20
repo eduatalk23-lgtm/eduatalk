@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Goal, GoalProgress } from "./calc";
 import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
+import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -12,17 +13,21 @@ export async function getAllGoals(
   studentId: string
 ): Promise<Goal[]> {
   return safeQueryArray<Goal>(
-    () =>
-      supabase
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .eq("student_id", studentId)
-        .order("created_at", { ascending: false }),
-    () =>
-      supabase
+        .order("created_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
     { context: "[goals] 목표 조회" }
   );
 }
@@ -34,19 +39,23 @@ export async function getGoalById(
   goalId: string
 ): Promise<Goal | null> {
   return safeQuerySingle<Goal>(
-    () =>
-      supabase
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .eq("id", goalId)
         .eq("student_id", studentId)
-        .maybeSingle(),
-    () =>
-      supabase
+        .maybeSingle();
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .eq("id", goalId)
-        .maybeSingle(),
+        .maybeSingle();
+      return { data: result.data, error: result.error };
+    },
     { context: "[goals] 목표 조회" }
   );
 }
@@ -58,19 +67,23 @@ export async function getGoalProgress(
   goalId: string
 ): Promise<GoalProgress[]> {
   return safeQueryArray<GoalProgress>(
-    () =>
-      supabase
+    async () => {
+      const result = await supabase
         .from("student_goal_progress")
         .select("*")
         .eq("goal_id", goalId)
         .eq("student_id", studentId)
-        .order("recorded_at", { ascending: false }),
-    () =>
-      supabase
+        .order("recorded_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_goal_progress")
         .select("*")
         .eq("goal_id", goalId)
-        .order("recorded_at", { ascending: false }),
+        .order("recorded_at", { ascending: false });
+      return { data: result.data, error: result.error };
+    },
     { context: "[goals] 진행률 조회" }
   );
 }
@@ -82,21 +95,25 @@ export async function getActiveGoals(
   todayDate: string
 ): Promise<Goal[]> {
   return safeQueryArray<Goal>(
-    () =>
-      supabase
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .eq("student_id", studentId)
         .lte("start_date", todayDate)
         .gte("end_date", todayDate)
-        .order("end_date", { ascending: true }),
-    () =>
-      supabase
+        .order("end_date", { ascending: true });
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .lte("start_date", todayDate)
         .gte("end_date", todayDate)
-        .order("end_date", { ascending: true }),
+        .order("end_date", { ascending: true });
+      return { data: result.data, error: result.error };
+    },
     { context: "[goals] 활성 목표 조회" }
   );
 }
@@ -109,21 +126,25 @@ export async function getWeekGoals(
   weekEnd: string
 ): Promise<Goal[]> {
   return safeQueryArray<Goal>(
-    () =>
-      supabase
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .eq("student_id", studentId)
         .lte("start_date", weekEnd)
         .gte("end_date", weekStart)
-        .order("end_date", { ascending: true }),
-    () =>
-      supabase
+        .order("end_date", { ascending: true });
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_goals")
         .select("*")
         .lte("start_date", weekEnd)
         .gte("end_date", weekStart)
-        .order("end_date", { ascending: true }),
+        .order("end_date", { ascending: true });
+      return { data: result.data, error: result.error };
+    },
     { context: "[goals] 주간 목표 조회" }
   );
 }
@@ -160,9 +181,11 @@ export async function getPlansForGoal(
       return [];
     }
 
-    const planIds = progressData
+    const planIds = (progressData ?? [])
       .map((p: { plan_id?: string | null }) => p.plan_id)
-      .filter((id: string | null): id is string => id !== null);
+      .filter((id: string | null | undefined): id is string => 
+        typeof id === "string" && id.length > 0
+      );
 
     if (planIds.length === 0) {
       return [];
@@ -328,19 +351,23 @@ export async function fetchGoalsSummary(
 
     // 모든 목표의 진행률 데이터를 한 번에 조회
     const allProgressRows = await safeQueryArray<GoalProgress>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from("student_goal_progress")
           .select("*")
           .eq("student_id", studentId)
           .in("goal_id", uniqueGoalIds)
-          .order("recorded_at", { ascending: false }),
-      () =>
-        supabase
+          .order("recorded_at", { ascending: false });
+        return { data: result.data, error: result.error };
+      },
+      async () => {
+        const result = await supabase
           .from("student_goal_progress")
           .select("*")
           .in("goal_id", uniqueGoalIds)
-          .order("recorded_at", { ascending: false }),
+          .order("recorded_at", { ascending: false });
+        return { data: result.data, error: result.error };
+      },
       { context: "[goals] 목표 요약 진행률 조회" }
     );
 

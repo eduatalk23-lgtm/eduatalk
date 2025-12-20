@@ -7,7 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Json } from "@/lib/supabase/database.types";
 import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
-import type { DailyScheduleInfo } from "@/lib/types/plan";
+import type { DailyScheduleInfo, TimeSettings } from "@/lib/types/plan";
 import { AppError, ErrorCode, logError } from "@/lib/errors";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 import {
@@ -128,9 +128,10 @@ export async function updatePlanGroupMetadata(
   creationData: CreationData
 ): Promise<void> {
   // time_settings를 scheduler_options에 안전하게 병합
+  // time_settings는 unknown 타입이므로 타입 단언 필요
   const mergedSchedulerOptions = mergeTimeSettingsSafely(
     creationData.scheduler_options || {},
-    creationData.time_settings
+    creationData.time_settings as Partial<TimeSettings> | null | undefined
   );
 
   const updatePayload: PlanGroupUpdatePayload = {

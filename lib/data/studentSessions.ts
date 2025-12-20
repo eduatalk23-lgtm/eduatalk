@@ -102,8 +102,14 @@ export async function getSessionsInRange(
   };
 
   return safeQueryArray<StudySession>(
-    () => query,
-    () => buildFallbackQuery(),
+    async () => {
+      const result = await query;
+      return { data: result.data as StudySession[] | null, error: result.error };
+    },
+    async () => {
+      const result = await buildFallbackQuery();
+      return { data: result.data as StudySession[] | null, error: result.error };
+    },
     { context: "[data/studentSessions] 세션 조회" }
   );
 }
@@ -166,14 +172,19 @@ export async function getActiveSessionsForPlans(
   query = query.order("started_at", { ascending: false });
 
   return safeQueryArray<StudySession>(
-    () => query,
-    () =>
-      supabase
+    async () => {
+      const result = await query;
+      return { data: result.data as StudySession[] | null, error: result.error };
+    },
+    async () => {
+      const result = await supabase
         .from("student_study_sessions")
         .select("*")
         .in("plan_id", safePlanIds)
         .is("ended_at", null)
-        .order("started_at", { ascending: false }),
+        .order("started_at", { ascending: false });
+      return { data: result.data as StudySession[] | null, error: result.error };
+    },
     { context: "[data/studentSessions] 활성 세션 조회" }
   );
 }
@@ -203,8 +214,14 @@ export async function getSessionById(
   }
 
   return safeQuerySingle<StudySession>(
-    () => query.maybeSingle<StudySession>(),
-    () => selectSession().maybeSingle<StudySession>(),
+    async () => {
+      const result = await query.maybeSingle<StudySession>();
+      return { data: result.data, error: result.error };
+    },
+    async () => {
+      const result = await selectSession().maybeSingle<StudySession>();
+      return { data: result.data, error: result.error };
+    },
     { context: "[data/studentSessions] 세션 조회" }
   );
 }
@@ -234,20 +251,23 @@ export async function createSession(
   };
 
   const result = await safeQuerySingle<{ id: string }>(
-    () =>
-      supabase
+    async () => {
+      const queryResult = await supabase
         .from("student_study_sessions")
         .insert(payload)
         .select("id")
-        .single(),
-    () => {
+        .single();
+      return { data: queryResult.data, error: queryResult.error };
+    },
+    async () => {
       // fallback: tenant_id, student_id 컬럼이 없는 경우
       const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-      return supabase
+      const queryResult = await supabase
         .from("student_study_sessions")
         .insert(fallbackPayload)
         .select("id")
         .single();
+      return { data: queryResult.data, error: queryResult.error };
     },
     { context: "[data/studentSessions] 세션 생성" }
   );
