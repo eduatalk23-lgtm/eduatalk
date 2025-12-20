@@ -3,22 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "./TemplateBlocksViewer";
-
-type BlockSet = {
-  id: string;
-  name: string;
-  description?: string | null;
-  blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
-};
+import type { BlockSet } from "@/lib/types/time-management";
 
 type TemplateBlockSetManagementProps = {
   templateId: string;
-  initialBlockSets?: Array<{ 
-    id: string; 
-    name: string; 
-    description?: string | null;
-    blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> 
-  }>;
+  initialBlockSets?: BlockSet[];
   selectedBlockSetId?: string | null;
 };
 

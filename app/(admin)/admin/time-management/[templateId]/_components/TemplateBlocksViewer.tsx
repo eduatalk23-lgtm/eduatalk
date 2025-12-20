@@ -6,17 +6,14 @@ import TemplateBlockForm from "./TemplateBlockForm";
 import { createTenantBlockSet } from "@/app/(admin)/actions/tenantBlockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { useToast } from "@/components/ui/ToastProvider";
-
-type BlockSet = {
-  id: string;
-  name: string;
-  description?: string | null;
-  blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
-};
+import type { Block, BlockSet } from "@/lib/types/time-management";
+import { enrichBlockSetWithStats } from "@/lib/utils/timeUtils";
+import { blockFormSchema, isStartTimeBeforeEndTime } from "@/lib/validation/timeSchema";
+import { DAY_NAMES } from "@/lib/utils/timeUtils";
 
 type TemplateBlocksViewerProps = {
   templateId: string | null; // null이면 템플릿에 연결되지 않은 블록 세트
-  blocks: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
+  blocks: Block[];
   blockSets: BlockSet[];
   selectedBlockSetId: string | null;
   isLoading?: boolean;
@@ -24,8 +21,6 @@ type TemplateBlocksViewerProps = {
   onBlockChange?: (setId: string) => Promise<void>;
   existingSetCount?: number;
 };
-
-const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function TemplateBlocksViewer({
   templateId,
@@ -41,37 +36,9 @@ export default function TemplateBlocksViewer({
   const toast = useToast();
   const [creating, setCreating] = useState(false);
   
-  // 각 블록 세트별 총 시간 계산
+  // 각 블록 세트별 총 시간 계산 (유틸리티 함수 사용)
   const blockSetsWithStats = useMemo(() => {
-    return blockSets.map((set) => {
-      const setBlocks = set.blocks ?? [];
-      const totalMinutes = setBlocks.reduce((acc, block) => {
-        const [startH, startM] = (block.start_time ?? "00:00").split(":").map(Number);
-        const [endH, endM] = (block.end_time ?? "00:00").split(":").map(Number);
-        const start = startH * 60 + startM;
-        const end = endH * 60 + endM;
-        const duration = end - start;
-        return acc + (duration > 0 ? duration : 0);
-      }, 0);
-
-      const totalHours = Math.floor(totalMinutes / 60);
-      const remainingMinutes = Math.max(0, totalMinutes % 60);
-
-      // 요일별 블록 개수 계산
-      const dayDistribution = setBlocks.reduce((acc, block) => {
-        const day = DAYS[block.day_of_week] ?? "";
-        acc[day] = (acc[day] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      return {
-        ...set,
-        blockCount: setBlocks.length,
-        totalHours,
-        remainingMinutes,
-        dayDistribution,
-      };
-    });
+    return blockSets.map((set) => enrichBlockSetWithStats(set));
   }, [blockSets]);
 
   if (isLoading) {
@@ -121,6 +88,7 @@ export default function TemplateBlocksViewer({
               onClick={() => setCreating(true)}
               disabled={creating}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="새 블록 세트 추가"
             >
               + 새 세트 추가하기
             </button>
@@ -161,11 +129,13 @@ export default function TemplateBlocksViewer({
                           await onCreateSetSuccess();
                         }
                         router.refresh();
-                      } catch (error: any) {
-                        toast.showError(error.message || "세트 삭제에 실패했습니다.");
+                      } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : "세트 삭제에 실패했습니다.";
+                        toast.showError(errorMessage);
                       }
                     }}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    aria-label={`${set.name} 세트 삭제`}
                     title="세트 삭제"
                   >
                     <svg
@@ -258,8 +228,9 @@ export default function TemplateBlocksViewer({
                           
                           toast.showSuccess("블록 세트가 템플릿에 연결되었습니다.");
                           router.refresh();
-                        } catch (error: any) {
-                          toast.showError(error.message || "블록 세트 연결에 실패했습니다.");
+                        } catch (error: unknown) {
+                          const errorMessage = error instanceof Error ? error.message : "블록 세트 연결에 실패했습니다.";
+                          toast.showError(errorMessage);
                         }
                       }}
                       className="flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -301,6 +272,7 @@ export default function TemplateBlocksViewer({
               type="button"
               onClick={() => setCreating(true)}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+              aria-label="새 블록 세트 추가"
             >
               + 새 세트 추가하기
             </button>
@@ -344,6 +316,24 @@ function TemplateBlockSetCreateForm({
         
         // 시간 블록이 입력된 경우 추가
         if (selectedWeekdays.length > 0 && startTime && endTime) {
+          // 시간 유효성 검사
+          if (!isStartTimeBeforeEndTime(startTime, endTime)) {
+            return { error: "시작 시간은 종료 시간보다 이전이어야 합니다." };
+          }
+
+          // 폼 데이터 유효성 검사
+          const formValidation = blockFormSchema.safeParse({
+            selectedWeekdays,
+            start_time: startTime,
+            end_time: endTime,
+            block_set_id: result.blockSetId,
+          });
+
+          if (!formValidation.success) {
+            const firstError = formValidation.error.issues[0];
+            return { error: firstError?.message || "입력값이 올바르지 않습니다." };
+          }
+
           const { addTenantBlock } = await import("@/app/(admin)/actions/tenantBlockSets");
           for (const day of selectedWeekdays) {
             const blockFormData = new FormData();
@@ -354,8 +344,9 @@ function TemplateBlockSetCreateForm({
             
             try {
               await addTenantBlock(blockFormData);
-            } catch (blockError: any) {
-              console.warn("블록 추가 실패:", blockError);
+            } catch (blockError: unknown) {
+              const errorMessage = blockError instanceof Error ? blockError.message : "블록 추가 실패";
+              console.warn("블록 추가 실패:", errorMessage);
             }
           }
         }
@@ -363,8 +354,9 @@ function TemplateBlockSetCreateForm({
         router.refresh();
         onSuccess(result.blockSetId);
         return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 생성에 실패했습니다." };
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "세트 생성에 실패했습니다.";
+        return { error: errorMessage };
       }
     },
     { error: null }
@@ -386,8 +378,9 @@ function TemplateBlockSetCreateForm({
             onClick={onCancel}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             disabled={isPending}
+            aria-label="닫기"
           >
-            <span className="text-2xl">×</span>
+            <span className="text-2xl" aria-hidden="true">×</span>
           </button>
         </div>
         
@@ -424,27 +417,25 @@ function TemplateBlockSetCreateForm({
             
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">추가할 요일 선택</label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: 0, label: "일" },
-                  { value: 1, label: "월" },
-                  { value: 2, label: "화" },
-                  { value: 3, label: "수" },
-                  { value: 4, label: "목" },
-                  { value: 5, label: "금" },
-                  { value: 6, label: "토" },
-                ].map((day) => (
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="요일 선택"
+              >
+                {DAY_NAMES.map((dayLabel, dayIndex) => (
                   <button
-                    key={day.value}
+                    key={dayIndex}
                     type="button"
-                    onClick={() => toggleWeekday(day.value)}
+                    onClick={() => toggleWeekday(dayIndex)}
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      selectedWeekdays.includes(day.value)
+                      selectedWeekdays.includes(dayIndex)
                         ? "bg-indigo-600 text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
+                    aria-pressed={selectedWeekdays.includes(dayIndex)}
+                    aria-label={`${dayLabel}요일 ${selectedWeekdays.includes(dayIndex) ? "선택됨" : "선택 안됨"}`}
                   >
-                    {day.label}요일
+                    {dayLabel}요일
                   </button>
                 ))}
               </div>
@@ -452,25 +443,40 @@ function TemplateBlockSetCreateForm({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">시작 시간</label>
+                <label htmlFor="start-time-create" className="text-sm font-medium text-gray-700">
+                  시작 시간
+                </label>
                 <input
+                  id="start-time-create"
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  aria-label="시작 시간"
+                  aria-required="false"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-gray-700">종료 시간</label>
+                <label htmlFor="end-time-create" className="text-sm font-medium text-gray-700">
+                  종료 시간
+                </label>
                 <input
+                  id="end-time-create"
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  aria-label="종료 시간"
+                  aria-required="false"
                 />
               </div>
             </div>
+            {startTime && endTime && !isStartTimeBeforeEndTime(startTime, endTime) && (
+              <p className="text-xs text-red-600" role="alert">
+                시작 시간은 종료 시간보다 이전이어야 합니다.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">

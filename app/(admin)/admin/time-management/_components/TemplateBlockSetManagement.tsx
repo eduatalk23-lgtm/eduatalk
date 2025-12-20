@@ -4,21 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "../[templateId]/_components/TemplateBlocksViewer";
 import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
-
-type BlockSet = {
-  id: string;
-  name: string;
-  description?: string | null;
-  blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
-};
+import type { BlockSet } from "@/lib/types/time-management";
 
 type TemplateBlockSetManagementProps = {
-  initialBlockSets?: Array<{ 
-    id: string; 
-    name: string; 
-    description?: string | null;
-    blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> 
-  }>;
+  initialBlockSets?: BlockSet[];
 };
 
 export default function TemplateBlockSetManagement({

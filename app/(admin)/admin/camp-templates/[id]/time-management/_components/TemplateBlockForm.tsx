@@ -3,6 +3,9 @@
 import { useState, useActionState, useEffect } from "react";
 import { addTenantBlock } from "@/app/(admin)/actions/tenantBlockSets";
 import { useToast } from "@/components/ui/ToastProvider";
+import type { DayOfWeek } from "@/lib/types/time-management";
+import { blockFormSchema, isStartTimeBeforeEndTime } from "@/lib/validation/timeSchema";
+import { DAY_NAMES } from "@/lib/utils/timeUtils";
 
 type TemplateBlockFormState = {
   error: string | null;
@@ -26,9 +29,10 @@ export default function TemplateBlockForm({
   onBlockChange 
 }: TemplateBlockFormProps) {
   const toast = useToast();
-  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<DayOfWeek[]>([]);
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   const [state, formAction, isPending] = useActionState(
     async (
@@ -40,8 +44,27 @@ export default function TemplateBlockForm({
           return { error: "블록 세트 ID가 필요합니다.", success: false };
         }
 
-        if (selectedWeekdays.length === 0) {
-          return { error: "최소 1개 이상의 요일을 선택해주세요.", success: false };
+        const startTimeValue = formData.get("start_time") as string;
+        const endTimeValue = formData.get("end_time") as string;
+
+        // 시간 유효성 검사
+        if (startTimeValue && endTimeValue) {
+          if (!isStartTimeBeforeEndTime(startTimeValue, endTimeValue)) {
+            return { error: "시작 시간은 종료 시간보다 이전이어야 합니다.", success: false };
+          }
+        }
+
+        // 폼 데이터 유효성 검사
+        const formValidation = blockFormSchema.safeParse({
+          selectedWeekdays,
+          start_time: startTimeValue,
+          end_time: endTimeValue,
+          block_set_id: blockSetId,
+        });
+
+        if (!formValidation.success) {
+          const firstError = formValidation.error.issues[0];
+          return { error: firstError?.message || "입력값이 올바르지 않습니다.", success: false };
         }
 
         // 각 요일별로 블록 추가
@@ -51,15 +74,15 @@ export default function TemplateBlockForm({
         for (const day of selectedWeekdays) {
           const blockFormData = new FormData();
           blockFormData.append("day", String(day));
-          blockFormData.append("start_time", formData.get("start_time") as string);
-          blockFormData.append("end_time", formData.get("end_time") as string);
+          blockFormData.append("start_time", startTimeValue);
+          blockFormData.append("end_time", endTimeValue);
           blockFormData.append("block_set_id", blockSetId);
           
           try {
             await addTenantBlock(blockFormData);
             successCount++;
           } catch (blockError: unknown) {
-            const dayLabel = ["일", "월", "화", "수", "목", "금", "토"][day];
+            const dayLabel = DAY_NAMES[day] ?? "";
             const errorMessage = blockError instanceof Error ? blockError.message : "추가 실패";
             errors.push(`${dayLabel}요일: ${errorMessage}`);
           }
@@ -88,11 +111,24 @@ export default function TemplateBlockForm({
     initialState
   );
 
-  const toggleWeekday = (day: number) => {
+  const toggleWeekday = (day: DayOfWeek) => {
     setSelectedWeekdays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
     );
   };
+
+  // 시간 변경 시 유효성 검사
+  useEffect(() => {
+    if (startTime && endTime) {
+      if (!isStartTimeBeforeEndTime(startTime, endTime)) {
+        setTimeError("시작 시간은 종료 시간보다 이전이어야 합니다.");
+      } else {
+        setTimeError(null);
+      }
+    } else {
+      setTimeError(null);
+    }
+  }, [startTime, endTime]);
 
   // 성공 시 폼 리셋 및 닫기
   useEffect(() => {
@@ -133,8 +169,9 @@ export default function TemplateBlockForm({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               disabled={isPending}
+              aria-label="닫기"
             >
-              <span className="text-2xl">×</span>
+              <span className="text-2xl" aria-hidden="true">×</span>
             </button>
           )}
         </div>
@@ -156,32 +193,33 @@ export default function TemplateBlockForm({
             <label className="block text-sm font-medium text-gray-700">
               추가할 요일 선택
             </label>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: 0, label: "일" },
-                { value: 1, label: "월" },
-                { value: 2, label: "화" },
-                { value: 3, label: "수" },
-                { value: 4, label: "목" },
-                { value: 5, label: "금" },
-                { value: 6, label: "토" },
-              ].map((day) => (
-                <button
-                  key={day.value}
-                  type="button"
-                  onClick={() => toggleWeekday(day.value)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                    selectedWeekdays.includes(day.value)
-                      ? "bg-indigo-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {day.label}요일
-                </button>
-              ))}
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label="요일 선택"
+            >
+              {DAY_NAMES.map((dayLabel, dayIndex) => {
+                const day = dayIndex as DayOfWeek;
+                return (
+                  <button
+                    key={dayIndex}
+                    type="button"
+                    onClick={() => toggleWeekday(day)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      selectedWeekdays.includes(day)
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                    aria-pressed={selectedWeekdays.includes(day)}
+                    aria-label={`${dayLabel}요일 ${selectedWeekdays.includes(day) ? "선택됨" : "선택 안됨"}`}
+                  >
+                    {dayLabel}요일
+                  </button>
+                );
+              })}
             </div>
             {selectedWeekdays.length === 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-600" role="alert">
                 추가할 요일을 최소 1개 이상 선택해주세요.
               </p>
             )}
@@ -189,33 +227,46 @@ export default function TemplateBlockForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label htmlFor="start-time-camp" className="block text-sm font-medium text-gray-700">
                 시작 시간
               </label>
               <input
+                id="start-time-camp"
                 type="time"
                 name="start_time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 required
+                aria-label="시작 시간"
+                aria-invalid={timeError ? "true" : "false"}
+                aria-describedby={timeError ? "time-error-camp" : undefined}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label htmlFor="end-time-camp" className="block text-sm font-medium text-gray-700">
                 종료 시간
               </label>
               <input
+                id="end-time-camp"
                 type="time"
                 name="end_time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 required
+                aria-label="종료 시간"
+                aria-invalid={timeError ? "true" : "false"}
+                aria-describedby={timeError ? "time-error-camp" : undefined}
               />
             </div>
           </div>
+          {timeError && (
+            <p id="time-error-camp" className="text-xs text-red-600" role="alert">
+              {timeError}
+            </p>
+          )}
 
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
@@ -230,7 +281,8 @@ export default function TemplateBlockForm({
                 isPending ||
                 selectedWeekdays.length === 0 ||
                 !startTime ||
-                !endTime
+                !endTime ||
+                !!timeError
               }
               className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

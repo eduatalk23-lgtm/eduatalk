@@ -3,22 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "./TemplateBlocksViewer";
-
-type BlockSet = {
-  id: string;
-  name: string;
-  description?: string | null;
-  blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }>;
-};
+import type { BlockSet, Block } from "@/lib/types/time-management";
 
 type TemplateBlockSetManagementProps = {
   templateId: string;
-  initialBlockSets?: Array<{ 
-    id: string; 
-    name: string; 
-    description?: string | null;
-    blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> 
-  }>;
+  initialBlockSets?: BlockSet[];
   selectedBlockSetId?: string | null;
 };
 
@@ -93,9 +82,9 @@ export default function TemplateBlockSetManagement({
 
       setBlockSets(updatedSets);
       setError(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("블록 데이터 로드 실패:", error);
-      const errorMessage = error?.message || "블록 데이터를 불러오는 중 오류가 발생했습니다.";
+      const errorMessage = error instanceof Error ? error.message : "블록 데이터를 불러오는 중 오류가 발생했습니다.";
       setError(errorMessage);
     } finally {
       if (!skipLoadingState) {
