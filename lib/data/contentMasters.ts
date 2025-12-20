@@ -1,5 +1,9 @@
-// 콘텐츠 마스터 데이터 액세스 레이어
-// master_books, master_lectures 테이블 사용
+/**
+ * 콘텐츠 마스터 데이터 액세스 레이어
+ * 
+ * master_books, master_lectures 테이블 사용
+ * typedQueryBuilder 패턴을 사용하여 타입 안전성과 에러 처리를 표준화합니다.
+ */
 
 import {
   createSupabaseServerClient,
@@ -26,6 +30,9 @@ import {
 import { normalizeError, logError } from "@/lib/errors";
 import { buildContentQuery } from "@/lib/data/contentQueryBuilder";
 import { extractJoinedData } from "@/lib/utils/supabaseHelpers";
+import { createTypedQuery, createTypedSingleQuery, createTypedParallelQueries } from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { SupabaseServerClient } from "@/lib/data/core/types";
 import type {
   MasterBookFilters,
   MasterLectureFilters,
@@ -130,19 +137,22 @@ export async function getMasterBooksList(): Promise<
 > {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("master_books")
-    .select("id, title")
-    .eq("is_active", true)
-    .order("title", { ascending: true })
-    .limit(50);
+  const result = await createTypedQuery<Array<{ id: string; title: string }>>(
+    async () => {
+      return await supabase
+        .from("master_books")
+        .select("id, title")
+        .eq("is_active", true)
+        .order("title", { ascending: true })
+        .limit(50);
+    },
+    {
+      context: "[data/contentMasters] getMasterBooksList",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/contentMasters] 교재 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data as Array<{ id: string; title: string }> | null) ?? [];
+  return result ?? [];
 }
 
 /**
@@ -154,20 +164,23 @@ export async function searchMasterBooksForDropdown(
 ): Promise<Array<{ id: string; title: string }>> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("master_books")
-    .select("id, title")
-    .eq("is_active", true)
-    .ilike("title", `%${searchQuery}%`)
-    .order("title", { ascending: true })
-    .limit(50);
+  const result = await createTypedQuery<Array<{ id: string; title: string }>>(
+    async () => {
+      return await supabase
+        .from("master_books")
+        .select("id, title")
+        .eq("is_active", true)
+        .ilike("title", `%${searchQuery}%`)
+        .order("title", { ascending: true })
+        .limit(50);
+    },
+    {
+      context: "[data/contentMasters] searchMasterBooksForDropdown",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/contentMasters] 교재 검색 실패", error);
-    return [];
-  }
-
-  return (data as Array<{ id: string; title: string }> | null) ?? [];
+  return result ?? [];
 }
 
 /**
@@ -179,18 +192,20 @@ export async function getMasterBookForDropdown(
 ): Promise<{ id: string; title: string } | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("master_books")
-    .select("id, title")
-    .eq("id", bookId)
-    .single();
+  const result = await createTypedSingleQuery<{ id: string; title: string }>(
+    async () => {
+      return await supabase
+        .from("master_books")
+        .select("id, title")
+        .eq("id", bookId);
+    },
+    {
+      context: "[data/contentMasters] getMasterBookForDropdown",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/contentMasters] 교재 조회 실패", error);
-    return null;
-  }
-
-  return data as { id: string; title: string } | null;
+  return result;
 }
 
 /**
@@ -208,11 +223,13 @@ export async function getMasterBookById(bookId: string): Promise<{
 }> {
   const supabase = await createSupabaseServerClient();
 
-  const [bookResult, detailsResult] = await Promise.all([
-    supabase
-      .from("master_books")
-      .select(
-        `
+  // 병렬 쿼리 실행
+  const [bookResult, detailsResult] = await createTypedParallelQueries([
+    async () => {
+      return await supabase
+        .from("master_books")
+        .select(
+          `
         id,
         tenant_id,
         revision,
@@ -276,37 +293,32 @@ export async function getMasterBookById(bookId: string): Promise<{
           name
         )
       `
-      )
-      .eq("id", bookId)
-      .maybeSingle(),
-    supabase
-      .from("book_details")
-      .select("*")
-      .eq("book_id", bookId)
-      .order("display_order", { ascending: true })
-      .order("page_number", { ascending: true }),
-  ]);
+        )
+        .eq("id", bookId)
+        .maybeSingle();
+    },
+    async () => {
+      return await supabase
+        .from("book_details")
+        .select("*")
+        .eq("book_id", bookId)
+        .order("display_order", { ascending: true })
+        .order("page_number", { ascending: true });
+    },
+  ], {
+    context: "[data/contentMasters] getMasterBookById",
+    defaultValue: null,
+  });
 
-  if (bookResult.error) {
-    console.error("[data/contentMasters] 교재 조회 실패", bookResult.error);
-    throw new Error(bookResult.error.message || "교재 조회에 실패했습니다.");
-  }
-
-  if (detailsResult.error) {
-    console.error(
-      "[data/contentMasters] 교재 세부 정보 조회 실패",
-      detailsResult.error
-    );
-    // 세부 정보는 선택사항이므로 에러를 무시
-  }
-
-  const bookData = bookResult.data as MasterBookWithJoins | null;
+  // bookResult는 단일 객체이므로 타입 처리
+  const bookData = bookResult as MasterBookWithJoins | null;
   if (!bookData) {
     return {
       book: null,
-      details: (detailsResult.data as BookDetail[] | null) ?? [],
+      details: (detailsResult as BookDetail[] | null) ?? [],
     };
   }
+
 
   // JOIN된 데이터를 평탄화하여 표시용 필드 추가
   // Supabase의 중첩 SELECT는 배열로 반환될 수 있으므로 배열 처리
@@ -382,7 +394,7 @@ export async function getMasterBookById(bookId: string): Promise<{
 
   return {
     book,
-    details: (detailsResult.data as BookDetail[] | null) ?? [],
+    details: (detailsResult as BookDetail[] | null) ?? [],
   };
 }
 
@@ -452,48 +464,44 @@ export async function getMasterLectureById(
 ): Promise<{ lecture: MasterLecture | null; episodes: LectureEpisode[] }> {
   const supabase = await createSupabaseServerClient();
 
-  const [lectureResult, episodesResult] = await Promise.all([
-    supabase
-      .from("master_lectures")
-      .select(
-        `
+  // 병렬 쿼리 실행
+  const [lectureResult, episodesResult] = await createTypedParallelQueries([
+    async () => {
+      return await supabase
+        .from("master_lectures")
+        .select(
+          `
         *,
         difficulty_levels:difficulty_level_id (
           id,
           name
         )
       `
-      )
-      .eq("id", lectureId)
-      .maybeSingle<MasterLecture>(),
-    supabase
-      .from("lecture_episodes")
-      .select(
-        "id, lecture_id, episode_number, episode_title, duration, display_order, created_at, lecture_source_url"
-      )
-      .eq("lecture_id", lectureId)
-      .order("display_order", { ascending: true })
-      .order("episode_number", { ascending: true }),
-  ]);
+        )
+        .eq("id", lectureId)
+        .maybeSingle<MasterLecture>();
+    },
+    async () => {
+      return await supabase
+        .from("lecture_episodes")
+        .select(
+          "id, lecture_id, episode_number, episode_title, duration, display_order, created_at, lecture_source_url"
+        )
+        .eq("lecture_id", lectureId)
+        .order("display_order", { ascending: true })
+        .order("episode_number", { ascending: true });
+    },
+  ], {
+    context: "[data/contentMasters] getMasterLectureById",
+    defaultValue: null,
+  });
 
-  if (lectureResult.error) {
-    console.error("[data/contentMasters] 강의 조회 실패", lectureResult.error);
-    throw new Error(lectureResult.error.message || "강의 조회에 실패했습니다.");
-  }
-
-  if (episodesResult.error) {
-    console.error(
-      "[data/contentMasters] 강의 episode 조회 실패",
-      episodesResult.error
-    );
-    // episode는 선택사항이므로 에러를 무시
-  }
-
-  const lectureData = lectureResult.data as MasterLectureWithJoins | null;
+  // lectureResult는 단일 객체이므로 타입 처리
+  const lectureData = lectureResult as MasterLectureWithJoins | null;
   if (!lectureData) {
     return {
       lecture: null,
-      episodes: (episodesResult.data as LectureEpisode[] | null) ?? [],
+      episodes: (episodesResult as LectureEpisode[] | null) ?? [],
     };
   }
 
@@ -511,7 +519,7 @@ export async function getMasterLectureById(
 
   return {
     lecture,
-    episodes: (episodesResult.data as LectureEpisode[] | null) ?? [],
+    episodes: (episodesResult as LectureEpisode[] | null) ?? [],
   };
 }
 
@@ -898,44 +906,44 @@ export async function getMasterCustomContentById(
 ): Promise<{ content: MasterCustomContent | null }> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("master_custom_contents")
-    .select(
-      `
+  const result = await createTypedSingleQuery<MasterCustomContent & {
+    difficulty_levels?: Array<{ id: string; name: string }> | null;
+  }>(
+    async () => {
+      return await supabase
+        .from("master_custom_contents")
+        .select(
+          `
       *,
       difficulty_levels:difficulty_level_id (
         id,
         name
       )
     `
-    )
-    .eq("id", contentId)
-    .maybeSingle<MasterCustomContent>();
+        )
+        .eq("id", contentId);
+    },
+    {
+      context: "[data/contentMasters] getMasterCustomContentById",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 조회 실패", error);
-    throw new Error(error.message || "커스텀 콘텐츠 조회에 실패했습니다.");
-  }
-
-  if (!data) {
+  if (!result) {
     return {
       content: null,
     };
   }
 
   // JOIN된 데이터 처리
-  // MasterCustomContent는 JOIN 타입이 정의되지 않았으므로 타입 단언 사용
-  const dataWithJoins = data as MasterCustomContent & {
-    difficulty_levels?: Array<{ id: string; name: string }> | null;
-  };
   const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
-    dataWithJoins.difficulty_levels
+    result.difficulty_levels
   );
 
   // difficulty_level을 JOIN된 name으로 덮어쓰기 (fallback: 기존 값)
   const content = {
-    ...data,
-    difficulty_level: difficultyLevel?.name || data.difficulty_level || null,
+    ...result,
+    difficulty_level: difficultyLevel?.name || result.difficulty_level || null,
   } as MasterCustomContent;
 
   return {
@@ -1139,27 +1147,27 @@ export async function getCurriculumRevisions(): Promise<
   const supabase = await getClientForRLSBypass();
 
   if (!supabase) {
-    console.error("[data/contentMasters] Supabase client uninitialized");
+    handleQueryError(null, {
+      context: "[data/contentMasters] getCurriculumRevisions",
+      logError: true,
+    });
     return [];
   }
 
-  const { data, error } = await supabase
-    .from("curriculum_revisions")
-    .select("id, name")
-    .order("name", { ascending: true });
+  const result = await createTypedQuery<Array<{ id: string; name: string }>>(
+    async () => {
+      return await (supabase as unknown as SupabaseServerClient)
+        .from("curriculum_revisions")
+        .select("id, name")
+        .order("name", { ascending: true });
+    },
+    {
+      context: "[data/contentMasters] getCurriculumRevisions",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/contentMasters] 개정교육과정 목록 조회 실패", error);
-    return [];
-  }
-
-  console.log("[data/contentMasters] 개정교육과정 조회 결과:", {
-    count: data?.length || 0,
-    data: data || [],
-    hasAdminClient: !!supabase,
-  });
-
-  return (data as Array<{ id: string; name: string }> | null) ?? [];
+  return result ?? [];
 }
 
 /**

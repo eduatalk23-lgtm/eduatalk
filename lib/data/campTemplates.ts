@@ -1,15 +1,32 @@
-// 캠프 템플릿 및 초대 데이터 액세스 레이어
+/**
+ * 캠프 템플릿 및 초대 데이터 액세스 레이어
+ * 
+ * typedQueryBuilder 패턴을 사용하여 타입 안전성과 에러 처리를 표준화합니다.
+ * Admin Client를 사용하는 함수들은 RLS를 우회하여 관리자 권한이 필요한 작업을 수행합니다.
+ */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
-import { applyFilters, type FilterConfig } from "@/lib/utils/supabaseQueryBuilder";
+import { createTypedQuery, createTypedSingleQuery } from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { Database } from "@/lib/supabase/database.types";
+import type { SupabaseServerClient } from "@/lib/data/core/types";
 import type {
   CampTemplateUpdate,
   CampInvitationUpdate,
 } from "@/lib/domains/camp/types";
+
+// Database 타입에서 테이블 타입 추출
+type CampTemplateRow = Database["public"]["Tables"]["camp_templates"]["Row"];
+type CampTemplateInsert = Database["public"]["Tables"]["camp_templates"]["Insert"];
+type CampTemplateUpdateRow = Database["public"]["Tables"]["camp_templates"]["Update"];
+
+type CampInvitationRow = Database["public"]["Tables"]["camp_invitations"]["Row"];
+type CampInvitationInsert = Database["public"]["Tables"]["camp_invitations"]["Insert"];
+type CampInvitationUpdateRow = Database["public"]["Tables"]["camp_invitations"]["Update"];
 
 /**
  * 캠프 템플릿 조회
@@ -19,41 +36,27 @@ export async function getCampTemplate(templateId: string): Promise<CampTemplate 
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
-    return null;
-  }
-
-  const { data, error } = await supabase
-    .from("camp_templates")
-    .select("*")
-    .eq("id", templateId)
-    .maybeSingle();
-
-  if (error) {
-    // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러 (템플릿이 없는 경우)
-    if (error.code !== "PGRST116") {
-      console.error("[data/campTemplates] 템플릿 조회 실패", {
-        templateId,
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetails: error.details,
-        errorHint: error.hint,
-      });
-    } else if (process.env.NODE_ENV === "development") {
-      console.warn("[data/campTemplates] 템플릿을 찾을 수 없음 (PGRST116)", {
-        templateId,
-      });
-    }
-    return null;
-  }
-
-  if (!data && process.env.NODE_ENV === "development") {
-    console.warn("[data/campTemplates] 템플릿 조회 결과가 null", {
-      templateId,
+    handleQueryError(null, {
+      context: "[data/campTemplates] getCampTemplate",
+      logError: true,
     });
+    return null;
   }
 
-  return data as CampTemplate | null;
+  const result = await createTypedSingleQuery<CampTemplateRow>(
+    async () => {
+      return await (supabase as unknown as SupabaseServerClient)
+        .from("camp_templates")
+        .select("*")
+        .eq("id", templateId);
+    },
+    {
+      context: "[data/campTemplates] getCampTemplate",
+      defaultValue: null,
+    }
+  );
+
+  return result as CampTemplate | null;
 }
 
 /**
@@ -75,26 +78,18 @@ export async function createCampTemplate(data: {
   // 호출 전에 requireAdminOrConsultant()로 권한 검증이 완료되어야 함
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    throw new Error("Admin Client를 생성할 수 없습니다.");
+    return {
+      success: false,
+      error: "Admin Client를 생성할 수 없습니다.",
+    };
   }
 
-  const insertData: {
-    tenant_id: string;
-    name: string;
-    description: string | null;
-    program_type: string;
-    template_data: Partial<WizardData> | null;
-    status: "draft";
-    created_by?: string;
-    camp_start_date?: string;
-    camp_end_date?: string;
-    camp_location?: string;
-  } = {
+  const insertData: CampTemplateInsert = {
     tenant_id: data.tenant_id,
     name: data.name,
     description: data.description || null,
-    program_type: data.program_type,
-    template_data: data.template_data,
+    program_type: data.program_type as CampTemplateInsert["program_type"],
+    template_data: data.template_data as CampTemplateInsert["template_data"],
     status: "draft",
   };
 
@@ -114,17 +109,28 @@ export async function createCampTemplate(data: {
     insertData.camp_location = data.camp_location;
   }
 
-  const { data: template, error } = await supabase
-    .from("camp_templates")
-    .insert(insertData)
-    .select("id")
-    .single();
+  const result = await createTypedQuery<{ id: string }>(
+    async () => {
+      return await (supabase as unknown as SupabaseServerClient)
+        .from("camp_templates")
+        .insert(insertData)
+        .select("id")
+        .single();
+    },
+    {
+      context: "[data/campTemplates] createCampTemplate",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    return { success: false, error: error.message };
+  if (!result) {
+    return {
+      success: false,
+      error: "템플릿 생성에 실패했습니다.",
+    };
   }
 
-  return { success: true, templateId: template.id };
+  return { success: true, templateId: result.id };
 }
 
 /**
@@ -134,40 +140,31 @@ export async function createCampTemplate(data: {
 export async function getCampTemplatesForTenant(
   tenantId: string
 ): Promise<CampTemplate[]> {
-  try {
-    // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
-    const supabase = createSupabaseAdminClient();
-    if (!supabase) {
-      console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
-      return [];
-    }
-
-    const { data, error } = await supabase
-      .from("camp_templates")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("[data/campTemplates] 템플릿 목록 조회 실패", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      });
-      return [];
-    }
-
-    return (data || []) as CampTemplate[];
-  } catch (error) {
-    // 예상치 못한 에러 처리
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/campTemplates] 템플릿 목록 조회 중 예외 발생", {
-      message: errorMessage,
-      error,
+  // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    handleQueryError(null, {
+      context: "[data/campTemplates] getCampTemplatesForTenant",
+      logError: true,
     });
     return [];
   }
+
+  const result = await createTypedQuery<CampTemplateRow[]>(
+    async () => {
+      return await (supabase as unknown as SupabaseServerClient)
+        .from("camp_templates")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
+    },
+    {
+      context: "[data/campTemplates] getCampTemplatesForTenant",
+      defaultValue: [],
+    }
+  );
+
+  return (result ?? []) as CampTemplate[];
 }
 
 /**
@@ -240,14 +237,13 @@ export async function getCampTemplatesForTenantWithPagination(
 
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
+    // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
 
     if (countError) {
-      console.error("[data/campTemplates] 템플릿 개수 조회 실패", {
-        message: countError.message,
-        code: countError.code,
-        tenantId,
-        filters,
+      handleQueryError(countError as Parameters<typeof handleQueryError>[0], {
+        context: "[data/campTemplates] getCampTemplatesForTenantWithPagination - count",
       });
     }
 
@@ -258,13 +254,8 @@ export async function getCampTemplatesForTenantWithPagination(
       .range(offset, offset + pageSize - 1);
 
     if (error) {
-      console.error("[data/campTemplates] 템플릿 목록 조회 실패", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        tenantId,
-        filters,
+      handleQueryError(error, {
+        context: "[data/campTemplates] getCampTemplatesForTenantWithPagination - data",
       });
       return {
         items: [],
@@ -338,19 +329,22 @@ export async function getCampInvitationsForStudent(
 ): Promise<CampInvitation[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("camp_invitations")
-    .select("*")
-    .eq("student_id", studentId)
-    .in("status", ["pending", "accepted"])
-    .order("invited_at", { ascending: false });
+  const result = await createTypedQuery<CampInvitationRow[]>(
+    async () => {
+      return await supabase
+        .from("camp_invitations")
+        .select("*")
+        .eq("student_id", studentId)
+        .in("status", ["pending", "accepted"])
+        .order("invited_at", { ascending: false });
+    },
+    {
+      context: "[data/campTemplates] getCampInvitationsForStudent",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/campTemplates] 초대 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data || []) as CampInvitation[];
+  return (result ?? []) as CampInvitation[];
 }
 
 /**
@@ -363,25 +357,27 @@ export async function getCampInvitation(
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
+    handleQueryError(null, {
+      context: "[data/campTemplates] getCampInvitation",
+      logError: true,
+    });
     return null;
   }
 
-  const { data, error } = await supabase
-    .from("camp_invitations")
-    .select("*")
-    .eq("id", invitationId)
-    .maybeSingle();
-
-  if (error) {
-    // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러 (초대가 없는 경우)
-    if (error.code !== "PGRST116") {
-      console.error("[data/campTemplates] 초대 조회 실패", error);
+  const result = await createTypedSingleQuery<CampInvitationRow>(
+    async () => {
+      return await (supabase as unknown as SupabaseServerClient)
+        .from("camp_invitations")
+        .select("*")
+        .eq("id", invitationId);
+    },
+    {
+      context: "[data/campTemplates] getCampInvitation",
+      defaultValue: null,
     }
-    return null;
-  }
+  );
 
-  return data as CampInvitation | null;
+  return result as CampInvitation | null;
 }
 
 /**
@@ -393,22 +389,28 @@ export async function updateCampInvitationStatus(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const updateData: CampInvitationUpdate = {
+  const updateData: CampInvitationUpdateRow = {
     status,
     updated_at: new Date().toISOString(),
     accepted_at: status === "accepted" ? new Date().toISOString() : null,
     declined_at: status === "declined" ? new Date().toISOString() : null,
   };
 
-  const { error } = await supabase
-    .from("camp_invitations")
-    .update(updateData)
-    .eq("id", invitationId);
+  const result = await createTypedQuery<null>(
+    async () => {
+      return await supabase
+        .from("camp_invitations")
+        .update(updateData)
+        .eq("id", invitationId);
+    },
+    {
+      context: "[data/campTemplates] updateCampInvitationStatus",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
 
@@ -518,12 +520,13 @@ export async function getCampInvitationsForTemplateWithPagination(
 
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
+    // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
 
     if (countError) {
-      console.error("[data/campTemplates] 초대 개수 조회 실패", {
-        message: countError.message,
-        code: countError.code,
+      handleQueryError(countError as Parameters<typeof handleQueryError>[0], {
+        context: "[data/campTemplates] getCampInvitationsForTemplateWithPagination - count",
       });
     }
 
@@ -534,7 +537,9 @@ export async function getCampInvitationsForTemplateWithPagination(
       .range(offset, offset + pageSize - 1);
 
     if (error) {
-      console.error("[data/campTemplates] 템플릿별 초대 목록 조회 실패", error);
+      handleQueryError(error, {
+        context: "[data/campTemplates] getCampInvitationsForTemplateWithPagination - data",
+      });
       return {
         items: [],
         total: 0,
@@ -662,10 +667,9 @@ export async function getCampTemplateImpactSummary(
     .eq("tenant_id", tenantId);
 
   if (invitationsError) {
-    console.error(
-      "[data/campTemplates] 초대 통계 조회 실패",
-      invitationsError
-    );
+    handleQueryError(invitationsError, {
+      context: "[data/campTemplates] getCampTemplateImpactSummary - invitations",
+    });
   } else {
     (invitations || []).forEach((invitation) => {
       const status = invitation.status as keyof typeof invitationStats;
@@ -684,10 +688,9 @@ export async function getCampTemplateImpactSummary(
     .is("deleted_at", null);
 
   if (planGroupsError) {
-    console.error(
-      "[data/campTemplates] 플랜 그룹 통계 조회 실패",
-      planGroupsError
-    );
+    handleQueryError(planGroupsError, {
+      context: "[data/campTemplates] getCampTemplateImpactSummary - planGroups",
+    });
   } else {
     (planGroups || []).forEach((group) => {
       if (group.camp_invitation_id) {
@@ -751,7 +754,9 @@ export async function deleteCampInvitation(
     .select();
 
   if (error) {
-    console.error("[data/campTemplates] 초대 삭제 실패", error);
+    handleQueryError(error, {
+      context: "[data/campTemplates] deleteCampInvitation",
+    });
     return { success: false, error: error.message };
   }
 
@@ -813,7 +818,9 @@ export async function deleteCampInvitations(
   const count = error ? 0 : (deletedRows?.length || 0);
 
   if (error) {
-    console.error("[data/campTemplates] 초대 일괄 삭제 실패", error);
+    handleQueryError(error, {
+      context: "[data/campTemplates] deleteCampInvitations",
+    });
     return { success: false, error: error.message };
   }
 
@@ -877,10 +884,9 @@ export async function copyCampTemplate(
 
     if (blockSetLinkError && blockSetLinkError.code !== "PGRST116") {
       // PGRST116은 결과가 없을 때 발생하는 정상적인 에러
-      console.error(
-        "[data/campTemplates] 블록 세트 연결 조회 실패",
-        blockSetLinkError
-      );
+      handleQueryError(blockSetLinkError, {
+        context: "[data/campTemplates] copyCampTemplate - blockSetLink",
+      });
       // 조회 실패 시 템플릿 삭제 (롤백)
       await supabase.from("camp_templates").delete().eq("id", newTemplateId);
       return {
@@ -897,10 +903,9 @@ export async function copyCampTemplate(
         });
 
       if (insertError) {
-        console.error(
-          "[data/campTemplates] 블록 세트 연결 복사 실패",
-          insertError
-        );
+        handleQueryError(insertError, {
+          context: "[data/campTemplates] copyCampTemplate - blockSetLink insert",
+        });
         // 블록 세트 연결 실패 시 템플릿 삭제 (롤백)
         await supabase.from("camp_templates").delete().eq("id", newTemplateId);
         return {
@@ -962,11 +967,10 @@ export async function getCampStatisticsForTenant(
       .eq("status", "active");
 
     if (templatesError) {
+      handleQueryError(templatesError, {
+        context: "[data/campTemplates] getCampStatisticsForTenant - templates",
+      });
       const errorMessage = templatesError.message || "활성 템플릿 수 조회 실패";
-      console.error(
-        "[data/campTemplates] 활성 템플릿 수 조회 실패",
-        templatesError
-      );
       return {
         success: false,
         error: errorMessage,
@@ -980,11 +984,10 @@ export async function getCampStatisticsForTenant(
       .eq("tenant_id", tenantId);
 
     if (invitationsError) {
+      handleQueryError(invitationsError, {
+        context: "[data/campTemplates] getCampStatisticsForTenant - invitations",
+      });
       const errorMessage = invitationsError.message || "초대 통계 조회 실패";
-      console.error(
-        "[data/campTemplates] 초대 통계 조회 실패",
-        invitationsError
-      );
       return {
         success: false,
         error: errorMessage,
@@ -1067,11 +1070,10 @@ export async function getCampTemplateStatistics(
       .eq("tenant_id", tenantId);
 
     if (invitationsError) {
+      handleQueryError(invitationsError, {
+        context: "[data/campTemplates] getCampTemplateStatistics - invitations",
+      });
       const errorMessage = invitationsError.message || "템플릿별 초대 통계 조회 실패";
-      console.error(
-        "[data/campTemplates] 템플릿별 초대 통계 조회 실패",
-        invitationsError
-      );
       return {
         success: false,
         error: errorMessage,
@@ -1100,11 +1102,10 @@ export async function getCampTemplateStatistics(
       .is("deleted_at", null);
 
     if (planGroupsError) {
+      handleQueryError(planGroupsError, {
+        context: "[data/campTemplates] getCampTemplateStatistics - planGroups",
+      });
       const errorMessage = planGroupsError.message || "템플릿별 플랜 그룹 통계 조회 실패";
-      console.error(
-        "[data/campTemplates] 템플릿별 플랜 그룹 통계 조회 실패",
-        planGroupsError
-      );
       return {
         success: false,
         error: errorMessage,

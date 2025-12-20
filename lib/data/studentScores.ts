@@ -1,51 +1,36 @@
+/**
+ * 학생 성적 데이터 접근 레이어
+ * 
+ * 내신 성적(student_internal_scores)과 모의고사 성적(student_mock_scores)을 관리합니다.
+ * typedQueryBuilder 패턴을 사용하여 타입 안전성과 에러 처리를 표준화합니다.
+ */
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getOrCreateStudentTerm,
   calculateSchoolYear,
 } from "@/lib/data/studentTerms";
+import { createTypedQuery } from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { Database } from "@/lib/supabase/database.types";
+import type { SupabaseServerClient } from "@/lib/data/core/types";
 
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+// Database 타입에서 테이블 타입 추출
+type InternalScoreRow = Database["public"]["Tables"]["student_internal_scores"]["Row"];
+type InternalScoreInsert = Database["public"]["Tables"]["student_internal_scores"]["Insert"];
+type InternalScoreUpdate = Database["public"]["Tables"]["student_internal_scores"]["Update"];
 
-// 통합 성적 타입 (student_scores 테이블)
-export type StudentScore = {
-  id: string;
-  tenant_id?: string | null;
-  student_id: string;
-  subject_type: string;
-  semester?: string | null;
-  course: string;
-  course_detail: string;
-  raw_score: number;
-  grade: number;
-  score_type_detail?: string | null;
-  test_date?: string | null;
-  created_at?: string | null;
-};
+type MockScoreRow = Database["public"]["Tables"]["student_mock_scores"]["Row"];
+type MockScoreInsert = Database["public"]["Tables"]["student_mock_scores"]["Insert"];
+type MockScoreUpdate = Database["public"]["Tables"]["student_mock_scores"]["Update"];
 
-// 내신 성적 타입 (정규화 버전)
-export type InternalScore = {
-  id: string;
-  tenant_id: string;
-  student_id: string;
-  curriculum_revision_id: string;
-  subject_group_id: string;
-  subject_type_id: string;
-  subject_id: string;
-  grade: number;
-  semester: number;
-  credit_hours: number;
-  raw_score: number | null;
-  avg_score: number | null;
-  std_dev: number | null;
-  rank_grade: number | null;
-  total_students: number | null;
-  created_at: string;
-  updated_at: string;
-};
+// 내신 성적 타입 (Database 타입과 동일)
+export type InternalScore = InternalScoreRow;
 
-// 내신 성적 타입 (레거시 - 하위 호환성)
+// 모의고사 성적 타입 (Database 타입과 동일)
+export type MockScore = MockScoreRow;
+
+// 레거시 타입 (하위 호환성 유지 - 필요시에만 사용)
 /** @deprecated InternalScore를 사용하세요 */
 export type SchoolScore = {
   id: string;
@@ -75,194 +60,13 @@ export type SchoolScore = {
   created_at?: string | null;
 };
 
-// 모의고사 성적 타입 (정규화 버전)
-export type MockScore = {
-  id: string;
-  tenant_id: string;
-  student_id: string;
-  exam_date: string; // date 형식: YYYY-MM-DD
-  exam_title: string;
-  grade: number;
-  subject_id: string;
-  subject_group_id: string;
-  standard_score: number | null;
-  percentile: number | null;
-  grade_score: number | null;
-  raw_score: number | null;
-  created_at: string;
-  updated_at: string;
-};
-
-/**
- * 통합 성적 목록 조회 (레거시)
- *
- * ⚠️ 이 함수는 더 이상 존재하지 않는 student_scores 테이블을 참조합니다.
- * 
- * @deprecated getInternalScores와 getMockScores를 별도로 사용하거나, 
- * 통합 대시보드의 경우 fetchScoreDashboard API를 사용하세요.
- * 
- * 이 함수는 하위 호환성을 위해 유지되지만, student_internal_scores와 
- * student_mock_scores를 조합하여 반환합니다.
- */
-export async function getStudentScores(
-  studentId: string,
-  tenantId?: string | null,
-  filters?: {
-    subjectType?: string;
-    semester?: string;
-    course?: string;
-  }
-): Promise<StudentScore[]> {
-  console.warn(
-    "[DEPRECATED] getStudentScores는 더 이상 사용되지 않습니다. getInternalScores, getMockScores 또는 fetchScoreDashboard API를 사용하세요."
-  );
-
-  // student_scores 테이블이 더 이상 존재하지 않으므로 빈 배열 반환
-  // 실제로는 getInternalScores와 getMockScores를 조합하여 사용해야 함
-  console.warn(
-    "[DEPRECATED] student_scores 테이블은 student_internal_scores와 student_mock_scores로 분리되었습니다."
-  );
-  
-  return [];
-}
-
-/**
- * 통합 성적 생성 (레거시)
- * @deprecated 사용하지 마세요. createInternalScore 또는 createMockScore를 사용하세요.
- */
-export async function createStudentScore(score: {
-  tenant_id?: string | null;
-  student_id: string;
-  subject_type: string;
-  semester?: string | null;
-  course: string;
-  course_detail: string;
-  raw_score: number;
-  grade: number;
-  score_type_detail?: string | null;
-  test_date?: string | null;
-}): Promise<{ success: boolean; scoreId?: string; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
-  const payload = {
-    tenant_id: score.tenant_id || null,
-    student_id: score.student_id,
-    subject_type: score.subject_type,
-    semester: score.semester || null,
-    course: score.course,
-    course_detail: score.course_detail,
-    raw_score: score.raw_score,
-    grade: score.grade,
-    score_type_detail: score.score_type_detail || null,
-    test_date: score.test_date || null,
-  };
-
-  let { data, error } = await supabase
-    .from("student_scores")
-    .insert(payload)
-    .select("id")
-    .single();
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const {
-      tenant_id: _tenantId,
-      student_id: _studentId,
-      ...fallbackPayload
-    } = payload;
-    ({ data, error } = await supabase
-      .from("student_scores")
-      .insert(fallbackPayload)
-      .select("id")
-      .single());
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 통합 성적 생성 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, scoreId: data?.id };
-}
-
-/**
- * 통합 성적 업데이트 (레거시)
- * @deprecated 사용하지 마세요. updateInternalScore 또는 updateMockScore를 사용하세요.
- */
-export async function updateStudentScore(
-  scoreId: string,
-  studentId: string,
-  updates: Partial<Omit<StudentScore, "id" | "student_id" | "created_at">>
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
-  const payload: Record<string, any> = {};
-  if (updates.subject_type !== undefined)
-    payload.subject_type = updates.subject_type;
-  if (updates.semester !== undefined) payload.semester = updates.semester;
-  if (updates.course !== undefined) payload.course = updates.course;
-  if (updates.course_detail !== undefined)
-    payload.course_detail = updates.course_detail;
-  if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
-  if (updates.grade !== undefined) payload.grade = updates.grade;
-  if (updates.score_type_detail !== undefined)
-    payload.score_type_detail = updates.score_type_detail;
-  if (updates.test_date !== undefined) payload.test_date = updates.test_date;
-
-  let { error } = await supabase
-    .from("student_scores")
-    .update(payload)
-    .eq("id", scoreId)
-    .eq("student_id", studentId);
-
-  if (error && error.code === "42703") {
-    ({ error } = await supabase
-      .from("student_scores")
-      .update(payload)
-      .eq("id", scoreId));
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 통합 성적 업데이트 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
-/**
- * 통합 성적 삭제 (레거시)
- * @deprecated 사용하지 마세요. deleteInternalScore 또는 deleteMockScore를 사용하세요.
- */
-export async function deleteStudentScore(
-  scoreId: string,
-  studentId: string
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
-  let { error } = await supabase
-    .from("student_scores")
-    .delete()
-    .eq("id", scoreId)
-    .eq("student_id", studentId);
-
-  if (error && error.code === "42703") {
-    ({ error } = await supabase
-      .from("student_scores")
-      .delete()
-      .eq("id", scoreId));
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 통합 성적 삭제 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true };
-}
-
 /**
  * 내신 성적 목록 조회 (정규화 버전)
+ * 
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @param filters - 필터 옵션
+ * @returns 내신 성적 목록
  */
 export async function getInternalScores(
   studentId: string,
@@ -275,39 +79,47 @@ export async function getInternalScores(
 ): Promise<InternalScore[]> {
   const supabase = await createSupabaseServerClient();
 
-  let query = supabase
-    .from("student_internal_scores")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
+  const result = await createTypedQuery<InternalScore[]>(
+    async () => {
+      let query = supabase
+        .from("student_internal_scores")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
 
-  if (filters?.grade) {
-    query = query.eq("grade", filters.grade);
-  }
+      if (filters?.grade !== undefined) {
+        query = query.eq("grade", filters.grade);
+      }
 
-  if (filters?.semester) {
-    query = query.eq("semester", filters.semester);
-  }
+      if (filters?.semester !== undefined) {
+        query = query.eq("semester", filters.semester);
+      }
 
-  if (filters?.subjectGroupId) {
-    query = query.eq("subject_group_id", filters.subjectGroupId);
-  }
+      if (filters?.subjectGroupId) {
+        query = query.eq("subject_group_id", filters.subjectGroupId);
+      }
 
-  const { data, error } = await query
-    .order("grade", { ascending: true })
-    .order("semester", { ascending: true })
-    .order("created_at", { ascending: false });
+      return await query
+        .order("grade", { ascending: true })
+        .order("semester", { ascending: true })
+        .order("created_at", { ascending: false });
+    },
+    {
+      context: "[data/studentScores] getInternalScores",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 내신 성적 조회 실패", error);
-    return [];
-  }
-
-  return (data as InternalScore[] | null) ?? [];
+  return result ?? [];
 }
 
 /**
  * 모의고사 성적 목록 조회 (정규화 버전)
+ * 
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @param filters - 필터 옵션
+ * @returns 모의고사 성적 목록
  */
 export async function getMockScores(
   studentId: string,
@@ -321,44 +133,50 @@ export async function getMockScores(
 ): Promise<MockScore[]> {
   const supabase = await createSupabaseServerClient();
 
-  let query = supabase
-    .from("student_mock_scores")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
+  const result = await createTypedQuery<MockScore[]>(
+    async () => {
+      let query = supabase
+        .from("student_mock_scores")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
 
-  if (filters?.grade) {
-    query = query.eq("grade", filters.grade);
-  }
+      if (filters?.grade !== undefined) {
+        query = query.eq("grade", filters.grade);
+      }
 
-  if (filters?.examTitle) {
-    query = query.eq("exam_title", filters.examTitle);
-  }
+      if (filters?.examTitle) {
+        query = query.eq("exam_title", filters.examTitle);
+      }
 
-  if (filters?.examDate) {
-    query = query.eq("exam_date", filters.examDate);
-  }
+      if (filters?.examDate) {
+        query = query.eq("exam_date", filters.examDate);
+      }
 
-  if (filters?.subjectGroupId) {
-    query = query.eq("subject_group_id", filters.subjectGroupId);
-  }
+      if (filters?.subjectGroupId) {
+        query = query.eq("subject_group_id", filters.subjectGroupId);
+      }
 
-  const { data, error } = await query
-    .order("exam_date", { ascending: false })
-    .order("created_at", { ascending: false });
+      return await query
+        .order("exam_date", { ascending: false })
+        .order("created_at", { ascending: false });
+    },
+    {
+      context: "[data/studentScores] getMockScores",
+      defaultValue: [],
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 모의고사 성적 조회 실패", error);
-    return [];
-  }
-
-  return (data as MockScore[] | null) ?? [];
+  return result ?? [];
 }
 
 /**
  * 내신 성적 생성 (정규화 버전)
  *
  * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
+ * 
+ * @param score - 내신 성적 데이터
+ * @returns 생성 결과
  */
 export async function createInternalScore(score: {
   tenant_id: string;
@@ -394,18 +212,21 @@ export async function createInternalScore(score: {
       curriculum_revision_id: score.curriculum_revision_id,
     });
   } catch (error) {
-    console.error("[data/studentScores] student_term 조회/생성 실패", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "student_term 조회/생성 실패";
+    handleQueryError(error as unknown, {
+      context: "[data/studentScores] createInternalScore - student_term",
+    });
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "student_term 조회/생성 실패",
+      error: errorMessage,
     };
   }
 
-  const payload = {
+  const payload: InternalScoreInsert = {
     tenant_id: score.tenant_id,
     student_id: score.student_id,
-    student_term_id, // student_term_id 추가
+    student_term_id,
     curriculum_revision_id: score.curriculum_revision_id,
     subject_group_id: score.subject_group_id,
     subject_type_id: score.subject_type_id,
@@ -420,62 +241,101 @@ export async function createInternalScore(score: {
     total_students: score.total_students ?? null,
   };
 
-  const { data, error } = await supabase
-    .from("student_internal_scores")
-    .insert(payload)
-    .select("id")
-    .single();
+  const result = await createTypedQuery<{ id: string }>(
+    async () => {
+      return await supabase
+        .from("student_internal_scores")
+        .insert(payload)
+        .select("id")
+        .single();
+    },
+    {
+      context: "[data/studentScores] createInternalScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 내신 성적 생성 실패", error);
-    return { success: false, error: error.message };
+  if (!result) {
+    return {
+      success: false,
+      error: "내신 성적 생성에 실패했습니다.",
+    };
   }
 
-  return { success: true, scoreId: data?.id };
+  return { success: true, scoreId: result.id };
 }
 
 /**
  * 내신 성적 업데이트 (정규화 버전)
+ * 
+ * @param scoreId - 성적 ID
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @param updates - 업데이트할 필드
+ * @returns 업데이트 결과
  */
 export async function updateInternalScore(
   scoreId: string,
   studentId: string,
   tenantId: string,
-  updates: Partial<Omit<InternalScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">>
+  updates: Partial<
+    Omit<
+      InternalScore,
+      "id" | "student_id" | "tenant_id" | "created_at" | "updated_at"
+    >
+  >
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, unknown> = {};
+  const payload: InternalScoreUpdate = {};
   if (updates.grade !== undefined) payload.grade = updates.grade;
   if (updates.semester !== undefined) payload.semester = updates.semester;
-  if (updates.curriculum_revision_id !== undefined) payload.curriculum_revision_id = updates.curriculum_revision_id;
-  if (updates.subject_group_id !== undefined) payload.subject_group_id = updates.subject_group_id;
-  if (updates.subject_type_id !== undefined) payload.subject_type_id = updates.subject_type_id;
+  if (updates.student_term_id !== undefined)
+    payload.student_term_id = updates.student_term_id;
+  if (updates.curriculum_revision_id !== undefined)
+    payload.curriculum_revision_id = updates.curriculum_revision_id;
+  if (updates.subject_group_id !== undefined)
+    payload.subject_group_id = updates.subject_group_id;
+  if (updates.subject_type_id !== undefined)
+    payload.subject_type_id = updates.subject_type_id;
   if (updates.subject_id !== undefined) payload.subject_id = updates.subject_id;
-  if (updates.credit_hours !== undefined) payload.credit_hours = updates.credit_hours;
+  if (updates.credit_hours !== undefined)
+    payload.credit_hours = updates.credit_hours;
   if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
   if (updates.avg_score !== undefined) payload.avg_score = updates.avg_score;
   if (updates.std_dev !== undefined) payload.std_dev = updates.std_dev;
-  if (updates.rank_grade !== undefined) payload.rank_grade = updates.rank_grade;
-  if (updates.total_students !== undefined) payload.total_students = updates.total_students;
+  if (updates.rank_grade !== undefined)
+    payload.rank_grade = updates.rank_grade;
+  if (updates.total_students !== undefined)
+    payload.total_students = updates.total_students;
 
-  const { error } = await supabase
-    .from("student_internal_scores")
-    .update(payload)
-    .eq("id", scoreId)
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
+  const result = await createTypedQuery<null>(
+    async () => {
+      return await supabase
+        .from("student_internal_scores")
+        .update(payload)
+        .eq("id", scoreId)
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+    },
+    {
+      context: "[data/studentScores] updateInternalScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 내신 성적 업데이트 실패", error);
-    return { success: false, error: error.message };
-  }
-
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
 
 /**
  * 내신 성적 삭제 (정규화 버전)
+ * 
+ * @param scoreId - 성적 ID
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @returns 삭제 결과
  */
 export async function deleteInternalScore(
   scoreId: string,
@@ -484,18 +344,23 @@ export async function deleteInternalScore(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const { error } = await supabase
-    .from("student_internal_scores")
-    .delete()
-    .eq("id", scoreId)
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId);
+  const result = await createTypedQuery<null>(
+    async () => {
+      return await supabase
+        .from("student_internal_scores")
+        .delete()
+        .eq("id", scoreId)
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+    },
+    {
+      context: "[data/studentScores] deleteInternalScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 내신 성적 삭제 실패", error);
-    return { success: false, error: error.message };
-  }
-
+  // delete 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
 
@@ -504,6 +369,9 @@ export async function deleteInternalScore(
  *
  * student_terms를 조회/생성하여 student_term_id를 세팅합니다.
  * exam_date를 기준으로 학년도와 학기를 계산합니다.
+ * 
+ * @param score - 모의고사 성적 데이터
+ * @returns 생성 결과
  */
 export async function createMockScore(score: {
   tenant_id: string;
@@ -544,17 +412,17 @@ export async function createMockScore(score: {
     });
   } catch (error) {
     // 모의고사 성적의 경우 student_term_id가 없어도 저장 가능
-    console.warn(
-      "[data/studentScores] student_term 조회/생성 실패 (NULL로 저장)",
-      error
-    );
+    handleQueryError(error as unknown, {
+      context: "[data/studentScores] createMockScore - student_term (nullable)",
+      logError: false, // 경고만 표시
+    });
     // student_term_id는 null로 유지
   }
 
-  const payload = {
+  const payload: MockScoreInsert = {
     tenant_id: score.tenant_id,
     student_id: score.student_id,
-    student_term_id: student_term_id ?? null, // student_term_id (nullable)
+    student_term_id: student_term_id ?? null,
     exam_date: score.exam_date,
     exam_title: score.exam_title,
     grade: score.grade,
@@ -566,37 +434,58 @@ export async function createMockScore(score: {
     grade_score: score.grade_score ?? null,
   };
 
-  const { data, error } = await supabase
-    .from("student_mock_scores")
-    .insert(payload)
-    .select("id")
-    .single();
+  const result = await createTypedQuery<{ id: string }>(
+    async () => {
+      return await supabase
+        .from("student_mock_scores")
+        .insert(payload)
+        .select("id")
+        .single();
+    },
+    {
+      context: "[data/studentScores] createMockScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error) {
-    console.error("[data/studentScores] 모의고사 성적 생성 실패", error);
-    return { success: false, error: error.message };
+  if (!result) {
+    return {
+      success: false,
+      error: "모의고사 성적 생성에 실패했습니다.",
+    };
   }
 
-  return { success: true, scoreId: data?.id };
+  return { success: true, scoreId: result.id };
 }
 
 /**
  * 모의고사 성적 업데이트
+ * 
+ * @param scoreId - 성적 ID
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @param updates - 업데이트할 필드
+ * @returns 업데이트 결과
  */
 export async function updateMockScore(
   scoreId: string,
   studentId: string,
-  updates: Partial<Omit<MockScore, "id" | "student_id" | "created_at">>
+  tenantId: string,
+  updates: Partial<
+    Omit<MockScore, "id" | "student_id" | "tenant_id" | "created_at" | "updated_at">
+  >
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: MockScoreUpdate = {};
   if (updates.grade !== undefined) payload.grade = updates.grade;
-  // FK 필드 (우선 사용)
+  if (updates.student_term_id !== undefined)
+    payload.student_term_id = updates.student_term_id;
+  if (updates.exam_date !== undefined) payload.exam_date = updates.exam_date;
+  if (updates.exam_title !== undefined) payload.exam_title = updates.exam_title;
   if (updates.subject_group_id !== undefined)
     payload.subject_group_id = updates.subject_group_id;
   if (updates.subject_id !== undefined) payload.subject_id = updates.subject_id;
-  // 하위 호환성을 위한 텍스트 필드 (deprecated) - 제거됨
   if (updates.raw_score !== undefined) payload.raw_score = updates.raw_score;
   if (updates.standard_score !== undefined)
     payload.standard_score = updates.standard_score;
@@ -604,53 +493,57 @@ export async function updateMockScore(
   if (updates.grade_score !== undefined)
     payload.grade_score = updates.grade_score;
 
-  let { error } = await supabase
-    .from("student_mock_scores")
-    .update(payload)
-    .eq("id", scoreId)
-    .eq("student_id", studentId);
+  const result = await createTypedQuery<null>(
+    async () => {
+      return await supabase
+        .from("student_mock_scores")
+        .update(payload)
+        .eq("id", scoreId)
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+    },
+    {
+      context: "[data/studentScores] updateMockScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error && error.code === "42703") {
-    ({ error } = await supabase
-      .from("student_mock_scores")
-      .update(payload)
-      .eq("id", scoreId));
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 모의고사 성적 업데이트 실패", error);
-    return { success: false, error: error.message };
-  }
-
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
 
 /**
  * 모의고사 성적 삭제
+ * 
+ * @param scoreId - 성적 ID
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID
+ * @returns 삭제 결과
  */
 export async function deleteMockScore(
   scoreId: string,
-  studentId: string
+  studentId: string,
+  tenantId: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  let { error } = await supabase
-    .from("student_mock_scores")
-    .delete()
-    .eq("id", scoreId)
-    .eq("student_id", studentId);
+  const result = await createTypedQuery<null>(
+    async () => {
+      return await supabase
+        .from("student_mock_scores")
+        .delete()
+        .eq("id", scoreId)
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId);
+    },
+    {
+      context: "[data/studentScores] deleteMockScore",
+      defaultValue: null,
+    }
+  );
 
-  if (error && error.code === "42703") {
-    ({ error } = await supabase
-      .from("student_mock_scores")
-      .delete()
-      .eq("id", scoreId));
-  }
-
-  if (error) {
-    console.error("[data/studentScores] 모의고사 성적 삭제 실패", error);
-    return { success: false, error: error.message };
-  }
-
+  // delete 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
   return { success: true };
 }
