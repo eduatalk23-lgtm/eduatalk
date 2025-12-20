@@ -1,6 +1,6 @@
 /**
  * 캠프 템플릿 및 초대 데이터 액세스 레이어
- * 
+ *
  * typedQueryBuilder 패턴을 사용하여 타입 안전성과 에러 처리를 표준화합니다.
  * Admin Client를 사용하는 함수들은 RLS를 우회하여 관리자 권한이 필요한 작업을 수행합니다.
  */
@@ -10,7 +10,10 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CampTemplate, CampInvitation } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { PaginationOptions, ListResult } from "@/lib/data/core/types";
-import { createTypedQuery, createTypedSingleQuery } from "@/lib/data/core/typedQueryBuilder";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { Database } from "@/lib/supabase/database.types";
 import type { SupabaseServerClient } from "@/lib/data/core/types";
@@ -21,18 +24,25 @@ import type {
 
 // Database 타입에서 테이블 타입 추출
 type CampTemplateRow = Database["public"]["Tables"]["camp_templates"]["Row"];
-type CampTemplateInsert = Database["public"]["Tables"]["camp_templates"]["Insert"];
-type CampTemplateUpdateRow = Database["public"]["Tables"]["camp_templates"]["Update"];
+type CampTemplateInsert =
+  Database["public"]["Tables"]["camp_templates"]["Insert"];
+type CampTemplateUpdateRow =
+  Database["public"]["Tables"]["camp_templates"]["Update"];
 
-type CampInvitationRow = Database["public"]["Tables"]["camp_invitations"]["Row"];
-type CampInvitationInsert = Database["public"]["Tables"]["camp_invitations"]["Insert"];
-type CampInvitationUpdateRow = Database["public"]["Tables"]["camp_invitations"]["Update"];
+type CampInvitationRow =
+  Database["public"]["Tables"]["camp_invitations"]["Row"];
+type CampInvitationInsert =
+  Database["public"]["Tables"]["camp_invitations"]["Insert"];
+type CampInvitationUpdateRow =
+  Database["public"]["Tables"]["camp_invitations"]["Update"];
 
 /**
  * 캠프 템플릿 조회
  * 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
  */
-export async function getCampTemplate(templateId: string): Promise<CampTemplate | null> {
+export async function getCampTemplate(
+  templateId: string
+): Promise<CampTemplate | null> {
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
@@ -193,7 +203,7 @@ export async function getCampTemplatesForTenantWithPagination(
         pageSize: options.pageSize || options.limit || 20,
       };
     }
-    
+
     const page = options.page || 1;
     const pageSize = options.pageSize || options.limit || 20;
     const offset = options.offset ?? (page - 1) * pageSize;
@@ -219,7 +229,9 @@ export async function getCampTemplatesForTenantWithPagination(
       // 검색어 필터링 (name 또는 description) - 특수 처리
       if (filters.search?.trim()) {
         const searchLower = filters.search.toLowerCase().trim();
-        query = query.or(`name.ilike.%${searchLower}%,description.ilike.%${searchLower}%`);
+        query = query.or(
+          `name.ilike.%${searchLower}%,description.ilike.%${searchLower}%`
+        );
       }
 
       // 상태 필터
@@ -239,11 +251,15 @@ export async function getCampTemplatesForTenantWithPagination(
     const countQuery = buildQuery();
     // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
+    const { count, error: countError } = await (countQuery.select as any)("*", {
+      count: "exact",
+      head: true,
+    });
 
     if (countError) {
       handleQueryError(countError as Parameters<typeof handleQueryError>[0], {
-        context: "[data/campTemplates] getCampTemplatesForTenantWithPagination - count",
+        context:
+          "[data/campTemplates] getCampTemplatesForTenantWithPagination - count",
       });
     }
 
@@ -255,7 +271,8 @@ export async function getCampTemplatesForTenantWithPagination(
 
     if (error) {
       handleQueryError(error, {
-        context: "[data/campTemplates] getCampTemplatesForTenantWithPagination - data",
+        context:
+          "[data/campTemplates] getCampTemplatesForTenantWithPagination - data",
       });
       return {
         items: [],
@@ -269,15 +286,18 @@ export async function getCampTemplatesForTenantWithPagination(
     let total = count ?? null;
     if (total === null) {
       // count 쿼리가 실패했거나 null인 경우, 전체 데이터를 조회하여 개수 확인
-      const { data: allData, error: allDataError } = await buildQuery()
-        .select("id");
-      
+      const { data: allData, error: allDataError } =
+        await buildQuery().select("id");
+
       if (!allDataError && allData) {
         total = allData.length;
-        console.warn("[data/campTemplates] count 쿼리 실패, 데이터 길이로 대체", {
-          total,
-          tenantId,
-        });
+        console.warn(
+          "[data/campTemplates] count 쿼리 실패, 데이터 길이로 대체",
+          {
+            total,
+            tenantId,
+          }
+        );
       } else {
         total = 0;
         console.error("[data/campTemplates] 전체 데이터 조회도 실패", {
@@ -420,7 +440,15 @@ export async function updateCampInvitationStatus(
  */
 export async function getCampInvitationsForTemplate(
   templateId: string
-): Promise<Array<CampInvitation & { student_name?: string; student_grade?: string; student_class?: string }>> {
+): Promise<
+  Array<
+    CampInvitation & {
+      student_name?: string;
+      student_grade?: string;
+      student_class?: string;
+    }
+  >
+> {
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
@@ -430,14 +458,16 @@ export async function getCampInvitationsForTemplate(
 
   const { data, error } = await supabase
     .from("camp_invitations")
-    .select(`
+    .select(
+      `
       *,
       students:student_id (
         name,
         grade,
         class
       )
-    `)
+    `
+    )
     .eq("camp_template_id", templateId)
     .order("invited_at", { ascending: false });
 
@@ -454,13 +484,17 @@ export async function getCampInvitationsForTemplate(
       class: string | null;
     } | null;
   };
-  
-  return (data as InvitationWithStudent[] | null)?.map((invitation) => ({
-    ...invitation,
-    student_name: invitation.students?.name ?? undefined,
-    student_grade: invitation.students?.grade ? String(invitation.students.grade) : undefined,
-    student_class: invitation.students?.class ?? undefined,
-  })) ?? [];
+
+  return (
+    (data as InvitationWithStudent[] | null)?.map((invitation) => ({
+      ...invitation,
+      student_name: invitation.students?.name ?? undefined,
+      student_grade: invitation.students?.grade
+        ? String(invitation.students.grade)
+        : undefined,
+      student_class: invitation.students?.class ?? undefined,
+    })) ?? []
+  );
 }
 
 /**
@@ -476,7 +510,15 @@ export async function getCampInvitationsForTemplateWithPagination(
       status?: string;
     };
   } = {}
-): Promise<ListResult<CampInvitation & { student_name?: string | null; student_grade?: string | null; student_class?: string | null }>> {
+): Promise<
+  ListResult<
+    CampInvitation & {
+      student_name?: string | null;
+      student_grade?: string | null;
+      student_class?: string | null;
+    }
+  >
+> {
   try {
     // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
@@ -489,7 +531,7 @@ export async function getCampInvitationsForTemplateWithPagination(
         pageSize: options.pageSize || options.limit || 20,
       };
     }
-    
+
     const page = options.page || 1;
     const pageSize = options.pageSize || options.limit || 20;
     const offset = options.offset ?? (page - 1) * pageSize;
@@ -499,14 +541,16 @@ export async function getCampInvitationsForTemplateWithPagination(
     const buildQuery = () => {
       let query = supabase
         .from("camp_invitations")
-        .select(`
+        .select(
+          `
           *,
           students:student_id (
             name,
             grade,
             class
           )
-        `)
+        `
+        )
         .eq("camp_template_id", templateId)
         .eq("tenant_id", tenantId);
 
@@ -522,11 +566,15 @@ export async function getCampInvitationsForTemplateWithPagination(
     const countQuery = buildQuery();
     // Supabase count 쿼리는 타입 정의가 복잡하므로 타입 단언 사용
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
+    const { count, error: countError } = await (countQuery.select as any)("*", {
+      count: "exact",
+      head: true,
+    });
 
     if (countError) {
       handleQueryError(countError as Parameters<typeof handleQueryError>[0], {
-        context: "[data/campTemplates] getCampInvitationsForTemplateWithPagination - count",
+        context:
+          "[data/campTemplates] getCampInvitationsForTemplateWithPagination - count",
       });
     }
 
@@ -538,7 +586,8 @@ export async function getCampInvitationsForTemplateWithPagination(
 
     if (error) {
       handleQueryError(error, {
-        context: "[data/campTemplates] getCampInvitationsForTemplateWithPagination - data",
+        context:
+          "[data/campTemplates] getCampInvitationsForTemplateWithPagination - data",
       });
       return {
         items: [],
@@ -556,19 +605,23 @@ export async function getCampInvitationsForTemplateWithPagination(
         class: string | null;
       } | null;
     };
-    
-    let items = (data as InvitationWithStudent[] | null)?.map((invitation) => ({
-      ...invitation,
-      student_name: invitation.students?.name ?? undefined,
-      student_grade: invitation.students?.grade ? String(invitation.students.grade) : undefined,
-      student_class: invitation.students?.class ?? undefined,
-    })) ?? [];
+
+    let items =
+      (data as InvitationWithStudent[] | null)?.map((invitation) => ({
+        ...invitation,
+        student_name: invitation.students?.name ?? undefined,
+        student_grade: invitation.students?.grade
+          ? String(invitation.students.grade)
+          : undefined,
+        student_class: invitation.students?.class ?? undefined,
+      })) ?? [];
 
     // 학생명 검색 필터 (클라이언트 사이드에서 처리 - Supabase의 관계형 쿼리에서 ilike 사용이 복잡함)
     if (filters.search?.trim()) {
       const searchLower = filters.search.toLowerCase().trim();
       items = items.filter((invitation) => {
-        const nameMatch = invitation.student_name?.toLowerCase().includes(searchLower) ?? false;
+        const nameMatch =
+          invitation.student_name?.toLowerCase().includes(searchLower) ?? false;
         return nameMatch;
       });
       // 검색 필터 적용 시 total count도 재계산 필요 (하지만 서버 사이드에서 정확한 count를 얻기 어려움)
@@ -635,7 +688,14 @@ export async function getCampTemplateImpactSummary(
     console.error("[data/campTemplates] Admin Client를 생성할 수 없습니다.");
     return {
       invitationStats: { pending: 0, accepted: 0, declined: 0 },
-      planGroupStats: { draft: 0, saved: 0, active: 0, paused: 0, completed: 0, cancelled: 0 },
+      planGroupStats: {
+        draft: 0,
+        saved: 0,
+        active: 0,
+        paused: 0,
+        completed: 0,
+        cancelled: 0,
+      },
       totalInvitations: 0,
       submittedInvitationCount: 0,
       hasPendingInvites: false,
@@ -668,7 +728,8 @@ export async function getCampTemplateImpactSummary(
 
   if (invitationsError) {
     handleQueryError(invitationsError, {
-      context: "[data/campTemplates] getCampTemplateImpactSummary - invitations",
+      context:
+        "[data/campTemplates] getCampTemplateImpactSummary - invitations",
     });
   } else {
     (invitations || []).forEach((invitation) => {
@@ -710,8 +771,7 @@ export async function getCampTemplateImpactSummary(
     submittedInvitationCount: submittedInvitationIds.size,
     hasPendingInvites: invitationStats.pending > 0,
     hasAcceptedInvites: invitationStats.accepted > 0,
-    hasReviewInProgress:
-      planGroupStats.draft > 0 || planGroupStats.saved > 0,
+    hasReviewInProgress: planGroupStats.draft > 0 || planGroupStats.saved > 0,
     hasActivatedPlans: planGroupStats.active > 0,
   };
 }
@@ -726,13 +786,16 @@ export async function deleteCampInvitation(
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   // 1. 초대 삭제 전에 관련된 플랜 그룹 삭제
-  const { deletePlanGroupByInvitationId } = await import(
-    "@/lib/data/planGroups"
-  );
+  const { deletePlanGroupByInvitationId } =
+    await import("@/lib/data/planGroups");
   const planGroupResult = await deletePlanGroupByInvitationId(invitationId);
 
   if (!planGroupResult.success) {
@@ -777,13 +840,16 @@ export async function deleteCampInvitations(
   // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { success: false, error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다." };
+    return {
+      success: false,
+      error:
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+    };
   }
 
   // 1. 각 초대에 대해 플랜 그룹 삭제
-  const { deletePlanGroupByInvitationId } = await import(
-    "@/lib/data/planGroups"
-  );
+  const { deletePlanGroupByInvitationId } =
+    await import("@/lib/data/planGroups");
 
   const planGroupResults = await Promise.all(
     invitationIds.map((invitationId) =>
@@ -814,8 +880,8 @@ export async function deleteCampInvitations(
     .delete()
     .in("id", invitationIds)
     .select();
-  
-  const count = error ? 0 : (deletedRows?.length || 0);
+
+  const count = error ? 0 : deletedRows?.length || 0;
 
   if (error) {
     handleQueryError(error, {
@@ -904,7 +970,8 @@ export async function copyCampTemplate(
 
       if (insertError) {
         handleQueryError(insertError, {
-          context: "[data/campTemplates] copyCampTemplate - blockSetLink insert",
+          context:
+            "[data/campTemplates] copyCampTemplate - blockSetLink insert",
         });
         // 블록 세트 연결 실패 시 템플릿 삭제 (롤백)
         await supabase.from("camp_templates").delete().eq("id", newTemplateId);
@@ -917,8 +984,7 @@ export async function copyCampTemplate(
 
     return { success: true, templateId: newTemplateId };
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[data/campTemplates] 템플릿 복사 중 예외 발생", {
       message: errorMessage,
       error,
@@ -955,16 +1021,18 @@ export async function getCampStatisticsForTenant(
     if (!supabase) {
       return {
         success: false,
-        error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        error:
+          "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
       };
     }
 
     // 활성 템플릿 수 조회
-    const { count: activeTemplatesCount, error: templatesError } = await supabase
-      .from("camp_templates")
-      .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .eq("status", "active");
+    const { count: activeTemplatesCount, error: templatesError } =
+      await supabase
+        .from("camp_templates")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
+        .eq("status", "active");
 
     if (templatesError) {
       handleQueryError(templatesError, {
@@ -985,7 +1053,8 @@ export async function getCampStatisticsForTenant(
 
     if (invitationsError) {
       handleQueryError(invitationsError, {
-        context: "[data/campTemplates] getCampStatisticsForTenant - invitations",
+        context:
+          "[data/campTemplates] getCampStatisticsForTenant - invitations",
       });
       const errorMessage = invitationsError.message || "초대 통계 조회 실패";
       return {
@@ -1051,14 +1120,19 @@ export type CampTemplateStatistics = {
 export async function getCampTemplateStatistics(
   templateId: string,
   tenantId: string
-): Promise<{ success: boolean; data?: CampTemplateStatistics; error?: string }> {
+): Promise<{
+  success: boolean;
+  data?: CampTemplateStatistics;
+  error?: string;
+}> {
   try {
     // 관리자 영역에서 사용되므로 Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
       return {
         success: false,
-        error: "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        error:
+          "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
       };
     }
 
@@ -1073,7 +1147,8 @@ export async function getCampTemplateStatistics(
       handleQueryError(invitationsError, {
         context: "[data/campTemplates] getCampTemplateStatistics - invitations",
       });
-      const errorMessage = invitationsError.message || "템플릿별 초대 통계 조회 실패";
+      const errorMessage =
+        invitationsError.message || "템플릿별 초대 통계 조회 실패";
       return {
         success: false,
         error: errorMessage,
@@ -1105,7 +1180,8 @@ export async function getCampTemplateStatistics(
       handleQueryError(planGroupsError, {
         context: "[data/campTemplates] getCampTemplateStatistics - planGroups",
       });
-      const errorMessage = planGroupsError.message || "템플릿별 플랜 그룹 통계 조회 실패";
+      const errorMessage =
+        planGroupsError.message || "템플릿별 플랜 그룹 통계 조회 실패";
       return {
         success: false,
         error: errorMessage,
@@ -1130,17 +1206,13 @@ export async function getCampTemplateStatistics(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      "[data/campTemplates] 템플릿별 캠프 통계 조회 중 예외 발생",
-      {
-        message: errorMessage,
-        error,
-      }
-    );
+    console.error("[data/campTemplates] 템플릿별 캠프 통계 조회 중 예외 발생", {
+      message: errorMessage,
+      error,
+    });
     return {
       success: false,
       error: errorMessage,
     };
   }
 }
-

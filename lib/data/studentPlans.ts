@@ -1,11 +1,18 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PostgrestError } from "@supabase/supabase-js";
-import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
-import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+  createTypedConditionalQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import type { Database } from "@/lib/supabase/database.types";
+import type { SupabaseServerClient } from "@/lib/data/core/types";
 
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+// Database 타입에서 테이블 타입 추출
+type PlanRow = Database["public"]["Tables"]["student_plan"]["Row"];
+type PlanInsert = Database["public"]["Tables"]["student_plan"]["Insert"];
+type PlanUpdate = Database["public"]["Tables"]["student_plan"]["Update"];
 
 /**
  * 플랜 쿼리 필터 옵션 (공통)
@@ -166,45 +173,8 @@ export const PLAN_DELETE_POLICY = {
   useSoftDelete: false,
 } as const;
 
-export type Plan = {
-  id: string;
-  tenant_id?: string | null;
-  student_id: string;
-  plan_date: string;
-  block_index: number;
-  content_type: "book" | "lecture" | "custom";
-  content_id: string;
-  chapter?: string | null;
-  planned_start_page_or_time?: number | null;
-  planned_end_page_or_time?: number | null;
-  completed_amount?: number | null;
-  progress?: number | null;
-  is_reschedulable: boolean;
-  plan_group_id?: string | null;
-  start_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 시작 시간
-  end_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 종료 시간
-  actual_start_time?: string | null;
-  actual_end_time?: string | null;
-  total_duration_seconds?: number | null;
-  paused_duration_seconds?: number | null;
-  pause_count?: number | null;
-  // 플랜 메타데이터 필드
-  plan_number?: number | null;
-  sequence?: number | null; // 플랜 그룹 내에서 같은 콘텐츠의 회차 번호
-  memo?: string | null; // 플랜 메모 (같은 plan_number를 가진 플랜들은 공유)
-  day_type?: string | null;
-  week?: number | null;
-  day?: number | null;
-  is_partial?: boolean | null;
-  is_continued?: boolean | null;
-  // Denormalized 필드 (조회 성능 향상)
-  content_title?: string | null;
-  content_subject?: string | null;
-  content_subject_category?: string | null;
-  content_category?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
+// Plan 타입은 Database 타입과 일치 (수동 타입 정의 제거)
+export type Plan = PlanRow;
 
 export type PlanFilters = {
   studentId: string;
@@ -304,19 +274,23 @@ export async function getPlansForStudent(
       .order("block_index", { ascending: true });
   };
 
-  const data = await safeQueryArray<Plan>(
+  const data = await createTypedConditionalQuery<Plan[]>(
     async () => {
       const result = await query;
       return { data: result.data as Plan[] | null, error: result.error };
     },
-    async () => {
-      const result = await buildFallbackQuery();
-      return { data: result.data as Plan[] | null, error: result.error };
-    },
-    { context: "[data/studentPlans] 플랜 조회" }
+    {
+      context: "[data/studentPlans] getPlansForStudent",
+      defaultValue: [],
+      fallbackQuery: async () => {
+        const result = await buildFallbackQuery();
+        return { data: result.data as Plan[] | null, error: result.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
   );
 
-  // 에러가 발생한 경우는 safeQueryArray가 이미 처리했으므로, 여기서는 서버 에러 재시도 로직만 처리
+  // 에러가 발생한 경우는 createTypedConditionalQuery가 이미 처리했으므로, 여기서는 서버 에러 재시도 로직만 처리
   // data가 비어있고 planGroupIds가 있는 경우에만 추가 처리
   if (data.length === 0 && (filters.planGroupIds?.length ?? 0) > 0) {
     // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
@@ -363,7 +337,7 @@ export async function getPlansForStudent(
     }
   }
 
-  return ((data as Plan[] | null) ?? []).map((plan) => ({
+  return (data ?? []).map((plan) => ({
     ...plan,
     plan_group_id: plan.plan_group_id ?? null,
   }));
@@ -393,16 +367,20 @@ export async function getPlanById(
     query = query.eq("tenant_id", tenantId);
   }
 
-  return safeQuerySingle<Plan>(
+  return createTypedConditionalQuery<Plan>(
     async () => {
-      const result = await query.maybeSingle<Plan>();
+      const result = await query.maybeSingle();
       return { data: result.data, error: result.error };
     },
-    async () => {
-      const result = await selectPlan().maybeSingle<Plan>();
-      return { data: result.data, error: result.error };
-    },
-    { context: "[data/studentPlans] 플랜 조회" }
+    {
+      context: "[data/studentPlans] getPlanById",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const result = await selectPlan().maybeSingle();
+        return { data: result.data, error: result.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
   );
 }
 
@@ -474,30 +452,34 @@ export async function createPlan(
     payload.end_time = plan.end_time;
   }
 
-  const result = await safeQuerySingle<{ id: string }>(
+  const result = await createTypedConditionalQuery<{ id: string }>(
     async () => {
       const queryResult = await supabase
         .from("student_plan")
-        .insert(payload)
+        .insert(payload as PlanInsert)
         .select("id")
         .single();
       return { data: queryResult.data, error: queryResult.error };
     },
-    async () => {
-      // fallback: tenant_id, student_id 컬럼이 없는 경우
-      const {
-        tenant_id: _tenantId,
-        student_id: _studentId,
-        ...fallbackPayload
-      } = payload;
-      const queryResult = await supabase
-        .from("student_plan")
-        .insert(fallbackPayload)
-        .select("id")
-        .single();
-      return { data: queryResult.data, error: queryResult.error };
-    },
-    { context: "[data/studentPlans] 플랜 생성" }
+    {
+      context: "[data/studentPlans] createPlan",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: tenant_id, student_id 컬럼이 없는 경우
+        const {
+          tenant_id: _tenantId,
+          student_id: _studentId,
+          ...fallbackPayload
+        } = payload;
+        const queryResult = await supabase
+          .from("student_plan")
+          .insert(fallbackPayload as PlanInsert)
+          .select("id")
+          .single();
+        return { data: queryResult.data, error: queryResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
   );
 
   if (!result) {
@@ -550,38 +532,32 @@ export async function updatePlanSafe(
     return { success: true }; // 업데이트할 내용 없음
   }
 
-  try {
-    const result = await supabase
-      .from("student_plan")
-      .update(payload)
-      .eq("id", planId)
-      .eq("student_id", studentId)
-      .select()
-      .maybeSingle();
-
-    if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-      const fallbackResult = await supabase
+  const result = await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
         .from("student_plan")
-        .update(payload)
+        .update(payload as PlanUpdate)
         .eq("id", planId)
-        .select()
-        .maybeSingle();
-
-      if (fallbackResult.error) {
-        console.error("[data/studentPlans] 플랜 업데이트 실패 (safe)", fallbackResult.error);
-        return { success: false, error: fallbackResult.error.message };
-      }
-    } else if (result.error) {
-      console.error("[data/studentPlans] 플랜 업데이트 실패 (safe)", result.error);
-      return { success: false, error: result.error.message };
+        .eq("student_id", studentId);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentPlans] updatePlanSafe",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const fallbackResult = await supabase
+          .from("student_plan")
+          .update(payload as PlanUpdate)
+          .eq("id", planId);
+        return { data: null, error: fallbackResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
+  );
 
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/studentPlans] 플랜 업데이트 예외 (safe)", error);
-    return { success: false, error: errorMessage };
-  }
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
+  return { success: true };
 }
 
 /**
@@ -637,38 +613,32 @@ export async function updatePlan(
   if (updates.is_reschedulable !== undefined)
     payload.is_reschedulable = updates.is_reschedulable;
 
-  try {
-    const result = await supabase
-      .from("student_plan")
-      .update(payload)
-      .eq("id", planId)
-      .eq("student_id", studentId)
-      .select()
-      .maybeSingle();
-
-    if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-      const fallbackResult = await supabase
+  const result = await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
         .from("student_plan")
-        .update(payload)
+        .update(payload as PlanUpdate)
         .eq("id", planId)
-        .select()
-        .maybeSingle();
-
-      if (fallbackResult.error) {
-        console.error("[data/studentPlans] 플랜 업데이트 실패", fallbackResult.error);
-        return { success: false, error: fallbackResult.error.message };
-      }
-    } else if (result.error) {
-      console.error("[data/studentPlans] 플랜 업데이트 실패", result.error);
-      return { success: false, error: result.error.message };
+        .eq("student_id", studentId);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentPlans] updatePlan",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const fallbackResult = await supabase
+          .from("student_plan")
+          .update(payload as PlanUpdate)
+          .eq("id", planId);
+        return { data: null, error: fallbackResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
+  );
 
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/studentPlans] 플랜 업데이트 예외", error);
-    return { success: false, error: errorMessage };
-  }
+  // update 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
+  return { success: true };
 }
 
 /**
@@ -680,38 +650,32 @@ export async function deletePlan(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  try {
-    const result = await supabase
-      .from("student_plan")
-      .delete()
-      .eq("id", planId)
-      .eq("student_id", studentId)
-      .select()
-      .maybeSingle();
-
-    if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-      const fallbackResult = await supabase
+  const result = await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
         .from("student_plan")
         .delete()
         .eq("id", planId)
-        .select()
-        .maybeSingle();
-
-      if (fallbackResult.error && fallbackResult.error.code !== "PGRST116") {
-        console.error("[data/studentPlans] 플랜 삭제 실패", fallbackResult.error);
-        return { success: false, error: fallbackResult.error.message };
-      }
-    } else if (result.error && result.error.code !== "PGRST116") {
-      console.error("[data/studentPlans] 플랜 삭제 실패", result.error);
-      return { success: false, error: result.error.message };
+        .eq("student_id", studentId);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentPlans] deletePlan",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const fallbackResult = await supabase
+          .from("student_plan")
+          .delete()
+          .eq("id", planId);
+        return { data: null, error: fallbackResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
+  );
 
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/studentPlans] 플랜 삭제 예외", error);
-    return { success: false, error: errorMessage };
-  }
+  // delete 쿼리는 data가 null이어도 성공일 수 있음
+  // error가 없으면 성공으로 간주
+  return { success: true };
 }
 
 /**
@@ -732,33 +696,27 @@ export async function deletePlans(
   for (let i = 0; i < planIds.length; i += batchSize) {
     const batch = planIds.slice(i, i + batchSize);
 
-    try {
-      const result = await supabase
+    // 배치 삭제는 직접 쿼리 실행하여 에러 확인
+    let result = await supabase
+      .from("student_plan")
+      .delete()
+      .in("id", batch)
+      .eq("student_id", studentId);
+
+    // UNDEFINED_COLUMN 에러 발생 시 fallback
+    if (result.error && ErrorCodeCheckers.isColumnNotFound(result.error)) {
+      result = await supabase
         .from("student_plan")
         .delete()
-        .in("id", batch)
-        .eq("student_id", studentId)
-        .select();
+        .in("id", batch);
+    }
 
-      if (result.error && result.error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
-        const fallbackResult = await supabase
-          .from("student_plan")
-          .delete()
-          .in("id", batch)
-          .select();
-
-        if (fallbackResult.error) {
-          console.error("[data/studentPlans] 플랜 일괄 삭제 실패", fallbackResult.error);
-          return { success: false, error: fallbackResult.error.message };
-        }
-      } else if (result.error) {
-        console.error("[data/studentPlans] 플랜 일괄 삭제 실패", result.error);
-        return { success: false, error: result.error.message };
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("[data/studentPlans] 플랜 일괄 삭제 예외", error);
-      return { success: false, error: errorMessage };
+    // 에러 처리
+    if (result.error) {
+      handleQueryError(result.error, {
+        context: "[data/studentPlans] deletePlans",
+      });
+      return { success: false, error: result.error.message };
     }
   }
 
