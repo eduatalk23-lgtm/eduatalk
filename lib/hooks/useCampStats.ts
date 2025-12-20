@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery, queryOptions } from "@tanstack/react-query";
+import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
+import { queryOptions } from "@tanstack/react-query";
 import { calculateCampAttendanceStats } from "@/lib/domains/camp/attendance";
 import { calculateCampLearningStats } from "@/lib/domains/camp/learningStats";
 import type { CampAttendanceStats } from "@/lib/domains/camp/types";
@@ -12,8 +13,10 @@ const CACHE_GC_TIME_STATS = 30 * 60 * 1000; // 30분
 
 /**
  * 캠프 출석 통계 쿼리 옵션
+ * 
+ * 서버 컴포넌트에서 prefetchQuery로도 사용 가능합니다.
  */
-function campAttendanceStatsQueryOptions(templateId: string) {
+export function campAttendanceStatsQueryOptions(templateId: string) {
   return queryOptions({
     queryKey: ["campAttendanceStats", templateId] as const,
     queryFn: async (): Promise<CampAttendanceStats | null> => {
@@ -26,8 +29,10 @@ function campAttendanceStatsQueryOptions(templateId: string) {
 
 /**
  * 캠프 학습 통계 쿼리 옵션
+ * 
+ * 서버 컴포넌트에서 prefetchQuery로도 사용 가능합니다.
  */
-function campLearningStatsQueryOptions(templateId: string) {
+export function campLearningStatsQueryOptions(templateId: string) {
   return queryOptions({
     queryKey: ["campLearningStats", templateId] as const,
     queryFn: async (): Promise<CampLearningStats | null> => {
@@ -40,12 +45,17 @@ function campLearningStatsQueryOptions(templateId: string) {
 
 /**
  * 캠프 출석 통계 조회 훅
+ * 
+ * @example
+ * ```typescript
+ * const { data: attendanceStats, isLoading } = useCampAttendanceStats("template-123");
+ * ```
  */
 export function useCampAttendanceStats(
   templateId: string,
   options?: { enabled?: boolean }
 ) {
-  return useQuery({
+  return useTypedQuery({
     ...campAttendanceStatsQueryOptions(templateId),
     enabled: options?.enabled !== false && !!templateId,
   });
@@ -53,12 +63,17 @@ export function useCampAttendanceStats(
 
 /**
  * 캠프 학습 통계 조회 훅
+ * 
+ * @example
+ * ```typescript
+ * const { data: learningStats, isLoading } = useCampLearningStats("template-123");
+ * ```
  */
 export function useCampLearningStats(
   templateId: string,
   options?: { enabled?: boolean }
 ) {
-  return useQuery({
+  return useTypedQuery({
     ...campLearningStatsQueryOptions(templateId),
     enabled: options?.enabled !== false && !!templateId,
   });
@@ -66,6 +81,11 @@ export function useCampLearningStats(
 
 /**
  * 캠프 통계 조회 훅 (출석 + 학습 통합)
+ * 
+ * @example
+ * ```typescript
+ * const { attendance, learning, isLoading } = useCampStats("template-123");
+ * ```
  */
 export function useCampStats(
   templateId: string,

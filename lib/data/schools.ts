@@ -947,18 +947,3 @@ export async function getSchoolByName(
   };
 }
 
-/**
- * @deprecated 통합 테이블에서는 중복 확인이 불필요
- * 기존 코드 호환을 위한 학교 중복 확인
- */
-export async function checkSchoolDuplicate(
-  name: string,
-  type: SchoolTypeKor,
-  regionId?: string | null,
-  campusName?: string | null,
-  excludeId?: string
-): Promise<School | null> {
-  // 새 테이블 구조에서는 읽기 전용이므로 항상 null 반환
-  console.warn("[data/schools] checkSchoolDuplicate는 더 이상 사용되지 않습니다.");
-  return null;
-}

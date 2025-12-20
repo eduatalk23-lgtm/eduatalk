@@ -1,8 +1,12 @@
 "use client";
 
-import { useQuery, queryOptions } from "@tanstack/react-query";
+import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
+import { queryOptions } from "@tanstack/react-query";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
-import { CACHE_STALE_TIME_DYNAMIC } from "@/lib/constants/queryCache";
+import {
+  CACHE_STALE_TIME_DYNAMIC,
+  CACHE_GC_TIME_DYNAMIC,
+} from "@/lib/constants/queryCache";
 import type { Plan } from "@/lib/types/plan";
 
 type UsePlansOptions = {
@@ -17,8 +21,13 @@ type UsePlansOptions = {
  * 
  * queryOptions를 사용하여 타입 안전성을 향상시킵니다.
  * queryClient.getQueryData()에서도 타입 추론이 자동으로 됩니다.
+ * 서버 컴포넌트에서 prefetchQuery로도 사용 가능합니다.
  */
-function plansQueryOptions(studentId: string, tenantId: string | null, planDate: string) {
+export function plansQueryOptions(
+  studentId: string,
+  tenantId: string | null,
+  planDate: string
+) {
   return queryOptions({
     queryKey: ["plans", studentId, planDate] as const,
     queryFn: async (): Promise<Plan[]> => {
@@ -34,24 +43,31 @@ function plansQueryOptions(studentId: string, tenantId: string | null, planDate:
       })) as Plan[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
+    gcTime: CACHE_GC_TIME_DYNAMIC, // 10분 (캐시 유지 시간)
   });
 }
 
+/**
+ * 플랜 조회 훅
+ * 
+ * @example
+ * ```typescript
+ * const { data: plans, isLoading } = usePlans({
+ *   studentId: "student-123",
+ *   tenantId: "tenant-456",
+ *   planDate: "2025-01-01",
+ * });
+ * ```
+ */
 export function usePlans({
   studentId,
   tenantId,
   planDate,
   enabled = true,
 }: UsePlansOptions) {
-  return useQuery({
+  return useTypedQuery({
     ...plansQueryOptions(studentId, tenantId, planDate),
     enabled,
   });
 }
-
-/**
- * 플랜 쿼리 옵션을 외부에서도 사용할 수 있도록 export
- * (prefetchQuery 등에서 사용)
- */
-export { plansQueryOptions };
 

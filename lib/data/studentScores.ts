@@ -30,8 +30,18 @@ export type InternalScore = InternalScoreRow;
 // 모의고사 성적 타입 (Database 타입과 동일)
 export type MockScore = MockScoreRow;
 
-// 레거시 타입 (하위 호환성 유지 - 필요시에만 사용)
-/** @deprecated InternalScore를 사용하세요 */
+// ============================================
+// 레거시 타입 (Deprecated - 하위 호환성 유지)
+// ============================================
+
+/**
+ * @deprecated InternalScore를 사용하세요
+ * 
+ * 이 타입은 하위 호환성을 위해 유지되지만, 새로운 코드에서는 사용하지 마세요.
+ * 대신 `InternalScore` 타입을 사용하세요.
+ * 
+ * @see InternalScore
+ */
 export type SchoolScore = {
   id: string;
   tenant_id?: string | null;
