@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
+import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { CACHE_STALE_TIME_REALTIME } from "@/lib/constants/queryCache";
+import { CACHE_STALE_TIME_REALTIME, CACHE_GC_TIME_REALTIME } from "@/lib/constants/queryCache";
 import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 type UseActivePlanOptions = {
@@ -65,6 +66,7 @@ function activePlanQueryOptions(studentId: string, planDate: string) {
       return plan;
     },
     staleTime: CACHE_STALE_TIME_REALTIME, // 10초 (실시간 업데이트를 위해 짧게)
+    gcTime: CACHE_GC_TIME_REALTIME, // 5분 (캐시 유지 시간)
     refetchInterval: 1000 * 30, // 30초마다 자동 리페치
   });
 }
@@ -74,7 +76,7 @@ export function useActivePlan({
   planDate,
   enabled = true,
 }: UseActivePlanOptions) {
-  return useQuery({
+  return useTypedQuery({
     ...activePlanQueryOptions(studentId, planDate),
     enabled,
   });
