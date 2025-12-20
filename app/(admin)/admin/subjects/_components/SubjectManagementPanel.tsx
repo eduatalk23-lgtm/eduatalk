@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import SubjectTable from "./SubjectTable";
 import SubjectTypeTable from "./SubjectTypeTable";
 import type { Subject, SubjectType } from "@/lib/data/subjects";
