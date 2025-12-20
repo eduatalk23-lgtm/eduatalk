@@ -3,6 +3,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { revalidatePath } from "next/cache";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 
 /**
  * 사용자 권한 변경
@@ -10,11 +12,11 @@ import { revalidatePath } from "next/cache";
  */
 export async function changeUserRole(
   newRole: "student" | "parent"
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResponse> {
   const { userId } = await getCurrentUserRole();
 
   if (!userId) {
-    return { success: false, error: "로그인이 필요합니다." };
+    return createErrorResponse("로그인이 필요합니다.");
   }
 
   const supabase = await createSupabaseServerClient();
@@ -26,7 +28,7 @@ export async function changeUserRole(
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "사용자 정보를 찾을 수 없습니다." };
+      return createErrorResponse("사용자 정보를 찾을 수 없습니다.");
     }
 
     // user_metadata에서 tenant_id 가져오기
@@ -42,19 +44,12 @@ export async function changeUserRole(
 
       if (tenantError) {
         console.error("[userRole] Default Tenant 조회 실패:", tenantError);
-        return {
-          success: false,
-          error: "기본 기관 정보를 조회할 수 없습니다.",
-        };
+        return createErrorResponse("기본 기관 정보를 조회할 수 없습니다.");
       }
 
       if (!defaultTenant) {
         console.error("[userRole] Default Tenant가 존재하지 않습니다.");
-        return {
-          success: false,
-          error:
-            "기본 기관 정보가 설정되지 않았습니다. 관리자에게 문의하세요.",
-        };
+        return createErrorResponse("기본 기관 정보가 설정되지 않았습니다. 관리자에게 문의하세요.");
       }
 
       tenantId = defaultTenant.id;
@@ -90,10 +85,7 @@ export async function changeUserRole(
 
       if (createStudentError) {
         console.error("[userRole] 학생 레코드 생성 실패:", createStudentError);
-        return {
-          success: false,
-          error: createStudentError.message || "학생 권한 변경에 실패했습니다.",
-        };
+        return createErrorResponse(createStudentError.message || "학생 권한 변경에 실패했습니다.");
       }
 
       // 3. user_metadata 업데이트
@@ -140,10 +132,7 @@ export async function changeUserRole(
 
       if (createParentError) {
         console.error("[userRole] 학부모 레코드 생성 실패:", createParentError);
-        return {
-          success: false,
-          error: createParentError.message || "학부모 권한 변경에 실패했습니다.",
-        };
+        return createErrorResponse(createParentError.message || "학부모 권한 변경에 실패했습니다.");
       }
 
       // 3. user_metadata 업데이트
@@ -157,16 +146,14 @@ export async function changeUserRole(
     revalidatePath("/settings");
     revalidatePath("/parent/settings");
 
-    return { success: true };
+    return createSuccessResponse();
   } catch (error) {
     console.error("[userRole] 권한 변경 중 오류:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "권한 변경 중 오류가 발생했습니다.",
-    };
+    return createErrorResponse(
+      error instanceof Error
+        ? error.message
+        : "권한 변경 중 오류가 발생했습니다."
+    );
   }
 }
 

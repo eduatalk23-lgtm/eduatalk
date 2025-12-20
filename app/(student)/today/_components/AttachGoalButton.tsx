@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { recordGoalProgress, getAllGoalsAction } from "@/app/actions/goals";
+import { recordGoalProgressAction as recordGoalProgress, getAllGoalsAction } from "@/app/(student)/actions/goalActions";
 
 type AttachGoalButtonProps = {
   goalId?: string;

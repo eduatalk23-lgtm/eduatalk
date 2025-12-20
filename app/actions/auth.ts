@@ -12,6 +12,8 @@ import { z } from "zod";
 import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
 import { saveUserConsents } from "@/lib/data/userConsents";
 import { StudentError, StudentErrorCodes, toStudentError } from "@/lib/errors/studentErrors";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 
 /**
  * Admin 클라이언트 생성 및 null 체크 헬퍼
@@ -532,9 +534,9 @@ const signUpSchema = z.object({
 });
 
 export async function signUp(
-  prevState: { error?: string; message?: string } | null,
+  prevState: ActionResponse<{ redirect: string }> | null,
   formData: FormData
-): Promise<{ error?: string; message?: string; redirect?: string }> {
+): Promise<ActionResponse<{ redirect: string }>> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
   const displayName = String(formData.get("displayName") ?? "").trim();
@@ -549,14 +551,24 @@ export async function signUp(
 
   // 필수 약관 체크
   if (!consentTerms || !consentPrivacy) {
-    return { error: "필수 약관에 동의해주세요." };
+    return createErrorResponse("필수 약관에 동의해주세요.");
   }
 
   // 입력 검증
   const validation = signUpSchema.safeParse({ email, password, displayName, tenantId, role: role || undefined });
   if (!validation.success) {
-    const firstError = validation.error.issues[0];
-    return { error: firstError?.message || "모든 필드를 올바르게 입력해주세요." };
+    const fieldErrors: Record<string, string[]> = {};
+    validation.error.issues.forEach((issue) => {
+      const path = issue.path.join(".");
+      if (!fieldErrors[path]) {
+        fieldErrors[path] = [];
+      }
+      fieldErrors[path].push(issue.message);
+    });
+    return createErrorResponse(
+      "입력값 검증에 실패했습니다.",
+      fieldErrors
+    );
   }
 
   try {
@@ -576,7 +588,7 @@ export async function signUp(
     });
 
     if (error) {
-      return { error: error.message || "회원가입에 실패했습니다." };
+      return createErrorResponse(error.message || "회원가입에 실패했습니다.");
     }
 
     // 회원가입 성공 시 레코드 생성 시도
@@ -641,14 +653,14 @@ export async function signUp(
     }
 
     // 회원가입 성공 - 이메일 확인 대기 페이지로 리다이렉트
-    return {
-      message: "회원가입이 완료되었습니다.",
-      redirect: `/signup/verify-email?email=${encodeURIComponent(validation.data.email)}`,
-    };
+    return createSuccessResponse(
+      { redirect: `/signup/verify-email?email=${encodeURIComponent(validation.data.email)}` },
+      "회원가입이 완료되었습니다."
+    );
   } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : "회원가입에 실패했습니다.",
-    };
+    return createErrorResponse(
+      error instanceof Error ? error.message : "회원가입에 실패했습니다."
+    );
   }
 }
 
@@ -657,7 +669,7 @@ export async function signUp(
  */
 export async function resendConfirmationEmail(
   email: string
-): Promise<{ success: boolean; error?: string; message?: string }> {
+): Promise<ActionResponse> {
   try {
     const supabase = await createSupabaseServerClient();
     const emailRedirectTo = await getEmailRedirectUrl();
@@ -682,30 +694,23 @@ export async function resendConfirmationEmail(
         error.message?.toLowerCase().includes("already verified") ||
         error.message?.toLowerCase().includes("user already registered")
       ) {
-        return {
-          success: false,
-          error: "이 계정은 이미 인증되었습니다. 로그인을 시도해주세요.",
-        };
+        return createErrorResponse("이 계정은 이미 인증되었습니다. 로그인을 시도해주세요.");
       }
 
       // 다른 에러
       console.error("[auth] 이메일 재발송 실패:", error);
-      return {
-        success: false,
-        error: error.message || "이메일 재발송에 실패했습니다.",
-      };
+      return createErrorResponse(error.message || "이메일 재발송에 실패했습니다.");
     }
 
-    return {
-      success: true,
-      message: "인증 메일을 재발송했습니다. 이메일을 확인해주세요. (스팸 메일함도 확인해주세요)",
-    };
+    return createSuccessResponse(
+      undefined,
+      "인증 메일을 재발송했습니다. 이메일을 확인해주세요. (스팸 메일함도 확인해주세요)"
+    );
   } catch (error) {
     console.error("[auth] 이메일 재발송 예외:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "이메일 재발송에 실패했습니다.",
-    };
+    return createErrorResponse(
+      error instanceof Error ? error.message : "이메일 재발송에 실패했습니다."
+    );
   }
 }
 

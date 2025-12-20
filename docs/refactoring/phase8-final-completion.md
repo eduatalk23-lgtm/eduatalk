@@ -84,6 +84,7 @@ Phase 8을 통해 데이터 페칭 계층 리팩토링 프로젝트의 최종 �
 #### `lib/data/planGroups.ts`
 
 **Before**:
+
 ```typescript
 scheduler_options?: any | null;
 daily_schedule?: any | null;
@@ -91,6 +92,7 @@ const payload: Record<string, any> = {};
 ```
 
 **After**:
+
 ```typescript
 scheduler_options?: SchedulerOptions | null;
 daily_schedule?: DailyScheduleInfo[] | null;
@@ -100,14 +102,16 @@ const payload: Partial<PlanGroupUpdate> = {};
 #### `lib/data/scoreQueries.ts`
 
 **Before**:
+
 ```typescript
 internalScores: ((internalScores as any) ?? []).map((score: any) => ({
   ...score,
   subject: score.subject?.[0] || null,
-}))
+}));
 ```
 
 **After**:
+
 ```typescript
 type InternalScoreWithJoin = Tables<"student_internal_scores"> & {
   subject: Tables<"subjects">[];
@@ -126,6 +130,7 @@ const normalizedInternalScores: InternalScoreWithRelations[] = (
 #### `lib/data/contentQueryBuilder.ts`
 
 **Before**:
+
 ```typescript
 sample: result.data.slice(0, 3).map((item: any) => ({
   id: item.id,
@@ -134,6 +139,7 @@ sample: result.data.slice(0, 3).map((item: any) => ({
 ```
 
 **After**:
+
 ```typescript
 type LoggableItem = Partial<Pick<T, "id" | "title">> & {
   id?: string | number;
@@ -154,6 +160,7 @@ const sample = result.data.slice(0, 3).map((item: T) => {
 #### `lib/data/todayPlans.ts`
 
 **동적 캐시 TTL 적용**:
+
 ```typescript
 // Before
 const cacheTtlSeconds = 120; // 고정 2분
@@ -166,6 +173,7 @@ const dynamicCacheTtlSeconds = isToday
 ```
 
 **인덱스 최적화 권장사항 추가**:
+
 ```typescript
 // 성능 최적화를 위한 인덱스 권장사항:
 // 1. student_plan 테이블 인덱스
@@ -202,12 +210,14 @@ const dynamicCacheTtlSeconds = isToday
 ### 전체 Phase 요약
 
 **Phase 1-7**: 데이터 페칭 계층 표준화
+
 - ✅ 데이터 접근 로직 표준화 (`lib/data/core`)
 - ✅ 비즈니스 로직 분리 (`app/actions`)
 - ✅ API 계층 최적화 (`app/api`)
 - ✅ 클라이언트 소비 계층 표준화 (`lib/hooks`)
 
 **Phase 8**: 최종 안정화 및 성능 최적화
+
 - ✅ 타입 안전성 전수 조사 및 개선
 - ✅ 성능 병목 점검 및 최적화
 - ✅ 코드 정리 및 문서화
@@ -246,6 +256,7 @@ const dynamicCacheTtlSeconds = isToday
 ## ✅ 체크리스트
 
 ### 타입 안전성
+
 - [x] `lib/data/planGroups.ts` JSONB 타입 정의
 - [x] `lib/data/scoreQueries.ts` 타입 개선
 - [x] `lib/data/scoreDetails.ts` 타입 개선
@@ -255,11 +266,13 @@ const dynamicCacheTtlSeconds = isToday
 - [x] `lib/data/contentQueryBuilder.ts` 타입 개선
 
 ### 성능 최적화
+
 - [x] `getTodayPlans` 캐시 TTL 동적 조정
 - [x] 인덱스 최적화 권장사항 추가
 - [x] React Query 설정 최적화 확인
 
 ### 코드 정리
+
 - [x] TODO 주석 확인 및 해결
 - [x] 미사용 코드 확인
 - [x] 주석 개선
@@ -271,6 +284,7 @@ const dynamicCacheTtlSeconds = isToday
 **데이터 페칭 계층 리팩토링 프로젝트가 성공적으로 완료되었습니다!**
 
 모든 Phase(1-8)를 통해:
+
 - ✅ 표준화된 데이터 접근 패턴
 - ✅ 타입 안전한 코드베이스
 - ✅ 최적화된 성능
@@ -282,4 +296,3 @@ const dynamicCacheTtlSeconds = isToday
 
 **완료일**: 2025-01-15  
 **최종 상태**: ✅ Phase 8 완료 - 프로젝트 리팩토링 완료
-

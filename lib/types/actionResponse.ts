@@ -25,6 +25,7 @@ export type ActionResponse<T = void> =
       success: false;
       error?: string;
       validationErrors?: Record<string, string[]>;
+      fieldErrors?: Record<string, string[]>; // validationErrors의 alias (Zod 검증 에러 등)
       message?: string;
     };
 

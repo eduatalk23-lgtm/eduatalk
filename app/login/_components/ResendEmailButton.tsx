@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { resendConfirmationEmail } from "@/app/actions/auth";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type ResendEmailButtonProps = {
   email: string;
@@ -18,9 +19,9 @@ export function ResendEmailButton({ email }: ResendEmailButtonProps) {
 
     startTransition(async () => {
       const result = await resendConfirmationEmail(email);
-      if (result.success) {
+      if (isSuccessResponse(result)) {
         setMessage(result.message || "인증 메일을 재발송했습니다.");
-      } else {
+      } else if (isErrorResponse(result)) {
         setError(result.error || "이메일 재발송에 실패했습니다.");
       }
     });

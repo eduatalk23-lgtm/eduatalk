@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { changeUserRole } from "@/app/actions/userRole";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 export function RoleChangeSection() {
   const router = useRouter();
@@ -22,10 +23,10 @@ export function RoleChangeSection() {
     try {
       setSaving(true);
       const result = await changeUserRole("student");
-      if (result.success) {
+      if (isSuccessResponse(result)) {
         showSuccess("학생 계정으로 전환되었습니다.");
         router.push("/settings");
-      } else {
+      } else if (isErrorResponse(result)) {
         showError(result.error || "권한 변경에 실패했습니다.");
       }
     } catch (error) {

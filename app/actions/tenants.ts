@@ -1,6 +1,8 @@
 "use server";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 
 export type TenantOption = {
   id: string;
@@ -13,13 +15,13 @@ export type TenantOption = {
  * 활성화된 기관만 조회
  * 인증되지 않은 사용자도 접근 가능하도록 Admin 클라이언트 사용 (RLS 우회)
  */
-export async function getTenantOptionsForSignup(): Promise<TenantOption[]> {
+export async function getTenantOptionsForSignup(): Promise<ActionResponse<TenantOption[]>> {
   // 회원가입 시점에는 인증되지 않은 사용자이므로 Admin 클라이언트 사용
   const adminClient = createSupabaseAdminClient();
   
   if (!adminClient) {
     console.error("[tenants] Admin 클라이언트 생성 실패: SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
-    return [];
+    return createErrorResponse("서버 설정 오류입니다. 관리자에게 문의하세요.");
   }
 
   // status 컬럼이 있는지 확인 후 쿼리 구성
@@ -51,13 +53,15 @@ export async function getTenantOptionsForSignup(): Promise<TenantOption[]> {
 
   if (error) {
     console.error("[tenants] 기관 목록 조회 실패:", error);
-    return [];
+    return createErrorResponse("기관 목록을 불러오는데 실패했습니다.");
   }
 
-  return (data || []).map((tenant) => ({
+  const tenants = (data || []).map((tenant) => ({
     id: tenant.id,
     name: tenant.name,
     type: tenant.type,
   }));
+
+  return createSuccessResponse(tenants);
 }
 

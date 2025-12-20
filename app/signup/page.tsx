@@ -7,23 +7,19 @@ import { useRouter } from "next/navigation";
 import { signUp } from "@/app/actions/auth";
 import { getTenantOptionsForSignup } from "@/app/actions/tenants";
 import type { TenantOption } from "@/app/actions/tenants";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
 import FormCheckbox from "@/components/ui/FormCheckbox";
 import { TermsModal } from "./_components/TermsModal";
 
-type SignupState = {
-  error?: string;
-  message?: string;
-  redirect?: string;
-};
-
-const initialState: SignupState = { error: "", message: "" };
+const initialState: ActionResponse<{ redirect: string }> | null = null;
 
 export default function SignupPage() {
   const router = useRouter();
-  const [state, formAction] = useActionState<SignupState, FormData>(
+  const [state, formAction] = useActionState<ActionResponse<{ redirect: string }> | null, FormData>(
     signUp,
     initialState
   );
@@ -40,11 +36,17 @@ export default function SignupPage() {
   useEffect(() => {
     const loadTenants = async () => {
       try {
-        const data = await getTenantOptionsForSignup();
-        if (data.length === 0) {
-          console.warn("[signup] 등록된 기관이 없습니다.");
+        const response = await getTenantOptionsForSignup();
+        if (isSuccessResponse(response)) {
+          const data = response.data || [];
+          if (data.length === 0) {
+            console.warn("[signup] 등록된 기관이 없습니다.");
+          }
+          setTenants(data);
+        } else {
+          console.error("[signup] 기관 목록 로드 실패:", response.error);
+          setTenants([]);
         }
-        setTenants(data);
       } catch (error) {
         console.error("[signup] 기관 목록 로드 실패:", error);
         // 에러 발생 시 빈 배열로 설정하여 UI가 적절히 표시되도록 함
@@ -59,12 +61,12 @@ export default function SignupPage() {
 
   // 회원가입 성공 시 리다이렉트
   useEffect(() => {
-    const redirectPath = state?.redirect;
-    if (redirectPath && !state?.error) {
+    if (isSuccessResponse(state) && state.data?.redirect) {
+      const redirectPath = state.data.redirect;
       const timer = setTimeout(() => {
         // redirect URL에 이미 쿼리 파라미터가 있으면 & 사용, 없으면 ? 사용
         const separator = redirectPath.includes("?") ? "&" : "?";
-        const redirectUrl = state?.message
+        const redirectUrl = state.message
           ? `${redirectPath}${separator}message=${encodeURIComponent(state.message)}`
           : redirectPath;
         router.push(redirectUrl);
@@ -276,9 +278,11 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {state?.error && <FormMessage type="error" message={state.error} />}
+        {isErrorResponse(state) && state.error && (
+          <FormMessage type="error" message={state.error} />
+        )}
 
-        {state?.message && !state.error && (
+        {isSuccessResponse(state) && state.message && (
           <FormMessage type="success" message={state.message} />
         )}
 
