@@ -30,6 +30,14 @@ const pwaConfig = withPWA({
 });
 
 const nextConfig: NextConfig = {
+  // 컴파일러 최적화 설정
+  compiler: {
+    // 프로덕션 빌드에서 console.log 제거 (console.error는 유지)
+    removeConsole: process.env.NODE_ENV === "production" 
+      ? { exclude: ["error", "warn"] } 
+      : false,
+  },
+
   // 이미지 최적화 설정
   images: {
     formats: ["image/avif", "image/webp"],
