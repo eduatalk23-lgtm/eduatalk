@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
 import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
 import { MasterBook, BookDetail } from "@/lib/types/plan";
@@ -13,10 +14,10 @@ import { PublisherSelectField } from "@/components/forms/PublisherSelectField";
 import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { UrlField } from "@/components/forms/UrlField";
-import { useAdminFormSubmit } from "@/lib/hooks/useAdminFormSubmit";
-import { masterBookSchema } from "@/lib/validation/schemas";
+import { masterBookSchema, formDataToObject } from "@/lib/validation/schemas";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
 import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type MasterBookEditFormProps = {
   book: MasterBook;
@@ -33,14 +34,10 @@ export function MasterBookEditForm({
   publishers,
   currentSubject,
 }: MasterBookEditFormProps) {
-  const { handleSubmitWithFormData, isPending } = useAdminFormSubmit({
-    action: async (formData: FormData) => {
-      await updateMasterBookAction(book.id, formData);
-    },
-    schema: masterBookSchema,
-    successMessage: "교재가 성공적으로 수정되었습니다.",
-    redirectPath: `/admin/master-books/${book.id}`,
-  });
+  const router = useRouter();
+  const { showSuccess, showError } = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const {
     selectedRevisionId,
@@ -98,8 +95,37 @@ export function MasterBookEditForm({
     // 과목 정보 추가
     addSubjectDataToFormData(formData);
 
-    // 커스텀 훅의 handleSubmitWithFormData 호출
-    handleSubmitWithFormData(formData);
+    // 클라이언트 사이드 검증
+    const formDataObj = formDataToObject(formData);
+    const validation = masterBookSchema.safeParse(formDataObj);
+    
+    if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.errors.forEach((err) => {
+        const path = err.path[0]?.toString();
+        if (path) {
+          errors[path] = err.message;
+        }
+      });
+      setValidationErrors(errors);
+      showError("입력값을 확인해주세요.");
+      return;
+    }
+
+    setValidationErrors({});
+
+    startTransition(async () => {
+      try {
+        await updateMasterBookAction(book.id, formData);
+        showSuccess("교재가 성공적으로 수정되었습니다.");
+        router.push(`/admin/master-books/${book.id}`);
+      } catch (error) {
+        console.error("교재 수정 실패:", error);
+        const errorMessage =
+          error instanceof Error ? error.message : "교재 수정에 실패했습니다.";
+        showError(errorMessage);
+      }
+    });
   }
 
   return (
@@ -127,6 +153,7 @@ export function MasterBookEditForm({
           name="title"
           required
           defaultValue={book.title}
+          error={validationErrors.title}
           className="md:col-span-2"
         />
 
@@ -158,6 +185,7 @@ export function MasterBookEditForm({
           name="author"
           defaultValue={book.author || ""}
           placeholder="저자명을 입력하세요"
+          error={validationErrors.author}
         />
 
         {/* 학교 유형 */}
@@ -206,6 +234,7 @@ export function MasterBookEditForm({
           type="number"
           min="1"
           defaultValue={book.total_pages?.toString() || ""}
+          error={validationErrors.total_pages}
         />
 
         {/* 난이도 */}
@@ -214,6 +243,7 @@ export function MasterBookEditForm({
           defaultValue={book.difficulty_level_id || undefined}
           name="difficulty_level_id"
           label="난이도"
+          error={validationErrors.difficulty_level_id}
         />
 
         {/* 대상 시험 유형 */}
@@ -285,6 +315,7 @@ export function MasterBookEditForm({
           defaultValue={book.pdf_url || ""}
           placeholder="https://example.com/book.pdf"
           hint="교재 PDF 파일의 URL을 입력하세요"
+          error={validationErrors.pdf_url}
           className="md:col-span-2"
         />
 
@@ -295,6 +326,7 @@ export function MasterBookEditForm({
           defaultValue={book.source_url || ""}
           placeholder="https://example.com/source"
           hint="교재 출처 URL을 입력하세요"
+          error={validationErrors.source_url}
           className="md:col-span-2"
         />
 
@@ -305,6 +337,7 @@ export function MasterBookEditForm({
           defaultValue={book.cover_image_url || ""}
           placeholder="https://example.com/image.jpg"
           hint="교재 표지 이미지의 URL을 입력하세요"
+          error={validationErrors.cover_image_url}
           className="md:col-span-2"
         />
         {book.cover_image_url && (

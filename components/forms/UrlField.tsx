@@ -9,6 +9,7 @@ type UrlFieldProps = {
   placeholder?: string;
   hint?: string;
   required?: boolean;
+  error?: string;
   className?: string;
 };
 
@@ -19,6 +20,7 @@ export function UrlField({
   placeholder,
   hint,
   required,
+  error,
   className,
 }: UrlFieldProps) {
   return (
@@ -30,6 +32,7 @@ export function UrlField({
       placeholder={placeholder}
       hint={hint}
       required={required}
+      error={error}
       className={className}
     />
   );

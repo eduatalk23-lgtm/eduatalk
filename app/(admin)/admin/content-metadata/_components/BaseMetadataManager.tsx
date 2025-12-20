@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Badge } from "@/components/atoms";
+import { TableSkeleton } from "@/components/ui/LoadingSkeleton";
 
 type BaseMetadataItem = {
   id: string;
@@ -129,7 +130,7 @@ export function BaseMetadataManager<T extends BaseMetadataItem>({
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-gray-700">로딩 중...</div>;
+    return <TableSkeleton rows={5} />;
   }
 
   return (

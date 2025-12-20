@@ -11,6 +11,7 @@ import { getSubjectTypesAction } from "@/app/(admin)/actions/subjectActions";
 import SubjectFormModal from "./SubjectFormModal";
 import type { Subject, SubjectType } from "@/lib/data/subjects";
 import { Plus, Trash2, Edit2 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/LoadingSkeleton";
 
 type SubjectTableProps = {
   subjectGroupId: string;
@@ -125,9 +126,7 @@ export default function SubjectTable({
       </div>
 
       {loading ? (
-        <div className="py-8 text-center text-sm text-gray-500">
-          로딩 중...
-        </div>
+        <TableSkeleton rows={5} />
       ) : sortedSubjects.length === 0 ? (
         <div className="py-8 text-center text-sm text-gray-500">
           과목이 없습니다.
