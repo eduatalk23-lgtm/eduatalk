@@ -65,18 +65,12 @@ export const sidebarWidths = {
  * - `text*` 접두사: 텍스트 색상 (예: text400, text600, text700, text900)
  * - `hover*` 접두사: 호버 상태 색상 (예: hoverBg, hoverText, hoverBgLight)
  *
- * 레거시 숫자 키(50, 100, 400 등)는 하위 호환성을 위해 유지되지만 deprecated 상태입니다.
- * 새로운 코드에서는 명시적 네이밍(bg50, text400 등)을 사용하세요.
- *
  * @example
  * ```tsx
  * // 올바른 사용법
  * <div className={designTokens.colors.gray.bg50}>
  *   <span className={designTokens.colors.gray.text700}>텍스트</span>
  * </div>
- *
- * // 레거시 키 사용 (deprecated)
- * <div className={designTokens.colors.gray[50]}>...</div>
  * ```
  */
 export const designTokens = {
@@ -98,29 +92,15 @@ export const designTokens = {
       // 테두리
       border: "border-primary-500",
       borderLight: "border-primary-200 dark:border-primary-800",
-      
-      // 하위 호환성을 위한 레거시 키 (deprecated)
-      // @deprecated bg50 사용
-      50: "bg-primary-50 dark:bg-primary-900/30",
-      // @deprecated bg100 사용
-      100: "bg-primary-100 dark:bg-primary-900/50",
-      // @deprecated text500 사용
-      500: "text-primary-700 dark:text-primary-300",
-      // @deprecated text700 사용
-      700: "text-primary-700 dark:text-primary-300",
-      // @deprecated text800 사용
-      800: "text-primary-800 dark:text-primary-200",
     },
     /**
-     * Gray 색상 토큰
-     *
-     * 텍스트와 배경 색상을 명확히 구분하여 정의합니다.
-     * - 배경 색상: bg50, bg100, bg800, bg900
-     * - 텍스트 색상: text200, text400, text500, text600, text700, text900
-     * - 호버 색상: hoverBg, hoverText, hoverBgLight
-     *
-     * 레거시 숫자 키는 deprecated 상태입니다.
-     */
+ * Gray 색상 토큰
+ *
+ * 텍스트와 배경 색상을 명확히 구분하여 정의합니다.
+ * - 배경 색상: bg50, bg100, bg800, bg900
+ * - 텍스트 색상: text200, text400, text500, text600, text700, text900
+ * - 호버 색상: hoverBg, hoverText, hoverBgLight
+ */
     gray: {
       // 배경 색상
       bg50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
@@ -140,26 +120,6 @@ export const designTokens = {
       hoverBg: "hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
       hoverText: "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
       hoverBgLight: "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-900))]",
-
-      // 하위 호환성을 위한 레거시 키 (deprecated)
-      // @deprecated bg50 사용
-      50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
-      // @deprecated bg100 사용
-      100: "bg-[rgb(var(--color-secondary-100))] dark:bg-[rgb(var(--color-secondary-900))]",
-      // @deprecated text200 사용
-      200: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      // @deprecated text400 사용
-      400: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      // @deprecated text500 사용
-      500: "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]",
-      // @deprecated text600 사용
-      600: "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
-      // @deprecated text700 사용
-      700: "text-[var(--text-secondary)] dark:text-[var(--text-primary)]",
-      // @deprecated bg800 사용
-      800: "bg-[rgb(var(--color-secondary-800))] dark:bg-[rgb(var(--color-secondary-700))]",
-      // @deprecated bg900 사용
-      900: "bg-[var(--text-primary)] dark:bg-[var(--text-primary)]",
     },
   },
   focus: {
