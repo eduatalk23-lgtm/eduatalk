@@ -1,4 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 export type Admin = {
   id: string;
@@ -16,29 +22,28 @@ export async function getAdminById(
 ): Promise<Admin | null> {
   const supabase = await createSupabaseServerClient();
 
-  const selectAdmin = () =>
-    supabase
-      .from("admin_users")
-      .select("id,tenant_id,role,created_at")
-      .eq("id", adminId);
+  return await createTypedSingleQuery<Admin>(
+    async () => {
+      let query = supabase
+        .from("admin_users")
+        .select("id,tenant_id,role,created_at")
+        .eq("id", adminId);
 
-  let query = selectAdmin();
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
 
-  let { data, error } = await query.maybeSingle<Admin>();
-
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectAdmin().maybeSingle<Admin>());
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/admins] Admin 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+      const queryResult = await query;
+      return {
+        data: queryResult.data as Admin[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/admins] getAdminById",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -47,30 +52,29 @@ export async function getAdminById(
 export async function listAdminsByTenant(
   tenantId: string | null
 ): Promise<Admin[]> {
-  const supabase = await createSupabaseServerClient();
-
   if (!tenantId) {
     return [];
   }
 
-  const selectAdmins = () =>
-    supabase
-      .from("admin_users")
-      .select("id,tenant_id,role,created_at")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+  const supabase = await createSupabaseServerClient();
 
-  let { data, error } = await selectAdmins();
+  return await createTypedQuery<Admin[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("admin_users")
+        .select("id,tenant_id,role,created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
 
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectAdmins());
-  }
-
-  if (error) {
-    console.error("[data/admins] Admin 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data as Admin[] | null) ?? [];
+      return {
+        data: queryResult.data as Admin[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/admins] listAdminsByTenant",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 

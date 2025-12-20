@@ -1,4 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 export type Parent = {
   id: string;
@@ -15,29 +21,28 @@ export async function getParentById(
 ): Promise<Parent | null> {
   const supabase = await createSupabaseServerClient();
 
-  const selectParent = () =>
-    supabase
-      .from("parent_users")
-      .select("id,tenant_id,created_at")
-      .eq("id", parentId);
+  return await createTypedSingleQuery<Parent>(
+    async () => {
+      let query = supabase
+        .from("parent_users")
+        .select("id,tenant_id,created_at")
+        .eq("id", parentId);
 
-  let query = selectParent();
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
 
-  let { data, error } = await query.maybeSingle<Parent>();
-
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectParent().maybeSingle<Parent>());
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/parents] Parent 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+      const queryResult = await query;
+      return {
+        data: queryResult.data as Parent[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/parents] getParentById",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -46,30 +51,29 @@ export async function getParentById(
 export async function listParentsByTenant(
   tenantId: string | null
 ): Promise<Parent[]> {
-  const supabase = await createSupabaseServerClient();
-
   if (!tenantId) {
     return [];
   }
 
-  const selectParents = () =>
-    supabase
-      .from("parent_users")
-      .select("id,tenant_id,created_at")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false });
+  const supabase = await createSupabaseServerClient();
 
-  let { data, error } = await selectParents();
+  return await createTypedQuery<Parent[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("parent_users")
+        .select("id,tenant_id,created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
 
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectParents());
-  }
-
-  if (error) {
-    console.error("[data/parents] Parent 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data as Parent[] | null) ?? [];
+      return {
+        data: queryResult.data as Parent[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/parents] listParentsByTenant",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 

@@ -1,6 +1,15 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ConsentData, ConsentMetadata, ConsentType } from "@/lib/types/auth";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+
+type ConsentRecord = {
+  user_id: string;
+  consent_type: ConsentType;
+  consented: boolean;
+  ip_address?: string | null;
+  user_agent?: string | null;
+};
 
 /**
  * 사용자 약관 동의 정보 저장
@@ -22,7 +31,6 @@ export async function saveUserConsents(
       : await createSupabaseServerClient();
 
     if (!supabase) {
-      console.error("[userConsents] 클라이언트 생성 실패");
       return {
         success: false,
         error: "서버 설정 오류입니다. 관리자에게 문의하세요.",
@@ -30,13 +38,7 @@ export async function saveUserConsents(
     }
 
     // 약관 동의 데이터를 배열로 변환
-    const consentRecords: Array<{
-      user_id: string;
-      consent_type: ConsentType;
-      consented: boolean;
-      ip_address?: string | null;
-      user_agent?: string | null;
-    }> = [
+    const consentRecords: ConsentRecord[] = [
       {
         user_id: userId,
         consent_type: "terms",
@@ -66,10 +68,8 @@ export async function saveUserConsents(
     });
 
     if (error) {
-      console.error("[userConsents] 약관 동의 저장 실패:", {
-        userId,
-        error: error.message,
-        code: error.code,
+      handleQueryError(error, {
+        context: "[data/userConsents] saveUserConsents",
       });
       return {
         success: false,
@@ -77,14 +77,12 @@ export async function saveUserConsents(
       };
     }
 
-    console.log("[userConsents] 약관 동의 저장 성공:", { userId });
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[userConsents] 약관 동의 저장 예외:", {
-      userId,
-      error: errorMessage,
+    handleQueryError(error as { code?: string } | null, {
+      context: "[data/userConsents] saveUserConsents",
     });
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       success: false,
       error: errorMessage,
@@ -110,10 +108,8 @@ export async function getUserConsents(userId: string): Promise<{
       .eq("user_id", userId);
 
     if (error) {
-      console.error("[userConsents] 약관 동의 조회 실패:", {
-        userId,
-        error: error.message,
-        code: error.code,
+      handleQueryError(error, {
+        context: "[data/userConsents] getUserConsents",
       });
       return null;
     }
@@ -137,10 +133,8 @@ export async function getUserConsents(userId: string): Promise<{
 
     return consents;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[userConsents] 약관 동의 조회 예외:", {
-      userId,
-      error: errorMessage,
+    handleQueryError(error as { code?: string } | null, {
+      context: "[data/userConsents] getUserConsents",
     });
     return null;
   }

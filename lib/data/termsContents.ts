@@ -1,5 +1,11 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { TermsContent, TermsContentType, TermsContentRow } from '@/lib/types/terms';
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from '@/lib/data/core/typedQueryBuilder';
+import { handleQueryError } from '@/lib/data/core/errorHandler';
+import { ErrorCodeCheckers } from '@/lib/constants/errorCodes';
 
 /**
  * 활성화된 약관 내용 조회 (공개 조회용)
@@ -13,43 +19,26 @@ import type { TermsContent, TermsContentType, TermsContentRow } from '@/lib/type
 export async function getActiveTermsContent(
   contentType: TermsContentType
 ): Promise<TermsContent | null> {
-  try {
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase
-      .from('terms_contents')
-      .select('*')
-      .eq('content_type', contentType)
-      .eq('is_active', true)
-      .single();
+  return await createTypedSingleQuery<TermsContent>(
+    async () => {
+      const queryResult = await supabase
+        .from('terms_contents')
+        .select('*')
+        .eq('content_type', contentType)
+        .eq('is_active', true);
 
-    if (error) {
-      // PGRST116: No rows returned
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      // PGRST205: 테이블이 스키마 캐시에 없음
-      if (error.code === 'PGRST205') {
-        console.error('[termsContents] 약관 테이블을 찾을 수 없습니다. 마이그레이션이 적용되었는지 확인해주세요.');
-        return null;
-      }
-      console.error('[termsContents] 활성 약관 조회 실패:', {
-        contentType,
-        error: error.message,
-        code: error.code,
-      });
-      return null;
+      return {
+        data: queryResult.data as TermsContent[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: '[data/termsContents] getActiveTermsContent',
+      defaultValue: null,
     }
-
-    return data as TermsContent;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[termsContents] 활성 약관 조회 예외:', {
-      contentType,
-      error: errorMessage,
-    });
-    return null;
-  }
+  );
 }
 
 /**
@@ -64,38 +53,26 @@ export async function getActiveTermsContent(
 export async function getTermsContentHistory(
   contentType: TermsContentType
 ): Promise<TermsContent[]> {
-  try {
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase
-      .from('terms_contents')
-      .select('*')
-      .eq('content_type', contentType)
-      .order('version', { ascending: false });
+  return await createTypedQuery<TermsContent[]>(
+    async () => {
+      const queryResult = await supabase
+        .from('terms_contents')
+        .select('*')
+        .eq('content_type', contentType)
+        .order('version', { ascending: false });
 
-    if (error) {
-      // PGRST205: 테이블이 스키마 캐시에 없음
-      if (error.code === 'PGRST205') {
-        console.error('[termsContents] 약관 테이블을 찾을 수 없습니다. 마이그레이션이 적용되었는지 확인해주세요.');
-        return [];
-      }
-      console.error('[termsContents] 약관 히스토리 조회 실패:', {
-        contentType,
-        error: error.message,
-        code: error.code,
-      });
-      return [];
+      return {
+        data: queryResult.data as TermsContentRow[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: '[data/termsContents] getTermsContentHistory',
+      defaultValue: [],
     }
-
-    return (data as TermsContentRow[]) as TermsContent[];
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[termsContents] 약관 히스토리 조회 예외:', {
-      contentType,
-      error: errorMessage,
-    });
-    return [];
-  }
+  ) ?? [];
 }
 
 /**
@@ -108,41 +85,24 @@ export async function getTermsContentHistory(
  * @returns 약관 내용 또는 null
  */
 export async function getTermsContentById(id: string): Promise<TermsContent | null> {
-  try {
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase
-      .from('terms_contents')
-      .select('*')
-      .eq('id', id)
-      .single();
+  return await createTypedSingleQuery<TermsContent>(
+    async () => {
+      const queryResult = await supabase
+        .from('terms_contents')
+        .select('*')
+        .eq('id', id);
 
-    if (error) {
-      // PGRST116: No rows returned
-      if (error.code === 'PGRST116') {
-        return null;
-      }
-      // PGRST205: 테이블이 스키마 캐시에 없음
-      if (error.code === 'PGRST205') {
-        console.error('[termsContents] 약관 테이블을 찾을 수 없습니다. 마이그레이션이 적용되었는지 확인해주세요.');
-        return null;
-      }
-      console.error('[termsContents] 약관 조회 실패:', {
-        id,
-        error: error.message,
-        code: error.code,
-      });
-      return null;
+      return {
+        data: queryResult.data as TermsContent[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: '[data/termsContents] getTermsContentById',
+      defaultValue: null,
     }
-
-    return data as TermsContent;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[termsContents] 약관 조회 예외:', {
-      id,
-      error: errorMessage,
-    });
-    return null;
-  }
+  );
 }
 

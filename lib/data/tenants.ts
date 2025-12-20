@@ -1,11 +1,18 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import type { Database } from "@/lib/supabase/database.types";
 
-export type Tenant = {
-  id: string;
-  name: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-};
+// Database 타입에서 테이블 타입 추출
+type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
+type TenantInsert = Database["public"]["Tables"]["tenants"]["Insert"];
+type TenantUpdate = Database["public"]["Tables"]["tenants"]["Update"];
+
+export type Tenant = TenantRow;
 
 /**
  * Tenant ID로 Tenant 조회
@@ -13,18 +20,23 @@ export type Tenant = {
 export async function getTenantById(tenantId: string): Promise<Tenant | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("tenants")
-    .select("id,name,created_at,updated_at")
-    .eq("id", tenantId)
-    .maybeSingle<Tenant>();
+  return await createTypedSingleQuery<Tenant>(
+    async () => {
+      const queryResult = await supabase
+        .from("tenants")
+        .select("id,name,created_at,updated_at")
+        .eq("id", tenantId);
 
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/tenants] Tenant 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+      return {
+        data: queryResult.data as Tenant[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/tenants] getTenantById",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -33,17 +45,23 @@ export async function getTenantById(tenantId: string): Promise<Tenant | null> {
 export async function listAllTenants(): Promise<Tenant[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("tenants")
-    .select("id,name,created_at,updated_at")
-    .order("created_at", { ascending: false });
+  return await createTypedQuery<Tenant[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("tenants")
+        .select("id,name,created_at,updated_at")
+        .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("[data/tenants] Tenant 목록 조회 실패", error);
-    return [];
-  }
-
-  return (data as Tenant[] | null) ?? [];
+      return {
+        data: queryResult.data as Tenant[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/tenants] listAllTenants",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 /**
@@ -54,18 +72,30 @@ export async function createTenant(
 ): Promise<{ success: boolean; tenantId?: string; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("tenants")
-    .insert({ name: tenant.name })
-    .select("id")
-    .single();
+  const result = await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("tenants")
+        .insert({ name: tenant.name } as TenantInsert)
+        .select("id")
+        .single();
 
-  if (error) {
-    console.error("[data/tenants] Tenant 생성 실패", error);
-    return { success: false, error: error.message };
+      return {
+        data: queryResult.data ? [queryResult.data] : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/tenants] createTenant",
+      defaultValue: null,
+    }
+  );
+
+  if (!result) {
+    return { success: false, error: "Tenant 생성 실패" };
   }
 
-  return { success: true, tenantId: data?.id };
+  return { success: true, tenantId: result.id };
 }
 
 /**
@@ -77,17 +107,21 @@ export async function updateTenant(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
-  if (updates.name !== undefined) payload.name = updates.name;
+  const payload: TenantUpdate = {};
+  if (updates.name !== undefined) {
+    payload.name = updates.name;
+  }
 
-  const { error } = await supabase
+  const queryResult = await supabase
     .from("tenants")
     .update(payload)
     .eq("id", tenantId);
 
-  if (error) {
-    console.error("[data/tenants] Tenant 업데이트 실패", error);
-    return { success: false, error: error.message };
+  if (queryResult.error) {
+    handleQueryError(queryResult.error, {
+      context: "[data/tenants] updateTenant",
+    });
+    return { success: false, error: queryResult.error.message };
   }
 
   return { success: true };
@@ -98,36 +132,24 @@ export async function updateTenant(
  * 회원가입 시 tenant_id가 없을 경우 사용
  */
 export async function getDefaultTenant(): Promise<{ id: string } | null> {
-  try {
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    const { data: defaultTenant, error: tenantError } = await supabase
-      .from("tenants")
-      .select("id")
-      .eq("name", "Default Tenant")
-      .maybeSingle<{ id: string }>();
+  return await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("name", "Default Tenant");
 
-    if (tenantError) {
-      // PGRST116은 레코드가 없는 경우이므로 null 반환
-      if (tenantError.code === "PGRST116") {
-        console.warn("[data/tenants] Default Tenant가 존재하지 않습니다.");
-        return null;
-      }
-      console.error("[data/tenants] Default Tenant 조회 실패", {
-        error: tenantError.message,
-        code: tenantError.code,
-      });
-      return null;
+      return {
+        data: queryResult.data as { id: string }[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/tenants] getDefaultTenant",
+      defaultValue: null,
     }
-
-    return defaultTenant ?? null;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/tenants] getDefaultTenant 실패", {
-      message: errorMessage,
-      error,
-    });
-    return null;
-  }
+  );
 }
 

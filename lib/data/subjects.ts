@@ -1,5 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
 
 export type SubjectGroup = {
   id: string;
@@ -43,23 +48,27 @@ export async function getSubjectGroups(
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  let query = supabase
-    .from("subject_groups")
-    .select("*");
+  return await createTypedQuery<SubjectGroup[]>(
+    async () => {
+      let query = supabase
+        .from("subject_groups")
+        .select("*");
 
-  if (curriculumRevisionId) {
-    query = query.eq("curriculum_revision_id", curriculumRevisionId);
-  }
+      if (curriculumRevisionId) {
+        query = query.eq("curriculum_revision_id", curriculumRevisionId);
+      }
 
-  const { data, error } = await query
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[data/subjects] 교과 그룹 조회 실패", error);
-    return [];
-  }
-
-  return (data as SubjectGroup[] | null) ?? [];
+      const queryResult = await query.order("name", { ascending: true });
+      return {
+        data: queryResult.data as SubjectGroup[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectGroups",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 /**
@@ -73,24 +82,28 @@ export async function getSubjectTypes(
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  let query = supabase
-    .from("subject_types")
-    .select("*")
-    .eq("is_active", true);
+  return await createTypedQuery<SubjectType[]>(
+    async () => {
+      let query = supabase
+        .from("subject_types")
+        .select("*")
+        .eq("is_active", true);
 
-  if (curriculumRevisionId) {
-    query = query.eq("curriculum_revision_id", curriculumRevisionId);
-  }
+      if (curriculumRevisionId) {
+        query = query.eq("curriculum_revision_id", curriculumRevisionId);
+      }
 
-  const { data, error } = await query
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[data/subjects] 과목구분 조회 실패", error);
-    return [];
-  }
-
-  return (data as SubjectType[] | null) ?? [];
+      const queryResult = await query.order("name", { ascending: true });
+      return {
+        data: queryResult.data as SubjectType[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectTypes",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 /**
@@ -104,28 +117,37 @@ export async function getSubjectsByGroup(
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("subjects")
-    .select(`
-      *,
-      subject_types:subject_type_id (
-        id,
-        name
-      )
-    `)
-    .eq("subject_group_id", subjectGroupId)
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[data/subjects] 과목 조회 실패", error);
-    return [];
-  }
-
-  // JOIN 결과를 평탄화
   type SubjectWithJoin = Subject & {
     subject_types?: { name: string } | null;
   };
-  return ((data as SubjectWithJoin[]) ?? []).map((subject) => ({
+
+  const result = await createTypedQuery<SubjectWithJoin[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("subjects")
+        .select(`
+          *,
+          subject_types:subject_type_id (
+            id,
+            name
+          )
+        `)
+        .eq("subject_group_id", subjectGroupId)
+        .order("name", { ascending: true });
+
+      return {
+        data: queryResult.data as SubjectWithJoin[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectsByGroup",
+      defaultValue: [],
+    }
+  );
+
+  // JOIN 결과를 평탄화
+  return (result ?? []).map((subject) => ({
     ...subject,
     subject_type: subject.subject_types?.name || null,
   })) as Subject[];
@@ -144,15 +166,22 @@ export async function getSubjectsByRevision(
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
   // 1. 먼저 해당 개정교육과정의 교과 그룹 ID 목록 조회
-  const { data: groups, error: groupsError } = await supabase
-    .from("subject_groups")
-    .select("id")
-    .eq("curriculum_revision_id", curriculumRevisionId);
-
-  if (groupsError) {
-    console.error("[data/subjects] 교과 그룹 조회 실패", groupsError);
-    return [];
-  }
+  const groups = await createTypedQuery<{ id: string }[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("subject_groups")
+        .select("id")
+        .eq("curriculum_revision_id", curriculumRevisionId);
+      return {
+        data: queryResult.data as { id: string }[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectsByRevision (교과 그룹 조회)",
+      defaultValue: [],
+    }
+  );
 
   if (!groups || groups.length === 0) {
     return [];
@@ -161,28 +190,37 @@ export async function getSubjectsByRevision(
   const groupIds = groups.map((g) => g.id);
 
   // 2. 해당 교과 그룹에 속한 모든 과목 조회 (JOIN 사용)
-  const { data, error } = await supabase
-    .from("subjects")
-    .select(`
-      *,
-      subject_types:subject_type_id (
-        id,
-        name
-      )
-    `)
-    .in("subject_group_id", groupIds)
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[data/subjects] 개정교육과정별 과목 조회 실패", error);
-    return [];
-  }
-
-  // JOIN 결과를 평탄화
   type SubjectWithJoin = Subject & {
     subject_types?: { name: string } | null;
   };
-  return ((data as SubjectWithJoin[]) ?? []).map((subject) => ({
+
+  const result = await createTypedQuery<SubjectWithJoin[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("subjects")
+        .select(`
+          *,
+          subject_types:subject_type_id (
+            id,
+            name
+          )
+        `)
+        .in("subject_group_id", groupIds)
+        .order("name", { ascending: true });
+
+      return {
+        data: queryResult.data as SubjectWithJoin[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectsByRevision (과목 조회)",
+      defaultValue: [],
+    }
+  );
+
+  // JOIN 결과를 평탄화
+  return (result ?? []).map((subject) => ({
     ...subject,
     subject_type: subject.subject_types?.name || null,
   })) as Subject[];
@@ -209,11 +247,21 @@ export async function getSubjectsByGroupName(
     query = query.eq("curriculum_revision_id", curriculumRevisionId);
   }
 
-  const { data: groupData, error: groupError } = await query
-    .maybeSingle();
+  const groupData = await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await query;
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectsByGroupName",
+      defaultValue: null,
+    }
+  );
 
-  if (groupError || !groupData) {
-    console.error("[data/subjects] 교과 그룹 조회 실패", groupError);
+  if (!groupData) {
     return [];
   }
 
@@ -263,10 +311,25 @@ export async function getFullSubjectHierarchy(
     revisionQuery = revisionQuery.eq("is_active", true).order("name", { ascending: true }).limit(1);
   }
 
-  const { data: revisionData, error: revisionError } = await revisionQuery.maybeSingle();
+  const revisionData = await createTypedSingleQuery<{
+    id: string;
+    name: string;
+    year?: number | null;
+  }>(
+    async () => {
+      const queryResult = await revisionQuery;
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getFullSubjectHierarchy",
+      defaultValue: null,
+    }
+  );
 
-  if (revisionError || !revisionData) {
-    console.error("[data/subjects] 개정교육과정 조회 실패", revisionError);
+  if (!revisionData) {
     throw new Error("개정교육과정을 찾을 수 없습니다.");
   }
 
@@ -322,57 +385,97 @@ export async function getSubjectHierarchyOptimized(
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
   // 1. 개정교육과정 조회
-  const { data: revisionData, error: revisionError } = await supabase
-    .from("curriculum_revisions")
-    .select("*")
-    .eq("id", curriculumRevisionId)
-    .single();
+  const revisionData = await createTypedSingleQuery<{
+    id: string;
+    name: string;
+    year?: number | null;
+  }>(
+    async () => {
+      const queryResult = await supabase
+        .from("curriculum_revisions")
+        .select("*")
+        .eq("id", curriculumRevisionId)
+        .single();
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectHierarchyOptimized",
+      defaultValue: null,
+    }
+  );
 
-  if (revisionError || !revisionData) {
-    console.error("[data/subjects] 개정교육과정 조회 실패", revisionError);
+  if (!revisionData) {
     throw new Error("개정교육과정을 찾을 수 없습니다.");
   }
 
   // 2. 교과 + 과목 + 과목구분 한 번에 조회 (JOIN)
-  const { data: groupsData, error: groupsError } = await supabase
-    .from("subject_groups")
-    .select(`
-      *,
-      subjects:subjects (
-        *,
-        subject_types:subject_type_id (
-          id,
-          name,
-          is_active
-        )
-      )
-    `)
-    .eq("curriculum_revision_id", curriculumRevisionId)
-    .order("name", { ascending: true });
+  type GroupWithJoin = SubjectGroup & {
+    subjects?: Array<Subject & { subject_types?: { name: string } | null }>;
+  };
 
-  if (groupsError) {
-    console.error("[data/subjects] 교과 그룹 조회 실패", groupsError);
+  const groupsData = await createTypedQuery<GroupWithJoin[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("subject_groups")
+        .select(`
+          *,
+          subjects:subjects (
+            *,
+            subject_types:subject_type_id (
+              id,
+              name,
+              is_active
+            )
+          )
+        `)
+        .eq("curriculum_revision_id", curriculumRevisionId)
+        .order("name", { ascending: true });
+
+      return {
+        data: queryResult.data as GroupWithJoin[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectHierarchyOptimized (교과 그룹 조회)",
+      defaultValue: [],
+    }
+  );
+
+  if (!groupsData) {
     throw new Error("교과 그룹 조회에 실패했습니다.");
   }
 
   // 3. 과목구분 목록 조회
-  const { data: subjectTypesData, error: typesError } = await supabase
-    .from("subject_types")
-    .select("*")
-    .eq("curriculum_revision_id", curriculumRevisionId)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+  const subjectTypesData = await createTypedQuery<SubjectType[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("subject_types")
+        .select("*")
+        .eq("curriculum_revision_id", curriculumRevisionId)
+        .eq("is_active", true)
+        .order("name", { ascending: true });
 
-  if (typesError) {
-    console.error("[data/subjects] 과목구분 조회 실패", typesError);
+      return {
+        data: queryResult.data as SubjectType[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectHierarchyOptimized (과목구분 조회)",
+      defaultValue: [],
+    }
+  );
+
+  if (!subjectTypesData) {
     throw new Error("과목구분 조회에 실패했습니다.");
   }
 
   // 데이터 변환
-  type GroupWithJoin = SubjectGroup & {
-    subjects?: Array<Subject & { subject_types?: { name: string } | null }>;
-  };
-  const groupsWithSubjects = ((groupsData || []) as GroupWithJoin[]).map((group) => ({
+  const groupsWithSubjects = (groupsData ?? []).map((group) => ({
     ...group,
     subjects: ((group.subjects || [])).map((subject) => ({
       ...subject,
@@ -390,7 +493,7 @@ export async function getSubjectHierarchyOptimized(
     subjectGroups: groupsWithSubjects as (SubjectGroup & {
       subjects: (Subject & { subjectType: SubjectType | null })[];
     })[],
-    subjectTypes: (subjectTypesData || []) as SubjectType[],
+    subjectTypes: subjectTypesData ?? [],
   };
 }
 
@@ -407,20 +510,29 @@ export async function getActiveCurriculumRevision(): Promise<{
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("curriculum_revisions")
-    .select("id, name, year")
-    .eq("is_active", true)
-    .order("name", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  return await createTypedSingleQuery<{
+    id: string;
+    name: string;
+    year?: number | null;
+  }>(
+    async () => {
+      const queryResult = await supabase
+        .from("curriculum_revisions")
+        .select("id, name, year")
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(1);
 
-  if (error) {
-    console.error("[data/subjects] 활성 개정교육과정 조회 실패", error);
-    return null;
-  }
-
-  return data;
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getActiveCurriculumRevision",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -437,44 +549,51 @@ export async function getSubjectById(subjectId: string): Promise<
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("subjects")
-    .select(`
-      *,
-      subject_groups:subject_group_id (
-        id,
-        curriculum_revision_id,
-        name
-      ),
-      subject_types:subject_type_id (
-        id,
-        curriculum_revision_id,
-        name,
-        is_active
-      )
-    `)
-    .eq("id", subjectId)
-    .maybeSingle();
+  type SubjectWithJoins = Subject & {
+    subject_groups?: SubjectGroup;
+    subject_types?: { name: string } | null;
+  };
 
-  if (error) {
-    console.error("[data/subjects] 과목 조회 실패", error);
-    return null;
-  }
+  const data = await createTypedSingleQuery<SubjectWithJoins>(
+    async () => {
+      const queryResult = await supabase
+        .from("subjects")
+        .select(`
+          *,
+          subject_groups:subject_group_id (
+            id,
+            curriculum_revision_id,
+            name
+          ),
+          subject_types:subject_type_id (
+            id,
+            curriculum_revision_id,
+            name,
+            is_active
+          )
+        `)
+        .eq("id", subjectId);
+
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectById",
+      defaultValue: null,
+    }
+  );
 
   if (!data) {
     return null;
   }
 
-  type SubjectWithJoins = Subject & {
-    subject_groups?: SubjectGroup;
-    subject_types?: { name: string } | null;
-  };
-  const dataWithJoins = data as SubjectWithJoins;
   return {
-    ...dataWithJoins,
-    subjectGroup: dataWithJoins.subject_groups,
-    subjectType: dataWithJoins.subject_types || null,
-    subject_type: dataWithJoins.subject_types?.name || null,
+    ...data,
+    subjectGroup: data.subject_groups,
+    subjectType: data.subject_types || null,
+    subject_type: data.subject_types?.name || null,
   } as Subject & {
     subjectGroup: SubjectGroup;
     subjectType?: SubjectType | null;
@@ -492,17 +611,22 @@ export async function getSubjectGroupById(
   const supabaseAdmin = createSupabaseAdminClient();
   const supabase = supabaseAdmin || await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("subject_groups")
-    .select("*")
-    .eq("id", subjectGroupId)
-    .maybeSingle();
+  return await createTypedSingleQuery<SubjectGroup>(
+    async () => {
+      const queryResult = await supabase
+        .from("subject_groups")
+        .select("*")
+        .eq("id", subjectGroupId);
 
-  if (error) {
-    console.error("[data/subjects] 교과 그룹 조회 실패", error);
-    return null;
-  }
-
-  return (data as SubjectGroup | null) ?? null;
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data : [queryResult.data]) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/subjects] getSubjectGroupById",
+      defaultValue: null,
+    }
+  );
 }
 

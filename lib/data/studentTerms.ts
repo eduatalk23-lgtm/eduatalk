@@ -6,9 +6,12 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
  * StudentTerm 타입 (student_terms 테이블)
@@ -43,20 +46,27 @@ export async function getOrCreateStudentTerm(params: {
   const supabase = await createSupabaseServerClient();
 
   // 기존 student_term 조회
-  const { data: existing, error: selectError } = await supabase
-    .from("student_terms")
-    .select("id")
-    .eq("tenant_id", params.tenant_id)
-    .eq("student_id", params.student_id)
-    .eq("school_year", params.school_year)
-    .eq("grade", params.grade)
-    .eq("semester", params.semester)
-    .maybeSingle();
+  const existing = await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_terms")
+        .select("id")
+        .eq("tenant_id", params.tenant_id)
+        .eq("student_id", params.student_id)
+        .eq("school_year", params.school_year)
+        .eq("grade", params.grade)
+        .eq("semester", params.semester);
 
-  if (selectError) {
-    console.error("[data/studentTerms] student_term 조회 실패", selectError);
-    throw selectError;
-  }
+      return {
+        data: queryResult.data as { id: string }[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentTerms] getOrCreateStudentTerm (조회)",
+      defaultValue: null,
+    }
+  );
 
   // 기존 student_term이 있으면 반환
   if (existing) {
@@ -76,15 +86,27 @@ export async function getOrCreateStudentTerm(params: {
     notes: params.notes ?? null,
   };
 
-  const { data: created, error: insertError } = await supabase
-    .from("student_terms")
-    .insert(insertPayload)
-    .select("id")
-    .single();
+  const created = await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_terms")
+        .insert(insertPayload)
+        .select("id")
+        .single();
 
-  if (insertError) {
-    console.error("[data/studentTerms] student_term 생성 실패", insertError);
-    throw insertError;
+      return {
+        data: queryResult.data ? [queryResult.data] : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentTerms] getOrCreateStudentTerm (생성)",
+      defaultValue: null,
+    }
+  );
+
+  if (!created) {
+    throw new Error("student_term 생성 실패");
   }
 
   return created.id;
@@ -105,22 +127,27 @@ export async function getStudentTerm(params: {
 }): Promise<StudentTerm | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("student_terms")
-    .select("*")
-    .eq("tenant_id", params.tenant_id)
-    .eq("student_id", params.student_id)
-    .eq("school_year", params.school_year)
-    .eq("grade", params.grade)
-    .eq("semester", params.semester)
-    .maybeSingle();
+  return await createTypedSingleQuery<StudentTerm>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_terms")
+        .select("*")
+        .eq("tenant_id", params.tenant_id)
+        .eq("student_id", params.student_id)
+        .eq("school_year", params.school_year)
+        .eq("grade", params.grade)
+        .eq("semester", params.semester);
 
-  if (error) {
-    console.error("[data/studentTerms] student_term 조회 실패", error);
-    return null;
-  }
-
-  return data as StudentTerm | null;
+      return {
+        data: queryResult.data as StudentTerm[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentTerms] getStudentTerm",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -136,21 +163,27 @@ export async function getStudentTerms(
 ): Promise<StudentTerm[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("student_terms")
-    .select("*")
-    .eq("student_id", studentId)
-    .eq("tenant_id", tenantId)
-    .order("school_year", { ascending: false })
-    .order("grade", { ascending: true })
-    .order("semester", { ascending: true });
+  return await createTypedQuery<StudentTerm[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_terms")
+        .select("*")
+        .eq("student_id", studentId)
+        .eq("tenant_id", tenantId)
+        .order("school_year", { ascending: false })
+        .order("grade", { ascending: true })
+        .order("semester", { ascending: true });
 
-  if (error) {
-    console.error("[data/studentTerms] student_terms 조회 실패", error);
-    return [];
-  }
-
-  return (data as StudentTerm[]) ?? [];
+      return {
+        data: queryResult.data as StudentTerm[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentTerms] getStudentTerms",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 // calculateSchoolYear는 lib/utils/schoolYear.ts로 이동했습니다.

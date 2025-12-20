@@ -1,6 +1,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 export type StudentProfile = {
   id: string;
@@ -30,18 +34,23 @@ export async function getStudentProfileById(
 ): Promise<StudentProfile | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("student_profiles")
-    .select("*")
-    .eq("id", studentId)
-    .maybeSingle<StudentProfile>();
+  return await createTypedSingleQuery<StudentProfile>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_profiles")
+        .select("*")
+        .eq("id", studentId);
 
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/studentProfiles] 프로필 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+      return {
+        data: queryResult.data as StudentProfile[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentProfiles] getStudentProfileById",
+      defaultValue: null,
+    }
+  );
 }
 
 /**
@@ -91,7 +100,9 @@ export async function upsertStudentProfile(
     .upsert(payload, { onConflict: "id" });
 
   if (error) {
-    console.error("[data/studentProfiles] 프로필 저장 실패", error);
+    handleQueryError(error, {
+      context: "[data/studentProfiles] upsertStudentProfile",
+    });
     return { success: false, error: error.message };
   }
 
@@ -121,7 +132,9 @@ export async function getStudentGendersBatch(
     .in("id", studentIds);
 
   if (error) {
-    console.error("[data/studentProfiles] 성별 조회 실패", error);
+    handleQueryError(error, {
+      context: "[data/studentProfiles] getStudentGendersBatch",
+    });
     return new Map();
   }
 

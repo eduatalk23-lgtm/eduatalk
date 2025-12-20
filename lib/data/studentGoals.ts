@@ -1,6 +1,11 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+  createTypedConditionalQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 export type Goal = {
   id: string;
@@ -49,69 +54,73 @@ export async function getGoalsForStudent(
 ): Promise<Goal[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectGoals = () =>
-    supabase
-      .from("student_goals")
-      .select(
-        "id,tenant_id,student_id,goal_type,title,description,subject,content_id,start_date,end_date,expected_amount,target_score,created_at,updated_at"
-      )
-      .eq("student_id", filters.studentId);
+  return await createTypedConditionalQuery<Goal[]>(
+    async () => {
+      let query = supabase
+        .from("student_goals")
+        .select(
+          "id,tenant_id,student_id,goal_type,title,description,subject,content_id,start_date,end_date,expected_amount,target_score,created_at,updated_at"
+        )
+        .eq("student_id", filters.studentId);
 
-  let query = selectGoals();
+      if (filters.tenantId) {
+        query = query.eq("tenant_id", filters.tenantId);
+      }
 
-  if (filters.tenantId) {
-    query = query.eq("tenant_id", filters.tenantId);
-  }
+      if (filters.goalType) {
+        query = query.eq("goal_type", filters.goalType);
+      }
 
-  if (filters.goalType) {
-    query = query.eq("goal_type", filters.goalType);
-  }
+      if (filters.dateRange) {
+        query = query
+          .gte("start_date", filters.dateRange.start)
+          .lte("end_date", filters.dateRange.end);
+      }
 
-  if (filters.dateRange) {
-    query = query
-      .gte("start_date", filters.dateRange.start)
-      .lte("end_date", filters.dateRange.end);
-  }
+      if (filters.isActive !== undefined) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (filters.isActive) {
+          query = query.lte("start_date", today).gte("end_date", today);
+        } else {
+          query = query.or(`start_date.gt.${today},end_date.lt.${today}`);
+        }
+      }
 
-  if (filters.isActive !== undefined) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (filters.isActive) {
-      query = query.lte("start_date", today).gte("end_date", today);
-    } else {
-      query = query.or(`start_date.gt.${today},end_date.lt.${today}`);
+      const queryResult = await query.order("created_at", { ascending: false });
+      return {
+        data: queryResult.data as Goal[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentGoals] getGoalsForStudent",
+      defaultValue: [],
+      fallbackQuery: async () => {
+        // fallback: tenant_id 컬럼이 없는 경우
+        let fallbackQuery = supabase
+          .from("student_goals")
+          .select("*")
+          .eq("student_id", filters.studentId);
+
+        if (filters.goalType) {
+          fallbackQuery = fallbackQuery.eq("goal_type", filters.goalType);
+        }
+
+        if (filters.dateRange) {
+          fallbackQuery = fallbackQuery
+            .gte("start_date", filters.dateRange.start)
+            .lte("end_date", filters.dateRange.end);
+        }
+
+        const queryResult = await fallbackQuery.order("created_at", { ascending: false });
+        return {
+          data: queryResult.data as Goal[] | null,
+          error: queryResult.error,
+        };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
     }
-  }
-
-  query = query.order("created_at", { ascending: false });
-
-  let { data, error } = await query;
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id 컬럼이 없는 경우
-    const fallbackQuery = supabase
-      .from("student_goals")
-      .select("*")
-      .eq("student_id", filters.studentId);
-
-    if (filters.goalType) {
-      fallbackQuery.eq("goal_type", filters.goalType);
-    }
-
-    if (filters.dateRange) {
-      fallbackQuery
-        .gte("start_date", filters.dateRange.start)
-        .lte("end_date", filters.dateRange.end);
-    }
-
-    ({ data, error } = await fallbackQuery.order("created_at", { ascending: false }));
-  }
-
-  if (error) {
-    console.error("[data/studentGoals] 목표 조회 실패", error);
-    return [];
-  }
-
-  return (data as Goal[] | null) ?? [];
+  ) ?? [];
 }
 
 /**
@@ -124,32 +133,45 @@ export async function getGoalById(
 ): Promise<Goal | null> {
   const supabase = await createSupabaseServerClient();
 
-  const selectGoal = () =>
-    supabase
-      .from("student_goals")
-      .select(
-        "id,tenant_id,student_id,goal_type,title,description,subject,content_id,start_date,end_date,expected_amount,target_score,created_at,updated_at"
-      )
-      .eq("id", goalId)
-      .eq("student_id", studentId);
+  return await createTypedConditionalQuery<Goal>(
+    async () => {
+      let query = supabase
+        .from("student_goals")
+        .select(
+          "id,tenant_id,student_id,goal_type,title,description,subject,content_id,start_date,end_date,expected_amount,target_score,created_at,updated_at"
+        )
+        .eq("id", goalId)
+        .eq("student_id", studentId);
 
-  let query = selectGoal();
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
 
-  let { data, error } = await query.maybeSingle<Goal>();
-
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectGoal().maybeSingle<Goal>());
-  }
-
-  if (error && error.code !== "PGRST116") {
-    console.error("[data/studentGoals] 목표 조회 실패", error);
-    return null;
-  }
-
-  return data ?? null;
+      const queryResult = await query;
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentGoals] getGoalById",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const queryResult = await supabase
+          .from("student_goals")
+          .select(
+            "id,tenant_id,student_id,goal_type,title,description,subject,content_id,start_date,end_date,expected_amount,target_score,created_at,updated_at"
+          )
+          .eq("id", goalId)
+          .eq("student_id", studentId);
+        return {
+          data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+          error: queryResult.error,
+        };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  );
 }
 
 /**
@@ -186,28 +208,44 @@ export async function createGoal(
     target_score: goal.target_score || null,
   };
 
-  let { data, error } = await supabase
-    .from("student_goals")
-    .insert(payload)
-    .select("id")
-    .single();
+  const result = await createTypedConditionalQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_goals")
+        .insert(payload)
+        .select("id")
+        .single();
 
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-    ({ data, error } = await supabase
-      .from("student_goals")
-      .insert(fallbackPayload)
-      .select("id")
-      .single());
+      return {
+        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentGoals] createGoal",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: tenant_id, student_id 컬럼이 없는 경우
+        const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+        const queryResult = await supabase
+          .from("student_goals")
+          .insert(fallbackPayload)
+          .select("id")
+          .single();
+        return {
+          data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+          error: queryResult.error,
+        };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  );
+
+  if (!result) {
+    return { success: false, error: "목표 생성 실패" };
   }
 
-  if (error) {
-    console.error("[data/studentGoals] 목표 생성 실패", error);
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, goalId: data?.id };
+  return { success: true, goalId: result.id };
 }
 
 /**
@@ -230,7 +268,7 @@ export async function updateGoal(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, string | number | null> = {};
   if (updates.goal_type !== undefined) payload.goal_type = updates.goal_type;
   if (updates.title !== undefined) payload.title = updates.title;
   if (updates.description !== undefined) payload.description = updates.description;
@@ -241,20 +279,28 @@ export async function updateGoal(
   if (updates.expected_amount !== undefined) payload.expected_amount = updates.expected_amount;
   if (updates.target_score !== undefined) payload.target_score = updates.target_score;
 
-  let { error } = await supabase
-    .from("student_goals")
-    .update(payload)
-    .eq("id", goalId)
-    .eq("student_id", studentId);
-
-  if (error && error.code === "42703") {
-    ({ error } = await supabase.from("student_goals").update(payload).eq("id", goalId));
-  }
-
-  if (error) {
-    console.error("[data/studentGoals] 목표 업데이트 실패", error);
-    return { success: false, error: error.message };
-  }
+  await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_goals")
+        .update(payload)
+        .eq("id", goalId)
+        .eq("student_id", studentId);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentGoals] updateGoal",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const queryResult = await supabase
+          .from("student_goals")
+          .update(payload)
+          .eq("id", goalId);
+        return { data: null, error: queryResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  );
 
   return { success: true };
 }
@@ -268,20 +314,28 @@ export async function deleteGoal(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  let { error } = await supabase
-    .from("student_goals")
-    .delete()
-    .eq("id", goalId)
-    .eq("student_id", studentId);
-
-  if (error && error.code === "42703") {
-    ({ error } = await supabase.from("student_goals").delete().eq("id", goalId));
-  }
-
-  if (error) {
-    console.error("[data/studentGoals] 목표 삭제 실패", error);
-    return { success: false, error: error.message };
-  }
+  await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_goals")
+        .delete()
+        .eq("id", goalId)
+        .eq("student_id", studentId);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentGoals] deleteGoal",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        const queryResult = await supabase
+          .from("student_goals")
+          .delete()
+          .eq("id", goalId);
+        return { data: null, error: queryResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  );
 
   return { success: true };
 }
@@ -310,23 +364,28 @@ export async function recordGoalProgress(
     progress_amount: progress.progress_amount,
   };
 
-  let { error } = await supabase
-    .from("student_goal_progress")
-    .insert(payload)
-    .eq("student_id", progress.student_id);
-
-  if (error && error.code === "42703") {
-    // fallback: tenant_id, student_id 컬럼이 없는 경우
-    const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-    ({ error } = await supabase
-      .from("student_goal_progress")
-      .insert(fallbackPayload));
-  }
-
-  if (error) {
-    console.error("[data/studentGoals] 목표 진행률 기록 실패", error);
-    return { success: false, error: error.message };
-  }
+  await createTypedConditionalQuery<null>(
+    async () => {
+      const queryResult = await supabase
+        .from("student_goal_progress")
+        .insert(payload)
+        .eq("student_id", progress.student_id);
+      return { data: null, error: queryResult.error };
+    },
+    {
+      context: "[data/studentGoals] recordGoalProgress",
+      defaultValue: null,
+      fallbackQuery: async () => {
+        // fallback: tenant_id, student_id 컬럼이 없는 경우
+        const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+        const queryResult = await supabase
+          .from("student_goal_progress")
+          .insert(fallbackPayload);
+        return { data: null, error: queryResult.error };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  );
 
   return { success: true };
 }
@@ -341,34 +400,45 @@ export async function getGoalProgressList(
 ): Promise<GoalProgress[]> {
   const supabase = await createSupabaseServerClient();
 
-  const selectProgress = () =>
-    supabase
-      .from("student_goal_progress")
-      .select(
-        "id,tenant_id,student_id,goal_id,plan_id,session_id,progress_amount,created_at"
-      )
-      .eq("goal_id", goalId)
-      .eq("student_id", studentId);
+  return await createTypedConditionalQuery<GoalProgress[]>(
+    async () => {
+      let query = supabase
+        .from("student_goal_progress")
+        .select(
+          "id,tenant_id,student_id,goal_id,plan_id,session_id,progress_amount,created_at"
+        )
+        .eq("goal_id", goalId)
+        .eq("student_id", studentId);
 
-  let query = selectProgress();
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
 
-  query = query.order("created_at", { ascending: false });
-
-  let { data, error } = await query;
-
-  if (error && error.code === "42703") {
-    ({ data, error } = await selectProgress()
-      .order("created_at", { ascending: false }));
-  }
-
-  if (error) {
-    console.error("[data/studentGoals] 목표 진행률 조회 실패", error);
-    return [];
-  }
-
-  return (data as GoalProgress[] | null) ?? [];
+      const queryResult = await query.order("created_at", { ascending: false });
+      return {
+        data: queryResult.data as GoalProgress[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/studentGoals] getGoalProgressList",
+      defaultValue: [],
+      fallbackQuery: async () => {
+        const queryResult = await supabase
+          .from("student_goal_progress")
+          .select(
+            "id,tenant_id,student_id,goal_id,plan_id,session_id,progress_amount,created_at"
+          )
+          .eq("goal_id", goalId)
+          .eq("student_id", studentId)
+          .order("created_at", { ascending: false });
+        return {
+          data: queryResult.data as GoalProgress[] | null,
+          error: queryResult.error,
+        };
+      },
+      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
+    }
+  ) ?? [];
 }
 

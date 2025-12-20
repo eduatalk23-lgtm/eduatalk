@@ -1,6 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
+import {
+  createTypedQuery,
+  createTypedSingleQuery,
+} from "@/lib/data/core/typedQueryBuilder";
+import { handleQueryError } from "@/lib/data/core/errorHandler";
 
 export type CareerField = {
   id: string;
@@ -17,18 +20,24 @@ export type CareerField = {
 export async function getCareerFields(): Promise<CareerField[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("career_fields")
-    .select("*")
-    .eq("is_active", true)
-    .order("display_order", { ascending: true });
+  return await createTypedQuery<CareerField[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("career_fields")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
 
-  if (error) {
-    console.error("[data/careerFields] 진로 계열 조회 실패", error);
-    return [];
-  }
-
-  return (data as CareerField[]) ?? [];
+      return {
+        data: queryResult.data as CareerField[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/careerFields] getCareerFields",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 /**
@@ -37,17 +46,23 @@ export async function getCareerFields(): Promise<CareerField[]> {
 export async function getAllCareerFields(): Promise<CareerField[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data, error } = await supabase
-    .from("career_fields")
-    .select("*")
-    .order("display_order", { ascending: true });
+  return await createTypedQuery<CareerField[]>(
+    async () => {
+      const queryResult = await supabase
+        .from("career_fields")
+        .select("*")
+        .order("display_order", { ascending: true });
 
-  if (error) {
-    console.error("[data/careerFields] 진로 계열 전체 조회 실패", error);
-    return [];
-  }
-
-  return (data as CareerField[]) ?? [];
+      return {
+        data: queryResult.data as CareerField[] | null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/careerFields] getAllCareerFields",
+      defaultValue: [],
+    }
+  ) ?? [];
 }
 
 /**
@@ -68,22 +83,34 @@ export async function createCareerField(
       : 0;
   }
 
-  const { data, error } = await supabase
-    .from("career_fields")
-    .insert({
-      name: name.trim(),
-      display_order: order,
-      is_active: true,
-    })
-    .select("id")
-    .single();
+  const result = await createTypedSingleQuery<{ id: string }>(
+    async () => {
+      const queryResult = await supabase
+        .from("career_fields")
+        .insert({
+          name: name.trim(),
+          display_order: order,
+          is_active: true,
+        })
+        .select("id")
+        .single();
 
-  if (error) {
-    console.error("[data/careerFields] 진로 계열 생성 실패", error);
-    return { success: false, error: error.message };
+      return {
+        data: queryResult.data ? [queryResult.data] : null,
+        error: queryResult.error,
+      };
+    },
+    {
+      context: "[data/careerFields] createCareerField",
+      defaultValue: null,
+    }
+  );
+
+  if (!result) {
+    return { success: false, error: "진로 계열 생성 실패" };
   }
 
-  return { success: true, id: data?.id };
+  return { success: true, id: result.id };
 }
 
 /**
@@ -99,7 +126,7 @@ export async function updateCareerField(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Record<string, string | number | boolean> = {};
   if (updates.name !== undefined) payload.name = updates.name.trim();
   if (updates.display_order !== undefined) payload.display_order = updates.display_order;
   if (updates.is_active !== undefined) payload.is_active = updates.is_active;
@@ -110,7 +137,9 @@ export async function updateCareerField(
     .eq("id", id);
 
   if (error) {
-    console.error("[data/careerFields] 진로 계열 수정 실패", error);
+    handleQueryError(error, {
+      context: "[data/careerFields] updateCareerField",
+    });
     return { success: false, error: error.message };
   }
 
@@ -132,7 +161,9 @@ export async function deleteCareerField(
     .eq("id", id);
 
   if (error) {
-    console.error("[data/careerFields] 진로 계열 삭제 실패", error);
+    handleQueryError(error, {
+      context: "[data/careerFields] deleteCareerField",
+    });
     return { success: false, error: error.message };
   }
 
