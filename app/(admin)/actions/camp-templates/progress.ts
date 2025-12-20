@@ -147,7 +147,6 @@ export const getCampPlanGroupForReview = withErrorHandling(
               function: "getCampPlanGroupForReview",
               templateId: result.group.camp_template_id,
                 tenantBlockSetId,
-                templateId: result.group.camp_template_id,
               }
             );
           } else if (templateBlockSet) {
@@ -545,6 +544,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         non_study_time_blocks: unknown | null;
         plan_type: string | null;
         camp_template_id: string | null;
+        camp_invitation_id: string | null;
       }> = {
         updated_at: new Date().toISOString(),
       };

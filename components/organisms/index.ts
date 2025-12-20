@@ -5,21 +5,21 @@
  * 페이지의 특정 영역을 담당합니다.
  */
 
-// Dialog
+// Dialog (ui 폴더에서 import)
 export {
   Dialog,
   DialogContent,
   DialogFooter,
   ConfirmDialog,
   default as DialogDefault,
-} from "./Dialog";
+} from "../ui/Dialog";
 export type {
   DialogProps,
   DialogContentProps,
   DialogFooterProps,
   DialogSize,
   ConfirmDialogProps,
-} from "./Dialog";
+} from "../ui/Dialog";
 
 // ToastContainer (ToastProvider)
 export { ToastProvider, useToast } from "./ToastContainer";

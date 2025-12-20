@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { searchStudentsUnified } from "@/lib/data/studentSearch";
 import type { StudentSearchResult } from "@/lib/data/studentSearch";
 import { cn } from "@/lib/cn";
 import {
@@ -61,16 +60,28 @@ export function StudentSearchSelect({
 
       setIsSearching(true);
       try {
-        const result = await searchStudentsUnified({
-          query: query.trim(),
-          filters: {
-            isActive: true,
-          },
-          limit: 50,
-          role: "admin",
-          tenantId: tenantId || undefined,
+        // API 라우트를 통해 검색
+        const params = new URLSearchParams({
+          q: query.trim(),
+          type: "all",
+          isActive: "true",
+          limit: "50",
         });
-        setSearchResults(result.students);
+        if (tenantId) {
+          params.append("tenantId", tenantId);
+        }
+
+        const response = await fetch(`/api/students/search?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error("검색 실패");
+        }
+
+        const data = await response.json();
+        if (data.success && data.data) {
+          setSearchResults(data.data.students || []);
+        } else {
+          setSearchResults([]);
+        }
       } catch (error) {
         console.error("학생 검색 실패:", error);
         setSearchResults([]);
