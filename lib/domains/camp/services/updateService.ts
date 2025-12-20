@@ -35,10 +35,10 @@ type PlanGroupUpdatePayload = Partial<{
 }>;
 
 type CreationData = {
-  name?: string;
+  name?: string | null;
   plan_purpose?: string | null;
   scheduler_type?: string | null;
-  scheduler_options?: PlanGroupSchedulerOptions;
+  scheduler_options?: PlanGroupSchedulerOptions | null;
   time_settings?: unknown;
   period_start?: string;
   period_end?: string;

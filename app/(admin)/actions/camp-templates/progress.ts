@@ -1036,8 +1036,8 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         // 1. 기간 검증
         const periodStart =
-          updatePayload.period_start || result.group.period_start;
-        const periodEnd = updatePayload.period_end || result.group.period_end;
+          creationData.period_start || result.group.period_start;
+        const periodEnd = creationData.period_end || result.group.period_end;
         if (!periodStart || !periodEnd) {
           validationErrors.push("학습 기간이 설정되지 않았습니다.");
         } else {
