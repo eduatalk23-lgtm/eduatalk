@@ -215,7 +215,10 @@ describe("getGoalStatus", () => {
 
       vi.mocked(calculateGoalProgress).mockImplementation((goal, _, today) => {
         const endDate = new Date(goal.end_date);
-        const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        endDate.setHours(0, 0, 0, 0);
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+        const daysRemaining = Math.ceil((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
 
         return {
           currentAmount: 0,
@@ -274,7 +277,10 @@ describe("getGoalStatus", () => {
 
       vi.mocked(calculateGoalProgress).mockImplementation((goal, _, today) => {
         const endDate = new Date(goal.end_date);
-        const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        endDate.setHours(0, 0, 0, 0);
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+        const daysRemaining = Math.ceil((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
 
         return {
           currentAmount: 0,

@@ -98,7 +98,7 @@ async function loadInitialData() {
     // 2. 학교 데이터 로드
     console.log("\n🏫 학교 데이터 로드 중...");
     let successCount = 0;
-    let skipCount = 0;
+    const skipCount = 0;
     let errorCount = 0;
 
     for (const school of data.schools) {

@@ -615,7 +615,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
       (id) => !lectureIdsWithEpisodes.has(id)
     );
 
-    let masterEpisodes: Array<{
+    const masterEpisodes: Array<{
       lecture_id: string;
       episode_number: number;
       duration: number | null;

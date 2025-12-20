@@ -254,7 +254,7 @@ export async function upsertStudent(
   }
 
   // 타입 안전한 upsert 시도
-  let { error } = await supabase
+  const { error } = await supabase
     .from("students")
     .upsert(payload, { onConflict: "id" });
 

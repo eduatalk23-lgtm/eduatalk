@@ -161,7 +161,7 @@ export function useContentSelection({
       (c: WizardData["student_contents"][number]) => c.content_type === "book" || c.content_type === "lecture"
     ) as Array<{ content_id: string; content_type: "book" | "lecture" }>;
 
-    let studentMasterIds = new Set<string>();
+    const studentMasterIds = new Set<string>();
     if (studentContentsForMasterId.length > 0) {
       try {
         const masterIdResult = await getStudentContentMasterIdsAction(

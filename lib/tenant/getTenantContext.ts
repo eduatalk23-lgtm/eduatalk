@@ -84,7 +84,7 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
         .eq("id", user.id)
         .maybeSingle();
 
-    let { data: student, error: studentError } = await selectStudent();
+    const { data: student, error: studentError } = await selectStudent();
 
     if (studentError && studentError.code === "42703") {
       // fallback: tenant_id 컬럼이 없는 경우

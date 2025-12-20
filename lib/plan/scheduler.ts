@@ -591,7 +591,7 @@ function generateDefaultPlans(
     const dailyAmount = Math.round(content.total_amount / totalStudyDays);
     const amounts: number[] = [];
     let remaining = content.total_amount;
-    let currentStart = content.start_range;
+    const currentStart = content.start_range;
 
     for (let i = 0; i < totalStudyDays; i++) {
       const amount = i === totalStudyDays - 1 ? remaining : dailyAmount;

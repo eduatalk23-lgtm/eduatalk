@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     // status 컬럼이 있는지 확인
-    let insertData: { name: string; type: string; status?: string } = {
+    const insertData: { name: string; type: string; status?: string } = {
       name: name.trim(),
       type: type || "academy",
     };

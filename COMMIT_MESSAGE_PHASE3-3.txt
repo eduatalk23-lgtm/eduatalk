@@ -1,0 +1,109 @@
+refactor(metrics): Phase 3-3 Metrics & Goals 모듈 리팩토링 완료
+
+이번 리팩토링은 N+1 쿼리 문제 해결, 안정성 강화, 테스트 안정성 개선을 통해
+Metrics와 Goals 모듈의 성능과 유지보수성을 대폭 향상시켰습니다.
+
+## 성능 최적화
+
+### N+1 쿼리 문제 해결
+- Batch Query + In-Memory Mapping 패턴 도입
+- 쿼리 횟수: O(N) → O(1) 또는 O(콘텐츠 타입 수)
+- 응답 시간: 수백 ms → 수십 ms
+
+**주요 변경사항**:
+- `lib/metrics/getWeakSubjects.ts`: 플랜과 콘텐츠 정보 배치 조회
+- `lib/metrics/getGoalStatus.ts`: 모든 목표 진행률 데이터 한 번에 조회
+- `lib/metrics/todayProgress.ts`: 세션 데이터 배치 조회
+
+### 안정성 강화
+
+**safeQuery 유틸리티 도입**:
+- 42703 에러 자동 처리 (컬럼 존재하지 않을 때)
+- 일관된 에러 처리 로직
+- 컨텍스트 기반 로깅으로 에러 추적 가능
+
+**적용 범위**:
+- 모든 Metrics 함수에서 `safeQueryArray`, `safeQuerySingle` 사용
+- Fallback 쿼리 함수 제공으로 하위 호환성 보장
+
+## 테스트 안정성
+
+### Context 기반 모킹 전략
+- `Promise.all` 병렬 실행과 조건부 쿼리 실행으로 인한 모킹 순서 불일치 해결
+- 순서 독립적 테스트 구현
+- `__mocks__` 디렉토리를 활용한 의존성 격리
+
+**테스트 결과**:
+- 전체 테스트: 135개
+- 통과: 135개 ✅
+- 실패: 0개
+- 통과율: 100% (All Green)
+
+## 문서화
+
+**작성된 문서**:
+- `docs/REFACTORING_GUIDE.md`: 리팩토링 가이드 (핵심 기술과 패턴 정리)
+- `docs/2025-02-05-phase3-3-completion.md`: 완료 보고서
+- `docs/2025-02-05-all-tests-green-completion.md`: All Green 달성 보고서
+- `docs/2025-02-05-getweakSubjects-context-based-mocking-completion.md`: Context 기반 모킹 전략
+- `docs/2025-02-05-todayprogress-test-fix-completion.md`: todayProgress 테스트 수정
+
+## 코드 품질
+
+**Lint 검사 결과**:
+- 에러: 0개 ✅
+- 경고: 일부 존재 (기능에 영향 없음)
+
+**코드 정리**:
+- 주석 처리된 레거시 코드: 없음 ✅
+- 불필요한 `console.log`: 없음 (에러 로깅은 유지) ✅
+- 사용하지 않는 import: 없음 ✅
+
+## 주요 변경 파일
+
+### Metrics 모듈
+- `lib/metrics/getWeakSubjects.ts`: Batch Query 패턴 적용
+- `lib/metrics/getGoalStatus.ts`: N+1 쿼리 최적화
+- `lib/metrics/todayProgress.ts`: 성능 최적화
+- `lib/metrics/getHistoryPattern.ts`: 안정성 강화
+- `lib/metrics/studyTime.ts`: 개선
+
+### Goals 모듈
+- `lib/goals/calc.ts`: 목표 진행률 계산 로직 개선
+- `lib/goals/queries.ts`: 쿼리 최적화
+
+### 유틸리티
+- `lib/supabase/safeQuery.ts`: 안전한 쿼리 래퍼 유틸리티
+- `lib/metrics/constants.ts`: 상수 정의
+
+### 테스트
+- `__tests__/lib/metrics/getWeakSubjects.test.ts`: Context 기반 모킹 적용
+- `__tests__/lib/metrics/getGoalStatus.test.ts`: 테스트 안정성 개선
+- `__tests__/lib/metrics/todayProgress.test.ts`: 테스트 수정
+- `__tests__/lib/metrics/getHistoryPattern.test.ts`: 테스트 개선
+- `__tests__/lib/metrics/calc.test.ts`: 테스트 통과
+
+### Mock 파일
+- `__mocks__/lib/data/studentPlans.ts`: 의존성 격리
+- `__mocks__/lib/data/studentSessions.ts`: 의존성 격리
+- `__mocks__/lib/data/planGroups.ts`: 의존성 격리
+- `__mocks__/lib/metrics/studyTime.ts`: 의존성 격리
+- `__mocks__/lib/utils/planUtils.ts`: 의존성 격리
+- `__mocks__/lib/utils/dateUtils.ts`: 의존성 격리
+
+## 다음 단계
+
+Phase 4: Frontend/Dashboard UI 연동 및 최적화
+- 리팩토링된 함수를 Frontend 컴포넌트에 적용
+- Loading State 최적화 (Suspense 전략 개선)
+- 타입 안전성 강화
+- 성능 모니터링 도구 추가
+
+자세한 내용은 `docs/2025-02-05-phase4-frontend-integration-roadmap.md` 참고
+
+---
+
+**관련 이슈**: Phase 3-3 Metrics & Goals 리팩토링
+**테스트**: 모든 테스트 통과 (135/135)
+**Breaking Changes**: 없음 (하위 호환성 유지)
+

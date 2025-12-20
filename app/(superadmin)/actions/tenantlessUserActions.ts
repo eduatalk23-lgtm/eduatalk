@@ -243,7 +243,7 @@ export async function getActiveTenants(): Promise<
     const supabase = await createSupabaseServerClient();
 
     // status 컬럼이 있으면 활성화된 기관만, 없으면 모두 조회
-    let query = supabase.from("tenants").select("id, name").order("name", { ascending: true });
+    const query = supabase.from("tenants").select("id, name").order("name", { ascending: true });
 
     // status 컬럼이 있는지 확인 후 필터링
     try {

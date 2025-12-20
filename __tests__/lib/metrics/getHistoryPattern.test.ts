@@ -194,10 +194,17 @@ describe("getHistoryPattern", () => {
     });
 
     it("study_session 이벤트가 있으면 연속 카운트가 중단되어야 함", async () => {
+      // todayDate가 "2025-01-15"이므로, 로컬 시간대로 해석하면 UTC 변환 시 "2025-01-14"가 될 수 있음
+      // 실제 함수는 todayDate를 new Date(todayDate)로 변환하고 setHours(0,0,0,0)를 호출하므로
+      // 로컬 시간대 기준으로 처리됩니다. 따라서 created_at도 로컬 시간대 기준으로 설정해야 함
+      const today = new Date(todayDate);
+      today.setHours(0, 0, 0, 0);
+      const todayDateStr = today.toISOString().slice(0, 10); // 실제 함수가 사용하는 날짜 형식
+      
       const mockHistoryRows = [
         {
           event_type: "study_session", // 오늘 - 있음
-          created_at: "2025-01-15T10:00:00Z",
+          created_at: `${todayDateStr}T00:00:00Z`, // 실제 함수가 사용하는 날짜 형식과 일치
         },
         {
           event_type: "plan_started", // 어제 - 없음

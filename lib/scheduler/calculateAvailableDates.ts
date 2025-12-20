@@ -988,7 +988,7 @@ export function calculateAvailableDates(
 
   // 날짜별 타입 분류 및 주차 정보 계산
   let dayTypeMap: Map<string, DayType>;
-  let weekMap: Map<string, number> = new Map(); // 날짜 -> 주차 번호 매핑 (모든 날짜 포함)
+  const weekMap: Map<string, number> = new Map(); // 날짜 -> 주차 번호 매핑 (모든 날짜 포함)
   
   const studyDays = options.scheduler_options?.study_days || 6;
   const reviewDays = options.scheduler_options?.review_days || 1;
@@ -1028,7 +1028,7 @@ export function calculateAvailableDates(
   let totalSelfStudyHours = 0; // 자율학습 시간 합계
   
   // 제외일 통계
-  let totalExclusionDays = {
+  const totalExclusionDays = {
     휴가: 0,
     개인사정: 0,
     지정휴일: 0,

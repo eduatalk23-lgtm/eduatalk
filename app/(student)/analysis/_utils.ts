@@ -489,7 +489,7 @@ export async function saveRiskAnalysis(
     const deleteQuery = () =>
       supabase.from("student_analysis").delete().eq("student_id", studentId);
 
-    let { error: deleteError } = await deleteQuery();
+    const { error: deleteError } = await deleteQuery();
 
     if (deleteError && deleteError.code === "42703") {
       // student_id 컬럼이 없으면 전체 삭제 시도

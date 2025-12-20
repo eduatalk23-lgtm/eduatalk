@@ -116,7 +116,7 @@ export async function getStudentPhonesBatch(
   }
 
   // 3. parent_student_links를 통해 연결된 학부모 정보 조회 (RLS 우회를 위해 Admin Client 사용)
-  let linkedParentPhones: Map<string, {
+  const linkedParentPhones: Map<string, {
     mother?: { phone: string; parentId: string };
     father?: { phone: string; parentId: string };
   }> = new Map();
@@ -139,7 +139,7 @@ export async function getStudentPhonesBatch(
 
       // Admin 클라이언트를 사용하여 auth.users에서 phone 조회
       const adminClient = createSupabaseAdminClient();
-      let parentPhonesMap = new Map<string, string | null>();
+      const parentPhonesMap = new Map<string, string | null>();
 
       if (adminClient && parentIds.length > 0) {
         try {

@@ -54,7 +54,7 @@ async function _updatePlanGroupStatus(
       group.camp_invitation_id !== null;
 
     // 같은 모드의 활성 플랜 그룹만 조회
-    let query = supabase
+    const query = supabase
       .from("plan_groups")
       .select("id, plan_type, camp_template_id, camp_invitation_id")
       .eq("student_id", user.userId)

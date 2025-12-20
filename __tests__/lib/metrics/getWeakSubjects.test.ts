@@ -4,6 +4,7 @@ import { getWeakSubjects } from "@/lib/metrics/getWeakSubjects";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
 import { WEAK_SUBJECT_CONSTANTS } from "@/lib/metrics/constants";
+import type { Mock } from "vitest";
 
 // Mock dependencies
 vi.mock("@/lib/studySessions/queries");
@@ -19,6 +20,13 @@ describe("getWeakSubjects", () => {
   const weekStart = new Date("2025-01-06");
   const weekEnd = new Date("2025-01-12");
 
+  // Context 기반 모킹을 위한 데이터 저장소
+  let mockPlansData: any[] = [];
+  let mockBooksData: any[] = [];
+  let mockLecturesData: any[] = [];
+  let mockCustomData: any[] = [];
+  let mockAnalysisData: any[] = [];
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSupabase = {
@@ -28,6 +36,28 @@ describe("getWeakSubjects", () => {
       in: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
     } as unknown as SupabaseServerClient;
+
+    // 기본값 초기화
+    mockPlansData = [];
+    mockBooksData = [];
+    mockLecturesData = [];
+    mockCustomData = [];
+    mockAnalysisData = [];
+
+    // Context 기반 모킹 구현
+    (safeQueryArray as Mock).mockImplementation(
+      async (queryFn: any, fallbackFn: any, options?: { context?: string }) => {
+        const context = options?.context || "";
+
+        if (context.includes("플랜 조회")) return mockPlansData;
+        if (context.includes("책 조회")) return mockBooksData;
+        if (context.includes("강의 조회")) return mockLecturesData;
+        if (context.includes("커스텀 콘텐츠 조회")) return mockCustomData;
+        if (context.includes("분석 조회")) return mockAnalysisData;
+
+        return []; // 기본값
+      }
+    );
   });
 
   describe("데이터 그룹화 로직 검증", () => {
@@ -62,15 +92,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // Mock safeQueryArray calls
-      // 실제 구현 순서: plans -> Promise.all([books, lectures, custom]) -> analysis
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any) // 1. plans query
-        .mockResolvedValueOnce(mockBooks as any) // 2. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce(mockLectures as any) // 3. lectures query (Promise.all 두 번째)
-        .mockResolvedValueOnce([]) // 4. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce([]); // 5. analysis query
+      // Context 기반 모킹: 각 데이터를 변수에 할당
+      mockPlansData = mockPlans;
+      mockBooksData = mockBooks;
+      mockLecturesData = mockLectures;
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -100,13 +127,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // plan_id가 null이므로 plans query는 호출되지 않음 (planIds.size === 0)
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockBooks as any) // 1. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce([]) // 2. lectures query (Promise.all 두 번째, empty)
-        .mockResolvedValueOnce([]) // 3. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce([]); // 4. analysis query
+      // Context 기반 모킹: plan_id가 null이므로 plans query는 호출되지 않음
+      mockPlansData = [];
+      mockBooksData = mockBooks;
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -142,13 +168,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any) // 1. plans query
-        .mockResolvedValueOnce(mockBooks as any) // 2. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce([]) // 3. lectures query (Promise.all 두 번째)
-        .mockResolvedValueOnce([]) // 4. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce([]); // 5. analysis query
+      // Context 기반 모킹
+      mockPlansData = mockPlans;
+      mockBooksData = mockBooks;
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -175,13 +200,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions);
 
-      // planIds.size === 0이므로 plans query는 호출되지 않음
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce([]) // 1. books query (Promise.all 첫 번째, empty)
-        .mockResolvedValueOnce([]) // 2. lectures query (Promise.all 두 번째, empty)
-        .mockResolvedValueOnce([]) // 3. custom query (Promise.all 세 번째, empty)
-        .mockResolvedValueOnce(mockAnalyses as any); // 4. analysis query
+      // Context 기반 모킹: planIds.size === 0이므로 plans query는 호출되지 않음
+      mockPlansData = [];
+      mockBooksData = [];
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = mockAnalyses;
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -213,13 +237,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions);
 
-      // planIds.size === 0이므로 plans query는 호출되지 않음
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce([]) // 1. books query (Promise.all 첫 번째, empty)
-        .mockResolvedValueOnce([]) // 2. lectures query (Promise.all 두 번째, empty)
-        .mockResolvedValueOnce([]) // 3. custom query (Promise.all 세 번째, empty)
-        .mockResolvedValueOnce(mockAnalyses as any); // 4. analysis query
+      // Context 기반 모킹: planIds.size === 0이므로 plans query는 호출되지 않음
+      mockPlansData = [];
+      mockBooksData = [];
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = mockAnalyses;
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -275,13 +298,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any) // 1. plans query
-        .mockResolvedValueOnce(mockBooks as any) // 2. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce([]) // 3. lectures query (Promise.all 두 번째)
-        .mockResolvedValueOnce([]) // 4. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce(mockAnalyses as any); // 5. analysis query
+      // Context 기반 모킹
+      mockPlansData = mockPlans;
+      mockBooksData = mockBooks;
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = mockAnalyses;
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -304,13 +326,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions);
 
-      // planIds.size === 0이므로 plans query는 호출되지 않음
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce([]) // 1. books query (Promise.all 첫 번째, empty)
-        .mockResolvedValueOnce([]) // 2. lectures query (Promise.all 두 번째, empty)
-        .mockResolvedValueOnce([]) // 3. custom query (Promise.all 세 번째, empty)
-        .mockResolvedValueOnce(mockAnalyses as any); // 4. analysis query
+      // Context 기반 모킹: planIds.size === 0이므로 plans query는 호출되지 않음
+      mockPlansData = [];
+      mockBooksData = [];
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = mockAnalyses;
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -351,13 +372,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any) // 1. plans query
-        .mockResolvedValueOnce(mockBooks as any) // 2. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce([]) // 3. lectures query (Promise.all 두 번째)
-        .mockResolvedValueOnce([]) // 4. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce([]); // 5. analysis query
+      // Context 기반 모킹
+      mockPlansData = mockPlans;
+      mockBooksData = mockBooks;
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -387,13 +407,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      const { safeQueryArray } = await import("@/lib/supabase/safeQuery");
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      // Context 기반 모킹
+      mockPlansData = mockPlans;
+      mockBooksData = [];
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -424,13 +443,12 @@ describe("getWeakSubjects", () => {
 
       vi.mocked(getSessionsByDateRange).mockResolvedValue(mockSessions as any);
 
-      // Promise.all은 병렬 실행이지만 모킹에서는 순차적으로 처리됨
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockPlans as any) // 1. plans query
-        .mockResolvedValueOnce(mockBooks as any) // 2. books query (Promise.all 첫 번째)
-        .mockResolvedValueOnce([]) // 3. lectures query (Promise.all 두 번째)
-        .mockResolvedValueOnce([]) // 4. custom query (Promise.all 세 번째)
-        .mockResolvedValueOnce([]); // 5. analysis query
+      // Context 기반 모킹
+      mockPlansData = mockPlans;
+      mockBooksData = mockBooks;
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,
@@ -447,13 +465,12 @@ describe("getWeakSubjects", () => {
     it("빈 세션 배열에 대해 빈 결과를 반환해야 함", async () => {
       vi.mocked(getSessionsByDateRange).mockResolvedValue([]);
 
-      const { safeQueryArray } = await import("@/lib/supabase/safeQuery");
-      vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      // Context 기반 모킹: 빈 세션 배열이므로 모든 데이터는 빈 배열
+      mockPlansData = [];
+      mockBooksData = [];
+      mockLecturesData = [];
+      mockCustomData = [];
+      mockAnalysisData = [];
 
       const result = await getWeakSubjects(
         mockSupabase,

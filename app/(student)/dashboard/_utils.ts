@@ -917,7 +917,7 @@ export async function fetchActivePlanSimple(
       .eq("plan_date", todayDate);
 
     // actual_start_time 컬럼이 있는지 확인하여 조건부로 필터링
-    let { data: activePlans, error } = await selectQuery
+    const { data: activePlans, error } = await selectQuery
       .not("actual_start_time", "is", null)
       .is("actual_end_time", null)
       .order("actual_start_time", { ascending: false })
@@ -1026,7 +1026,7 @@ export async function fetchActivePlan(
       .eq("plan_date", todayDate);
 
     // actual_start_time 컬럼이 있는지 확인하여 조건부로 필터링
-    let { data: activePlans, error } = await selectQuery
+    const { data: activePlans, error } = await selectQuery
       .not("actual_start_time", "is", null)
       .is("actual_end_time", null)
       .order("actual_start_time", { ascending: false })

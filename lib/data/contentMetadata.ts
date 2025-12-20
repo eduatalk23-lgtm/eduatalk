@@ -532,7 +532,7 @@ export async function getSubjectCategories(
   revisionId?: string
 ): Promise<SubjectCategory[]> {
   const supabase = await createSupabaseServerClient();
-  let query = supabase
+  const query = supabase
     .from("subject_categories")
     .select("*")
     .order("display_order", { ascending: true })

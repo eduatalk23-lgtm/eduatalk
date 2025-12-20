@@ -28,7 +28,7 @@ export function calculatePlanStudySeconds(
     return 0;
   }
 
-  let endMs = plan.actual_end_time ? new Date(plan.actual_end_time).getTime() : nowMs;
+  const endMs = plan.actual_end_time ? new Date(plan.actual_end_time).getTime() : nowMs;
   if (!Number.isFinite(endMs) || endMs <= startMs) {
     return 0;
   }
