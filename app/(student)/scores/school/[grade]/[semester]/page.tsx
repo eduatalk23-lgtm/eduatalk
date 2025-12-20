@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { ScoreTypeTabs } from "../../../_components/ScoreTypeTabs";
-import { getInternalScores, mapInternalScoresToSchoolScores } from "@/lib/data/studentScores";
+import { getInternalScores } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 import { getSubjectHierarchyOptimized, getActiveCurriculumRevision } from "@/lib/data/subjects";
 import { SchoolScoresView } from "./_components/SchoolScoresView";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -43,13 +44,10 @@ export default async function SchoolScoresPage({
   }
 
   // 모든 성적 데이터 조회 (신규 테이블 사용)
-  const internalScores = await getInternalScores(user.id, tenantContext.tenantId, {
+  const scores: InternalScore[] = await getInternalScores(user.id, tenantContext.tenantId, {
     grade: parseInt(grade),
     semester: parseInt(semester),
   });
-  
-  // 레거시 컴포넌트 호환성을 위해 SchoolScore 타입으로 변환
-  const scores = mapInternalScoresToSchoolScores(internalScores);
 
   // 활성화된 개정교육과정 조회
   const activeCurriculum = await getActiveCurriculumRevision();
@@ -87,6 +85,7 @@ export default async function SchoolScoresPage({
         scores={scores}
         subjectGroups={subjectGroupsWithSubjects}
         subjectTypes={subjectTypes}
+        curriculumRevisionId={activeCurriculum.id}
       />
     </section>
   );

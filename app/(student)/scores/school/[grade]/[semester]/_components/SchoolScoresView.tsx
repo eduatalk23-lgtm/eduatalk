@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SchoolScore } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCardGrid } from "@/app/(student)/scores/_components/ScoreCardGrid";
 import { ScoreFormModal } from "@/app/(student)/scores/_components/ScoreFormModal";
@@ -13,9 +13,10 @@ import { useToast } from "@/components/ui/ToastProvider";
 type SchoolScoresViewProps = {
   initialGrade?: number;
   initialSemester?: number;
-  scores: SchoolScore[];
+  scores: InternalScore[];
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   subjectTypes: SubjectType[];
+  curriculumRevisionId: string;
 };
 
 export function SchoolScoresView({
@@ -24,12 +25,13 @@ export function SchoolScoresView({
   scores,
   subjectGroups,
   subjectTypes,
+  curriculumRevisionId,
 }: SchoolScoresViewProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingScore, setEditingScore] = useState<SchoolScore | null>(null);
+  const [editingScore, setEditingScore] = useState<InternalScore | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingScoreId, setDeletingScoreId] = useState<string | null>(null);
 
@@ -38,7 +40,7 @@ export function SchoolScoresView({
     setIsModalOpen(true);
   };
 
-  const handleEdit = (score: SchoolScore) => {
+  const handleEdit = (score: InternalScore) => {
     setEditingScore(score);
     setIsModalOpen(true);
   };
@@ -93,6 +95,7 @@ export function SchoolScoresView({
         subjectGroups={subjectGroups}
         subjectTypes={subjectTypes}
         editingScore={editingScore}
+        curriculumRevisionId={curriculumRevisionId}
         onSuccess={handleModalSuccess}
       />
 

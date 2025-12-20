@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { SchoolScore } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 import { getGradeColor } from "@/lib/constants/colors";
 import { BaseScoreCard } from "./BaseScoreCard";
 import { cn } from "@/lib/cn";
@@ -12,11 +12,11 @@ import {
 } from "@/lib/utils/darkMode";
 
 type ScoreCardProps = {
-  score: SchoolScore;
+  score: InternalScore;
   subjectGroupName?: string;
   subjectName?: string;
   subjectTypeName?: string;
-  onEdit: (score: SchoolScore) => void;
+  onEdit: (score: InternalScore) => void;
   onDelete: (scoreId: string) => void;
 };
 
@@ -28,18 +28,18 @@ function ScoreCardComponent({
   onEdit,
   onDelete,
 }: ScoreCardProps) {
-  const gradeColor = getGradeColor(score.grade_score);
+  const gradeColor = getGradeColor(score.rank_grade);
 
   // 등급 배지
   const gradeBadge =
-    score.grade_score !== null ? (
+    score.rank_grade !== null ? (
       <div
         className={cn(
           "flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold shrink-0 shadow-[var(--elevation-1)]",
           gradeColor.badge
         )}
       >
-        {score.grade_score}
+        {score.rank_grade}
       </div>
     ) : null;
 
@@ -65,19 +65,11 @@ function ScoreCardComponent({
           {score.credit_hours !== null ? score.credit_hours : "-"}
         </span>
       </div>
-      {score.subject_average !== null && (
+      {score.avg_score !== null && (
         <div className="flex flex-col gap-1">
           <span className={cn("text-xs font-medium", textMutedVar)}>과목평균</span>
           <span className={cn("text-base font-semibold", textPrimaryVar)}>
-            {score.subject_average}
-          </span>
-        </div>
-      )}
-      {score.class_rank !== null && (
-        <div className="flex flex-col gap-1">
-          <span className={cn("text-xs font-medium", textMutedVar)}>반 석차</span>
-          <span className={cn("text-base font-semibold", textPrimaryVar)}>
-            {score.class_rank}등
+            {score.avg_score}
           </span>
         </div>
       )}
@@ -92,19 +84,19 @@ function ScoreCardComponent({
         <div className="flex flex-col gap-1">
           <span className={cn("text-xs", textMutedVar)}>과목명</span>
           <p className={cn("text-sm font-medium", textPrimaryVar)}>
-            {subjectName || score.subject_name || "-"}
+            {subjectName || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
           <span className={cn("text-xs", textMutedVar)}>교과</span>
           <p className={cn("text-sm font-medium", textPrimaryVar)}>
-            {subjectGroupName || score.subject_group || "-"}
+            {subjectGroupName || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
           <span className={cn("text-xs", textMutedVar)}>과목 유형</span>
           <p className={cn("text-sm font-medium", textPrimaryVar)}>
-            {subjectTypeName || score.subject_type || "-"}
+            {subjectTypeName || "-"}
           </p>
         </div>
         <div className="flex flex-col gap-1">
@@ -122,17 +114,17 @@ function ScoreCardComponent({
           <div className="flex flex-col gap-1">
             <span className={cn("text-xs", textMutedVar)}>등급</span>
             <div className="flex items-center gap-2">
-              {score.grade_score !== null && (
+              {score.rank_grade !== null && (
                 <div
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold",
                     gradeColor.badge
                   )}
                 >
-                  {score.grade_score}
+                  {score.rank_grade}
                 </div>
               )}
-              {score.grade_score === null && (
+              {score.rank_grade === null && (
                 <span className={cn("text-sm font-medium", textPrimaryVar)}>-</span>
               )}
             </div>
@@ -149,19 +141,19 @@ function ScoreCardComponent({
               {score.credit_hours !== null ? score.credit_hours : "-"}
             </p>
           </div>
-          {score.subject_average !== null && (
+          {score.avg_score !== null && (
             <div className="flex flex-col gap-1">
               <span className={cn("text-xs", textMutedVar)}>과목평균</span>
               <p className={cn("text-sm font-medium", textPrimaryVar)}>
-                {score.subject_average}
+                {score.avg_score}
               </p>
             </div>
           )}
-          {score.standard_deviation !== null && (
+          {score.std_dev !== null && (
             <div className="flex flex-col gap-1">
               <span className={cn("text-xs", textMutedVar)}>표준편차</span>
               <p className={cn("text-sm font-medium", textPrimaryVar)}>
-                {score.standard_deviation}
+                {score.std_dev}
               </p>
             </div>
           )}
@@ -181,14 +173,6 @@ function ScoreCardComponent({
               </p>
             </div>
           )}
-          {score.class_rank !== null && (
-            <div className="flex flex-col gap-1">
-              <span className={cn("text-xs", textMutedVar)}>반 석차</span>
-              <p className={cn("text-sm font-medium", textPrimaryVar)}>
-                {score.class_rank}등
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </>
@@ -198,7 +182,7 @@ function ScoreCardComponent({
     <BaseScoreCard
       score={score}
       subjectGroupName={subjectGroupName}
-      subjectName={subjectName || score.subject_name || undefined}
+      subjectName={subjectName || undefined}
       subjectTypeName={subjectTypeName}
       gradeBadge={gradeBadge}
       periodBadge={periodBadge}

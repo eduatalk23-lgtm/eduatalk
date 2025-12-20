@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, memo } from "react";
-import { SchoolScore } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCard } from "./ScoreCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -15,15 +15,15 @@ import { ScoreGridFilterBar } from "./ScoreGridFilterBar";
 type ScoreCardGridProps = {
   initialGrade?: number;
   initialSemester?: number;
-  scores: SchoolScore[];
+  scores: InternalScore[];
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   subjectTypes: SubjectType[];
   onAddClick?: () => void;
-  onEdit: (score: SchoolScore) => void;
+  onEdit: (score: InternalScore) => void;
   onDelete: (scoreId: string) => void;
 };
 
-type SortField = "grade" | "semester" | "grade_score" | "raw_score" | "subject_name";
+type SortField = "grade" | "semester" | "rank_grade" | "raw_score" | "subject_name";
 type SortOrder = "asc" | "desc";
 
 function ScoreCardGridComponent({
@@ -48,23 +48,15 @@ function ScoreCardGridComponent({
   // 성적 데이터에 과목 정보 매핑
   const scoresWithInfo = useMemo(() => {
     return scores.map((score) => {
-      const group = score.subject_group_id
-        ? subjectGroups.find((g) => g.id === score.subject_group_id)
-        : subjectGroups.find((g) => g.name === score.subject_group);
-      const subject = score.subject_id
-        ? group?.subjects.find((s) => s.id === score.subject_id)
-        : group?.subjects.find((s) => s.name === score.subject_name);
-      const subjectType = score.subject_type_id
-        ? subjectTypes.find((st) => st.id === score.subject_type_id)
-        : score.subject_type
-          ? subjectTypes.find((st) => st.name === score.subject_type)
-          : null;
+      const group = subjectGroups.find((g) => g.id === score.subject_group_id);
+      const subject = group?.subjects.find((s) => s.id === score.subject_id);
+      const subjectType = subjectTypes.find((st) => st.id === score.subject_type_id);
 
       return {
         score,
-        subjectGroupName: group?.name || score.subject_group || "",
-        subjectName: subject?.name || score.subject_name || "",
-        subjectTypeName: subjectType?.name || score.subject_type || "",
+        subjectGroupName: group?.name || "",
+        subjectName: subject?.name || "",
+        subjectTypeName: subjectType?.name || "",
       };
     });
   }, [scores, subjectGroups, subjectTypes]);
@@ -76,7 +68,7 @@ function ScoreCardGridComponent({
     availableSubjectTypes,
     availableSubjects,
     availableGrades,
-  } = useScoreFilter<SchoolScore>(
+  } = useScoreFilter<InternalScore>(
     scoresWithInfo,
     {
       grade: filterGrade,
@@ -94,8 +86,8 @@ function ScoreCardGridComponent({
             return item.score.grade ?? 0;
           case "semester":
             return item.score.semester ?? 0;
-          case "grade_score":
-            return item.score.grade_score ?? 999;
+          case "rank_grade":
+            return item.score.rank_grade ?? 999;
           case "raw_score":
             return item.score.raw_score ?? 0;
           case "subject_name":
@@ -250,7 +242,7 @@ export const ScoreCardGrid = memo(ScoreCardGridComponent, (prevProps, nextProps)
       prev.grade !== next.grade ||
       prev.semester !== next.semester ||
       prev.raw_score !== next.raw_score ||
-      prev.grade_score !== next.grade_score
+      prev.rank_grade !== next.rank_grade
     ) {
       return false;
     }

@@ -3,9 +3,10 @@
 import { useTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
-import { SchoolScore } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
-import { addSchoolScore, updateSchoolScoreAction } from "@/app/(student)/actions/scoreActions";
+import { createInternalScore, updateInternalScore } from "@/app/actions/scores-internal";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type ScoreFormModalProps = {
@@ -15,7 +16,8 @@ type ScoreFormModalProps = {
   initialSemester?: number;
   subjectGroups: (SubjectGroup & { subjects: Subject[] })[];
   subjectTypes: SubjectType[];
-  editingScore?: SchoolScore | null;
+  editingScore?: InternalScore | null;
+  curriculumRevisionId: string;
   onSuccess?: () => void;
 };
 
@@ -31,7 +33,6 @@ type FormErrors = {
   grade_score?: string;
   total_students?: string;
   rank_grade?: string;
-  class_rank?: string;
 };
 
 export function ScoreFormModal({
@@ -42,6 +43,7 @@ export function ScoreFormModal({
   subjectGroups,
   subjectTypes,
   editingScore,
+  curriculumRevisionId,
   onSuccess,
 }: ScoreFormModalProps) {
   const router = useRouter();
@@ -65,7 +67,6 @@ export function ScoreFormModal({
     grade_score: "",
     total_students: "",
     rank_grade: "",
-    class_rank: "",
   });
 
   // 편집 모드일 때 초기값 설정
@@ -79,12 +80,11 @@ export function ScoreFormModal({
         subject_id: editingScore.subject_id || "",
         credit_hours: editingScore.credit_hours?.toString() || "",
         raw_score: editingScore.raw_score?.toString() || "",
-        subject_average: editingScore.subject_average?.toString() || "",
-        standard_deviation: editingScore.standard_deviation?.toString() || "",
-        grade_score: editingScore.grade_score?.toString() || "",
+        subject_average: editingScore.avg_score?.toString() || "", // avg_score -> subject_average (UI용)
+        standard_deviation: editingScore.std_dev?.toString() || "", // std_dev -> standard_deviation (UI용)
+        grade_score: editingScore.rank_grade?.toString() || "", // rank_grade -> grade_score (UI용)
         total_students: editingScore.total_students?.toString() || "",
         rank_grade: editingScore.rank_grade?.toString() || "",
-        class_rank: editingScore.class_rank?.toString() || "",
       });
     } else if (!editingScore && open) {
       // 새로 추가하는 경우 초기화
@@ -101,7 +101,6 @@ export function ScoreFormModal({
         grade_score: "",
         total_students: "",
         rank_grade: "",
-        class_rank: "",
       });
     }
     // 모달이 닫힐 때 에러 상태 초기화
@@ -255,7 +254,15 @@ export function ScoreFormModal({
           throw new Error("교과 또는 과목을 찾을 수 없습니다.");
         }
 
+        // tenant_id 가져오기
+        const tenantContext = await getTenantContext();
+        if (!tenantContext?.tenantId) {
+          throw new Error("기관 정보를 찾을 수 없습니다.");
+        }
+
         const submitFormData = new FormData();
+        submitFormData.append("student_id", ""); // 서버 액션에서 getCurrentUser로 가져옴
+        submitFormData.append("tenant_id", tenantContext.tenantId);
         submitFormData.append("grade", formData.grade);
         submitFormData.append("semester", formData.semester);
         submitFormData.append("subject_group_id", group.id);
@@ -263,29 +270,26 @@ export function ScoreFormModal({
         if (formData.subject_type_id) {
           submitFormData.append("subject_type_id", formData.subject_type_id);
         }
-        // 하위 호환성을 위해 텍스트 필드도 함께 전달
-        submitFormData.append("subject_group", group.name);
-        if (subjectType) submitFormData.append("subject_type", subjectType.name);
-        submitFormData.append("subject_name", subject.name);
         submitFormData.append("credit_hours", formData.credit_hours);
         submitFormData.append("raw_score", formData.raw_score);
+        // InternalScore 필드명으로 변환
         if (formData.subject_average)
-          submitFormData.append("subject_average", formData.subject_average);
+          submitFormData.append("avg_score", formData.subject_average);
         if (formData.standard_deviation)
-          submitFormData.append("standard_deviation", formData.standard_deviation);
-        submitFormData.append("grade_score", formData.grade_score);
+          submitFormData.append("std_dev", formData.standard_deviation);
+        // rank_grade는 grade_score와 동일한 값
+        if (formData.grade_score) {
+          submitFormData.append("rank_grade", formData.grade_score);
+        }
         if (formData.total_students)
           submitFormData.append("total_students", formData.total_students);
-        if (formData.rank_grade) submitFormData.append("rank_grade", formData.rank_grade);
-        if (formData.class_rank)         submitFormData.append("class_rank", formData.class_rank);
-        // 모달에서 사용할 때는 redirect 방지
-        submitFormData.append("skipRedirect", "true");
+        submitFormData.append("curriculum_revision_id", curriculumRevisionId);
 
         if (editingScore) {
-          await updateSchoolScoreAction(editingScore.id, submitFormData);
+          await updateInternalScore(editingScore.id, submitFormData);
           showSuccess("성적이 성공적으로 수정되었습니다.");
         } else {
-          await addSchoolScore(submitFormData);
+          await createInternalScore(submitFormData);
           showSuccess("성적이 성공적으로 등록되었습니다.");
         }
 
@@ -639,24 +643,6 @@ export function ScoreFormModal({
               onBlur={handleBlur}
               onChange={handleChange}
               placeholder="1~9"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          {/* 반 석차 */}
-          <div className="flex flex-col gap-2">
-            <label htmlFor="class_rank" className="block text-sm font-medium text-gray-700">
-              반 석차
-            </label>
-            <input
-              type="number"
-              id="class_rank"
-              name="class_rank"
-              min="1"
-              value={formData.class_rank}
-              onBlur={handleBlur}
-              onChange={handleChange}
-              placeholder="예: 5"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
