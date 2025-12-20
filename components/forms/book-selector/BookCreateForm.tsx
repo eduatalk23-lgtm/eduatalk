@@ -245,3 +245,4 @@ function BookCreateFormComponent({
 }
 
 export const BookCreateForm = memo(BookCreateFormComponent);
+BookCreateForm.displayName = "BookCreateForm";

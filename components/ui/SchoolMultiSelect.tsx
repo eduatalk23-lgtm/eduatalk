@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/cn";
 import { useSchoolMultiSelectLogic } from "./hooks/useSchoolMultiSelectLogic";
 import type { School } from "@/app/(student)/actions/schoolActions";
@@ -15,7 +16,7 @@ type SchoolMultiSelectProps = {
   onSchoolSelect?: (school: School) => void; // 학교 선택 시 추가 처리
 };
 
-export default function SchoolMultiSelect({
+function SchoolMultiSelectComponent({
   value = [],
   onChange,
   type,
@@ -366,3 +367,8 @@ export default function SchoolMultiSelect({
     </div>
   );
 }
+
+const SchoolMultiSelect = memo(SchoolMultiSelectComponent);
+SchoolMultiSelect.displayName = "SchoolMultiSelect";
+
+export default SchoolMultiSelect;

@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useToast } from "@/components/ui/ToastProvider";
 import { exportMasterLecturesToExcel, downloadMasterLecturesTemplate } from "@/app/(admin)/actions/masterLectures/export";
 import { importMasterLecturesFromExcel } from "@/app/(admin)/actions/masterLectures/import";
-import ExcelImportDialog from "@/components/admin/ExcelImportDialog";
 import Button from "@/components/atoms/Button";
+
+// ExcelImportDialog는 무거운 라이브러리를 사용할 수 있으므로 동적 로드
+const ExcelImportDialog = dynamic(
+  () => import("@/components/admin/ExcelImportDialog"),
+  { ssr: false }
+);
 
 export default function ExcelActions() {
   const toast = useToast();

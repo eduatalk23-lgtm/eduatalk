@@ -36,3 +36,4 @@ function BookSelectedViewComponent({
 }
 
 export const BookSelectedView = memo(BookSelectedViewComponent);
+BookSelectedView.displayName = "BookSelectedView";

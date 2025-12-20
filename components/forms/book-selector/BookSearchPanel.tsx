@@ -77,3 +77,4 @@ function BookSearchPanelComponent({
 }
 
 export const BookSearchPanel = memo(BookSearchPanelComponent);
+BookSearchPanel.displayName = "BookSearchPanel";

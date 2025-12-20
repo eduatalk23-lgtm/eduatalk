@@ -1,14 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useToast } from "@/components/ui/ToastProvider";
 import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
 import { exportSubjectsToExcel, downloadSubjectsTemplate } from "@/app/(admin)/actions/subjects/export";
 import { importSubjectsFromExcel } from "@/app/(admin)/actions/subjects/import";
 import CurriculumRevisionTabs from "./_components/CurriculumRevisionTabs";
-import ExcelImportDialog from "@/components/admin/ExcelImportDialog";
 import Button from "@/components/atoms/Button";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+
+// ExcelImportDialog는 무거운 라이브러리를 사용할 수 있으므로 동적 로드
+const ExcelImportDialog = dynamic(
+  () => import("@/components/admin/ExcelImportDialog"),
+  { ssr: false }
+);
 
 export default function SubjectsPage() {
   const toast = useToast();
