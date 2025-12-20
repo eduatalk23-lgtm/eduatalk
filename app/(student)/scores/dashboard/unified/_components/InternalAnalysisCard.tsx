@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { SectionCard } from "@/components/ui/SectionCard";
 import type { InternalAnalysis } from "@/lib/types/scoreDashboard";
 import { MetricCard } from "./MetricCard";
 import { InfoMessage } from "./InfoMessage";
 import { useRecharts } from "@/components/charts/LazyRecharts";
 import { ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
+import { cn } from "@/lib/cn";
 
 interface InternalAnalysisCardProps {
   analysis: InternalAnalysis;
@@ -14,6 +16,7 @@ interface InternalAnalysisCardProps {
 export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
   const { totalGpa, zIndex, subjectStrength } = analysis;
   const { recharts, loading } = useRecharts();
+  const [chartType, setChartType] = useState<"bar" | "radar">("bar");
 
   // subjectStrength를 배열로 변환 (정렬)
   const subjectEntries = Object.entries(subjectStrength).sort(
@@ -47,71 +50,163 @@ export function InternalAnalysisCard({ analysis }: InternalAnalysisCardProps) {
 
       {/* 교과군별 GPA 차트 */}
       <div className="flex flex-col gap-2">
-        <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          교과군별 평점
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            교과군별 평점
+          </div>
+          {subjectEntries.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setChartType("bar")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-lg transition",
+                  chartType === "bar"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                )}
+              >
+                막대 차트
+              </button>
+              <button
+                onClick={() => setChartType("radar")}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-lg transition",
+                  chartType === "radar"
+                    ? "bg-indigo-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                )}
+              >
+                레이더 차트
+              </button>
+            </div>
+          )}
         </div>
         {subjectEntries.length > 0 ? (
           <>
             {/* 막대 차트 */}
-            {loading || !recharts ? (
-              <ChartLoadingSkeleton height={200} />
-            ) : (
-              <div className="h-[200px] w-full">
-                {(() => {
-                  const {
-                    BarChart,
-                    Bar,
-                    XAxis,
-                    YAxis,
-                    CartesianGrid,
-                    Tooltip,
-                    ResponsiveContainer,
-                  } = recharts;
+            {chartType === "bar" && (
+              loading || !recharts ? (
+                <ChartLoadingSkeleton height={200} />
+              ) : (
+                <div className="h-[200px] w-full">
+                  {(() => {
+                    const {
+                      BarChart,
+                      Bar,
+                      XAxis,
+                      YAxis,
+                      CartesianGrid,
+                      Tooltip,
+                      ResponsiveContainer,
+                    } = recharts;
 
-                  return (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={chartData}
-                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          className="stroke-gray-200 dark:stroke-gray-700"
-                        />
-                        <XAxis
-                          dataKey="name"
-                          className="text-xs text-gray-600 dark:text-gray-400"
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                        />
-                        <YAxis
-                          domain={[0, 5]}
-                          className="text-xs text-gray-600 dark:text-gray-400"
-                        />
-                        <Tooltip
-                          formatter={(value: number) => [
-                            `${value.toFixed(2)}`,
-                            "GPA",
-                          ]}
-                          contentStyle={{
-                            backgroundColor: "white",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: "8px",
-                          }}
-                          labelStyle={{ color: "#374151" }}
-                        />
-                        <Bar
-                          dataKey="gpa"
-                          fill="#6366f1"
-                          radius={[8, 8, 0, 0]}
-                          className="dark:fill-indigo-500"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  );
-                })()}
-              </div>
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            className="stroke-gray-200 dark:stroke-gray-700"
+                          />
+                          <XAxis
+                            dataKey="name"
+                            className="text-xs text-gray-600 dark:text-gray-400"
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                          />
+                          <YAxis
+                            domain={[0, 5]}
+                            className="text-xs text-gray-600 dark:text-gray-400"
+                          />
+                          <Tooltip
+                            formatter={(value: number) => [
+                              `${value.toFixed(2)}`,
+                              "GPA",
+                            ]}
+                            contentStyle={{
+                              backgroundColor: "white",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: "8px",
+                            }}
+                            labelStyle={{ color: "#374151" }}
+                          />
+                          <Bar
+                            dataKey="gpa"
+                            fill="#6366f1"
+                            radius={[8, 8, 0, 0]}
+                            className="dark:fill-indigo-500"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              )
+            )}
+            
+            {/* 레이더 차트 */}
+            {chartType === "radar" && (
+              loading || !recharts ? (
+                <ChartLoadingSkeleton height={300} />
+              ) : (
+                <div className="h-[300px] w-full">
+                  {(() => {
+                    const {
+                      RadarChart,
+                      PolarGrid,
+                      PolarAngleAxis,
+                      PolarRadiusAxis,
+                      Radar,
+                      Tooltip,
+                      ResponsiveContainer,
+                      Legend,
+                    } = recharts;
+
+                    return (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                          <PolarGrid className="stroke-gray-200 dark:stroke-gray-700" />
+                          <PolarAngleAxis
+                            dataKey="name"
+                            className="text-xs text-gray-600 dark:text-gray-400"
+                          />
+                          <PolarRadiusAxis
+                            angle={90}
+                            domain={[0, 5]}
+                            className="text-xs text-gray-600 dark:text-gray-400"
+                          />
+                          <Tooltip
+                            formatter={(value: number) => [
+                              `${value.toFixed(2)}`,
+                              "GPA",
+                            ]}
+                            contentStyle={{
+                              backgroundColor: "white",
+                              border: "1px solid #e5e7eb",
+                              borderRadius: "8px",
+                            }}
+                            labelStyle={{ color: "#374151" }}
+                          />
+                          <Legend
+                            wrapperStyle={{ fontSize: "12px" }}
+                          />
+                          <Radar
+                            name="GPA"
+                            dataKey="gpa"
+                            stroke="#6366f1"
+                            fill="#6366f1"
+                            fillOpacity={0.6}
+                            className="dark:stroke-indigo-500 dark:fill-indigo-500"
+                          />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              )
             )}
             {/* 리스트 (모바일에서 더 나은 가독성을 위해) */}
             <div className="flex flex-col gap-2 md:hidden">

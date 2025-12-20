@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { calculateGPATrend, calculateSubjectRanking, analyzeWeakPoints } from "@/lib/analysis/scoreAnalyzer";
 import { enrichInternalScores } from "@/lib/utils/scoreTransform";
 import type { InternalScoreWithRelations } from "@/lib/types/scoreAnalysis";
@@ -18,23 +18,60 @@ export default function InternalDetailAnalysis({
   tenantId,
   scores,
 }: InternalDetailAnalysisProps) {
+  const [filterGrade, setFilterGrade] = useState<string>("all");
+  const [filterSemester, setFilterSemester] = useState<string>("all");
+  
   // 중복 제거: 한 번만 변환
   const enrichedScores = useMemo(
     () => enrichInternalScores(scores),
     [scores]
   );
 
+  // 필터링된 성적
+  const filteredScores = useMemo(() => {
+    let filtered = enrichedScores;
+    
+    if (filterGrade !== "all") {
+      const gradeNum = parseInt(filterGrade);
+      filtered = filtered.filter((s) => s.grade === gradeNum);
+    }
+    
+    if (filterSemester !== "all") {
+      const semesterNum = parseInt(filterSemester);
+      filtered = filtered.filter((s) => s.semester === semesterNum);
+    }
+    
+    return filtered;
+  }, [enrichedScores, filterGrade, filterSemester]);
+
   // GPA 추이 계산
-  const gpaTrend = useMemo(() => calculateGPATrend(enrichedScores), [enrichedScores]);
+  const gpaTrend = useMemo(() => calculateGPATrend(filteredScores), [filteredScores]);
 
   // 과목별 순위 계산
   const subjectRanking = useMemo(() => {
-    return calculateSubjectRanking(enrichedScores);
-  }, [enrichedScores]);
+    return calculateSubjectRanking(filteredScores);
+  }, [filteredScores]);
 
   // 취약 과목 분석
   const weakSubjects = useMemo(() => {
-    return analyzeWeakPoints(enrichedScores);
+    return analyzeWeakPoints(filteredScores);
+  }, [filteredScores]);
+  
+  // 사용 가능한 학년 및 학기 목록
+  const availableGrades = useMemo(() => {
+    const grades = new Set<number>();
+    enrichedScores.forEach((s) => {
+      if (s.grade) grades.add(s.grade);
+    });
+    return Array.from(grades).sort();
+  }, [enrichedScores]);
+  
+  const availableSemesters = useMemo(() => {
+    const semesters = new Set<number>();
+    enrichedScores.forEach((s) => {
+      if (s.semester) semesters.add(s.semester);
+    });
+    return Array.from(semesters).sort();
   }, [enrichedScores]);
 
   if (scores.length === 0) {
@@ -52,12 +89,53 @@ export default function InternalDetailAnalysis({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 필터 */}
+      <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-gray-900">필터</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              학년
+            </label>
+            <select
+              value={filterGrade}
+              onChange={(e) => setFilterGrade(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">전체</option>
+              {availableGrades.map((grade) => (
+                <option key={grade} value={grade.toString()}>
+                  {grade}학년
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              학기
+            </label>
+            <select
+              value={filterSemester}
+              onChange={(e) => setFilterSemester(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">전체</option>
+              {availableSemesters.map((semester) => (
+                <option key={semester} value={semester.toString()}>
+                  {semester}학기
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      
       {/* GPA 추이 차트 */}
       <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
         <h2 className="text-lg font-semibold text-gray-900">
           GPA 추이
         </h2>
-        <InternalGPAChart data={gpaTrend} />
+        <InternalGPAChart data={gpaTrend} scores={filteredScores} />
       </div>
 
       {/* 과목별 성적 테이블 */}
@@ -65,7 +143,7 @@ export default function InternalDetailAnalysis({
         <h2 className="text-lg font-semibold text-gray-900">
           과목별 성적 상세
         </h2>
-        <InternalSubjectTable scores={scores} ranking={subjectRanking} />
+        <InternalSubjectTable scores={filteredScores} ranking={subjectRanking} />
       </div>
 
       {/* 취약 과목 분석 */}

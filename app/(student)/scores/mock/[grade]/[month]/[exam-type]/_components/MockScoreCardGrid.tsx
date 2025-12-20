@@ -5,9 +5,10 @@ import { MockScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { MockScoreCard } from "./MockScoreCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
-import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useScoreFilter } from "@/lib/hooks/useScoreFilter";
+import { ScoreGridFilterBar } from "@/app/(student)/scores/_components/ScoreGridFilterBar";
 
 type MockScoreCardGridProps = {
   initialGrade?: number;
@@ -157,176 +158,39 @@ export function MockScoreCardGrid({
   return (
     <div className="flex flex-col gap-4">
       {/* 필터 및 정렬 바 */}
-      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
-                showFilters
-                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-              )}
-            >
-              <Filter className="h-4 w-4" />
-              필터
-            </button>
-            {onAddClick && (
-              <button
-                onClick={onAddClick}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                <Plus className="h-4 w-4" />
-                성적 추가
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">
-              총 {filteredAndSortedScores.length}개
-            </span>
-          </div>
-        </div>
-
-        {/* 필터 패널 */}
-        {showFilters && (
-          <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {/* 학년 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                학년
-              </label>
-              <select
-                value={filterGrade}
-                onChange={(e) => setFilterGrade(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableGrades.map((grade) => (
-                  <option key={grade} value={grade.toString()}>
-                    {grade}학년
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 시험 유형 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                시험 유형
-              </label>
-              <select
-                value={filterExamType}
-                onChange={(e) => setFilterExamType(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableExamTypes.map((examType) => (
-                  <option key={examType} value={examType}>
-                    {examType}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 회차 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                회차
-              </label>
-              <select
-                value={filterMonth}
-                onChange={(e) => setFilterMonth(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableMonths.map((month) => (
-                  <option key={month} value={month}>
-                    {month}월
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 교과 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                교과
-              </label>
-              <select
-                value={filterSubjectGroup}
-                onChange={(e) => {
-                  setFilterSubjectGroup(e.target.value);
-                  setFilterSubject("all"); // 교과 변경 시 과목 필터 초기화
-                }}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableSubjectGroups.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 과목 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                과목
-              </label>
-              <select
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableSubjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 과목 유형 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                과목 유형
-              </label>
-              <select
-                value={filterSubjectType}
-                onChange={(e) => setFilterSubjectType(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              >
-                <option value="all">전체</option>
-                {availableSubjectTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 정렬 순서 */}
-            <div className="flex flex-col gap-2">
-              <label className="block text-xs font-medium text-gray-700">
-                정렬 순서
-              </label>
-              <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition hover:bg-gray-50"
-              >
-                <ArrowUpDown className="h-4 w-4" />
-                {sortOrder === "asc" ? "오름차순" : "내림차순"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <ScoreGridFilterBar
+        filters={{
+          grade: filterGrade,
+          examType: filterExamType,
+          month: filterMonth,
+          subjectGroup: filterSubjectGroup,
+          subject: filterSubject,
+          subjectType: filterSubjectType,
+        }}
+        sortOrder={sortOrder}
+        showFilters={showFilters}
+        totalCount={filteredAndSortedScores.length}
+        filterOptions={{
+          availableGrades,
+          availableExamTypes,
+          availableMonths,
+          availableSubjectGroups,
+          availableSubjects,
+          availableSubjectTypes,
+        }}
+        onFilterChange={(updates) => {
+          if (updates.grade !== undefined) setFilterGrade(updates.grade || "all");
+          if (updates.examType !== undefined) setFilterExamType(updates.examType || "all");
+          if (updates.month !== undefined) setFilterMonth(updates.month || "all");
+          if (updates.subjectGroup !== undefined) setFilterSubjectGroup(updates.subjectGroup);
+          if (updates.subject !== undefined) setFilterSubject(updates.subject);
+          if (updates.subjectType !== undefined) setFilterSubjectType(updates.subjectType);
+        }}
+        onSortOrderChange={setSortOrder}
+        onShowFiltersToggle={() => setShowFilters(!showFilters)}
+        onAddClick={onAddClick}
+        variant="mock"
+      />
 
       {/* 필터 적용 중일 때 결과가 없을 경우 */}
       {(filterGrade !== "all" || filterExamType !== "all" || filterMonth !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&

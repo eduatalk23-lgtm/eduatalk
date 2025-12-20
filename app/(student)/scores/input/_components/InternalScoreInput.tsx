@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { SubjectGroup, SubjectType } from "@/lib/data/subjects";
 import type { InternalScoreInputForm } from "@/lib/types/scoreInput";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { createInternalScoresBatch } from "@/app/actions/scores-internal";
 import { useToast } from "@/components/ui/ToastProvider";
+import { cn } from "@/lib/cn";
 
 type InternalScoreInputProps = {
   studentId: string;
@@ -43,6 +44,9 @@ export default function InternalScoreInput({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [changedRowIds, setChangedRowIds] = useState<Set<string>>(new Set());
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 페이지 이탈 방지
   useEffect(() => {
@@ -99,7 +103,88 @@ export default function InternalScoreInput({
     setScores(
       scores.map((row) => (row.id === id ? { ...row, [field]: value } : row))
     );
+    
+    // 변경된 행 ID 추적
+    setChangedRowIds((prev) => new Set(prev).add(id));
+    
+    // 기존 타이머 취소
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // 2초 후 자동 저장
+    setSaveStatus("idle");
+    saveTimeoutRef.current = setTimeout(() => {
+      handleAutoSave(id);
+    }, 2000);
   };
+  
+  // 자동 저장 핸들러
+  const handleAutoSave = async (rowId: string) => {
+    const row = scores.find((r) => r.id === rowId);
+    if (!row) return;
+    
+    // 필수 필드 검증
+    if (
+      !row.subject_group_id ||
+      !row.subject_id ||
+      !row.subject_type_id ||
+      row.credit_hours <= 0 ||
+      row.rank_grade < 1 ||
+      row.rank_grade > 9
+    ) {
+      return; // 필수 필드가 없으면 저장하지 않음
+    }
+    
+    setSaveStatus("saving");
+    
+    try {
+      const formData = new FormData();
+      formData.append("student_id", studentId);
+      formData.append("tenant_id", tenantId);
+      formData.append("curriculum_revision_id", curriculumRevisionId);
+      formData.append("school_year", calculateSchoolYear().toString());
+      formData.append("scores", JSON.stringify([
+        (() => {
+          const { id, ...scoreData } = row;
+          return scoreData;
+        })()
+      ]));
+
+      const result = await createInternalScoresBatch(formData);
+
+      if (!result.success) {
+        throw new Error("자동 저장에 실패했습니다.");
+      }
+
+      // 저장 성공 시 변경된 행 ID 제거
+      setChangedRowIds((prev) => {
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+      
+      setSaveStatus("saved");
+      
+      // 3초 후 상태 초기화
+      setTimeout(() => {
+        setSaveStatus("idle");
+      }, 3000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "자동 저장 중 오류가 발생했습니다.";
+      setError(errorMessage);
+      setSaveStatus("idle");
+    }
+  };
+  
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // 교과군 변경 시 과목 초기화
   const handleSubjectGroupChange = (id: string, subjectGroupId: string) => {
@@ -110,6 +195,20 @@ export default function InternalScoreInput({
           : row
       )
     );
+    
+    // 변경된 행 ID 추적
+    setChangedRowIds((prev) => new Set(prev).add(id));
+    
+    // 기존 타이머 취소
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // 2초 후 자동 저장
+    setSaveStatus("idle");
+    saveTimeoutRef.current = setTimeout(() => {
+      handleAutoSave(id);
+    }, 2000);
   };
 
   // 선택된 교과군의 과목 목록
@@ -185,6 +284,30 @@ export default function InternalScoreInput({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      {/* 저장 상태 표시 */}
+      {saveStatus !== "idle" && (
+        <div className={cn(
+          "rounded-lg border p-3 text-sm",
+          saveStatus === "saving"
+            ? "bg-blue-50 border-blue-200 text-blue-800"
+            : "bg-green-50 border-green-200 text-green-800"
+        )}>
+          {saveStatus === "saving" ? (
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+              <span>저장 중...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>모든 변경사항이 저장되었습니다.</span>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* 학년/학기 선택 */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 md:p-6">
         <div className="flex flex-col gap-4">

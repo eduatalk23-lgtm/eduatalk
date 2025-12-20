@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { analyzeMockTrend, compareTwoRecentMockScores } from "@/lib/analysis/scoreAnalyzer";
 import { enrichMockScores } from "@/lib/utils/scoreTransform";
 import type { MockScoreWithRelations } from "@/lib/types/scoreAnalysis";
@@ -18,26 +18,68 @@ export default function MockDetailAnalysis({
   tenantId,
   scores,
 }: MockDetailAnalysisProps) {
+  const [filterGrade, setFilterGrade] = useState<string>("all");
+  const [filterExamType, setFilterExamType] = useState<string>("all");
+  
   // 중복 제거: 한 번만 변환
   const enrichedScores = useMemo(
     () => enrichMockScores(scores),
     [scores]
   );
 
+  // 필터링된 성적
+  const filteredScores = useMemo(() => {
+    let filtered = enrichedScores;
+    
+    if (filterGrade !== "all") {
+      const gradeNum = parseInt(filterGrade);
+      filtered = filtered.filter((s) => s.grade === gradeNum);
+    }
+    
+    if (filterExamType !== "all") {
+      filtered = filtered.filter((s) => {
+        const examTitle = s.exam_title || "";
+        return examTitle.includes(filterExamType);
+      });
+    }
+    
+    return filtered;
+  }, [enrichedScores, filterGrade, filterExamType]);
+
   // 백분위 추이 분석
-  const trendAnalysis = useMemo(() => analyzeMockTrend(enrichedScores), [enrichedScores]);
+  const trendAnalysis = useMemo(() => analyzeMockTrend(filteredScores), [filteredScores]);
 
   // 최근 2회 비교
   const recentComparison = useMemo(() => {
-    return compareTwoRecentMockScores(enrichedScores);
-  }, [enrichedScores]);
+    return compareTwoRecentMockScores(filteredScores);
+  }, [filteredScores]);
 
   // 시간순 정렬된 데이터 (차트용)
   const sortedScores = useMemo(() => {
-    return [...enrichedScores].sort(
+    return [...filteredScores].sort(
       (a, b) =>
         new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
     );
+  }, [filteredScores]);
+  
+  // 사용 가능한 학년 및 시험 유형 목록
+  const availableGrades = useMemo(() => {
+    const grades = new Set<number>();
+    enrichedScores.forEach((s) => {
+      if (s.grade) grades.add(s.grade);
+    });
+    return Array.from(grades).sort();
+  }, [enrichedScores]);
+  
+  const availableExamTypes = useMemo(() => {
+    const types = new Set<string>();
+    enrichedScores.forEach((s) => {
+      const examTitle = s.exam_title || "";
+      if (examTitle.includes("평가원")) types.add("평가원");
+      if (examTitle.includes("교육청")) types.add("교육청");
+      if (examTitle.includes("사설")) types.add("사설");
+    });
+    return Array.from(types).sort();
   }, [enrichedScores]);
 
   if (scores.length === 0) {
@@ -55,12 +97,53 @@ export default function MockDetailAnalysis({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 필터 */}
+      <div className="flex flex-col gap-4 bg-white rounded-lg border border-gray-200 p-4 md:p-6">
+        <h2 className="text-lg font-semibold text-gray-900">필터</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              학년
+            </label>
+            <select
+              value={filterGrade}
+              onChange={(e) => setFilterGrade(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">전체</option>
+              {availableGrades.map((grade) => (
+                <option key={grade} value={grade.toString()}>
+                  {grade}학년
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm font-medium text-gray-700">
+              시험 유형
+            </label>
+            <select
+              value={filterExamType}
+              onChange={(e) => setFilterExamType(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="all">전체</option>
+              {availableExamTypes.map((examType) => (
+                <option key={examType} value={examType}>
+                  {examType}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      
       {/* 추이 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-600">전체 시험 수</p>
           <p className="text-2xl font-bold text-gray-900">
-            {enrichedScores.length}
+            {filteredScores.length}
           </p>
         </div>
         <div className="flex flex-col gap-1 bg-white rounded-lg border border-gray-200 p-4">

@@ -5,11 +5,12 @@ import { SchoolScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCard } from "./ScoreCard";
 import { EmptyState } from "@/components/molecules/EmptyState";
-import { Plus, Filter, ArrowUpDown, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { VirtualizedList } from "@/lib/components/VirtualizedList";
-import { bgSurface, textPrimary, textSecondary, textMuted, borderDefault, bgPage } from "@/lib/utils/darkMode";
+import { bgSurface, textSecondary, textMuted, borderDefault } from "@/lib/utils/darkMode";
 import { useScoreFilter } from "@/lib/hooks/useScoreFilter";
+import { ScoreGridFilterBar } from "./ScoreGridFilterBar";
 
 type ScoreCardGridProps = {
   initialGrade?: number;
@@ -138,186 +139,36 @@ function ScoreCardGridComponent({
   return (
     <div className="flex flex-col gap-4">
       {/* 필터 및 정렬 바 */}
-      <div className={cn("flex flex-col gap-3 rounded-lg border p-4", bgSurface, borderDefault)}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition",
-                showFilters
-                  ? "border-indigo-500 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
-                  : cn(bgSurface, borderDefault, textSecondary, "hover:bg-gray-50 dark:hover:bg-gray-800")
-              )}
-            >
-              <Filter className="h-4 w-4" />
-              필터
-            </button>
-            {onAddClick && (
-              <button
-                onClick={onAddClick}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-              >
-                <Plus className="h-4 w-4" />
-                성적 추가
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn("text-sm", textSecondary)}>
-              총 {filteredAndSortedScores.length}개
-            </span>
-          </div>
-        </div>
-
-        {/* 필터 패널 */}
-        {showFilters && (
-          <div className={cn("grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5", borderDefault)}>
-            {/* 학년 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                학년
-              </label>
-              <select
-                value={filterGrade}
-                onChange={(e) => setFilterGrade(e.target.value)}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary
-                )}
-              >
-                <option value="all">전체</option>
-                {availableGrades.map((grade) => (
-                  <option key={grade} value={grade.toString()}>
-                    {grade}학년
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 학기 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                학기
-              </label>
-              <select
-                value={filterSemester}
-                onChange={(e) => setFilterSemester(e.target.value)}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary
-                )}
-              >
-                <option value="all">전체</option>
-                {availableSemesters.map((semester) => (
-                  <option key={semester} value={semester.toString()}>
-                    {semester}학기
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 교과 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                교과
-              </label>
-              <select
-                value={filterSubjectGroup}
-                onChange={(e) => {
-                  setFilterSubjectGroup(e.target.value);
-                  setFilterSubject("all"); // 교과 변경 시 과목 필터 초기화
-                }}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary
-                )}
-              >
-                <option value="all">전체</option>
-                {availableSubjectGroups.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 과목 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                과목
-              </label>
-              <select
-                value={filterSubject}
-                onChange={(e) => setFilterSubject(e.target.value)}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary
-                )}
-              >
-                <option value="all">전체</option>
-                {availableSubjects.map((subject) => (
-                  <option key={subject} value={subject}>
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 과목 유형 필터 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                과목 유형
-              </label>
-              <select
-                value={filterSubjectType}
-                onChange={(e) => setFilterSubjectType(e.target.value)}
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 dark:focus:border-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus:ring-indigo-600",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary
-                )}
-              >
-                <option value="all">전체</option>
-                {availableSubjectTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 정렬 순서 */}
-            <div className="flex flex-col gap-2">
-              <label className={cn("block text-xs font-medium", textSecondary)}>
-                정렬 순서
-              </label>
-              <button
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition",
-                  bgSurface,
-                  borderDefault,
-                  textPrimary,
-                  "hover:bg-gray-50 dark:hover:bg-gray-800"
-                )}
-              >
-                <ArrowUpDown className="h-4 w-4" />
-                {sortOrder === "asc" ? "오름차순" : "내림차순"}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <ScoreGridFilterBar
+        filters={{
+          grade: filterGrade,
+          semester: filterSemester,
+          subjectGroup: filterSubjectGroup,
+          subject: filterSubject,
+          subjectType: filterSubjectType,
+        }}
+        sortOrder={sortOrder}
+        showFilters={showFilters}
+        totalCount={filteredAndSortedScores.length}
+        filterOptions={{
+          availableGrades,
+          availableSemesters,
+          availableSubjectGroups,
+          availableSubjects,
+          availableSubjectTypes,
+        }}
+        onFilterChange={(updates) => {
+          if (updates.grade !== undefined) setFilterGrade(updates.grade || "all");
+          if (updates.semester !== undefined) setFilterSemester(updates.semester || "all");
+          if (updates.subjectGroup !== undefined) setFilterSubjectGroup(updates.subjectGroup);
+          if (updates.subject !== undefined) setFilterSubject(updates.subject);
+          if (updates.subjectType !== undefined) setFilterSubjectType(updates.subjectType);
+        }}
+        onSortOrderChange={setSortOrder}
+        onShowFiltersToggle={() => setShowFilters(!showFilters)}
+        onAddClick={onAddClick}
+        variant="internal"
+      />
 
       {/* 필터 적용 중일 때 결과가 없을 경우 */}
       {(filterGrade !== "all" || filterSemester !== "all" || filterSubjectGroup !== "all" || filterSubject !== "all" || filterSubjectType !== "all") &&
