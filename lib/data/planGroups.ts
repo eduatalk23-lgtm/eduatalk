@@ -208,7 +208,7 @@ export async function getPlanGroupsForStudent(
         // fallback 성공 시 scheduler_options를 null로 설정
         if (fallbackResult.data && !fallbackResult.error) {
           return {
-            data: fallbackResult.data.map((group: any) => ({
+            data: fallbackResult.data.map((group: PlanGroupRow) => ({
               ...group,
               scheduler_options: null,
             })) as PlanGroup[],
@@ -498,21 +498,21 @@ export async function updatePlanGroup(
     name?: string | null;
     plan_purpose?: string | null;
     scheduler_type?: string | null;
-    scheduler_options?: any | null;
+    scheduler_options?: SchedulerOptions | null;
     period_start?: string;
     period_end?: string;
     target_date?: string | null;
     block_set_id?: string | null;
     status?: string;
-    daily_schedule?: any | null; // JSONB: 일별 스케줄 정보
-    subject_constraints?: any | null; // JSONB: 교과 제약 조건
-    additional_period_reallocation?: any | null; // JSONB: 추가 기간 재배치 정보
-    non_study_time_blocks?: any | null; // JSONB: 학습 시간 제외 항목
+    daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보
+    subject_constraints?: SubjectConstraints | null; // JSONB: 교과 제약 조건
+    additional_period_reallocation?: AdditionalPeriodReallocation | null; // JSONB: 추가 기간 재배치 정보
+    non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목
   }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const payload: Record<string, any> = {};
+  const payload: Partial<PlanGroupUpdate> = {};
   if (updates.name !== undefined) payload.name = updates.name;
   if (updates.plan_purpose !== undefined) payload.plan_purpose = updates.plan_purpose;
   if (updates.scheduler_type !== undefined) payload.scheduler_type = updates.scheduler_type;
@@ -1459,7 +1459,10 @@ export async function getAcademySchedules(
     
     // tenant_id를 null로 설정
     if (retryResult.data && !error) {
-      schedulesData = retryResult.data.map((schedule: any) => ({
+      type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
+        academies?: { travel_time?: number } | null;
+      };
+      schedulesData = retryResult.data.map((schedule: ScheduleRow) => ({
         ...schedule,
         tenant_id: null,
         academy_id: schedule.academy_id || "", 
@@ -1544,7 +1547,11 @@ export async function getStudentAcademySchedules(
     
     // academy_id를 빈 문자열로 설정
     if (fallbackResult.data && !error) {
-      studentSchedulesData = fallbackResult.data.map((schedule: any) => ({
+      type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
+        academies?: { travel_time?: number } | null;
+        academy_name?: string | null;
+      };
+      studentSchedulesData = fallbackResult.data.map((schedule: ScheduleRow) => ({
         ...schedule,
         academy_id: "", 
         tenant_id: "",
@@ -2136,7 +2143,11 @@ export async function getPlanGroupWithDetailsForAdmin(
       
       // academy_id를 null로 설정
       if (fallbackResult.data && !error) {
-        adminSchedulesData = fallbackResult.data.map((schedule: any) => ({
+        type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
+          academies?: { travel_time?: number } | null;
+          academy_name?: string | null;
+        };
+        adminSchedulesData = fallbackResult.data.map((schedule: ScheduleRow) => ({
             ...schedule,
             academy_id: schedule.academy_id || "", // Ensure string
             tenant_id: schedule.tenant_id || "", 

@@ -59,6 +59,22 @@ async function getPlansFromView(options: {
   }
 
   // View 결과 타입 정의
+  // 
+  // 성능 최적화를 위한 인덱스 권장사항:
+  // 1. today_plan_view는 student_plan 테이블을 기반으로 하므로,
+  //    student_plan 테이블에 다음 인덱스가 필요합니다:
+  //    CREATE INDEX IF NOT EXISTS idx_student_plan_student_date_tenant 
+  //    ON student_plan (student_id, plan_date, tenant_id) 
+  //    WHERE deleted_at IS NULL;
+  //
+  // 2. plan_group_id로 필터링하는 경우를 위해:
+  //    CREATE INDEX IF NOT EXISTS idx_student_plan_group_date 
+  //    ON student_plan (plan_group_id, plan_date) 
+  //    WHERE deleted_at IS NULL AND plan_group_id IS NOT NULL;
+  //
+  // 3. today_plans_cache 테이블 조회 최적화:
+  //    CREATE INDEX IF NOT EXISTS idx_today_plans_cache_lookup 
+  //    ON today_plans_cache (student_id, plan_date, is_camp_mode, tenant_id, expires_at);
   type ViewPlanRow = Record<string, unknown> & {
     id: string;
     tenant_id: string;
@@ -279,6 +295,14 @@ export async function getTodayPlans(
 
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
+  const isToday = targetDate === todayDate;
+
+  // 동적 캐시 TTL: 오늘 날짜는 짧게(2분), 과거/미래는 길게(10분)
+  // 오늘 날짜는 자주 업데이트되므로 짧은 TTL이 적합하고,
+  // 과거/미래 날짜는 변경이 적으므로 긴 TTL로 캐시 히트율 향상
+  const dynamicCacheTtlSeconds = isToday
+    ? cacheTtlSeconds // 오늘: 기본값(120초 = 2분)
+    : Math.max(cacheTtlSeconds * 5, 600); // 과거/미래: 최소 10분
 
   // Supabase 클라이언트를 함수 시작 부분에서 한 번만 생성하여 재사용
   // 모든 블록(캐시 조회, 진행률 조회, 캐시 저장)에서 동일한 클라이언트 사용
@@ -371,7 +395,7 @@ export async function getTodayPlans(
   });
 
   let displayDate = targetDate;
-  let isToday = targetDate === todayDate;
+  // isToday는 이미 위에서 계산됨
 
   // 오늘 플랜이 없으면 가장 가까운 미래 날짜의 플랜 찾기
   // 최적화: 30일/180일 범위를 병렬로 조회하여 순차 대기 시간 제거
@@ -808,7 +832,7 @@ export async function getTodayPlans(
     const storeTimer = perfTime("[todayPlans] cache - store");
     try {
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + cacheTtlSeconds * 1000);
+      const expiresAt = new Date(now.getTime() + dynamicCacheTtlSeconds * 1000);
 
       // Use upsert with single UNIQUE constraint
       // Constraint: today_plans_cache_unique_key (tenant_id, student_id, plan_date, is_camp_mode)
