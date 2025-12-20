@@ -15,12 +15,6 @@ export * as service from "./service";
 
 // Server Actions
 export {
-  // 내신 성적 Actions
-  getSchoolScoresAction,
-  getSchoolScoreByIdAction,
-  createSchoolScoreAction,
-  updateSchoolScoreAction,
-  deleteSchoolScoreAction,
   // 모의고사 성적 Actions
   getMockScoresAction,
   getMockScoreByIdAction,

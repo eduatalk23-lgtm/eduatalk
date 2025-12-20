@@ -15,9 +15,8 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import * as service from "./service";
 import { getFormString, getFormInt, getFormUuid } from "@/lib/utils/formDataHelpers";
 import type {
-  SchoolScore,
+  InternalScore,
   MockScore,
-  GetSchoolScoresFilter,
   GetMockScoresFilter,
   ScoreActionResult,
 } from "./types";
@@ -25,137 +24,7 @@ import type {
 // ============================================
 // 내신 성적 Actions
 // ============================================
-
-/**
- * 내신 성적 목록 조회
- */
-export async function getSchoolScoresAction(
-  studentId: string,
-  tenantId?: string | null,
-  filters?: GetSchoolScoresFilter
-): Promise<SchoolScore[]> {
-  return service.getSchoolScores(studentId, tenantId, filters);
-}
-
-/**
- * 내신 성적 단건 조회
- */
-export async function getSchoolScoreByIdAction(
-  scoreId: string,
-  studentId: string
-): Promise<SchoolScore | null> {
-  return service.getSchoolScoreById(scoreId, studentId);
-}
-
-/**
- * 내신 성적 생성
- */
-export async function createSchoolScoreAction(
-  formData: FormData
-): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  const input = {
-    tenant_id: getFormString(formData, "tenant_id"),
-    student_id: getFormString(formData, "student_id") || user.userId,
-    grade: getFormInt(formData, "grade") || 1,
-    semester: getFormInt(formData, "semester") || 1,
-    subject_group_id: getFormUuid(formData, "subject_group_id"),
-    subject_id: getFormUuid(formData, "subject_id"),
-    subject_type_id: getFormUuid(formData, "subject_type_id"),
-    subject_group: getFormString(formData, "subject_group"),
-    subject_type: getFormString(formData, "subject_type"),
-    subject_name: getFormString(formData, "subject_name"),
-    credit_hours: getFormInt(formData, "credit_hours"),
-    raw_score: getFormInt(formData, "raw_score"),
-    subject_average: getFormInt(formData, "subject_average"),
-    standard_deviation: getFormInt(formData, "standard_deviation"),
-    grade_score: getFormInt(formData, "grade_score"),
-    total_students: getFormInt(formData, "total_students"),
-    rank_grade: getFormInt(formData, "rank_grade"),
-  };
-
-  const result = await service.createSchoolScore(input);
-
-  if (result.success) {
-    revalidatePath("/scores");
-    revalidatePath("/dashboard");
-  }
-
-  return result;
-}
-
-/**
- * 내신 성적 수정
- */
-export async function updateSchoolScoreAction(
-  formData: FormData
-): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  const scoreId = getFormString(formData, "id");
-  const studentId = getFormString(formData, "student_id") || user.userId;
-
-  if (!scoreId) {
-    return { success: false, error: "성적 ID가 필요합니다." };
-  }
-
-  const updates = {
-    grade: getFormInt(formData, "grade") ?? undefined,
-    semester: getFormInt(formData, "semester") ?? undefined,
-    subject_group_id: getFormUuid(formData, "subject_group_id") ?? undefined,
-    subject_id: getFormUuid(formData, "subject_id") ?? undefined,
-    subject_type_id: getFormUuid(formData, "subject_type_id") ?? undefined,
-    subject_group: getFormString(formData, "subject_group") ?? undefined,
-    subject_type: getFormString(formData, "subject_type") ?? undefined,
-    subject_name: getFormString(formData, "subject_name") ?? undefined,
-    credit_hours: getFormInt(formData, "credit_hours") ?? undefined,
-    raw_score: getFormInt(formData, "raw_score") ?? undefined,
-    subject_average: getFormInt(formData, "subject_average") ?? undefined,
-    standard_deviation: getFormInt(formData, "standard_deviation") ?? undefined,
-    grade_score: getFormInt(formData, "grade_score") ?? undefined,
-    total_students: getFormInt(formData, "total_students") ?? undefined,
-    rank_grade: getFormInt(formData, "rank_grade") ?? undefined,
-  };
-
-  const result = await service.updateSchoolScore(scoreId, studentId, updates);
-
-  if (result.success) {
-    revalidatePath("/scores");
-    revalidatePath("/dashboard");
-  }
-
-  return result;
-}
-
-/**
- * 내신 성적 삭제
- */
-export async function deleteSchoolScoreAction(
-  scoreId: string,
-  studentId?: string
-): Promise<ScoreActionResult> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  const targetStudentId = studentId || user.userId;
-  const result = await service.deleteSchoolScore(scoreId, targetStudentId);
-
-  if (result.success) {
-    revalidatePath("/scores");
-    revalidatePath("/dashboard");
-  }
-
-  return result;
-}
+// 레거시 Actions는 제거되었습니다. app/actions/scores-internal.ts의 함수들을 사용하세요.
 
 // ============================================
 // 모의고사 성적 Actions
@@ -326,7 +195,7 @@ export async function getScoreTrendAction(
   subjectGroupId: string,
   tenantId?: string | null
 ): Promise<{
-  school: SchoolScore[];
+  school: InternalScore[];
   mock: MockScore[];
 }> {
   return service.getScoreTrendBySubject(studentId, subjectGroupId, tenantId);

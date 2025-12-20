@@ -9,12 +9,10 @@
 
 import * as repository from "./repository";
 import type {
-  SchoolScore,
+  InternalScore,
   MockScore,
   GetSchoolScoresFilter,
   GetMockScoresFilter,
-  CreateSchoolScoreInput,
-  UpdateSchoolScoreInput,
   CreateMockScoreInput,
   UpdateMockScoreInput,
   ScoreActionResult,
@@ -23,140 +21,7 @@ import type {
 // ============================================
 // 내신 성적 Service
 // ============================================
-
-/**
- * 내신 성적 목록 조회
- */
-export async function getSchoolScores(
-  studentId: string,
-  tenantId?: string | null,
-  filters?: GetSchoolScoresFilter
-): Promise<SchoolScore[]> {
-  try {
-    return await repository.findSchoolScores(studentId, tenantId, filters);
-  } catch (error) {
-    console.error("[score/service] 내신 성적 조회 실패:", error);
-    return [];
-  }
-}
-
-/**
- * 내신 성적 단건 조회
- */
-export async function getSchoolScoreById(
-  scoreId: string,
-  studentId: string
-): Promise<SchoolScore | null> {
-  try {
-    return await repository.findSchoolScoreById(scoreId, studentId);
-  } catch (error) {
-    console.error("[score/service] 내신 성적 조회 실패:", error);
-    return null;
-  }
-}
-
-/**
- * 내신 성적 생성
- */
-export async function createSchoolScore(
-  input: CreateSchoolScoreInput
-): Promise<ScoreActionResult> {
-  try {
-    // 필수 필드 검증
-    if (!input.student_id) {
-      return { success: false, error: "학생 ID가 필요합니다." };
-    }
-
-    if (!input.grade || input.grade < 1 || input.grade > 3) {
-      return { success: false, error: "올바른 학년을 입력하세요. (1-3)" };
-    }
-
-    if (!input.semester || input.semester < 1 || input.semester > 2) {
-      return { success: false, error: "올바른 학기를 입력하세요. (1-2)" };
-    }
-
-    // 등급 검증
-    if (
-      input.grade_score !== undefined &&
-      input.grade_score !== null &&
-      (input.grade_score < 1 || input.grade_score > 9)
-    ) {
-      return { success: false, error: "등급은 1-9 사이여야 합니다." };
-    }
-
-    const scoreId = await repository.insertSchoolScore(input);
-    return { success: true, scoreId };
-  } catch (error) {
-    console.error("[score/service] 내신 성적 생성 실패:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "성적 생성에 실패했습니다.",
-    };
-  }
-}
-
-/**
- * 내신 성적 수정
- */
-export async function updateSchoolScore(
-  scoreId: string,
-  studentId: string,
-  updates: UpdateSchoolScoreInput
-): Promise<ScoreActionResult> {
-  try {
-    // 등급 검증
-    if (
-      updates.grade_score !== undefined &&
-      updates.grade_score !== null &&
-      (updates.grade_score < 1 || updates.grade_score > 9)
-    ) {
-      return { success: false, error: "등급은 1-9 사이여야 합니다." };
-    }
-
-    // 기존 데이터 확인
-    const existing = await repository.findSchoolScoreById(scoreId, studentId);
-    if (!existing) {
-      return { success: false, error: "성적을 찾을 수 없습니다." };
-    }
-
-    await repository.updateSchoolScoreById(scoreId, studentId, updates);
-    return { success: true, scoreId };
-  } catch (error) {
-    console.error("[score/service] 내신 성적 수정 실패:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "성적 수정에 실패했습니다.",
-    };
-  }
-}
-
-/**
- * 내신 성적 삭제
- */
-export async function deleteSchoolScore(
-  scoreId: string,
-  studentId: string
-): Promise<ScoreActionResult> {
-  try {
-    // 기존 데이터 확인
-    const existing = await repository.findSchoolScoreById(scoreId, studentId);
-    if (!existing) {
-      return { success: false, error: "성적을 찾을 수 없습니다." };
-    }
-
-    await repository.deleteSchoolScoreById(scoreId, studentId);
-    return { success: true };
-  } catch (error) {
-    console.error("[score/service] 내신 성적 삭제 실패:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "성적 삭제에 실패했습니다.",
-    };
-  }
-}
+// 레거시 함수들은 제거되었습니다. InternalScore 관련 함수를 사용하세요.
 
 // ============================================
 // 모의고사 성적 Service
@@ -326,14 +191,18 @@ export async function calculateAverageGrade(
   tenantId?: string | null
 ): Promise<{ schoolAvg: number | null; mockAvg: number | null }> {
   try {
+    if (!tenantId) {
+      return { schoolAvg: null, mockAvg: null };
+    }
+
     const [schoolScores, mockScores] = await Promise.all([
-      repository.findSchoolScores(studentId, tenantId),
+      repository.findInternalScores(studentId, tenantId),
       repository.findMockScores(studentId, tenantId),
     ]);
 
     const schoolGrades = schoolScores
-      .filter((s) => s.grade_score !== null && s.grade_score !== undefined)
-      .map((s) => s.grade_score as number);
+      .filter((s) => s.rank_grade !== null && s.rank_grade !== undefined)
+      .map((s) => s.rank_grade as number);
 
     const mockGrades = mockScores
       .filter((s) => s.grade_score !== null && s.grade_score !== undefined)
@@ -364,12 +233,16 @@ export async function getScoreTrendBySubject(
   subjectGroupId: string,
   tenantId?: string | null
 ): Promise<{
-  school: SchoolScore[];
+  school: InternalScore[];
   mock: MockScore[];
 }> {
   try {
+    if (!tenantId) {
+      return { school: [], mock: [] };
+    }
+
     const [schoolScores, mockScores] = await Promise.all([
-      repository.findSchoolScores(studentId, tenantId, { subjectGroupId }),
+      repository.findInternalScores(studentId, tenantId, { subjectGroupId }),
       repository.findMockScores(studentId, tenantId, { subjectGroupId }),
     ]);
 
