@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getSubjectsByGroupAction,
@@ -14,24 +15,28 @@ import { Plus, Trash2, Edit2 } from "lucide-react";
 type SubjectTableProps = {
   subjectGroupId: string;
   curriculumRevisionId: string;
+  initialSubjects?: Subject[];
+  initialSubjectTypes?: SubjectType[];
 };
 
 export default function SubjectTable({
   subjectGroupId,
   curriculumRevisionId,
+  initialSubjects,
+  initialSubjectTypes,
 }: SubjectTableProps) {
+  const router = useRouter();
   const toast = useToast();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [subjectTypes, setSubjectTypes] = useState<SubjectType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects ?? []);
+  const [subjectTypes, setSubjectTypes] = useState<SubjectType[]>(initialSubjectTypes ?? []);
+  const [loading, setLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [initialGroupId] = useState<string | null>(
+    initialSubjects && initialSubjects.length > 0 ? initialSubjects[0]?.subject_group_id ?? null : null
+  );
 
-  useEffect(() => {
-    loadData();
-  }, [subjectGroupId, curriculumRevisionId]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [subjectsData, typesData] = await Promise.all([
@@ -48,7 +53,22 @@ export default function SubjectTable({
     } finally {
       setLoading(false);
     }
-  }
+  }, [subjectGroupId, curriculumRevisionId, toast]);
+
+  // subjectGroupId가 변경될 때 데이터 업데이트
+  useEffect(() => {
+    // 초기 데이터가 제공되지 않은 경우 서버 액션 호출
+    if (!initialSubjects || !initialSubjectTypes) {
+      loadData();
+      return;
+    }
+
+    // 초기 데이터가 있지만 다른 그룹을 선택한 경우 서버 액션 호출
+    // 초기 데이터는 첫 번째 그룹에 대한 것이므로, 다른 그룹 선택 시 서버 액션 호출
+    if (initialGroupId && subjectGroupId !== initialGroupId) {
+      loadData();
+    }
+  }, [subjectGroupId, curriculumRevisionId, initialSubjects, initialSubjectTypes, initialGroupId, loadData]);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`정말 "${name}" 과목을 삭제하시겠습니까?`)) {
@@ -58,7 +78,7 @@ export default function SubjectTable({
     try {
       await deleteSubject(id);
       toast.showSuccess("과목이 삭제되었습니다.");
-      loadData();
+      router.refresh();
     } catch (error) {
       console.error("과목 삭제 실패:", error);
       toast.showError(
@@ -80,7 +100,7 @@ export default function SubjectTable({
   function handleSuccess() {
     setIsCreating(false);
     setEditingId(null);
-    loadData();
+    router.refresh();
   }
 
   function handleCancel() {

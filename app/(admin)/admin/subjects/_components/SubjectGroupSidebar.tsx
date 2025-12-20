@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getSubjectGroupsAction,
@@ -14,21 +15,27 @@ type SubjectGroupSidebarProps = {
   curriculumRevisionId: string;
   selectedGroupId: string | null;
   onGroupSelect: (groupId: string | null) => void;
+  initialGroups?: SubjectGroup[];
 };
 
 export default function SubjectGroupSidebar({
   curriculumRevisionId,
   selectedGroupId,
   onGroupSelect,
+  initialGroups,
 }: SubjectGroupSidebarProps) {
+  const router = useRouter();
   const toast = useToast();
-  const [groups, setGroups] = useState<SubjectGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [groups, setGroups] = useState<SubjectGroup[]>(initialGroups ?? []);
+  const [loading, setLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGroups();
+    // 초기 데이터가 제공되지 않은 경우에만 서버 액션 호출
+    if (!initialGroups) {
+      loadGroups();
+    }
   }, [curriculumRevisionId]);
 
   async function loadGroups() {
@@ -67,7 +74,7 @@ export default function SubjectGroupSidebar({
       if (selectedGroupId === id) {
         onGroupSelect(null);
       }
-      loadGroups();
+      router.refresh();
     } catch (error) {
       console.error("교과 삭제 실패:", error);
       toast.showError(
@@ -89,7 +96,7 @@ export default function SubjectGroupSidebar({
   function handleSuccess() {
     setIsCreating(false);
     setEditingId(null);
-    loadGroups();
+    router.refresh();
   }
 
   function handleCancel() {

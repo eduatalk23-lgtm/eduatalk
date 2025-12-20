@@ -1,27 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import SubjectGroupSidebar from "./SubjectGroupSidebar";
 import SubjectManagementPanel from "./SubjectManagementPanel";
 import RevisionFormModal from "./RevisionFormModal";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { Plus } from "lucide-react";
 
 type CurriculumRevisionTabsProps = {
   revisions: CurriculumRevision[];
   selectedRevisionId: string | null;
   onRevisionChange: (revisionId: string) => void;
-  onRefresh: () => void;
+  initialGroups: SubjectGroup[];
+  initialSubjectsMap: Record<string, Subject[]>;
+  initialSubjectTypes: SubjectType[];
 };
 
 export default function CurriculumRevisionTabs({
   revisions,
   selectedRevisionId,
   onRevisionChange,
-  onRefresh,
+  initialGroups,
+  initialSubjectsMap,
+  initialSubjectTypes,
 }: CurriculumRevisionTabsProps) {
+  const router = useRouter();
   const [isCreatingRevision, setIsCreatingRevision] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
+    initialGroups.length > 0 ? initialGroups[0].id : null
+  );
 
   function handleCreateRevision() {
     setIsCreatingRevision(true);
@@ -29,7 +38,7 @@ export default function CurriculumRevisionTabs({
 
   function handleRevisionSuccess() {
     setIsCreatingRevision(false);
-    onRefresh();
+    router.refresh();
   }
 
   function handleRevisionCancel() {
@@ -82,6 +91,7 @@ export default function CurriculumRevisionTabs({
               curriculumRevisionId={selectedRevision.id}
               selectedGroupId={selectedGroupId}
               onGroupSelect={handleGroupSelect}
+              initialGroups={selectedRevisionId === revisions[0]?.id ? initialGroups : undefined}
             />
           </div>
 
@@ -90,6 +100,16 @@ export default function CurriculumRevisionTabs({
             <SubjectManagementPanel
               curriculumRevisionId={selectedRevision.id}
               selectedGroupId={selectedGroupId}
+              initialSubjects={
+                selectedGroupId && selectedRevisionId === revisions[0]?.id
+                  ? initialSubjectsMap[selectedGroupId]
+                  : undefined
+              }
+              initialSubjectTypes={
+                selectedRevisionId === revisions[0]?.id
+                  ? initialSubjectTypes
+                  : undefined
+              }
             />
           </div>
         </div>
