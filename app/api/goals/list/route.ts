@@ -1,9 +1,10 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   apiSuccess,
   apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { getGoalsForStudent } from "@/lib/data/studentGoals";
 
 type Goal = {
   id: string;
@@ -22,33 +23,26 @@ type Goal = {
  */
 export async function GET() {
   try {
-    const supabase = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUser();
 
-    if (!user) {
+    if (!user || user.role !== "student") {
       return apiUnauthorized();
     }
 
-    const selectGoals = () =>
-      supabase
-        .from("student_goals")
-        .select("id,title,goal_type,subject")
-        .order("created_at", { ascending: false });
+    const goals = await getGoalsForStudent({
+      studentId: user.userId,
+      tenantId: user.tenantId,
+    });
 
-    let { data: goals, error } = await selectGoals().eq("student_id", user.id);
+    // API 응답 형식에 맞게 변환
+    const responseGoals: Goal[] = goals.map((goal) => ({
+      id: goal.id,
+      title: goal.title,
+      goal_type: goal.goal_type,
+      subject: goal.subject ?? null,
+    }));
 
-    // student_id 컬럼이 없는 경우 fallback
-    if (error && error.code === "42703") {
-      ({ data: goals, error } = await selectGoals());
-    }
-
-    if (error) {
-      return handleApiError(error, "[api/goals/list] 목표 조회 실패");
-    }
-
-    return apiSuccess({ goals: (goals as Goal[]) || [] });
+    return apiSuccess({ goals: responseGoals });
   } catch (error) {
     return handleApiError(error, "[api/goals/list] 오류");
   }
