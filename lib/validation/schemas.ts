@@ -171,6 +171,32 @@ export const masterLectureSchema = z.object({
 /**
  * 마스터 커스텀 콘텐츠 스키마
  */
+/**
+ * 교과 그룹 폼 스키마
+ */
+export const subjectGroupSchema = z.object({
+  curriculum_revision_id: z.string().min(1, "개정교육과정을 선택해주세요."),
+  name: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
+});
+
+/**
+ * 과목구분 폼 스키마
+ */
+export const subjectTypeSchema = z.object({
+  curriculum_revision_id: z.string().min(1, "개정교육과정을 선택해주세요."),
+  name: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
+  is_active: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((val) => val === true || val === "true"),
+});
+
+/**
+ * 개정교육과정 폼 스키마
+ */
+export const curriculumRevisionSchema = z.object({
+  name: z.string().min(1, "이름을 입력해주세요.").max(100, "이름은 100자 이하여야 합니다."),
+});
+
 export const masterCustomContentSchema = z.object({
   title: z.string().min(1, "제목을 입력해주세요.").max(200),
   content_type: z.enum(["book", "lecture", "worksheet", "other"]).optional().nullable(),
