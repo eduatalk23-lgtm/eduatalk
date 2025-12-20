@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
  */
 export function SuspenseFallback() {
   return (
-    <div className="flex items-center justify-center py-8">
+    <div className="flex items-center justify-center py-8 min-h-[200px]">
       <div className="animate-pulse flex flex-col gap-4 w-full max-w-md">
         <div className="h-4 w-3/4 rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] mx-auto"></div>
         <div className="h-4 w-1/2 rounded bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] mx-auto"></div>

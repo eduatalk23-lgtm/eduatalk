@@ -560,7 +560,7 @@ export default async function AdminDashboardPage() {
             {topStudyTime.length === 0 ? (
               <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 min-h-[200px]">
                 {topStudyTime.map((student, index) => (
                   <Link
                     key={student.studentId}
@@ -593,7 +593,7 @@ export default async function AdminDashboardPage() {
             {topPlanCompletion.length === 0 ? (
               <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 min-h-[200px]">
                 {topPlanCompletion.map((student, index) => (
                   <Link
                     key={student.studentId}
@@ -628,7 +628,7 @@ export default async function AdminDashboardPage() {
             {topGoalAchievement.length === 0 ? (
               <p className={cn("text-sm", textMuted)}>데이터가 없습니다.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 min-h-[150px]">
                 {topGoalAchievement.map((student, index) => (
                   <Link
                     key={student.studentId}
@@ -666,7 +666,7 @@ export default async function AdminDashboardPage() {
             {atRiskStudents.length === 0 ? (
               <p className={cn("text-sm", "text-red-600 dark:text-red-400")}>위험 학생이 없습니다.</p>
             ) : (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 min-h-[200px]">
                 {atRiskStudents.map((student) => {
                   const levelLabels = {
                     high: "높음",
@@ -715,7 +715,7 @@ export default async function AdminDashboardPage() {
             {recentNotes.length === 0 ? (
               <p className={cn("text-sm", textMuted)}>상담노트가 없습니다.</p>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 min-h-[200px]">
                 {recentNotes.map((note) => (
                   <Link
                     key={note.id}

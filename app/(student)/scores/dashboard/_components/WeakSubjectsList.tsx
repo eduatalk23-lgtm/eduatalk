@@ -14,7 +14,7 @@ export function WeakSubjectsList({ data }: WeakSubjectsListProps) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-lg border border-gray-200 bg-white shadow-sm min-h-[300px]">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50">

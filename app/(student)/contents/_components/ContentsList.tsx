@@ -165,7 +165,7 @@ async function ContentsListContent({
 
 function ContentsListSkeleton() {
   return (
-    <ul className="grid gap-4">
+    <ul className="grid gap-4 min-h-[400px]">
       {[1, 2, 3].map((i) => (
         <li
           key={i}

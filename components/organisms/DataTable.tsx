@@ -70,7 +70,7 @@ function DataTableComponent<T>({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-[rgb(var(--color-secondary-200))]",
+        "overflow-hidden rounded-xl border border-[rgb(var(--color-secondary-200))] min-h-[300px]",
         className
       )}
     >
