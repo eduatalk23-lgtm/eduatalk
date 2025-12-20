@@ -195,11 +195,12 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
               <div className="lg:col-span-8">
-                <TodayPlansSection
-                  initialMode={requestedView}
-                  initialPlanDate={requestedDate}
-                  userId={userId}
-                />
+              <TodayPlansSection
+                initialMode={requestedView}
+                initialPlanDate={requestedDate}
+                userId={userId}
+                tenantId={tenantContext?.tenantId || null}
+              />
               </div>
               <div className="lg:col-span-4">
                 <div className="sticky top-6 flex flex-col gap-4">

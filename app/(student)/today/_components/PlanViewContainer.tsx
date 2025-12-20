@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { SinglePlanView } from "./SinglePlanView";
 import { DailyPlanListView } from "./DailyPlanListView";
 import { ViewModeSelector } from "./ViewModeSelector";
 import { PlanDateNavigator } from "./PlanDateNavigator";
 import { usePlanRealtimeUpdates } from "@/lib/realtime/usePlanRealtimeUpdates";
+import { useTodayPlans } from "@/lib/hooks/useTodayPlans";
 import {
   groupPlansByPlanNumber,
   PlanGroup,
-  PlanWithContent,
 } from "../_utils/planGroupUtils";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
@@ -24,15 +24,10 @@ type PlanViewContainerProps = {
   initialMode?: ViewMode;
   initialSelectedPlanNumber?: number | null;
   initialPlanDate?: string | null;
-  onDateChange?: (date: string, options?: { isToday: boolean; todayProgress?: PlansResponse["todayProgress"] }) => void;
+  onDateChange?: (date: string, options?: { isToday: boolean; todayProgress?: import("@/lib/metrics/todayProgress").TodayProgress | null }) => void;
   userId?: string;
+  tenantId?: string | null;
   campMode?: boolean;
-  /**
-   * If provided, initializes state from this data and skips the client-side fetch.
-   * This is used to avoid double-fetch on pages like /camp/today where the data
-   * is already fetched on the server side.
-   */
-  initialData?: PlansResponse;
 };
 
 type SessionState = {
@@ -42,21 +37,6 @@ type SessionState = {
   resumedAt?: string | null;
   pausedDurationSeconds?: number | null;
 };
-
-type PlansResponse = {
-  plans: PlanWithContent[];
-  sessions: Record<string, SessionState>;
-  planDate: string;
-  isToday?: boolean;
-  serverNow?: number;
-  /**
-   * Today progress summary (from /api/today/plans).
-   * If provided, TodayPageContent can skip calling /api/today/progress separately.
-   */
-  todayProgress?: import("@/lib/metrics/todayProgress").TodayProgress | null;
-};
-
-const SESSION_REFRESH_INTERVAL_MS = 30000;
 
 function shiftIsoDate(baseDate: string, delta: number): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) {
@@ -91,53 +71,55 @@ export function PlanViewContainer({
   initialPlanDate = null,
   onDateChange,
   userId,
+  tenantId = null,
   campMode = false,
-  initialData,
 }: PlanViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
     initialSelectedPlanNumber
   );
 
-  // If initialData is provided, initialize state from it to avoid double-fetch
-  const [groups, setGroups] = useState<PlanGroup[]>(() => {
-    if (initialData) {
-      return groupPlansByPlanNumber(initialData.plans);
+  // 날짜 상태 관리 (초기값은 initialPlanDate 또는 오늘 날짜)
+  const [planDate, setPlanDate] = useState<string>(() => {
+    return initialPlanDate || getTodayISODate();
+  });
+
+  // React Query를 사용하여 데이터 조회
+  const {
+    data: plansData,
+    isLoading,
+    isError,
+    error,
+  } = useTodayPlans({
+    studentId: userId || "",
+    tenantId,
+    date: planDate,
+    camp: campMode,
+    includeProgress: true, // todayProgress 포함하여 별도 API 호출 방지
+    enabled: !!userId && !!planDate,
+  });
+
+  // 데이터 가공 (useMemo로 최적화)
+  const groups = useMemo(() => {
+    if (plansData?.plans) {
+      return groupPlansByPlanNumber(plansData.plans);
     }
     return [];
-  });
-  const [sessions, setSessions] = useState<Map<string, SessionState>>(() => {
-    if (initialData) {
-      const sessionEntries = Object.entries(initialData.sessions || {}) as [
+  }, [plansData?.plans]);
+
+  const sessions = useMemo(() => {
+    if (plansData?.sessions) {
+      const sessionEntries = Object.entries(plansData.sessions) as [
         string,
         SessionState,
       ][];
       return new Map(sessionEntries);
     }
-    return new Map();
-  });
-  const [planDate, setPlanDate] = useState<string>(() => {
-    if (initialData) {
-      return initialData.planDate || "";
-    }
-    return "";
-  });
-  const [isToday, setIsToday] = useState(() => {
-    if (initialData) {
-      return Boolean(initialData.isToday);
-    }
-    return true;
-  });
-  const [loading, setLoading] = useState(!initialData);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [serverNow, setServerNow] = useState<number>(() => {
-    if (initialData?.serverNow) {
-      return initialData.serverNow;
-    }
-    return Date.now();
-  });
+    return new Map<string, SessionState>();
+  }, [plansData?.sessions]);
 
-  const queryDateRef = useRef<string | null>(null);
+  const isToday = Boolean(plansData?.isToday);
+  const serverNow = plansData?.serverNow || Date.now();
 
   // Realtime 구독 설정 (30초 폴링 대체)
   usePlanRealtimeUpdates({
@@ -146,138 +128,28 @@ export function PlanViewContainer({
     enabled: Boolean(userId && planDate),
   });
 
-  const loadData = useCallback(
-    async (date?: string, options?: { silent?: boolean }) => {
-      const targetDate = date ?? queryDateRef.current;
-      queryDateRef.current = targetDate ?? null;
-
-      if (!options?.silent) {
-        setLoading(true);
-      }
-
-      try {
-        const queryParams = new URLSearchParams();
-        if (targetDate) {
-          queryParams.set("date", targetDate);
-        }
-        if (campMode) {
-          queryParams.set("camp", "true");
-        }
-        // Include progress data to avoid separate /api/today/progress call
-        queryParams.set("includeProgress", "true");
-        const query = queryParams.toString() ? `?${queryParams.toString()}` : "";
-        const response = await fetch(`/api/today/plans${query}`, {
-          cache: "no-store",
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage = "플랜 조회 실패";
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error?.message || errorMessage;
-          } catch {
-            // JSON 파싱 실패 시 원본 텍스트 사용
-            if (errorText) {
-              errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
-            }
-          }
-          console.error("[PlanViewContainer] API 에러:", {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorText,
-          });
-          throw new Error(errorMessage);
-        }
-
-        const responseData = await response.json();
-        // API 응답이 { success: true, data: { plans, sessions, ... } } 형식인지 확인
-        const data = (responseData.success && responseData.data 
-          ? responseData.data 
-          : responseData) as PlansResponse;
-        const grouped = groupPlansByPlanNumber(data?.plans);
-
-        setGroups(grouped);
-        const sessionEntries = Object.entries(data?.sessions || {}) as [
-          string,
-          SessionState,
-        ][];
-        setSessions(new Map(sessionEntries));
-        const resolvedDate = data?.planDate || targetDate || "";
-        setPlanDate(resolvedDate);
-        queryDateRef.current = resolvedDate || null;
-        const resolvedIsToday = Boolean(data?.isToday);
-        setIsToday(resolvedIsToday);
-        
-        // serverNow 저장
-        if (data?.serverNow) {
-          setServerNow(data.serverNow);
-        }
-        
-        if (resolvedDate) {
-          // Pass todayProgress if available to avoid separate /api/today/progress call
-          onDateChange?.(resolvedDate, { 
-            isToday: resolvedIsToday,
-            todayProgress: data?.todayProgress,
-          });
-        }
-        setSelectedPlanNumber((prev) => {
-          if (grouped.length === 0) {
-            return null;
-          }
-          if (prev != null && grouped.some((g) => g.planNumber === prev)) {
-            return prev;
-          }
-          return grouped[0]?.planNumber ?? null;
-        });
-      } catch (error) {
-        console.error("[PlanViewContainer] 데이터 로딩 실패", error);
-      } finally {
-        if (!options?.silent) {
-          setLoading(false);
-        }
-        setIsNavigating(false);
-      }
-    },
-    [onDateChange]
-  );
-
+  // 데이터가 로드되면 날짜 변경 콜백 호출 및 선택된 플랜 번호 업데이트
   useEffect(() => {
-    // If initialData is provided, use it and skip client-side fetch
-    // This avoids double-fetch on pages like /camp/today where data is already fetched on the server
-    if (initialData) {
-      const grouped = groupPlansByPlanNumber(initialData.plans);
-      setGroups(grouped);
-      setSessions(new Map(Object.entries(initialData.sessions || {})));
-      setPlanDate(initialData.planDate || "");
-      setIsToday(Boolean(initialData.isToday));
-      setServerNow(initialData.serverNow || Date.now());
-      setLoading(false); // Data is already loaded
-      queryDateRef.current = initialData.planDate || null;
-      if (initialData.planDate) {
-        // Pass todayProgress from initialData to avoid separate /api/today/progress call
-        onDateChange?.(initialData.planDate, { 
-          isToday: Boolean(initialData.isToday),
-          todayProgress: initialData.todayProgress,
-        });
-      }
-      setSelectedPlanNumber((prev) => {
-        if (grouped.length === 0) return null;
-        if (prev != null && grouped.some((g) => g.planNumber === prev)) return prev;
-        return grouped[0]?.planNumber ?? null;
-      });
-      return;
-    }
+    if (!plansData) return;
 
-    // Otherwise, fetch data as usual
-    if (initialPlanDate) {
-      queryDateRef.current = initialPlanDate;
-      loadData(initialPlanDate);
+    // todayProgress를 포함하여 onDateChange 호출
+    onDateChange?.(plansData.planDate, {
+      isToday: Boolean(plansData.isToday),
+      todayProgress: plansData.todayProgress,
+    });
+
+    // 선택된 플랜 번호 업데이트
+    if (groups.length > 0) {
+      setSelectedPlanNumber((prev) => {
+        if (prev != null && groups.some((g) => g.planNumber === prev)) {
+          return prev;
+        }
+        return groups[0]?.planNumber ?? null;
+      });
     } else {
-      loadData();
+      setSelectedPlanNumber(null);
     }
-    // Realtime 구독으로 대체하여 폴링 제거
-  }, [initialPlanDate, loadData, initialData, onDateChange]);
+  }, [plansData, onDateChange, groups]);
 
   const handleViewDetail = (planNumber: number | null) => {
     setSelectedPlanNumber(planNumber);
@@ -291,26 +163,44 @@ export function PlanViewContainer({
     }
   };
 
-  const handleMoveDay = (delta: number) => {
-    const baseDate =
-      planDate || queryDateRef.current || getTodayISODate();
-    const nextDate = shiftIsoDate(baseDate, delta);
+  const handleMoveDay = useCallback((delta: number) => {
+    const nextDate = shiftIsoDate(planDate, delta);
     if (!nextDate) return;
+    // planDate 상태만 변경하면 useTodayPlans가 자동으로 리페치
+    setPlanDate(nextDate);
+  }, [planDate]);
 
-    setIsNavigating(true);
-    loadData(nextDate);
-  };
-
-  const handleResetToToday = () => {
+  const handleResetToToday = useCallback(() => {
     const today = getTodayISODate();
-    setIsNavigating(true);
-    loadData(today);
-  };
+    // planDate 상태만 변경하면 useTodayPlans가 자동으로 리페치
+    setPlanDate(today);
+  }, []);
 
-  if (loading && groups.length === 0) {
+  // 로딩 상태 처리
+  if (isLoading && groups.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
         <SuspenseFallback />
+      </div>
+    );
+  }
+
+  // 에러 상태 처리
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-8">
+        <p className="text-sm text-red-600">
+          {error instanceof Error ? error.message : "플랜을 불러오는 중 오류가 발생했습니다."}
+        </p>
+        <button
+          onClick={() => {
+            // React Query가 자동으로 리페치
+            setPlanDate(planDate);
+          }}
+          className="rounded-lg bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
@@ -320,8 +210,8 @@ export function PlanViewContainer({
       <PlanDateNavigator
         planDate={planDate}
         isToday={isToday}
-        isLoading={loading}
-        isNavigating={isNavigating}
+        isLoading={isLoading}
+        isNavigating={false}
         onMoveDay={handleMoveDay}
         onResetToToday={handleResetToToday}
       />
