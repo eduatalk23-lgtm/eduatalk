@@ -3,6 +3,8 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteScore } from "@/app/actions/scores-internal";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type DeleteScoreButtonProps = {
   id: string;
@@ -17,13 +19,13 @@ export function DeleteScoreButton({ id }: DeleteScoreButtonProps) {
   const handleDelete = async () => {
     setError(null);
     startTransition(async () => {
-      try {
-        await deleteScore(id);
+      const result = await deleteScore(id);
+      
+      if (isSuccessResponse(result)) {
         router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
-      } finally {
         setShowConfirm(false);
+      } else if (isErrorResponse(result)) {
+        setError(result.error || "삭제에 실패했습니다.");
       }
     });
   };

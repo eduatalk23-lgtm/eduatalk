@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode } from "@/lib/errors";
 import {
   fetchBlockSetsWithBlocks,
   createBlockSet,
@@ -12,6 +12,8 @@ import {
   getBlockSetCount,
 } from "@/lib/data/blockSets";
 import { getStudentById } from "@/lib/data/students";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 const MAX_BLOCK_SETS = 5;
 
@@ -331,11 +333,11 @@ async function _getBlockSets(): Promise<Array<{ id: string; name: string; blocks
   return await fetchBlockSetsWithBlocks(user.userId);
 }
 
-// 에러 핸들링 래퍼 적용
-export const createBlockSet = withErrorHandling(_createBlockSet);
-export const updateBlockSet = withErrorHandling(_updateBlockSet);
-export const deleteBlockSet = withErrorHandling(_deleteBlockSet);
-export const setActiveBlockSet = withErrorHandling(_setActiveBlockSet);
-export const duplicateBlockSet = withErrorHandling(_duplicateBlockSet);
-export const getBlockSets = withErrorHandling(_getBlockSets);
+// 표준 액션 핸들러 래퍼 적용
+export const createBlockSet = withActionResponse(_createBlockSet);
+export const updateBlockSet = withActionResponse(_updateBlockSet);
+export const deleteBlockSet = withActionResponse(_deleteBlockSet);
+export const setActiveBlockSet = withActionResponse(_setActiveBlockSet);
+export const duplicateBlockSet = withActionResponse(_duplicateBlockSet);
+export const getBlockSets = withActionResponse(_getBlockSets);
 

@@ -20,7 +20,8 @@ import {
   createInternalScoresBatch,
   createMockScoresBatch,
 } from "@/lib/data/studentScores";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode } from "@/lib/errors";
+import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 /**
  * 내신 성적 생성
@@ -93,7 +94,7 @@ async function _createInternalScore(formData: FormData) {
   return { success: true, scoreId: result.scoreId };
 }
 
-export const createInternalScore = withErrorHandling(_createInternalScore);
+export const createInternalScore = withActionResponse(_createInternalScore);
 
 /**
  * 모의고사 성적 생성
@@ -159,7 +160,7 @@ async function _createMockScore(formData: FormData) {
   return { success: true, scoreId: result.scoreId };
 }
 
-export const createMockScore = withErrorHandling(_createMockScore);
+export const createMockScore = withActionResponse(_createMockScore);
 
 /**
  * 내신 성적 수정
@@ -222,7 +223,7 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   return { success: true };
 }
 
-export const updateInternalScore = withErrorHandling(_updateInternalScore);
+export const updateInternalScore = withActionResponse(_updateInternalScore);
 
 /**
  * 모의고사 성적 수정
@@ -279,7 +280,7 @@ async function _updateMockScore(scoreId: string, formData: FormData) {
   return { success: true };
 }
 
-export const updateMockScore = withErrorHandling(_updateMockScore);
+export const updateMockScore = withActionResponse(_updateMockScore);
 
 /**
  * 내신 성적 삭제
@@ -311,7 +312,7 @@ async function _deleteInternalScore(scoreId: string) {
   return { success: true };
 }
 
-export const deleteInternalScore = withErrorHandling(_deleteInternalScore);
+export const deleteInternalScore = withActionResponse(_deleteInternalScore);
 
 /**
  * 모의고사 성적 삭제
@@ -343,7 +344,7 @@ async function _deleteMockScore(scoreId: string) {
   return { success: true };
 }
 
-export const deleteMockScore = withErrorHandling(_deleteMockScore);
+export const deleteMockScore = withActionResponse(_deleteMockScore);
 
 /**
  * 성적 삭제 (타입 자동 감지)
@@ -373,7 +374,7 @@ async function _deleteScore(scoreId: string) {
   return { success: true };
 }
 
-export const deleteScore = withErrorHandling(_deleteScore);
+export const deleteScore = withActionResponse(_deleteScore);
 
 /**
  * 내신 성적 일괄 생성
@@ -439,7 +440,7 @@ async function _createInternalScoresBatch(formData: FormData) {
   return { success: true, scores: result.scores };
 }
 
-export const createInternalScoresBatch = withErrorHandling(_createInternalScoresBatch);
+export const createInternalScoresBatch = withActionResponse(_createInternalScoresBatch);
 
 /**
  * 모의고사 성적 일괄 생성
@@ -499,5 +500,5 @@ async function _createMockScoresBatch(formData: FormData) {
   return { success: true, scores: result.scores };
 }
 
-export const createMockScoresBatch = withErrorHandling(_createMockScoresBatch);
+export const createMockScoresBatch = withActionResponse(_createMockScoresBatch);
 

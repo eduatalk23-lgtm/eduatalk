@@ -1,17 +1,13 @@
 "use client";
 
 import { useState, useActionState, useEffect } from "react";
-import { addBlock, addBlocksToMultipleDays } from "@/app/actions/blocks";
+import { addBlocksToMultipleDays } from "@/app/actions/blocks";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
-type BlockFormState = {
-  error: string | null;
-  success: boolean;
-};
+type BlockFormState = ActionResponse | null;
 
-const initialState: BlockFormState = {
-  error: null,
-  success: false,
-};
+const initialState: BlockFormState = null;
 
 type BlockFormProps = {
   onClose?: () => void;
@@ -29,28 +25,18 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
       _prev: BlockFormState,
       formData: FormData
     ): Promise<BlockFormState> => {
-      try {
-        // 주중 패턴 일괄 추가 모드만 사용
-        const weekdayFormData = new FormData();
-        weekdayFormData.append("target_days", selectedWeekdays.join(","));
-        weekdayFormData.append("start_time", formData.get("start_time") as string);
-        weekdayFormData.append("end_time", formData.get("end_time") as string);
-        
-        // 특정 세트에 추가하는 경우
-        if (blockSetId) {
-          weekdayFormData.append("block_set_id", blockSetId);
-        }
-
-        await addBlocksToMultipleDays(weekdayFormData);
-        return { error: null, success: true };
-      } catch (err: any) {
-        // INFO: 접두사가 있는 메시지는 부분 성공으로 처리
-        const message = err.message || String(err);
-        if (message.startsWith("INFO: ")) {
-          return { error: message.replace("INFO: ", ""), success: true };
-        }
-        return { error: message, success: false };
+      // 주중 패턴 일괄 추가 모드만 사용
+      const weekdayFormData = new FormData();
+      weekdayFormData.append("target_days", selectedWeekdays.join(","));
+      weekdayFormData.append("start_time", formData.get("start_time") as string);
+      weekdayFormData.append("end_time", formData.get("end_time") as string);
+      
+      // 특정 세트에 추가하는 경우
+      if (blockSetId) {
+        weekdayFormData.append("block_set_id", blockSetId);
       }
+
+      return await addBlocksToMultipleDays(weekdayFormData);
     },
     initialState
   );
@@ -63,7 +49,7 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
 
   // 성공 시 폼 리셋 및 닫기
   useEffect(() => {
-    if (state.success) {
+    if (isSuccessResponse(state)) {
       setSelectedWeekdays([]);
       setStartTime("");
       setEndTime("");
@@ -81,7 +67,7 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [state.success, onClose, blockSetId, onBlockChange]);
+  }, [state, onClose, blockSetId, onBlockChange]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -102,17 +88,15 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
           )}
         </div>
 
-        {state.error && !state.success && (
+        {isErrorResponse(state) && state.error && (
           <div className="p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded">
             {state.error}
           </div>
         )}
 
-        {state.success && (
+        {isSuccessResponse(state) && (
           <div className="p-3 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded">
-            {state.error && (state.error.includes("요일에 블록이 추가되었습니다") || state.error.includes("요일에 총"))
-              ? state.error // 부분 성공 정보 메시지 표시
-              : "주중 패턴이 성공적으로 추가되었습니다."}
+            {state.message || "주중 패턴이 성공적으로 추가되었습니다."}
           </div>
         )}
 

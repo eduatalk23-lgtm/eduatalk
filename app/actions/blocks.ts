@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode } from "@/lib/errors";
 import { blockSchema, validateFormData } from "@/lib/validation/schemas";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
 import {
@@ -16,18 +16,15 @@ import {
   fetchBlockSetsWithBlocks,
 } from "@/lib/data/blockSets";
 import { getStudentById, type Student } from "@/lib/data/students";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 async function _addBlock(formData: FormData): Promise<void> {
   // 입력 검증
   const validation = validateFormData(formData, blockSchema);
   if (!validation.success) {
-    const firstError = validation.errors.issues[0];
-    throw new AppError(
-      firstError?.message || "입력값이 올바르지 않습니다.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
+    // Zod 에러를 직접 throw하여 withActionResponse에서 fieldErrors로 변환되도록 함
+    throw validation.errors;
   }
 
   const { day, start_time: startTime, end_time: endTime } = validation.data;
@@ -166,13 +163,8 @@ async function _updateBlock(formData: FormData): Promise<void> {
 
   const validation = validateFormData(formData, blockSchema);
   if (!validation.success) {
-    const firstError = validation.errors.issues[0];
-    throw new AppError(
-      firstError?.message || "입력값이 올바르지 않습니다.",
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
-    );
+    // Zod 에러를 직접 throw하여 withActionResponse에서 fieldErrors로 변환되도록 함
+    throw validation.errors;
   }
 
   const { day, start_time: startTime, end_time: endTime } = validation.data;
@@ -386,11 +378,12 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
   
   if (blockSetId && typeof blockSetId === "string") {
     // 제공된 block_set_id가 사용자의 세트인지 확인
+    const supabase = await createSupabaseServerClient();
     const { data: providedSet, error: setError } = await supabase
       .from("student_block_sets")
       .select("id")
       .eq("id", blockSetId)
-      .eq("student_id", user.id)
+      .eq("student_id", user.userId)
       .single();
 
     if (setError || !providedSet) {
@@ -493,9 +486,9 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
   }
 }
 
-// 에러 핸들링 래퍼 적용
-export const addBlock = withErrorHandling(_addBlock);
-export const updateBlock = withErrorHandling(_updateBlock);
-export const deleteBlock = withErrorHandling(_deleteBlock);
-export const duplicateBlock = withErrorHandling(_duplicateBlock);
-export const addBlocksToMultipleDays = withErrorHandling(_addBlocksToMultipleDays);
+// 표준 액션 핸들러 래퍼 적용
+export const addBlock = withActionResponse(_addBlock);
+export const updateBlock = withActionResponse(_updateBlock);
+export const deleteBlock = withActionResponse(_deleteBlock);
+export const duplicateBlock = withActionResponse(_duplicateBlock);
+export const addBlocksToMultipleDays = withActionResponse(_addBlocksToMultipleDays);

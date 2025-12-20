@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { updateBlock, deleteBlock } from "@/app/actions/blocks";
 import { validateFormData, blockSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type Block = {
   id: string;
@@ -27,38 +29,35 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleEdit = async (blockId: string, formData: FormData) => {
-    try {
-      formData.append("id", blockId);
-      const validation = validateFormData(formData, blockSchema);
-      if (!validation.success) {
-        const firstError = validation.errors.issues[0];
-        alert(firstError?.message || "입력값이 올바르지 않습니다.");
-        return;
-      }
+    formData.append("id", blockId);
+    const validation = validateFormData(formData, blockSchema);
+    if (!validation.success) {
+      const firstError = validation.errors.issues[0];
+      alert(firstError?.message || "입력값이 올바르지 않습니다.");
+      return;
+    }
 
-      await updateBlock(formData);
+    const result = await updateBlock(formData);
+    if (isSuccessResponse(result)) {
       setEditingId(null);
       router.refresh();
-    } catch (error: unknown) {
-      console.error("블록 수정 실패:", error);
-      const errorMessage = error instanceof Error ? error.message : "블록 수정에 실패했습니다.";
-      alert(errorMessage);
+    } else if (isErrorResponse(result)) {
+      alert(result.error || "블록 수정에 실패했습니다.");
     }
   };
 
   const handleDelete = async (blockId: string) => {
     if (!confirm("이 블록을 삭제하시겠습니까?")) return;
 
-    try {
-      const formData = new FormData();
-      formData.append("id", blockId);
-      await deleteBlock(formData);
+    const formData = new FormData();
+    formData.append("id", blockId);
+    const result = await deleteBlock(formData);
+    
+    if (isSuccessResponse(result)) {
       setDeletingId(null);
       router.refresh();
-    } catch (error: unknown) {
-      console.error("블록 삭제 실패:", error);
-      const errorMessage = error instanceof Error ? error.message : "블록 삭제에 실패했습니다.";
-      alert(errorMessage);
+    } else if (isErrorResponse(result)) {
+      alert(result.error || "블록 삭제에 실패했습니다.");
     }
   };
 

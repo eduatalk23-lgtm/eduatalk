@@ -9,6 +9,8 @@ import {
   setActiveBlockSet,
   duplicateBlockSet,
 } from "@/app/actions/blockSets";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { 
   inputFieldBase, 
@@ -52,11 +54,11 @@ export default function BlockSetTabs({
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const handleSetActive = async (setId: string) => {
-    try {
-      const formData = new FormData();
-      formData.append("id", setId);
-      await setActiveBlockSet(formData);
-      
+    const formData = new FormData();
+    formData.append("id", setId);
+    const result = await setActiveBlockSet(formData);
+    
+    if (isSuccessResponse(result)) {
       // onSetChange 콜백 호출하여 부모 컴포넌트 상태 업데이트 (완료 대기)
       if (onSetChange) {
         await onSetChange(setId);
@@ -64,20 +66,8 @@ export default function BlockSetTabs({
       
       // 클라이언트 상태로 관리하므로 refresh 불필요
       // router.refresh();
-    } catch (error: any) {
-      // 네트워크 에러 구분
-      const isNetworkError = 
-        error?.message?.includes("Failed to fetch") ||
-        error?.message?.includes("NetworkError") ||
-        error?.message?.includes("network") ||
-        error?.code === "ECONNABORTED" ||
-        error?.code === "ETIMEDOUT";
-      
-      const errorMessage = isNetworkError
-        ? "네트워크 연결을 확인해주세요. 잠시 후 다시 시도해주세요."
-        : error?.message || "활성 세트 전환에 실패했습니다.";
-      
-      alert(errorMessage);
+    } else if (isErrorResponse(result)) {
+      alert(result.error || "활성 세트 전환에 실패했습니다.");
     }
   };
 
@@ -86,14 +76,14 @@ export default function BlockSetTabs({
       return;
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("id", setId);
-      await deleteBlockSet(formData);
-      
+    const formData = new FormData();
+    formData.append("id", setId);
+    const result = await deleteBlockSet(formData);
+    
+    if (isSuccessResponse(result)) {
       router.refresh();
-    } catch (error: any) {
-      alert(error.message || "세트 삭제에 실패했습니다.");
+    } else if (isErrorResponse(result)) {
+      alert(result.error || "세트 삭제에 실패했습니다.");
     }
   };
 
@@ -221,23 +211,17 @@ function BlockSetCreateForm({
 }: BlockSetCreateFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string | null }, formData: FormData) => {
-      try {
-        const validation = validateFormData(formData, blockSetSchema);
-        if (!validation.success) {
-          const firstError = validation.errors.issues[0];
-          return { error: firstError?.message || "입력값이 올바르지 않습니다." };
-        }
-
-        await createBlockSet(formData);
+    async (_prev: ActionResponse<{ blockSetId: string; name: string }> | null, formData: FormData) => {
+      const result = await createBlockSet(formData);
+      
+      if (isSuccessResponse(result)) {
         router.refresh();
         onSuccess();
-        return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 생성에 실패했습니다." };
       }
+      
+      return result;
     },
-    { error: null }
+    null
   );
 
   if (existingCount >= MAX_SETS) {
@@ -253,7 +237,7 @@ function BlockSetCreateForm({
   return (
     <div className={cn("p-4 rounded-lg", bgSurface, borderDefault)}>
       <form action={formAction} className="flex flex-col gap-3">
-        {state.error && (
+        {isErrorResponse(state) && state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 
@@ -311,29 +295,23 @@ type BlockSetEditFormProps = {
 function BlockSetEditForm({ set, onSuccess, onCancel }: BlockSetEditFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string | null }, formData: FormData) => {
-      try {
-        formData.append("id", set.id);
-        const validation = validateFormData(formData, blockSetSchema);
-        if (!validation.success) {
-          const firstError = validation.errors.issues[0];
-          return { error: firstError?.message || "입력값이 올바르지 않습니다." };
-        }
-
-        await updateBlockSet(formData);
+    async (_prev: ActionResponse | null, formData: FormData) => {
+      formData.append("id", set.id);
+      const result = await updateBlockSet(formData);
+      
+      if (isSuccessResponse(result)) {
         router.refresh();
         onSuccess();
-        return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 수정에 실패했습니다." };
       }
+      
+      return result;
     },
-    { error: null }
+    null
   );
 
   return (
     <form action={formAction} className="flex items-center gap-2">
-      {state.error && (
+      {isErrorResponse(state) && state.error && (
         <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-1 rounded">{state.error}</p>
       )}
       <input
@@ -378,24 +356,18 @@ function BlockSetDuplicateForm({
 }: BlockSetDuplicateFormProps) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string | null }, formData: FormData) => {
-      try {
-        formData.append("source_id", sourceSet.id);
-        const validation = validateFormData(formData, blockSetSchema);
-        if (!validation.success) {
-          const firstError = validation.errors.issues[0];
-          return { error: firstError?.message || "입력값이 올바르지 않습니다." };
-        }
-
-        await duplicateBlockSet(formData);
+    async (_prev: ActionResponse | null, formData: FormData) => {
+      formData.append("source_id", sourceSet.id);
+      const result = await duplicateBlockSet(formData);
+      
+      if (isSuccessResponse(result)) {
         router.refresh();
         onSuccess();
-        return { error: null };
-      } catch (err: any) {
-        return { error: err.message || "세트 복제에 실패했습니다." };
       }
+      
+      return result;
     },
-    { error: null }
+    null
   );
 
   if (existingCount >= MAX_SETS) {
@@ -411,7 +383,7 @@ function BlockSetDuplicateForm({
   return (
     <div className={cn("p-4 rounded-lg border", bgSurface, "border-blue-200 dark:border-blue-800")}>
       <form action={formAction} className="flex flex-col gap-3">
-        {state.error && (
+        {isErrorResponse(state) && state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 

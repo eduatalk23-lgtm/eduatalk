@@ -9,12 +9,13 @@ import {
   updateStudentDivision,
   deleteStudentDivision,
 } from "@/lib/data/studentDivisions";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode } from "@/lib/errors";
+import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 /**
  * 학생 구분 항목 목록 조회
  */
-export const getStudentDivisionsAction = withErrorHandling(async () => {
+export const getStudentDivisionsAction = withActionResponse(async () => {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
@@ -25,7 +26,7 @@ export const getStudentDivisionsAction = withErrorHandling(async () => {
 /**
  * 활성 학생 구분 항목만 조회
  */
-export const getActiveStudentDivisionsAction = withErrorHandling(async () => {
+export const getActiveStudentDivisionsAction = withActionResponse(async () => {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
@@ -36,7 +37,7 @@ export const getActiveStudentDivisionsAction = withErrorHandling(async () => {
 /**
  * 학생 구분 항목 생성
  */
-export const createStudentDivisionAction = withErrorHandling(
+export const createStudentDivisionAction = withActionResponse(
   async (name: string, displayOrder?: number) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {
@@ -58,7 +59,7 @@ export const createStudentDivisionAction = withErrorHandling(
 /**
  * 학생 구분 항목 수정
  */
-export const updateStudentDivisionAction = withErrorHandling(
+export const updateStudentDivisionAction = withActionResponse(
   async (
     id: string,
     updates: Partial<{
@@ -78,7 +79,7 @@ export const updateStudentDivisionAction = withErrorHandling(
 /**
  * 학생 구분 항목 삭제
  */
-export const deleteStudentDivisionAction = withErrorHandling(
+export const deleteStudentDivisionAction = withActionResponse(
   async (id: string) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {

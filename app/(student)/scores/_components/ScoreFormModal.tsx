@@ -7,6 +7,8 @@ import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { createInternalScore, updateInternalScore } from "@/app/actions/scores-internal";
 import { useToast } from "@/components/ui/ToastProvider";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type ScoreFormModalProps = {
   open: boolean;
@@ -279,22 +281,29 @@ export function ScoreFormModal({
           submitFormData.append("total_students", formData.total_students);
         submitFormData.append("curriculum_revision_id", curriculumRevisionId);
 
+        let result: ActionResponse;
         if (editingScore) {
-          await updateInternalScore(editingScore.id, submitFormData);
-          showSuccess("성적이 성공적으로 수정되었습니다.");
+          result = await updateInternalScore(editingScore.id, submitFormData);
         } else {
-          await createInternalScore(submitFormData);
-          showSuccess("성적이 성공적으로 등록되었습니다.");
+          result = await createInternalScore(submitFormData);
         }
 
-        onOpenChange(false);
-        router.refresh();
-        onSuccess?.();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "성적 저장에 실패했습니다.";
-        setError(errorMessage);
-        showError(errorMessage);
-      }
+        if (isSuccessResponse(result)) {
+          showSuccess(result.message || (editingScore ? "성적이 성공적으로 수정되었습니다." : "성적이 성공적으로 등록되었습니다."));
+          onOpenChange(false);
+          router.refresh();
+          onSuccess?.();
+        } else if (isErrorResponse(result)) {
+          const errorMessage = result.error || "성적 저장에 실패했습니다.";
+          setError(errorMessage);
+          showError(errorMessage);
+          
+          // fieldErrors가 있으면 errors 상태에 반영
+          if (result.fieldErrors || result.validationErrors) {
+            const fieldErrors = result.fieldErrors || result.validationErrors || {};
+            setErrors(fieldErrors as FormErrors);
+          }
+        }
     });
   };
 
