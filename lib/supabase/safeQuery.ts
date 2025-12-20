@@ -72,11 +72,12 @@ export async function safeQueryArray<T>(
 
     if (error) {
       // Supabase 에러 객체의 모든 속성을 명시적으로 로깅
+      // PostgrestError는 직렬화 시 빈 객체로 출력될 수 있으므로 각 속성을 명시적으로 추출
       const errorInfo: Record<string, unknown> = {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
+        code: error.code ?? null,
+        message: error.message ?? null,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
       };
       
       // 에러 객체의 추가 속성도 포함 (있는 경우)
@@ -87,13 +88,23 @@ export async function safeQueryArray<T>(
       
       // 원본 에러 객체도 포함 (직렬화 가능한 경우)
       try {
-        errorInfo.raw = JSON.parse(JSON.stringify(error));
+        // PostgrestError의 모든 속성을 명시적으로 추출
+        const serialized = JSON.parse(JSON.stringify(error));
+        errorInfo.raw = serialized;
       } catch {
-        // 직렬화 실패 시 무시
+        // 직렬화 실패 시 문자열로 변환
         errorInfo.raw = String(error);
       }
       
-      console.error(`${context} 쿼리 실패`, errorInfo);
+      console.error(`${context} 쿼리 실패`, {
+        code: errorInfo.code,
+        message: errorInfo.message,
+        details: errorInfo.details,
+        hint: errorInfo.hint,
+        name: errorInfo.name,
+        stack: errorInfo.stack,
+        raw: errorInfo.raw,
+      });
       return defaultValue;
     }
 
@@ -151,11 +162,12 @@ export async function safeQuerySingle<T>(
 
     if (error) {
       // Supabase 에러 객체의 모든 속성을 명시적으로 로깅
+      // PostgrestError는 직렬화 시 빈 객체로 출력될 수 있으므로 각 속성을 명시적으로 추출
       const errorInfo: Record<string, unknown> = {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
+        code: error.code ?? null,
+        message: error.message ?? null,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
       };
       
       // 에러 객체의 추가 속성도 포함 (있는 경우)
@@ -166,13 +178,23 @@ export async function safeQuerySingle<T>(
       
       // 원본 에러 객체도 포함 (직렬화 가능한 경우)
       try {
-        errorInfo.raw = JSON.parse(JSON.stringify(error));
+        // PostgrestError의 모든 속성을 명시적으로 추출
+        const serialized = JSON.parse(JSON.stringify(error));
+        errorInfo.raw = serialized;
       } catch {
-        // 직렬화 실패 시 무시
+        // 직렬화 실패 시 문자열로 변환
         errorInfo.raw = String(error);
       }
       
-      console.error(`${context} 쿼리 실패`, errorInfo);
+      console.error(`${context} 쿼리 실패`, {
+        code: errorInfo.code,
+        message: errorInfo.message,
+        details: errorInfo.details,
+        hint: errorInfo.hint,
+        name: errorInfo.name,
+        stack: errorInfo.stack,
+        raw: errorInfo.raw,
+      });
       return defaultValue;
     }
 
