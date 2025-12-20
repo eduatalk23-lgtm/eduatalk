@@ -13,6 +13,24 @@ type InternalScore = Tables<"student_internal_scores">;
 type MockScore = Tables<"student_mock_scores">;
 
 /**
+ * Supabase 조인 쿼리 결과 타입
+ * 
+ * `select('*, subject_group:subject_groups(name), subject:subjects(name), subject_type:subject_types(name)')` 형태의 쿼리는
+ * 각 관계를 배열로 반환합니다.
+ */
+type InternalScoreWithJoin = Tables<"student_internal_scores"> & {
+  subject_group?: Array<{ name: string }> | null;
+  subject?: Array<{ name: string }> | null;
+  subject_type?: Array<{ name: string }> | null;
+};
+
+type MockScoreWithJoin = Tables<"student_mock_scores"> & {
+  subject_group?: Array<{ name: string }> | null;
+  subject?: Array<{ name: string }> | null;
+  subject_type?: Array<{ name: string }> | null;
+};
+
+/**
  * 학기별 내신 성적 조회
  * 
  * @param studentId - 학생 ID
@@ -86,12 +104,17 @@ export async function getInternalScoresByTerm(
     return [];
   }
 
-  return ((data as any[]) || []).map((item: any) => ({
+  // 조인 결과를 평탄화하여 단일 객체로 변환
+  const normalizedData: InternalScoreWithRelations[] = (
+    (data as InternalScoreWithJoin[]) ?? []
+  ).map((item) => ({
     ...item,
     subject_group: item.subject_group?.[0] || null,
     subject: item.subject?.[0] || null,
     subject_type: item.subject_type?.[0] || null,
-  })) as InternalScoreWithRelations[];
+  }));
+
+  return normalizedData;
 }
 
 /**
@@ -173,12 +196,17 @@ export async function getMockScoresByPeriod(
     return [];
   }
 
-  return ((data as any[]) || []).map((item: any) => ({
+  // 조인 결과를 평탄화하여 단일 객체로 변환
+  const normalizedData: MockScoreWithRelations[] = (
+    (data as MockScoreWithJoin[]) ?? []
+  ).map((item) => ({
     ...item,
     subject_group: item.subject_group?.[0] || null,
     subject: item.subject?.[0] || null,
     subject_type: item.subject_type?.[0] || null,
-  })) as MockScoreWithRelations[];
+  }));
+
+  return normalizedData;
 }
 
 /**
@@ -265,12 +293,17 @@ export async function getMockScoresByExam(
     return [];
   }
 
-  return ((data as any[]) || []).map((item: any) => ({
+  // 조인 결과를 평탄화하여 단일 객체로 변환
+  const normalizedData: MockScoreWithRelations[] = (
+    (data as MockScoreWithJoin[]) ?? []
+  ).map((item) => ({
     ...item,
     subject_group: item.subject_group?.[0] || null,
     subject: item.subject?.[0] || null,
     subject_type: item.subject_type?.[0] || null,
-  })) as MockScoreWithRelations[];
+  }));
+
+  return normalizedData;
 }
 
 /**

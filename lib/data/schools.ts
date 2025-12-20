@@ -348,6 +348,18 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
 
         // JOIN된 데이터 타입 정의
         type UniversityCampusWithJoin = UniversityWithCampus;
+        
+        /**
+         * Supabase 조인 쿼리 결과 타입
+         * university:universities!inner(...) 형태의 조인은 배열로 반환됩니다.
+         */
+        type UniversityCampusRowWithJoin = {
+          id: number;
+          campus_name: string;
+          region: string | null;
+          campus_type: string | null;
+          university: Array<{ university_code: string; name_kor: string }>;
+        };
 
         let universityNameData: UniversityCampusWithJoin[] = [];
         if (!universitiesError && universitiesData && universitiesData.length > 0) {
@@ -374,7 +386,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
             .order("campus_name", { ascending: true });
 
           if (!campusError && campusData) {
-            universityNameData = (campusData as any[]).map((uc: any) => ({
+            universityNameData = (campusData as UniversityCampusRowWithJoin[]).map((uc) => ({
               ...uc,
               university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
             })) as UniversityWithCampus[];
@@ -386,7 +398,19 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
         const seenIds = new Set<number>();
 
         if (!campusNameError && campusNameData) {
-          for (const uc of (campusNameData as any[]).map((uc: any) => ({
+          /**
+           * campusNameData는 이미 UniversityCampusRowWithJoin 형태로 조인된 데이터입니다.
+           * university 필드를 평탄화하여 UniversityWithCampus 형태로 변환합니다.
+           */
+          type CampusNameDataWithJoin = {
+            id: number;
+            campus_name: string;
+            region: string | null;
+            campus_type: string | null;
+            university: Array<{ university_code: string; name_kor: string }> | { university_code: string; name_kor: string };
+          };
+          
+          for (const uc of (campusNameData as CampusNameDataWithJoin[]).map((uc) => ({
             ...uc,
             university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
           })) as UniversityWithCampus[]) {
@@ -799,7 +823,19 @@ export async function searchUniversityCampuses(
     .ilike("name_kor", `%${query}%`)
     .limit(limit);
 
-  let universityNameData: any[] = [];
+  /**
+   * Supabase 조인 쿼리 결과 타입
+   * university:universities!inner(*) 형태의 조인은 배열로 반환됩니다.
+   */
+  type UniversityCampusRowWithJoin = {
+    id: number;
+    campus_name: string;
+    region: string | null;
+    campus_type: string | null;
+    university: Array<{ university_code: string; name_kor: string }>;
+  };
+
+  let universityNameData: UniversityCampusRowWithJoin[] = [];
   if (!universitiesError && universitiesData && universitiesData.length > 0) {
     const universityIds = universitiesData.map(u => u.id);
     
@@ -815,19 +851,25 @@ export async function searchUniversityCampuses(
       .order("campus_name", { ascending: true });
 
     if (!campusError && campusData) {
-      universityNameData = campusData;
+      universityNameData = campusData as UniversityCampusRowWithJoin[];
     }
   }
 
   // 결과 합치기 (중복 제거)
-  const allCampusData: any[] = [];
+  const allCampusData: UniversityWithCampus[] = [];
   const seenIds = new Set<number>();
 
   if (!campusNameError && campusNameData) {
-    for (const uc of campusNameData) {
-      if (!seenIds.has(uc.id)) {
-        seenIds.add(uc.id);
-        allCampusData.push(uc);
+    for (const uc of universityNameData) {
+      // university 필드를 평탄화하여 UniversityWithCampus 형태로 변환
+      const normalized: UniversityWithCampus = {
+        ...uc,
+        university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+      } as UniversityWithCampus;
+      
+      if (!seenIds.has(normalized.id)) {
+        seenIds.add(normalized.id);
+        allCampusData.push(normalized);
       }
     }
   }

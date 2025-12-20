@@ -342,16 +342,28 @@ async function loadPlansForPlanGroups(
 /**
  * 참여자 데이터 병합
  */
+type InvitationWithStudent = CampInvitation & {
+  students?: {
+    name: string | null;
+    grade: number | null;
+    class: string | null;
+  } | null;
+};
+
+type PlanGroupWithPlans = PlanGroupData & {
+  hasPlans: boolean;
+};
+
 function mergeParticipantData(
-  invitationsData: any[],
+  invitationsData: InvitationWithStudent[],
   planGroupsData: PlanGroupData[],
   plansMap: Map<string, boolean>,
   templateId: string,
   supabase: ReturnType<typeof createSupabaseBrowserClient>
 ): Participant[] {
   // 플랜 그룹을 invitation_id로 매핑
-  const planGroupsMap = new Map<string, any>();
-  const planGroupsByStudentId = new Map<string, any[]>();
+  const planGroupsMap = new Map<string, PlanGroupWithPlans>();
+  const planGroupsByStudentId = new Map<string, PlanGroupWithPlans[]>();
 
   // 먼저 camp_invitation_id가 있는 경우 매핑
   planGroupsData.forEach((pg) => {
@@ -375,15 +387,7 @@ function mergeParticipantData(
   });
 
   // 데이터 병합
-  type InvitationWithStudent = CampInvitation & {
-    students?: {
-      name: string | null;
-      grade: number | null;
-      class: string | null;
-    } | null;
-  };
-  
-  const data = (invitationsData as InvitationWithStudent[] | null)?.map((invitation) => {
+  const data = invitationsData.map((invitation) => {
     let planGroup = planGroupsMap.get(invitation.id);
 
     // camp_invitation_id로 매핑되지 않은 경우, student_id로 fallback 시도

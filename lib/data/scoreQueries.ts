@@ -13,6 +13,35 @@ type MockScore = Tables<"student_mock_scores">;
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
+ * Supabase 조인 쿼리 결과 타입
+ * 
+ * `select('*, subject:subjects(*), subject_group:subject_groups(*)')` 형태의 쿼리는
+ * subject와 subject_group을 배열로 반환합니다.
+ */
+type InternalScoreWithJoin = Tables<"student_internal_scores"> & {
+  subject: Tables<"subjects">[];
+  subject_group: Tables<"subject_groups">[];
+};
+
+type MockScoreWithJoin = Tables<"student_mock_scores"> & {
+  subject: Tables<"subjects">[];
+  subject_group: Tables<"subject_groups">[];
+};
+
+/**
+ * 조인 결과를 평탄화하여 단일 객체로 변환
+ */
+type InternalScoreWithRelations = Tables<"student_internal_scores"> & {
+  subject: Tables<"subjects"> | null;
+  subject_group: Tables<"subject_groups"> | null;
+};
+
+type MockScoreWithRelations = Tables<"student_mock_scores"> & {
+  subject: Tables<"subjects"> | null;
+  subject_group: Tables<"subject_groups"> | null;
+};
+
+/**
  * 한 학기의 내신 + 모의고사 성적 조회
  * 
  * student_terms를 기준으로 해당 학기의 내신 성적과 모의고사 성적을 함께 조회합니다.
@@ -93,24 +122,27 @@ export async function getTermScores(
     console.error("[data/scoreQueries] 모의고사 성적 조회 실패", mockError);
   }
 
+  // 조인 결과를 평탄화하여 단일 객체로 변환
+  const normalizedInternalScores: InternalScoreWithRelations[] = (
+    (internalScores as InternalScoreWithJoin[]) ?? []
+  ).map((score) => ({
+    ...score,
+    subject: score.subject?.[0] || null,
+    subject_group: score.subject_group?.[0] || null,
+  }));
+
+  const normalizedMockScores: MockScoreWithRelations[] = (
+    (mockScores as MockScoreWithJoin[]) ?? []
+  ).map((score) => ({
+    ...score,
+    subject: score.subject?.[0] || null,
+    subject_group: score.subject_group?.[0] || null,
+  }));
+
   return {
     term: term as Tables<"student_terms"> | null,
-    internalScores: ((internalScores as any) ?? []).map((score: any) => ({
-      ...score,
-      subject: score.subject?.[0] || null,
-      subject_group: score.subject_group?.[0] || null,
-    })) as Array<Tables<"student_internal_scores"> & {
-      subject: Tables<"subjects"> | null;
-      subject_group: Tables<"subject_groups"> | null;
-    }>,
-    mockScores: ((mockScores as any) ?? []).map((score: any) => ({
-      ...score,
-      subject: score.subject?.[0] || null,
-      subject_group: score.subject_group?.[0] || null,
-    })) as Array<Tables<"student_mock_scores"> & {
-      subject: Tables<"subjects"> | null;
-      subject_group: Tables<"subject_groups"> | null;
-    }>,
+    internalScores: normalizedInternalScores,
+    mockScores: normalizedMockScores,
   };
 }
 
