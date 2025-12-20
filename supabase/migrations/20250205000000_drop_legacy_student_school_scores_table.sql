@@ -132,18 +132,45 @@ DROP TABLE IF EXISTS student_school_scores CASCADE;
 -- 5. 코멘트 추가
 -- ============================================
 
-COMMENT ON TABLE student_school_scores_backup_20250205 IS 
-    '레거시 student_school_scores 테이블 백업 (2025-02-05). 
-     모든 데이터는 student_internal_scores로 마이그레이션되었습니다.
-     안전 확인 후 삭제 가능.';
+DO $$
+DECLARE
+    backup_table_exists BOOLEAN;
+BEGIN
+    -- 백업 테이블 존재 여부 확인
+    SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'student_school_scores_backup_20250205'
+    ) INTO backup_table_exists;
+    
+    IF backup_table_exists THEN
+        COMMENT ON TABLE student_school_scores_backup_20250205 IS 
+            '레거시 student_school_scores 테이블 백업 (2025-02-05). 
+             모든 데이터는 student_internal_scores로 마이그레이션되었습니다.
+             안전 확인 후 삭제 가능.';
+    END IF;
+END $$;
 
 -- ============================================
 -- 6. 완료 메시지
 -- ============================================
 
 DO $$
+DECLARE
+    table_existed BOOLEAN;
 BEGIN
-    RAISE NOTICE '레거시 student_school_scores 테이블이 성공적으로 제거되었습니다.';
-    RAISE NOTICE '백업 테이블: student_school_scores_backup_20250205';
+    -- 원본 테이블이 존재했는지 확인 (이미 삭제되었으므로 백업 테이블 존재 여부로 확인)
+    SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'student_school_scores_backup_20250205'
+    ) INTO table_existed;
+    
+    IF table_existed THEN
+        RAISE NOTICE '레거시 student_school_scores 테이블이 성공적으로 제거되었습니다.';
+        RAISE NOTICE '백업 테이블: student_school_scores_backup_20250205';
+    ELSE
+        RAISE NOTICE 'student_school_scores 테이블이 존재하지 않아 마이그레이션이 완료되었습니다.';
+    END IF;
 END $$;
 
