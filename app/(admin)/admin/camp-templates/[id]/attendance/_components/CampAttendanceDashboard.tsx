@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import type { CampAttendanceStats } from "@/lib/domains/camp/types";
+import { useCampAttendanceStats } from "@/lib/hooks/useCampStats";
 import { CampAttendanceStatsCards } from "./CampAttendanceStatsCards";
 import { CampParticipantAttendanceTable } from "./CampParticipantAttendanceTable";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type CampAttendanceDashboardProps = {
   template: CampTemplate;
-  attendanceStats: CampAttendanceStats | null;
+  templateId: string;
 };
 
 export function CampAttendanceDashboard({
   template,
-  attendanceStats,
+  templateId,
 }: CampAttendanceDashboardProps) {
+  // 출석 통계 조회 (훅 사용)
+  const { data: attendanceStats, isLoading } = useCampAttendanceStats(templateId);
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">
@@ -75,6 +78,9 @@ export function CampAttendanceDashboard({
           </div>
         )}
 
+        {/* 로딩 상태 */}
+        {isLoading && <SuspenseFallback />}
+
         {/* 출석 통계 카드 */}
         {attendanceStats && (
           <CampAttendanceStatsCards stats={attendanceStats} />
@@ -88,7 +94,7 @@ export function CampAttendanceDashboard({
           />
         )}
 
-        {!attendanceStats && (
+        {!isLoading && !attendanceStats && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-gray-700">
               출석 데이터가 없습니다. 캠프 기간이 설정되어 있는지 확인해주세요.

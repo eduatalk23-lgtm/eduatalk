@@ -1,7 +1,14 @@
+export const dynamic = "force-dynamic";
+
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
-import { generateCampFullReport } from "@/lib/reports/camp";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { getQueryClient } from "@/lib/providers/getQueryClient";
+import {
+  campAttendanceStatsQueryOptions,
+  campLearningStatsQueryOptions,
+} from "@/lib/hooks/useCampStats";
 import { CampReportDashboard } from "./_components/CampReportDashboard";
 
 export default async function CampReportsPage({
@@ -27,14 +34,24 @@ export default async function CampReportsPage({
     );
   }
 
-  // 리포트 데이터 생성
-  const reportData = await generateCampFullReport(id);
+  // React Query를 사용하여 데이터 프리패칭
+  const queryClient = getQueryClient();
+
+  try {
+    // 캠프 통계 데이터 프리패칭
+    await Promise.all([
+      queryClient.prefetchQuery(campAttendanceStatsQueryOptions(id)),
+      queryClient.prefetchQuery(campLearningStatsQueryOptions(id)),
+    ]);
+  } catch (error) {
+    // Prefetch 실패 시에도 페이지는 렌더링되도록 에러만 로깅
+    console.error("[CampReportsPage] 통계 데이터 프리패칭 실패", error);
+  }
 
   return (
-    <CampReportDashboard
-      template={result.template}
-      reportData={reportData}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <CampReportDashboard template={result.template} templateId={id} />
+    </HydrationBoundary>
   );
 }
 

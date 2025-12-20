@@ -1,11 +1,13 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { redirect } from "next/navigation";
-import { getCampTemplatesForTenantWithPagination } from "@/lib/data/campTemplates";
-import { TemplateCard } from "./_components/TemplateCard";
-import { CampTemplatesPagination } from "./_components/CampTemplatesPagination";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { getQueryClient } from "@/lib/providers/getQueryClient";
+import { campTemplatesQueryOptions } from "@/lib/hooks/useCampTemplates";
+import { CampTemplatesListContainer } from "./_components/CampTemplatesListContainer";
 
 export default async function CampTemplatesPage({
   searchParams,
@@ -35,164 +37,63 @@ export default async function CampTemplatesPage({
   const page = parseInt(params.page || "1", 10);
   const limit = parseInt(params.limit || "20", 10);
 
-  // 서버 사이드 필터링 적용
-  let result: Awaited<ReturnType<typeof getCampTemplatesForTenantWithPagination>>;
+  // React Query를 사용하여 데이터 프리패칭
+  const queryClient = getQueryClient();
+
   try {
-    result = await getCampTemplatesForTenantWithPagination(tenantContext.tenantId, {
-      page,
-      pageSize: limit,
-      filters: {
-        search: searchQuery || undefined,
-        status: statusFilter || undefined,
-        programType: programTypeFilter || undefined,
-      },
-    });
+    // 캠프 템플릿 목록 프리패칭
+    await queryClient.prefetchQuery(
+      campTemplatesQueryOptions(tenantContext.tenantId, {
+        page,
+        pageSize: limit,
+        filters: {
+          search: searchQuery || undefined,
+          status: statusFilter || undefined,
+          programType: programTypeFilter || undefined,
+        },
+      })
+    );
   } catch (error) {
-    console.error("[CampTemplatesPage] 템플릿 목록 조회 실패", error);
-    // 에러 발생 시 빈 결과로 처리
-    result = {
-      items: [],
-      total: 0,
-      page: 1,
-      pageSize: limit,
-    };
+    // Prefetch 실패 시에도 페이지는 렌더링되도록 에러만 로깅
+    console.error("[CampTemplatesPage] 템플릿 목록 프리패칭 실패", error);
   }
 
-  // 서버 사이드 필터링이 적용되었으므로 클라이언트 필터링 불필요
-  const filteredTemplates = result.items;
-  const totalPages = Math.ceil((result.total ?? 0) / limit);
-
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-10">
-      <div className="flex flex-col gap-8">
-        {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-500">캠프 관리</p>
-            <h1 className="text-3xl font-semibold text-gray-900">
-              캠프 템플릿
-            </h1>
-            <p className="text-sm text-gray-500">
-              캠프 프로그램 템플릿을 생성하고 관리하세요.
-            </p>
-          </div>
-          <Link
-            href="/admin/camp-templates/new"
-            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            + 템플릿 생성
-          </Link>
-        </div>
-
-        {/* 검색 필터 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <form
-            action="/admin/camp-templates"
-            method="get"
-            className="flex flex-wrap items-end gap-4"
-          >
-            {/* 프로그램 유형 필터 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">
-                프로그램 유형
-              </label>
-              <select
-                name="program_type"
-                defaultValue={programTypeFilter || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                <option value="윈터캠프">윈터캠프</option>
-                <option value="썸머캠프">썸머캠프</option>
-                <option value="파이널캠프">파이널캠프</option>
-                <option value="기타">기타</option>
-              </select>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <section className="mx-auto w-full max-w-6xl px-4 py-10">
+        <div className="flex flex-col gap-8">
+          {/* Header */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">캠프 관리</p>
+              <h1 className="text-3xl font-semibold text-gray-900">
+                캠프 템플릿
+              </h1>
+              <p className="text-sm text-gray-500">
+                캠프 프로그램 템플릿을 생성하고 관리하세요.
+              </p>
             </div>
-
-            {/* 상태 필터 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">상태</label>
-              <select
-                name="status"
-                defaultValue={statusFilter || ""}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">전체</option>
-                <option value="draft">초안</option>
-                <option value="active">활성</option>
-                <option value="archived">보관</option>
-              </select>
-            </div>
-
-            {/* 검색어 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-gray-700">검색</label>
-              <input
-                type="text"
-                name="search"
-                defaultValue={searchQuery || ""}
-                placeholder="템플릿명 또는 설명 검색"
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* 검색 버튼 */}
-            <button
-              type="submit"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              검색
-            </button>
-
-            {/* 초기화 버튼 */}
             <Link
-              href="/admin/camp-templates"
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              href="/admin/camp-templates/new"
+              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
             >
-              초기화
+              + 템플릿 생성
             </Link>
-          </form>
-        </div>
+          </div>
 
-        {/* 결과 개수 */}
-        <div className="text-sm text-gray-600">
-          총 <span className="font-semibold">{result.total}</span>
-          개의 템플릿이 표시됩니다.
+          {/* 템플릿 목록 컨테이너 (클라이언트 컴포넌트) */}
+          <CampTemplatesListContainer
+            tenantId={tenantContext.tenantId}
+            initialPage={page}
+            initialPageSize={limit}
+            initialFilters={{
+              search: searchQuery || undefined,
+              status: statusFilter || undefined,
+              programType: programTypeFilter || undefined,
+            }}
+          />
         </div>
-
-        {/* 템플릿 목록 */}
-        <div>
-          {filteredTemplates.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-              <div className="mx-auto flex max-w-md flex-col gap-6">
-                <div className="text-6xl">🏕️</div>
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    템플릿이 없습니다
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    새로운 캠프 템플릿을 생성해보세요.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col gap-4">
-                {filteredTemplates.map((template) => (
-                  <TemplateCard key={template.id} template={template} />
-                ))}
-              </div>
-              {/* 페이지네이션 */}
-              <CampTemplatesPagination
-                currentPage={page}
-                totalPages={totalPages}
-                pageSize={limit}
-              />
-            </>
-          )}
-        </div>
-      </div>
-    </section>
+      </section>
+    </HydrationBoundary>
   );
 }

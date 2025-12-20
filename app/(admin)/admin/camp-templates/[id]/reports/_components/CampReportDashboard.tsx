@@ -2,20 +2,26 @@
 
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import type { CampReportData } from "@/lib/reports/camp";
+import { useCampStats } from "@/lib/hooks/useCampStats";
 import { CampReportSummaryCards } from "./CampReportSummaryCards";
 import { CampAttendanceReportSection } from "./CampAttendanceReportSection";
 import { CampLearningReportSection } from "./CampLearningReportSection";
+import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type CampReportDashboardProps = {
   template: CampTemplate;
-  reportData: CampReportData | null;
+  templateId: string;
 };
 
 export function CampReportDashboard({
   template,
-  reportData,
+  templateId,
 }: CampReportDashboardProps) {
+  // 캠프 통계 조회 (훅 사용)
+  const { attendance, learning, isLoading } = useCampStats(templateId);
+
+  const attendanceStats = attendance.data;
+  const learningStats = learning.data;
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">
@@ -56,26 +62,28 @@ export function CampReportDashboard({
           </div>
         </div>
 
+        {/* 로딩 상태 */}
+        {isLoading && <SuspenseFallback />}
+
         {/* 리포트 요약 카드 */}
-        {reportData && (
-          <CampReportSummaryCards reportData={reportData} />
+        {attendanceStats && learningStats && (
+          <CampReportSummaryCards
+            attendanceStats={attendanceStats}
+            learningStats={learningStats}
+          />
         )}
 
         {/* 출석 리포트 섹션 */}
-        {reportData?.attendance_stats && (
-          <CampAttendanceReportSection
-            attendanceStats={reportData.attendance_stats}
-          />
+        {attendanceStats && (
+          <CampAttendanceReportSection attendanceStats={attendanceStats} />
         )}
 
         {/* 학습 리포트 섹션 */}
-        {reportData?.learning_stats && (
-          <CampLearningReportSection
-            learningStats={reportData.learning_stats}
-          />
+        {learningStats && (
+          <CampLearningReportSection learningStats={learningStats} />
         )}
 
-        {!reportData && (
+        {!isLoading && !attendanceStats && !learningStats && (
           <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <p className="text-sm text-gray-700">
               리포트 데이터가 없습니다. 캠프 기간이 설정되어 있고 참여자가 있는지 확인해주세요.

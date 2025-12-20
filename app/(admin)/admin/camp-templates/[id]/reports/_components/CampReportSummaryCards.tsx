@@ -1,17 +1,20 @@
 "use client";
 
-import type { CampReportData } from "@/lib/reports/camp";
+import type {
+  CampAttendanceStats,
+  CampLearningStats,
+} from "@/lib/domains/camp/types";
 import { Card } from "@/components/ui/Card";
 
 type CampReportSummaryCardsProps = {
-  reportData: CampReportData;
+  attendanceStats: CampAttendanceStats | null;
+  learningStats: CampLearningStats | null;
 };
 
 export function CampReportSummaryCards({
-  reportData,
+  attendanceStats,
+  learningStats,
 }: CampReportSummaryCardsProps) {
-  const attendanceStats = reportData.attendance_stats;
-  const learningStats = reportData.learning_stats;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
