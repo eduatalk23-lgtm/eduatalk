@@ -23,14 +23,18 @@
 ```typescript
 // 수정 전
 const endDate = new Date(goal.end_date);
-const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+const daysRemaining = Math.ceil(
+  (endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+);
 
 // 수정 후
 const endDate = new Date(goal.end_date);
 endDate.setHours(0, 0, 0, 0);
 const todayDate = new Date(today);
 todayDate.setHours(0, 0, 0, 0);
-const daysRemaining = Math.ceil((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+const daysRemaining = Math.ceil(
+  (endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24)
+);
 ```
 
 ### 2. `getGoalStatus.test.ts` - "D-3 이내 목표를 올바르게 카운트해야 함"
@@ -61,6 +65,7 @@ created_at: `${todayDateStr}T00:00:00Z`, // 실제 함수가 사용하는 날짜
 ## ✅ 최종 테스트 결과
 
 ### 전체 Metrics/Goals 테스트 스위트
+
 - **전체 테스트**: 135개
 - **통과**: 135개 ✅
 - **실패**: 0개
@@ -136,4 +141,3 @@ npm test -- __tests__/lib/metrics/ __tests__/lib/goals/
 ---
 
 **작업 완료 시간**: 2025-02-05 21:57
-

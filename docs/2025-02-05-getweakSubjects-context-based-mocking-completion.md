@@ -42,7 +42,7 @@ let mockAnalysisData: any[] = [];
 
 beforeEach(() => {
   // ... 기존 설정 ...
-  
+
   // Context 기반 모킹 구현
   (safeQueryArray as Mock).mockImplementation(
     async (queryFn: any, fallbackFn: any, options?: { context?: string }) => {
@@ -63,6 +63,7 @@ beforeEach(() => {
 ### 2. 각 테스트 케이스 수정
 
 **수정 전** (순서 의존적):
+
 ```typescript
 vi.mocked(safeQueryArray)
   .mockResolvedValueOnce(mockPlans as any)
@@ -73,6 +74,7 @@ vi.mocked(safeQueryArray)
 ```
 
 **수정 후** (Context 기반):
+
 ```typescript
 // Context 기반 모킹: 각 데이터를 변수에 할당
 mockPlansData = mockPlans;
@@ -87,11 +89,13 @@ mockAnalysisData = [];
 ## ✅ 테스트 결과
 
 ### getWeakSubjects.test.ts
+
 - **테스트 파일**: 1 passed (1)
 - **테스트 케이스**: 12 passed (12)
 - **상태**: ✅ 모든 테스트 통과
 
 ### 전체 Metrics/Goals 테스트 스위트
+
 - **전체 테스트**: 135개
 - **통과**: 132개
 - **실패**: 3개 (다른 파일의 문제)
@@ -114,11 +118,13 @@ mockAnalysisData = [];
 ## 📊 개선 효과
 
 ### Before (순서 의존적 모킹)
+
 - ❌ `Promise.all` 병렬 실행 시 순서 불일치
 - ❌ 조건부 쿼리 실행 시 모킹 순서 문제
 - ❌ 테스트 유지보수 어려움
 
 ### After (Context 기반 모킹)
+
 - ✅ 호출 순서와 무관하게 동작
 - ✅ 조건부 쿼리 실행에도 안정적
 - ✅ 테스트 코드 가독성 향상
@@ -148,4 +154,3 @@ npm test -- __tests__/lib/metrics/getWeakSubjects.test.ts
 ---
 
 **작업 완료 시간**: 2025-02-05 21:52
-

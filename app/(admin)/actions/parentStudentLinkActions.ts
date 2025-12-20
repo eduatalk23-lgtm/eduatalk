@@ -629,14 +629,17 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
       })
       .filter((id): id is string => id !== undefined);
 
-    // auth.users에서 email 조회 (parent_users.id = auth.users.id)
+    // auth.users에서 email 배치 조회 (N+1 문제 해결)
     const parentEmailsMap = new Map<string, string | null>();
     if (parentIds.length > 0) {
-      // Supabase Admin Client를 사용하여 auth.users 조회
-      // 또는 각 parent_id에 대해 auth.admin.getUserById() 사용
-      // 하지만 PostgREST를 통해 직접 조회할 수 없으므로,
-      // 일단 email은 null로 처리하고, 필요시 별도 API로 조회
-      // TODO: email 조회 로직 추가 필요 (auth.users는 PostgREST로 직접 조회 불가)
+      const { getAuthUserMetadata } = await import("@/lib/utils/authUserMetadata");
+      const adminClient = createSupabaseAdminClient();
+      const userMetadata = await getAuthUserMetadata(adminClient, parentIds);
+      
+      // email만 추출하여 Map에 저장
+      userMetadata.forEach((metadata, userId) => {
+        parentEmailsMap.set(userId, metadata.email);
+      });
     }
 
     // 데이터 변환

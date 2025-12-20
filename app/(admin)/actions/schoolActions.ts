@@ -208,44 +208,59 @@ export async function searchSchoolsAction(
 // Deprecated Functions (읽기 전용으로 변경됨)
 // ============================================
 
+import { withErrorHandling } from "@/lib/errors";
+
 /**
  * @deprecated 새 테이블은 읽기 전용입니다.
  * 학교 생성은 더 이상 지원되지 않습니다.
  */
-export async function createSchool(
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  console.warn("[actions/schoolActions] createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
-  return { 
-    success: false, 
-    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다. 학교 추가가 필요하면 관리자에게 문의하세요." 
-  };
-}
+export const createSchool = withErrorHandling(
+  async (
+    formData: FormData
+  ): Promise<{ success: boolean; error?: string }> => {
+    console.warn(
+      "[actions/schoolActions] createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+    );
+    return {
+      success: false,
+      error:
+        "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다. 학교 추가가 필요하면 관리자에게 문의하세요.",
+    };
+  }
+);
 
 /**
  * @deprecated 새 테이블은 읽기 전용입니다.
  * 학교 수정은 더 이상 지원되지 않습니다.
  */
-export async function updateSchool(
-  formData: FormData
-): Promise<{ success: boolean; error?: string }> {
-  console.warn("[actions/schoolActions] updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
-  return { 
-    success: false, 
-    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다." 
-  };
-}
+export const updateSchool = withErrorHandling(
+  async (
+    formData: FormData
+  ): Promise<{ success: boolean; error?: string }> => {
+    console.warn(
+      "[actions/schoolActions] updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+    );
+    return {
+      success: false,
+      error:
+        "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
+    };
+  }
+);
 
 /**
  * @deprecated 새 테이블은 읽기 전용입니다.
  * 학교 삭제는 더 이상 지원되지 않습니다.
  */
-export async function deleteSchool(
-  schoolId: string
-): Promise<{ success: boolean; error?: string }> {
-  console.warn("[actions/schoolActions] deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
-  return { 
-    success: false, 
-    error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다." 
-  };
-}
+export const deleteSchool = withErrorHandling(
+  async (schoolId: string): Promise<{ success: boolean; error?: string }> => {
+    console.warn(
+      "[actions/schoolActions] deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+    );
+    return {
+      success: false,
+      error:
+        "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
+    };
+  }
+);
