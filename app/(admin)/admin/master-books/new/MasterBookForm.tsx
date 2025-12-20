@@ -1,7 +1,5 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { addMasterBook } from "@/app/(student)/actions/masterContentActions";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
@@ -11,8 +9,8 @@ import { PublisherSelectField } from "@/components/forms/PublisherSelectField";
 import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { UrlField } from "@/components/forms/UrlField";
-import { useToast } from "@/components/ui/ToastProvider";
-import { masterBookSchema, validateFormData } from "@/lib/validation/schemas";
+import { useAdminFormSubmit } from "@/lib/hooks/useAdminFormSubmit";
+import { masterBookSchema } from "@/lib/validation/schemas";
 import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
 
 type MasterBookFormProps = {
@@ -21,9 +19,12 @@ type MasterBookFormProps = {
 };
 
 export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFormProps) {
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
-  const { showError, showSuccess } = useToast();
+  const { handleSubmitWithFormData, isPending } = useAdminFormSubmit({
+    action: addMasterBook,
+    schema: masterBookSchema,
+    successMessage: "교재가 성공적으로 등록되었습니다.",
+    redirectPath: "/admin/master-books",
+  });
 
   const {
     selectedRevisionId,
@@ -40,36 +41,19 @@ export function MasterBookForm({ curriculumRevisions, publishers }: MasterBookFo
     curriculumRevisions,
   });
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
     // 과목 정보 추가
     addSubjectDataToFormData(formData);
 
-    // 클라이언트 사이드 검증
-    const validation = validateFormData(formData, masterBookSchema);
-    if (!validation.success) {
-      const firstError = validation.errors.errors[0];
-      showError(firstError.message);
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        await addMasterBook(formData);
-        showSuccess("교재가 성공적으로 등록되었습니다.");
-      } catch (error) {
-        console.error("교재 등록 실패:", error);
-        showError(
-          error instanceof Error ? error.message : "교재 등록에 실패했습니다."
-        );
-      }
-    });
+    // 커스텀 훅의 handleSubmitWithFormData 호출
+    handleSubmitWithFormData(formData);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 md:p-8 shadow-sm">
+    <form onSubmit={handleFormSubmit} className="flex flex-col gap-6 rounded-lg border bg-white p-6 md:p-8 shadow-sm">
       {/* 필수 입력 항목 안내 */}
       <div className="rounded-md bg-blue-50 border border-blue-200 p-3 md:col-span-2 lg:col-span-3">
         <p className="text-sm text-blue-800 font-medium mb-2">필수 입력 항목</p>

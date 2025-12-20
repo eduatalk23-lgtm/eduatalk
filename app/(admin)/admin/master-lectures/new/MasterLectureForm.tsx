@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useTransition } from "react";
 import Link from "next/link";
 import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
@@ -11,8 +10,8 @@ import { UrlField } from "@/components/forms/UrlField";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
-import { useToast } from "@/components/ui/ToastProvider";
-import { masterLectureSchema, validateFormData } from "@/lib/validation/schemas";
+import { useAdminFormSubmit } from "@/lib/hooks/useAdminFormSubmit";
+import { masterLectureSchema } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
 import { useMasterBooksRefresh } from "@/lib/hooks/useMasterBooksRefresh";
@@ -24,11 +23,16 @@ type MasterLectureFormProps = {
 };
 
 export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMasterBooks }: MasterLectureFormProps) {
-  const [isPending, startTransition] = useTransition();
   const [linkBook, setLinkBook] = useState(false);
   const { masterBooks, refreshMasterBooks } = useMasterBooksRefresh(initialMasterBooks);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const { showError, showSuccess } = useToast();
+  
+  const { handleSubmitWithFormData, isPending } = useAdminFormSubmit({
+    action: addMasterLecture,
+    schema: masterLectureSchema,
+    successMessage: "강의가 성공적으로 등록되었습니다.",
+    redirectPath: "/admin/master-lectures",
+  });
 
   // 과목 선택 훅 사용
   const {
@@ -57,7 +61,7 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
     totalDurationRef,
   } = useLectureEpisodesCalculation();
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
@@ -90,30 +94,13 @@ export function MasterLectureForm({ curriculumRevisions, masterBooks: initialMas
       }
     }
 
-    // 클라이언트 사이드 검증
-    const validation = validateFormData(formData, masterLectureSchema);
-    if (!validation.success) {
-      const firstError = validation.errors.errors[0];
-      showError(firstError.message);
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        await addMasterLecture(formData);
-        showSuccess("강의가 성공적으로 등록되었습니다.");
-      } catch (error) {
-        console.error("강의 등록 실패:", error);
-        showError(
-          error instanceof Error ? error.message : "강의 등록에 실패했습니다."
-        );
-      }
-    });
+    // 커스텀 훅의 handleSubmitWithFormData 호출
+    handleSubmitWithFormData(formData);
   }
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleFormSubmit}
       className="flex flex-col gap-6 rounded-lg border bg-white p-6 md:p-8 shadow-sm"
     >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

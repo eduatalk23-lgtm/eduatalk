@@ -5,6 +5,8 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { parseExcelFile, validateExcelFile } from "@/lib/utils/excel";
 import { z } from "zod";
+import type { ActionResponse } from "@/lib/types/actionResponse";
+import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 
 // Zod 스키마 정의
 const masterLectureSchema = z.object({
@@ -45,7 +47,7 @@ const masterLectureSchema = z.object({
  */
 export async function importMasterLecturesFromExcel(
   fileBuffer: Buffer | Uint8Array
-): Promise<{ success: boolean; message: string; errors?: string[] }> {
+): Promise<ActionResponse<{ count: number; errors?: string[] }>> {
   // Uint8Array를 Buffer로 변환
   const buffer = Buffer.isBuffer(fileBuffer) ? fileBuffer : Buffer.from(fileBuffer);
   // 권한 확인 (admin만 허용)
@@ -62,10 +64,11 @@ export async function importMasterLecturesFromExcel(
   // Excel 파일 검증
   const validation = await validateExcelFile(buffer, ["master_lectures"]);
   if (!validation.valid) {
-    return {
-      success: false,
-      message: validation.error || "Excel 파일 검증에 실패했습니다.",
-    };
+    return createErrorResponse(
+      validation.error || "Excel 파일 검증에 실패했습니다.",
+      undefined,
+      validation.error || "Excel 파일 검증에 실패했습니다."
+    );
   }
 
   // Excel 파일 파싱
@@ -170,23 +173,23 @@ export async function importMasterLecturesFromExcel(
     revalidatePath("/admin/master-lectures");
 
     if (errors.length > 0) {
-      return {
-        success: true,
-        message: `데이터를 가져왔지만 일부 오류가 발생했습니다. (${errors.length}개 오류)`,
-        errors,
-      };
+      return createSuccessResponse(
+        { count: lecturesToUpsert.length, errors },
+        `데이터를 가져왔지만 일부 오류가 발생했습니다. (${errors.length}개 오류)`
+      );
     }
 
-    return {
-      success: true,
-      message: `데이터를 성공적으로 가져왔습니다. (${lecturesToUpsert.length}개 강의)`,
-    };
+    return createSuccessResponse(
+      { count: lecturesToUpsert.length },
+      `데이터를 성공적으로 가져왔습니다. (${lecturesToUpsert.length}개 강의)`
+    );
   } catch (error) {
-    return {
-      success: false,
-      message: `데이터 가져오기 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
-      errors: [error instanceof Error ? error.message : "알 수 없는 오류"],
-    };
+    const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+    return createErrorResponse(
+      errorMessage,
+      undefined,
+      `데이터 가져오기 실패: ${errorMessage}`
+    );
   }
 }
 
