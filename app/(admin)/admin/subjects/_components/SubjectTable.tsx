@@ -12,6 +12,7 @@ import SubjectFormModal from "./SubjectFormModal";
 import type { Subject, SubjectType } from "@/lib/data/subjects";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/LoadingSkeleton";
+import { useApiError } from "./hooks/useApiError";
 
 type SubjectTableProps = {
   subjectGroupId: string;
@@ -28,6 +29,7 @@ export default function SubjectTable({
 }: SubjectTableProps) {
   const router = useRouter();
   const toast = useToast();
+  const { handleError } = useApiError();
   const [subjects, setSubjects] = useState<Subject[]>(initialSubjects ?? []);
   const [subjectTypes, setSubjectTypes] = useState<SubjectType[]>(initialSubjectTypes ?? []);
   const [loading, setLoading] = useState(false);
@@ -47,14 +49,13 @@ export default function SubjectTable({
       setSubjects(subjectsData || []);
       setSubjectTypes(typesData || []);
     } catch (error) {
-      console.error("데이터 조회 실패:", error);
-      toast.showError("데이터를 불러오는데 실패했습니다.");
+      handleError(error, "데이터 조회");
       setSubjects([]);
       setSubjectTypes([]);
     } finally {
       setLoading(false);
     }
-  }, [subjectGroupId, curriculumRevisionId, toast]);
+  }, [subjectGroupId, curriculumRevisionId, handleError]);
 
   // subjectGroupId가 변경될 때 데이터 업데이트
   useEffect(() => {
@@ -81,10 +82,7 @@ export default function SubjectTable({
       toast.showSuccess("과목이 삭제되었습니다.");
       router.refresh();
     } catch (error) {
-      console.error("과목 삭제 실패:", error);
-      toast.showError(
-        error instanceof Error ? error.message : "삭제에 실패했습니다."
-      );
+      handleError(error, "과목 삭제");
     }
   }
 

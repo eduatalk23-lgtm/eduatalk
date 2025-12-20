@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useOptimistic } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import {
@@ -17,6 +18,8 @@ import {
 } from "@/app/(admin)/actions/subjectActions";
 import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
 import { Card } from "@/components/molecules/Card";
+import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
+import { useApiError } from "./hooks/useApiError";
 
 type SubjectGroupWithSubjects = SubjectGroup & { subjects: Subject[] };
 
@@ -32,14 +35,56 @@ export function SubjectGroupManagement({
   defaultRevisionId,
 }: SubjectGroupManagementProps) {
   const router = useRouter();
+  const toast = useToast();
+  const { handleError } = useApiError();
   const [isPending, startTransition] = useTransition();
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | undefined>(defaultRevisionId);
   const [data, setData] = useState<SubjectGroupWithSubjects[]>(initialData);
   const [subjectTypes, setSubjectTypes] = useState<SubjectType[]>([]);
+  const [loading, setLoading] = useState(false);
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [editingSubject, setEditingSubject] = useState<string | null>(null);
   const [newGroupForm, setNewGroupForm] = useState(false);
   const [newSubjectForm, setNewSubjectForm] = useState<{ groupId: string } | null>(null);
+
+  // 낙관적 업데이트를 위한 상태
+  const [optimisticData, setOptimisticData] = useOptimistic(
+    data,
+    (currentData, action: { type: string; payload?: any }) => {
+      switch (action.type) {
+        case "addGroup":
+          return [...currentData, action.payload];
+        case "updateGroup":
+          return currentData.map((group) =>
+            group.id === action.payload.id ? { ...group, ...action.payload } : group
+          );
+        case "deleteGroup":
+          return currentData.filter((group) => group.id !== action.payload.id);
+        case "addSubject":
+          return currentData.map((group) =>
+            group.id === action.payload.groupId
+              ? { ...group, subjects: [...group.subjects, action.payload.subject] }
+              : group
+          );
+        case "updateSubject":
+          return currentData.map((group) => ({
+            ...group,
+            subjects: group.subjects.map((subject) =>
+              subject.id === action.payload.id
+                ? { ...subject, ...action.payload }
+                : subject
+            ),
+          }));
+        case "deleteSubject":
+          return currentData.map((group) => ({
+            ...group,
+            subjects: group.subjects.filter((subject) => subject.id !== action.payload.id),
+          }));
+        default:
+          return currentData;
+      }
+    }
+  );
 
   // 초기 과목구분 로드
   useEffect(() => {
@@ -65,6 +110,7 @@ export function SubjectGroupManagement({
         return;
       }
       
+      setLoading(true);
       try {
         const [groups, types] = await Promise.all([
           getSubjectGroupsAction(selectedRevisionId),
@@ -81,36 +127,69 @@ export function SubjectGroupManagement({
         );
         setData(groupsWithSubjects);
       } catch (error) {
-        console.error("교과/과목 조회 실패:", error);
-        alert("교과/과목을 불러오는데 실패했습니다.");
+        handleError(error, "교과/과목 조회");
+        setData([]);
+        setSubjectTypes([]);
+      } finally {
+        setLoading(false);
       }
     }
     
     loadData();
-  }, [selectedRevisionId]);
+  }, [selectedRevisionId, handleError]);
 
   // 교과 그룹 추가
   const handleAddGroup = async (formData: FormData) => {
+    const name = formData.get("name") as string;
+    const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+    const curriculumRevisionId = formData.get("curriculum_revision_id") as string;
+
+    // 낙관적 업데이트
+    const optimisticGroup: SubjectGroupWithSubjects = {
+      id: `temp-${Date.now()}`,
+      curriculum_revision_id: curriculumRevisionId,
+      name,
+      display_order: displayOrder,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      subjects: [],
+    };
+
+    setOptimisticData({ type: "addGroup", payload: optimisticGroup });
+    setNewGroupForm(false);
+
     startTransition(async () => {
       try {
         await createSubjectGroup(formData);
-        setNewGroupForm(false);
+        toast.showSuccess("교과 그룹이 추가되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "교과 그룹 추가에 실패했습니다.");
+        handleError(error, "교과 그룹 추가");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
 
   // 교과 그룹 수정
   const handleUpdateGroup = async (id: string, formData: FormData) => {
+    const name = formData.get("name") as string;
+    const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+
+    // 낙관적 업데이트
+    setOptimisticData({
+      type: "updateGroup",
+      payload: { id, name, display_order: displayOrder },
+    });
+    setEditingGroup(null);
+
     startTransition(async () => {
       try {
         await updateSubjectGroup(id, formData);
-        setEditingGroup(null);
+        toast.showSuccess("교과 그룹이 수정되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "교과 그룹 수정에 실패했습니다.");
+        handleError(error, "교과 그룹 수정");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
@@ -121,38 +200,78 @@ export function SubjectGroupManagement({
       return;
     }
 
+    // 낙관적 업데이트
+    setOptimisticData({ type: "deleteGroup", payload: { id } });
+
     startTransition(async () => {
       try {
         await deleteSubjectGroup(id);
+        toast.showSuccess("교과 그룹이 삭제되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "교과 그룹 삭제에 실패했습니다.");
+        handleError(error, "교과 그룹 삭제");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
 
   // 과목 추가
   const handleAddSubject = async (formData: FormData) => {
+    const groupId = formData.get("subject_group_id") as string;
+    const name = formData.get("name") as string;
+    const subjectTypeId = formData.get("subject_type_id") as string;
+    const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+
+    // 낙관적 업데이트
+    const optimisticSubject: Subject = {
+      id: `temp-${Date.now()}`,
+      subject_group_id: groupId,
+      name,
+      subject_type_id: subjectTypeId || null,
+      display_order: displayOrder,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setOptimisticData({
+      type: "addSubject",
+      payload: { groupId, subject: optimisticSubject },
+    });
+    setNewSubjectForm(null);
+
     startTransition(async () => {
       try {
         await createSubject(formData);
-        setNewSubjectForm(null);
+        toast.showSuccess("과목이 추가되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "과목 추가에 실패했습니다.");
+        handleError(error, "과목 추가");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
 
   // 과목 수정
   const handleUpdateSubject = async (id: string, formData: FormData) => {
+    const name = formData.get("name") as string;
+    const subjectTypeId = formData.get("subject_type_id") as string;
+    const displayOrder = parseInt(formData.get("display_order") as string) || 0;
+
+    // 낙관적 업데이트
+    setOptimisticData({
+      type: "updateSubject",
+      payload: { id, name, subject_type_id: subjectTypeId || null, display_order: displayOrder },
+    });
+    setEditingSubject(null);
+
     startTransition(async () => {
       try {
         await updateSubject(id, formData);
-        setEditingSubject(null);
+        toast.showSuccess("과목이 수정되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "과목 수정에 실패했습니다.");
+        handleError(error, "과목 수정");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
@@ -163,12 +282,17 @@ export function SubjectGroupManagement({
       return;
     }
 
+    // 낙관적 업데이트
+    setOptimisticData({ type: "deleteSubject", payload: { id } });
+
     startTransition(async () => {
       try {
         await deleteSubject(id);
+        toast.showSuccess("과목이 삭제되었습니다.");
         router.refresh();
       } catch (error) {
-        alert(error instanceof Error ? error.message : "과목 삭제에 실패했습니다.");
+        handleError(error, "과목 삭제");
+        router.refresh(); // 실패 시 서버 데이터로 동기화
       }
     });
   };
@@ -287,8 +411,17 @@ export function SubjectGroupManagement({
         </Card>
       )}
 
-      {/* 교과 그룹 목록 */}
-      {data.map((group) => (
+      {/* 로딩 상태 */}
+      {loading ? (
+        <div className="flex flex-col gap-6">
+          {[1, 2, 3].map((i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* 교과 그룹 목록 */}
+          {optimisticData.map((group) => (
         <Card key={group.id} className="p-6">
           <div className="flex flex-col gap-4">
             {/* 교과 그룹 헤더 */}
@@ -570,6 +703,8 @@ export function SubjectGroupManagement({
           </div>
         </Card>
       ))}
+        </>
+      )}
     </div>
   );
 }
