@@ -10,7 +10,6 @@ import { useCallback, useRef, useEffect } from "react";
 
 const dashboardTabs = [
   { value: "integrated", label: "통합", href: "/scores/dashboard/unified" },
-  { value: "school", label: "내신", href: "/scores/dashboard/school" },
   { value: "mock", label: "모의고사", href: "/scores/dashboard/mock" },
 ];
 
