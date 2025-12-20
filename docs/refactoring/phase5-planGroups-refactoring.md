@@ -9,13 +9,18 @@
 ### 1. Import 변경
 
 **이전:**
+
 ```typescript
-import { POSTGRES_ERROR_CODES, POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
+import {
+  POSTGRES_ERROR_CODES,
+  POSTGREST_ERROR_CODES,
+} from "@/lib/constants/errorCodes";
 import { logError } from "@/lib/errors/handler";
 import { checkColumnExists } from "@/lib/utils/migrationStatus";
 ```
 
 **이후:**
+
 ```typescript
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
@@ -35,6 +40,7 @@ type PlanGroupUpdate = Database["public"]["Tables"]["plan_groups"]["Update"];
 ### 2. 에러 처리 표준화
 
 **이전:**
+
 ```typescript
 logError(error, {
   function: "getPlanGroupsForStudent",
@@ -43,6 +49,7 @@ logError(error, {
 ```
 
 **이후:**
+
 ```typescript
 handleQueryError(error, {
   context: "[data/planGroups] getPlanGroupsForStudent",
@@ -54,6 +61,7 @@ handleQueryError(error, {
 #### `getPlanGroupsForStudent`
 
 **이전:**
+
 ```typescript
 let { data, error } = await query;
 let planGroupsData: PlanGroup[] | null = data as PlanGroup[] | null;
@@ -88,11 +96,15 @@ return planGroupsData ?? [];
 ```
 
 **이후:**
+
 ```typescript
 const result = await createTypedConditionalQuery<PlanGroup[]>(
   async () => {
     const queryResult = await query;
-    return { data: queryResult.data as PlanGroup[] | null, error: queryResult.error };
+    return {
+      data: queryResult.data as PlanGroup[] | null,
+      error: queryResult.error,
+    };
   },
   {
     context: "[data/planGroups] getPlanGroupsForStudent",
@@ -107,7 +119,7 @@ const result = await createTypedConditionalQuery<PlanGroup[]>(
       const fallbackResult = await fallbackQuery.order("created_at", {
         ascending: false,
       });
-      
+
       if (fallbackResult.data && !fallbackResult.error) {
         return {
           data: fallbackResult.data.map((group: any) => ({
@@ -117,8 +129,11 @@ const result = await createTypedConditionalQuery<PlanGroup[]>(
           error: null,
         };
       }
-      
-      return { data: fallbackResult.data as PlanGroup[] | null, error: fallbackResult.error };
+
+      return {
+        data: fallbackResult.data as PlanGroup[] | null,
+        error: fallbackResult.error,
+      };
     },
     shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
   }
@@ -130,6 +145,7 @@ return result ?? [];
 #### `getPlanGroupById`
 
 **이전:**
+
 ```typescript
 let { data, error } = await query.maybeSingle<PlanGroup>();
 
@@ -148,8 +164,17 @@ if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
   }
 }
 
-if (error && isPostgrestError(error) && error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED) {
-  logError(error, { function: "getPlanGroupById", groupId, studentId, tenantId });
+if (
+  error &&
+  isPostgrestError(error) &&
+  error.code !== POSTGREST_ERROR_CODES.NO_ROWS_RETURNED
+) {
+  logError(error, {
+    function: "getPlanGroupById",
+    groupId,
+    studentId,
+    tenantId,
+  });
   return null;
 }
 
@@ -157,6 +182,7 @@ return data ?? null;
 ```
 
 **이후:**
+
 ```typescript
 const result = await createTypedConditionalQuery<PlanGroup>(
   async () => {
@@ -169,14 +195,17 @@ const result = await createTypedConditionalQuery<PlanGroup>(
     fallbackQuery: async () => {
       // fallback: scheduler_options 컬럼이 없는 경우
       const fallbackResult = await fallbackQuery.maybeSingle();
-      
+
       if (fallbackResult.data && !fallbackResult.error) {
         return {
-          data: { ...fallbackResult.data, scheduler_options: null } as PlanGroup,
+          data: {
+            ...fallbackResult.data,
+            scheduler_options: null,
+          } as PlanGroup,
           error: null,
         };
       }
-      
+
       return { data: fallbackResult.data, error: fallbackResult.error };
     },
     shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
@@ -189,6 +218,7 @@ return result;
 #### `createPlanGroup`
 
 **이전:**
+
 ```typescript
 let { data, error } = await supabase
   .from("plan_groups")
@@ -198,7 +228,8 @@ let { data, error } = await supabase
 
 if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
   if (payload.scheduler_options !== undefined) {
-    const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+    const { scheduler_options: _schedulerOptions, ...fallbackPayload } =
+      payload;
     ({ data, error } = await supabase
       .from("plan_groups")
       .insert(fallbackPayload)
@@ -216,6 +247,7 @@ return { success: true, groupId: data?.id };
 ```
 
 **이후:**
+
 ```typescript
 const result = await createTypedConditionalQuery<{ id: string }>(
   async () => {
@@ -232,7 +264,8 @@ const result = await createTypedConditionalQuery<{ id: string }>(
     fallbackQuery: async () => {
       // fallback: scheduler_options가 포함된 경우 제외하고 재시도
       if (payload.scheduler_options !== undefined) {
-        const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+        const { scheduler_options: _schedulerOptions, ...fallbackPayload } =
+          payload;
         const queryResult = await supabase
           .from("plan_groups")
           .insert(fallbackPayload as PlanGroupInsert)
@@ -241,7 +274,11 @@ const result = await createTypedConditionalQuery<{ id: string }>(
         return { data: queryResult.data, error: queryResult.error };
       } else {
         // 다른 컬럼 문제인 경우 일반 fallback
-        const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+        const {
+          tenant_id: _tenantId,
+          student_id: _studentId,
+          ...fallbackPayload
+        } = payload;
         const queryResult = await supabase
           .from("plan_groups")
           .insert(fallbackPayload as PlanGroupInsert)
@@ -264,6 +301,7 @@ return { success: true, groupId: result.id };
 #### `updatePlanGroup`
 
 **이전:**
+
 ```typescript
 let { error } = await supabase
   .from("plan_groups")
@@ -272,9 +310,14 @@ let { error } = await supabase
   .eq("student_id", studentId)
   .is("deleted_at", null);
 
-if (error && (error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN || error.code === POSTGREST_ERROR_CODES.NO_CONTENT)) {
+if (
+  error &&
+  (error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN ||
+    error.code === POSTGREST_ERROR_CODES.NO_CONTENT)
+) {
   if (payload.scheduler_options !== undefined) {
-    const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+    const { scheduler_options: _schedulerOptions, ...fallbackPayload } =
+      payload;
     ({ error } = await supabase
       .from("plan_groups")
       .update(fallbackPayload)
@@ -293,6 +336,7 @@ return { success: true };
 ```
 
 **이후:**
+
 ```typescript
 const result = await createTypedConditionalQuery<null>(
   async () => {
@@ -310,7 +354,8 @@ const result = await createTypedConditionalQuery<null>(
     fallbackQuery: async () => {
       // fallback: scheduler_options가 포함된 경우 제외하고 재시도
       if (payload.scheduler_options !== undefined) {
-        const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+        const { scheduler_options: _schedulerOptions, ...fallbackPayload } =
+          payload;
         const queryResult = await supabase
           .from("plan_groups")
           .update(fallbackPayload as PlanGroupUpdate)
@@ -339,6 +384,7 @@ return { success: true };
 ### 4. 에러 코드 체크 표준화
 
 **이전:**
+
 ```typescript
 if (error && error.code === POSTGRES_ERROR_CODES.UNDEFINED_COLUMN) {
   // ...
@@ -352,6 +398,7 @@ if (error && error.code === POSTGRES_ERROR_CODES.UNIQUE_VIOLATION) {
 ```
 
 **이후:**
+
 ```typescript
 if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
   // ...
@@ -378,11 +425,11 @@ const result = await createTypedConditionalQuery<{ id: string }>(
   async () => {
     const queryResult = await supabase
       .from("plan_groups")
-      .insert(payload as PlanGroupInsert)  // 타입 명시
+      .insert(payload as PlanGroupInsert) // 타입 명시
       .select("id")
       .single();
     return { data: queryResult.data, error: queryResult.error };
-  },
+  }
   // ...
 );
 ```
@@ -390,19 +437,23 @@ const result = await createTypedConditionalQuery<{ id: string }>(
 ## 개선 효과
 
 ### 1. 에러 처리 일관성
+
 - 모든 `logError` 호출을 `handleQueryError`로 통일
 - 에러 로깅 컨텍스트 표준화 (`[data/planGroups] functionName`)
 
 ### 2. Fallback 로직 표준화
+
 - `checkColumnExists` 사용 제거 (불필요한 마이그레이션 상태 확인)
 - `createTypedConditionalQuery`로 Fallback 로직 통일
 - `shouldFallback` 옵션으로 조건부 Fallback 명확화
 
 ### 3. 타입 안전성 향상
+
 - Database 타입을 직접 사용하여 JSONB 필드 타입 명시
 - `any` 타입 사용 최소화
 
 ### 4. 코드 간소화
+
 - 중복된 에러 처리 로직 제거
 - Fallback 로직 표준화로 가독성 향상
 
@@ -410,28 +461,31 @@ const result = await createTypedConditionalQuery<{ id: string }>(
 
 다음 비즈니스 로직은 그대로 유지되었습니다:
 
-1. **`createPlanAcademySchedules`의 트랜잭션 로직**: 
+1. **`createPlanAcademySchedules`의 트랜잭션 로직**:
    - 학원 일정 업데이트/생성 로직은 복잡한 비즈니스 로직을 포함하므로 현재 구조 유지
    - 반복적인 `insert` 구문은 각 항목마다 다른 `academy_id`를 가질 수 있어 배치 최적화가 어려움
 
-2. **`deletePlanGroupByInvitationId`의 삭제 순서**: 
+2. **`deletePlanGroupByInvitationId`의 삭제 순서**:
    - student_plan → plan_contents → plan_exclusions → plan_groups 순서 유지
 
-3. **`createExclusions`의 복잡한 로직**: 
+3. **`createExclusions`의 복잡한 로직**:
    - 플랜 그룹별/전역 제외일 관리 로직 유지
 
 ## 변경된 함수 목록
 
 ### 주요 함수 (Fallback 로직 표준화)
+
 - `getPlanGroupsForStudent` - `createTypedConditionalQuery` 사용
 - `getPlanGroupById` - `createTypedConditionalQuery` 사용
 - `createPlanGroup` - `createTypedConditionalQuery` 사용
 - `updatePlanGroup` - `createTypedConditionalQuery` 사용
 
 ### 에러 처리 변경
+
 - 모든 함수의 `logError` → `handleQueryError` 변경 (약 30개 함수)
 
 ### 에러 코드 체크 변경
+
 - `POSTGRES_ERROR_CODES.UNDEFINED_COLUMN` → `ErrorCodeCheckers.isColumnNotFound`
 - `POSTGREST_ERROR_CODES.NO_ROWS_RETURNED` → `ErrorCodeCheckers.isNoRowsReturned`
 - `POSTGRES_ERROR_CODES.UNIQUE_VIOLATION` → `ErrorCodeCheckers.isUniqueViolation`
@@ -454,4 +508,3 @@ const result = await createTypedConditionalQuery<{ id: string }>(
 - 에러 처리: `lib/data/core/errorHandler.ts`
 - 에러 코드: `lib/constants/errorCodes.ts`
 - Database 타입: `lib/supabase/database.types.ts`
-
