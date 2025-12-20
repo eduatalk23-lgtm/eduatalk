@@ -71,18 +71,48 @@ export async function safeQueryArray<T>(
     }
 
     if (error) {
-      console.error(`${context} 쿼리 실패`, {
+      // Supabase 에러 객체의 모든 속성을 명시적으로 로깅
+      const errorInfo: Record<string, unknown> = {
         code: error.code,
         message: error.message,
         details: error.details,
         hint: error.hint,
-      });
+      };
+      
+      // 에러 객체의 추가 속성도 포함 (있는 경우)
+      if (error instanceof Error) {
+        errorInfo.name = error.name;
+        errorInfo.stack = error.stack;
+      }
+      
+      // 원본 에러 객체도 포함 (직렬화 가능한 경우)
+      try {
+        errorInfo.raw = JSON.parse(JSON.stringify(error));
+      } catch {
+        // 직렬화 실패 시 무시
+        errorInfo.raw = String(error);
+      }
+      
+      console.error(`${context} 쿼리 실패`, errorInfo);
       return defaultValue;
     }
 
     return (data as T[] | null) ?? defaultValue;
   } catch (error) {
-    console.error(`${context} 쿼리 예외`, error);
+    // 예외 발생 시 상세 정보 로깅
+    const errorInfo: Record<string, unknown> = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : "Unknown",
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    
+    try {
+      errorInfo.raw = JSON.parse(JSON.stringify(error));
+    } catch {
+      errorInfo.raw = String(error);
+    }
+    
+    console.error(`${context} 쿼리 예외`, errorInfo);
     return defaultValue;
   }
 }
@@ -120,18 +150,48 @@ export async function safeQuerySingle<T>(
     }
 
     if (error) {
-      console.error(`${context} 쿼리 실패`, {
+      // Supabase 에러 객체의 모든 속성을 명시적으로 로깅
+      const errorInfo: Record<string, unknown> = {
         code: error.code,
         message: error.message,
         details: error.details,
         hint: error.hint,
-      });
+      };
+      
+      // 에러 객체의 추가 속성도 포함 (있는 경우)
+      if (error instanceof Error) {
+        errorInfo.name = error.name;
+        errorInfo.stack = error.stack;
+      }
+      
+      // 원본 에러 객체도 포함 (직렬화 가능한 경우)
+      try {
+        errorInfo.raw = JSON.parse(JSON.stringify(error));
+      } catch {
+        // 직렬화 실패 시 무시
+        errorInfo.raw = String(error);
+      }
+      
+      console.error(`${context} 쿼리 실패`, errorInfo);
       return defaultValue;
     }
 
     return (data as T | null) ?? defaultValue;
   } catch (error) {
-    console.error(`${context} 쿼리 예외`, error);
+    // 예외 발생 시 상세 정보 로깅
+    const errorInfo: Record<string, unknown> = {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : "Unknown",
+      stack: error instanceof Error ? error.stack : undefined,
+    };
+    
+    try {
+      errorInfo.raw = JSON.parse(JSON.stringify(error));
+    } catch {
+      errorInfo.raw = String(error);
+    }
+    
+    console.error(`${context} 쿼리 예외`, errorInfo);
     return defaultValue;
   }
 }

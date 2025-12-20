@@ -6,10 +6,24 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
-type ScoreRow = {
-  subject_group: string | null;
+// 내신 성적 조회 결과 타입
+type InternalScoreRow = {
+  rank_grade: number | null;
+  grade: number | null;
+  semester: number | null;
+  created_at: string;
+  subject_groups: {
+    name: string;
+  } | null;
+};
+
+// 모의고사 성적 조회 결과 타입
+type MockScoreRow = {
   grade_score: number | null;
-  test_date: string | null;
+  exam_date: string;
+  subject_groups: {
+    name: string;
+  } | null;
 };
 
 export type ScoreTrendMetrics = {
@@ -18,7 +32,7 @@ export type ScoreTrendMetrics = {
   lowGradeSubjects: string[]; // 7등급 이하 과목 목록
   recentScores: Array<{
     subject: string;
-    scoreType: string; // "school" | "mock"
+    scoreType: string; // "internal" | "mock"
     grade: number;
     testDate: string;
   }>;
@@ -33,36 +47,36 @@ export async function getScoreTrend(
 ): Promise<ScoreTrendMetrics> {
   try {
     // 내신 성적 및 모의고사 성적 병렬 조회
-    const [schoolRows, mockRows] = await Promise.all([
-      safeQueryArray<ScoreRow>(
+    const [internalRows, mockRows] = await Promise.all([
+      safeQueryArray<InternalScoreRow>(
         () =>
           supabase
-            .from("student_school_scores")
-            .select("subject_group,grade_score,test_date")
+            .from("student_internal_scores")
+            .select("rank_grade,grade,semester,created_at,subject_groups:subject_group_id(name)")
             .eq("student_id", studentId)
-            .order("test_date", { ascending: false })
+            .order("created_at", { ascending: false })
             .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
         () =>
           supabase
-            .from("student_school_scores")
-            .select("subject_group,grade_score,test_date")
-            .order("test_date", { ascending: false })
+            .from("student_internal_scores")
+            .select("rank_grade,grade,semester,created_at,subject_groups:subject_group_id(name)")
+            .order("created_at", { ascending: false })
             .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
         { context: "[metrics/getScoreTrend] 내신 성적 조회" }
       ),
-      safeQueryArray<ScoreRow>(
+      safeQueryArray<MockScoreRow>(
         () =>
           supabase
             .from("student_mock_scores")
-            .select("subject_group,grade_score,test_date")
+            .select("grade_score,exam_date,subject_groups:subject_group_id(name)")
             .eq("student_id", studentId)
-            .order("test_date", { ascending: false })
+            .order("exam_date", { ascending: false })
             .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
         () =>
           supabase
             .from("student_mock_scores")
-            .select("subject_group,grade_score,test_date")
-            .order("test_date", { ascending: false })
+            .select("grade_score,exam_date,subject_groups:subject_group_id(name)")
+            .order("exam_date", { ascending: false })
             .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
         { context: "[metrics/getScoreTrend] 모의고사 성적 조회" }
       ),
@@ -71,34 +85,42 @@ export async function getScoreTrend(
     // 모든 성적을 하나의 배열로 합치기
     const allScores: Array<{
       subject: string;
-      scoreType: "school" | "mock";
+      scoreType: "internal" | "mock";
       grade: number;
       testDate: string;
     }> = [];
 
-    schoolRows.forEach((row) => {
-      if (row.subject_group && row.grade_score !== null && row.grade_score !== undefined && row.test_date) {
+    // 내신 성적 처리: rank_grade 사용, created_at을 testDate로 사용
+    internalRows.forEach((row) => {
+      const subjectName = row.subject_groups?.name;
+      const grade = row.rank_grade;
+      
+      if (subjectName && grade !== null && grade !== undefined && row.created_at) {
         allScores.push({
-          subject: row.subject_group,
-          scoreType: "school",
-          grade: row.grade_score,
-          testDate: row.test_date,
+          subject: subjectName,
+          scoreType: "internal",
+          grade: grade,
+          testDate: row.created_at,
         });
       }
     });
 
+    // 모의고사 성적 처리: grade_score 사용, exam_date를 testDate로 사용
     mockRows.forEach((row) => {
-      if (row.subject_group && row.grade_score !== null && row.grade_score !== undefined && row.test_date) {
+      const subjectName = row.subject_groups?.name;
+      const grade = row.grade_score;
+      
+      if (subjectName && grade !== null && grade !== undefined && row.exam_date) {
         allScores.push({
-          subject: row.subject_group,
+          subject: subjectName,
           scoreType: "mock",
-          grade: row.grade_score,
-          testDate: row.test_date,
+          grade: grade,
+          testDate: row.exam_date,
         });
       }
     });
 
-    // 날짜순 정렬
+    // 날짜순 정렬 (최신순)
     allScores.sort((a, b) => b.testDate.localeCompare(a.testDate));
 
     // 과목별로 그룹화하여 추이 분석
