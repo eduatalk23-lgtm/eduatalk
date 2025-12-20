@@ -10,6 +10,7 @@ import {
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type {
   SchedulerOptions,
@@ -163,9 +164,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
 
             if (blocksError) {
               logError(
-                "[getCampPlanGroupForReview] 템플릿 블록 조회 에러:",
+                blocksError,
                 {
-                  error: blocksError,
+                  function: "getCampPlanGroupForReview",
+                  message: "템플릿 블록 조회 에러",
                   tenantBlockSetId,
                 }
               );
@@ -339,9 +341,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
         });
       } catch (error) {
         logError(
-          "[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 실패:",
+          error,
           {
-            error: error instanceof Error ? error.message : String(error),
+            function: "getCampPlanGroupForReview",
+            message: "콘텐츠 상세 정보 조회 실패",
             stack: error instanceof Error ? error.stack : undefined,
             groupId: result.group.id,
             studentId: result.group.student_id,
@@ -408,6 +411,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
     }
 
+    // tenantId를 변수에 저장하여 타입 좁히기
+    const tenantId = tenantContext.tenantId;
+
     // 관리자용 Admin 클라이언트 사용 (RLS 우회)
     // 관리자가 다른 학생의 데이터를 조회/수정해야 하므로 Admin 클라이언트 필요
     const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
@@ -430,7 +436,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
     );
     const result = await getPlanGroupWithDetailsForAdmin(
       groupId,
-      tenantContext.tenantId
+      tenantId
     );
 
     if (!result.group) {
@@ -593,7 +599,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         .from("plan_groups")
         .update(updatePayload)
         .eq("id", groupId)
-        .eq("tenant_id", tenantContext.tenantId);
+        .eq("tenant_id", tenantId);
 
       if (updateError) {
         throw new AppError(
@@ -676,7 +682,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         if (hasStudentContents && wizardData.student_contents && wizardData.student_contents.length > 0) {
           // wizardData의 student_contents를 creationData 형식으로 변환하여 추가
           const studentContentsForCreation: PlanContentInsert[] = wizardData.student_contents.map((c, idx) => ({
-            tenant_id: tenantContext.tenantId,
+            tenant_id: tenantId,
             plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
@@ -697,7 +703,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           // wizardData에 student_contents가 없거나 빈 배열인 경우 기존 학생 콘텐츠 보존
           // 빈 배열을 전달하면 hasStudentContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
           const preservedStudentContents: PlanContentInsert[] = existingStudentContents.map((c) => ({
-            tenant_id: tenantContext.tenantId,
+            tenant_id: tenantId,
             plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
@@ -726,7 +732,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           // wizardData의 recommended_contents를 creationData 형식으로 변환하여 추가
           // 관리자가 추가하는 경우는 항상 is_auto_recommended: false, recommendation_source: "admin"으로 강제 설정
           const recommendedContentsForCreation: PlanContentInsert[] = wizardData.recommended_contents.map((c, idx) => ({
-            tenant_id: tenantContext.tenantId,
+            tenant_id: tenantId,
             plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
@@ -737,7 +743,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
             is_auto_recommended: false, // 관리자 추가는 항상 false
             recommendation_source: "admin", // 관리자 추가는 항상 "admin"으로 강제 설정
             recommendation_reason: c.recommendation_reason ?? null,
-            recommendation_metadata: (c.recommendation_metadata as RecommendationMetadata | null) ?? null,
+            recommendation_metadata: (c.recommendation_metadata as unknown as Json | null) ?? null,
           }));
           contentsToSave.push(...recommendedContentsForCreation);
         } else if (
@@ -747,7 +753,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           // wizardData에 recommended_contents가 없거나 빈 배열인 경우 기존 추천 콘텐츠 보존
           // 빈 배열을 전달하면 hasRecommendedContents는 true이지만 length > 0이 false가 되어 보존되지 않는 문제 해결
           const preservedRecommendedContents: PlanContentInsert[] = existingRecommendedContents.map((c) => ({
-            tenant_id: tenantContext.tenantId,
+            tenant_id: tenantId,
             plan_group_id: groupId,
             content_type: c.content_type,
             content_id: c.content_id,
@@ -758,7 +764,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
             is_auto_recommended: c.is_auto_recommended ?? false,
             recommendation_source: c.recommendation_source ?? null,
             recommendation_reason: c.recommendation_reason ?? null,
-            recommendation_metadata: (c.recommendation_metadata as RecommendationMetadata | null) ?? null,
+            recommendation_metadata: (c.recommendation_metadata as unknown as Json | null) ?? null,
           }));
           contentsToSave.push(...preservedRecommendedContents);
           
@@ -839,7 +845,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                       const { bookId } = await copyMasterBookToStudent(
                         content.content_id,
                         studentId,
-                        tenantContext.tenantId
+                        tenantId
                       );
                       isValidContent = true;
                       actualContentId = bookId;
@@ -913,8 +919,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
                       );
                     } catch (copyError) {
                       logError(
-                        `[campTemplateActions] 마스터 강의 복사 실패: ${content.content_id}`,
-                        copyError
+                        copyError,
+                        {
+                          function: "continueCampStepsForAdmin",
+                          message: `마스터 강의 복사 실패: ${content.content_id}`,
+                        }
                       );
                       // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
                       isValidContent = true;
@@ -976,7 +985,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           if (validContents.length > 0) {
             const contentsResult = await createPlanContents(
               groupId,
-              tenantContext.tenantId,
+              tenantId,
               validContents
             );
 
@@ -1105,7 +1114,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         if (creationData.exclusions.length > 0) {
           const exclusionsResult = await createPlanExclusions(
             groupId,
-            tenantContext.tenantId,
+            tenantId,
             creationData.exclusions.map((e) => ({
               exclusion_date: e.exclusion_date,
               exclusion_type: e.exclusion_type,
@@ -1130,7 +1139,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         // 기존 학원 일정 조회 (중복 체크용)
         const { getStudentAcademySchedules } = await import("@/lib/data/planGroups");
-        const existingSchedules = await getStudentAcademySchedules(studentId, tenantContext.tenantId);
+        const existingSchedules = await getStudentAcademySchedules(studentId, tenantId);
         
         // 기존 학원 일정을 키로 매핑 (요일:시작시간:종료시간:학원명:과목)
         const existingKeys = new Set(
@@ -1157,7 +1166,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         if (newSchedules.length > 0) {
           const schedulesResult = await createStudentAcademySchedules(
             studentId,
-            tenantContext.tenantId,
+            tenantId,
             newSchedules.map((s) => ({
               day_of_week: s.day_of_week,
               start_time: s.start_time,
@@ -1251,7 +1260,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
           const dbResult = await getPlanGroupWithDetailsForAdmin(
             groupId,
-            tenantContext.tenantId
+            tenantId
           );
           
           if (dbResult.contents && dbResult.contents.length > 0) {
@@ -1380,8 +1389,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
                         );
                       } catch (copyError) {
                         logError(
-                          `[campTemplateActions] 마스터 교재 복사 실패: ${content.content_id}`,
-                          copyError
+                          copyError,
+                          {
+                            function: "continueCampStepsForAdmin",
+                            message: `마스터 교재 복사 실패: ${content.content_id}`,
+                          }
                         );
                         // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
                         isValidContent = true;
@@ -1434,7 +1446,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                         const { lectureId } = await copyMasterLectureToStudent(
                           content.content_id,
                           studentId,
-                          tenantContext.tenantId
+                          tenantId
                         );
                         isValidContent = true;
                         actualContentId = lectureId;
@@ -1444,8 +1456,11 @@ export const continueCampStepsForAdmin = withErrorHandling(
                         );
                       } catch (copyError) {
                         logError(
-                          `[campTemplateActions] 마스터 강의 복사 실패: ${content.content_id}`,
-                          copyError
+                          copyError,
+                          {
+                            function: "continueCampStepsForAdmin",
+                            message: `마스터 강의 복사 실패: ${content.content_id}`,
+                          }
                         );
                         // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
                         isValidContent = true;
@@ -1968,8 +1983,11 @@ export const updateCampPlanGroupStatus = withErrorHandling(
 
       if (activeGroupsError) {
         logError(
-          "[campTemplateActions] 활성 플랜 그룹 조회 실패",
-          activeGroupsError
+          activeGroupsError,
+          {
+            function: "updateCampPlanGroupStatus",
+            message: "활성 플랜 그룹 조회 실패",
+          }
         );
       } else if (allActiveGroups && allActiveGroups.length > 0) {
         // 캠프 모드 활성 플랜 그룹만 필터링
@@ -1990,8 +2008,11 @@ export const updateCampPlanGroupStatus = withErrorHandling(
 
           if (deactivateError) {
             logError(
-              "[campTemplateActions] 같은 모드(캠프 모드)의 다른 활성 플랜 그룹 비활성화 실패",
-              deactivateError
+              deactivateError,
+              {
+                function: "updateCampPlanGroupStatus",
+                message: "같은 모드(캠프 모드)의 다른 활성 플랜 그룹 비활성화 실패",
+              }
             );
             // 비활성화 실패해도 계속 진행 (경고만)
           }
@@ -2107,8 +2128,11 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
 
       if (plansError) {
         logError(
-          "[campTemplateActions] 플랜 개수 일괄 확인 실패",
-          plansError
+          plansError,
+          {
+            function: "batchUpdateCampPlanGroupStatus",
+            message: "플랜 개수 일괄 확인 실패",
+          }
         );
         throw new AppError(
           "플랜 개수 확인에 실패했습니다.",
@@ -2200,8 +2224,11 @@ export const batchUpdateCampPlanGroupStatus = withErrorHandling(
       if (updateError) {
         // 일괄 업데이트 실패 시 개별 업데이트 시도
         logError(
-          "[campTemplateActions] 일괄 상태 업데이트 실패, 개별 업데이트 시도",
-          updateError
+          updateError,
+          {
+            function: "batchUpdateCampPlanGroupStatus",
+            message: "일괄 상태 업데이트 실패, 개별 업데이트 시도",
+          }
         );
 
         for (const groupId of successGroupIds) {
@@ -2371,8 +2398,11 @@ export const bulkApplyRecommendedContents = withErrorHandling(
 
               if (deleteError) {
                 logError(
-                  `[bulkApplyRecommendedContents] 기존 추천 콘텐츠 삭제 실패:`,
-                  deleteError
+                  deleteError,
+                  {
+                    function: "bulkApplyRecommendedContents",
+                    message: "기존 추천 콘텐츠 삭제 실패",
+                  }
                 );
               }
             }
@@ -2540,8 +2570,11 @@ export const bulkApplyRecommendedContents = withErrorHandling(
         }
       } catch (error) {
         logError(
-          `[bulkApplyRecommendedContents] 그룹 ${groupId} 처리 실패:`,
-          error
+          error,
+          {
+            function: "bulkApplyRecommendedContents",
+            message: `그룹 ${groupId} 처리 실패`,
+          }
         );
         errors.push({
           groupId,
@@ -2629,6 +2662,8 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
     // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
     const templateExclusions = (templateData.exclusions || []).map((exclusion: Exclusion) => ({
       ...exclusion,
+      exclusion_type: exclusion.exclusion_type as "기타" | "휴가" | "개인사정" | "휴일지정",
+      reason: exclusion.reason ?? undefined,
       source: "template" as const,
       is_locked: true,
     }));
@@ -2781,8 +2816,11 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
         };
       } catch (error) {
         logError(
-          `[bulkCreatePlanGroupsForCamp] 초대 ${invitationId} 처리 실패:`,
-          error
+          error,
+          {
+            function: "bulkCreatePlanGroupsForCamp",
+            message: `초대 ${invitationId} 처리 실패`,
+          }
         );
         return {
           success: false,
@@ -2958,11 +2996,12 @@ export const bulkAdjustPlanRanges = withErrorHandling(
 
           if (updateError) {
             logError(
-              `[bulkAdjustPlanRanges] 콘텐츠 범위 업데이트 실패:`,
+              updateError,
               {
+                function: "bulkAdjustPlanRanges",
+                message: "콘텐츠 범위 업데이트 실패",
                 groupId,
                 contentId: adjustment.contentId,
-                error: updateError.message,
               }
             );
             errors.push({
@@ -2978,8 +3017,11 @@ export const bulkAdjustPlanRanges = withErrorHandling(
         }
       } catch (error) {
         logError(
-          `[bulkAdjustPlanRanges] 그룹 ${groupId} 처리 실패:`,
-          error
+          error,
+          {
+            function: "bulkAdjustPlanRanges",
+            message: `그룹 ${groupId} 처리 실패`,
+          }
         );
         errors.push({
           groupId,
@@ -3376,7 +3418,9 @@ export const bulkPreviewPlans = withErrorHandling(
           continue;
         }
 
-        const studentName = (group.students as StudentInfo | null)?.name || "알 수 없음";
+        const studentName = (Array.isArray(group.students) && group.students.length > 0 
+          ? (group.students[0] as StudentInfo)?.name 
+          : null) || "알 수 없음";
 
         // 플랜 미리보기 실행
         try {
@@ -3479,8 +3523,11 @@ export const bulkGeneratePlans = withErrorHandling(
           successCount++;
         } catch (generateError) {
           logError(
-            `[bulkGeneratePlans] 그룹 ${groupId} 플랜 생성 실패:`,
-            generateError
+            generateError,
+            {
+              function: "bulkGeneratePlans",
+              message: `그룹 ${groupId} 플랜 생성 실패`,
+            }
           );
           errors.push({
             groupId,
@@ -3492,8 +3539,11 @@ export const bulkGeneratePlans = withErrorHandling(
         }
       } catch (error) {
         logError(
-          `[bulkGeneratePlans] 그룹 ${groupId} 처리 실패:`,
-          error
+          error,
+          {
+            function: "bulkGeneratePlans",
+            message: `그룹 ${groupId} 처리 실패`,
+          }
         );
         errors.push({
           groupId,
