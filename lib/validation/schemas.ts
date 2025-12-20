@@ -180,6 +180,15 @@ export const subjectGroupSchema = z.object({
 });
 
 /**
+ * 과목 폼 스키마
+ */
+export const subjectSchema = z.object({
+  subject_group_id: z.string().min(1, "교과 그룹을 선택해주세요."),
+  name: z.string().min(1, "과목명을 입력해주세요.").max(100, "과목명은 100자 이하여야 합니다."),
+  subject_type_id: z.string().optional(),
+});
+
+/**
  * 과목구분 폼 스키마
  */
 export const subjectTypeSchema = z.object({
