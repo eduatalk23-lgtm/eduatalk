@@ -1,13 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
-import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
+import {
+  fetchBlockSetsWithBlocks,
+  createBlockSet,
+  updateBlockSet,
+  deleteBlockSet,
+  getBlockSetById,
+  getBlockSetCount,
+} from "@/lib/data/blockSets";
+import { getStudentById } from "@/lib/data/students";
 
 const MAX_BLOCK_SETS = 5;
 
 async function _createBlockSet(formData: FormData): Promise<{ blockSetId: string; name: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
   const name = formData.get("name");
   const description = formData.get("description");
 
@@ -19,33 +32,15 @@ async function _createBlockSet(formData: FormData): Promise<{ blockSetId: string
     throw new AppError("세트 이름은 100자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-
   // 학생 정보 조회 (tenant_id 필요)
-  const { data: student } = await supabase
-    .from("students")
-    .select("tenant_id")
-    .eq("id", user.id)
-    .single();
-
+  const student = await getStudentById(user.userId, user.tenantId);
   if (!student || !student.tenant_id) {
     throw new AppError("학생 정보를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   // 세트 개수 제한 확인
-  const { count } = await supabase
-    .from("student_block_sets")
-    .select("*", { count: "exact", head: true })
-    .eq("student_id", user.id);
-
-  if ((count ?? 0) >= MAX_BLOCK_SETS) {
+  const count = await getBlockSetCount(user.userId);
+  if (count >= MAX_BLOCK_SETS) {
     throw new AppError(
       `블록 세트는 최대 ${MAX_BLOCK_SETS}개까지 생성할 수 있습니다.`,
       ErrorCode.VALIDATION_ERROR,
@@ -55,53 +50,45 @@ async function _createBlockSet(formData: FormData): Promise<{ blockSetId: string
   }
 
   // 중복 이름 확인
-  const { data: existingSet } = await supabase
-    .from("student_block_sets")
-    .select("id")
-    .eq("student_id", user.id)
-    .eq("name", name.trim())
-    .single();
-
-  if (existingSet) {
+  const existingSets = await fetchBlockSetsWithBlocks(user.userId);
+  if (existingSets.some((set) => set.name === name.trim())) {
     throw new AppError("이미 같은 이름의 세트가 있습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
   // display_order 계산 (가장 큰 값 + 1)
-  const { data: lastSet } = await supabase
-    .from("student_block_sets")
-    .select("display_order")
-    .eq("student_id", user.id)
-    .order("display_order", { ascending: false })
-    .limit(1)
-    .single();
+  const maxDisplayOrder = existingSets.length > 0 
+    ? Math.max(...existingSets.map((_, index) => index))
+    : -1;
+  const displayOrder = maxDisplayOrder + 1;
 
-  const displayOrder = (lastSet?.display_order ?? -1) + 1;
+  // lib/data/blockSets.ts의 createBlockSet 사용
+  const result = await createBlockSet({
+    tenant_id: student.tenant_id,
+    student_id: user.userId,
+    name: name.trim(),
+    description: description && typeof description === "string" ? description.trim() : null,
+    display_order: displayOrder,
+  });
 
-  const { data: newSet, error } = await supabase
-    .from("student_block_sets")
-    .insert({
-      tenant_id: student.tenant_id,
-      student_id: user.id,
-      name: name.trim(),
-      description: description && typeof description === "string" ? description.trim() : null,
-      display_order: displayOrder,
-    })
-    .select("id, name")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  if (!newSet) {
-    throw new AppError("블록 세트 생성에 실패했습니다.", ErrorCode.INTERNAL_ERROR, 500, true);
+  if (!result.success) {
+    throw new AppError(
+      result.error || "블록 세트 생성에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
   }
 
   revalidatePath("/blocks");
-  return { blockSetId: newSet.id, name: newSet.name };
+  return { blockSetId: result.blockSetId!, name: name.trim() };
 }
 
 async function _updateBlockSet(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
   const setId = formData.get("id");
   const name = formData.get("name");
   const description = formData.get("description");
@@ -118,173 +105,134 @@ async function _updateBlockSet(formData: FormData): Promise<void> {
     throw new AppError("세트 이름은 100자 이하여야 합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-
   // 세트 소유권 확인
-  const { data: existingSet } = await supabase
-    .from("student_block_sets")
-    .select("id, name")
-    .eq("id", setId)
-    .eq("student_id", user.id)
-    .single();
-
+  const existingSet = await getBlockSetById(setId, user.userId);
   if (!existingSet) {
     throw new AppError("세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   // 이름 변경 시 중복 확인 (자기 자신 제외)
   if (existingSet.name !== name.trim()) {
-    const { data: duplicateSet } = await supabase
-      .from("student_block_sets")
-      .select("id")
-      .eq("student_id", user.id)
-      .eq("name", name.trim())
-      .neq("id", setId)
-      .single();
-
-    if (duplicateSet) {
+    const allSets = await fetchBlockSetsWithBlocks(user.userId);
+    if (allSets.some((set) => set.id !== setId && set.name === name.trim())) {
       throw new AppError("이미 같은 이름의 세트가 있습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
     }
   }
 
-  const { error } = await supabase
-    .from("student_block_sets")
-    .update({
-      name: name.trim(),
-      description: description && typeof description === "string" ? description.trim() : null,
-    })
-    .eq("id", setId)
-    .eq("student_id", user.id);
+  // lib/data/blockSets.ts의 updateBlockSet 사용
+  const result = await updateBlockSet(setId, user.userId, {
+    name: name.trim(),
+    description: description && typeof description === "string" ? description.trim() : null,
+  });
 
-  if (error) {
-    throw error;
+  if (!result.success) {
+    throw new AppError(
+      result.error || "블록 세트 수정에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
   }
 
   revalidatePath("/blocks");
 }
 
 async function _deleteBlockSet(formData: FormData): Promise<void> {
-  const setId = formData.get("id");
-
-  if (!setId || typeof setId !== "string") {
-    throw new AppError("세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  // 세트 소유권 확인
-  const { data: existingSet } = await supabase
-    .from("student_block_sets")
-    .select("id")
-    .eq("id", setId)
-    .eq("student_id", user.id)
-    .single();
+  const setId = formData.get("id");
+  if (!setId || typeof setId !== "string") {
+    throw new AppError("세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
 
+  // 세트 소유권 확인
+  const existingSet = await getBlockSetById(setId, user.userId);
   if (!existingSet) {
     throw new AppError("세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   // 활성 세트인지 확인
-  const { data: student } = await supabase
-    .from("students")
-    .select("active_block_set_id")
-    .eq("id", user.id)
-    .single();
-
-  if (student?.active_block_set_id === setId) {
+  const student = await getStudentById(user.userId, user.tenantId);
+  if (student && (student as any).active_block_set_id === setId) {
     // 활성 세트를 삭제하는 경우, 다른 세트를 활성화하거나 NULL로 설정
-    const { data: otherSet } = await supabase
-      .from("student_block_sets")
-      .select("id")
-      .eq("student_id", user.id)
-      .neq("id", setId)
-      .order("display_order", { ascending: true })
-      .limit(1)
-      .single();
+    const allSets = await fetchBlockSetsWithBlocks(user.userId);
+    const otherSet = allSets.find((set) => set.id !== setId);
 
     if (otherSet) {
+      const supabase = await createSupabaseServerClient();
       await supabase
         .from("students")
         .update({ active_block_set_id: otherSet.id })
-        .eq("id", user.id);
+        .eq("id", user.userId);
     } else {
+      const supabase = await createSupabaseServerClient();
       await supabase
         .from("students")
         .update({ active_block_set_id: null })
-        .eq("id", user.id);
+        .eq("id", user.userId);
     }
   }
 
-  // 세트 삭제 (CASCADE로 블록도 함께 삭제됨)
-  const { error } = await supabase
-    .from("student_block_sets")
-    .delete()
-    .eq("id", setId)
-    .eq("student_id", user.id);
+  // lib/data/blockSets.ts의 deleteBlockSet 사용
+  const result = await deleteBlockSet(setId, user.userId);
 
-  if (error) {
-    throw error;
+  if (!result.success) {
+    throw new AppError(
+      result.error || "블록 세트 삭제에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
   }
 
   revalidatePath("/blocks");
 }
 
 async function _setActiveBlockSet(formData: FormData): Promise<void> {
-  const setId = formData.get("id");
-
-  if (!setId || typeof setId !== "string") {
-    throw new AppError("세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  // 세트 소유권 확인
-  const { data: existingSet } = await supabase
-    .from("student_block_sets")
-    .select("id")
-    .eq("id", setId)
-    .eq("student_id", user.id)
-    .single();
+  const setId = formData.get("id");
+  if (!setId || typeof setId !== "string") {
+    throw new AppError("세트 ID가 필요합니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+  }
 
+  // 세트 소유권 확인
+  const existingSet = await getBlockSetById(setId, user.userId);
   if (!existingSet) {
     throw new AppError("세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   // 활성 세트 설정
+  const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("students")
     .update({ active_block_set_id: setId })
-    .eq("id", user.id);
+    .eq("id", user.userId);
 
   if (error) {
-    throw error;
+    throw new AppError(
+      error.message || "활성 세트 설정에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
   }
 
   revalidatePath("/blocks");
 }
 
 async function _duplicateBlockSet(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+  }
+
   const sourceSetId = formData.get("source_id");
   const newName = formData.get("name");
 
@@ -296,34 +244,15 @@ async function _duplicateBlockSet(formData: FormData): Promise<void> {
     throw new AppError("새 세트 이름을 입력해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-
   // 원본 세트 조회
-  const { data: sourceSet } = await supabase
-    .from("student_block_sets")
-    .select("tenant_id, name, description, display_order")
-    .eq("id", sourceSetId)
-    .eq("student_id", user.id)
-    .single();
-
+  const sourceSet = await getBlockSetById(sourceSetId, user.userId);
   if (!sourceSet) {
     throw new AppError("원본 세트를 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true);
   }
 
   // 세트 개수 제한 확인
-  const { count } = await supabase
-    .from("student_block_sets")
-    .select("*", { count: "exact", head: true })
-    .eq("student_id", user.id);
-
-  if ((count ?? 0) >= MAX_BLOCK_SETS) {
+  const count = await getBlockSetCount(user.userId);
+  if (count >= MAX_BLOCK_SETS) {
     throw new AppError(
       `블록 세트는 최대 ${MAX_BLOCK_SETS}개까지 생성할 수 있습니다.`,
       ErrorCode.VALIDATION_ERROR,
@@ -333,62 +262,59 @@ async function _duplicateBlockSet(formData: FormData): Promise<void> {
   }
 
   // 중복 이름 확인
-  const { data: existingSet } = await supabase
-    .from("student_block_sets")
-    .select("id")
-    .eq("student_id", user.id)
-    .eq("name", newName.trim())
-    .single();
-
-  if (existingSet) {
+  const allSets = await fetchBlockSetsWithBlocks(user.userId);
+  if (allSets.some((set) => set.name === newName.trim())) {
     throw new AppError("이미 같은 이름의 세트가 있습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
   }
 
   // 원본 세트의 블록들 조회
-  const { data: sourceBlocks } = await supabase
-    .from("student_block_schedule")
-    .select("day_of_week, start_time, end_time")
-    .eq("block_set_id", sourceSetId)
-    .eq("student_id", user.id)
-    .order("day_of_week")
-    .order("start_time");
+  const { getBlocksBySetId } = await import("@/lib/data/blockSets");
+  const sourceBlocks = await getBlocksBySetId(sourceSetId, user.userId);
 
   // 새 세트 생성
-  const { data: newSet, error: insertError } = await supabase
-    .from("student_block_sets")
-    .insert({
-      tenant_id: sourceSet.tenant_id,
-      student_id: user.id,
-      name: newName.trim(),
-      description: sourceSet.description,
-      display_order: (sourceSet.display_order ?? 0) + 1,
-    })
-    .select()
-    .single();
+  const createResult = await createBlockSet({
+    tenant_id: sourceSet.tenant_id,
+    student_id: user.userId,
+    name: newName.trim(),
+    description: sourceSet.description,
+    display_order: (sourceSet.display_order ?? 0) + 1,
+  });
 
-  if (insertError || !newSet) {
-    throw insertError || new AppError("세트 생성에 실패했습니다.", ErrorCode.INTERNAL_ERROR, 500, true);
+  if (!createResult.success || !createResult.blockSetId) {
+    throw new AppError(
+      createResult.error || "세트 생성에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
   }
 
   // 블록들 복제
   if (sourceBlocks && sourceBlocks.length > 0) {
-    const blocksToInsert = sourceBlocks.map((block) => ({
-      tenant_id: sourceSet.tenant_id,
-      student_id: user.id,
-      block_set_id: newSet.id,
-      day_of_week: block.day_of_week,
-      start_time: block.start_time,
-      end_time: block.end_time,
-    }));
+    const { createBlock } = await import("@/lib/data/blockSets");
+    const createPromises = sourceBlocks.map((block) =>
+      createBlock({
+        tenant_id: sourceSet.tenant_id,
+        student_id: user.userId,
+        block_set_id: createResult.blockSetId!,
+        day_of_week: block.day_of_week,
+        start_time: block.start_time,
+        end_time: block.end_time,
+      })
+    );
 
-    const { error: blocksError } = await supabase
-      .from("student_block_schedule")
-      .insert(blocksToInsert);
+    const results = await Promise.all(createPromises);
+    const failedResults = results.filter((r) => !r.success);
 
-    if (blocksError) {
+    if (failedResults.length > 0) {
       // 롤백: 새 세트 삭제
-      await supabase.from("student_block_sets").delete().eq("id", newSet.id);
-      throw blocksError;
+      await deleteBlockSet(createResult.blockSetId, user.userId);
+      throw new AppError(
+        `블록 복제 중 오류가 발생했습니다: ${failedResults[0].error}`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
     }
   }
 
@@ -396,17 +322,13 @@ async function _duplicateBlockSet(formData: FormData): Promise<void> {
 }
 
 async function _getBlockSets(): Promise<Array<{ id: string; name: string; blocks?: Array<{ id: string; day_of_week: number; start_time: string; end_time: string }> }>> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
   // 공통 함수 사용
-  return await fetchBlockSetsWithBlocks(user.id);
+  return await fetchBlockSetsWithBlocks(user.userId);
 }
 
 // 에러 핸들링 래퍼 적용
