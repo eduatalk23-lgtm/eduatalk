@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, memo } from "react";
-import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
-import { BookDetail } from "@/lib/types/plan";
-import { useToast } from "@/components/ui/ToastProvider";
-import { useBookMetadata } from "@/lib/hooks/useBookMetadata";
+import { memo } from "react";
+import { useBookSelectorLogic } from "./book-selector/useBookSelectorLogic";
+import { BookSearchPanel } from "./book-selector/BookSearchPanel";
+import { BookCreateForm } from "./book-selector/BookCreateForm";
+import { BookSelectedView } from "./book-selector/BookSelectedView";
 import type { BookItem, BookCreateAction } from "@/lib/types/bookSelector";
 
 type BaseBookSelectorProps = {
@@ -28,16 +28,20 @@ function BaseBookSelectorComponent({
   className = "",
   bookTypeLabel = "교재",
 }: BaseBookSelectorProps) {
-  const { showError, showSuccess } = useToast();
-  const [isSearching, setIsSearching] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [bookDetails, setBookDetails] = useState<Omit<BookDetail, "id" | "created_at">[]>([]);
-  const formRef = useRef<HTMLDivElement>(null);
-
-  // 메타데이터 로딩 및 관리
   const {
+    // 상태
+    isSearching,
+    setIsSearching,
+    isCreating,
+    setIsCreating,
+    isSubmitting,
+    searchQuery,
+    setSearchQuery,
+    bookDetails,
+    setBookDetails,
+    formRef,
+
+    // 메타데이터
     revisions,
     subjectGroups,
     subjects,
@@ -50,379 +54,73 @@ function BaseBookSelectorComponent({
     setSelectedSubjectGroupId,
     setSelectedSubjectId,
     setSelectedPublisherId,
-    populateFormDataWithMetadata,
-  } = useBookMetadata();
 
-  // 검색된 교재 목록 (메모이제이션)
-  const filteredBooks = useMemo(
-    () => books.filter((book) =>
-      book.title.toLowerCase().includes(searchQuery.toLowerCase())
-    ),
-    [books, searchQuery]
-  );
+    // 계산된 값
+    filteredBooks,
+    selectedBook,
 
-  // 현재 선택된 교재 정보
-  const selectedBook = useMemo(
-    () => books.find((book) => book.id === value),
-    [books, value]
-  );
-
-  const handleSelectBook = useCallback(
-    (bookId: string) => {
-      onChange(bookId);
-      setIsSearching(false);
-      setSearchQuery("");
-    },
-    [onChange]
-  );
-
-  const handleUnselectBook = useCallback(() => {
-    onChange(null);
-  }, [onChange]);
-
-  const handleCreateAndSelect = useCallback(async () => {
-    setIsSubmitting(true);
-
-    try {
-      // form 대신 div를 사용하므로, formRef를 통해 FormData 생성
-      if (!formRef.current) {
-        throw new Error("폼을 찾을 수 없습니다.");
-      }
-
-      // 필수 필드 검증
-      const titleInput = formRef.current.querySelector('input[name="title"]') as HTMLInputElement;
-      if (!titleInput || !titleInput.value.trim()) {
-        showError(`${bookTypeLabel}명은 필수입니다.`);
-        setIsSubmitting(false);
-        return;
-      }
-
-      // div 내부의 모든 input, select, textarea 요소를 찾아서 FormData 생성
-      const formData = new FormData();
-      const inputs = formRef.current.querySelectorAll("input, select, textarea");
-      inputs.forEach((input) => {
-        const element = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        if (element.name) {
-          if (element.type === "checkbox" || element.type === "radio") {
-            const checkbox = element as HTMLInputElement;
-            if (checkbox.checked) {
-              formData.append(element.name, element.value);
-            }
-          } else {
-            formData.append(element.name, element.value);
-          }
-        }
-      });
-
-      // 메타데이터 추가 (드롭다운에서 선택한 값들을 이름으로 변환)
-      populateFormDataWithMetadata(formData);
-
-      // 목차 정보 추가
-      if (bookDetails.length > 0) {
-        const detailsWithOrder = bookDetails.map((detail, index) => ({
-          major_unit: detail.major_unit || null,
-          minor_unit: detail.minor_unit || null,
-          page_number: detail.page_number || 0,
-          display_order: detail.display_order || index,
-        }));
-        formData.append("details", JSON.stringify(detailsWithOrder));
-      }
-
-      const result = await createBookAction(formData);
-
-      if (result.success && result.bookId) {
-        showSuccess(`${bookTypeLabel}가 성공적으로 등록되었습니다.`);
-        
-        // 상태 초기화
-        setBookDetails([]);
-        setSelectedRevisionId("");
-        setSelectedSubjectGroupId("");
-        setSelectedSubjectId("");
-        setSelectedPublisherId("");
-        
-        // onCreateBook을 먼저 await하여 목록 새로고침 후 선택
-        if (onCreateBook) {
-          await onCreateBook(result.bookId);
-        } else {
-          // onCreateBook이 없으면 직접 onChange 호출
-          onChange(result.bookId);
-        }
-
-        setIsSubmitting(false);
-        setIsCreating(false);
-      } else {
-        const errorMessage = result.success === false ? result.error : `${bookTypeLabel} 생성에 실패했습니다.`;
-        throw new Error(errorMessage);
-      }
-    } catch (error) {
-      console.error(`${bookTypeLabel} 생성 실패:`, error);
-      showError(error instanceof Error ? error.message : `${bookTypeLabel} 생성에 실패했습니다.`);
-      setIsSubmitting(false);
-    }
-  }, [
-    bookTypeLabel,
-    createBookAction,
-    bookDetails,
+    // 핸들러
+    handleSelectBook,
+    handleUnselectBook,
+    handleCreateAndSelect,
+  } = useBookSelectorLogic({
+    value,
     onChange,
+    books,
+    createBookAction,
     onCreateBook,
-    populateFormDataWithMetadata,
-    setSelectedRevisionId,
-    setSelectedSubjectGroupId,
-    setSelectedSubjectId,
-    setSelectedPublisherId,
-    showError,
-    showSuccess,
-  ]);
+    bookTypeLabel,
+  });
 
+  // 생성 모드
   if (isCreating) {
     return (
       <div className={`flex flex-col gap-4 ${className}`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-h2 font-semibold text-[var(--text-primary)]">{bookTypeLabel} 등록</h3>
-          <button
-            type="button"
-            onClick={() => setIsCreating(false)}
-            className="rounded-lg border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
-          >
-            취소
-          </button>
-        </div>
-        <div ref={formRef} className="flex flex-col gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                {bookTypeLabel}명 <span className="text-red-500">*</span>
-              </label>
-              <input
-                name="title"
-                required
-                placeholder={`${bookTypeLabel}명을 입력하세요`}
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                개정교육과정
-              </label>
-              <select
-                value={selectedRevisionId}
-                onChange={(e) => {
-                  setSelectedRevisionId(e.target.value);
-                  setSelectedSubjectGroupId("");
-                  setSelectedSubjectId("");
-                }}
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="">선택하세요</option>
-                {revisions.map((rev) => (
-                  <option key={rev.id} value={rev.id}>
-                    {rev.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                학년/학기
-              </label>
-              <input
-                name="semester"
-                placeholder="예: 고1-1"
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                교과
-              </label>
-              <select
-                value={selectedSubjectGroupId}
-                onChange={(e) => {
-                  setSelectedSubjectGroupId(e.target.value);
-                  setSelectedSubjectId("");
-                }}
-                disabled={!selectedRevisionId}
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-[rgb(var(--color-secondary-100))] dark:disabled:bg-[rgb(var(--color-secondary-600))] disabled:cursor-not-allowed"
-              >
-                <option value="">
-                  {selectedRevisionId ? "선택하세요" : "개정교육과정을 먼저 선택하세요"}
-                </option>
-                {subjectGroups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                과목
-              </label>
-              <select
-                value={selectedSubjectId}
-                onChange={(e) => setSelectedSubjectId(e.target.value)}
-                disabled={!selectedSubjectGroupId}
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:bg-[rgb(var(--color-secondary-100))] dark:disabled:bg-[rgb(var(--color-secondary-600))] disabled:cursor-not-allowed"
-              >
-                <option value="">
-                  {selectedSubjectGroupId ? "선택하세요" : "교과를 먼저 선택하세요"}
-                </option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                출판사
-              </label>
-              <select
-                value={selectedPublisherId}
-                onChange={(e) => setSelectedPublisherId(e.target.value)}
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="">선택하세요</option>
-                {publishers.map((publisher) => (
-                  <option key={publisher.id} value={publisher.id}>
-                    {publisher.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                총 페이지
-              </label>
-              <input
-                name="total_pages"
-                type="number"
-                min="1"
-                placeholder="예: 255"
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                난이도
-              </label>
-              <select
-                name="difficulty_level"
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="">선택하세요</option>
-                <option value="하">하</option>
-                <option value="중">중</option>
-                <option value="중상">중상</option>
-                <option value="상">상</option>
-                <option value="최상">최상</option>
-              </select>
-            </div>
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <label className="block text-body-2 font-medium text-[var(--text-secondary)] dark:text-[var(--text-secondary)]">
-                메모
-              </label>
-              <textarea
-                name="notes"
-                rows={3}
-                placeholder="메모를 입력하세요"
-                className="w-full rounded-md border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-3 py-2 text-body-2 text-[var(--text-primary)] dark:text-[var(--text-primary)] focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-          </div>
-
-          {/* 교재 상세 정보 (목차) */}
-          <div className="flex flex-col gap-3 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] pt-4">
-            <h4 className="text-body-2 font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">{bookTypeLabel} 목차 (선택사항)</h4>
-            <BookDetailsManager
-              initialDetails={[]}
-              onChange={(details) => {
-                setBookDetails(details);
-              }}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setIsCreating(false)}
-              className="rounded-lg border border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-semibold text-[var(--text-secondary)] dark:text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleCreateAndSelect}
-              disabled={isSubmitting}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "등록 중..." : "등록 및 선택"}
-            </button>
-          </div>
-        </div>
+        <BookCreateForm
+          bookTypeLabel={bookTypeLabel}
+          formRef={formRef}
+          revisions={revisions}
+          subjectGroups={subjectGroups}
+          subjects={subjects}
+          publishers={publishers}
+          selectedRevisionId={selectedRevisionId}
+          selectedSubjectGroupId={selectedSubjectGroupId}
+          selectedSubjectId={selectedSubjectId}
+          selectedPublisherId={selectedPublisherId}
+          onRevisionChange={setSelectedRevisionId}
+          onSubjectGroupChange={setSelectedSubjectGroupId}
+          onSubjectChange={setSelectedSubjectId}
+          onPublisherChange={setSelectedPublisherId}
+          bookDetails={bookDetails}
+          onBookDetailsChange={setBookDetails}
+          onSubmit={handleCreateAndSelect}
+          onCancel={() => setIsCreating(false)}
+          isSubmitting={isSubmitting}
+        />
       </div>
     );
   }
 
+  // 검색 모드
   if (isSearching) {
     return (
       <div className={`flex flex-col gap-4 ${className}`}>
-        <div className="flex items-center justify-between">
-          <h3 className="text-h2 font-semibold text-[var(--text-primary)] dark:text-[var(--text-primary)]">{bookTypeLabel} 검색 및 선택</h3>
-          <button
-            type="button"
-            onClick={() => {
-              setIsSearching(false);
-              setSearchQuery("");
-            }}
-            className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-body-2 font-semibold text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            취소
-          </button>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`${bookTypeLabel}명으로 검색...`}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-body-2 text-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-          {filteredBooks.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {filteredBooks.map((book) => (
-                <div
-                  key={book.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
-                >
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)] dark:text-[var(--text-primary)]">{book.title}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectBook(book.id)}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-body-2 font-semibold text-white transition hover:bg-indigo-700"
-                  >
-                    선택하기
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-700))] bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))] p-8 text-center">
-              <p className="text-body-2 text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)]">
-                {searchQuery ? "검색 결과가 없습니다." : `등록된 ${bookTypeLabel}가 없습니다.`}
-              </p>
-            </div>
-          )}
-        </div>
+        <BookSearchPanel
+          bookTypeLabel={bookTypeLabel}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filteredBooks={filteredBooks}
+          onSelectBook={handleSelectBook}
+          onCancel={() => {
+            setIsSearching(false);
+            setSearchQuery("");
+          }}
+        />
       </div>
     );
   }
 
+  // 기본 뷰 (선택된 교재 표시 또는 선택 안내)
   return (
     <div className={`flex flex-col gap-4 ${className}`}>
       <div className="flex items-center justify-between">
@@ -452,21 +150,12 @@ function BaseBookSelectorComponent({
       </div>
 
       {selectedBook ? (
-        <div className="rounded-lg border border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))] bg-white dark:bg-secondary-900 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-[var(--text-primary)] dark:text-[var(--text-primary)]">{selectedBook.title}</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleUnselectBook}
-              disabled={disabled}
-              className="rounded-lg border border-error-300 dark:border-error-700 bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-semibold text-error-700 dark:text-error-400 transition-base hover:bg-error-50 dark:hover:bg-error-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              해제
-            </button>
-          </div>
-        </div>
+        <BookSelectedView
+          selectedBook={selectedBook}
+          bookTypeLabel={bookTypeLabel}
+          onUnselect={handleUnselectBook}
+          disabled={disabled}
+        />
       ) : (
         <div className="flex flex-col gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-8 text-center">
           <p className="text-body-2 text-gray-500 dark:text-gray-400">
@@ -500,4 +189,3 @@ function BaseBookSelectorComponent({
 
 // React.memo로 메모이제이션하여 불필요한 리렌더링 방지
 export const BaseBookSelector = memo(BaseBookSelectorComponent);
-
