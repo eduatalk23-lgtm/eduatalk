@@ -1,15 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-  createSubjectCategoryAction,
-  updateSubjectCategoryAction,
-  deleteSubjectCategoryAction,
   getCurriculumRevisionsAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
-import { getSubjectGroupsAction } from "@/app/(admin)/actions/subjectActions";
+import {
+  getSubjectGroupsAction,
+  createSubjectGroup,
+  updateSubjectGroup,
+  deleteSubjectGroup,
+} from "@/app/(admin)/actions/subjectActions";
 import { useToast } from "@/components/ui/ToastProvider";
-import type { SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
+import type { CurriculumRevision } from "@/lib/data/contentMetadata";
+import type { SubjectGroup } from "@/lib/data/subjects";
 import { cn } from "@/lib/cn";
 import {
   textPrimary,
@@ -27,8 +31,9 @@ import {
 } from "@/lib/utils/darkMode";
 
 export function SubjectCategoriesManager() {
+  const router = useRouter();
   const toast = useToast();
-  const [items, setItems] = useState<SubjectCategory[]>([]);
+  const [items, setItems] = useState<SubjectGroup[]>([]);
   const [revisions, setRevisions] = useState<CurriculumRevision[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -64,17 +69,9 @@ export function SubjectCategoriesManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      // getSubjectGroupsAction 사용 (deprecated getSubjectCategoriesAction 대체)
       const revisionId = selectedRevisionId || undefined;
       const data = await getSubjectGroupsAction(revisionId);
-      // SubjectGroup을 SubjectCategory 형태로 변환
-      const categories = data.map((group) => ({
-        id: group.id,
-        name: group.name,
-        display_order: group.display_order ?? 0,
-        is_active: true,
-      }));
-      setItems(categories);
+      setItems(data);
     } catch (error) {
       console.error("교과 조회 실패:", error);
       toast.showError("교과를 불러오는데 실패했습니다.");
@@ -94,11 +91,18 @@ export function SubjectCategoriesManager() {
     }
 
     try {
-      await createSubjectCategoryAction(selectedRevisionId, formData.name, formData.display_order);
+      const formDataToSend = new FormData();
+      formDataToSend.append("curriculum_revision_id", selectedRevisionId);
+      formDataToSend.append("name", formData.name.trim());
+      if (formData.display_order > 0) {
+        formDataToSend.append("display_order", formData.display_order.toString());
+      }
+      
+      await createSubjectGroup(formDataToSend);
       setFormData({ name: "", display_order: 0 });
       setIsCreating(false);
       toast.showSuccess("교과가 생성되었습니다.");
-      loadItems();
+      router.refresh();
     } catch (error) {
       console.error("교과 생성 실패:", error);
       toast.showError(error instanceof Error ? error.message : "생성에 실패했습니다.");
@@ -110,16 +114,24 @@ export function SubjectCategoriesManager() {
       toast.showError("이름을 입력해주세요.");
       return;
     }
+    if (!selectedRevisionId) {
+      toast.showError("개정교육과정을 선택해주세요.");
+      return;
+    }
 
     try {
-      await updateSubjectCategoryAction(id, {
-        name: formData.name,
-        display_order: formData.display_order,
-      });
+      const formDataToSend = new FormData();
+      formDataToSend.append("curriculum_revision_id", selectedRevisionId);
+      formDataToSend.append("name", formData.name.trim());
+      if (formData.display_order > 0) {
+        formDataToSend.append("display_order", formData.display_order.toString());
+      }
+      
+      await updateSubjectGroup(id, formDataToSend);
       setEditingId(null);
       setFormData({ name: "", display_order: 0 });
       toast.showSuccess("교과가 수정되었습니다.");
-      loadItems();
+      router.refresh();
     } catch (error) {
       console.error("교과 수정 실패:", error);
       toast.showError(error instanceof Error ? error.message : "수정에 실패했습니다.");
@@ -130,20 +142,22 @@ export function SubjectCategoriesManager() {
     if (!confirm("정말 삭제하시겠습니까?")) return;
 
     try {
-      await deleteSubjectCategoryAction(id);
+      await deleteSubjectGroup(id);
       toast.showSuccess("교과가 삭제되었습니다.");
-      loadItems();
+      router.refresh();
     } catch (error) {
       console.error("교과 삭제 실패:", error);
       toast.showError(error instanceof Error ? error.message : "삭제에 실패했습니다.");
     }
   }
 
-  function startEdit(item: SubjectCategory) {
+  function startEdit(item: SubjectGroup) {
     setEditingId(item.id);
     setFormData({ name: item.name, display_order: item.display_order ?? 0 });
-    // revision_id는 SubjectCategory에 없으므로 현재 선택된 revision 사용
-    // setSelectedRevisionId(item.revision_id);
+    // curriculum_revision_id는 SubjectGroup에 있지만, 현재 선택된 revision 사용
+    if (item.curriculum_revision_id && !selectedRevisionId) {
+      setSelectedRevisionId(item.curriculum_revision_id);
+    }
     setIsCreating(false);
   }
 
@@ -331,21 +345,14 @@ export function SubjectCategoriesManager() {
                       />
                     </td>
                     <td className={cn(tableCellBase, "px-6")}>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={item.is_active}
-                          onChange={(e) =>
-                            updateSubjectCategoryAction(item.id, { is_active: e.target.checked }).then(
-                              () => loadItems()
-                            )
-                          }
-                          className={cn("rounded", borderInput)}
-                        />
-                        <span className={cn("text-sm", textSecondary)}>
-                          {item.is_active ? "활성" : "비활성"}
-                        </span>
-                      </label>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2 py-1 text-xs font-medium",
+                          statusBadgeColors.active
+                        )}
+                      >
+                        활성
+                      </span>
                     </td>
                     <td className={cn(tableCellBase, "px-6 text-right")}>
                       <div className="flex justify-end gap-2">
@@ -367,18 +374,18 @@ export function SubjectCategoriesManager() {
                 ) : (
                   <tr key={item.id}>
                     <td className={cn(tableCellBase, "px-6 text-sm", textSecondary)}>
-                      -
+                      {revisions.find((r) => r.id === item.curriculum_revision_id)?.name || "-"}
                     </td>
                     <td className={cn(tableCellBase, "px-6 text-sm font-medium", textPrimary)}>{item.name}</td>
-                    <td className={cn(tableCellBase, "px-6 text-sm", textTertiary)}>{item.display_order}</td>
+                    <td className={cn(tableCellBase, "px-6 text-sm", textTertiary)}>{item.display_order ?? 0}</td>
                     <td className={cn(tableCellBase, "px-6")}>
                       <span
                         className={cn(
                           "inline-flex rounded-full px-2 py-1 text-xs font-medium",
-                          item.is_active ? statusBadgeColors.active : statusBadgeColors.inactive
+                          statusBadgeColors.active
                         )}
                       >
-                        {item.is_active ? "활성" : "비활성"}
+                        활성
                       </span>
                     </td>
                     <td className={cn(tableCellBase, "px-6 text-right")}>

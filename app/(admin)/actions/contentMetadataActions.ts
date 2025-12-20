@@ -73,19 +73,41 @@ export const deleteCurriculumRevisionAction = withErrorHandling(async (id: strin
   return await deleteCurriculumRevision(id);
 });
 
-// getSubjectCategoriesAction은 제거되었습니다.
-// getSubjectGroupsAction (from subjectActions.ts)을 사용하세요.
+// ============================================
+// DEPRECATED: SubjectCategory 관련 액션
+// ============================================
+// 
+// 다음 액션들은 deprecated되었습니다.
+// 대신 @app/(admin)/actions/subjectActions.ts의 다음 액션들을 사용하세요:
+// - getSubjectGroupsAction (getSubjectCategoriesAction 대체)
+// - createSubjectGroup (createSubjectCategoryAction 대체)
+// - updateSubjectGroup (updateSubjectCategoryAction 대체)
+// - deleteSubjectGroup (deleteSubjectCategoryAction 대체)
+//
+// @deprecated Use getSubjectGroupsAction from @app/(admin)/actions/subjectActions.ts
+// @deprecated Use createSubjectGroup from @app/(admin)/actions/subjectActions.ts
+// @deprecated Use updateSubjectGroup from @app/(admin)/actions/subjectActions.ts
+// @deprecated Use deleteSubjectGroup from @app/(admin)/actions/subjectActions.ts
 
+/**
+ * @deprecated Use createSubjectGroup from @app/(admin)/actions/subjectActions.ts
+ */
 export const createSubjectCategoryAction = withErrorHandling(
   async (revision_id: string, name: string, display_order: number) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
+    console.warn(
+      "[DEPRECATED] createSubjectCategoryAction is deprecated. Use createSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
+    );
     return await createSubjectCategory(revision_id, name, display_order);
   }
 );
 
+/**
+ * @deprecated Use updateSubjectGroup from @app/(admin)/actions/subjectActions.ts
+ */
 export const updateSubjectCategoryAction = withErrorHandling(
   async (
     id: string,
@@ -95,46 +117,85 @@ export const updateSubjectCategoryAction = withErrorHandling(
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
+    console.warn(
+      "[DEPRECATED] updateSubjectCategoryAction is deprecated. Use updateSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
+    );
     return await updateSubjectCategory(id, updates);
   }
 );
 
+/**
+ * @deprecated Use deleteSubjectGroup from @app/(admin)/actions/subjectActions.ts
+ */
 export const deleteSubjectCategoryAction = withErrorHandling(async (id: string) => {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
+  console.warn(
+    "[DEPRECATED] deleteSubjectCategoryAction is deprecated. Use deleteSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
+  );
   return await deleteSubjectCategory(id);
 });
 
-// getSubjectsAction은 제거되었습니다.
-// getSubjectsByGroupAction (from subjectActions.ts)을 사용하세요.
+// ============================================
+// DEPRECATED: Subject 관련 액션 (subject_category_id 사용)
+// ============================================
+// 
+// 다음 액션들은 deprecated되었습니다.
+// 대신 @app/(admin)/actions/subjectActions.ts의 다음 액션들을 사용하세요:
+// - getSubjectsByGroupAction (getSubjectsAction 대체)
+// - createSubject (subject_group_id 사용)
+// - updateSubject (subject_group_id 사용)
+// - deleteSubject
+//
+// @deprecated Use getSubjectsByGroupAction from @app/(admin)/actions/subjectActions.ts
+// @deprecated Use createSubject from @app/(admin)/actions/subjectActions.ts (subject_group_id 사용)
+// @deprecated Use updateSubject from @app/(admin)/actions/subjectActions.ts (subject_group_id 사용)
 
+/**
+ * @deprecated Use createSubject from @app/(admin)/actions/subjectActions.ts (subject_group_id 사용)
+ */
 export const createSubjectAction = withErrorHandling(
   async (subject_category_id: string, name: string, display_order: number) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
+    console.warn(
+      "[DEPRECATED] createSubjectAction with subject_category_id is deprecated. Use createSubject from @app/(admin)/actions/subjectActions.ts with subject_group_id instead."
+    );
     return await createSubject(subject_category_id, name, display_order);
   }
 );
 
+/**
+ * @deprecated Use updateSubject from @app/(admin)/actions/subjectActions.ts
+ */
 export const updateSubjectAction = withErrorHandling(
   async (id: string, updates: Partial<{ name: string; display_order: number; is_active: boolean }>) => {
     const user = await getCurrentUser();
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
+    console.warn(
+      "[DEPRECATED] updateSubjectAction is deprecated. Use updateSubject from @app/(admin)/actions/subjectActions.ts instead."
+    );
     return await updateSubject(id, updates);
   }
 );
 
+/**
+ * @deprecated Use deleteSubject from @app/(admin)/actions/subjectActions.ts
+ */
 export const deleteSubjectAction = withErrorHandling(async (id: string) => {
   const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
+  console.warn(
+    "[DEPRECATED] deleteSubjectAction is deprecated. Use deleteSubject from @app/(admin)/actions/subjectActions.ts instead."
+  );
   return await deleteSubject(id);
 });
 

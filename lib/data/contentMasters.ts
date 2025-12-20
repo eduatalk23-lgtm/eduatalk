@@ -413,11 +413,12 @@ export async function getMasterBookById(bookId: string): Promise<{
     ...bookData,
     // revision: curriculum_revisions.name 우선, 없으면 denormalized revision 값 사용
     revision: curriculumRevision?.name || bookData.revision || null,
-    // subject_category: denormalized 값 우선, 없으면 JOIN 결과 사용
-    // 성능 향상을 위해 denormalized 컬럼을 우선 사용하고 JOIN은 fallback으로만 활용
-    subject_category: bookData.subject_category || subjectGroup?.name || null,
-    // subject: denormalized 값 우선, 없으면 JOIN 결과 사용
-    subject: bookData.subject || subject?.name || null,
+    // subject_category: JOIN 결과 우선, 없으면 denormalized 값 사용 (하위 호환성)
+    // @note 마이그레이션 중: subject_groups.name (JOIN)을 우선 사용하여 정규화된 데이터 소스 활용
+    // 향후 완전한 마이그레이션 후에는 subject_group_id와 JOIN만 사용 예정
+    subject_category: subjectGroup?.name || bookData.subject_category || null,
+    // subject: JOIN 결과 우선, 없으면 denormalized 값 사용 (하위 호환성)
+    subject: subject?.name || bookData.subject || null,
     // publisher: denormalized 값(publisher_name) 우선, 없으면 JOIN 결과 사용
     publisher: bookData.publisher_name || publisher?.name || null,
     // difficulty_level: difficulty_levels.name 우선, 없으면 denormalized difficulty_level 값 사용
