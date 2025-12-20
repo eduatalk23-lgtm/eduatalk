@@ -64,66 +64,6 @@ export type ContentMasterFilters = {
 };
 
 // ============================================
-// 공통 헬퍼 함수
-// ============================================
-
-/**
- * 난이도 정보를 배치로 조회하여 매핑
- * 목록 조회 시 difficulty_level_id를 사용하여 difficulty_levels.name을 조회하고
- * difficulty_level 필드에 매핑합니다.
- */
-async function enrichDifficultyLevels<
-  T extends {
-    difficulty_level_id?: string | null;
-    difficulty_level?: string | null;
-  }
->(supabase: SupabaseClient, items: T[]): Promise<T[]> {
-  // difficulty_level_id가 있는 항목들만 수집
-  const difficultyLevelIds = new Set<string>();
-  items.forEach((item) => {
-    if (item.difficulty_level_id) {
-      difficultyLevelIds.add(item.difficulty_level_id);
-    }
-  });
-
-  if (difficultyLevelIds.size === 0) {
-    return items; // 난이도 ID가 없으면 그대로 반환
-  }
-
-  // 배치로 difficulty_levels 조회
-  const { data: difficultyLevels, error } = await supabase
-    .from("difficulty_levels")
-    .select("id, name")
-    .in("id", Array.from(difficultyLevelIds));
-
-  if (error) {
-    console.error("[contentMasters] 난이도 조회 실패:", error);
-    return items; // 에러 시 원본 반환
-  }
-
-  // ID → name 매핑 생성
-  const difficultyMap = new Map<string, string>();
-  (difficultyLevels || []).forEach((level) => {
-    difficultyMap.set(level.id, level.name);
-  });
-
-  // 각 항목의 difficulty_level 업데이트
-  return items.map((item) => {
-    if (
-      item.difficulty_level_id &&
-      difficultyMap.has(item.difficulty_level_id)
-    ) {
-      return {
-        ...item,
-        difficulty_level:
-          difficultyMap.get(item.difficulty_level_id) || item.difficulty_level,
-      };
-    }
-    return item;
-  });
-}
-
-// ============================================
 // 교재 관련 함수
 // ============================================
 
@@ -138,15 +78,23 @@ export async function searchMasterBooks(
 ): Promise<{ data: MasterBook[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  // 공통 쿼리 빌더 사용
-  const result = await buildContentQuery<MasterBook>(
+  // 공통 쿼리 빌더 사용 (JOIN 포함)
+  const result = await buildContentQuery<MasterBook & { difficulty_levels?: Array<{ id: string; name: string }> | null }>(
     queryClient,
     "master_books",
     filters
   );
 
-  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
-  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+  // JOIN된 difficulty_levels 데이터를 difficulty_level 필드에 매핑
+  const enrichedData = result.data.map((item) => {
+    const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+      item.difficulty_levels
+    );
+    return {
+      ...item,
+      difficulty_level: difficultyLevel?.name || item.difficulty_level || null,
+    } as MasterBook;
+  });
 
   // 로그: 서비스 마스터 교재 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
@@ -453,15 +401,23 @@ export async function searchMasterLectures(
 ): Promise<{ data: MasterLecture[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  // 공통 쿼리 빌더 사용
-  const result = await buildContentQuery<MasterLecture>(
+  // 공통 쿼리 빌더 사용 (JOIN 포함)
+  const result = await buildContentQuery<MasterLecture & { difficulty_levels?: Array<{ id: string; name: string }> | null }>(
     queryClient,
     "master_lectures",
     filters
   );
 
-  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
-  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+  // JOIN된 difficulty_levels 데이터를 difficulty_level 필드에 매핑
+  const enrichedData = result.data.map((item) => {
+    const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+      item.difficulty_levels
+    );
+    return {
+      ...item,
+      difficulty_level: difficultyLevel?.name || item.difficulty_level || null,
+    } as MasterLecture;
+  });
 
   // 로그: 서비스 마스터 강의 조회 결과 (기존 로그 형식 유지)
   console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
@@ -910,15 +866,23 @@ export async function searchMasterCustomContents(
 ): Promise<{ data: MasterCustomContent[]; total: number }> {
   const queryClient = supabase || (await createSupabaseServerClient());
 
-  // 공통 쿼리 빌더 사용
-  const result = await buildContentQuery<MasterCustomContent>(
+  // 공통 쿼리 빌더 사용 (JOIN 포함)
+  const result = await buildContentQuery<MasterCustomContent & { difficulty_levels?: Array<{ id: string; name: string }> | null }>(
     queryClient,
     "master_custom_contents",
     filters
   );
 
-  // 난이도 정보 후처리 (difficulty_level_id → difficulty_levels.name 매핑)
-  const enrichedData = await enrichDifficultyLevels(queryClient, result.data);
+  // JOIN된 difficulty_levels 데이터를 difficulty_level 필드에 매핑
+  const enrichedData = result.data.map((item) => {
+    const difficultyLevel = extractJoinedData<{ id: string; name: string }>(
+      item.difficulty_levels
+    );
+    return {
+      ...item,
+      difficulty_level: difficultyLevel?.name || item.difficulty_level || null,
+    } as MasterCustomContent;
+  });
 
   return {
     data: enrichedData,

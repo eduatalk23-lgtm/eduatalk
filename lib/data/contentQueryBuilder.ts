@@ -45,8 +45,12 @@ export async function buildContentQuery<T>(
   tableName: ContentTableName,
   filters: BaseContentFilters | MasterBookFilters | MasterLectureFilters | MasterCustomContentFilters
 ): Promise<ContentSearchResult<T>> {
-  // 기본 쿼리 생성 (count 포함)
-  let query = supabase.from(tableName).select("*", { count: "exact" });
+  // JOIN을 포함한 select 문자열 생성 (difficulty_levels JOIN)
+  // difficulty_level_id가 있는 경우에만 JOIN 수행
+  const selectString = `*, difficulty_levels:difficulty_level_id(id, name)`;
+  
+  // 기본 쿼리 생성 (count 포함, JOIN 포함)
+  let query = supabase.from(tableName).select(selectString, { count: "exact" });
 
   // 필터 적용
   query = applyContentFilters(query, filters, tableName);
