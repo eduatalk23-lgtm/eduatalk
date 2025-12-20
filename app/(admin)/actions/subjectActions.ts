@@ -1,8 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSubjectGroups, getSubjectsByGroup, getSubjectsByRevision, getSubjectTypes, getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
@@ -11,11 +10,7 @@ import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 export async function getSubjectGroupsAction(
   curriculumRevisionId?: string
 ): Promise<SubjectGroup[]> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
-
+  await requireAdminOrConsultant();
   return getSubjectGroups(curriculumRevisionId);
 }
 
@@ -23,11 +18,7 @@ export async function getSubjectGroupsAction(
 export async function getSubjectGroupsWithSubjectsAction(
   curriculumRevisionId?: string
 ): Promise<(SubjectGroup & { subjects: Subject[] })[]> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
-
+  await requireAdminOrConsultant();
   return getSubjectGroupsWithSubjects(curriculumRevisionId);
 }
 
@@ -35,11 +26,7 @@ export async function getSubjectGroupsWithSubjectsAction(
 export async function getSubjectsByGroupAction(
   subjectGroupId: string
 ): Promise<Subject[]> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
-
+  await requireAdminOrConsultant();
   return getSubjectsByGroup(subjectGroupId);
 }
 
@@ -47,11 +34,7 @@ export async function getSubjectsByGroupAction(
 export async function getSubjectsByRevisionAction(
   curriculumRevisionId: string
 ): Promise<Subject[]> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
-
+  await requireAdminOrConsultant();
   return getSubjectsByRevision(curriculumRevisionId);
 }
 
@@ -59,20 +42,13 @@ export async function getSubjectsByRevisionAction(
 export async function getSubjectTypesAction(
   curriculumRevisionId?: string
 ): Promise<SubjectType[]> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
-
+  await requireAdminOrConsultant();
   return getSubjectTypes(curriculumRevisionId);
 }
 
 // 교과 그룹 생성 (전역 관리)
 export async function createSubjectGroup(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const curriculumRevisionId = String(formData.get("curriculum_revision_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -114,10 +90,7 @@ export async function updateSubjectGroup(
   id: string,
   formData: FormData
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const curriculumRevisionId = String(formData.get("curriculum_revision_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -162,10 +135,7 @@ export async function updateSubjectGroup(
 
 // 교과 그룹 삭제 (전역 관리)
 export async function deleteSubjectGroup(id: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   // 전역 관리 작업이므로 Admin 클라이언트 사용 (RLS 우회)
   const supabaseAdmin = createSupabaseAdminClient();
@@ -208,10 +178,7 @@ export async function deleteSubjectGroup(id: string): Promise<void> {
 
 // 과목 생성 (전역 관리)
 export async function createSubject(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const subjectGroupId = String(formData.get("subject_group_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -255,10 +222,7 @@ export async function updateSubject(
   id: string,
   formData: FormData
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const subjectGroupId = String(formData.get("subject_group_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -305,10 +269,7 @@ export async function updateSubject(
 
 // 과목 삭제 (전역 관리)
 export async function deleteSubject(id: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   // 전역 관리 작업이므로 Admin 클라이언트 사용 (RLS 우회)
   const supabaseAdmin = createSupabaseAdminClient();
@@ -336,10 +297,7 @@ export async function deleteSubject(id: string): Promise<void> {
 
 // 과목구분 생성 (개정교육과정별)
 export async function createSubjectType(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const curriculumRevisionId = String(formData.get("curriculum_revision_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -386,10 +344,7 @@ export async function updateSubjectType(
   id: string,
   formData: FormData
 ): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   const curriculumRevisionId = String(formData.get("curriculum_revision_id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
@@ -439,10 +394,7 @@ export async function updateSubjectType(
 
 // 과목구분 삭제 (개정교육과정별)
 export async function deleteSubjectType(id: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "admin" && user.role !== "consultant")) {
-    throw new Error("관리자 권한이 필요합니다.");
-  }
+  await requireAdminOrConsultant();
 
   // 전역 관리 작업이므로 Admin 클라이언트 사용 (RLS 우회)
   const supabaseAdmin = createSupabaseAdminClient();
