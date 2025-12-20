@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { SchoolScoreEditForm } from "./_components/SchoolScoreEditForm";
+import { getInternalScores } from "@/lib/data/studentScores";
+import type { InternalScore } from "@/lib/data/studentScores";
 
 type PageProps = {
   params: Promise<{
@@ -48,26 +51,34 @@ export default async function EditSchoolScorePage({ params }: PageProps) {
     redirect("/scores/school/1/1/국어");
   }
 
-  // 데이터 조회
-  const selectScore = () =>
-    supabase
-      .from("student_school_scores")
-      .select("*")
-      .eq("id", id);
-
-  let { data: score, error } = await selectScore().eq("student_id", user.id);
-  if (error && error.code === "42703") {
-    ({ data: score, error } = await selectScore());
+  // Tenant 정보 조회
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    redirect("/login");
   }
 
-  if (error || !score) {
+  // 신규 테이블에서 데이터 조회
+  const internalScores = await getInternalScores(user.id, tenantContext.tenantId);
+  const score = internalScores.find((s) => s.id === id);
+
+  if (!score) {
     redirect(`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}`);
   }
 
-  const scoreData = (score as SchoolScoreRow[] | null)?.[0];
-  if (!scoreData) {
-    redirect(`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}`);
-  }
+  // InternalScore를 SchoolScoreRow로 변환
+  // 과목 정보는 별도로 조회해야 하지만, 일단 기본 필드만 매핑
+  const scoreData: SchoolScoreRow = {
+    id: score.id,
+    grade: score.grade,
+    semester: score.semester,
+    subject_group: subjectGroup, // URL 파라미터에서 가져온 값 사용
+    subject_type: null, // 나중에 subject_type_id로 조회 필요
+    subject_name: null, // 나중에 subject_id로 조회 필요
+    raw_score: score.raw_score,
+    grade_score: score.rank_grade, // rank_grade -> grade_score
+    class_rank: null, // InternalScore에는 class_rank가 없음
+    test_date: null, // InternalScore에는 test_date가 없음
+  };
 
   return (
     <section className="mx-auto max-w-2xl px-4 py-10 flex flex-col gap-8">
@@ -93,6 +104,7 @@ export default async function EditSchoolScorePage({ params }: PageProps) {
           semester={semester}
           subjectGroup={subjectGroup}
           defaultValue={scoreData}
+          tenantId={tenantContext.tenantId}
         />
       </div>
     </section>

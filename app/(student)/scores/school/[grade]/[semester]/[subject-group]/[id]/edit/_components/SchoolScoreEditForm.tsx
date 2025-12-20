@@ -6,7 +6,7 @@
 
 import React, { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateSchoolScore } from "@/app/actions/scores/school";
+import { updateInternalScore } from "@/app/actions/scores-internal";
 
 type SchoolScoreRow = {
   id: string;
@@ -26,6 +26,7 @@ type SchoolScoreEditFormProps = {
   semester: string;
   subjectGroup: string;
   defaultValue: SchoolScoreRow;
+  tenantId: string;
 };
 
 export function SchoolScoreEditForm({
@@ -34,6 +35,7 @@ export function SchoolScoreEditForm({
   semester,
   subjectGroup,
   defaultValue,
+  tenantId,
 }: SchoolScoreEditFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -43,7 +45,27 @@ export function SchoolScoreEditForm({
     setError(null);
     startTransition(async () => {
       try {
-        await updateSchoolScore(id, formData);
+        // grade_score를 rank_grade로 매핑
+        const gradeScore = formData.get("grade_score");
+        if (gradeScore) {
+          formData.append("rank_grade", gradeScore.toString());
+        }
+        
+        // subject_average를 avg_score로 매핑 (없으면 null)
+        const subjectAverage = formData.get("subject_average");
+        if (subjectAverage) {
+          formData.append("avg_score", subjectAverage.toString());
+        }
+        
+        // standard_deviation을 std_dev로 매핑 (없으면 null)
+        const standardDeviation = formData.get("standard_deviation");
+        if (standardDeviation) {
+          formData.append("std_dev", standardDeviation.toString());
+        }
+        
+        // updateInternalScore는 서버 액션이므로 내부에서 tenant_id를 처리합니다
+        await updateInternalScore(id, formData);
+        router.push(`/scores/school/${grade}/${semester}/${encodeURIComponent(subjectGroup)}?success=updated`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "성적 수정에 실패했습니다.");
       }
@@ -63,6 +85,7 @@ export function SchoolScoreEditForm({
       <input type="hidden" name="grade" value={grade} />
       <input type="hidden" name="semester" value={semester} />
       <input type="hidden" name="subject_group" value={subjectGroup} />
+      <input type="hidden" name="tenant_id" value={tenantId} />
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

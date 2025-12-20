@@ -262,6 +262,47 @@ export async function deleteStudentScore(
 }
 
 /**
+ * InternalScore를 SchoolScore로 변환하는 매퍼 함수
+ * 
+ * 레거시 컴포넌트와의 호환성을 위해 사용됩니다.
+ * @param internalScore - InternalScore 타입의 성적 데이터
+ * @returns SchoolScore 타입으로 변환된 성적 데이터
+ */
+export function mapInternalScoreToSchoolScore(internalScore: InternalScore): SchoolScore {
+  return {
+    id: internalScore.id,
+    tenant_id: internalScore.tenant_id,
+    student_id: internalScore.student_id,
+    grade: internalScore.grade,
+    semester: internalScore.semester,
+    // FK 필드
+    subject_group_id: internalScore.subject_group_id,
+    subject_id: internalScore.subject_id,
+    subject_type_id: internalScore.subject_type_id,
+    // Deprecated 텍스트 필드 (null로 설정, 실제 값은 컴포넌트에서 조회)
+    subject_group: null,
+    subject_type: null,
+    subject_name: null,
+    credit_hours: internalScore.credit_hours,
+    raw_score: internalScore.raw_score,
+    subject_average: internalScore.avg_score, // avg_score -> subject_average
+    standard_deviation: internalScore.std_dev, // std_dev -> standard_deviation
+    grade_score: internalScore.rank_grade, // rank_grade -> grade_score (동일한 값)
+    total_students: internalScore.total_students,
+    rank_grade: internalScore.rank_grade,
+    class_rank: null, // InternalScore에는 class_rank가 없음
+    created_at: internalScore.created_at,
+  };
+}
+
+/**
+ * InternalScore 배열을 SchoolScore 배열로 변환하는 매퍼 함수
+ */
+export function mapInternalScoresToSchoolScores(internalScores: InternalScore[]): SchoolScore[] {
+  return internalScores.map(mapInternalScoreToSchoolScore);
+}
+
+/**
  * 내신 성적 목록 조회 (정규화 버전)
  */
 export async function getInternalScores(
@@ -311,7 +352,7 @@ export async function getInternalScores(
  *
  * ⚠️ 이 함수는 더 이상 존재하지 않는 student_school_scores 테이블을 참조합니다.
  *
- * @deprecated getInternalScores를 사용하거나, 통합 대시보드의 경우 fetchScoreDashboard API를 사용하세요.
+ * @deprecated Phase 4 이후 삭제 예정. getInternalScores를 사용하거나, 통합 대시보드의 경우 fetchScoreDashboard API를 사용하세요.
  */
 export async function getSchoolScores(
   studentId: string,
@@ -520,7 +561,8 @@ export async function createInternalScore(score: {
 
 /**
  * 내신 성적 생성 (레거시)
- * @deprecated createInternalScore를 사용하세요
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. createInternalScore를 사용하세요
  */
 export async function createSchoolScore(score: {
   tenant_id?: string | null;
@@ -742,7 +784,9 @@ export async function createMockScore(score: {
 }
 
 /**
- * 내신 성적 업데이트
+ * 내신 성적 업데이트 (레거시)
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. updateInternalScore를 사용하세요
  */
 export async function updateSchoolScore(
   scoreId: string,
@@ -847,7 +891,9 @@ export async function updateMockScore(
 }
 
 /**
- * 내신 성적 삭제
+ * 내신 성적 삭제 (레거시)
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. deleteInternalScore를 사용하세요
  */
 export async function deleteSchoolScore(
   scoreId: string,

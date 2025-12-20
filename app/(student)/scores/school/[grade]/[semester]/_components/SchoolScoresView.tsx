@@ -7,7 +7,7 @@ import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCardGrid } from "@/app/(student)/scores/_components/ScoreCardGrid";
 import { ScoreFormModal } from "@/app/(student)/scores/_components/ScoreFormModal";
 import { Dialog } from "@/components/ui/Dialog";
-import { deleteSchoolScoreAction } from "@/app/(student)/actions/scoreActions";
+import { deleteInternalScore } from "@/app/actions/scores-internal";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type SchoolScoresViewProps = {
@@ -53,11 +53,8 @@ export function SchoolScoresView({
 
     startTransition(async () => {
       try {
-        await deleteSchoolScoreAction(deletingScoreId, {
-          skipRedirect: true,
-          grade: initialGrade,
-          semester: initialSemester,
-        });
+        const formData = new FormData();
+        await deleteInternalScore(deletingScoreId);
         showSuccess("성적이 성공적으로 삭제되었습니다.");
         setDeleteConfirmOpen(false);
         setDeletingScoreId(null);

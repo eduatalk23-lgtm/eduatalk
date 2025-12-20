@@ -17,7 +17,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSubjectById, getSubjectGroupById, getActiveCurriculumRevision } from "@/lib/data/subjects";
 import type { MockScore } from "@/lib/domains/score/types";
 
-// 내신 성적 등록
+/**
+ * 내신 성적 등록 (레거시)
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. createInternalScore를 사용하세요
+ */
 export async function addSchoolScore(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
@@ -176,7 +180,11 @@ export async function addSchoolScore(formData: FormData): Promise<void> {
   }
 }
 
-// 내신 성적 수정
+/**
+ * 내신 성적 수정 (레거시)
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. updateInternalScore를 사용하세요
+ */
 export async function updateSchoolScoreAction(
   id: string,
   formData: FormData
@@ -276,7 +284,11 @@ export async function updateSchoolScoreAction(
   }
 }
 
-// 내신 성적 삭제
+/**
+ * 내신 성적 삭제 (레거시)
+ * 
+ * @deprecated Phase 4 이후 삭제 예정. deleteInternalScore를 사용하세요
+ */
 export async function deleteSchoolScoreAction(
   id: string,
   options?: { skipRedirect?: boolean; grade?: number; semester?: number }
