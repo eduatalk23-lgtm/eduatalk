@@ -69,17 +69,21 @@ export async function getWeakSubjects(
     const planMap = new Map<string, { contentType: string; contentId: string }>();
     if (planIds.size > 0) {
       const plans = await safeQueryArray<PlanRow>(
-        () =>
-          supabase
+        async () => {
+          const result = await supabase
             .from("student_plan")
             .select("id,content_type,content_id")
             .eq("student_id", studentId)
-            .in("id", Array.from(planIds)),
-        () =>
-          supabase
+            .in("id", Array.from(planIds));
+          return { data: result.data as PlanRow[] | null, error: result.error };
+        },
+        async () => {
+          const result = await supabase
             .from("student_plan")
             .select("id,content_type,content_id")
-            .in("id", Array.from(planIds)),
+            .in("id", Array.from(planIds));
+          return { data: result.data as PlanRow[] | null, error: result.error };
+        },
         { context: "[metrics/getWeakSubjects] 플랜 조회" }
       );
 
@@ -128,36 +132,42 @@ export async function getWeakSubjects(
     const [booksResult, lecturesResult, customResult] = await Promise.all([
       bookIds.length > 0
         ? safeQueryArray<ContentRow>(
-            () =>
-              supabase
+            async () => {
+              const result = await supabase
                 .from("books")
                 .select("id,subject")
                 .eq("student_id", studentId)
-                .in("id", bookIds),
+                .in("id", bookIds);
+              return { data: result.data as ContentRow[] | null, error: result.error };
+            },
             undefined,
             { context: "[metrics/getWeakSubjects] 책 조회" }
           )
         : Promise.resolve([]),
       lectureIds.length > 0
         ? safeQueryArray<ContentRow>(
-            () =>
-              supabase
+            async () => {
+              const result = await supabase
                 .from("lectures")
                 .select("id,subject")
                 .eq("student_id", studentId)
-                .in("id", lectureIds),
+                .in("id", lectureIds);
+              return { data: result.data as ContentRow[] | null, error: result.error };
+            },
             undefined,
             { context: "[metrics/getWeakSubjects] 강의 조회" }
           )
         : Promise.resolve([]),
       customIds.length > 0
         ? safeQueryArray<ContentRow>(
-            () =>
-              supabase
+            async () => {
+              const result = await supabase
                 .from("student_custom_contents")
                 .select("id,subject")
                 .eq("student_id", studentId)
-                .in("id", customIds),
+                .in("id", customIds);
+              return { data: result.data as ContentRow[] | null, error: result.error };
+            },
             undefined,
             { context: "[metrics/getWeakSubjects] 커스텀 콘텐츠 조회" }
           )
@@ -203,17 +213,21 @@ export async function getWeakSubjects(
 
     // 8. 취약 과목 조회 (student_analysis 테이블)
     const analyses = await safeQueryArray<AnalysisRow>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from("student_analysis")
           .select("subject,risk_score")
           .eq("student_id", studentId)
-          .order("risk_score", { ascending: false }),
-      () =>
-        supabase
+          .order("risk_score", { ascending: false });
+        return { data: result.data as AnalysisRow[] | null, error: result.error };
+      },
+      async () => {
+        const result = await supabase
           .from("student_analysis")
           .select("subject,risk_score")
-          .order("risk_score", { ascending: false }),
+          .order("risk_score", { ascending: false });
+        return { data: result.data as AnalysisRow[] | null, error: result.error };
+      },
       { context: "[metrics/getWeakSubjects] 분석 조회" }
     );
 

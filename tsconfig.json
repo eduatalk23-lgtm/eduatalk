@@ -31,5 +31,5 @@
     "**/*.mts",
     "types/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "supabase/functions", "serena"]
+  "exclude": ["node_modules", "supabase/functions", "serena", "**/*.test.ts", "**/*.test.tsx", "**/__tests__/**", "tests/**", "playwright.config.ts", "vitest.config.ts", "scripts/**"]
 }

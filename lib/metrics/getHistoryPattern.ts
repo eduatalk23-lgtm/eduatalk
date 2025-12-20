@@ -38,19 +38,23 @@ export async function getHistoryPattern(
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
 
     const historyRows = await safeQueryArray<HistoryRow>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from("student_history")
           .select("event_type,created_at")
           .eq("student_id", studentId)
           .gte("created_at", thirtyDaysAgoStr)
-          .order("created_at", { ascending: false }),
-      () =>
-        supabase
+          .order("created_at", { ascending: false });
+        return { data: result.data as HistoryRow[] | null, error: result.error };
+      },
+      async () => {
+        const result = await supabase
           .from("student_history")
           .select("event_type,created_at")
           .gte("created_at", thirtyDaysAgoStr)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false });
+        return { data: result.data as HistoryRow[] | null, error: result.error };
+      },
       { context: "[metrics/getHistoryPattern] 히스토리 조회" }
     );
 

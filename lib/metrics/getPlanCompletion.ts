@@ -34,19 +34,23 @@ export async function getPlanCompletion(
     const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
     const planRows = await safeQueryArray<PlanRow>(
-      () =>
-        supabase
+      async () => {
+        const result = await supabase
           .from("student_plan")
           .select("id,completed_amount,actual_end_time,progress,content_id")
           .eq("student_id", studentId)
           .gte("plan_date", weekStartStr)
-          .lte("plan_date", weekEndStr),
-      () =>
-        supabase
+          .lte("plan_date", weekEndStr);
+        return { data: result.data as PlanRow[] | null, error: result.error };
+      },
+      async () => {
+        const result = await supabase
           .from("student_plan")
           .select("id,completed_amount,actual_end_time,progress,content_id")
           .gte("plan_date", weekStartStr)
-          .lte("plan_date", weekEndStr),
+          .lte("plan_date", weekEndStr);
+        return { data: result.data as PlanRow[] | null, error: result.error };
+      },
       { context: "[metrics/getPlanCompletion] 플랜 조회" }
     );
 

@@ -277,11 +277,13 @@ export async function getMockAnalysis(
     } | null;
   };
 
-  const rows: MockRow[] = (mockScores as MockScoreQueryResult[])
+  const rows: MockRow[] = (mockScores as unknown as MockScoreQueryResult[])
     .map((score) => {
       // Relational Query 결과에서 subject_group_name 추출
+      // subject가 배열로 반환될 수 있으므로 첫 번째 요소 사용
+      const subject = Array.isArray(score.subject) ? score.subject[0] : score.subject;
       const subjectGroupName =
-        score.subject?.subject_group?.name || "";
+        subject?.subject_group?.name || "";
       
       return {
         subject_group_name: subjectGroupName,

@@ -179,7 +179,7 @@ export async function getInternalAnalysis(
 
     for (const row of subjectData) {
       // Relational Query 결과에서 subject_group.name 추출
-      const typedRow = row as SubjectQueryResult;
+      const typedRow = row as unknown as SubjectQueryResult;
       const subjectGroup = Array.isArray(typedRow.subject_group) 
         ? typedRow.subject_group[0] 
         : typedRow.subject_group;

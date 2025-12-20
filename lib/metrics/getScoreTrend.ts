@@ -69,38 +69,46 @@ export async function getScoreTrend(
     const [internalRows, mockRows] = await Promise.all([
       // 내신 성적 조회: student_internal_scores 테이블 사용
       safeQueryArray<InternalScoreRow>(
-        () =>
-          supabase
+        async () => {
+          const result = await supabase
             .from("student_internal_scores")
             .select("rank_grade,grade,semester,created_at,subject_groups:subject_group_id(name)")
             .eq("student_id", studentId)
             .order("created_at", { ascending: false })
-            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT);
+          return { data: result.data as InternalScoreRow[] | null, error: result.error };
+        },
         // 42703 에러 발생 시 fallback 쿼리 (student_id 필터 제거)
-        () =>
-          supabase
+        async () => {
+          const result = await supabase
             .from("student_internal_scores")
             .select("rank_grade,grade,semester,created_at,subject_groups:subject_group_id(name)")
             .order("created_at", { ascending: false })
-            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT);
+          return { data: result.data as InternalScoreRow[] | null, error: result.error };
+        },
         { context: "[metrics/getScoreTrend] 내신 성적 조회" }
       ),
       // 모의고사 성적 조회: student_mock_scores 테이블 사용
       safeQueryArray<MockScoreRow>(
-        () =>
-          supabase
+        async () => {
+          const result = await supabase
             .from("student_mock_scores")
             .select("grade_score,exam_date,subject_groups:subject_group_id(name)")
             .eq("student_id", studentId)
             .order("exam_date", { ascending: false })
-            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT);
+          return { data: result.data as MockScoreRow[] | null, error: result.error };
+        },
         // 42703 에러 발생 시 fallback 쿼리 (student_id 필터 제거)
-        () =>
-          supabase
+        async () => {
+          const result = await supabase
             .from("student_mock_scores")
             .select("grade_score,exam_date,subject_groups:subject_group_id(name)")
             .order("exam_date", { ascending: false })
-            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT),
+            .limit(SCORE_TREND_CONSTANTS.RECENT_SCORES_LIMIT);
+          return { data: result.data as MockScoreRow[] | null, error: result.error };
+        },
         { context: "[metrics/getScoreTrend] 모의고사 성적 조회" }
       ),
     ]);
