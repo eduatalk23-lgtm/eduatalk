@@ -957,22 +957,8 @@ export async function createStudent(
   }
 }
 
-/**
- * 연결 코드 검증 (회원가입 시 사용)
- * 공통 모듈로 이동됨 - lib/utils/connectionCodeUtils.ts
- * 
- * @deprecated 이 함수는 lib/utils/connectionCodeUtils.ts의 validateConnectionCode를 사용하세요.
- */
-export async function validateConnectionCode(
-  connectionCode: string
-): Promise<{
-  success: boolean;
-  studentId?: string;
-  error?: string;
-}> {
-  const { validateConnectionCode: validate } = await import("@/lib/utils/connectionCodeUtils");
-  return validate(connectionCode);
-}
+// validateConnectionCode 함수는 lib/utils/connectionCodeUtils.ts로 이동되었습니다.
+// 사용처가 없으므로 제거되었습니다.
 
 /**
  * 연결 코드 재발급

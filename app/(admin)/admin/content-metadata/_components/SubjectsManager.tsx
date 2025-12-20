@@ -5,13 +5,15 @@ import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import {
-  getSubjectsAction,
   createSubjectAction,
   updateSubjectAction,
   deleteSubjectAction,
-  getSubjectCategoriesAction,
   getCurriculumRevisionsAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
+import {
+  getSubjectGroupsAction,
+  getSubjectsByGroupAction,
+} from "@/app/(admin)/actions/subjectActions";
 import type { Subject, SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
 import {
   bgSurfaceVar,
@@ -40,7 +42,7 @@ export function SubjectsManager() {
 
   useEffect(() => {
     loadRevisions();
-    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -48,8 +50,19 @@ export function SubjectsManager() {
       loadSubjectCategories(selectedRevisionId);
     } else {
       setSubjectCategories([]);
+      setSelectedCategoryId("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRevisionId]);
+
+  useEffect(() => {
+    if (selectedCategoryId) {
+      loadItems();
+    } else {
+      setItems([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategoryId]);
 
   async function loadRevisions() {
     try {
@@ -68,10 +81,18 @@ export function SubjectsManager() {
 
   async function loadSubjectCategories(revisionId: string) {
     try {
-      const data = await getSubjectCategoriesAction(revisionId);
-      setSubjectCategories(data);
-      if (data.length > 0 && !selectedCategoryId) {
-        const firstCategory = data[0];
+      // getSubjectGroupsAction 사용 (deprecated getSubjectCategoriesAction 대체)
+      const data = await getSubjectGroupsAction(revisionId);
+      // SubjectGroup을 SubjectCategory 형태로 변환
+      const categories = data.map((group) => ({
+        id: group.id,
+        name: group.name,
+        display_order: group.display_order ?? 0,
+        is_active: true,
+      }));
+      setSubjectCategories(categories);
+      if (categories.length > 0 && !selectedCategoryId) {
+        const firstCategory = categories[0];
         if (firstCategory?.id) {
           setSelectedCategoryId(firstCategory.id);
         }
@@ -84,8 +105,23 @@ export function SubjectsManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getSubjectsAction();
-      setItems(data);
+      // selectedCategoryId가 있을 때만 조회
+      if (!selectedCategoryId) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+      // getSubjectsByGroupAction 사용 (deprecated getSubjectsAction 대체)
+      const data = await getSubjectsByGroupAction(selectedCategoryId);
+      // Subject를 Subject 형태로 변환 (이미 호환 가능)
+      const subjects = data.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
+        subject_category_id: subject.subject_group_id,
+        display_order: subject.display_order ?? 0,
+        is_active: true,
+      }));
+      setItems(subjects);
     } catch (error) {
       console.error("과목 조회 실패:", error);
       alert("과목을 불러오는데 실패했습니다.");

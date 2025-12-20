@@ -5,13 +5,17 @@ import { Plus } from "lucide-react";
 type SchoolTypeTabsProps = {
   selectedType: "중학교" | "고등학교" | "대학교";
   onTypeChange: (type: "중학교" | "고등학교" | "대학교") => void;
-  onCreateClick: () => void;
 };
 
+/**
+ * 학교 타입 탭 컴포넌트 (Read-Only)
+ * 
+ * 학교 데이터는 외부 데이터 기반으로 읽기 전용입니다.
+ * 학교 등록 기능은 제거되었습니다.
+ */
 export default function SchoolTypeTabs({
   selectedType,
   onTypeChange,
-  onCreateClick,
 }: SchoolTypeTabsProps) {
   const types: Array<"중학교" | "고등학교" | "대학교"> = [
     "중학교",
@@ -35,13 +39,6 @@ export default function SchoolTypeTabs({
             {type}
           </button>
         ))}
-        <button
-          onClick={onCreateClick}
-          className="ml-auto flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-1 py-4 text-sm font-medium text-gray-500 transition hover:border-gray-300 hover:text-gray-700"
-        >
-          <Plus className="h-4 w-4" />
-          학교 등록
-        </button>
       </nav>
     </div>
   );

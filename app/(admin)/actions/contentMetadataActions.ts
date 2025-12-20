@@ -73,28 +73,8 @@ export const deleteCurriculumRevisionAction = withErrorHandling(async (id: strin
   return await deleteCurriculumRevision(id);
 });
 
-// 교과 (Deprecated: getSubjectGroupsAction 사용 권장)
-/**
- * @deprecated 이 함수는 더 이상 사용되지 않습니다. getSubjectGroupsAction을 사용하세요.
- */
-export const getSubjectCategoriesAction = withErrorHandling(async (revisionId?: string) => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  
-  // subject_groups로 변환하여 반환 (하위 호환성)
-  const { getSubjectGroupsAction } = await import("./subjectActions");
-  const groups = await getSubjectGroupsAction(revisionId);
-  
-  // SubjectCategory 형태로 변환
-  return groups.map((group) => ({
-    id: group.id,
-    name: group.name,
-    display_order: group.display_order ?? 0,
-    is_active: true,
-  }));
-});
+// getSubjectCategoriesAction은 제거되었습니다.
+// getSubjectGroupsAction (from subjectActions.ts)을 사용하세요.
 
 export const createSubjectCategoryAction = withErrorHandling(
   async (revision_id: string, name: string, display_order: number) => {
@@ -127,33 +107,8 @@ export const deleteSubjectCategoryAction = withErrorHandling(async (id: string) 
   return await deleteSubjectCategory(id);
 });
 
-// 과목 (Deprecated: getSubjectsByGroupAction 사용 권장)
-/**
- * @deprecated 이 함수는 더 이상 사용되지 않습니다. getSubjectsByGroupAction을 사용하세요.
- */
-export const getSubjectsAction = withErrorHandling(async (subjectCategoryId?: string) => {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "admin") {
-    throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
-  }
-  
-  if (!subjectCategoryId) {
-    return [];
-  }
-
-  // getSubjectsByGroupAction 사용
-  const { getSubjectsByGroupAction } = await import("./subjectActions");
-  const subjects = await getSubjectsByGroupAction(subjectCategoryId);
-  
-  // Subject 형태로 변환
-  return subjects.map((subject) => ({
-    id: subject.id,
-    name: subject.name,
-    subject_category_id: subject.subject_group_id,
-    display_order: subject.display_order ?? 0,
-    is_active: true,
-  }));
-});
+// getSubjectsAction은 제거되었습니다.
+// getSubjectsByGroupAction (from subjectActions.ts)을 사용하세요.
 
 export const createSubjectAction = withErrorHandling(
   async (subject_category_id: string, name: string, display_order: number) => {

@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import {
-  getSubjectCategoriesAction,
   createSubjectCategoryAction,
   updateSubjectCategoryAction,
   deleteSubjectCategoryAction,
   getCurriculumRevisionsAction,
 } from "@/app/(admin)/actions/contentMetadataActions";
+import { getSubjectGroupsAction } from "@/app/(admin)/actions/subjectActions";
 import type { SubjectCategory, CurriculumRevision } from "@/lib/data/contentMetadata";
 import { cn } from "@/lib/cn";
 import {
@@ -36,8 +36,13 @@ export function SubjectCategoriesManager() {
 
   useEffect(() => {
     loadRevisions();
-    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRevisionId]);
 
   async function loadRevisions() {
     try {
@@ -57,8 +62,17 @@ export function SubjectCategoriesManager() {
   async function loadItems() {
     setLoading(true);
     try {
-      const data = await getSubjectCategoriesAction();
-      setItems(data);
+      // getSubjectGroupsAction 사용 (deprecated getSubjectCategoriesAction 대체)
+      const revisionId = selectedRevisionId || undefined;
+      const data = await getSubjectGroupsAction(revisionId);
+      // SubjectGroup을 SubjectCategory 형태로 변환
+      const categories = data.map((group) => ({
+        id: group.id,
+        name: group.name,
+        display_order: group.display_order ?? 0,
+        is_active: true,
+      }));
+      setItems(categories);
     } catch (error) {
       console.error("교과 조회 실패:", error);
       alert("교과를 불러오는데 실패했습니다.");
