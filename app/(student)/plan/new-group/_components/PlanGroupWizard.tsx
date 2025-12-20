@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -28,6 +29,9 @@ import type { SchedulerOptions } from "@/lib/types/plan";
 import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
 import { BasePlanWizard } from "./BasePlanWizard";
 import { PlanWizardDebugger } from "./debug/PlanWizardDebugger";
+import { useBlockSets } from "@/lib/hooks/useBlockSets";
+import { useStudentContents } from "@/lib/hooks/useStudentContents";
+import { planGroupsQueryOptions } from "@/lib/hooks/usePlanGroups";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
@@ -241,12 +245,13 @@ type ExtendedInitialData = Partial<WizardData> & {
 
 // PlanGroupWizardProps 타입 export
 export type PlanGroupWizardProps = {
-  initialBlockSets?: Array<{ id: string; name: string }>;
+  studentId: string; // 필수: 학생 ID (훅 사용을 위해 필요)
+  initialBlockSets?: Array<{ id: string; name: string }>; // 선택: 하위 호환성 유지
   initialContents?: {
     books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
     custom: Array<{ id: string; title: string; subtitle?: string | null }>;
-  };
+  }; // 선택: 하위 호환성 유지
   initialData?: ExtendedInitialData;
   isEditMode?: boolean;
   isCampMode?: boolean;
@@ -359,8 +364,9 @@ function denormalizePlanPurpose(purpose: string | null | undefined): "" | "내�
  * PlanWizardProvider 내부에서 사용되며, usePlanWizard 훅을 통해 상태에 접근합니다.
  */
 function PlanGroupWizardInner({
-  initialBlockSets = [],
-  initialContents = { books: [], lectures: [], custom: [] },
+  studentId,
+  initialBlockSets,
+  initialContents,
   initialData,
   isEditMode = false,
   isCampMode = false,
@@ -373,6 +379,7 @@ function PlanGroupWizardInner({
 }: PlanGroupWizardProps) {
   const router = useRouter();
   const toast = useToast();
+  const queryClient = useQueryClient();
   
   // PlanWizardContext에서 상태 가져오기
   const {
@@ -410,7 +417,31 @@ function PlanGroupWizardInner({
     isEditMode,
   }), [isCampMode, isTemplateMode, isAdminMode, isAdminContinueMode, isEditMode]);
   
-  const [blockSets, setBlockSets] = useState(initialBlockSets);
+  // 블록 세트 조회 (훅 사용, initialBlockSets가 있으면 우선 사용)
+  const { data: blockSetsData, isLoading: isLoadingBlockSets } = useBlockSets({
+    studentId,
+    enabled: !initialBlockSets, // initialBlockSets가 있으면 훅 비활성화
+  });
+  
+  const blockSets = useMemo(() => {
+    if (initialBlockSets && initialBlockSets.length > 0) {
+      return initialBlockSets;
+    }
+    return blockSetsData || [];
+  }, [initialBlockSets, blockSetsData]);
+
+  // 콘텐츠 목록 조회 (훅 사용, initialContents가 있으면 우선 사용)
+  const { data: contentsData, isLoading: isLoadingContents } = useStudentContents({
+    studentId,
+    enabled: !initialContents, // initialContents가 있으면 훅 비활성화
+  });
+
+  const contents = useMemo(() => {
+    if (initialContents) {
+      return initialContents;
+    }
+    return contentsData || { books: [], lectures: [], custom: [] };
+  }, [initialContents, contentsData]);
 
   const templateId = initialData?.templateId;
   const templateProgramType = initialData?.templateProgramType || "기타";
@@ -680,6 +711,12 @@ function PlanGroupWizardInner({
         }
         // saved 상태에서 active로 전이
         await updatePlanGroupStatus(draftGroupId, "active");
+        
+        // 플랜 그룹 목록 쿼리 무효화 (최신 데이터 표시)
+        queryClient.invalidateQueries({
+          queryKey: ["planGroups"],
+        });
+        
         router.refresh(); // 캐시 갱신
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       } catch (statusError) {
@@ -759,7 +796,7 @@ function PlanGroupWizardInner({
         isEditMode={isEditMode}
         draftGroupId={draftGroupId}
         blockSets={blockSets}
-        initialContents={initialContents}
+        initialContents={contents}
         initialData={initialData}
         progress={progress}
         isSubmitting={isSubmitting}

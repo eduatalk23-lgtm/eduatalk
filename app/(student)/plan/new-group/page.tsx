@@ -1,11 +1,15 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { PlanGroupWizard } from "./_components/PlanGroupWizard";
-import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { getQueryClient } from "@/lib/providers/getQueryClient";
+import { blockSetsQueryOptions } from "@/lib/hooks/useBlockSets";
+import { studentContentsQueryOptions } from "@/lib/hooks/useStudentContents";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { fetchAllStudentContents } from "@/lib/data/planContents";
+import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
+import { PlanGroupWizard } from "./_components/PlanGroupWizard";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getContainerClass } from "@/lib/constants/layout";
 import { inlineButtonBase } from "@/lib/utils/darkMode";
@@ -15,15 +19,12 @@ type PageProps = {
 };
 
 export default async function NewPlanGroupPage({ searchParams }: PageProps) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) {
     redirect("/login");
   }
 
+  const tenantContext = await getTenantContext();
   const params = await searchParams;
   const draftId = params.draft;
 
@@ -31,13 +32,11 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
   let initialData: any = undefined;
   if (draftId) {
     try {
-      const currentUser = await getCurrentUser();
-      const tenantContext = await getTenantContext();
       const { group, contents, exclusions, academySchedules } =
         await getPlanGroupWithDetails(
           draftId,
-          currentUser?.userId || user.id,
-          tenantContext?.tenantId
+          user.userId,
+          tenantContext?.tenantId ?? null
         );
 
       if (group && group.status === "draft") {
@@ -57,47 +56,49 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
     }
   }
 
-  // 블록 세트 목록 조회 (시간 블록 정보 포함)
-  const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
-  const blockSets = await fetchBlockSetsWithBlocks(user.id);
+  // React Query를 사용하여 데이터 프리패칭
+  const queryClient = getQueryClient();
 
-  // 콘텐츠 목록 조회 (통합 함수 사용)
-  const { books, lectures, custom } = await fetchAllStudentContents(user.id);
+  try {
+    // 블록 세트와 콘텐츠 목록 프리패칭
+    await Promise.all([
+      queryClient.prefetchQuery(blockSetsQueryOptions(user.userId)),
+      queryClient.prefetchQuery(studentContentsQueryOptions(user.userId)),
+    ]);
+  } catch (error) {
+    // Prefetch 실패 시에도 페이지는 렌더링되도록 에러만 로깅
+    console.error("[NewPlanGroupPage] 데이터 프리패칭 실패", error);
+  }
 
   return (
-    <>
+    <HydrationBoundary state={dehydrate(queryClient)}>
       <ScrollToTop />
       <section className={getContainerClass("LIST", "lg")}>
         <div className="flex flex-col gap-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-2 flex-1">
-            <p className="text-sm font-medium text-gray-500">학습 플랜</p>
-            <h1 className="text-3xl font-semibold text-gray-900">
-              새 학습 플랜 그룹 만들기
-            </h1>
-            <p className="text-sm text-gray-500">
-              목적과 기간을 설정하고, 학습 대상 콘텐츠를 선택하여 맞춤형 학습 계획을 생성하세요.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-2 flex-1">
+              <p className="text-sm font-medium text-gray-500">학습 플랜</p>
+              <h1 className="text-3xl font-semibold text-gray-900">
+                새 학습 플랜 그룹 만들기
+              </h1>
+              <p className="text-sm text-gray-500">
+                목적과 기간을 설정하고, 학습 대상 콘텐츠를 선택하여 맞춤형 학습 계획을 생성하세요.
+              </p>
+            </div>
+            <Link
+              href="/plan"
+              className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
+            >
+              목록으로 돌아가기
+            </Link>
           </div>
-          <Link
-            href="/plan"
-            className={inlineButtonBase("px-4 py-2 text-sm font-semibold")}
-          >
-            목록으로 돌아가기
-          </Link>
-        </div>
 
-      <PlanGroupWizard
-        initialBlockSets={blockSets || []}
-        initialContents={{
-          books,
-          lectures,
-          custom,
-        }}
-        initialData={initialData}
-      />
-      </div>
-    </section>
-    </>
+          <PlanGroupWizard
+            studentId={user.userId}
+            initialData={initialData}
+          />
+        </div>
+      </section>
+    </HydrationBoundary>
   );
 }
