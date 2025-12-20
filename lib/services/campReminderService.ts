@@ -113,8 +113,8 @@ export async function processReminders(): Promise<{
 
     const templateMap = new Map(
       templates
-        .filter((t): t is { id: string; template: NonNullable<typeof t.template> } => t !== null)
-        .map((t) => [t.id, t.template])
+        .filter((t) => t !== null && t !== undefined && t.template !== null && t.template !== undefined)
+        .map((t) => [t!.id, t!.template!])
     );
 
     // 리마인더 발송 대상 필터링

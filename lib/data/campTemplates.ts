@@ -66,7 +66,7 @@ export async function createCampTemplate(data: {
   description?: string;
   program_type: string;
   template_data: Partial<WizardData> | null;
-  created_by: string;
+  created_by?: string;
   camp_start_date?: string;
   camp_end_date?: string;
   camp_location?: string;
@@ -74,6 +74,9 @@ export async function createCampTemplate(data: {
   // 관리자 전용 함수이므로 Admin 클라이언트 사용 (RLS 우회)
   // 호출 전에 requireAdminOrConsultant()로 권한 검증이 완료되어야 함
   const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new Error("Admin Client를 생성할 수 없습니다.");
+  }
 
   const insertData: {
     tenant_id: string;
@@ -237,8 +240,7 @@ export async function getCampTemplatesForTenantWithPagination(
 
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
-    const { count, error: countError } = await countQuery
-      .select("*", { count: "exact", head: true });
+    const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
 
     if (countError) {
       console.error("[data/campTemplates] 템플릿 개수 조회 실패", {
@@ -453,9 +455,9 @@ export async function getCampInvitationsForTemplate(
   
   return (data as InvitationWithStudent[] | null)?.map((invitation) => ({
     ...invitation,
-    student_name: invitation.students?.name ?? null,
-    student_grade: invitation.students?.grade ?? null,
-    student_class: invitation.students?.class ?? null,
+    student_name: invitation.students?.name ?? undefined,
+    student_grade: invitation.students?.grade ? String(invitation.students.grade) : undefined,
+    student_class: invitation.students?.class ?? undefined,
   })) ?? [];
 }
 
@@ -516,8 +518,7 @@ export async function getCampInvitationsForTemplateWithPagination(
 
     // 전체 개수 조회 (필터 적용된 쿼리 사용)
     const countQuery = buildQuery();
-    const { count, error: countError } = await countQuery
-      .select("*", { count: "exact", head: true });
+    const { count, error: countError } = await (countQuery.select as any)("*", { count: "exact", head: true });
 
     if (countError) {
       console.error("[data/campTemplates] 초대 개수 조회 실패", {
@@ -553,9 +554,9 @@ export async function getCampInvitationsForTemplateWithPagination(
     
     let items = (data as InvitationWithStudent[] | null)?.map((invitation) => ({
       ...invitation,
-      student_name: invitation.students?.name ?? null,
-      student_grade: invitation.students?.grade ?? null,
-      student_class: invitation.students?.class ?? null,
+      student_name: invitation.students?.name ?? undefined,
+      student_grade: invitation.students?.grade ? String(invitation.students.grade) : undefined,
+      student_class: invitation.students?.class ?? undefined,
     })) ?? [];
 
     // 학생명 검색 필터 (클라이언트 사이드에서 처리 - Supabase의 관계형 쿼리에서 ilike 사용이 복잡함)
@@ -831,6 +832,9 @@ export async function copyCampTemplate(
   try {
     // 관리자 전용 함수이므로 Admin 클라이언트 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      return { success: false, error: "Admin Client를 생성할 수 없습니다." };
+    }
 
     // 원본 템플릿 조회
     const originalTemplate = await getCampTemplate(templateId);

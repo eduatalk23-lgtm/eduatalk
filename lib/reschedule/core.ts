@@ -459,7 +459,7 @@ export async function calculateReschedulePreview(
       exclusion_date: e.exclusion_date,
       exclusion_type: e.exclusion_type,
       reason: e.reason || null,
-    })),
+    })) as any,
     academySchedules.map((a) => ({
       day_of_week: a.day_of_week,
       start_time: a.start_time,
@@ -467,7 +467,7 @@ export async function calculateReschedulePreview(
       academy_name: a.academy_name || null,
       subject: a.subject || null,
       travel_time: a.travel_time || null,
-    })),
+    })) as any,
     baseBlocks,
     contentSubjects,
     undefined, // riskIndexMap

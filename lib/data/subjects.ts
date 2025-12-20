@@ -27,6 +27,7 @@ export type Subject = {
   display_order?: number;
   subject_type_id?: string | null; // 과목구분 ID (FK → subject_types)
   subject_type?: string | null; // 과목구분명 (JOIN 결과, 하위 호환성)
+  is_active?: boolean; // 활성화 여부
   created_at?: string;
   updated_at?: string;
 };

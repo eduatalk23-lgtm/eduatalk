@@ -218,7 +218,7 @@ export function MasterContentsPanel({
             subject_id: subjectId || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
-          })
+          }) as unknown as Promise<{ data: ContentMaster[]; total: number; }>
         );
       }
 
@@ -231,7 +231,7 @@ export function MasterContentsPanel({
             subject_id: subjectId || undefined,
             search: searchQuery.trim() || undefined,
             limit: 20,
-          })
+          }) as unknown as Promise<{ data: ContentMaster[]; total: number; }>
         );
       }
 

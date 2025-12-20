@@ -111,17 +111,18 @@ export function createNewVersion(
   is_active: boolean;
 } {
   // 최신 버전 번호 계산
-  const newVersion = (originalPlan.version || 1) + 1;
+  const newVersion = ((originalPlan as { version?: number }).version || 1) + 1;
 
+  const { id, created_at, updated_at, ...rest } = originalPlan;
   return {
-    ...originalPlan,
+    ...rest,
     ...changes,
-    id: undefined, // 새 ID 생성
-    version_group_id: originalPlan.version_group_id || originalPlan.id,
+    version_group_id: (originalPlan as { version_group_id?: string }).version_group_id || originalPlan.id,
     version: newVersion,
     is_active: true,
-    created_at: undefined, // 새 생성 시간
-    updated_at: undefined, // 새 업데이트 시간
+  } as Omit<StudentPlanRow, 'id' | 'created_at' | 'updated_at'> & {
+    version: number;
+    is_active: boolean;
   };
 }
 

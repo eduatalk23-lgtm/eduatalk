@@ -217,7 +217,7 @@ export async function fetchBlocksWithFallback(
       data = assignBlockIndex(
         fallbackResult.data as BlockWithDayOfWeek[],
         (block) => block.day_of_week
-      );
+      ) as any;
     }
     error = fallbackResult.error;
   }

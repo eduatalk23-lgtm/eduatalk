@@ -42,13 +42,13 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
 
       if (group && group.status === "draft") {
         // 데이터 변환 함수 사용
-        const { transformPlanGroupToWizardData } = await import("@/lib/utils/planGroupTransform");
-        initialData = await transformPlanGroupToWizardData(
+        const { transformPlanGroupToWizardDataPure } = await import("@/lib/utils/planGroupTransform");
+        initialData = await transformPlanGroupToWizardDataPure(
           group,
           contents,
           exclusions,
           academySchedules,
-          user.id
+          {}
         );
       }
     } catch (error) {

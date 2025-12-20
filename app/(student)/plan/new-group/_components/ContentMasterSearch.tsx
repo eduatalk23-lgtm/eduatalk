@@ -155,7 +155,7 @@ export function ContentMasterSearch({
           sort: sort || undefined,
           limit: 20,
         });
-        setResults(result.data);
+        setResults(result.data as unknown as ContentMaster[]);
       } catch (error) {
         alert(
           error instanceof Error

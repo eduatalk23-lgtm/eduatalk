@@ -9,7 +9,8 @@ import { Step3ContentSelection } from "./_features/content-selection/Step3Conten
 import { Step6FinalReview } from "./_features/content-selection/Step6FinalReview";
 import { Step6Simplified } from "./Step6Simplified";
 import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult";
-import type { WizardData, WizardStep } from "@/lib/types/plan";
+import type { WizardData } from "@/lib/schemas/planWizardSchema";
+import type { WizardStep } from "./PlanGroupWizard";
 import type { WizardMode } from "./utils/modeUtils";
 
 /**
@@ -238,7 +239,7 @@ export function BasePlanWizard({
             data={wizardData}
             onUpdate={(updates) => {
               // custom 타입 필터링
-              const filteredUpdates: Partial<WizardData> = { ...updates };
+              const filteredUpdates: Partial<WizardData> = { ...updates } as Partial<WizardData>;
               if (updates.student_contents) {
                 filteredUpdates.student_contents = updates.student_contents.filter(
                   (c) => c.content_type === "book" || c.content_type === "lecture"

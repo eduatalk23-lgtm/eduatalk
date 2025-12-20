@@ -281,8 +281,8 @@ export async function getTemplateBlockSetId(
   }
 
   // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-  if (schedulerOptions?.template_block_set_id) {
-    return schedulerOptions.template_block_set_id;
+  if ((schedulerOptions as { template_block_set_id?: string })?.template_block_set_id) {
+    return (schedulerOptions as { template_block_set_id: string }).template_block_set_id;
   }
 
   // 3. template_data에서 block_set_id 확인 (하위 호환성)

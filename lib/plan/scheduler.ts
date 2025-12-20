@@ -154,7 +154,7 @@ export async function generatePlansFromGroup(
         blocks,
         academySchedules,
         exclusions,
-        group.scheduler_options,
+        group.scheduler_options ?? undefined,
         riskIndexMap,
         dateAvailableTimeRanges,
         dateTimeSlots,

@@ -91,7 +91,7 @@ export async function exportSubjectsToExcel(): Promise<Buffer> {
     })),
   };
 
-  return await exportToExcel(sheets);
+  return await exportToExcel(sheets as Record<string, Record<string, unknown>[]>);
 }
 
 /**

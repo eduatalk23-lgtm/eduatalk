@@ -11,7 +11,6 @@ export {
   DialogContent,
   DialogFooter,
   ConfirmDialog,
-  default as DialogDefault,
 } from "../ui/Dialog";
 export type {
   DialogProps,

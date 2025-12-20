@@ -196,7 +196,7 @@ export class SchedulerEngine {
           content_id: content.content_id,
           subject_category: content.subject_category || undefined,
           subject: content.subject || undefined,
-          subject_id: content.subject_id,
+          subject_id: (content as { subject_id?: string }).subject_id,
         },
         contentAllocations,
         subjectAllocations

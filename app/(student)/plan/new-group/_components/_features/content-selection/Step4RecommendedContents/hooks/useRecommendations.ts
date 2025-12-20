@@ -306,14 +306,14 @@ export function useRecommendations({
             } else {
               // 레거시 응답 형식 지원 (하위 호환성)
               if (r.contentType === "book") {
-                const details = detailsResult.details || detailsResult.data?.details || [];
+                const details = ((detailsResult as { details?: Array<{ page_number?: number }>; data?: { details?: Array<{ page_number?: number }> } }).details || (detailsResult as { details?: Array<{ page_number?: number }>; data?: { details?: Array<{ page_number?: number }> } }).data?.details || []) as Array<{ page_number?: number }>;
                 hasDetails = details.length > 0;
                 if (hasDetails) {
-                  startRange = details[0].page_number || 1;
-                  endRange = details[details.length - 1].page_number || 100;
+                  startRange = details[0]?.page_number || 1;
+                  endRange = details[details.length - 1]?.page_number || 100;
                 }
               } else if (r.contentType === "lecture") {
-                const episodes = detailsResult.episodes || detailsResult.data?.episodes || [];
+                const episodes = ((detailsResult as { episodes?: Array<{ episode_number?: number }>; data?: { episodes?: Array<{ episode_number?: number }> } }).episodes || (detailsResult as { episodes?: Array<{ episode_number?: number }>; data?: { episodes?: Array<{ episode_number?: number }> } }).data?.episodes || []) as Array<{ episode_number?: number }>;
                 hasDetails = episodes.length > 0;
                 if (hasDetails) {
                   startRange = episodes[0].episode_number || 1;
@@ -581,7 +581,7 @@ export function useRecommendations({
         // 각 추천 콘텐츠의 contentType 필드 확인
         console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 전):", {
           count: rawRecommendations.length,
-          items: rawRecommendations.map((r) => ({
+          items: rawRecommendations.map((r: any) => ({
             id: r.id,
             title: r.title,
             contentType: r.contentType,
@@ -619,15 +619,15 @@ export function useRecommendations({
             id: r.id,
             contentType: (r.contentType || "book") as "book" | "lecture", // 서버에서 보장되지만 fallback
             title: r.title,
-            subject_category: r.subject_category,
-            subject: r.subject,
-            semester: r.semester,
-            revision: r.revision,
-            publisher: r.publisher,
-            platform: r.platform,
-            difficulty_level: r.difficulty_level,
-            reason: r.reason,
-            priority: r.priority,
+            subject_category: r.subject_category ?? null,
+            subject: r.subject ?? null,
+            semester: r.semester ?? null,
+            revision: r.revision ?? null,
+            publisher: r.publisher ?? null,
+            platform: r.platform ?? null,
+            difficulty_level: r.difficulty_level ?? null,
+            reason: r.reason ?? "",
+            priority: r.priority ?? 0,
             scoreDetails: r.scoreDetails,
           };
         });
@@ -860,7 +860,7 @@ export function useRecommendations({
       // 각 추천 콘텐츠의 contentType 필드 확인
       console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 전):", {
         count: rawRecommendations.length,
-        items: rawRecommendations.map((r) => ({
+        items: rawRecommendations.map((r: any) => ({
           id: r.id,
           title: r.title,
           contentType: r.contentType,
@@ -898,15 +898,15 @@ export function useRecommendations({
           id: r.id,
           contentType: (r.contentType || "book") as "book" | "lecture", // 서버에서 보장되지만 fallback
           title: r.title,
-          subject_category: r.subject_category,
-          subject: r.subject,
-          semester: r.semester,
-          revision: r.revision,
-          publisher: r.publisher,
-          platform: r.platform,
-          difficulty_level: r.difficulty_level,
-          reason: r.reason,
-          priority: r.priority,
+          subject_category: r.subject_category ?? null,
+          subject: r.subject ?? null,
+          semester: r.semester ?? null,
+          revision: r.revision ?? null,
+          publisher: r.publisher ?? null,
+          platform: r.platform ?? null,
+          difficulty_level: r.difficulty_level ?? null,
+          reason: r.reason ?? "",
+          priority: r.priority ?? 0,
           scoreDetails: r.scoreDetails,
         };
       });

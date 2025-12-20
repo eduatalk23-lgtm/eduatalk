@@ -32,7 +32,7 @@ function authQueryOptions() {
         return null;
       }
 
-      return result.data;
+      return result.data as CurrentUser | null;
     },
     staleTime: CACHE_STALE_TIME_STABLE, // 5분
     gcTime: CACHE_GC_TIME_STABLE, // 15분

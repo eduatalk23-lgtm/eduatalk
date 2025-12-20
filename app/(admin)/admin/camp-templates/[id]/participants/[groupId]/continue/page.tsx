@@ -7,6 +7,7 @@ import { fetchAllStudentContents, classifyPlanContents } from "@/lib/data/planCo
 import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
 import { syncCreationDataToWizardData } from "@/lib/utils/planGroupDataSync";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import Link from "next/link";
 
 type CampContinuePageProps = {

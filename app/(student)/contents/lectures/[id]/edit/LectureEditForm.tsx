@@ -9,6 +9,7 @@ import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ContentFormActions } from "@/app/(student)/contents/_components/ContentFormActions";
 import { BookSelector } from "@/app/(student)/contents/_components/BookSelector";
+import { DifficultySelectField } from "@/components/forms/DifficultySelectField";
 
 type LectureEditFormProps = {
   lecture: Lecture & { linked_book_id?: string | null };

@@ -86,6 +86,7 @@ export async function importMasterLecturesFromExcel(
     // 2. 새 데이터 삽입
     const lecturesData = sheets.master_lectures || [];
     const lecturesToInsert: Array<{
+      id?: string;
       title: string;
       tenant_id?: string | null;
       linked_book_id?: string | null;
@@ -101,6 +102,8 @@ export async function importMasterLecturesFromExcel(
       difficulty_level_id?: string | null;
       duration?: number | null;
       notes?: string | null;
+      video_url?: string | null;
+      overall_difficulty?: number | null;
     }> = [];
 
     for (const row of lecturesData) {
@@ -108,6 +111,7 @@ export async function importMasterLecturesFromExcel(
         const validated = masterLectureSchema.parse(row);
         
         const lectureData: {
+          id?: string;
           title: string;
           tenant_id?: string | null;
           linked_book_id?: string | null;
@@ -123,6 +127,8 @@ export async function importMasterLecturesFromExcel(
           difficulty_level_id?: string | null;
           duration?: number | null;
           notes?: string | null;
+          video_url?: string | null;
+          overall_difficulty?: number | null;
         } = {
           title: validated.title,
           tenant_id: validated.tenant_id || null,

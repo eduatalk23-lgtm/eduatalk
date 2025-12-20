@@ -92,11 +92,14 @@ export function detectSearchType(query: string): "name" | "phone" | "all" {
  * 필터 조건을 적용한 기본 쿼리를 생성합니다.
  */
 function buildBaseQuery(
-  adminClient: SupabaseClientForStudentQuery,
+  adminClient: SupabaseClientForStudentQuery | null,
   filters: StudentSearchParams["filters"],
   excludeStudentIds: string[],
   tenantId?: string | null
 ) {
+  if (!adminClient) {
+    throw new Error("Admin Client가 필요합니다.");
+  }
   let baseQuery = adminClient
     .from("students")
     .select("id, name, grade, class, division, is_active");
@@ -136,9 +139,12 @@ function buildBaseQuery(
  * 연락처 검색으로 매칭된 학생 ID를 수집합니다.
  */
 async function collectPhoneMatchedIds(
-  adminClient: SupabaseClientForStudentQuery,
+  adminClient: SupabaseClientForStudentQuery | null,
   normalizedQuery: string
 ): Promise<Set<string>> {
+  if (!adminClient) {
+    return new Set<string>();
+  }
   const phoneMatchedIds = new Set<string>();
 
   // student_profiles에서 연락처 검색
@@ -280,6 +286,9 @@ export async function searchStudentsUnified(
     forceAdmin: true,
     fallbackToServer: true,
   });
+  if (!adminClient) {
+    return { students: [], total: 0 };
+  }
 
   if (!adminClient) {
     throw new Error("Admin client를 초기화할 수 없습니다.");

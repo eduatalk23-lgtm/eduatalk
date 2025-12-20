@@ -46,13 +46,13 @@ export default async function EditPlanGroupPage({ params }: EditPlanGroupPagePro
   const { books, lectures, custom } = await fetchAllStudentContents(user.id);
 
   // 데이터 변환 함수 사용
-  const { transformPlanGroupToWizardData } = await import("@/lib/utils/planGroupTransform");
-  const initialData = await transformPlanGroupToWizardData(
+  const { transformPlanGroupToWizardDataPure } = await import("@/lib/utils/planGroupTransform");
+  const initialData = await transformPlanGroupToWizardDataPure(
     group,
     contents,
     exclusions,
     academySchedules,
-    user.id
+    {}
   );
 
   return (

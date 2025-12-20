@@ -117,7 +117,7 @@ async function fetchDistinctValues(
     if (error) throw error;
 
     const values = new Set<string>();
-    (data ?? []).forEach((item: Record<string, string | null>) => {
+    ((data ?? []) as unknown as Record<string, string | null>[]).forEach((item: Record<string, string | null>) => {
       const value = item[fieldName];
       if (value) values.add(value);
     });

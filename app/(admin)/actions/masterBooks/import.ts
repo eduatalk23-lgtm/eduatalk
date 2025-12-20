@@ -130,6 +130,7 @@ export async function importMasterBooksFromExcel(
     // 2. 새 데이터 삽입
     const booksData = sheets.master_books || [];
     const booksToInsert: Array<{
+      id?: string;
       title: string;
       tenant_id?: string | null;
       is_active?: boolean;
@@ -142,18 +143,28 @@ export async function importMasterBooksFromExcel(
       content_category?: string | null;
       semester?: string | null;
       subtitle?: string | null;
-      publisher?: string | null;
+      series_name?: string | null;
+      author?: string | null;
+      publisher_id?: string | null;
       publisher_name?: string | null;
       isbn_10?: string | null;
       isbn_13?: string | null;
       edition?: string | null;
       published_date?: string | null;
       total_pages?: number | null;
-      target_exam_type?: string | null;
+      target_exam_type?: string[] | null;
       description?: string | null;
+      toc?: string | null;
+      publisher_review?: string | null;
+      tags?: string[] | null;
+      source?: string | null;
+      source_product_code?: string | null;
+      source_url?: string | null;
       difficulty_level?: string | null;
       difficulty_level_id?: string | null;
       notes?: string | null;
+      pdf_url?: string | null;
+      overall_difficulty?: number | null;
       cover_image_url?: string | null;
     }> = [];
 
@@ -162,6 +173,7 @@ export async function importMasterBooksFromExcel(
         const validated = masterBookSchema.parse(row);
         
         const bookData: {
+          id?: string;
           title: string;
           tenant_id?: string | null;
           is_active?: boolean;
@@ -174,18 +186,28 @@ export async function importMasterBooksFromExcel(
           content_category?: string | null;
           semester?: string | null;
           subtitle?: string | null;
-          publisher?: string | null;
+          series_name?: string | null;
+          author?: string | null;
+          publisher_id?: string | null;
           publisher_name?: string | null;
           isbn_10?: string | null;
           isbn_13?: string | null;
           edition?: string | null;
           published_date?: string | null;
           total_pages?: number | null;
-          target_exam_type?: string | null;
+          target_exam_type?: string[] | null;
           description?: string | null;
+          toc?: string | null;
+          publisher_review?: string | null;
+          tags?: string[] | null;
+          source?: string | null;
+          source_product_code?: string | null;
+          source_url?: string | null;
           difficulty_level?: string | null;
           difficulty_level_id?: string | null;
           notes?: string | null;
+          pdf_url?: string | null;
+          overall_difficulty?: number | null;
           cover_image_url?: string | null;
         } = {
           title: validated.title,
@@ -209,7 +231,9 @@ export async function importMasterBooksFromExcel(
           edition: validated.edition || null,
           published_date: validated.published_date || null,
           total_pages: validated.total_pages || null,
-          target_exam_type: validated.target_exam_type || null,
+          target_exam_type: Array.isArray(validated.target_exam_type) 
+            ? validated.target_exam_type 
+            : null,
           description: validated.description || null,
           toc: validated.toc || null,
           publisher_review: validated.publisher_review || null,

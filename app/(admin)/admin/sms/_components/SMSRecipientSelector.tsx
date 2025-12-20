@@ -268,7 +268,7 @@ export function SMSRecipientSelector({
               id="filter-active"
               value={filter.isActive}
               onChange={(e) =>
-                setFilter((prev) => ({ ...prev, isActive: e.target.value }))
+                setFilter((prev) => ({ ...prev, isActive: e.target.value as "all" | "active" | "inactive" | undefined }))
               }
             >
               <option value="all">전체</option>

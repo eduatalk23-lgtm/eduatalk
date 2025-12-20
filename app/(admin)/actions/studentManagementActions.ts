@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

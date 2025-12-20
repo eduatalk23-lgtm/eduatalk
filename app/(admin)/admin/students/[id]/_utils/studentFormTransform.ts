@@ -83,12 +83,16 @@ export function transformStudentToFormData(
  */
 export function transformFormDataToUpdatePayload(
   formData: AdminStudentFormData,
-  dirtyFields?: Partial<Record<keyof AdminStudentFormData, boolean>>
+  dirtyFields?: Partial<Record<keyof AdminStudentFormData, boolean | boolean[]>>
 ) {
   // dirtyFields가 있으면 변경된 필드만 포함
   const shouldInclude = (field: keyof AdminStudentFormData) => {
     if (!dirtyFields) return true;
-    return dirtyFields[field] === true;
+    const fieldValue = dirtyFields[field];
+    if (Array.isArray(fieldValue)) {
+      return fieldValue.some((v) => v === true);
+    }
+    return fieldValue === true;
   };
 
   const payload: {

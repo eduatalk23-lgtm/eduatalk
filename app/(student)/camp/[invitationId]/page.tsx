@@ -110,15 +110,15 @@ export default async function CampParticipationPage({
 
         if (group && group.status === "draft") {
           // 데이터 변환 함수 사용
-          const { transformPlanGroupToWizardData } = await import(
+          const { transformPlanGroupToWizardDataPure } = await import(
             "@/lib/utils/planGroupTransform"
           );
-          draftData = await transformPlanGroupToWizardData(
+          draftData = await transformPlanGroupToWizardDataPure(
             group,
             contents,
             exclusions,
             academySchedules,
-            user.id
+            {}
           );
         }
       } catch (error) {

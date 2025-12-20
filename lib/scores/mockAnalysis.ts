@@ -233,7 +233,7 @@ export async function getMockAnalysis(
   }
 
   // 데이터 변환 (조인 결과에서 직접 subject_group_name 추출)
-  const rows: MockRow[] = (mockScores as MockScoreWithRelations[])
+  const rows: MockRow[] = (mockScores as unknown as MockScoreWithRelations[])
     .map((score) => {
       // Relational Query 결과에서 subject_group_name 추출
       const subjectGroupName =

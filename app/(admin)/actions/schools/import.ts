@@ -83,6 +83,7 @@ export async function importSchoolsFromExcel(
     // 2. 새 데이터 삽입
     const schoolsData = sheets.schools || [];
     const schoolsToInsert: Array<{
+      id?: string;
       name: string;
       type?: string | null;
       region_id?: string | null;
@@ -97,6 +98,7 @@ export async function importSchoolsFromExcel(
       university_ownership?: string | null;
       campus_name?: string | null;
       display_order?: number;
+      is_active?: boolean;
     }> = [];
 
     for (const row of schoolsData) {
@@ -104,6 +106,7 @@ export async function importSchoolsFromExcel(
         const validated = schoolSchema.parse(row);
         
         const schoolData: {
+          id?: string;
           name: string;
           type?: string | null;
           region_id?: string | null;
@@ -118,6 +121,7 @@ export async function importSchoolsFromExcel(
           university_ownership?: string | null;
           campus_name?: string | null;
           display_order?: number;
+          is_active?: boolean;
         } = {
           name: validated.name,
           type: validated.type || null,

@@ -45,7 +45,13 @@ async function _searchContentMasters(
       offset: filters.offset,
     });
     return {
-      data: result.data.map((book) => ({ ...book, content_type: "book" as const })),
+      data: result.data.map((book) => ({ 
+        ...book, 
+        content_type: "book" as const, 
+        semester: null,
+        subject_category: book.subject_category ?? null,
+        subject: book.subject ?? null,
+      })),
       total: result.total,
     };
   } else if (filters.content_type === "lecture") {
@@ -62,7 +68,13 @@ async function _searchContentMasters(
       offset: filters.offset,
     });
     return {
-      data: result.data.map((lecture) => ({ ...lecture, content_type: "lecture" as const })),
+      data: result.data.map((lecture) => ({ 
+        ...lecture, 
+        content_type: "lecture" as const, 
+        semester: null,
+        subject_category: lecture.subject_category ?? null,
+        subject: lecture.subject ?? null,
+      })),
       total: result.total,
     };
   } else {
@@ -95,8 +107,20 @@ async function _searchContentMasters(
     ]);
     return {
       data: [
-        ...booksResult.data.map((book) => ({ ...book, content_type: "book" as const })),
-        ...lecturesResult.data.map((lecture) => ({ ...lecture, content_type: "lecture" as const })),
+        ...booksResult.data.map((book) => ({ 
+          ...book, 
+          content_type: "book" as const,
+          semester: null,
+          subject_category: book.subject_category ?? null,
+          subject: book.subject ?? null,
+        })),
+        ...lecturesResult.data.map((lecture) => ({ 
+          ...lecture, 
+          content_type: "lecture" as const,
+          semester: null,
+          subject_category: lecture.subject_category ?? null,
+          subject: lecture.subject ?? null,
+        })),
       ],
       total: booksResult.total + lecturesResult.total,
     };

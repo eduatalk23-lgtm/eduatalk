@@ -124,8 +124,8 @@ export function planGroupToWizardData(
     non_study_time_blocks: [],
 
     // Step 3: 콘텐츠
-    student_contents: studentContents,
-    recommended_contents: recommendedContents,
+    student_contents: studentContents as any,
+    recommended_contents: recommendedContents as any,
 
     // Step 4+: 기타 (선택)
     subject_allocations: [],

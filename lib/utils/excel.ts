@@ -162,7 +162,7 @@ export function convertDataToSheet<T extends Record<string, unknown>>(
       }
       return value;
     });
-    rows.push(values);
+    rows.push(values as (string | number | boolean | null)[]);
   }
 
   return rows;

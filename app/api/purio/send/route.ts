@@ -346,7 +346,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "알 수 없는 오류가 발생했습니다.",
+        error: (error as { message?: string })?.message || "알 수 없는 오류가 발생했습니다.",
       },
       { status: 500 }
     );

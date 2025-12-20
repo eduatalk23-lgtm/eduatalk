@@ -22,6 +22,7 @@ import { PlanWizardContext } from "../../_context/PlanWizardContext";
 import { useRecommendedContents } from "./hooks/useRecommendedContents";
 import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 import { RequiredSubjectsSection } from "./components/RequiredSubjectsSection";
+import type { WizardData } from "@/lib/schemas/planWizardSchema";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -92,7 +93,10 @@ export function Step3ContentSelection({
     setSelectedRecommendedIds,
   } = useRecommendedContents({
     studentId,
-    data,
+    data: data as {
+      student_contents: WizardData["student_contents"];
+      recommended_contents: WizardData["recommended_contents"];
+    },
     onUpdate,
     recommendationSettings,
   });

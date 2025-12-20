@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -122,7 +123,7 @@ export async function deleteConsultingNote(
     }
 
     // 본인이 작성한 노트만 삭제 가능 (또는 admin은 모든 노트 삭제 가능)
-    if (role !== "admin" && role !== "superadmin" && note.consultant_id !== userId) {
+    if (role !== "admin" && role !== "superadmin" && note.consultant_id !== user.userId) {
       return { success: false, error: "권한이 없습니다." };
     }
 

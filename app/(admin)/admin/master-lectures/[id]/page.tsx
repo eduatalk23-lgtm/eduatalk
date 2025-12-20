@@ -97,10 +97,10 @@ export default async function MasterLectureDetailPage({
               value: lecture.cover_image_url,
               isUrl: !!lecture.cover_image_url,
             },
-            { label: "부제목", value: lecture.subtitle },
-            { label: "시리즈명", value: lecture.series_name },
-            { label: "설명", value: lecture.description },
-            { label: "메모", value: lecture.notes },
+            { label: "부제목", value: (lecture as { subtitle?: string | null }).subtitle ?? null },
+            { label: "시리즈명", value: (lecture as { series_name?: string | null }).series_name ?? null },
+            { label: "설명", value: (lecture as { description?: string | null }).description ?? null },
+            { label: "메모", value: (lecture as { notes?: string | null }).notes ?? null },
           ]}
         />
 

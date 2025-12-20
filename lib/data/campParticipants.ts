@@ -202,7 +202,7 @@ async function getInvitationIdsForTemplate(
     .select("id")
     .eq("camp_template_id", templateId);
 
-  return (invitations || []).map((inv: CampInvitation) => inv.id);
+  return ((invitations || []) as CampInvitation[]).map((inv) => inv.id);
 }
 
 /**
@@ -431,7 +431,7 @@ function mergeParticipantData(
       invitation_id: invitation.id,
       student_id: invitation.student_id,
       student_name: invitation.students?.name || "이름 없음",
-      student_grade: invitation.students?.grade || null,
+      student_grade: invitation.students?.grade ? String(invitation.students.grade) : null,
       student_class: invitation.students?.class || null,
       invitation_status: invitation.status, // 원본 상태 유지
       display_status: displayStatus, // 표시용 상태

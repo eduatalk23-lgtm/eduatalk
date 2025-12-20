@@ -15,6 +15,7 @@ import {
 import { getCampTemplateImpactSummary, getCampTemplate } from "@/lib/data/campTemplates";
 import { parseCampConfiguration } from "@/lib/camp/campAdapter";
 import { cn } from "@/lib/cn";
+import type { CampTemplate } from "@/lib/domains/camp/types";
 import {
   bgSurface,
   bgHover,
@@ -162,7 +163,7 @@ export default async function AdminPlanGroupDetailPage({
         const campConfig = await parseCampConfiguration(
           supabase,
           group,
-          template,
+          template as CampTemplate,
           tenantContext?.tenantId || null
         );
 

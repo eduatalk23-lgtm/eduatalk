@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode, useEffect, useMemo } from "react";
 import { Toast } from "../molecules/Toast";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "info" | "warning";
 
 type ToastMessage = {
   id: string;
@@ -17,6 +17,7 @@ type ToastContextType = {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
   showInfo: (message: string) => void;
+  showWarning: (message: string) => void;
 };
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -57,6 +58,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  const showWarning = useCallback(
+    (message: string) => showToast(message, "warning"),
+    [showToast]
+  );
+
   // Context value를 메모이제이션하여 불필요한 리렌더링 방지
   const contextValue = useMemo(
     () => ({
@@ -64,8 +70,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       showSuccess,
       showError,
       showInfo,
+      showWarning,
     }),
-    [showToast, showSuccess, showError, showInfo]
+    [showToast, showSuccess, showError, showInfo, showWarning]
   );
 
   return (
@@ -77,7 +84,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             id={toast.id}
             message={toast.message}
-            variant={toast.type === "success" ? "success" : toast.type === "error" ? "error" : "info"}
+            variant={toast.type === "success" ? "success" : toast.type === "error" ? "error" : toast.type === "warning" ? "warning" : "info"}
             duration={toast.duration}
             onClose={removeToast}
           />
@@ -102,6 +109,7 @@ export function useToast() {
         console.error("Toast Error:", message);
       },
       showInfo: () => {},
+      showWarning: () => {},
     };
   }
   return context;

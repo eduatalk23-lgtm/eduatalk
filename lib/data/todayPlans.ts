@@ -87,15 +87,15 @@ async function getPlansFromView(options: {
       });
       return { data: plans, error: null };
     } catch (error) {
-      return { data: null, error };
+      return { data: null, error: error as Error };
     }
   };
 
   // View 조회 시도, PGRST205 에러 발생 시 fallback
-  const result = await withErrorFallback(
+  const result = await (withErrorFallback as any)(
     queryPlansFromView,
     fallbackQuery,
-    (error) => {
+    (error: any) => {
       // PGRST205: View가 스키마 캐시에 없음
       if (ErrorCodeCheckers.isViewNotFound(error)) {
         // 개발 환경에서만 상세 로깅
@@ -152,46 +152,46 @@ async function getPlansFromView(options: {
   // View 결과를 Plan 타입으로 변환 (denormalized 필드 우선, View 필드는 fallback)
   const plans = (result.data || []).map((row: Record<string, unknown>) => {
     const plan: Plan = {
-      id: row.id,
-      tenant_id: row.tenant_id,
-      student_id: row.student_id,
-      plan_date: row.plan_date,
-      block_index: row.block_index,
-      content_type: row.content_type,
-      content_id: row.content_id,
-      chapter: row.chapter,
-      planned_start_page_or_time: row.planned_start_page_or_time,
-      planned_end_page_or_time: row.planned_end_page_or_time,
-      completed_amount: row.completed_amount,
-      progress: row.progress,
-      is_reschedulable: row.is_reschedulable,
-      plan_group_id: row.plan_group_id,
-      start_time: row.start_time,
-      end_time: row.end_time,
-      actual_start_time: row.actual_start_time,
-      actual_end_time: row.actual_end_time,
-      total_duration_seconds: row.total_duration_seconds,
-      paused_duration_seconds: row.paused_duration_seconds,
-      pause_count: row.pause_count,
-      plan_number: row.plan_number,
-      sequence: row.sequence,
-      day_type: row.day_type,
-      week: row.week,
-      day: row.day,
-      is_partial: row.is_partial,
-      is_continued: row.is_continued,
+      id: row.id as string,
+      tenant_id: row.tenant_id as string,
+      student_id: row.student_id as string,
+      plan_date: row.plan_date as string,
+      block_index: row.block_index as number,
+      content_type: row.content_type as "custom" | "book" | "lecture",
+      content_id: row.content_id as string,
+      chapter: row.chapter as string | null,
+      planned_start_page_or_time: row.planned_start_page_or_time as number | null,
+      planned_end_page_or_time: row.planned_end_page_or_time as number | null,
+      completed_amount: row.completed_amount as number | null,
+      progress: row.progress as number | null,
+      is_reschedulable: row.is_reschedulable as boolean,
+      plan_group_id: row.plan_group_id as string,
+      start_time: row.start_time as string | null,
+      end_time: row.end_time as string | null,
+      actual_start_time: row.actual_start_time as string | null,
+      actual_end_time: row.actual_end_time as string | null,
+      total_duration_seconds: row.total_duration_seconds as number | null,
+      paused_duration_seconds: row.paused_duration_seconds as number | null,
+      pause_count: row.pause_count as number | null,
+      plan_number: row.plan_number as number | null,
+      sequence: row.sequence as number | null,
+      day_type: row.day_type as string | null,
+      week: row.week as number | null,
+      day: row.day as number | null,
+      is_partial: row.is_partial as boolean | null,
+      is_continued: row.is_continued as boolean | null,
       // denormalized 필드: 우선순위는 content_title > view_content_title
-      content_title: row.content_title || row.view_content_title || null,
-      content_subject: row.content_subject || row.view_content_subject || null,
+      content_title: (row.content_title || row.view_content_title || null) as string | null,
+      content_subject: (row.content_subject || row.view_content_subject || null) as string | null,
       content_subject_category:
-        row.content_subject_category ||
+        (row.content_subject_category ||
         row.view_content_subject_category ||
-        null,
+        null) as string | null,
       content_category:
-        row.content_category || row.view_content_category || null,
-      memo: row.memo,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
+        (row.content_category || row.view_content_category || null) as string | null,
+      memo: row.memo as string | null,
+      created_at: row.created_at as string,
+      updated_at: row.updated_at as string | null,
     };
     return plan;
   });

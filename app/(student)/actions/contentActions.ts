@@ -310,7 +310,7 @@ export async function addLecture(formData: FormData) {
     subject_category: subjectCategory || null,
     subject: subject || null,
     platform: platform || null,
-    difficulty_level: difficulty || null,
+    difficulty_level: difficultyLevelId || null,
     duration: duration,
     linked_book_id: linkedBookId || null,
     notes: notes || null,

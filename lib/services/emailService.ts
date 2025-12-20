@@ -74,7 +74,7 @@ export async function sendEmail(
       subject: options.subject,
       html: html || options.text || "",
       text: options.text,
-      reply_to: replyTo,
+      replyTo: replyTo,
     });
 
     if (error) {
@@ -151,7 +151,7 @@ export async function sendBulkEmail(
         subject: options.subject,
         html: html || options.text || "",
         text: options.text,
-        reply_to: replyTo,
+        replyTo: replyTo,
       });
 
       if (error) {

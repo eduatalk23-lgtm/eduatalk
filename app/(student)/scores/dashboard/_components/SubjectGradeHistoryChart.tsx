@@ -109,10 +109,10 @@ export function SubjectGradeHistoryChart({
             label={{ value: "등급", angle: -90, position: "insideLeft" }}
           />
           <Tooltip
-            formatter={(value: number | string | null) => {
+            formatter={((value: number | string | null) => {
               if (value === null || value === undefined) return "데이터 없음";
               return `${value}등급`;
-            }}
+            }) as any}
           />
           <Legend />
           {data.map((subject, index) => {

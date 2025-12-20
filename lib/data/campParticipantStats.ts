@@ -52,15 +52,13 @@ export async function getCampParticipantStatsBatch(
       const [attendanceStats, learningStats] = await Promise.all([
         getParticipantAttendanceStats(
           templateId,
-          studentId,
-          template.camp_start_date,
-          template.camp_end_date
+          studentId
         ),
         getParticipantLearningStats(
           templateId,
           studentId,
-          template.camp_start_date,
-          template.camp_end_date
+          template.camp_start_date!,
+          template.camp_end_date!
         ),
       ]);
 

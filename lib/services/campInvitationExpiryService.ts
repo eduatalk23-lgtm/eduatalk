@@ -71,7 +71,7 @@ export async function processExpiredInvitations(): Promise<{
     expiredInvitations.forEach((invitation) => {
       sendInAppNotification(
         invitation.student_id,
-        "camp_invitation_expired",
+        "camp_invitation_expired" as any,
         "캠프 초대가 만료되었습니다",
         "캠프 초대가 만료되었습니다. 관리자에게 문의해주세요.",
         {

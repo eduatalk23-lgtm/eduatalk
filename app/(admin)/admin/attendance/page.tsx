@@ -144,8 +144,12 @@ async function AttendanceContent({
     });
     
     // 테이블이 없는 경우 (PGRST205, 42P01 에러 또는 AppError로 변환된 경우)
-    const errorCode = error?.code || errorInfo.code;
-    const errorMessageForCheck = error?.message || errorInfo.message || "";
+    const errorCode = (error && typeof error === "object" && "code" in error 
+      ? (error as { code?: string }).code 
+      : null) || (errorInfo.code as string | undefined) || "";
+    const errorMessageForCheck = (error && typeof error === "object" && "message" in error
+      ? (error as { message?: string }).message
+      : null) || (errorInfo.message as string | undefined) || "";
     if (
       errorCode === "PGRST205" ||
       errorCode === "42P01" ||

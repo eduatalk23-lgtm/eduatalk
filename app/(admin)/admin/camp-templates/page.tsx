@@ -60,7 +60,7 @@ export default async function CampTemplatesPage({
 
   // 서버 사이드 필터링이 적용되었으므로 클라이언트 필터링 불필요
   const filteredTemplates = result.items;
-  const totalPages = Math.ceil(result.total / limit);
+  const totalPages = Math.ceil((result.total ?? 0) / limit);
 
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">

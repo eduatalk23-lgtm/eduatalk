@@ -61,7 +61,7 @@ export function useCreateStudentForm({
 
   // React Hook Form 설정 (Zod 스키마 통합)
   const form = useForm<CreateStudentFormData>({
-    resolver: zodResolver(createStudentFormSchema),
+    resolver: zodResolver(createStudentFormSchema) as any,
     defaultValues,
     mode: "onChange",
     shouldUnregister: false,

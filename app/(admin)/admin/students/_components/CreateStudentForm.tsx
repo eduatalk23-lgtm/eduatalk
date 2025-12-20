@@ -40,7 +40,7 @@ export function CreateStudentForm({
   const { showError } = useToast();
   const [schoolType, setSchoolType] = useState<"중학교" | "고등학교" | undefined>();
 
-  const onSubmit = async (data: CreateStudentFormData) => {
+  const onSubmit = async (data: CreateStudentFormData): Promise<void> => {
     setIsSubmitting(true);
     try {
       // FormData로 변환
@@ -116,7 +116,7 @@ export function CreateStudentForm({
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+    <form onSubmit={form.handleSubmit(onSubmit as unknown as Parameters<typeof form.handleSubmit>[0])} className="flex flex-col gap-6">
       {/* 탭 네비게이션 */}
       <div className="flex gap-2 border-b">
         <button
@@ -157,10 +157,10 @@ export function CreateStudentForm({
       {/* 탭 컨텐츠 */}
       <div className="flex flex-col gap-6 max-h-[60vh] overflow-y-auto">
         {activeTab === "basic" && (
-          <BasicInfoTab control={control} schoolType={schoolType} setSchoolType={setSchoolType} />
+          <BasicInfoTab control={control as unknown as FormControl<CreateStudentFormData>} schoolType={schoolType} setSchoolType={setSchoolType} />
         )}
-        {activeTab === "profile" && <ProfileInfoTab control={control} />}
-        {activeTab === "career" && <CareerInfoTab control={control} />}
+        {activeTab === "profile" && <ProfileInfoTab control={control as unknown as FormControl<CreateStudentFormData>} />}
+        {activeTab === "career" && <CareerInfoTab control={control as unknown as FormControl<CreateStudentFormData>} />}
       </div>
 
       {/* 폼 액션 */}
