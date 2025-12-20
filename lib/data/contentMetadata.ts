@@ -1,6 +1,8 @@
 /**
  * 콘텐츠 메타데이터 조회 유틸리티
- * TODO 주석 해결: 마스터 콘텐츠의 subject_category를 올바르게 조회
+ * 
+ * 학생 콘텐츠의 master_content_id를 통해 마스터 콘텐츠에서 subject_category를 조회합니다.
+ * 이는 마스터 콘텐츠의 subject_category가 더 정확하고 일관된 정보를 제공하기 때문입니다.
  */
 
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";

@@ -101,6 +101,21 @@ export async function buildContentQuery<T>(
 
   // 로그: 검색 결과 (개발 환경에서만 상세 로깅)
   if (process.env.NODE_ENV === "development") {
+    // 로깅용 샘플 데이터 타입 정의 (id와 title 속성을 가진 객체)
+    type LoggableItem = Partial<Pick<T, "id" | "title">> & {
+      id?: string | number;
+      title?: string | null;
+    };
+
+    const sample: Array<{ id: string | number | undefined; title: string | null | undefined }> = 
+      result.data.slice(0, 3).map((item: T) => {
+        const loggable = item as LoggableItem;
+        return {
+          id: loggable.id,
+          title: loggable.title ?? null,
+        };
+      });
+
     console.log(`[data/contentQueryBuilder] ${tableName} 검색 결과:`, {
       filters: {
         curriculum_revision_id: filters.curriculum_revision_id,
@@ -117,10 +132,7 @@ export async function buildContentQuery<T>(
         count: result.data.length,
         total: result.total,
         // 처음 3개만 로깅 (성능 고려)
-        sample: result.data.slice(0, 3).map((item: any) => ({
-          id: item.id,
-          title: item.title,
-        })),
+        sample,
       },
     });
   }
