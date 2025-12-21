@@ -416,12 +416,12 @@ export async function updateCampInvitationStatus(
     declined_at: status === "declined" ? new Date().toISOString() : null,
   };
 
-  const { data, error } = await supabase
+  // UPDATE만 수행 (SELECT는 RLS 정책에 의해 실패할 수 있으므로 제거)
+  const { error, count } = await supabase
     .from("camp_invitations")
     .update(updateData)
     .eq("id", invitationId)
-    .select("id")
-    .single();
+    .select("*", { count: "exact", head: true });
 
   if (error) {
     console.error("[data/campTemplates] updateCampInvitationStatus 실패:", {
@@ -438,10 +438,10 @@ export async function updateCampInvitationStatus(
     };
   }
 
-  // UPDATE 쿼리는 성공해도 data가 null일 수 있음 (RLS 정책에 따라)
-  // 하지만 select().single()을 사용했으므로, data가 있으면 성공으로 간주
-  if (!data) {
-    console.warn("[data/campTemplates] updateCampInvitationStatus: 데이터가 반환되지 않음 (RLS 정책 위반 가능성):", {
+  // UPDATE가 성공했는지 확인 (count가 1이면 업데이트된 행이 있음)
+  // count가 0이면 해당 행이 없거나 RLS 정책에 의해 업데이트가 차단된 것
+  if (count === 0) {
+    console.warn("[data/campTemplates] updateCampInvitationStatus: 업데이트된 행이 없음 (RLS 정책 위반 또는 행이 존재하지 않음):", {
       invitationId,
       status,
     });
