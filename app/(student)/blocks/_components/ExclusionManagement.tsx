@@ -4,10 +4,11 @@ import { useEffect, useState, useTransition } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { addPlanExclusion, deletePlanExclusion } from "@/app/(student)/actions/planGroupActions";
 import type { PlanExclusion } from "@/lib/types/plan";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { DateInput } from "@/app/(student)/plan/new-group/_components/_components/DateInput";
 import { generateDateRange, formatDateFromDate, parseDateString } from "@/lib/utils/date";
+import { MultiSelectCalendar } from "./MultiSelectCalendar";
 
 type ExclusionManagementProps = {
   studentId: string;
@@ -310,39 +311,53 @@ export default function ExclusionManagement({
             )}
 
             {exclusionInputType === "multiple" && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
                 <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
                   날짜 선택 (다중 선택 가능)
                 </label>
-                <div className="max-h-48 flex flex-col gap-1 overflow-y-auto rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2">
-                  {getAvailableDates().map((date) => {
-                    const isSelected = newExclusionDates.includes(date);
-                    const isExcluded = planExclusions.some(
-                      (e) => e.exclusion_date === date
-                    );
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        onClick={() => !isExcluded && toggleExclusionDate(date)}
-                        disabled={isExcluded}
-                        className={`w-full rounded px-2 py-1 text-left text-xs transition-colors ${
-                          isExcluded
-                            ? "cursor-not-allowed bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 line-through"
-                          : isSelected
-                          ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
-                          : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        {date} {isExcluded && "(이미 제외됨)"}
-                      </button>
-                    );
-                  })}
-                </div>
+
+                {/* 달력 컴포넌트 */}
+                <MultiSelectCalendar
+                  selectedDates={newExclusionDates}
+                  excludedDates={planExclusions.map((e) => e.exclusion_date)}
+                  onDateToggle={toggleExclusionDate}
+                />
+
+                {/* 선택된 날짜 목록 */}
                 {newExclusionDates.length > 0 && (
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    {newExclusionDates.length}개 날짜 선택됨
-                  </p>
+                  <div className="flex flex-col gap-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        선택된 날짜 ({newExclusionDates.length}개)
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setNewExclusionDates([])}
+                        className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      >
+                        전체 삭제
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {newExclusionDates
+                        .sort()
+                        .map((date) => (
+                          <div
+                            key={date}
+                            className="flex items-center gap-1 rounded-lg bg-gray-900 dark:bg-gray-100 px-2 py-1 text-xs text-white dark:text-gray-900"
+                          >
+                            <span>{date}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleExclusionDate(date)}
+                              className="hover:opacity-70"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
