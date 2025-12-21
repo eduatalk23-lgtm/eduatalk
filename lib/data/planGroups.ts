@@ -208,9 +208,14 @@ export async function getPlanGroupsForStudent(
         // fallback 성공 시 scheduler_options를 null로 설정
         if (fallbackResult.data && !fallbackResult.error) {
           return {
-            data: fallbackResult.data.map((group: PlanGroupRow) => ({
+            data: fallbackResult.data.map((group) => ({
               ...group,
               scheduler_options: null,
+              subject_constraints: null,
+              additional_period_reallocation: null,
+              non_study_time_blocks: null,
+              study_hours: null,
+              self_study_hours: null,
             })) as PlanGroup[],
             error: null,
           };
@@ -1460,13 +1465,28 @@ export async function getAcademySchedules(
     // tenant_id를 null로 설정
     if (retryResult.data && !error) {
       type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
-        academies?: { travel_time?: number } | null;
+        academies?: { travel_time?: number } | Array<{ travel_time?: number }> | null;
       };
-      schedulesData = retryResult.data.map((schedule: ScheduleRow) => ({
-        ...schedule,
-        tenant_id: null,
-        academy_id: schedule.academy_id || "", 
-      })) as AcademySchedule[];
+      schedulesData = retryResult.data.map((schedule) => {
+        const scheduleRow = schedule as unknown as ScheduleRow;
+        const travelTime = Array.isArray(scheduleRow.academies)
+          ? scheduleRow.academies[0]?.travel_time ?? null
+          : (scheduleRow.academies as { travel_time?: number } | null)?.travel_time ?? null;
+        return {
+          id: scheduleRow.id,
+          tenant_id: null,
+          student_id: scheduleRow.student_id,
+          academy_id: scheduleRow.academy_id || "", 
+          day_of_week: scheduleRow.day_of_week,
+          start_time: scheduleRow.start_time,
+          end_time: scheduleRow.end_time,
+          subject: scheduleRow.subject ?? null,
+          created_at: scheduleRow.created_at,
+          updated_at: scheduleRow.updated_at,
+          academy_name: null,
+          travel_time: travelTime,
+        } as AcademySchedule;
+      });
     } else {
       schedulesData = (retryResult.data as AcademySchedule[] | null) ?? null;
     }
@@ -1551,11 +1571,19 @@ export async function getStudentAcademySchedules(
         academies?: { travel_time?: number } | null;
         academy_name?: string | null;
       };
-      studentSchedulesData = fallbackResult.data.map((schedule: ScheduleRow) => ({
-        ...schedule,
-        academy_id: "", 
+      studentSchedulesData = fallbackResult.data.map((schedule) => ({
+        id: schedule.id,
         tenant_id: "",
+        student_id: schedule.student_id,
+        academy_id: "", 
+        day_of_week: schedule.day_of_week,
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
+        subject: schedule.subject ?? null,
+        created_at: schedule.created_at,
+        updated_at: schedule.updated_at,
         academy_name: schedule.academy_name || null,
+        travel_time: null,
       })) as AcademySchedule[];
     } else {
       studentSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
@@ -2141,17 +2169,25 @@ export async function getPlanGroupWithDetailsForAdmin(
       const fallbackResult = await fallbackSelect();
       error = fallbackResult.error;
       
-      // academy_id를 null로 설정
+      // academy_id를 빈 문자열로 설정 (fallback 쿼리에는 academy_id가 없음)
       if (fallbackResult.data && !error) {
         type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
           academies?: { travel_time?: number } | null;
           academy_name?: string | null;
         };
-        adminSchedulesData = fallbackResult.data.map((schedule: ScheduleRow) => ({
-            ...schedule,
-            academy_id: schedule.academy_id || "", // Ensure string
+        adminSchedulesData = fallbackResult.data.map((schedule) => ({
+            id: schedule.id,
             tenant_id: schedule.tenant_id || "", 
+            student_id: schedule.student_id,
+            academy_id: "", // fallback 쿼리에는 academy_id가 없으므로 빈 문자열
+            day_of_week: schedule.day_of_week,
+            start_time: schedule.start_time,
+            end_time: schedule.end_time,
+            subject: schedule.subject ?? null,
+            created_at: schedule.created_at,
+            updated_at: schedule.updated_at,
             academy_name: schedule.academy_name || null,
+            travel_time: null,
           })) as AcademySchedule[];
       }
     }

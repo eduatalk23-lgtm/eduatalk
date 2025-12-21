@@ -877,7 +877,12 @@ export async function searchUniversityCampuses(
   for (const uc of universityNameData) {
     if (!seenIds.has(uc.id)) {
       seenIds.add(uc.id);
-      allCampusData.push(uc);
+      // university 필드를 평탄화하여 UniversityWithCampus 형태로 변환
+      const normalized: UniversityWithCampus = {
+        ...uc,
+        university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+      } as UniversityWithCampus;
+      allCampusData.push(normalized);
     }
   }
 

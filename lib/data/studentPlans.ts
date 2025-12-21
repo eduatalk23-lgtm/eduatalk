@@ -292,7 +292,7 @@ export async function getPlansForStudent(
 
   // 에러가 발생한 경우는 createTypedConditionalQuery가 이미 처리했으므로, 여기서는 서버 에러 재시도 로직만 처리
   // data가 비어있고 planGroupIds가 있는 경우에만 추가 처리
-  if (data.length === 0 && (filters.planGroupIds?.length ?? 0) > 0) {
+  if (data && data.length === 0 && (filters.planGroupIds?.length ?? 0) > 0) {
     // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
     console.warn(
       "[data/studentPlans] planGroupIds 필터링 결과가 비어있음, 전체 조회로 폴백"

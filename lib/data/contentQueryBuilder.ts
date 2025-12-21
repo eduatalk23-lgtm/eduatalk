@@ -101,10 +101,11 @@ export async function buildContentQuery<T>(
 
   // 로그: 검색 결과 (개발 환경에서만 상세 로깅)
   if (process.env.NODE_ENV === "development") {
-    // 로깅용 샘플 데이터 타입 정의 (id와 title 속성을 가진 객체)
-    type LoggableItem = Partial<Pick<T, "id" | "title">> & {
+    // 로그: 검색 결과 (개발 환경에서만 상세 로깅)
+    type LoggableItem = {
       id?: string | number;
       title?: string | null;
+      [key: string]: unknown;
     };
 
     const sample: Array<{ id: string | number | undefined; title: string | null | undefined }> = 

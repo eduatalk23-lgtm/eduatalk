@@ -2,6 +2,31 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ConsentData, ConsentMetadata, ConsentType } from "@/lib/types/auth";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+/**
+ * 에러를 PostgrestError로 변환하는 헬퍼 함수
+ */
+function toPostgrestError(error: unknown): PostgrestError | null {
+  if (!error) return null;
+  if (typeof error === 'object' && 'code' in error) {
+    return {
+      message: (error as { message?: string }).message || 'Unknown error',
+      details: (error as { details?: string }).details || null,
+      hint: (error as { hint?: string }).hint || null,
+      code: (error as { code?: string }).code || '',
+    } as unknown as PostgrestError;
+  }
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: null,
+      hint: null,
+      code: '',
+    } as unknown as PostgrestError;
+  }
+  return null;
+}
 
 type ConsentRecord = {
   user_id: string;
@@ -79,7 +104,7 @@ export async function saveUserConsents(
 
     return { success: true };
   } catch (error) {
-    handleQueryError(error as { code?: string } | null, {
+    handleQueryError(toPostgrestError(error), {
       context: "[data/userConsents] saveUserConsents",
     });
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -133,7 +158,7 @@ export async function getUserConsents(userId: string): Promise<{
 
     return consents;
   } catch (error) {
-    handleQueryError(error as { code?: string } | null, {
+    handleQueryError(toPostgrestError(error), {
       context: "[data/userConsents] getUserConsents",
     });
     return null;

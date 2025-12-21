@@ -22,6 +22,7 @@ import {
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { Database } from "@/lib/supabase/database.types";
 import type { SupabaseServerClient } from "@/lib/data/core/types";
+import type { PostgrestError } from "@supabase/supabase-js";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -31,6 +32,30 @@ function normalizeIsoDate(value: string | null): string | null {
   }
   const date = new Date(value + "T00:00:00Z");
   return Number.isNaN(date.getTime()) ? null : value;
+}
+
+/**
+ * 에러를 PostgrestError로 변환하는 헬퍼 함수
+ */
+function toPostgrestError(error: unknown): PostgrestError | null {
+  if (!error) return null;
+  if (typeof error === 'object' && 'code' in error) {
+    return {
+      message: (error as { message?: string }).message || 'Unknown error',
+      details: (error as { details?: string }).details || null,
+      hint: (error as { hint?: string }).hint || null,
+      code: (error as { code?: string }).code || '',
+    } as unknown as PostgrestError;
+  }
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: null,
+      hint: null,
+      code: '',
+    } as unknown as PostgrestError;
+  }
+  return null;
 }
 
 /**
@@ -160,10 +185,11 @@ async function getPlansFromView(options: {
           })) as ViewPlanRow[];
           return { data: viewRows, error: null };
         } catch (error) {
-          handleQueryError(error as { code?: string } | null, {
+          const postgrestError = toPostgrestError(error);
+          handleQueryError(postgrestError, {
             context: "[data/todayPlans] getPlansFromView fallback",
           });
-          return { data: null, error: error as { code?: string } | null };
+          return { data: null, error: postgrestError };
         }
       },
       shouldFallback: (error) => ErrorCodeCheckers.isViewNotFound(error),
@@ -209,7 +235,7 @@ async function getPlansFromView(options: {
       content_category: row.content_category || row.view_content_category || null,
       memo: row.memo,
       created_at: row.created_at,
-      updated_at: row.updated_at,
+      updated_at: row.updated_at ?? new Date().toISOString(),
     };
   });
 
@@ -295,7 +321,7 @@ export async function getTodayPlans(
 
   const requestedDateParam = normalizeIsoDate(date ?? null);
   const targetDate = requestedDateParam ?? todayDate;
-  const isToday = targetDate === todayDate;
+  let isToday = targetDate === todayDate;
 
   // 동적 캐시 TTL: 오늘 날짜는 짧게(2분), 과거/미래는 길게(10분)
   // 오늘 날짜는 자주 업데이트되므로 짧은 TTL이 적합하고,
@@ -346,7 +372,7 @@ export async function getTodayPlans(
         });
       }
     } catch (error) {
-      handleQueryError(error as { code?: string } | null, {
+      handleQueryError(toPostgrestError(error), {
         context: "[data/todayPlans] cache lookup",
         logError: false, // Non-blocking이므로 warn 레벨로만 로깅
       });
@@ -439,7 +465,7 @@ export async function getTodayPlans(
         return a.plan_date.localeCompare(b.plan_date);
       });
 
-      const nearestDate = sortedPlans[0].plan_date;
+      const nearestDate = sortedPlans[0]?.plan_date;
       if (nearestDate) {
         displayDate = nearestDate;
         isToday = false;
@@ -468,7 +494,7 @@ export async function getTodayPlans(
         achievementScore: 0, // Will be computed after todayStudyMinutes is known
       };
     } catch (error) {
-      handleQueryError(error as { code?: string } | null, {
+      handleQueryError(toPostgrestError(error), {
         context: "[data/todayPlans] 오늘 진행률 계산",
         logError: false, // Non-blocking이므로 warn 레벨로만 로깅
       });
@@ -578,10 +604,11 @@ export async function getTodayPlans(
           }));
           return { data: convertedSessions, error: null };
         } catch (error) {
-          handleQueryError(error as { code?: string } | null, {
+          const postgrestError = toPostgrestError(error);
+          handleQueryError(postgrestError, {
             context: "[data/todayPlans] 활성 세션 조회",
           });
-          return { data: null, error: error as { code?: string } | null };
+          return { data: null, error: postgrestError };
         }
       },
       {
@@ -607,10 +634,11 @@ export async function getTodayPlans(
               });
               return { data: sessions, error: null };
             } catch (error) {
-              handleQueryError(error as { code?: string } | null, {
+              const postgrestError = toPostgrestError(error);
+              handleQueryError(postgrestError, {
                 context: "[data/todayPlans] 전체 세션 조회",
               });
-              return { data: null, error: error as { code?: string } | null };
+              return { data: null, error: postgrestError };
             }
           },
           {
@@ -622,7 +650,7 @@ export async function getTodayPlans(
   ]);
 
   // Build progress map (O(n) where n = progress records)
-  const progressData = progressResult;
+  const progressData = progressResult ?? [];
   const progressMap = new Map<string, number | null>();
   progressData.forEach((row) => {
     if (row.content_type && row.content_id) {
@@ -631,8 +659,8 @@ export async function getTodayPlans(
     }
   });
 
-  const activeSessions = activeSessionsResult;
-  const fullDaySessions = fullDaySessionsResult;
+  const activeSessions = activeSessionsResult ?? [];
+  const fullDaySessions = fullDaySessionsResult ?? [];
 
   // Complete todayProgress calculation now that we have fullDaySessions
   if (includeProgress && todayProgress && fullDaySessions.length >= 0) {
@@ -678,7 +706,7 @@ export async function getTodayPlans(
       todayProgress.todayStudyMinutes = todayStudyMinutes;
       todayProgress.achievementScore = achievementScore;
     } catch (error) {
-      handleQueryError(error as { code?: string } | null, {
+      handleQueryError(toPostgrestError(error), {
         context: "[data/todayPlans] 오늘 진행률 최종 계산",
         logError: false, // Non-blocking이므로 warn 레벨로만 로깅
       });
@@ -862,7 +890,7 @@ export async function getTodayPlans(
         });
       }
     } catch (error) {
-      handleQueryError(error as { code?: string } | null, {
+      handleQueryError(toPostgrestError(error), {
         context: "[data/todayPlans] cache store",
         logError: false, // Non-blocking이므로 warn 레벨로만 로깅
       });

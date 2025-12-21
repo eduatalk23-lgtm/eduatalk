@@ -14,6 +14,7 @@ import {
   updateBlockSet,
 } from "@/app/actions/blockSets";
 import { addBlock, deleteBlock } from "@/app/actions/blocks";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export type BlockSetItem = {
   id: string;
@@ -113,8 +114,10 @@ export function useBlockSet(
     setIsLoading(true);
     try {
       const result = await getBlockSets();
-      setBlockSets(result);
-      onBlockSetsLoaded?.(result);
+      if (isSuccessResponse(result) && result.data) {
+        setBlockSets(result.data);
+        onBlockSetsLoaded?.(result.data);
+      }
     } catch (error) {
       console.error("[useBlockSet] 블록 세트 로드 실패:", error);
     } finally {
@@ -147,19 +150,21 @@ export function useBlockSet(
           formData.append("name", newBlockSetName);
           const result = await createBlockSet(formData);
 
-          const newBlockSet = {
-            id: result.blockSetId,
-            name: result.name,
-            blocks: addedBlocks.map((block) => ({
-              id: crypto.randomUUID(),
-              day_of_week: block.day,
-              start_time: block.startTime,
-              end_time: block.endTime,
-            })),
-          };
+          if (isSuccessResponse(result) && result.data) {
+            const newBlockSet = {
+              id: result.data.blockSetId,
+              name: result.data.name,
+              blocks: addedBlocks.map((block) => ({
+                id: crypto.randomUUID(),
+                day_of_week: block.day,
+                start_time: block.startTime,
+                end_time: block.endTime,
+              })),
+            };
 
-          setBlockSets((prev) => [...prev, newBlockSet]);
-          onBlockSetCreated?.({ id: result.blockSetId, name: result.name });
+            setBlockSets((prev) => [...prev, newBlockSet]);
+            onBlockSetCreated?.({ id: result.data.blockSetId, name: result.data.name });
+          }
 
           // 상태 초기화
           setNewBlockSetName("");

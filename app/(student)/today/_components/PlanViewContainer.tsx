@@ -10,6 +10,7 @@ import { useTodayPlans } from "@/lib/hooks/useTodayPlans";
 import {
   groupPlansByPlanNumber,
   PlanGroup,
+  type PlanWithContent,
 } from "../_utils/planGroupUtils";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
@@ -17,6 +18,7 @@ import {
   getRelativeDateLabel,
   getTodayISODate,
 } from "../_utils/dateDisplay";
+import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
 export type ViewMode = "single" | "daily";
 
@@ -28,6 +30,11 @@ type PlanViewContainerProps = {
   userId?: string;
   tenantId?: string | null;
   campMode?: boolean;
+  /**
+   * If provided, uses this data as initial data instead of fetching.
+   * Used on pages like /camp/today where data is already fetched on the server.
+   */
+  initialData?: TodayPlansResponse;
 };
 
 type SessionState = {
@@ -73,6 +80,7 @@ export function PlanViewContainer({
   userId,
   tenantId = null,
   campMode = false,
+  initialData,
 }: PlanViewContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
@@ -96,7 +104,8 @@ export function PlanViewContainer({
     date: planDate,
     camp: campMode,
     includeProgress: true, // todayProgress 포함하여 별도 API 호출 방지
-    enabled: !!userId && !!planDate,
+    enabled: !!userId && !!planDate && !initialData, // initialData가 있으면 fetch 비활성화
+    initialData: initialData && planDate === initialData.planDate ? initialData : undefined,
   });
 
   // 데이터 가공 (useMemo로 최적화)

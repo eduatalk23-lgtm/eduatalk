@@ -259,7 +259,7 @@ export async function sendAttendanceSMSIfEnabled(
         smsType,
         studentId,
         isStudentCheckIn,
-        msgId: result.msgId,
+        msgId: result.data?.msgId,
       },
     };
   } catch (error: unknown) {

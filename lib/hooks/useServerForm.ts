@@ -96,7 +96,7 @@ export function useServerForm<T = void>(
   }, [state, options]);
 
   return {
-    action: formAction,
+    action: formAction as (formData: FormData) => Promise<ActionResponse<T>>,
     state,
     isPending,
     fieldErrors,

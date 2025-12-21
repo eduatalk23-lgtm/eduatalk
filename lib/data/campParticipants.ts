@@ -85,7 +85,12 @@ export async function loadCampParticipants(
 
   // 데이터 병합
   const participants = await mergeParticipantData(
-    invitationsData || [],
+    (invitationsData || []).map((inv) => ({
+      ...inv,
+      students: Array.isArray(inv.students) && inv.students.length > 0 
+        ? inv.students[0] 
+        : null,
+    })) as InvitationWithStudent[],
     planGroupsData,
     plansMap,
     templateId,
@@ -352,6 +357,7 @@ type InvitationWithStudent = CampInvitation & {
 
 type PlanGroupWithPlans = PlanGroupData & {
   hasPlans: boolean;
+  isSubmitted?: boolean;
 };
 
 function mergeParticipantData(

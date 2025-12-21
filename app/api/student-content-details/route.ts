@@ -74,7 +74,10 @@ export async function GET(request: NextRequest) {
               .eq("id", contentId)
               .eq("student_id", targetStudentId)
               .maybeSingle();
-            return { data: result.data, error: result.error };
+            return { 
+              data: result.data ? [result.data] : null, 
+              error: result.error 
+            };
           },
           {
             context: "[api/student-content-details] books 조회",
@@ -133,7 +136,10 @@ export async function GET(request: NextRequest) {
               .eq("id", contentId)
               .eq("student_id", targetStudentId)
               .maybeSingle();
-            return { data: result.data, error: result.error };
+            return { 
+              data: result.data ? [result.data] : null, 
+              error: result.error 
+            };
           },
           {
             context: "[api/student-content-details] lectures 조회",

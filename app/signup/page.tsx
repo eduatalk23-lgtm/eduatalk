@@ -61,7 +61,7 @@ export default function SignupPage() {
 
   // 회원가입 성공 시 리다이렉트
   useEffect(() => {
-    if (isSuccessResponse(state) && state.data?.redirect) {
+    if (state && isSuccessResponse(state) && state.data?.redirect) {
       const redirectPath = state.data.redirect;
       const timer = setTimeout(() => {
         // redirect URL에 이미 쿼리 파라미터가 있으면 & 사용, 없으면 ? 사용
@@ -278,11 +278,11 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {isErrorResponse(state) && state.error && (
+        {state && isErrorResponse(state) && state.error && (
           <FormMessage type="error" message={state.error} />
         )}
 
-        {isSuccessResponse(state) && state.message && (
+        {state && isSuccessResponse(state) && state.message && (
           <FormMessage type="success" message={state.message} />
         )}
 

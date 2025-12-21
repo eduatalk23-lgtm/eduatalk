@@ -2,7 +2,6 @@
 
 import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
 import { queryOptions } from "@tanstack/react-query";
-import { fetchAllStudentContents } from "@/lib/data/planContents";
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
@@ -32,7 +31,42 @@ export function studentContentsQueryOptions(studentId: string) {
       lectures: ContentItem[];
       custom: ContentItem[];
     }> => {
-      return await fetchAllStudentContents(studentId);
+      const response = await fetch("/api/student-contents", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "학생 콘텐츠 조회 실패";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          // JSON 파싱 실패 시 원본 텍스트 사용
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      // API 응답이 { success: true, data: ... } 형식인지 확인
+      if (responseData.success && responseData.data) {
+        return responseData.data as {
+          books: ContentItem[];
+          lectures: ContentItem[];
+          custom: ContentItem[];
+        };
+      }
+      
+      // 직접 형식인 경우
+      return responseData as {
+        books: ContentItem[];
+        lectures: ContentItem[];
+        custom: ContentItem[];
+      };
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
     gcTime: CACHE_GC_TIME_DYNAMIC, // 10분 (캐시 유지 시간)

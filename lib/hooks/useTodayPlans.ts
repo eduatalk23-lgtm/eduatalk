@@ -15,6 +15,7 @@ type UseTodayPlansOptions = {
   camp?: boolean;
   includeProgress?: boolean;
   enabled?: boolean;
+  initialData?: TodayPlansResponse;
 };
 
 /**
@@ -118,6 +119,7 @@ export function useTodayPlans({
   camp = false,
   includeProgress = true,
   enabled = true,
+  initialData,
 }: UseTodayPlansOptions) {
   return useTypedQuery({
     ...todayPlansQueryOptions(studentId, tenantId, date, {
@@ -125,6 +127,7 @@ export function useTodayPlans({
       includeProgress,
     }),
     enabled: enabled && !!studentId && !!date,
+    initialData,
   });
 }
 

@@ -20,8 +20,8 @@ export function CampReportDashboard({
   // 캠프 통계 조회 (훅 사용)
   const { attendance, learning, isLoading } = useCampStats(templateId);
 
-  const attendanceStats = attendance.data;
-  const learningStats = learning.data;
+  const attendanceStats = attendance;
+  const learningStats = learning;
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">

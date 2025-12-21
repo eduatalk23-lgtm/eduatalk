@@ -4,26 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { PlanViewContainer, type ViewMode } from "./PlanViewContainer";
 import { TodayAchievements } from "./TodayAchievements";
-import type { PlanWithContent } from "../_utils/planGroupUtils";
-
-type PlansResponse = {
-  plans: PlanWithContent[];
-  sessions: Record<string, {
-    isPaused: boolean;
-    startedAt?: string | null;
-    pausedAt?: string | null;
-    resumedAt?: string | null;
-    pausedDurationSeconds?: number | null;
-  }>;
-  planDate: string;
-  isToday?: boolean;
-  serverNow?: number;
-  /**
-   * Today progress summary (from /api/today/plans).
-   * If provided, we skip calling /api/today/progress separately.
-   */
-  todayProgress?: TodayProgress | null;
-};
+import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
 type TodayPageContentProps = {
   initialMode: ViewMode;
@@ -38,7 +19,7 @@ type TodayPageContentProps = {
    * If provided, passes this data to PlanViewContainer to avoid client-side fetch.
    * Used on pages like /camp/today where data is already fetched on the server.
    */
-  initialPlansData?: PlansResponse;
+  initialPlansData?: TodayPlansResponse;
 };
 
 type ProgressResponse = {

@@ -12,6 +12,31 @@ import {
 } from "@/lib/data/studentTerms";
 import { createTypedQuery } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
+import type { PostgrestError } from "@supabase/supabase-js";
+
+/**
+ * 에러를 PostgrestError로 변환하는 헬퍼 함수
+ */
+function toPostgrestError(error: unknown): PostgrestError | null {
+  if (!error) return null;
+  if (typeof error === 'object' && 'code' in error) {
+    return {
+      message: (error as { message?: string }).message || 'Unknown error',
+      details: (error as { details?: string }).details || null,
+      hint: (error as { hint?: string }).hint || null,
+      code: (error as { code?: string }).code || '',
+    } as unknown as PostgrestError;
+  }
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: null,
+      hint: null,
+      code: '',
+    } as unknown as PostgrestError;
+  }
+  return null;
+}
 import type { Database } from "@/lib/supabase/database.types";
 import type { SupabaseServerClient } from "@/lib/data/core/types";
 
@@ -224,7 +249,7 @@ export async function createInternalScore(score: {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "student_term 조회/생성 실패";
-    handleQueryError(error as unknown, {
+    handleQueryError(toPostgrestError(error), {
       context: "[data/studentScores] createInternalScore - student_term",
     });
     return {
@@ -422,7 +447,7 @@ export async function createMockScore(score: {
     });
   } catch (error) {
     // 모의고사 성적의 경우 student_term_id가 없어도 저장 가능
-    handleQueryError(error as unknown, {
+    handleQueryError(toPostgrestError(error), {
       context: "[data/studentScores] createMockScore - student_term (nullable)",
       logError: false, // 경고만 표시
     });
@@ -615,7 +640,7 @@ export async function createInternalScoresBatch(
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "student_term 조회/생성 실패";
-      handleQueryError(error as unknown, {
+      handleQueryError(toPostgrestError(error), {
         context: "[data/studentScores] createInternalScoresBatch - student_term",
       });
       return {

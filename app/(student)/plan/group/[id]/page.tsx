@@ -10,7 +10,8 @@ import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
 import { classifyPlanContents } from "@/lib/data/planContents";
-import type { PlanStatus, Plan } from "@/lib/types/plan";
+import type { PlanStatus } from "@/lib/types/plan";
+import type { Plan } from "@/lib/data/studentPlans";
 import {
   planPurposeLabels,
   schedulerTypeLabels,
@@ -107,20 +108,41 @@ export default async function PlanGroupDetailPage({
   // 자동 재조정 제안을 위한 플랜 데이터 변환
   const plansForAnalysis: Plan[] = (plans || []).map((p) => ({
     id: p.id,
-    plan_date: p.plan_date,
-    planned_start_page_or_time: p.planned_start_page_or_time,
-    planned_end_page_or_time: p.planned_end_page_or_time,
-    completed_amount: p.completed_amount,
-    status: p.status as "pending" | "in_progress" | "completed" | "cancelled",
-    actual_start_time: p.actual_start_time,
-    actual_end_time: p.actual_end_time,
+    tenant_id: null,
     student_id: user.id,
     plan_group_id: id,
+    plan_date: p.plan_date,
+    block_index: 0,
     content_type: "book" as const,
     content_id: "",
-    block_index: 0,
+    chapter: null,
+    planned_start_page_or_time: p.planned_start_page_or_time ?? null,
+    planned_end_page_or_time: p.planned_end_page_or_time ?? null,
+    completed_amount: p.completed_amount ?? null,
+    progress: null,
     is_reschedulable: true,
-  }));
+    start_time: null,
+    end_time: null,
+    actual_start_time: p.actual_start_time ?? null,
+    actual_end_time: p.actual_end_time ?? null,
+    total_duration_seconds: null,
+    paused_duration_seconds: null,
+    pause_count: null,
+    plan_number: null,
+    sequence: null,
+    day_type: null,
+    week: null,
+    day: null,
+    is_partial: null,
+    is_continued: null,
+    content_title: null,
+    content_subject: null,
+    content_subject_category: null,
+    content_category: null,
+    memo: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  })) as Plan[];
 
   // 완료 여부 및 완료 개수 계산
   let isCompleted = false;

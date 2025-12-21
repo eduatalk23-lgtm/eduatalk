@@ -2,7 +2,6 @@
 
 import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
 import { queryOptions } from "@tanstack/react-query";
-import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
@@ -28,7 +27,34 @@ export function blockSetsQueryOptions(studentId: string) {
   return queryOptions({
     queryKey: ["blockSets", studentId] as const,
     queryFn: async (): Promise<BlockSetWithBlocks[]> => {
-      return await fetchBlockSetsWithBlocks(studentId);
+      const response = await fetch("/api/block-sets", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "블록 세트 조회 실패";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          // JSON 파싱 실패 시 원본 텍스트 사용
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      // API 응답이 { success: true, data: BlockSetWithBlocks[] } 형식인지 확인
+      if (responseData.success && responseData.data) {
+        return responseData.data as BlockSetWithBlocks[];
+      }
+      
+      // 직접 BlockSetWithBlocks[] 형식인 경우
+      return responseData as BlockSetWithBlocks[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
     gcTime: CACHE_GC_TIME_DYNAMIC, // 10분 (캐시 유지 시간)

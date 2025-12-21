@@ -308,7 +308,7 @@ export async function fetchContentMetadataBatch(
             results.set(book.id, {
               title: book.title || "제목 없음",
               subject_category: masterBook?.subject_category || book.subject_category || "기타",
-              total_pages: masterBook?.total_pages,
+              total_pages: masterBook?.total_pages ?? undefined,
               subject: book.subject,
               semester: book.semester,
               revision: book.revision,
@@ -360,7 +360,7 @@ export async function fetchContentMetadataBatch(
             results.set(lecture.id, {
               title: lecture.title || "제목 없음",
               subject_category: masterLecture?.subject_category || lecture.subject_category || "기타",
-              total_episodes: masterLecture?.total_episodes,
+              total_episodes: masterLecture?.total_episodes ?? undefined,
               subject: lecture.subject,
               semester: lecture.semester,
               revision: lecture.revision,

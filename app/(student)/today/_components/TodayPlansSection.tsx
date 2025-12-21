@@ -2,6 +2,7 @@
 
 import { PlanViewContainer, type ViewMode } from "./PlanViewContainer";
 import { useTodayPageContext } from "./TodayPageContext";
+import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
 type TodayPlansSectionProps = {
   initialMode: ViewMode;
@@ -9,6 +10,11 @@ type TodayPlansSectionProps = {
   userId?: string;
   tenantId?: string | null;
   campMode?: boolean;
+  /**
+   * If provided, passes this data to PlanViewContainer to avoid client-side fetch.
+   * Used on pages like /camp/today where data is already fetched on the server.
+   */
+  initialPlansData?: TodayPlansResponse;
 };
 
 export function TodayPlansSection({
@@ -17,6 +23,7 @@ export function TodayPlansSection({
   userId,
   tenantId = null,
   campMode = false,
+  initialPlansData,
 }: TodayPlansSectionProps) {
   const { handleDateChange } = useTodayPageContext();
 
@@ -28,6 +35,7 @@ export function TodayPlansSection({
       userId={userId}
       tenantId={tenantId}
       campMode={campMode}
+      initialData={initialPlansData}
     />
   );
 }

@@ -2,10 +2,7 @@
 
 import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
 import { queryOptions } from "@tanstack/react-query";
-import {
-  getPlanGroupsWithStats,
-  type PlanGroupFilters,
-} from "@/lib/data/planGroups";
+import type { PlanGroupFilters } from "@/lib/data/planGroups";
 
 // PlanGroupFilters를 re-export하여 다른 컴포넌트에서 사용 가능하도록 함
 export type { PlanGroupFilters };
@@ -57,8 +54,56 @@ export function planGroupsQueryOptions(filters: PlanGroupFilters) {
       filters.includeDeleted ?? false,
     ] as const,
     queryFn: async (): Promise<PlanGroupWithStats[]> => {
-      const groups = await getPlanGroupsWithStats(filters);
-      return groups;
+      const queryParams = new URLSearchParams();
+      
+      if (filters.status) {
+        const statusValue = Array.isArray(filters.status) 
+          ? filters.status.join(",") 
+          : filters.status;
+        queryParams.set("status", statusValue);
+      }
+      if (filters.planPurpose) {
+        const purposeValue = Array.isArray(filters.planPurpose)
+          ? filters.planPurpose.join(",")
+          : filters.planPurpose;
+        queryParams.set("planPurpose", purposeValue);
+      }
+      if (filters.dateRange) {
+        queryParams.set("startDate", filters.dateRange.start);
+        queryParams.set("endDate", filters.dateRange.end);
+      }
+      if (filters.includeDeleted) {
+        queryParams.set("includeDeleted", "true");
+      }
+
+      const response = await fetch(`/api/plan-groups?${queryParams.toString()}`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "플랜 그룹 조회 실패";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          // JSON 파싱 실패 시 원본 텍스트 사용
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      // API 응답이 { success: true, data: PlanGroupWithStats[] } 형식인지 확인
+      if (responseData.success && responseData.data) {
+        return responseData.data as PlanGroupWithStats[];
+      }
+      
+      // 직접 PlanGroupWithStats[] 형식인 경우
+      return responseData as PlanGroupWithStats[];
     },
     staleTime: CACHE_STALE_TIME_DYNAMIC, // 1분 (Dynamic Data)
     gcTime: CACHE_GC_TIME_DYNAMIC, // 10분 (캐시 유지 시간)
