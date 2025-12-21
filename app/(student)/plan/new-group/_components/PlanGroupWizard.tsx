@@ -589,23 +589,29 @@ function PlanGroupWizardInner({
         return;
       }
       // 캠프 모드일 때는 기존 로직 사용
-      handleSubmit();
+      await handleSubmit();
       return;
     }
 
     // Step 5 (학습범위 점검)에서 다음 버튼 클릭 시
     if (currentStep === 5) {
-      // 일반 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
-      // 캠프 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 7에서)
-      handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : false);
+      // 템플릿 모드가 아닐 때만 handleSubmit 호출
+      if (!isTemplateMode) {
+        // 일반 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 6 → Step 7 전환 시)
+        // 캠프 모드: 데이터만 저장 후 Step 6으로 이동 (플랜 생성은 Step 7에서)
+        await handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : false);
+      }
       return;
     }
 
     // Step 6 (최종 확인)에서 다음 버튼 클릭 시
     if (currentStep === 6) {
-      // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
-      // 일반 모드: 플랜 생성 후 Step 7로 이동
-      handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : true);
+      // 템플릿 모드가 아닐 때만 handleSubmit 호출
+      if (!isTemplateMode) {
+        // 관리자 continue 모드: 데이터만 저장 후 Step 7로 이동
+        // 일반 모드: 플랜 생성 후 Step 7로 이동
+        await handleSubmit(shouldSaveOnlyWithoutPlanGeneration(mode) ? false : true);
+      }
       return;
     }
 
@@ -616,7 +622,7 @@ function PlanGroupWizardInner({
         if (!shouldSubmitAtStep4(mode)) {
           // Step 4에서는 데이터만 저장하고 Step 5로 이동 (플랜 생성은 Step 5에서)
           // handleSubmit 내부에서 setCurrentStep(5)를 호출하므로 여기서는 호출만 함
-          handleSubmit(false); // 플랜 생성하지 않음
+          await handleSubmit(false); // 플랜 생성하지 않음
           return; // handleSubmit 내부에서 단계 이동 처리
         }
       } else {
