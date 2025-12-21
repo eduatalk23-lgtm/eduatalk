@@ -565,7 +565,7 @@ function PlanGroupWizardInner({
     fieldErrors,
   });
 
-  const handleNext = useCallback(() => {
+  const handleNext = useCallback(async () => {
     // Step 3 (스케줄 미리보기)에서는 검증 로직 건너뛰기
     if (currentStep !== 3) {
       if (!validateStep(currentStep)) {
