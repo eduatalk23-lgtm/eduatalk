@@ -15,6 +15,7 @@ import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupError
 export type ContentMetadata = {
   title: string;
   subject_category: string;
+  subject_id?: string | null; // 과목 ID (FK to subjects)
   total_pages?: number; // 교재인 경우
   total_episodes?: number; // 강의인 경우
   subject?: string | null;
@@ -44,7 +45,7 @@ export async function fetchContentMetadata(
       if (contentType === "book") {
         const { data: studentBook, error: studentError } = await supabase
           .from("books")
-          .select("id, title, subject_category, master_content_id, subject, semester, revision, difficulty_level, publisher")
+          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, publisher")
           .eq("id", contentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -64,13 +65,14 @@ export async function fetchContentMetadata(
           if (studentBook.master_content_id) {
             const { data: masterBook } = await supabase
               .from("master_books")
-              .select("subject_category, total_pages")
+              .select("subject_category, subject_id, total_pages")
               .eq("id", studentBook.master_content_id)
               .maybeSingle();
 
             return {
               title: studentBook.title || "제목 없음",
               subject_category: masterBook?.subject_category || studentBook.subject_category || "기타",
+              subject_id: studentBook.subject_id || masterBook?.subject_id || null,
               total_pages: masterBook?.total_pages,
               subject: studentBook.subject,
               semester: studentBook.semester,
@@ -84,6 +86,7 @@ export async function fetchContentMetadata(
           return {
             title: studentBook.title || "제목 없음",
             subject_category: studentBook.subject_category || "기타",
+            subject_id: studentBook.subject_id || null,
             subject: studentBook.subject,
             semester: studentBook.semester,
             revision: studentBook.revision,
@@ -95,7 +98,7 @@ export async function fetchContentMetadata(
         // lecture
         const { data: studentLecture, error: studentError } = await supabase
           .from("lectures")
-          .select("id, title, subject_category, master_content_id, subject, semester, revision, difficulty_level, platform")
+          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, platform")
           .eq("id", contentId)
           .eq("student_id", studentId)
           .maybeSingle();
@@ -115,13 +118,14 @@ export async function fetchContentMetadata(
           if (studentLecture.master_content_id) {
             const { data: masterLecture } = await supabase
               .from("master_lectures")
-              .select("subject_category, total_episodes")
+              .select("subject_category, subject_id, total_episodes")
               .eq("id", studentLecture.master_content_id)
               .maybeSingle();
 
             return {
               title: studentLecture.title || "제목 없음",
               subject_category: masterLecture?.subject_category || studentLecture.subject_category || "기타",
+              subject_id: studentLecture.subject_id || masterLecture?.subject_id || null,
               total_episodes: masterLecture?.total_episodes,
               subject: studentLecture.subject,
               semester: studentLecture.semester,
@@ -135,6 +139,7 @@ export async function fetchContentMetadata(
           return {
             title: studentLecture.title || "제목 없음",
             subject_category: studentLecture.subject_category || "기타",
+            subject_id: studentLecture.subject_id || null,
             subject: studentLecture.subject,
             semester: studentLecture.semester,
             revision: studentLecture.revision,
@@ -149,7 +154,7 @@ export async function fetchContentMetadata(
     if (contentType === "book") {
       const { data: masterBook, error: masterError } = await supabase
         .from("master_books")
-        .select("title, subject_category, total_pages, subject, semester, revision, difficulty_level, publisher")
+        .select("title, subject_category, subject_id, total_pages, subject, semester, revision, difficulty_level, publisher")
         .eq("id", contentId)
         .maybeSingle();
 
@@ -176,6 +181,7 @@ export async function fetchContentMetadata(
       return {
         title: masterBook.title || "제목 없음",
         subject_category: masterBook.subject_category || "기타",
+        subject_id: masterBook.subject_id || null,
         total_pages: masterBook.total_pages,
         subject: masterBook.subject,
         semester: masterBook.semester,
@@ -187,7 +193,7 @@ export async function fetchContentMetadata(
       // lecture
       const { data: masterLecture, error: masterError } = await supabase
         .from("master_lectures")
-        .select("title, subject_category, total_episodes, subject, semester, revision, difficulty_level, platform")
+        .select("title, subject_category, subject_id, total_episodes, subject, semester, revision, difficulty_level, platform")
         .eq("id", contentId)
         .maybeSingle();
 
@@ -214,6 +220,7 @@ export async function fetchContentMetadata(
       return {
         title: masterLecture.title || "제목 없음",
         subject_category: masterLecture.subject_category || "기타",
+        subject_id: masterLecture.subject_id || null,
         total_episodes: masterLecture.total_episodes,
         subject: masterLecture.subject,
         semester: masterLecture.semester,

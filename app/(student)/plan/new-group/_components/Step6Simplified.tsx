@@ -206,18 +206,28 @@ function SubjectAllocationEditor({
   const handleSubjectAllocationChange = (
     subject: string,
     allocation: {
-      subject_id: string;
+      subject_id?: string;
       subject_name: string;
       subject_type: "strategy" | "weakness";
       weekly_days?: number;
     }
   ) => {
     if (!editable) return;
+    
+    // 해당 교과의 콘텐츠에서 실제 subject_id 추출
+    const subjectContents = contentsBySubject.get(subject) || [];
+    const actualSubjectId = subjectContents
+      .map((c) => c.subject_id)
+      .find((id) => id != null) || undefined;
+    
     const currentAllocations = data.subject_allocations || [];
     const updatedAllocations = currentAllocations.filter(
       (a) => a.subject_name !== subject
     );
-    updatedAllocations.push(allocation);
+    updatedAllocations.push({
+      ...allocation,
+      subject_id: actualSubjectId || allocation.subject_id,
+    });
     
     // 해당 교과의 content_allocations에서 제거
     const subjectContents = contentsBySubject.get(subject) || [];
@@ -246,8 +256,14 @@ function SubjectAllocationEditor({
       const updatedAllocations = currentAllocations.filter(
         (a) => a.subject_name !== subject
       );
+      // 해당 교과의 콘텐츠에서 실제 subject_id 추출
+      const subjectContents = contentsBySubject.get(subject) || [];
+      const actualSubjectId = subjectContents
+        .map((c) => c.subject_id)
+        .find((id) => id != null) || undefined;
+      
       updatedAllocations.push({
-        subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
+        subject_id: actualSubjectId,
         subject_name: subject,
         subject_type: "weakness",
       });
@@ -336,7 +352,7 @@ function SubjectAllocationEditor({
         content_id: content.content_id,
         subject_category: content.subject_category || undefined,
         subject: null,
-        subject_id: undefined,
+        subject_id: content.subject_id || undefined,
       },
       data.content_allocations?.map((a) => ({
         content_type: a.content_type as "book" | "lecture" | "custom",
@@ -429,7 +445,6 @@ function SubjectAllocationEditor({
                         checked={subjectType === "weakness"}
                         onChange={() => {
                           handleSubjectAllocationChange(subject, {
-                            subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                             subject_name: subject,
                             subject_type: "weakness",
                           });
@@ -454,7 +469,6 @@ function SubjectAllocationEditor({
                         checked={subjectType === "strategy"}
                         onChange={() => {
                           handleSubjectAllocationChange(subject, {
-                            subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                             subject_name: subject,
                             subject_type: "strategy",
                             weekly_days: 3,
@@ -485,7 +499,6 @@ function SubjectAllocationEditor({
                       value={subjectWeeklyDays}
                       onChange={(e) => {
                         handleSubjectAllocationChange(subject, {
-                          subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                           subject_name: subject,
                           subject_type: "strategy",
                           weekly_days: Number(e.target.value),

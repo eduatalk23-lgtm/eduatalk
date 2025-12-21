@@ -67,7 +67,7 @@ export function ContentAllocationUI({
         content_id: content.content_id,
         subject_category: content.subject_category || undefined,
         subject: null,
-        subject_id: undefined,
+        subject_id: content.subject_id || undefined,
       },
       data.content_allocations?.map((a) => ({
         content_type: a.content_type as "book" | "lecture" | "custom",

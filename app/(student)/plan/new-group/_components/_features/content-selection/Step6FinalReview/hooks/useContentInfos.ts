@@ -249,6 +249,7 @@ export function useContentInfos({
             content_id: content.content_id,
             title: title || "알 수 없음",
             subject_category: subjectCategory,
+            subject_id: metadata?.subject_id || null,
             start_range: content.start_range,
             end_range: content.end_range,
             isRecommended: false,
@@ -388,6 +389,7 @@ export function useContentInfos({
               subject_category: subjectCategory,
               start_range: content.start_range,
               end_range: content.end_range,
+              subject_id: metadata?.subject_id || null,
               isRecommended: true,
               // 자동 추천 정보 (content에 포함된 경우)
               is_auto_recommended: content.is_auto_recommended ?? false,

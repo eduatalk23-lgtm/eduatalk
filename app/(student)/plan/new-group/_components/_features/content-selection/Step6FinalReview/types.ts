@@ -20,6 +20,7 @@ export type ContentInfo = {
   content_id: string;
   title: string;
   subject_category?: string | null;
+  subject_id?: string | null; // 과목 ID (FK to subjects)
   start_range: number;
   end_range: number;
   isRecommended: boolean;
