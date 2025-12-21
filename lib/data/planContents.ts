@@ -357,7 +357,17 @@ export async function fetchStudentCustomContents(
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // Supabase 에러를 더 자세히 로깅
+      console.error("[data/planContents] Supabase 쿼리 에러:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        studentId,
+      });
+      throw error;
+    }
 
     if (!data || data.length === 0) {
       return [];
@@ -396,11 +406,29 @@ export async function fetchStudentCustomContents(
         : null,
     }));
   } catch (err) {
-    console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
+    // Supabase 에러는 PostgrestError 타입일 수 있음
+    const errorDetails: Record<string, unknown> = {
       studentId,
-    });
+    };
+
+    if (err instanceof Error) {
+      errorDetails.error = err.message;
+      errorDetails.stack = err.stack;
+      errorDetails.name = err.name;
+    } else {
+      errorDetails.error = String(err);
+      errorDetails.rawError = err;
+    }
+
+    // Supabase PostgrestError의 경우 추가 정보 포함
+    if (err && typeof err === "object" && "code" in err) {
+      errorDetails.code = (err as { code?: string }).code;
+      errorDetails.details = (err as { details?: string }).details;
+      errorDetails.hint = (err as { hint?: string }).hint;
+      errorDetails.message = (err as { message?: string }).message;
+    }
+
+    console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", errorDetails);
     return [];
   }
 }
