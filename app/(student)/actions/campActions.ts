@@ -951,6 +951,11 @@ export const submitCampParticipation = withErrorHandling(
       );
     }
 
+    // 캐시 무효화를 위한 revalidatePath 추가
+    const { revalidatePath } = await import("next/cache");
+    revalidatePath("/camp");
+    revalidatePath(`/camp/${invitationId}`);
+
     return {
       success: true,
       groupId: groupId,

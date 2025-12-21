@@ -44,7 +44,10 @@ export function CampInvitationCard({
     ) {
       return;
     }
-    router.push(detailLink);
+    // detailLink가 유효한 경우에만 네비게이션
+    if (detailLink) {
+      router.push(detailLink);
+    }
   };
 
   return (

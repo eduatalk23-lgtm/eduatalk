@@ -82,7 +82,7 @@ export default async function CampPage() {
         <div className="grid gap-4">
           {invitationsWithPlanStatus.map((invitation) => {
             // 클릭 시 이동할 경로 결정
-            const getDetailLink = () => {
+            const getDetailLink = (): string => {
               // pending 상태인 경우 항상 참여 페이지로
               if (invitation.status === "pending") {
                 return `/camp/${invitation.id}`;
