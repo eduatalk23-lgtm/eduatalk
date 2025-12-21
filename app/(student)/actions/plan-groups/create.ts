@@ -618,11 +618,40 @@ async function _savePlanGroupDraft(
   }
 
   // 제외일은 플랜 그룹별 관리
+  // 캠프 모드: 위계 기반 중복 제거
   if (data.exclusions && data.exclusions.length > 0) {
+    let processedExclusions = data.exclusions;
+    const isCampMode = data.plan_type === "camp";
+    
+    if (isCampMode) {
+      const exclusionMap = new Map<string, typeof data.exclusions[0]>();
+      
+      for (const exclusion of data.exclusions) {
+        const existing = exclusionMap.get(exclusion.exclusion_date);
+        
+        if (existing) {
+          // 같은 날짜에 이미 제외일이 있으면 위계 비교
+          const higherType = getHigherPriorityExclusionType(
+            exclusion.exclusion_type,
+            existing.exclusion_type
+          );
+          
+          // 더 높은 위계의 제외일로 교체
+          if (higherType === exclusion.exclusion_type) {
+            exclusionMap.set(exclusion.exclusion_date, exclusion);
+          }
+        } else {
+          exclusionMap.set(exclusion.exclusion_date, exclusion);
+        }
+      }
+      
+      processedExclusions = Array.from(exclusionMap.values());
+    }
+
     const exclusionsResult = await createPlanExclusions(
       groupId,
       tenantContext.tenantId,
-      data.exclusions.map((e) => ({
+      processedExclusions.map((e) => ({
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type,
         reason: e.reason || null,
