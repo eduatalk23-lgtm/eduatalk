@@ -197,6 +197,9 @@ async function _generatePlansFromGroupRefactored(
   });
 
   // 6. Supabase 클라이언트 설정
+  // RLS 정책을 고려하여 올바른 클라이언트 사용
+  // - 관리자/컨설턴트가 다른 학생의 데이터를 조회할 경우 Admin 클라이언트 사용
+  // - 그 외에는 학생용 클라이언트 사용
   const isAdminOrConsultant =
     access.role === "admin" || access.role === "consultant";
   const queryClient = await getSupabaseClientForStudent(
@@ -215,6 +218,20 @@ async function _generatePlansFromGroupRefactored(
       500,
       true
     );
+  }
+
+  // RLS 정책 확인 로그 (개발 환경에서만)
+  if (process.env.NODE_ENV === "development") {
+    console.log("[generatePlansRefactored] Supabase 클라이언트 설정:", {
+      groupId,
+      studentId,
+      currentUserId: access.user.userId,
+      role: access.role,
+      isAdminOrConsultant,
+      isOtherStudent: isAdminOrConsultant && studentId !== access.user.userId,
+      queryClientType: isAdminOrConsultant && studentId !== access.user.userId ? "Admin" : "Server",
+      masterQueryClientType: isAdminOrConsultant ? "Admin" : "Server",
+    });
   }
 
   // 7. 콘텐츠 ID 해석 및 복사 (배치 쿼리로 최적화)
@@ -321,6 +338,22 @@ async function _generatePlansFromGroupRefactored(
   const missingLectureIds = lectureContents
     .filter((c) => !contentIdMap.has(c.content_id))
     .map((c) => c.content_id);
+
+  // 플랜 생성 전 콘텐츠 검증: contentIdMap에 매핑되지 않은 콘텐츠 로그 기록
+  if (missingBookIds.length > 0 || missingLectureIds.length > 0) {
+    console.warn(
+      `[generatePlansRefactored] contentIdMap에 매핑되지 않은 콘텐츠 발견:`,
+      {
+        groupId,
+        studentId,
+        missingBookIds,
+        missingLectureIds,
+        totalMissing: missingBookIds.length + missingLectureIds.length,
+        totalContents: contents.length,
+        message: "이 콘텐츠들은 플랜 생성 시 제외됩니다.",
+      }
+    );
+  }
 
   // 배치 쿼리: 마스터 콘텐츠 존재 여부 확인 (병렬)
   const [masterBooksCheckResult, masterLecturesCheckResult] = await Promise.all([
@@ -696,14 +729,22 @@ async function _generatePlansFromGroupRefactored(
 
     // 원본 플랜 정보를 추적하기 위해 인덱스와 함께 저장
     // contentIdMap에 없는 콘텐츠는 제외 (마스터 콘텐츠 복사 실패 시 외래 키 제약 조건 위반 방지)
+    const excludedContents: Array<{
+      content_id: string;
+      content_type: string;
+      reason: string;
+    }> = [];
+    
     const plansForAssign = datePlans
       .map((plan, originalIndex) => {
         const finalContentId = contentIdMap.get(plan.content_id);
         // contentIdMap에 없는 경우 null 반환하여 필터링
         if (!finalContentId) {
-          console.warn(
-            `[generatePlansRefactored] 콘텐츠 ID(${plan.content_id})가 contentIdMap에 없어 플랜에서 제외합니다.`
-          );
+          excludedContents.push({
+            content_id: plan.content_id,
+            content_type: plan.content_type,
+            reason: "contentIdMap에 매핑되지 않음 (학생 콘텐츠가 존재하지 않거나 복사 실패)",
+          });
           return null;
         }
         return {
@@ -723,6 +764,23 @@ async function _generatePlansFromGroupRefactored(
         };
       })
       .filter((plan): plan is NonNullable<typeof plan> => plan !== null);
+
+    // 제외된 콘텐츠 로그 기록
+    if (excludedContents.length > 0) {
+      console.warn(
+        `[generatePlansRefactored] ${date} 플랜 생성 시 제외된 콘텐츠:`,
+        {
+          date,
+          excludedCount: excludedContents.length,
+          totalPlans: datePlans.length,
+          excludedContents: excludedContents.map((c) => ({
+            content_id: c.content_id.substring(0, 8) + "...",
+            content_type: c.content_type,
+            reason: c.reason,
+          })),
+        }
+      );
+    }
 
     if (process.env.NODE_ENV === "development") {
       console.log(
@@ -945,8 +1003,17 @@ async function _generatePlansFromGroupRefactored(
 
   // 14. 플랜 저장 전 검증
   if (planPayloads.length === 0) {
+    // contentIdMap에 매핑되지 않은 콘텐츠 정보 포함
+    const unmappedContents = contents.filter(
+      (c) => !contentIdMap.has(c.content_id) && !isDummyContent(c.content_id)
+    );
+    
+    const errorMessage = unmappedContents.length > 0
+      ? `저장할 플랜이 없습니다. ${unmappedContents.length}개의 콘텐츠가 contentIdMap에 매핑되지 않았습니다. 콘텐츠 ID: ${unmappedContents.map((c) => c.content_id.substring(0, 8)).join(", ")}`
+      : "저장할 플랜이 없습니다.";
+    
     throw new AppError(
-      "저장할 플랜이 없습니다.",
+      errorMessage,
       ErrorCode.VALIDATION_ERROR,
       400,
       true
@@ -980,6 +1047,88 @@ async function _generatePlansFromGroupRefactored(
     );
   }
 
+  // 플랜 저장 전 콘텐츠 존재 여부 검증 (외래 키 제약 조건 위반 방지)
+  const uniqueContentIds = new Set(
+    planPayloads.map((p) => p.content_id).filter((id) => id)
+  );
+  const contentIdsByType = {
+    book: Array.from(uniqueContentIds).filter((id) => {
+      const content = contents.find((c) => contentIdMap.get(c.content_id) === id);
+      return content?.content_type === "book";
+    }),
+    lecture: Array.from(uniqueContentIds).filter((id) => {
+      const content = contents.find((c) => contentIdMap.get(c.content_id) === id);
+      return content?.content_type === "lecture";
+    }),
+  };
+
+  // 콘텐츠 존재 여부 확인 (병렬)
+  const [booksCheck, lecturesCheck] = await Promise.all([
+    contentIdsByType.book.length > 0
+      ? queryClient
+          .from("books")
+          .select("id")
+          .in("id", contentIdsByType.book)
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [], error: null }),
+    contentIdsByType.lecture.length > 0
+      ? queryClient
+          .from("lectures")
+          .select("id")
+          .in("id", contentIdsByType.lecture)
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const existingBookIds = new Set((booksCheck.data || []).map((b) => b.id));
+  const existingLectureIds = new Set((lecturesCheck.data || []).map((l) => l.id));
+
+  // 존재하지 않는 콘텐츠 필터링
+  const missingBooks = contentIdsByType.book.filter((id) => !existingBookIds.has(id));
+  const missingLectures = contentIdsByType.lecture.filter((id) => !existingLectureIds.has(id));
+
+  if (missingBooks.length > 0 || missingLectures.length > 0) {
+    console.error(
+      "[_generatePlansFromGroupRefactored] 존재하지 않는 콘텐츠 발견:",
+      {
+        groupId,
+        studentId,
+        missingBooks,
+        missingLectures,
+        totalMissing: missingBooks.length + missingLectures.length,
+        message: "이 콘텐츠들은 플랜에서 제외됩니다.",
+      }
+    );
+    
+    // 존재하지 않는 콘텐츠를 포함한 플랜 제외
+    const validPlanPayloads = planPayloads.filter((p) => {
+      if (p.content_type === "book") {
+        return existingBookIds.has(p.content_id);
+      }
+      if (p.content_type === "lecture") {
+        return existingLectureIds.has(p.content_id);
+      }
+      return true; // custom 콘텐츠는 검증하지 않음
+    });
+
+    if (validPlanPayloads.length === 0) {
+      throw new AppError(
+        `플랜 생성에 실패했습니다. 모든 콘텐츠가 존재하지 않습니다. (교재: ${missingBooks.length}개, 강의: ${missingLectures.length}개)`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    console.warn(
+      `[generatePlansRefactored] 존재하지 않는 콘텐츠를 포함한 ${planPayloads.length - validPlanPayloads.length}개의 플랜이 제외되었습니다.`
+    );
+    
+    // 유효한 플랜만 사용
+    planPayloads.length = 0;
+    planPayloads.push(...validPlanPayloads);
+  }
+
   // 15. 플랜 일괄 저장
   const { error: insertError, data: insertedData } = await supabase
     .from("student_plan")
@@ -987,6 +1136,48 @@ async function _generatePlansFromGroupRefactored(
     .select();
 
   if (insertError) {
+    // 외래 키 제약 조건 위반 에러인지 확인
+    const isForeignKeyError =
+      insertError.message?.includes("does not exist") ||
+      insertError.message?.includes("foreign key") ||
+      insertError.code === "23503";
+
+    if (isForeignKeyError) {
+      // 문제가 되는 콘텐츠 ID 추출
+      const contentIdMatch = insertError.message?.match(/Referenced (book|lecture) \(([^)]+)\)/);
+      const problematicContentId = contentIdMatch?.[2];
+      const contentType = contentIdMatch?.[1] || "unknown";
+
+      // 해당 콘텐츠가 planPayloads에 있는지 확인
+      const problematicPlans = planPayloads.filter(
+        (p) => p.content_id === problematicContentId
+      );
+
+      console.error(
+        "[_generatePlansFromGroupRefactored] 외래 키 제약 조건 위반:",
+        {
+          groupId,
+          studentId,
+          errorCode: insertError.code,
+          errorMessage: insertError.message,
+          problematicContentId,
+          contentType,
+          problematicPlansCount: problematicPlans.length,
+          totalPlans: planPayloads.length,
+          contentIdMapSize: contentIdMap.size,
+          contentsCount: contents.length,
+          message: "콘텐츠가 존재하지 않거나 contentIdMap에 매핑되지 않았습니다.",
+        }
+      );
+
+      throw new AppError(
+        `플랜 저장에 실패했습니다. ${contentType === "lecture" ? "강의" : contentType === "book" ? "교재" : "콘텐츠"}(${problematicContentId?.substring(0, 8)}...)가 존재하지 않습니다. 콘텐츠가 삭제되었거나 contentIdMap에 매핑되지 않았을 수 있습니다.`,
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
     // 상세한 에러 정보 로깅
     const errorDetails = {
       errorCode: insertError.code,
