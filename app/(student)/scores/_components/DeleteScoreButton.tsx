@@ -1,33 +1,27 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteScore } from "@/app/actions/scores-internal";
-import type { ActionResponse } from "@/lib/types/actionResponse";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type DeleteScoreButtonProps = {
   id: string;
 };
 
 export function DeleteScoreButton({ id }: DeleteScoreButtonProps) {
-  const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleDelete = async () => {
-    setError(null);
-    startTransition(async () => {
-      const result = await deleteScore(id);
-      
-      if (isSuccessResponse(result)) {
-        router.refresh();
-        setShowConfirm(false);
-      } else if (isErrorResponse(result)) {
-        setError(result.error || "삭제에 실패했습니다.");
-      }
-    });
+  const { execute, isPending, error, isSuccess } = useServerAction(deleteScore, {
+    onSuccess: () => {
+      router.refresh();
+      setShowConfirm(false);
+    },
+  });
+
+  const handleDelete = () => {
+    execute(id);
   };
 
   return (
@@ -56,7 +50,9 @@ export function DeleteScoreButton({ id }: DeleteScoreButtonProps) {
             )}
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={() => {
+                  setShowConfirm(false);
+                }}
                 disabled={isPending}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >

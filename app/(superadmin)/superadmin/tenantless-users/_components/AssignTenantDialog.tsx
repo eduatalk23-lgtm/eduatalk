@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { assignTenantToUser, assignTenantToMultipleUsers, getActiveTenants, type TenantlessUser } from "@/app/(superadmin)/actions/tenantlessUserActions";
 import { Dialog } from "@/components/ui/Dialog";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type AssignTenantDialogProps = {
   open: boolean;
@@ -24,11 +24,36 @@ export function AssignTenantDialog({
   users,
   onComplete,
 }: AssignTenantDialogProps) {
-  const [isPending, startTransition] = useTransition();
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string>("");
   const [loadingTenants, setLoadingTenants] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // 단일 사용자 할당 훅
+  const singleAssignHook = useServerAction(assignTenantToUser, {
+    onSuccess: () => {
+      onComplete();
+      onOpenChange(false);
+      alert("테넌트가 할당되었습니다.");
+    },
+    onError: (errorMessage) => {
+      setError(errorMessage);
+    },
+  });
+
+  // 다중 사용자 할당 훅
+  const multipleAssignHook = useServerAction(assignTenantToMultipleUsers, {
+    onSuccess: (data) => {
+      onComplete();
+      onOpenChange(false);
+      alert(`${data?.assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`);
+    },
+    onError: (errorMessage) => {
+      setError(errorMessage);
+    },
+  });
+
+  const isPending = singleAssignHook.isPending || multipleAssignHook.isPending;
 
   // 다이얼로그가 열릴 때 테넌트 목록 로드
   useEffect(() => {
@@ -67,46 +92,26 @@ export function AssignTenantDialog({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        let result;
+    setError(null);
 
-        if (userId && userType) {
-          // 단일 사용자 할당
-          result = await assignTenantToUser(userId, selectedTenantId, userType);
-        } else if (selectedUserIds && selectedUserIds.length > 0) {
-          // 다중 사용자 할당
-          const userData = users
-            .filter((u) => selectedUserIds.includes(u.id))
-            .map((u) => ({ userId: u.id, userType: u.userType }));
+    if (userId && userType) {
+      // 단일 사용자 할당
+      singleAssignHook.execute(userId, selectedTenantId, userType);
+    } else if (selectedUserIds && selectedUserIds.length > 0) {
+      // 다중 사용자 할당
+      const userData = users
+        .filter((u) => selectedUserIds.includes(u.id))
+        .map((u) => ({ userId: u.id, userType: u.userType }));
 
-          if (userData.length === 0) {
-            setError("선택된 사용자 정보를 찾을 수 없습니다.");
-            return;
-          }
-
-          result = await assignTenantToMultipleUsers(userData, selectedTenantId);
-        } else {
-          setError("할당할 사용자가 없습니다.");
-          return;
-        }
-
-        if (isSuccessResponse(result)) {
-          onComplete();
-          onOpenChange(false);
-          alert(
-            userId
-              ? "테넌트가 할당되었습니다."
-              : `${result.data?.assignedCount || 0}명의 사용자에 테넌트가 할당되었습니다.`
-          );
-        } else if (isErrorResponse(result)) {
-          setError(result.error || "테넌트 할당에 실패했습니다.");
-        }
-      } catch (err) {
-        console.error("[AssignTenantDialog] 테넌트 할당 실패", err);
-        setError(err instanceof Error ? err.message : "테넌트 할당 중 오류가 발생했습니다.");
+      if (userData.length === 0) {
+        setError("선택된 사용자 정보를 찾을 수 없습니다.");
+        return;
       }
-    });
+
+      multipleAssignHook.execute(userData, selectedTenantId);
+    } else {
+      setError("할당할 사용자가 없습니다.");
+    }
   };
 
   const isBulkMode = !userId && selectedUserIds && selectedUserIds.length > 0;
@@ -155,9 +160,9 @@ export function AssignTenantDialog({
               </select>
             </div>
 
-            {error && (
+            {(error || singleAssignHook.error || multipleAssignHook.error) && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                {error}
+                {error || singleAssignHook.error || multipleAssignHook.error}
               </div>
             )}
 
