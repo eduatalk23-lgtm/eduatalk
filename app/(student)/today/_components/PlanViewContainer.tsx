@@ -166,43 +166,55 @@ export function PlanViewContainer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planDate]);
 
-  // groups가 처음 로드되거나 변경되었을 때만 selectedPlanNumber 초기화
+  // groups가 처음 로드될 때만 selectedPlanNumber 초기화 (planDate 변경 시 제외)
   // 사용자 선택이 있으면 절대 덮어쓰지 않음
+  const groupsKey = useMemo(() => {
+    return groups.map((g) => g.plan.id).join(",");
+  }, [groups]);
+
+  const prevGroupsKey = useRef<string>("");
+
   useEffect(() => {
     // planDate가 변경되었는지 확인 (이미 위의 useEffect에서 처리됨)
     if (planDate !== lastPlanDate.current) {
+      prevGroupsKey.current = groupsKey;
       return; // planDate 변경은 위의 useEffect에서 처리
     }
 
+    // groupsKey가 실제로 변경되었는지 확인
+    if (groupsKey === prevGroupsKey.current) {
+      return; // 변경되지 않았으면 실행하지 않음
+    }
+    prevGroupsKey.current = groupsKey;
+
+    console.log("useEffect triggered, groupsKey changed, userSelected:", lastUserSelectedPlanNumber.current);
+
     // 사용자 선택이 있으면 절대 덮어쓰지 않음
     if (lastUserSelectedPlanNumber.current !== null) {
-      // 사용자 선택이 유효한지 확인
       const userSelected = lastUserSelectedPlanNumber.current;
       if (groups.some((g) => g.planNumber === userSelected)) {
-        // 유효하면 현재 상태와 다를 때만 업데이트
-        setSelectedPlanNumber((prev) => {
-          return prev === userSelected ? prev : userSelected;
-        });
+        console.log("User selection is valid, keeping it:", userSelected);
+        // 사용자 선택이 유효하면 아무것도 하지 않음
         return;
       }
     }
 
     // 사용자 선택이 없거나 유효하지 않은 경우에만 초기화
     if (groups.length === 0) {
-      setSelectedPlanNumber(null);
+      if (selectedPlanNumber !== null) {
+        setSelectedPlanNumber(null);
+      }
       return;
     }
 
     // 현재 선택이 유효한지 확인
-    setSelectedPlanNumber((prev) => {
-      if (prev != null && groups.some((g) => g.planNumber === prev)) {
-        return prev; // 유효하면 유지
-      }
+    if (selectedPlanNumber === null || !groups.some((g) => g.planNumber === selectedPlanNumber)) {
+      console.log("Current selection is invalid, setting to first group");
       // 유효하지 않거나 null이면 첫 번째 그룹 선택
-      return groups[0]?.planNumber ?? null;
-    });
+      setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, planDate]);
+  }, [groupsKey, planDate]);
 
   const handleViewDetail = (planNumber: number | null) => {
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
@@ -212,10 +224,9 @@ export function PlanViewContainer({
   
   // selectedPlanNumber를 직접 변경하는 핸들러 (SinglePlanView에서 사용)
   const handleSelectPlan = useCallback((planNumber: number | null) => {
+    console.log("handleSelectPlan called with:", planNumber);
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
     setSelectedPlanNumber(planNumber);
-    // 사용자가 선택한 직후에는 useEffect가 실행되지 않도록 함
-    // groupsPlanNumbersKey가 변경되지 않으면 useEffect가 실행되지 않음
   }, []);
 
   const handleModeChange = (mode: ViewMode) => {

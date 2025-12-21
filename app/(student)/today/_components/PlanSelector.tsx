@@ -32,13 +32,17 @@ export function PlanSelector({
 
   const handlePrevious = () => {
     if (currentIndex > 0 && currentIndex < groups.length) {
-      onSelect(groups[currentIndex - 1].planNumber);
+      const prevPlanNumber = groups[currentIndex - 1].planNumber;
+      console.log("handlePrevious called, selecting:", prevPlanNumber);
+      onSelect(prevPlanNumber);
     }
   };
 
   const handleNext = () => {
     if (currentIndex >= 0 && currentIndex < groups.length - 1) {
-      onSelect(groups[currentIndex + 1].planNumber);
+      const nextPlanNumber = groups[currentIndex + 1].planNumber;
+      console.log("handleNext called, selecting:", nextPlanNumber);
+      onSelect(nextPlanNumber);
     }
   };
 
@@ -82,6 +86,7 @@ export function PlanSelector({
             const selectedPlanId = e.target.value;
             const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
             if (selectedGroup) {
+              console.log("select onChange called, selecting:", selectedGroup.planNumber);
               onSelect(selectedGroup.planNumber);
             }
           }}
