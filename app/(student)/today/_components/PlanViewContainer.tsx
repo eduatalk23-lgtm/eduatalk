@@ -284,6 +284,20 @@ export function PlanViewContainer({
     }
   }, [groups]);
 
+  // plan.id 기반 선택 핸들러 (우선 사용)
+  const handleSelectPlanById = useCallback((planId: string) => {
+    console.log("handleSelectPlanById called with:", planId);
+    // plan.id로 그룹을 찾아서 planNumber와 planId 모두 설정
+    const selectedGroup = groups.find((g) => g.plan.id === planId);
+    if (selectedGroup) {
+      const planNumber = selectedGroup.planNumber;
+      lastUserSelectedPlanNumber.current = planNumber;
+      lastUserSelectedPlanId.current = planId;
+      setSelectedPlanNumber(planNumber);
+      setSelectedPlanId(planId);
+    }
+  }, [groups]);
+
   const handleModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     if (mode === "single" && !selectedPlanNumber && groups.length > 0) {
@@ -379,6 +393,7 @@ export function PlanViewContainer({
           selectedPlanNumber={selectedPlanNumber}
           selectedPlanId={selectedPlanId}
           onSelectPlan={handleSelectPlan}
+          onSelectPlanById={handleSelectPlanById}
           serverNow={serverNow}
           campMode={campMode}
         />

@@ -10,6 +10,7 @@ type PlanSelectorProps = {
   selectedPlanNumber: number | null;
   selectedPlanId?: string | null; // plan.id 기반 선택
   onSelect: (planNumber: number | null) => void;
+  onSelectById?: (planId: string) => void; // plan.id 기반 선택 (우선 사용)
   sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
 };
 
@@ -18,6 +19,7 @@ export function PlanSelector({
   selectedPlanNumber,
   selectedPlanId,
   onSelect,
+  onSelectById,
   sessions,
 }: PlanSelectorProps) {
   // 현재 선택된 그룹 찾기 (selectedPlanId가 있으면 plan.id로 먼저 찾기, 없으면 planNumber로 찾기)
@@ -38,8 +40,13 @@ export function PlanSelector({
     if (currentIndex > 0 && currentIndex < groups.length) {
       const prevGroup = groups[currentIndex - 1];
       if (prevGroup) {
-        console.log("handlePrevious called, selecting:", prevGroup.planNumber);
-        onSelect(prevGroup.planNumber);
+        console.log("handlePrevious called, selecting planId:", prevGroup.plan.id, "planNumber:", prevGroup.planNumber);
+        // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
+        if (onSelectById) {
+          onSelectById(prevGroup.plan.id);
+        } else {
+          onSelect(prevGroup.planNumber);
+        }
       }
     }
   };
@@ -48,8 +55,13 @@ export function PlanSelector({
     if (currentIndex >= 0 && currentIndex < groups.length - 1) {
       const nextGroup = groups[currentIndex + 1];
       if (nextGroup) {
-        console.log("handleNext called, selecting:", nextGroup.planNumber);
-        onSelect(nextGroup.planNumber);
+        console.log("handleNext called, selecting planId:", nextGroup.plan.id, "planNumber:", nextGroup.planNumber);
+        // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
+        if (onSelectById) {
+          onSelectById(nextGroup.plan.id);
+        } else {
+          onSelect(nextGroup.planNumber);
+        }
       }
     }
   };
@@ -94,8 +106,13 @@ export function PlanSelector({
             const selectedPlanId = e.target.value;
             const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
             if (selectedGroup) {
-              console.log("select onChange called, selecting:", selectedGroup.planNumber);
-              onSelect(selectedGroup.planNumber);
+              console.log("select onChange called, selecting planId:", selectedPlanId, "planNumber:", selectedGroup.planNumber);
+              // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
+              if (onSelectById) {
+                onSelectById(selectedPlanId);
+              } else {
+                onSelect(selectedGroup.planNumber);
+              }
             }
           }}
           className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"

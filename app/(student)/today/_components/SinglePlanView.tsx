@@ -16,6 +16,7 @@ type SinglePlanViewProps = {
   selectedPlanNumber: number | null;
   selectedPlanId?: string | null; // plan.id 기반 선택
   onSelectPlan: (planNumber: number | null) => void;
+  onSelectPlanById?: (planId: string) => void; // plan.id 기반 선택 (우선 사용)
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
 };
@@ -27,6 +28,7 @@ export function SinglePlanView({
   selectedPlanNumber,
   selectedPlanId,
   onSelectPlan,
+  onSelectPlanById,
   serverNow = Date.now(),
   campMode = false,
 }: SinglePlanViewProps) {
@@ -72,6 +74,7 @@ export function SinglePlanView({
         selectedPlanNumber={selectedPlanNumber}
         selectedPlanId={selectedPlanId}
         onSelect={onSelectPlan}
+        onSelectById={onSelectPlanById}
         sessions={sessions}
       />
       <PlanCard
