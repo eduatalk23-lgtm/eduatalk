@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { deletePlanGroupAction } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -20,6 +21,7 @@ export function PlanGroupBulkDeleteDialog({
   groupNames,
 }: PlanGroupBulkDeleteDialogProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -47,6 +49,10 @@ export function PlanGroupBulkDeleteDialog({
         }
 
         onOpenChange(false);
+        // React Query 캐시 무효화
+        await queryClient.invalidateQueries({
+          queryKey: ["planGroups"],
+        });
         router.push("/plan", { scroll: true });
         router.refresh();
       } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Trash2, CheckSquare, Square, Eye } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
@@ -39,6 +40,7 @@ export function PlanGroupListItem({
   onToggleSelect,
 }: PlanGroupListItemProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const toast = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
@@ -103,6 +105,10 @@ export function PlanGroupListItem({
             : "플랜 그룹이 활성화되었습니다."
         );
         setToggleDialogOpen(false);
+        // React Query 캐시 무효화
+        await queryClient.invalidateQueries({
+          queryKey: ["planGroups"],
+        });
         router.refresh();
       } catch (error) {
         toast.showError(
