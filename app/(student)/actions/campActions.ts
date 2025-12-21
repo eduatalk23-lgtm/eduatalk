@@ -956,6 +956,9 @@ export const submitCampParticipation = withErrorHandling(
     const { revalidatePath } = await import("next/cache");
     revalidatePath("/camp");
     revalidatePath(`/camp/${invitationId}`);
+    // 관리자 영역 캐시도 무효화
+    revalidatePath(`/admin/camp-templates/${invitation.camp_template_id}/participants`);
+    revalidatePath("/admin/dashboard");
 
     return {
       success: true,

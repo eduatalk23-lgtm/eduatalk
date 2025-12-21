@@ -409,6 +409,58 @@ export async function updateCampInvitationStatus(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
+  // 먼저 현재 상태 확인
+  const { data: currentInvitation, error: checkError } = await supabase
+    .from("camp_invitations")
+    .select("id, status")
+    .eq("id", invitationId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error("[data/campTemplates] updateCampInvitationStatus 초대 조회 실패:", {
+      invitationId,
+      error: checkError.message,
+      errorCode: checkError.code,
+    });
+    return {
+      success: false,
+      error: checkError.message || "초대 정보를 조회할 수 없습니다.",
+    };
+  }
+
+  if (!currentInvitation) {
+    console.warn("[data/campTemplates] updateCampInvitationStatus: 초대를 찾을 수 없음:", {
+      invitationId,
+    });
+    return {
+      success: false,
+      error: "초대를 찾을 수 없습니다.",
+    };
+  }
+
+  // 이미 원하는 상태인 경우 성공으로 반환
+  if (currentInvitation.status === status) {
+    console.log("[data/campTemplates] updateCampInvitationStatus: 이미 원하는 상태임:", {
+      invitationId,
+      currentStatus: currentInvitation.status,
+      requestedStatus: status,
+    });
+    return { success: true };
+  }
+
+  // pending 상태가 아니면 업데이트 불가 (RLS 정책: pending 상태만 업데이트 가능)
+  if (currentInvitation.status !== "pending") {
+    console.warn("[data/campTemplates] updateCampInvitationStatus: pending 상태가 아님 (업데이트 불가):", {
+      invitationId,
+      currentStatus: currentInvitation.status,
+      requestedStatus: status,
+    });
+    return {
+      success: false,
+      error: `현재 상태(${currentInvitation.status})에서는 상태를 변경할 수 없습니다.`,
+    };
+  }
+
   const updateData: CampInvitationUpdateRow = {
     status,
     updated_at: new Date().toISOString(),
@@ -421,6 +473,7 @@ export async function updateCampInvitationStatus(
     .from("camp_invitations")
     .update(updateData)
     .eq("id", invitationId)
+    .eq("status", "pending") // pending 상태인 경우만 업데이트 (RLS 정책과 일치)
     .select("*", { count: "exact", head: true });
 
   if (error) {
@@ -444,12 +497,20 @@ export async function updateCampInvitationStatus(
     console.warn("[data/campTemplates] updateCampInvitationStatus: 업데이트된 행이 없음 (RLS 정책 위반 또는 행이 존재하지 않음):", {
       invitationId,
       status,
+      currentStatus: currentInvitation.status,
     });
     return {
       success: false,
       error: "초대 상태를 업데이트할 수 없습니다. 권한을 확인해주세요.",
     };
   }
+
+  console.log("[data/campTemplates] updateCampInvitationStatus 성공:", {
+    invitationId,
+    oldStatus: currentInvitation.status,
+    newStatus: status,
+    count,
+  });
 
   return { success: true };
 }
