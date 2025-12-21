@@ -222,21 +222,28 @@ subject_id: subjectId || undefined;
 
 ## 우선순위
 
-### High Priority
+### High Priority ✅ 완료
 
-1. ✅ 하드코딩된 `subject_id` 제거 (이미 부분 수정)
-2. 실제 `subject_id` 사용
-3. 검증 로직 개선
+1. ✅ 하드코딩된 `subject_id` 제거
+2. ✅ 실제 `subject_id` 사용
+3. ✅ 검증 로직 개선
 
 ### Medium Priority
 
 4. UI 일관화
 5. 컴포넌트 통합
 
-### Low Priority
+### Low Priority ✅ 완료
 
-6. 초기화 로직 개선
-7. 테스트 추가
+6. ✅ 초기화 로직 개선
+7. 테스트 추가 (기본 테스트 완료, E2E 테스트 남음)
+
+## 완료 상태
+
+- ✅ Phase 1: 데이터 구조 정리 (완료)
+- ⏳ Phase 2: UI 일관화 (진행 예정)
+- ✅ Phase 3: 검증 로직 개선 (완료)
+- ✅ Phase 4: 문서화 (완료)
 
 ## 예상 효과
 
