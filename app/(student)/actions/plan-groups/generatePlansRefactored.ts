@@ -238,7 +238,22 @@ async function _generatePlansFromGroupRefactored(
     .forEach((c) => contentIdMap.set(c.content_id, c.content_id));
 
   // 배치 쿼리: 학생 콘텐츠 존재 여부 확인 (병렬)
-  const [existingBooksResult, existingLecturesResult] = await Promise.all([
+  // plan_contents의 content_id는 이미 학생 콘텐츠 ID일 수 있으므로 먼저 직접 조회
+  const [directBooksResult, directLecturesResult, masterBooksResult, masterLecturesResult] = await Promise.all([
+    bookContents.length > 0
+      ? queryClient
+          .from("books")
+          .select("id, master_content_id")
+          .in("id", bookContents.map((c) => c.content_id))
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [] }),
+    lectureContents.length > 0
+      ? queryClient
+          .from("lectures")
+          .select("id, master_content_id")
+          .in("id", lectureContents.map((c) => c.content_id))
+          .eq("student_id", studentId)
+      : Promise.resolve({ data: [] }),
     bookContents.length > 0
       ? queryClient
           .from("books")
@@ -261,23 +276,39 @@ async function _generatePlansFromGroupRefactored(
       : Promise.resolve({ data: [] }),
   ]);
 
-  // 존재하는 학생 콘텐츠 매핑
-  const existingBooksMap = new Map(
-    (existingBooksResult.data || []).map((b) => [b.master_content_id, b.id])
+  // 직접 조회한 학생 콘텐츠 매핑 (plan_contents의 content_id가 이미 학생 콘텐츠 ID인 경우)
+  (directBooksResult.data || []).forEach((b) => {
+    contentIdMap.set(b.id, b.id);
+  });
+  (directLecturesResult.data || []).forEach((l) => {
+    contentIdMap.set(l.id, l.id);
+  });
+
+  // 마스터 콘텐츠 ID로 찾은 학생 콘텐츠 매핑
+  const masterBooksMap = new Map(
+    (masterBooksResult.data || []).map((b) => [b.master_content_id, b.id])
   );
-  const existingLecturesMap = new Map(
-    (existingLecturesResult.data || []).map((l) => [l.master_content_id, l.id])
+  const masterLecturesMap = new Map(
+    (masterLecturesResult.data || []).map((l) => [l.master_content_id, l.id])
   );
 
-  // 이미 존재하는 학생 콘텐츠 매핑
+  // 마스터 콘텐츠 ID로 찾은 학생 콘텐츠 매핑
   bookContents.forEach((c) => {
-    const existingId = existingBooksMap.get(c.content_id);
+    // 이미 매핑되어 있으면 스킵
+    if (contentIdMap.has(c.content_id)) {
+      return;
+    }
+    const existingId = masterBooksMap.get(c.content_id);
     if (existingId) {
       contentIdMap.set(c.content_id, existingId);
     }
   });
   lectureContents.forEach((c) => {
-    const existingId = existingLecturesMap.get(c.content_id);
+    // 이미 매핑되어 있으면 스킵
+    if (contentIdMap.has(c.content_id)) {
+      return;
+    }
+    const existingId = masterLecturesMap.get(c.content_id);
     if (existingId) {
       contentIdMap.set(c.content_id, existingId);
     }
