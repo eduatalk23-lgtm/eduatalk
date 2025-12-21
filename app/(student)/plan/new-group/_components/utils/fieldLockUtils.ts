@@ -81,16 +81,20 @@ export function canStudentInput(
  * 
  * @param fieldName 필드명 (allow_student_* 형식)
  * @param currentLocked 현재 고정 필드 객체
+ * @param enabled 명시적으로 설정할 값 (선택사항, 제공되지 않으면 자동 토글)
  * @returns 새로운 고정 필드 객체
  */
 export function toggleFieldControl(
   fieldName: keyof NonNullable<TemplateLockedFields["step1"]>,
-  currentLocked: TemplateLockedFields["step1"] | undefined
+  currentLocked: TemplateLockedFields["step1"] | undefined,
+  enabled?: boolean
 ): TemplateLockedFields["step1"] {
   const locked = currentLocked || {};
-  const currentValue = locked[fieldName];
-  // 현재 값이 undefined이면 true로, true이면 false로, false이면 true로 토글
-  const newValue = currentValue === true ? false : true;
+  
+  // enabled 값이 명시적으로 제공되면 그 값을 사용, 아니면 자동 토글
+  const newValue = enabled !== undefined 
+    ? enabled 
+    : (locked[fieldName] === true ? false : true);
 
   return {
     ...locked,

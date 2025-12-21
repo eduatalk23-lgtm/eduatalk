@@ -14,7 +14,7 @@ type PeriodSectionProps = {
   isCampMode: boolean;
   isTemplateMode: boolean;
   periodCalculation: ReturnType<typeof usePeriodCalculation>;
-  toggleFieldControl: (fieldName: string) => void;
+  toggleFieldControl: (fieldName: string, enabled?: boolean) => void;
   canStudentInputPeriod: boolean;
   isFieldLocked: (fieldName: string) => boolean;
   isDisabled: (condition?: boolean) => boolean;
@@ -69,7 +69,7 @@ export function PeriodSection({
         data.templateLockedFields?.step1?.allow_student_period === true
       }
       onStudentInputToggle={(enabled) =>
-        toggleFieldControl("allow_student_period")
+        toggleFieldControl("allow_student_period", enabled)
       }
       showStudentInputToggle={isTemplateMode}
     >
@@ -400,7 +400,7 @@ export function PeriodSection({
                 showError("재배치 사용을 먼저 체크해주세요.");
                 return;
               }
-              toggleFieldControl("allow_student_additional_period_reallocation");
+              toggleFieldControl("allow_student_additional_period_reallocation", enabled);
             }}
             showStudentInputToggle={
               isTemplateMode && !!data.additional_period_reallocation

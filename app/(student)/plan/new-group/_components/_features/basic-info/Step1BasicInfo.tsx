@@ -124,11 +124,11 @@ function Step1BasicInfoComponent({
   };
 
   // 템플릿 모드에서 학생 입력 허용 토글 (공통 유틸리티 사용)
-  const toggleFieldControl = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>) => {
+  const toggleFieldControl = (fieldName: keyof NonNullable<TemplateLockedFields["step1"]>, enabled?: boolean) => {
     if (!isTemplateMode || !data) return;
 
     const currentLocked = data.templateLockedFields?.step1;
-    const newLocked = toggleFieldControlUtil(fieldName, currentLocked);
+    const newLocked = toggleFieldControlUtil(fieldName, currentLocked, enabled);
     onUpdate(updateFieldLock(data, newLocked));
   };
 
@@ -230,7 +230,7 @@ function Step1BasicInfoComponent({
         defaultOpen={true}
         studentInputAllowed={lockedFields.allow_student_name === true}
         onStudentInputToggle={(enabled) =>
-          toggleFieldControl("allow_student_name")
+          toggleFieldControl("allow_student_name", enabled)
         }
         showStudentInputToggle={isTemplateMode}
       >
@@ -294,7 +294,7 @@ function Step1BasicInfoComponent({
         defaultOpen={true}
         studentInputAllowed={lockedFields.allow_student_plan_purpose === true}
         onStudentInputToggle={(enabled) =>
-          toggleFieldControl("allow_student_plan_purpose")
+          toggleFieldControl("allow_student_plan_purpose", enabled)
         }
         showStudentInputToggle={isTemplateMode}
       >
@@ -365,7 +365,7 @@ function Step1BasicInfoComponent({
         isCampMode={isCampMode}
         isTemplateMode={isTemplateMode}
         periodCalculation={periodCalculation}
-        toggleFieldControl={toggleFieldControl as (fieldName: string) => void}
+        toggleFieldControl={toggleFieldControl}
         canStudentInputPeriod={canStudentInputPeriod}
         isFieldLocked={checkFieldLocked}
         isDisabled={isDisabled}
@@ -386,7 +386,7 @@ function Step1BasicInfoComponent({
         defaultOpen={false}
         studentInputAllowed={lockedFields.allow_student_scheduler_type === true}
         onStudentInputToggle={(enabled) =>
-          toggleFieldControl("allow_student_scheduler_type")
+          toggleFieldControl("allow_student_scheduler_type", enabled)
         }
         showStudentInputToggle={isTemplateMode}
       >
@@ -725,7 +725,7 @@ function Step1BasicInfoComponent({
         editable={editable}
         isCampMode={isCampMode}
         isTemplateMode={isTemplateMode}
-        toggleFieldControl={toggleFieldControl as (fieldName: string) => void}
+        toggleFieldControl={toggleFieldControl}
         canStudentInputBlockSetId={canStudentInputBlockSetId}
         lockedFields={lockedFields}
       />

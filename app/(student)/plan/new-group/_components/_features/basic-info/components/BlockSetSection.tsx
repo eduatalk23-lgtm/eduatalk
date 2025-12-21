@@ -24,7 +24,7 @@ type BlockSetSectionProps = {
   editable: boolean;
   isCampMode: boolean;
   isTemplateMode: boolean;
-  toggleFieldControl: (fieldName: string) => void;
+  toggleFieldControl: (fieldName: string, enabled?: boolean) => void;
   canStudentInputBlockSetId: boolean;
   lockedFields: Record<string, boolean>;
 };
@@ -113,7 +113,7 @@ export function BlockSetSection({
         defaultOpen={true}
         studentInputAllowed={lockedFields.allow_student_block_set_id === true}
         onStudentInputToggle={(enabled) =>
-          toggleFieldControl("allow_student_block_set_id")
+          toggleFieldControl("allow_student_block_set_id", enabled)
         }
         showStudentInputToggle={isTemplateMode}
       >
@@ -225,8 +225,9 @@ export function BlockSetSection({
                                     (isCampMode && !canStudentInputBlockSetId)
                                   )
                                     return;
+                                  const blockSetId = e.target.value?.trim() || undefined;
                                   onUpdate({
-                                    block_set_id: e.target.value || undefined,
+                                    block_set_id: blockSetId,
                                   });
                                 }}
                                 disabled={
