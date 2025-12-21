@@ -315,29 +315,68 @@ async function _generatePlansFromGroupRefactored(
   );
 
   // 마스터 콘텐츠 복사 (복사는 순차 처리 필요 - DB 트랜잭션)
+  // 복사 실패 시 contentIdMap에 매핑하지 않음 (외래 키 제약 조건 위반 방지)
   for (const contentId of missingBookIds) {
     if (masterBookIds.has(contentId)) {
-      const copiedBook = await copyMasterBookToStudent(
-        contentId,
-        studentId,
-        group.tenant_id
-      );
-      contentIdMap.set(contentId, copiedBook?.bookId || contentId);
+      try {
+        const copiedBook = await copyMasterBookToStudent(
+          contentId,
+          studentId,
+          group.tenant_id
+        );
+        if (copiedBook?.bookId) {
+          contentIdMap.set(contentId, copiedBook.bookId);
+        } else {
+          console.warn(
+            `[generatePlansRefactored] 마스터 교재(${contentId}) 복사 실패: bookId가 없습니다.`
+          );
+          // 복사 실패 시 contentIdMap에 매핑하지 않음
+        }
+      } catch (error) {
+        console.error(
+          `[generatePlansRefactored] 마스터 교재(${contentId}) 복사 실패:`,
+          error
+        );
+        // 복사 실패 시 contentIdMap에 매핑하지 않음
+      }
     } else {
-      contentIdMap.set(contentId, contentId);
+      // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
+      // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
+      console.warn(
+        `[generatePlansRefactored] 교재(${contentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다.`
+      );
     }
   }
 
   for (const contentId of missingLectureIds) {
     if (masterLectureIds.has(contentId)) {
-      const copiedLecture = await copyMasterLectureToStudent(
-        contentId,
-        studentId,
-        group.tenant_id
-      );
-      contentIdMap.set(contentId, copiedLecture?.lectureId || contentId);
+      try {
+        const copiedLecture = await copyMasterLectureToStudent(
+          contentId,
+          studentId,
+          group.tenant_id
+        );
+        if (copiedLecture?.lectureId) {
+          contentIdMap.set(contentId, copiedLecture.lectureId);
+        } else {
+          console.warn(
+            `[generatePlansRefactored] 마스터 강의(${contentId}) 복사 실패: lectureId가 없습니다.`
+          );
+          // 복사 실패 시 contentIdMap에 매핑하지 않음
+        }
+      } catch (error) {
+        console.error(
+          `[generatePlansRefactored] 마스터 강의(${contentId}) 복사 실패:`,
+          error
+        );
+        // 복사 실패 시 contentIdMap에 매핑하지 않음
+      }
     } else {
-      contentIdMap.set(contentId, contentId);
+      // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
+      // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
+      console.warn(
+        `[generatePlansRefactored] 강의(${contentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
+      );
     }
   }
 
