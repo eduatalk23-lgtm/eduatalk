@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantInfo } from "@/lib/auth/getTenantInfo";
+import { getCurrentUserName } from "@/lib/auth/getCurrentUserName";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
 /**
@@ -19,8 +20,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     redirect("/login");
   }
 
-  // 기관 정보 조회 (UI에 필요)
-  const tenantInfo = await getTenantInfo();
+  // 기관 정보 및 사용자 이름 조회
+  const [tenantInfo, userName] = await Promise.all([
+    getTenantInfo(),
+    getCurrentUserName(),
+  ]);
 
   return (
     <RoleBasedLayout
@@ -28,6 +32,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       dashboardHref="/admin/dashboard"
       roleLabel="Admin"
       tenantInfo={tenantInfo}
+      userName={userName}
     >
       {children}
     </RoleBasedLayout>

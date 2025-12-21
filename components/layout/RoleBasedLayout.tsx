@@ -3,10 +3,8 @@
 import { ReactNode, Suspense, useEffect, useRef, useState } from "react";
 import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
-import { TenantInfo } from "@/components/navigation/global/TenantInfo";
 import { LogoSection } from "@/components/navigation/global/LogoSection";
-import { SignOutButton } from "@/app/_components/SignOutButton";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { SidebarUserSection } from "@/components/navigation/global/SidebarUserSection";
 import { useSidebar } from "./SidebarContext";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -24,6 +22,7 @@ type RoleBasedLayoutProps = {
     name: string;
     type?: string;
   } | null;
+  userName?: string | null;
 };
 
 function SharedSidebarContent({
@@ -32,40 +31,31 @@ function SharedSidebarContent({
   isCollapsed,
   variant = "desktop",
   onNavigate,
+  roleLabel,
+  userName,
 }: {
   role: RoleBasedLayoutProps["role"];
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
   isCollapsed: boolean;
   variant?: "desktop" | "mobile";
   onNavigate?: () => void;
+  roleLabel: string;
+  userName?: string | null;
 }) {
   return (
     <>
-      {tenantInfo && role !== "superadmin" && (
-        <TenantInfo 
-          tenantInfo={tenantInfo} 
-          isCollapsed={isCollapsed} 
-          variant={variant === "mobile" ? "mobile" : "sidebar"} 
-        />
-      )}
       <div className={sidebarStyles.navSection}>
         <CategoryNav
           role={mapRoleForNavigation(role)}
           onNavigate={onNavigate}
         />
       </div>
-      <div className={sidebarStyles.footer}>
-        <div 
-          className={cn("transition-opacity", isCollapsed && variant === "desktop" && "opacity-0")}
-          aria-hidden={isCollapsed && variant === "desktop"}
-          hidden={isCollapsed && variant === "desktop"}
-        >
-          <div className={layoutStyles.flexBetween}>
-            <SignOutButton />
-            <ThemeToggle />
-          </div>
-        </div>
-      </div>
+      <SidebarUserSection
+        roleLabel={roleLabel}
+        userName={userName}
+        tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
+        variant={variant}
+      />
     </>
   );
 }
@@ -76,12 +66,14 @@ function SidebarContent({
   roleLabel,
   tenantInfo,
   onNavigate,
+  userName,
 }: {
   role: RoleBasedLayoutProps["role"];
   dashboardHref: string;
   roleLabel: string;
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
   onNavigate?: () => void;
+  userName?: string | null;
 }) {
   const { isCollapsed, toggleCollapse } = useSidebar();
 
@@ -103,6 +95,8 @@ function SidebarContent({
         isCollapsed={isCollapsed}
         variant="desktop"
         onNavigate={onNavigate}
+        roleLabel={roleLabel}
+        userName={userName}
       />
     </>
   );
@@ -113,11 +107,13 @@ function MobileSidebar({
   dashboardHref,
   roleLabel,
   tenantInfo,
+  userName,
 }: {
   role: RoleBasedLayoutProps["role"];
   dashboardHref: string;
   roleLabel: string;
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
+  userName?: string | null;
 }) {
   const { isMobileOpen, toggleMobile, closeMobile } = useSidebar();
   const drawerRef = useRef<HTMLElement>(null);
@@ -284,6 +280,8 @@ function MobileSidebar({
           isCollapsed={false}
           variant="mobile"
           onNavigate={closeMobile}
+          roleLabel={roleLabel}
+          userName={userName}
         />
       </aside>
     </>
@@ -298,6 +296,7 @@ export function RoleBasedLayout({
   showSidebar = true,
   wrapper,
   tenantInfo,
+  userName,
 }: RoleBasedLayoutProps) {
   const { isCollapsed } = useSidebar();
 
@@ -318,6 +317,7 @@ export function RoleBasedLayout({
               dashboardHref={dashboardHref}
               roleLabel={roleLabel}
               tenantInfo={tenantInfo}
+              userName={userName}
             />
           </div>
         </aside>
@@ -342,12 +342,9 @@ export function RoleBasedLayout({
                   dashboardHref={dashboardHref}
                   roleLabel={roleLabel}
                   tenantInfo={tenantInfo}
+                  userName={userName}
                 />
               </div>
-              {/* 기관 정보 (모바일 - Superadmin 제외 모든 역할) */}
-              {tenantInfo && role !== "superadmin" && (
-                <TenantInfo tenantInfo={tenantInfo} variant="mobile-card" />
-              )}
             </div>
           </nav>
         )}

@@ -3,6 +3,7 @@ export const revalidate = 300; // 5분마다 재검증
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { getCurrentUserName } from "@/lib/auth/getCurrentUserName";
 import { RoleBasedLayout } from "@/components/layout/RoleBasedLayout";
 
 /**
@@ -18,12 +19,16 @@ export default async function SuperAdminLayout({ children }: { children: ReactNo
     redirect("/login");
   }
 
+  // 사용자 이름 조회
+  const userName = await getCurrentUserName();
+
   return (
     <RoleBasedLayout
       role={role}
       dashboardHref="/superadmin/dashboard"
       roleLabel="Super Admin"
       showSidebar={true}
+      userName={userName}
     >
       {children}
     </RoleBasedLayout>
