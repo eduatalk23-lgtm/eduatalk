@@ -546,9 +546,19 @@ async function _generatePlansFromGroupRefactored(
   // 10. 스케줄러 호출 (플랜 생성)
   let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
   try {
+    // generatePlansFromGroup에 전달하기 전에 contents의 content_id를 변환
+    // contentIdMap을 사용하여 원본 content_id를 학생 콘텐츠 ID로 변환
+    const transformedContents = contents.map((c) => {
+      const finalContentId = contentIdMap.get(c.content_id) || c.content_id;
+      return {
+        ...c,
+        content_id: finalContentId,
+      };
+    });
+
     scheduledPlans = await generatePlansFromGroup(
       group,
-      contents,
+      transformedContents,
       exclusions,
       academySchedules,
       [],
