@@ -1069,7 +1069,9 @@ export function calculateAvailableDates(
       academy_schedules: dateAcademySchedules.length > 0 ? dateAcademySchedules : undefined,
       exclusion: exclusion || null,
       week_number: weekMap.get(dateStr),
-      time_slots: timeSlots.length > 0 ? timeSlots : undefined,
+      // time_slots는 항상 배열로 제공 (빈 배열이라도)
+      // 제외일이 있는 날짜도 빈 배열로 제공하여 검증 통과
+      time_slots: timeSlots,
     });
 
     // 통계 계산
