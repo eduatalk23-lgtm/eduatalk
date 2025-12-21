@@ -146,7 +146,7 @@ export default function AddedContentsList({
                       <>
                         <span>·</span>
                         <span className="font-medium text-indigo-600">
-                          {recommendedContent.revision} 개정판
+                          {recommendedContent.revision}
                         </span>
                       </>
                     )}

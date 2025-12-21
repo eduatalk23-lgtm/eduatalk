@@ -71,12 +71,12 @@ export default function RecommendedContentCard({
                 </>
               )}
 
-              {/* 개정판 */}
+              {/* 개정 교육과정 */}
               {content.revision && (
                 <>
                   <span>·</span>
                   <span className="font-medium text-indigo-600">
-                    {content.revision} 개정판
+                    {content.revision}
                   </span>
                 </>
               )}

@@ -93,7 +93,7 @@ export function ContentItem({
                 <>
                   <span>·</span>
                   <span className="font-medium text-indigo-600">
-                    {metadata.revision} 개정판
+                    {metadata.revision}
                   </span>
                 </>
               )}

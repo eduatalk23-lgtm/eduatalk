@@ -278,12 +278,12 @@ export function StrategyWeaknessAllocationEditor({
                                   {content.subject}
                                 </div>
                               )}
-                              {subjectGroupAllocation && (
+                              {source === "subject" && (
                                 <div className="text-xs text-gray-500">
                                   교과 단위 설정 적용 중
                                 </div>
                               )}
-                              {!subjectGroupAllocation && source === "default" && (
+                              {source === "default" && (
                                 <div className="text-xs text-gray-500">
                                   기본값 (취약과목)
                                 </div>

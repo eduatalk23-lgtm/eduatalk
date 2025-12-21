@@ -101,7 +101,12 @@ export function ContentList({
                         : "bg-green-100 text-green-800"
                     }`}
                   >
-                    {type === "student" ? "학생 콘텐츠" : "추천 콘텐츠"}
+                    {type === "student"
+                      ? (content as WizardData["student_contents"][number])
+                          .master_content_id
+                        ? "마스터 콘텐츠"
+                        : "학생 콘텐츠"
+                      : "추천 콘텐츠"}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
@@ -131,7 +136,7 @@ export function ContentList({
                     <>
                       <span>·</span>
                       <span className="font-medium text-indigo-600">
-                        {info.revision} 개정판
+                        {info.revision}
                       </span>
                     </>
                   )}
