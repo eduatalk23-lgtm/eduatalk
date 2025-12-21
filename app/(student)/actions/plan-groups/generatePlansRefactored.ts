@@ -323,7 +323,7 @@ async function _generatePlansFromGroupRefactored(
     .map((c) => c.content_id);
 
   // 배치 쿼리: 마스터 콘텐츠 존재 여부 확인 (병렬)
-  const [masterBooksResult, masterLecturesResult] = await Promise.all([
+  const [masterBooksCheckResult, masterLecturesCheckResult] = await Promise.all([
     missingBookIds.length > 0
       ? masterQueryClient
           .from("master_books")
@@ -339,10 +339,10 @@ async function _generatePlansFromGroupRefactored(
   ]);
 
   const masterBookIds = new Set(
-    (masterBooksResult.data || []).map((b) => b.id)
+    (masterBooksCheckResult.data || []).map((b) => b.id)
   );
   const masterLectureIds = new Set(
-    (masterLecturesResult.data || []).map((l) => l.id)
+    (masterLecturesCheckResult.data || []).map((l) => l.id)
   );
 
   // 마스터 콘텐츠 복사 (복사는 순차 처리 필요 - DB 트랜잭션)
