@@ -499,6 +499,12 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
 
       creationData.plan_type = "camp";
+      
+      // 캠프 모드에서는 block_set_id를 null로 설정
+      // 템플릿의 block_set_id는 tenant_block_sets 테이블의 ID이므로
+      // plan_groups.block_set_id (student_block_sets 참조)에 저장할 수 없음
+      creationData.block_set_id = null;
+      
       if (result.group.camp_template_id) {
         creationData.camp_template_id = result.group.camp_template_id;
         
@@ -507,12 +513,27 @@ export const continueCampStepsForAdmin = withErrorHandling(
         const schedulerOptions: SchedulerOptions = (result.group.scheduler_options as SchedulerOptions | null) ?? {};
         const tenantBlockSetId = await getTemplateBlockSetId(
           result.group.camp_template_id,
-          schedulerOptions
+          schedulerOptions,
+          tenantId
         );
 
-        // 조회된 block_set_id 설정
+        // 템플릿 블록 세트 ID를 scheduler_options에 저장
         if (tenantBlockSetId) {
-          creationData.block_set_id = tenantBlockSetId;
+          if (!creationData.scheduler_options) {
+            creationData.scheduler_options = {};
+          }
+          type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
+            template_block_set_id?: string;
+          };
+          (creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet).template_block_set_id =
+            tenantBlockSetId;
+          console.log(
+            "[continueCampStepsForAdmin] scheduler_options에 template_block_set_id 추가:",
+            {
+              template_block_set_id: tenantBlockSetId,
+              scheduler_options: creationData.scheduler_options,
+            }
+          );
         } else {
           console.warn(
             "[continueCampStepsForAdmin] 템플릿 블록 세트 ID를 찾을 수 없습니다:",
