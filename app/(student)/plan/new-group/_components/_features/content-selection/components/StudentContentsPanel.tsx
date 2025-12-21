@@ -389,6 +389,20 @@ export function StudentContentsPanel({
         <RangeSettingModal
           open={rangeModalOpen}
           onClose={() => {
+            // 모달을 닫을 때 임시로 추가한 콘텐츠 제거
+            // (저장하지 않고 닫은 경우)
+            if (rangeModalContent) {
+              // 임시 콘텐츠만 제거 (isLoadingMetadata가 true인 경우)
+              const hasTempContent = selectedContents.some(
+                (c) => c.content_id === rangeModalContent.id && c.isLoadingMetadata
+              );
+              if (hasTempContent) {
+                const updated = selectedContents.filter(
+                  (c) => c.content_id !== rangeModalContent.id
+                );
+                onUpdate(updated);
+              }
+            }
             setRangeModalOpen(false);
             setRangeModalContent(null);
           }}
