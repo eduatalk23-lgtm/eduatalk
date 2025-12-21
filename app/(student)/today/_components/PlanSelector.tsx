@@ -23,8 +23,8 @@ export function PlanSelector({
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
     : null;
   
-  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용
-  const displayGroup = currentGroup || groups[0];
+  // currentGroup이 없으면 planNumber가 null이 아닌 첫 번째 그룹을 표시용으로 사용
+  const displayGroup = currentGroup || groups.find((g) => g.planNumber !== null) || groups[0];
   
   const currentIndex = displayGroup 
     ? groups.findIndex((g) => g.plan.id === displayGroup.plan.id)
@@ -32,17 +32,41 @@ export function PlanSelector({
 
   const handlePrevious = () => {
     if (currentIndex > 0 && currentIndex < groups.length) {
-      const prevPlanNumber = groups[currentIndex - 1].planNumber;
-      console.log("handlePrevious called, selecting:", prevPlanNumber);
-      onSelect(prevPlanNumber);
+      const prevGroup = groups[currentIndex - 1];
+      // planNumber가 null이 아닌 그룹만 선택
+      if (prevGroup && prevGroup.planNumber !== null) {
+        console.log("handlePrevious called, selecting:", prevGroup.planNumber);
+        onSelect(prevGroup.planNumber);
+      } else {
+        // planNumber가 null이면 이전 유효한 그룹 찾기
+        for (let i = currentIndex - 1; i >= 0; i--) {
+          if (groups[i].planNumber !== null) {
+            console.log("handlePrevious called, selecting (skipped null):", groups[i].planNumber);
+            onSelect(groups[i].planNumber);
+            break;
+          }
+        }
+      }
     }
   };
 
   const handleNext = () => {
     if (currentIndex >= 0 && currentIndex < groups.length - 1) {
-      const nextPlanNumber = groups[currentIndex + 1].planNumber;
-      console.log("handleNext called, selecting:", nextPlanNumber);
-      onSelect(nextPlanNumber);
+      const nextGroup = groups[currentIndex + 1];
+      // planNumber가 null이 아닌 그룹만 선택
+      if (nextGroup && nextGroup.planNumber !== null) {
+        console.log("handleNext called, selecting:", nextGroup.planNumber);
+        onSelect(nextGroup.planNumber);
+      } else {
+        // planNumber가 null이면 다음 유효한 그룹 찾기
+        for (let i = currentIndex + 1; i < groups.length; i++) {
+          if (groups[i].planNumber !== null) {
+            console.log("handleNext called, selecting (skipped null):", groups[i].planNumber);
+            onSelect(groups[i].planNumber);
+            break;
+          }
+        }
+      }
     }
   };
 
@@ -68,10 +92,10 @@ export function PlanSelector({
     <div className="flex items-center gap-4">
       <button
         onClick={handlePrevious}
-        disabled={currentIndex <= 0}
+        disabled={currentIndex <= 0 || !groups.slice(0, currentIndex).some((g) => g.planNumber !== null)}
         className={cn(
           "flex items-center justify-center rounded-lg border border-gray-300 p-2 transition",
-          currentIndex <= 0
+          currentIndex <= 0 || !groups.slice(0, currentIndex).some((g) => g.planNumber !== null)
             ? "cursor-not-allowed bg-gray-100 text-gray-400"
             : "bg-white text-gray-700 hover:bg-gray-50"
         )}
@@ -86,8 +110,13 @@ export function PlanSelector({
             const selectedPlanId = e.target.value;
             const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
             if (selectedGroup) {
-              console.log("select onChange called, selecting:", selectedGroup.planNumber);
-              onSelect(selectedGroup.planNumber);
+              // planNumber가 null이 아닌 경우에만 선택
+              if (selectedGroup.planNumber !== null) {
+                console.log("select onChange called, selecting:", selectedGroup.planNumber);
+                onSelect(selectedGroup.planNumber);
+              } else {
+                console.warn("select onChange called, but planNumber is null for group:", selectedGroup.plan.id);
+              }
             }
           }}
           className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -110,10 +139,10 @@ export function PlanSelector({
 
       <button
         onClick={handleNext}
-        disabled={currentIndex < 0 || currentIndex >= groups.length - 1}
+        disabled={currentIndex < 0 || currentIndex >= groups.length - 1 || !groups.slice(currentIndex + 1).some((g) => g.planNumber !== null)}
         className={cn(
           "flex items-center justify-center rounded-lg border border-gray-300 p-2 transition",
-          currentIndex < 0 || currentIndex >= groups.length - 1
+          currentIndex < 0 || currentIndex >= groups.length - 1 || !groups.slice(currentIndex + 1).some((g) => g.planNumber !== null)
             ? "cursor-not-allowed bg-gray-100 text-gray-400"
             : "bg-white text-gray-700 hover:bg-gray-50"
         )}
