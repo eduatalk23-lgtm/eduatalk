@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Search, BookOpen, Video, Plus } from "lucide-react";
+import { Search, BookOpen, Video, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -160,12 +160,12 @@ export const ContentSelector = React.memo(function ContentSelector({
           className={cn(
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "custom"
-              ? "bg-blue-600 text-white"
+              ? "bg-gray-600 text-white"
               : "bg-gray-100 text-gray-800 hover:bg-gray-200",
             disabled && "cursor-not-allowed opacity-50"
           )}
         >
-          <Plus className="h-4 w-4" />
+          <FileText className="h-4 w-4" />
           <span>커스텀</span>
           <span
             className={cn(
@@ -241,8 +241,14 @@ export const ContentSelector = React.memo(function ContentSelector({
                     {item.title}
                   </h4>
                   {/* 메타데이터 (표준 순서) */}
-                  {(item.subject_group_name || item.subject || item.curriculum_revision_name) && (
+                  {(activeTab === "custom" || item.subject_group_name || item.subject || item.curriculum_revision_name) && (
                     <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {/* 커스텀 콘텐츠 타입 배지 */}
+                      {activeTab === "custom" && (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-800">
+                          📄 커스텀
+                        </span>
+                      )}
                       {/* 교과 그룹명 */}
                       {item.subject_group_name && (
                         <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
@@ -271,7 +277,7 @@ export const ContentSelector = React.memo(function ContentSelector({
                       ? "bg-amber-100"
                       : activeTab === "lecture"
                       ? "bg-purple-100"
-                      : "bg-blue-100"
+                      : "bg-gray-100"
                   )}
                 >
                   {activeTab === "book" ? (
@@ -279,7 +285,7 @@ export const ContentSelector = React.memo(function ContentSelector({
                   ) : activeTab === "lecture" ? (
                     <Video className="h-4 w-4 text-purple-600" />
                   ) : (
-                    <Plus className="h-4 w-4 text-blue-600" />
+                    <FileText className="h-4 w-4 text-gray-600" />
                   )}
                 </div>
               </div>

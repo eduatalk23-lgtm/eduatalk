@@ -151,9 +151,17 @@
 - `ContentCardProps`에 `revision` 및 `contentType` 필드 추가
 
 ### 6. 모든 사용처 업데이트
-- `StudentContentsPanel`: revision, contentType 추가
-- `UnifiedContentsView`: revision, contentType 추가
+- `StudentContentsPanel`: revision, contentType 추가, 커스텀 콘텐츠 범위 처리
+- `UnifiedContentsView`: revision, contentType 추가, 커스텀 콘텐츠 범위 처리
 - `RecommendedContentsPanel`: revision, subject_group_name, contentType 추가
+
+### 7. 커스텀 콘텐츠 일관성 확보
+- `ContentCard`: 커스텀 콘텐츠 타입 배지 추가 (📄 커스텀, 회색 배지)
+- `ContentCard`: 커스텀 콘텐츠 아이콘 추가 (FileText 아이콘, 회색 배경)
+- `ContentCard`: 커스텀 콘텐츠는 범위 정보 및 범위 수정 버튼 제외
+- `ContentSelector`: 커스텀 콘텐츠 아이콘 통일 (FileText)
+- `ContentSelector`: 커스텀 콘텐츠 타입 배지 추가
+- 모든 컴포넌트에서 커스텀 콘텐츠 일관된 처리
 
 ---
 

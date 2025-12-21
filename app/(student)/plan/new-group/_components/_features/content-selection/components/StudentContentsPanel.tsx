@@ -307,6 +307,9 @@ export function StudentContentsPanel({
     (content: SelectedContent) => {
       const metadata = metadataCache.get(content.content_id);
 
+      // 커스텀 콘텐츠는 범위 정보가 없음
+      const isCustom = content.content_type === "custom";
+
       return (
         <ContentCard
           key={content.content_id}
@@ -324,7 +327,7 @@ export function StudentContentsPanel({
           }}
           selected={true}
           readOnly={!editable}
-          range={{
+          range={isCustom ? undefined : {
             start: String(content.start_range),
             end: String(content.end_range),
             start_detail_id: content.start_detail_id,
@@ -333,7 +336,7 @@ export function StudentContentsPanel({
           isLoadingMetadata={content.isLoadingMetadata}
           metadataError={content.metadataError}
           onRemove={() => handleContentRemove(content.content_id)}
-          onEditRange={() => handleEditRange(content)}
+          onEditRange={isCustom ? undefined : () => handleEditRange(content)}
         />
       );
     },

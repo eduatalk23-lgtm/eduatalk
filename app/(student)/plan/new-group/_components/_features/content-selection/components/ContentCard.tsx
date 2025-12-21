@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Trash2, Edit, BookOpen, Video, Star } from "lucide-react";
+import { Trash2, Edit, BookOpen, Video, Star, FileText } from "lucide-react";
 import { ContentCardProps } from "@/lib/types/content-selection";
 import { cn } from "@/lib/cn";
 
@@ -24,8 +24,12 @@ export const ContentCard = React.memo(function ContentCard({
   onRemove,
   onEditRange,
 }: ContentCardProps) {
-  const isBook = content.id.startsWith("book") || !content.platform;
-  const isLecture = !isBook;
+  // contentType을 우선 사용, 없으면 기존 로직으로 판단
+  const contentType = content.contentType || 
+    (content.id.startsWith("book") || !content.platform ? "book" : "lecture");
+  const isBook = contentType === "book";
+  const isLecture = contentType === "lecture";
+  const isCustom = contentType === "custom";
 
   return (
     <div
@@ -44,13 +48,15 @@ export const ContentCard = React.memo(function ContentCard({
           <div
             className={cn(
               "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg",
-              isBook ? "bg-amber-100" : "bg-purple-100"
+              isBook ? "bg-amber-100" : isLecture ? "bg-purple-100" : "bg-gray-100"
             )}
           >
             {isBook ? (
               <BookOpen className="h-5 w-5 text-amber-600" />
-            ) : (
+            ) : isLecture ? (
               <Video className="h-5 w-5 text-purple-600" />
+            ) : (
+              <FileText className="h-5 w-5 text-gray-600" />
             )}
           </div>
 
@@ -86,9 +92,13 @@ export const ContentCard = React.memo(function ContentCard({
                     <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
                       📚 교재
                     </span>
-                  ) : (
+                  ) : isLecture ? (
                     <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
                       🎧 강의
+                    </span>
+                  ) : (
+                    <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-800">
+                      📄 커스텀
                     </span>
                   )}
                   
@@ -140,8 +150,8 @@ export const ContentCard = React.memo(function ContentCard({
               )}
             </div>
 
-            {/* 범위 정보 */}
-            {range && (
+            {/* 범위 정보 (커스텀 콘텐츠는 제외) */}
+            {range && !isCustom && (
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-gray-800">범위:</span>
                 <span className="text-gray-600">
@@ -195,8 +205,8 @@ export const ContentCard = React.memo(function ContentCard({
         {/* 액션 버튼 */}
         {!readOnly && (
           <div className="flex flex-shrink-0 items-center gap-1">
-            {/* 범위 수정 버튼 */}
-            {selected && onEditRange && (
+            {/* 범위 수정 버튼 (커스텀 콘텐츠는 제외) */}
+            {selected && onEditRange && !isCustom && (
               <button
                 type="button"
                 onClick={onEditRange}

@@ -103,6 +103,7 @@ export function UnifiedContentsView({
   const renderStudentContentCard = useCallback(
     (content: SelectedContent) => {
       const metadata = metadataCache.get(content.content_id);
+      const isCustom = content.content_type === "custom";
 
       return (
         <ContentCard
@@ -121,7 +122,7 @@ export function UnifiedContentsView({
           }}
           selected={true}
           readOnly={true}
-          range={{
+          range={isCustom ? undefined : {
             start: String(content.start_range),
             end: String(content.end_range),
             start_detail_id: content.start_detail_id,
