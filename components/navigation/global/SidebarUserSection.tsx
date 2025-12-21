@@ -67,7 +67,7 @@ export function SidebarUserSection({
           )}>
             <User className="w-4 h-4" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <p className={cn(
               "text-body-2 font-semibold truncate",
               layoutStyles.textHeading
@@ -99,64 +99,67 @@ export function SidebarUserSection({
       layoutStyles.bgWhite,
       "p-4 flex flex-col gap-3"
     )}>
-      {/* 테넌트 정보 */}
-      {tenantInfo && (
+      {/* 테넌트 정보와 사용자 정보 가로 배치 */}
+      <div className="flex gap-2">
+        {/* 테넌트 정보 */}
+        {tenantInfo && (
+          <div className={cn(
+            layoutStyles.flexCenter,
+            "gap-2 px-3 py-2 rounded-lg flex-1 min-w-0",
+            layoutStyles.bgGray50
+          )}>
+            <Building2 
+              className={cn(
+                "w-4 h-4 flex-shrink-0",
+                layoutStyles.textSecondary
+              )} 
+            />
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <p className={cn(
+                "text-body-2 font-semibold truncate",
+                layoutStyles.textHeading
+              )}>
+                {tenantInfo.name}
+              </p>
+              {tenantInfo.type && (
+                <p className={cn(
+                  "text-body-2 truncate",
+                  layoutStyles.textMuted
+                )}>
+                  {tenantInfo.type}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 사용자 정보 */}
         <div className={cn(
           layoutStyles.flexCenter,
-          "gap-2 px-3 py-2 rounded-lg",
+          "gap-2 px-3 py-2 rounded-lg flex-1 min-w-0",
           layoutStyles.bgGray50
         )}>
-          <Building2 
-            className={cn(
-              "w-4 h-4 flex-shrink-0",
-              layoutStyles.textSecondary
-            )} 
-          />
-          <div className="flex-1 min-w-0">
+          <div className={cn(
+            "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+            "bg-primary-100 dark:bg-primary-900/30",
+            "text-primary-700 dark:text-primary-300"
+          )}>
+            <User className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <p className={cn(
               "text-body-2 font-semibold truncate",
               layoutStyles.textHeading
             )}>
-              {tenantInfo.name}
+              {userName || "사용자"}
             </p>
-            {tenantInfo.type && (
-              <p className={cn(
-                "text-body-2 truncate",
-                layoutStyles.textMuted
-              )}>
-                {tenantInfo.type}
-              </p>
-            )}
+            <p className={cn(
+              "text-body-2 truncate",
+              layoutStyles.textMuted
+            )}>
+              {roleLabel}
+            </p>
           </div>
-        </div>
-      )}
-
-      {/* 사용자 정보 */}
-      <div className={cn(
-        layoutStyles.flexCenter,
-        "gap-2 px-3 py-2 rounded-lg",
-        layoutStyles.bgGray50
-      )}>
-        <div className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-          "bg-primary-100 dark:bg-primary-900/30",
-          "text-primary-700 dark:text-primary-300"
-        )}>
-          <User className="w-4 h-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={cn(
-            "text-body-2 font-semibold truncate",
-            layoutStyles.textHeading
-          )}>
-            {userName || "사용자"}
-          </p>
-          <p className={cn(
-            "text-body-2 truncate",
-            layoutStyles.textMuted
-          )}>
-            {roleLabel}
-          </p>
         </div>
       </div>
 
@@ -168,4 +171,3 @@ export function SidebarUserSection({
     </div>
   );
 }
-
