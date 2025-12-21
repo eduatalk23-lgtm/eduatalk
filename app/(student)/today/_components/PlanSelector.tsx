@@ -18,19 +18,23 @@ export function PlanSelector({
   onSelect,
   sessions,
 }: PlanSelectorProps) {
-  const currentIndex = groups.findIndex(
+  // 현재 선택된 그룹 찾기 (planNumber로 먼저 찾고, 없으면 첫 번째 그룹)
+  const currentGroup = groups.find(
     (g) => g.planNumber === selectedPlanNumber
-  );
-  const currentGroup = groups[currentIndex];
+  ) || groups[0];
+  
+  const currentIndex = currentGroup 
+    ? groups.findIndex((g) => g.plan.id === currentGroup.plan.id)
+    : -1;
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
+    if (currentIndex > 0 && currentIndex < groups.length) {
       onSelect(groups[currentIndex - 1].planNumber);
     }
   };
 
   const handleNext = () => {
-    if (currentIndex < groups.length - 1) {
+    if (currentIndex >= 0 && currentIndex < groups.length - 1) {
       onSelect(groups[currentIndex + 1].planNumber);
     }
   };
@@ -57,10 +61,10 @@ export function PlanSelector({
     <div className="flex items-center gap-4">
       <button
         onClick={handlePrevious}
-        disabled={currentIndex === 0}
+        disabled={currentIndex <= 0}
         className={cn(
           "flex items-center justify-center rounded-lg border border-gray-300 p-2 transition",
-          currentIndex === 0
+          currentIndex <= 0
             ? "cursor-not-allowed bg-gray-100 text-gray-400"
             : "bg-white text-gray-700 hover:bg-gray-50"
         )}
@@ -70,10 +74,13 @@ export function PlanSelector({
 
       <div className="flex-1">
         <select
-          value={selectedPlanNumber ?? ""}
+          value={currentGroup?.plan.id ?? ""}
           onChange={(e) => {
-            const value = e.target.value;
-            onSelect(value === "" ? null : Number(value));
+            const selectedPlanId = e.target.value;
+            const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
+            if (selectedGroup) {
+              onSelect(selectedGroup.planNumber);
+            }
           }}
           className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
@@ -85,7 +92,7 @@ export function PlanSelector({
             const status = getGroupStatus(group);
 
             return (
-              <option key={group.plan.id} value={group.planNumber ?? ""}>
+              <option key={group.plan.id} value={group.plan.id}>
                 {contentTitle} ({sequence}) - {status}
               </option>
             );
@@ -95,10 +102,10 @@ export function PlanSelector({
 
       <button
         onClick={handleNext}
-        disabled={currentIndex === groups.length - 1}
+        disabled={currentIndex < 0 || currentIndex >= groups.length - 1}
         className={cn(
           "flex items-center justify-center rounded-lg border border-gray-300 p-2 transition",
-          currentIndex === groups.length - 1
+          currentIndex < 0 || currentIndex >= groups.length - 1
             ? "cursor-not-allowed bg-gray-100 text-gray-400"
             : "bg-white text-gray-700 hover:bg-gray-50"
         )}
@@ -106,7 +113,7 @@ export function PlanSelector({
         <ChevronRight className="h-5 w-5" />
       </button>
 
-      {currentGroup && (
+      {currentGroup && currentIndex >= 0 && (
         <div className="text-xs text-gray-500">
           {currentIndex + 1} / {groups.length}
         </div>
