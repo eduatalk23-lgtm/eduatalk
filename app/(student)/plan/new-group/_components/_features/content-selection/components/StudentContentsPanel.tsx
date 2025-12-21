@@ -45,6 +45,9 @@ export function StudentContentsPanel({
     title: string;
     currentRange?: ContentRange;
   } | null>(null);
+  
+  // 범위 저장 여부 추적 (onClose에서 임시 콘텐츠 제거 여부 결정)
+  const isRangeSavedRef = useRef(false);
 
   // 선택된 콘텐츠 목록 ref (스크롤용)
   const selectedContentsRef = useRef<HTMLDivElement>(null);
@@ -334,6 +337,9 @@ export function StudentContentsPanel({
         updatedIds: updated.map(c => c.content_id),
       });
 
+      // 범위 저장 플래그 설정 (onClose에서 임시 콘텐츠를 제거하지 않도록)
+      isRangeSavedRef.current = true;
+
       // onUpdate 호출
       onUpdate(updated);
 
@@ -341,6 +347,11 @@ export function StudentContentsPanel({
 
       setRangeModalOpen(false);
       setRangeModalContent(null);
+      
+      // 다음 모달 열기를 위해 플래그 리셋 (약간의 지연 후)
+      setTimeout(() => {
+        isRangeSavedRef.current = false;
+      }, 100);
 
       // 범위 저장 후 선택된 콘텐츠 목록으로 스크롤
       setTimeout(() => {
@@ -442,18 +453,30 @@ export function StudentContentsPanel({
         <RangeSettingModal
           open={rangeModalOpen}
           onClose={() => {
+            // 범위가 저장된 경우 임시 콘텐츠를 제거하지 않음
+            if (isRangeSavedRef.current) {
+              console.log("[StudentContentsPanel] 범위가 저장되어 임시 콘텐츠 제거하지 않음");
+              setRangeModalOpen(false);
+              setRangeModalContent(null);
+              return;
+            }
+
             // 모달을 닫을 때 임시로 추가한 콘텐츠 제거
             // (저장하지 않고 닫은 경우)
+            console.log("[StudentContentsPanel] 범위 저장 없이 모달 닫기 - 임시 콘텐츠 제거");
             if (rangeModalContent) {
               // 임시 콘텐츠만 제거 (isLoadingMetadata가 true인 경우)
               const hasTempContent = selectedContents.some(
                 (c) => c.content_id === rangeModalContent.id && c.isLoadingMetadata
               );
               if (hasTempContent) {
+                console.log("[StudentContentsPanel] 임시 콘텐츠 제거:", rangeModalContent.id);
                 const updated = selectedContents.filter(
                   (c) => c.content_id !== rangeModalContent.id
                 );
                 onUpdate(updated);
+              } else {
+                console.log("[StudentContentsPanel] 임시 콘텐츠가 없음 (이미 저장되었거나 없음)");
               }
             }
             setRangeModalOpen(false);
