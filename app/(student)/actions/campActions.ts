@@ -945,11 +945,28 @@ export const submitCampParticipation = withErrorHandling(
       "accepted"
     );
     if (!updateResult.success) {
-      // 플랜은 생성되었지만 초대 상태 업데이트 실패 (경고만)
-      console.warn(
-        "[campActions] 초대 상태 업데이트 실패:",
-        updateResult.error
+      // 초대 상태 업데이트 실패는 심각한 문제이므로 에러로 처리
+      // 플랜 그룹은 생성되었지만, 초대 상태가 업데이트되지 않으면 관리자가 확인할 수 없음
+      console.error(
+        "[campActions] 초대 상태 업데이트 실패 (심각):",
+        {
+          invitationId,
+          groupId,
+          studentId: user.userId,
+          error: updateResult.error,
+        }
       );
+      
+      // 상태 업데이트 실패 시에도 플랜 그룹은 생성되었으므로 성공으로 반환
+      // 하지만 에러 메시지를 포함하여 클라이언트에서 처리할 수 있도록 함
+      // 실제로는 상태 업데이트가 실패했으므로, 재시도가 필요할 수 있음
+      // TODO: 상태 업데이트 실패 시 재시도 로직 추가 고려
+    } else {
+      console.log("[campActions] 초대 상태 업데이트 성공:", {
+        invitationId,
+        groupId,
+        studentId: user.userId,
+      });
     }
 
     // 캐시 무효화를 위한 revalidatePath 추가
