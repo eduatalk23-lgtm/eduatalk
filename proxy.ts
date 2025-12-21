@@ -15,7 +15,7 @@ const PUBLIC_PATHS = [
 ];
 
 /**
- * 정적 파일 및 API 경로 (미들웨어 스킵)
+ * 정적 파일 및 API 경로 (프록시 스킵)
  */
 const SKIP_PATHS = [
   "/_next",
@@ -59,7 +59,7 @@ const ROLE_DEFAULT_DASHBOARD: Record<string, string> = {
 /**
  * Supabase 클라이언트를 생성하고 response를 관리하는 헬퍼
  */
-function createSupabaseMiddlewareClient(request: NextRequest) {
+function createSupabaseProxyClient(request: NextRequest) {
   // response를 저장할 객체 (클로저 문제 방지)
   const responseHolder = {
     response: NextResponse.next({
@@ -98,7 +98,7 @@ function createSupabaseMiddlewareClient(request: NextRequest) {
 
 /**
  * 사용자 역할을 조회하는 헬퍼 함수
- * 중복 DB 쿼리를 피하기 위해 middleware에서 가볍게 역할만 확인
+ * 중복 DB 쿼리를 피하기 위해 proxy에서 가볍게 역할만 확인
  */
 async function getUserRole(
   supabase: ReturnType<typeof createServerClient>,
@@ -153,7 +153,7 @@ function canAccessPath(role: string, pathname: string): boolean {
   return allowedPaths.some((path) => pathname.startsWith(path));
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 정적 파일 및 API 경로는 스킵
@@ -162,7 +162,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Supabase 클라이언트 생성
-  const { supabase, getResponse } = createSupabaseMiddlewareClient(request);
+  const { supabase, getResponse } = createSupabaseProxyClient(request);
 
   // 세션 확인 (getUser는 서버에서 검증하므로 더 안전)
   // 중요: getSession() 대신 getUser()를 사용해야 토큰이 실제로 검증됨
@@ -245,3 +245,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+

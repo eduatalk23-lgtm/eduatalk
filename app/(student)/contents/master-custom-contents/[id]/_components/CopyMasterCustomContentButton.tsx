@@ -22,7 +22,7 @@ export function CopyMasterCustomContentButton({
     setIsLoading(true);
 
     try {
-      const result = await copyMasterToStudentContentAction(masterContentId);
+      const result = await copyMasterToStudentContentAction(masterContentId, undefined, "custom");
       const contentId = result.contentId;
       
       if (contentId) {

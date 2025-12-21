@@ -132,7 +132,10 @@ export const searchContentMastersAction = withErrorHandling(_searchContentMaster
 /**
  * 콘텐츠 마스터 상세 조회
  */
-async function _getContentMasterById(masterId: string): Promise<{
+async function _getContentMasterById(
+  masterId: string,
+  content_type?: "book" | "lecture" | "custom"
+): Promise<{
   master: any | null;
   details: any[];
 }> {
@@ -142,7 +145,7 @@ async function _getContentMasterById(masterId: string): Promise<{
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  return await getContentMasterById(masterId);
+  return await getContentMasterById(masterId, content_type);
 }
 
 export const getContentMasterByIdAction = withErrorHandling(_getContentMasterById);
@@ -152,7 +155,8 @@ export const getContentMasterByIdAction = withErrorHandling(_getContentMasterByI
  */
 async function _copyMasterToStudentContent(
   masterId: string,
-  targetStudentId?: string // 관리자 모드에서 사용 시
+  targetStudentId?: string, // 관리자 모드에서 사용 시
+  content_type?: "book" | "lecture" | "custom" // 콘텐츠 타입 (선택사항)
 ): Promise<{
   bookId?: string;
   lectureId?: string;
@@ -180,7 +184,8 @@ async function _copyMasterToStudentContent(
   return await copyMasterToStudentContent(
     masterId,
     finalStudentId,
-    tenantContext.tenantId
+    tenantContext.tenantId,
+    content_type
   );
 }
 

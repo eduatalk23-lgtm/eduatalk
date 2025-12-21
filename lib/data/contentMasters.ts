@@ -586,12 +586,43 @@ export async function searchContentMasters(
 /**
  * 콘텐츠 마스터 상세 조회 (하위 호환성)
  * @deprecated getMasterBookById 또는 getMasterLectureById 사용 권장
+ * @param content_type 콘텐츠 타입 (선택사항, 없으면 자동 감지)
  */
 export async function getContentMasterById(
-  masterId: string
+  masterId: string,
+  content_type?: "book" | "lecture" | "custom"
 ): Promise<{ master: any | null; details: BookDetail[] }> {
-  const supabase = await createSupabaseServerClient();
+  // content_type이 명시되어 있으면 해당 타입으로 직접 조회
+  if (content_type === "book") {
+    const bookResult = await getMasterBookById(masterId);
+    if (bookResult.book) {
+      return {
+        master: bookResult.book,
+        details: bookResult.details,
+      };
+    }
+    return { master: null, details: [] };
+  } else if (content_type === "lecture") {
+    const { lecture, episodes } = await getMasterLectureById(masterId);
+    if (lecture) {
+      return {
+        master: lecture,
+        details: [], // 강의는 세부 정보 없음 (episodes는 별도)
+      };
+    }
+    return { master: null, details: [] };
+  } else if (content_type === "custom") {
+    const { content } = await getMasterCustomContentById(masterId);
+    if (content) {
+      return {
+        master: content,
+        details: [], // 커스텀 콘텐츠는 세부 정보 없음
+      };
+    }
+    return { master: null, details: [] };
+  }
 
+  // content_type이 없으면 자동 감지 (하위 호환성)
   // 먼저 교재에서 찾기
   const bookResult = await getMasterBookById(masterId);
   if (bookResult.book) {
@@ -607,6 +638,15 @@ export async function getContentMasterById(
     return {
       master: lecture,
       details: [], // 강의는 세부 정보 없음 (episodes는 별도)
+    };
+  }
+
+  // 커스텀 콘텐츠에서 찾기
+  const { content } = await getMasterCustomContentById(masterId);
+  if (content) {
+    return {
+      master: content,
+      details: [], // 커스텀 콘텐츠는 세부 정보 없음
     };
   }
 
@@ -1101,12 +1141,27 @@ export async function copyMasterCustomContentToStudent(
 /**
  * 마스터 콘텐츠를 학생 콘텐츠로 복사 (하위 호환성)
  * @deprecated copyMasterBookToStudent, copyMasterLectureToStudent, copyMasterCustomContentToStudent 사용 권장
+ * @param content_type 콘텐츠 타입 (선택사항, 없으면 자동 감지)
  */
 export async function copyMasterToStudentContent(
   masterId: string,
   studentId: string,
-  tenantId: string
+  tenantId: string,
+  content_type?: "book" | "lecture" | "custom"
 ): Promise<{ bookId?: string; lectureId?: string; contentId?: string }> {
+  // content_type이 명시되어 있으면 해당 타입으로 직접 복사
+  if (content_type === "book") {
+    const result = await copyMasterBookToStudent(masterId, studentId, tenantId);
+    return { bookId: result.bookId };
+  } else if (content_type === "lecture") {
+    const result = await copyMasterLectureToStudent(masterId, studentId, tenantId);
+    return { lectureId: result.lectureId };
+  } else if (content_type === "custom") {
+    const result = await copyMasterCustomContentToStudent(masterId, studentId, tenantId);
+    return { contentId: result.contentId };
+  }
+
+  // content_type이 없으면 자동 감지 (하위 호환성)
   // 먼저 교재에서 찾기
   try {
     const result = await copyMasterBookToStudent(masterId, studentId, tenantId);

@@ -169,8 +169,8 @@ export function ContentMasterSearch({
   const handleCopy = async (masterId: string) => {
     setCopyingId(masterId);
     try {
-      const result = await copyMasterToStudentContentAction(masterId, studentId);
-      const contentId = result.bookId || result.lectureId;
+      const result = await copyMasterToStudentContentAction(masterId, studentId, contentType);
+      const contentId = result.bookId || result.lectureId || result.contentId;
       if (contentId) {
         onContentAdded(contentId, contentType);
         onClose();

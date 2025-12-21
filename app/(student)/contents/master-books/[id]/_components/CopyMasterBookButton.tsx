@@ -22,7 +22,7 @@ export function CopyMasterBookButton({
     setIsLoading(true);
 
     try {
-      const result = await copyMasterToStudentContentAction(masterBookId);
+      const result = await copyMasterToStudentContentAction(masterBookId, undefined, "book");
       const bookId = result.bookId;
       
       if (bookId) {
