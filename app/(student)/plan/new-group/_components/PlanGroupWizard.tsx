@@ -583,6 +583,12 @@ function PlanGroupWizardInner({
 
     // 템플릿 모드일 때 Step 4에서 템플릿 저장
     if (shouldSubmitAtStep4(mode) && currentStep === 4) {
+      // 템플릿 모드일 때는 handleSaveDraft를 호출하여 onTemplateSave 콜백 실행
+      if (isTemplateMode) {
+        await handleSaveDraft(false);
+        return;
+      }
+      // 캠프 모드일 때는 기존 로직 사용
       handleSubmit();
       return;
     }
@@ -617,7 +623,7 @@ function PlanGroupWizardInner({
         nextStep();
       }
     }
-  }, [currentStep, validateStep, mode, handleSubmit, setStep, nextStep, handleValidationFailed]);
+  }, [currentStep, validateStep, mode, handleSubmit, handleSaveDraft, isTemplateMode, setStep, nextStep, handleValidationFailed]);
 
   const handleBack = useCallback(() => {
     if (canGoBack(currentStep, mode)) {

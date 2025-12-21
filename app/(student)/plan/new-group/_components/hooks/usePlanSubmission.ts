@@ -136,6 +136,12 @@ export function usePlanSubmission({
           return;
         }
 
+        // 템플릿 모드일 때는 플랜 그룹 생성을 건너뛰고 다음 단계로만 이동
+        if (mode.isTemplateMode) {
+          goNext();
+          return;
+        }
+
         // 낙관적 UI 업데이트: Step 전환이 필요한 경우 먼저 UI 전환 후 백그라운드 저장
         const needsOptimisticUpdate =
           (currentStep === 4 && !generatePlansFlag) ||
@@ -200,6 +206,7 @@ export function usePlanSubmission({
       goNext,
       setValidationErrors,
       toast,
+      mode.isTemplateMode,
     ]
   );
   
