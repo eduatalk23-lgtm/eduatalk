@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
+import { bgSurfaceVar } from "@/lib/utils/darkMode";
 
 type DropdownMenuContextValue = {
   open: boolean;
@@ -278,7 +279,7 @@ function DropdownMenuContent({
       aria-labelledby={triggerId}
       className={cn(
         "absolute z-50 min-w-[200px] rounded-lg border shadow-[var(--elevation-8)]",
-        "bg-white dark:bg-secondary-900",
+        bgSurfaceVar,
         "border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
         "py-1",
         alignClasses,

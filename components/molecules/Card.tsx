@@ -3,6 +3,7 @@
 import { memo, ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
+import { textPrimaryVar, textSecondaryVar } from "@/lib/utils/darkMode";
 
 // ============================================
 // Card 컴포넌트 (CVA 적용)
@@ -134,11 +135,11 @@ export function CardHeader({
   return (
     <div className={cn("flex items-start justify-between gap-4", className)}>
       <div className="flex flex-col gap-1">
-        <h3 className="text-h2 text-text-primary dark:text-text-primary">
+        <h3 className={cn("text-h2", textPrimaryVar)}>
           {title}
         </h3>
         {description && (
-          <p className="text-body-2 text-text-secondary dark:text-text-secondary">
+          <p className={cn("text-body-2", textSecondaryVar)}>
             {description}
           </p>
         )}

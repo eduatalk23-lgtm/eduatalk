@@ -156,10 +156,10 @@ export function Dialog({
             onClick={() => onOpenChange(false)}
             className={cn(
               "absolute right-4 top-4 rounded-lg p-1 transition-base",
-              "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]",
+              "text-[var(--text-secondary)]",
               "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
-              "hover:text-[var(--text-primary)] dark:hover:text-[var(--text-primary)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] focus-visible:ring-offset-2"
+              "hover:text-[var(--text-primary)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2"
             )}
             aria-label="닫기"
           >

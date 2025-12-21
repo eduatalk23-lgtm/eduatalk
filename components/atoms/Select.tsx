@@ -2,6 +2,7 @@
 
 import { memo, forwardRef } from "react";
 import { cn } from "@/lib/cn";
+import { bgSurfaceVar } from "@/lib/utils/darkMode";
 
 export type SelectSize = "sm" | "md" | "lg";
 
@@ -22,7 +23,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          "w-full rounded-lg border bg-white transition-base appearance-none cursor-pointer",
+          "w-full rounded-lg border transition-base appearance-none cursor-pointer",
+          bgSurfaceVar,
           "text-[var(--text-primary)]",
           "focus:outline-none focus:ring-2 focus:ring-offset-0",
           "disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-50))] dark:disabled:bg-[rgb(var(--color-secondary-900))] disabled:text-[var(--text-disabled)]",

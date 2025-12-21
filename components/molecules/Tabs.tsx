@@ -69,14 +69,14 @@ function TabsComponent({
               variant === "line" && [
                 "-mb-px border-b-2",
                 isActive
-                  ? "border-[var(--text-primary)] dark:border-[var(--text-primary)] text-[var(--text-primary)] dark:text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))] dark:hover:border-[rgb(var(--color-secondary-600))] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)]",
+                  ? "border-[var(--text-primary)] text-[var(--text-primary)]"
+                  : "border-transparent text-[var(--text-tertiary)] hover:border-[rgb(var(--color-secondary-300))] dark:hover:border-[rgb(var(--color-secondary-600))] hover:text-[var(--text-secondary)]",
               ],
               variant === "pill" && [
                 "rounded-md",
                 isActive
-                  ? "bg-white dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] dark:text-[var(--text-primary)] shadow-[var(--elevation-1)]"
-                  : "text-[var(--text-tertiary)] dark:text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)]",
+                  ? "bg-white dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-primary)] shadow-[var(--elevation-1)]"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]",
               ],
               tab.disabled && "cursor-not-allowed opacity-50"
             )}
@@ -88,8 +88,8 @@ function TabsComponent({
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-body-2 font-medium",
                   isActive
-                    ? "bg-[var(--text-primary)] dark:bg-[var(--text-primary)] text-white dark:text-[var(--text-primary)]"
-                    : "bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"
+                    ? "bg-[var(--text-primary)] text-white"
+                    : "bg-[rgb(var(--color-secondary-200))] dark:bg-[rgb(var(--color-secondary-700))] text-[var(--text-secondary)]"
                 )}
               >
                 {tab.badge}
