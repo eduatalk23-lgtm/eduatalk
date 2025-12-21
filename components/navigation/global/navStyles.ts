@@ -329,7 +329,7 @@ export const layoutStyles = {
 
   // Background
   bgGray50: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
-  bgWhite: "bg-white dark:bg-[rgb(var(--color-secondary-900))]",
+  bgWhite: "bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]",
 
   // Text
   textHeading: "text-[var(--text-primary)] dark:text-[var(--text-primary)]",
