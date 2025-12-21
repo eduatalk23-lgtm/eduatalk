@@ -319,7 +319,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                 </button>
                 {/* Collapsed 모드 툴팁 */}
                 {isCollapsed && (
-                  <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-body-2 font-medium text-white bg-[var(--text-primary)] dark:bg-[var(--text-primary)] dark:text-[var(--background)] rounded shadow-[var(--elevation-8)] whitespace-nowrap z-50 opacity-0 invisible group-hover/nav:opacity-100 group-hover/nav:visible transition-opacity pointer-events-none" role="tooltip">
+                  <span className={tooltipStyles.side} role="tooltip">
                     {category.label}
                   </span>
                 )}
