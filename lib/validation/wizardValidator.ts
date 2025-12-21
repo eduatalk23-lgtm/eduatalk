@@ -301,8 +301,8 @@ export class WizardValidator {
       if (!hasContentAllocations && !hasSubjectAllocations) {
         errors.push("전략과목/취약과목 정보를 설정해주세요.");
       } else if (hasSubjectAllocations) {
-        // subject_allocations가 있을 때만 과목 일치 검증 수행
-        // subject_allocations의 모든 과목이 콘텐츠에 포함되어 있는지 검증
+        // subject_allocations가 있을 때만 교과 일치 검증 수행
+        // subject_allocations의 모든 교과가 콘텐츠에 포함되어 있는지 검증
         const allocatedSubjects = new Set(
           (wizardData.subject_allocations || []).map((a) => a.subject_name)
         );
@@ -321,7 +321,7 @@ export class WizardValidator {
 
         if (missingSubjects.length > 0) {
           errors.push(
-            `다음 과목의 콘텐츠를 선택해주세요: ${missingSubjects.join(", ")}`
+            `다음 교과의 콘텐츠를 선택해주세요: ${missingSubjects.join(", ")}`
           );
         }
       }

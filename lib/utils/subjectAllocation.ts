@@ -126,7 +126,8 @@ export function validateAllocations(
  *    - subject_id로 매칭 (가장 정확)
  *    - subject_name과 subject_category 정확 일치
  *    - subject_name에 subject_category가 포함되는지 확인 (부분 매칭)
- *    - subject 필드도 매칭 조건에 포함
+ *    주의: 교과별 설정은 subject_category(교과)만 기준으로 매칭합니다.
+ *          subject 필드(과목)는 매칭 조건에서 제외됩니다.
  * 3. 기본값 (취약과목)
  * 
  * @param content - 콘텐츠 정보
@@ -179,6 +180,8 @@ export function getEffectiveAllocation(
   }
 
   // 2순위: 교과별 설정 (폴백)
+  // 교과별 설정은 subject_category(교과)만 기준으로 매칭
+  // subject 필드(과목)는 매칭 조건에서 제외
   if (subjectAllocations && subjectAllocations.length > 0) {
     // 2-1: subject_id로 매칭 (가장 정확)
     if (content.subject_id) {
@@ -243,31 +246,8 @@ export function getEffectiveAllocation(
       }
     }
 
-    // 2-4: subject 필드도 매칭 조건에 포함
-    if (content.subject) {
-      const subjectAlloc = subjectAllocations.find(
-        (a) =>
-          normalizeString(a.subject_name) === normalizeString(content.subject!) ||
-          isPartialMatch(a.subject_name, content.subject!)
-      );
-      if (subjectAlloc) {
-        log("교과별 설정 매칭 성공 (subject 필드)", {
-          subject: content.subject,
-          subject_name: subjectAlloc.subject_name,
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days,
-        });
-        return {
-          subject_type: subjectAlloc.subject_type,
-          weekly_days: subjectAlloc.weekly_days,
-          source: "subject",
-        };
-      }
-    }
-
     log("교과별 설정 매칭 실패 (모든 조건)", {
       subject_category: content.subject_category,
-      subject: content.subject,
       subject_id: content.subject_id,
       available_subject_allocations: subjectAllocations.map((a) => ({
         subject_id: a.subject_id,

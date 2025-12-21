@@ -189,16 +189,17 @@ describe("getEffectiveAllocation", () => {
       expect(result.source).toBe("subject");
     });
 
-    it("subject 필드도 매칭 조건에 포함", () => {
+    it("subject 필드는 매칭 조건에서 제외 (교과별 설정은 교과만 기준)", () => {
       const content: ContentInfo = {
         content_type: "book",
         content_id: "book-1",
-        subject: "수학",
+        subject: "미적분", // 과목 필드
+        // subject_category가 없으면 매칭 실패해야 함
       };
 
       const subjectAllocations: SubjectAllocation[] = [
         {
-          subject_name: "수학",
+          subject_name: "수학", // 교과명
           subject_type: "strategy",
           weekly_days: 4,
         },
@@ -211,9 +212,11 @@ describe("getEffectiveAllocation", () => {
         false
       );
 
-      expect(result.subject_type).toBe("strategy");
-      expect(result.weekly_days).toBe(4);
-      expect(result.source).toBe("subject");
+      // subject 필드만 있고 subject_category가 없으면 매칭 실패
+      // 기본값(취약과목) 반환
+      expect(result.subject_type).toBe("weakness");
+      expect(result.weekly_days).toBeUndefined();
+      expect(result.source).toBe("default");
     });
   });
 
