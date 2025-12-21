@@ -300,21 +300,30 @@ async function _previewPlansFromGroupRefactored(
       );
       const totalStudyHours = dailySchedule?.study_hours || 0;
 
-      const plansForAssign = datePlans.map((plan) => {
-        const finalContentId =
-          contentIdMap.get(plan.content_id) || plan.content_id;
-        return {
-          content_id: finalContentId,
-          content_type: plan.content_type,
-          planned_start_page_or_time: plan.planned_start_page_or_time,
-          planned_end_page_or_time: plan.planned_end_page_or_time,
-          chapter: plan.chapter || null,
-          block_index: plan.block_index,
-          // Preserve pre-calculated times if available (from SchedulerEngine)
-          _precalculated_start: plan.start_time,
-          _precalculated_end: plan.end_time,
-        };
-      });
+      // contentIdMap에 없는 콘텐츠는 제외 (마스터 콘텐츠 복사 실패 시 외래 키 제약 조건 위반 방지)
+      const plansForAssign = datePlans
+        .map((plan) => {
+          const finalContentId = contentIdMap.get(plan.content_id);
+          // contentIdMap에 없는 경우 null 반환하여 필터링
+          if (!finalContentId) {
+            console.warn(
+              `[previewPlansRefactored] 콘텐츠 ID(${plan.content_id})가 contentIdMap에 없어 플랜에서 제외합니다.`
+            );
+            return null;
+          }
+          return {
+            content_id: finalContentId,
+            content_type: plan.content_type,
+            planned_start_page_or_time: plan.planned_start_page_or_time,
+            planned_end_page_or_time: plan.planned_end_page_or_time,
+            chapter: plan.chapter || null,
+            block_index: plan.block_index,
+            // Preserve pre-calculated times if available (from SchedulerEngine)
+            _precalculated_start: plan.start_time,
+            _precalculated_end: plan.end_time,
+          };
+        })
+        .filter((plan): plan is NonNullable<typeof plan> => plan !== null);
 
       // Check if we have pre-calculated times (from SchedulerEngine)
       // If ANY plan has pre-calculated time, we assume the scheduler provided a complete timeline for this day.

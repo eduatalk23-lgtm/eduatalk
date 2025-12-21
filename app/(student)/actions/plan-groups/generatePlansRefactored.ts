@@ -625,25 +625,34 @@ async function _generatePlansFromGroupRefactored(
     const dayType = dateMetadata.day_type || "학습일";
 
     // 원본 플랜 정보를 추적하기 위해 인덱스와 함께 저장
-    const plansForAssign = datePlans.map((plan, originalIndex) => {
-      const finalContentId =
-        contentIdMap.get(plan.content_id) || plan.content_id;
-      return {
-        content_id: finalContentId,
-        content_type: plan.content_type,
-        planned_start_page_or_time: plan.planned_start_page_or_time,
-        planned_end_page_or_time: plan.planned_end_page_or_time,
-        chapter: plan.chapter || null,
-        block_index: plan.block_index,
-        // Preserve pre-calculated times if available (from SchedulerEngine)
-        _precalculated_start: plan.start_time,
-        _precalculated_end: plan.end_time,
-        // 원본 플랜 인덱스 저장 (회차 계산용)
-        _originalIndex: originalIndex,
-      } as import("@/lib/plan/assignPlanTimes").PlanTimeInput & {
-        _originalIndex: number;
-      };
-    });
+    // contentIdMap에 없는 콘텐츠는 제외 (마스터 콘텐츠 복사 실패 시 외래 키 제약 조건 위반 방지)
+    const plansForAssign = datePlans
+      .map((plan, originalIndex) => {
+        const finalContentId = contentIdMap.get(plan.content_id);
+        // contentIdMap에 없는 경우 null 반환하여 필터링
+        if (!finalContentId) {
+          console.warn(
+            `[generatePlansRefactored] 콘텐츠 ID(${plan.content_id})가 contentIdMap에 없어 플랜에서 제외합니다.`
+          );
+          return null;
+        }
+        return {
+          content_id: finalContentId,
+          content_type: plan.content_type,
+          planned_start_page_or_time: plan.planned_start_page_or_time,
+          planned_end_page_or_time: plan.planned_end_page_or_time,
+          chapter: plan.chapter || null,
+          block_index: plan.block_index,
+          // Preserve pre-calculated times if available (from SchedulerEngine)
+          _precalculated_start: plan.start_time,
+          _precalculated_end: plan.end_time,
+          // 원본 플랜 인덱스 저장 (회차 계산용)
+          _originalIndex: originalIndex,
+        } as import("@/lib/plan/assignPlanTimes").PlanTimeInput & {
+          _originalIndex: number;
+        };
+      })
+      .filter((plan): plan is NonNullable<typeof plan> => plan !== null);
 
     if (process.env.NODE_ENV === "development") {
       console.log(
