@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { formatTime, TimeStats, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
@@ -33,7 +34,7 @@ type PlanTimerProps = {
   serverNow: number;
 };
 
-export function PlanTimer({
+function PlanTimerComponent({
   planId,
   timeStats,
   isLoading,
@@ -188,3 +189,28 @@ export function PlanTimer({
     </div>
   );
 }
+
+// React.memo로 불필요한 리렌더링 방지
+export const PlanTimer = memo(PlanTimerComponent, (prevProps, nextProps) => {
+  // 핵심 props만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.planId === nextProps.planId &&
+    prevProps.status === nextProps.status &&
+    prevProps.accumulatedSeconds === nextProps.accumulatedSeconds &&
+    prevProps.startedAt === nextProps.startedAt &&
+    prevProps.serverNow === nextProps.serverNow &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.pendingAction === nextProps.pendingAction &&
+    prevProps.compact === nextProps.compact &&
+    prevProps.canPostpone === nextProps.canPostpone &&
+    prevProps.timeStats.isCompleted === nextProps.timeStats.isCompleted &&
+    prevProps.timeStats.pauseCount === nextProps.timeStats.pauseCount &&
+    prevProps.timeStats.pausedDuration === nextProps.timeStats.pausedDuration &&
+    // 함수 props는 참조 동일성으로 비교 (부모에서 useCallback 사용 필요)
+    prevProps.onStart === nextProps.onStart &&
+    prevProps.onPause === nextProps.onPause &&
+    prevProps.onResume === nextProps.onResume &&
+    prevProps.onComplete === nextProps.onComplete &&
+    prevProps.onPostpone === nextProps.onPostpone
+  );
+});

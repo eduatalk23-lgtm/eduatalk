@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Clock } from "lucide-react";
 import { formatTime } from "../../_utils/planGroupUtils";
 import { StatusBadge } from "./StatusBadge";
@@ -23,7 +24,7 @@ type TimerDisplayProps = {
   className?: string;
 };
 
-export function TimerDisplay({
+function TimerDisplayComponent({
   seconds,
   status,
   subtitle,
@@ -86,4 +87,17 @@ export function TimerDisplay({
     </div>
   );
 }
+
+// React.memo로 불필요한 리렌더링 방지
+export const TimerDisplay = memo(TimerDisplayComponent, (prevProps, nextProps) => {
+  // 핵심 props만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.seconds === nextProps.seconds &&
+    prevProps.status === nextProps.status &&
+    prevProps.subtitle === nextProps.subtitle &&
+    prevProps.showStatusBadge === nextProps.showStatusBadge &&
+    prevProps.compact === nextProps.compact &&
+    prevProps.className === nextProps.className
+  );
+});
 

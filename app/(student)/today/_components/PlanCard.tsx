@@ -55,7 +55,7 @@ function PlanCardComponent({
   campMode = false,
 }: PlanCardProps) {
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showInfo } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const timerStore = usePlanTimerStore();
@@ -191,7 +191,7 @@ function PlanCardComponent({
   const handlePostponePlan = async (planId: string) => {
     if (isLoading) return;
     if (!group.plan.is_reschedulable) {
-      alert("이 플랜은 일정 미루기가 허용되지 않습니다.");
+      showInfo("이 플랜은 일정 미루기가 허용되지 않습니다.");
       return;
     }
     if (!confirm("이 플랜을 내일 일정으로 미루시겠습니까?")) {
@@ -202,11 +202,12 @@ function PlanCardComponent({
     try {
       const result = await postponePlan(planId);
       if (!result.success) {
-        alert(result.error || "일정을 미루는 중 오류가 발생했습니다.");
+        showError(result.error || "일정을 미루는 중 오류가 발생했습니다.");
       }
       // postponePlan은 Server Action에서 revalidatePath를 호출하므로 router.refresh() 불필요
     } catch (error) {
-      alert("오류가 발생했습니다.");
+      console.error("[PlanCard] 일정 미루기 오류:", error);
+      showError("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +226,7 @@ function PlanCardComponent({
       const timestamp = new Date().toISOString();
       const result = await startPlan(waitingPlan.id, timestamp);
       if (!result.success) {
-        alert(result.error || "플랜 시작에 실패했습니다.");
+        showError(result.error || "플랜 시작에 실패했습니다.");
         setOptimisticStatus(null);
       } else if (result.serverNow && result.status && result.startedAt) {
         // 스토어에 타이머 시작
@@ -243,7 +244,7 @@ function PlanCardComponent({
   const handlePause = async () => {
     if (isLoading) return;
     if (resolvedStatus !== "running") {
-      alert("일시정지할 활성 플랜이 없습니다.");
+      showInfo("일시정지할 활성 플랜이 없습니다.");
       return;
     }
 
@@ -256,14 +257,15 @@ function PlanCardComponent({
       const result = await pausePlan(plan.id, timestamp);
       if (!result.success) {
         setOptimisticStatus(null);
-        alert(result.error || "플랜 일시정지에 실패했습니다.");
+        showError(result.error || "플랜 일시정지에 실패했습니다.");
       } else if (result.serverNow && result.accumulatedSeconds !== undefined) {
         // 스토어에 타이머 일시정지
         timerStore.pauseTimer(plan.id, result.accumulatedSeconds);
       }
     } catch (error) {
+      console.error("[PlanCard] 일시정지 오류:", error);
       setOptimisticStatus(null);
-      alert("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);
@@ -272,7 +274,7 @@ function PlanCardComponent({
 
   const handleResume = async () => {
     if (resolvedStatus !== "paused") {
-      alert("재개할 일시정지된 플랜이 없습니다.");
+      showInfo("재개할 일시정지된 플랜이 없습니다.");
       return;
     }
 
@@ -285,14 +287,15 @@ function PlanCardComponent({
       const result = await resumePlan(plan.id, timestamp);
       if (!result.success) {
         setOptimisticStatus(null);
-        alert(result.error || "플랜 재개에 실패했습니다.");
+        showError(result.error || "플랜 재개에 실패했습니다.");
       } else if (result.serverNow && result.status && result.startedAt) {
         // 스토어에 타이머 재개
         timerStore.startTimer(plan.id, result.serverNow, result.startedAt);
       }
     } catch (error) {
+      console.error("[PlanCard] 재개 오류:", error);
       setOptimisticStatus(null);
-      alert("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);

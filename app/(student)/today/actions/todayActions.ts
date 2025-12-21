@@ -7,6 +7,7 @@ import { getPlanById, updatePlan } from "@/lib/data/studentPlans";
 import { startStudySession, endStudySession } from "@/app/(student)/actions/studySessionActions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateString } from "@/lib/date/calendarUtils";
+import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
 
 type PlanRecordPayload = {
   startPageOrTime: number;
@@ -131,9 +132,8 @@ export async function startPlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 필요한 경로만 재검증 (성능 최적화)
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    // 현재 경로만 재검증 (성능 최적화)
+    await revalidateTimerPaths(false, false);
     return { 
       success: true, 
       sessionId: result.sessionId,
@@ -446,11 +446,9 @@ export async function completePlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 필요한 경로만 재검증 (성능 최적화)
+    // 현재 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
-    revalidatePath("/dashboard");
+    await revalidateTimerPaths(false, true);
     return { 
       success: true,
       serverNow,
@@ -503,8 +501,7 @@ export async function postponePlan(
       plan_date: tomorrowDate,
     });
 
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    await revalidateTimerPaths(false, false);
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 플랜 미루기 실패", error);
@@ -543,9 +540,7 @@ export async function endTimer(
 
   try {
     const result = await endStudySession(sessionId);
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
-    revalidatePath("/dashboard");
+    await revalidateTimerPaths(false, true);
     return result;
   } catch (error) {
     console.error("[todayActions] 타이머 종료 실패", error);
@@ -655,9 +650,8 @@ export async function pausePlan(
       accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
     }
 
-    // 필요한 경로만 재검증 (성능 최적화)
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    // 현재 경로만 재검증 (성능 최적화)
+    await revalidateTimerPaths(false, false);
     return { 
       success: true,
       serverNow,
@@ -763,9 +757,8 @@ export async function resumePlan(
       startedAt = activeSession.started_at;
     }
 
-    // 필요한 경로만 재검증 (성능 최적화)
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    // 현재 경로만 재검증 (성능 최적화)
+    await revalidateTimerPaths(false, false);
     return { 
       success: true,
       serverNow,
@@ -908,8 +901,7 @@ export async function preparePlanCompletion(
       );
 
       if (updatedPlan) {
-        revalidatePath("/today");
-        revalidatePath("/camp/today");
+        await revalidateTimerPaths(false, false);
         return {
           success: true,
           plan: {
@@ -933,8 +925,7 @@ export async function preparePlanCompletion(
     }
 
     // 활성 세션이 없는 경우
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    await revalidateTimerPaths(false, false);
     return {
       success: true,
       plan: {
@@ -1047,8 +1038,7 @@ export async function stopAllActiveSessionsForPlan(
       .eq("id", planId)
       .eq("student_id", user.userId);
 
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
+    await revalidateTimerPaths(false, false);
     return { success: true };
   } catch (error) {
     console.error("[todayActions] 세션 종료 실패", error);

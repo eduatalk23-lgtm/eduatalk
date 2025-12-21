@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { endStudySession } from "@/app/(student)/actions/studySessionActions";
-import { revalidatePath } from "next/cache";
+import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
 
 /**
  * 플랜 그룹의 타이머 기록 초기화
@@ -109,9 +109,7 @@ export async function resetPlanTimer(
       // 진행률 삭제 실패는 치명적이지 않으므로 계속 진행
     }
 
-    revalidatePath("/today");
-    revalidatePath("/camp/today");
-    revalidatePath("/dashboard");
+    await revalidateTimerPaths(false, true);
     return { success: true };
   } catch (error) {
     console.error("[timerResetActions] 타이머 초기화 실패", error);

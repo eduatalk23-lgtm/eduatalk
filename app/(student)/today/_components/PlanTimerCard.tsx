@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo } from "react";
 import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../actions/todayActions";
 import { useRouter } from "next/navigation";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
@@ -11,6 +11,7 @@ import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
 import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
+import { calculateTimerState } from "@/lib/utils/timerStateCalculator";
 
 type PendingAction = "start" | "pause" | "resume" | "complete" | null;
 
@@ -35,7 +36,7 @@ type PlanTimerCardProps = {
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function PlanTimerCard({
+function PlanTimerCardComponent({
   planId,
   planTitle,
   contentType,
@@ -56,86 +57,23 @@ export function PlanTimerCard({
   campMode = false,
 }: PlanTimerCardProps) {
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const timerStore = usePlanTimerStore();
   const [isLoading, setIsLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  // 서버에서 계산된 초기 타이머 상태 계산
+  // 서버에서 계산된 초기 타이머 상태 계산 (유틸 함수 사용)
   const timerState = useMemo(() => {
-    // 완료된 경우
-    if (actualEndTime && totalDurationSeconds !== null && totalDurationSeconds !== undefined) {
-      return {
-        status: "COMPLETED" as TimerStatus,
-        accumulatedSeconds: totalDurationSeconds,
-        startedAt: null,
-      };
-    }
-
-    // 시작하지 않은 경우
-    if (!actualStartTime) {
-      return {
-        status: "NOT_STARTED" as TimerStatus,
-        accumulatedSeconds: 0,
-        startedAt: null,
-      };
-    }
-
-    const startMs = new Date(actualStartTime).getTime();
-    if (!Number.isFinite(startMs)) {
-      return {
-        status: "NOT_STARTED" as TimerStatus,
-        accumulatedSeconds: 0,
-        startedAt: null,
-      };
-    }
-
-    const now = Date.now();
-
-    // 일시정지 중인 경우
-    if (initialIsPaused && currentPausedAt) {
-      const pausedAtMs = new Date(currentPausedAt).getTime();
-      if (Number.isFinite(pausedAtMs)) {
-        const elapsedUntilPause = Math.floor((pausedAtMs - startMs) / 1000);
-        const sessionPausedDuration = sessionPausedDurationSeconds || 0;
-        const planPausedDuration = pausedDurationSeconds || 0;
-        const accumulatedSeconds = Math.max(0, elapsedUntilPause - sessionPausedDuration - planPausedDuration);
-
-        return {
-          status: "PAUSED" as TimerStatus,
-          accumulatedSeconds,
-          startedAt: null,
-        };
-      }
-    }
-
-    // 실행 중인 경우
-    if (sessionStartedAt) {
-      const sessionStartMs = new Date(sessionStartedAt).getTime();
-      if (Number.isFinite(sessionStartMs)) {
-        const elapsed = Math.floor((now - sessionStartMs) / 1000);
-        const sessionPausedDuration = sessionPausedDurationSeconds || 0;
-        const planPausedDuration = pausedDurationSeconds || 0;
-        const accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
-
-        return {
-          status: "RUNNING" as TimerStatus,
-          accumulatedSeconds,
-          startedAt: sessionStartedAt,
-        };
-      }
-    }
-
-    // 활성 세션이 없지만 플랜이 시작된 경우
-    const elapsed = Math.floor((now - startMs) / 1000);
-    const pausedDuration = pausedDurationSeconds || 0;
-    const accumulatedSeconds = Math.max(0, elapsed - pausedDuration);
-
-    return {
-      status: "RUNNING" as TimerStatus,
-      accumulatedSeconds,
-      startedAt: actualStartTime,
-    };
+    return calculateTimerState({
+      actualStartTime: actualStartTime ?? null,
+      actualEndTime: actualEndTime ?? null,
+      totalDurationSeconds: totalDurationSeconds ?? null,
+      pausedDurationSeconds: pausedDurationSeconds ?? null,
+      isPaused: initialIsPaused,
+      currentPausedAt: currentPausedAt ?? null,
+      sessionStartedAt: sessionStartedAt ?? null,
+      sessionPausedDurationSeconds: sessionPausedDurationSeconds ?? null,
+    });
   }, [
     actualStartTime,
     actualEndTime,
@@ -175,7 +113,8 @@ export function PlanTimerCard({
         showError(result.error || "플랜 시작에 실패했습니다.");
       }
     } catch (error) {
-      alert("오류가 발생했습니다.");
+      console.error("[PlanTimerCard] 시작 오류:", error);
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);
@@ -202,7 +141,8 @@ export function PlanTimerCard({
         }
       }
     } catch (error) {
-      alert("오류가 발생했습니다.");
+      console.error("[PlanTimerCard] 일시정지 오류:", error);
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);
@@ -223,7 +163,8 @@ export function PlanTimerCard({
         showError(result.error || "플랜 재개에 실패했습니다.");
       }
     } catch (error) {
-      alert("오류가 발생했습니다.");
+      console.error("[PlanTimerCard] 재개 오류:", error);
+      showError("오류가 발생했습니다.");
     } finally {
       setPendingAction(null);
       setIsLoading(false);
@@ -359,3 +300,25 @@ export function PlanTimerCard({
     </div>
   );
 }
+
+// React.memo로 불필요한 리렌더링 방지
+export const PlanTimerCard = memo(PlanTimerCardComponent, (prevProps, nextProps) => {
+  // 핵심 props만 비교하여 불필요한 리렌더링 방지
+  return (
+    prevProps.planId === nextProps.planId &&
+    prevProps.planTitle === nextProps.planTitle &&
+    prevProps.contentType === nextProps.contentType &&
+    prevProps.actualStartTime === nextProps.actualStartTime &&
+    prevProps.actualEndTime === nextProps.actualEndTime &&
+    prevProps.totalDurationSeconds === nextProps.totalDurationSeconds &&
+    prevProps.pausedDurationSeconds === nextProps.pausedDurationSeconds &&
+    prevProps.pauseCount === nextProps.pauseCount &&
+    prevProps.isPaused === nextProps.isPaused &&
+    prevProps.currentPausedAt === nextProps.currentPausedAt &&
+    prevProps.allowTimerControl === nextProps.allowTimerControl &&
+    prevProps.sessionStartedAt === nextProps.sessionStartedAt &&
+    prevProps.sessionPausedDurationSeconds === nextProps.sessionPausedDurationSeconds &&
+    prevProps.serverNow === nextProps.serverNow &&
+    prevProps.campMode === nextProps.campMode
+  );
+});

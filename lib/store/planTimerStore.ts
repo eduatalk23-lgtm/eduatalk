@@ -24,6 +24,8 @@ export type PlanTimerData = {
   status: TimerStatus;
   /** interval ID */
   intervalId: NodeJS.Timeout | null;
+  /** 참조 카운트 (여러 컴포넌트에서 사용 중인지 추적) */
+  refCount: number;
 };
 
 type PlanTimerStore = {
@@ -51,7 +53,11 @@ type PlanTimerStore = {
   syncNow: (planId: string, serverNow: number) => void;
   /** 타이머의 seconds만 업데이트 (interval 내부에서 사용) */
   updateTimerSeconds: (planId: string, seconds: number) => void;
-  /** 타이머 제거 */
+  /** 타이머 참조 증가 (컴포넌트 마운트 시) */
+  addTimerRef: (planId: string) => void;
+  /** 타이머 참조 감소 (컴포넌트 언마운트 시) */
+  removeTimerRef: (planId: string) => void;
+  /** 타이머 제거 (참조 카운트가 0일 때만 실제로 제거) */
   removeTimer: (planId: string) => void;
   /** 모든 타이머 정리 */
   clearAll: () => void;
@@ -205,6 +211,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
         timeOffset,
         status,
         intervalId: null,
+        refCount: 1, // 초기화 시 참조 카운트 1
       };
 
       set((state) => {
@@ -242,6 +249,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
             timeOffset,
             status: "RUNNING",
             intervalId: null,
+            refCount: 1, // 초기화 시 참조 카운트 1
           };
           const newTimers = new Map(state.timers);
           newTimers.set(planId, timerData);
@@ -395,15 +403,88 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
       });
     },
 
+    addTimerRef: (planId) => {
+      set((state) => {
+        const timer = state.timers.get(planId);
+        if (!timer) {
+          return state;
+        }
+
+        const newTimer: PlanTimerData = {
+          ...timer,
+          refCount: timer.refCount + 1,
+        };
+
+        const newTimers = new Map(state.timers);
+        newTimers.set(planId, newTimer);
+
+        return { timers: newTimers };
+      });
+    },
+
+    removeTimerRef: (planId) => {
+      set((state) => {
+        const timer = state.timers.get(planId);
+        if (!timer) {
+          return state;
+        }
+
+        const newRefCount = timer.refCount - 1;
+
+        // 참조 카운트가 0 이하가 되면 타이머 제거
+        if (newRefCount <= 0) {
+          const newTimers = new Map(state.timers);
+          newTimers.delete(planId);
+
+          // 타이머가 없으면 global interval 정지
+          if (newTimers.size === 0) {
+            stopGlobalInterval();
+          }
+
+          return { timers: newTimers };
+        }
+
+        // 참조 카운트만 감소
+        const newTimer: PlanTimerData = {
+          ...timer,
+          refCount: newRefCount,
+        };
+
+        const newTimers = new Map(state.timers);
+        newTimers.set(planId, newTimer);
+
+        return { timers: newTimers };
+      });
+    },
+
     removeTimer: (planId) => {
       set((state) => {
-        const newTimers = new Map(state.timers);
-        newTimers.delete(planId);
-
-        // 타이머가 없으면 global interval 정지
-        if (newTimers.size === 0) {
-          stopGlobalInterval();
+        const timer = state.timers.get(planId);
+        if (!timer) {
+          return state;
         }
+
+        // 참조 카운트가 0일 때만 실제로 제거
+        if (timer.refCount <= 1) {
+          const newTimers = new Map(state.timers);
+          newTimers.delete(planId);
+
+          // 타이머가 없으면 global interval 정지
+          if (newTimers.size === 0) {
+            stopGlobalInterval();
+          }
+
+          return { timers: newTimers };
+        }
+
+        // 참조가 남아있으면 참조 카운트만 감소
+        const newTimer: PlanTimerData = {
+          ...timer,
+          refCount: timer.refCount - 1,
+        };
+
+        const newTimers = new Map(state.timers);
+        newTimers.set(planId, newTimer);
 
         return { timers: newTimers };
       });
