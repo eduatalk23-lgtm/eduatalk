@@ -508,6 +508,36 @@ async function _generatePlansFromGroupRefactored(
     sequence: number | null;
   }> = [];
 
+  // 역방향 콘텐츠 ID 맵 생성 (resolved ID -> original ID)
+  const reverseContentIdMap = new Map<string, string>();
+  contentIdMap.forEach((resolvedId, originalId) => {
+    reverseContentIdMap.set(resolvedId, originalId);
+  });
+
+  // 전체 플랜 컨텍스트에서 plan_number 추론 (날짜 순서 고려)
+  // 같은 콘텐츠의 같은 범위를 가진 플랜들은 같은 plan_number를 가짐
+  const planNumberMap = new Map<string, number>(); // key: `${content_id}-${start}-${end}`, value: plan_number
+  const planKeyToNumber = new Map<string, number>();
+  let nextPlanNumber = 1;
+
+  // 모든 플랜을 날짜 순서대로 정렬하여 plan_number 추론
+  const sortedAllPlans = [...scheduledPlans].sort((a, b) => {
+    if (a.plan_date !== b.plan_date) {
+      return a.plan_date.localeCompare(b.plan_date);
+    }
+    return (a.block_index || 0) - (b.block_index || 0);
+  });
+
+  // 전체 플랜 컨텍스트에서 plan_number 추론
+  sortedAllPlans.forEach((plan) => {
+    const planKey = `${plan.content_id}-${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`;
+    if (!planKeyToNumber.has(planKey)) {
+      planKeyToNumber.set(planKey, nextPlanNumber);
+      nextPlanNumber++;
+    }
+    planNumberMap.set(`${plan.plan_date}-${plan.block_index}-${plan.content_id}`, planKeyToNumber.get(planKey)!);
+  });
+
   // 날짜별로 그룹화
   const plansByDate = new Map<string, typeof scheduledPlans>();
   scheduledPlans.forEach((plan) => {
@@ -515,14 +545,6 @@ async function _generatePlansFromGroupRefactored(
       plansByDate.set(plan.plan_date, []);
     }
     plansByDate.get(plan.plan_date)!.push(plan);
-  });
-
-  let globalSequence = 1;
-
-  // 역방향 콘텐츠 ID 맵 생성 (resolved ID -> original ID)
-  const reverseContentIdMap = new Map<string, string>();
-  contentIdMap.forEach((resolvedId, originalId) => {
-    reverseContentIdMap.set(resolvedId, originalId);
   });
 
   // 콘텐츠별 회차 계산을 위한 맵
@@ -537,13 +559,14 @@ async function _generatePlansFromGroupRefactored(
   >();
 
   /**
-   * 콘텐츠별 회차 계산 함수
+   * 콘텐츠별 회차 계산 함수 (날짜 순서 고려)
    * 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
-   * 쪼개진 플랜(episode 분할)도 원본 plan_number를 유지하여 같은 회차 사용
+   * 날짜 순서대로 회차가 증가함
    */
   function calculateContentSequence(
     contentId: string,
-    planNumber: number | null
+    planNumber: number | null,
+    planDate: string
   ): number {
     if (!contentSequenceMap.has(contentId)) {
       contentSequenceMap.set(contentId, {
@@ -562,11 +585,11 @@ async function _generatePlansFromGroupRefactored(
 
     // plan_number가 null이거나 새로운 plan_number인 경우
     if (planNumber === null) {
-      // null은 개별 카운트
+      // null은 개별 카운트 (날짜 순서대로)
       contentSeq.lastSequence++;
       return contentSeq.lastSequence;
     } else {
-      // 새로운 plan_number인 경우 회차 증가
+      // 새로운 plan_number인 경우 회차 증가 (날짜 순서대로)
       if (!contentSeq.seenPlanNumbers.has(planNumber)) {
         contentSeq.seenPlanNumbers.add(planNumber);
         contentSeq.lastSequence++;
@@ -576,8 +599,10 @@ async function _generatePlansFromGroupRefactored(
     }
   }
 
-  // 각 날짜별로 처리
-  for (const [date, datePlans] of plansByDate.entries()) {
+  // 각 날짜별로 처리 (날짜 순서대로)
+  const sortedDates = Array.from(plansByDate.keys()).sort();
+  for (const date of sortedDates) {
+    const datePlans = plansByDate.get(date)!;
     const timeSlotsForDate = dateTimeSlots.get(date) || [];
     const studyTimeSlots = timeSlotsForDate
       .filter((slot) => slot.type === "학습시간")
@@ -782,38 +807,19 @@ async function _generatePlansFromGroupRefactored(
       const originalPlanIndex = segment.plan._originalIndex ?? 0;
       const originalPlan = datePlans[originalPlanIndex];
 
-      // plan_number 추론: 같은 콘텐츠의 같은 범위를 가진 플랜들을 그룹화
-      // 실제로는 스케줄러에서 plan_number를 생성해야 하지만, 현재는 없으므로
-      // 콘텐츠 ID와 범위를 기반으로 고유한 plan_number 생성
+      // 전체 플랜 컨텍스트에서 plan_number 추론
       // 같은 콘텐츠의 같은 범위를 가진 플랜들은 같은 plan_number를 가짐
       let planNumber: number | null = null;
       if (originalPlan) {
-        // 콘텐츠 ID와 범위를 기반으로 고유 키 생성
-        // 같은 키를 가진 플랜들은 같은 plan_number를 가짐
         const planKey = `${originalPlan.content_id}-${originalPlan.planned_start_page_or_time}-${originalPlan.planned_end_page_or_time}`;
-        
-        // 날짜별로 처리하므로, 같은 날짜 내에서만 plan_number를 추론
-        // 같은 날짜에 같은 콘텐츠의 같은 범위를 가진 첫 번째 플랜의 인덱스를 plan_number로 사용
-        const sameRangePlans = datePlans.filter(
-          (p) =>
-            p.content_id === originalPlan.content_id &&
-            p.planned_start_page_or_time ===
-              originalPlan.planned_start_page_or_time &&
-            p.planned_end_page_or_time === originalPlan.planned_end_page_or_time
-        );
-        if (sameRangePlans.length > 0) {
-          const firstSameRangeIndex = datePlans.findIndex(
-            (p) => p === sameRangePlans[0]
-          );
-          // plan_number는 1부터 시작하도록 조정
-          planNumber = firstSameRangeIndex >= 0 ? firstSameRangeIndex + 1 : null;
-        }
+        planNumber = planKeyToNumber.get(planKey) || null;
       }
 
-      // 콘텐츠별 회차 계산
+      // 콘텐츠별 회차 계산 (날짜 순서 고려)
       const contentSequence = calculateContentSequence(
         segment.plan.content_id,
-        planNumber
+        planNumber,
+        date
       );
 
       // 주차별 일차 계산
