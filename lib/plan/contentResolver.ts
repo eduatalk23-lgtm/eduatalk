@@ -51,24 +51,42 @@ export async function resolveContentIds(
 ): Promise<ContentIdMap> {
   const contentIdMap: ContentIdMap = new Map();
 
+  // plan_contents의 content_id 해석: master_content_id가 있으면 우선 사용
+  // - master_content_id가 있으면: 마스터 콘텐츠 ID (학생이 저장한 경우)
+  // - 없으면: content_id 사용 (이미 학생 콘텐츠 ID이거나 관리자가 변환한 경우)
+  const getResolvedContentId = (content: PlanContent): string => {
+    return content.master_content_id || content.content_id;
+  };
+
   // 콘텐츠 타입별로 분류
-  const bookContents = contents.filter((c) => c.content_type === "book");
-  const lectureContents = contents.filter((c) => c.content_type === "lecture");
+  const bookContents = contents
+    .filter((c) => c.content_type === "book")
+    .map((c) => ({
+      ...c,
+      resolvedContentId: getResolvedContentId(c),
+    }));
+  const lectureContents = contents
+    .filter((c) => c.content_type === "lecture")
+    .map((c) => ({
+      ...c,
+      resolvedContentId: getResolvedContentId(c),
+    }));
   const customContents = contents.filter((c) => c.content_type === "custom");
 
   // 마스터 콘텐츠 확인 (병렬)
-  type MasterCheckResult = { content: PlanContent; isMaster: boolean };
+  // resolvedContentId를 사용하여 마스터 콘텐츠인지 확인
+  type MasterCheckResult = { content: PlanContent; isMaster: boolean; resolvedContentId: string };
 
   const masterBookQueries = bookContents.map(async (content): Promise<MasterCheckResult> => {
     try {
       const result = await masterQueryClient
         .from("master_books")
         .select("id")
-        .eq("id", content.content_id)
+        .eq("id", content.resolvedContentId)
         .maybeSingle();
-      return { content, isMaster: !!result.data };
+      return { content, isMaster: !!result.data, resolvedContentId: content.resolvedContentId };
     } catch {
-      return { content, isMaster: false };
+      return { content, isMaster: false, resolvedContentId: content.resolvedContentId };
     }
   });
 
@@ -77,11 +95,11 @@ export async function resolveContentIds(
       const result = await masterQueryClient
         .from("master_lectures")
         .select("id")
-        .eq("id", content.content_id)
+        .eq("id", content.resolvedContentId)
         .maybeSingle();
-      return { content, isMaster: !!result.data };
+      return { content, isMaster: !!result.data, resolvedContentId: content.resolvedContentId };
     } catch {
-      return { content, isMaster: false };
+      return { content, isMaster: false, resolvedContentId: content.resolvedContentId };
     }
   });
 
@@ -95,39 +113,39 @@ export async function resolveContentIds(
 
   const studentBookQueries = masterBookResults
     .filter((r) => r.isMaster)
-    .map(async ({ content }): Promise<StudentContentResult> => {
+    .map(async ({ content, resolvedContentId }): Promise<StudentContentResult> => {
       try {
         const result = await queryClient
           .from("books")
           .select("id")
           .eq("student_id", studentId)
-          .eq("master_content_id", content.content_id)
+          .eq("master_content_id", resolvedContentId)
           .maybeSingle();
         return {
           content,
-          studentContentId: result.data?.id || content.content_id,
+          studentContentId: result.data?.id || resolvedContentId,
         };
       } catch {
-        return { content, studentContentId: content.content_id };
+        return { content, studentContentId: resolvedContentId };
       }
     });
 
   const studentLectureQueries = masterLectureResults
     .filter((r) => r.isMaster)
-    .map(async ({ content }): Promise<StudentContentResult> => {
+    .map(async ({ content, resolvedContentId }): Promise<StudentContentResult> => {
       try {
         const result = await queryClient
           .from("lectures")
           .select("id")
           .eq("student_id", studentId)
-          .eq("master_content_id", content.content_id)
+          .eq("master_content_id", resolvedContentId)
           .maybeSingle();
         return {
           content,
-          studentContentId: result.data?.id || content.content_id,
+          studentContentId: result.data?.id || resolvedContentId,
         };
       } catch {
-        return { content, studentContentId: content.content_id };
+        return { content, studentContentId: resolvedContentId };
       }
     });
 

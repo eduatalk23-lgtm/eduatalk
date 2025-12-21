@@ -237,13 +237,27 @@ async function _generatePlansFromGroupRefactored(
   // 7. 콘텐츠 ID 해석 및 복사 (배치 쿼리로 최적화)
   const contentIdMap = new Map<string, string>();
 
+  // plan_contents의 content_id 해석: master_content_id가 있으면 우선 사용
+  // - master_content_id가 있으면: 마스터 콘텐츠 ID (학생이 저장한 경우)
+  // - 없으면: content_id 사용 (이미 학생 콘텐츠 ID이거나 관리자가 변환한 경우)
+  const getResolvedContentId = (content: typeof contents[0]): string => {
+    return content.master_content_id || content.content_id;
+  };
+
   // 콘텐츠를 타입별로 분류 (더미 콘텐츠 제외)
-  const bookContents = contents.filter(
-    (c) => c.content_type === "book" && !isDummyContent(c.content_id)
-  );
-  const lectureContents = contents.filter(
-    (c) => c.content_type === "lecture" && !isDummyContent(c.content_id)
-  );
+  // resolvedContentId를 사용하여 마스터 콘텐츠 ID 우선 처리
+  const bookContents = contents
+    .filter((c) => c.content_type === "book" && !isDummyContent(c.content_id))
+    .map((c) => ({
+      ...c,
+      resolvedContentId: getResolvedContentId(c),
+    }));
+  const lectureContents = contents
+    .filter((c) => c.content_type === "lecture" && !isDummyContent(c.content_id))
+    .map((c) => ({
+      ...c,
+      resolvedContentId: getResolvedContentId(c),
+    }));
   const customContents = contents.filter(
     (c) => c.content_type === "custom" || isDummyContent(c.content_id)
   );
@@ -255,20 +269,20 @@ async function _generatePlansFromGroupRefactored(
     .forEach((c) => contentIdMap.set(c.content_id, c.content_id));
 
   // 배치 쿼리: 학생 콘텐츠 존재 여부 확인 (병렬)
-  // plan_contents의 content_id는 이미 학생 콘텐츠 ID일 수 있으므로 먼저 직접 조회
+  // resolvedContentId를 사용하여 조회 (마스터 콘텐츠 ID 우선)
   const [directBooksResult, directLecturesResult, masterBooksResult, masterLecturesResult] = await Promise.all([
     bookContents.length > 0
       ? queryClient
           .from("books")
           .select("id, master_content_id")
-          .in("id", bookContents.map((c) => c.content_id))
+          .in("id", bookContents.map((c) => c.resolvedContentId))
           .eq("student_id", studentId)
       : Promise.resolve({ data: [] }),
     lectureContents.length > 0
       ? queryClient
           .from("lectures")
           .select("id, master_content_id")
-          .in("id", lectureContents.map((c) => c.content_id))
+          .in("id", lectureContents.map((c) => c.resolvedContentId))
           .eq("student_id", studentId)
       : Promise.resolve({ data: [] }),
     bookContents.length > 0
@@ -277,7 +291,7 @@ async function _generatePlansFromGroupRefactored(
           .select("id, master_content_id")
           .in(
             "master_content_id",
-            bookContents.map((c) => c.content_id)
+            bookContents.map((c) => c.resolvedContentId)
           )
           .eq("student_id", studentId)
       : Promise.resolve({ data: [] }),
@@ -287,7 +301,7 @@ async function _generatePlansFromGroupRefactored(
           .select("id, master_content_id")
           .in(
             "master_content_id",
-            lectureContents.map((c) => c.content_id)
+            lectureContents.map((c) => c.resolvedContentId)
           )
           .eq("student_id", studentId)
       : Promise.resolve({ data: [] }),
@@ -310,34 +324,40 @@ async function _generatePlansFromGroupRefactored(
   );
 
   // 마스터 콘텐츠 ID로 찾은 학생 콘텐츠 매핑
+  // resolvedContentId를 키로 사용하여 매핑
   bookContents.forEach((c) => {
-    // 이미 매핑되어 있으면 스킵
+    // 이미 매핑되어 있으면 스킵 (원본 content_id로 확인)
     if (contentIdMap.has(c.content_id)) {
       return;
     }
-    const existingId = masterBooksMap.get(c.content_id);
+    // resolvedContentId로 매핑 확인
+    const existingId = masterBooksMap.get(c.resolvedContentId);
     if (existingId) {
+      // 원본 content_id를 키로, 학생 콘텐츠 ID를 값으로 매핑
       contentIdMap.set(c.content_id, existingId);
     }
   });
   lectureContents.forEach((c) => {
-    // 이미 매핑되어 있으면 스킵
+    // 이미 매핑되어 있으면 스킵 (원본 content_id로 확인)
     if (contentIdMap.has(c.content_id)) {
       return;
     }
-    const existingId = masterLecturesMap.get(c.content_id);
+    // resolvedContentId로 매핑 확인
+    const existingId = masterLecturesMap.get(c.resolvedContentId);
     if (existingId) {
+      // 원본 content_id를 키로, 학생 콘텐츠 ID를 값으로 매핑
       contentIdMap.set(c.content_id, existingId);
     }
   });
 
   // 학생 콘텐츠가 없는 것들 필터링
+  // resolvedContentId를 사용하여 마스터 콘텐츠 ID 추출
   const missingBookIds = bookContents
     .filter((c) => !contentIdMap.has(c.content_id))
-    .map((c) => c.content_id);
+    .map((c) => c.resolvedContentId);
   const missingLectureIds = lectureContents
     .filter((c) => !contentIdMap.has(c.content_id))
-    .map((c) => c.content_id);
+    .map((c) => c.resolvedContentId);
 
   // 플랜 생성 전 콘텐츠 검증: contentIdMap에 매핑되지 않은 콘텐츠 로그 기록
   if (missingBookIds.length > 0 || missingLectureIds.length > 0) {
@@ -380,25 +400,33 @@ async function _generatePlansFromGroupRefactored(
 
   // 마스터 콘텐츠 복사 (복사는 순차 처리 필요 - DB 트랜잭션)
   // 복사 실패 시 contentIdMap에 매핑하지 않음 (외래 키 제약 조건 위반 방지)
-  for (const contentId of missingBookIds) {
-    if (masterBookIds.has(contentId)) {
+  // missingBookIds와 missingLectureIds는 resolvedContentId를 포함하므로,
+  // 복사 후 원본 content_id를 키로 매핑해야 함
+  for (const resolvedContentId of missingBookIds) {
+    if (masterBookIds.has(resolvedContentId)) {
       try {
         const copiedBook = await copyMasterBookToStudent(
-          contentId,
+          resolvedContentId,
           studentId,
           group.tenant_id
         );
         if (copiedBook?.bookId) {
-          contentIdMap.set(contentId, copiedBook.bookId);
+          // 원본 content_id를 찾아서 매핑
+          const originalContent = bookContents.find(
+            (c) => c.resolvedContentId === resolvedContentId
+          );
+          if (originalContent) {
+            contentIdMap.set(originalContent.content_id, copiedBook.bookId);
+          }
         } else {
           console.warn(
-            `[generatePlansRefactored] 마스터 교재(${contentId}) 복사 실패: bookId가 없습니다.`
+            `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패: bookId가 없습니다.`
           );
           // 복사 실패 시 contentIdMap에 매핑하지 않음
         }
       } catch (error) {
         console.error(
-          `[generatePlansRefactored] 마스터 교재(${contentId}) 복사 실패:`,
+          `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패:`,
           error
         );
         // 복사 실패 시 contentIdMap에 매핑하지 않음
@@ -407,30 +435,36 @@ async function _generatePlansFromGroupRefactored(
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
       // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
       console.warn(
-        `[generatePlansRefactored] 교재(${contentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다.`
+        `[generatePlansRefactored] 교재(${resolvedContentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다.`
       );
     }
   }
 
-  for (const contentId of missingLectureIds) {
-    if (masterLectureIds.has(contentId)) {
+  for (const resolvedContentId of missingLectureIds) {
+    if (masterLectureIds.has(resolvedContentId)) {
       try {
         const copiedLecture = await copyMasterLectureToStudent(
-          contentId,
+          resolvedContentId,
           studentId,
           group.tenant_id
         );
         if (copiedLecture?.lectureId) {
-          contentIdMap.set(contentId, copiedLecture.lectureId);
+          // 원본 content_id를 찾아서 매핑
+          const originalContent = lectureContents.find(
+            (c) => c.resolvedContentId === resolvedContentId
+          );
+          if (originalContent) {
+            contentIdMap.set(originalContent.content_id, copiedLecture.lectureId);
+          }
         } else {
           console.warn(
-            `[generatePlansRefactored] 마스터 강의(${contentId}) 복사 실패: lectureId가 없습니다.`
+            `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패: lectureId가 없습니다.`
           );
           // 복사 실패 시 contentIdMap에 매핑하지 않음
         }
       } catch (error) {
         console.error(
-          `[generatePlansRefactored] 마스터 강의(${contentId}) 복사 실패:`,
+          `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패:`,
           error
         );
         // 복사 실패 시 contentIdMap에 매핑하지 않음
@@ -439,7 +473,7 @@ async function _generatePlansFromGroupRefactored(
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
       // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
       console.warn(
-        `[generatePlansRefactored] 강의(${contentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
+        `[generatePlansRefactored] 강의(${resolvedContentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
       );
     }
   }
