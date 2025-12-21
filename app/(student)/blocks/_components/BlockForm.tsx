@@ -30,7 +30,7 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
     return await addBlocksToMultipleDays(weekdayFormData);
   };
 
-  const { action, state, isPending, isSuccess } = useServerForm(wrappedAction, null, {
+  const { action: serverAction, state, isPending, isSuccess } = useServerForm(wrappedAction, null, {
     onSuccess: () => {
       setSelectedWeekdays([]);
       setStartTime("");
@@ -49,6 +49,11 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
       }
     },
   });
+  
+  // form action은 void를 반환해야 하므로 래퍼 함수 생성
+  const action = async (formData: FormData) => {
+    await serverAction(formData);
+  };
 
   const toggleWeekday = (day: number) => {
     setSelectedWeekdays((prev) =>

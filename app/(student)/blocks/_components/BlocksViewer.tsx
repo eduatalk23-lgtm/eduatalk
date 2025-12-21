@@ -8,7 +8,7 @@ import { createBlockSet } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { cn } from "@/lib/cn";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type Block = {
   id: string;
@@ -265,7 +265,7 @@ function BlockSetCreateForm({
   const [endTime, setEndTime] = useState<string>("");
   
   const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string | null }, formData: FormData) => {
+    async (_prev: { error: string | undefined } | { error: null }, formData: FormData) => {
       try {
         // 세트 생성
         const validation = validateFormData(formData, blockSetSchema);
@@ -278,7 +278,7 @@ function BlockSetCreateForm({
         
         if (!isSuccessResponse(result) || !result.data) {
           const errorMessage = isErrorResponse(result) ? (result.error || result.message) : "세트 생성에 실패했습니다.";
-          return { error: errorMessage };
+          return { error: errorMessage || undefined };
         }
         
         // 시간 블록이 입력된 경우 추가
@@ -300,13 +300,13 @@ function BlockSetCreateForm({
         
         router.refresh();
         onSuccess(result.data.blockSetId);
-        return { error: null };
+        return { error: undefined };
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "세트 생성에 실패했습니다.";
         return { error: errorMessage };
       }
     },
-    { error: null }
+    { error: undefined }
   );
 
   const toggleWeekday = (day: number) => {

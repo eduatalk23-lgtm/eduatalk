@@ -6,7 +6,7 @@ type BaseSubjectTypeFormProps = {
   isPending: boolean;
   onNameChange: (value: string) => void;
   onIsActiveChange: (value: boolean) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
   variant?: "inline" | "modal";
 };

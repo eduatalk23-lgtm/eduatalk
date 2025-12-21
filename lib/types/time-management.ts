@@ -98,3 +98,42 @@ export interface TimeCalculationResult {
   minutes: number;
 }
 
+/**
+ * number를 DayOfWeek로 변환 (타입 안전성 보장)
+ */
+export function toDayOfWeek(value: number): DayOfWeek {
+  if (value >= 0 && value <= 6) {
+    return value as DayOfWeek;
+  }
+  throw new Error(`Invalid day of week: ${value}. Must be between 0 and 6.`);
+}
+
+/**
+ * Block의 day_of_week를 DayOfWeek로 변환
+ */
+export function normalizeBlock(block: {
+  id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}): Block {
+  return {
+    ...block,
+    day_of_week: toDayOfWeek(block.day_of_week),
+  };
+}
+
+/**
+ * Block 배열의 day_of_week를 DayOfWeek로 변환
+ */
+export function normalizeBlocks(
+  blocks: Array<{
+    id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+  }>
+): Block[] {
+  return blocks.map(normalizeBlock);
+}
+

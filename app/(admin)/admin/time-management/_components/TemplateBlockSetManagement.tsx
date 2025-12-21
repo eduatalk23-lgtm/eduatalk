@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "../[templateId]/_components/TemplateBlocksViewer";
 import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
 import type { BlockSet } from "@/lib/types/time-management";
+import { normalizeBlocks } from "@/lib/types/time-management";
 
 type TemplateBlockSetManagementProps = {
   initialBlockSets?: BlockSet[];
@@ -33,7 +34,7 @@ export default function TemplateBlockSetManagement({
         setBlockSets((prevSets) =>
           prevSets.map((set) =>
             set.id === setId
-              ? { ...set, blocks: updatedSet.blocks ?? [] }
+              ? { ...set, blocks: updatedSet.blocks ? normalizeBlocks(updatedSet.blocks) : [] }
               : set
           )
         );
@@ -57,7 +58,7 @@ export default function TemplateBlockSetManagement({
         id: set.id,
         name: set.name,
         description: null,
-        blocks: set.blocks ?? [],
+        blocks: set.blocks ? normalizeBlocks(set.blocks) : [],
       }));
 
       setBlockSets(updatedSets);

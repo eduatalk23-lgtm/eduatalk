@@ -18,7 +18,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import { isSuccessResponse } from "@/lib/types/actionResponse";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type UseBlockSetManagementProps = {
   data: WizardData;

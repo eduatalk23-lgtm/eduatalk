@@ -98,7 +98,13 @@ export default async function TimeManagementPage({
 
       <TemplateBlockSetManagement
         templateId={templateId}
-        initialBlockSets={blockSets}
+        initialBlockSets={blockSets.map(set => ({
+          ...set,
+          blocks: set.blocks ? set.blocks.map(block => ({
+            ...block,
+            day_of_week: block.day_of_week as 0 | 1 | 2 | 3 | 4 | 5 | 6,
+          })) : undefined,
+        }))}
         selectedBlockSetId={selectedBlockSetId}
       />
     </section>

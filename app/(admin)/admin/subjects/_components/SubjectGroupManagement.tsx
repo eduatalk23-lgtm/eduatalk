@@ -599,7 +599,7 @@ export function SubjectGroupManagement({
                     </tr>
                   </thead>
                   <tbody>
-                    {group.subjects.map((subject) => (
+                    {group.subjects.map((subject: Subject) => (
                       <tr key={subject.id} className="border-b border-gray-100">
                         {editingSubject === subject.id ? (
                           <>

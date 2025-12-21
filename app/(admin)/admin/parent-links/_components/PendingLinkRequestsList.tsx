@@ -44,7 +44,22 @@ export function PendingLinkRequestsList({
     },
   });
 
-  const { execute: executeBatchApprove, isPending: isApprovePending } = useServerAction(approveLinkRequests, {
+  // approveLinkRequests는 ActionResponse를 반환하지 않으므로 래퍼 함수 생성
+  const approveLinkRequestsWrapper = async (linkIds: string[]) => {
+    const result = await approveLinkRequests(linkIds);
+    if (result.success) {
+      return {
+        success: true as const,
+        data: result,
+      };
+    }
+    return {
+      success: false as const,
+      error: "승인 처리 중 오류가 발생했습니다.",
+    };
+  };
+
+  const { execute: executeBatchApprove, isPending: isApprovePending } = useServerAction(approveLinkRequestsWrapper, {
     onSuccess: (data) => {
       if (data) {
         const successMessage = `${data.approvedCount || 0}개의 연결 요청이 승인되었습니다.`;
@@ -61,7 +76,22 @@ export function PendingLinkRequestsList({
     },
   });
 
-  const { execute: executeBatchReject, isPending: isRejectPending } = useServerAction(rejectLinkRequests, {
+  // rejectLinkRequests는 ActionResponse를 반환하지 않으므로 래퍼 함수 생성
+  const rejectLinkRequestsWrapper = async (linkIds: string[]) => {
+    const result = await rejectLinkRequests(linkIds);
+    if (result.success) {
+      return {
+        success: true as const,
+        data: result,
+      };
+    }
+    return {
+      success: false as const,
+      error: "거부 처리 중 오류가 발생했습니다.",
+    };
+  };
+
+  const { execute: executeBatchReject, isPending: isRejectPending } = useServerAction(rejectLinkRequestsWrapper, {
     onSuccess: (data) => {
       if (data) {
         const successMessage = `${data.rejectedCount || 0}개의 연결 요청이 거부되었습니다.`;

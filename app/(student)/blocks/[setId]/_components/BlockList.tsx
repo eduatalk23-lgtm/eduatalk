@@ -184,11 +184,16 @@ function BlockEditForm({ block, onSuccess, onCancel }: BlockEditFormProps) {
     return await updateBlock(formData);
   };
 
-  const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUpdateAction, null, {
+  const { action: serverAction, state, isPending, error, fieldErrors } = useServerForm(wrappedUpdateAction, null, {
     onSuccess: () => {
       onSuccess();
     },
   });
+  
+  // form action은 void를 반환해야 하므로 래퍼 함수 생성
+  const action = async (formData: FormData) => {
+    await serverAction(formData);
+  };
 
   return (
     <div className="p-4 bg-white border-2 border-indigo-500 rounded-lg">

@@ -245,7 +245,7 @@ type ExtendedInitialData = Partial<WizardData> & {
 
 // PlanGroupWizardProps 타입 export
 export type PlanGroupWizardProps = {
-  studentId: string; // 필수: 학생 ID (훅 사용을 위해 필요)
+  studentId?: string; // 선택: 템플릿 모드에서는 불필요, 일반 모드에서는 필수
   initialBlockSets?: Array<{ id: string; name: string }>; // 선택: 하위 호환성 유지
   initialContents?: {
     books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
@@ -419,8 +419,8 @@ function PlanGroupWizardInner({
   
   // 블록 세트 조회 (훅 사용, initialBlockSets가 있으면 우선 사용)
   const { data: blockSetsData, isLoading: isLoadingBlockSets } = useBlockSets({
-    studentId,
-    enabled: !initialBlockSets, // initialBlockSets가 있으면 훅 비활성화
+    studentId: studentId || "",
+    enabled: !initialBlockSets && !!studentId, // initialBlockSets가 있거나 studentId가 없으면 훅 비활성화
   });
   
   const blockSets = useMemo(() => {
@@ -432,8 +432,8 @@ function PlanGroupWizardInner({
 
   // 콘텐츠 목록 조회 (훅 사용, initialContents가 있으면 우선 사용)
   const { data: contentsData, isLoading: isLoadingContents } = useStudentContents({
-    studentId,
-    enabled: !initialContents, // initialContents가 있으면 훅 비활성화
+    studentId: studentId || "",
+    enabled: !initialContents && !!studentId, // initialContents가 있거나 studentId가 없으면 훅 비활성화
   });
 
   const contents = useMemo(() => {
@@ -807,7 +807,7 @@ function PlanGroupWizardInner({
         onComplete={handleStep7Complete}
         onCancel={handleCancel}
         onSetStep={setStep}
-        onBlockSetsLoaded={setBlockSets}
+        onBlockSetsLoaded={() => {}} // blockSets는 useMemo로 관리되므로 콜백 불필요
       />
 
       {/* 플랜 그룹 활성화 다이얼로그 */}

@@ -22,6 +22,7 @@ export enum ErrorCode {
   // 시스템 에러
   INTERNAL_ERROR = "INTERNAL_ERROR",
   EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR",
+  CONFIGURATION_ERROR = "CONFIGURATION_ERROR",
 }
 
 export class AppError extends Error {

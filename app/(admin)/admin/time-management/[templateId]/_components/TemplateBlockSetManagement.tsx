@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "./TemplateBlocksViewer";
 import type { BlockSet, Block } from "@/lib/types/time-management";
+import { normalizeBlocks } from "@/lib/types/time-management";
 
 type TemplateBlockSetManagementProps = {
   templateId: string;
@@ -37,7 +38,7 @@ export default function TemplateBlockSetManagement({
         setBlockSets((prevSets) =>
           prevSets.map((set) =>
             set.id === setId
-              ? { ...set, blocks: updatedSet.blocks ?? [] }
+              ? { ...set, blocks: updatedSet.blocks ? normalizeBlocks(updatedSet.blocks) : [] }
               : set
           )
         );
@@ -77,7 +78,7 @@ export default function TemplateBlockSetManagement({
         id: set.id,
         name: set.name,
         description: null,
-        blocks: set.blocks ?? [],
+        blocks: set.blocks ? normalizeBlocks(set.blocks) : [],
       }));
 
       setBlockSets(updatedSets);
