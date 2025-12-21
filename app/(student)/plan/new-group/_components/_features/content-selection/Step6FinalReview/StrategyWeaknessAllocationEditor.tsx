@@ -76,21 +76,65 @@ export function StrategyWeaknessAllocationEditor({
     }
   ) => {
     if (!editable) return;
-    const currentAllocations = data.content_allocations || [];
-    const updatedAllocations = currentAllocations.filter(
-      (a) =>
-        !(
-          a.content_type === content.content_type &&
-          a.content_id === content.content_id
-        )
+    
+    // 해당 콘텐츠가 속한 교과 찾기
+    const contentInfo = contentInfos.find(
+      (c) =>
+        c.content_type === content.content_type &&
+        c.content_id === content.content_id
     );
-    updatedAllocations.push({
-      content_type: content.content_type as "book" | "lecture",
-      content_id: content.content_id,
-      subject_type: allocation.subject_type,
-      weekly_days: allocation.weekly_days,
-    });
-    onUpdate({ content_allocations: updatedAllocations });
+    
+    // 콘텐츠별 설정을 변경하면 해당 교과의 일괄 설정 취소
+    if (contentInfo) {
+      const subjectGroup = contentInfo.subject_group_name || contentInfo.subject_category || "기타";
+      if (batchSettingSubjectGroup === subjectGroup) {
+        setBatchSettingSubjectGroup(null);
+      }
+      
+      // 해당 교과의 subject_allocations에서 제거
+      const currentSubjectAllocations = data.subject_allocations || [];
+      const updatedSubjectAllocations = currentSubjectAllocations.filter(
+        (a) => a.subject_name !== subjectGroup
+      );
+      
+      // 콘텐츠별 설정 업데이트
+      const currentAllocations = data.content_allocations || [];
+      const updatedAllocations = currentAllocations.filter(
+        (a) =>
+          !(
+            a.content_type === content.content_type &&
+            a.content_id === content.content_id
+          )
+      );
+      updatedAllocations.push({
+        content_type: content.content_type as "book" | "lecture",
+        content_id: content.content_id,
+        subject_type: allocation.subject_type,
+        weekly_days: allocation.weekly_days,
+      });
+      
+      onUpdate({
+        content_allocations: updatedAllocations,
+        subject_allocations: updatedSubjectAllocations,
+      });
+    } else {
+      // contentInfo를 찾지 못한 경우 기본 동작
+      const currentAllocations = data.content_allocations || [];
+      const updatedAllocations = currentAllocations.filter(
+        (a) =>
+          !(
+            a.content_type === content.content_type &&
+            a.content_id === content.content_id
+          )
+      );
+      updatedAllocations.push({
+        content_type: content.content_type as "book" | "lecture",
+        content_id: content.content_id,
+        subject_type: allocation.subject_type,
+        weekly_days: allocation.weekly_days,
+      });
+      onUpdate({ content_allocations: updatedAllocations });
+    }
   };
 
   // 교과별 일괄 설정 핸들러

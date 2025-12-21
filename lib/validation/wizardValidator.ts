@@ -330,15 +330,35 @@ export class WizardValidator {
         // 매칭되지 않는 교과 찾기
         const missingSubjects: string[] = [];
         allocatedSubjects.forEach((allocated, subjectName) => {
-          // subject_id로 매칭 시도
+          // 1. subject_id로 매칭 시도 (가장 정확)
           if (allocated.id && contentSubjectIds.has(allocated.id)) {
             return; // 매칭됨
           }
-          // subject_category로 매칭 시도
+          
+          // 2. subject_name이 subject_category와 정확히 일치하는지 확인
           if (contentSubjectCategories.has(subjectName)) {
             return; // 매칭됨
           }
-          // 둘 다 매칭되지 않으면 누락된 교과
+          
+          // 3. subject_name이 subject_category에 포함되는지 확인 (부분 매칭)
+          // 예: "수학"이 "수학I", "수학II" 등에 포함되는지 확인
+          const hasMatchingCategory = Array.from(contentSubjectCategories).some(
+            (category) => category && category.includes(subjectName)
+          );
+          if (hasMatchingCategory) {
+            return; // 매칭됨
+          }
+          
+          // 4. subject_category가 subject_name에 포함되는지 확인 (역방향)
+          // 예: "수학"이 "수학I"에 포함되는지 확인
+          const hasMatchingName = Array.from(contentSubjectCategories).some(
+            (category) => subjectName && category && subjectName.includes(category)
+          );
+          if (hasMatchingName) {
+            return; // 매칭됨
+          }
+          
+          // 모든 매칭 시도 실패
           missingSubjects.push(subjectName);
         });
 
