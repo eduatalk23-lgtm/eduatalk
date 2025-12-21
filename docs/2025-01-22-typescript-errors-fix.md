@@ -146,22 +146,34 @@ const action = async (formData: FormData) => {
 
 ## 결과
 
-- **수정 전**: 159개 에러
-- **수정 후**: 67개 에러
-- **해결된 에러**: 92개
+- **1단계 수정 전**: 159개 에러
+- **1단계 수정 후**: 67개 에러
+- **2단계 수정 후**: 55개 에러
+- **3단계 수정 후**: 47개 에러
+- **총 해결된 에러**: 112개
 
-## 남은 에러
+## 추가 수정 사항 (2-3단계)
+
+### 2단계 수정
+- **PlanGroupFilters export 추가**: `usePlanGroups.ts`에서 re-export
+- **useBlockSetManagement 타입 수정**: `createTenantBlockSet`는 `ActionResponse`를 반환하지 않으므로 직접 객체 사용
+- **ScoreFormModal 타입 수정**: `ActionResponse<{ success: boolean; scoreId?: string }>` 타입 명시
+- **superadmin 컴포넌트들**: `isErrorResponse` 타입 가드 사용 추가
+
+### 3단계 수정
+- **plan/page.tsx**: `sortOrder` 타입을 `"asc" | "desc"`로 제한
+- **actions/blocks.ts**: `student.tenant_id`의 `undefined`를 `null`로 변환 (`?? null`)
+- **actions/blocks.ts**: `active_block_set_id` 속성 타입 단언 추가
+
+## 남은 에러 (47개)
 
 주요 남은 에러들:
 1. `camp/today/page`의 `initialPlansData` prop 문제
-2. `PlanGroupListContainer`의 `PlanGroupFilters` export 문제
-3. `plan/group/[id]/page`의 `Plan[]` 타입 문제
-4. `useBlockSetManagement`의 `ActionResponse` 타입 문제
-5. `plan/page`의 정렬 타입 문제
-6. `scores`의 `ActionResponse` 타입 문제
-7. `today`의 `initialData` prop 문제
-8. `superadmin`의 `error` 속성 문제
-9. `actions/blocks`의 `null | undefined` 문제
+2. `plan/group/[id]/page`의 `Plan[]` 타입 문제
+3. `today`의 `initialData` prop 문제
+4. `signup/page`의 null 체크 문제
+5. `lib/data`의 타입 불일치 문제들
+6. `api/student-content-details`의 ParserError 타입 문제
 
 ## 참고
 
