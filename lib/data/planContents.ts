@@ -54,6 +54,11 @@ export type ContentItem = {
   subject?: string | null;
   subject_group_name?: string | null;
   curriculum_revision_name?: string | null;
+  semester?: string | null;
+  revision?: string | null;
+  difficulty_level?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
 };
 
 /**
@@ -95,7 +100,7 @@ export async function fetchStudentBooks(
   try {
     const { data, error } = await supabase
       .from("books")
-      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id")
+      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id, semester, revision, difficulty_level, publisher")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -181,6 +186,10 @@ export async function fetchStudentBooks(
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
+        semester: (book as any).semester || null,
+        revision: (book as any).revision || null,
+        difficulty_level: (book as any).difficulty_level || null,
+        publisher: (book as any).publisher || null,
       };
     });
   } catch (err) {
@@ -204,7 +213,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id, master_lecture_id")
+      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id, master_lecture_id, semester, revision, difficulty_level, platform")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -289,6 +298,10 @@ export async function fetchStudentLectures(
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
+        semester: (lecture as any).semester || null,
+        revision: (lecture as any).revision || null,
+        difficulty_level: (lecture as any).difficulty_level || null,
+        platform: (lecture as any).platform || null,
       };
     });
   } catch (err) {

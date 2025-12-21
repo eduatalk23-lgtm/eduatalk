@@ -18,6 +18,11 @@ type ContentItem = {
   subject?: string | null;
   subject_group_name?: string | null;
   curriculum_revision_name?: string | null;
+  semester?: string | null;
+  revision?: string | null;
+  difficulty_level?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
 };
 
 type ContentSelectorProps = {
@@ -223,12 +228,17 @@ export const ContentSelector = React.memo(function ContentSelector({
           </div>
         ) : (
           availableContents.map((item) => {
-            // 메타데이터가 있는지 확인
+            // 메타데이터가 있는지 확인 (ContentCard와 동일한 기준)
             const hasMetadata = 
               activeTab === "custom" || 
               !!item.subject_group_name || 
               !!item.subject || 
-              !!item.curriculum_revision_name;
+              !!item.curriculum_revision_name ||
+              !!item.semester ||
+              !!item.revision ||
+              !!item.difficulty_level ||
+              !!item.publisher ||
+              !!item.platform;
 
             return (
               <button
@@ -285,11 +295,31 @@ export const ContentSelector = React.memo(function ContentSelector({
                             {item.subject}
                           </span>
                         )}
-                        {/* 개정교육과정 */}
-                        {item.curriculum_revision_name && (
-                          <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
-                            {item.curriculum_revision_name}
+                        {/* 학기 */}
+                        {item.semester && (
+                          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                            {item.semester}
                           </span>
+                        )}
+                        {/* 개정교육과정 (revision 우선, 없으면 curriculum_revision_name) */}
+                        {(item.revision || item.curriculum_revision_name) && (
+                          <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                            {item.revision || item.curriculum_revision_name}
+                          </span>
+                        )}
+                        {/* 난이도 */}
+                        {item.difficulty_level && (
+                          <span className="rounded bg-indigo-100 px-2 py-0.5 text-indigo-800">
+                            {item.difficulty_level}
+                          </span>
+                        )}
+                        {/* 출판사 (교재만) */}
+                        {activeTab === "book" && item.publisher && (
+                          <span className="text-gray-600">{item.publisher}</span>
+                        )}
+                        {/* 플랫폼 (강의만) */}
+                        {activeTab === "lecture" && item.platform && (
+                          <span className="text-gray-600">{item.platform}</span>
                         )}
                       </div>
                     )}
