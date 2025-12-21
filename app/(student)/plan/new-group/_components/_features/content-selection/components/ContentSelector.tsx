@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Search, BookOpen, Video, FileText } from "lucide-react";
+import { Search, BookOpen, Video, FileText, Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /**
@@ -222,54 +222,68 @@ export const ContentSelector = React.memo(function ContentSelector({
             </p>
           </div>
         ) : (
-          availableContents.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelect(item.id, activeTab)}
-              disabled={disabled || maxReached}
-              className={cn(
-                "w-full rounded-lg border border-gray-200 bg-white p-3 text-left transition-all hover:border-blue-500 hover:bg-blue-50",
-                (disabled || maxReached) &&
-                  "cursor-not-allowed opacity-50 hover:border-gray-200 hover:bg-white"
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-col gap-2 flex-1 min-w-0">
-                  {/* 콘텐츠명 */}
-                  <h4 className="font-medium text-gray-900 truncate">
-                    {item.title}
-                  </h4>
-                  {/* 메타데이터 (표준 순서) */}
-                  {(activeTab === "custom" || item.subject_group_name || item.subject || item.curriculum_revision_name) && (
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {/* 커스텀 콘텐츠 타입 배지 */}
-                      {activeTab === "custom" && (
-                        <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-800">
-                          📄 커스텀
-                        </span>
-                      )}
-                      {/* 교과 그룹명 */}
-                      {item.subject_group_name && (
-                        <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
-                          {item.subject_group_name}
-                        </span>
-                      )}
-                      {/* 세부 과목 */}
-                      {item.subject && (
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
-                          {item.subject}
-                        </span>
-                      )}
-                      {/* 개정교육과정 */}
-                      {item.curriculum_revision_name && (
-                        <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
-                          {item.curriculum_revision_name}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
+          availableContents.map((item) => {
+            // 메타데이터가 있는지 확인
+            const hasMetadata = 
+              activeTab === "custom" || 
+              !!item.subject_group_name || 
+              !!item.subject || 
+              !!item.curriculum_revision_name;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelect(item.id, activeTab)}
+                disabled={disabled || maxReached}
+                className={cn(
+                  "w-full rounded-lg border border-gray-200 bg-white p-3 text-left transition-all hover:border-blue-500 hover:bg-blue-50",
+                  (disabled || maxReached) &&
+                    "cursor-not-allowed opacity-50 hover:border-gray-200 hover:bg-white"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-2 flex-1 min-w-0">
+                    {/* 콘텐츠명 */}
+                    <h4 className="font-medium text-gray-900 truncate">
+                      {item.title}
+                    </h4>
+                    {/* 부제목 (있는 경우) */}
+                    {item.subtitle && (
+                      <p className="text-sm text-gray-600 truncate">
+                        {item.subtitle}
+                      </p>
+                    )}
+                    {/* 메타데이터 (표준 순서) */}
+                    {hasMetadata && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        {/* 커스텀 콘텐츠 타입 배지 */}
+                        {activeTab === "custom" && (
+                          <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-800">
+                            📄 커스텀
+                          </span>
+                        )}
+                        {/* 교과 그룹명 */}
+                        {item.subject_group_name && (
+                          <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                            {item.subject_group_name}
+                          </span>
+                        )}
+                        {/* 세부 과목 */}
+                        {item.subject && (
+                          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                            {item.subject}
+                          </span>
+                        )}
+                        {/* 개정교육과정 */}
+                        {item.curriculum_revision_name && (
+                          <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                            {item.curriculum_revision_name}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 <div
                   className={cn(
                     "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
@@ -290,7 +304,8 @@ export const ContentSelector = React.memo(function ContentSelector({
                 </div>
               </div>
             </button>
-          ))
+            );
+          })
         )}
       </div>
       </div>
