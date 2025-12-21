@@ -190,11 +190,18 @@ export function PlanViewContainer({
     console.log("useEffect triggered, groupsKey changed, userSelected:", lastUserSelectedPlanNumber.current);
 
     // 사용자 선택이 있으면 절대 덮어쓰지 않음
-    if (lastUserSelectedPlanNumber.current !== null) {
+    // planNumber가 null인 경우도 처리 (일일 뷰에서 상세 보기 클릭 시 null이 전달될 수 있음)
+    if (lastUserSelectedPlanNumber.current !== null || selectedPlanNumber === null) {
       const userSelected = lastUserSelectedPlanNumber.current;
-      if (groups.some((g) => g.planNumber === userSelected)) {
+      // planNumber가 null인 그룹도 유효한 그룹으로 인식
+      if (userSelected !== null && groups.some((g) => g.planNumber === userSelected)) {
         console.log("User selection is valid, keeping it:", userSelected);
         // 사용자 선택이 유효하면 아무것도 하지 않음
+        return;
+      }
+      // planNumber가 null인 경우도 처리 (일일 뷰에서 상세 보기 클릭 시)
+      if (userSelected === null && groups.length > 0) {
+        console.log("User selected null planNumber, keeping first group");
         return;
       }
     }
@@ -208,15 +215,21 @@ export function PlanViewContainer({
     }
 
     // 현재 선택이 유효한지 확인
-    if (selectedPlanNumber === null || !groups.some((g) => g.planNumber === selectedPlanNumber)) {
+    // planNumber가 null인 그룹도 유효한 그룹으로 인식
+    const isValidSelection = selectedPlanNumber === null 
+      ? groups.length > 0  // null이면 그룹이 있으면 유효
+      : groups.some((g) => g.planNumber === selectedPlanNumber);
+    
+    if (!isValidSelection) {
       console.log("Current selection is invalid, setting to first group");
-      // 유효하지 않거나 null이면 첫 번째 그룹 선택
+      // 유효하지 않으면 첫 번째 그룹 선택 (planNumber가 null이어도 가능)
       setSelectedPlanNumber(groups[0]?.planNumber ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupsKey, planDate]);
 
   const handleViewDetail = (planNumber: number | null) => {
+    // planNumber가 null인 경우도 처리 (plan.id로 그룹을 찾을 수 있음)
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
     setSelectedPlanNumber(planNumber);
     setViewMode("single");

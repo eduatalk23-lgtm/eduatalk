@@ -31,10 +31,15 @@ export function SinglePlanView({
   // SinglePlanView에서는 자동 선택을 하지 않음
   // PlanViewContainer에서 처리하도록 함
 
-  const selectedGroup =
-    groups.find((g) => g.planNumber === selectedPlanNumber) || groups[0];
+  // selectedPlanNumber로 그룹 찾기 (planNumber가 null인 경우도 처리)
+  const selectedGroup = selectedPlanNumber !== null
+    ? groups.find((g) => g.planNumber === selectedPlanNumber)
+    : groups[0];
+  
+  // selectedGroup이 없으면 첫 번째 그룹 사용
+  const displayGroup = selectedGroup || groups[0];
 
-  if (!selectedGroup) {
+  if (!displayGroup) {
     const formattedDate = planDate
       ? formatKoreanDateWithDay(planDate)
       : "선택한 날짜";
@@ -64,7 +69,7 @@ export function SinglePlanView({
         sessions={sessions}
       />
       <PlanCard
-        group={selectedGroup}
+        group={displayGroup}
         sessions={sessions}
         planDate={planDate}
         viewMode="single"

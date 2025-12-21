@@ -18,25 +18,22 @@ export function PlanSelector({
   onSelect,
   sessions,
 }: PlanSelectorProps) {
-  // planNumber가 null이 아닌 그룹만 필터링
-  const validGroups = groups.filter((g) => g.planNumber !== null);
-  
-  // 현재 선택된 그룹 찾기
+  // 현재 선택된 그룹 찾기 (planNumber로 먼저 찾고, 없으면 plan.id로 찾기)
   const currentGroup = selectedPlanNumber !== null
-    ? validGroups.find((g) => g.planNumber === selectedPlanNumber)
-    : null;
+    ? groups.find((g) => g.planNumber === selectedPlanNumber)
+    : groups.find((g) => g.plan.id === selectedPlanNumber?.toString()); // planNumber가 null인 경우를 대비
   
-  // currentGroup이 없으면 첫 번째 유효한 그룹을 표시용으로 사용
-  const displayGroup = currentGroup || validGroups[0];
+  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용
+  const displayGroup = currentGroup || groups[0];
   
   const currentIndex = displayGroup 
-    ? validGroups.findIndex((g) => g.plan.id === displayGroup.plan.id)
+    ? groups.findIndex((g) => g.plan.id === displayGroup.plan.id)
     : -1;
 
   const handlePrevious = () => {
-    if (currentIndex > 0 && currentIndex < validGroups.length) {
-      const prevGroup = validGroups[currentIndex - 1];
-      if (prevGroup && prevGroup.planNumber !== null) {
+    if (currentIndex > 0 && currentIndex < groups.length) {
+      const prevGroup = groups[currentIndex - 1];
+      if (prevGroup) {
         console.log("handlePrevious called, selecting:", prevGroup.planNumber);
         onSelect(prevGroup.planNumber);
       }
@@ -44,9 +41,9 @@ export function PlanSelector({
   };
 
   const handleNext = () => {
-    if (currentIndex >= 0 && currentIndex < validGroups.length - 1) {
-      const nextGroup = validGroups[currentIndex + 1];
-      if (nextGroup && nextGroup.planNumber !== null) {
+    if (currentIndex >= 0 && currentIndex < groups.length - 1) {
+      const nextGroup = groups[currentIndex + 1];
+      if (nextGroup) {
         console.log("handleNext called, selecting:", nextGroup.planNumber);
         onSelect(nextGroup.planNumber);
       }
@@ -67,7 +64,7 @@ export function PlanSelector({
     return `대기 중`;
   };
 
-  if (validGroups.length === 0) {
+  if (groups.length === 0) {
     return null;
   }
 
@@ -91,15 +88,15 @@ export function PlanSelector({
           value={displayGroup?.plan.id ?? ""}
           onChange={(e) => {
             const selectedPlanId = e.target.value;
-            const selectedGroup = validGroups.find((g) => g.plan.id === selectedPlanId);
-            if (selectedGroup && selectedGroup.planNumber !== null) {
+            const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
+            if (selectedGroup) {
               console.log("select onChange called, selecting:", selectedGroup.planNumber);
               onSelect(selectedGroup.planNumber);
             }
           }}
           className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
-          {validGroups.map((group) => {
+          {groups.map((group) => {
             const contentTitle = group.content?.title || "제목 없음";
             const sequence = group.sequence
               ? `${group.sequence}회차`
@@ -117,10 +114,10 @@ export function PlanSelector({
 
       <button
         onClick={handleNext}
-        disabled={currentIndex < 0 || currentIndex >= validGroups.length - 1}
+        disabled={currentIndex < 0 || currentIndex >= groups.length - 1}
         className={cn(
           "flex items-center justify-center rounded-lg border border-gray-300 p-2 transition",
-          currentIndex < 0 || currentIndex >= validGroups.length - 1
+          currentIndex < 0 || currentIndex >= groups.length - 1
             ? "cursor-not-allowed bg-gray-100 text-gray-400"
             : "bg-white text-gray-700 hover:bg-gray-50"
         )}
@@ -130,7 +127,7 @@ export function PlanSelector({
 
       {displayGroup && currentIndex >= 0 && (
         <div className="text-xs text-gray-500">
-          {currentIndex + 1} / {validGroups.length}
+          {currentIndex + 1} / {groups.length}
         </div>
       )}
     </div>
