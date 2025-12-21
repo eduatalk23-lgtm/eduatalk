@@ -46,6 +46,9 @@ export function StudentContentsPanel({
     currentRange?: ContentRange;
   } | null>(null);
 
+  // 선택된 콘텐츠 목록 ref (스크롤용)
+  const selectedContentsRef = useRef<HTMLDivElement>(null);
+
   // 최대 개수 도달
   const maxReached = currentTotal >= maxContents;
   const canAddMore = !maxReached;
@@ -298,6 +301,16 @@ export function StudentContentsPanel({
       onUpdate(updated);
       setRangeModalOpen(false);
       setRangeModalContent(null);
+
+      // 범위 저장 후 선택된 콘텐츠 목록으로 스크롤
+      setTimeout(() => {
+        if (selectedContentsRef.current) {
+          selectedContentsRef.current.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      }, 100);
     },
     [rangeModalContent, selectedContents, metadataCache, contents, onUpdate]
   );
@@ -360,7 +373,7 @@ export function StudentContentsPanel({
 
       {/* 선택된 콘텐츠 목록 */}
       {selectedContents.length > 0 ? (
-        <div className="space-y-4">
+        <div ref={selectedContentsRef} className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
               선택된 콘텐츠

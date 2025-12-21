@@ -798,9 +798,16 @@ function PlanGroupWizardInner({
         return;
       }
     }
+    
+    // 캠프 모드일 때는 캠프 참여 페이지로 이동
+    if (isCampMode && campInvitationId) {
+      router.push(`/camp/${campInvitationId}`, { scroll: true });
+      return;
+    }
+    
     // 일반 모드일 때는 기존 로직 사용
     router.push(isEditMode && draftGroupId ? `/plan/group/${draftGroupId}` : "/plan", { scroll: true });
-  }, [isDirty, mode, initialData, router, isEditMode, draftGroupId]);
+  }, [isDirty, mode, initialData, router, isEditMode, draftGroupId, isCampMode, campInvitationId]);
 
   return (
     <>
