@@ -40,6 +40,7 @@ type UsePlanDraftProps = {
   setDraftGroupId: (id: string) => void;
   setValidationErrors: (errors: string[]) => void;
   isCampMode: boolean;
+  isTemplateMode?: boolean; // 템플릿 모드 여부
   campInvitationId?: string;
   initialData?: InitialData;
   onSaveSuccess?: () => void; // 저장 성공 시 콜백 (dirty 상태 리셋용)
@@ -64,6 +65,7 @@ export function usePlanDraft({
   setDraftGroupId,
   setValidationErrors,
   isCampMode,
+  isTemplateMode = false,
   campInvitationId,
   initialData,
   onSaveSuccess,
@@ -84,6 +86,14 @@ export function usePlanDraft({
    */
   const saveDraft = useCallback(
     async (silent: boolean = false) => {
+      // 템플릿 모드일 때는 임시 저장을 건너뛰기 (템플릿은 별도 저장 로직 사용)
+      if (isTemplateMode) {
+        if (!silent) {
+          toast.showInfo("템플릿 모드에서는 저장 버튼을 사용해주세요.");
+        }
+        return;
+      }
+
       setIsSaving(true);
       try {
         setValidationErrors([]);
@@ -175,6 +185,7 @@ export function usePlanDraft({
       setValidationErrors,
       toast,
       isCampMode,
+      isTemplateMode,
       campInvitationId,
       initialData,
       wizardData,

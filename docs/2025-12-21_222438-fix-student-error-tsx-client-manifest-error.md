@@ -130,3 +130,4 @@ export default function Error({
 - `app/(parent)/error.tsx` - 참고 파일
 - `components/errors/ErrorPage.tsx` - 공통 에러 페이지 컴포넌트
 
+

@@ -30,6 +30,7 @@ type UsePlanGeneratorProps = {
   draftGroupId: string | null;
   setValidationErrors: (errors: string[]) => void;
   isCampMode: boolean;
+  isTemplateMode?: boolean; // 템플릿 모드 여부
   campInvitationId?: string;
   initialData?: {
     templateId?: string;
@@ -59,6 +60,7 @@ export function usePlanGenerator({
   draftGroupId,
   setValidationErrors,
   isCampMode,
+  isTemplateMode = false,
   campInvitationId,
   initialData,
   isAdminContinueMode,
@@ -121,9 +123,27 @@ export function usePlanGenerator({
       await updatePlanGroupDraftAction(draftGroupId, creationData);
       finalGroupId = draftGroupId;
     } else {
+      // 템플릿 모드일 때는 플랜 그룹을 생성하지 않음
+      if (isTemplateMode) {
+        throw new Error("템플릿 모드에서는 플랜 그룹을 생성할 수 없습니다.");
+      }
+
       // 캠프 모드 Step 4에서 제출 시 콘텐츠 검증 건너뛰기
       const skipContentValidation = isCampMode && currentStep === 4 && !isAdminContinueMode;
-      const result = await createPlanGroupAction(creationData, { skipContentValidation });
+      
+      // 관리자 모드일 때는 studentId를 옵션으로 전달
+      const options: { skipContentValidation?: boolean; studentId?: string | null } = {
+        skipContentValidation,
+      };
+      
+      // 관리자 모드이고 initialData에 studentId가 있으면 전달
+      if (isAdminMode && initialData?.studentId) {
+        options.studentId = initialData.studentId;
+      } else if (isAdminMode && initialData?.student_id) {
+        options.studentId = initialData.student_id;
+      }
+      
+      const result = await createPlanGroupAction(creationData, options);
 
       if (!result?.groupId) {
         throw new PlanGroupError(
@@ -143,6 +163,8 @@ export function usePlanGenerator({
   }, [
     wizardData,
     isCampMode,
+    isTemplateMode,
+    isAdminMode,
     buildPayload,
     draftGroupId,
     campInvitationId,

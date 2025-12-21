@@ -39,6 +39,7 @@ import { validateAllocations } from "@/lib/utils/subjectAllocation";
  * @param data 플랜 그룹 생성 데이터
  * @param options 옵션 객체
  * @param options.skipContentValidation 콘텐츠 검증 건너뛰기 (캠프 모드에서 Step 3 제출 시 사용)
+ * @param options.studentId 관리자 모드에서 지정하는 student_id
  * @returns 생성된 플랜 그룹 ID
  * @throws AppError - 검증 실패 또는 데이터베이스 오류 시
  *
@@ -59,9 +60,48 @@ async function _createPlanGroup(
   data: PlanGroupCreationData,
   options?: {
     skipContentValidation?: boolean; // 캠프 모드에서 Step 3 제출 시 콘텐츠 검증 건너뛰기
+    studentId?: string | null; // 관리자 모드에서 직접 지정하는 student_id
   }
 ): Promise<{ groupId: string }> {
-  const user = await requireStudentAuth();
+  // 권한 확인: 학생 또는 관리자/컨설턴트
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  let studentId: string;
+  let userId: string;
+
+  // 관리자/컨설턴트 권한 확인
+  const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
+  
+  if (isAdmin) {
+    // 관리자 모드: student_id를 옵션에서 가져오거나 에러
+    await requireAdminOrConsultant();
+    userId = currentUser.userId;
+
+    if (options?.studentId) {
+      studentId = options.studentId;
+    } else {
+      throw new AppError(
+        "관리자 모드에서는 student_id가 필요합니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+  } else {
+    // 학생 모드: 현재 사용자가 학생
+    const studentAuth = await requireStudentAuth();
+    studentId = studentAuth.userId;
+    userId = studentAuth.userId;
+  }
+
   const tenantContext = await requireTenantContext();
 
   // 검증
@@ -130,7 +170,7 @@ async function _createPlanGroup(
   const supabase = await createSupabaseServerClient();
   const existingGroup = await findExistingDraftPlanGroup(
     supabase,
-    user.userId,
+    studentId, // student_id로 조회
     data.name || null,
     data.camp_invitation_id || null
   );
@@ -144,7 +184,7 @@ async function _createPlanGroup(
 
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
-    student_id: user.userId,
+    student_id: studentId, // 관리자 모드에서는 지정된 student_id 사용
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type,
@@ -192,7 +232,7 @@ async function _createPlanGroup(
       .from("books")
       .select("id, master_content_id")
       .in("id", bookIds)
-      .eq("student_id", user.userId);
+      .eq("student_id", studentId); // student_id로 조회
     books?.forEach((book) => {
       masterContentIdMap.set(book.id, book.master_content_id || null);
     });
@@ -203,7 +243,7 @@ async function _createPlanGroup(
       .from("lectures")
       .select("id, master_content_id")
       .in("id", lectureIds)
-      .eq("student_id", user.userId);
+      .eq("student_id", studentId); // student_id로 조회
     lectures?.forEach((lecture) => {
       masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
     });
@@ -252,7 +292,7 @@ async function _createPlanGroup(
 
   // 하나라도 실패하면 롤백 (간단한 구현)
   if (!contentsResult.success) {
-    await deletePlanGroup(groupId, user.userId);
+    await deletePlanGroup(groupId, studentId); // student_id로 삭제
     throw new AppError(
       contentsResult.error || "플랜 콘텐츠 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -262,7 +302,7 @@ async function _createPlanGroup(
   }
 
   if (!exclusionsResult.success) {
-    await deletePlanGroup(groupId, user.userId);
+    await deletePlanGroup(groupId, studentId); // student_id로 삭제
     throw new AppError(
       exclusionsResult.error || "플랜 제외일 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -272,7 +312,7 @@ async function _createPlanGroup(
   }
 
   if (!schedulesResult.success) {
-    await deletePlanGroup(groupId, user.userId);
+    await deletePlanGroup(groupId, studentId); // student_id로 삭제
     throw new AppError(
       schedulesResult.error || "학원 일정 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -313,6 +353,7 @@ export const createPlanGroupAction = withErrorHandling(
     data: PlanGroupCreationData,
     options?: {
       skipContentValidation?: boolean;
+      studentId?: string | null; // 관리자 모드에서 직접 지정하는 student_id
     }
   ) => {
     // 입력 데이터 로깅 (개발 환경에서만, 민감 정보 제외)

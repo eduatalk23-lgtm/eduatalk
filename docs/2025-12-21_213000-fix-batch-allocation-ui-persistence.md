@@ -82,3 +82,4 @@ onUpdate({
 1. `app/(student)/plan/new-group/_components/_features/content-selection/Step6FinalReview/StrategyWeaknessAllocationEditor.tsx`
    - `handleSubjectGroupBatchAllocation` 함수에서 `setBatchSettingSubjectGroup(null)` 제거
 
+

@@ -119,3 +119,4 @@ aria-expanded={batchSettingSubjectGroup === subjectGroup}
 - 현재는 인라인 스타일로 구현하여 더 세밀한 제어 가능
 - 디자인 시스템의 primary 색상을 사용하여 일관성 유지
 
+

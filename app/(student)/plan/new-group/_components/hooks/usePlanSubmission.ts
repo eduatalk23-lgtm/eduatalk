@@ -82,6 +82,7 @@ export function usePlanSubmission({
     setDraftGroupId,
     setValidationErrors,
     isCampMode: mode.isCampMode,
+    isTemplateMode: mode.isTemplateMode,
     campInvitationId,
     initialData,
     onSaveSuccess, // 저장 성공 시 콜백 전달
@@ -92,6 +93,7 @@ export function usePlanSubmission({
     draftGroupId,
     setValidationErrors,
     isCampMode: mode.isCampMode,
+    isTemplateMode: mode.isTemplateMode,
     campInvitationId,
     initialData,
     isAdminContinueMode: mode.isAdminContinueMode,

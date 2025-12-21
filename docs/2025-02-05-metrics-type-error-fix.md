@@ -163,3 +163,4 @@ Supabase의 `PostgrestFilterBuilder` 타입은 `Promise`를 직접 반환하지 
 
 **작업 완료**: 모든 타입 에러가 해결되었으며, 빌드가 성공적으로 완료되었습니다. 🎉
 
+

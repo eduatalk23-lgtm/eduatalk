@@ -116,3 +116,4 @@ echo -e "  1. 파일을 열어서 SQL 작성"
 echo -e "  2. 'npx supabase db push' 명령으로 적용"
 
 
+
