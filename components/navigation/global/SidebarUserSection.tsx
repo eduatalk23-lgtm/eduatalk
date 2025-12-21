@@ -74,12 +74,12 @@ export function SidebarUserSection({
             )}>
               {userName || "사용자"}
             </p>
-            <p className={cn(
+            <span className={cn(
               "text-body-2 truncate",
               layoutStyles.textMuted
             )}>
-              {roleLabel}
-            </p>
+              · {roleLabel}
+            </span>
           </div>
         </div>
 
@@ -99,13 +99,13 @@ export function SidebarUserSection({
       layoutStyles.bgWhite,
       "p-4 flex flex-col gap-3"
     )}>
-      {/* 테넌트 정보와 사용자 정보 가로 배치 */}
-      <div className="flex gap-2">
+      {/* 테넌트 정보와 사용자 정보 세로 배치 */}
+      <div className="flex flex-col gap-2">
         {/* 테넌트 정보 */}
         {tenantInfo && (
           <div className={cn(
             layoutStyles.flexCenter,
-            "gap-2 px-3 py-2 rounded-lg flex-1 min-w-0",
+            "gap-2 px-3 py-2 rounded-lg",
             layoutStyles.bgGray50
           )}>
             <Building2 
@@ -122,12 +122,12 @@ export function SidebarUserSection({
                 {tenantInfo.name}
               </p>
               {tenantInfo.type && (
-                <p className={cn(
+                <span className={cn(
                   "text-body-2 truncate",
                   layoutStyles.textMuted
                 )}>
-                  {tenantInfo.type}
-                </p>
+                  · {tenantInfo.type}
+                </span>
               )}
             </div>
           </div>
@@ -136,7 +136,7 @@ export function SidebarUserSection({
         {/* 사용자 정보 */}
         <div className={cn(
           layoutStyles.flexCenter,
-          "gap-2 px-3 py-2 rounded-lg flex-1 min-w-0",
+          "gap-2 px-3 py-2 rounded-lg",
           layoutStyles.bgGray50
         )}>
           <div className={cn(
@@ -153,12 +153,12 @@ export function SidebarUserSection({
             )}>
               {userName || "사용자"}
             </p>
-            <p className={cn(
+            <span className={cn(
               "text-body-2 truncate",
               layoutStyles.textMuted
             )}>
-              {roleLabel}
-            </p>
+              · {roleLabel}
+            </span>
           </div>
         </div>
       </div>
