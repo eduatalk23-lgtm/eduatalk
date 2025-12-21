@@ -179,8 +179,13 @@ export function usePlanSubmission({
         // 2. Plan Generation (Generate Real Plans)
         if (generatePlansFlag) {
           await generatePlans(finalGroupId);
-          // 플랜 생성 후 Step 7로 이동 (리다이렉트는 Step 7 완료 버튼에서 처리)
-          goToStep(7);
+          // 캠프 모드(학생)일 때는 generatePlans 내부에서 제출 완료 페이지로 이동하므로
+          // Step 7로 이동하지 않음
+          if (!mode.isCampMode) {
+            // 플랜 생성 후 Step 7로 이동 (리다이렉트는 Step 7 완료 버튼에서 처리)
+            goToStep(7);
+          }
+          // 캠프 모드일 때는 generatePlans 내부에서 router.push로 이동하므로 여기서는 아무것도 하지 않음
         } else {
           goNext();
         }
@@ -207,6 +212,7 @@ export function usePlanSubmission({
       setValidationErrors,
       toast,
       mode.isTemplateMode,
+      mode.isCampMode,
     ]
   );
   

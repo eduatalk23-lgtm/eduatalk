@@ -273,6 +273,7 @@ export function BasePlanWizard({
             <Step7ScheduleResult
               groupId={draftGroupId}
               isAdminContinueMode={mode.isAdminContinueMode}
+              isCampMode={mode.isCampMode}
               onComplete={onComplete}
             />
           </StepErrorBoundary>
