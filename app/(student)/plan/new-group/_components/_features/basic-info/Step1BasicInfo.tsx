@@ -261,6 +261,7 @@ function Step1BasicInfoComponent({
             value={data.name || ""}
             onChange={(e) => {
               if (!editable) return;
+              if (isCampMode && !canStudentInputName) return;
               onUpdate({ name: e.target.value });
             }}
             disabled={isDisabled(
@@ -328,6 +329,7 @@ function Step1BasicInfoComponent({
                   checked={data.plan_purpose === purpose.value}
                   onChange={() => {
                     if (!editable) return;
+                    if (isCampMode && !canStudentInputPlanPurpose) return;
                     onUpdate({ 
                       plan_purpose: (purpose.value === "내신대비" || purpose.value === "모의고사(수능)" || purpose.value === "")
                         ? purpose.value
