@@ -167,7 +167,36 @@ async function _createPlanGroup(
 
   // 기존 draft 확인 (중복 생성 방지)
   // draftGroupId가 없어도 동일한 이름의 draft가 있으면 업데이트
+  // 캠프 모드인 경우 camp_invitation_id로 먼저 확인
   const supabase = await createSupabaseServerClient();
+  
+  // 캠프 모드인 경우 camp_invitation_id로 기존 플랜 그룹 확인
+  if (data.camp_invitation_id) {
+    const { data: existingCampGroup, error: campGroupError } = await supabase
+      .from("plan_groups")
+      .select("id, status")
+      .eq("camp_invitation_id", data.camp_invitation_id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (campGroupError && campGroupError.code !== "PGRST116") {
+      console.warn("[_createPlanGroup] 캠프 플랜 그룹 확인 중 에러 (무시하고 계속 진행):", campGroupError);
+    } else if (existingCampGroup) {
+      // 기존 캠프 플랜 그룹이 있으면 업데이트
+      console.log("[_createPlanGroup] 기존 캠프 플랜 그룹 발견, 업데이트 진행:", {
+        groupId: existingCampGroup.id,
+        status: existingCampGroup.status,
+        camp_invitation_id: data.camp_invitation_id,
+      });
+      await updatePlanGroupDraftAction(existingCampGroup.id, data);
+      revalidatePath("/plan");
+      return { groupId: existingCampGroup.id };
+    }
+  }
+
+  // 일반 모드 또는 캠프 모드에서 기존 그룹이 없는 경우
   const existingGroup = await findExistingDraftPlanGroup(
     supabase,
     studentId, // student_id로 조회

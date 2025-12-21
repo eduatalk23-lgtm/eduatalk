@@ -197,8 +197,9 @@ export const submitCampParticipation = withErrorHandling(
     const supabase = await createSupabaseServerClient();
     const { data: existingGroup, error: checkError } = await supabase
       .from("plan_groups")
-      .select("id, status")
+      .select("id, status, camp_invitation_id")
       .eq("camp_invitation_id", invitationId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
