@@ -599,6 +599,7 @@ export async function classifyPlanContents(
   const customContentIds: string[] = [];
   const masterBookIds: string[] = [];
   const masterLectureIds: string[] = [];
+  const masterCustomContentIds: string[] = [];
 
   contents.forEach((content) => {
     if (content.content_type === "book") {
@@ -620,12 +621,19 @@ export async function classifyPlanContents(
       masterLectureIds.push(content.content_id);
     } else if (content.content_type === "custom") {
       customContentIds.push(content.content_id);
+      // plan_contents에 저장된 master_content_id가 있으면 마스터 커스텀 콘텐츠 ID로도 수집
+      if (content.master_content_id) {
+        masterCustomContentIds.push(content.master_content_id);
+      }
+      // content_id 자체가 마스터 커스텀 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
+      masterCustomContentIds.push(content.content_id);
     }
   });
 
   // 중복 제거
   const uniqueMasterBookIds = [...new Set(masterBookIds)];
   const uniqueMasterLectureIds = [...new Set(masterLectureIds)];
+  const uniqueMasterCustomContentIds = [...new Set(masterCustomContentIds)];
 
   if (process.env.NODE_ENV === "development") {
     console.log("[classifyPlanContents] 콘텐츠 ID 분류:", {
@@ -644,6 +652,7 @@ export async function classifyPlanContents(
   const [
     masterBooksResult,
     masterLecturesResult,
+    masterCustomContentsResult,
     studentBooksResult,
     studentLecturesResult,
     customContentsResult,
@@ -661,6 +670,13 @@ export async function classifyPlanContents(
           .select("id, title, subject_category, subject")
           .in("id", uniqueMasterLectureIds)
       : Promise.resolve({ data: [], error: null }),
+    // 마스터 커스텀 콘텐츠 조회 (plan_contents.master_content_id + content_id)
+    uniqueMasterCustomContentIds.length > 0
+      ? supabase
+          .from("master_custom_contents")
+          .select("id, title, subject_category, subject")
+          .in("id", uniqueMasterCustomContentIds)
+      : Promise.resolve({ data: [], error: null }),
     // 학생 콘텐츠 조회
     bookContentIds.length > 0
       ? supabase
@@ -676,7 +692,7 @@ export async function classifyPlanContents(
           .in("id", lectureContentIds)
           .eq("student_id", studentId)
       : Promise.resolve({ data: [], error: null }),
-    // 커스텀 콘텐츠 조회
+    // 커스텀 콘텐츠 조회 (학생 커스텀 콘텐츠)
     customContentIds.length > 0
       ? supabase
           .from("student_custom_contents")
@@ -793,6 +809,9 @@ export async function classifyPlanContents(
   );
   const masterLecturesMap = new Map(
     (masterLecturesResult.data || []).map((lecture) => [lecture.id, lecture])
+  );
+  const masterCustomContentsMap = new Map(
+    (masterCustomContentsResult.data || []).map((custom) => [custom.id, custom])
   );
   // 학생 콘텐츠 Map
   const studentBooksMap = new Map(
@@ -1059,9 +1078,16 @@ export async function classifyPlanContents(
         }
       }
     } else if (content.content_type === "custom") {
-      // 커스텀 콘텐츠는 항상 학생 콘텐츠
+      // 1. plan_contents에 저장된 master_content_id가 있으면 우선 활용
+      const masterCustomContentFromPlan = content.master_content_id
+        ? masterCustomContentsMap.get(content.master_content_id)
+        : null;
+
+      // 2. content_id로 학생 커스텀 콘텐츠 조회
       const customContent = customContentsMap.get(content.content_id);
+
       if (customContent) {
+        // 학생 커스텀 콘텐츠를 찾은 경우
         contentDetail = {
           content_type: "custom",
           content_id: content.content_id,
@@ -1071,13 +1097,56 @@ export async function classifyPlanContents(
           subject_category: customContent.content_type || null,
           isRecommended: false,
         };
-      } else {
-        // 커스텀 콘텐츠를 찾지 못한 경우
-        missingContents.push({
+      } else if (masterCustomContentFromPlan) {
+        // 학생 커스텀 콘텐츠를 찾지 못했지만 plan_contents에 master_content_id가 있는 경우
+        // → 마스터 커스텀 콘텐츠 (추천 콘텐츠)
+        // content_id가 마스터 커스텀 콘텐츠 ID인지 확인
+        const isMasterContentId = masterCustomContentsMap.has(content.content_id);
+        
+        contentDetail = {
           content_type: "custom",
           content_id: content.content_id,
-          reason: `학생(${studentId})의 커스텀 콘텐츠를 찾을 수 없습니다.`,
-        });
+          start_range: content.start_range,
+          end_range: content.end_range,
+          title: masterCustomContentFromPlan.title || "커스텀 콘텐츠",
+          subject_category: masterCustomContentFromPlan.subject_category || masterCustomContentFromPlan.subject || null,
+          isRecommended: isMasterContentId, // content_id가 마스터 ID면 추천 콘텐츠
+          masterContentId: content.master_content_id ?? undefined,
+          // 자동 추천 정보 전달
+          is_auto_recommended: content.is_auto_recommended ?? false,
+          recommendation_source: content.recommendation_source ?? null,
+          recommendation_reason: content.recommendation_reason ?? null,
+          recommendation_metadata: content.recommendation_metadata ?? null,
+        };
+      } else {
+        // 학생 커스텀 콘텐츠도 없고 plan_contents의 master_content_id로도 조회 실패
+        // content_id 자체가 마스터 커스텀 콘텐츠 ID인지 확인 (이미 masterCustomContentsMap에 조회됨)
+        const masterCustomContentByContentId = masterCustomContentsMap.get(content.content_id);
+        if (masterCustomContentByContentId) {
+          // content_id가 마스터 커스텀 콘텐츠 ID인 경우 → 추천 콘텐츠
+          contentDetail = {
+            content_type: "custom",
+            content_id: content.content_id,
+            start_range: content.start_range,
+            end_range: content.end_range,
+            title: masterCustomContentByContentId.title || "커스텀 콘텐츠",
+            subject_category: masterCustomContentByContentId.subject_category || masterCustomContentByContentId.subject || null,
+            isRecommended: true, // 마스터 콘텐츠이므로 추천 콘텐츠
+            masterContentId: content.content_id, // content_id 자체가 마스터 ID
+            // 자동 추천 정보 전달
+            is_auto_recommended: content.is_auto_recommended ?? false,
+            recommendation_source: content.recommendation_source ?? null,
+            recommendation_reason: content.recommendation_reason ?? null,
+            recommendation_metadata: content.recommendation_metadata ?? null,
+          };
+        } else {
+          // 정말로 찾을 수 없는 경우
+          missingContents.push({
+            content_type: "custom",
+            content_id: content.content_id,
+            reason: `학생(${studentId})의 커스텀 콘텐츠를 찾을 수 없습니다. master_custom_contents에도 존재하지 않습니다.`,
+          });
+        }
       }
     }
 
@@ -1109,21 +1178,22 @@ export async function classifyPlanContents(
     });
   }
 
-  // 최종 검증: custom 타입이 recommended에 포함되지 않았는지 확인
-  const invalidRecommended = recommendedContents.filter(
+  // 최종 검증: custom 타입이 recommended에 포함된 경우 확인
+  // 마스터 커스텀 콘텐츠는 추천 콘텐츠로 분류될 수 있으므로 경고만 출력
+  const recommendedCustomContents = recommendedContents.filter(
     (c) => c.content_type === "custom"
   );
 
-  if (invalidRecommended.length > 0) {
-    console.warn(
-      "[classifyPlanContents] custom 타입 콘텐츠가 추천 콘텐츠로 분류됨:",
-      invalidRecommended.map((c) => c.content_id)
-    );
-    // custom 타입을 studentContents로 이동
-    recommendedContents = recommendedContents.filter(
-      (c) => c.content_type !== "custom"
-    );
-    studentContents.push(...invalidRecommended);
+  if (recommendedCustomContents.length > 0) {
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "[classifyPlanContents] 마스터 커스텀 콘텐츠가 추천 콘텐츠로 분류됨:",
+        recommendedCustomContents.map((c) => ({
+          content_id: c.content_id,
+          masterContentId: c.masterContentId,
+        }))
+      );
+    }
   }
 
   // 디버깅: 최종 결과 로그

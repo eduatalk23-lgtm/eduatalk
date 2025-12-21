@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
+import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
   updatePlanGroup,
   getPlanGroupById,
+  getPlanGroupWithDetailsForAdmin,
   createPlanContents,
   createPlanExclusions,
   createPlanAcademySchedules,
@@ -25,30 +28,77 @@ import { validateAllocations } from "@/lib/utils/subjectAllocation";
 
 /**
  * 플랜 그룹 임시저장 업데이트 (기존 draft 플랜 수정)
+ * 
+ * 학생 또는 관리자/컨설턴트 권한을 허용합니다.
+ * 관리자 모드일 때는 다른 학생의 플랜 그룹을 수정할 수 있습니다.
  */
 async function _updatePlanGroupDraft(
   groupId: string,
   data: Partial<PlanGroupCreationData>
 ): Promise<void> {
-  const user = await requireStudentAuth();
+  // 권한 확인: 학생 또는 관리자/컨설턴트
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
+  let studentId: string;
+  let userId: string;
+
+  if (isAdmin) {
+    // 관리자 모드: 권한 확인 및 플랜 그룹에서 student_id 조회
+    await requireAdminOrConsultant();
+    userId = currentUser.userId;
+
+    // 플랜 그룹 조회하여 student_id 확인
+    const tenantContext = await requireTenantContext();
+    const result = await getPlanGroupWithDetailsForAdmin(
+      groupId,
+      tenantContext.tenantId
+    );
+
+    if (!result.group) {
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    studentId = result.group.student_id;
+  } else {
+    // 학생 모드: 현재 사용자가 학생
+    const studentAuth = await requireStudentAuth();
+    studentId = studentAuth.userId;
+    userId = studentAuth.userId;
+  }
+
   const tenantContext = await requireTenantContext();
 
   // 기존 그룹 조회 (tenantId 포함하여 조회)
-  let group = await getPlanGroupById(groupId, user.userId, tenantContext.tenantId);
+  let group = await getPlanGroupById(groupId, studentId, tenantContext.tenantId);
   
   // 캠프 플랜 그룹인 경우 camp_invitation_id로 재시도
   if (!group && data.camp_invitation_id) {
     const supabase = await createSupabaseServerClient();
-    const { data: campGroup, error: campError } = await supabase
+    const query = supabase
       .from("plan_groups")
       .select(
         "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
       )
       .eq("id", groupId)
       .eq("camp_invitation_id", data.camp_invitation_id)
-      .eq("student_id", user.userId)
-      .is("deleted_at", null)
-      .maybeSingle();
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    const { data: campGroup, error: campError } = await query.maybeSingle();
 
     if (!campError && campGroup) {
       group = campGroup as PlanGroup;
@@ -76,7 +126,7 @@ async function _updatePlanGroupDraft(
 
   // saved 상태라면 draft로 변경 (수정 후 다시 saved로 변경 가능)
   if (group.status === "saved") {
-    const statusUpdateResult = await updatePlanGroup(groupId, user.userId, {
+    const statusUpdateResult = await updatePlanGroup(groupId, studentId, {
       status: "draft",
     });
     if (!statusUpdateResult.success) {
@@ -150,7 +200,7 @@ async function _updatePlanGroupDraft(
     data.additional_period_reallocation !== undefined ||
     data.non_study_time_blocks !== undefined
   ) {
-    const updateResult = await updatePlanGroup(groupId, user.userId, {
+    const updateResult = await updatePlanGroup(groupId, studentId, {
       name: data.name || null,
       plan_purpose: normalizePlanPurpose(data.plan_purpose),
       scheduler_type: data.scheduler_type || null,
