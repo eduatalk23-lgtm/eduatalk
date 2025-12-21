@@ -262,14 +262,36 @@ export function StudentContentsPanel({
   // 범위 저장
   const handleRangeSave = useCallback(
     (range: ContentRange) => {
-      if (!rangeModalContent) return;
+      if (!rangeModalContent) {
+        console.warn("[StudentContentsPanel] handleRangeSave: rangeModalContent is null");
+        return;
+      }
 
       const { id, type, title } = rangeModalContent;
 
+      console.log("[StudentContentsPanel] handleRangeSave 시작:", {
+        contentId: id,
+        type,
+        title,
+        range,
+        currentSelectedCount: selectedContents.length,
+      });
+
+      // 최신 selectedContents를 사용하기 위해 함수형 업데이트 패턴 사용
+      // 하지만 onUpdate가 함수형을 지원하지 않으므로, selectedContents를 직접 사용
+      // 대신 onUpdate 호출 전에 최신 상태를 확인
+      const currentContents = selectedContents;
+      
       // 기존 콘텐츠 찾기
-      const existingIndex = selectedContents.findIndex(
+      const existingIndex = currentContents.findIndex(
         (c) => c.content_id === id
       );
+
+      console.log("[StudentContentsPanel] 기존 콘텐츠 검색 결과:", {
+        existingIndex,
+        contentId: id,
+        currentContentsIds: currentContents.map(c => c.content_id),
+      });
 
       const metadata = metadataCache.get(id);
 
@@ -291,14 +313,32 @@ export function StudentContentsPanel({
       let updated: SelectedContent[];
       if (existingIndex >= 0) {
         // 기존 콘텐츠 업데이트
-        updated = [...selectedContents];
+        updated = [...currentContents];
         updated[existingIndex] = newContent;
+        console.log("[StudentContentsPanel] 기존 콘텐츠 업데이트:", {
+          index: existingIndex,
+          oldContent: currentContents[existingIndex],
+          newContent,
+        });
       } else {
         // 새 콘텐츠 추가
-        updated = [...selectedContents, newContent];
+        updated = [...currentContents, newContent];
+        console.log("[StudentContentsPanel] 새 콘텐츠 추가:", {
+          newContent,
+          updatedCount: updated.length,
+        });
       }
 
+      console.log("[StudentContentsPanel] onUpdate 호출 전:", {
+        updatedCount: updated.length,
+        updatedIds: updated.map(c => c.content_id),
+      });
+
+      // onUpdate 호출
       onUpdate(updated);
+
+      console.log("[StudentContentsPanel] onUpdate 호출 완료");
+
       setRangeModalOpen(false);
       setRangeModalContent(null);
 

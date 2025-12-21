@@ -202,11 +202,25 @@ function Step3ContentSelectionComponent({
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
     (contents: typeof data.student_contents) => {
+      console.log("[Step3ContentSelection] handleStudentContentsUpdate 호출:", {
+        contentsCount: contents.length,
+        contentsIds: contents.map(c => c.content_id),
+        currentDataCount: data.student_contents.length,
+      });
+
       if (onUpdate) {
-        onUpdate({ student_contents: contents } as any);
+        const updatePayload = { student_contents: contents } as any;
+        console.log("[Step3ContentSelection] onUpdate 호출:", {
+          updatePayload,
+          hasOnUpdate: !!onUpdate,
+        });
+        onUpdate(updatePayload);
+        console.log("[Step3ContentSelection] onUpdate 호출 완료");
+      } else {
+        console.warn("[Step3ContentSelection] onUpdate가 없습니다!");
       }
     },
-    [onUpdate]
+    [onUpdate, data.student_contents]
   );
 
   // 추천 콘텐츠 업데이트
