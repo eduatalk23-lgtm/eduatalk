@@ -152,27 +152,44 @@ export function PlanViewContainer({
     });
   }, [plansData, onDateChange]);
 
-  // groups가 변경되었을 때 selectedPlanNumber 업데이트
-  // planDate가 변경되었으면 첫 번째 그룹 선택, 같은 날짜면 사용자 선택 유지
-  useEffect(() => {
-    if (groups.length === 0) {
-      setSelectedPlanNumber(null);
-      return;
-    }
+  // groups의 planNumber 목록을 문자열로 변환하여 실제 변경 감지
+  const groupsPlanNumbersKey = useMemo(() => {
+    return groups.map((g) => g.planNumber).join(",");
+  }, [groups]);
 
-    // planDate가 변경되었는지 확인
-    const isPlanDateChanged = planDate !== lastPlanDate.current;
-    if (isPlanDateChanged) {
+  // planDate가 변경되었을 때 selectedPlanNumber 리셋
+  useEffect(() => {
+    if (planDate !== lastPlanDate.current) {
       lastPlanDate.current = planDate;
       lastUserSelectedPlanNumber.current = null; // 날짜 변경 시 사용자 선택 초기화
-      // 날짜가 변경되었으므로 첫 번째 그룹 선택
-      setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+      if (groups.length > 0) {
+        setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+      } else {
+        setSelectedPlanNumber(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planDate]);
+
+  // groups의 planNumber 목록이 실제로 변경되었을 때만 selectedPlanNumber 업데이트
+  // 같은 날짜 내에서 사용자 선택 유지
+  useEffect(() => {
+    if (groups.length === 0) {
+      // groups가 비어있으면 null로 설정 (단, 사용자 선택이 없을 때만)
+      if (lastUserSelectedPlanNumber.current === null) {
+        setSelectedPlanNumber(null);
+      }
       return;
     }
 
-    // 같은 날짜 내에서 groups가 변경된 경우
+    // planDate가 변경되었는지 확인 (이미 위의 useEffect에서 처리됨)
+    if (planDate !== lastPlanDate.current) {
+      return; // planDate 변경은 위의 useEffect에서 처리
+    }
+
+    // 같은 날짜 내에서 groups의 planNumber 목록이 변경된 경우
     setSelectedPlanNumber((prev) => {
-      // 사용자가 선택한 planNumber가 여전히 유효한지 확인
+      // 사용자가 선택한 planNumber가 여전히 유효한지 확인 (최우선)
       const userSelected = lastUserSelectedPlanNumber.current;
       if (userSelected != null && groups.some((g) => g.planNumber === userSelected)) {
         return userSelected; // 유효하면 유지
@@ -183,12 +200,11 @@ export function PlanViewContainer({
         return prev; // 유효하면 유지
       }
       
-      // 유효하지 않으면 첫 번째 그룹 선택
-      // 단, prev가 null이면 SinglePlanView의 useEffect가 처리하도록 함
-      return prev === null ? null : (groups[0]?.planNumber ?? null);
+      // 유효하지 않거나 null이면 첫 번째 그룹 선택
+      return groups[0]?.planNumber ?? null;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, planDate]);
+  }, [groupsPlanNumbersKey, planDate]);
 
   const handleViewDetail = (planNumber: number | null) => {
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
