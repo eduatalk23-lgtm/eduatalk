@@ -28,7 +28,6 @@ type RoleBasedLayoutProps = {
 function SharedSidebarContent({
   role,
   tenantInfo,
-  isCollapsed,
   variant = "desktop",
   onNavigate,
   roleLabel,
@@ -36,7 +35,6 @@ function SharedSidebarContent({
 }: {
   role: RoleBasedLayoutProps["role"];
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
-  isCollapsed: boolean;
   variant?: "desktop" | "mobile";
   onNavigate?: () => void;
   roleLabel: string;
@@ -50,12 +48,14 @@ function SharedSidebarContent({
           onNavigate={onNavigate}
         />
       </div>
-      <SidebarUserSection
-        roleLabel={roleLabel}
-        userName={userName}
-        tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
-        variant={variant}
-      />
+      {variant === "mobile" && (
+        <SidebarUserSection
+          roleLabel={roleLabel}
+          userName={userName}
+          tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
+          variant={variant}
+        />
+      )}
     </>
   );
 }
@@ -75,24 +75,28 @@ function SidebarContent({
   onNavigate?: () => void;
   userName?: string | null;
 }) {
-  const { isCollapsed, toggleCollapse } = useSidebar();
-
   return (
     <>
-      {/* 로고 및 컨트롤 */}
+      {/* 로고 */}
       <div className={cn(sidebarStyles.header)}>
         <LogoSection
           dashboardHref={dashboardHref}
           roleLabel={roleLabel}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={toggleCollapse}
         />
       </div>
 
+      {/* 사용자 정보 섹션 (상단) */}
+      <SidebarUserSection
+        roleLabel={roleLabel}
+        userName={userName}
+        tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
+        variant="desktop"
+      />
+
+      {/* 네비게이션 메뉴 */}
       <SharedSidebarContent
         role={role}
         tenantInfo={tenantInfo}
-        isCollapsed={isCollapsed}
         variant="desktop"
         onNavigate={onNavigate}
         roleLabel={roleLabel}
@@ -260,8 +264,6 @@ function MobileSidebar({
             <LogoSection
               dashboardHref={dashboardHref}
               roleLabel={roleLabel}
-              isCollapsed={false}
-              onToggleCollapse={() => {}}
               variant="mobile"
             />
             <button
@@ -277,7 +279,6 @@ function MobileSidebar({
         <SharedSidebarContent
           role={role}
           tenantInfo={tenantInfo}
-          isCollapsed={false}
           variant="mobile"
           onNavigate={closeMobile}
           roleLabel={roleLabel}
@@ -298,8 +299,6 @@ export function RoleBasedLayout({
   tenantInfo,
   userName,
 }: RoleBasedLayoutProps) {
-  const { isCollapsed } = useSidebar();
-
   const content = (
     <div className="flex min-h-screen bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
       {/* 사이드바 네비게이션 (데스크톱) */}
@@ -308,7 +307,7 @@ export function RoleBasedLayout({
           className={cn(
             sidebarStyles.container,
             "hidden md:block",
-            isCollapsed ? sidebarWidths.collapsed : sidebarWidths.expanded
+            sidebarWidths.expanded
           )}
         >
           <div className="sticky top-0 h-screen overflow-y-auto">
@@ -333,8 +332,6 @@ export function RoleBasedLayout({
                 <LogoSection
                   dashboardHref={dashboardHref}
                   roleLabel={roleLabel}
-                  isCollapsed={false}
-                  onToggleCollapse={() => {}}
                   variant="mobile"
                 />
                 <MobileSidebar
