@@ -85,7 +85,7 @@ export function PlanSelector({
             const status = getGroupStatus(group);
 
             return (
-              <option key={group.planNumber ?? "null"} value={group.planNumber ?? ""}>
+              <option key={group.plan.id} value={group.planNumber ?? ""}>
                 {contentTitle} ({sequence}) - {status}
               </option>
             );
