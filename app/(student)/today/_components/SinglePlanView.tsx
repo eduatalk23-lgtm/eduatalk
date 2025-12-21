@@ -29,6 +29,7 @@ export function SinglePlanView({
   campMode = false,
 }: SinglePlanViewProps) {
   // selectedPlanNumber가 null이고 groups가 있으면 첫 번째 그룹 자동 선택
+  // 단, groups가 변경되었을 때만 실행 (무한 루프 방지)
   useEffect(() => {
     if (selectedPlanNumber === null && groups.length > 0) {
       const firstGroupPlanNumber = groups[0]?.planNumber ?? null;
@@ -37,7 +38,7 @@ export function SinglePlanView({
       }
     }
     // onSelectPlan은 부모 컴포넌트에서 useCallback으로 메모이제이션되어 있어야 함
-    // groups.length와 첫 번째 그룹의 id를 추적하여 변경 감지
+    // groups의 첫 번째 요소가 변경되었을 때만 실행
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPlanNumber, groups.length, groups[0]?.plan?.id]);
 

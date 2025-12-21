@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SinglePlanView } from "./SinglePlanView";
 import { DailyPlanListView } from "./DailyPlanListView";
 import { ViewModeSelector } from "./ViewModeSelector";
@@ -86,6 +86,10 @@ export function PlanViewContainer({
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
     initialSelectedPlanNumber
   );
+  
+  // 사용자가 마지막으로 선택한 planNumber 추적 (같은 날짜 내에서 유지)
+  const lastUserSelectedPlanNumber = useRef<number | null>(null);
+  const lastPlanDate = useRef<string>(initialPlanDate || getTodayISODate());
 
   // 날짜 상태 관리 (초기값은 initialPlanDate 또는 오늘 날짜)
   const [planDate, setPlanDate] = useState<string>(() => {
@@ -137,7 +141,7 @@ export function PlanViewContainer({
     enabled: Boolean(userId && planDate),
   });
 
-  // 데이터가 로드되면 날짜 변경 콜백 호출 및 선택된 플랜 번호 업데이트
+  // 데이터가 로드되면 날짜 변경 콜백 호출
   useEffect(() => {
     if (!plansData) return;
 
@@ -146,24 +150,57 @@ export function PlanViewContainer({
       isToday: Boolean(plansData.isToday),
       todayProgress: plansData.todayProgress,
     });
+  }, [plansData, onDateChange]);
 
-    // 선택된 플랜 번호 업데이트
-    if (groups.length > 0) {
-      setSelectedPlanNumber((prev) => {
-        if (prev != null && groups.some((g) => g.planNumber === prev)) {
-          return prev;
-        }
-        return groups[0]?.planNumber ?? null;
-      });
-    } else {
+  // groups가 변경되었을 때 selectedPlanNumber 업데이트
+  // planDate가 변경되었으면 첫 번째 그룹 선택, 같은 날짜면 사용자 선택 유지
+  useEffect(() => {
+    if (groups.length === 0) {
       setSelectedPlanNumber(null);
+      return;
     }
-  }, [plansData, onDateChange, groups]);
+
+    // planDate가 변경되었는지 확인
+    const isPlanDateChanged = planDate !== lastPlanDate.current;
+    if (isPlanDateChanged) {
+      lastPlanDate.current = planDate;
+      lastUserSelectedPlanNumber.current = null; // 날짜 변경 시 사용자 선택 초기화
+      // 날짜가 변경되었으므로 첫 번째 그룹 선택
+      setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+      return;
+    }
+
+    // 같은 날짜 내에서 groups가 변경된 경우
+    setSelectedPlanNumber((prev) => {
+      // 사용자가 선택한 planNumber가 여전히 유효한지 확인
+      const userSelected = lastUserSelectedPlanNumber.current;
+      if (userSelected != null && groups.some((g) => g.planNumber === userSelected)) {
+        return userSelected; // 유효하면 유지
+      }
+      
+      // 현재 선택된 planNumber가 여전히 유효한지 확인
+      if (prev != null && groups.some((g) => g.planNumber === prev)) {
+        return prev; // 유효하면 유지
+      }
+      
+      // 유효하지 않으면 첫 번째 그룹 선택
+      // 단, prev가 null이면 SinglePlanView의 useEffect가 처리하도록 함
+      return prev === null ? null : (groups[0]?.planNumber ?? null);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, planDate]);
 
   const handleViewDetail = (planNumber: number | null) => {
+    lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
     setSelectedPlanNumber(planNumber);
     setViewMode("single");
   };
+  
+  // selectedPlanNumber를 직접 변경하는 핸들러 (SinglePlanView에서 사용)
+  const handleSelectPlan = useCallback((planNumber: number | null) => {
+    lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
+    setSelectedPlanNumber(planNumber);
+  }, []);
 
   const handleModeChange = (mode: ViewMode) => {
     setViewMode(mode);
@@ -257,7 +294,7 @@ export function PlanViewContainer({
           sessions={sessions}
           planDate={planDate}
           selectedPlanNumber={selectedPlanNumber}
-          onSelectPlan={setSelectedPlanNumber}
+          onSelectPlan={handleSelectPlan}
           serverNow={serverNow}
           campMode={campMode}
         />
