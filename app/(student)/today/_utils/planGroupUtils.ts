@@ -21,17 +21,36 @@ export type PlanGroup = {
 };
 
 /**
- * 같은 plan_number를 가진 플랜들을 그룹화
- * 같은 plan_number를 가진 플랜들은 같은 정보를 가지므로, 가장 빠른 시작 시간을 가진 플랜 하나만 선택
+ * 조건부 그룹화: 분할된 플랜만 그룹화하고 나머지는 개별 표시
+ * 
+ * - is_partial === true 또는 is_continued === true인 플랜만 plan_number로 그룹화
+ *   (비학습 시간으로 인해 여러 시간 블록에 걸쳐 쪼개진 플랜)
+ * - 그 외의 플랜은 모두 개별적으로 표시하여 모든 플랜이 보이도록 함
+ * 
+ * @param plans 플랜 배열
+ * @returns 그룹화된 플랜 배열 (분할된 플랜은 그룹화, 나머지는 개별 표시)
  */
 export function groupPlansByPlanNumber(plans: PlanWithContent[] | null | undefined): PlanGroup[] {
   if (!plans || !Array.isArray(plans)) {
     return [];
   }
 
-  const groups = new Map<number | null, PlanWithContent[]>();
+  // 1. 분할된 플랜과 분할되지 않은 플랜 분리
+  const splitPlans: PlanWithContent[] = []; // 그룹화 대상
+  const individualPlans: PlanWithContent[] = []; // 개별 표시 대상
 
   plans.forEach((plan) => {
+    // is_partial 또는 is_continued가 true인 경우만 그룹화 대상
+    if (plan.is_partial === true || plan.is_continued === true) {
+      splitPlans.push(plan);
+    } else {
+      individualPlans.push(plan);
+    }
+  });
+
+  // 2. 분할된 플랜만 plan_number로 그룹화
+  const groups = new Map<number | null, PlanWithContent[]>();
+  splitPlans.forEach((plan) => {
     const planNumber = plan.plan_number ?? null;
     if (!groups.has(planNumber)) {
       groups.set(planNumber, []);
@@ -39,7 +58,7 @@ export function groupPlansByPlanNumber(plans: PlanWithContent[] | null | undefin
     groups.get(planNumber)!.push(plan);
   });
 
-  return Array.from(groups.entries()).map(([planNumber, plans]) => {
+  const groupedPlans: PlanGroup[] = Array.from(groups.entries()).map(([planNumber, plans]) => {
     // 같은 plan_number를 가진 플랜 중 가장 빠른 시작 시간을 가진 플랜 선택
     const selectedPlan = plans.reduce((earliest, current) => {
       const earliestTime = earliest.start_time || "";
@@ -64,6 +83,36 @@ export function groupPlansByPlanNumber(plans: PlanWithContent[] | null | undefin
       content: selectedPlan?.content,
       sequence: selectedPlan?.sequence ?? null,
     };
+  });
+
+  // 3. 분할되지 않은 플랜을 개별 PlanGroup으로 변환
+  const individualGroups: PlanGroup[] = individualPlans.map((plan) => ({
+    planNumber: plan.plan_number ?? null, // 원래 plan_number 유지 (표시용)
+    plan,
+    content: plan.content,
+    sequence: plan.sequence ?? null,
+  }));
+
+  // 4. 결과 병합 및 정렬 (start_time 또는 block_index 기준)
+  const allGroups = [...groupedPlans, ...individualGroups];
+  
+  return allGroups.sort((a, b) => {
+    const aTime = a.plan.start_time || "";
+    const bTime = b.plan.start_time || "";
+    
+    // start_time이 있으면 시간 비교
+    if (aTime && bTime) {
+      return aTime < bTime ? -1 : aTime > bTime ? 1 : 0;
+    }
+    
+    // start_time이 있는 것 우선
+    if (aTime && !bTime) return -1;
+    if (!aTime && bTime) return 1;
+    
+    // 둘 다 없으면 block_index로 비교
+    const aIndex = a.plan.block_index ?? 0;
+    const bIndex = b.plan.block_index ?? 0;
+    return aIndex - bIndex;
   });
 }
 

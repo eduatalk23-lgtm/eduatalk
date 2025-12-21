@@ -525,6 +525,57 @@ async function _generatePlansFromGroupRefactored(
     reverseContentIdMap.set(resolvedId, originalId);
   });
 
+  // 콘텐츠별 회차 계산을 위한 맵
+  // key: content_id, value: { lastSequence: number, seenPlanNumbers: Set<number | null>, planNumberToSequence: Map<number | null, number> }
+  const contentSequenceMap = new Map<
+    string,
+    {
+      lastSequence: number;
+      seenPlanNumbers: Set<number | null>;
+      planNumberToSequence: Map<number | null, number>;
+    }
+  >();
+
+  /**
+   * 콘텐츠별 회차 계산 함수
+   * 같은 plan_number를 가진 플랜들은 같은 회차를 가짐
+   * 쪼개진 플랜(episode 분할)도 원본 plan_number를 유지하여 같은 회차 사용
+   */
+  function calculateContentSequence(
+    contentId: string,
+    planNumber: number | null
+  ): number {
+    if (!contentSequenceMap.has(contentId)) {
+      contentSequenceMap.set(contentId, {
+        lastSequence: 0,
+        seenPlanNumbers: new Set(),
+        planNumberToSequence: new Map(),
+      });
+    }
+
+    const contentSeq = contentSequenceMap.get(contentId)!;
+
+    // 같은 plan_number를 가진 플랜이 이미 있으면 그 회차를 재사용
+    if (planNumber !== null && contentSeq.planNumberToSequence.has(planNumber)) {
+      return contentSeq.planNumberToSequence.get(planNumber)!;
+    }
+
+    // plan_number가 null이거나 새로운 plan_number인 경우
+    if (planNumber === null) {
+      // null은 개별 카운트
+      contentSeq.lastSequence++;
+      return contentSeq.lastSequence;
+    } else {
+      // 새로운 plan_number인 경우 회차 증가
+      if (!contentSeq.seenPlanNumbers.has(planNumber)) {
+        contentSeq.seenPlanNumbers.add(planNumber);
+        contentSeq.lastSequence++;
+        contentSeq.planNumberToSequence.set(planNumber, contentSeq.lastSequence);
+      }
+      return contentSeq.planNumberToSequence.get(planNumber)!;
+    }
+  }
+
   // 각 날짜별로 처리
   for (const [date, datePlans] of plansByDate.entries()) {
     const timeSlotsForDate = dateTimeSlots.get(date) || [];
@@ -548,7 +599,8 @@ async function _generatePlansFromGroupRefactored(
     const totalStudyHours = dailySchedule?.study_hours || 0;
     const dayType = dateMetadata.day_type || "학습일";
 
-    const plansForAssign = datePlans.map((plan) => {
+    // 원본 플랜 정보를 추적하기 위해 인덱스와 함께 저장
+    const plansForAssign = datePlans.map((plan, originalIndex) => {
       const finalContentId =
         contentIdMap.get(plan.content_id) || plan.content_id;
       return {
@@ -561,6 +613,10 @@ async function _generatePlansFromGroupRefactored(
         // Preserve pre-calculated times if available (from SchedulerEngine)
         _precalculated_start: plan.start_time,
         _precalculated_end: plan.end_time,
+        // 원본 플랜 인덱스 저장 (회차 계산용)
+        _originalIndex: originalIndex,
+      } as import("@/lib/plan/assignPlanTimes").PlanTimeInput & {
+        _originalIndex: number;
       };
     });
 
@@ -625,7 +681,16 @@ async function _generatePlansFromGroupRefactored(
           return [p];
         }
         // 범위가 있는 경우에만 분할
-        return splitPlanTimeInputByEpisodes(p, contentDurationMap);
+        const splitPlans = splitPlanTimeInputByEpisodes(p, contentDurationMap);
+        // 분할된 플랜들도 원본 인덱스 유지
+        return splitPlans.map((splitPlan) => ({
+          ...splitPlan,
+          _originalIndex: p._originalIndex,
+        })) as Array<
+          import("@/lib/plan/assignPlanTimes").PlanTimeInput & {
+            _originalIndex: number;
+          }
+        >;
       }
       return [p];
     });
@@ -713,6 +778,44 @@ async function _generatePlansFromGroupRefactored(
         segment.plan.content_id;
       const metadata = contentMetadataMap.get(originalContentId) || {};
 
+      // 원본 플랜 찾기 (회차 계산용)
+      const originalPlanIndex = segment.plan._originalIndex ?? 0;
+      const originalPlan = datePlans[originalPlanIndex];
+
+      // plan_number 추론: 같은 콘텐츠의 같은 범위를 가진 플랜들을 그룹화
+      // 실제로는 스케줄러에서 plan_number를 생성해야 하지만, 현재는 없으므로
+      // 콘텐츠 ID와 범위를 기반으로 고유한 plan_number 생성
+      // 같은 콘텐츠의 같은 범위를 가진 플랜들은 같은 plan_number를 가짐
+      let planNumber: number | null = null;
+      if (originalPlan) {
+        // 콘텐츠 ID와 범위를 기반으로 고유 키 생성
+        // 같은 키를 가진 플랜들은 같은 plan_number를 가짐
+        const planKey = `${originalPlan.content_id}-${originalPlan.planned_start_page_or_time}-${originalPlan.planned_end_page_or_time}`;
+        
+        // 날짜별로 처리하므로, 같은 날짜 내에서만 plan_number를 추론
+        // 같은 날짜에 같은 콘텐츠의 같은 범위를 가진 첫 번째 플랜의 인덱스를 plan_number로 사용
+        const sameRangePlans = datePlans.filter(
+          (p) =>
+            p.content_id === originalPlan.content_id &&
+            p.planned_start_page_or_time ===
+              originalPlan.planned_start_page_or_time &&
+            p.planned_end_page_or_time === originalPlan.planned_end_page_or_time
+        );
+        if (sameRangePlans.length > 0) {
+          const firstSameRangeIndex = datePlans.findIndex(
+            (p) => p === sameRangePlans[0]
+          );
+          // plan_number는 1부터 시작하도록 조정
+          planNumber = firstSameRangeIndex >= 0 ? firstSameRangeIndex + 1 : null;
+        }
+      }
+
+      // 콘텐츠별 회차 계산
+      const contentSequence = calculateContentSequence(
+        segment.plan.content_id,
+        planNumber
+      );
+
       // 주차별 일차 계산
       let weekDay: number | null = null;
       if (dateMetadata.week_number) {
@@ -747,10 +850,11 @@ async function _generatePlansFromGroupRefactored(
         content_subject_category: metadata?.subject_category || null,
         created_at: now,
         updated_at: now,
-        sequence: globalSequence++,
+        sequence: contentSequence, // 콘텐츠별 회차 사용
       });
 
       blockIndex++;
+      globalSequence++; // 전역 회차는 계속 증가 (필요한 경우 사용)
     }
   }
 
