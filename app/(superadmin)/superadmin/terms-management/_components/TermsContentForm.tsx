@@ -14,6 +14,7 @@ import FormMessage from "@/components/ui/FormMessage";
 import FormSubmitButton from "@/components/ui/FormSubmitButton";
 import Button from "@/components/atoms/Button";
 import { X } from "lucide-react";
+import { isErrorResponse } from "@/lib/types/actionResponse";
 
 type TermsContentFormProps = {
   contentType: TermsContentType;
@@ -148,8 +149,8 @@ export function TermsContentForm({
         setTitle(result.data.title);
         setContent(result.data.content);
         setShouldActivate(result.data.is_active);
-      } else {
-        console.error("약관 로드 실패:", result.error);
+      } else if (isErrorResponse(result)) {
+        console.error("약관 로드 실패:", result.error || result.message);
       }
     } catch (error) {
       console.error("약관 로드 실패:", error);

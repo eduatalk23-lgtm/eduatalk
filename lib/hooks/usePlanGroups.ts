@@ -6,6 +6,9 @@ import {
   getPlanGroupsWithStats,
   type PlanGroupFilters,
 } from "@/lib/data/planGroups";
+
+// PlanGroupFilters를 re-export하여 다른 컴포넌트에서 사용 가능하도록 함
+export type { PlanGroupFilters };
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,

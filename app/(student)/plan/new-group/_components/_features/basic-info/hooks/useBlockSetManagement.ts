@@ -203,13 +203,10 @@ export function useBlockSetManagement({
               name: newBlockSetName.trim(),
             });
 
+            // createTenantBlockSet는 ActionResponse를 반환하지 않고 직접 객체를 반환
             const templateResult = await createTenantBlockSet(templateFormData);
-            if (!isSuccessResponse(templateResult) || !templateResult.data) {
-              const errorMessage = isErrorResponse(templateResult) ? (templateResult.error || templateResult.message) : "테넌트 블록 세트 생성에 실패했습니다.";
-              throw new Error(errorMessage);
-            }
-            blockSetId = templateResult.data.blockSetId;
-            blockSetName = templateResult.data.name;
+            blockSetId = templateResult.blockSetId;
+            blockSetName = templateResult.name;
 
             console.log("[Step1BasicInfo] 테넌트 블록 세트 생성 성공:", {
               block_set_id: blockSetId,
@@ -223,6 +220,7 @@ export function useBlockSetManagement({
               const errorMessage = isErrorResponse(result) ? (result.error || result.message) : "블록 세트 생성에 실패했습니다.";
               throw new Error(errorMessage);
             }
+            // createBlockSet는 ActionResponse를 반환
             blockSetId = result.data.blockSetId;
             blockSetName = result.data.name;
           }

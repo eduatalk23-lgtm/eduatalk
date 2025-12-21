@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { X } from "lucide-react";
 import Button from "@/components/atoms/Button";
+import { isErrorResponse } from "@/lib/types/actionResponse";
 
 type TermsPreviewProps = {
   contentId: string;
@@ -29,8 +30,10 @@ export function TermsPreview({ contentId, onClose }: TermsPreviewProps) {
       const result = await getTermsContentById(contentId);
       if (result.success && result.data) {
         setContent(result.data);
+      } else if (isErrorResponse(result)) {
+        setError(result.error || result.message || "약관을 찾을 수 없습니다.");
       } else {
-        setError(result.error || "약관을 찾을 수 없습니다.");
+        setError("약관을 찾을 수 없습니다.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");

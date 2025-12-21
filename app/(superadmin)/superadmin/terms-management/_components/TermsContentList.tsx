@@ -5,6 +5,7 @@ import { getTermsContents } from "@/app/(superadmin)/actions/termsContents";
 import type { TermsContent, TermsContentType } from "@/lib/types/terms";
 import Button from "@/components/atoms/Button";
 import { Plus, Eye, Edit, CheckCircle, XCircle } from "lucide-react";
+import { isErrorResponse } from "@/lib/types/actionResponse";
 
 type TermsContentListProps = {
   contentType: TermsContentType;
@@ -34,8 +35,10 @@ export function TermsContentList({
       const result = await getTermsContents(contentType);
       if (result.success && result.data) {
         setContents(result.data);
+      } else if (isErrorResponse(result)) {
+        setError(result.error || result.message || "약관 목록을 불러오는데 실패했습니다.");
       } else {
-        setError(result.error || "약관 목록을 불러오는데 실패했습니다.");
+        setError("약관 목록을 불러오는데 실패했습니다.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");

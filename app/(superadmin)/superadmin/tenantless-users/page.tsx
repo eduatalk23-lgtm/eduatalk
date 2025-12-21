@@ -3,6 +3,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantlessUsers } from "@/app/(superadmin)/actions/tenantlessUserActions";
 import { TenantlessUsersList } from "./_components/TenantlessUsersList";
 import Link from "next/link";
+import { isErrorResponse } from "@/lib/types/actionResponse";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function TenantlessUsersPage({
 
           <div className="rounded-lg border border-red-200 bg-red-50 p-6 shadow-sm flex flex-col gap-2">
             <h3 className="text-lg font-semibold text-red-900">오류 발생</h3>
-            <p className="text-sm text-red-800">{result.error || "사용자 목록을 조회할 수 없습니다."}</p>
+            <p className="text-sm text-red-800">{isErrorResponse(result) ? (result.error || result.message || "사용자 목록을 조회할 수 없습니다.") : "사용자 목록을 조회할 수 없습니다."}</p>
           </div>
         </div>
       </section>

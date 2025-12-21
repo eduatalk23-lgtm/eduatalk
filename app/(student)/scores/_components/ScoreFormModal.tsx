@@ -281,7 +281,8 @@ export function ScoreFormModal({
           submitFormData.append("total_students", formData.total_students);
         submitFormData.append("curriculum_revision_id", curriculumRevisionId);
 
-        let result: ActionResponse;
+        // createInternalScore와 updateInternalScore는 ActionResponse<{ success: boolean; scoreId?: string }>를 반환
+        let result: ActionResponse<{ success: boolean; scoreId?: string }>;
         if (editingScore) {
           result = await updateInternalScore(editingScore.id, submitFormData);
         } else {

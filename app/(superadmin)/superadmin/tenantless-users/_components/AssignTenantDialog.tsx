@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { assignTenantToUser, assignTenantToMultipleUsers, getActiveTenants, type TenantlessUser } from "@/app/(superadmin)/actions/tenantlessUserActions";
 import { Dialog } from "@/components/ui/Dialog";
 import { useServerAction } from "@/lib/hooks/useServerAction";
+import { isErrorResponse } from "@/lib/types/actionResponse";
 
 type AssignTenantDialogProps = {
   open: boolean;
@@ -68,8 +69,10 @@ export function AssignTenantDialog({
             if (firstTenant?.id) {
               setSelectedTenantId(firstTenant.id);
             }
+          } else if (isErrorResponse(result)) {
+            setError(result.error || result.message || "테넌트 목록을 불러올 수 없습니다.");
           } else {
-            setError(result.error || "테넌트 목록을 불러올 수 없습니다.");
+            setError("테넌트 목록을 불러올 수 없습니다.");
           }
         })
         .catch((err) => {
