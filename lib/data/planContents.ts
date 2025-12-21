@@ -358,14 +358,34 @@ export async function fetchStudentCustomContents(
       .order("created_at", { ascending: false });
 
     if (error) {
-      // Supabase 에러를 더 자세히 로깅
-      console.error("[data/planContents] Supabase 쿼리 에러:", {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
+      // Supabase 에러를 더 자세히 로깅 (안전한 직렬화)
+      const errorInfo: Record<string, unknown> = {
         studentId,
-      });
+      };
+      
+      // 에러 객체의 모든 속성을 안전하게 추출
+      if (error.message) errorInfo.message = String(error.message);
+      if (error.code) errorInfo.code = String(error.code);
+      if (error.details) errorInfo.details = String(error.details);
+      if (error.hint) errorInfo.hint = String(error.hint);
+      
+      // 에러 객체 전체를 JSON으로 직렬화 시도
+      try {
+        errorInfo.errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      } catch {
+        errorInfo.errorString = String(error);
+      }
+      
+      // 에러 객체의 모든 키를 로깅
+      if (typeof error === "object" && error !== null) {
+        errorInfo.errorKeys = Object.keys(error);
+        errorInfo.errorValues = Object.entries(error).reduce((acc, [key, value]) => {
+          acc[key] = typeof value === "object" ? JSON.stringify(value) : String(value);
+          return acc;
+        }, {} as Record<string, string>);
+      }
+      
+      console.error("[data/planContents] Supabase 쿼리 에러:", errorInfo);
       throw error;
     }
 
@@ -411,24 +431,82 @@ export async function fetchStudentCustomContents(
       studentId,
     };
 
+    // Error 인스턴스인 경우
     if (err instanceof Error) {
-      errorDetails.error = err.message;
-      errorDetails.stack = err.stack;
-      errorDetails.name = err.name;
-    } else {
+      errorDetails.error = err.message || "Unknown error";
+      errorDetails.stack = err.stack || undefined;
+      errorDetails.name = err.name || "Error";
+      
+      // Error 객체의 모든 속성 추출
+      const errorProps = Object.getOwnPropertyNames(err);
+      errorDetails.errorProperties = errorProps;
+      
+      // 각 속성 값을 안전하게 추출
+      const errorValues: Record<string, string> = {};
+      errorProps.forEach((prop) => {
+        try {
+          const value = (err as Record<string, unknown>)[prop];
+          errorValues[prop] = typeof value === "object" 
+            ? JSON.stringify(value) 
+            : String(value ?? "null");
+        } catch {
+          errorValues[prop] = "[unable to serialize]";
+        }
+      });
+      errorDetails.errorPropertyValues = errorValues;
+    } else if (err && typeof err === "object") {
+      // 객체인 경우
       errorDetails.error = String(err);
-      errorDetails.rawError = err;
+      errorDetails.errorType = typeof err;
+      errorDetails.errorKeys = Object.keys(err);
+      
+      // 객체의 모든 속성을 안전하게 직렬화
+      const errorValues: Record<string, string> = {};
+      Object.entries(err).forEach(([key, value]) => {
+        try {
+          errorValues[key] = typeof value === "object" 
+            ? JSON.stringify(value) 
+            : String(value ?? "null");
+        } catch {
+          errorValues[key] = "[unable to serialize]";
+        }
+      });
+      errorDetails.errorValues = errorValues;
+      
+      // Supabase PostgrestError의 경우 추가 정보 포함
+      if ("code" in err) {
+        errorDetails.code = String((err as { code?: unknown }).code ?? "undefined");
+      }
+      if ("details" in err) {
+        errorDetails.details = String((err as { details?: unknown }).details ?? "undefined");
+      }
+      if ("hint" in err) {
+        errorDetails.hint = String((err as { hint?: unknown }).hint ?? "undefined");
+      }
+      if ("message" in err) {
+        errorDetails.message = String((err as { message?: unknown }).message ?? "undefined");
+      }
+    } else {
+      // 원시 타입인 경우
+      errorDetails.error = String(err);
+      errorDetails.errorType = typeof err;
     }
 
-    // Supabase PostgrestError의 경우 추가 정보 포함
-    if (err && typeof err === "object" && "code" in err) {
-      errorDetails.code = (err as { code?: string }).code;
-      errorDetails.details = (err as { details?: string }).details;
-      errorDetails.hint = (err as { hint?: string }).hint;
-      errorDetails.message = (err as { message?: string }).message;
+    // 최종 로깅 (JSON.stringify로 안전하게 직렬화)
+    try {
+      console.error(
+        "[data/planContents] 커스텀 콘텐츠 목록 조회 실패",
+        JSON.parse(JSON.stringify(errorDetails, null, 2))
+      );
+    } catch {
+      // JSON 직렬화 실패 시 직접 로깅
+      console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", {
+        studentId: errorDetails.studentId,
+        error: String(err),
+        errorType: typeof err,
+      });
     }
-
-    console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", errorDetails);
+    
     return [];
   }
 }
