@@ -1076,6 +1076,7 @@ export async function createPlanContents(
 
 /**
  * 플랜 그룹 제외일 조회 (플랜 그룹별 관리)
+ * 캠프 플랜인 경우 템플릿 제외일을 자동으로 포함합니다.
  */
 export async function getPlanExclusions(
   groupId: string,
@@ -1108,7 +1109,68 @@ export async function getPlanExclusions(
     return [];
   }
 
-  return (data as PlanExclusion[] | null) ?? [];
+  const dbExclusions = (data as PlanExclusion[] | null) ?? [];
+
+  // 캠프 플랜인 경우 템플릿 제외일 확인 및 포함
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("camp_template_id, plan_type, student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (planGroup?.plan_type === "camp" && planGroup.camp_template_id) {
+    try {
+      const { getCampTemplate } = await import("@/lib/data/campTemplates");
+      const template = await getCampTemplate(planGroup.camp_template_id);
+
+      if (template?.template_data?.exclusions) {
+        const templateExclusions = template.template_data.exclusions;
+        const dbExclusionDates = new Set(
+          dbExclusions.map((e) => e.exclusion_date)
+        );
+
+        // 템플릿 제외일 중 DB에 없는 것만 추가
+        const missingTemplateExclusions = templateExclusions.filter(
+          (te) => !dbExclusionDates.has(te.exclusion_date)
+        );
+
+        // 템플릿 제외일을 PlanExclusion 형식으로 변환하여 추가
+        const templateExclusionsAsPlanExclusions: PlanExclusion[] =
+          missingTemplateExclusions.map((te) => ({
+            id: `template-${te.exclusion_date}`, // 임시 ID (템플릿 제외일임을 표시)
+            tenant_id: tenantId || "",
+            student_id: planGroup.student_id || "",
+            plan_group_id: groupId,
+            exclusion_date: te.exclusion_date,
+            exclusion_type: te.exclusion_type,
+            reason: te.reason || null,
+            created_at: new Date().toISOString(),
+          }));
+
+        // DB 제외일과 템플릿 제외일을 합쳐서 반환 (날짜 순 정렬)
+        const allExclusions = [
+          ...dbExclusions,
+          ...templateExclusionsAsPlanExclusions,
+        ].sort((a, b) => {
+          const dateA = new Date(a.exclusion_date).getTime();
+          const dateB = new Date(b.exclusion_date).getTime();
+          return dateA - dateB;
+        });
+
+        return allExclusions;
+      }
+    } catch (templateError) {
+      // 템플릿 조회 실패 시 로그만 남기고 DB 제외일만 반환
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "[getPlanExclusions] 템플릿 제외일 조회 실패:",
+          templateError
+        );
+      }
+    }
+  }
+
+  return dbExclusions;
 }
 
 /**

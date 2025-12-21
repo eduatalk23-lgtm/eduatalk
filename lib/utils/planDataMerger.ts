@@ -4,6 +4,9 @@
 
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { TemplateLockedFields } from "@/lib/types/plan/input";
+import {
+  isHigherPriorityExclusionType,
+} from "@/lib/utils/exclusionHierarchy";
 
 /**
  * 템플릿 데이터와 학생 입력 데이터를 병합합니다.
@@ -34,14 +37,50 @@ export function mergeTemplateDataWithStudentInput(
     (s) => s.source === "template"
   );
 
-  // 학생 입력 제외일 (템플릿 제외일 제외, 중복 제거)
-  const studentExclusions = (studentInput.exclusions || []).filter(
-    (e) =>
-      e.source !== "template" &&
-      !templateExclusions.some(
-        (te) => te.exclusion_date === e.exclusion_date
-      )
-  );
+  // 학생 입력 제외일 처리 (위계 기반 병합)
+  const mergedExclusions: typeof templateExclusions = [...templateExclusions];
+
+  (studentInput.exclusions || []).forEach((studentExclusion) => {
+    // 템플릿 제외일이 아닌 경우만 처리
+    if (studentExclusion.source === "template") {
+      return;
+    }
+
+    // 같은 날짜의 템플릿 제외일 찾기
+    const templateExclusion = templateExclusions.find(
+      (te) => te.exclusion_date === studentExclusion.exclusion_date
+    );
+
+    if (templateExclusion) {
+      // 템플릿 제외일이 있는 경우: 위계 비교
+      if (
+        isHigherPriorityExclusionType(
+          studentExclusion.exclusion_type,
+          templateExclusion.exclusion_type
+        )
+      ) {
+        // 학생 제외일이 더 높은 위계 → 템플릿 제외일 교체
+        const index = mergedExclusions.findIndex(
+          (e) => e.exclusion_date === studentExclusion.exclusion_date
+        );
+        if (index !== -1) {
+          mergedExclusions[index] = {
+            ...studentExclusion,
+            source: "student" as const,
+            is_locked: false,
+          };
+        }
+      }
+      // 학생 제외일이 같거나 낮은 위계 → 템플릿 제외일 유지 (무시)
+    } else {
+      // 템플릿 제외일이 없는 경우: 학생 제외일 추가
+      mergedExclusions.push({
+        ...studentExclusion,
+        source: "student" as const,
+        is_locked: false,
+      });
+    }
+  });
 
   // 학생 입력 학원 일정 (템플릿 학원 일정 제외)
   const studentAcademySchedules = (studentInput.academy_schedules || []).filter(
@@ -59,8 +98,8 @@ export function mergeTemplateDataWithStudentInput(
     period_start: studentInput.period_start || templateData.period_start || "",
     period_end: studentInput.period_end || templateData.period_end || "",
     block_set_id: studentInput.block_set_id || templateBlockSetId || "",
-    // 제외일: 템플릿 기본값 + 학생 추가 제외일
-    exclusions: [...templateExclusions, ...studentExclusions],
+    // 제외일: 템플릿 기본값 + 학생 추가 제외일 (위계 기반 병합)
+    exclusions: mergedExclusions,
     // 학원 일정: 템플릿 기본값 + 학생 추가 학원 일정
     academy_schedules: [...templateAcademySchedules, ...studentAcademySchedules],
     // 학생 콘텐츠는 학생 입력만 사용

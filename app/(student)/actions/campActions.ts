@@ -13,6 +13,10 @@ import { WizardData } from "../plan/new-group/_components/PlanGroupWizard";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SchedulerOptions } from "@/lib/types/plan";
+import {
+  getExclusionTypeHierarchy,
+  isHigherPriorityExclusionType,
+} from "@/lib/utils/exclusionHierarchy";
 
 /**
  * 학생의 캠프 초대 목록 조회
@@ -353,17 +357,55 @@ export const submitCampParticipation = withErrorHandling(
       student_contents: wizardData.student_contents || [],
       // 학생이 선택한 추천 콘텐츠만 저장 (템플릿의 recommended_contents는 초기값으로만 사용)
       recommended_contents: wizardData.recommended_contents || [],
-      // 제외일: 템플릿 기본값 (source, is_locked 포함) + 학생 추가 제외일
-      exclusions: [
-        ...templateExclusions,
-        ...(wizardData.exclusions?.filter(
-          (e) =>
-            e.source !== "template" && // 템플릿 제외일 제외
-            !templateExclusions.some(
-              (te) => te.exclusion_date === e.exclusion_date
-            )
-        ) || []),
-      ],
+      // 제외일: 템플릿 기본값 (source, is_locked 포함) + 학생 추가 제외일 (위계 기반 병합)
+      exclusions: (() => {
+        const mergedExclusions: typeof templateExclusions = [...templateExclusions];
+
+        // 학생 제외일 처리
+        (wizardData.exclusions || []).forEach((studentExclusion) => {
+          // 템플릿 제외일이 아닌 경우만 처리
+          if (studentExclusion.source === "template") {
+            return;
+          }
+
+          // 같은 날짜의 템플릿 제외일 찾기
+          const templateExclusion = templateExclusions.find(
+            (te) => te.exclusion_date === studentExclusion.exclusion_date
+          );
+
+          if (templateExclusion) {
+            // 템플릿 제외일이 있는 경우: 위계 비교
+            if (
+              isHigherPriorityExclusionType(
+                studentExclusion.exclusion_type,
+                templateExclusion.exclusion_type
+              )
+            ) {
+              // 학생 제외일이 더 높은 위계 → 템플릿 제외일 교체
+              const index = mergedExclusions.findIndex(
+                (e) => e.exclusion_date === studentExclusion.exclusion_date
+              );
+              if (index !== -1) {
+                mergedExclusions[index] = {
+                  ...studentExclusion,
+                  source: "student" as const,
+                  is_locked: false,
+                };
+              }
+            }
+            // 학생 제외일이 같거나 낮은 위계 → 템플릿 제외일 유지 (무시)
+          } else {
+            // 템플릿 제외일이 없는 경우: 학생 제외일 추가
+            mergedExclusions.push({
+              ...studentExclusion,
+              source: "student" as const,
+              is_locked: false,
+            });
+          }
+        });
+
+        return mergedExclusions;
+      })(),
       // 캠프 모드: 전략과목/취약과목 설정은 관리자 검토 후 설정하므로 null로 저장
       subject_allocations: undefined,
       student_level:
