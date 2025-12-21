@@ -18,13 +18,16 @@ export function PlanSelector({
   onSelect,
   sessions,
 }: PlanSelectorProps) {
-  // 현재 선택된 그룹 찾기 (planNumber로 먼저 찾고, 없으면 첫 번째 그룹)
-  const currentGroup = groups.find(
-    (g) => g.planNumber === selectedPlanNumber
-  ) || groups[0];
+  // 현재 선택된 그룹 찾기
+  const currentGroup = selectedPlanNumber !== null
+    ? groups.find((g) => g.planNumber === selectedPlanNumber)
+    : null;
   
-  const currentIndex = currentGroup 
-    ? groups.findIndex((g) => g.plan.id === currentGroup.plan.id)
+  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용 (하지만 selectedPlanNumber는 null 유지)
+  const displayGroup = currentGroup || groups[0];
+  
+  const currentIndex = displayGroup 
+    ? groups.findIndex((g) => g.plan.id === displayGroup.plan.id)
     : -1;
 
   const handlePrevious = () => {
@@ -74,7 +77,7 @@ export function PlanSelector({
 
       <div className="flex-1">
         <select
-          value={currentGroup?.plan.id ?? ""}
+          value={displayGroup?.plan.id ?? ""}
           onChange={(e) => {
             const selectedPlanId = e.target.value;
             const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
@@ -113,7 +116,7 @@ export function PlanSelector({
         <ChevronRight className="h-5 w-5" />
       </button>
 
-      {currentGroup && currentIndex >= 0 && (
+      {displayGroup && currentIndex >= 0 && (
         <div className="text-xs text-gray-500">
           {currentIndex + 1} / {groups.length}
         </div>

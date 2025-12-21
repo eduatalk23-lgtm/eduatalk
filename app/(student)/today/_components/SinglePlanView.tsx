@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { PlanCard } from "./PlanCard";
 import { PlanSelector } from "./PlanSelector";
 import { PlanGroup } from "../_utils/planGroupUtils";
@@ -27,6 +28,20 @@ export function SinglePlanView({
   serverNow = Date.now(),
   campMode = false,
 }: SinglePlanViewProps) {
+  // 첫 번째 그룹의 planNumber 메모이제이션
+  const firstGroupPlanNumber = useMemo(() => {
+    return groups[0]?.planNumber ?? null;
+  }, [groups]);
+
+  // selectedPlanNumber가 null이고 groups가 있으면 첫 번째 그룹 자동 선택
+  useEffect(() => {
+    if (selectedPlanNumber === null && groups.length > 0 && firstGroupPlanNumber !== null) {
+      onSelectPlan(firstGroupPlanNumber);
+    }
+    // onSelectPlan은 부모 컴포넌트에서 useCallback으로 메모이제이션되어 있어야 함
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPlanNumber, groups.length, firstGroupPlanNumber]);
+
   const selectedGroup =
     groups.find((g) => g.planNumber === selectedPlanNumber) || groups[0];
 
@@ -55,7 +70,7 @@ export function SinglePlanView({
     <div className="flex flex-col gap-4">
       <PlanSelector
         groups={groups}
-        selectedPlanNumber={selectedPlanNumber ?? groups[0]?.planNumber ?? null}
+        selectedPlanNumber={selectedPlanNumber}
         onSelect={onSelectPlan}
         sessions={sessions}
       />
