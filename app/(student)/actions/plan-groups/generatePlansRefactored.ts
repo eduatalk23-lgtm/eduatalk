@@ -547,14 +547,56 @@ async function _generatePlansFromGroupRefactored(
   let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
   try {
     // generatePlansFromGroup에 전달하기 전에 contents의 content_id를 변환
-    // contentIdMap을 사용하여 원본 content_id를 학생 콘텐츠 ID로 변환
-    const transformedContents = contents.map((c) => {
-      const finalContentId = contentIdMap.get(c.content_id) || c.content_id;
-      return {
-        ...c,
-        content_id: finalContentId,
-      };
-    });
+    // contentIdMap에 매핑되지 않은 콘텐츠는 제외 (외래 키 제약 조건 위반 방지)
+    const transformedContents = contents
+      .filter((c) => {
+        // 더미 콘텐츠는 항상 포함
+        if (isDummyContent(c.content_id)) {
+          return true;
+        }
+        // contentIdMap에 매핑된 콘텐츠만 포함
+        return contentIdMap.has(c.content_id);
+      })
+      .map((c) => {
+        // contentIdMap에서 학생 콘텐츠 ID 가져오기
+        const finalContentId = contentIdMap.get(c.content_id) || c.content_id;
+        return {
+          ...c,
+          content_id: finalContentId,
+        };
+      });
+
+    // 변환된 콘텐츠가 없는 경우 에러
+    if (transformedContents.length === 0) {
+      const unmappedContents = contents.filter(
+        (c) => !contentIdMap.has(c.content_id) && !isDummyContent(c.content_id)
+      );
+      throw new AppError(
+        `플랜 생성에 실패했습니다. 모든 콘텐츠가 contentIdMap에 매핑되지 않았습니다. (${unmappedContents.length}개 콘텐츠 제외)`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // contentIdMap에 매핑되지 않은 콘텐츠가 있으면 경고
+    const excludedContents = contents.filter(
+      (c) => !contentIdMap.has(c.content_id) && !isDummyContent(c.content_id)
+    );
+    if (excludedContents.length > 0) {
+      console.warn(
+        `[generatePlansRefactored] contentIdMap에 매핑되지 않은 ${excludedContents.length}개 콘텐츠가 플랜 생성에서 제외됩니다:`,
+        {
+          groupId,
+          studentId,
+          excludedContentIds: excludedContents.map((c) => ({
+            content_id: c.content_id.substring(0, 8) + "...",
+            content_type: c.content_type,
+            master_content_id: c.master_content_id?.substring(0, 8) + "..." || null,
+          })),
+        }
+      );
+    }
 
     scheduledPlans = await generatePlansFromGroup(
       group,
