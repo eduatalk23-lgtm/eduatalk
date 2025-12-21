@@ -974,6 +974,25 @@ async function _generatePlansFromGroupRefactored(
         segment.plan.content_id;
       const metadata = contentMetadataMap.get(originalContentId) || {};
 
+      // contentIdMap을 사용하여 실제 학생 콘텐츠 ID로 변환
+      // segment.plan.content_id는 원본 콘텐츠 ID일 수 있으므로 contentIdMap에서 조회
+      const finalContentId = contentIdMap.get(originalContentId) || segment.plan.content_id;
+      
+      // contentIdMap에 없는 경우 플랜에서 제외
+      if (!contentIdMap.has(originalContentId)) {
+        console.warn(
+          `[generatePlansRefactored] 콘텐츠 ID(${originalContentId})가 contentIdMap에 없어 플랜에서 제외합니다.`,
+          {
+            groupId,
+            studentId,
+            date,
+            originalContentId,
+            segmentContentId: segment.plan.content_id,
+          }
+        );
+        continue;
+      }
+
       // 원본 플랜 찾기 (회차 계산용)
       const originalPlanIndex = segment.plan._originalIndex ?? 0;
       const originalPlan = datePlans[originalPlanIndex];
@@ -988,7 +1007,7 @@ async function _generatePlansFromGroupRefactored(
 
       // 콘텐츠별 회차 계산 (날짜 순서 고려)
       const contentSequence = calculateContentSequence(
-        segment.plan.content_id,
+        finalContentId,
         planNumber,
         date
       );
@@ -1011,7 +1030,7 @@ async function _generatePlansFromGroupRefactored(
         block_index: blockIndex,
         status: "pending",
         content_type: segment.plan.content_type,
-        content_id: segment.plan.content_id,
+        content_id: finalContentId,
         planned_start_page_or_time: segment.plan.planned_start_page_or_time,
         planned_end_page_or_time: segment.plan.planned_end_page_or_time,
         chapter: segment.plan.chapter || null,
