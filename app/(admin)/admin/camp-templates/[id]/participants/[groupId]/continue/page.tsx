@@ -214,14 +214,31 @@ export default async function CampContinuePage({
     contents: contentsForWizard.map((c) => {
       // classifyPlanContents에서 조회한 정보를 우선적으로 사용
       const classifiedContent = contentsMap.get(c.content_id);
+      
+      // master_content_id 결정: 
+      // 1. DB에 저장된 master_content_id (우선)
+      // 2. classifyPlanContents에서 조회한 masterContentId
+      // 3. 없으면 undefined
+      const masterContentId = c.master_content_id || classifiedContent?.masterContentId || undefined;
+      
+      if (process.env.NODE_ENV === "development") {
+        console.log("[CampContinuePage] 콘텐츠 변환:", {
+          content_id: c.content_id,
+          content_type: c.content_type,
+          db_master_content_id: c.master_content_id,
+          classified_masterContentId: classifiedContent?.masterContentId,
+          final_master_content_id: masterContentId,
+        });
+      }
+      
       return {
         ...c,
         // classifyPlanContents에서 조회한 정보가 있으면 사용
         // title과 subject_category를 명시적으로 전달하여 정보 손실 방지
-        // master_content_id는 원본 데이터(c.master_content_id)를 우선 사용
+        // master_content_id는 위에서 결정한 값 사용
         title: classifiedContent?.title || undefined,
         subject_category: classifiedContent?.subject_category || undefined,
-        master_content_id: c.master_content_id || classifiedContent?.masterContentId || undefined,
+        master_content_id: masterContentId,
       };
     }),
     exclusions,
