@@ -41,11 +41,11 @@ export const createSuccessResponse = <T = void>(
   message,
 });
 
-export const createErrorResponse = (
+export const createErrorResponse = <T = void>(
   error: string,
   validationErrors?: Record<string, string[]>,
   message?: string
-): ActionResponse => ({
+): ActionResponse<T> => ({
   success: false,
   error,
   validationErrors,

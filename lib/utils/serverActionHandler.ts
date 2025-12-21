@@ -29,12 +29,12 @@ function formatZodErrors(error: z.ZodError): Record<string, string[]> {
 /**
  * 에러를 ActionResponse로 변환
  */
-function errorToActionResponse(error: unknown): ActionResponse {
+function errorToActionResponse<T = void>(error: unknown): ActionResponse<T> {
   // Zod 에러 처리
   if (error instanceof z.ZodError) {
     const fieldErrors = formatZodErrors(error);
     const firstError = error.issues[0];
-    return createErrorResponse(
+    return createErrorResponse<T>(
       firstError?.message || "입력값 검증에 실패했습니다.",
       fieldErrors
     );
@@ -62,7 +62,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
     if (error.statusCode === 200) {
       // 정보성 메시지는 성공으로 처리하되 메시지 포함
       const message = error.message.replace(/^INFO:\s*/, "");
-      return createSuccessResponse(undefined, message);
+      return createSuccessResponse<T>(undefined, message);
     }
 
     // 에러 로깅
@@ -70,7 +70,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
 
     // 사용자에게 보여줄 수 있는 에러
     if (error.isUserFacing) {
-      return createErrorResponse(error.message);
+      return createErrorResponse<T>(error.message);
     }
 
     // isUserFacing이 false인 경우
@@ -78,7 +78,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
       ? `작업을 완료하는 중 오류가 발생했습니다: ${error.message}`
       : "작업을 완료하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
     
-    return createErrorResponse(errorMessage);
+    return createErrorResponse<T>(errorMessage);
   }
 
   // 일반 Error 처리
@@ -103,7 +103,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
   // 200 상태 코드는 정보성 메시지로 처리
   if (normalizedError.statusCode === 200) {
     const message = normalizedError.message.replace(/^INFO:\s*/, "");
-    return createSuccessResponse(undefined, message);
+    return createSuccessResponse<T>(undefined, message);
   }
 
   // 에러 로깅
@@ -111,7 +111,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
 
   // 사용자에게 보여줄 수 있는 에러
   if (normalizedError.isUserFacing) {
-    return createErrorResponse(normalizedError.message);
+    return createErrorResponse<T>(normalizedError.message);
   }
 
   // 일반 에러
@@ -119,7 +119,7 @@ function errorToActionResponse(error: unknown): ActionResponse {
     ? `작업을 완료하는 중 오류가 발생했습니다: ${normalizedError.message}`
     : "작업을 완료하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
   
-  return createErrorResponse(errorMessage);
+  return createErrorResponse<T>(errorMessage);
 }
 
 /**
@@ -144,7 +144,7 @@ export function withActionResponse<T = void, Args extends any[] = any[]>(
       const result = await handler(...args);
       return createSuccessResponse(result);
     } catch (error) {
-      return errorToActionResponse(error);
+      return errorToActionResponse<T>(error);
     }
   };
 }
@@ -160,7 +160,7 @@ export function withActionResponseWithMessage<T = void, Args extends any[] = any
       const result = await handler(...args);
       return createSuccessResponse(result.data, result.message);
     } catch (error) {
-      return errorToActionResponse(error);
+      return errorToActionResponse<T>(error);
     }
   };
 }
