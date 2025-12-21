@@ -351,9 +351,11 @@ export async function fetchStudentCustomContents(
   const supabase = await createSupabaseServerClient();
 
   try {
+    // student_custom_contents 테이블에는 subject_id, curriculum_revision_id 컬럼이 없음
+    // 실제 테이블 스키마에 맞게 조회
     const { data, error } = await supabase
       .from("student_custom_contents")
-      .select("id, title, content_type, subject, subject_id, curriculum_revision_id")
+      .select("id, title, content_type")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -393,37 +395,15 @@ export async function fetchStudentCustomContents(
       return [];
     }
 
-    // subject_id 목록 추출
-    const subjectIds = data
-      .map((custom) => custom.subject_id)
-      .filter((id): id is string => id !== null && id !== undefined);
-
-    // curriculum_revision_id 목록 추출
-    const curriculumRevisionIds = data
-      .map((custom) => custom.curriculum_revision_id)
-      .filter((id): id is string => id !== null && id !== undefined);
-
-    // 배치로 교과명 및 개정교육과정명 조회
-    const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
-      subjectIds.length > 0
-        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
-        : Promise.resolve(new Map<string, string>()),
-      curriculumRevisionIds.length > 0
-        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
-        : Promise.resolve(new Map<string, string>()),
-    ]);
-
+    // student_custom_contents 테이블에는 subject_id, curriculum_revision_id가 없으므로
+    // subject_group_name과 curriculum_revision_name은 항상 null로 반환
     return data.map((custom) => ({
       id: custom.id,
       title: custom.title || "커스텀 콘텐츠",
       subtitle: null, // subtitle은 더 이상 사용하지 않음
-      subject: custom.subject || null,
-      subject_group_name: custom.subject_id
-        ? subjectGroupNamesMap.get(custom.subject_id) || null
-        : null,
-      curriculum_revision_name: custom.curriculum_revision_id
-        ? curriculumRevisionNamesMap.get(custom.curriculum_revision_id) || null
-        : null,
+      subject: null, // student_custom_contents 테이블에는 subject 컬럼이 없음
+      subject_group_name: null, // subject_id가 없으므로 null
+      curriculum_revision_name: null, // curriculum_revision_id가 없으므로 null
     }));
   } catch (err) {
     // Supabase 에러는 PostgrestError 타입일 수 있음
