@@ -286,6 +286,9 @@ export type RangeSettingModalProps = {
   // 상태
   loading?: boolean;
   error?: string | null;
+  
+  // 학생 ID (관리자/컨설턴트가 특정 학생의 콘텐츠를 조회할 때 필요)
+  studentId?: string | null;
 };
 
 /**
@@ -382,6 +385,9 @@ export type StudentContentsPanelProps = {
   // 상태
   editable?: boolean;
   isCampMode?: boolean;
+  
+  // 학생 ID (관리자/컨설턴트가 특정 학생의 콘텐츠를 조회할 때 필요)
+  studentId?: string | null;
 };
 
 /**

@@ -23,6 +23,7 @@ export function RangeSettingModal({
   onSave,
   loading: externalLoading = false,
   error: externalError = null,
+  studentId = null,
 }: RangeSettingModalProps) {
   const [details, setDetails] = useState<ContentDetail[]>([]);
   const [startDetailId, setStartDetailId] = useState<string | null>(
@@ -122,6 +123,12 @@ export function RangeSettingModal({
         contentType: content.type,
         contentId: content.id,
       });
+      
+      // 관리자/컨설턴트가 특정 학생의 콘텐츠를 조회할 때 student_id 전달
+      if (studentId) {
+        params.append("student_id", studentId);
+      }
+      
       const url = `${apiPath}?${params.toString()}`;
 
         const response = await fetch(url);
@@ -396,7 +403,7 @@ export function RangeSettingModal({
     };
 
     fetchDetails();
-  }, [open, content.id, content.type, isRecommendedContent]);
+  }, [open, content.id, content.type, isRecommendedContent, studentId]);
 
   // 현재 범위로 초기화 (모달이 열리고 currentRange가 변경될 때만)
   useEffect(() => {

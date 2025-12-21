@@ -26,6 +26,7 @@ export function StudentContentsPanel({
   onUpdate,
   editable = true,
   isCampMode = false,
+  studentId = null,
 }: StudentContentsPanelProps) {
   // 선택된 콘텐츠 ID 관리
   const selectedIds = useMemo(() => {
@@ -486,6 +487,7 @@ export function StudentContentsPanel({
           isRecommendedContent={false}
           currentRange={rangeModalContent.currentRange}
           onSave={handleRangeSave}
+          studentId={studentId}
         />
       )}
     </div>

@@ -379,6 +379,7 @@ function Step3ContentSelectionComponent({
               onUpdate={handleStudentContentsUpdate}
               editable={editable}
               isCampMode={isCampMode}
+              studentId={studentId}
             />
           ) : activeTab === "recommended" ? (
             <RecommendedContentsPanel
