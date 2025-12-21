@@ -1203,7 +1203,6 @@ export async function classifyPlanContents(
       recommendedContentsCount: recommendedContents.length,
       missingContentsCount: missingContents.length,
       totalInputCount: contents.length,
-      invalidRecommendedMoved: invalidRecommended.length,
     });
   }
 
