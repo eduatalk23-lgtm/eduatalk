@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordHistory } from "@/lib/history/record";
-
-const VALID_CONTENT_TYPES = ["book", "lecture", "custom"] as const;
-
-type ContentType = (typeof VALID_CONTENT_TYPES)[number];
+import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -29,20 +26,6 @@ type ContentProgressRow = {
   progress?: number | null;
 };
 
-type BookRow = {
-  id: string;
-  total_pages?: number | null;
-};
-
-type LectureRow = {
-  id: string;
-  duration?: number | null;
-};
-
-type CustomRow = {
-  id: string;
-  total_page_or_time?: number | null;
-};
 
 export async function updateProgress(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
@@ -182,67 +165,6 @@ async function fetchPlan(
   }
 }
 
-async function fetchContentTotal(
-  supabase: SupabaseServerClient,
-  studentId: string,
-  contentType: ContentType,
-  contentId: string
-): Promise<number | null> {
-  try {
-    if (contentType === "book") {
-      const selectBook = () =>
-        supabase
-          .from("books")
-          .select("id,total_pages")
-          .eq("id", contentId);
-
-      let { data, error } = await selectBook().eq("student_id", studentId).maybeSingle<BookRow>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectBook().maybeSingle<BookRow>());
-      }
-      if (error) throw error;
-
-      return data?.total_pages ?? null;
-    }
-
-    if (contentType === "lecture") {
-      const selectLecture = () =>
-        supabase
-          .from("lectures")
-          .select("id,duration")
-          .eq("id", contentId);
-
-      let { data, error } = await selectLecture().eq("student_id", studentId).maybeSingle<LectureRow>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectLecture().maybeSingle<LectureRow>());
-      }
-      if (error) throw error;
-
-      return data?.duration ?? null;
-    }
-
-    if (contentType === "custom") {
-      const selectCustom = () =>
-        supabase
-          .from("student_custom_contents")
-          .select("id,total_page_or_time")
-          .eq("id", contentId);
-
-      let { data, error } = await selectCustom().eq("student_id", studentId).maybeSingle<CustomRow>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectCustom().maybeSingle<CustomRow>());
-      }
-      if (error) throw error;
-
-      return data?.total_page_or_time ?? null;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("[progress] 콘텐츠 총량 조회 실패", error);
-    return null;
-  }
-}
 
 async function fetchContentProgress(
   supabase: SupabaseServerClient,

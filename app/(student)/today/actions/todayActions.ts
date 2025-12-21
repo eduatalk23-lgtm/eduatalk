@@ -8,6 +8,7 @@ import { startStudySession, endStudySession } from "@/app/(student)/actions/stud
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
+import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
 
 type PlanRecordPayload = {
   startPageOrTime: number;
@@ -202,33 +203,55 @@ export async function completePlan(
       samePlanNumberPlans = [{ id: planId }];
     }
 
-    // 콘텐츠 총량 조회
+    // 콘텐츠 총량 조회 (공통 함수 사용, student_id 필터 포함)
     let totalAmount: number | null = null;
-    if (plan.content_type === "book") {
-      const { data } = await supabase
-        .from("books")
-        .select("total_pages")
-        .eq("id", plan.content_id)
-        .maybeSingle();
-      totalAmount = data?.total_pages ?? null;
-    } else if (plan.content_type === "lecture") {
-      const { data } = await supabase
-        .from("lectures")
-        .select("duration")
-        .eq("id", plan.content_id)
-        .maybeSingle();
-      totalAmount = data?.duration ?? null;
-    } else if (plan.content_type === "custom") {
-      const { data } = await supabase
-        .from("student_custom_contents")
-        .select("total_page_or_time")
-        .eq("id", plan.content_id)
-        .maybeSingle();
-      totalAmount = data?.total_page_or_time ?? null;
+    try {
+      totalAmount = await fetchContentTotal(
+        supabase,
+        user.userId,
+        plan.content_type as ContentType,
+        plan.content_id
+      );
+    } catch (error) {
+      console.error("[todayActions] 콘텐츠 총량 조회 중 예외 발생", {
+        planId,
+        contentType: plan.content_type,
+        contentId: plan.content_id,
+        studentId: user.userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        success: false,
+        error: `콘텐츠 정보를 조회하는 중 오류가 발생했습니다. ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
+      };
     }
 
-    if (totalAmount === null || totalAmount <= 0) {
-      return { success: false, error: "콘텐츠 총량을 확인할 수 없습니다." };
+    // 상세한 에러 메시지 제공
+    if (totalAmount === null) {
+      console.error("[todayActions] 콘텐츠 총량이 null", {
+        planId,
+        contentType: plan.content_type,
+        contentId: plan.content_id,
+        studentId: user.userId,
+      });
+      return {
+        success: false,
+        error: `콘텐츠를 찾을 수 없거나 총량 정보가 설정되지 않았습니다. (${plan.content_type}: ${plan.content_id})`,
+      };
+    }
+
+    if (totalAmount <= 0) {
+      console.error("[todayActions] 콘텐츠 총량이 0 이하", {
+        planId,
+        contentType: plan.content_type,
+        contentId: plan.content_id,
+        totalAmount,
+        studentId: user.userId,
+      });
+      return {
+        success: false,
+        error: `콘텐츠 총량이 0 이하입니다. 콘텐츠 설정에서 총량을 확인해주세요. (현재 총량: ${totalAmount})`,
+      };
     }
 
     // 진행률 계산

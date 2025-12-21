@@ -1,10 +1,9 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
-
-type ContentType = "book" | "lecture" | "custom";
 
 // 오늘 날짜 기반 플랜 조회
 export type TodayPlan = {
@@ -530,67 +529,6 @@ async function calculateTotalLearningAmount(
   }
 }
 
-async function fetchContentTotal(
-  supabase: SupabaseServerClient,
-  studentId: string,
-  contentType: ContentType,
-  contentId: string
-): Promise<number | null> {
-  try {
-    if (contentType === "book") {
-      const selectBook = () =>
-        supabase
-          .from("books")
-          .select("id,total_pages")
-          .eq("id", contentId);
-
-      let { data, error } = await selectBook().eq("student_id", studentId).maybeSingle<{ id: string; total_pages?: number | null }>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectBook().maybeSingle<{ id: string; total_pages?: number | null }>());
-      }
-      if (error) throw error;
-
-      return data?.total_pages ?? null;
-    }
-
-    if (contentType === "lecture") {
-      const selectLecture = () =>
-        supabase
-          .from("lectures")
-          .select("id,duration")
-          .eq("id", contentId);
-
-      let { data, error } = await selectLecture().eq("student_id", studentId).maybeSingle<{ id: string; duration?: number | null }>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectLecture().maybeSingle<{ id: string; duration?: number | null }>());
-      }
-      if (error) throw error;
-
-      return data?.duration ?? null;
-    }
-
-    if (contentType === "custom") {
-      const selectCustom = () =>
-        supabase
-          .from("student_custom_contents")
-          .select("id,total_page_or_time")
-          .eq("id", contentId);
-
-      let { data, error } = await selectCustom().eq("student_id", studentId).maybeSingle<{ id: string; total_page_or_time?: number | null }>();
-      if (error && error.code === "42703") {
-        ({ data, error } = await selectCustom().maybeSingle<{ id: string; total_page_or_time?: number | null }>());
-      }
-      if (error) throw error;
-
-      return data?.total_page_or_time ?? null;
-    }
-
-    return null;
-  } catch (error) {
-    console.error("[dashboard] 콘텐츠 총량 조회 실패", error);
-    return null;
-  }
-}
 
 // 이번 주 요일별 계획 블록 카운트
 export type WeeklyBlockCount = {
