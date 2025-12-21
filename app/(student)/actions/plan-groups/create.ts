@@ -144,10 +144,22 @@ async function _createPlanGroup(
   }
 
   // daily_schedule 검증 (time_slots 포함 여부 확인)
+  // 제외일이 있는 날짜(휴가, 개인일정)는 time_slots가 빈 배열이어도 허용
   if (data.daily_schedule && Array.isArray(data.daily_schedule)) {
-    const missingTimeSlots = data.daily_schedule.filter(
-      (day) => !day.time_slots || day.time_slots.length === 0
-    );
+    const missingTimeSlots = data.daily_schedule.filter((day) => {
+      // time_slots가 없거나 빈 배열인 경우
+      if (!day.time_slots || day.time_slots.length === 0) {
+        // 제외일이 있는 날짜는 빈 배열 허용
+        const isExclusionDay =
+          day.day_type === "휴가" ||
+          day.day_type === "개인일정" ||
+          day.day_type === "지정휴일";
+        
+        // 제외일이 아닌 날짜만 에러로 처리
+        return !isExclusionDay;
+      }
+      return false;
+    });
 
     if (missingTimeSlots.length > 0) {
       const missingDates = missingTimeSlots.map((d) => d.date);
