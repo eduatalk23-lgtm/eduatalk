@@ -254,10 +254,20 @@ export const ContentSelector = React.memo(function ContentSelector({
                         {item.subtitle}
                       </p>
                     )}
-                    {/* 메타데이터 (표준 순서) */}
+                    {/* 메타데이터 (ContentCard와 동일한 순서) */}
                     {hasMetadata && (
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        {/* 커스텀 콘텐츠 타입 배지 */}
+                        {/* 콘텐츠 타입 배지 (ContentCard와 동일) */}
+                        {activeTab === "book" && (
+                          <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                            📚 교재
+                          </span>
+                        )}
+                        {activeTab === "lecture" && (
+                          <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                            🎧 강의
+                          </span>
+                        )}
                         {activeTab === "custom" && (
                           <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-gray-800">
                             📄 커스텀
