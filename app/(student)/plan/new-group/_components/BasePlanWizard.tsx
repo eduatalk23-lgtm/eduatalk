@@ -192,6 +192,7 @@ export function BasePlanWizard({
               blockSets={blockSets}
               onBlockSetsLoaded={onBlockSetsLoaded}
               isTemplateMode={isTemplateMode}
+              isCampMode={mode.isCampMode}
               editable={!mode.isAdminContinueMode}
               campTemplateInfo={
                 mode.isCampMode
