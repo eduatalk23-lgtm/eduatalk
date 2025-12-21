@@ -118,14 +118,25 @@ export function RangeSettingModal({
           ? "/api/master-content-details"
           : "/api/student-content-details";
 
+        if (process.env.NODE_ENV === "development") {
+          console.log("[RangeSettingModal] API 호출 정보:", {
+            apiPath,
+            isRecommendedContent,
+            contentType: content.type,
+            contentId: content.id,
+            studentId,
+            title: content.title,
+          });
+        }
+
       // URL 파라미터 안전하게 생성
       const params = new URLSearchParams({
         contentType: content.type,
         contentId: content.id,
       });
       
-      // 관리자/컨설턴트가 특정 학생의 콘텐츠를 조회할 때 student_id 전달
-      if (studentId) {
+      // 관리자/컨설턴트가 특정 학생의 콘텐츠를 조회할 때 student_id 전달 (마스터 콘텐츠가 아닌 경우만)
+      if (!isRecommendedContent && studentId) {
         params.append("student_id", studentId);
       }
       
