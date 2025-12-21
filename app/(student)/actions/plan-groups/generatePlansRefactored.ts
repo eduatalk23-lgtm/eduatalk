@@ -860,7 +860,6 @@ async function _generatePlansFromGroupRefactored(
       });
 
       blockIndex++;
-      globalSequence++; // 전역 회차는 계속 증가 (필요한 경우 사용)
     }
   }
 
