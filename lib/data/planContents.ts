@@ -115,12 +115,20 @@ export async function fetchStudentBooks(
       .map((book) => book.master_content_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // 마스터 콘텐츠에서 curriculum_revision_id, subject_id 조회
-    const masterContentsMap = new Map<string, { curriculum_revision_id: string | null; subject_id: string | null }>();
+    // 마스터 콘텐츠에서 메타데이터 조회 (ContentCard와 동일한 정보)
+    const masterContentsMap = new Map<string, { 
+      curriculum_revision_id: string | null; 
+      subject_id: string | null;
+      subject: string | null;
+      semester: string | null;
+      revision: string | null;
+      difficulty_level: string | null;
+      publisher: string | null;
+    }>();
     if (masterContentIds.length > 0) {
       const { data: masterBooks, error: masterError } = await supabase
         .from("master_books")
-        .select("id, curriculum_revision_id, subject_id")
+        .select("id, curriculum_revision_id, subject_id, subject, semester, revision, difficulty_level, publisher")
         .in("id", masterContentIds);
 
       if (!masterError && masterBooks) {
@@ -128,6 +136,11 @@ export async function fetchStudentBooks(
           masterContentsMap.set(masterBook.id, {
             curriculum_revision_id: masterBook.curriculum_revision_id || null,
             subject_id: masterBook.subject_id || null,
+            subject: masterBook.subject || null,
+            semester: masterBook.semester || null,
+            revision: masterBook.revision || null,
+            difficulty_level: masterBook.difficulty_level || null,
+            publisher: masterBook.publisher || null,
           });
         });
       }
@@ -174,22 +187,23 @@ export async function fetchStudentBooks(
       const finalCurriculumRevisionId =
         book.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
 
+      // 학생 콘텐츠에 값이 없으면 마스터 콘텐츠에서 가져옴 (ContentCard와 동일한 로직)
       return {
         id: book.id,
         title: book.title || "제목 없음",
         subtitle: null, // subtitle은 더 이상 사용하지 않음
         master_content_id: book.master_content_id || null,
-        subject: book.subject || null,
+        subject: book.subject || masterInfo?.subject || null,
         subject_group_name: finalSubjectId
           ? subjectGroupNamesMap.get(finalSubjectId) || null
           : null,
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
-        semester: (book as any).semester || null,
-        revision: (book as any).revision || null,
-        difficulty_level: (book as any).difficulty_level || null,
-        publisher: (book as any).publisher || null,
+        semester: (book as any).semester || masterInfo?.semester || null,
+        revision: (book as any).revision || masterInfo?.revision || null,
+        difficulty_level: (book as any).difficulty_level || masterInfo?.difficulty_level || null,
+        publisher: (book as any).publisher || masterInfo?.publisher || null,
       };
     });
   } catch (err) {
@@ -229,12 +243,20 @@ export async function fetchStudentLectures(
       .map((lecture) => (lecture as any).master_lecture_id || lecture.master_content_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // 마스터 강의에서 curriculum_revision_id, subject_id 조회
-    const masterLecturesMap = new Map<string, { curriculum_revision_id: string | null; subject_id: string | null }>();
+    // 마스터 강의에서 메타데이터 조회 (ContentCard와 동일한 정보)
+    const masterLecturesMap = new Map<string, { 
+      curriculum_revision_id: string | null; 
+      subject_id: string | null;
+      subject: string | null;
+      semester: string | null;
+      revision: string | null;
+      difficulty_level: string | null;
+      platform: string | null;
+    }>();
     if (masterLectureIds.length > 0) {
       const { data: masterLectures, error: masterError } = await supabase
         .from("master_lectures")
-        .select("id, curriculum_revision_id, subject_id")
+        .select("id, curriculum_revision_id, subject_id, subject, semester, revision, difficulty_level, platform")
         .in("id", masterLectureIds);
 
       if (!masterError && masterLectures) {
@@ -242,6 +264,11 @@ export async function fetchStudentLectures(
           masterLecturesMap.set(masterLecture.id, {
             curriculum_revision_id: masterLecture.curriculum_revision_id || null,
             subject_id: masterLecture.subject_id || null,
+            subject: masterLecture.subject || null,
+            semester: masterLecture.semester || null,
+            revision: masterLecture.revision || null,
+            difficulty_level: masterLecture.difficulty_level || null,
+            platform: masterLecture.platform || null,
           });
         });
       }
@@ -286,22 +313,23 @@ export async function fetchStudentLectures(
       const finalCurriculumRevisionId =
         lecture.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
 
+      // 학생 콘텐츠에 값이 없으면 마스터 콘텐츠에서 가져옴 (ContentCard와 동일한 로직)
       return {
         id: lecture.id,
         title: lecture.title || "제목 없음",
         subtitle: null, // subtitle은 더 이상 사용하지 않음
         master_content_id: lecture.master_content_id || null,
-        subject: lecture.subject || null,
+        subject: lecture.subject || masterInfo?.subject || null,
         subject_group_name: finalSubjectId
           ? subjectGroupNamesMap.get(finalSubjectId) || null
           : null,
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
-        semester: (lecture as any).semester || null,
-        revision: (lecture as any).revision || null,
-        difficulty_level: (lecture as any).difficulty_level || null,
-        platform: (lecture as any).platform || null,
+        semester: (lecture as any).semester || masterInfo?.semester || null,
+        revision: (lecture as any).revision || masterInfo?.revision || null,
+        difficulty_level: (lecture as any).difficulty_level || masterInfo?.difficulty_level || null,
+        platform: (lecture as any).platform || masterInfo?.platform || null,
       };
     });
   } catch (err) {
