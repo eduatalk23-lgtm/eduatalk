@@ -304,6 +304,11 @@ export function ScoreFormModal({
             setErrors(fieldErrors as FormErrors);
           }
         }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "예기치 않은 오류가 발생했습니다.";
+        setError(errorMessage);
+        showError(errorMessage);
+      }
     });
   };
 
