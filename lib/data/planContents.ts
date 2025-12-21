@@ -1013,7 +1013,22 @@ export async function classifyPlanContents(
             null;
           masterContentId = content.master_content_id || studentLecture.master_content_id || undefined;
         } else {
-          masterContentId = studentLecture.master_content_id || undefined;
+          // master_content_id가 없으면 content_id가 마스터 콘텐츠 ID인지 확인
+          // 템플릿에서 학생이 추가한 마스터 콘텐츠는 content_id가 학생 콘텐츠 ID이고 master_content_id가 없을 수 있음
+          // 하지만 content_id 자체가 마스터 콘텐츠 ID일 수도 있음
+          const masterLectureByContentId = masterLecturesMap.get(content.content_id);
+          if (masterLectureByContentId) {
+            // content_id가 마스터 콘텐츠 ID인 경우
+            masterContentId = content.content_id;
+            title = masterLectureByContentId.title || studentLecture.title || "제목 없음";
+            subjectCategory =
+              masterLectureByContentId.subject_category ||
+              masterLectureByContentId.subject ||
+              studentLecture.subject ||
+              null;
+          } else {
+            masterContentId = studentLecture.master_content_id || undefined;
+          }
         }
 
         contentDetail = {
