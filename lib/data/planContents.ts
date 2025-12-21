@@ -105,39 +105,84 @@ export async function fetchStudentBooks(
       return [];
     }
 
-    // subject_id 목록 추출
-    const subjectIds = data
-      .map((book) => book.subject_id)
+    // master_content_id 목록 추출 (null이 아닌 것만)
+    const masterContentIds = data
+      .map((book) => book.master_content_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // curriculum_revision_id 목록 추출
-    const curriculumRevisionIds = data
-      .map((book) => book.curriculum_revision_id)
-      .filter((id): id is string => id !== null && id !== undefined);
+    // 마스터 콘텐츠에서 curriculum_revision_id, subject_id 조회
+    const masterContentsMap = new Map<string, { curriculum_revision_id: string | null; subject_id: string | null }>();
+    if (masterContentIds.length > 0) {
+      const { data: masterBooks, error: masterError } = await supabase
+        .from("master_books")
+        .select("id, curriculum_revision_id, subject_id")
+        .in("id", masterContentIds);
+
+      if (!masterError && masterBooks) {
+        masterBooks.forEach((masterBook) => {
+          masterContentsMap.set(masterBook.id, {
+            curriculum_revision_id: masterBook.curriculum_revision_id || null,
+            subject_id: masterBook.subject_id || null,
+          });
+        });
+      }
+    }
+
+    // 최종 subject_id 및 curriculum_revision_id 목록 생성
+    // 학생 콘텐츠에 없으면 마스터 콘텐츠에서 가져옴
+    const allSubjectIds = new Set<string>();
+    const allCurriculumRevisionIds = new Set<string>();
+
+    data.forEach((book) => {
+      const masterInfo = book.master_content_id
+        ? masterContentsMap.get(book.master_content_id)
+        : null;
+
+      const finalSubjectId = book.subject_id || masterInfo?.subject_id || null;
+      const finalCurriculumRevisionId =
+        book.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
+
+      if (finalSubjectId) {
+        allSubjectIds.add(finalSubjectId);
+      }
+      if (finalCurriculumRevisionId) {
+        allCurriculumRevisionIds.add(finalCurriculumRevisionId);
+      }
+    });
 
     // 배치로 교과명 및 개정교육과정명 조회
     const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
-      subjectIds.length > 0
-        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
+      allSubjectIds.size > 0
+        ? fetchSubjectGroupNamesBatch(supabase, Array.from(allSubjectIds))
         : Promise.resolve(new Map<string, string>()),
-      curriculumRevisionIds.length > 0
-        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
+      allCurriculumRevisionIds.size > 0
+        ? fetchCurriculumRevisionNamesBatch(supabase, Array.from(allCurriculumRevisionIds))
         : Promise.resolve(new Map<string, string>()),
     ]);
 
-    return data.map((book) => ({
-      id: book.id,
-      title: book.title || "제목 없음",
-      subtitle: null, // subtitle은 더 이상 사용하지 않음
-      master_content_id: book.master_content_id || null,
-      subject: book.subject || null,
-      subject_group_name: book.subject_id
-        ? subjectGroupNamesMap.get(book.subject_id) || null
-        : null,
-      curriculum_revision_name: book.curriculum_revision_id
-        ? curriculumRevisionNamesMap.get(book.curriculum_revision_id) || null
-        : null,
-    }));
+    return data.map((book) => {
+      const masterInfo = book.master_content_id
+        ? masterContentsMap.get(book.master_content_id)
+        : null;
+
+      const finalSubjectId = book.subject_id || masterInfo?.subject_id || null;
+      const finalCurriculumRevisionId =
+        book.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
+
+      return {
+        id: book.id,
+        title: book.title || "제목 없음",
+        subtitle: null, // subtitle은 더 이상 사용하지 않음
+        master_content_id: book.master_content_id || null,
+        subject: book.subject || null,
+        subject_group_name: finalSubjectId
+          ? subjectGroupNamesMap.get(finalSubjectId) || null
+          : null,
+        curriculum_revision_name: finalCurriculumRevisionId
+          ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
+          : null,
+      };
+    });
   } catch (err) {
     console.error("[data/planContents] 책 목록 조회 실패", {
       error: err instanceof Error ? err.message : String(err),
@@ -159,7 +204,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id")
+      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id, master_lecture_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -169,39 +214,83 @@ export async function fetchStudentLectures(
       return [];
     }
 
-    // subject_id 목록 추출
-    const subjectIds = data
-      .map((lecture) => lecture.subject_id)
+    // master_lecture_id 또는 master_content_id 목록 추출
+    // lectures 테이블에는 master_lecture_id 또는 master_content_id가 있을 수 있음
+    const masterLectureIds = data
+      .map((lecture) => (lecture as any).master_lecture_id || lecture.master_content_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // curriculum_revision_id 목록 추출
-    const curriculumRevisionIds = data
-      .map((lecture) => lecture.curriculum_revision_id)
-      .filter((id): id is string => id !== null && id !== undefined);
+    // 마스터 강의에서 curriculum_revision_id, subject_id 조회
+    const masterLecturesMap = new Map<string, { curriculum_revision_id: string | null; subject_id: string | null }>();
+    if (masterLectureIds.length > 0) {
+      const { data: masterLectures, error: masterError } = await supabase
+        .from("master_lectures")
+        .select("id, curriculum_revision_id, subject_id")
+        .in("id", masterLectureIds);
+
+      if (!masterError && masterLectures) {
+        masterLectures.forEach((masterLecture) => {
+          masterLecturesMap.set(masterLecture.id, {
+            curriculum_revision_id: masterLecture.curriculum_revision_id || null,
+            subject_id: masterLecture.subject_id || null,
+          });
+        });
+      }
+    }
+
+    // 최종 subject_id 및 curriculum_revision_id 목록 생성
+    // 학생 콘텐츠에 없으면 마스터 콘텐츠에서 가져옴
+    const allSubjectIds = new Set<string>();
+    const allCurriculumRevisionIds = new Set<string>();
+
+    data.forEach((lecture) => {
+      const masterId = (lecture as any).master_lecture_id || lecture.master_content_id;
+      const masterInfo = masterId ? masterLecturesMap.get(masterId) : null;
+
+      const finalSubjectId = lecture.subject_id || masterInfo?.subject_id || null;
+      const finalCurriculumRevisionId =
+        lecture.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
+
+      if (finalSubjectId) {
+        allSubjectIds.add(finalSubjectId);
+      }
+      if (finalCurriculumRevisionId) {
+        allCurriculumRevisionIds.add(finalCurriculumRevisionId);
+      }
+    });
 
     // 배치로 교과명 및 개정교육과정명 조회
     const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
-      subjectIds.length > 0
-        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
+      allSubjectIds.size > 0
+        ? fetchSubjectGroupNamesBatch(supabase, Array.from(allSubjectIds))
         : Promise.resolve(new Map<string, string>()),
-      curriculumRevisionIds.length > 0
-        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
+      allCurriculumRevisionIds.size > 0
+        ? fetchCurriculumRevisionNamesBatch(supabase, Array.from(allCurriculumRevisionIds))
         : Promise.resolve(new Map<string, string>()),
     ]);
 
-    return data.map((lecture) => ({
-      id: lecture.id,
-      title: lecture.title || "제목 없음",
-      subtitle: null, // subtitle은 더 이상 사용하지 않음
-      master_content_id: lecture.master_content_id || null,
-      subject: lecture.subject || null,
-      subject_group_name: lecture.subject_id
-        ? subjectGroupNamesMap.get(lecture.subject_id) || null
-        : null,
-      curriculum_revision_name: lecture.curriculum_revision_id
-        ? curriculumRevisionNamesMap.get(lecture.curriculum_revision_id) || null
-        : null,
-    }));
+    return data.map((lecture) => {
+      const masterId = (lecture as any).master_lecture_id || lecture.master_content_id;
+      const masterInfo = masterId ? masterLecturesMap.get(masterId) : null;
+
+      const finalSubjectId = lecture.subject_id || masterInfo?.subject_id || null;
+      const finalCurriculumRevisionId =
+        lecture.curriculum_revision_id || masterInfo?.curriculum_revision_id || null;
+
+      return {
+        id: lecture.id,
+        title: lecture.title || "제목 없음",
+        subtitle: null, // subtitle은 더 이상 사용하지 않음
+        master_content_id: lecture.master_content_id || null,
+        subject: lecture.subject || null,
+        subject_group_name: finalSubjectId
+          ? subjectGroupNamesMap.get(finalSubjectId) || null
+          : null,
+        curriculum_revision_name: finalCurriculumRevisionId
+          ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
+          : null,
+      };
+    });
   } catch (err) {
     console.error("[data/planContents] 강의 목록 조회 실패", {
       error: err instanceof Error ? err.message : String(err),
