@@ -138,6 +138,7 @@ async function getPlansFromView(options: {
     view_content_subject_category: string | null;
     view_content_category: string | null;
     memo: string | null;
+    subject_type: "strategy" | "weakness" | null;
     created_at: string;
     updated_at: string | null;
   };
@@ -148,7 +149,7 @@ async function getPlansFromView(options: {
       const query = buildPlanQuery(
         supabase,
         "today_plan_view",
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,created_at,updated_at",
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,subject_type,created_at,updated_at",
         {
           studentId: options.studentId,
           tenantId: options.tenantId,
@@ -234,6 +235,7 @@ async function getPlansFromView(options: {
         row.content_subject_category || row.view_content_subject_category || null,
       content_category: row.content_category || row.view_content_category || null,
       memo: row.memo,
+      subject_type: (row as { subject_type?: "strategy" | "weakness" | null }).subject_type ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at ?? new Date().toISOString(),
     };
