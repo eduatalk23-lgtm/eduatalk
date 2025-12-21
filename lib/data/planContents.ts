@@ -8,6 +8,42 @@ import { fetchSubjectGroupNamesBatch } from "@/lib/data/contentMetadata";
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
+ * 여러 curriculum_revision_id를 배치로 조회하여 개정교육과정명 맵 반환
+ */
+async function fetchCurriculumRevisionNamesBatch(
+  supabase: SupabaseServerClient,
+  curriculumRevisionIds: string[]
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  
+  if (curriculumRevisionIds.length === 0) {
+    return result;
+  }
+
+  try {
+    const { data: revisions, error } = await supabase
+      .from("curriculum_revisions")
+      .select("id, name")
+      .in("id", curriculumRevisionIds);
+
+    if (error || !revisions) {
+      console.warn(`[fetchCurriculumRevisionNamesBatch] 개정교육과정 배치 조회 실패:`, error);
+      return result;
+    }
+
+    revisions.forEach((revision) => {
+      if (revision.name) {
+        result.set(revision.id, revision.name);
+      }
+    });
+  } catch (error) {
+    console.warn(`[fetchCurriculumRevisionNamesBatch] 개정교육과정명 배치 조회 실패:`, error);
+  }
+
+  return result;
+}
+
+/**
  * 콘텐츠 아이템 타입
  */
 export type ContentItem = {
@@ -17,6 +53,7 @@ export type ContentItem = {
   master_content_id?: string | null;
   subject?: string | null;
   subject_group_name?: string | null;
+  curriculum_revision_name?: string | null;
 };
 
 /**
@@ -58,7 +95,7 @@ export async function fetchStudentBooks(
   try {
     const { data, error } = await supabase
       .from("books")
-      .select("id, title, subject, subject_id, master_content_id")
+      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -73,19 +110,32 @@ export async function fetchStudentBooks(
       .map((book) => book.subject_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // 배치로 교과명 조회
-    const subjectGroupNamesMap = subjectIds.length > 0
-      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
-      : new Map<string, string>();
+    // curriculum_revision_id 목록 추출
+    const curriculumRevisionIds = data
+      .map((book) => book.curriculum_revision_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 및 개정교육과정명 조회
+    const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
+      subjectIds.length > 0
+        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
+        : Promise.resolve(new Map<string, string>()),
+      curriculumRevisionIds.length > 0
+        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
+        : Promise.resolve(new Map<string, string>()),
+    ]);
 
     return data.map((book) => ({
       id: book.id,
       title: book.title || "제목 없음",
-      subtitle: book.subject || null,
+      subtitle: null, // subtitle은 더 이상 사용하지 않음
       master_content_id: book.master_content_id || null,
       subject: book.subject || null,
       subject_group_name: book.subject_id
         ? subjectGroupNamesMap.get(book.subject_id) || null
+        : null,
+      curriculum_revision_name: book.curriculum_revision_id
+        ? curriculumRevisionNamesMap.get(book.curriculum_revision_id) || null
         : null,
     }));
   } catch (err) {
@@ -109,7 +159,7 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, subject_id, master_content_id")
+      .select("id, title, subject, subject_id, curriculum_revision_id, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -124,19 +174,32 @@ export async function fetchStudentLectures(
       .map((lecture) => lecture.subject_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // 배치로 교과명 조회
-    const subjectGroupNamesMap = subjectIds.length > 0
-      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
-      : new Map<string, string>();
+    // curriculum_revision_id 목록 추출
+    const curriculumRevisionIds = data
+      .map((lecture) => lecture.curriculum_revision_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 및 개정교육과정명 조회
+    const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
+      subjectIds.length > 0
+        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
+        : Promise.resolve(new Map<string, string>()),
+      curriculumRevisionIds.length > 0
+        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
+        : Promise.resolve(new Map<string, string>()),
+    ]);
 
     return data.map((lecture) => ({
       id: lecture.id,
       title: lecture.title || "제목 없음",
-      subtitle: lecture.subject || null,
+      subtitle: null, // subtitle은 더 이상 사용하지 않음
       master_content_id: lecture.master_content_id || null,
       subject: lecture.subject || null,
       subject_group_name: lecture.subject_id
         ? subjectGroupNamesMap.get(lecture.subject_id) || null
+        : null,
+      curriculum_revision_name: lecture.curriculum_revision_id
+        ? curriculumRevisionNamesMap.get(lecture.curriculum_revision_id) || null
         : null,
     }));
   } catch (err) {
@@ -160,7 +223,7 @@ export async function fetchStudentCustomContents(
   try {
     const { data, error } = await supabase
       .from("student_custom_contents")
-      .select("id, title, content_type, subject, subject_id")
+      .select("id, title, content_type, subject, subject_id, curriculum_revision_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
@@ -175,18 +238,31 @@ export async function fetchStudentCustomContents(
       .map((custom) => custom.subject_id)
       .filter((id): id is string => id !== null && id !== undefined);
 
-    // 배치로 교과명 조회
-    const subjectGroupNamesMap = subjectIds.length > 0
-      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
-      : new Map<string, string>();
+    // curriculum_revision_id 목록 추출
+    const curriculumRevisionIds = data
+      .map((custom) => custom.curriculum_revision_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 및 개정교육과정명 조회
+    const [subjectGroupNamesMap, curriculumRevisionNamesMap] = await Promise.all([
+      subjectIds.length > 0
+        ? fetchSubjectGroupNamesBatch(supabase, subjectIds)
+        : Promise.resolve(new Map<string, string>()),
+      curriculumRevisionIds.length > 0
+        ? fetchCurriculumRevisionNamesBatch(supabase, curriculumRevisionIds)
+        : Promise.resolve(new Map<string, string>()),
+    ]);
 
     return data.map((custom) => ({
       id: custom.id,
       title: custom.title || "커스텀 콘텐츠",
-      subtitle: custom.content_type || null,
+      subtitle: null, // subtitle은 더 이상 사용하지 않음
       subject: custom.subject || null,
       subject_group_name: custom.subject_id
         ? subjectGroupNamesMap.get(custom.subject_id) || null
+        : null,
+      curriculum_revision_name: custom.curriculum_revision_id
+        ? curriculumRevisionNamesMap.get(custom.curriculum_revision_id) || null
         : null,
     }));
   } catch (err) {

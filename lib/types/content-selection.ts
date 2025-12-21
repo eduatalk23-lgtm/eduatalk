@@ -362,9 +362,9 @@ export type ContentSelectionTabsProps = {
 export type StudentContentsPanelProps = {
   // 데이터
   contents: {
-    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null; subject_group_name?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null; subject_group_name?: string | null }>;
-    custom: Array<{ id: string; title: string; subtitle?: string | null; subject?: string | null; subject_group_name?: string | null }>;
+    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null; subject_group_name?: string | null; curriculum_revision_name?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null; subject_group_name?: string | null; curriculum_revision_name?: string | null }>;
+    custom: Array<{ id: string; title: string; subtitle?: string | null; subject?: string | null; subject_group_name?: string | null; curriculum_revision_name?: string | null }>;
   };
   
   // 선택된 콘텐츠

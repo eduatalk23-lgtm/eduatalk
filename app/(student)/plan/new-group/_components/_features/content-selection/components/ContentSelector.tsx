@@ -17,6 +17,7 @@ type ContentItem = {
   master_content_id?: string | null;
   subject?: string | null;
   subject_group_name?: string | null;
+  curriculum_revision_name?: string | null;
 };
 
 type ContentSelectorProps = {
@@ -63,7 +64,9 @@ export const ContentSelector = React.memo(function ContentSelector({
     return currentList.filter(
       (item) =>
         item.title.toLowerCase().includes(query) ||
-        item.subtitle?.toLowerCase().includes(query)
+        item.curriculum_revision_name?.toLowerCase().includes(query) ||
+        item.subject_group_name?.toLowerCase().includes(query) ||
+        item.subject?.toLowerCase().includes(query)
     );
   }, [activeTab, books, lectures, custom, searchQuery]);
 
@@ -232,13 +235,19 @@ export const ContentSelector = React.memo(function ContentSelector({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  {/* 콘텐츠명 */}
                   <h4 className="font-medium text-gray-900 truncate">
                     {item.title}
                   </h4>
-                  {/* 교과/과목 정보 */}
-                  {(item.subject_group_name || item.subject) && (
+                  {/* 개정교육과정, 교과, 과목 정보 */}
+                  {(item.curriculum_revision_name || item.subject_group_name || item.subject) && (
                     <div className="flex flex-wrap items-center gap-1.5">
+                      {item.curriculum_revision_name && (
+                        <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
+                          {item.curriculum_revision_name}
+                        </span>
+                      )}
                       {item.subject_group_name && (
                         <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
                           {item.subject_group_name}
@@ -250,11 +259,6 @@ export const ContentSelector = React.memo(function ContentSelector({
                         </span>
                       )}
                     </div>
-                  )}
-                  {item.subtitle && (
-                    <p className="text-sm text-gray-600 truncate">
-                      {item.subtitle}
-                    </p>
                   )}
                 </div>
                 <div
