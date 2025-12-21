@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   getStudentBookDetails,
   getStudentLectureEpisodes,
@@ -116,8 +117,12 @@ export async function GET(request: NextRequest) {
       let totalPages: number | null = studentBookData?.total_pages || null;
 
       // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
+      // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용 (RLS 우회)
       if (!totalPages && studentBookData?.master_content_id) {
-        const masterBookResult = await getMasterBookById(studentBookData.master_content_id);
+        const masterQueryClient = (role === "admin" || role === "consultant") 
+          ? createSupabaseAdminClient() || supabase
+          : supabase;
+        const masterBookResult = await getMasterBookById(studentBookData.master_content_id, masterQueryClient);
         totalPages = masterBookResult.book?.total_pages || null;
       }
 
@@ -178,8 +183,12 @@ export async function GET(request: NextRequest) {
       let totalEpisodes: number | null = studentLectureData?.total_episodes || null;
 
       // master_content_id가 있으면 마스터에서도 조회 (fallback) - 조건부 병렬 처리
+      // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 Admin 클라이언트 사용 (RLS 우회)
       if (!totalEpisodes && studentLectureData?.master_content_id) {
-        const masterLectureResult = await getMasterLectureById(studentLectureData.master_content_id);
+        const masterQueryClient = (role === "admin" || role === "consultant") 
+          ? createSupabaseAdminClient() || supabase
+          : supabase;
+        const masterLectureResult = await getMasterLectureById(studentLectureData.master_content_id, masterQueryClient);
         totalEpisodes = masterLectureResult.lecture?.total_episodes || null;
       }
 

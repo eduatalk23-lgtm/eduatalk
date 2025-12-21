@@ -210,8 +210,14 @@ export async function getMasterBookForDropdown(
 /**
  * 교재 상세 조회 (세부 정보 포함)
  * subject_id, curriculum_revision_id, publisher_id로부터 관련 정보를 JOIN으로 조회
+ * 
+ * @param bookId - 조회할 교재 ID
+ * @param supabase - 선택적 Supabase 클라이언트 (관리자/컨설턴트가 다른 테넌트의 콘텐츠를 조회할 때 Admin 클라이언트 전달)
  */
-export async function getMasterBookById(bookId: string): Promise<{
+export async function getMasterBookById(
+  bookId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>> | ReturnType<typeof createSupabaseAdminClient>
+): Promise<{
   book: (MasterBook & {
     subject_category?: string | null;
     subject?: string | null;
@@ -220,12 +226,12 @@ export async function getMasterBookById(bookId: string): Promise<{
   }) | null;
   details: BookDetail[];
 }> {
-  const supabase = await createSupabaseServerClient();
+  const queryClient = supabase || (await createSupabaseServerClient());
 
   // 병렬 쿼리 실행
   const [bookResult, detailsResult] = await createTypedParallelQueries([
     async () => {
-      return await supabase
+      return await queryClient
         .from("master_books")
         .select(
           `
@@ -297,7 +303,7 @@ export async function getMasterBookById(bookId: string): Promise<{
         .maybeSingle();
     },
     async () => {
-      return await supabase
+      return await queryClient
         .from("book_details")
         .select("*")
         .eq("book_id", bookId)
@@ -457,16 +463,20 @@ export async function searchMasterLectures(
 
 /**
  * 강의 상세 조회
+ * 
+ * @param lectureId - 조회할 강의 ID
+ * @param supabase - 선택적 Supabase 클라이언트 (관리자/컨설턴트가 다른 테넌트의 콘텐츠를 조회할 때 Admin 클라이언트 전달)
  */
 export async function getMasterLectureById(
-  lectureId: string
+  lectureId: string,
+  supabase?: Awaited<ReturnType<typeof createSupabaseServerClient>> | ReturnType<typeof createSupabaseAdminClient>
 ): Promise<{ lecture: MasterLecture | null; episodes: LectureEpisode[] }> {
-  const supabase = await createSupabaseServerClient();
+  const queryClient = supabase || (await createSupabaseServerClient());
 
   // 병렬 쿼리 실행
   const [lectureResult, episodesResult] = await createTypedParallelQueries([
     async () => {
-      return await supabase
+      return await queryClient
         .from("master_lectures")
         .select(
           `
@@ -481,7 +491,7 @@ export async function getMasterLectureById(
         .maybeSingle<MasterLecture>();
     },
     async () => {
-      return await supabase
+      return await queryClient
         .from("lecture_episodes")
         .select(
           "id, lecture_id, episode_number, episode_title, duration, display_order, created_at, lecture_source_url"

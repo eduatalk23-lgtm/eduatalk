@@ -2577,10 +2577,10 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
             if (book) {
               title = book.title || "알 수 없음";
 
-              // 마스터 콘텐츠 정보 조회
+              // 마스터 콘텐츠 정보 조회 (Admin 클라이언트 사용 - RLS 우회)
               if (book.master_content_id) {
                 try {
-                  const { book: masterBook } = await getMasterBookById(book.master_content_id);
+                  const { book: masterBook } = await getMasterBookById(book.master_content_id, adminSupabase);
                   if (masterBook) {
                     totalAmount = masterBook.total_pages || 0;
                   } else {
@@ -2627,10 +2627,10 @@ export const getPlanGroupContentsForRangeAdjustment = withErrorHandling(
             if (lecture) {
               title = lecture.title || "알 수 없음";
 
-              // 마스터 콘텐츠 정보 조회
+              // 마스터 콘텐츠 정보 조회 (Admin 클라이언트 사용 - RLS 우회)
               if (lecture.master_content_id) {
                 try {
-                  const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id);
+                  const { lecture: masterLecture } = await getMasterLectureById(lecture.master_content_id, adminSupabase);
                   if (masterLecture) {
                     totalAmount = masterLecture.total_episodes || 0;
                   } else {
