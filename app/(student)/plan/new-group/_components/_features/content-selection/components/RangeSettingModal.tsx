@@ -182,6 +182,30 @@ export function RangeSettingModal({
 
         // HTTP 상태 코드 체크
         if (!response.ok) {
+          // 권한 관련 에러 (401, 403) 특별 처리
+          if (response.status === 401 || response.status === 403) {
+            const authErrorMessage = 
+              (responseData && typeof responseData === 'object' && responseData.error?.message) ||
+              (responseData && typeof responseData === 'object' && responseData.message) ||
+              "로그인이 필요하거나 권한이 없습니다. 페이지를 새로고침해주세요.";
+            
+            if (process.env.NODE_ENV === "development") {
+              console.error(`[RangeSettingModal] 권한 에러 (${response.status}): ${apiPath}`, {
+                status: response.status,
+                statusText: response.statusText,
+                contentType: content.type,
+                contentId: content.id,
+                isRecommendedContent,
+                url,
+                responseData: responseData || null,
+                responseText: responseText?.substring(0, 500),
+                suggestion: "세션이 만료되었거나 권한이 없습니다. 로그인 페이지로 이동하세요.",
+              });
+            }
+            throw new Error(authErrorMessage);
+          }
+          
+          // 기타 HTTP 에러
           const errorMessage = 
             (responseData && typeof responseData === 'object' && responseData.error?.message) ||
             (responseData && typeof responseData === 'object' && responseData.message) ||
@@ -190,6 +214,23 @@ export function RangeSettingModal({
               : `서버 오류가 발생했습니다. (${response.status})`);
           
           if (process.env.NODE_ENV === "development") {
+            // responseData 상세 분석
+            const responseDataInfo: Record<string, unknown> = {
+              type: typeof responseData,
+              isNull: responseData === null,
+              isUndefined: responseData === undefined,
+              isEmptyObject: responseData && typeof responseData === 'object' && Object.keys(responseData).length === 0,
+              keys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : null,
+            };
+            
+            // responseData를 안전하게 직렬화
+            let responseDataStringified: string | null = null;
+            try {
+              responseDataStringified = responseData ? JSON.stringify(responseData, null, 2) : null;
+            } catch (e) {
+              responseDataStringified = `[직렬화 실패: ${e instanceof Error ? e.message : String(e)}]`;
+            }
+            
             console.error(`[RangeSettingModal] API 호출 실패: ${apiPath}`, {
               status: response.status,
               statusText: response.statusText,
@@ -197,7 +238,9 @@ export function RangeSettingModal({
               contentId: content.id,
               isRecommendedContent,
               url,
-              responseData: responseData || null,
+              responseDataInfo,
+              responseData: responseData,
+              responseDataStringified,
               responseText: responseText?.substring(0, 500),
             });
           }
@@ -296,6 +339,12 @@ export function RangeSettingModal({
           errorDetails.errorMessage = err.message;
           errorDetails.errorStack = err.stack || undefined;
           errorDetails.errorName = err.name;
+          
+          // 권한 관련 에러인지 확인
+          if (err.message.includes("로그인") || err.message.includes("권한") || err.message.includes("인증")) {
+            errorDetails.isAuthError = true;
+            errorDetails.suggestion = "세션이 만료되었을 수 있습니다. 페이지를 새로고침하거나 다시 로그인해주세요.";
+          }
         } else {
           errorDetails.error = String(err);
           errorDetails.errorType = typeof err;
@@ -303,27 +352,30 @@ export function RangeSettingModal({
 
         // 에러 객체의 모든 속성을 안전하게 직렬화
         if (process.env.NODE_ENV === "development") {
+          // 개별 속성으로 출력 (직렬화 문제 방지)
+          console.error("[RangeSettingModal] 상세 정보 조회 실패:");
+          console.error("  type:", errorDetails.type);
+          console.error("  contentType:", errorDetails.contentType);
+          console.error("  contentId:", errorDetails.contentId);
+          console.error("  title:", errorDetails.title);
+          console.error("  isRecommendedContent:", errorDetails.isRecommendedContent);
+          console.error("  apiPath:", errorDetails.apiPath);
+          console.error("  errorMessage:", errorDetails.errorMessage);
+          console.error("  errorName:", errorDetails.errorName);
+          console.error("  isAuthError:", errorDetails.isAuthError);
+          if (errorDetails.errorStack) {
+            console.error("  errorStack:", errorDetails.errorStack);
+          }
+          if (errorDetails.suggestion) {
+            console.error("  suggestion:", errorDetails.suggestion);
+          }
+          
+          // JSON 형태로도 출력 시도 (디버깅용)
           try {
-            // JSON.stringify로 직렬화 가능한지 확인
             const serialized = JSON.stringify(errorDetails, null, 2);
-            console.error(
-              "[RangeSettingModal] 상세 정보 조회 실패:",
-              JSON.parse(serialized)
-            );
+            console.error("[RangeSettingModal] 에러 상세 (JSON):", serialized);
           } catch (serializeError) {
-            // 직렬화 실패 시 개별 속성 출력
-            console.error("[RangeSettingModal] 상세 정보 조회 실패:");
-            console.error("  type:", errorDetails.type);
-            console.error("  contentType:", errorDetails.contentType);
-            console.error("  contentId:", errorDetails.contentId);
-            console.error("  title:", errorDetails.title);
-            console.error("  isRecommendedContent:", errorDetails.isRecommendedContent);
-            console.error("  apiPath:", errorDetails.apiPath);
-            console.error("  errorMessage:", errorDetails.errorMessage);
-            console.error("  errorName:", errorDetails.errorName);
-            if (errorDetails.errorStack) {
-              console.error("  errorStack:", errorDetails.errorStack);
-            }
+            // 직렬화 실패는 무시 (이미 개별 속성으로 출력했음)
           }
         }
         

@@ -36,8 +36,23 @@ export async function GET(request: NextRequest) {
     const user = await getCurrentUser();
     const { role } = await getCurrentUserRole();
 
-    if (!user || (role !== "student" && role !== "admin" && role !== "consultant")) {
-      return apiUnauthorized();
+    // 권한 체크 및 상세 로깅
+    if (!user) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[api/student-content-details] 사용자 인증 실패: user가 null");
+      }
+      return apiUnauthorized("로그인이 필요합니다.");
+    }
+
+    if (role !== "student" && role !== "admin" && role !== "consultant") {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[api/student-content-details] 권한 없음:", {
+          userId: user.userId,
+          role,
+          allowedRoles: ["student", "admin", "consultant"],
+        });
+      }
+      return apiUnauthorized("학생, 관리자, 또는 컨설턴트 권한이 필요합니다.");
     }
 
     const searchParams = request.nextUrl.searchParams;
