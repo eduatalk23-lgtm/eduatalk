@@ -81,29 +81,58 @@ export const ContentCard = React.memo(function ContentCard({
                 <span className="text-red-600 text-xs">{metadataError}</span>
               ) : (
                 <>
+                  {/* 콘텐츠 타입 배지 */}
+                  {isBook ? (
+                    <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                      📚 교재
+                    </span>
+                  ) : (
+                    <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                      🎧 강의
+                    </span>
+                  )}
+                  
+                  {/* 교과 그룹명 */}
                   {content.subject_group_name && (
                     <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
                       {content.subject_group_name}
                     </span>
                   )}
+                  
+                  {/* 세부 과목 */}
                   {content.subject && (
-                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
                       {content.subject}
                     </span>
                   )}
+                  
+                  {/* 학기 */}
                   {content.semester && (
-                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
                       {content.semester}
                     </span>
                   )}
+                  
+                  {/* 개정교육과정 */}
+                  {content.revision && (
+                    <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                      {content.revision}
+                    </span>
+                  )}
+                  
+                  {/* 난이도 */}
                   {content.difficulty && (
-                    <span className="rounded bg-gray-100 px-2 py-0.5">
+                    <span className="rounded bg-indigo-100 px-2 py-0.5 text-indigo-800">
                       {content.difficulty}
                     </span>
                   )}
+                  
+                  {/* 출판사 */}
                   {content.publisher && (
                     <span className="text-gray-600">{content.publisher}</span>
                   )}
+                  
+                  {/* 플랫폼 */}
                   {content.platform && (
                     <span className="text-gray-600">{content.platform}</span>
                   )}
@@ -116,7 +145,9 @@ export const ContentCard = React.memo(function ContentCard({
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-gray-800">범위:</span>
                 <span className="text-gray-600">
-                  {range.start} ~ {range.end}
+                  {isBook
+                    ? `${range.start}페이지 ~ ${range.end}페이지`
+                    : `${range.start}회차 ~ ${range.end}회차`}
                 </span>
               </div>
             )}

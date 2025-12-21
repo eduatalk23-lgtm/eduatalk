@@ -411,10 +411,13 @@ export function RecommendedContentsPanel({
                   id: content.id,
                   title: content.title,
                   subject: content.subject,
+                  subject_group_name: content.subject_category, // subject_category를 subject_group_name으로 사용
                   semester: content.semester,
+                  revision: content.revision,
                   difficulty: content.difficulty_level,
                   publisher: content.publisher,
                   platform: content.platform,
+                  contentType: content.contentType,
                 }}
                 selected={false}
                 recommended={{
@@ -472,10 +475,13 @@ export function RecommendedContentsPanel({
                     id: content.content_id,
                     title: content.title || "제목 없음",
                     subject: originalContent?.subject,
+                    subject_group_name: originalContent?.subject_category, // subject_category를 subject_group_name으로 사용
                     semester: originalContent?.semester,
+                    revision: originalContent?.revision,
                     difficulty: originalContent?.difficulty_level,
                     publisher: originalContent?.publisher,
                     platform: originalContent?.platform,
+                    contentType: content.content_type,
                   }}
                   selected={true}
                   range={{

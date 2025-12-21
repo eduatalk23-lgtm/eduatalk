@@ -316,9 +316,11 @@ export function StudentContentsPanel({
             subject: metadata?.subject,
             subject_group_name: metadata?.subject_group_name,
             semester: metadata?.semester,
+            revision: metadata?.revision,
             difficulty: metadata?.difficulty_level,
             publisher: metadata?.publisher,
             platform: metadata?.platform,
+            contentType: content.content_type,
           }}
           selected={true}
           readOnly={!editable}

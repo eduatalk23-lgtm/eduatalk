@@ -261,11 +261,36 @@ export function StrategyWeaknessAllocationEditor({
                         batchSettingSubjectGroup === subjectGroup ? null : subjectGroup
                       );
                     }}
-                    className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={
+                      batchSettingSubjectGroup === subjectGroup
+                        ? `${subjectGroup} 일괄 설정 취소`
+                        : `${subjectGroup} 교과별 일괄 설정`
+                    }
+                    aria-expanded={batchSettingSubjectGroup === subjectGroup}
+                    className={`
+                      inline-flex items-center justify-center gap-1.5
+                      rounded-lg border border-transparent
+                      px-3 py-1.5
+                      text-xs font-semibold
+                      transition-all duration-200
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2
+                      disabled:cursor-not-allowed disabled:opacity-50
+                      ${
+                        batchSettingSubjectGroup === subjectGroup
+                          ? "bg-primary-700 text-white shadow-sm hover:bg-primary-800 active:scale-[0.98]"
+                          : "bg-primary-600 text-white shadow-sm hover:bg-primary-700 hover:shadow-md active:scale-[0.98]"
+                      }
+                    `}
                   >
-                    {batchSettingSubjectGroup === subjectGroup
-                      ? "일괄 설정 취소"
-                      : "교과별 일괄 설정"}
+                    {batchSettingSubjectGroup === subjectGroup ? (
+                      <>
+                        <span>일괄 설정 취소</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>교과별 일괄 설정</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>

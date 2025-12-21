@@ -113,9 +113,11 @@ export function UnifiedContentsView({
             subject: metadata?.subject || content.subject_category || undefined,
             subject_group_name: metadata?.subject_group_name,
             semester: metadata?.semester,
+            revision: metadata?.revision,
             difficulty: metadata?.difficulty_level,
             publisher: metadata?.publisher,
             platform: metadata?.platform,
+            contentType: content.content_type,
           }}
           selected={true}
           readOnly={true}
@@ -151,9 +153,11 @@ export function UnifiedContentsView({
             subject: originalContent?.subject || metadata?.subject || content.subject_category || undefined,
             subject_group_name: metadata?.subject_group_name,
             semester: originalContent?.semester || metadata?.semester,
+            revision: originalContent?.revision || metadata?.revision,
             difficulty: originalContent?.difficulty_level || metadata?.difficulty_level,
             publisher: originalContent?.publisher || metadata?.publisher,
             platform: originalContent?.platform || metadata?.platform,
+            contentType: content.content_type,
           }}
           selected={true}
           readOnly={true}

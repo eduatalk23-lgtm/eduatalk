@@ -227,9 +227,11 @@ export type ContentCardProps = {
     subject?: string | null;
     subject_group_name?: string | null; // 교과명
     semester?: string | null;
+    revision?: string | null; // 개정교육과정
     difficulty?: string | null;
     publisher?: string | null;
     platform?: string | null;
+    contentType?: "book" | "lecture"; // 콘텐츠 타입 (범위 표시용)
   };
   
   // 상태

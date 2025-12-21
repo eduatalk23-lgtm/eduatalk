@@ -119,64 +119,70 @@ export default function AddedContentsList({
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                    {/* 콘텐츠 타입 배지 */}
                     {content.content_type === "book" && (
-                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
+                      <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
                         📚 교재
                       </span>
                     )}
                     {content.content_type === "lecture" && (
-                      <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
+                      <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
                         🎧 강의
                       </span>
                     )}
+                    
+                    {/* 교과 그룹명 */}
+                    {recommendedContent?.subject_category && (
+                      <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                        {recommendedContent.subject_category}
+                      </span>
+                    )}
+                    
+                    {/* 세부 과목 */}
                     {recommendedContent?.subject && (
-                      <>
-                        <span>·</span>
-                        <span>{recommendedContent.subject}</span>
-                      </>
+                      <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                        {recommendedContent.subject}
+                      </span>
                     )}
+                    
+                    {/* 학기 */}
                     {recommendedContent?.semester && (
-                      <>
-                        <span>·</span>
-                        <span>{recommendedContent.semester}</span>
-                      </>
+                      <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                        {recommendedContent.semester}
+                      </span>
                     )}
+                    
+                    {/* 개정교육과정 */}
                     {recommendedContent?.revision && (
-                      <>
-                        <span>·</span>
-                        <span className="font-medium text-indigo-600">
-                          {recommendedContent.revision}
-                        </span>
-                      </>
+                      <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                        {recommendedContent.revision}
+                      </span>
                     )}
+                    
+                    {/* 난이도 */}
                     {recommendedContent?.difficulty_level && (
-                      <>
-                        <span>·</span>
-                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-800 text-xs">
-                          {recommendedContent.difficulty_level}
-                        </span>
-                      </>
+                      <span className="rounded bg-indigo-100 px-2 py-0.5 text-indigo-800">
+                        {recommendedContent.difficulty_level}
+                      </span>
                     )}
+                    
+                    {/* 출판사 */}
                     {recommendedContent?.publisher && (
-                      <>
-                        <span>·</span>
-                        <span>{recommendedContent.publisher}</span>
-                      </>
+                      <span className="text-gray-600">{recommendedContent.publisher}</span>
                     )}
+                    
+                    {/* 플랫폼 */}
                     {recommendedContent?.platform && (
-                      <>
-                        <span>·</span>
-                        <span>{recommendedContent.platform}</span>
-                      </>
+                      <span className="text-gray-600">{recommendedContent.platform}</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* 범위 정보 또는 범위 편집 UI */}
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span>·</span>
+              <div className="flex items-center gap-2 text-sm mt-2">
+                <span className="font-medium text-gray-800">범위:</span>
                 {isEditing ? (
                   <div className="flex-1 space-y-3">
                     {/* 상세정보가 있는 경우 시작/끝 범위 각각 선택 */}
@@ -507,7 +513,7 @@ export default function AddedContentsList({
                     )}
                   </div>
                 ) : (
-                  <span>
+                  <span className="text-gray-600">
                     {content.content_type === "book"
                       ? `${content.start_range}페이지 ~ ${content.end_range}페이지`
                       : `${content.start_range}회차 ~ ${content.end_range}회차`}

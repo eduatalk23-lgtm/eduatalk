@@ -240,22 +240,25 @@ export const ContentSelector = React.memo(function ContentSelector({
                   <h4 className="font-medium text-gray-900 truncate">
                     {item.title}
                   </h4>
-                  {/* 개정교육과정, 교과, 과목 정보 */}
-                  {(item.curriculum_revision_name || item.subject_group_name || item.subject) && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {item.curriculum_revision_name && (
-                        <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                          {item.curriculum_revision_name}
-                        </span>
-                      )}
+                  {/* 메타데이터 (표준 순서) */}
+                  {(item.subject_group_name || item.subject || item.curriculum_revision_name) && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {/* 교과 그룹명 */}
                       {item.subject_group_name && (
-                        <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
                           {item.subject_group_name}
                         </span>
                       )}
+                      {/* 세부 과목 */}
                       {item.subject && (
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
                           {item.subject}
+                        </span>
+                      )}
+                      {/* 개정교육과정 */}
+                      {item.curriculum_revision_name && (
+                        <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                          {item.curriculum_revision_name}
                         </span>
                       )}
                     </div>

@@ -5,6 +5,7 @@
 
 "use client";
 
+import { Star } from "lucide-react";
 import { RecommendedContent } from "../types";
 import { formatNumber } from "@/lib/utils/formatNumber";
 
@@ -36,90 +37,92 @@ export default function RecommendedContentCard({
       <div className="flex flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-1 flex-col gap-1">
-            {/* 제목 */}
-            <div className="text-sm font-medium text-gray-900">
-              {content.title}
+            {/* 제목 및 추천 우선순위 */}
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-gray-900">
+                {content.title}
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-xs font-medium text-yellow-600">
+                  추천 {content.priority}
+                </span>
+              </div>
             </div>
 
             {/* 메타 정보 */}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-              {/* 콘텐츠 타입 */}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+              {/* 콘텐츠 타입 배지 */}
               {content.contentType === "book" && (
-                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
+                <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
                   📚 교재
                 </span>
               )}
               {content.contentType === "lecture" && (
-                <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
+                <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
                   🎧 강의
                 </span>
               )}
 
-              {/* 과목 */}
+              {/* 교과 그룹명 */}
+              {content.subject_category && (
+                <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                  {content.subject_category}
+                </span>
+              )}
+
+              {/* 세부 과목 */}
               {content.subject && (
-                <>
-                  <span>·</span>
-                  <span>{content.subject}</span>
-                </>
+                <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                  {content.subject}
+                </span>
               )}
 
               {/* 학기 */}
               {content.semester && (
-                <>
-                  <span>·</span>
-                  <span>{content.semester}</span>
-                </>
+                <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700">
+                  {content.semester}
+                </span>
               )}
 
               {/* 개정 교육과정 */}
               {content.revision && (
-                <>
-                  <span>·</span>
-                  <span className="font-medium text-indigo-600">
-                    {content.revision}
-                  </span>
-                </>
+                <span className="rounded bg-purple-100 px-2 py-0.5 font-medium text-purple-800">
+                  {content.revision}
+                </span>
               )}
 
               {/* 난이도 */}
               {content.difficulty_level && (
-                <>
-                  <span>·</span>
-                  <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-800 text-xs">
-                    {content.difficulty_level}
-                  </span>
-                </>
+                <span className="rounded bg-indigo-100 px-2 py-0.5 text-indigo-800">
+                  {content.difficulty_level}
+                </span>
               )}
 
               {/* 출판사 */}
               {content.publisher && (
-                <>
-                  <span>·</span>
-                  <span>{content.publisher}</span>
-                </>
+                <span className="text-gray-600">{content.publisher}</span>
               )}
 
               {/* 플랫폼 */}
               {content.platform && (
-                <>
-                  <span>·</span>
-                  <span>{content.platform}</span>
-                </>
+                <span className="text-gray-600">{content.platform}</span>
               )}
             </div>
 
             {/* 추천 이유 */}
-            <div className="text-xs text-gray-600">
-              <span className="font-medium">추천 이유:</span> {content.reason}
+            <div className="flex flex-col gap-0.5 rounded-lg bg-yellow-50 p-2 text-sm text-gray-600">
+              <p className="font-medium text-yellow-800">추천 이유:</p>
+              <p className="text-gray-600">{content.reason}</p>
             </div>
 
             {/* 성적 데이터 */}
             {content.scoreDetails && (
-              <div className="flex flex-wrap gap-1 text-xs">
+              <div className="flex flex-wrap gap-2 text-xs">
                 {/* 내신 평균 */}
                 {content.scoreDetails.schoolAverageGrade !== null &&
                   content.scoreDetails.schoolAverageGrade !== undefined && (
-                    <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-800">
+                    <span className="rounded bg-blue-100 px-2 py-0.5 text-blue-800">
                       내신 평균{" "}
                       {formatNumber(content.scoreDetails.schoolAverageGrade)}
                       등급
@@ -129,7 +132,7 @@ export default function RecommendedContentCard({
                 {/* 모의고사 백분위 */}
                 {content.scoreDetails.mockPercentile !== null &&
                   content.scoreDetails.mockPercentile !== undefined && (
-                    <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-800">
+                    <span className="rounded bg-purple-100 px-2 py-0.5 text-purple-800">
                       모의고사{" "}
                       {formatNumber(content.scoreDetails.mockPercentile)}%
                     </span>
@@ -138,7 +141,7 @@ export default function RecommendedContentCard({
                 {/* 위험도 */}
                 {content.scoreDetails.riskScore !== undefined &&
                   content.scoreDetails.riskScore >= 50 && (
-                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-800">
+                    <span className="rounded bg-red-100 px-2 py-0.5 text-red-800">
                       위험도 {formatNumber(content.scoreDetails.riskScore)}점
                     </span>
                   )}
