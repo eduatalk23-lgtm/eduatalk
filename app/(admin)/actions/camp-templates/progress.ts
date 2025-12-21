@@ -723,244 +723,41 @@ export const continueCampStepsForAdmin = withErrorHandling(
         });
         
         if (contentsToSave.length > 0) {
-          // 학생이 실제로 가지고 있는 콘텐츠만 필터링
+          // savePlanContents 함수를 사용하여 콘텐츠 저장
+          // 이 함수는 validateAndResolveContent를 사용하여 학생이 실제로 가지고 있는 콘텐츠만 필터링
           const studentId = result.group.student_id;
-          const validContents: Array<{
-            content_type: string;
-            content_id: string;
-            start_range: number;
-            end_range: number;
-            display_order: number;
-            master_content_id?: string | null;
-            is_auto_recommended?: boolean;
-            recommendation_source?: "auto" | "admin" | "template" | null;
-            recommendation_reason?: string | null;
-            recommendation_metadata?: RecommendationMetadata | null;
-          }> = [];
+          await savePlanContents(
+            supabase,
+            groupId,
+            tenantId,
+            studentId,
+            contentsToSave
+          );
 
-          for (const content of contentsToSave) {
-            let isValidContent = false;
-            let actualContentId = content.content_id;
+          // 데이터 병합 검증: 저장된 콘텐츠 확인
+          const { data: savedContents } = await supabase
+            .from("plan_contents")
+            .select("*")
+            .eq("plan_group_id", groupId);
 
-            if (content.content_type === "book") {
-              // 먼저 학생 교재로 직접 조회
-              const { data: studentBook } = await supabase
-                .from("books")
-                .select("id")
-                .eq("id", content.content_id)
-                .eq("student_id", studentId)
-                .maybeSingle();
+          const savedStudentContents = savedContents?.filter(
+            (c) => !c.is_auto_recommended && !c.recommendation_source
+          ) || [];
+          const savedRecommendedContents = savedContents?.filter(
+            (c) => c.is_auto_recommended || c.recommendation_source
+          ) || [];
 
-              if (studentBook) {
-                isValidContent = true;
-                actualContentId = studentBook.id;
-              } else {
-                // 마스터 교재인지 확인
-                const { data: masterBook } = await supabase
-                  .from("master_books")
-                  .select("id")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-
-                if (masterBook) {
-                  // 마스터 교재인 경우, 해당 학생의 교재를 master_content_id로 찾기
-                  const { data: studentBookByMaster } = await supabase
-                    .from("books")
-                    .select("id, master_content_id")
-                    .eq("student_id", studentId)
-                    .eq("master_content_id", content.content_id)
-                    .maybeSingle();
-
-                  if (studentBookByMaster) {
-                    isValidContent = true;
-                    actualContentId = studentBookByMaster.id;
-                  } else {
-                    // 마스터 교재를 학생 교재로 복사 (캠프 모드에서 자동 복사)
-                    try {
-                      const { copyMasterBookToStudent } = await import(
-                        "@/lib/data/contentMasters"
-                      );
-                      const { bookId } = await copyMasterBookToStudent(
-                        content.content_id,
-                        studentId,
-                        tenantId
-                      );
-                      isValidContent = true;
-                      actualContentId = bookId;
-                      console.log(
-                        `[campTemplateActions] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
-                      );
-                    } catch (copyError) {
-                      logError(copyError, {
-                        function: "continueCampStepsForAdmin",
-                        contentId: content.content_id,
-                        contentType: "book",
-                      });
-                      // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
-                      isValidContent = true;
-                      actualContentId = content.content_id;
-                    }
-                  }
-                } else {
-                  console.warn(
-                    `[campTemplateActions] 교재(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
-                  );
-                }
-              }
-            } else if (content.content_type === "lecture") {
-              // 먼저 학생 강의로 직접 조회
-              const { data: studentLecture } = await supabase
-                .from("lectures")
-                .select("id")
-                .eq("id", content.content_id)
-                .eq("student_id", studentId)
-                .maybeSingle();
-
-              if (studentLecture) {
-                isValidContent = true;
-                actualContentId = studentLecture.id;
-              } else {
-                // 마스터 강의인지 확인
-                const { data: masterLecture } = await supabase
-                  .from("master_lectures")
-                  .select("id")
-                  .eq("id", content.content_id)
-                  .maybeSingle();
-
-                if (masterLecture) {
-                  // 마스터 강의인 경우, 해당 학생의 강의를 master_content_id로 찾기
-                  const { data: studentLectureByMaster } = await supabase
-                    .from("lectures")
-                    .select("id, master_content_id")
-                    .eq("student_id", studentId)
-                    .eq("master_content_id", content.content_id)
-                    .maybeSingle();
-
-                  if (studentLectureByMaster) {
-                    isValidContent = true;
-                    actualContentId = studentLectureByMaster.id;
-                  } else {
-                    // 마스터 강의를 학생 강의로 복사 (캠프 모드에서 자동 복사)
-                    try {
-                      const { copyMasterLectureToStudent } = await import(
-                        "@/lib/data/contentMasters"
-                      );
-                      const { lectureId } = await copyMasterLectureToStudent(
-                        content.content_id,
-                        studentId,
-                        tenantContext.tenantId
-                      );
-                      isValidContent = true;
-                      actualContentId = lectureId;
-                      console.log(
-                        `[campTemplateActions] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
-                      );
-                    } catch (copyError) {
-                      logError(
-                        copyError,
-                        {
-                          function: "continueCampStepsForAdmin",
-                          message: `마스터 강의 복사 실패: ${content.content_id}`,
-                        }
-                      );
-                      // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
-                      isValidContent = true;
-                      actualContentId = content.content_id;
-                    }
-                  }
-                } else {
-                  console.warn(
-                    `[campTemplateActions] 강의(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
-                  );
-                }
-              }
-            } else if (content.content_type === "custom") {
-              // 커스텀 콘텐츠는 학생 ID로 직접 조회
-              const { data: customContent } = await supabase
-                .from("student_custom_contents")
-                .select("id")
-                .eq("id", content.content_id)
-                .eq("student_id", studentId)
-                .maybeSingle();
-
-              if (customContent) {
-                isValidContent = true;
-                actualContentId = customContent.id;
-              } else {
-                console.warn(
-                  `[campTemplateActions] 커스텀 콘텐츠(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
-                );
-              }
-            }
-
-            if (isValidContent) {
-            const contentWithRecommendation = content as typeof content & {
-              is_auto_recommended?: boolean;
-              recommendation_source?: "auto" | "admin" | "template" | string | null;
-              recommendation_reason?: string | null;
-              recommendation_metadata?: RecommendationMetadata | null;
-            };
-              const recommendationSource = contentWithRecommendation.recommendation_source;
-              const validRecommendationSource: "auto" | "admin" | "template" | null = 
-                recommendationSource === "auto" || recommendationSource === "admin" || recommendationSource === "template"
-                  ? recommendationSource
-                  : null;
-              validContents.push({
-                content_type: content.content_type,
-                content_id: actualContentId,
-                start_range: content.start_range,
-                end_range: content.end_range,
-                display_order: content.display_order ?? 0,
-                master_content_id: content.master_content_id || null,
-                is_auto_recommended: contentWithRecommendation.is_auto_recommended ?? false,
-                recommendation_source: validRecommendationSource,
-                recommendation_reason: contentWithRecommendation.recommendation_reason || null,
-                recommendation_metadata: contentWithRecommendation.recommendation_metadata ?? null,
-              });
-            }
-          }
-
-          if (validContents.length > 0) {
-            const contentsResult = await createPlanContents(
-              groupId,
-              tenantId,
-              validContents
-            );
-
-            if (!contentsResult.success) {
-              throw new AppError(
-                contentsResult.error || "콘텐츠 업데이트에 실패했습니다.",
-                ErrorCode.DATABASE_ERROR,
-                500,
-                true
-              );
-            }
-
-            // 데이터 병합 검증: 저장된 콘텐츠 확인
-            const { data: savedContents } = await supabase
-              .from("plan_contents")
-              .select("*")
-              .eq("plan_group_id", groupId);
-
-            const savedStudentContents = savedContents?.filter(
-              (c) => !c.is_auto_recommended && !c.recommendation_source
-            ) || [];
-            const savedRecommendedContents = savedContents?.filter(
-              (c) => c.is_auto_recommended || c.recommendation_source
-            ) || [];
-
-            console.log("[campTemplateActions] 콘텐츠 병합 검증:", {
-              groupId,
-              studentId,
-              hasStudentContents,
-              hasRecommendedContents,
-              existingStudentContentsCount: existingStudentContents.length,
-              existingRecommendedContentsCount: existingRecommendedContents.length,
-              savedStudentContentsCount: savedStudentContents.length,
-              savedRecommendedContentsCount: savedRecommendedContents.length,
-              validContentsCount: validContents.length,
-              contentsToSaveCount: contentsToSave.length,
-            });
+          console.log("[campTemplateActions] 콘텐츠 병합 검증:", {
+            groupId,
+            studentId,
+            hasStudentContents,
+            hasRecommendedContents,
+            existingStudentContentsCount: existingStudentContents.length,
+            existingRecommendedContentsCount: existingRecommendedContents.length,
+            savedStudentContentsCount: savedStudentContents.length,
+            savedRecommendedContentsCount: savedRecommendedContents.length,
+            contentsToSaveCount: contentsToSave.length,
+          });
 
             // 검증: 기존 학생 콘텐츠가 보존되었는지 확인
             // hasStudentContents가 false이거나 빈 배열인 경우 기존 콘텐츠가 보존되어야 함
@@ -1025,12 +822,6 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 );
               }
             }
-          } else if (contentsToSave.length > 0) {
-            // 유효한 콘텐츠가 없는 경우 경고만 출력 (에러는 발생시키지 않음)
-            console.warn(
-              `[campTemplateActions] 학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
-            );
-          }
         }
       }
 

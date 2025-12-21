@@ -233,9 +233,12 @@ export async function validateAndResolveContent(
               contentId: content.content_id,
               contentType: "book",
             });
-            // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
-            isValidContent = true;
-            actualContentId = content.content_id;
+            // 복사 실패 시 해당 콘텐츠를 제외 (외래 키 제약 조건 위반 방지)
+            // 마스터 교재 ID를 그대로 사용하면 plan_contents.content_id가 books 테이블을 참조하지 못함
+            isValidContent = false;
+            console.warn(
+              `[contentService] 마스터 교재(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
+            );
           }
         }
       } else {
@@ -297,9 +300,12 @@ export async function validateAndResolveContent(
               function: "validateAndResolveContent",
               message: `마스터 강의 복사 실패: ${content.content_id}`,
             });
-            // 복사 실패 시에도 마스터 콘텐츠 ID를 사용 (플랜 생성 시 자동 복사됨)
-            isValidContent = true;
-            actualContentId = content.content_id;
+            // 복사 실패 시 해당 콘텐츠를 제외 (외래 키 제약 조건 위반 방지)
+            // 마스터 강의 ID를 그대로 사용하면 plan_contents.content_id가 lectures 테이블을 참조하지 못함
+            isValidContent = false;
+            console.warn(
+              `[contentService] 마스터 강의(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
+            );
           }
         }
       } else {
