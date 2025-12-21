@@ -503,15 +503,18 @@ export async function updateCampInvitationStatus(
     currentUserId: user?.id,
     studentId: currentInvitation.student_id,
     updateData,
+    currentStatus: currentInvitation.status,
   });
 
   // UPDATE만 수행 (SELECT는 RLS 정책에 의해 실패할 수 있으므로 완전히 제거)
   // UPDATE 쿼리에서 .select()를 사용하면 RLS 정책으로 인해 count가 null이 될 수 있음
-  const { error } = await supabase
+  // RLS 정책의 USING 절에서 이미 status = 'pending'을 체크하므로, UPDATE 쿼리에서도 이 조건을 사용
+  const { error, data: updateResult } = await supabase
     .from("camp_invitations")
     .update(updateData)
     .eq("id", invitationId)
-    .eq("status", "pending"); // pending 상태인 경우만 업데이트 (RLS 정책과 일치)
+    .eq("status", "pending") // pending 상태인 경우만 업데이트 (RLS 정책과 일치)
+    .select("id, status"); // UPDATE 결과 확인용 (RLS 정책으로 인해 실패할 수 있음)
 
   if (error) {
     console.error("[data/campTemplates] updateCampInvitationStatus UPDATE 실패:", {
@@ -528,6 +531,35 @@ export async function updateCampInvitationStatus(
       success: false,
       error: error.message || "초대 상태 업데이트에 실패했습니다.",
     };
+  }
+
+  // UPDATE 결과 확인 (RLS 정책으로 인해 data가 null일 수 있음)
+  if (updateResult && updateResult.length > 0) {
+    const updated = updateResult[0];
+    if (updated.status === status) {
+      console.log("[data/campTemplates] updateCampInvitationStatus UPDATE 성공 (결과 확인 완료):", {
+        invitationId,
+        oldStatus: currentInvitation.status,
+        newStatus: updated.status,
+        currentUserId: user?.id,
+      });
+      return { success: true };
+    } else {
+      console.warn("[data/campTemplates] updateCampInvitationStatus: UPDATE 결과 상태 불일치:", {
+        invitationId,
+        expectedStatus: status,
+        actualStatus: updated.status,
+        currentUserId: user?.id,
+      });
+    }
+  } else {
+    // UPDATE 결과가 없음 (RLS 정책으로 인해 SELECT가 실패했을 수 있음)
+    console.warn("[data/campTemplates] updateCampInvitationStatus: UPDATE 결과 없음 (RLS 정책으로 인해 SELECT 실패 가능):", {
+      invitationId,
+      status,
+      currentUserId: user?.id,
+      updateResult,
+    });
   }
 
   // UPDATE가 성공했는지 확인하기 위해 상태를 다시 조회
