@@ -12,7 +12,6 @@ import { useContentInfos } from "./Step6FinalReview/hooks/useContentInfos";
 import { useRecommendedRanges } from "./Step6FinalReview/hooks/useRecommendedRanges";
 import { useContentDetails } from "./Step6FinalReview/hooks/useContentDetails";
 import { useInitialRanges } from "./Step6FinalReview/hooks/useInitialRanges";
-import { SubjectAllocationUI } from "./Step6FinalReview/SubjectAllocationUI";
 import { ContentAllocationUI } from "./Step6FinalReview/ContentAllocationUI";
 import { ContentList } from "./Step6FinalReview/ContentList";
 import { ComparisonTable } from "./Step6FinalReview/ComparisonTable";
@@ -629,54 +628,17 @@ export function Step6FinalReview({
               <h2 className="text-lg font-semibold text-gray-900">
                 전략과목/취약과목 정보
               </h2>
-
-              <div className="inline-flex rounded-lg border border-gray-300 p-1">
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ allocation_mode: "subject" })}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    (data.allocation_mode || "subject") === "subject"
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  교과별 설정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onUpdate({ allocation_mode: "content" })}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    data.allocation_mode === "content"
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  콘텐츠별 설정
-                </button>
-              </div>
             </div>
 
             <p className="text-sm text-gray-600">
-              {(data.allocation_mode || "subject") === "subject"
-                ? "교과 단위로 전략/취약과목을 설정합니다. 같은 교과의 모든 콘텐츠에 동일하게 적용됩니다."
-                : "개별 콘텐츠마다 전략/취약과목을 설정합니다. 더 세밀한 조절이 가능합니다."}
+              각 콘텐츠마다 전략/취약과목을 설정합니다. 교과별로 그룹화되어 표시됩니다.
             </p>
 
-            {(data.allocation_mode || "subject") === "subject" && (
-              <SubjectAllocationUI
-                data={data}
-                onUpdate={onUpdate}
-                contentInfos={contentInfos}
-              />
-            )}
-
-            {data.allocation_mode === "content" && (
-              <ContentAllocationUI
-                data={data}
-                onUpdate={onUpdate}
-                contentInfos={contentInfos}
-              />
-            )}
+            <ContentAllocationUI
+              data={data}
+              onUpdate={onUpdate}
+              contentInfos={contentInfos}
+            />
           </div>
         )}
     </div>

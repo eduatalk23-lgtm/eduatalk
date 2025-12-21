@@ -23,6 +23,8 @@ type ContentMetadata = {
   title?: string;
   subject?: string | null;
   subject_category?: string | null;
+  subject_id?: string | null;
+  subject_group_name?: string | null;
   semester?: string | null;
   revision?: string | null;
   difficulty_level?: string | null;
@@ -204,7 +206,7 @@ export function useContentInfos({
           let metadata: ContentMetadata | null = batchMetadataMap.get(content.content_id) || null;
 
           // 저장된 정보가 없으면 서버 액션으로 조회
-          if (!title || !subjectCategory) {
+          if (!title || !subjectCategory || !metadata?.subject_group_name) {
             try {
               const result = await fetchContentMetadataAction(
                 content.content_id,
@@ -213,7 +215,11 @@ export function useContentInfos({
               if (result.success && result.data) {
                 title = title || result.data.title || "알 수 없음";
                 subjectCategory = subjectCategory || result.data.subject_category;
-                metadata = metadata || result.data;
+                metadata = {
+                  ...metadata,
+                  ...result.data,
+                  subject_group_name: result.data.subject_group_name || metadata?.subject_group_name || null,
+                };
               }
             } catch (error) {
               const planGroupError = toPlanGroupError(
@@ -250,6 +256,7 @@ export function useContentInfos({
             title: title || "알 수 없음",
             subject_category: subjectCategory,
             subject_id: metadata?.subject_id || null,
+            subject_group_name: metadata?.subject_group_name || null,
             start_range: content.start_range,
             end_range: content.end_range,
             isRecommended: false,
@@ -278,7 +285,7 @@ export function useContentInfos({
             let metadata: ContentMetadata | null = null;
             let totalValue: number | null = null;
 
-            if (!title || !subjectCategory) {
+            if (!title || !subjectCategory || !metadata?.subject_group_name) {
               try {
                 const result = await fetchContentMetadataAction(
                   content.content_id,
@@ -287,7 +294,10 @@ export function useContentInfos({
                 if (result.success && result.data) {
                   title = title || result.data.title || "알 수 없음";
                   subjectCategory = subjectCategory || result.data.subject_category;
-                  metadata = result.data;
+                  metadata = {
+                    ...result.data,
+                    subject_group_name: result.data.subject_group_name || null,
+                  };
                 }
               } catch (error) {
                 const planGroupError = toPlanGroupError(
@@ -390,6 +400,7 @@ export function useContentInfos({
               start_range: content.start_range,
               end_range: content.end_range,
               subject_id: metadata?.subject_id || null,
+              subject_group_name: metadata?.subject_group_name || null,
               isRecommended: true,
               // 자동 추천 정보 (content에 포함된 경우)
               is_auto_recommended: content.is_auto_recommended ?? false,

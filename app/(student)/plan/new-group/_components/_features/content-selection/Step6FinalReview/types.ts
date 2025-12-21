@@ -21,6 +21,7 @@ export type ContentInfo = {
   title: string;
   subject_category?: string | null;
   subject_id?: string | null; // 과목 ID (FK to subjects)
+  subject_group_name?: string | null; // 교과명 (subject_groups.name)
   start_range: number;
   end_range: number;
   isRecommended: boolean;
