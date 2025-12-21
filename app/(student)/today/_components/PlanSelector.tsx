@@ -18,10 +18,10 @@ export function PlanSelector({
   onSelect,
   sessions,
 }: PlanSelectorProps) {
-  // 현재 선택된 그룹 찾기 (planNumber로 먼저 찾고, 없으면 plan.id로 찾기)
+  // 현재 선택된 그룹 찾기 (planNumber로 찾기)
   const currentGroup = selectedPlanNumber !== null
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
-    : groups.find((g) => g.plan.id === selectedPlanNumber?.toString()); // planNumber가 null인 경우를 대비
+    : null;
   
   // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용
   const displayGroup = currentGroup || groups[0];

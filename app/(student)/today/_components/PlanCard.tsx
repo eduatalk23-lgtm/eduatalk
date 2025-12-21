@@ -40,7 +40,7 @@ type PlanCardProps = {
   }>;
   planDate: string;
   viewMode: "single" | "daily";
-  onViewDetail?: (planNumber: number | null) => void;
+  onViewDetail?: (planId: string) => void;
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
 };
@@ -443,7 +443,10 @@ function PlanCardComponent({
             </div>
             {onViewDetail && (
               <button
-                onClick={() => onViewDetail(group.planNumber)}
+                onClick={() => {
+                  // plan.id를 전달하여 planNumber가 null인 경우도 처리
+                  onViewDetail(group.plan.id);
+                }}
                 className={cn("text-sm font-semibold", getIndigoTextClasses("link"))}
               >
                 상세보기 →

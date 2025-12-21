@@ -37,7 +37,7 @@ type PlanGroupCardProps = {
   planDate: string; // 플랜 날짜 (메모 조회용)
   memo?: string | null; // 메모 내용
   totalPages?: number; // 콘텐츠 총량 (범위 조정용)
-  onViewDetail?: (planNumber: number | null) => void; // 일일 뷰에서 단일 뷰로 전환할 때
+  onViewDetail?: (planId: string) => void; // 일일 뷰에서 단일 뷰로 전환할 때
   campMode?: boolean; // 캠프 모드 여부
 };
 
@@ -450,7 +450,7 @@ function PlanGroupCardComponent({
             hasMemo={!!memo && memo.length > 0}
             onMemoClick={() => setIsMemoModalOpen(true)}
             onRangeAdjustClick={() => setIsRangeModalOpen(true)}
-            onViewDetail={onViewDetail ? () => onViewDetail(group.planNumber) : undefined}
+            onViewDetail={onViewDetail ? () => onViewDetail(group.plan.id) : undefined}
             viewMode="daily"
           />
         </div>

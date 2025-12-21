@@ -34,9 +34,19 @@ export function TodayPlanListView({
     initialSelectedPlanNumber ?? groups[0]?.planNumber ?? null
   );
 
-  const handleViewDetail = (planNumber: number | null) => {
-    setSelectedPlanNumber(planNumber);
-    setViewMode("single");
+  const handleViewDetail = (planId: string) => {
+    // plan.id로 그룹을 찾아서 planNumber를 설정
+    const selectedGroup = groups.find((g) => g.plan.id === planId);
+    if (selectedGroup) {
+      setSelectedPlanNumber(selectedGroup.planNumber);
+      setViewMode("single");
+    } else {
+      // 그룹을 찾을 수 없으면 첫 번째 그룹 선택
+      if (groups.length > 0) {
+        setSelectedPlanNumber(groups[0].planNumber);
+        setViewMode("single");
+      }
+    }
   };
 
   const handleModeChange = (mode: ViewMode) => {

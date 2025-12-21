@@ -31,12 +31,14 @@ export function SinglePlanView({
   // SinglePlanView에서는 자동 선택을 하지 않음
   // PlanViewContainer에서 처리하도록 함
 
-  // selectedPlanNumber로 그룹 찾기 (planNumber가 null인 경우도 처리)
+  // selectedPlanNumber로 그룹 찾기
+  // planNumber가 null인 경우도 처리하기 위해 planNumber로 먼저 찾고, 없으면 첫 번째 그룹 사용
   const selectedGroup = selectedPlanNumber !== null
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
-    : groups[0];
+    : null;
   
   // selectedGroup이 없으면 첫 번째 그룹 사용
+  // planNumber가 null인 그룹도 포함하여 찾을 수 있음
   const displayGroup = selectedGroup || groups[0];
 
   if (!displayGroup) {

@@ -12,7 +12,7 @@ type DailyPlanListViewProps = {
     { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }
   >;
   planDate: string;
-  onViewDetail: (planNumber: number | null) => void;
+  onViewDetail: (planId: string) => void;
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
 };

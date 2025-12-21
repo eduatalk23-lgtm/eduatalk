@@ -228,11 +228,23 @@ export function PlanViewContainer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupsKey, planDate]);
 
-  const handleViewDetail = (planNumber: number | null) => {
-    // planNumber가 null인 경우도 처리 (plan.id로 그룹을 찾을 수 있음)
-    lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
-    setSelectedPlanNumber(planNumber);
-    setViewMode("single");
+  const handleViewDetail = (planId: string) => {
+    // plan.id로 그룹을 찾아서 planNumber를 설정
+    const selectedGroup = groups.find((g) => g.plan.id === planId);
+    if (selectedGroup) {
+      const planNumber = selectedGroup.planNumber;
+      lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
+      setSelectedPlanNumber(planNumber);
+      setViewMode("single");
+    } else {
+      // 그룹을 찾을 수 없으면 첫 번째 그룹 선택
+      if (groups.length > 0) {
+        const planNumber = groups[0].planNumber;
+        lastUserSelectedPlanNumber.current = planNumber;
+        setSelectedPlanNumber(planNumber);
+        setViewMode("single");
+      }
+    }
   };
   
   // selectedPlanNumber를 직접 변경하는 핸들러 (SinglePlanView에서 사용)
