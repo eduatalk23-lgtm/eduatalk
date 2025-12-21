@@ -1048,22 +1048,27 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 플랜 저장 전 콘텐츠 존재 여부 검증 (외래 키 제약 조건 위반 방지)
+  // planPayloads의 content_id는 이미 contentIdMap을 통해 변환된 학생 콘텐츠 ID
   const uniqueContentIds = new Set(
     planPayloads.map((p) => p.content_id).filter((id) => id)
   );
+  
+  // 콘텐츠 타입별로 분류
   const contentIdsByType = {
-    book: Array.from(uniqueContentIds).filter((id) => {
-      const content = contents.find((c) => contentIdMap.get(c.content_id) === id);
-      return content?.content_type === "book";
-    }),
-    lecture: Array.from(uniqueContentIds).filter((id) => {
-      const content = contents.find((c) => contentIdMap.get(c.content_id) === id);
-      return content?.content_type === "lecture";
-    }),
+    book: planPayloads
+      .filter((p) => p.content_type === "book" && p.content_id)
+      .map((p) => p.content_id),
+    lecture: planPayloads
+      .filter((p) => p.content_type === "lecture" && p.content_id)
+      .map((p) => p.content_id),
+    custom: planPayloads
+      .filter((p) => p.content_type === "custom" && p.content_id)
+      .map((p) => p.content_id),
   };
 
   // 콘텐츠 존재 여부 확인 (병렬)
-  const [booksCheck, lecturesCheck] = await Promise.all([
+  // queryClient는 RLS 정책을 고려하여 올바르게 설정됨 (getSupabaseClientForStudent 사용)
+  let [booksCheck, lecturesCheck] = await Promise.all([
     contentIdsByType.book.length > 0
       ? queryClient
           .from("books")
@@ -1079,6 +1084,50 @@ async function _generatePlansFromGroupRefactored(
           .eq("student_id", studentId)
       : Promise.resolve({ data: [], error: null }),
   ]);
+
+  // 에러 처리: RLS 정책으로 인한 조회 실패 시 Admin 클라이언트로 재시도
+  if (booksCheck.error || lecturesCheck.error) {
+    console.warn(
+      "[_generatePlansFromGroupRefactored] queryClient로 조회 실패, Admin 클라이언트로 재시도:",
+      {
+        booksError: booksCheck.error?.message,
+        lecturesError: lecturesCheck.error?.message,
+        groupId,
+        studentId,
+        isAdminOrConsultant,
+      }
+    );
+    
+    // Admin 클라이언트로 재시도
+    const adminClient = ensureAdminClient();
+    [booksCheck, lecturesCheck] = await Promise.all([
+      contentIdsByType.book.length > 0
+        ? adminClient
+            .from("books")
+            .select("id")
+            .in("id", contentIdsByType.book)
+            .eq("student_id", studentId)
+        : Promise.resolve({ data: [], error: null }),
+      contentIdsByType.lecture.length > 0
+        ? adminClient
+            .from("lectures")
+            .select("id")
+            .in("id", contentIdsByType.lecture)
+            .eq("student_id", studentId)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    // 재시도 후에도 에러가 있으면 로그만 남기고 계속 진행
+    if (booksCheck.error || lecturesCheck.error) {
+      console.error(
+        "[_generatePlansFromGroupRefactored] Admin 클라이언트로도 조회 실패:",
+        {
+          booksError: booksCheck.error?.message,
+          lecturesError: lecturesCheck.error?.message,
+        }
+      );
+    }
+  }
 
   const existingBookIds = new Set((booksCheck.data || []).map((b) => b.id));
   const existingLectureIds = new Set((lecturesCheck.data || []).map((l) => l.id));
@@ -1096,6 +1145,8 @@ async function _generatePlansFromGroupRefactored(
         missingBooks,
         missingLectures,
         totalMissing: missingBooks.length + missingLectures.length,
+        booksCheckError: booksCheck.error?.message,
+        lecturesCheckError: lecturesCheck.error?.message,
         message: "이 콘텐츠들은 플랜에서 제외됩니다.",
       }
     );
