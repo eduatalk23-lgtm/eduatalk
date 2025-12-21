@@ -43,6 +43,9 @@ export function StrategyWeaknessAllocationEditor({
 
   const subjectGroups = Array.from(contentsBySubjectGroup.keys()).sort();
 
+  // 교과별 일괄 설정 상태 관리
+  const [batchSettingSubjectGroup, setBatchSettingSubjectGroup] = React.useState<string | null>(null);
+
   // 초기화 여부 추적을 위한 ref
   const hasInitialized = useRef(false);
 
@@ -88,6 +91,67 @@ export function StrategyWeaknessAllocationEditor({
       weekly_days: allocation.weekly_days,
     });
     onUpdate({ content_allocations: updatedAllocations });
+  };
+
+  // 교과별 일괄 설정 핸들러
+  const handleSubjectGroupBatchAllocation = (
+    subjectGroup: string,
+    allocation: {
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+    }
+  ) => {
+    if (!editable) return;
+
+    const subjectGroupContents = contentsBySubjectGroup.get(subjectGroup) || [];
+    if (subjectGroupContents.length === 0) return;
+
+    // 해당 교과의 콘텐츠에서 실제 subject_id 추출
+    const actualSubjectId = subjectGroupContents
+      .map((c) => c.subject_id)
+      .find((id) => id != null) || undefined;
+
+    // 교과 단위 설정 저장 (subject_allocations)
+    const currentSubjectAllocations = data.subject_allocations || [];
+    const updatedSubjectAllocations = currentSubjectAllocations.filter(
+      (a) => a.subject_name !== subjectGroup
+    );
+    updatedSubjectAllocations.push({
+      subject_id: actualSubjectId,
+      subject_name: subjectGroup,
+      subject_type: allocation.subject_type,
+      weekly_days: allocation.weekly_days,
+    });
+
+    // 해당 교과의 모든 콘텐츠에 동일한 설정 적용 (content_allocations)
+    const currentContentAllocations = data.content_allocations || [];
+    
+    // 기존 content_allocations에서 해당 교과의 콘텐츠 제거
+    const filteredContentAllocations = currentContentAllocations.filter(
+      (a) =>
+        !subjectGroupContents.some(
+          (c) =>
+            c.content_type === a.content_type && c.content_id === a.content_id
+        )
+    );
+
+    // 모든 콘텐츠에 동일한 설정 추가
+    subjectGroupContents.forEach((content) => {
+      filteredContentAllocations.push({
+        content_type: content.content_type as "book" | "lecture",
+        content_id: content.content_id,
+        subject_type: allocation.subject_type,
+        weekly_days: allocation.weekly_days,
+      });
+    });
+
+    onUpdate({
+      subject_allocations: updatedSubjectAllocations,
+      content_allocations: filteredContentAllocations,
+    });
+
+    // 일괄 설정 UI 닫기
+    setBatchSettingSubjectGroup(null);
   };
 
 
@@ -143,7 +207,49 @@ export function StrategyWeaknessAllocationEditor({
                     {contents.length}개 콘텐츠
                   </span>
                 </div>
+                
+                {/* 교과별 일괄 설정 버튼 (콘텐츠 2개 이상일 때만 표시) */}
+                {contents.length >= 2 && editable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBatchSettingSubjectGroup(
+                        batchSettingSubjectGroup === subjectGroup ? null : subjectGroup
+                      );
+                    }}
+                    className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {batchSettingSubjectGroup === subjectGroup
+                      ? "일괄 설정 취소"
+                      : "교과별 일괄 설정"}
+                  </button>
+                )}
               </div>
+
+              {/* 교과별 일괄 설정 UI */}
+              {batchSettingSubjectGroup === subjectGroup && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-blue-900">
+                        {subjectGroup} 전체 일괄 설정
+                      </span>
+                      <span className="text-xs text-blue-700">
+                        ({contents.length}개 콘텐츠에 동일하게 적용됩니다)
+                      </span>
+                    </div>
+                    <AllocationControls
+                      subjectType={subjectGroupAllocation?.subject_type || "weakness"}
+                      weeklyDays={subjectGroupAllocation?.weekly_days || 3}
+                      onChange={(allocation) => {
+                        handleSubjectGroupBatchAllocation(subjectGroup, allocation);
+                      }}
+                      disabled={!editable}
+                      size="md"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* 콘텐츠 목록 - 각 콘텐츠에서 취약/전략 선택 */}
               <div className="flex flex-col gap-3">
