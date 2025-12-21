@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanContent } from "@/lib/types/plan";
+import { fetchSubjectGroupNamesBatch } from "@/lib/data/contentMetadata";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -14,6 +15,8 @@ export type ContentItem = {
   title: string;
   subtitle?: string | null;
   master_content_id?: string | null;
+  subject?: string | null;
+  subject_group_name?: string | null;
 };
 
 /**
@@ -55,20 +58,36 @@ export async function fetchStudentBooks(
   try {
     const { data, error } = await supabase
       .from("books")
-      .select("id, title, subject, master_content_id")
+      .select("id, title, subject, subject_id, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return (
-      data?.map((book) => ({
-        id: book.id,
-        title: book.title || "제목 없음",
-        subtitle: book.subject || null,
-        master_content_id: book.master_content_id || null,
-      })) || []
-    );
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // subject_id 목록 추출
+    const subjectIds = data
+      .map((book) => book.subject_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 조회
+    const subjectGroupNamesMap = subjectIds.length > 0
+      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
+      : new Map<string, string>();
+
+    return data.map((book) => ({
+      id: book.id,
+      title: book.title || "제목 없음",
+      subtitle: book.subject || null,
+      master_content_id: book.master_content_id || null,
+      subject: book.subject || null,
+      subject_group_name: book.subject_id
+        ? subjectGroupNamesMap.get(book.subject_id) || null
+        : null,
+    }));
   } catch (err) {
     console.error("[data/planContents] 책 목록 조회 실패", {
       error: err instanceof Error ? err.message : String(err),
@@ -90,20 +109,36 @@ export async function fetchStudentLectures(
   try {
     const { data, error } = await supabase
       .from("lectures")
-      .select("id, title, subject, master_content_id")
+      .select("id, title, subject, subject_id, master_content_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return (
-      data?.map((lecture) => ({
-        id: lecture.id,
-        title: lecture.title || "제목 없음",
-        subtitle: lecture.subject || null,
-        master_content_id: lecture.master_content_id || null,
-      })) || []
-    );
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // subject_id 목록 추출
+    const subjectIds = data
+      .map((lecture) => lecture.subject_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 조회
+    const subjectGroupNamesMap = subjectIds.length > 0
+      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
+      : new Map<string, string>();
+
+    return data.map((lecture) => ({
+      id: lecture.id,
+      title: lecture.title || "제목 없음",
+      subtitle: lecture.subject || null,
+      master_content_id: lecture.master_content_id || null,
+      subject: lecture.subject || null,
+      subject_group_name: lecture.subject_id
+        ? subjectGroupNamesMap.get(lecture.subject_id) || null
+        : null,
+    }));
   } catch (err) {
     console.error("[data/planContents] 강의 목록 조회 실패", {
       error: err instanceof Error ? err.message : String(err),
@@ -125,19 +160,35 @@ export async function fetchStudentCustomContents(
   try {
     const { data, error } = await supabase
       .from("student_custom_contents")
-      .select("id, title, content_type")
+      .select("id, title, content_type, subject, subject_id")
       .eq("student_id", studentId)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    return (
-      data?.map((custom) => ({
-        id: custom.id,
-        title: custom.title || "커스텀 콘텐츠",
-        subtitle: custom.content_type || null,
-      })) || []
-    );
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // subject_id 목록 추출
+    const subjectIds = data
+      .map((custom) => custom.subject_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+
+    // 배치로 교과명 조회
+    const subjectGroupNamesMap = subjectIds.length > 0
+      ? await fetchSubjectGroupNamesBatch(supabase, subjectIds)
+      : new Map<string, string>();
+
+    return data.map((custom) => ({
+      id: custom.id,
+      title: custom.title || "커스텀 콘텐츠",
+      subtitle: custom.content_type || null,
+      subject: custom.subject || null,
+      subject_group_name: custom.subject_id
+        ? subjectGroupNamesMap.get(custom.subject_id) || null
+        : null,
+    }));
   } catch (err) {
     console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", {
       error: err instanceof Error ? err.message : String(err),

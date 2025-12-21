@@ -44,7 +44,7 @@ async function fetchSubjectGroupName(
 /**
  * 여러 subject_id를 배치로 조회하여 교과명 맵 반환
  */
-async function fetchSubjectGroupNamesBatch(
+export async function fetchSubjectGroupNamesBatch(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   subjectIds: string[]
 ): Promise<Map<string, string>> {

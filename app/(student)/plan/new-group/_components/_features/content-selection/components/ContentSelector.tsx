@@ -15,6 +15,8 @@ type ContentItem = {
   title: string;
   subtitle?: string | null;
   master_content_id?: string | null;
+  subject?: string | null;
+  subject_group_name?: string | null;
 };
 
 type ContentSelectorProps = {
@@ -230,10 +232,25 @@ export const ContentSelector = React.memo(function ContentSelector({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
                   <h4 className="font-medium text-gray-900 truncate">
                     {item.title}
                   </h4>
+                  {/* 교과/과목 정보 */}
+                  {(item.subject_group_name || item.subject) && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {item.subject_group_name && (
+                        <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                          {item.subject_group_name}
+                        </span>
+                      )}
+                      {item.subject && (
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                          {item.subject}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {item.subtitle && (
                     <p className="text-sm text-gray-600 truncate">
                       {item.subtitle}
