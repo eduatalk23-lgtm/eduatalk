@@ -217,9 +217,23 @@ export function CampPlanGroupReviewForm({
     });
   }, [studentContents, contentInfos]);
 
+  // 템플릿 블록 세트를 blockSets 형식으로 변환
+  const blockSets = useMemo(() => {
+    if (templateBlockSetId && templateBlockSetName) {
+      return [
+        {
+          id: templateBlockSetId,
+          name: templateBlockSetName,
+          blocks: templateBlocks,
+        },
+      ];
+    }
+    return [];
+  }, [templateBlockSetId, templateBlockSetName, templateBlocks]);
+
   // WizardData 생성 (Step 컴포넌트에서 사용)
   const wizardData = useMemo(() => {
-    return planGroupToWizardData(
+    const wizardDataResult = planGroupToWizardData(
       group,
       exclusions,
       academySchedules,
@@ -227,6 +241,13 @@ export function CampPlanGroupReviewForm({
       templateBlocks,
       templateBlockSetName
     );
+    
+    // 템플릿 블록 세트 ID가 있으면 wizardData에 설정
+    if (templateBlockSetId && !wizardDataResult.block_set_id) {
+      wizardDataResult.block_set_id = templateBlockSetId;
+    }
+    
+    return wizardDataResult;
   }, [
     group,
     exclusions,
@@ -234,6 +255,7 @@ export function CampPlanGroupReviewForm({
     studentContentsWithDetails,
     templateBlocks,
     templateBlockSetName,
+    templateBlockSetId,
   ]);
 
   if (loading) {
@@ -419,7 +441,7 @@ export function CampPlanGroupReviewForm({
             <Step1BasicInfo
               data={wizardData}
               onUpdate={() => {}} // readonly 모드에서는 업데이트 불필요
-              blockSets={[]} // 검토 모드에서는 블록세트 선택 불필요
+              blockSets={blockSets} // 템플릿 블록 세트 정보 포함
               editable={false}
               isCampMode={true}
               isTemplateMode={false}

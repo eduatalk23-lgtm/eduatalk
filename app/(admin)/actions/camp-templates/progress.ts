@@ -130,7 +130,8 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const schedulerOptions: SchedulerOptions = (result.group.scheduler_options as SchedulerOptions | null) ?? {};
         const tenantBlockSetId = await getTemplateBlockSetId(
           result.group.camp_template_id,
-          schedulerOptions
+          schedulerOptions,
+          tenantContext.tenantId
         );
 
         if (tenantBlockSetId) {
