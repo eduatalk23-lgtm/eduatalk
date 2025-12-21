@@ -97,7 +97,7 @@ export function SidebarUserSection({
     <div className={cn(
       layoutStyles.borderBottom,
       layoutStyles.bgWhite,
-      "p-4 flex flex-col gap-3"
+      "p-3 flex flex-col gap-2"
     )}>
       {/* 테넌트 정보와 사용자 정보 세로 배치 */}
       <div className="flex flex-col gap-2">
@@ -106,12 +106,14 @@ export function SidebarUserSection({
           <div className={cn(
             layoutStyles.flexCenter,
             "gap-2 px-3 py-2 rounded-lg",
-            layoutStyles.bgGray50
+            "bg-transparent hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+            "cursor-default",
+            layoutStyles.transition
           )}>
             <Building2 
               className={cn(
                 "w-4 h-4 flex-shrink-0",
-                layoutStyles.textSecondary
+                "text-[var(--text-secondary)] dark:text-[var(--text-tertiary)]"
               )} 
             />
             <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -123,7 +125,7 @@ export function SidebarUserSection({
               </p>
               {tenantInfo.type && (
                 <span className={cn(
-                  "text-body-2 truncate",
+                  "text-sm truncate",
                   layoutStyles.textMuted
                 )}>
                   · {tenantInfo.type}
@@ -137,7 +139,9 @@ export function SidebarUserSection({
         <div className={cn(
           layoutStyles.flexCenter,
           "gap-2 px-3 py-2 rounded-lg",
-          layoutStyles.bgGray50
+          "bg-transparent hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
+          "cursor-default",
+          layoutStyles.transition
         )}>
           <div className={cn(
             "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
@@ -154,7 +158,7 @@ export function SidebarUserSection({
               {userName || "사용자"}
             </p>
             <span className={cn(
-              "text-body-2 truncate",
+              "text-sm truncate",
               layoutStyles.textMuted
             )}>
               · {roleLabel}
@@ -163,8 +167,12 @@ export function SidebarUserSection({
         </div>
       </div>
 
-      {/* 액션 버튼 그룹 */}
-      <div className={cn(layoutStyles.flexBetween, "gap-2")}>
+      {/* 액션 버튼 그룹 - 구분선 추가 */}
+      <div className={cn(
+        "pt-2 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
+        layoutStyles.flexBetween, 
+        "gap-2"
+      )}>
         <SignOutButton variant="compact" />
         <ThemeToggle />
       </div>

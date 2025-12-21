@@ -77,31 +77,37 @@ function SidebarContent({
 }) {
   return (
     <>
-      {/* 로고 */}
-      <div className={cn(sidebarStyles.header)}>
+      {/* 로고 - 그림자 추가로 구분 */}
+      <div className={cn(sidebarStyles.header, "shadow-sm")}>
         <LogoSection
           dashboardHref={dashboardHref}
           roleLabel={roleLabel}
         />
       </div>
 
-      {/* 사용자 정보 섹션 (상단) */}
-      <SidebarUserSection
-        roleLabel={roleLabel}
-        userName={userName}
-        tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
-        variant="desktop"
-      />
+      {/* 사용자 정보 섹션 - 배경색 조정 */}
+      <div className="bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
+        <SidebarUserSection
+          roleLabel={roleLabel}
+          userName={userName}
+          tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
+          variant="desktop"
+        />
+      </div>
 
-      {/* 네비게이션 메뉴 */}
-      <SharedSidebarContent
-        role={role}
-        tenantInfo={tenantInfo}
-        variant="desktop"
-        onNavigate={onNavigate}
-        roleLabel={roleLabel}
-        userName={userName}
-      />
+      {/* 네비게이션 메뉴 - 구분선 추가 */}
+      <div className={cn(
+        "border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]"
+      )}>
+        <SharedSidebarContent
+          role={role}
+          tenantInfo={tenantInfo}
+          variant="desktop"
+          onNavigate={onNavigate}
+          roleLabel={roleLabel}
+          userName={userName}
+        />
+      </div>
     </>
   );
 }
