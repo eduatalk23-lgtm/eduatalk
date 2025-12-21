@@ -126,31 +126,65 @@ export function RangeSettingModal({
 
         const response = await fetch(url);
 
-        // 응답 처리 단순화: .json() 직접 사용
-        let responseData: any;
+        // 응답 처리: .json() 직접 사용
+        let responseData: any = null;
+        let responseText: string | null = null;
+        
         try {
-          responseData = await response.json();
+          // 응답 본문을 텍스트로 먼저 읽기 (디버깅용)
+          responseText = await response.text();
+          
+          // 빈 응답 체크
+          if (!responseText || responseText.trim() === "") {
+            throw new Error("응답 본문이 비어있습니다.");
+          }
+          
+          // JSON 파싱 시도
+          try {
+            responseData = JSON.parse(responseText);
+          } catch (parseError) {
+            if (process.env.NODE_ENV === "development") {
+              console.error("[RangeSettingModal] JSON 파싱 실패:", {
+                status: response.status,
+                statusText: response.statusText,
+                url,
+                responseText: responseText.substring(0, 200), // 처음 200자만
+                parseError,
+              });
+            }
+            throw new Error(
+              response.status >= 500
+                ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+                : "응답을 파싱할 수 없습니다."
+            );
+          }
         } catch (e) {
+          if (e instanceof Error && e.message !== "응답 본문이 비어있습니다." && !e.message.includes("파싱")) {
+            // 다른 종류의 에러는 그대로 전달
+            throw e;
+          }
+          
           if (process.env.NODE_ENV === "development") {
-            console.error("[RangeSettingModal] 응답 파싱 실패:", {
+            console.error("[RangeSettingModal] 응답 처리 실패:", {
               status: response.status,
               statusText: response.statusText,
               url,
-              error: e,
+              error: e instanceof Error ? e.message : String(e),
+              responseText: responseText?.substring(0, 200),
             });
           }
           throw new Error(
             response.status >= 500
               ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-              : "응답을 파싱할 수 없습니다."
+              : "응답을 처리할 수 없습니다."
           );
         }
 
         // HTTP 상태 코드 체크
         if (!response.ok) {
           const errorMessage = 
-            responseData?.error?.message || 
-            responseData?.message ||
+            (responseData && typeof responseData === 'object' && responseData.error?.message) ||
+            (responseData && typeof responseData === 'object' && responseData.message) ||
             (response.status >= 500
               ? "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
               : `서버 오류가 발생했습니다. (${response.status})`);
@@ -163,7 +197,8 @@ export function RangeSettingModal({
               contentId: content.id,
               isRecommendedContent,
               url,
-              responseData,
+              responseData: responseData || null,
+              responseText: responseText?.substring(0, 500),
             });
           }
           throw new Error(errorMessage);
@@ -259,17 +294,37 @@ export function RangeSettingModal({
 
         if (err instanceof Error) {
           errorDetails.errorMessage = err.message;
-          errorDetails.errorStack = err.stack;
+          errorDetails.errorStack = err.stack || undefined;
           errorDetails.errorName = err.name;
         } else {
           errorDetails.error = String(err);
+          errorDetails.errorType = typeof err;
         }
 
+        // 에러 객체의 모든 속성을 안전하게 직렬화
         if (process.env.NODE_ENV === "development") {
-          console.error(
-            "[RangeSettingModal] 상세 정보 조회 실패:",
-            errorDetails
-          );
+          try {
+            // JSON.stringify로 직렬화 가능한지 확인
+            const serialized = JSON.stringify(errorDetails, null, 2);
+            console.error(
+              "[RangeSettingModal] 상세 정보 조회 실패:",
+              JSON.parse(serialized)
+            );
+          } catch (serializeError) {
+            // 직렬화 실패 시 개별 속성 출력
+            console.error("[RangeSettingModal] 상세 정보 조회 실패:");
+            console.error("  type:", errorDetails.type);
+            console.error("  contentType:", errorDetails.contentType);
+            console.error("  contentId:", errorDetails.contentId);
+            console.error("  title:", errorDetails.title);
+            console.error("  isRecommendedContent:", errorDetails.isRecommendedContent);
+            console.error("  apiPath:", errorDetails.apiPath);
+            console.error("  errorMessage:", errorDetails.errorMessage);
+            console.error("  errorName:", errorDetails.errorName);
+            if (errorDetails.errorStack) {
+              console.error("  errorStack:", errorDetails.errorStack);
+            }
+          }
         }
         
         // 에러가 발생해도 직접 입력은 가능하도록 에러를 경고로 처리
