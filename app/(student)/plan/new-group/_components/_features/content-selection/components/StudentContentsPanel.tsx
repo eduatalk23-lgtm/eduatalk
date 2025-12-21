@@ -253,6 +253,17 @@ export function StudentContentsPanel({
       const isMasterContent = !!content.master_content_id;
       const contentIdToUse = isMasterContent ? content.master_content_id! : content.content_id;
 
+      if (process.env.NODE_ENV === "development") {
+        console.log("[StudentContentsPanel] handleEditRange:", {
+          content_id: content.content_id,
+          master_content_id: content.master_content_id,
+          isMasterContent,
+          contentIdToUse,
+          content_type: content.content_type,
+          title: content.title,
+        });
+      }
+
       setRangeModalContent({
         id: contentIdToUse,
         type: content.content_type,
