@@ -24,7 +24,9 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   const params = await searchParams;
   const createdCount = params?.created;
   const planPurpose = params?.planPurpose;
-  const sortOrder = params?.sortOrder || "desc"; // 기본값: 최신순(내림차순)
+  const sortOrder = (params?.sortOrder === "asc" || params?.sortOrder === "desc") 
+    ? params.sortOrder 
+    : "desc" as "asc" | "desc"; // 기본값: 최신순(내림차순)
 
   const user = await getCurrentUser();
   if (!user) {

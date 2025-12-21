@@ -77,7 +77,7 @@ async function _addBlock(formData: FormData): Promise<void> {
       } else {
         // 기본 세트 생성
         const createResult = await createBlockSet({
-          tenant_id: student.tenant_id,
+          tenant_id: student.tenant_id ?? null,
           student_id: user.userId,
           name: "기본",
           description: "기본 시간 블록 세트",
@@ -130,7 +130,7 @@ async function _addBlock(formData: FormData): Promise<void> {
 
   // lib/data/blockSets.ts의 createBlock 사용
   const result = await createBlock({
-    tenant_id: student.tenant_id,
+    tenant_id: student.tenant_id ?? null,
     student_id: user.userId,
     block_set_id: activeSetId,
     day_of_week: day,
@@ -312,7 +312,7 @@ async function _duplicateBlock(formData: FormData): Promise<void> {
 
   // lib/data/blockSets.ts의 createBlock 사용
   const result = await createBlock({
-    tenant_id: student.tenant_id,
+    tenant_id: student.tenant_id ?? null,
     student_id: user.userId,
     block_set_id: activeSetId,
     day_of_week: targetDayNum,
@@ -396,7 +396,8 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
     }
     activeSetId = providedSet.id;
   } else {
-    activeSetId = student.active_block_set_id;
+    // Student 타입에 active_block_set_id가 없으므로 타입 단언 사용
+    activeSetId = (student as Student & { active_block_set_id?: string | null }).active_block_set_id ?? null;
     
     if (!activeSetId) {
       throw new AppError("활성 블록 세트가 없습니다. 먼저 블록 세트를 생성해주세요.", ErrorCode.VALIDATION_ERROR, 400, true);
@@ -405,6 +406,10 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
 
   // 각 대상 요일로 블록 추가 (겹치는 블록은 스킵하고 나머지만 추가)
   const insertPromises = targetDayNums.map(async (targetDay) => {
+    // activeSetId가 null이면 에러 (이미 위에서 체크했지만 타입 안전성을 위해)
+    if (!activeSetId) {
+      throw new AppError("활성 블록 세트가 없습니다.", ErrorCode.VALIDATION_ERROR, 400, true);
+    }
     // 대상 요일의 기존 블록 조회 (같은 세트 내에서만)
     const existingBlocks = await getBlocksBySetId(activeSetId, user.userId, targetDay);
 
@@ -427,7 +432,7 @@ async function _addBlocksToMultipleDays(formData: FormData): Promise<void> {
 
     // lib/data/blockSets.ts의 createBlock 사용
     const result = await createBlock({
-      tenant_id: student.tenant_id,
+      tenant_id: student.tenant_id ?? null,
       student_id: user.userId,
       block_set_id: activeSetId,
       day_of_week: targetDay,
