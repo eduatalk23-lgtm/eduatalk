@@ -81,6 +81,11 @@ export const ContentCard = React.memo(function ContentCard({
                 <span className="text-red-600 text-xs">{metadataError}</span>
               ) : (
                 <>
+                  {content.subject_group_name && (
+                    <span className="rounded bg-blue-100 px-2 py-0.5 font-medium text-blue-800">
+                      {content.subject_group_name}
+                    </span>
+                  )}
                   {content.subject && (
                     <span className="rounded bg-gray-100 px-2 py-0.5">
                       {content.subject}

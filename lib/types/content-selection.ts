@@ -84,6 +84,7 @@ export type SelectedContent = {
  */
 export type ContentMetadata = {
   subject?: string | null;
+  subject_group_name?: string | null; // 교과명 (subject_groups.name)
   semester?: string | null;
   revision?: string | null;
   /** @deprecated difficulty_level_id를 사용하세요. 하위 호환성을 위해 유지됩니다. */
@@ -224,6 +225,7 @@ export type ContentCardProps = {
     id: string;
     title: string;
     subject?: string | null;
+    subject_group_name?: string | null; // 교과명
     semester?: string | null;
     difficulty?: string | null;
     publisher?: string | null;

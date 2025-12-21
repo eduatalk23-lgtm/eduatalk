@@ -10,12 +10,82 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 
 /**
+ * subject_id를 통해 교과명 조회 헬퍼 함수
+ */
+async function fetchSubjectGroupName(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  subjectId: string | null | undefined
+): Promise<string | null> {
+  if (!subjectId) {
+    return null;
+  }
+
+  try {
+    const { data: subject, error } = await supabase
+      .from("subjects")
+      .select("subject_group_id, subject_groups!inner(name)")
+      .eq("id", subjectId)
+      .maybeSingle();
+
+    if (error || !subject) {
+      console.warn(`[fetchSubjectGroupName] 과목 조회 실패: ${subjectId}`, error);
+      return null;
+    }
+
+    // subject_groups는 JOIN 결과이므로 타입 단언 필요
+    const subjectGroup = (subject as any).subject_groups;
+    return subjectGroup?.name || null;
+  } catch (error) {
+    console.warn(`[fetchSubjectGroupName] 교과명 조회 실패: ${subjectId}`, error);
+    return null;
+  }
+}
+
+/**
+ * 여러 subject_id를 배치로 조회하여 교과명 맵 반환
+ */
+async function fetchSubjectGroupNamesBatch(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  subjectIds: string[]
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  
+  if (subjectIds.length === 0) {
+    return result;
+  }
+
+  try {
+    const { data: subjects, error } = await supabase
+      .from("subjects")
+      .select("id, subject_group_id, subject_groups!inner(name)")
+      .in("id", subjectIds);
+
+    if (error || !subjects) {
+      console.warn(`[fetchSubjectGroupNamesBatch] 과목 배치 조회 실패:`, error);
+      return result;
+    }
+
+    subjects.forEach((subject: any) => {
+      const subjectGroup = subject.subject_groups;
+      if (subjectGroup?.name) {
+        result.set(subject.id, subjectGroup.name);
+      }
+    });
+  } catch (error) {
+    console.warn(`[fetchSubjectGroupNamesBatch] 교과명 배치 조회 실패:`, error);
+  }
+
+  return result;
+}
+
+/**
  * 콘텐츠 메타데이터 타입
  */
 export type ContentMetadata = {
   title: string;
   subject_category: string;
   subject_id?: string | null; // 과목 ID (FK to subjects)
+  subject_group_name?: string | null; // 교과명 (subject_groups.name)
   total_pages?: number; // 교재인 경우
   total_episodes?: number; // 강의인 경우
   subject?: string | null;
@@ -69,10 +139,14 @@ export async function fetchContentMetadata(
               .eq("id", studentBook.master_content_id)
               .maybeSingle();
 
+            const finalSubjectId = studentBook.subject_id || masterBook?.subject_id || null;
+            const subjectGroupName = await fetchSubjectGroupName(supabase, finalSubjectId);
+
             return {
               title: studentBook.title || "제목 없음",
               subject_category: masterBook?.subject_category || studentBook.subject_category || "기타",
-              subject_id: studentBook.subject_id || masterBook?.subject_id || null,
+              subject_id: finalSubjectId,
+              subject_group_name: subjectGroupName,
               total_pages: masterBook?.total_pages,
               subject: studentBook.subject,
               semester: studentBook.semester,
@@ -83,10 +157,13 @@ export async function fetchContentMetadata(
           }
 
           // master_content_id가 없으면 학생 콘텐츠 정보 사용
+          const subjectGroupName = await fetchSubjectGroupName(supabase, studentBook.subject_id);
+
           return {
             title: studentBook.title || "제목 없음",
             subject_category: studentBook.subject_category || "기타",
             subject_id: studentBook.subject_id || null,
+            subject_group_name: subjectGroupName,
             subject: studentBook.subject,
             semester: studentBook.semester,
             revision: studentBook.revision,
@@ -122,10 +199,14 @@ export async function fetchContentMetadata(
               .eq("id", studentLecture.master_content_id)
               .maybeSingle();
 
+            const finalSubjectId = studentLecture.subject_id || masterLecture?.subject_id || null;
+            const subjectGroupName = await fetchSubjectGroupName(supabase, finalSubjectId);
+
             return {
               title: studentLecture.title || "제목 없음",
               subject_category: masterLecture?.subject_category || studentLecture.subject_category || "기타",
-              subject_id: studentLecture.subject_id || masterLecture?.subject_id || null,
+              subject_id: finalSubjectId,
+              subject_group_name: subjectGroupName,
               total_episodes: masterLecture?.total_episodes,
               subject: studentLecture.subject,
               semester: studentLecture.semester,
@@ -136,10 +217,13 @@ export async function fetchContentMetadata(
           }
 
           // master_content_id가 없으면 학생 콘텐츠 정보 사용
+          const subjectGroupName = await fetchSubjectGroupName(supabase, studentLecture.subject_id);
+
           return {
             title: studentLecture.title || "제목 없음",
             subject_category: studentLecture.subject_category || "기타",
             subject_id: studentLecture.subject_id || null,
+            subject_group_name: subjectGroupName,
             subject: studentLecture.subject,
             semester: studentLecture.semester,
             revision: studentLecture.revision,
@@ -178,10 +262,13 @@ export async function fetchContentMetadata(
         );
       }
 
+      const subjectGroupName = await fetchSubjectGroupName(supabase, masterBook.subject_id);
+
       return {
         title: masterBook.title || "제목 없음",
         subject_category: masterBook.subject_category || "기타",
         subject_id: masterBook.subject_id || null,
+        subject_group_name: subjectGroupName,
         total_pages: masterBook.total_pages,
         subject: masterBook.subject,
         semester: masterBook.semester,
@@ -217,10 +304,13 @@ export async function fetchContentMetadata(
         );
       }
 
+      const subjectGroupName = await fetchSubjectGroupName(supabase, masterLecture.subject_id);
+
       return {
         title: masterLecture.title || "제목 없음",
         subject_category: masterLecture.subject_category || "기타",
         subject_id: masterLecture.subject_id || null,
+        subject_group_name: subjectGroupName,
         total_episodes: masterLecture.total_episodes,
         subject: masterLecture.subject,
         semester: masterLecture.semester,
@@ -278,7 +368,7 @@ export async function fetchContentMetadataBatch(
       if (bookIds.length > 0) {
         const { data: studentBooks, error: booksError } = await supabase
           .from("books")
-          .select("id, title, subject_category, master_content_id, subject, semester, revision, difficulty_level, publisher")
+          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, publisher")
           .eq("student_id", studentId)
           .in("id", bookIds);
 
@@ -289,22 +379,34 @@ export async function fetchContentMetadataBatch(
             .filter((id): id is string => id !== null);
 
           // 마스터 교재 배치 조회 (필요한 경우)
-          let masterBooksMap = new Map<string, { subject_category?: string | null; total_pages?: number | null }>();
+          let masterBooksMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_pages?: number | null }>();
           if (masterBookIds.length > 0) {
             const { data: masterBooks } = await supabase
               .from("master_books")
-              .select("id, subject_category, total_pages")
+              .select("id, subject_category, subject_id, total_pages")
               .in("id", masterBookIds);
 
             if (masterBooks) {
               masterBooks.forEach((book) => {
                 masterBooksMap.set(book.id, {
                   subject_category: book.subject_category,
+                  subject_id: book.subject_id,
                   total_pages: book.total_pages,
                 });
               });
             }
           }
+
+          // subject_id 수집 (교과명 조회용)
+          const allSubjectIds = studentBooks
+            .map((book) => {
+              const masterBook = book.master_content_id ? masterBooksMap.get(book.master_content_id) : null;
+              return book.subject_id || masterBook?.subject_id || null;
+            })
+            .filter((id): id is string => id !== null);
+
+          // 교과명 배치 조회
+          const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
 
           // 학생 교재 메타데이터 매핑
           studentBooks.forEach((book) => {
@@ -312,9 +414,14 @@ export async function fetchContentMetadataBatch(
               ? masterBooksMap.get(book.master_content_id)
               : null;
             
+            const finalSubjectId = book.subject_id || masterBook?.subject_id || null;
+            const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
+            
             results.set(book.id, {
               title: book.title || "제목 없음",
               subject_category: masterBook?.subject_category || book.subject_category || "기타",
+              subject_id: finalSubjectId,
+              subject_group_name: subjectGroupName,
               total_pages: masterBook?.total_pages ?? undefined,
               subject: book.subject,
               semester: book.semester,
@@ -330,7 +437,7 @@ export async function fetchContentMetadataBatch(
       if (lectureIds.length > 0) {
         const { data: studentLectures, error: lecturesError } = await supabase
           .from("lectures")
-          .select("id, title, subject_category, master_content_id, subject, semester, revision, difficulty_level, platform")
+          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, platform")
           .eq("student_id", studentId)
           .in("id", lectureIds);
 
@@ -341,22 +448,34 @@ export async function fetchContentMetadataBatch(
             .filter((id): id is string => id !== null);
 
           // 마스터 강의 배치 조회 (필요한 경우)
-          let masterLecturesMap = new Map<string, { subject_category?: string | null; total_episodes?: number | null }>();
+          let masterLecturesMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_episodes?: number | null }>();
           if (masterLectureIds.length > 0) {
             const { data: masterLectures } = await supabase
               .from("master_lectures")
-              .select("id, subject_category, total_episodes")
+              .select("id, subject_category, subject_id, total_episodes")
               .in("id", masterLectureIds);
 
             if (masterLectures) {
               masterLectures.forEach((lecture) => {
                 masterLecturesMap.set(lecture.id, {
                   subject_category: lecture.subject_category,
+                  subject_id: lecture.subject_id,
                   total_episodes: lecture.total_episodes,
                 });
               });
             }
           }
+
+          // subject_id 수집 (교과명 조회용)
+          const allSubjectIds = studentLectures
+            .map((lecture) => {
+              const masterLecture = lecture.master_content_id ? masterLecturesMap.get(lecture.master_content_id) : null;
+              return lecture.subject_id || masterLecture?.subject_id || null;
+            })
+            .filter((id): id is string => id !== null);
+
+          // 교과명 배치 조회
+          const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
 
           // 학생 강의 메타데이터 매핑
           studentLectures.forEach((lecture) => {
@@ -364,9 +483,14 @@ export async function fetchContentMetadataBatch(
               ? masterLecturesMap.get(lecture.master_content_id)
               : null;
             
+            const finalSubjectId = lecture.subject_id || masterLecture?.subject_id || null;
+            const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
+            
             results.set(lecture.id, {
               title: lecture.title || "제목 없음",
               subject_category: masterLecture?.subject_category || lecture.subject_category || "기타",
+              subject_id: finalSubjectId,
+              subject_group_name: subjectGroupName,
               total_episodes: masterLecture?.total_episodes ?? undefined,
               subject: lecture.subject,
               semester: lecture.semester,
@@ -388,14 +512,26 @@ export async function fetchContentMetadataBatch(
     if (missingBookIds.length > 0) {
       const { data: masterBooks, error: masterBooksError } = await supabase
         .from("master_books")
-        .select("id, title, subject_category, total_pages, subject, semester, revision, difficulty_level, publisher")
+        .select("id, title, subject_category, subject_id, total_pages, subject, semester, revision, difficulty_level, publisher")
         .in("id", missingBookIds);
 
       if (!masterBooksError && masterBooks) {
+        // subject_id 수집 (교과명 조회용)
+        const allSubjectIds = masterBooks
+          .map((book) => book.subject_id)
+          .filter((id): id is string => id !== null);
+
+        // 교과명 배치 조회
+        const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
+
         masterBooks.forEach((book) => {
+          const subjectGroupName = book.subject_id ? subjectGroupNamesMap.get(book.subject_id) || null : null;
+          
           results.set(book.id, {
             title: book.title || "제목 없음",
             subject_category: book.subject_category || "기타",
+            subject_id: book.subject_id || null,
+            subject_group_name: subjectGroupName,
             total_pages: book.total_pages,
             subject: book.subject,
             semester: book.semester,
@@ -411,14 +547,26 @@ export async function fetchContentMetadataBatch(
     if (missingLectureIds.length > 0) {
       const { data: masterLectures, error: masterLecturesError } = await supabase
         .from("master_lectures")
-        .select("id, title, subject_category, total_episodes, subject, semester, revision, difficulty_level, platform")
+        .select("id, title, subject_category, subject_id, total_episodes, subject, semester, revision, difficulty_level, platform")
         .in("id", missingLectureIds);
 
       if (!masterLecturesError && masterLectures) {
+        // subject_id 수집 (교과명 조회용)
+        const allSubjectIds = masterLectures
+          .map((lecture) => lecture.subject_id)
+          .filter((id): id is string => id !== null);
+
+        // 교과명 배치 조회
+        const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
+
         masterLectures.forEach((lecture) => {
+          const subjectGroupName = lecture.subject_id ? subjectGroupNamesMap.get(lecture.subject_id) || null : null;
+          
           results.set(lecture.id, {
             title: lecture.title || "제목 없음",
             subject_category: lecture.subject_category || "기타",
+            subject_id: lecture.subject_id || null,
+            subject_group_name: subjectGroupName,
             total_episodes: lecture.total_episodes,
             subject: lecture.subject,
             semester: lecture.semester,

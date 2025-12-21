@@ -314,6 +314,7 @@ export function StudentContentsPanel({
             id: content.content_id,
             title: content.title || "제목 없음",
             subject: metadata?.subject,
+            subject_group_name: metadata?.subject_group_name,
             semester: metadata?.semester,
             difficulty: metadata?.difficulty_level,
             publisher: metadata?.publisher,
