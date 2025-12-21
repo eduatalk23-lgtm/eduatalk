@@ -1020,30 +1020,16 @@ async function _generatePlansFromGroupRefactored(
     const now = new Date().toISOString();
 
     for (const segment of timeSegments) {
-      // O(1) 조회: 역방향 맵 사용
+      // transformedContents를 사용했으므로 segment.plan.content_id는 이미 학생 콘텐츠 ID
+      // 원본 content_id를 찾기 위해 reverseContentIdMap 사용 (메타데이터 조회용)
       const originalContentId =
         reverseContentIdMap.get(segment.plan.content_id) ||
         segment.plan.content_id;
       const metadata = contentMetadataMap.get(originalContentId) || {};
 
-      // contentIdMap을 사용하여 실제 학생 콘텐츠 ID로 변환
-      // segment.plan.content_id는 원본 콘텐츠 ID일 수 있으므로 contentIdMap에서 조회
-      const finalContentId = contentIdMap.get(originalContentId) || segment.plan.content_id;
-      
-      // contentIdMap에 없는 경우 플랜에서 제외
-      if (!contentIdMap.has(originalContentId)) {
-        console.warn(
-          `[generatePlansRefactored] 콘텐츠 ID(${originalContentId})가 contentIdMap에 없어 플랜에서 제외합니다.`,
-          {
-            groupId,
-            studentId,
-            date,
-            originalContentId,
-            segmentContentId: segment.plan.content_id,
-          }
-        );
-        continue;
-      }
+      // transformedContents를 사용했으므로 segment.plan.content_id는 이미 변환된 학생 콘텐츠 ID
+      // 추가 변환 불필요
+      const finalContentId = segment.plan.content_id;
 
       // 원본 플랜 찾기 (회차 계산용)
       const originalPlanIndex = segment.plan._originalIndex ?? 0;
