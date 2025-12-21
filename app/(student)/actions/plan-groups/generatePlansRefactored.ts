@@ -1156,8 +1156,8 @@ async function _generatePlansFromGroupRefactored(
         missingBooks,
         missingLectures,
         totalMissing: missingBooks.length + missingLectures.length,
-        booksCheckError: booksCheck.error?.message,
-        lecturesCheckError: lecturesCheck.error?.message,
+        booksCheckError: finalBooksCheck.error?.message,
+        lecturesCheckError: finalLecturesCheck.error?.message,
         message: "이 콘텐츠들은 플랜에서 제외됩니다.",
       }
     );
@@ -1189,6 +1189,59 @@ async function _generatePlansFromGroupRefactored(
     // 유효한 플랜만 사용
     planPayloads.length = 0;
     planPayloads.push(...validPlanPayloads);
+  }
+
+  // 최종 검증: 모든 플랜의 content_id가 검증된 콘텐츠인지 확인
+  const allContentIds = new Set([
+    ...contentIdsByType.book,
+    ...contentIdsByType.lecture,
+    ...contentIdsByType.custom,
+  ]);
+  const verifiedContentIds = new Set([
+    ...existingBookIds,
+    ...existingLectureIds,
+    ...contentIdsByType.custom, // custom 콘텐츠는 검증하지 않음
+  ]);
+
+  const unverifiedPlans = planPayloads.filter(
+    (p) => p.content_id && !verifiedContentIds.has(p.content_id)
+  );
+
+  if (unverifiedPlans.length > 0) {
+    console.error(
+      "[_generatePlansFromGroupRefactored] 검증되지 않은 콘텐츠를 포함한 플랜 발견:",
+      {
+        groupId,
+        studentId,
+        unverifiedPlansCount: unverifiedPlans.length,
+        unverifiedContentIds: unverifiedPlans.map((p) => ({
+          content_id: p.content_id?.substring(0, 8) + "...",
+          content_type: p.content_type,
+        })),
+        message: "이 플랜들은 제외됩니다.",
+      }
+    );
+
+    // 검증되지 않은 플랜 제외
+    const finalValidPlanPayloads = planPayloads.filter(
+      (p) => !p.content_id || verifiedContentIds.has(p.content_id)
+    );
+
+    if (finalValidPlanPayloads.length === 0) {
+      throw new AppError(
+        `플랜 생성에 실패했습니다. 모든 플랜이 검증되지 않았습니다.`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    console.warn(
+      `[generatePlansRefactored] 검증되지 않은 콘텐츠를 포함한 ${planPayloads.length - finalValidPlanPayloads.length}개의 플랜이 제외되었습니다.`
+    );
+
+    planPayloads.length = 0;
+    planPayloads.push(...finalValidPlanPayloads);
   }
 
   // 15. 플랜 일괄 저장
