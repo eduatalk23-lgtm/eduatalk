@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { ContentInfo } from "./types";
 import { getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
@@ -44,7 +44,7 @@ export function StrategyWeaknessAllocationEditor({
   const subjectGroups = Array.from(contentsBySubjectGroup.keys()).sort();
 
   // 교과별 일괄 설정 상태 관리
-  const [batchSettingSubjectGroup, setBatchSettingSubjectGroup] = React.useState<string | null>(null);
+  const [batchSettingSubjectGroup, setBatchSettingSubjectGroup] = useState<string | null>(null);
 
   // 초기화 여부 추적을 위한 ref
   const hasInitialized = useRef(false);
