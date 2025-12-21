@@ -6,7 +6,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { redirect } from "next/navigation";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { campTemplatesQueryOptions } from "@/lib/hooks/useCampTemplates";
+import { campTemplatesQueryOptions } from "@/lib/query-options/campTemplates";
 import { CampTemplatesListContainer } from "./_components/CampTemplatesListContainer";
 
 export default async function CampTemplatesPage({

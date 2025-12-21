@@ -8,7 +8,7 @@ import { getQueryClient } from "@/lib/providers/getQueryClient";
 import {
   campAttendanceStatsQueryOptions,
   campLearningStatsQueryOptions,
-} from "@/lib/hooks/useCampStats";
+} from "@/lib/query-options/campStats";
 import { CampReportDashboard } from "./_components/CampReportDashboard";
 
 export default async function CampReportsPage({

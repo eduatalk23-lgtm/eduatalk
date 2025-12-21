@@ -31,7 +31,7 @@ import { BasePlanWizard } from "./BasePlanWizard";
 import { PlanWizardDebugger } from "./debug/PlanWizardDebugger";
 import { useBlockSets } from "@/lib/hooks/useBlockSets";
 import { useStudentContents } from "@/lib/hooks/useStudentContents";
-import { planGroupsQueryOptions } from "@/lib/hooks/usePlanGroups";
+import { planGroupsQueryOptions } from "@/lib/query-options/planGroups";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";

@@ -5,7 +5,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { campAttendanceStatsQueryOptions } from "@/lib/hooks/useCampStats";
+import { campAttendanceStatsQueryOptions } from "@/lib/query-options/campStats";
 import { CampAttendanceDashboard } from "./_components/CampAttendanceDashboard";
 
 export default async function CampAttendancePage({

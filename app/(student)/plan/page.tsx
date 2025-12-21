@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { planGroupsQueryOptions } from "@/lib/hooks/usePlanGroups";
+import { planGroupsQueryOptions } from "@/lib/query-options/planGroups";
 import type { PlanGroupFilters } from "@/lib/data/planGroups";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { PageHeader } from "@/components/layout/PageHeader";

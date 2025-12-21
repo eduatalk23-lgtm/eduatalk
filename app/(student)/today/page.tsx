@@ -9,7 +9,7 @@ import { perfTime } from "@/lib/utils/perfLog";
 import { Suspense } from "react";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
-import { todayPlansQueryOptions } from "@/lib/hooks/useTodayPlans";
+import { todayPlansQueryOptions } from "@/lib/query-options/todayPlans";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPlansSection } from "./_components/TodayPlansSection";
 import { TodayAchievementsSection } from "./_components/TodayAchievementsSection";
