@@ -112,34 +112,15 @@ function SubjectAllocationEditor({
   // 초기화 여부 추적을 위한 ref
   const hasInitialized = useRef(false);
 
-  // 초기 로드 시 기본값 자동 저장
+  // 초기화 로직 제거: 사용자가 명시적으로 설정할 때만 데이터 생성
+  // 폴백 메커니즘은 getEffectiveAllocation 함수에서 처리 (기본값: 취약과목)
   useEffect(() => {
-    // 이미 초기화되었거나 콘텐츠가 없으면 스킵
-    if (hasInitialized.current || contentInfos.length === 0) {
-      return;
-    }
-
-    // 초기화 조건 확인: content_allocations와 subject_allocations가 모두 비어있는 경우
-    const hasContentAllocations = (data.content_allocations || []).length > 0;
-    const hasSubjectAllocations = (data.subject_allocations || []).length > 0;
-    
-    if (!hasContentAllocations && !hasSubjectAllocations) {
-      // 모든 콘텐츠에 대해 기본값(취약과목)을 content_allocations에 자동으로 추가
-      const defaultContentAllocations = contentInfos.map((content) => ({
-        content_type: content.content_type as "book" | "lecture",
-        content_id: content.content_id,
-        subject_type: "weakness" as const,
-        weekly_days: undefined,
-      }));
-      
-      onUpdate({ content_allocations: defaultContentAllocations });
-      hasInitialized.current = true;
-    } else {
-      // 이미 데이터가 있으면 초기화 완료로 표시
+    // 초기화 완료로 표시 (자동 데이터 생성 없음)
+    if (!hasInitialized.current) {
       hasInitialized.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentInfos, data.content_allocations, data.subject_allocations]);
+  }, [contentInfos]);
 
   if (subjects.length === 0) {
     return (

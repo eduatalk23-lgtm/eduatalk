@@ -303,21 +303,44 @@ export class WizardValidator {
       } else if (hasSubjectAllocations) {
         // subject_allocations가 있을 때만 교과 일치 검증 수행
         // subject_allocations의 모든 교과가 콘텐츠에 포함되어 있는지 검증
-        const allocatedSubjects = new Set(
-          (wizardData.subject_allocations || []).map((a) => a.subject_name)
-        );
-        const contentSubjects = new Set([
-          ...wizardData.student_contents
-            .map((c) => c.subject_category)
-            .filter(Boolean),
-          ...wizardData.recommended_contents
-            .map((c) => c.subject_category)
-            .filter(Boolean),
-        ]);
+        // subject_id가 있으면 subject_id로 매칭, 없으면 subject_category로 매칭
+        const allocatedSubjects = new Map<string, { name: string; id?: string }>();
+        (wizardData.subject_allocations || []).forEach((a) => {
+          allocatedSubjects.set(a.subject_name, {
+            name: a.subject_name,
+            id: a.subject_id,
+          });
+        });
 
-        const missingSubjects = Array.from(allocatedSubjects).filter(
-          (subject) => !contentSubjects.has(subject)
-        );
+        // 콘텐츠에서 subject_id와 subject_category 수집
+        const contentSubjectIds = new Set<string>();
+        const contentSubjectCategories = new Set<string>();
+        
+        [...wizardData.student_contents, ...wizardData.recommended_contents].forEach((c) => {
+          // subject_id가 있으면 추가
+          if (c.subject_id) {
+            contentSubjectIds.add(c.subject_id);
+          }
+          // subject_category가 있으면 추가
+          if (c.subject_category) {
+            contentSubjectCategories.add(c.subject_category);
+          }
+        });
+
+        // 매칭되지 않는 교과 찾기
+        const missingSubjects: string[] = [];
+        allocatedSubjects.forEach((allocated, subjectName) => {
+          // subject_id로 매칭 시도
+          if (allocated.id && contentSubjectIds.has(allocated.id)) {
+            return; // 매칭됨
+          }
+          // subject_category로 매칭 시도
+          if (contentSubjectCategories.has(subjectName)) {
+            return; // 매칭됨
+          }
+          // 둘 다 매칭되지 않으면 누락된 교과
+          missingSubjects.push(subjectName);
+        });
 
         if (missingSubjects.length > 0) {
           errors.push(

@@ -109,6 +109,7 @@ export type WizardData = {
     end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
+    subject_id?: string | null; // 추가: 과목 ID (FK to subjects) - 전략과목/취약과목 매칭용
     subject?: string; // 추가: 세부 과목 저장 (검증용)
     master_content_id?: string | null; // 추가: 마스터 콘텐츠 ID (중복 방지용)
   }>;
@@ -122,6 +123,7 @@ export type WizardData = {
     end_detail_id?: string | null; // 종료 범위 상세 정보 ID (book_details.id 또는 lecture_episodes.id)
     title?: string; // 추가: 제목 저장
     subject_category?: string; // 추가: 과목 카테고리 저장 (필수 과목 검증용)
+    subject_id?: string | null; // 추가: 과목 ID (FK to subjects) - 전략과목/취약과목 매칭용
     subject?: string; // 추가: 세부 과목 저장 (검증용)
     is_auto_recommended?: boolean; // 자동 배정 플래그
     recommendation_source?: "auto" | "admin" | "template" | null; // 자동 배정 소스
