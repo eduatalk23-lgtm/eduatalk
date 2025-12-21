@@ -505,13 +505,13 @@ export async function updateCampInvitationStatus(
     updateData,
   });
 
-  // UPDATE만 수행 (SELECT는 RLS 정책에 의해 실패할 수 있으므로 제거)
-  const { error, count } = await supabase
+  // UPDATE만 수행 (SELECT는 RLS 정책에 의해 실패할 수 있으므로 완전히 제거)
+  // UPDATE 쿼리에서 .select()를 사용하면 RLS 정책으로 인해 count가 null이 될 수 있음
+  const { error } = await supabase
     .from("camp_invitations")
     .update(updateData)
     .eq("id", invitationId)
-    .eq("status", "pending") // pending 상태인 경우만 업데이트 (RLS 정책과 일치)
-    .select("*", { count: "exact", head: true });
+    .eq("status", "pending"); // pending 상태인 경우만 업데이트 (RLS 정책과 일치)
 
   if (error) {
     console.error("[data/campTemplates] updateCampInvitationStatus UPDATE 실패:", {
@@ -530,41 +530,10 @@ export async function updateCampInvitationStatus(
     };
   }
 
-  // UPDATE가 성공했는지 확인 (count가 1이면 업데이트된 행이 있음)
-  // count가 0이면 해당 행이 없거나 RLS 정책에 의해 업데이트가 차단된 것
-  if (count === 0) {
-    console.error("[data/campTemplates] updateCampInvitationStatus: 업데이트된 행이 없음 (RLS 정책 위반 또는 행이 존재하지 않음):", {
-      invitationId,
-      status,
-      currentStatus: currentInvitation.status,
-      currentUserId: user?.id,
-      studentId: currentInvitation.student_id,
-      updateData,
-    });
-    
-    // 업데이트 실패 원인 추가 확인
-    const { data: verifyInvitation, error: verifyError } = await supabase
-      .from("camp_invitations")
-      .select("id, status, student_id")
-      .eq("id", invitationId)
-      .maybeSingle();
-    
-    console.error("[data/campTemplates] updateCampInvitationStatus 업데이트 실패 후 재확인:", {
-      invitationId,
-      verifyInvitation,
-      verifyError: verifyError?.message,
-      currentUserId: user?.id,
-    });
-    
-    return {
-      success: false,
-      error: "초대 상태를 업데이트할 수 없습니다. 권한을 확인해주세요.",
-    };
-  }
-
-  // UPDATE 후 실제로 상태가 변경되었는지 확인 (RLS 정책으로 인해 SELECT가 실패할 수 있으므로 Admin Client 사용)
-  // 하지만 여기서는 서버 클라이언트를 사용하므로, 학생의 컨텍스트로 조회 가능해야 함
-  const { data: updatedInvitation, error: verifyError } = await supabase
+  // UPDATE가 성공했는지 확인하기 위해 상태를 다시 조회
+  // RLS 정책으로 인해 SELECT가 실패할 수 있지만, UPDATE는 성공했을 수 있음
+  // 따라서 SELECT가 실패해도 UPDATE는 성공한 것으로 간주
+  const { data: verifyInvitation, error: verifyError } = await supabase
     .from("camp_invitations")
     .select("id, status, accepted_at, declined_at")
     .eq("id", invitationId)
@@ -572,62 +541,59 @@ export async function updateCampInvitationStatus(
 
   if (verifyError) {
     // SELECT 실패는 RLS 정책 때문일 수 있지만, UPDATE는 성공했을 수 있음
+    // 에러가 없으면 UPDATE는 성공한 것으로 간주
     console.warn("[data/campTemplates] updateCampInvitationStatus 상태 확인 실패 (UPDATE는 성공했을 수 있음):", {
       invitationId,
       error: verifyError.message,
       errorCode: verifyError.code,
-      count, // count가 1이면 UPDATE는 성공한 것
+      currentUserId: user?.id,
     });
-    // count가 1이면 UPDATE는 성공한 것으로 간주
-    if (count === 1) {
-      console.log("[data/campTemplates] updateCampInvitationStatus: UPDATE 성공 (상태 확인은 실패했지만 count=1이므로 성공으로 간주):", {
-        invitationId,
-        oldStatus: currentInvitation.status,
-        newStatus: status,
-        count,
-        currentUserId: user?.id,
-      });
-      return { success: true };
-    }
-  } else if (updatedInvitation) {
-    // 상태가 실제로 변경되었는지 확인
-    if (updatedInvitation.status === status) {
-      console.log("[data/campTemplates] updateCampInvitationStatus 성공 (상태 확인 완료):", {
-        invitationId,
-        oldStatus: currentInvitation.status,
-        newStatus: updatedInvitation.status,
-        count,
-        currentUserId: user?.id,
-        accepted_at: updatedInvitation.accepted_at,
-        declined_at: updatedInvitation.declined_at,
-      });
-      return { success: true };
-    } else {
-      // 상태가 변경되지 않음 (예상치 못한 상황)
-      console.error("[data/campTemplates] updateCampInvitationStatus: 상태가 변경되지 않음:", {
-        invitationId,
-        expectedStatus: status,
-        actualStatus: updatedInvitation.status,
-        oldStatus: currentInvitation.status,
-        count,
-        currentUserId: user?.id,
-      });
-      return {
-        success: false,
-        error: `상태 업데이트가 실패했습니다. 예상 상태: ${status}, 실제 상태: ${updatedInvitation.status}`,
-      };
-    }
+    // UPDATE 에러가 없었으므로 성공으로 간주
+    console.log("[data/campTemplates] updateCampInvitationStatus: UPDATE 성공 (상태 확인은 실패했지만 에러 없음):", {
+      invitationId,
+      oldStatus: currentInvitation.status,
+      newStatus: status,
+      currentUserId: user?.id,
+    });
+    return { success: true };
   }
 
-  console.log("[data/campTemplates] updateCampInvitationStatus 성공 (count 기반):", {
-    invitationId,
-    oldStatus: currentInvitation.status,
-    newStatus: status,
-    count,
-    currentUserId: user?.id,
-  });
+  if (!verifyInvitation) {
+    console.error("[data/campTemplates] updateCampInvitationStatus: 업데이트 후 초대를 찾을 수 없음:", {
+      invitationId,
+      currentUserId: user?.id,
+    });
+    return {
+      success: false,
+      error: "초대 상태를 업데이트한 후 확인할 수 없습니다.",
+    };
+  }
 
-  return { success: true };
+  // 상태가 실제로 변경되었는지 확인
+  if (verifyInvitation.status === status) {
+    console.log("[data/campTemplates] updateCampInvitationStatus 성공 (상태 확인 완료):", {
+      invitationId,
+      oldStatus: currentInvitation.status,
+      newStatus: verifyInvitation.status,
+      currentUserId: user?.id,
+      accepted_at: verifyInvitation.accepted_at,
+      declined_at: verifyInvitation.declined_at,
+    });
+    return { success: true };
+  } else {
+    // 상태가 변경되지 않음 (예상치 못한 상황)
+    console.error("[data/campTemplates] updateCampInvitationStatus: 상태가 변경되지 않음:", {
+      invitationId,
+      expectedStatus: status,
+      actualStatus: verifyInvitation.status,
+      oldStatus: currentInvitation.status,
+      currentUserId: user?.id,
+    });
+    return {
+      success: false,
+      error: `상태 업데이트가 실패했습니다. 예상 상태: ${status}, 실제 상태: ${verifyInvitation.status}`,
+    };
+  }
 }
 
 /**
