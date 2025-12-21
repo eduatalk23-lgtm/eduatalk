@@ -308,11 +308,20 @@ async function _generatePlansFromGroupRefactored(
   ]);
 
   // 직접 조회한 학생 콘텐츠 매핑 (plan_contents의 content_id가 이미 학생 콘텐츠 ID인 경우)
+  // 원본 content_id를 찾아서 매핑해야 함
   (directBooksResult.data || []).forEach((b) => {
-    contentIdMap.set(b.id, b.id);
+    // resolvedContentId가 b.id인 원본 content_id 찾기
+    const originalContent = bookContents.find((c) => c.resolvedContentId === b.id);
+    if (originalContent) {
+      contentIdMap.set(originalContent.content_id, b.id);
+    }
   });
   (directLecturesResult.data || []).forEach((l) => {
-    contentIdMap.set(l.id, l.id);
+    // resolvedContentId가 l.id인 원본 content_id 찾기
+    const originalContent = lectureContents.find((c) => c.resolvedContentId === l.id);
+    if (originalContent) {
+      contentIdMap.set(originalContent.content_id, l.id);
+    }
   });
 
   // 마스터 콘텐츠 ID로 찾은 학생 콘텐츠 매핑
