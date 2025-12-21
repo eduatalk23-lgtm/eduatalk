@@ -22,21 +22,54 @@ export const SubjectAllocationSummary = React.memo(
     const allocations = useMemo(() => {
       if (!data.subject_allocations) return [];
 
-      return data.subject_allocations.map((alloc) => ({
-        subject: alloc.subject_name,
-        type: alloc.subject_type,
-        days: alloc.weekly_days || 0,
-      }));
+      const filtered = data.subject_allocations
+        .filter((alloc) => alloc && alloc.subject_name && alloc.subject_type)
+        .map((alloc) => ({
+          subject: alloc.subject_name,
+          type: alloc.subject_type,
+          days: alloc.weekly_days || 0,
+        }));
+
+      // 개발 환경에서만 디버깅 로그
+      if (process.env.NODE_ENV === "development") {
+        console.log("[SubjectAllocationSummary] Raw data:", {
+          subject_allocations: data.subject_allocations,
+          allocations: filtered,
+        });
+      }
+
+      return filtered;
     }, [data.subject_allocations]);
 
     // 전략과목과 취약과목 분리
     const strategicSubjects = useMemo(() => {
-      return allocations.filter((a) => a.type === "strategy");
+      return allocations.filter((a) => {
+        if (!a || !a.type) return false;
+        const type = String(a.type).toLowerCase().trim();
+        return type === "strategy";
+      });
     }, [allocations]);
 
     const weakSubjects = useMemo(() => {
-      return allocations.filter((a) => a.type === "weakness");
-    }, [allocations]);
+      const filtered = allocations.filter((a) => {
+        if (!a || !a.type) return false;
+        const type = String(a.type).toLowerCase().trim();
+        return type === "weakness";
+      });
+
+      // 개발 환경에서만 디버깅 로그
+      if (process.env.NODE_ENV === "development") {
+        console.log("[SubjectAllocationSummary] Debug:", {
+          raw_allocations: data.subject_allocations,
+          parsed_allocations: allocations,
+          weakSubjects: filtered,
+          all_types: allocations.map((a) => ({ type: a.type, subject: a.subject })),
+          weakSubjects_count: filtered.length,
+        });
+      }
+
+      return filtered;
+    }, [allocations, data.subject_allocations]);
 
     // 빈 상태
     if (allocations.length === 0) {
