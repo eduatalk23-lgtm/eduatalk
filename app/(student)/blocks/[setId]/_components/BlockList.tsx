@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateBlock, deleteBlock } from "@/app/actions/blocks";
 import { validateFormData, blockSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
-import type { ActionResponse } from "@/lib/types/actionResponse";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
+import { useServerForm } from "@/lib/hooks/useServerForm";
 
 type Block = {
   id: string;
@@ -28,38 +28,23 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleEdit = async (blockId: string, formData: FormData) => {
-    formData.append("id", blockId);
-    const validation = validateFormData(formData, blockSchema);
-    if (!validation.success) {
-      const firstError = validation.errors.issues[0];
-      alert(firstError?.message || "입력값이 올바르지 않습니다.");
-      return;
-    }
-
-    const result = await updateBlock(formData);
-    if (isSuccessResponse(result)) {
-      setEditingId(null);
-      router.refresh();
-    } else if (isErrorResponse(result)) {
-      alert(result.error || "블록 수정에 실패했습니다.");
-    }
-  };
-
-  const handleDelete = async (blockId: string) => {
+  const handleDelete = (blockId: string) => {
     if (!confirm("이 블록을 삭제하시겠습니까?")) return;
 
     const formData = new FormData();
     formData.append("id", blockId);
-    const result = await deleteBlock(formData);
-    
-    if (isSuccessResponse(result)) {
+    deleteActionHook.execute(formData);
+  };
+
+  const deleteActionHook = useServerAction(deleteBlock, {
+    onSuccess: () => {
       setDeletingId(null);
       router.refresh();
-    } else if (isErrorResponse(result)) {
-      alert(result.error || "블록 삭제에 실패했습니다.");
-    }
-  };
+    },
+    onError: (error) => {
+      alert(error);
+    },
+  });
 
   // 요일별로 그룹화
   const blocksByDay = DAYS.map((day, dayIndex) => ({
@@ -118,7 +103,10 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
                       <BlockEditForm
                         key={block.id}
                         block={block}
-                        onSave={(formData) => handleEdit(block.id, formData)}
+                        onSuccess={() => {
+                          setEditingId(null);
+                          router.refresh();
+                        }}
                         onCancel={() => setEditingId(null)}
                       />
                     );
@@ -156,10 +144,10 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
                             setDeletingId(block.id);
                             handleDelete(block.id);
                           }}
-                          disabled={isDeleting}
+                          disabled={deleteActionHook.isPending}
                           className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
                         >
-                          {isDeleting ? "삭제 중..." : "삭제"}
+                          {deleteActionHook.isPending ? "삭제 중..." : "삭제"}
                         </button>
                       </div>
                     </div>
@@ -177,29 +165,41 @@ export default function BlockList({ blocks, blockSetId, onAddBlock }: BlockListP
 
 type BlockEditFormProps = {
   block: Block;
-  onSave: (formData: FormData) => void;
+  onSuccess: () => void;
   onCancel: () => void;
 };
 
-function BlockEditForm({ block, onSave, onCancel }: BlockEditFormProps) {
-  const [state, formAction, isPending] = useActionState(
-    async (_prev: { error: string | null }, formData: FormData) => {
-      try {
-        await onSave(formData);
-        return { error: null };
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : "수정에 실패했습니다.";
-        return { error: errorMessage };
-      }
+function BlockEditForm({ block, onSuccess, onCancel }: BlockEditFormProps) {
+  // 래퍼 함수: block.id를 FormData에 추가
+  const wrappedUpdateAction = async (formData: FormData) => {
+    formData.append("id", block.id);
+    const validation = validateFormData(formData, blockSchema);
+    if (!validation.success) {
+      const firstError = validation.errors.issues[0];
+      return {
+        success: false as const,
+        error: firstError?.message || "입력값이 올바르지 않습니다.",
+      };
+    }
+    return await updateBlock(formData);
+  };
+
+  const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUpdateAction, null, {
+    onSuccess: () => {
+      onSuccess();
     },
-    { error: null }
-  );
+  });
 
   return (
     <div className="p-4 bg-white border-2 border-indigo-500 rounded-lg">
-      <form action={formAction} className="flex flex-col gap-3">
-        {state.error && (
-          <p className="text-xs text-red-600 bg-red-50 p-2 rounded">{state.error}</p>
+      <form action={action} className="flex flex-col gap-3">
+        {error && (
+          <p className="text-xs text-red-600 bg-red-50 p-2 rounded">{error}</p>
+        )}
+        {fieldErrors && Object.keys(fieldErrors).length > 0 && (
+          <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+            {Object.values(fieldErrors).flat().join(", ")}
+          </div>
         )}
 
         <div className="flex flex-col gap-2">

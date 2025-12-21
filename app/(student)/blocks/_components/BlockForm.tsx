@@ -1,13 +1,8 @@
 "use client";
 
-import { useState, useActionState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { addBlocksToMultipleDays } from "@/app/actions/blocks";
-import type { ActionResponse } from "@/lib/types/actionResponse";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
-
-type BlockFormState = ActionResponse | null;
-
-const initialState: BlockFormState = null;
+import { useServerForm } from "@/lib/hooks/useServerForm";
 
 type BlockFormProps = {
   onClose?: () => void;
@@ -20,36 +15,23 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
 
-  const [state, formAction, isPending] = useActionState(
-    async (
-      _prev: BlockFormState,
-      formData: FormData
-    ): Promise<BlockFormState> => {
-      // 주중 패턴 일괄 추가 모드만 사용
-      const weekdayFormData = new FormData();
-      weekdayFormData.append("target_days", selectedWeekdays.join(","));
-      weekdayFormData.append("start_time", formData.get("start_time") as string);
-      weekdayFormData.append("end_time", formData.get("end_time") as string);
-      
-      // 특정 세트에 추가하는 경우
-      if (blockSetId) {
-        weekdayFormData.append("block_set_id", blockSetId);
-      }
+  // 래퍼 함수: selectedWeekdays를 FormData에 추가
+  const wrappedAction = async (formData: FormData) => {
+    const weekdayFormData = new FormData();
+    weekdayFormData.append("target_days", selectedWeekdays.join(","));
+    weekdayFormData.append("start_time", formData.get("start_time") as string);
+    weekdayFormData.append("end_time", formData.get("end_time") as string);
+    
+    // 특정 세트에 추가하는 경우
+    if (blockSetId) {
+      weekdayFormData.append("block_set_id", blockSetId);
+    }
 
-      return await addBlocksToMultipleDays(weekdayFormData);
-    },
-    initialState
-  );
-
-  const toggleWeekday = (day: number) => {
-    setSelectedWeekdays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    return await addBlocksToMultipleDays(weekdayFormData);
   };
 
-  // 성공 시 폼 리셋 및 닫기
-  useEffect(() => {
-    if (isSuccessResponse(state)) {
+  const { action, state, isPending, isSuccess } = useServerForm(wrappedAction, null, {
+    onSuccess: () => {
       setSelectedWeekdays([]);
       setStartTime("");
       setEndTime("");
@@ -60,14 +42,20 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
       }
       
       // 성공 후 1.5초 뒤에 자동으로 닫기
-      const timer = setTimeout(() => {
-        if (onClose) {
+      if (onClose) {
+        setTimeout(() => {
           onClose();
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [state, onClose, blockSetId, onBlockChange]);
+        }, 1500);
+      }
+    },
+  });
+
+  const toggleWeekday = (day: number) => {
+    setSelectedWeekdays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -88,19 +76,19 @@ export default function BlockForm({ onClose, blockSetId, onBlockChange }: BlockF
           )}
         </div>
 
-        {isErrorResponse(state) && state.error && (
+        {state && !state.success && state.error && (
           <div className="p-3 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded">
             {state.error}
           </div>
         )}
 
-        {isSuccessResponse(state) && (
+        {state && state.success && (
           <div className="p-3 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded">
             {state.message || "주중 패턴이 성공적으로 추가되었습니다."}
           </div>
         )}
 
-        <form action={formAction} className="flex flex-col gap-4">
+        <form action={action} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               추가할 요일 선택
