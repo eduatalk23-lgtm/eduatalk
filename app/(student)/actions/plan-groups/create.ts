@@ -23,6 +23,9 @@ import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/sche
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
+import {
+  getHigherPriorityExclusionType,
+} from "@/lib/utils/exclusionHierarchy";
 
 /**
  * 플랜 그룹을 생성하는 내부 함수입니다.
@@ -303,6 +306,38 @@ async function _createPlanGroup(
     display_order: c.display_order ?? 0,
   }));
 
+  // 제외일 위계 기반 중복 제거 (캠프 모드)
+  // 같은 날짜에 여러 제외일이 있으면 위계가 높은 것만 남기기
+  let processedExclusions = data.exclusions;
+  const isCampMode = data.plan_type === "camp";
+  
+  if (isCampMode && data.exclusions && data.exclusions.length > 0) {
+    const exclusionMap = new Map<string, typeof data.exclusions[0]>();
+    
+    for (const exclusion of data.exclusions) {
+      const existing = exclusionMap.get(exclusion.exclusion_date);
+      
+      if (existing) {
+        // 같은 날짜에 이미 제외일이 있으면 위계 비교
+        const higherType = getHigherPriorityExclusionType(
+          exclusion.exclusion_type,
+          existing.exclusion_type
+        );
+        
+        // 더 높은 위계의 제외일로 교체
+        if (higherType === exclusion.exclusion_type) {
+          exclusionMap.set(exclusion.exclusion_date, exclusion);
+        }
+        // existing이 더 높은 위계면 유지 (변경 없음)
+      } else {
+        // 새로운 날짜면 추가
+        exclusionMap.set(exclusion.exclusion_date, exclusion);
+      }
+    }
+    
+    processedExclusions = Array.from(exclusionMap.values());
+  }
+
   // 관련 데이터 일괄 생성
   // 제외일은 플랜 그룹별 관리, 학원 일정은 학생별 전역 관리
   const [contentsResult, exclusionsResult, schedulesResult] = await Promise.all(
@@ -311,7 +346,7 @@ async function _createPlanGroup(
       createPlanExclusions(
         groupId,
         tenantContext.tenantId,
-        data.exclusions.map((e) => ({
+        processedExclusions.map((e) => ({
           exclusion_date: e.exclusion_date,
           exclusion_type: e.exclusion_type,
           reason: e.reason || null,
