@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 type PlanSelectorProps = {
   groups: PlanGroup[];
   selectedPlanNumber: number | null;
+  selectedPlanId?: string | null; // plan.id 기반 선택
   onSelect: (planNumber: number | null) => void;
   sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
 };
@@ -15,11 +16,14 @@ type PlanSelectorProps = {
 export function PlanSelector({
   groups,
   selectedPlanNumber,
+  selectedPlanId,
   onSelect,
   sessions,
 }: PlanSelectorProps) {
-  // 현재 선택된 그룹 찾기 (planNumber로 찾기)
-  const currentGroup = selectedPlanNumber !== null
+  // 현재 선택된 그룹 찾기 (selectedPlanId가 있으면 plan.id로 먼저 찾기, 없으면 planNumber로 찾기)
+  const currentGroup = selectedPlanId
+    ? groups.find((g) => g.plan.id === selectedPlanId)
+    : selectedPlanNumber !== null
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
     : null;
   

@@ -14,6 +14,7 @@ type SinglePlanViewProps = {
   >;
   planDate: string;
   selectedPlanNumber: number | null;
+  selectedPlanId?: string | null; // plan.id 기반 선택
   onSelectPlan: (planNumber: number | null) => void;
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
@@ -24,6 +25,7 @@ export function SinglePlanView({
   sessions,
   planDate,
   selectedPlanNumber,
+  selectedPlanId,
   onSelectPlan,
   serverNow = Date.now(),
   campMode = false,
@@ -31,14 +33,15 @@ export function SinglePlanView({
   // SinglePlanView에서는 자동 선택을 하지 않음
   // PlanViewContainer에서 처리하도록 함
 
-  // selectedPlanNumber로 그룹 찾기
-  // planNumber가 null인 경우도 처리하기 위해 planNumber로 먼저 찾고, 없으면 첫 번째 그룹 사용
-  const selectedGroup = selectedPlanNumber !== null
+  // selectedPlanId가 있으면 plan.id로 먼저 찾기 (정확한 그룹 식별)
+  // 없으면 selectedPlanNumber로 찾기
+  const selectedGroup = selectedPlanId
+    ? groups.find((g) => g.plan.id === selectedPlanId)
+    : selectedPlanNumber !== null
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
     : null;
   
   // selectedGroup이 없으면 첫 번째 그룹 사용
-  // planNumber가 null인 그룹도 포함하여 찾을 수 있음
   const displayGroup = selectedGroup || groups[0];
 
   if (!displayGroup) {
@@ -67,6 +70,7 @@ export function SinglePlanView({
       <PlanSelector
         groups={groups}
         selectedPlanNumber={selectedPlanNumber}
+        selectedPlanId={selectedPlanId}
         onSelect={onSelectPlan}
         sessions={sessions}
       />

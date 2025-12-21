@@ -86,9 +86,13 @@ export function PlanViewContainer({
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
     initialSelectedPlanNumber
   );
-  
+  // plan.id 기반 선택을 위한 selectedPlanId 추가
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
   // 사용자가 마지막으로 선택한 planNumber 추적 (같은 날짜 내에서 유지)
   const lastUserSelectedPlanNumber = useRef<number | null>(null);
+  // 사용자가 마지막으로 선택한 planId 추적
+  const lastUserSelectedPlanId = useRef<string | null>(null);
   const lastPlanDate = useRef<string>(initialPlanDate || getTodayISODate());
 
   // 날짜 상태 관리 (초기값은 initialPlanDate 또는 오늘 날짜)
@@ -152,15 +156,18 @@ export function PlanViewContainer({
     });
   }, [plansData, onDateChange]);
 
-  // planDate가 변경되었을 때 selectedPlanNumber 리셋
+  // planDate가 변경되었을 때 selectedPlanNumber와 selectedPlanId 리셋
   useEffect(() => {
     if (planDate !== lastPlanDate.current) {
       lastPlanDate.current = planDate;
       lastUserSelectedPlanNumber.current = null; // 날짜 변경 시 사용자 선택 초기화
+      lastUserSelectedPlanId.current = null; // planId도 초기화
       if (groups.length > 0) {
         setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+        setSelectedPlanId(groups[0]?.plan.id ?? null);
       } else {
         setSelectedPlanNumber(null);
+        setSelectedPlanId(null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -190,18 +197,21 @@ export function PlanViewContainer({
     console.log("useEffect triggered, groupsKey changed, userSelected:", lastUserSelectedPlanNumber.current);
 
     // 사용자 선택이 있으면 절대 덮어쓰지 않음
-    // planNumber가 null인 경우도 처리 (일일 뷰에서 상세 보기 클릭 시 null이 전달될 수 있음)
-    if (lastUserSelectedPlanNumber.current !== null || selectedPlanNumber === null) {
-      const userSelected = lastUserSelectedPlanNumber.current;
-      // planNumber가 null인 그룹도 유효한 그룹으로 인식
-      if (userSelected !== null && groups.some((g) => g.planNumber === userSelected)) {
-        console.log("User selection is valid, keeping it:", userSelected);
+    // selectedPlanId가 있으면 plan.id로 그룹을 찾아서 유효한지 확인
+    if (lastUserSelectedPlanId.current !== null) {
+      const userSelectedId = lastUserSelectedPlanId.current;
+      if (groups.some((g) => g.plan.id === userSelectedId)) {
+        console.log("User selection (planId) is valid, keeping it:", userSelectedId);
         // 사용자 선택이 유효하면 아무것도 하지 않음
         return;
       }
-      // planNumber가 null인 경우도 처리 (일일 뷰에서 상세 보기 클릭 시)
-      if (userSelected === null && groups.length > 0) {
-        console.log("User selected null planNumber, keeping first group");
+    }
+    // planNumber로도 확인
+    if (lastUserSelectedPlanNumber.current !== null) {
+      const userSelected = lastUserSelectedPlanNumber.current;
+      if (groups.some((g) => g.planNumber === userSelected)) {
+        console.log("User selection (planNumber) is valid, keeping it:", userSelected);
+        // 사용자 선택이 유효하면 아무것도 하지 않음
         return;
       }
     }
@@ -211,37 +221,47 @@ export function PlanViewContainer({
       if (selectedPlanNumber !== null) {
         setSelectedPlanNumber(null);
       }
+      if (selectedPlanId !== null) {
+        setSelectedPlanId(null);
+      }
       return;
     }
 
-    // 현재 선택이 유효한지 확인
-    // planNumber가 null인 그룹도 유효한 그룹으로 인식
-    const isValidSelection = selectedPlanNumber === null 
-      ? groups.length > 0  // null이면 그룹이 있으면 유효
-      : groups.some((g) => g.planNumber === selectedPlanNumber);
+    // 현재 선택이 유효한지 확인 (selectedPlanId 우선)
+    const isValidSelection = selectedPlanId
+      ? groups.some((g) => g.plan.id === selectedPlanId)
+      : selectedPlanNumber !== null
+      ? groups.some((g) => g.planNumber === selectedPlanNumber)
+      : groups.length > 0; // null이면 그룹이 있으면 유효
     
     if (!isValidSelection) {
       console.log("Current selection is invalid, setting to first group");
-      // 유효하지 않으면 첫 번째 그룹 선택 (planNumber가 null이어도 가능)
+      // 유효하지 않으면 첫 번째 그룹 선택
       setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+      setSelectedPlanId(groups[0]?.plan.id ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupsKey, planDate]);
 
   const handleViewDetail = (planId: string) => {
-    // plan.id로 그룹을 찾아서 planNumber를 설정
+    // plan.id로 그룹을 찾아서 planId와 planNumber를 모두 설정
     const selectedGroup = groups.find((g) => g.plan.id === planId);
     if (selectedGroup) {
       const planNumber = selectedGroup.planNumber;
       lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
+      lastUserSelectedPlanId.current = planId; // planId도 추적
       setSelectedPlanNumber(planNumber);
+      setSelectedPlanId(planId); // planId 설정
       setViewMode("single");
     } else {
       // 그룹을 찾을 수 없으면 첫 번째 그룹 선택
       if (groups.length > 0) {
         const planNumber = groups[0].planNumber;
+        const planId = groups[0].plan.id;
         lastUserSelectedPlanNumber.current = planNumber;
+        lastUserSelectedPlanId.current = planId;
         setSelectedPlanNumber(planNumber);
+        setSelectedPlanId(planId);
         setViewMode("single");
       }
     }
@@ -252,12 +272,23 @@ export function PlanViewContainer({
     console.log("handleSelectPlan called with:", planNumber);
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
     setSelectedPlanNumber(planNumber);
-  }, []);
+    // planNumber로 그룹을 찾아서 planId도 설정
+    const selectedGroup = groups.find((g) => g.planNumber === planNumber);
+    if (selectedGroup) {
+      lastUserSelectedPlanId.current = selectedGroup.plan.id;
+      setSelectedPlanId(selectedGroup.plan.id);
+    } else if (planNumber === null) {
+      // planNumber가 null인 경우 planId도 null로 설정
+      lastUserSelectedPlanId.current = null;
+      setSelectedPlanId(null);
+    }
+  }, [groups]);
 
   const handleModeChange = (mode: ViewMode) => {
     setViewMode(mode);
     if (mode === "single" && !selectedPlanNumber && groups.length > 0) {
       setSelectedPlanNumber(groups[0]?.planNumber ?? null);
+      setSelectedPlanId(groups[0]?.plan.id ?? null);
     }
   };
 
@@ -346,6 +377,7 @@ export function PlanViewContainer({
           sessions={sessions}
           planDate={planDate}
           selectedPlanNumber={selectedPlanNumber}
+          selectedPlanId={selectedPlanId}
           onSelectPlan={handleSelectPlan}
           serverNow={serverNow}
           campMode={campMode}
