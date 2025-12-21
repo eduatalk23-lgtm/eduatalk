@@ -247,7 +247,7 @@ function SubjectAllocationEditor({
         (a) => a.subject_name !== subject
       );
       updatedAllocations.push({
-        subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+        subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
         subject_name: subject,
         subject_type: "weakness",
       });
@@ -429,9 +429,7 @@ function SubjectAllocationEditor({
                         checked={subjectType === "weakness"}
                         onChange={() => {
                           handleSubjectAllocationChange(subject, {
-                            subject_id: subject
-                              .toLowerCase()
-                              .replace(/\s+/g, "_"),
+                            subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                             subject_name: subject,
                             subject_type: "weakness",
                           });
@@ -456,9 +454,7 @@ function SubjectAllocationEditor({
                         checked={subjectType === "strategy"}
                         onChange={() => {
                           handleSubjectAllocationChange(subject, {
-                            subject_id: subject
-                              .toLowerCase()
-                              .replace(/\s+/g, "_"),
+                            subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                             subject_name: subject,
                             subject_type: "strategy",
                             weekly_days: 3,
@@ -489,7 +485,7 @@ function SubjectAllocationEditor({
                       value={subjectWeeklyDays}
                       onChange={(e) => {
                         handleSubjectAllocationChange(subject, {
-                          subject_id: subject.toLowerCase().replace(/\s+/g, "_"),
+                          subject_id: undefined, // 실제 subject_id는 콘텐츠에서 가져와야 함
                           subject_name: subject,
                           subject_type: "strategy",
                           weekly_days: Number(e.target.value),
