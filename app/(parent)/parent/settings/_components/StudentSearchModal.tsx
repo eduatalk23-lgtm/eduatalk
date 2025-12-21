@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -10,7 +9,7 @@ import {
   type SearchableStudent,
   type ParentRelation,
 } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type StudentSearchModalProps = {
   isOpen: boolean;
@@ -30,8 +29,18 @@ export function StudentSearchModal({
   const [searchResults, setSearchResults] = useState<SearchableStudent[]>([]);
   const [selectedRelation, setSelectedRelation] = useState<ParentRelation>("mother");
   const [isSearching, setIsSearching] = useState(false);
-  const [isPending, startTransition] = useTransition();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { execute: executeCreateLink, isPending } = useServerAction(createLinkRequest, {
+    onSuccess: () => {
+      showSuccess("연결 요청이 생성되었습니다.");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
 
   // 검색 실행
   const performSearch = useCallback(
@@ -45,9 +54,9 @@ export function StudentSearchModal({
       setIsSearching(true);
       const result = await searchStudentsForLink(query.trim(), parentId);
 
-      if (isSuccessResponse(result) && result.data) {
+      if (result.success && result.data) {
         setSearchResults(result.data);
-      } else if (isErrorResponse(result)) {
+      } else {
         setSearchResults([]);
         if (result.error) {
           showError(result.error);
@@ -92,17 +101,7 @@ export function StudentSearchModal({
   }, [isOpen]);
 
   function handleRequest(studentId: string) {
-    startTransition(async () => {
-      const result = await createLinkRequest(studentId, parentId, selectedRelation);
-
-      if (isSuccessResponse(result)) {
-        showSuccess("연결 요청이 생성되었습니다.");
-        onSuccess?.();
-        onClose();
-      } else if (isErrorResponse(result)) {
-        showError(result.error || "연결 요청 생성에 실패했습니다.");
-      }
-    });
+    executeCreateLink(studentId, parentId, selectedRelation);
   }
 
   return (

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
@@ -11,6 +10,7 @@ import {
   type StudentParent,
   type ParentRelation,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ParentSearchModalProps = {
   isOpen: boolean;
@@ -32,8 +32,18 @@ export function ParentSearchModal({
   const [searchResults, setSearchResults] = useState<SearchableParent[]>([]);
   const [selectedRelation, setSelectedRelation] = useState<ParentRelation>("mother");
   const [isSearching, setIsSearching] = useState(false);
-  const [isPending, startTransition] = useTransition();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { execute: executeLink, isPending } = useServerAction(createParentStudentLink, {
+    onSuccess: () => {
+      showSuccess("학부모가 연결되었습니다.");
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
 
   // 이미 연결된 학부모 ID 목록
   const existingParentIds = new Set(existingParents.map((p) => p.parentId));
@@ -101,21 +111,7 @@ export function ParentSearchModal({
   }, [isOpen]);
 
   function handleLink(parentId: string) {
-    startTransition(async () => {
-      const result = await createParentStudentLink(
-        studentId,
-        parentId,
-        selectedRelation
-      );
-
-      if (result.success) {
-        showSuccess("학부모가 연결되었습니다.");
-        onSuccess?.();
-        onClose();
-      } else {
-        showError(result.error || "연결에 실패했습니다.");
-      }
-    });
+    executeLink(studentId, parentId, selectedRelation);
   }
 
   return (

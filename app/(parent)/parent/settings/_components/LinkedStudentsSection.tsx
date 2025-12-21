@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StudentSearchModal } from "./StudentSearchModal";
 import { LinkRequestList } from "./LinkRequestList";
 import { getLinkRequests, type LinkRequest } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 import type { LinkedStudent } from "../../../_utils";
 
 type LinkedStudentsSectionProps = {
@@ -21,16 +22,18 @@ export function LinkedStudentsSection({
   const router = useRouter();
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [linkRequests, setLinkRequests] = useState<LinkRequest[]>(initialLinkRequests);
-  const [isPending, startTransition] = useTransition();
 
-  function handleRefresh() {
-    startTransition(async () => {
-      const result = await getLinkRequests(parentId);
-      if (result.success && result.data) {
-        setLinkRequests(result.data);
+  const { execute: executeRefresh } = useServerAction(getLinkRequests, {
+    onSuccess: (data) => {
+      if (data) {
+        setLinkRequests(data);
       }
       router.refresh();
-    });
+    },
+  });
+
+  function handleRefresh() {
+    executeRefresh(parentId);
   }
 
   return (

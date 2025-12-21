@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getPendingLinkRequests,
@@ -8,6 +8,7 @@ import {
   rejectLinkRequests,
   type PendingLinkRequest,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 import { PendingLinkRequestCard } from "./PendingLinkRequestCard";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 
@@ -25,12 +26,59 @@ export function PendingLinkRequestsList({
     initialRequests || []
   );
   const [isLoading, setIsLoading] = useState(!initialRequests);
-  const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
+
+  const { execute: executeRefresh, isPending: isRefreshPending } = useServerAction(getPendingLinkRequests, {
+    onSuccess: (data) => {
+      if (data) {
+        setRequests(data);
+        setSelectedIds(new Set());
+      }
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
+  const { execute: executeBatchApprove, isPending: isApprovePending } = useServerAction(approveLinkRequests, {
+    onSuccess: (data) => {
+      if (data) {
+        const successMessage = `${data.approvedCount || 0}개의 연결 요청이 승인되었습니다.`;
+        showSuccess(successMessage);
+        setSelectedIds(new Set());
+        handleRefresh();
+        setIsApproveDialogOpen(false);
+      }
+    },
+    onError: (error) => {
+      showError(error);
+      // 부분 성공 시에도 새로고침
+      handleRefresh();
+    },
+  });
+
+  const { execute: executeBatchReject, isPending: isRejectPending } = useServerAction(rejectLinkRequests, {
+    onSuccess: (data) => {
+      if (data) {
+        const successMessage = `${data.rejectedCount || 0}개의 연결 요청이 거부되었습니다.`;
+        showSuccess(successMessage);
+        setSelectedIds(new Set());
+        handleRefresh();
+        setIsRejectDialogOpen(false);
+      }
+    },
+    onError: (error) => {
+      showError(error);
+      // 부분 성공 시에도 새로고침
+      handleRefresh();
+    },
+  });
+
+  const isPending = isRefreshPending || isApprovePending || isRejectPending;
 
   // 초기 데이터가 없으면 로드
   useEffect(() => {
@@ -55,18 +103,7 @@ export function PendingLinkRequestsList({
   }
 
   function handleRefresh() {
-    startTransition(async () => {
-      const result = await getPendingLinkRequests(tenantId || undefined);
-
-      if (result.success && result.data) {
-        setRequests(result.data);
-        setSelectedIds(new Set()); // 선택 초기화
-      } else {
-        if (result.error) {
-          showError(result.error);
-        }
-      }
-    });
+    executeRefresh(tenantId || undefined);
   }
 
   function handleToggleSelect(id: string) {
@@ -96,35 +133,10 @@ export function PendingLinkRequestsList({
   }
 
   function handleConfirmBatchApprove() {
-    startTransition(async () => {
-      const linkIds = Array.from(selectedIds);
-      const result = await approveLinkRequests(linkIds);
-
-      if (result.success) {
-        showSuccess(
-          `${result.approvedCount || 0}개의 연결 요청이 승인되었습니다.`
-        );
-        setSelectedIds(new Set());
-        handleRefresh();
-        setIsApproveDialogOpen(false);
-      } else {
-        if (result.errors && result.errors.length > 0) {
-          const errorMessages = result.errors
-            .map((e) => `${e.linkId}: ${e.error}`)
-            .join("\n");
-          showError(
-            `${result.approvedCount || 0}개 승인 완료. 일부 실패:\n${errorMessages}`
-          );
-        } else {
-          showError("일괄 승인에 실패했습니다.");
-        }
-        // 부분 성공 시에도 새로고침
-        if (result.approvedCount && result.approvedCount > 0) {
-          handleRefresh();
-        }
-      }
-      setPendingAction(null);
-    });
+    const linkIds = Array.from(selectedIds);
+    setPendingAction("approve");
+    executeBatchApprove(linkIds);
+    setPendingAction(null);
   }
 
   function handleBatchReject() {
@@ -134,35 +146,10 @@ export function PendingLinkRequestsList({
   }
 
   function handleConfirmBatchReject() {
-    startTransition(async () => {
-      const linkIds = Array.from(selectedIds);
-      const result = await rejectLinkRequests(linkIds);
-
-      if (result.success) {
-        showSuccess(
-          `${result.rejectedCount || 0}개의 연결 요청이 거부되었습니다.`
-        );
-        setSelectedIds(new Set());
-        handleRefresh();
-        setIsRejectDialogOpen(false);
-      } else {
-        if (result.errors && result.errors.length > 0) {
-          const errorMessages = result.errors
-            .map((e) => `${e.linkId}: ${e.error}`)
-            .join("\n");
-          showError(
-            `${result.rejectedCount || 0}개 거부 완료. 일부 실패:\n${errorMessages}`
-          );
-        } else {
-          showError("일괄 거부에 실패했습니다.");
-        }
-        // 부분 성공 시에도 새로고침
-        if (result.rejectedCount && result.rejectedCount > 0) {
-          handleRefresh();
-        }
-      }
-      setPendingAction(null);
-    });
+    const linkIds = Array.from(selectedIds);
+    setPendingAction("reject");
+    executeBatchReject(linkIds);
+    setPendingAction(null);
   }
 
   if (isLoading) {

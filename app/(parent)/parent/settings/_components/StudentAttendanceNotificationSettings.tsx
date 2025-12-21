@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { updateStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
 import { cn } from "@/lib/cn";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type StudentAttendanceNotificationSettingsProps = {
   studentId: string;
@@ -22,9 +22,20 @@ export function StudentAttendanceNotificationSettings({
   initialSettings,
 }: StudentAttendanceNotificationSettingsProps) {
   const [settings, setSettings] = useState(initialSettings);
-  const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { execute: executeSave, isPending: saving, error, isSuccess } = useServerAction(
+    updateStudentAttendanceNotificationSettings,
+    {
+      onSuccess: () => {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      },
+      onError: () => {
+        setSuccess(false);
+      },
+    }
+  );
 
   const handleToggle = (key: keyof typeof settings) => {
     // null -> true -> false -> null 순환
@@ -40,28 +51,9 @@ export function StudentAttendanceNotificationSettings({
     setError(null);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    setError(null);
+  const handleSave = () => {
     setSuccess(false);
-
-    try {
-      const result = await updateStudentAttendanceNotificationSettings(
-        studentId,
-        settings
-      );
-
-      if (isSuccessResponse(result)) {
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 3000);
-      } else if (isErrorResponse(result)) {
-        setError(result.error || "저장에 실패했습니다.");
-      }
-    } catch (err: any) {
-      setError(err.message || "저장 중 오류가 발생했습니다.");
-    } finally {
-      setSaving(false);
-    }
+    executeSave(studentId, settings);
   };
 
   const hasChanges =

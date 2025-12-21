@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { changeUserRole } from "@/app/actions/userRole";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 export function RoleChangeSection() {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
-  const [saving, setSaving] = useState(false);
 
-  const handleChangeToStudent = async () => {
+  const { execute: executeChangeRole, isPending: saving } = useServerAction(changeUserRole, {
+    onSuccess: () => {
+      showSuccess("학생 계정으로 전환되었습니다.");
+      router.push("/settings");
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
+  const handleChangeToStudent = () => {
     if (
       !confirm(
         "학생 계정으로 전환하시겠습니까? 현재 학부모 정보가 삭제되고, 학생 정보를 다시 입력해야 합니다."
@@ -20,21 +28,7 @@ export function RoleChangeSection() {
       return;
     }
 
-    try {
-      setSaving(true);
-      const result = await changeUserRole("student");
-      if (isSuccessResponse(result)) {
-        showSuccess("학생 계정으로 전환되었습니다.");
-        router.push("/settings");
-      } else if (isErrorResponse(result)) {
-        showError(result.error || "권한 변경에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("권한 변경 실패:", error);
-      showError("권한 변경 중 오류가 발생했습니다.");
-    } finally {
-      setSaving(false);
-    }
+    executeChangeRole("student");
   };
 
   return (

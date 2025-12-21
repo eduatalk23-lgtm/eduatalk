@@ -1,31 +1,30 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deleteInternalScore } from "@/app/actions/scores-internal";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type DeleteSchoolScoreButtonProps = {
   id: string;
 };
 
 export function DeleteSchoolScoreButton({ id }: DeleteSchoolScoreButtonProps) {
-  const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleDelete = async () => {
-    setError(null);
-    startTransition(async () => {
-      try {
-        await deleteInternalScore(id);
-        router.refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "삭제에 실패했습니다.");
-      } finally {
-        setShowConfirm(false);
-      }
-    });
+  const { execute: executeDelete, isPending, error } = useServerAction(deleteInternalScore, {
+    onSuccess: () => {
+      router.refresh();
+      setShowConfirm(false);
+    },
+    onError: () => {
+      // 에러는 훅에서 자동으로 처리됨
+    },
+  });
+
+  const handleDelete = () => {
+    executeDelete(id);
   };
 
   return (

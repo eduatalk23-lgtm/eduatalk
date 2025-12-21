@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MockScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
@@ -9,7 +9,7 @@ import { MockScoreFormModal } from "./MockScoreFormModal";
 import { Dialog } from "@/components/ui/Dialog";
 import { deleteMockScoreAction } from "@/app/(student)/actions/scoreActions";
 import { useToast } from "@/components/ui/ToastProvider";
-import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type MockScoresViewProps = {
   initialGrade?: number;
@@ -30,11 +30,22 @@ export function MockScoresView({
 }: MockScoresViewProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingScore, setEditingScore] = useState<MockScore | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingScoreId, setDeletingScoreId] = useState<string | null>(null);
+
+  const { execute: executeDelete, isPending } = useServerAction(deleteMockScoreAction, {
+    onSuccess: () => {
+      showSuccess("성적이 성공적으로 삭제되었습니다.");
+      setDeleteConfirmOpen(false);
+      setDeletingScoreId(null);
+      router.refresh();
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
 
   const handleAddClick = () => {
     setEditingScore(null);
@@ -51,21 +62,9 @@ export function MockScoresView({
     setDeleteConfirmOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!deletingScoreId) return;
-
-    startTransition(async () => {
-      const result = await deleteMockScoreAction(deletingScoreId);
-      
-      if (isSuccessResponse(result)) {
-        showSuccess("성적이 성공적으로 삭제되었습니다.");
-        setDeleteConfirmOpen(false);
-        setDeletingScoreId(null);
-        router.refresh();
-      } else if (isErrorResponse(result)) {
-        showError(result.error || "삭제에 실패했습니다.");
-      }
-    });
+    executeDelete(deletingScoreId);
   };
 
   const handleModalSuccess = () => {

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   approveLinkRequest,
   rejectLinkRequest,
   type PendingLinkRequest,
 } from "@/app/(admin)/actions/parentStudentLinkActions";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type PendingLinkRequestCardProps = {
@@ -25,20 +26,33 @@ export function PendingLinkRequestCard({
   onToggleSelect,
 }: PendingLinkRequestCardProps) {
   const { showSuccess, showError } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
 
-  function handleApprove() {
-    startTransition(async () => {
-      const result = await approveLinkRequest(request.id);
+  const { execute: executeApprove, isPending: isApprovePending } = useServerAction(approveLinkRequest, {
+    onSuccess: () => {
+      showSuccess("연결 요청이 승인되었습니다.");
+      onRefresh();
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
 
-      if (result.success) {
-        showSuccess("연결 요청이 승인되었습니다.");
-        onRefresh();
-      } else {
-        showError(result.error || "요청 승인에 실패했습니다.");
-      }
-    });
+  const { execute: executeReject, isPending: isRejectPending } = useServerAction(rejectLinkRequest, {
+    onSuccess: () => {
+      showSuccess("연결 요청이 거부되었습니다.");
+      onRefresh();
+      setIsRejectDialogOpen(false);
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
+  const isPending = isApprovePending || isRejectPending;
+
+  function handleApprove() {
+    executeApprove(request.id);
   }
 
   function handleReject() {
@@ -46,17 +60,7 @@ export function PendingLinkRequestCard({
   }
 
   function handleConfirmReject() {
-    startTransition(async () => {
-      const result = await rejectLinkRequest(request.id);
-
-      if (result.success) {
-        showSuccess("연결 요청이 거부되었습니다.");
-        onRefresh();
-        setIsRejectDialogOpen(false);
-      } else {
-        showError(result.error || "요청 거부에 실패했습니다.");
-      }
-    });
+    executeReject(request.id);
   }
 
   function getRelationText(relation: string) {

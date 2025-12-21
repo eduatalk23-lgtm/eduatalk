@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cancelLinkRequest, type LinkRequest } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type LinkRequestListProps = {
   requests: LinkRequest[];
@@ -16,19 +16,19 @@ export function LinkRequestList({
   onCancel,
 }: LinkRequestListProps) {
   const { showSuccess, showError } = useToast();
-  const [isPending, startTransition] = useTransition();
+
+  const { execute: executeCancel, isPending } = useServerAction(cancelLinkRequest, {
+    onSuccess: () => {
+      showSuccess("연결 요청이 취소되었습니다.");
+      onCancel?.();
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
 
   function handleCancel(requestId: string) {
-    startTransition(async () => {
-      const result = await cancelLinkRequest(requestId, parentId);
-
-      if (result.success) {
-        showSuccess("연결 요청이 취소되었습니다.");
-        onCancel?.();
-      } else {
-        showError(result.error || "요청 취소에 실패했습니다.");
-      }
-    });
+    executeCancel(requestId, parentId);
   }
 
   function getStatusBadge(isApproved: boolean | null) {
