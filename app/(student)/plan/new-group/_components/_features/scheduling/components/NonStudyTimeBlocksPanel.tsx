@@ -51,7 +51,7 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
   
   // 학생 입력 가능 여부
   const canStudentInputNonStudyTimeBlocks = campMode
-    ? (lockedFields.allow_student_non_study_time_blocks !== false)
+    ? (lockedFields.allow_student_non_study_time_blocks === true)
     : true;
 
   // 로컬 상태

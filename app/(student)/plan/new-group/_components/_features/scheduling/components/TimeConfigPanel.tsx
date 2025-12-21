@@ -48,7 +48,7 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
   
   // 학생 입력 가능 여부
   const canStudentInputTimeSettings = campMode
-    ? (lockedFields.allow_student_time_settings !== false)
+    ? (lockedFields.allow_student_time_settings === true)
     : true;
 
   const updateTimeSetting = (

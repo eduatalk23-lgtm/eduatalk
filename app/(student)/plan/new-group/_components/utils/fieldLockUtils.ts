@@ -43,8 +43,8 @@ export function isFieldLocked(
   if (!allowFieldName || !lockedFields) return false;
 
   const fieldValue = lockedFields[allowFieldName as keyof typeof lockedFields];
-  // 명시적으로 false인 경우만 고정
-  return fieldValue === false;
+  // undefined나 false이면 고정 (true가 아니면 고정)
+  return fieldValue !== true;
 }
 
 /**
@@ -72,8 +72,8 @@ export function canStudentInput(
   if (!lockedFields) return true;
 
   const fieldValue = lockedFields[fieldName];
-  // undefined 또는 true이면 입력 가능, false이면 입력 불가
-  return fieldValue !== false;
+  // 명시적으로 true인 경우만 입력 가능, undefined나 false이면 입력 불가
+  return fieldValue === true;
 }
 
 /**

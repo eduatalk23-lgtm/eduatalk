@@ -78,7 +78,7 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
 
   // 학생 입력 가능 여부
   const canStudentInputExclusions = campMode
-    ? lockedFields.allow_student_exclusions !== false
+    ? lockedFields.allow_student_exclusions === true
     : true;
 
   // 로컬 상태

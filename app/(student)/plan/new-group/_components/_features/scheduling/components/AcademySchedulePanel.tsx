@@ -64,7 +64,7 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   
   // 학생 입력 가능 여부
   const canStudentInputAcademySchedules = campMode
-    ? (lockedFields.allow_student_academy_schedules !== false)
+    ? (lockedFields.allow_student_academy_schedules === true)
     : true;
 
   // 로컬 상태
