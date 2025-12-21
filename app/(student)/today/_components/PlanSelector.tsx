@@ -23,7 +23,7 @@ export function PlanSelector({
     ? groups.find((g) => g.planNumber === selectedPlanNumber)
     : null;
   
-  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용 (하지만 selectedPlanNumber는 null 유지)
+  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용
   const displayGroup = currentGroup || groups[0];
   
   const currentIndex = displayGroup 
