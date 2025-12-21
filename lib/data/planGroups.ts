@@ -449,13 +449,40 @@ export async function createPlanGroup(
     payload.camp_invitation_id = group.camp_invitation_id;
   }
 
+  // 상세한 에러 로깅을 위한 쿼리 실행
+  const queryResult = await supabase
+    .from("plan_groups")
+    .insert(payload as PlanGroupInsert)
+    .select("id")
+    .single();
+
+  // 에러가 있는 경우 상세 로깅
+  if (queryResult.error) {
+    console.error("[data/planGroups] createPlanGroup INSERT 실패:", {
+      error: queryResult.error.message,
+      errorCode: queryResult.error.code,
+      errorDetails: queryResult.error.details,
+      errorHint: queryResult.error.hint,
+      payload: {
+        tenant_id: payload.tenant_id,
+        student_id: payload.student_id,
+        name: payload.name,
+        plan_purpose: payload.plan_purpose,
+        scheduler_type: payload.scheduler_type,
+        period_start: payload.period_start,
+        period_end: payload.period_end,
+        status: payload.status,
+        plan_type: payload.plan_type,
+        camp_template_id: payload.camp_template_id,
+        camp_invitation_id: payload.camp_invitation_id,
+        has_scheduler_options: !!payload.scheduler_options,
+        scheduler_options_keys: payload.scheduler_options ? Object.keys(payload.scheduler_options) : [],
+      },
+    });
+  }
+
   const result = await createTypedConditionalQuery<{ id: string }>(
     async () => {
-      const queryResult = await supabase
-        .from("plan_groups")
-        .insert(payload as PlanGroupInsert)
-        .select("id")
-        .single();
       return { data: queryResult.data, error: queryResult.error };
     },
     {
@@ -465,21 +492,39 @@ export async function createPlanGroup(
         // fallback: scheduler_options가 포함된 경우 제외하고 재시도
         if (payload.scheduler_options !== undefined) {
           const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
-          const queryResult = await supabase
+          const fallbackResult = await supabase
             .from("plan_groups")
             .insert(fallbackPayload as PlanGroupInsert)
             .select("id")
             .single();
-          return { data: queryResult.data, error: queryResult.error };
+          
+          if (fallbackResult.error) {
+            console.error("[data/planGroups] createPlanGroup fallback INSERT 실패:", {
+              error: fallbackResult.error.message,
+              errorCode: fallbackResult.error.code,
+              errorDetails: fallbackResult.error.details,
+            });
+          }
+          
+          return { data: fallbackResult.data, error: fallbackResult.error };
         } else {
           // 다른 컬럼 문제인 경우 일반 fallback
           const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-          const queryResult = await supabase
+          const fallbackResult = await supabase
             .from("plan_groups")
             .insert(fallbackPayload as PlanGroupInsert)
             .select("id")
             .single();
-          return { data: queryResult.data, error: queryResult.error };
+          
+          if (fallbackResult.error) {
+            console.error("[data/planGroups] createPlanGroup 일반 fallback INSERT 실패:", {
+              error: fallbackResult.error.message,
+              errorCode: fallbackResult.error.code,
+              errorDetails: fallbackResult.error.details,
+            });
+          }
+          
+          return { data: fallbackResult.data, error: fallbackResult.error };
         }
       },
       shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
@@ -487,7 +532,24 @@ export async function createPlanGroup(
   );
 
   if (!result) {
-    return { success: false, error: "플랜 그룹 생성 실패" };
+    // 상세한 에러 메시지 반환
+    const errorMessage = queryResult.error 
+      ? `플랜 그룹 생성 실패: ${queryResult.error.message} (코드: ${queryResult.error.code})`
+      : "플랜 그룹 생성 실패: 알 수 없는 오류";
+    
+    console.error("[data/planGroups] createPlanGroup 최종 실패:", {
+      errorMessage,
+      originalError: queryResult.error,
+      payload: {
+        tenant_id: payload.tenant_id,
+        student_id: payload.student_id,
+        plan_type: payload.plan_type,
+        camp_template_id: payload.camp_template_id,
+        camp_invitation_id: payload.camp_invitation_id,
+      },
+    });
+    
+    return { success: false, error: errorMessage };
   }
 
   return { success: true, groupId: result.id };
