@@ -393,51 +393,83 @@ export const deleteCampInvitationAction = withErrorHandling(
 /**
  * 캠프 초대 일괄 삭제
  */
-export async function deleteCampInvitationsAction(
-  invitationIds: string[]
-): Promise<{ success: boolean; error?: string; count?: number }> {
-  await requireAdminOrConsultant();
+export const deleteCampInvitationsAction = withErrorHandling(
+  async (
+    invitationIds: string[]
+  ): Promise<{ success: boolean; error?: string; count?: number }> => {
+    await requireAdminOrConsultant();
 
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    // 입력값 검증
+    if (!invitationIds || invitationIds.length === 0) {
+      throw new AppError(
+        "삭제할 초대를 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const tenantContext = await getTenantContext();
+    if (!tenantContext?.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 모든 초대의 템플릿 권한 확인
+    const { getCampInvitation } = await import("@/lib/data/campTemplates");
+    const invitations = await Promise.all(
+      invitationIds.map((id) => getCampInvitation(id))
+    );
+
+    const validInvitations = invitations.filter(Boolean);
+    if (validInvitations.length !== invitationIds.length) {
+      throw new AppError(
+        "일부 초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // 템플릿 권한 확인
+    const templateIds = new Set(
+      validInvitations.map((inv) => inv!.camp_template_id)
+    );
+    const templates = await Promise.all(
+      Array.from(templateIds).map((id) => getCampTemplate(id))
+    );
+
+    const invalidTemplates = templates.some(
+      (t) => !t || t.tenant_id !== tenantContext.tenantId
+    );
+    if (invalidTemplates) {
+      throw new AppError(
+        "권한이 없는 초대가 포함되어 있습니다.",
+        ErrorCode.FORBIDDEN,
+        403,
+        true
+      );
+    }
+
+    const { deleteCampInvitations } = await import("@/lib/data/campTemplates");
+    const result = await deleteCampInvitations(invitationIds);
+
+    if (!result.success) {
+      throw new AppError(
+        result.error || "초대 삭제에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    return result;
   }
-
-  if (!invitationIds || invitationIds.length === 0) {
-    return { success: false, error: "삭제할 초대를 선택해주세요." };
-  }
-
-  // 모든 초대의 템플릿 권한 확인
-  const { getCampInvitation } = await import("@/lib/data/campTemplates");
-  const invitations = await Promise.all(
-    invitationIds.map((id) => getCampInvitation(id))
-  );
-
-  const validInvitations = invitations.filter(Boolean);
-  if (validInvitations.length !== invitationIds.length) {
-    return { success: false, error: "일부 초대를 찾을 수 없습니다." };
-  }
-
-  // 템플릿 권한 확인
-  const templateIds = new Set(
-    validInvitations.map((inv) => inv!.camp_template_id)
-  );
-  const templates = await Promise.all(
-    Array.from(templateIds).map((id) => getCampTemplate(id))
-  );
-
-  const invalidTemplates = templates.some(
-    (t) => !t || t.tenant_id !== tenantContext.tenantId
-  );
-  if (invalidTemplates) {
-    return { success: false, error: "권한이 없는 초대가 포함되어 있습니다." };
-  }
-
-  const { deleteCampInvitations } = await import("@/lib/data/campTemplates");
-  const result = await deleteCampInvitations(invitationIds);
-
-  return result;
-}
+);
 
 /**
  * 캠프 초대 재발송

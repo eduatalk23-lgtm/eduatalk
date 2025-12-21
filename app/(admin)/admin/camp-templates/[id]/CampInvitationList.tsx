@@ -205,7 +205,12 @@ export function CampInvitationList({
         }
       } catch (error) {
         console.error("초대 일괄 삭제 실패:", error);
-        toast.showError("초대 삭제에 실패했습니다.");
+        // AppError의 메시지 추출
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "초대 삭제에 실패했습니다.";
+        toast.showError(errorMessage);
       }
     });
   };
