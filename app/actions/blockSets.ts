@@ -5,9 +5,9 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { AppError, ErrorCode } from "@/lib/errors";
 import {
   fetchBlockSetsWithBlocks,
-  createBlockSet,
-  updateBlockSet,
-  deleteBlockSet,
+  createBlockSet as createBlockSetData,
+  updateBlockSet as updateBlockSetData,
+  deleteBlockSet as deleteBlockSetData,
   getBlockSetById,
   getBlockSetCount,
 } from "@/lib/data/blockSets";
@@ -64,7 +64,7 @@ async function _createBlockSet(formData: FormData): Promise<{ blockSetId: string
   const displayOrder = maxDisplayOrder + 1;
 
   // lib/data/blockSets.ts의 createBlockSet 사용
-  const result = await createBlockSet({
+  const result = await createBlockSetData({
     tenant_id: student.tenant_id,
     student_id: user.userId,
     name: name.trim(),
@@ -122,7 +122,7 @@ async function _updateBlockSet(formData: FormData): Promise<void> {
   }
 
   // lib/data/blockSets.ts의 updateBlockSet 사용
-  const result = await updateBlockSet(setId, user.userId, {
+  const result = await updateBlockSetData(setId, user.userId, {
     name: name.trim(),
     description: description && typeof description === "string" ? description.trim() : null,
   });
@@ -179,7 +179,7 @@ async function _deleteBlockSet(formData: FormData): Promise<void> {
   }
 
   // lib/data/blockSets.ts의 deleteBlockSet 사용
-  const result = await deleteBlockSet(setId, user.userId);
+  const result = await deleteBlockSetData(setId, user.userId);
 
   if (!result.success) {
     throw new AppError(
@@ -274,7 +274,7 @@ async function _duplicateBlockSet(formData: FormData): Promise<void> {
   const sourceBlocks = await getBlocksBySetId(sourceSetId, user.userId);
 
   // 새 세트 생성
-  const createResult = await createBlockSet({
+  const createResult = await createBlockSetData({
     tenant_id: sourceSet.tenant_id,
     student_id: user.userId,
     name: newName.trim(),
@@ -310,7 +310,7 @@ async function _duplicateBlockSet(formData: FormData): Promise<void> {
 
     if (failedResults.length > 0) {
       // 롤백: 새 세트 삭제
-      await deleteBlockSet(createResult.blockSetId, user.userId);
+      await deleteBlockSetData(createResult.blockSetId, user.userId);
       throw new AppError(
         `블록 복제 중 오류가 발생했습니다: ${failedResults[0].error}`,
         ErrorCode.DATABASE_ERROR,

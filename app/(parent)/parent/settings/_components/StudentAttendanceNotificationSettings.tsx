@@ -48,7 +48,6 @@ export function StudentAttendanceNotificationSettings({
       setSettings((prev) => ({ ...prev, [key]: null }));
     }
     setSuccess(false);
-    setError(null);
   };
 
   const handleSave = () => {

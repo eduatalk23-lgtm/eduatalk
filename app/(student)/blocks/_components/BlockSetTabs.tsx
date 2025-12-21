@@ -237,7 +237,7 @@ function BlockSetCreateForm({
   return (
     <div className={cn("p-4 rounded-lg", bgSurface, borderDefault)}>
       <form action={formAction} className="flex flex-col gap-3">
-        {isErrorResponse(state) && state.error && (
+        {state && isErrorResponse(state) && state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 
@@ -311,7 +311,7 @@ function BlockSetEditForm({ set, onSuccess, onCancel }: BlockSetEditFormProps) {
 
   return (
     <form action={formAction} className="flex items-center gap-2">
-      {isErrorResponse(state) && state.error && (
+      {state && isErrorResponse(state) && state.error && (
         <p className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-1 rounded">{state.error}</p>
       )}
       <input
@@ -383,7 +383,7 @@ function BlockSetDuplicateForm({
   return (
     <div className={cn("p-4 rounded-lg border", bgSurface, "border-blue-200 dark:border-blue-800")}>
       <form action={formAction} className="flex flex-col gap-3">
-        {isErrorResponse(state) && state.error && (
+        {state && isErrorResponse(state) && state.error && (
           <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded">{state.error}</p>
         )}
 

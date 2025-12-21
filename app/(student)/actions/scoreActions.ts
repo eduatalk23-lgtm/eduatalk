@@ -6,8 +6,8 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   createMockScore,
-  updateMockScore,
-  deleteMockScore,
+  updateMockScore as updateMockScoreData,
+  deleteMockScore as deleteMockScoreData,
 } from "@/lib/data/studentScores";
 import { recordHistory } from "@/lib/history/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -296,7 +296,7 @@ async function _updateMockScoreAction(
     updates.grade_score = gradeScore;
   }
 
-  const result = await updateMockScore(id, user.userId, updates);
+  const result = await updateMockScoreData(id, user.userId, user.tenantId || "", updates);
 
   if (!result.success) {
     throw new AppError(
@@ -338,7 +338,7 @@ async function _deleteMockScoreAction(id: string): Promise<void> {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
 
-  const result = await deleteMockScore(id, user.userId);
+  const result = await deleteMockScoreData(id, user.userId, user.tenantId || "");
 
   if (!result.success) {
     throw new AppError(

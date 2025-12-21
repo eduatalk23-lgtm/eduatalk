@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { exportMasterBooksToExcel, downloadMasterBooksTemplate } from "@/app/(admin)/actions/masterBooks/export";
 import { importMasterBooksFromExcel } from "@/app/(admin)/actions/masterBooks/import";
 import Button from "@/components/atoms/Button";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 // ExcelImportDialog는 무거운 라이브러리를 사용할 수 있으므로 동적 로드
 const ExcelImportDialog = dynamic(
@@ -78,7 +79,23 @@ export default function ExcelActions() {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     // importMasterBooksFromExcel는 Buffer | Uint8Array를 받음
-    return importMasterBooksFromExcel(uint8Array);
+    const result = await importMasterBooksFromExcel(uint8Array);
+    if (isSuccessResponse(result) && result.data) {
+      return {
+        success: true,
+        message: result.message || `${result.data.count}개의 교재가 업로드되었습니다.`,
+        errors: result.data.errors,
+      };
+    } else if (isErrorResponse(result)) {
+      return {
+        success: false,
+        message: result.error || result.message || "Excel 파일 업로드에 실패했습니다.",
+      };
+    }
+    return {
+      success: false,
+      message: "Excel 파일 업로드에 실패했습니다.",
+    };
   }
 
   return (

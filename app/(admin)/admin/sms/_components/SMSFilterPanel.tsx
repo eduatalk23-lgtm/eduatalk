@@ -6,6 +6,7 @@ import Input from "@/components/atoms/Input";
 import Button from "@/components/atoms/Button";
 import { getActiveStudentDivisionsAction } from "@/app/actions/studentDivisionsActions";
 import type { StudentDivision } from "@/lib/constants/students";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export type RecipientType = "student" | "mother" | "father";
 
@@ -50,19 +51,30 @@ export default function SMSFilterPanel({
   useEffect(() => {
     const loadDivisions = async () => {
       try {
-        const divisions = await getActiveStudentDivisionsAction();
-        const divisionOptions: Array<{
-          value: StudentDivision | null;
-          label: string;
-        }> = divisions.map((d) => ({
-          value: d.name as StudentDivision,
-          label: d.name,
-        }));
+        const result = await getActiveStudentDivisionsAction();
+        if (isSuccessResponse(result) && result.data) {
+          const divisionOptions: Array<{
+            value: StudentDivision | null;
+            label: string;
+          }> = result.data.map((d) => ({
+            value: d.name as StudentDivision,
+            label: d.name,
+          }));
 
-        // 미설정 옵션 추가
-        divisionOptions.push({ value: null, label: "미설정" });
+          // 미설정 옵션 추가
+          divisionOptions.push({ value: null, label: "미설정" });
 
-        setAvailableDivisions(divisionOptions);
+          setAvailableDivisions(divisionOptions);
+        } else {
+          console.error("[SMSFilterPanel] 구분 목록 로드 실패:", result);
+          // 기본 옵션 설정
+          setAvailableDivisions([
+            { value: "고등부", label: "고등부" },
+            { value: "중등부", label: "중등부" },
+            { value: "기타", label: "기타" },
+            { value: null, label: "미설정" },
+          ]);
+        }
       } catch (error) {
         console.error("[SMSFilterPanel] 구분 목록 로드 실패:", error);
         // 기본 옵션 설정

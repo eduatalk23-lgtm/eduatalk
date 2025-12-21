@@ -32,7 +32,6 @@ import { buildContentQuery } from "@/lib/data/contentQueryBuilder";
 import { extractJoinedData } from "@/lib/utils/supabaseHelpers";
 import { createTypedQuery, createTypedSingleQuery, createTypedParallelQueries } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
-import type { SupabaseServerClient } from "@/lib/data/core/types";
 import type {
   MasterBookFilters,
   MasterLectureFilters,

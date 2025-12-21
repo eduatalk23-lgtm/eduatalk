@@ -8,7 +8,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTypedQuery } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
-import type { SupabaseServerClient } from "@/lib/data/core/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 

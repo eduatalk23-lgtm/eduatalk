@@ -11,14 +11,14 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { calculateSchoolYear } from "@/lib/data/studentTerms";
 import {
-  createInternalScore,
-  updateInternalScore,
-  deleteInternalScore,
-  createMockScore,
-  updateMockScore,
-  deleteMockScore,
-  createInternalScoresBatch,
-  createMockScoresBatch,
+  createInternalScore as createInternalScoreData,
+  updateInternalScore as updateInternalScoreData,
+  deleteInternalScore as deleteInternalScoreData,
+  createMockScore as createMockScoreData,
+  updateMockScore as updateMockScoreData,
+  deleteMockScore as deleteMockScoreData,
+  createInternalScoresBatch as createInternalScoresBatchData,
+  createMockScoresBatch as createMockScoresBatchData,
 } from "@/lib/data/studentScores";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
@@ -63,7 +63,7 @@ async function _createInternalScore(formData: FormData) {
   }
 
   // lib/data/studentScores.ts의 createInternalScore 사용
-  const result = await createInternalScore({
+  const result = await createInternalScoreData({
     tenant_id,
     student_id,
     curriculum_revision_id,
@@ -131,7 +131,7 @@ async function _createMockScore(formData: FormData) {
   const calculatedSemester = semester ?? (examDate.getMonth() + 1 >= 3 && examDate.getMonth() + 1 <= 8 ? 1 : 2);
 
   // lib/data/studentScores.ts의 createMockScore 사용
-  const result = await createMockScore({
+  const result = await createMockScoreData({
     tenant_id,
     student_id,
     exam_date,
@@ -207,7 +207,7 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
   if (total_students !== undefined) updates.total_students = total_students;
 
   // lib/data/studentScores.ts의 updateInternalScore 사용
-  const result = await updateInternalScore(scoreId, user.userId, tenant_id, updates);
+  const result = await updateInternalScoreData(scoreId, user.userId, tenant_id, updates);
 
   if (!result.success) {
     throw new AppError(
@@ -264,7 +264,7 @@ async function _updateMockScore(scoreId: string, formData: FormData) {
   if (grade_score !== undefined) updates.grade_score = grade_score;
 
   // lib/data/studentScores.ts의 updateMockScore 사용
-  const result = await updateMockScore(scoreId, user.userId, tenant_id, updates);
+  const result = await updateMockScoreData(scoreId, user.userId, tenant_id, updates);
 
   if (!result.success) {
     throw new AppError(
@@ -297,7 +297,7 @@ async function _deleteInternalScore(scoreId: string) {
   }
 
   // lib/data/studentScores.ts의 deleteInternalScore 사용
-  const result = await deleteInternalScore(scoreId, user.userId, user.tenantId);
+  const result = await deleteInternalScoreData(scoreId, user.userId, user.tenantId);
 
   if (!result.success) {
     throw new AppError(
@@ -329,7 +329,7 @@ async function _deleteMockScore(scoreId: string) {
   }
 
   // lib/data/studentScores.ts의 deleteMockScore 사용
-  const result = await deleteMockScore(scoreId, user.userId, user.tenantId);
+  const result = await deleteMockScoreData(scoreId, user.userId, user.tenantId);
 
   if (!result.success) {
     throw new AppError(
@@ -420,7 +420,7 @@ async function _createInternalScoresBatch(formData: FormData) {
   }
 
   // lib/data/studentScores.ts의 createInternalScoresBatch 사용
-  const result = await createInternalScoresBatch(scores, {
+  const result = await createInternalScoresBatchData(scores, {
     tenant_id,
     student_id,
     curriculum_revision_id,
@@ -481,7 +481,7 @@ async function _createMockScoresBatch(formData: FormData) {
   }
 
   // lib/data/studentScores.ts의 createMockScoresBatch 사용
-  const result = await createMockScoresBatch(scores, {
+  const result = await createMockScoresBatchData(scores, {
     tenant_id,
     student_id,
     curriculum_revision_id,

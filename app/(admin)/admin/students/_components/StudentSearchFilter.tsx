@@ -13,6 +13,7 @@ import {
 } from "@/lib/utils/darkMode";
 import { STUDENT_SORT_OPTIONS, type StudentSortOption, type StudentDivision } from "@/lib/constants/students";
 import { getActiveStudentDivisionsAction } from "@/app/actions/studentDivisionsActions";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 type StudentSearchFilterProps = {
   searchQuery: string;
@@ -39,13 +40,15 @@ export function StudentSearchFilter({
   useEffect(() => {
     async function loadDivisions() {
       try {
-        const data = await getActiveStudentDivisionsAction();
-        setDivisions(
-          data.map((d) => ({
-            value: d.name as StudentDivision,
-            label: d.name,
-          }))
-        );
+        const result = await getActiveStudentDivisionsAction();
+        if (isSuccessResponse(result) && result.data) {
+          setDivisions(
+            result.data.map((d) => ({
+              value: d.name as StudentDivision,
+              label: d.name,
+            }))
+          );
+        }
       } catch (error) {
         console.error("학생 구분 목록 로드 실패:", error);
       } finally {

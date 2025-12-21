@@ -64,12 +64,13 @@ export function isSuccessResponse<T>(
 /**
  * ActionResponse의 실패 여부를 타입 가드로 확인
  */
-export function isErrorResponse(
-  response: ActionResponse
+export function isErrorResponse<T = void>(
+  response: ActionResponse<T>
 ): response is {
   success: false;
   error?: string;
   validationErrors?: Record<string, string[]>;
+  fieldErrors?: Record<string, string[]>;
   message?: string;
 } {
   return response.success === false;

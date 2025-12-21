@@ -10,6 +10,7 @@ import {
   type ParentRelation,
 } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
 import { useServerAction } from "@/lib/hooks/useServerAction";
+import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 type StudentSearchModalProps = {
   isOpen: boolean;
@@ -54,9 +55,9 @@ export function StudentSearchModal({
       setIsSearching(true);
       const result = await searchStudentsForLink(query.trim(), parentId);
 
-      if (result.success && result.data) {
+      if (isSuccessResponse(result) && result.data) {
         setSearchResults(result.data);
-      } else {
+      } else if (isErrorResponse(result)) {
         setSearchResults([]);
         if (result.error) {
           showError(result.error);

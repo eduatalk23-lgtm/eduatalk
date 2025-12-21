@@ -8,6 +8,7 @@ import { createBlockSet } from "@/app/actions/blockSets";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { cn } from "@/lib/cn";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 type Block = {
   id: string;
@@ -275,6 +276,11 @@ function BlockSetCreateForm({
 
         const result = await createBlockSet(formData);
         
+        if (!isSuccessResponse(result) || !result.data) {
+          const errorMessage = isErrorResponse(result) ? (result.error || result.message) : "세트 생성에 실패했습니다.";
+          return { error: errorMessage };
+        }
+        
         // 시간 블록이 입력된 경우 추가
         if (selectedWeekdays.length > 0 && startTime && endTime) {
           const { addBlocksToMultipleDays } = await import("@/app/actions/blocks");
@@ -282,7 +288,7 @@ function BlockSetCreateForm({
           blockFormData.append("target_days", selectedWeekdays.join(","));
           blockFormData.append("start_time", startTime);
           blockFormData.append("end_time", endTime);
-          blockFormData.append("block_set_id", result.blockSetId);
+          blockFormData.append("block_set_id", result.data.blockSetId);
           
           try {
             await addBlocksToMultipleDays(blockFormData);
@@ -293,7 +299,7 @@ function BlockSetCreateForm({
         }
         
         router.refresh();
-        onSuccess(result.blockSetId);
+        onSuccess(result.data.blockSetId);
         return { error: null };
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : "세트 생성에 실패했습니다.";

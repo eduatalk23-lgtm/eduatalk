@@ -58,13 +58,13 @@ const { action, state, isPending, fieldErrors, isSuccess, error } = useServerFor
 
 ```typescript
 type UseServerFormReturn<T> = {
-  action: (formData: FormData) => Promise<ActionResponse<T>>;  // 폼 action prop
-  state: ActionResponse<T> | null;                              // 현재 상태
-  isPending: boolean;                                            // 로딩 상태
-  fieldErrors: Record<string, string[]> | null;                 // 필드별 검증 에러
-  isSuccess: boolean;                                            // 성공 여부
-  error: string | null;                                          // 에러 메시지
-  data: T | undefined;                                           // 성공 시 데이터
+  action: (formData: FormData) => Promise<ActionResponse<T>>; // 폼 action prop
+  state: ActionResponse<T> | null; // 현재 상태
+  isPending: boolean; // 로딩 상태
+  fieldErrors: Record<string, string[]> | null; // 필드별 검증 에러
+  isSuccess: boolean; // 성공 여부
+  error: string | null; // 에러 메시지
+  data: T | undefined; // 성공 시 데이터
 };
 ```
 
@@ -73,11 +73,13 @@ type UseServerFormReturn<T> = {
 #### ✅ `app/(student)/blocks/_components/BlockForm.tsx`
 
 **변경 전**:
+
 - `useActionState` 직접 사용
 - `isSuccessResponse`, `isErrorResponse` 타입 가드 사용
 - 수동 상태 관리
 
 **변경 후**:
+
 - `useServerForm` 훅 사용
 - 타입 가드 제거
 - `onSuccess` 콜백으로 성공 처리 통합
@@ -110,21 +112,27 @@ const wrappedAction = async (formData: FormData) => {
   return await addBlocksToMultipleDays(weekdayFormData);
 };
 
-const { action, state, isPending, isSuccess } = useServerForm(wrappedAction, null, {
-  onSuccess: () => {
-    // 성공 처리
-  },
-});
+const { action, state, isPending, isSuccess } = useServerForm(
+  wrappedAction,
+  null,
+  {
+    onSuccess: () => {
+      // 성공 처리
+    },
+  }
+);
 ```
 
 #### ✅ `app/(student)/blocks/[setId]/_components/BlockList.tsx`
 
 **변경 전**:
+
 - `BlockEditForm` 내부에서 `useActionState` 직접 사용
 - 수동 에러 처리
 - `handleEdit`, `handleDelete` 함수에서 직접 서버 액션 호출
 
 **변경 후**:
+
 - `BlockEditForm`에서 `useServerForm` 사용
 - `handleDelete`에서 `useServerAction` 사용
 - 에러 처리 간소화
@@ -152,11 +160,15 @@ const wrappedUpdateAction = async (formData: FormData) => {
   return await updateBlock(formData);
 };
 
-const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUpdateAction, null, {
-  onSuccess: () => {
-    onSuccess();
-  },
-});
+const { action, state, isPending, error, fieldErrors } = useServerForm(
+  wrappedUpdateAction,
+  null,
+  {
+    onSuccess: () => {
+      onSuccess();
+    },
+  }
+);
 ```
 
 ### 3. `useAdminFormSubmit`과의 통합 검토
@@ -166,6 +178,7 @@ const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUp
 `useAdminFormSubmit`과 `useServerForm`은 **서로 다른 목적**을 가지고 있어 통합이 어렵습니다:
 
 **`useAdminFormSubmit`**:
+
 - `useTransition` 기반 (`onSubmit` 핸들러 사용)
 - Zod 스키마 검증 (클라이언트 사이드)
 - Toast 메시지 자동 표시
@@ -173,6 +186,7 @@ const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUp
 - `onSubmit` 이벤트 핸들러 반환
 
 **`useServerForm`**:
+
 - `useActionState` 기반 (`action` prop 사용)
 - 서버 사이드 검증 에러 처리
 - `ActionResponse` 타입 처리
@@ -192,11 +206,13 @@ const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUp
 다음 컴포넌트들은 복잡한 로직이나 특수 요구사항으로 인해 이번 Phase에서는 제외되었습니다:
 
 #### `app/(student)/scores/_components/ScoreFormModal.tsx`
+
 - **제외 사유**: `useActionState`를 사용하지 않고 `useTransition` 사용
 - **복잡한 로직**: 복잡한 폼 상태 관리 및 클라이언트 사이드 검증
 - **권장 사항**: `useServerAction` 훅 사용 고려 (Phase 5 패턴)
 
 #### `app/(admin)/admin/subjects/_components/SubjectGroupManagement.tsx`
+
 - **제외 사유**: `useActionState`를 사용하지 않음
 - **복잡한 로직**: 낙관적 업데이트, 다중 폼 관리
 - **권장 사항**: 현재 구조 유지 또는 점진적 리팩토링
@@ -206,6 +222,7 @@ const { action, state, isPending, error, fieldErrors } = useServerForm(wrappedUp
 ### 리팩토링 패턴
 
 **이전 패턴**:
+
 ```typescript
 const [state, formAction, isPending] = useActionState(
   async (_prev, formData: FormData) => {
@@ -225,6 +242,7 @@ useEffect(() => {
 ```
 
 **변경 후 패턴**:
+
 ```typescript
 const { action, state, isPending, fieldErrors, isSuccess } = useServerForm(
   someAction,
@@ -255,7 +273,7 @@ const wrappedAction = async (formData: FormData) => {
   const modifiedFormData = new FormData();
   modifiedFormData.append("custom_field", "value");
   // ...
-  
+
   return await serverAction(modifiedFormData);
 };
 
@@ -336,7 +354,7 @@ const wrappedAction = async (formData: FormData) => {
   const modifiedFormData = new FormData();
   modifiedFormData.append("custom_field", "value");
   // ...
-  
+
   return await serverAction(modifiedFormData);
 };
 
@@ -347,13 +365,13 @@ const { action } = useServerForm(wrappedAction, null, {
 
 ### `useAdminFormSubmit`과의 차이
 
-| 특징 | `useServerForm` | `useAdminFormSubmit` |
-|------|----------------|---------------------|
-| 기반 | `useActionState` | `useTransition` |
-| 사용 방식 | `action` prop | `onSubmit` 핸들러 |
-| 검증 | 서버 사이드 에러 처리 | Zod 클라이언트 검증 |
-| Toast | 수동 처리 (콜백) | 자동 표시 |
-| 리다이렉트 | 수동 처리 (콜백) | 자동 지원 |
+| 특징       | `useServerForm`       | `useAdminFormSubmit` |
+| ---------- | --------------------- | -------------------- |
+| 기반       | `useActionState`      | `useTransition`      |
+| 사용 방식  | `action` prop         | `onSubmit` 핸들러    |
+| 검증       | 서버 사이드 에러 처리 | Zod 클라이언트 검증  |
+| Toast      | 수동 처리 (콜백)      | 자동 표시            |
+| 리다이렉트 | 수동 처리 (콜백)      | 자동 지원            |
 
 ## 🚀 다음 단계
 
@@ -380,4 +398,3 @@ Phase 6 작업이 완료되어 폼 컴포넌트의 표준화가 진행되었습�
 ---
 
 **작업 완료일**: 2025-12-21
-

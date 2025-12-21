@@ -7,8 +7,8 @@ import { blockSchema, validateFormData } from "@/lib/validation/schemas";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
 import {
   createBlock,
-  updateBlock,
-  deleteBlock,
+  updateBlock as updateBlockData,
+  deleteBlock as deleteBlockData,
   getBlockById,
   getBlocksBySetId,
   getBlockSetById,
@@ -205,7 +205,7 @@ async function _updateBlock(formData: FormData): Promise<void> {
   }
 
   // lib/data/blockSets.ts의 updateBlock 사용
-  const result = await updateBlock(blockId, user.userId, {
+  const result = await updateBlockData(blockId, user.userId, {
     day_of_week: day,
     start_time: startTime,
     end_time: endTime,
@@ -235,7 +235,7 @@ async function _deleteBlock(formData: FormData): Promise<void> {
   }
 
   // lib/data/blockSets.ts의 deleteBlock 사용
-  const result = await deleteBlock(blockId, user.userId);
+  const result = await deleteBlockData(blockId, user.userId);
 
   if (!result.success) {
     throw new AppError(

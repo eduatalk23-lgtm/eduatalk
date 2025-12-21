@@ -18,6 +18,7 @@ import {
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 type UseBlockSetManagementProps = {
   data: WizardData;
@@ -112,15 +113,25 @@ export function useBlockSetManagement({
 
   // 공통: 블록 세트 목록 새로고침 함수
   const refreshBlockSets = async () => {
-    const latestBlockSets = isTemplateMode
-      ? await getTenantBlockSets()
-      : await getBlockSets();
-
-    if (onBlockSetsLoaded) {
-      onBlockSetsLoaded(latestBlockSets);
+    if (isTemplateMode) {
+      // getTenantBlockSets는 ActionResponse를 반환하지 않음 (withErrorHandling 사용)
+      const blockSets = await getTenantBlockSets();
+      if (onBlockSetsLoaded) {
+        onBlockSetsLoaded(blockSets);
+      }
+      return blockSets;
+    } else {
+      // getBlockSets는 ActionResponse를 반환함 (withActionResponse 사용)
+      const result = await getBlockSets();
+      if (isSuccessResponse(result) && result.data) {
+        if (onBlockSetsLoaded) {
+          onBlockSetsLoaded(result.data);
+        }
+        return result.data;
+      }
+      // 에러 발생 시 빈 배열 반환
+      return [];
     }
-
-    return latestBlockSets;
   };
 
   const toggleWeekday = (day: number) => {
@@ -193,8 +204,12 @@ export function useBlockSetManagement({
             });
 
             const templateResult = await createTenantBlockSet(templateFormData);
-            blockSetId = templateResult.blockSetId;
-            blockSetName = templateResult.name;
+            if (!isSuccessResponse(templateResult) || !templateResult.data) {
+              const errorMessage = isErrorResponse(templateResult) ? (templateResult.error || templateResult.message) : "테넌트 블록 세트 생성에 실패했습니다.";
+              throw new Error(errorMessage);
+            }
+            blockSetId = templateResult.data.blockSetId;
+            blockSetName = templateResult.data.name;
 
             console.log("[Step1BasicInfo] 테넌트 블록 세트 생성 성공:", {
               block_set_id: blockSetId,
@@ -204,8 +219,12 @@ export function useBlockSetManagement({
             const formData = new FormData();
             formData.append("name", newBlockSetName.trim());
             const result = await createBlockSet(formData);
-            blockSetId = result.blockSetId;
-            blockSetName = result.name;
+            if (!isSuccessResponse(result) || !result.data) {
+              const errorMessage = isErrorResponse(result) ? (result.error || result.message) : "블록 세트 생성에 실패했습니다.";
+              throw new Error(errorMessage);
+            }
+            blockSetId = result.data.blockSetId;
+            blockSetName = result.data.name;
           }
 
           // 2. 시간 블록 추가 (일괄 처리로 최적화)

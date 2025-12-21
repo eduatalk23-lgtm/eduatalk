@@ -10,6 +10,7 @@ import { StudentAttendanceNotificationSettings } from "./_components/StudentAtte
 import { getStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
 import { LinkedStudentsSection } from "./_components/LinkedStudentsSection";
 import { getLinkRequests } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export default async function ParentSettingsPage() {
   const supabase = await createSupabaseServerClient();
@@ -99,7 +100,7 @@ export default async function ParentSettingsPage() {
                 linkedStudents.map(async (student) => {
                   const settingsResult =
                     await getStudentAttendanceNotificationSettings(student.id);
-                  const settings = settingsResult.data || {
+                  const settings = (isSuccessResponse(settingsResult) && settingsResult.data) || {
                     attendance_check_in_enabled: null,
                     attendance_check_out_enabled: null,
                     attendance_absent_enabled: null,
