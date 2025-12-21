@@ -239,6 +239,7 @@ export default async function CampContinuePage({
       content_id: c.content_id,
       content_type: c.content_type,
       title: c.title,
+      master_content_id: (c as any).master_content_id || null,
     })),
     recommendedContents: wizardData.recommended_contents.map((c) => {
       type ContentWithRecommendation = typeof c & {
@@ -252,6 +253,7 @@ export default async function CampContinuePage({
         title: c.title,
         is_auto_recommended: contentWithRec.is_auto_recommended ?? false,
         recommendation_source: contentWithRec.recommendation_source ?? null,
+        master_content_id: (c as any).master_content_id || null,
       };
     }),
   });

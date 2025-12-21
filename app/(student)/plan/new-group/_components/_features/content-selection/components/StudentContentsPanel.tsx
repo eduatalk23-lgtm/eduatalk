@@ -261,6 +261,7 @@ export function StudentContentsPanel({
           contentIdToUse,
           content_type: content.content_type,
           title: content.title,
+          fullContent: JSON.stringify(content, null, 2),
         });
       }
 

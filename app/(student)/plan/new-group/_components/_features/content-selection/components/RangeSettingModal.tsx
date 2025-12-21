@@ -126,6 +126,10 @@ export function RangeSettingModal({
             contentId: content.id,
             studentId,
             title: content.title,
+            props: {
+              isRecommendedContent,
+              studentId,
+            },
           });
         }
 
