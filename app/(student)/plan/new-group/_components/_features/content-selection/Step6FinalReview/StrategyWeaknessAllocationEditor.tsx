@@ -252,61 +252,96 @@ export function StrategyWeaknessAllocationEditor({
               )}
 
               {/* 콘텐츠 목록 - 각 콘텐츠에서 취약/전략 선택 */}
-              <div className="flex flex-col gap-3">
-                {contents.map((content) => {
-                  const effectiveAlloc = getEffectiveAllocationForContent(content);
-                  const contentSubjectType = effectiveAlloc.subject_type;
-                  const contentWeeklyDays = effectiveAlloc.weekly_days || 3;
-                  const source = effectiveAlloc.source;
+              {/* 교과별 일괄 설정이 활성화되어 있으면 개별 설정 UI 숨김 */}
+              {batchSettingSubjectGroup !== subjectGroup && (
+                <div className="flex flex-col gap-3">
+                  {contents.map((content) => {
+                    const effectiveAlloc = getEffectiveAllocationForContent(content);
+                    const contentSubjectType = effectiveAlloc.subject_type;
+                    const contentWeeklyDays = effectiveAlloc.weekly_days || 3;
+                    const source = effectiveAlloc.source;
 
-                  return (
-                    <div
-                      key={`${content.content_type}-${content.content_id}`}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
-                    >
-                      <div className="flex flex-col gap-3">
-                        {/* 콘텐츠 정보 */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex flex-col gap-1">
-                              <div className="text-sm font-medium text-gray-900">
-                                {content.content_type === "book" ? "📚" : "🎧"}{" "}
-                                {content.title}
+                    return (
+                      <div
+                        key={`${content.content_type}-${content.content_id}`}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <div className="flex flex-col gap-3">
+                          {/* 콘텐츠 정보 */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex flex-col gap-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {content.content_type === "book" ? "📚" : "🎧"}{" "}
+                                  {content.title}
+                                </div>
+                                {content.subject && (
+                                  <div className="text-xs text-gray-600">
+                                    {content.subject}
+                                  </div>
+                                )}
+                                {source === "subject" && (
+                                  <div className="text-xs text-gray-500">
+                                    교과 단위 설정 적용 중
+                                  </div>
+                                )}
+                                {source === "default" && (
+                                  <div className="text-xs text-gray-500">
+                                    기본값 (취약과목)
+                                  </div>
+                                )}
                               </div>
-                              {content.subject && (
-                                <div className="text-xs text-gray-600">
-                                  {content.subject}
-                                </div>
-                              )}
-                              {source === "subject" && (
-                                <div className="text-xs text-gray-500">
-                                  교과 단위 설정 적용 중
-                                </div>
-                              )}
-                              {source === "default" && (
-                                <div className="text-xs text-gray-500">
-                                  기본값 (취약과목)
-                                </div>
-                              )}
                             </div>
                           </div>
-                        </div>
 
-                        {/* 취약/전략 선택 UI */}
-                        <AllocationControls
-                          subjectType={contentSubjectType}
-                          weeklyDays={contentWeeklyDays}
-                          onChange={(allocation) => {
-                            handleContentAllocationChange(content, allocation);
-                          }}
-                          disabled={!editable}
-                          size="sm"
-                        />
+                          {/* 취약/전략 선택 UI */}
+                          <AllocationControls
+                            subjectType={contentSubjectType}
+                            weeklyDays={contentWeeklyDays}
+                            onChange={(allocation) => {
+                              handleContentAllocationChange(content, allocation);
+                            }}
+                            disabled={!editable}
+                            size="sm"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {/* 교과별 일괄 설정이 활성화되어 있을 때는 읽기 전용 콘텐츠 목록만 표시 */}
+              {batchSettingSubjectGroup === subjectGroup && (
+                <div className="flex flex-col gap-2">
+                  {contents.map((content) => {
+                    const effectiveAlloc = getEffectiveAllocationForContent(content);
+                    const source = effectiveAlloc.source;
+
+                    return (
+                      <div
+                        key={`${content.content_type}-${content.content_id}`}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <div className="text-sm font-medium text-gray-900">
+                            {content.content_type === "book" ? "📚" : "🎧"}{" "}
+                            {content.title}
+                          </div>
+                          {content.subject && (
+                            <div className="text-xs text-gray-600">
+                              {content.subject}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500">
+                            일괄 설정 적용 예정
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         );
