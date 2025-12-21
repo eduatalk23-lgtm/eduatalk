@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
-import { loadCampParticipants, type Participant } from "@/lib/data/campParticipants";
+import { getCampParticipantsAction } from "@/app/(admin)/actions/camp-templates/participants";
+import type { Participant } from "@/lib/data/campParticipants";
 import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/app/(admin)/actions/campTemplateActions";
 import type { SortColumn, SortOrder, StatusFilter, ParticipantsStats } from "./types";
 
@@ -35,8 +36,12 @@ export function useCampParticipantsLogic(templateId: string) {
 
     try {
       setLoading(true);
-      const participantsData = await loadCampParticipants(templateId);
-      setParticipants(participantsData);
+      const result = await getCampParticipantsAction(templateId);
+      if (result.success && result.participants) {
+        setParticipants(result.participants as Participant[]);
+      } else {
+        throw new Error(result.error || "참여자 목록을 불러오는데 실패했습니다.");
+      }
     } catch (error) {
       console.error("[CampParticipantsList] 참여자 목록 로드 실패:", {
         templateId,

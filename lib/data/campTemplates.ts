@@ -416,21 +416,41 @@ export async function updateCampInvitationStatus(
     declined_at: status === "declined" ? new Date().toISOString() : null,
   };
 
-  const result = await createTypedQuery<null>(
-    async () => {
-      return await supabase
-        .from("camp_invitations")
-        .update(updateData)
-        .eq("id", invitationId);
-    },
-    {
-      context: "[data/campTemplates] updateCampInvitationStatus",
-      defaultValue: null,
-    }
-  );
+  const { data, error } = await supabase
+    .from("camp_invitations")
+    .update(updateData)
+    .eq("id", invitationId)
+    .select("id")
+    .single();
 
-  // update 쿼리는 data가 null이어도 성공일 수 있음
-  // error가 없으면 성공으로 간주
+  if (error) {
+    console.error("[data/campTemplates] updateCampInvitationStatus 실패:", {
+      invitationId,
+      status,
+      error: error.message,
+      errorCode: error.code,
+      errorDetails: error.details,
+      errorHint: error.hint,
+    });
+    return {
+      success: false,
+      error: error.message || "초대 상태 업데이트에 실패했습니다.",
+    };
+  }
+
+  // UPDATE 쿼리는 성공해도 data가 null일 수 있음 (RLS 정책에 따라)
+  // 하지만 select().single()을 사용했으므로, data가 있으면 성공으로 간주
+  if (!data) {
+    console.warn("[data/campTemplates] updateCampInvitationStatus: 데이터가 반환되지 않음 (RLS 정책 위반 가능성):", {
+      invitationId,
+      status,
+    });
+    return {
+      success: false,
+      error: "초대 상태를 업데이트할 수 없습니다. 권한을 확인해주세요.",
+    };
+  }
+
   return { success: true };
 }
 

@@ -542,3 +542,190 @@ export const resendCampInvitationsAction = withErrorHandling(
   }
 );
 
+/**
+ * 캠프 참여자 목록 조회 (서버 액션)
+ * 관리자가 참여자 목록을 조회할 수 있도록 Admin Client 사용
+ */
+export const getCampParticipantsAction = withErrorHandling(
+  async (templateId: string): Promise<{
+    success: boolean;
+    participants?: Array<{
+      invitation_id: string;
+      student_id: string;
+      student_name: string;
+      student_grade: string | null;
+      student_class: string | null;
+      invitation_status: string;
+      display_status?: string;
+      plan_group_id: string | null;
+      plan_group_name: string | null;
+      plan_group_status: string | null;
+      hasPlans: boolean;
+      invited_at: string;
+      accepted_at: string | null;
+    }>;
+    error?: string;
+  }> => {
+    await requireAdminOrConsultant();
+
+    // 입력값 검증
+    validateCampTemplateId(templateId);
+    const tenantId = await validateTenantContext();
+
+    // 템플릿 권한 확인
+    await validateCampTemplateAccess(templateId, tenantId);
+
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 초대와 학생 정보 조회
+    const { data: invitationsData, error: invitationsError } = await supabase
+      .from("camp_invitations")
+      .select(
+        `
+        id,
+        student_id,
+        status,
+        invited_at,
+        accepted_at,
+        students:student_id (
+          name,
+          grade,
+          class
+        )
+      `
+      )
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId)
+      .order("invited_at", { ascending: false });
+
+    if (invitationsError) {
+      console.error("[campTemplateActions] 초대 조회 실패:", invitationsError);
+      throw new AppError(
+        "참여자 목록을 불러오는데 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: invitationsError.message }
+      );
+    }
+
+    // 플랜 그룹 정보 조회
+    const invitationIds = (invitationsData || []).map((inv) => inv.id);
+    let planGroupsData: Array<{
+      id: string;
+      name: string | null;
+      status: string | null;
+      camp_invitation_id: string | null;
+      camp_template_id: string | null;
+      student_id: string;
+    }> = [];
+
+    if (invitationIds.length > 0) {
+      // 방법 1: camp_invitation_id로 직접 조회
+      const { data: method1Data, error: method1Error } = await supabase
+        .from("plan_groups")
+        .select("id, name, status, camp_invitation_id, camp_template_id, student_id")
+        .in("camp_invitation_id", invitationIds)
+        .is("deleted_at", null);
+
+      if (method1Error) {
+        console.error("[campTemplateActions] 플랜 그룹 조회 실패 (방법 1):", method1Error);
+      } else if (method1Data) {
+        planGroupsData = [
+          ...planGroupsData,
+          ...method1Data.filter((pg) => pg.camp_invitation_id !== null),
+        ];
+      }
+
+      // 방법 2: camp_template_id와 student_id로 조회 (fallback)
+      const studentIds = (invitationsData || []).map((inv) => inv.student_id);
+      const { data: method2Data, error: method2Error } = await supabase
+        .from("plan_groups")
+        .select("id, name, status, camp_invitation_id, camp_template_id, student_id")
+        .eq("camp_template_id", templateId)
+        .eq("plan_type", "camp")
+        .in("student_id", studentIds)
+        .is("deleted_at", null);
+
+      if (method2Error) {
+        console.error("[campTemplateActions] 플랜 그룹 조회 실패 (방법 2):", method2Error);
+      } else if (method2Data) {
+        const existingGroupIds = new Set(planGroupsData.map((pg) => pg.id));
+        const newGroups = method2Data.filter(
+          (pg) => !existingGroupIds.has(pg.id)
+        );
+        planGroupsData = [...planGroupsData, ...newGroups];
+      }
+    }
+
+    // 플랜 생성 여부 확인
+    const planGroupIds = planGroupsData.map((pg) => pg.id);
+    const plansMap = new Map<string, boolean>();
+
+    if (planGroupIds.length > 0) {
+      const { data: plansData, error: plansError } = await supabase
+        .from("student_plan")
+        .select("plan_group_id")
+        .in("plan_group_id", planGroupIds)
+        .limit(1000);
+
+      if (plansError) {
+        console.error("[campTemplateActions] 플랜 조회 실패:", plansError);
+      } else if (plansData) {
+        plansData.forEach((plan: any) => {
+          if (plan.plan_group_id) {
+            plansMap.set(plan.plan_group_id, true);
+          }
+        });
+      }
+    }
+
+    // 데이터 병합
+    const planGroupsMap = new Map<string, typeof planGroupsData[0]>();
+    planGroupsData.forEach((pg) => {
+      if (pg.camp_invitation_id) {
+        planGroupsMap.set(pg.camp_invitation_id, pg);
+      }
+    });
+
+    const participants = (invitationsData || []).map((invitation) => {
+      const planGroup = planGroupsMap.get(invitation.id);
+      const isSubmitted =
+        invitation.status === "pending" && planGroup !== undefined;
+      const displayStatus = isSubmitted ? "submitted" : invitation.status;
+
+      return {
+        invitation_id: invitation.id,
+        student_id: invitation.student_id,
+        student_name: (invitation.students as any)?.name || "이름 없음",
+        student_grade: (invitation.students as any)?.grade
+          ? String((invitation.students as any).grade)
+          : null,
+        student_class: (invitation.students as any)?.class || null,
+        invitation_status: invitation.status,
+        display_status: displayStatus,
+        plan_group_id: planGroup?.id || null,
+        plan_group_name: planGroup?.name || null,
+        plan_group_status: planGroup?.status || null,
+        hasPlans: planGroup ? plansMap.has(planGroup.id) : false,
+        invited_at: invitation.invited_at,
+        accepted_at: invitation.accepted_at,
+      };
+    });
+
+    return {
+      success: true,
+      participants,
+    };
+  }
+);
+
