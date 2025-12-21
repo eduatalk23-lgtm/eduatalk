@@ -1067,17 +1067,22 @@ async function _generatePlansFromGroupRefactored(
   };
 
   // 콘텐츠 존재 여부 확인 (병렬)
-  // queryClient는 RLS 정책을 고려하여 올바르게 설정됨 (getSupabaseClientForStudent 사용)
-  let [booksCheck, lecturesCheck] = await Promise.all([
+  // 관리자/컨설턴트가 다른 학생의 데이터를 조회할 경우 Admin 클라이언트 사용
+  // RLS 정책으로 인한 조회 실패를 방지하기 위해 Admin 클라이언트 우선 사용
+  const verificationClient = isAdminOrConsultant && studentId !== access.user.userId
+    ? ensureAdminClient()
+    : queryClient;
+
+  const [booksCheck, lecturesCheck] = await Promise.all([
     contentIdsByType.book.length > 0
-      ? queryClient
+      ? verificationClient
           .from("books")
           .select("id")
           .in("id", contentIdsByType.book)
           .eq("student_id", studentId)
       : Promise.resolve({ data: [], error: null }),
     contentIdsByType.lecture.length > 0
-      ? queryClient
+      ? verificationClient
           .from("lectures")
           .select("id")
           .in("id", contentIdsByType.lecture)
@@ -1085,22 +1090,26 @@ async function _generatePlansFromGroupRefactored(
       : Promise.resolve({ data: [], error: null }),
   ]);
 
-  // 에러 처리: RLS 정책으로 인한 조회 실패 시 Admin 클라이언트로 재시도
+  // 에러 처리: 조회 실패 시 Admin 클라이언트로 재시도
+  let finalBooksCheck = booksCheck;
+  let finalLecturesCheck = lecturesCheck;
+
   if (booksCheck.error || lecturesCheck.error) {
     console.warn(
-      "[_generatePlansFromGroupRefactored] queryClient로 조회 실패, Admin 클라이언트로 재시도:",
+      "[_generatePlansFromGroupRefactored] 콘텐츠 조회 실패, Admin 클라이언트로 재시도:",
       {
         booksError: booksCheck.error?.message,
         lecturesError: lecturesCheck.error?.message,
         groupId,
         studentId,
         isAdminOrConsultant,
+        verificationClientType: isAdminOrConsultant && studentId !== access.user.userId ? "Admin" : "Server",
       }
     );
     
     // Admin 클라이언트로 재시도
     const adminClient = ensureAdminClient();
-    [booksCheck, lecturesCheck] = await Promise.all([
+    [finalBooksCheck, finalLecturesCheck] = await Promise.all([
       contentIdsByType.book.length > 0
         ? adminClient
             .from("books")
@@ -1118,19 +1127,21 @@ async function _generatePlansFromGroupRefactored(
     ]);
 
     // 재시도 후에도 에러가 있으면 로그만 남기고 계속 진행
-    if (booksCheck.error || lecturesCheck.error) {
+    if (finalBooksCheck.error || finalLecturesCheck.error) {
       console.error(
         "[_generatePlansFromGroupRefactored] Admin 클라이언트로도 조회 실패:",
         {
-          booksError: booksCheck.error?.message,
-          lecturesError: lecturesCheck.error?.message,
+          booksError: finalBooksCheck.error?.message,
+          lecturesError: finalLecturesCheck.error?.message,
+          groupId,
+          studentId,
         }
       );
     }
   }
 
-  const existingBookIds = new Set((booksCheck.data || []).map((b) => b.id));
-  const existingLectureIds = new Set((lecturesCheck.data || []).map((l) => l.id));
+  const existingBookIds = new Set((finalBooksCheck.data || []).map((b) => b.id));
+  const existingLectureIds = new Set((finalLecturesCheck.data || []).map((l) => l.id));
 
   // 존재하지 않는 콘텐츠 필터링
   const missingBooks = contentIdsByType.book.filter((id) => !existingBookIds.has(id));
