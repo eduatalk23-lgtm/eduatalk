@@ -45,6 +45,7 @@ export function StudentContentsPanel({
     type: "book" | "lecture";
     title: string;
     currentRange?: ContentRange;
+    isMasterContent?: boolean; // 마스터 콘텐츠 여부
   } | null>(null);
   
   // 범위 저장 여부 추적 (onClose에서 임시 콘텐츠 제거 여부 결정)
@@ -247,8 +248,13 @@ export function StudentContentsPanel({
           ? contents.books.find((b) => b.id === content.content_id)
           : contents.lectures.find((l) => l.id === content.content_id);
 
+      // 마스터 콘텐츠인 경우: master_content_id가 있으면 마스터 콘텐츠로 처리
+      // 템플릿에서 학생이 추가한 마스터 콘텐츠는 content_id가 학생 콘텐츠 ID이고 master_content_id가 마스터 콘텐츠 ID
+      const isMasterContent = !!content.master_content_id;
+      const contentIdToUse = isMasterContent ? content.master_content_id! : content.content_id;
+
       setRangeModalContent({
-        id: content.content_id,
+        id: contentIdToUse,
         type: content.content_type,
         title: content.title || contentInfo?.title || "제목 없음",
         currentRange: {
@@ -257,6 +263,7 @@ export function StudentContentsPanel({
           start_detail_id: content.start_detail_id,
           end_detail_id: content.end_detail_id,
         },
+        isMasterContent, // 마스터 콘텐츠 여부 전달
       });
       setRangeModalOpen(true);
     },
@@ -271,12 +278,13 @@ export function StudentContentsPanel({
         return;
       }
 
-      const { id, type, title } = rangeModalContent;
+      const { id, type, title, isMasterContent } = rangeModalContent;
 
       console.log("[StudentContentsPanel] handleRangeSave 시작:", {
         contentId: id,
         type,
         title,
+        isMasterContent,
         range,
         currentSelectedCount: selectedContents.length,
       });
@@ -286,32 +294,43 @@ export function StudentContentsPanel({
       // 대신 onUpdate 호출 전에 최신 상태를 확인
       const currentContents = selectedContents;
       
-      // 기존 콘텐츠 찾기
+      // 기존 콘텐츠 찾기 (content_id 또는 master_content_id로 찾기)
       const existingIndex = currentContents.findIndex(
-        (c) => c.content_id === id
+        (c) => c.content_id === id || c.master_content_id === id
       );
 
       console.log("[StudentContentsPanel] 기존 콘텐츠 검색 결과:", {
         existingIndex,
         contentId: id,
+        isMasterContent,
         currentContentsIds: currentContents.map(c => c.content_id),
+        currentMasterContentIds: currentContents.map(c => c.master_content_id),
       });
 
       const metadata = metadataCache.get(id);
+      
+      // 원본 콘텐츠 정보 가져오기 (기존 콘텐츠가 있으면 그것을 사용)
+      const originalContent = existingIndex >= 0 ? currentContents[existingIndex] : null;
+      
+      // content_id 결정: 마스터 콘텐츠인 경우 기존 content_id 유지 (학생 콘텐츠 ID), 없으면 마스터 콘텐츠 ID 사용
+      const contentId = isMasterContent && originalContent?.content_id 
+        ? originalContent.content_id 
+        : (isMasterContent ? id : id);
 
       const newContent: SelectedContent = {
         content_type: type,
-        content_id: id,
+        content_id: contentId, // 기존 content_id 유지 (학생 콘텐츠 ID일 수 있음)
         start_range: Number(range.start.replace(/[^\d]/g, "")),
         end_range: Number(range.end.replace(/[^\d]/g, "")),
         start_detail_id: range.start_detail_id,
         end_detail_id: range.end_detail_id,
         title,
         subject_category: metadata?.subject || undefined,
-        master_content_id:
-          type === "book"
-            ? contents.books.find((b) => b.id === id)?.master_content_id
-            : contents.lectures.find((l) => l.id === id)?.master_content_id,
+        master_content_id: isMasterContent 
+          ? id // 마스터 콘텐츠 ID (RangeSettingModal에서 사용한 ID)
+          : (type === "book"
+              ? contents.books.find((b) => b.id === contentId)?.master_content_id
+              : contents.lectures.find((l) => l.id === contentId)?.master_content_id),
       };
 
       let updated: SelectedContent[];
@@ -484,7 +503,7 @@ export function StudentContentsPanel({
             setRangeModalContent(null);
           }}
           content={rangeModalContent}
-          isRecommendedContent={false}
+          isRecommendedContent={rangeModalContent.isMasterContent || false} // 마스터 콘텐츠인 경우 마스터 API 사용
           currentRange={rangeModalContent.currentRange}
           onSave={handleRangeSave}
           studentId={studentId}

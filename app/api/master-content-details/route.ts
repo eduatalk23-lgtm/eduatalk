@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getMasterBookById, getMasterLectureById } from "@/lib/data/contentMasters";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   apiSuccess,
   apiUnauthorized,
@@ -50,10 +51,15 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    
+    // 관리자/컨설턴트가 다른 테넌트의 마스터 콘텐츠를 조회할 때는 Admin 클라이언트 사용 (RLS 우회)
+    const masterQueryClient = (role === "admin" || role === "consultant") 
+      ? createSupabaseAdminClient() || supabase
+      : supabase;
 
     if (contentType === "book") {
       try {
-        const result = await getMasterBookById(contentId);
+        const result = await getMasterBookById(contentId, masterQueryClient);
         const { details, book } = result;
 
         if (includeMetadata) {
@@ -86,7 +92,7 @@ export async function GET(request: NextRequest) {
       }
     } else if (contentType === "lecture") {
       try {
-        const result = await getMasterLectureById(contentId);
+        const result = await getMasterLectureById(contentId, masterQueryClient);
         const { episodes, lecture } = result;
 
         if (includeMetadata) {

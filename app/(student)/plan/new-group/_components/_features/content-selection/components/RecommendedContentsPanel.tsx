@@ -187,13 +187,18 @@ export function RecommendedContentsPanel({
         return;
       }
 
+      // 마스터 콘텐츠 ID 결정: master_content_id가 있으면 사용, 없으면 content_id 사용
+      // 템플릿에서 학생이 추가한 마스터 콘텐츠는 content_id가 학생 콘텐츠 ID이고 master_content_id가 마스터 콘텐츠 ID
+      const masterContentId = content.master_content_id || content.content_id;
+      
       // allRecommendedContents에서 원본 정보 찾기
+      // content_id로 먼저 찾고, 없으면 master_content_id로 찾기
       const originalContent = allRecommendedContents.find(
-        (c) => c.id === content.content_id
+        (c) => c.id === content.content_id || c.id === masterContentId
       );
 
       setRangeModalContent({
-        id: content.content_id,
+        id: masterContentId, // 마스터 콘텐츠 ID 사용
         type: content.content_type as "book" | "lecture",
         title: content.title || "제목 없음",
         recommendedContent: originalContent,
@@ -217,21 +222,27 @@ export function RecommendedContentsPanel({
 
       const { id, type, title, recommendedContent } = rangeModalContent;
 
-      // 기존 콘텐츠 찾기
+      // 기존 콘텐츠 찾기 (content_id 또는 master_content_id로 찾기)
       const existingIndex = selectedContents.findIndex(
-        (c) => c.content_id === id
+        (c) => c.content_id === id || c.master_content_id === id
       );
+
+      // 원본 콘텐츠 정보 가져오기 (기존 콘텐츠가 있으면 그것을 사용)
+      const originalContent = existingIndex >= 0 ? selectedContents[existingIndex] : null;
+      
+      // content_id 결정: 기존 콘텐츠가 있으면 기존 content_id 유지 (학생 콘텐츠 ID일 수 있음), 없으면 마스터 콘텐츠 ID 사용
+      const contentId = originalContent?.content_id || id;
 
       const newContent: SelectedContent = {
         content_type: type,
-        content_id: id,
+        content_id: contentId, // 기존 content_id 유지 (학생 콘텐츠 ID일 수 있음)
         start_range: Number(range.start.replace(/[^\d]/g, "")),
         end_range: Number(range.end.replace(/[^\d]/g, "")),
         start_detail_id: range.start_detail_id,
         end_detail_id: range.end_detail_id,
         title,
         subject_category: recommendedContent?.subject_category || undefined,
-        master_content_id: id, // 추천 콘텐츠는 항상 마스터 콘텐츠 ID
+        master_content_id: id, // 마스터 콘텐츠 ID (RangeSettingModal에서 사용한 ID)
         is_auto_recommended: false, // 수동 선택 플래그
       };
 
@@ -517,9 +528,10 @@ export function RecommendedContentsPanel({
             setRangeModalContent(null);
           }}
           content={rangeModalContent}
-          isRecommendedContent={true}
+          isRecommendedContent={true} // RecommendedContentsPanel은 항상 마스터 콘텐츠
           currentRange={rangeModalContent.currentRange}
           onSave={handleRangeSave}
+          studentId={studentId}
         />
       )}
     </div>
