@@ -50,6 +50,7 @@ export type ScheduledPlan = {
   is_reschedulable: boolean;
   start_time?: string; // HH:mm 형식
   end_time?: string; // HH:mm 형식
+  subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
 };
 
 /**
@@ -201,7 +202,46 @@ export async function generatePlansFromGroup(
     plans = [...plans, ...reallocatedPlans];
   }
 
-  // 5. 플랜이 비어있고 실패 원인이 있는 경우 에러 throw
+  // 5. 각 플랜에 subject_type 계산 및 할당
+  const schedulerOptions = group.scheduler_options as SchedulerOptions | null;
+  const contentAllocations = schedulerOptions?.content_allocations as
+    | Array<{
+        content_type: "book" | "lecture" | "custom";
+        content_id: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+  const subjectAllocations = schedulerOptions?.subject_allocations as
+    | Array<{
+        subject_id?: string;
+        subject_name: string;
+        subject_type: "strategy" | "weakness";
+        weekly_days?: number;
+      }>
+    | undefined;
+
+  // 각 플랜에 대해 subject_type 계산
+  for (const plan of plans) {
+    const content = contentInfos.find((c) => c.content_id === plan.content_id);
+    if (content) {
+      const allocation = getEffectiveAllocation(
+        {
+          content_type: content.content_type,
+          content_id: content.content_id,
+          subject_category: content.subject_category || undefined,
+          subject: content.subject || undefined,
+          subject_id: undefined, // 필요시 추가
+        },
+        contentAllocations,
+        subjectAllocations,
+        false // 프로덕션에서는 로깅 비활성화
+      );
+      plan.subject_type = allocation.subject_type;
+    }
+  }
+
+  // 6. 플랜이 비어있고 실패 원인이 있는 경우 에러 throw
   if (plans.length === 0 && failureReasons.length > 0) {
     const { PlanGroupError, PlanGroupErrorCodes } = await import(
       "@/lib/errors/planGroupErrors"

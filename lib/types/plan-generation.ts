@@ -259,6 +259,7 @@ export type PlanPayloadBase = {
   is_partial: boolean;
   is_continued: boolean;
   plan_number: number | null;
+  subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
 };
 
 /**

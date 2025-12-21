@@ -335,6 +335,7 @@ export type Plan = {
   allocation_type?: AllocationType | null; // JSONB: 배정 방식 정보
   split_info?: SplitInfo | null; // JSONB: 분할된 플랜 정보
   reallocation_info?: ReallocationInfo | null; // JSONB: 추가 기간 재배치 정보
+  subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
   created_at?: string | null;
   updated_at?: string | null;
 };

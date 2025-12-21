@@ -406,6 +406,8 @@ export type CreatePlanInput = {
   start_time?: string | null;
   /** 종료 시간 (HH:mm) */
   end_time?: string | null;
+  /** 전략/취약 정보 */
+  subject_type?: "strategy" | "weakness" | null;
 };
 
 /**
@@ -450,6 +452,11 @@ export async function createPlan(
   }
   if (plan.end_time) {
     payload.end_time = plan.end_time;
+  }
+
+  // 전략/취약 정보가 있으면 추가
+  if (plan.subject_type !== undefined) {
+    payload.subject_type = plan.subject_type;
   }
 
   const result = await createTypedConditionalQuery<{ id: string }>(

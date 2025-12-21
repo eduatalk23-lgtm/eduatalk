@@ -857,6 +857,7 @@ async function _generatePlansFromGroupRefactored(
         created_at: now,
         updated_at: now,
         sequence: contentSequence, // 콘텐츠별 회차 사용
+        subject_type: originalPlan?.subject_type || null, // 전략/취약 정보
       });
 
       blockIndex++;

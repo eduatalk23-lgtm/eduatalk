@@ -326,6 +326,8 @@ export function createGeneratePlanPayload(
     plan_number: planNumber,
     // 회차 (나중에 계산하여 업데이트)
     sequence: null,
+    // 전략/취약 정보
+    subject_type: originalPlan?.subject_type || null,
   };
 }
 

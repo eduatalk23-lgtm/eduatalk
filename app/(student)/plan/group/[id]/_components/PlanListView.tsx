@@ -35,6 +35,7 @@ type PlanTableRow = {
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   duration_minutes: number; // 계산된 값
+  subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
 };
 
 type PlanListViewProps = {
@@ -93,6 +94,7 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
         planned_start_page_or_time: plan.planned_start_page_or_time,
         planned_end_page_or_time: plan.planned_end_page_or_time,
         duration_minutes: durationMinutes,
+        subject_type: plan.subject_type || null,
       };
     });
   }, [filteredPlans, contents]);
@@ -147,11 +149,41 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
       {
         accessorKey: "content_title",
         header: "콘텐츠명",
-        cell: ({ row }) => (
-          <div className="max-w-[200px] truncate" title={row.original.content_title || ""}>
-            {row.original.content_title || "-"}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const subjectType = row.original.subject_type;
+          const contentTitle = row.original.content_title || "-";
+          
+          // 전략/취약 배지 컴포넌트
+          const Badge = ({ type }: { type: "strategy" | "weakness" }) => {
+            const config = {
+              strategy: {
+                label: "전략",
+                className: "bg-blue-100 text-blue-800",
+              },
+              weakness: {
+                label: "취약",
+                className: "bg-red-100 text-red-800",
+              },
+            };
+            const { label, className } = config[type];
+            
+            return (
+              <span
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mr-1 ${className}`}
+              >
+                {label}
+              </span>
+            );
+          };
+          
+          return (
+            <div className="max-w-[200px] truncate flex items-center gap-1" title={contentTitle}>
+              {subjectType === "strategy" && <Badge type="strategy" />}
+              {subjectType === "weakness" && <Badge type="weakness" />}
+              <span>{contentTitle}</span>
+            </div>
+          );
+        },
         enableSorting: true,
         size: 200,
       },
