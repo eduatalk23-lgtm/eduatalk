@@ -150,8 +150,8 @@ export function StrategyWeaknessAllocationEditor({
       content_allocations: filteredContentAllocations,
     });
 
-    // 일괄 설정 UI 닫기
-    setBatchSettingSubjectGroup(null);
+    // 일괄 설정 UI는 유지 (사용자가 명시적으로 취소할 때까지 열어둠)
+    // setBatchSettingSubjectGroup(null); 제거
   };
 
 
