@@ -22,6 +22,11 @@ import type {
 } from "@/lib/types/plan-generation";
 import type { PlanGroup, NonStudyTimeBlock } from "@/lib/types/plan";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
+import {
+  createPlanGenerationContext,
+  type PlanGenerationContext,
+  type PlanGroupData,
+} from "@/lib/plan/context";
 
 // ============================================
 // 타입 정의
@@ -131,6 +136,65 @@ export async function loadSchedulerSettings(
     camp_study_hours: mergedSettings.study_hours,
     self_study_hours: mergedSettings.self_study_hours,
   };
+}
+
+/**
+ * 플랜 그룹에서 PlanGenerationContext를 생성합니다.
+ *
+ * 모드(일반/캠프/템플릿)에 따른 설정을 통합하여 컨텍스트 객체를 반환합니다.
+ *
+ * @param group 플랜 그룹
+ * @param studentId 학생 ID
+ * @returns 플랜 생성 컨텍스트
+ *
+ * @example
+ * ```typescript
+ * const context = await loadPlanGenerationContext(group, studentId);
+ * if (context.isCampMode) {
+ *   // 캠프 모드 특화 로직
+ * }
+ * ```
+ */
+export async function loadPlanGenerationContext(
+  group: PlanGroup,
+  studentId: string
+): Promise<PlanGenerationContext> {
+  // 스케줄러 설정 병합
+  const mergedSettings = await getMergedSchedulerSettings(
+    group.tenant_id,
+    group.camp_template_id || undefined,
+    group.scheduler_options as Record<string, unknown> | undefined
+  );
+
+  // 그룹별 스케줄러 옵션 추출
+  const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
+
+  // PlanGroupData 형식으로 변환
+  const planGroupData: PlanGroupData = {
+    id: group.id,
+    tenant_id: group.tenant_id,
+    student_id: studentId,
+    camp_template_id: group.camp_template_id,
+    plan_type: group.plan_type,
+    scheduler_type: group.scheduler_type,
+    period_start: group.period_start,
+    period_end: group.period_end,
+    scheduler_options: group.scheduler_options as Record<string, unknown> | null,
+  };
+
+  // 컨텍스트 생성
+  return createPlanGenerationContext(planGroupData, mergedSettings, {
+    use_self_study_with_blocks: groupSchedulerOptions?.use_self_study_with_blocks,
+    enable_self_study_for_holidays: groupSchedulerOptions?.enable_self_study_for_holidays,
+    enable_self_study_for_study_days: groupSchedulerOptions?.enable_self_study_for_study_days,
+    camp_self_study_hours: groupSchedulerOptions?.camp_self_study_hours as
+      | { start: string; end: string }
+      | undefined,
+    designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours as
+      | { start: string; end: string }
+      | undefined,
+    non_study_time_blocks: group.non_study_time_blocks || undefined,
+  });
 }
 
 /**

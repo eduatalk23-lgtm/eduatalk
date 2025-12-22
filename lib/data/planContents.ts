@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanContent } from "@/lib/types/plan";
 import { fetchSubjectGroupNamesBatch } from "@/lib/data/contentMetadata";
+import { getMasterContentId, extractMasterIds } from "@/lib/plan/content";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -237,11 +238,8 @@ export async function fetchStudentLectures(
       return [];
     }
 
-    // master_lecture_id 또는 master_content_id 목록 추출
-    // lectures 테이블에는 master_lecture_id 또는 master_content_id가 있을 수 있음
-    const masterLectureIds = data
-      .map((lecture) => (lecture as any).master_lecture_id || lecture.master_content_id)
-      .filter((id): id is string => id !== null && id !== undefined);
+    // ContentResolverService를 사용하여 마스터 강의 ID 목록 추출
+    const masterLectureIds = extractMasterIds(data, "lecture");
 
     // 마스터 강의에서 메타데이터 조회 (ContentCard와 동일한 정보)
     const masterLecturesMap = new Map<string, { 
@@ -280,7 +278,8 @@ export async function fetchStudentLectures(
     const allCurriculumRevisionIds = new Set<string>();
 
     data.forEach((lecture) => {
-      const masterId = (lecture as any).master_lecture_id || lecture.master_content_id;
+      // ContentResolverService를 사용하여 마스터 ID 추출
+      const masterId = getMasterContentId(lecture, "lecture");
       const masterInfo = masterId ? masterLecturesMap.get(masterId) : null;
 
       const finalSubjectId = lecture.subject_id || masterInfo?.subject_id || null;
@@ -306,7 +305,8 @@ export async function fetchStudentLectures(
     ]);
 
     return data.map((lecture) => {
-      const masterId = (lecture as any).master_lecture_id || lecture.master_content_id;
+      // ContentResolverService를 사용하여 마스터 ID 추출
+      const masterId = getMasterContentId(lecture, "lecture");
       const masterInfo = masterId ? masterLecturesMap.get(masterId) : null;
 
       const finalSubjectId = lecture.subject_id || masterInfo?.subject_id || null;

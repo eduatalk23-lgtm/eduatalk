@@ -28,6 +28,11 @@ import {
   type Subject,
 } from "@/lib/data/subjects";
 import { normalizeError, logError } from "@/lib/errors";
+import {
+  getMasterContentId,
+  createMasterToStudentMap,
+  extractMasterIds,
+} from "@/lib/plan/content";
 import { buildContentQuery } from "@/lib/data/contentQueryBuilder";
 import { extractJoinedData } from "@/lib/utils/supabaseHelpers";
 import { createTypedQuery, createTypedSingleQuery, createTypedParallelQueries } from "@/lib/data/core/typedQueryBuilder";
@@ -2380,20 +2385,15 @@ export async function getStudentLectureEpisodesBatch(
 
   // 마스터 콘텐츠 fallback: student_lecture_episodes에 없는 경우 마스터 강의에서 조회
   if (emptyLectureIds.length > 0) {
-    // 학생 강의의 master_lecture_id 조회
+    // 학생 강의의 master_lecture_id 및 master_content_id 조회
     const { data: studentLectures } = await supabase
       .from("lectures")
-      .select("id, master_lecture_id")
+      .select("id, master_lecture_id, master_content_id")
       .in("id", emptyLectureIds)
       .eq("student_id", studentId);
 
-    const masterLectureIds = Array.from(
-      new Set(
-        (studentLectures || [])
-          .map((l) => l.master_lecture_id)
-          .filter((id): id is string => id !== null)
-      )
-    );
+    // ContentResolverService를 사용하여 마스터 ID 추출 (중복 제거됨)
+    const masterLectureIds = extractMasterIds(studentLectures || [], "lecture");
 
     if (masterLectureIds.length > 0) {
       // 마스터 강의의 episodes 조회
@@ -2414,16 +2414,11 @@ export async function getStudentLectureEpisodesBatch(
           }
         );
       } else if (masterEpisodesData && masterEpisodesData.length > 0) {
-        // 마스터 강의 ID를 학생 강의 ID로 매핑
-        const masterToStudentMap = new Map<string, string[]>();
-        (studentLectures || []).forEach((l) => {
-          if (l.master_lecture_id) {
-            if (!masterToStudentMap.has(l.master_lecture_id)) {
-              masterToStudentMap.set(l.master_lecture_id, []);
-            }
-            masterToStudentMap.get(l.master_lecture_id)!.push(l.id);
-          }
-        });
+        // ContentResolverService를 사용하여 마스터 → 학생 ID 매핑 생성
+        const masterToStudentMap = createMasterToStudentMap(
+          studentLectures || [],
+          "lecture"
+        );
 
         // 마스터 episodes를 학생 강의 ID로 매핑하여 resultMap에 추가
         masterEpisodesData.forEach((ep) => {

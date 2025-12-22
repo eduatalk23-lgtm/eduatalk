@@ -8,6 +8,7 @@ import { getCampTemplate } from "./campTemplates";
 import { getCampInvitationsForTemplate } from "./campTemplates";
 import type { Plan } from "@/lib/types/plan/domain";
 import type { PlanWithStudent, DatePlanDetail } from "@/lib/types/camp/learning";
+import { getMasterContentId } from "@/lib/plan/content";
 
 /**
  * 캠프 기간 학습 기록 조회 (학생 정보 포함)
@@ -345,10 +346,9 @@ export async function getCampDatePlans(
                 `master_content_id.in.(${masterIdsInStudent.join(",")}),master_lecture_id.in.(${masterIdsInStudent.join(",")})`
               );
             
-            // 마스터 ID -> 학생 ID 매핑 생성
+            // ContentResolverService를 사용하여 마스터 ID -> 학생 ID 매핑 생성
             studentLecturesByMaster?.forEach((studentLecture) => {
-              const masterId =
-                studentLecture.master_content_id || studentLecture.master_lecture_id;
+              const masterId = getMasterContentId(studentLecture, "lecture");
               if (masterId && masterIdsInStudent.includes(masterId)) {
                 contentIdMap.set(masterId, studentLecture.id);
               }

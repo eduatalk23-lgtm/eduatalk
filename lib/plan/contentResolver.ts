@@ -22,6 +22,10 @@ import {
   getStudentLectureEpisodesBatch,
   getMasterLectureEpisodesBatch,
 } from "@/lib/data/contentMasters";
+import {
+  getMasterContentId,
+  isFromMaster,
+} from "@/lib/plan/content";
 
 /**
  * Chapter 정보 맵 타입
@@ -428,7 +432,7 @@ export async function loadContentDurations(
   };
   type LectureDurationResult = {
     content: PlanContent;
-    studentLecture: { id: string; duration: number | null; master_content_id: string | null; total_episodes: number | null } | null;
+    studentLecture: { id: string; duration: number | null; master_content_id: string | null; master_lecture_id: string | null; total_episodes: number | null } | null;
   };
   type CustomDurationResult = {
     content: PlanContent;
@@ -455,7 +459,7 @@ export async function loadContentDurations(
     try {
       const result = await queryClient
         .from("lectures")
-        .select("id, duration, master_content_id, total_episodes")
+        .select("id, duration, master_content_id, master_lecture_id, total_episodes")
         .eq("id", finalContentId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -555,7 +559,7 @@ export async function loadContentDurations(
   const studentLectureIds: string[] = [];
   const studentLectureMap = new Map<
     string,
-    { content: PlanContent; studentLecture: { id: string; duration: number | null; master_content_id: string | null; total_episodes: number | null } | null }
+    { content: PlanContent; studentLecture: { id: string; duration: number | null; master_content_id: string | null; master_lecture_id: string | null; total_episodes: number | null } | null }
   >();
 
   for (const { content, studentLecture } of lectureResults) {
@@ -601,15 +605,16 @@ export async function loadContentDurations(
         total_episodes: studentLecture.total_episodes ?? null,
         episodes: episodes,
       });
-    } else if (studentLecture?.master_content_id) {
-      const masterId = studentLecture.master_content_id;
+    } else if (studentLecture && isFromMaster(studentLecture)) {
+      // ContentResolverService를 사용하여 마스터 ID 추출
+      const masterId = getMasterContentId(studentLecture, "lecture");
       masterLectureQueries.push(
         (async (): Promise<MasterLectureResult> => {
           try {
             const result = await masterQueryClient
               .from("master_lectures")
               .select("id, total_duration, total_episodes")
-              .eq("id", masterId)
+              .eq("id", masterId!)
               .maybeSingle();
             return { content, masterLecture: result.data };
           } catch {
