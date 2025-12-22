@@ -4,16 +4,21 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
-import { verifyPlanGroupAccess } from "@/lib/auth/planGroupAuth";
+import {
+  verifyPlanGroupAccess,
+  getStudentIdForPlanGroup,
+  getPlanGroupWithDetailsByRole,
+} from "@/lib/auth/planGroupAuth";
 import {
   generatePlansWithServices,
+  previewPlansWithServices,
   canUseServiceBasedGeneration,
 } from "@/lib/plan/services";
 
 // --- 리팩토링된 함수 import 및 re-export ---
 // 원본 함수는 previewPlansRefactored.ts와 generatePlansRefactored.ts로 이동됨
 import { generatePlansFromGroupRefactoredAction, _generatePlansFromGroupRefactored } from "./generatePlansRefactored";
-import { previewPlansFromGroupRefactoredAction } from "./previewPlansRefactored";
+import { previewPlansFromGroupRefactoredAction, _previewPlansFromGroupRefactored } from "./previewPlansRefactored";
 
 /**
  * 피처 플래그 기반 플랜 생성 액션
@@ -31,14 +36,41 @@ async function _generatePlansFromGroupWithFeatureFlag(
     const access = await verifyPlanGroupAccess();
     const tenantContext = await requireTenantContext();
 
+    // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
+    const { group } = await getPlanGroupWithDetailsByRole(
+      groupId,
+      access.user.userId,
+      access.role,
+      tenantContext.tenantId
+    );
+
+    if (!group) {
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
+    const studentId = getStudentIdForPlanGroup(
+      group,
+      access.user.userId,
+      access.role
+    );
+
+    // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
+    const isCampMode = !!group.camp_template_id;
+
     const result = await generatePlansWithServices({
       groupId,
       context: {
-        studentId: access.user.userId,
+        studentId,
         tenantId: tenantContext.tenantId,
         userId: access.user.userId,
         role: access.role,
-        isCampMode: false, // 캠프 모드 여부는 plan group에서 확인
+        isCampMode,
       },
       accessInfo: {
         userId: access.user.userId,
@@ -66,7 +98,105 @@ async function _generatePlansFromGroupWithFeatureFlag(
 export const generatePlansFromGroupAction = withErrorHandling(
   _generatePlansFromGroupWithFeatureFlag
 );
-export const previewPlansFromGroupAction = previewPlansFromGroupRefactoredAction;
+
+/**
+ * 피처 플래그 기반 플랜 미리보기 액션
+ *
+ * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
+ * - true: 새로운 서비스 레이어 기반 구현 사용
+ * - false (기본): 기존 previewPlansRefactored 구현 사용
+ */
+async function _previewPlansFromGroupWithFeatureFlag(
+  groupId: string
+): Promise<{ plans: Array<{
+  plan_date: string;
+  block_index: number;
+  content_type: "book" | "lecture" | "custom";
+  content_id: string;
+  content_title: string | null;
+  content_subject: string | null;
+  content_subject_category: string | null;
+  content_category: string | null;
+  planned_start_page_or_time: number;
+  planned_end_page_or_time: number;
+  chapter: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  day_type: "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정" | null;
+  week: number | null;
+  day: number | null;
+  is_partial: boolean;
+  is_continued: boolean;
+  plan_number: number | null;
+}> }> {
+  // 피처 플래그 확인
+  if (canUseServiceBasedGeneration()) {
+    // 새로운 서비스 레이어 기반 구현 사용
+    const access = await verifyPlanGroupAccess();
+    const tenantContext = await requireTenantContext();
+
+    // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
+    const { group } = await getPlanGroupWithDetailsByRole(
+      groupId,
+      access.user.userId,
+      access.role,
+      tenantContext.tenantId
+    );
+
+    if (!group) {
+      throw new AppError(
+        "플랜 그룹을 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
+    const studentId = getStudentIdForPlanGroup(
+      group,
+      access.user.userId,
+      access.role
+    );
+
+    // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
+    const isCampMode = !!group.camp_template_id;
+
+    const result = await previewPlansWithServices({
+      groupId,
+      context: {
+        studentId,
+        tenantId: tenantContext.tenantId,
+        userId: access.user.userId,
+        role: access.role,
+        isCampMode,
+      },
+      accessInfo: {
+        userId: access.user.userId,
+        role: access.role,
+      },
+    });
+
+    if (!result.success) {
+      throw new AppError(
+        result.error ?? "플랜 미리보기에 실패했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true,
+        { errorCode: result.errorCode }
+      );
+    }
+
+    return { plans: result.plans ?? [] };
+  }
+
+  // 기존 구현 사용
+  return _previewPlansFromGroupRefactored(groupId);
+}
+
+export const previewPlansFromGroupAction = withErrorHandling(
+  _previewPlansFromGroupWithFeatureFlag
+);
 
 // 기존 구현 직접 접근이 필요한 경우를 위해 유지
 export { generatePlansFromGroupRefactoredAction as generatePlansFromGroupRefactoredActionDirect };

@@ -8,6 +8,8 @@
  * 많은 파라미터를 필요로 하므로, 이 서비스는 단순화된 인터페이스만 제공합니다.
  * Phase 3에서 기존 함수 리팩토링 후 완전한 통합이 이루어집니다.
  *
+ * Phase 4: 통합 에러/로깅 시스템 적용
+ *
  * @module lib/plan/services/ScheduleGenerationService
  */
 
@@ -21,6 +23,14 @@ import type {
   IScheduleGenerationService,
   ScheduledPlan,
 } from "./types";
+import {
+  ServiceErrorCodes,
+  toServiceError,
+} from "./errors";
+import {
+  createServiceLogger,
+  globalPerformanceTracker,
+} from "./logging";
 
 /**
  * 스케줄 생성 서비스 구현
@@ -41,9 +51,25 @@ export class ScheduleGenerationService implements IScheduleGenerationService {
   ): Promise<ServiceResult<ScheduleGenerationOutput>> {
     const { contents, availableDates, dateMetadataMap, options } = input;
 
+    // 로거 및 성능 추적 설정
+    const logger = createServiceLogger("ScheduleGenerationService");
+    const trackingId = globalPerformanceTracker.start(
+      "ScheduleGenerationService",
+      "generateSchedule",
+      undefined,
+      { contentsCount: contents.length, availableDatesCount: availableDates.length }
+    );
+
     try {
+      logger.info("generateSchedule", "스케줄 생성 시작", {
+        contentsCount: contents.length,
+        availableDatesCount: availableDates.length,
+      });
+
       // 입력 데이터 검증
       if (contents.length === 0) {
+        logger.info("generateSchedule", "콘텐츠가 없어 빈 스케줄 반환");
+        globalPerformanceTracker.end(trackingId, true);
         return {
           success: true,
           data: {
@@ -54,10 +80,12 @@ export class ScheduleGenerationService implements IScheduleGenerationService {
       }
 
       if (availableDates.length === 0) {
+        logger.warn("generateSchedule", "사용 가능한 날짜 없음");
+        globalPerformanceTracker.end(trackingId, false);
         return {
           success: false,
           error: "사용 가능한 날짜가 없습니다",
-          errorCode: "NO_AVAILABLE_DATES",
+          errorCode: ServiceErrorCodes.NO_AVAILABLE_DATES,
         };
       }
 
@@ -97,6 +125,12 @@ export class ScheduleGenerationService implements IScheduleGenerationService {
       // 주차별 날짜 맵 생성
       const weekDatesMap = this.buildWeekDatesMap(availableDates, dateMetadataMap);
 
+      logger.info("generateSchedule", "스케줄 생성 완료", {
+        scheduledPlansCount: scheduledPlans.length,
+        weekCount: weekDatesMap.size,
+      });
+      globalPerformanceTracker.end(trackingId, true);
+
       return {
         success: true,
         data: {
@@ -105,11 +139,18 @@ export class ScheduleGenerationService implements IScheduleGenerationService {
         },
       };
     } catch (error) {
-      console.error("[ScheduleGenerationService] generateSchedule 실패:", error);
+      const serviceError = toServiceError(error, "ScheduleGenerationService", {
+        code: ServiceErrorCodes.SCHEDULE_GENERATION_FAILED,
+        method: "generateSchedule",
+        metadata: { contentsCount: contents.length, availableDatesCount: availableDates.length },
+      });
+      logger.error("generateSchedule", "스케줄 생성 실패", serviceError);
+      globalPerformanceTracker.end(trackingId, false);
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "알 수 없는 오류",
-        errorCode: "SCHEDULE_GENERATION_FAILED",
+        error: serviceError.message,
+        errorCode: serviceError.code,
       };
     }
   }

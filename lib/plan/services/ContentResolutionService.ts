@@ -4,6 +4,8 @@
  * 플랜 생성 시 콘텐츠 ID 해석, 메타데이터 로딩, 챕터 정보 로딩을 담당합니다.
  * 기존 contentResolver.ts의 함수들을 서비스 레이어로 래핑합니다.
  *
+ * Phase 4: 통합 에러/로깅 시스템 적용
+ *
  * @module lib/plan/services/ContentResolutionService
  */
 
@@ -32,6 +34,15 @@ import type {
   ContentResolutionOutput,
   IContentResolutionService,
 } from "./types";
+import {
+  ServiceError,
+  ServiceErrorCodes,
+  toServiceError,
+} from "./errors";
+import {
+  createServiceLogger,
+  globalPerformanceTracker,
+} from "./logging";
 
 // DetailIdMap은 types.ts에서 정의
 type DetailIdMap = Map<string, string>;
@@ -50,16 +61,40 @@ export class ContentResolutionService implements IContentResolutionService {
   ): Promise<ServiceResult<ContentResolutionOutput>> {
     const { contents, context } = input;
 
+    // 로거 및 성능 추적 설정
+    const logger = createServiceLogger("ContentResolutionService", {
+      studentId: context.studentId,
+      tenantId: context.tenantId,
+    });
+    const trackingId = globalPerformanceTracker.start(
+      "ContentResolutionService",
+      "resolve",
+      undefined,
+      { contentsCount: contents.length, isCampMode: context.isCampMode }
+    );
+
     try {
+      logger.info("resolve", "콘텐츠 해석 시작", {
+        contentsCount: contents.length,
+        isCampMode: context.isCampMode,
+      });
+
       // Supabase 클라이언트 생성
       const adminClient = createSupabaseAdminClient();
       const serverClient = await createSupabaseServerClient();
 
       if (!adminClient || !serverClient) {
+        const error = new ServiceError(
+          "Supabase 클라이언트 생성 실패",
+          ServiceErrorCodes.CLIENT_CREATION_FAILED,
+          { source: "ContentResolutionService", method: "resolve" }
+        );
+        logger.error("resolve", "클라이언트 생성 실패", error);
+        globalPerformanceTracker.end(trackingId, false);
         return {
           success: false,
-          error: "Supabase 클라이언트 생성 실패",
-          errorCode: "CLIENT_CREATION_FAILED",
+          error: error.message,
+          errorCode: error.code,
         };
       }
 
@@ -142,6 +177,14 @@ export class ContentResolutionService implements IContentResolutionService {
       // 출력 chapterMap도 동일한 형식 사용
       const chapterMap = rawChapterMap;
 
+      logger.info("resolve", "콘텐츠 해석 완료", {
+        contentIdMapSize: contentIdMap.size,
+        metadataMapSize: contentMetadataMap.size,
+        durationMapSize: contentDurationMap.size,
+        chapterMapSize: chapterMap.size,
+      });
+      globalPerformanceTracker.end(trackingId, true);
+
       return {
         success: true,
         data: {
@@ -153,11 +196,20 @@ export class ContentResolutionService implements IContentResolutionService {
         },
       };
     } catch (error) {
-      console.error("[ContentResolutionService] resolve 실패:", error);
+      const serviceError = toServiceError(error, "ContentResolutionService", {
+        code: ServiceErrorCodes.CONTENT_RESOLUTION_FAILED,
+        method: "resolve",
+        studentId: context.studentId,
+        tenantId: context.tenantId,
+        metadata: { contentsCount: contents.length },
+      });
+      logger.error("resolve", "콘텐츠 해석 실패", serviceError);
+      globalPerformanceTracker.end(trackingId, false);
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "알 수 없는 오류",
-        errorCode: "RESOLVE_FAILED",
+        error: serviceError.message,
+        errorCode: serviceError.code,
       };
     }
   }
@@ -220,11 +272,23 @@ export class ContentResolutionService implements IContentResolutionService {
         data: { contentIdMap, detailIdMap },
       };
     } catch (error) {
-      console.error("[ContentResolutionService] copyMasterContents 실패:", error);
+      const serviceError = toServiceError(error, "ContentResolutionService", {
+        code: ServiceErrorCodes.MASTER_CONTENT_COPY_FAILED,
+        method: "copyMasterContents",
+        studentId: context.studentId,
+        tenantId: context.tenantId,
+        metadata: { contentIds, contentType },
+      });
+      const logger = createServiceLogger("ContentResolutionService", {
+        studentId: context.studentId,
+        tenantId: context.tenantId,
+      });
+      logger.error("copyMasterContents", "마스터 콘텐츠 복사 실패", serviceError);
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "알 수 없는 오류",
-        errorCode: "COPY_FAILED",
+        error: serviceError.message,
+        errorCode: serviceError.code,
       };
     }
   }

@@ -77,3 +77,48 @@ export {
   type GeneratePlansWithServicesInput,
   type GeneratePlansWithServicesResult,
 } from "./generatePlansWithServices";
+
+export {
+  previewPlansWithServices,
+  type PreviewPlansWithServicesInput,
+  type PreviewPlansWithServicesResult,
+  type PreviewPlan,
+} from "./previewPlansWithServices";
+
+// Phase 5: 공통 로직 추출
+export {
+  preparePlanGenerationData,
+  timeToMinutes,
+  type PlanGenerationCommonInput,
+  type PlanGenerationPreparedData,
+  type PlanGenerationPreparedError,
+  type PlanGenerationPreparedResult,
+  type AllocatedPlanSegment,
+  type DateMetadata,
+  type DateAllocationResult,
+} from "./preparePlanGenerationData";
+
+// Phase 4: 에러 및 로깅 시스템
+export {
+  ServiceError,
+  ServiceErrorCodes,
+  toServiceError,
+  createServiceErrorFromResult,
+  getErrorChain,
+  isRecoverableServiceError,
+  type ServiceErrorCode,
+  type ServiceSource,
+  type ServiceErrorContext,
+} from "./errors";
+
+export {
+  ServiceLogger,
+  PerformanceTracker,
+  globalPerformanceTracker,
+  createServiceLogger,
+  configureLogger,
+  withPerformanceTracking,
+  type LogLevel,
+  type LogEntry,
+  type PerformanceMetric,
+} from "./logging";

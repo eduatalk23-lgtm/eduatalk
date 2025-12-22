@@ -8,6 +8,8 @@
  * 단순화된 구현을 제공합니다.
  * Phase 3에서 완전한 통합이 이루어집니다.
  *
+ * Phase 4: 통합 에러/로깅 시스템 적용
+ *
  * @module lib/plan/services/TimeAllocationService
  */
 
@@ -24,6 +26,14 @@ import type {
   ITimeAllocationService,
   ScheduledPlan,
 } from "./types";
+import {
+  ServiceErrorCodes,
+  toServiceError,
+} from "./errors";
+import {
+  createServiceLogger,
+  globalPerformanceTracker,
+} from "./logging";
 
 /**
  * 시간 할당 서비스 구현
@@ -37,9 +47,24 @@ export class TimeAllocationService implements ITimeAllocationService {
   ): Promise<ServiceResult<TimeAllocationOutput>> {
     const { scheduledPlans, dateTimeRanges, contentDurationMap } = input;
 
+    // 로거 및 성능 추적 설정
+    const logger = createServiceLogger("TimeAllocationService");
+    const trackingId = globalPerformanceTracker.start(
+      "TimeAllocationService",
+      "allocateTime",
+      undefined,
+      { scheduledPlansCount: scheduledPlans.length }
+    );
+
     try {
+      logger.info("allocateTime", "시간 할당 시작", {
+        scheduledPlansCount: scheduledPlans.length,
+      });
+
       // 입력 검증
       if (scheduledPlans.length === 0) {
+        logger.info("allocateTime", "스케줄된 플랜이 없어 빈 결과 반환");
+        globalPerformanceTracker.end(trackingId, true);
         return {
           success: true,
           data: {
@@ -61,6 +86,7 @@ export class TimeAllocationService implements ITimeAllocationService {
 
         if (timeRanges.length === 0) {
           // 시간 슬롯이 없으면 기본 시간으로 할당
+          logger.debug("allocateTime", `날짜 ${date}에 시간 슬롯 없음, 기본 시간 사용`);
           plans.forEach((plan, index) => {
             allocatedPlans.push(this.createAllocatedPlan(plan, date, index, "09:00", "10:00"));
           });
@@ -90,6 +116,12 @@ export class TimeAllocationService implements ITimeAllocationService {
         });
       }
 
+      logger.info("allocateTime", "시간 할당 완료", {
+        allocatedPlansCount: allocatedPlans.length,
+        unallocatedPlansCount: unallocatedPlans.length,
+      });
+      globalPerformanceTracker.end(trackingId, true);
+
       return {
         success: true,
         data: {
@@ -98,11 +130,18 @@ export class TimeAllocationService implements ITimeAllocationService {
         },
       };
     } catch (error) {
-      console.error("[TimeAllocationService] allocateTime 실패:", error);
+      const serviceError = toServiceError(error, "TimeAllocationService", {
+        code: ServiceErrorCodes.TIME_ALLOCATION_FAILED,
+        method: "allocateTime",
+        metadata: { scheduledPlansCount: scheduledPlans.length },
+      });
+      logger.error("allocateTime", "시간 할당 실패", serviceError);
+      globalPerformanceTracker.end(trackingId, false);
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "알 수 없는 오류",
-        errorCode: "TIME_ALLOCATION_FAILED",
+        error: serviceError.message,
+        errorCode: serviceError.code,
       };
     }
   }

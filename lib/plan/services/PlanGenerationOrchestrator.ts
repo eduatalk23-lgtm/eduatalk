@@ -8,6 +8,8 @@
  * NOTE: Phase 2에서는 서비스 레이어의 기본 구조만 제공합니다.
  * 실제 기존 generatePlansRefactored 함수와의 완전한 통합은 Phase 3에서 이루어집니다.
  *
+ * Phase 4: 통합 에러/로깅 시스템 적용
+ *
  * @module lib/plan/services/PlanGenerationOrchestrator
  */
 
@@ -39,6 +41,17 @@ import type {
   PlanPayloadBase,
   ContentMetadataMap,
 } from "@/lib/types/plan-generation";
+import {
+  ServiceError,
+  ServiceErrorCodes,
+  toServiceError,
+  createServiceErrorFromResult,
+} from "./errors";
+import {
+  createServiceLogger,
+  globalPerformanceTracker,
+  type ServiceLogger,
+} from "./logging";
 
 /**
  * 오케스트레이터 내부 상태
@@ -48,6 +61,8 @@ type OrchestratorState = {
   context: ServiceContext;
   options: PlanGenerationOrchestratorInput["options"];
   errors: string[];
+  logger: ServiceLogger;
+  trackingId: string;
 };
 
 /**
@@ -78,15 +93,36 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
   async generate(
     input: PlanGenerationOrchestratorInput
   ): Promise<ServiceResult<PlanGenerationOrchestratorOutput>> {
+    // 로거 및 성능 추적 설정
+    const logger = createServiceLogger("PlanGenerationOrchestrator", {
+      studentId: input.context.studentId,
+      tenantId: input.context.tenantId,
+      operationId: input.planGroupId,
+    });
+    const trackingId = globalPerformanceTracker.start(
+      "PlanGenerationOrchestrator",
+      "generate",
+      input.planGroupId,
+      { previewOnly: input.options?.previewOnly, regenerate: input.options?.regenerate }
+    );
+
     const state: OrchestratorState = {
       planGroupId: input.planGroupId,
       context: input.context,
       options: input.options,
       errors: [],
+      logger,
+      trackingId,
     };
 
     try {
+      logger.info("generate", "플랜 생성 오케스트레이션 시작", {
+        previewOnly: input.options?.previewOnly,
+        regenerate: input.options?.regenerate,
+      });
+
       // 1. 플랜 그룹 및 콘텐츠 조회
+      logger.debug("generate", "플랜 그룹 조회 중");
       const planGroup = await getPlanGroupById(
         input.planGroupId,
         input.context.studentId,
@@ -94,23 +130,32 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
       );
 
       if (!planGroup) {
+        logger.error("generate", "플랜 그룹을 찾을 수 없음");
+        globalPerformanceTracker.end(trackingId, false);
         return {
           success: false,
           error: "플랜 그룹을 찾을 수 없습니다",
-          errorCode: "PLAN_GROUP_NOT_FOUND",
+          errorCode: ServiceErrorCodes.INVALID_INPUT,
         };
       }
 
       const contents = await getPlanContents(input.planGroupId);
       if (contents.length === 0) {
+        logger.error("generate", "플랜 콘텐츠가 없음");
+        globalPerformanceTracker.end(trackingId, false);
         return {
           success: false,
           error: "플랜 콘텐츠가 없습니다",
-          errorCode: "NO_CONTENTS",
+          errorCode: ServiceErrorCodes.INVALID_INPUT,
         };
       }
 
+      logger.debug("generate", "플랜 그룹 및 콘텐츠 조회 완료", {
+        contentsCount: contents.length,
+      });
+
       // 2. 콘텐츠 해석
+      logger.info("generate", "콘텐츠 해석 시작");
       const contentResult = await this.contentResolutionService.resolve({
         contents: contents.map((c) => ({
           content_id: c.content_id,
@@ -138,12 +183,18 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
       );
 
       if (availableDates.length === 0) {
+        logger.error("generate", "사용 가능한 날짜 없음");
+        globalPerformanceTracker.end(trackingId, false);
         return {
           success: false,
           error: "사용 가능한 날짜가 없습니다",
-          errorCode: "NO_AVAILABLE_DATES",
+          errorCode: ServiceErrorCodes.NO_AVAILABLE_DATES,
         };
       }
+
+      logger.debug("generate", "날짜 범위 계산 완료", {
+        availableDatesCount: availableDates.length,
+      });
 
       // 4. 스케줄 생성 입력 준비
       const scheduleContents = contents.map((c, index) => {
@@ -161,6 +212,7 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
       });
 
       // 5. 스케줄 생성
+      logger.info("generate", "스케줄 생성 시작");
       const dateMetadataMap = new Map<string, { day_type: "학습일"; week_number: number }>();
       availableDates.forEach((date, index) => {
         dateMetadataMap.set(date, {
@@ -186,6 +238,7 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
       }
 
       // 6. 시간 할당
+      logger.info("generate", "시간 할당 시작");
       const dateTimeRangesMap = new Map<string, Array<{ start: string; end: string }>>();
       availableDates.forEach((date) => {
         dateTimeRangesMap.set(date, [{ start: "09:00", end: "18:00" }]);
@@ -204,6 +257,10 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
 
       // 7. 미리보기 모드인 경우 저장하지 않고 반환
       if (input.options?.previewOnly) {
+        logger.info("generate", "미리보기 모드 - 저장 건너뜀", {
+          previewPlansCount: timeResult.data.allocatedPlans.length,
+        });
+        globalPerformanceTracker.end(trackingId, true);
         return {
           success: true,
           data: {
@@ -214,6 +271,7 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
       }
 
       // 8. 플랜 저장
+      logger.info("generate", "플랜 저장 시작");
       const persistInput = {
         plans: this.enrichPlansWithMetadata(
           timeResult.data.allocatedPlans,
@@ -233,6 +291,11 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
         return this.buildErrorResult(state);
       }
 
+      logger.info("generate", "플랜 생성 오케스트레이션 완료", {
+        savedCount: persistResult.data?.savedCount,
+      });
+      globalPerformanceTracker.end(trackingId, true);
+
       return {
         success: true,
         data: {
@@ -241,8 +304,17 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
         },
       };
     } catch (error) {
-      console.error("[PlanGenerationOrchestrator] generate 실패:", error);
-      state.errors.push(error instanceof Error ? error.message : "알 수 없는 오류");
+      const serviceError = toServiceError(error, "PlanGenerationOrchestrator", {
+        code: ServiceErrorCodes.ORCHESTRATION_FAILED,
+        method: "generate",
+        operationId: input.planGroupId,
+        studentId: input.context.studentId,
+        tenantId: input.context.tenantId,
+      });
+      logger.error("generate", "플랜 생성 오케스트레이션 실패", serviceError);
+      globalPerformanceTracker.end(trackingId, false);
+
+      state.errors.push(serviceError.message);
       return this.buildErrorResult(state);
     }
   }
@@ -320,10 +392,15 @@ export class PlanGenerationOrchestrator implements IPlanGenerationOrchestrator {
   private buildErrorResult(
     state: OrchestratorState
   ): ServiceResult<PlanGenerationOrchestratorOutput> {
+    state.logger.error("buildErrorResult", "플랜 생성 실패", undefined, {
+      errors: state.errors,
+    });
+    globalPerformanceTracker.end(state.trackingId, false);
+
     return {
       success: false,
       error: state.errors.join("; "),
-      errorCode: "GENERATION_FAILED",
+      errorCode: ServiceErrorCodes.ORCHESTRATION_FAILED,
       data: {
         success: false,
         errors: state.errors,
