@@ -27,24 +27,6 @@ export function DailyPlanView({
   onViewDetail,
   campMode = false,
 }: DailyPlanViewProps) {
-  if (groups.length === 0) {
-    return (
-      <div className={cn("rounded-xl border border-dashed p-8 text-center", borderDefault, bgPage)}>
-        <div className="mx-auto flex max-w-md flex-col gap-4">
-          <div className="text-6xl">📚</div>
-          <div className="flex flex-col gap-2">
-            <h3 className={cn("text-lg font-semibold", textPrimary)}>
-              오늘 배울 내용이 없습니다
-            </h3>
-            <p className={cn("text-sm", textMuted)}>
-              학습 플랜을 생성해보세요.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // 그룹 렌더링 함수
   const renderGroup = useCallback(
     (group: PlanGroup, index: number) => {
@@ -69,8 +51,27 @@ export function DailyPlanView({
         </div>
       );
     },
-    [sessions, planDate, memos, totalPagesMap, onViewDetail]
+    [sessions, planDate, memos, totalPagesMap, onViewDetail, campMode]
   );
+
+  // 빈 상태 처리
+  if (groups.length === 0) {
+    return (
+      <div className={cn("rounded-xl border border-dashed p-8 text-center", borderDefault, bgPage)}>
+        <div className="mx-auto flex max-w-md flex-col gap-4">
+          <div className="text-6xl">📚</div>
+          <div className="flex flex-col gap-2">
+            <h3 className={cn("text-lg font-semibold", textPrimary)}>
+              오늘 배울 내용이 없습니다
+            </h3>
+            <p className={cn("text-sm", textMuted)}>
+              학습 플랜을 생성해보세요.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // 플랜 그룹이 10개 이상일 때 가상화 적용
   if (groups.length > 10) {

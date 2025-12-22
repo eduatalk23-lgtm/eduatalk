@@ -282,14 +282,14 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
 
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const virtualizer = shouldUseVirtualScrolling
-    ? useVirtualizer({
-        count: rows.length,
-        getScrollElement: () => parentRef.current,
-        estimateSize: () => 50, // 행 높이 추정값
-        overscan: 10, // 화면 밖 렌더링할 행 수
-      })
-    : null;
+  // Hook must be called unconditionally
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 50, // 행 높이 추정값
+    overscan: 10, // 화면 밖 렌더링할 행 수
+    enabled: shouldUseVirtualScrolling, // Only enable when needed
+  });
 
   if (isLoading) {
     return <LoadingSkeleton variant="schedule" />;
@@ -346,7 +346,7 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
               </tr>
             ))}
           </thead>
-          {shouldUseVirtualScrolling && virtualizer ? (
+          {shouldUseVirtualScrolling ? (
             // 가상 스크롤링 사용 (100개 이상)
             <tbody>
               <tr>

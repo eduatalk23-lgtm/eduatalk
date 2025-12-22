@@ -28,8 +28,6 @@ export function SMSPreviewModal({
   academyName = "학원",
   isSending = false,
 }: SMSPreviewModalProps) {
-  if (!open) return null;
-
   const recipientCount = selectedRecipients.length;
 
   // 각 연락처별 메시지 생성 (템플릿 사용 시)
@@ -84,6 +82,8 @@ export function SMSPreviewModal({
         return "";
     }
   };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

@@ -45,6 +45,18 @@ function calculateBlockPosition(
 }
 
 export default function BlockTimeline({ blocks }: BlockTimelineProps) {
+  // 시간 영역 계산 (자동 모드만 사용)
+  const autoTimeRange = useMemo(() => calculateAutoTimeRange(blocks), [blocks]);
+  const timeRange = autoTimeRange;
+
+  const HOURS = timeRange.hours;
+  const hourHeight = 80; // 1시간 = 80px
+
+  const blocksByDay = useMemo(
+    () => DAYS.map((_, dayIndex) => blocks.filter((b) => b.day_of_week === dayIndex)),
+    [blocks]
+  );
+
   // 블록이 없을 때 빈 상태 표시
   if (blocks.length === 0) {
     return (
@@ -55,18 +67,6 @@ export default function BlockTimeline({ blocks }: BlockTimelineProps) {
       />
     );
   }
-
-  // 시간 영역 계산 (자동 모드만 사용)
-  const autoTimeRange = useMemo(() => calculateAutoTimeRange(blocks), [blocks]);
-  const timeRange = autoTimeRange;
-  
-  const HOURS = timeRange.hours;
-  const hourHeight = 80; // 1시간 = 80px
-
-  const blocksByDay = useMemo(
-    () => DAYS.map((_, dayIndex) => blocks.filter((b) => b.day_of_week === dayIndex)),
-    [blocks]
-  );
 
   return (
     <div className="w-full">

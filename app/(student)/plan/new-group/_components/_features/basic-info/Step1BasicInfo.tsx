@@ -105,7 +105,43 @@ function Step1BasicInfoComponent({
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
   const fieldErrors = fieldErrorsProp ?? contextFieldErrors;
 
-  // data가 없으면 에러 메시지 표시
+  // 템플릿 고정 필드 확인
+  // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
+  const lockedFields = data?.templateLockedFields?.step1 || {};
+
+  // 필드 권한 관리 훅 사용 (hooks must be called unconditionally)
+  const { getFieldPermission } = useFieldPermission({
+    lockedFields,
+    editable,
+    isCampMode,
+  });
+
+  // 오늘 날짜를 로컬 타임존 기준으로 가져오기 (타임존 문제 방지)
+  const todayParts = getTodayParts();
+  const _today = formatDateString(
+    todayParts.year,
+    todayParts.month,
+    todayParts.day
+  );
+
+  /* Period calculation hook - must be called unconditionally */
+  const periodCalculation = usePeriodCalculation({ data: data ?? {} as WizardData, onUpdate, editable });
+
+  /* block set state removed as it is now in useBlockSetManagement hook */
+  const blockSetManagement = useBlockSetManagement({
+    data: data ?? {} as WizardData,
+    onUpdate,
+    blockSets,
+    onBlockSetCreated,
+    onBlockSetsLoaded,
+    isTemplateMode,
+    isCampMode,
+    templateId,
+  });
+
+  const [show1730Desc, setShow1730Desc] = useState(false);
+
+  // data가 없으면 에러 메시지 표시 (hooks 호출 후)
   if (!data) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
@@ -113,10 +149,6 @@ function Step1BasicInfoComponent({
       </div>
     );
   }
-
-  // 템플릿 고정 필드 확인
-  // templateLockedFields가 없거나 step1이 없으면 빈 객체로 초기화 (모든 필드 입력 가능)
-  const lockedFields = data.templateLockedFields?.step1 || {};
 
   // 필드가 고정되어 있는지 확인 (공통 유틸리티 사용)
   const checkFieldLocked = (fieldName: string) => {
@@ -154,13 +186,6 @@ function Step1BasicInfoComponent({
     return !editable || additionalCondition;
   };
 
-  // 필드 권한 관리 훅 사용
-  const { getFieldPermission } = useFieldPermission({
-    lockedFields,
-    editable,
-    isCampMode,
-  });
-
   // 각 필드별 입력 가능 여부 (useFieldPermission 훅 사용)
   const canStudentInputName = getFieldPermission("allow_student_name");
   const canStudentInputPlanPurpose = getFieldPermission("allow_student_plan_purpose");
@@ -171,32 +196,6 @@ function Step1BasicInfoComponent({
   const canStudentInputSubjectAllocations = getFieldPermission("allow_student_subject_allocations");
   const canStudentInputStudyReviewCycle = getFieldPermission("allow_student_study_review_cycle");
   const canStudentInputAdditionalPeriodReallocation = getFieldPermission("allow_student_additional_period_reallocation");
-
-  // 오늘 날짜를 로컬 타임존 기준으로 가져오기 (타임존 문제 방지)
-  const todayParts = getTodayParts();
-  const today = formatDateString(
-    todayParts.year,
-    todayParts.month,
-    todayParts.day
-  );
-
-
-  /* Period calculation hook */
-  const periodCalculation = usePeriodCalculation({ data, onUpdate, editable });
-
-  /* block set state removed as it is now in useBlockSetManagement hook */
-  const blockSetManagement = useBlockSetManagement({
-    data,
-    onUpdate,
-    blockSets,
-    onBlockSetCreated,
-    onBlockSetsLoaded,
-    isTemplateMode,
-    isCampMode,
-    templateId,
-  });
-
-  const [show1730Desc, setShow1730Desc] = useState(false);
 
   // Restore show1730Desc since it wasn't moved to the hook?
   // Checking `useBlockSetManagement.ts`... it does not have show1730Desc.
