@@ -290,17 +290,73 @@ export async function getCampDatePlans(
     }
   }
 
+  // content_id가 마스터 콘텐츠 ID일 수 있으므로 변환 맵 생성
+  const contentIdMap = new Map<string, string>(); // originalContentId -> studentContentId
+  
   if (lectureIds.length > 0) {
+    // 1차: student_plan의 content_id로 직접 조회 (학생 콘텐츠 ID인 경우)
     const { data: lectures } = await supabase
       .from("lectures")
-      .select("id, title, subject, master_content_id")
+      .select("id, title, subject, master_content_id, master_lecture_id")
       .in("id", lectureIds);
+    
+    // 조회된 학생 강의들 매핑
     lectures?.forEach((lecture) => {
       contentMap.set(`lecture:${lecture.id}`, {
         title: lecture.title || null,
         subject: lecture.subject || null,
       });
+      contentIdMap.set(lecture.id, lecture.id); // 자기 자신으로 매핑
     });
+    
+    // 2차: 조회되지 않은 content_id들은 마스터 콘텐츠 ID일 수 있음
+    const foundLectureIds = new Set(lectures?.map((l) => l.id) || []);
+    const notFoundLectureIds = lectureIds.filter((id) => !foundLectureIds.has(id));
+    
+    if (notFoundLectureIds.length > 0) {
+      // 마스터 강의인지 확인
+      const { data: masterLectures } = await supabase
+        .from("master_lectures")
+        .select("id, title, subject")
+        .in("id", notFoundLectureIds);
+      
+      if (masterLectures && masterLectures.length > 0) {
+        // 마스터 강의 정보로 contentMap 보완
+        masterLectures.forEach((masterLecture) => {
+          contentMap.set(`lecture:${masterLecture.id}`, {
+            title: masterLecture.title || null,
+            subject: masterLecture.subject || null,
+          });
+        });
+        
+        // 각 학생별로 마스터 강의 ID에 해당하는 학생 강의 찾기
+        for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
+          const masterIdsInStudent = studentLectureIds.filter((id) =>
+            notFoundLectureIds.includes(id)
+          );
+          
+          if (masterIdsInStudent.length > 0) {
+            // 해당 학생의 강의 중 master_content_id 또는 master_lecture_id가 일치하는 것 찾기
+            const { data: studentLecturesByMaster } = await supabase
+              .from("lectures")
+              .select("id, master_content_id, master_lecture_id")
+              .eq("student_id", studentId)
+              .or(
+                `master_content_id.in.(${masterIdsInStudent.join(",")}),master_lecture_id.in.(${masterIdsInStudent.join(",")})`
+              );
+            
+            // 마스터 ID -> 학생 ID 매핑 생성
+            studentLecturesByMaster?.forEach((studentLecture) => {
+              const masterId =
+                studentLecture.master_content_id || studentLecture.master_lecture_id;
+              if (masterId && masterIdsInStudent.includes(masterId)) {
+                contentIdMap.set(masterId, studentLecture.id);
+              }
+            });
+          }
+        }
+      }
+    }
     
     // 마스터 콘텐츠 조회 (학생 콘텐츠에 마스터 참조가 있고, 학생 콘텐츠 정보가 없는 경우)
     const lecturesWithoutTitle = lectures?.filter((l) => !l.title && l.master_content_id) || [];
@@ -310,13 +366,13 @@ export async function getCampDatePlans(
         .filter((id): id is string => !!id);
       
       if (masterLectureIds.length > 0) {
-        const { data: masterLectures } = await supabase
+        const { data: masterLecturesForTitle } = await supabase
           .from("master_lectures")
           .select("id, title, subject")
           .in("id", masterLectureIds);
         
         // 마스터 콘텐츠 정보로 보완
-        masterLectures?.forEach((masterLecture) => {
+        masterLecturesForTitle?.forEach((masterLecture) => {
           lecturesWithoutTitle.forEach((lecture) => {
             if (lecture.master_content_id === masterLecture.id) {
               contentMap.set(`lecture:${lecture.id}`, {
@@ -369,8 +425,27 @@ export async function getCampDatePlans(
   
   for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
     if (studentLectureIds.length > 0) {
-      const episodes = await getStudentLectureEpisodesBatch(studentLectureIds, studentId);
-      lectureEpisodesMap.set(studentId, episodes);
+      // content_id가 마스터 콘텐츠 ID인 경우 학생 콘텐츠 ID로 변환
+      const resolvedLectureIds = studentLectureIds.map(
+        (id) => contentIdMap.get(id) || id
+      );
+      const episodes = await getStudentLectureEpisodesBatch(resolvedLectureIds, studentId);
+      
+      // 원본 content_id로 매핑하여 저장 (formatLectureRange에서 원본 content_id 사용)
+      const episodesWithOriginalId = new Map<string, Array<{
+        id: string;
+        episode_number: number;
+        episode_title: string | null;
+        duration: number | null;
+      }>>();
+      
+      studentLectureIds.forEach((originalId, index) => {
+        const resolvedId = resolvedLectureIds[index];
+        const episodesForResolvedId = episodes.get(resolvedId) || [];
+        episodesWithOriginalId.set(originalId, episodesForResolvedId);
+      });
+      
+      lectureEpisodesMap.set(studentId, episodesWithOriginalId);
     }
   }
   
