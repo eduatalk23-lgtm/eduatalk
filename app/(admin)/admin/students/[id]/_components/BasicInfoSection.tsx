@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import { StudentActions } from "../../_components/StudentActions";
-import { updateStudentClass } from "@/app/(admin)/actions/studentManagementActions";
+import { updateStudentClass } from "@/lib/domains/student";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Pencil } from "lucide-react";

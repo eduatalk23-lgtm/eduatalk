@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
+import { getTenantBlockSets } from "@/lib/domains/tenant";
 import TemplateBlockSetManagement from "./_components/TemplateBlockSetManagement";
 
 export default async function TimeManagementPage() {

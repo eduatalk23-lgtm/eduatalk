@@ -15,8 +15,8 @@ import {
   createSubject,
   updateSubject,
   deleteSubject,
-} from "@/app/(admin)/actions/subjectActions";
-import { getCurriculumRevisionsAction } from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/subject";
+import { getCurriculumRevisionsAction } from "@/lib/domains/content-metadata";
 import { Card } from "@/components/molecules/Card";
 import { CardSkeleton } from "@/components/ui/LoadingSkeleton";
 import { useApiError } from "./hooks/useApiError";

@@ -6,8 +6,8 @@ import { Spinner } from "@/components/atoms/Spinner";
 import {
   getTenantUsersAction,
   assignUserToTenantAction,
-} from "@/app/(admin)/actions/tenantUsers";
-import type { TenantUser } from "@/app/(admin)/actions/tenantUsers";
+} from "@/lib/domains/tenant";
+import type { TenantUser } from "@/lib/domains/tenant";
 
 type TenantUsersManagementProps = {
   tenantId: string;

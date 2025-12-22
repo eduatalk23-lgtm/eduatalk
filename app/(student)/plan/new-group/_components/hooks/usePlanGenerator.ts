@@ -20,7 +20,7 @@ import {
   updatePlanGroupStatus,
 } from "@/app/(student)/actions/planGroupActions";
 import { generatePlansFromGroupAction } from "@/app/(student)/actions/plan-groups/plans";
-import { continueCampStepsForAdmin } from "@/app/(admin)/actions/campTemplateActions";
+import { continueCampStepsForAdmin } from "@/lib/domains/camp/actions";
 import { submitCampParticipation } from "@/app/(student)/actions/campActions";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";

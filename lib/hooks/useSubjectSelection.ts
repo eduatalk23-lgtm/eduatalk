@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
+import { getSubjectGroupsWithSubjectsAction } from "@/lib/domains/subject";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 

@@ -6,7 +6,7 @@ import {
   createCurriculumRevisionAction,
   updateCurriculumRevisionAction,
   deleteCurriculumRevisionAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import { Badge } from "@/components/atoms";
 

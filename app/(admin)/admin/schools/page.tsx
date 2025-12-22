@@ -17,7 +17,7 @@ import {
   getSchoolInfoListAction,
   getUniversityCampusesAction,
   searchSchoolsAction,
-} from "@/app/(admin)/actions/schoolActions";
+} from "@/lib/domains/school";
 import Button from "@/components/atoms/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { AllSchoolsView, SchoolInfo, UniversityWithCampus } from "@/lib/data/schools";

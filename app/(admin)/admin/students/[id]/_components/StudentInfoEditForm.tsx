@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { StickySaveButton } from "@/components/ui/StickySaveButton";
 import { useStudentInfoForm } from "../_hooks/useStudentInfoForm";
 import { transformFormDataToUpdatePayload } from "../_utils/studentFormTransform";
-import { updateStudentInfo } from "@/app/(admin)/actions/studentManagementActions";
+import { updateStudentInfo } from "@/lib/domains/student";
 import type { StudentInfoData, AdminStudentFormData } from "../_types/studentFormTypes";
 import BasicInfoSection from "./sections/BasicInfoSection";
 import ProfileInfoSection from "./sections/ProfileInfoSection";

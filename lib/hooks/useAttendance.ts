@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { recordAttendanceAction } from "@/app/(admin)/actions/attendanceActions";
+import { recordAttendanceAction } from "@/lib/domains/attendance";
 import type { CreateAttendanceRecordInput } from "@/lib/domains/attendance/types";
 
 /**

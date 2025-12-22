@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { getAttendanceSMSLogs } from "@/app/(admin)/actions/smsLogActions";
+import { getAttendanceSMSLogs } from "@/lib/domains/attendance";
 import { SMSLogsTable } from "./_components/SMSLogsTable";
 import { Card, CardContent } from "@/components/molecules/Card";
 import { SMSLogsFilters } from "./_components/SMSLogsFilters";

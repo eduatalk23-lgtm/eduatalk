@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getAttendanceSMSSettings,
   updateAttendanceSMSSettings,
-} from "@/app/(admin)/actions/attendanceSettingsActions";
+} from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 import Label from "@/components/atoms/Label";
 import ToggleSwitch from "@/components/atoms/ToggleSwitch";

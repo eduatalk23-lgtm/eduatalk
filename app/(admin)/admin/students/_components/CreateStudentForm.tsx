@@ -10,7 +10,7 @@ import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
 import { useCreateStudentForm } from "../_hooks/useCreateStudentForm";
 import type { CreateStudentFormData } from "../_types/createStudentTypes";
-import { createStudent } from "@/app/(admin)/actions/studentManagementActions";
+import { createStudent } from "@/lib/domains/student";
 import { STUDENT_DIVISIONS } from "@/lib/constants/students";
 import { GENDER_OPTIONS } from "@/lib/utils/studentProfile";
 import { useToast } from "@/components/ui/ToastProvider";

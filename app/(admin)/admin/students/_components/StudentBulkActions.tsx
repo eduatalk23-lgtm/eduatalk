@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   bulkToggleStudentStatus,
   bulkDeleteStudents,
-} from "@/app/(admin)/actions/studentManagementActions";
+} from "@/lib/domains/student";
 import {
   bgHover,
   textSecondary,

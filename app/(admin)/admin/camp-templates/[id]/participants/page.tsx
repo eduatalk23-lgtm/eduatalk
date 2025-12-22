@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { CampParticipantsList } from "./CampParticipantsList";
 
 export default async function CampParticipantsPage({

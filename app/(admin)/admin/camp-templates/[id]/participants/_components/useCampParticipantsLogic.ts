@@ -3,9 +3,9 @@
 import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getCampParticipantsAction } from "@/app/(admin)/actions/camp-templates/participants";
+import { getCampParticipantsAction } from "@/lib/domains/camp/actions";
 import type { Participant } from "@/lib/data/campParticipants";
-import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/app/(admin)/actions/campTemplateActions";
+import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/lib/domains/camp/actions";
 import type { SortColumn, SortOrder, StatusFilter, ParticipantsStats } from "./types";
 
 export function useCampParticipantsLogic(templateId: string) {

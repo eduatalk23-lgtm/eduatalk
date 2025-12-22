@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
 import { campLearningStatsQueryOptions } from "@/lib/query-options/campLearning";

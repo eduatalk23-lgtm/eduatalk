@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   getSubjectsByGroupAction,
   deleteSubjectGroup,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import SubjectList from "./SubjectList";
 import GroupForm from "./GroupForm";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";

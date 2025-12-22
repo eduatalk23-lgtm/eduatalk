@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
-import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
-import { getTemplateBlockSet } from "@/app/(admin)/actions/campTemplateBlockSets";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
+import { getTenantBlockSets } from "@/lib/domains/tenant";
+import { getTemplateBlockSet } from "@/lib/domains/camp/actions";
 import TemplateBlockSetManagement from "./_components/TemplateBlockSetManagement";
 import Link from "next/link";
 

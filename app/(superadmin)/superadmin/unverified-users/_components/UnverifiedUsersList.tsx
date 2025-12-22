@@ -5,7 +5,7 @@ import {
   deleteUnverifiedUser,
   resendVerificationEmail,
   deleteMultipleUnverifiedUsers,
-} from "@/app/(admin)/actions/unverifiedUserActions";
+} from "@/lib/domains/user";
 import { useRouter } from "next/navigation";
 
 type UnverifiedUser = {

@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   regenerateConnectionCode,
   getStudentConnectionCode,
-} from "@/app/(admin)/actions/studentManagementActions";
+} from "@/lib/domains/student";
 
 type ConnectionCodeSectionProps = {
   studentId: string;

@@ -16,7 +16,7 @@ import {
   updatePlanGroupStatus,
   checkPlansExistAction,
 } from "@/app/(student)/actions/planGroupActions";
-import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
+import { updateCampTemplateAction } from "@/lib/domains/camp/actions";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { WizardValidator } from "@/lib/validation/wizardValidator";
 import { PlanValidator } from "@/lib/validation/planValidator";

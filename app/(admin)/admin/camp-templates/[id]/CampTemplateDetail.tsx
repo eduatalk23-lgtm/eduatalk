@@ -10,7 +10,7 @@ import {
   deleteCampTemplateAction,
   updateCampTemplateStatusAction,
   copyCampTemplateAction,
-} from "@/app/(admin)/actions/campTemplateActions";
+} from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { StudentInvitationForm } from "./StudentInvitationForm";
 import { CampInvitationList } from "./CampInvitationList";

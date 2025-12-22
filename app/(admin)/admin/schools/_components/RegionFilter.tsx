@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   getRegionsByLevelAction,
   getRegionsByParentAction,
-} from "@/app/(admin)/actions/schoolActions";
+} from "@/lib/domains/school";
 import type { Region } from "@/lib/data/schools";
 
 type RegionFilterProps = {

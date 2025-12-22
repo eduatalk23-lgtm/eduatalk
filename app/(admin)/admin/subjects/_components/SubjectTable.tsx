@@ -6,8 +6,8 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   getSubjectsByGroupAction,
   deleteSubject,
-} from "@/app/(admin)/actions/subjectActions";
-import { getSubjectTypesAction } from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
+import { getSubjectTypesAction } from "@/lib/domains/subject";
 import SubjectFormModal from "./SubjectFormModal";
 import type { Subject, SubjectType } from "@/lib/data/subjects";
 import { Plus, Trash2, Edit2 } from "lucide-react";

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addMasterCustomContent } from "@/app/(admin)/actions/masterCustomContentActions";
+import { addMasterCustomContent } from "@/lib/domains/content-metadata";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import { DifficultySelectField } from "@/components/forms/DifficultySelectField";

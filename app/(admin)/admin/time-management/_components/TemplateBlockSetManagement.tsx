@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlocksViewer from "../[templateId]/_components/TemplateBlocksViewer";
-import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
+import { getTenantBlockSets } from "@/lib/domains/tenant";
 import type { BlockSet } from "@/lib/types/time-management";
 import { normalizeBlocks } from "@/lib/types/time-management";
 

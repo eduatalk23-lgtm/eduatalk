@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getCampPlanGroupForReview } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampPlanGroupForReview } from "@/lib/domains/camp/actions";
 import { PlanGroupWizard } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { fetchAllStudentContents, classifyPlanContents } from "@/lib/data/planContents";
 import { fetchBlockSetsWithBlocks } from "@/lib/data/blockSets";

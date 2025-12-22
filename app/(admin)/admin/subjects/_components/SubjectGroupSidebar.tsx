@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   getSubjectGroupsAction,
   deleteSubjectGroup,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import GroupFormModal from "./GroupFormModal";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import { Plus, Trash2, Edit2 } from "lucide-react";

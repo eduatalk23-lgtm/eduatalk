@@ -3,8 +3,8 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/ui/ToastProvider";
-import { exportSubjectsToExcel, downloadSubjectsTemplate } from "@/app/(admin)/actions/subjects/export";
-import { importSubjectsFromExcel } from "@/app/(admin)/actions/subjects/import";
+import { exportSubjectsToExcel, downloadSubjectsTemplate } from "@/lib/domains/subject/actions/excel/export";
+import { importSubjectsFromExcel } from "@/lib/domains/subject/actions/excel/import";
 import CurriculumRevisionTabs from "./CurriculumRevisionTabs";
 import Button from "@/components/atoms/Button";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";

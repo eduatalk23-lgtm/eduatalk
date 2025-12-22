@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
+import { createCampTemplateAction } from "@/lib/domains/camp/actions";
 import { PlanGroupWizard, WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
 import { CampProgramType } from "@/lib/types/plan";

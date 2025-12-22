@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createCampTemplateDraftAction } from "@/app/(admin)/actions/campTemplateActions";
+import { createCampTemplateDraftAction } from "@/lib/domains/camp/actions";
 import { CampProgramType } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   generateQRCodeAction,
   getActiveQRCodeAction,
-} from "@/app/(admin)/actions/qrCodeActions";
+} from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import type { QRCodeRecord } from "@/lib/services/qrCodeService";

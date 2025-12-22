@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
-import { getTenantBlockSets } from "@/app/(admin)/actions/tenantBlockSets";
-import { getTemplateBlockSet } from "@/app/(admin)/actions/campTemplateBlockSets";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
+import { getTenantBlockSets } from "@/lib/domains/tenant";
+import { getTemplateBlockSet } from "@/lib/domains/camp/actions";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplateImpactSummary } from "@/lib/data/campTemplates";
 import { CampTemplateEditForm } from "./CampTemplateEditForm";

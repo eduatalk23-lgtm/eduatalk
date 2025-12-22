@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   createCurriculumRevisionAction,
   updateCurriculumRevisionAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import { useAdminFormSubmit } from "@/lib/hooks/useAdminFormSubmit";
 import { curriculumRevisionSchema } from "@/lib/validation/schemas";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";

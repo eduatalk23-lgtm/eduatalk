@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampInvitation } from "@/lib/types/plan";
-import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/app/(admin)/actions/campTemplateActions";
+import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Pagination } from "@/components/organisms/Pagination";
 import { ConfirmDialog } from "@/components/ui/Dialog";

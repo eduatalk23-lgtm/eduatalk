@@ -21,7 +21,7 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import {
   linkBlockSetToTemplate,
   unlinkBlockSetFromTemplate,
-} from "../campTemplateBlockSets";
+} from "./blockSets";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**

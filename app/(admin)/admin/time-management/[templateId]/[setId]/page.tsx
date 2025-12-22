@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import TemplateBlockSetDetail from "./_components/TemplateBlockSetDetail";
 import Link from "next/link";
 

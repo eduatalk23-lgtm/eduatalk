@@ -14,8 +14,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { createSchoolSchema, updateSchoolSchema, type CreateSchoolFormData, type UpdateSchoolFormData } from "./validation";
-import * as service from "./service";
+import { createSchoolSchema, updateSchoolSchema, type CreateSchoolFormData, type UpdateSchoolFormData } from "../validation";
+import * as service from "../service";
 import { getFormString, getFormUuid } from "@/lib/utils/formDataHelpers";
 import type {
   School,
@@ -23,8 +23,8 @@ import type {
   SchoolType,
   SchoolSimple,
   SchoolActionResult,
-} from "./types";
-import { toLegacySchool, toSchoolSimple } from "./types";
+} from "../types";
+import { toLegacySchool, toSchoolSimple } from "../types";
 
 // ============================================
 // 조회 Actions (모든 사용자 접근 가능)

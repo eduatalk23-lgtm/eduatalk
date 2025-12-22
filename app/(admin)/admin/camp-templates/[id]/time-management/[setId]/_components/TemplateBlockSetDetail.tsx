@@ -40,7 +40,7 @@ export default function TemplateBlockSetDetail({
 
     setIsDeleting(true);
     try {
-      const { deleteTenantBlockSet } = await import("@/app/(admin)/actions/tenantBlockSets");
+      const { deleteTenantBlockSet } = await import("@/lib/domains/tenant");
       const formData = new FormData();
       formData.append("id", blockSet.id);
       await deleteTenantBlockSet(formData);
@@ -59,7 +59,7 @@ export default function TemplateBlockSetDetail({
     }
 
     try {
-      const { deleteTenantBlock } = await import("@/app/(admin)/actions/tenantBlockSets");
+      const { deleteTenantBlock } = await import("@/lib/domains/tenant");
       const formData = new FormData();
       formData.append("id", blockId);
       await deleteTenantBlock(formData);

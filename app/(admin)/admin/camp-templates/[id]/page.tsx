@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { CampTemplateDetail } from "./CampTemplateDetail";
-import { getTemplateBlockSet } from "@/app/(admin)/actions/campTemplateBlockSets";
+import { getTemplateBlockSet } from "@/lib/domains/camp/actions";
 
 export default async function CampTemplateDetailPage({
   params,

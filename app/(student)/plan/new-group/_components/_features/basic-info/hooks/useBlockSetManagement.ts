@@ -14,7 +14,7 @@ import {
   addTenantBlock,
   addTenantBlocksToMultipleDays,
   deleteTenantBlock,
-} from "@/app/(admin)/actions/tenantBlockSets";
+} from "@/lib/domains/tenant";
 import {
   toPlanGroupError,
   PlanGroupErrorCodes,

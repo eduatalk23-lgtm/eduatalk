@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toggleStudentStatus, deleteStudent } from "@/app/(admin)/actions/studentManagementActions";
+import { toggleStudentStatus, deleteStudent } from "@/lib/domains/student";
 import { useRouter } from "next/navigation";
 
 type StudentActionsProps = {

@@ -7,7 +7,7 @@ import {
   approveLinkRequests,
   rejectLinkRequests,
   type PendingLinkRequest,
-} from "@/app/(admin)/actions/parentStudentLinkActions";
+} from "@/lib/domains/student";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { PendingLinkRequestCard } from "./PendingLinkRequestCard";
 import { ConfirmDialog } from "@/components/ui/Dialog";

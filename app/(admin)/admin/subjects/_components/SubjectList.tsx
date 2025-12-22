@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { deleteSubject } from "@/app/(admin)/actions/subjectActions";
+import { deleteSubject } from "@/lib/domains/subject";
 import SubjectForm from "./SubjectForm";
 import type { Subject, SubjectType } from "@/lib/data/subjects";
 

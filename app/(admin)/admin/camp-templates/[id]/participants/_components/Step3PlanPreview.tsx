@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { bulkPreviewPlans, bulkAdjustPlanRanges } from "@/app/(admin)/actions/campTemplateActions";
+import { bulkPreviewPlans, bulkAdjustPlanRanges } from "@/lib/domains/camp/actions";
 import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 type Participant = {

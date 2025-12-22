@@ -8,7 +8,7 @@ import {
   getSubjectTypesAction,
   createSubject,
   updateSubject,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 

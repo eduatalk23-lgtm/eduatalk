@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateAttendanceRecord } from "@/app/(admin)/actions/attendanceActions";
+import { updateAttendanceRecord } from "@/lib/domains/attendance";
 import type { UpdateAttendanceRecordRequest } from "@/lib/types/attendance";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";

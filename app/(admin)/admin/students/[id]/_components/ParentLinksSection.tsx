@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   getStudentParents,
   type StudentParent,
-} from "@/app/(admin)/actions/parentStudentLinkActions";
+} from "@/lib/domains/student";
 import { ParentCard } from "./ParentCard";
 import { ParentSearchModal } from "./ParentSearchModal";
 

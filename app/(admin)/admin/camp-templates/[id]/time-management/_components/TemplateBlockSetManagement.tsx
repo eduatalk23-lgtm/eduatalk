@@ -30,8 +30,8 @@ export default function TemplateBlockSetManagement({
   // 특정 세트의 블록만 업데이트
   const updateSetBlocks = useCallback(async (setId: string) => {
     try {
-      const { getTenantBlockSets } = await import("@/app/(admin)/actions/tenantBlockSets");
-      const { getTemplateBlockSet } = await import("@/app/(admin)/actions/campTemplateBlockSets");
+      const { getTenantBlockSets } = await import("@/lib/domains/tenant");
+      const { getTemplateBlockSet } = await import("@/lib/domains/camp/actions");
       
       // 모든 테넌트 블록 세트 조회
       const allBlockSets = await getTenantBlockSets();
@@ -70,8 +70,8 @@ export default function TemplateBlockSetManagement({
         setError(null);
       }
 
-      const { getTenantBlockSets } = await import("@/app/(admin)/actions/tenantBlockSets");
-      const { getTemplateBlockSet } = await import("@/app/(admin)/actions/campTemplateBlockSets");
+      const { getTenantBlockSets } = await import("@/lib/domains/tenant");
+      const { getTemplateBlockSet } = await import("@/lib/domains/camp/actions");
       
       // 모든 테넌트 블록 세트 조회
       const allBlockSets = await getTenantBlockSets();

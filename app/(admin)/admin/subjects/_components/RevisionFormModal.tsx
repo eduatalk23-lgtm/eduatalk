@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   createCurriculumRevisionAction,
   updateCurriculumRevisionAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 
 type RevisionFormModalProps = {

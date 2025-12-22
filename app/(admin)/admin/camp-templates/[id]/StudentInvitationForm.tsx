@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { sendCampInvitationsAction } from "@/app/(admin)/actions/campTemplateActions";
+import { sendCampInvitationsAction } from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { extractUniqueGrades, extractUniqueClasses, type Student, type StudentFilter } from "@/lib/utils/studentFilterUtils";
 import { mapStudentSearchResults, mapToStudentType } from "@/lib/utils/studentSearchMapper";

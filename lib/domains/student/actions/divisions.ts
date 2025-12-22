@@ -13,7 +13,7 @@ import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { StudentDivision } from "@/lib/constants/students";
-import * as repository from "./repository";
+import * as repository from "../repository";
 
 // ============================================
 // 학생 구분 할당 Actions (학생에게 구분 할당)

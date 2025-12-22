@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createAdminUser } from "@/app/(admin)/actions/adminUserActions";
+import { createAdminUser } from "@/lib/domains/user";
 
 export function CreateAdminUserForm() {
   const [isPending, startTransition] = useTransition();

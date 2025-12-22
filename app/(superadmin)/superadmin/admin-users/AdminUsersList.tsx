@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteAdminUser } from "@/app/(admin)/actions/adminUserActions";
+import { deleteAdminUser } from "@/lib/domains/user";
 
 type AdminUser = {
   id: string;

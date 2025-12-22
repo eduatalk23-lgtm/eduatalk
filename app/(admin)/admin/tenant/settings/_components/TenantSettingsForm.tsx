@@ -6,7 +6,7 @@ import {
   updateAutoApproveSettings,
   type AutoApproveSettings,
   type ParentRelation,
-} from "@/app/(admin)/actions/tenantSettingsActions";
+} from "@/lib/domains/tenant";
 
 type Tenant = {
   id: string;

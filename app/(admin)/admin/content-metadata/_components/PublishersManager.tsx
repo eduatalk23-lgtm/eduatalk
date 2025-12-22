@@ -5,7 +5,7 @@ import {
   createPublisherAction,
   updatePublisherAction,
   deletePublisherAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import type { Publisher } from "@/lib/data/contentMetadata";
 import { BaseMetadataManager } from "./BaseMetadataManager";
 

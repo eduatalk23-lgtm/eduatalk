@@ -6,10 +6,10 @@ import {
   getSubjectGroupsAction,
   getSubjectTypesAction,
   deleteSubjectGroup,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import {
   deleteCurriculumRevisionAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import SubjectGroupAccordion from "./SubjectGroupAccordion";
 import SubjectTypeList from "./SubjectTypeList";
 import RevisionForm from "./RevisionForm";

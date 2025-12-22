@@ -1,9 +1,13 @@
 /**
- * 캠프 템플릿 액션 Barrel 파일
- * 기존 campTemplateActions.ts의 모든 함수를 re-export하여 호환성 유지
+ * Camp Domain Actions
+ *
+ * 캠프 템플릿 관련 Server Actions
  */
 
-// CRUD 함수들
+// Types
+export type { PreviewPlan, Exclusion, AcademySchedule, StudentInfo } from "./types";
+
+// CRUD Actions
 export {
   getCampTemplates,
   getCampTemplateById,
@@ -15,19 +19,19 @@ export {
   copyCampTemplateAction,
 } from "./crud";
 
-// 참여자 관리 함수들
+// Participants Actions
 export {
   sendCampInvitationsAction,
   getCampInvitationsForTemplate,
   getCampInvitationsForTemplateWithPaginationAction,
+  getCampParticipantsAction,
   updateCampInvitationStatusAction,
   deleteCampInvitationAction,
   deleteCampInvitationsAction,
   resendCampInvitationsAction,
 } from "./participants";
 
-// 진행/검토 함수들은 아직 분리 중이므로 기존 파일에서 import
-// TODO: progress.ts 파일 생성 후 이동
+// Progress Actions
 export {
   getCampPlanGroupForReview,
   continueCampStepsForAdmin,
@@ -40,5 +44,20 @@ export {
   getPlanGroupContentsForRangeAdjustment,
   bulkPreviewPlans,
   bulkGeneratePlans,
-} from "../campTemplateActions";
+} from "./progress";
 
+// Block Sets Actions
+export {
+  getBlockSetTemplates,
+  getTemplateBlockSet,
+  linkBlockSetToTemplate,
+  unlinkBlockSetFromTemplate,
+} from "./blockSets";
+
+// Reschedule Actions
+export {
+  type ReschedulePreviewResult,
+  type RescheduleResult,
+  getReschedulePreviewForAdmin,
+  rescheduleContentsForAdmin,
+} from "./reschedule";

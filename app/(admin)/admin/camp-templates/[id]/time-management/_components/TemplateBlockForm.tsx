@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState, useEffect } from "react";
-import { addTenantBlock } from "@/app/(admin)/actions/tenantBlockSets";
+import { addTenantBlock } from "@/lib/domains/tenant";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { DayOfWeek } from "@/lib/types/time-management";
 import { blockFormSchema, isStartTimeBeforeEndTime } from "@/lib/validation/timeSchema";

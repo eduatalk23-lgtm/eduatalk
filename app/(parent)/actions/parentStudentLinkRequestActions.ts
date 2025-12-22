@@ -3,7 +3,7 @@
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { getAutoApproveSettings } from "@/app/(admin)/actions/tenantSettingsActions";
+import { getAutoApproveSettings } from "@/lib/domains/tenant";
 import { checkAutoApproveConditions } from "@/lib/utils/autoApprove";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 import { AppError, ErrorCode } from "@/lib/errors";

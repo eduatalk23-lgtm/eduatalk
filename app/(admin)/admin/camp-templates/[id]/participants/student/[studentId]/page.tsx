@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getCampTemplateById } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampTemplateById } from "@/lib/domains/camp/actions";
 import { getParticipantStatsForCamp } from "./_utils/getParticipantStats";
 import { CampParticipantDetailView } from "./_components/CampParticipantDetailView";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

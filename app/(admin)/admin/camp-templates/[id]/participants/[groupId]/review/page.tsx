@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getCampPlanGroupForReview } from "@/app/(admin)/actions/campTemplateActions";
+import { getCampPlanGroupForReview } from "@/lib/domains/camp/actions";
 import { CampPlanGroupReviewForm } from "./CampPlanGroupReviewForm";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentById } from "@/lib/data/students";

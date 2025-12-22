@@ -3,8 +3,8 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useToast } from "@/components/ui/ToastProvider";
-import { exportMasterLecturesToExcel, downloadMasterLecturesTemplate } from "@/app/(admin)/actions/masterLectures/export";
-import { importMasterLecturesFromExcel } from "@/app/(admin)/actions/masterLectures/import";
+import { exportMasterLecturesToExcel, downloadMasterLecturesTemplate } from "@/lib/domains/master-content/actions/lectures/export";
+import { importMasterLecturesFromExcel } from "@/lib/domains/master-content/actions/lectures/import";
 import Button from "@/components/atoms/Button";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 

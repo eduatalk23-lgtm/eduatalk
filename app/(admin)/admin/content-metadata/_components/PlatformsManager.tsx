@@ -5,7 +5,7 @@ import {
   createPlatformAction,
   updatePlatformAction,
   deletePlatformAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import type { Platform } from "@/lib/data/contentMetadata";
 import { BaseMetadataManager } from "./BaseMetadataManager";
 

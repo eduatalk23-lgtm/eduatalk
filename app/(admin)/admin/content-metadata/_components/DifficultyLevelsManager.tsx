@@ -6,7 +6,7 @@ import {
   createDifficultyLevelAction,
   updateDifficultyLevelAction,
   deleteDifficultyLevelAction,
-} from "@/app/(admin)/actions/difficultyLevelActions";
+} from "@/lib/domains/content-metadata";
 import type { DifficultyLevel } from "@/lib/data/difficultyLevels";
 import { Badge } from "@/components/atoms";
 import { useToast } from "@/components/ui/ToastProvider";

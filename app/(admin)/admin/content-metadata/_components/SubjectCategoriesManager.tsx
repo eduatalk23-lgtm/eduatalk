@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   getCurriculumRevisionsAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import {
   getSubjectGroupsAction,
   createSubjectGroup,
   updateSubjectGroup,
   deleteSubjectGroup,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";

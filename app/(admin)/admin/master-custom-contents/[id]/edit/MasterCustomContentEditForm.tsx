@@ -2,8 +2,8 @@
 
 import { useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { updateMasterCustomContentAction } from "@/app/(admin)/actions/masterCustomContentActions";
-import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
+import { updateMasterCustomContentAction } from "@/lib/domains/content-metadata";
+import { getSubjectGroupsWithSubjectsAction } from "@/lib/domains/subject";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";
 import FormField, { FormSelect } from "@/components/molecules/FormField";

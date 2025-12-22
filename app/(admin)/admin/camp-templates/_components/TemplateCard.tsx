@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
+import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";

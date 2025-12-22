@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getAttendanceRecordHistory } from "@/app/(admin)/actions/attendanceActions";
+import { getAttendanceRecordHistory } from "@/lib/domains/attendance";
 import type { AttendanceRecordHistory } from "@/lib/types/attendance";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { cn } from "@/lib/cn";

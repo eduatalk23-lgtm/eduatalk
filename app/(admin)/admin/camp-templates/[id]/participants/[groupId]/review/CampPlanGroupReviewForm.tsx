@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/ToastProvider";
 import {
   getCampPlanGroupForReview,
-} from "@/app/(admin)/actions/campTemplateActions";
+} from "@/lib/domains/camp/actions";
 import { PlanGroup, PlanContent, PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Step1BasicInfo } from "@/app/(student)/plan/new-group/_components/_features/basic-info/Step1BasicInfo";

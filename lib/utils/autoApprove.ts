@@ -1,4 +1,4 @@
-import type { AutoApproveSettings, ParentRelation } from "@/app/(admin)/actions/tenantSettingsActions";
+import type { AutoApproveSettings, ParentRelation } from "@/lib/domains/tenant";
 
 /**
  * 자동 승인 조건 확인

@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import {
   getTenantSchedulerSettingsAction,
   saveTenantSchedulerSettingsAction,
-} from "@/app/(admin)/actions/schedulerSettings";
+} from "@/lib/domains/settings";
 import type { TenantSchedulerSettings } from "@/lib/types/schedulerSettings";
 import { Spinner } from "@/components/atoms/Spinner";
 

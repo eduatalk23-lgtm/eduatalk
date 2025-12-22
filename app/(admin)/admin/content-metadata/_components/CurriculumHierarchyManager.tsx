@@ -6,7 +6,7 @@ import {
   createCurriculumRevisionAction,
   updateCurriculumRevisionAction,
   deleteCurriculumRevisionAction,
-} from "@/app/(admin)/actions/contentMetadataActions";
+} from "@/lib/domains/content-metadata";
 import {
   getSubjectGroupsAction,
   createSubjectGroup,
@@ -21,7 +21,7 @@ import {
   createSubjectType,
   updateSubjectType,
   deleteSubjectType,
-} from "@/app/(admin)/actions/subjectActions";
+} from "@/lib/domains/subject";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";

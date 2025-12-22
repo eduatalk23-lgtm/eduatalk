@@ -4,7 +4,7 @@ import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AttendanceTable } from "./AttendanceTable";
 import { useToast } from "@/components/ui/ToastProvider";
-import { deleteAttendanceRecordAction } from "@/app/(admin)/actions/attendanceActions";
+import { deleteAttendanceRecordAction } from "@/lib/domains/attendance";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import type { AttendanceTableRow } from "./types";

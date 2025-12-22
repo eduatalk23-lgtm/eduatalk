@@ -7,7 +7,7 @@ import {
   deleteParentStudentLink,
   type StudentParent,
   type ParentRelation,
-} from "@/app/(admin)/actions/parentStudentLinkActions";
+} from "@/lib/domains/student";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type ParentCardProps = {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createSubjectType, updateSubjectType } from "@/app/(admin)/actions/subjectActions";
+import { createSubjectType, updateSubjectType } from "@/lib/domains/subject";
 import { useAdminFormSubmit } from "@/lib/hooks/useAdminFormSubmit";
 import { subjectTypeSchema } from "@/lib/validation/schemas";
 import type { SubjectType } from "@/lib/data/subjects";

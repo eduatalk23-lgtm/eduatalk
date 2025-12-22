@@ -19,10 +19,11 @@ export {
   type TenantOption,
 } from "./actions";
 
-/**
- * 사용 예시:
- *
- * // 회원가입용 기관 목록 조회
- * import { getTenantOptionsForSignup } from "@/lib/domains/tenant";
- * const response = await getTenantOptionsForSignup();
- */
+// Block Sets
+export * from "./blockSets";
+
+// Settings
+export * from "./settings";
+
+// Users
+export * from "./users";

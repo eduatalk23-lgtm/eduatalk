@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { CampTemplate } from "@/lib/types/plan";
-import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/app/(admin)/actions/campTemplateActions";
+import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { TemplateCard } from "@/app/(student)/plan/_shared/PlanCard";

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/atoms/Button";
 import Label from "@/components/atoms/Label";
 import { Card, CardContent } from "@/components/molecules/Card";
-import type { SMSLogFilter } from "@/app/(admin)/actions/smsLogActions";
+import type { SMSLogFilter } from "@/lib/domains/attendance";
 
 type SMSLogsFiltersProps = {
   currentFilters: SMSLogFilter;

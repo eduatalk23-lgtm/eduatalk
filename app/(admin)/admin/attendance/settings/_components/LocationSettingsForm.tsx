@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   getLocationSettings,
   updateLocationSettings,
-} from "@/app/(admin)/actions/attendanceSettingsActions";
+} from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 import Input from "@/components/atoms/Input";
 import Label from "@/components/atoms/Label";

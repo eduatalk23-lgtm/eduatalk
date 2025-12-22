@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { addConsultingNote } from "@/app/(admin)/actions/consultingNoteActions";
+import { addConsultingNote } from "@/lib/domains/student";
 
 type FormState = {
   success?: boolean;

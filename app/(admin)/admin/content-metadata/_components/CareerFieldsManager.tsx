@@ -5,7 +5,7 @@ import {
   createCareerFieldAction,
   updateCareerFieldAction,
   deleteCareerFieldAction,
-} from "@/app/(admin)/actions/careerFieldActions";
+} from "@/lib/domains/content-metadata";
 import type { CareerField } from "@/lib/data/careerFields";
 import { BaseMetadataManager } from "./BaseMetadataManager";
 

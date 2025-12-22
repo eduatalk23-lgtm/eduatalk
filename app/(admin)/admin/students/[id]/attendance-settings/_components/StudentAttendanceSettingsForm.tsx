@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateStudentAttendanceSettings } from "@/app/(admin)/actions/attendanceSettingsActions";
+import { updateStudentAttendanceSettings } from "@/lib/domains/attendance";
 import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import Button from "@/components/atoms/Button";

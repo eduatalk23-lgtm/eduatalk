@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTransition, useState } from "react";
 import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
-import { getSubjectGroupsWithSubjectsAction } from "@/app/(admin)/actions/subjectActions";
+import { getSubjectGroupsWithSubjectsAction } from "@/lib/domains/subject";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";

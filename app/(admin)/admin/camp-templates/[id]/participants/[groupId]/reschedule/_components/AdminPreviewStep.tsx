@@ -12,10 +12,10 @@ import { useRouter } from "next/navigation";
 import {
   getReschedulePreviewForAdmin,
   rescheduleContentsForAdmin,
-} from "@/app/(admin)/actions/plan-groups/reschedule";
+} from "@/lib/domains/camp";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
-import type { ReschedulePreviewResult } from "@/app/(admin)/actions/plan-groups/reschedule";
+import type { ReschedulePreviewResult } from "@/lib/domains/camp";
 import { BeforeAfterComparison } from "@/app/(student)/plan/group/[id]/reschedule/_components/BeforeAfterComparison";
 import { AffectedPlansList } from "@/app/(student)/plan/group/[id]/reschedule/_components/AffectedPlansList";
 import { ConflictWarning } from "@/app/(student)/plan/group/[id]/reschedule/_components/ConflictWarning";

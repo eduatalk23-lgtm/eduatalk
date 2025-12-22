@@ -6,7 +6,7 @@ import {
   getRangeRecommendationSettingsAction,
   updateRangeRecommendationSettingsAction,
   resetRangeRecommendationSettingsAction,
-} from "@/app/(admin)/actions/recommendationSettings";
+} from "@/lib/domains/settings";
 import type { RangeRecommendationConfig } from "@/lib/recommendations/config/types";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { Spinner } from "@/components/atoms/Spinner";

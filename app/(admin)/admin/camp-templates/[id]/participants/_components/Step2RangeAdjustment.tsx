@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getPlanGroupContentsForRangeAdjustment } from "@/app/(admin)/actions/campTemplateActions";
+import { getPlanGroupContentsForRangeAdjustment } from "@/lib/domains/camp/actions";
 import type { ScheduleSummary } from "@/lib/plan/rangeRecommendation";
 import { Minus, Plus, AlertTriangle, Loader2 } from "lucide-react";
 

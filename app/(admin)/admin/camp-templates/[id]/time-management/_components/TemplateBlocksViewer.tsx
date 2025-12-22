@@ -3,7 +3,7 @@
 import { useMemo, useState, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import TemplateBlockForm from "./TemplateBlockForm";
-import { createTenantBlockSet } from "@/app/(admin)/actions/tenantBlockSets";
+import { createTenantBlockSet } from "@/lib/domains/tenant";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { Block, BlockSet } from "@/lib/types/time-management";
@@ -121,7 +121,7 @@ export default function TemplateBlocksViewer({
                         return;
                       }
                       try {
-                        const { deleteTenantBlockSet } = await import("@/app/(admin)/actions/tenantBlockSets");
+                        const { deleteTenantBlockSet } = await import("@/lib/domains/tenant");
                         const formData = new FormData();
                         formData.append("id", set.id);
                         await deleteTenantBlockSet(formData);
@@ -199,9 +199,9 @@ export default function TemplateBlocksViewer({
                           return;
                         }
                         try {
-                          const { updateCampTemplateAction } = await import("@/app/(admin)/actions/campTemplateActions");
+                          const { updateCampTemplateAction } = await import("@/lib/domains/camp/actions");
                           // 템플릿 조회
-                          const { getCampTemplateById } = await import("@/app/(admin)/actions/campTemplateActions");
+                          const { getCampTemplateById } = await import("@/lib/domains/camp/actions");
                           const templateResult = await getCampTemplateById(templateId);
                           if (!templateResult.success || !templateResult.template) {
                             throw new Error("템플릿을 찾을 수 없습니다.");
@@ -325,7 +325,7 @@ function TemplateBlockSetCreateForm({
             return { error: firstError?.message || "입력값이 올바르지 않습니다." };
           }
 
-          const { addTenantBlock } = await import("@/app/(admin)/actions/tenantBlockSets");
+          const { addTenantBlock } = await import("@/lib/domains/tenant");
           for (const day of selectedWeekdays) {
             const blockFormData = new FormData();
             blockFormData.append("day", String(day));

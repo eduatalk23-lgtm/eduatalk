@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteConsultingNote } from "@/app/(admin)/actions/consultingNoteActions";
+import { deleteConsultingNote } from "@/lib/domains/student";
 
 export function ConsultingNoteDeleteButton({
   noteId,

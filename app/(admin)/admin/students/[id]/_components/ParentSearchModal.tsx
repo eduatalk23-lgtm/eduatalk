@@ -9,7 +9,7 @@ import {
   type SearchableParent,
   type StudentParent,
   type ParentRelation,
-} from "@/app/(admin)/actions/parentStudentLinkActions";
+} from "@/lib/domains/student";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ParentSearchModalProps = {

@@ -3,7 +3,7 @@
 import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { updateCampTemplateAction } from "@/app/(admin)/actions/campTemplateActions";
+import { updateCampTemplateAction } from "@/lib/domains/camp/actions";
 import {
   PlanGroupWizard,
   WizardData,
