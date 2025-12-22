@@ -6,6 +6,7 @@ import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { logError } from "@/lib/errors/handler";
 import { getCampTemplate } from "@/lib/data/campTemplates";
+import { isCampMode } from "@/lib/plan/context";
 
 export type BlockInfo = {
   day_of_week: number;
@@ -71,9 +72,10 @@ export async function getBlockSetForPlanGroup(
   tenantId?: string | null
 ): Promise<BlockInfo[]> {
   let baseBlocks: BlockInfo[] = [];
+  const isCamp = isCampMode(group);
 
   // 캠프 모드: 템플릿 블록 세트 조회
-  if (group.plan_type === "camp" && group.camp_template_id) {
+  if (isCamp && group.camp_template_id) {
     const templateBlocks = await getTemplateBlockSet(
       group.camp_template_id,
       tenantId
@@ -97,7 +99,7 @@ export async function getBlockSetForPlanGroup(
   }
 
   // 기본 블록 세트 사용 (캠프 모드가 아닐 때만)
-  if (baseBlocks.length === 0 && group.plan_type !== "camp") {
+  if (baseBlocks.length === 0 && !isCamp) {
     const activeBlocks = await getActiveBlockSet(
       studentId,
       currentUserId,
@@ -120,7 +122,7 @@ export async function getBlockSetForPlanGroup(
     };
     
     // 캠프 모드에서 블록 세트가 필수인 경우 에러 throw
-    if (group.plan_type === "camp") {
+    if (isCamp) {
       const error = new PlanGroupError(
         `캠프 템플릿(${group.camp_template_id})에 연결된 블록 세트를 찾을 수 없습니다.`,
         PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
@@ -481,7 +483,7 @@ export function getBlockSetErrorMessage(
   group: PlanGroup,
   hasBlocks: boolean
 ): string {
-  if (group.plan_type === "camp") {
+  if (isCampMode(group)) {
     return hasBlocks
       ? "템플릿 블록 세트가 설정되지 않았거나, 템플릿 블록이 없습니다. 관리자에게 문의해주세요."
       : "템플릿 블록 세트가 설정되지 않았거나, 템플릿 블록이 없습니다. 관리자에게 문의해주세요.";

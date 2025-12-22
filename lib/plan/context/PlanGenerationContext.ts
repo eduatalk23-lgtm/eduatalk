@@ -135,13 +135,24 @@ export function detectPlanGenerationMode(planGroup: {
 /**
  * 캠프 모드인지 확인
  *
+ * 다음 조건 중 하나라도 해당하면 캠프 모드:
+ * - plan_type이 "camp"
+ * - camp_template_id가 존재
+ * - camp_invitation_id가 존재
+ *
  * @param planGroup - 플랜 그룹 데이터
  * @returns 캠프 모드 여부
  */
 export function isCampMode(planGroup: {
+  plan_type?: string | null;
   camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
 }): boolean {
-  return !!planGroup.camp_template_id;
+  return (
+    planGroup.plan_type === "camp" ||
+    !!planGroup.camp_template_id ||
+    !!planGroup.camp_invitation_id
+  );
 }
 
 /**

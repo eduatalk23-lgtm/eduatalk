@@ -8,6 +8,7 @@ import {
 } from "@/lib/metrics/studyTime";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
+import { isCampMode } from "@/lib/plan/context";
 import {
   getTodayInTimezone,
   getStartOfDayUTC,
@@ -49,18 +50,15 @@ export async function calculateTodayProgress(
     const targetEndStr = targetEnd.toISOString();
 
     // 1. 해당 날짜의 플랜 조회
+    // isCampMode 헬퍼를 사용하여 캠프 모드 필터링 통합
     let planGroupIds: string[] | undefined = undefined;
     if (excludeCampMode) {
-      // 일반 모드: 캠프 플랜 그룹 제외
       const allPlanGroups = await getPlanGroupsForStudent({
         studentId,
         tenantId,
       });
       const nonCampPlanGroups = allPlanGroups.filter(
-        (group) =>
-          group.plan_type !== "camp" &&
-          group.camp_template_id === null &&
-          group.camp_invitation_id === null
+        (group) => !isCampMode(group)
       );
       planGroupIds = nonCampPlanGroups.map((g) => g.id);
     }

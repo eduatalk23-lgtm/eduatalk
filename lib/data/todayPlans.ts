@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
+import { isCampMode } from "@/lib/plan/context";
 import {
   getSessionsInRange,
   getActiveSessionsForPlans,
@@ -392,26 +393,11 @@ export async function getTodayPlans(
   });
 
   // Filter plan groups based on camp mode
-  let planGroupIds: string[] | undefined = undefined;
-  if (camp) {
-    // 캠프 모드: 캠프 활성 플랜 그룹만 필터링
-    const campPlanGroups = allActivePlanGroups.filter(
-      (group) =>
-        group.plan_type === "camp" ||
-        group.camp_template_id !== null ||
-        group.camp_invitation_id !== null
-    );
-    planGroupIds = campPlanGroups.map((g) => g.id);
-  } else {
-    // 일반 모드: 일반 활성 플랜 그룹만 필터링
-    const nonCampPlanGroups = allActivePlanGroups.filter(
-      (group) =>
-        group.plan_type !== "camp" &&
-        group.camp_template_id === null &&
-        group.camp_invitation_id === null
-    );
-    planGroupIds = nonCampPlanGroups.map((g) => g.id);
-  }
+  // isCampMode 헬퍼를 사용하여 모드별 필터링 통합
+  const filteredPlanGroups = allActivePlanGroups.filter((group) =>
+    camp ? isCampMode(group) : !isCampMode(group)
+  );
+  const planGroupIds = filteredPlanGroups.map((g) => g.id);
 
   // 선택한 날짜 플랜 조회 (View 사용으로 최적화)
   // today_plan_view를 통해 콘텐츠 정보가 이미 조인되어 있음
