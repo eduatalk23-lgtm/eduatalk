@@ -220,27 +220,40 @@ export async function getCampDatePlans(
   });
 
   // 콘텐츠 정보 조회 (배치 조회로 N+1 문제 방지)
+  // 학생별로 그룹화하여 콘텐츠 상세 정보 조회
   const contentMap = new Map<string, { title: string | null; subject: string | null }>();
   
   const bookIds: string[] = [];
   const lectureIds: string[] = [];
   const customIds: string[] = [];
+  const studentBookMap = new Map<string, string[]>(); // studentId -> bookIds
+  const studentLectureMap = new Map<string, string[]>(); // studentId -> lectureIds
 
   (plans || []).forEach((plan: any) => {
+    const studentId = plan.student_id;
+    
     if (plan.content_type === "book" && plan.content_id) {
       bookIds.push(plan.content_id);
+      if (!studentBookMap.has(studentId)) {
+        studentBookMap.set(studentId, []);
+      }
+      studentBookMap.get(studentId)!.push(plan.content_id);
     } else if (plan.content_type === "lecture" && plan.content_id) {
       lectureIds.push(plan.content_id);
+      if (!studentLectureMap.has(studentId)) {
+        studentLectureMap.set(studentId, []);
+      }
+      studentLectureMap.get(studentId)!.push(plan.content_id);
     } else if (plan.content_type === "custom" && plan.content_id) {
       customIds.push(plan.content_id);
     }
   });
 
-  // 배치 조회
+  // 배치 조회 (학생 콘텐츠)
   if (bookIds.length > 0) {
     const { data: books } = await supabase
       .from("books")
-      .select("id, title, subject")
+      .select("id, title, subject, master_content_id")
       .in("id", bookIds);
     books?.forEach((book) => {
       contentMap.set(`book:${book.id}`, {
@@ -248,12 +261,39 @@ export async function getCampDatePlans(
         subject: book.subject || null,
       });
     });
+    
+    // 마스터 콘텐츠 조회 (학생 콘텐츠에 마스터 참조가 있고, 학생 콘텐츠 정보가 없는 경우)
+    const booksWithoutTitle = books?.filter((b) => !b.title && b.master_content_id) || [];
+    if (booksWithoutTitle.length > 0) {
+      const masterBookIds = booksWithoutTitle
+        .map((b) => b.master_content_id)
+        .filter((id): id is string => !!id);
+      
+      if (masterBookIds.length > 0) {
+        const { data: masterBooks } = await supabase
+          .from("master_books")
+          .select("id, title, subject")
+          .in("id", masterBookIds);
+        
+        // 마스터 콘텐츠 정보로 보완
+        masterBooks?.forEach((masterBook) => {
+          booksWithoutTitle.forEach((book) => {
+            if (book.master_content_id === masterBook.id) {
+              contentMap.set(`book:${book.id}`, {
+                title: masterBook.title || null,
+                subject: masterBook.subject || null,
+              });
+            }
+          });
+        });
+      }
+    }
   }
 
   if (lectureIds.length > 0) {
     const { data: lectures } = await supabase
       .from("lectures")
-      .select("id, title, subject")
+      .select("id, title, subject, master_content_id")
       .in("id", lectureIds);
     lectures?.forEach((lecture) => {
       contentMap.set(`lecture:${lecture.id}`, {
@@ -261,6 +301,33 @@ export async function getCampDatePlans(
         subject: lecture.subject || null,
       });
     });
+    
+    // 마스터 콘텐츠 조회 (학생 콘텐츠에 마스터 참조가 있고, 학생 콘텐츠 정보가 없는 경우)
+    const lecturesWithoutTitle = lectures?.filter((l) => !l.title && l.master_content_id) || [];
+    if (lecturesWithoutTitle.length > 0) {
+      const masterLectureIds = lecturesWithoutTitle
+        .map((l) => l.master_content_id)
+        .filter((id): id is string => !!id);
+      
+      if (masterLectureIds.length > 0) {
+        const { data: masterLectures } = await supabase
+          .from("master_lectures")
+          .select("id, title, subject")
+          .in("id", masterLectureIds);
+        
+        // 마스터 콘텐츠 정보로 보완
+        masterLectures?.forEach((masterLecture) => {
+          lecturesWithoutTitle.forEach((lecture) => {
+            if (lecture.master_content_id === masterLecture.id) {
+              contentMap.set(`lecture:${lecture.id}`, {
+                title: masterLecture.title || null,
+                subject: masterLecture.subject || null,
+              });
+            }
+          });
+        });
+      }
+    }
   }
 
   if (customIds.length > 0) {
@@ -275,6 +342,129 @@ export async function getCampDatePlans(
       });
     });
   }
+
+  // 학생별 콘텐츠 상세 정보 조회 (교재 목차, 강의 회차)
+  const { getStudentBookDetailsBatch, getStudentLectureEpisodesBatch } = await import("@/lib/data/contentMasters");
+  
+  const bookDetailsMap = new Map<string, Map<string, Array<{
+    id: string;
+    page_number: number;
+    major_unit: string | null;
+    minor_unit: string | null;
+  }>>>();
+  const lectureEpisodesMap = new Map<string, Map<string, Array<{
+    id: string;
+    episode_number: number;
+    episode_title: string | null;
+    duration: number | null;
+  }>>>();
+  
+  // 학생별로 배치 조회
+  for (const [studentId, studentBookIds] of studentBookMap.entries()) {
+    if (studentBookIds.length > 0) {
+      const details = await getStudentBookDetailsBatch(studentBookIds, studentId);
+      bookDetailsMap.set(studentId, details);
+    }
+  }
+  
+  for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
+    if (studentLectureIds.length > 0) {
+      const episodes = await getStudentLectureEpisodesBatch(studentLectureIds, studentId);
+      lectureEpisodesMap.set(studentId, episodes);
+    }
+  }
+  
+  // 계획 범위 포맷팅 헬퍼 함수
+  const formatBookRange = (
+    bookDetails: Array<{ id: string; page_number: number; major_unit: string | null; minor_unit: string | null }>,
+    startPage: number,
+    endPage: number
+  ): string => {
+    if (bookDetails.length === 0) {
+      return `${startPage}페이지${startPage !== endPage ? ` ~ ${endPage}페이지` : ""}`;
+    }
+    
+    // page_number <= startPage인 가장 큰 book_detail 찾기
+    let startDetail: typeof bookDetails[0] | null = null;
+    for (let i = bookDetails.length - 1; i >= 0; i--) {
+      if (bookDetails[i].page_number <= startPage) {
+        startDetail = bookDetails[i];
+        break;
+      }
+    }
+    
+    // page_number <= endPage인 가장 큰 book_detail 찾기
+    let endDetail: typeof bookDetails[0] | null = null;
+    for (let i = bookDetails.length - 1; i >= 0; i--) {
+      if (bookDetails[i].page_number <= endPage) {
+        endDetail = bookDetails[i];
+        break;
+      }
+    }
+    
+    // 단일 범위
+    if (startDetail && endDetail && startDetail === endDetail) {
+      const unit = startDetail.major_unit || startDetail.minor_unit;
+      if (unit) {
+        return unit;
+      }
+      return `${startPage}페이지${startPage !== endPage ? ` ~ ${endPage}페이지` : ""}`;
+    }
+    
+    // 범위
+    if (startDetail && endDetail) {
+      const startUnit = startDetail.major_unit || startDetail.minor_unit;
+      const endUnit = endDetail.major_unit || endDetail.minor_unit;
+      
+      if (startUnit && endUnit) {
+        if (startUnit === endUnit) {
+          return startUnit;
+        }
+        return `${startUnit} ~ ${endUnit}`;
+      }
+      
+      return `${startPage}페이지 ~ ${endPage}페이지`;
+    }
+    
+    return `${startPage}페이지${startPage !== endPage ? ` ~ ${endPage}페이지` : ""}`;
+  };
+  
+  const formatLectureRange = (
+    episodes: Array<{ id: string; episode_number: number; episode_title: string | null; duration: number | null }>,
+    startEpisodeNumber: number,
+    endEpisodeNumber: number
+  ): string => {
+    if (episodes.length === 0) {
+      return `${startEpisodeNumber}강${startEpisodeNumber !== endEpisodeNumber ? ` ~ ${endEpisodeNumber}강` : ""}`;
+    }
+    
+    const startEpisode = episodes.find((ep) => ep.episode_number === startEpisodeNumber);
+    const endEpisode = startEpisodeNumber === endEpisodeNumber
+      ? startEpisode
+      : episodes.find((ep) => ep.episode_number === endEpisodeNumber);
+    
+    if (!startEpisode) {
+      return `${startEpisodeNumber}강${startEpisodeNumber !== endEpisodeNumber ? ` ~ ${endEpisodeNumber}강` : ""}`;
+    }
+    
+    // 단일 episode
+    if (startEpisodeNumber === endEpisodeNumber || !endEpisode) {
+      if (startEpisode.episode_title) {
+        return startEpisode.episode_title;
+      }
+      return `${startEpisode.episode_number}강`;
+    }
+    
+    // 범위 episode
+    const startTitle = startEpisode.episode_title
+      ? startEpisode.episode_title
+      : `${startEpisode.episode_number}강`;
+    const endTitle = endEpisode.episode_title
+      ? endEpisode.episode_title
+      : `${endEpisode.episode_number}강`;
+    
+    return `${startTitle} ~ ${endTitle}`;
+  };
 
   // 데이터 변환
   const planDetails = ((plans || []) as any[]).map((plan: any) => {
@@ -294,9 +484,23 @@ export async function getCampDatePlans(
       plan.planned_end_page_or_time !== null
     ) {
       if (plan.content_type === "book") {
-        plannedRange = `${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}페이지`;
-      } else if (plan.content_type === "lecture" || plan.content_type === "custom") {
-        // 시간 형식으로 변환 (분 단위)
+        const studentBookDetails = bookDetailsMap.get(plan.student_id);
+        const bookDetails = studentBookDetails?.get(plan.content_id) || [];
+        plannedRange = formatBookRange(
+          bookDetails,
+          plan.planned_start_page_or_time,
+          plan.planned_end_page_or_time
+        );
+      } else if (plan.content_type === "lecture") {
+        const studentLectureEpisodes = lectureEpisodesMap.get(plan.student_id);
+        const episodes = studentLectureEpisodes?.get(plan.content_id) || [];
+        plannedRange = formatLectureRange(
+          episodes,
+          plan.planned_start_page_or_time,
+          plan.planned_end_page_or_time
+        );
+      } else if (plan.content_type === "custom") {
+        // 커스텀 콘텐츠는 시간 형식으로 표시
         const startMin = Math.floor(plan.planned_start_page_or_time / 60);
         const startSec = plan.planned_start_page_or_time % 60;
         const endMin = Math.floor(plan.planned_end_page_or_time / 60);
@@ -319,6 +523,7 @@ export async function getCampDatePlans(
       student_id: plan.student_id,
       student_name: studentInfo?.name || "이름 없음",
       plan_id: plan.id,
+      content_type: plan.content_type as "book" | "lecture" | "custom",
       content_title: contentInfo?.title || null,
       content_subject: contentInfo?.subject || null,
       block_index: plan.block_index,

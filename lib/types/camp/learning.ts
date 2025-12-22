@@ -13,10 +13,11 @@ export type DatePlanDetail = {
     student_id: string;
     student_name: string;
     plan_id: string;
+    content_type: "book" | "lecture" | "custom";
     content_title: string | null;
     content_subject: string | null;
     block_index: number;
-    planned_range: string; // "1-10" 또는 "00:00-01:00" 형식
+    planned_range: string; // "1-10페이지" 또는 "1강" 형식
     completed_amount: number | null;
     progress: number | null;
     study_minutes: number;

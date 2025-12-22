@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import { useCampDatePlans } from "@/lib/hooks/useCampLearning";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { Badge } from "@/components/atoms/Badge";
-import { cn } from "@/lib/cn";
+import { getContentTypeLabel } from "@/app/(student)/plan/_shared/utils/contentTypeUtils";
 
 type DatePlanDetailDialogProps = {
   open: boolean;
@@ -112,6 +112,14 @@ export function DatePlanDetailDialog({
 
                   {/* 플랜 정보 */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                        콘텐츠 유형
+                      </label>
+                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                        {getContentTypeLabel(plan.content_type)}
+                      </p>
+                    </div>
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
                         콘텐츠명
