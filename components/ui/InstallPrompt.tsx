@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X, Download, Share2 } from "lucide-react";
 import { useInstallPrompt } from "@/lib/hooks/useInstallPrompt";
 import { cn } from "@/lib/cn";
 
 interface InstallPromptProps {
   className?: string;
+}
+
+// 로컬 스토리지에서 이전에 본 기록 확인
+function getInitialSeenState(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem("pwa-install-prompt-seen") === "true";
 }
 
 /**
@@ -16,15 +22,7 @@ interface InstallPromptProps {
 export default function InstallPrompt({ className }: InstallPromptProps) {
   const { isInstallable, isInstalled, isIOS, install } = useInstallPrompt();
   const [isDismissed, setIsDismissed] = useState(false);
-  const [hasSeenPrompt, setHasSeenPrompt] = useState(false);
-
-  useEffect(() => {
-    // 로컬 스토리지에서 이전에 본 기록 확인
-    const seen = localStorage.getItem("pwa-install-prompt-seen");
-    if (seen === "true") {
-      setHasSeenPrompt(true);
-    }
-  }, []);
+  const [hasSeenPrompt] = useState(getInitialSeenState);
 
   // 이미 설치되었거나 닫혔거나 이미 본 경우 표시하지 않음
   if (isInstalled || isDismissed || hasSeenPrompt || !isInstallable) {

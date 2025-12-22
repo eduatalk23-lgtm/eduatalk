@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -15,18 +15,18 @@ export function CompletionToast({ completedPlanId, planTitle }: CompletionToastP
   const pathname = usePathname();
   const { showSuccess } = useToast();
   const planId = completedPlanId || searchParams.get("completedPlanId");
-  const [handled, setHandled] = useState(false);
+  const handledRef = useRef(false);
 
   useEffect(() => {
     if (!planId) {
       return;
     }
 
-    if (handled) {
+    if (handledRef.current) {
       return;
     }
 
-    setHandled(true);
+    handledRef.current = true;
 
     // 현재 경로 기준으로 캠프 모드 여부 판단
     const isCampMode = pathname?.startsWith("/camp/today");
@@ -42,7 +42,7 @@ export function CompletionToast({ completedPlanId, planTitle }: CompletionToastP
     // 토스트 표시
     const title = planTitle || "플랜";
     showSuccess(`${title} 플랜이 완료 처리되었습니다.`);
-  }, [planId, planTitle, handled, pathname, router, showSuccess]);
+  }, [planId, planTitle, pathname, router, showSuccess]);
 
   return null;
 }

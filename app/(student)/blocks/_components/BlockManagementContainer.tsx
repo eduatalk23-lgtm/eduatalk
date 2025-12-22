@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { SectionHeader } from "@/components/ui";
@@ -15,6 +15,13 @@ type BlockManagementContainerProps = {
   initialPlanGroups?: PlanGroup[];
 };
 
+// URL 파라미터에서 탭 값 도출
+function getTabFromParam(tabParam: string | null): ManagementTab {
+  if (tabParam === "exclusions") return "exclusions";
+  if (tabParam === "academy") return "academy";
+  return "blocks";
+}
+
 export default function BlockManagementContainer({
   studentId,
   initialBlockSets = [],
@@ -25,26 +32,15 @@ export default function BlockManagementContainer({
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams?.get("tab");
-  
-  const [activeTab, setActiveTab] = useState<ManagementTab>(() => {
-    if (tabParam === "exclusions") return "exclusions";
-    if (tabParam === "academy") return "academy";
-    return "blocks";
-  });
+
+  // URL에서 직접 탭 값을 도출 (상태 동기화 불필요)
+  const activeTab = getTabFromParam(tabParam);
   const [isCreatingBlockSet, setIsCreatingBlockSet] = useState(false);
   const [isAddingExclusion, setIsAddingExclusion] = useState(false);
   const [isAddingAcademy, setIsAddingAcademy] = useState(false);
 
-  // 쿼리 파라미터 변경 시 탭 전환
-  useEffect(() => {
-    if (tabParam === "exclusions") setActiveTab("exclusions");
-    else if (tabParam === "academy") setActiveTab("academy");
-    else if (tabParam === "blocks") setActiveTab("blocks");
-  }, [tabParam]);
-
   // 탭 변경 시 URL 업데이트
   const handleTabChange = (tab: ManagementTab) => {
-    setActiveTab(tab);
     const params = new URLSearchParams(searchParams?.toString() || "");
     params.set("tab", tab);
     router.push(`/blocks?${params.toString()}`);

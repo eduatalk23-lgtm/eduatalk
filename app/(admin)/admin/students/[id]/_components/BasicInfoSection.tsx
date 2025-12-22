@@ -30,16 +30,23 @@ export function BasicInfoSection({
   const [isPending, startTransition] = useTransition();
   const [editingClass, setEditingClass] = useState(false);
   const [classValue, setClassValue] = useState(initialStudent.class || "");
-  const [student, setStudent] = useState(initialStudent);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 학생 정보가 업데이트되면 로컬 상태도 업데이트
-  useEffect(() => {
-    setStudent(initialStudent);
-    if (!editingClass) {
-      setClassValue(initialStudent.class || "");
-    }
-  }, [initialStudent.id, initialStudent.class, editingClass]);
+  // 학생 정보가 업데이트되면 classValue 동기화 (편집 중이 아닐 때만)
+  const prevStudentIdRef = useRef(initialStudent.id);
+  const prevClassRef = useRef(initialStudent.class);
+  if (
+    !editingClass &&
+    (prevStudentIdRef.current !== initialStudent.id ||
+      prevClassRef.current !== initialStudent.class)
+  ) {
+    setClassValue(initialStudent.class || "");
+    prevStudentIdRef.current = initialStudent.id;
+    prevClassRef.current = initialStudent.class;
+  }
+
+  // initialStudent를 직접 사용 (student 상태 제거)
+  const student = initialStudent;
 
   // 편집 모드 진입 시 자동 포커스
   useEffect(() => {

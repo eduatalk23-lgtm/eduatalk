@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -20,6 +20,24 @@ interface UseInstallPromptReturn {
   install: () => Promise<void>;
 }
 
+// 초기 상태 계산 함수들
+function getInitialIOS(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !(window as Window & { MSStream?: unknown }).MSStream
+  );
+}
+
+function getInitialStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+      true
+  );
+}
+
 /**
  * PWA 설치 프롬프트를 관리하는 훅
  * iOS Safari와 Android Chrome 모두 지원
@@ -28,24 +46,11 @@ export function useInstallPrompt(): UseInstallPromptReturn {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(getInitialStandalone);
+  const [isIOS] = useState(getInitialIOS);
+  const [isStandalone] = useState(getInitialStandalone);
 
   useEffect(() => {
-    // iOS 감지
-    const iOS =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-      !(window as Window & { MSStream?: unknown }).MSStream;
-    setIsIOS(iOS);
-
-    // Standalone 모드 감지 (이미 설치됨)
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setIsStandalone(standalone);
-    setIsInstalled(standalone);
-
     // beforeinstallprompt 이벤트 리스너 (Android Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -60,10 +65,7 @@ export function useInstallPrompt(): UseInstallPromptReturn {
       setDeferredPrompt(null);
     };
 
-    window.addEventListener(
-      "beforeinstallprompt",
-      handleBeforeInstallPrompt
-    );
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {

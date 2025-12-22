@@ -1,33 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { WifiOff, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
 import Button from "@/components/atoms/Button";
 import { cn } from "@/lib/cn";
+
+// 온라인 상태 구독을 위한 외부 스토어
+function subscribeOnline(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return navigator.onLine;
+}
+
+function getServerSnapshot() {
+  return true; // SSR에서는 온라인으로 가정
+}
 
 /**
  * 오프라인 상태일 때 표시되는 페이지
  * Service Worker가 자동으로 이 페이지를 표시합니다.
  */
 export default function OfflinePage() {
-  const [isOnline, setIsOnline] = useState(false);
-
-  useEffect(() => {
-    // 온라인 상태 감지
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    setIsOnline(navigator.onLine);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  const isOnline = useSyncExternalStore(
+    subscribeOnline,
+    getOnlineSnapshot,
+    getServerSnapshot
+  );
 
   const handleRefresh = () => {
     window.location.reload();

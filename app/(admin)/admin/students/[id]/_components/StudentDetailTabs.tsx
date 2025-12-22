@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 type TabKey =
@@ -39,16 +39,11 @@ export function StudentDetailTabs({
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tabFromUrl = (searchParams.get("tab") as TabKey) || defaultTab;
-  const [activeTab, setActiveTab] = useState<TabKey>(tabFromUrl);
 
-  useEffect(() => {
-    const tab = (searchParams.get("tab") as TabKey) || defaultTab;
-    setActiveTab(tab);
-  }, [searchParams, defaultTab]);
+  // URL에서 직접 탭 값을 읽어서 사용 (상태 동기화 불필요)
+  const activeTab = (searchParams.get("tab") as TabKey) || defaultTab;
 
   const handleTabChange = (tab: TabKey) => {
-    setActiveTab(tab);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
     router.push(`?${params.toString()}`, { scroll: false });

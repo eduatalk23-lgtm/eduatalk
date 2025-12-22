@@ -94,16 +94,24 @@ export function SearchModal<T extends { id: string }>({
   }, [searchQuery, performSearch]);
 
   // 모달 닫을 때 초기화
+  const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery("");
-      setSearchResults([]);
-      setIsSearching(false);
+    // 모달이 열려있다가 닫힐 때만 초기화
+    if (prevIsOpenRef.current && !isOpen) {
+      // 다음 틱에서 초기화하여 cascading renders 방지
+      const timeoutId = setTimeout(() => {
+        setSearchQuery("");
+        setSearchResults([]);
+        setIsSearching(false);
+      }, 0);
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = null;
       }
+      prevIsOpenRef.current = isOpen;
+      return () => clearTimeout(timeoutId);
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen]);
 
   function handleSelect(item: T) {

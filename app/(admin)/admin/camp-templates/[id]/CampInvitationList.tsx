@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampInvitation } from "@/lib/types/plan";
 import { deleteCampInvitationAction, deleteCampInvitationsAction, resendCampInvitationsAction, updateCampInvitationStatusAction } from "@/lib/domains/camp/actions";
@@ -103,12 +103,17 @@ export function CampInvitationList({
   // Optimistic update는 mutation의 onMutate에서 처리되므로
   // props로 받은 데이터를 그대로 사용 (상위 컴포넌트에서 useQuery 사용 시 자동 반영됨)
   const invitationsWithOptimistic = invitations;
-  
-  // 필터 변경 시 입력값 동기화 (모든 hooks는 early return 전에 선언되어야 함)
-  useEffect(() => {
+
+  // 필터 변경 시 입력값 동기화 (렌더 중 비교로 useEffect 대체)
+  const prevFiltersRef = useRef(filters);
+  if (
+    prevFiltersRef.current.search !== filters.search ||
+    prevFiltersRef.current.status !== filters.status
+  ) {
     setSearchInput(filters.search || "");
     setStatusInput(filters.status || "");
-  }, [filters]);
+    prevFiltersRef.current = filters;
+  }
   
   if (loading) {
     return <div className="text-sm text-gray-700">초대 목록을 불러오는 중...</div>;
