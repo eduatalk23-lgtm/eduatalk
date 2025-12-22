@@ -91,6 +91,7 @@ export function CampTemplateDetail({
   >(template.status);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [studentFormRefreshKey, setStudentFormRefreshKey] = useState(0);
 
   // 초대 목록 로드 (useCallback으로 메모이제이션)
   // toast는 Context에서 제공되는 안정적인 객체이므로 의존성에서 제외
@@ -180,6 +181,8 @@ export function CampTemplateDetail({
   const handleDeleteInvitations = useCallback((deletedCount: number) => {
     adjustPageAfterDeletion(deletedCount, invitationTotal);
     loadInvitations(invitationPage, invitationPageSize, invitationFilters);
+    // 학생 초대 폼의 목록도 갱신 (삭제된 학생이 다시 목록에 나타나도록)
+    setStudentFormRefreshKey((prev) => prev + 1);
   }, [adjustPageAfterDeletion, invitationTotal, invitationPage, invitationPageSize, invitationFilters, loadInvitations]);
   
   // 필터 변경 핸들러
@@ -698,6 +701,7 @@ export function CampTemplateDetail({
             templateId={template.id}
             templateStatus={template.status}
             onInvitationSent={handleInvitationSent}
+            refreshKey={studentFormRefreshKey}
           />
         </div>
       </div>

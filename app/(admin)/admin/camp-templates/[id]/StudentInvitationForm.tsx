@@ -13,9 +13,10 @@ type StudentInvitationFormProps = {
   templateId: string;
   templateStatus?: "draft" | "active" | "archived";
   onInvitationSent?: () => void;
+  refreshKey?: number;
 };
 
-export function StudentInvitationForm({ templateId, templateStatus, onInvitationSent }: StudentInvitationFormProps) {
+export function StudentInvitationForm({ templateId, templateStatus, onInvitationSent, refreshKey }: StudentInvitationFormProps) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [students, setStudents] = useState<Student[]>([]);
@@ -227,10 +228,10 @@ export function StudentInvitationForm({ templateId, templateStatus, onInvitation
     }
   }, [templateId, toast]);
 
-  // 초기 로드
+  // 초기 로드 및 refreshKey 변경 시 학생 목록 갱신
   useEffect(() => {
     loadStudents();
-  }, [loadStudents]);
+  }, [loadStudents, refreshKey]);
 
   // 검색 실행 함수 (debounce 포함)
   const performSearch = useCallback(async (query: string) => {
