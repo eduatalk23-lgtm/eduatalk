@@ -6,7 +6,9 @@ import { Dialog, DialogContent } from "@/components/ui/Dialog";
 import { useCampDatePlans } from "@/lib/hooks/useCampLearning";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { Badge } from "@/components/atoms/Badge";
-import { getContentTypeLabel } from "@/app/(student)/plan/_shared/utils/contentTypeUtils";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { getContentTypeLabel, getContentTypeIcon } from "@/app/(student)/plan/_shared/utils/contentTypeUtils";
+import { cn } from "@/lib/cn";
 
 type DatePlanDetailDialogProps = {
   open: boolean;
@@ -95,84 +97,129 @@ export function DatePlanDetailDialog({
           <div className="flex flex-col gap-4">
             {/* 플랜 목록 */}
             <div className="flex flex-col gap-3">
-              {planDetail.plans.map((plan) => (
-                <div
-                  key={plan.plan_id}
-                  className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
-                >
-                  {/* 학생 이름 및 상태 */}
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                      {plan.student_name}
-                    </h4>
-                    <Badge variant={getStatusBadgeVariant(plan.status)}>
-                      {STATUS_LABELS[plan.status]}
-                    </Badge>
-                  </div>
+              {planDetail.plans.map((plan) => {
+                const ContentTypeIcon = getContentTypeIcon(plan.content_type);
+                const progressValue = plan.progress ?? 0;
+                const isCompleted = plan.status === "completed";
+                const isInProgress = plan.status === "in_progress";
 
-                  {/* 플랜 정보 */}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        콘텐츠 유형
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {getContentTypeLabel(plan.content_type)}
-                      </p>
+                return (
+                  <div
+                    key={plan.plan_id}
+                    className={cn(
+                      "flex flex-col gap-4 rounded-lg border p-4 transition-base",
+                      isCompleted
+                        ? "border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-900/20"
+                        : isInProgress
+                        ? "border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+                    )}
+                  >
+                    {/* 학생 이름 및 상태 */}
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                        {plan.student_name}
+                      </h4>
+                      <Badge variant={getStatusBadgeVariant(plan.status)}>
+                        {STATUS_LABELS[plan.status]}
+                      </Badge>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        콘텐츠명
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {plan.content_title || "-"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        과목
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {plan.content_subject || "-"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        계획 범위
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {plan.planned_range}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        완료 범위
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {plan.completed_amount !== null
-                          ? `${plan.completed_amount}`
-                          : "-"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        진행률
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {plan.progress}%
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                        학습 시간
-                      </label>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {formatStudyTime(plan.study_minutes)}
-                      </p>
+
+                    {/* 콘텐츠 정보 섹션 */}
+                    <div className="flex flex-col gap-3">
+                      {/* 1행: 콘텐츠 유형 + 과목 */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <ContentTypeIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {getContentTypeLabel(plan.content_type)}
+                          </span>
+                        </div>
+                        {plan.content_subject && (
+                          <>
+                            <span className="text-gray-400 dark:text-gray-500">·</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {plan.content_subject}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* 2행: 콘텐츠명 */}
+                      {plan.content_title && (
+                        <div className="flex items-start gap-2">
+                          <h5 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex-1">
+                            {plan.content_title}
+                          </h5>
+                        </div>
+                      )}
+
+                      {/* 3행: 계획 범위 및 완료 범위 */}
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            계획 범위:
+                          </span>
+                          <span className="text-sm text-gray-900 dark:text-gray-100">
+                            {plan.planned_range}
+                          </span>
+                        </div>
+                        {plan.completed_amount !== null && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                              완료 범위:
+                            </span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {plan.completed_amount}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4행: 진행률 */}
+                      {plan.progress !== null && (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                              진행률
+                            </span>
+                            <span
+                              className={cn(
+                                "text-sm font-semibold",
+                                isCompleted
+                                  ? "text-green-600 dark:text-green-400"
+                                  : isInProgress
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-gray-600 dark:text-gray-400"
+                              )}
+                            >
+                              {plan.progress}%
+                            </span>
+                          </div>
+                          <div className="w-full">
+                            <ProgressBar
+                              value={progressValue}
+                              variant={isCompleted ? "success" : isInProgress ? "default" : undefined}
+                              color={isCompleted ? undefined : isInProgress ? "blue" : undefined}
+                              size="sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 5행: 학습 시간 */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          학습 시간:
+                        </span>
+                        <span className="text-sm text-gray-900 dark:text-gray-100">
+                          {formatStudyTime(plan.study_minutes)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* 통계 요약 */}
