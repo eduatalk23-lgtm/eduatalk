@@ -8,7 +8,7 @@
  */
 
 import type { AdjustmentInput } from './scheduleEngine';
-import type { RescheduleResult } from '@/app/(student)/actions/plan-groups/reschedule';
+import type { RescheduleResult } from '@/lib/domains/plan';
 
 // ============================================
 // 타입 정의

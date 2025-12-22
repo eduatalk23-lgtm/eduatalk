@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { rollbackReschedule } from "@/app/(student)/actions/plan-groups/rollback";
+import { rollbackReschedule } from "@/lib/domains/plan";
 import { validateRollback } from "@/lib/reschedule/rollbackValidator";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { useToast } from "@/components/ui/ToastProvider";

@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * Master Content Search Actions
+ *
+ * 마스터 콘텐츠 검색 및 학생 콘텐츠로 복사 (학생/관리자/컨설턴트 공용)
+ */
+
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
@@ -45,9 +51,9 @@ async function _searchContentMasters(
       offset: filters.offset,
     });
     return {
-      data: result.data.map((book) => ({ 
-        ...book, 
-        content_type: "book" as const, 
+      data: result.data.map((book) => ({
+        ...book,
+        content_type: "book" as const,
         semester: null,
         subject_category: book.subject_category ?? null,
         subject: book.subject ?? null,
@@ -68,9 +74,9 @@ async function _searchContentMasters(
       offset: filters.offset,
     });
     return {
-      data: result.data.map((lecture) => ({ 
-        ...lecture, 
-        content_type: "lecture" as const, 
+      data: result.data.map((lecture) => ({
+        ...lecture,
+        content_type: "lecture" as const,
         semester: null,
         subject_category: lecture.subject_category ?? null,
         subject: lecture.subject ?? null,
@@ -107,15 +113,15 @@ async function _searchContentMasters(
     ]);
     return {
       data: [
-        ...booksResult.data.map((book) => ({ 
-          ...book, 
+        ...booksResult.data.map((book) => ({
+          ...book,
           content_type: "book" as const,
           semester: null,
           subject_category: book.subject_category ?? null,
           subject: book.subject ?? null,
         })),
-        ...lecturesResult.data.map((lecture) => ({ 
-          ...lecture, 
+        ...lecturesResult.data.map((lecture) => ({
+          ...lecture,
           content_type: "lecture" as const,
           semester: null,
           subject_category: lecture.subject_category ?? null,
@@ -222,4 +228,3 @@ async function _getSemesterList(): Promise<string[]> {
 }
 
 export const getSemesterListAction = withErrorHandling(_getSemesterList);
-

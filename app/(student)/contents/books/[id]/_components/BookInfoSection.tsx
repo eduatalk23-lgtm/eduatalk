@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateBook } from "@/app/(student)/actions/contentActions";
+import { updateBook } from "@/lib/domains/content";
 import { Book } from "@/app/types/content";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";
 import { ContentDetailTable } from "@/app/(student)/contents/_components/ContentDetailTable";

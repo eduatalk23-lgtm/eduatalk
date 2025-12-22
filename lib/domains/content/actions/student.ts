@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * Student Content Actions
+ *
+ * 학생 콘텐츠(교재, 강의, 커스텀) CRUD 작업
+ */
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -17,7 +23,6 @@ import {
 } from "@/lib/data/studentContents";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { getNumberFromFormData } from "@/lib/utils/formDataHelpers";
-import type { Lecture } from "@/lib/types/lecture";
 
 // 책 등록
 export async function addBook(formData: FormData) {
@@ -68,7 +73,7 @@ export async function addBook(formData: FormData) {
     try {
       const { createSupabaseServerClient } = await import("@/lib/supabase/server");
       const supabase = await createSupabaseServerClient();
-      
+
       const details = JSON.parse(detailsJson) as Array<{
         major_unit?: string | null;
         minor_unit?: string | null;
@@ -121,18 +126,18 @@ export async function createBookWithoutRedirect(formData: FormData) {
   const subject = String(formData.get("subject") || "");
   const publisher = String(formData.get("publisher") || "");
   const difficulty = String(formData.get("difficulty") || "");
-  
+
   let totalPages: number | null;
   try {
     totalPages = getNumberFromFormData(formData, "total_pages", { min: 1 });
   } catch (error) {
-    return { 
-      success: false as const, 
-      error: error instanceof Error ? error.message : "총 페이지는 1 이상의 숫자여야 합니다.", 
-      bookId: null 
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "총 페이지는 1 이상의 숫자여야 합니다.",
+      bookId: null
     };
   }
-  
+
   const notes = String(formData.get("notes") || "");
   const coverImageUrl = String(formData.get("cover_image_url") || "");
 
@@ -165,7 +170,7 @@ export async function createBookWithoutRedirect(formData: FormData) {
     try {
       const { createSupabaseServerClient } = await import("@/lib/supabase/server");
       const supabase = await createSupabaseServerClient();
-      
+
       const details = JSON.parse(detailsJson) as Array<{
         major_unit?: string | null;
         minor_unit?: string | null;
@@ -235,7 +240,7 @@ export async function updateBook(id: string, formData: FormData) {
 
   revalidatePath("/contents");
   revalidatePath(`/contents/books/${id}`);
-  
+
   // redirect는 클라이언트 컴포넌트에서 처리
   // form action으로 직접 사용하는 경우를 위해 남겨둠
   return { success: true };
@@ -298,9 +303,8 @@ export async function addLecture(formData: FormData) {
   const duration = getNumberFromFormData(formData, "duration", { min: 0 });
   const notes = String(formData.get("notes") || "");
 
-  const totalEpisodes = getNumberFromFormData(formData, "total_episodes", { min: 0 });
   const linkedBookId = String(formData.get("linked_book_id") || "");
-  
+
   const result = await createLectureData({
     tenant_id: tenantContext.tenantId,
     student_id: user.userId,
@@ -326,7 +330,7 @@ export async function addLecture(formData: FormData) {
     try {
       const { createSupabaseServerClient } = await import("@/lib/supabase/server");
       const supabase = await createSupabaseServerClient();
-      
+
       const episodes = JSON.parse(episodesJson) as Array<{
         episode_number: number;
         episode_title?: string | null;
@@ -396,7 +400,7 @@ export async function updateLecture(id: string, formData: FormData) {
 
   revalidatePath("/contents");
   revalidatePath(`/contents/lectures/${id}`);
-  
+
   // redirect는 클라이언트 컴포넌트에서 처리
   return { success: true };
 }
@@ -451,7 +455,6 @@ export async function addCustomContent(formData: FormData) {
   const title = String(formData.get("title"));
   const type = String(formData.get("content_type"));
   const total = getNumberFromFormData(formData, "total", { min: 0 });
-  const difficulty = String(formData.get("difficulty") || "");
   const subject = String(formData.get("subject") || "");
 
   const result = await createCustomContentData({
@@ -480,7 +483,6 @@ export async function updateCustomContent(id: string, formData: FormData) {
   const title = String(formData.get("title"));
   const type = String(formData.get("content_type"));
   const total = getNumberFromFormData(formData, "total", { min: 0 });
-  const difficulty = String(formData.get("difficulty") || "");
   const subject = String(formData.get("subject") || "");
 
   const result = await updateCustomContentData(id, user.userId, {
@@ -496,7 +498,7 @@ export async function updateCustomContent(id: string, formData: FormData) {
 
   revalidatePath("/contents");
   revalidatePath(`/contents/custom/${id}`);
-  
+
   // redirect는 클라이언트 컴포넌트에서 처리
   return { success: true };
 }
@@ -565,7 +567,7 @@ export async function deleteBooks(ids: string[]) {
   );
 
   const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success));
-  
+
   if (failed.length > 0) {
     throw new Error(`${failed.length}개의 책 삭제에 실패했습니다.`);
   }
@@ -603,11 +605,10 @@ export async function deleteLectures(ids: string[]) {
   );
 
   const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success));
-  
+
   if (failed.length > 0) {
     throw new Error(`${failed.length}개의 강의 삭제에 실패했습니다.`);
   }
 
   revalidatePath("/contents");
 }
-

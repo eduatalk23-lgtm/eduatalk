@@ -23,14 +23,14 @@ import {
 } from "@/lib/data/studentScores";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
-import * as service from "./service";
+import * as service from "../service";
 import { getFormString, getFormInt, getFormUuid } from "@/lib/utils/formDataHelpers";
 import type {
   InternalScore,
   MockScore,
   GetMockScoresFilter,
   ScoreActionResult,
-} from "./types";
+} from "../types";
 
 // ============================================
 // 내신 성적 Actions

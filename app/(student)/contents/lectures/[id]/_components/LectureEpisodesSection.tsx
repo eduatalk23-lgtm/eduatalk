@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LectureEpisodesDisplay } from "@/app/(student)/contents/_components/LectureEpisodesDisplay";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
-import { saveLectureEpisodesAction } from "@/app/(student)/actions/contentDetailsActions";
+import { saveLectureEpisodesAction } from "@/lib/domains/content";
 import { LectureEpisode } from "@/lib/types/plan";
 
 type LectureEpisodesSectionProps = {

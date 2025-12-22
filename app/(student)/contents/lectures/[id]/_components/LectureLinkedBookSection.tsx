@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { updateLecture, createBookWithoutRedirect } from "@/app/(student)/actions/contentActions";
+import { updateLecture, createBookWithoutRedirect } from "@/lib/domains/content";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { BookDetail } from "@/lib/types/plan";
 

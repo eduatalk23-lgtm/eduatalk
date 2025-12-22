@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookDetailsDisplay } from "@/app/(student)/contents/_components/BookDetailsDisplay";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
-import { saveBookDetailsAction } from "@/app/(student)/actions/contentDetailsActions";
+import { saveBookDetailsAction } from "@/lib/domains/content";
 import { BookDetail } from "@/lib/types/plan";
 
 type BookDetailsSectionProps = {

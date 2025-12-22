@@ -8,7 +8,7 @@ import {
   deleteBook,
   deleteLecture,
   deleteCustomContent,
-} from "@/app/(student)/actions/contentActions";
+} from "@/lib/domains/content";
 import type { ContentListItem } from "./ContentsList";
 
 type TabKey = "books" | "lectures" | "custom";

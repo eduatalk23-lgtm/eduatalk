@@ -14,7 +14,7 @@ import { AppError, ErrorCode } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { recordHistory } from "@/lib/history/record";
 import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
-import * as service from "./service";
+import * as service from "../service";
 import type {
   PlanGroupCreateResult,
   PlanGroupUpdateResult,
@@ -25,7 +25,7 @@ import type {
   StudentPlanUpdate,
   PlanExclusionInsert,
   PlanContentInsert,
-} from "./types";
+} from "../types";
 // 도메인 타입은 service와 동일한 소스에서 import (타입 호환성 유지)
 import type {
   PlanGroup,

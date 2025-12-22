@@ -61,3 +61,10 @@ export {
   getReschedulePreviewForAdmin,
   rescheduleContentsForAdmin,
 } from "./reschedule";
+
+// Student Actions
+export {
+  getStudentCampInvitations,
+  getCampInvitationWithTemplate,
+  submitCampParticipation,
+} from "./student";

@@ -5,7 +5,7 @@ import { SelectedContent, ContentRange } from "@/lib/types/content-selection";
 import { ContentMaster } from "@/lib/types/plan";
 import { ContentCard } from "./ContentCard";
 import { RangeSettingModal } from "./RangeSettingModal";
-import { searchContentMastersAction } from "@/app/(student)/actions/contentMasterActions";
+import { searchContentMastersAction } from "@/lib/domains/content";
 import { Package, Search, BookOpen, Headphones } from "lucide-react";
 import { cn } from "@/lib/cn";
 

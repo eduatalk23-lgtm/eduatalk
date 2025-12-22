@@ -1,8 +1,9 @@
 "use server";
 
 /**
- * 학생 콘텐츠의 master_content_id 조회 서버 액션
- * 중복 방지를 위해 사용
+ * Student Content Master IDs Action
+ *
+ * 학생 콘텐츠의 master_content_id 조회 (중복 방지용)
  * Admin/Consultant도 다른 학생의 콘텐츠를 조회할 수 있도록 지원
  */
 
@@ -126,4 +127,3 @@ export async function getStudentContentMasterIdsAction(
     };
   }
 }
-

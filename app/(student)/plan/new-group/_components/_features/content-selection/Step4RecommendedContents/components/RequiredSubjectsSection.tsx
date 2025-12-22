@@ -8,7 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import RequiredSubjectItem from "./RequiredSubjectItem";
-import { getCurriculumRevisionsAction, getSubjectGroupsAction } from "@/app/(student)/actions/contentMetadataActions";
+import { getCurriculumRevisionsAction, getSubjectGroupsAction } from "@/lib/domains/content";
 import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";

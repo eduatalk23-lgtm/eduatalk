@@ -7,7 +7,7 @@ import {
   createMasterBookWithoutRedirect,
   searchMasterBooksAction,
   getMasterBookByIdAction,
-} from "@/app/(student)/actions/masterContentActions";
+} from "@/lib/domains/content";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { BookDetail } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";

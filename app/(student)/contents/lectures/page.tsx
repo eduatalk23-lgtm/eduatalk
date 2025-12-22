@@ -1,7 +1,7 @@
 // app/contents/lectures/page.tsx
 
 import Link from "next/link";
-import { addLecture } from "@/app/(student)/actions/contentActions";
+import { addLecture } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getContainerClass } from "@/lib/constants/layout";

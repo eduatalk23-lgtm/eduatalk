@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * Master Content Admin Actions
+ *
+ * 마스터 콘텐츠 CRUD (관리자/컨설턴트 전용)
+ */
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -11,8 +17,6 @@ import {
   createMasterLecture,
   updateMasterLecture,
   createBookDetail,
-  updateBookDetail,
-  deleteBookDetail,
   createLectureEpisode,
   deleteAllLectureEpisodes,
   getMasterBooksList,
@@ -21,9 +25,6 @@ import {
 } from "@/lib/data/contentMasters";
 import {
   MasterBook,
-  MasterLecture,
-  BookDetail,
-  LectureEpisode,
 } from "@/lib/types/plan";
 import { minutesToSeconds } from "@/lib/utils/duration";
 import {

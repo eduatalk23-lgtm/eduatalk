@@ -1,16 +1,21 @@
 "use server";
 
+/**
+ * Content Recommendations Actions
+ *
+ * 추천 마스터 콘텐츠 조회
+ */
+
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRecommendedMasterContents, RecommendedMasterContent } from "@/lib/recommendations/masterContentRecommendation";
 
 /**
  * 추천 마스터 콘텐츠 조회 액션
- * 
+ *
  * 학생 ID와 과목별 개수를 기반으로 추천 콘텐츠를 반환합니다.
  * RecommendedMasterContent를 그대로 반환합니다 (contentType 포함).
  */
-
 export async function getRecommendedMasterContentsAction(
   studentId: string | undefined,
   subjects: string[],
@@ -39,7 +44,7 @@ export async function getRecommendedMasterContentsAction(
 
     // Supabase 클라이언트 생성
     const supabase = await createSupabaseServerClient();
-    
+
     // 학생 정보 조회 (tenant_id 필요)
     const { data: student, error: studentError } = await supabase
       .from("students")
@@ -103,4 +108,3 @@ export async function getRecommendedMasterContentsAction(
     };
   }
 }
-

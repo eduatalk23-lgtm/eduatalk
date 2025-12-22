@@ -8,7 +8,7 @@ import {
   deleteBook,
   deleteLecture,
   deleteCustomContent,
-} from "@/app/(student)/actions/contentActions";
+} from "@/lib/domains/content";
 import { ContentsListClient } from "./ContentsListClient";
 import { EmptyState } from "@/components/molecules/EmptyState";
 

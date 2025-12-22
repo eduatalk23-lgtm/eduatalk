@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useTransition, ReactNode, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { deleteBooks, deleteLectures, deleteCustomContent } from "@/app/(student)/actions/contentActions";
+import { deleteBooks, deleteLectures, deleteCustomContent } from "@/lib/domains/content";
 
 type TabKey = "books" | "lectures" | "custom";
 

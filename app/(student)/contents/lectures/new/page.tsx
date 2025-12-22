@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addLecture } from "@/app/(student)/actions/contentActions";
+import { addLecture } from "@/lib/domains/content";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import {
   getCurriculumRevisionsAction,
   getPlatformsAction,
   getStudentBooksAction,
-} from "@/app/(student)/actions/contentMetadataActions";
-import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/app/(student)/actions/contentMetadataActions";
+} from "@/lib/domains/content";
+import { getSubjectGroupsAction, getSubjectsByGroupAction } from "@/lib/domains/content";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";

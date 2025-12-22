@@ -8,7 +8,7 @@
 
 import { useMemo } from "react";
 import { format } from "date-fns";
-import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
+import type { ReschedulePreviewResult } from "@/lib/domains/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 
 type BeforeAfterComparisonProps = {

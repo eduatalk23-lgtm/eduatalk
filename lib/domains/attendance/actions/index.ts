@@ -1,10 +1,10 @@
 /**
  * Attendance Domain Actions
  *
- * Admin-facing Server Actions for attendance management.
+ * Server Actions for attendance management.
  */
 
-// Attendance CRUD
+// Admin Attendance CRUD
 export {
   recordAttendanceAction,
   getAttendanceRecordsAction,
@@ -39,3 +39,14 @@ export {
   type SMSLog,
   getAttendanceSMSLogs,
 } from "./smsLogs";
+
+// Student Actions
+export {
+  checkInWithQRCode,
+  checkInWithLocation,
+  checkOutWithQRCode,
+  checkOutWithLocation,
+  checkOut,
+  getTodayAttendance,
+  getTodayAttendanceSMSStatus,
+} from "./student";

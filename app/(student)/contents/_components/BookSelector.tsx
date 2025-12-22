@@ -1,6 +1,6 @@
 "use client";
 
-import { createBookWithoutRedirect } from "@/app/(student)/actions/contentActions";
+import { createBookWithoutRedirect } from "@/lib/domains/content";
 import { BaseBookSelector } from "@/components/forms/BaseBookSelector";
 
 type BookSelectorProps = {

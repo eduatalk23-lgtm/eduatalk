@@ -673,7 +673,7 @@ export async function sendPasswordResetEmail(email: string): Promise<AuthResult>
 }
 
 /**
- * 비밀번호 업데이트
+ * 비밀번호 업데이트 (비밀번호 재설정 플로우 - 이메일 링크 클릭 후)
  */
 export async function updatePassword(newPassword: string): Promise<AuthResult> {
   try {
@@ -704,6 +704,45 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
       error: error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.",
     };
   }
+}
+
+/**
+ * 비밀번호 변경 (마이페이지 - 현재 비밀번호 확인 후)
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  // 현재 비밀번호 확인
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email!,
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return { success: false, error: "현재 비밀번호가 올바르지 않습니다." };
+  }
+
+  // 새 비밀번호로 변경
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (updateError) {
+    console.error("[auth] 비밀번호 변경 실패:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  return { success: true };
 }
 
 /**

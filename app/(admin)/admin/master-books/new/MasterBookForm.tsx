@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { addMasterBook } from "@/app/(student)/actions/masterContentActions";
+import { addMasterBook } from "@/lib/domains/content";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import { useSubjectSelection } from "@/lib/hooks/useSubjectSelection";
 import { SubjectSelectionFields } from "@/components/forms/SubjectSelectionFields";

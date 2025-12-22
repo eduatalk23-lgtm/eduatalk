@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { addMasterLecture } from "@/app/(student)/actions/masterContentActions";
+import { addMasterLecture } from "@/lib/domains/content";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import FormField, { FormSelect } from "@/components/molecules/FormField";

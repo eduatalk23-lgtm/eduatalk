@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addBook } from "@/app/(student)/actions/contentActions";
+import { addBook } from "@/lib/domains/content";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";

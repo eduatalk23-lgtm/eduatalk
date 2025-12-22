@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { deleteBook } from "@/app/(student)/actions/contentActions";
+import { deleteBook } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Book } from "@/app/types/content";
 import { BookDetailTabs } from "./_components/BookDetailTabs";

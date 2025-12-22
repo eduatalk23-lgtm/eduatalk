@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateBook } from "@/app/(student)/actions/contentActions";
+import { updateBook } from "@/lib/domains/content";
 import { Book } from "@/app/types/content";
 import FormField from "@/components/molecules/FormField";
 import { DifficultySelectField } from "@/components/forms/DifficultySelectField";

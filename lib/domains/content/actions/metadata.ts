@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * Content Metadata Actions
+ *
+ * 개정교육과정, 플랫폼, 출판사, 교과 그룹 등 메타데이터 조회
+ */
+
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import {
   getCurriculumRevisions,
@@ -99,7 +105,7 @@ async function _getStudentBooks(): Promise<Array<{ id: string; title: string }>>
 
   const tenantContext = await getTenantContext();
   const books = await getBooks(user.userId, tenantContext?.tenantId || null);
-  
+
   return books.map((book) => ({
     id: book.id,
     title: book.title,
@@ -107,4 +113,3 @@ async function _getStudentBooks(): Promise<Array<{ id: string; title: string }>>
 }
 
 export const getStudentBooksAction = withErrorHandling(_getStudentBooks);
-

@@ -1,5 +1,11 @@
 "use server";
 
+/**
+ * Content Details Actions
+ *
+ * 교재 세부정보/강의 회차 정보 저장
+ */
+
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -170,4 +176,3 @@ async function _saveLectureEpisodes(
 }
 
 export const saveLectureEpisodesAction = withErrorHandling(_saveLectureEpisodes);
-

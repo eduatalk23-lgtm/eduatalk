@@ -7,7 +7,7 @@
  * @module lib/reschedule/previewCache
  */
 
-import type { ReschedulePreviewResult } from '@/app/(student)/actions/plan-groups/reschedule';
+import type { ReschedulePreviewResult } from '@/lib/domains/plan';
 import type { AdjustmentInput } from './scheduleEngine';
 
 // ============================================

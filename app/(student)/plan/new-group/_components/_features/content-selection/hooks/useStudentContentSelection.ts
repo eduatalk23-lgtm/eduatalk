@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { ContentDetailData, BookDetail, LectureEpisode } from "../types";
-import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
-import { getStudentContentMasterIdsAction } from "@/app/(student)/actions/getStudentContentMasterIds";
+import { fetchContentMetadataAction } from "@/lib/domains/content";
+import { getStudentContentMasterIdsAction } from "@/lib/domains/content";
 import {
   toPlanGroupError,
   PlanGroupErrorCodes,

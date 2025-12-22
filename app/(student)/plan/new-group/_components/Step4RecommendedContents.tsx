@@ -8,12 +8,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { WizardData } from "./PlanGroupWizard";
 import { ContentSelectionProgress } from "./_components/ContentSelectionProgress";
-import { fetchDetailSubjects } from "@/app/(student)/actions/fetchDetailSubjects";
+import { fetchDetailSubjects } from "@/lib/domains/content";
 import {
   getCurriculumRevisionsAction,
   getSubjectGroupsAction,
   getSubjectsByGroupAction,
-} from "@/app/(student)/actions/contentMetadataActions";
+} from "@/lib/domains/content";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurriculumRevisions } from "@/lib/data/contentMetadata";
-import { getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
+import { getMasterBooksListAction } from "@/lib/domains/content";
 import { getContainerClass } from "@/lib/constants/layout";
 import { MasterLectureForm } from "./MasterLectureForm";
 

@@ -14,7 +14,7 @@ import {
   getContentType,
   type ContentType,
 } from "@/lib/utils/contentDetailsUtils";
-import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
+import { fetchContentMetadataAction } from "@/lib/domains/content";
 import { toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 
 /**

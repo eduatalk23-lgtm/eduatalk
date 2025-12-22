@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateMasterBookAction } from "@/app/(student)/actions/masterContentActions";
+import { updateMasterBookAction } from "@/lib/domains/content";
 import { getSubjectGroupsWithSubjectsAction } from "@/lib/domains/subject";
 import { MasterBook, BookDetail } from "@/lib/types/plan";
 import { BookDetailsManager } from "@/app/(student)/contents/_components/BookDetailsManager";

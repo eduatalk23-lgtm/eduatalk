@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { SelectedContent, RecommendedContent, ContentMetadata } from "@/lib/types/content-selection";
 import { ContentCard } from "./ContentCard";
-import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
+import { fetchContentMetadataAction } from "@/lib/domains/content";
 
 type UnifiedContentsViewProps = {
   studentContents: SelectedContent[];

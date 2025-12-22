@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateLecture } from "@/app/(student)/actions/contentActions";
+import { updateLecture } from "@/lib/domains/content";
 import { Lecture } from "@/app/types/content";
 import { MasterLecture } from "@/lib/types/plan";
 import { ContentHeader } from "@/app/(student)/contents/_components/ContentHeader";

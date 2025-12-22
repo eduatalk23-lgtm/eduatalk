@@ -10,7 +10,7 @@ import {
 import { ContentCard } from "./ContentCard";
 import { ContentSelector } from "./ContentSelector";
 import { RangeSettingModal } from "./RangeSettingModal";
-import { fetchContentMetadataAction } from "@/app/(student)/actions/fetchContentMetadata";
+import { fetchContentMetadataAction } from "@/lib/domains/content";
 
 /**
  * StudentContentsPanel - 학생 콘텐츠 선택 패널

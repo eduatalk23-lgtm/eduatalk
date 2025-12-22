@@ -3,7 +3,7 @@ import {
   getCurriculumRevisionsAction,
   getSubjectGroupsAction,
   getSubjectsByGroupAction,
-} from "@/app/(student)/actions/contentMetadataActions";
+} from "@/lib/domains/content";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";
 

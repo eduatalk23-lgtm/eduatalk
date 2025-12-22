@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { copyMasterToStudentContentAction } from "@/app/(student)/actions/contentMasterActions";
+import { copyMasterToStudentContentAction } from "@/lib/domains/content";
 
 type CopyMasterLectureButtonProps = {
   masterLectureId: string;

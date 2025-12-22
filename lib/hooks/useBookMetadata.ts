@@ -6,7 +6,7 @@ import {
   getPublishersAction,
   getSubjectGroupsAction,
   getSubjectsByGroupAction,
-} from "@/app/(student)/actions/contentMetadataActions";
+} from "@/lib/domains/content";
 import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 
 type UseBookMetadataReturn = {

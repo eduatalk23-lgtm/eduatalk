@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { getMasterBooksListAction } from "@/app/(student)/actions/masterContentActions";
+import { getMasterBooksListAction } from "@/lib/domains/content";
 
 /**
  * 마스터 교재 목록 새로고침을 위한 커스텀 훅

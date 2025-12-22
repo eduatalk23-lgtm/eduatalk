@@ -182,7 +182,7 @@ export function useRecommendations({
     if (studentContentsWithoutMasterId.length > 0) {
       try {
         const { getStudentContentMasterIdsAction } = await import(
-          "@/app/(student)/actions/getStudentContentMasterIds"
+          "@/lib/domains/content"
         );
         // studentId가 있으면 전달 (템플릿 모드에서는 studentId가 없을 수 있음)
         const masterIdResult = await getStudentContentMasterIdsAction(

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTransition, useState } from "react";
-import { updateMasterLectureAction } from "@/app/(student)/actions/masterContentActions";
+import { updateMasterLectureAction } from "@/lib/domains/content";
 import { getSubjectGroupsWithSubjectsAction } from "@/lib/domains/subject";
 import { MasterLecture, LectureEpisode } from "@/lib/types/plan";
 import { LectureEpisodesManager } from "@/app/(student)/contents/_components/LectureEpisodesManager";

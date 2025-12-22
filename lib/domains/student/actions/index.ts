@@ -1,7 +1,7 @@
 /**
  * Student Domain Actions
  *
- * Admin-facing Server Actions for student management.
+ * Admin-facing and Student-facing Server Actions for student management.
  */
 
 // ============================================
@@ -26,7 +26,7 @@ export {
 } from "./divisions";
 
 // ============================================
-// Student Management (학생 관리)
+// Student Management (학생 관리 - Admin)
 // ============================================
 
 export {
@@ -70,3 +70,25 @@ export {
   addConsultingNote,
   deleteConsultingNote,
 } from "./consulting";
+
+// ============================================
+// Student Profile (학생 프로필 - Student)
+// ============================================
+
+export {
+  saveStudentInfo,
+  updateStudentProfile,
+  getCurrentStudent,
+} from "./profile";
+
+// ============================================
+// Study Sessions (학습 세션 - Student)
+// ============================================
+
+export {
+  startStudySession,
+  endStudySession,
+  cancelStudySession,
+  pauseStudySession,
+  resumeStudySession,
+} from "./sessions";

@@ -14,7 +14,7 @@ import { AdjustmentStep } from "@/app/(student)/plan/group/[id]/reschedule/_comp
 import { AdminPreviewStep } from "./AdminPreviewStep";
 import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
-import type { ReschedulePreviewResult } from "@/app/(student)/actions/plan-groups/reschedule";
+import type { ReschedulePreviewResult } from "@/lib/domains/plan";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type AdminRescheduleWizardProps = {

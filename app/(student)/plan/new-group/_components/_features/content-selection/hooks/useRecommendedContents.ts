@@ -3,7 +3,7 @@ import type {
   RecommendedContent,
   RecommendationSettings,
 } from "@/lib/types/content-selection";
-import { getRecommendedMasterContentsAction } from "@/app/(student)/actions/getRecommendedMasterContents";
+import { getRecommendedMasterContentsAction } from "@/lib/domains/content";
 import {
   transformRecommendations,
   hasScoreDataInRecommendations,

@@ -8,7 +8,7 @@ import {
   createLogicalPlan,
   updateLogicalPlan,
   deleteLogicalPlan,
-} from "@/app/(student)/actions/plan-groups/items";
+} from "@/lib/domains/plan";
 
 type LogicalPlanListProps = {
   planGroupId: string;

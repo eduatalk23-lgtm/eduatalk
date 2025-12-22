@@ -1,7 +1,7 @@
 // app/contents/books/page.tsx
 
 import Link from "next/link";
-import { addBook } from "@/app/(student)/actions/contentActions";
+import { addBook } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getContainerClass } from "@/lib/constants/layout";

@@ -9,9 +9,9 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { History, TrendingUp, AlertCircle, CheckCircle, XCircle, RotateCcw } from "lucide-react";
-import { getRescheduleHistory } from "@/app/(student)/actions/plan-groups/rescheduleHistory";
+import { getRescheduleHistory } from "@/lib/domains/plan";
 import { analyzeReschedulePatterns, analyzeRescheduleEffects } from "@/lib/reschedule/patternAnalyzer";
-import type { RescheduleHistoryResult } from "@/app/(student)/actions/plan-groups/rescheduleHistory";
+import type { RescheduleHistoryResult } from "@/lib/domains/plan";
 import type { ReschedulePatternAnalysis, RescheduleEffectAnalysis } from "@/lib/reschedule/patternAnalyzer";
 
 type RescheduleHistoryProps = {

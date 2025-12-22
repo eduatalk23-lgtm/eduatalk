@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
-import { searchContentMastersAction, copyMasterToStudentContentAction } from "@/app/(student)/actions/contentMasterActions";
+import { searchContentMastersAction, copyMasterToStudentContentAction } from "@/lib/domains/content";
 import { ContentMaster } from "@/lib/types/plan";
 import { Dialog, DialogContent } from "@/components/ui/Dialog";
 

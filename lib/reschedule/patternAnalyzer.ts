@@ -6,7 +6,7 @@
  * @module lib/reschedule/patternAnalyzer
  */
 
-import type { RescheduleLogItem } from "@/app/(student)/actions/plan-groups/rescheduleHistory";
+import type { RescheduleLogItem } from "@/lib/domains/plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { analyzeDelay } from "./delayDetector";
 import type { Plan } from "@/lib/data/studentPlans";

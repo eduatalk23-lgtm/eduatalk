@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateLecture } from "@/app/(student)/actions/contentActions";
-import { getStudentBooksAction } from "@/app/(student)/actions/contentMetadataActions";
+import { updateLecture } from "@/lib/domains/content";
+import { getStudentBooksAction } from "@/lib/domains/content";
 import { Lecture } from "@/app/types/content";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import { useToast } from "@/components/ui/ToastProvider";
