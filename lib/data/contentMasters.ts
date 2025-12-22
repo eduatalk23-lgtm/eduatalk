@@ -2372,17 +2372,90 @@ export async function getStudentLectureEpisodesBatch(
     }
   );
 
-  // 조회 결과가 없는 lectureId들도 빈 배열로 초기화
-  lectureIds.forEach((lectureId) => {
-    if (!resultMap.has(lectureId)) {
-      resultMap.set(lectureId, []);
+  // 조회 결과가 없는 lectureId들 확인
+  const emptyLectureIds = lectureIds.filter(
+    (lectureId) =>
+      !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
+  );
+
+  // 마스터 콘텐츠 fallback: student_lecture_episodes에 없는 경우 마스터 강의에서 조회
+  if (emptyLectureIds.length > 0) {
+    // 학생 강의의 master_lecture_id 조회
+    const { data: studentLectures } = await supabase
+      .from("lectures")
+      .select("id, master_lecture_id")
+      .in("id", emptyLectureIds)
+      .eq("student_id", studentId);
+
+    const masterLectureIds = Array.from(
+      new Set(
+        (studentLectures || [])
+          .map((l) => l.master_lecture_id)
+          .filter((id): id is string => id !== null)
+      )
+    );
+
+    if (masterLectureIds.length > 0) {
+      // 마스터 강의의 episodes 조회
+      const { data: masterEpisodesData, error: masterError } = await supabase
+        .from("lecture_episodes")
+        .select("id, lecture_id, episode_number, episode_title, duration")
+        .in("lecture_id", masterLectureIds)
+        .order("lecture_id", { ascending: true })
+        .order("episode_number", { ascending: true });
+
+      if (masterError) {
+        console.error(
+          "[data/contentMasters] 마스터 강의 episode fallback 조회 실패",
+          {
+            masterLectureIds,
+            error: masterError.message,
+            code: masterError.code,
+          }
+        );
+      } else if (masterEpisodesData && masterEpisodesData.length > 0) {
+        // 마스터 강의 ID를 학생 강의 ID로 매핑
+        const masterToStudentMap = new Map<string, string[]>();
+        (studentLectures || []).forEach((l) => {
+          if (l.master_lecture_id) {
+            if (!masterToStudentMap.has(l.master_lecture_id)) {
+              masterToStudentMap.set(l.master_lecture_id, []);
+            }
+            masterToStudentMap.get(l.master_lecture_id)!.push(l.id);
+          }
+        });
+
+        // 마스터 episodes를 학생 강의 ID로 매핑하여 resultMap에 추가
+        masterEpisodesData.forEach((ep) => {
+          const studentLectureIds =
+            masterToStudentMap.get(ep.lecture_id) || [];
+          studentLectureIds.forEach((studentLectureId) => {
+            if (!resultMap.has(studentLectureId)) {
+              resultMap.set(studentLectureId, []);
+            }
+            resultMap.get(studentLectureId)!.push({
+              id: ep.id,
+              episode_number: ep.episode_number,
+              episode_title: ep.episode_title,
+              duration: ep.duration,
+            });
+          });
+        });
+      }
     }
-  });
+
+    // 여전히 조회 결과가 없는 lectureId들은 빈 배열로 초기화
+    lectureIds.forEach((lectureId) => {
+      if (!resultMap.has(lectureId)) {
+        resultMap.set(lectureId, []);
+      }
+    });
+  }
 
   // 성능 로깅 (개발 환경에서만) - resultMap 생성 후 실행
   if (process.env.NODE_ENV === "development") {
     const resultCount = data?.length || 0;
-    const emptyLectureIds = lectureIds.filter(
+    const finalEmptyLectureIds = lectureIds.filter(
       (lectureId) =>
         !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
     );
@@ -2395,17 +2468,19 @@ export async function getStudentLectureEpisodesBatch(
         lectureIds.length > 0
           ? `${(queryTime / lectureIds.length).toFixed(2)}ms`
           : "N/A",
-      emptyLectureCount: emptyLectureIds.length,
-      emptyLectureIds: emptyLectureIds.length > 0 ? emptyLectureIds : undefined,
+      emptyLectureCount: finalEmptyLectureIds.length,
+      emptyLectureIds:
+        finalEmptyLectureIds.length > 0 ? finalEmptyLectureIds : undefined,
+      fallbackUsed: emptyLectureIds.length > 0,
     });
 
     // 회차가 없는 강의가 있는 경우 추가 로깅
-    if (emptyLectureIds.length > 0) {
+    if (finalEmptyLectureIds.length > 0) {
       console.debug("[getStudentLectureEpisodesBatch] 회차가 없는 강의:", {
-        count: emptyLectureIds.length,
-        lectureIds: emptyLectureIds,
+        count: finalEmptyLectureIds.length,
+        lectureIds: finalEmptyLectureIds,
         reason:
-          "student_lecture_episodes 테이블에 해당 강의의 회차 정보가 없습니다.",
+          "student_lecture_episodes 및 lecture_episodes 테이블 모두에 해당 강의의 회차 정보가 없습니다.",
       });
     }
   }

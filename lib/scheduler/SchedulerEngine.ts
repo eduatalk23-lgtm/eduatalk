@@ -1223,6 +1223,7 @@ export class SchedulerEngine {
               content_id: planInfo.content.content_id,
               planned_start_page_or_time: planInfo.start,
               planned_end_page_or_time: planInfo.end - 1, // Convert Exclusive to Inclusive for DB
+              chapter: planInfo.content.chapter || null, // ContentInfo의 chapter 정보 사용
               is_reschedulable: true,
               start_time: planStartTime,
               end_time: planEndTime,
@@ -1376,6 +1377,7 @@ export class SchedulerEngine {
           content_id: content.content_id,
           planned_start_page_or_time: range.startAmount,
           planned_end_page_or_time: range.endAmount - 1, // Convert Exclusive to Inclusive for DB
+          chapter: content.chapter || null, // ContentInfo의 chapter 정보 사용
           is_reschedulable: true,
           start_time: timeRange.start,
           end_time: timeRange.end,

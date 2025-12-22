@@ -19,6 +19,7 @@ import {
   resolveContentIds,
   loadContentDurations,
   loadContentMetadata,
+  loadContentChapters,
 } from "@/lib/plan/contentResolver";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
@@ -218,6 +219,14 @@ async function _previewPlansFromGroupRefactored(
       masterQueryClient
     );
 
+    // 7.5. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
+    const contentChapterMap = await loadContentChapters(
+      contents,
+      contentIdMap,
+      studentId,
+      queryClient
+    );
+
     // 8. dateAvailableTimeRanges 추출
     const dateAvailableTimeRanges = new Map<
       string,
@@ -249,7 +258,8 @@ async function _previewPlansFromGroupRefactored(
       undefined,
       dateAvailableTimeRanges,
       dateTimeSlots,
-      contentDurationMap
+      contentDurationMap,
+      contentChapterMap // chapter 정보 전달
     );
 
     // 10. 콘텐츠 메타데이터 조회 (새 모듈 사용)
