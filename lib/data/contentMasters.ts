@@ -2096,10 +2096,14 @@ export async function deleteAllLectureEpisodes(
 
 /**
  * 학생 교재의 상세 정보 조회 (student_book_details)
+ * @param bookId 교재 ID
+ * @param studentId 학생 ID (현재는 사용되지 않음)
+ * @param supabaseClient 선택적 Supabase 클라이언트 (관리자/컨설턴트의 경우 Admin 클라이언트 전달 가능)
  */
 export async function getStudentBookDetails(
   bookId: string,
-  studentId: string
+  studentId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<
   Array<{
     id: string;
@@ -2108,7 +2112,7 @@ export async function getStudentBookDetails(
     minor_unit: string | null;
   }>
 > {
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient || await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("student_book_details")
@@ -2134,16 +2138,18 @@ export async function getStudentBookDetails(
 /**
  * 학생 강의의 episode 정보 조회 (student_lecture_episodes)
  * @param lectureId 강의 ID
- * @param studentId 학생 ID
+ * @param studentId 학생 ID (현재는 사용되지 않음)
+ * @param supabaseClient 선택적 Supabase 클라이언트 (관리자/컨설턴트의 경우 Admin 클라이언트 전달 가능)
  * @returns Episode 정보 배열 (episode_title 필드 사용)
  */
 export async function getStudentLectureEpisodes(
   lectureId: string,
-  studentId: string
+  studentId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<
   Array<{ id: string; episode_number: number; episode_title: string | null }>
 > {
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient || await createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("student_lecture_episodes")

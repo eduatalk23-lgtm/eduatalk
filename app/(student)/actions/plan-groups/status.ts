@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { getPlanGroupById, updatePlanGroup } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import type { PlanStatus } from "@/lib/types/plan";
+import { verifyPlanGroupAccess, getStudentIdForPlanGroup, getSupabaseClientForStudent } from "@/lib/auth/planGroupAuth";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 
 /**
  * 플랜 그룹 상태 업데이트
@@ -15,10 +16,12 @@ async function _updatePlanGroupStatus(
   groupId: string,
   status: string
 ): Promise<void> {
-  const user = await requireStudentAuth();
+  // 권한 검증: 학생, 관리자, 컨설턴트 모두 허용
+  const access = await verifyPlanGroupAccess();
+  const tenantContext = await requireTenantContext();
 
-  // 기존 그룹 조회
-  const group = await getPlanGroupById(groupId, user.userId);
+  // 기존 그룹 조회 - 역할에 따라 조회
+  const group = await getPlanGroupById(groupId, access.user.userId);
   if (!group) {
     throw new AppError(
       "플랜 그룹을 찾을 수 없습니다.",
@@ -27,6 +30,9 @@ async function _updatePlanGroupStatus(
       true
     );
   }
+
+  // 실제 학생 ID 추출 (관리자가 다른 학생의 플랜을 업데이트할 때 필요)
+  const studentId = getStudentIdForPlanGroup(group, access.user.userId, access.role);
 
   // 상태 전이 검증
   const statusValidation = PlanValidator.validateStatusTransition(
@@ -42,7 +48,12 @@ async function _updatePlanGroupStatus(
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  // 관리자/컨설턴트가 다른 학생의 플랜 그룹을 업데이트할 때는 Admin 클라이언트 사용
+  const supabase = await getSupabaseClientForStudent(
+    studentId,
+    access.user.userId,
+    access.role
+  );
 
   // 활성화 시 같은 모드의 다른 활성 플랜 그룹만 비활성화
   // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
@@ -57,7 +68,7 @@ async function _updatePlanGroupStatus(
     const query = supabase
       .from("plan_groups")
       .select("id, plan_type, camp_template_id, camp_invitation_id")
-      .eq("student_id", user.userId)
+      .eq("student_id", studentId)
       .eq("status", "active")
       .neq("id", groupId)
       .is("deleted_at", null);
@@ -99,7 +110,7 @@ async function _updatePlanGroupStatus(
   }
 
   // 상태 업데이트
-  const result = await updatePlanGroup(groupId, user.userId, { status });
+  const result = await updatePlanGroup(groupId, studentId, { status });
   if (!result.success) {
     throw new AppError(
       result.error || "플랜 그룹 상태 업데이트에 실패했습니다.",

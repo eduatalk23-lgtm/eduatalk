@@ -13,7 +13,6 @@ import {
   calculatePlanEstimatedTime,
 } from "@/lib/plan/assignPlanTimes";
 import { splitPlanTimeInputByEpisodes } from "@/lib/plan/planSplitter";
-import { updatePlanGroupStatus } from "./status";
 import { timeToMinutes } from "./utils";
 import {
   getPlanGroupWithDetailsByRole,
@@ -218,20 +217,6 @@ async function _generatePlansFromGroupRefactored(
       500,
       true
     );
-  }
-
-  // RLS 정책 확인 로그 (개발 환경에서만)
-  if (process.env.NODE_ENV === "development") {
-    console.log("[generatePlansRefactored] Supabase 클라이언트 설정:", {
-      groupId,
-      studentId,
-      currentUserId: access.user.userId,
-      role: access.role,
-      isAdminOrConsultant,
-      isOtherStudent: isAdminOrConsultant && studentId !== access.user.userId,
-      queryClientType: isAdminOrConsultant && studentId !== access.user.userId ? "Admin" : "Server",
-      masterQueryClientType: isAdminOrConsultant ? "Admin" : "Server",
-    });
   }
 
   // 7. 콘텐츠 ID 해석 및 복사 (배치 쿼리로 최적화)
@@ -651,7 +636,8 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 11. 기존 플랜 삭제
-  const { error: deleteError } = await supabase
+  // 관리자/컨설턴트가 다른 학생의 플랜을 삭제할 때는 queryClient(Admin 클라이언트) 사용
+  const { error: deleteError } = await queryClient
     .from("student_plan")
     .delete()
     .eq("plan_group_id", groupId);
@@ -1345,7 +1331,8 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 15. 플랜 일괄 저장
-  const { error: insertError, data: insertedData } = await supabase
+  // 관리자/컨설턴트가 다른 학생의 플랜을 생성할 때는 queryClient(Admin 클라이언트) 사용
+  const { error: insertError, data: insertedData } = await queryClient
     .from("student_plan")
     .insert(planPayloads)
     .select();
@@ -1447,9 +1434,17 @@ async function _generatePlansFromGroupRefactored(
   }
 
   // 16. 플랜 그룹 상태 업데이트
+  // 관리자/컨설턴트가 다른 학생의 플랜을 생성할 때도 작동하도록 직접 업데이트
   if ((group.status as PlanStatus) === "draft") {
     try {
-      await updatePlanGroupStatus(groupId, "saved");
+      const { error: statusUpdateError } = await queryClient
+        .from("plan_groups")
+        .update({ status: "saved", updated_at: new Date().toISOString() })
+        .eq("id", groupId);
+
+      if (statusUpdateError) {
+        throw statusUpdateError;
+      }
     } catch (error) {
       console.warn(
         "[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패:",

@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { useCampAttendanceStats } from "@/lib/hooks/useCampStats";
+import { useCampAttendanceStats, useCampAttendanceRecords } from "@/lib/hooks/useCampStats";
 import { CampAttendanceStatsCards } from "./CampAttendanceStatsCards";
 import { CampParticipantAttendanceTable } from "./CampParticipantAttendanceTable";
+import { CampAttendanceCalendar } from "./CampAttendanceCalendar";
+import { DateAttendanceDetailDialog } from "./DateAttendanceDetailDialog";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type CampAttendanceDashboardProps = {
@@ -18,6 +21,25 @@ export function CampAttendanceDashboard({
 }: CampAttendanceDashboardProps) {
   // 출석 통계 조회 (훅 사용)
   const { data: attendanceStats, isLoading } = useCampAttendanceStats(templateId);
+  
+  // 선택된 날짜 상태 관리
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // 캠프 기간 출석 기록 조회 (달력용)
+  const { data: attendanceRecords } = useCampAttendanceRecords(
+    templateId,
+    template.camp_start_date || "",
+    template.camp_end_date || "",
+    {
+      enabled: !!template.camp_start_date && !!template.camp_end_date,
+    }
+  );
+
+  // 날짜 클릭 핸들러
+  const handleDateClick = (date: string) => {
+    setSelectedDate(date);
+  };
+
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="flex flex-col gap-8">
@@ -78,6 +100,16 @@ export function CampAttendanceDashboard({
           </div>
         )}
 
+        {/* 출석 달력 */}
+        {template.camp_start_date && template.camp_end_date && attendanceRecords && (
+          <CampAttendanceCalendar
+            startDate={template.camp_start_date}
+            endDate={template.camp_end_date}
+            attendanceRecords={attendanceRecords}
+            onDateClick={handleDateClick}
+          />
+        )}
+
         {/* 로딩 상태 */}
         {isLoading && <SuspenseFallback />}
 
@@ -102,6 +134,20 @@ export function CampAttendanceDashboard({
           </div>
         )}
       </div>
+
+      {/* 날짜별 출석 상세 다이얼로그 */}
+      {template.camp_start_date && template.camp_end_date && (
+        <DateAttendanceDetailDialog
+          open={selectedDate !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedDate(null);
+            }
+          }}
+          templateId={templateId}
+          date={selectedDate}
+        />
+      )}
     </section>
   );
 }

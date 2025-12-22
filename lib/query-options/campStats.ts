@@ -1,9 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { CampAttendanceStats, CampLearningStats } from "@/lib/domains/camp/types";
+import type { AttendanceRecordWithStudent } from "@/lib/data/campAttendance";
 
 // 캠프 통계 데이터는 자주 변하지 않으므로 긴 staleTime 사용
 const CACHE_STALE_TIME_STATS = 5 * 60 * 1000; // 5분
 const CACHE_GC_TIME_STATS = 30 * 60 * 1000; // 30분
+
+// 출석 기록은 자주 변경될 수 있으므로 짧은 staleTime 사용
+const CACHE_STALE_TIME_RECORDS = 1 * 60 * 1000; // 1분
+const CACHE_GC_TIME_RECORDS = 10 * 60 * 1000; // 10분
 
 /**
  * 캠프 통계 쿼리 옵션 (출석 + 학습 통합)
@@ -132,6 +137,109 @@ export function campLearningStatsQueryOptions(templateId: string) {
     },
     staleTime: CACHE_STALE_TIME_STATS,
     gcTime: CACHE_GC_TIME_STATS,
+  });
+}
+
+/**
+ * 날짜별 출석 기록 조회 쿼리 옵션
+ * 
+ * @example
+ * ```typescript
+ * const { data: records } = useQuery(campDateAttendanceQueryOptions("template-123", "2024-01-15"));
+ * ```
+ */
+export function campDateAttendanceQueryOptions(
+  templateId: string,
+  date: string
+) {
+  return queryOptions({
+    queryKey: ["campDateAttendance", templateId, date] as const,
+    queryFn: async (): Promise<AttendanceRecordWithStudent[]> => {
+      const response = await fetch(
+        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&date=${encodeURIComponent(date)}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "날짜별 출석 기록 조회 실패";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      if (responseData.success && responseData.data) {
+        return responseData.data as AttendanceRecordWithStudent[];
+      }
+      
+      return [];
+    },
+    staleTime: CACHE_STALE_TIME_RECORDS,
+    gcTime: CACHE_GC_TIME_RECORDS,
+    enabled: !!templateId && !!date,
+  });
+}
+
+/**
+ * 캠프 기간 전체 출석 기록 조회 쿼리 옵션 (달력용)
+ * 
+ * @example
+ * ```typescript
+ * const { data: records } = useQuery(
+ *   campAttendanceRecordsQueryOptions("template-123", "2024-01-01", "2024-01-31")
+ * );
+ * ```
+ */
+export function campAttendanceRecordsQueryOptions(
+  templateId: string,
+  startDate: string,
+  endDate: string
+) {
+  return queryOptions({
+    queryKey: ["campAttendanceRecords", templateId, startDate, endDate] as const,
+    queryFn: async (): Promise<AttendanceRecordWithStudent[]> => {
+      const response = await fetch(
+        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "출석 기록 조회 실패";
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          if (errorText) {
+            errorMessage = `${errorMessage}: ${errorText.substring(0, 100)}`;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const responseData = await response.json();
+      
+      if (responseData.success && responseData.data) {
+        return responseData.data as AttendanceRecordWithStudent[];
+      }
+      
+      return [];
+    },
+    staleTime: CACHE_STALE_TIME_STATS, // 달력용이므로 조금 더 긴 캐시
+    gcTime: CACHE_GC_TIME_STATS,
+    enabled: !!templateId && !!startDate && !!endDate,
   });
 }
 

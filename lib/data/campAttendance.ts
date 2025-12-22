@@ -12,6 +12,13 @@ import { calculateTotalDays } from "@/lib/utils/statistics";
 import type { CampAttendanceStats, ParticipantAttendanceStats } from "@/lib/domains/camp/types";
 
 /**
+ * 출석 기록 + 학생 정보 타입
+ */
+export type AttendanceRecordWithStudent = AttendanceRecord & {
+  student_name: string | null;
+};
+
+/**
  * 캠프 기간 출석 기록 조회
  * 템플릿에 초대된 모든 학생의 출석 기록을 조회합니다.
  */
@@ -209,6 +216,144 @@ export async function getParticipantAttendanceStats(
     late_rate: stats.late_rate,
     absent_rate: stats.absent_rate,
   };
+}
+
+/**
+ * 특정 날짜의 출석 기록 조회 (학생 정보 포함)
+ * N+1 문제를 방지하기 위해 JOIN으로 학생 정보를 함께 조회합니다.
+ */
+export async function getCampAttendanceRecordsByDate(
+  templateId: string,
+  date: string
+): Promise<AttendanceRecordWithStudent[]> {
+  const supabase = await createSupabaseServerClient();
+
+  // 템플릿 정보 조회
+  const template = await getCampTemplate(templateId);
+  if (!template) {
+    return [];
+  }
+
+  // 캠프 초대 목록 조회 (참여자 확인)
+  const invitations = await getCampInvitationsForTemplate(templateId);
+  const participantStudentIds = invitations
+    .filter((inv) => inv.status === "accepted")
+    .map((inv) => inv.student_id);
+
+  if (participantStudentIds.length === 0) {
+    return [];
+  }
+
+  // 출석 기록 조회 (학생 정보 JOIN)
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select(
+      `
+      *,
+      students:student_id (
+        name
+      )
+    `
+    )
+    .eq("tenant_id", template.tenant_id)
+    .in("student_id", participantStudentIds)
+    .eq("attendance_date", date)
+    .order("check_in_time", { ascending: true });
+
+  if (error) {
+    console.error("[data/campAttendance] 날짜별 출석 기록 조회 실패", {
+      templateId,
+      date,
+      error: error.message,
+      errorCode: error.code,
+    });
+    return [];
+  }
+
+  // 데이터 변환 (JOIN 결과를 평탄화)
+  const records: AttendanceRecordWithStudent[] = (data || []).map((record: any) => {
+    const studentInfo = Array.isArray(record.students)
+      ? record.students[0]
+      : record.students;
+
+    return {
+      ...record,
+      student_name: studentInfo?.name || null,
+    };
+  });
+
+  return records;
+}
+
+/**
+ * 캠프 기간 전체 출석 기록 조회 (학생 정보 포함, 달력용)
+ * 날짜별 그룹화는 클라이언트에서 처리합니다.
+ */
+export async function getCampAttendanceRecordsWithStudents(
+  templateId: string,
+  startDate: string,
+  endDate: string
+): Promise<AttendanceRecordWithStudent[]> {
+  const supabase = await createSupabaseServerClient();
+
+  // 템플릿 정보 조회
+  const template = await getCampTemplate(templateId);
+  if (!template) {
+    return [];
+  }
+
+  // 캠프 초대 목록 조회 (참여자 확인)
+  const invitations = await getCampInvitationsForTemplate(templateId);
+  const participantStudentIds = invitations
+    .filter((inv) => inv.status === "accepted")
+    .map((inv) => inv.student_id);
+
+  if (participantStudentIds.length === 0) {
+    return [];
+  }
+
+  // 출석 기록 조회 (학생 정보 JOIN)
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select(
+      `
+      *,
+      students:student_id (
+        name
+      )
+    `
+    )
+    .eq("tenant_id", template.tenant_id)
+    .in("student_id", participantStudentIds)
+    .gte("attendance_date", startDate)
+    .lte("attendance_date", endDate)
+    .order("attendance_date", { ascending: true })
+    .order("check_in_time", { ascending: true });
+
+  if (error) {
+    console.error("[data/campAttendance] 출석 기록 조회 실패", {
+      templateId,
+      startDate,
+      endDate,
+      error: error.message,
+      errorCode: error.code,
+    });
+    return [];
+  }
+
+  // 데이터 변환 (JOIN 결과를 평탄화)
+  const records: AttendanceRecordWithStudent[] = (data || []).map((record: any) => {
+    const studentInfo = Array.isArray(record.students)
+      ? record.students[0]
+      : record.students;
+
+    return {
+      ...record,
+      student_name: studentInfo?.name || null,
+    };
+  });
+
+  return records;
 }
 
 

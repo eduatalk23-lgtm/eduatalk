@@ -47,7 +47,11 @@ export default async function CampContinuePage({
   }
 
   // 이미 플랜이 생성된 경우 검토 페이지로 리다이렉트
-  const supabase = await createSupabaseServerClient();
+  // 관리자가 다른 학생의 플랜을 조회하므로 Admin 클라이언트 사용
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const supabaseAdmin = createSupabaseAdminClient();
+  const supabase = supabaseAdmin || await createSupabaseServerClient();
+
   const { data: plans } = await supabase
     .from("student_plan")
     .select("id")

@@ -71,7 +71,11 @@ export async function GET(request: NextRequest) {
       return apiBadRequest("관리자/컨설턴트의 경우 student_id가 필요합니다.");
     }
 
-    const supabase = await createSupabaseServerClient();
+    // 관리자/컨설턴트인 경우 Admin 클라이언트 사용 (RLS 우회)
+    // 학생인 경우 일반 Server 클라이언트 사용 (RLS 적용)
+    const supabase = (role === "admin" || role === "consultant")
+      ? createSupabaseAdminClient() || await createSupabaseServerClient()
+      : await createSupabaseServerClient();
     const targetStudentId = role === "student" ? user.userId : studentId!;
 
     if (contentType === "book") {
@@ -81,7 +85,7 @@ export async function GET(request: NextRequest) {
         : "total_pages, master_content_id";
 
       const [details, studentBook] = await Promise.all([
-        getStudentBookDetails(contentId, targetStudentId),
+        getStudentBookDetails(contentId, targetStudentId, supabase),
         createTypedSingleQuery(
           async () => {
             const result = await supabase
@@ -147,7 +151,7 @@ export async function GET(request: NextRequest) {
         : "master_content_id, total_episodes";
 
       const [episodes, studentLecture] = await Promise.all([
-        getStudentLectureEpisodes(contentId, targetStudentId),
+        getStudentLectureEpisodes(contentId, targetStudentId, supabase),
         createTypedSingleQuery(
           async () => {
             const result = await supabase

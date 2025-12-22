@@ -54,19 +54,14 @@ export function Step7ScheduleResult({
     },
   });
 
-  // Step 7 진입 시 플랜이 없으면 자동 생성 (일반 모드만)
+  // Step 7 진입 시 플랜이 없으면 자동 생성
   useEffect(() => {
-    // 관리자 continue 모드는 완료 버튼에서 continueCampStepsForAdmin 호출하므로 자동 생성 스킵
-    if (isAdminContinueMode) {
-      return;
-    }
-
     // 캠프 모드는 학생이 플랜을 생성하지 않으므로 자동 생성 스킵
-    if (isCampMode) {
+    // (단, 관리자 continue 모드는 제외 - 관리자가 플랜을 미리 볼 수 있어야 함)
+    if (isCampMode && !isAdminContinueMode) {
       return;
     }
 
-    // 일반 모드만 자동 생성
     // 플랜 확인이 완료되고, 플랜이 없고, 아직 자동 생성하지 않았고, 생성 중이 아닐 때만 실행
     if (
       !isCheckingPlans &&

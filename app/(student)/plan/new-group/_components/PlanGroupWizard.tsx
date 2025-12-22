@@ -641,35 +641,31 @@ function PlanGroupWizardInner({
   const handleStep7Complete = useCallback(async () => {
     if (!draftGroupId) return;
 
-    // 관리자 continue 모드에서는 플랜 생성 및 페이지 이동 처리
+    // 관리자 continue 모드에서는 플랜이 이미 생성되어 있으므로 상태만 업데이트하고 페이지 이동
     if (isAdminContinueMode) {
       try {
-        const { continueCampStepsForAdmin } = await import("@/app/(admin)/actions/campTemplateActions");
-        
-        // Step 7에서 플랜 생성 및 저장
-        const result = await continueCampStepsForAdmin(
-          draftGroupId || (initialData?.groupId as string),
-          wizardData,
-          currentStep
-        );
+        // 플랜이 생성되어 있는지 확인
+        const checkResult = await checkPlansExistAction(draftGroupId);
 
-        if (result.success) {
-          toast.showSuccess("플랜이 생성되었습니다.");
-          // 참여자 목록 페이지로 이동
-          const templateId = initialData?.templateId;
-          if (templateId) {
-            window.location.href = `/admin/camp-templates/${templateId}/participants`;
-          } else {
-            window.location.href = `/admin/camp-templates`;
-          }
-        } else {
-          const errorMessage = result.error || "플랜 생성에 실패했습니다.";
-          setErrors([errorMessage]);
-          toast.showError(errorMessage);
+        if (!checkResult.hasPlans) {
+          toast.showError("플랜이 생성되지 않았습니다. 잠시 후 다시 시도해주세요.");
+          return;
         }
+
+        // 플랜 그룹 상태를 saved로 업데이트 (이미 Step 7 진입 시 생성됨)
+        try {
+          await updatePlanGroupStatus(draftGroupId, "saved");
+        } catch (statusError) {
+          console.warn("[PlanGroupWizard] 상태 업데이트 실패 (무시):", statusError);
+        }
+
+        toast.showSuccess("플랜 생성이 완료되었습니다.");
+
+        // 플랜 그룹 상세 보기 페이지로 이동 (완전한 페이지 리로드)
+        window.location.href = `/admin/plan-groups/${draftGroupId}`;
       } catch (error) {
-        console.error("[PlanGroupWizard] 관리자 캠프 플랜 생성 실패:", error);
-        const errorMessage = error instanceof Error ? error.message : "플랜 생성에 실패했습니다.";
+        console.error("[PlanGroupWizard] 관리자 캠프 완료 처리 실패:", error);
+        const errorMessage = error instanceof Error ? error.message : "완료 처리에 실패했습니다.";
         setErrors([errorMessage]);
         toast.showError(errorMessage);
       }
