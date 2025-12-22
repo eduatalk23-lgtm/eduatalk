@@ -25,11 +25,10 @@ export const ContentCard = React.memo(function ContentCard({
   onEditRange,
 }: ContentCardProps) {
   // contentType을 우선 사용, 없으면 기존 로직으로 판단
-  const contentType = content.contentType || 
+  const contentType = content.contentType ||
     (content.id.startsWith("book") || !content.platform ? "book" : "lecture");
   const isBook = contentType === "book";
   const isLecture = contentType === "lecture";
-  const isCustom = contentType === "custom";
 
   return (
     <div
@@ -150,8 +149,8 @@ export const ContentCard = React.memo(function ContentCard({
               )}
             </div>
 
-            {/* 범위 정보 (커스텀 콘텐츠는 제외) */}
-            {range && !isCustom && (
+            {/* 범위 정보 */}
+            {range && (
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-gray-800">범위:</span>
                 <span className="text-gray-600">
@@ -205,8 +204,8 @@ export const ContentCard = React.memo(function ContentCard({
         {/* 액션 버튼 */}
         {!readOnly && (
           <div className="flex flex-shrink-0 items-center gap-1">
-            {/* 범위 수정 버튼 (커스텀 콘텐츠는 제외) */}
-            {selected && onEditRange && !isCustom && (
+            {/* 범위 수정 버튼 */}
+            {selected && onEditRange && (
               <button
                 type="button"
                 onClick={onEditRange}

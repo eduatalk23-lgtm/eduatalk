@@ -35,6 +35,8 @@ type UsePlanGeneratorProps = {
   initialData?: {
     templateId?: string;
     groupId?: string;
+    studentId?: string;
+    student_id?: string;
   };
   isAdminContinueMode: boolean;
   isAdminMode: boolean;

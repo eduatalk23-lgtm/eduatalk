@@ -419,7 +419,7 @@ export function StudentContentsPanel({
             difficulty: metadata?.difficulty_level,
             publisher: metadata?.publisher,
             platform: metadata?.platform,
-            contentType: content.content_type,
+            contentType: content.content_type as "book" | "lecture",
           }}
           selected={true}
           readOnly={!editable}

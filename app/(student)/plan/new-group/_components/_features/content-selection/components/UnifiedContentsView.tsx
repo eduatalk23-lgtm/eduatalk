@@ -118,7 +118,7 @@ export function UnifiedContentsView({
             difficulty: metadata?.difficulty_level,
             publisher: metadata?.publisher,
             platform: metadata?.platform,
-            contentType: content.content_type,
+            contentType: content.content_type as "book" | "lecture",
           }}
           selected={true}
           readOnly={true}
@@ -158,7 +158,7 @@ export function UnifiedContentsView({
             difficulty: originalContent?.difficulty_level || metadata?.difficulty_level,
             publisher: originalContent?.publisher || metadata?.publisher,
             platform: originalContent?.platform || metadata?.platform,
-            contentType: content.content_type,
+            contentType: content.content_type as "book" | "lecture",
           }}
           selected={true}
           readOnly={true}

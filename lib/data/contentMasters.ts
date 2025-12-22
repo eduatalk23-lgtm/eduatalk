@@ -680,7 +680,10 @@ export async function copyMasterBookToStudent(
   bookId: string,
   studentId: string,
   tenantId: string
-): Promise<{ bookId: string }> {
+): Promise<{
+  bookId: string;
+  detailIdMap?: Map<string, string>; // masterDetailId -> studentDetailId
+}> {
   // Admin 클라이언트 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
@@ -703,8 +706,34 @@ export async function copyMasterBookToStudent(
     .maybeSingle();
 
   if (existingBook) {
-    // 이미 복사된 교재가 있으면 기존 ID 반환
-    return { bookId: existingBook.id };
+    // 이미 복사된 교재가 있으면 기존 ID와 함께 detail ID 매핑도 조회
+    const { details: masterDetails } = await getMasterBookById(bookId);
+    let detailIdMap: Map<string, string> | undefined;
+
+    if (masterDetails.length > 0) {
+      // display_order -> master detail id 매핑
+      const displayOrderToMasterId = new Map(
+        masterDetails.map((d) => [d.display_order, d.id])
+      );
+
+      // 기존 학생 교재의 details 조회
+      const { data: existingDetails } = await supabase
+        .from("student_book_details")
+        .select("id, display_order")
+        .eq("book_id", existingBook.id);
+
+      if (existingDetails && existingDetails.length > 0) {
+        detailIdMap = new Map();
+        existingDetails.forEach((studentDetail) => {
+          const masterDetailId = displayOrderToMasterId.get(studentDetail.display_order);
+          if (masterDetailId) {
+            detailIdMap!.set(masterDetailId, studentDetail.id);
+          }
+        });
+      }
+    }
+
+    return { bookId: existingBook.id, detailIdMap };
   }
 
   if (!supabase) throw new Error("Supabase client uninitialized");
@@ -745,9 +774,16 @@ export async function copyMasterBookToStudent(
     );
   }
 
-  // book_details도 함께 복사
+  // book_details도 함께 복사 (ID 매핑 생성)
   const { details } = await getMasterBookById(bookId);
+  let detailIdMap: Map<string, string> | undefined;
+
   if (details.length > 0) {
+    // display_order -> master detail id 매핑 (나중에 역매핑용)
+    const displayOrderToMasterId = new Map(
+      details.map((d) => [d.display_order, d.id])
+    );
+
     const studentBookDetails = details.map((detail) => ({
       book_id: studentBook.id,
       major_unit: detail.major_unit,
@@ -758,9 +794,10 @@ export async function copyMasterBookToStudent(
 
     if (!supabase) throw new Error("Supabase client uninitialized");
 
-    const { error: detailsError } = await supabase
+    const { data: insertedDetails, error: detailsError } = await supabase
       .from("student_book_details")
-      .insert(studentBookDetails);
+      .insert(studentBookDetails)
+      .select("id, display_order");
 
     if (detailsError) {
       console.error("[data/contentMasters] 교재 상세 정보 복사 실패", {
@@ -769,10 +806,21 @@ export async function copyMasterBookToStudent(
         code: detailsError.code,
       });
       // 상세 정보 복사 실패해도 교재는 복사됨
+    } else if (insertedDetails && insertedDetails.length > 0) {
+      // master detail id -> student detail id 매핑 생성
+      detailIdMap = new Map();
+      insertedDetails.forEach((studentDetail) => {
+        const masterDetailId = displayOrderToMasterId.get(
+          studentDetail.display_order
+        );
+        if (masterDetailId) {
+          detailIdMap!.set(masterDetailId, studentDetail.id);
+        }
+      });
     }
   }
 
-  return { bookId: studentBook.id };
+  return { bookId: studentBook.id, detailIdMap };
 }
 
 /**
@@ -783,7 +831,10 @@ export async function copyMasterLectureToStudent(
   lectureId: string,
   studentId: string,
   tenantId: string
-): Promise<{ lectureId: string }> {
+): Promise<{
+  lectureId: string;
+  episodeIdMap?: Map<string, string>; // masterEpisodeId -> studentEpisodeId
+}> {
   // Admin 클라이언트 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
@@ -808,8 +859,34 @@ export async function copyMasterLectureToStudent(
     .maybeSingle();
 
   if (existingLecture) {
-    // 이미 복사된 강의가 있으면 기존 ID 반환
-    return { lectureId: existingLecture.id };
+    // 이미 복사된 강의가 있으면 기존 ID와 함께 episode ID 매핑도 조회
+    const { episodes: masterEpisodes } = await getMasterLectureById(lectureId);
+    let episodeIdMap: Map<string, string> | undefined;
+
+    if (masterEpisodes.length > 0) {
+      // episode_number -> master episode id 매핑
+      const episodeNumberToMasterId = new Map(
+        masterEpisodes.map((ep) => [ep.episode_number, ep.id])
+      );
+
+      // 기존 학생 강의의 episodes 조회
+      const { data: existingEpisodes } = await supabase
+        .from("student_lecture_episodes")
+        .select("id, episode_number")
+        .eq("lecture_id", existingLecture.id);
+
+      if (existingEpisodes && existingEpisodes.length > 0) {
+        episodeIdMap = new Map();
+        existingEpisodes.forEach((studentEp) => {
+          const masterEpisodeId = episodeNumberToMasterId.get(studentEp.episode_number);
+          if (masterEpisodeId) {
+            episodeIdMap!.set(masterEpisodeId, studentEp.id);
+          }
+        });
+      }
+    }
+
+    return { lectureId: existingLecture.id, episodeIdMap };
   }
 
   if (!supabase) throw new Error("Supabase client uninitialized");
@@ -850,9 +927,16 @@ export async function copyMasterLectureToStudent(
     );
   }
 
-  // episodes도 함께 복사
+  // episodes도 함께 복사 (ID 매핑 생성)
   const { episodes } = await getMasterLectureById(lectureId);
+  let episodeIdMap: Map<string, string> | undefined;
+
   if (episodes.length > 0) {
+    // episode_number -> master episode id 매핑 (나중에 역매핑용)
+    const episodeNumberToMasterId = new Map(
+      episodes.map((ep) => [ep.episode_number, ep.id])
+    );
+
     const studentEpisodes = episodes.map((episode) => ({
       lecture_id: studentLecture.id,
       episode_number: episode.episode_number,
@@ -861,9 +945,10 @@ export async function copyMasterLectureToStudent(
       display_order: episode.display_order,
     }));
 
-    const { error: episodesError } = await supabase
+    const { data: insertedEpisodes, error: episodesError } = await supabase
       .from("student_lecture_episodes")
-      .insert(studentEpisodes);
+      .insert(studentEpisodes)
+      .select("id, episode_number");
 
     if (episodesError) {
       console.error("[data/contentMasters] 강의 episode 복사 실패", {
@@ -872,6 +957,17 @@ export async function copyMasterLectureToStudent(
         code: episodesError.code,
       });
       // episode 복사 실패해도 강의는 복사됨
+    } else if (insertedEpisodes && insertedEpisodes.length > 0) {
+      // master episode id -> student episode id 매핑 생성
+      episodeIdMap = new Map();
+      insertedEpisodes.forEach((studentEp) => {
+        const masterEpisodeId = episodeNumberToMasterId.get(
+          studentEp.episode_number
+        );
+        if (masterEpisodeId) {
+          episodeIdMap!.set(masterEpisodeId, studentEp.id);
+        }
+      });
     }
   }
 
@@ -910,7 +1006,7 @@ export async function copyMasterLectureToStudent(
     }
   }
 
-  return { lectureId: studentLecture.id };
+  return { lectureId: studentLecture.id, episodeIdMap };
 }
 
 // ============================================
@@ -2205,7 +2301,13 @@ export async function getStudentBookDetailsBatch(
     return new Map();
   }
 
-  const supabase = await createSupabaseServerClient();
+  // RLS 정책 우회를 위해 admin 클라이언트 사용
+  // (admin이 학생 플랜을 볼 때 auth.uid()가 admin ID이므로 RLS가 차단됨)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[getStudentBookDetailsBatch] admin 클라이언트 생성 실패");
+    return new Map();
+  }
 
   // 성능 측정 시작
   const queryStart = performance.now();
@@ -2322,7 +2424,13 @@ export async function getStudentLectureEpisodesBatch(
     return new Map();
   }
 
-  const supabase = await createSupabaseServerClient();
+  // RLS 정책 우회를 위해 admin 클라이언트 사용
+  // (admin이 학생 플랜을 볼 때 auth.uid()가 admin ID이므로 RLS가 차단됨)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    console.error("[getStudentLectureEpisodesBatch] admin 클라이언트 생성 실패");
+    return new Map();
+  }
 
   // 성능 측정 시작
   const queryStart = performance.now();
@@ -2436,6 +2544,58 @@ export async function getStudentLectureEpisodesBatch(
             });
           });
         });
+      }
+    }
+
+    // 캠프 모드 직접 마스터 fallback: lectureIds가 이미 마스터 강의 ID인 경우
+    // (캠프 모드에서는 plan_contents.start_detail_id/end_detail_id가 마스터 콘텐츠 ID를 직접 참조)
+    const stillEmptyLectureIds = lectureIds.filter(
+      (lectureId) =>
+        !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
+    );
+
+    if (stillEmptyLectureIds.length > 0) {
+      // lecture_episodes 테이블에서 직접 조회 (lectureIds가 마스터 강의 ID인 경우)
+      const { data: directMasterData, error: directMasterError } =
+        await supabase
+          .from("lecture_episodes")
+          .select("id, lecture_id, episode_number, episode_title, duration")
+          .in("lecture_id", stillEmptyLectureIds)
+          .order("lecture_id", { ascending: true })
+          .order("episode_number", { ascending: true });
+
+      if (directMasterError) {
+        console.error(
+          "[data/contentMasters] 캠프 모드 마스터 강의 직접 조회 실패",
+          {
+            stillEmptyLectureIds,
+            error: directMasterError.message,
+            code: directMasterError.code,
+          }
+        );
+      } else if (directMasterData && directMasterData.length > 0) {
+        // 마스터 강의 ID를 그대로 키로 사용하여 resultMap에 추가
+        directMasterData.forEach((ep) => {
+          if (!resultMap.has(ep.lecture_id)) {
+            resultMap.set(ep.lecture_id, []);
+          }
+          resultMap.get(ep.lecture_id)!.push({
+            id: ep.id,
+            episode_number: ep.episode_number,
+            episode_title: ep.episode_title,
+            duration: ep.duration,
+          });
+        });
+
+        if (process.env.NODE_ENV === "development") {
+          console.log(
+            "[getStudentLectureEpisodesBatch] 캠프 모드 직접 마스터 fallback 성공:",
+            {
+              requestedIds: stillEmptyLectureIds,
+              foundCount: directMasterData.length,
+            }
+          );
+        }
       }
     }
 

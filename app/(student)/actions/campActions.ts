@@ -359,7 +359,9 @@ export const submitCampParticipation = withErrorHandling(
       recommended_contents: wizardData.recommended_contents || [],
       // 제외일: 템플릿 기본값 (source, is_locked 포함) + 학생 추가 제외일 (위계 기반 병합)
       exclusions: (() => {
-        const mergedExclusions: typeof templateExclusions = [...templateExclusions];
+        type BaseExclusion = Omit<(typeof templateExclusions)[number], "source">;
+        type MergedExclusion = BaseExclusion & { source: "template" | "student"; is_locked: boolean };
+        const mergedExclusions: MergedExclusion[] = templateExclusions.map(e => ({ ...e, source: e.source as "template" | "student" }));
 
         // 학생 제외일 처리
         (wizardData.exclusions || []).forEach((studentExclusion) => {
@@ -388,9 +390,9 @@ export const submitCampParticipation = withErrorHandling(
               if (index !== -1) {
                 mergedExclusions[index] = {
                   ...studentExclusion,
-                  source: "student" as const,
+                  source: "student",
                   is_locked: false,
-                };
+                } as MergedExclusion;
               }
             }
             // 학생 제외일이 같거나 낮은 위계 → 템플릿 제외일 유지 (무시)
@@ -398,9 +400,9 @@ export const submitCampParticipation = withErrorHandling(
             // 템플릿 제외일이 없는 경우: 학생 제외일 추가
             mergedExclusions.push({
               ...studentExclusion,
-              source: "student" as const,
+              source: "student",
               is_locked: false,
-            });
+            } as MergedExclusion);
           }
         });
 

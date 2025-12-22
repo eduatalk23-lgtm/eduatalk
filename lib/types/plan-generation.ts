@@ -15,6 +15,9 @@ import type {
   ContentType,
 } from "./plan";
 
+// Re-export common types
+export type { ContentType } from "./plan";
+
 // ============================================
 // 스케줄 관련 타입
 // ============================================
@@ -316,3 +319,94 @@ export type PlanNumberMap = Map<string, number>;
  * 날짜별 사용된 블록 인덱스 맵
  */
 export type UsedBlockIndicesByDateMap = Map<string, Set<number>>;
+
+// ============================================
+// 챕터/상세 정보 타입
+// ============================================
+
+/**
+ * 챕터 정보
+ */
+export type ChapterInfo = {
+  start_chapter: string;
+  end_chapter: string;
+  episode_title?: string | null;
+};
+
+/**
+ * 콘텐츠별 챕터 정보 맵
+ */
+export type ContentChapterMap = Map<string, ChapterInfo>;
+
+/**
+ * 상세 ID 매핑 (마스터 -> 학생)
+ * 에피소드 ID 또는 페이지 상세 ID 매핑
+ */
+export type DetailIdMap = Map<string, string>;
+
+// ============================================
+// 서비스 인터페이스 (Phase 2 리팩토링용)
+// ============================================
+
+/**
+ * 콘텐츠 해석 서비스 결과
+ */
+export type ContentResolutionServiceResult = {
+  contentIdMap: ContentIdMap;
+  detailIdMap: DetailIdMap;
+  contentMetadataMap: ContentMetadataMap;
+  contentDurationMap: ContentDurationMap;
+  chapterMap: ContentChapterMap;
+};
+
+/**
+ * 스케줄 생성 서비스 입력
+ */
+export type ScheduleGenerationInput = {
+  contents: Array<{
+    content_id: string;
+    content_type: ContentType;
+    start_range: number;
+    end_range: number;
+    estimated_duration: number;
+  }>;
+  availableDates: string[];
+  dateMetadataMap: DateMetadataMap;
+  schedulerOptions: {
+    study_days: number;
+    review_days: number;
+    use1730Timetable?: boolean;
+  };
+};
+
+/**
+ * 스케줄된 플랜 (스케줄러 출력)
+ */
+export type ScheduledPlan = {
+  date: string;
+  content_id: string;
+  content_type: ContentType;
+  start_range: number;
+  end_range: number;
+  estimated_duration: number;
+  is_review: boolean;
+  day_type: DayType;
+  week_number?: number;
+};
+
+/**
+ * 시간 할당 서비스 결과
+ */
+export type TimeAllocationResult = {
+  segments: PlanPayloadBase[];
+  unallocatedPlans: ScheduledPlan[];
+};
+
+/**
+ * 플랜 저장 서비스 결과
+ */
+export type PlanPersistenceResult = {
+  success: boolean;
+  savedCount: number;
+  errors?: string[];
+};

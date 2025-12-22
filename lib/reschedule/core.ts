@@ -474,6 +474,7 @@ export async function calculateReschedulePreview(
     dateAvailableTimeRanges,
     dateTimeSlots,
     undefined, // contentDurationMap
+    undefined, // contentChapterMap
     adjustedPeriod.start,
     adjustedPeriod.end
   );

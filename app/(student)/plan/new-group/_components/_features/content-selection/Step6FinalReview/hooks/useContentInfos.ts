@@ -285,7 +285,8 @@ export function useContentInfos({
             let metadata: ContentMetadata | null = null;
             let totalValue: number | null = null;
 
-            if (!title || !subjectCategory || !metadata?.subject_group_name) {
+            // 타이틀이나 과목 카테고리가 없으면 메타데이터 조회
+            if (!title || !subjectCategory) {
               try {
                 const result = await fetchContentMetadataAction(
                   content.content_id,

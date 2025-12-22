@@ -761,63 +761,94 @@ export async function loadContentDurations(
 
 /**
  * PlanContent의 start_detail_id와 end_detail_id를 사용하여 chapter 정보를 조회합니다.
- * 
+ * start_detail_id/end_detail_id가 없는 경우 start_range/end_range를 사용하여 fallback 조회합니다.
+ *
  * @param contents PlanContent 배열
  * @param contentIdMap 콘텐츠 ID 매핑 (원본 content_id -> 최종 content_id)
  * @param studentId 학생 ID
  * @param queryClient 학생용 Supabase 클라이언트
+ * @param masterQueryClient 마스터 콘텐츠용 Supabase 클라이언트 (캠프 모드에서 마스터 테이블 조회용)
  * @returns Chapter 정보 맵 (원본 content_id -> chapter 문자열)
  */
 export async function loadContentChapters(
   contents: PlanContent[],
   contentIdMap: ContentIdMap,
   studentId: string,
-  queryClient: SupabaseAnyClient
+  queryClient: SupabaseAnyClient,
+  masterQueryClient?: SupabaseAnyClient
 ): Promise<ContentChapterMap> {
   const chapterMap: ContentChapterMap = new Map();
 
-  // start_detail_id와 end_detail_id가 있는 콘텐츠만 처리
-  const contentsWithDetailIds = contents.filter(
-    (c) => c.start_detail_id || c.end_detail_id
-  );
-
-  if (contentsWithDetailIds.length === 0) {
+  if (contents.length === 0) {
     return chapterMap;
   }
 
-  // book과 lecture를 분리
-  const bookContents = contentsWithDetailIds.filter(
+  // 콘텐츠를 detail_id 유무에 따라 분류
+  const contentsWithDetailIds = contents.filter(
+    (c) => c.start_detail_id || c.end_detail_id
+  );
+  const contentsWithoutDetailIds = contents.filter(
+    (c) => !c.start_detail_id && !c.end_detail_id
+  );
+
+  // book과 lecture를 분리 (detail_id가 있는 경우)
+  const bookContentsWithDetails = contentsWithDetailIds.filter(
     (c) => c.content_type === "book"
   );
-  const lectureContents = contentsWithDetailIds.filter(
+  const lectureContentsWithDetails = contentsWithDetailIds.filter(
     (c) => c.content_type === "lecture"
   );
 
+  // book과 lecture를 분리 (detail_id가 없는 경우 - fallback 처리)
+  const bookContentsWithoutDetails = contentsWithoutDetailIds.filter(
+    (c) => c.content_type === "book"
+  );
+  const lectureContentsWithoutDetails = contentsWithoutDetailIds.filter(
+    (c) => c.content_type === "lecture"
+  );
+
+  // ===== detail_id가 있는 콘텐츠 처리 =====
+
   // book_details 조회 (start_detail_id와 end_detail_id 사용)
-  if (bookContents.length > 0) {
+  if (bookContentsWithDetails.length > 0) {
     const bookDetailIds = new Set<string>();
-    bookContents.forEach((c) => {
+    bookContentsWithDetails.forEach((c) => {
       if (c.start_detail_id) bookDetailIds.add(c.start_detail_id);
       if (c.end_detail_id) bookDetailIds.add(c.end_detail_id);
     });
 
     if (bookDetailIds.size > 0) {
-      const { data: bookDetails } = await queryClient
+      // book_detail_id -> chapter 정보 매핑
+      const bookDetailMap = new Map<string, string | null>();
+
+      // 1. 먼저 student_book_details에서 조회
+      // 주의: student_book_details 테이블에는 student_id 컬럼이 없음 (book_id를 통해 연결됨)
+      const { data: studentBookDetails } = await queryClient
         .from("student_book_details")
         .select("id, major_unit, minor_unit")
-        .in("id", Array.from(bookDetailIds))
-        .eq("student_id", studentId);
+        .in("id", Array.from(bookDetailIds));
 
-      // book_detail_id -> chapter 정보 매핑
-      const bookDetailMap = new Map(
-        (bookDetails || []).map((d) => [
-          d.id,
-          d.major_unit || d.minor_unit || null,
-        ])
-      );
+      (studentBookDetails || []).forEach((d) => {
+        bookDetailMap.set(d.id, d.major_unit || d.minor_unit || null);
+      });
+
+      // 2. 학생 테이블에서 찾지 못한 ID들을 마스터 테이블에서 조회 (캠프 모드 지원)
+      const foundIds = new Set((studentBookDetails || []).map((d) => d.id));
+      const missingIds = Array.from(bookDetailIds).filter((id) => !foundIds.has(id));
+
+      if (missingIds.length > 0 && masterQueryClient) {
+        const { data: masterBookDetails } = await masterQueryClient
+          .from("master_book_details")
+          .select("id, major_unit, minor_unit")
+          .in("id", missingIds);
+
+        (masterBookDetails || []).forEach((d) => {
+          bookDetailMap.set(d.id, d.major_unit || d.minor_unit || null);
+        });
+      }
 
       // 각 콘텐츠의 chapter 정보 설정
-      bookContents.forEach((c) => {
+      bookContentsWithDetails.forEach((c) => {
         const startChapter = c.start_detail_id
           ? bookDetailMap.get(c.start_detail_id) || null
           : null;
@@ -827,44 +858,59 @@ export async function loadContentChapters(
 
         // 단일 범위인 경우
         if (startChapter && endChapter && startChapter === endChapter) {
-          chapterMap.set(c.content_id, startChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
         } else if (startChapter && endChapter) {
           // 범위인 경우
-          chapterMap.set(c.content_id, `${startChapter} ~ ${endChapter}`);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startChapter} ~ ${endChapter}`);
         } else if (startChapter) {
-          chapterMap.set(c.content_id, startChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
         } else if (endChapter) {
-          chapterMap.set(c.content_id, endChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, endChapter);
         }
       });
     }
   }
 
   // lecture_episodes 조회 (start_detail_id와 end_detail_id 사용)
-  if (lectureContents.length > 0) {
+  if (lectureContentsWithDetails.length > 0) {
     const lectureEpisodeIds = new Set<string>();
-    lectureContents.forEach((c) => {
+    lectureContentsWithDetails.forEach((c) => {
       if (c.start_detail_id) lectureEpisodeIds.add(c.start_detail_id);
       if (c.end_detail_id) lectureEpisodeIds.add(c.end_detail_id);
     });
 
     if (lectureEpisodeIds.size > 0) {
-      const { data: lectureEpisodes } = await queryClient
+      // lecture_episode_id -> chapter 정보 매핑
+      const lectureEpisodeMap = new Map<string, string>();
+
+      // 1. 먼저 student_lecture_episodes에서 조회
+      // 주의: student_lecture_episodes 테이블에는 student_id 컬럼이 없음 (lecture_id를 통해 연결됨)
+      const { data: studentEpisodes } = await queryClient
         .from("student_lecture_episodes")
         .select("id, episode_title, episode_number")
-        .in("id", Array.from(lectureEpisodeIds))
-        .eq("student_id", studentId);
+        .in("id", Array.from(lectureEpisodeIds));
 
-      // lecture_episode_id -> chapter 정보 매핑
-      const lectureEpisodeMap = new Map(
-        (lectureEpisodes || []).map((e) => [
-          e.id,
-          e.episode_title || `${e.episode_number}강`,
-        ])
-      );
+      (studentEpisodes || []).forEach((e) => {
+        lectureEpisodeMap.set(e.id, e.episode_title || `${e.episode_number}강`);
+      });
+
+      // 2. 학생 테이블에서 찾지 못한 ID들을 마스터 테이블에서 조회 (캠프 모드 지원)
+      const foundIds = new Set((studentEpisodes || []).map((e) => e.id));
+      const missingIds = Array.from(lectureEpisodeIds).filter((id) => !foundIds.has(id));
+
+      if (missingIds.length > 0 && masterQueryClient) {
+        const { data: masterEpisodes } = await masterQueryClient
+          .from("lecture_episodes")
+          .select("id, episode_title, episode_number")
+          .in("id", missingIds);
+
+        (masterEpisodes || []).forEach((e) => {
+          lectureEpisodeMap.set(e.id, e.episode_title || `${e.episode_number}강`);
+        });
+      }
 
       // 각 콘텐츠의 chapter 정보 설정
-      lectureContents.forEach((c) => {
+      lectureContentsWithDetails.forEach((c) => {
         const startChapter = c.start_detail_id
           ? lectureEpisodeMap.get(c.start_detail_id) || null
           : null;
@@ -874,14 +920,156 @@ export async function loadContentChapters(
 
         // 단일 범위인 경우
         if (startChapter && endChapter && startChapter === endChapter) {
-          chapterMap.set(c.content_id, startChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
         } else if (startChapter && endChapter) {
           // 범위인 경우
-          chapterMap.set(c.content_id, `${startChapter} ~ ${endChapter}`);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startChapter} ~ ${endChapter}`);
         } else if (startChapter) {
-          chapterMap.set(c.content_id, startChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
         } else if (endChapter) {
-          chapterMap.set(c.content_id, endChapter);
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, endChapter);
+        }
+      });
+    }
+  }
+
+  // ===== detail_id가 없는 콘텐츠 처리 (start_range/end_range 기반 fallback) =====
+
+  // 교재: start_range/end_range를 page_number로 사용하여 조회
+  if (bookContentsWithoutDetails.length > 0) {
+    const bookIds = [...new Set(bookContentsWithoutDetails.map((c) => {
+      return contentIdMap.get(c.content_id) || c.content_id;
+    }))];
+
+    if (bookIds.length > 0) {
+      // 주의: student_book_details 테이블에는 student_id 컬럼이 없음 (book_id를 통해 연결됨)
+      const { data: bookDetails } = await queryClient
+        .from("student_book_details")
+        .select("id, book_id, page_number, major_unit, minor_unit")
+        .in("book_id", bookIds)
+        .order("page_number", { ascending: true });
+
+      // book_id별로 그룹화
+      const bookDetailsMap = new Map<string, Array<{
+        page_number: number;
+        major_unit: string | null;
+        minor_unit: string | null;
+      }>>();
+      (bookDetails || []).forEach((d) => {
+        if (!bookDetailsMap.has(d.book_id)) {
+          bookDetailsMap.set(d.book_id, []);
+        }
+        bookDetailsMap.get(d.book_id)!.push({
+          page_number: d.page_number,
+          major_unit: d.major_unit,
+          minor_unit: d.minor_unit,
+        });
+      });
+
+      // 각 콘텐츠의 chapter 정보 설정
+      bookContentsWithoutDetails.forEach((c) => {
+        const resolvedContentId = contentIdMap.get(c.content_id) || c.content_id;
+        const details = bookDetailsMap.get(resolvedContentId) || [];
+
+        if (details.length === 0) return;
+
+        // page_number <= start_range인 가장 큰 detail 찾기
+        let startDetail: typeof details[0] | null = null;
+        for (let i = details.length - 1; i >= 0; i--) {
+          if (details[i].page_number <= c.start_range) {
+            startDetail = details[i];
+            break;
+          }
+        }
+
+        // page_number <= end_range인 가장 큰 detail 찾기
+        let endDetail: typeof details[0] | null = null;
+        for (let i = details.length - 1; i >= 0; i--) {
+          if (details[i].page_number <= c.end_range) {
+            endDetail = details[i];
+            break;
+          }
+        }
+
+        const startChapter = startDetail?.major_unit || startDetail?.minor_unit || null;
+        const endChapter = endDetail?.major_unit || endDetail?.minor_unit || null;
+
+        if (startChapter && endChapter && startChapter === endChapter) {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
+        } else if (startChapter && endChapter) {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startChapter} ~ ${endChapter}`);
+        } else if (startChapter) {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
+        } else if (endChapter) {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, endChapter);
+        }
+      });
+    }
+  }
+
+  // 강의: start_range/end_range를 episode_number로 사용하여 조회
+  if (lectureContentsWithoutDetails.length > 0) {
+    const lectureIds = [...new Set(lectureContentsWithoutDetails.map((c) => {
+      return contentIdMap.get(c.content_id) || c.content_id;
+    }))];
+
+    if (lectureIds.length > 0) {
+      // 주의: student_lecture_episodes 테이블에는 student_id 컬럼이 없음 (lecture_id를 통해 연결됨)
+      const { data: lectureEpisodes } = await queryClient
+        .from("student_lecture_episodes")
+        .select("id, lecture_id, episode_number, episode_title")
+        .in("lecture_id", lectureIds)
+        .order("episode_number", { ascending: true });
+
+      // lecture_id별로 그룹화
+      const lectureEpisodesMap = new Map<string, Array<{
+        episode_number: number;
+        episode_title: string | null;
+      }>>();
+      (lectureEpisodes || []).forEach((e) => {
+        if (!lectureEpisodesMap.has(e.lecture_id)) {
+          lectureEpisodesMap.set(e.lecture_id, []);
+        }
+        lectureEpisodesMap.get(e.lecture_id)!.push({
+          episode_number: e.episode_number,
+          episode_title: e.episode_title,
+        });
+      });
+
+      // 각 콘텐츠의 chapter 정보 설정
+      lectureContentsWithoutDetails.forEach((c) => {
+        const resolvedContentId = contentIdMap.get(c.content_id) || c.content_id;
+        const episodes = lectureEpisodesMap.get(resolvedContentId) || [];
+
+        if (episodes.length === 0) {
+          // episode 데이터가 없는 경우 start_range/end_range로 기본 표시
+          const startNum = c.start_range;
+          const endNum = c.end_range;
+          if (startNum === endNum) {
+            chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startNum}강`);
+          } else {
+            chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startNum}강 ~ ${endNum}강`);
+          }
+          return;
+        }
+
+        // episode_number로 조회
+        const startEpisode = episodes.find((e) => e.episode_number === c.start_range);
+        const endEpisode = c.start_range === c.end_range
+          ? startEpisode
+          : episodes.find((e) => e.episode_number === c.end_range);
+
+        const startChapter = startEpisode
+          ? (startEpisode.episode_title || `${startEpisode.episode_number}강`)
+          : `${c.start_range}강`;
+        const endChapter = endEpisode
+          ? (endEpisode.episode_title || `${endEpisode.episode_number}강`)
+          : `${c.end_range}강`;
+
+        if (c.start_range === c.end_range) {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, startChapter);
+        } else {
+          chapterMap.set(contentIdMap.get(c.content_id) || c.content_id, `${startChapter} ~ ${endChapter}`);
         }
       });
     }

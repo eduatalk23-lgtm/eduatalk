@@ -49,6 +49,7 @@ export type ContentDurationInfo = {
   total_page_or_time?: number | null;
   episodes?: Array<{
     episode_number: number;
+    episode_title?: string | null; // 회차명
     duration: number | null; // 회차별 소요시간 (분)
   }> | null; // 강의 episode별 duration 정보
 };
@@ -412,36 +413,38 @@ export async function prepareContentDuration(
         const lectureData = studentLecture.data;
 
         // Episode 정보 조회 (학생 강의 episode 우선)
-        let episodes: Array<{ episode_number: number; duration: number | null }> | null = null;
+        let episodes: Array<{ episode_number: number; episode_title?: string | null; duration: number | null }> | null = null;
         try {
           const episodeResult = await supabase
             .from("student_lecture_episodes")
-            .select("episode_number, duration")
+            .select("episode_number, episode_title, duration")
             .eq("lecture_id", finalContentId)
             .order("episode_number", { ascending: true });
-          
+
           if (episodeResult.data && episodeResult.data.length > 0) {
             episodes = episodeResult.data.map((ep) => ({
               episode_number: ep.episode_number,
+              episode_title: ep.episode_title || null,
               duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
             }));
           }
         } catch {
           // Episode 조회 실패 시 무시 (fallback 사용)
         }
-        
+
         // 마스터 강의 episode 조회 (fallback)
         if (!episodes && lectureData.master_content_id) {
           try {
             const masterEpisodeResult = await supabase
               .from("lecture_episodes")
-              .select("episode_number, duration")
+              .select("episode_number, episode_title, duration")
               .eq("lecture_id", lectureData.master_content_id)
               .order("episode_number", { ascending: true });
-            
+
             if (masterEpisodeResult.data && masterEpisodeResult.data.length > 0) {
               episodes = masterEpisodeResult.data.map((ep) => ({
                 episode_number: ep.episode_number,
+                episode_title: ep.episode_title || null,
                 duration: ep.duration ? Math.ceil(ep.duration / 60) : null, // Convert seconds to minutes
               }));
             }

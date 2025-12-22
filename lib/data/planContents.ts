@@ -425,7 +425,7 @@ export async function fetchStudentCustomContents(
       const errorValues: Record<string, string> = {};
       errorProps.forEach((prop) => {
         try {
-          const value = (err as Record<string, unknown>)[prop];
+          const value = (err as unknown as Record<string, unknown>)[prop];
           errorValues[prop] = typeof value === "object" 
             ? JSON.stringify(value) 
             : String(value ?? "null");

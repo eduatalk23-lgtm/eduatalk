@@ -1000,7 +1000,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
                 is_auto_recommended: false, // 관리자 추가는 항상 false
                 recommendation_source: (isRecommended ? "admin" : null) as "auto" | "admin" | "template" | null,
                 recommendation_reason: recommendedContent?.recommendation_reason ?? null,
-                recommendation_metadata: (recommendedContent?.recommendation_metadata as RecommendationMetadata | null) ?? null,
+                recommendation_metadata: (recommendedContent?.recommendation_metadata as Json) ?? null,
               };
             });
 

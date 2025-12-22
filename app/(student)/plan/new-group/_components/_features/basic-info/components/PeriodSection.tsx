@@ -1,11 +1,13 @@
 import { CollapsibleSection } from "../../../_summary/CollapsibleSection";
-import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import { WizardData, TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { usePeriodCalculation } from "../hooks/usePeriodCalculation";
 import { getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
 import { DateInput } from "../../../_components/DateInput";
 import { FieldErrors } from "../../../hooks/useWizardValidation";
 import { FieldError } from "../../../_components/FieldError";
 import { cn } from "@/lib/cn";
+
+type Step1FieldName = keyof NonNullable<TemplateLockedFields["step1"]>;
 
 type PeriodSectionProps = {
   data: WizardData;
@@ -14,7 +16,7 @@ type PeriodSectionProps = {
   isCampMode: boolean;
   isTemplateMode: boolean;
   periodCalculation: ReturnType<typeof usePeriodCalculation>;
-  toggleFieldControl: (fieldName: string, enabled?: boolean) => void;
+  toggleFieldControl: (fieldName: Step1FieldName, enabled?: boolean) => void;
   canStudentInputPeriod: boolean;
   isFieldLocked: (fieldName: string) => boolean;
   isDisabled: (condition?: boolean) => boolean;

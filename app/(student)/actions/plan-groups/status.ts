@@ -72,6 +72,15 @@ async function _updatePlanGroupStatus(
     access.role
   );
 
+  if (!supabase) {
+    throw new AppError(
+      "Supabase 클라이언트를 생성할 수 없습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true
+    );
+  }
+
   // 활성화 시 같은 모드의 다른 활성 플랜 그룹만 비활성화
   // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
   if (status === "active") {

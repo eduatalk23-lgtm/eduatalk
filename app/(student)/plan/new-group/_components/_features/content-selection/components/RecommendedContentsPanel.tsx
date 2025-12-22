@@ -492,7 +492,7 @@ export function RecommendedContentsPanel({
                     difficulty: originalContent?.difficulty_level,
                     publisher: originalContent?.publisher,
                     platform: originalContent?.platform,
-                    contentType: content.content_type,
+                    contentType: content.content_type as "book" | "lecture",
                   }}
                   selected={true}
                   range={{

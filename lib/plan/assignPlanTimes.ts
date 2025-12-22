@@ -39,6 +39,7 @@ export type PlanTimeInput = {
   block_index?: number;
   _precalculated_start?: string | null;
   _precalculated_end?: string | null;
+  _originalIndex?: number;
 };
 
 /**

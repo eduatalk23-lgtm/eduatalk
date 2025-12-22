@@ -150,10 +150,10 @@ export function StrategyWeaknessAllocationEditor({
     const subjectGroupContents = contentsBySubjectGroup.get(subjectGroup) || [];
     if (subjectGroupContents.length === 0) return;
 
-    // 해당 교과의 콘텐츠에서 실제 subject_id 추출
+    // 해당 교과의 콘텐츠에서 실제 subject_id 추출 (없으면 subjectGroup 사용)
     const actualSubjectId = subjectGroupContents
       .map((c) => c.subject_id)
-      .find((id) => id != null) || undefined;
+      .find((id) => id != null) || subjectGroup;
 
     // 교과 단위 설정 저장 (subject_allocations)
     const currentSubjectAllocations = data.subject_allocations || [];

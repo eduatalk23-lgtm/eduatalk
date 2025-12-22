@@ -220,11 +220,13 @@ async function _previewPlansFromGroupRefactored(
     );
 
     // 7.5. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
+    // 캠프 모드에서는 마스터 테이블의 detail ID를 사용할 수 있으므로 masterQueryClient도 전달
     const contentChapterMap = await loadContentChapters(
       contents,
       contentIdMap,
       studentId,
-      queryClient
+      queryClient,
+      masterQueryClient
     );
 
     // 8. dateAvailableTimeRanges 추출

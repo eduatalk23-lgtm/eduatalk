@@ -312,14 +312,14 @@ export class WizardValidator {
           });
         });
 
-        // 콘텐츠에서 subject_id와 subject_category 수집
-        const contentSubjectIds = new Set<string>();
+        // 콘텐츠에서 subject와 subject_category 수집
+        const contentSubjects = new Set<string>();
         const contentSubjectCategories = new Set<string>();
-        
+
         [...wizardData.student_contents, ...wizardData.recommended_contents].forEach((c) => {
-          // subject_id가 있으면 추가
-          if (c.subject_id) {
-            contentSubjectIds.add(c.subject_id);
+          // subject가 있으면 추가
+          if (c.subject) {
+            contentSubjects.add(c.subject);
           }
           // subject_category가 있으면 추가
           if (c.subject_category) {
@@ -330,11 +330,11 @@ export class WizardValidator {
         // 매칭되지 않는 교과 찾기
         const missingSubjects: string[] = [];
         allocatedSubjects.forEach((allocated, subjectName) => {
-          // 1. subject_id로 매칭 시도 (가장 정확)
-          if (allocated.id && contentSubjectIds.has(allocated.id)) {
+          // 1. subject로 매칭 시도
+          if (contentSubjects.has(subjectName)) {
             return; // 매칭됨
           }
-          
+
           // 2. subject_name이 subject_category와 정확히 일치하는지 확인
           if (contentSubjectCategories.has(subjectName)) {
             return; // 매칭됨

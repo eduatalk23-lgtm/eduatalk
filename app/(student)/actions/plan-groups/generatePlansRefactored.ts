@@ -397,6 +397,10 @@ async function _generatePlansFromGroupRefactored(
   // 복사 실패 시 contentIdMap에 매핑하지 않음 (외래 키 제약 조건 위반 방지)
   // missingBookIds와 missingLectureIds는 resolvedContentId를 포함하므로,
   // 복사 후 원본 content_id를 키로 매핑해야 함
+
+  // detail ID 매핑 수집 (마스터 → 학생)
+  const masterToStudentDetailIdMap = new Map<string, string>();
+
   for (const resolvedContentId of missingBookIds) {
     if (masterBookIds.has(resolvedContentId)) {
       try {
@@ -412,6 +416,12 @@ async function _generatePlansFromGroupRefactored(
           );
           if (originalContent) {
             contentIdMap.set(originalContent.content_id, copiedBook.bookId);
+          }
+          // detail ID 매핑 수집
+          if (copiedBook.detailIdMap) {
+            copiedBook.detailIdMap.forEach((studentDetailId, masterDetailId) => {
+              masterToStudentDetailIdMap.set(masterDetailId, studentDetailId);
+            });
           }
         } else {
           console.warn(
@@ -451,6 +461,12 @@ async function _generatePlansFromGroupRefactored(
           if (originalContent) {
             contentIdMap.set(originalContent.content_id, copiedLecture.lectureId);
           }
+          // episode ID 매핑 수집
+          if (copiedLecture.episodeIdMap) {
+            copiedLecture.episodeIdMap.forEach((studentEpisodeId, masterEpisodeId) => {
+              masterToStudentDetailIdMap.set(masterEpisodeId, studentEpisodeId);
+            });
+          }
         } else {
           console.warn(
             `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패: lectureId가 없습니다.`
@@ -470,6 +486,57 @@ async function _generatePlansFromGroupRefactored(
       console.warn(
         `[generatePlansRefactored] 강의(${resolvedContentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
       );
+    }
+  }
+
+  // 캠프 모드: plan_contents의 start_detail_id/end_detail_id를 학생 콘텐츠 ID로 업데이트
+  if (masterToStudentDetailIdMap.size > 0) {
+    const contentsToUpdate = contents.filter(
+      (c) =>
+        (c.start_detail_id && masterToStudentDetailIdMap.has(c.start_detail_id)) ||
+        (c.end_detail_id && masterToStudentDetailIdMap.has(c.end_detail_id))
+    );
+
+    if (contentsToUpdate.length > 0) {
+      // DB의 plan_contents 업데이트 및 로컬 contents 배열 업데이트
+      for (const content of contentsToUpdate) {
+        const updateData: { start_detail_id?: string; end_detail_id?: string } = {};
+
+        if (content.start_detail_id && masterToStudentDetailIdMap.has(content.start_detail_id)) {
+          updateData.start_detail_id = masterToStudentDetailIdMap.get(content.start_detail_id)!;
+        }
+        if (content.end_detail_id && masterToStudentDetailIdMap.has(content.end_detail_id)) {
+          updateData.end_detail_id = masterToStudentDetailIdMap.get(content.end_detail_id)!;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          const { error: updateError } = await queryClient
+            .from("plan_contents")
+            .update(updateData)
+            .eq("id", content.id);
+
+          if (updateError) {
+            console.error(
+              `[generatePlansRefactored] plan_contents detail ID 업데이트 실패:`,
+              { contentId: content.id, updateData, error: updateError }
+            );
+          } else {
+            // 로컬 contents 배열도 업데이트 (플랜 생성에 사용됨)
+            if (updateData.start_detail_id) {
+              content.start_detail_id = updateData.start_detail_id;
+            }
+            if (updateData.end_detail_id) {
+              content.end_detail_id = updateData.end_detail_id;
+            }
+          }
+        }
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `[generatePlansRefactored] 캠프 모드: ${contentsToUpdate.length}개 plan_contents의 detail ID를 학생 콘텐츠 ID로 업데이트`
+        );
+      }
     }
   }
 
@@ -539,11 +606,13 @@ async function _generatePlansFromGroupRefactored(
   );
 
   // 9.5. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
+  // 캠프 모드에서는 마스터 테이블의 detail ID를 사용할 수 있으므로 masterQueryClient도 전달
   const contentChapterMap = await loadContentChapters(
     contents,
     contentIdMap,
     studentId,
-    queryClient
+    queryClient,
+    masterQueryClient
   );
 
   // 10. 스케줄러 호출 (플랜 생성)
@@ -1090,7 +1159,6 @@ async function _generatePlansFromGroupRefactored(
         created_at: now,
         updated_at: now,
         sequence: contentSequence, // 콘텐츠별 회차 사용
-        subject_type: originalPlan?.subject_type || null, // 전략/취약 정보
       });
 
       blockIndex++;
@@ -1169,16 +1237,19 @@ async function _generatePlansFromGroupRefactored(
     ? ensureAdminClient()
     : queryClient;
 
+  // verificationClient가 null인 경우 queryClient를 사용
+  const safeVerificationClient = verificationClient ?? queryClient;
+
   const [booksCheck, lecturesCheck] = await Promise.all([
     contentIdsByType.book.length > 0
-      ? verificationClient
+      ? safeVerificationClient
           .from("books")
           .select("id")
           .in("id", contentIdsByType.book)
           .eq("student_id", studentId)
       : Promise.resolve({ data: [], error: null }),
     contentIdsByType.lecture.length > 0
-      ? verificationClient
+      ? safeVerificationClient
           .from("lectures")
           .select("id")
           .in("id", contentIdsByType.lecture)
@@ -1205,16 +1276,17 @@ async function _generatePlansFromGroupRefactored(
     
     // Admin 클라이언트로 재시도
     const adminClient = ensureAdminClient();
+    const safeAdminClient = adminClient ?? queryClient;
     [finalBooksCheck, finalLecturesCheck] = await Promise.all([
       contentIdsByType.book.length > 0
-        ? adminClient
+        ? safeAdminClient
             .from("books")
             .select("id")
             .in("id", contentIdsByType.book)
             .eq("student_id", studentId)
         : Promise.resolve({ data: [], error: null }),
       contentIdsByType.lecture.length > 0
-        ? adminClient
+        ? safeAdminClient
             .from("lectures")
             .select("id")
             .in("id", contentIdsByType.lecture)

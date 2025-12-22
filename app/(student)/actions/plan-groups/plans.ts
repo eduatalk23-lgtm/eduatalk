@@ -3,14 +3,73 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { verifyPlanGroupAccess } from "@/lib/auth/planGroupAuth";
+import {
+  generatePlansWithServices,
+  canUseServiceBasedGeneration,
+} from "@/lib/plan/services";
 
 // --- 리팩토링된 함수 import 및 re-export ---
 // 원본 함수는 previewPlansRefactored.ts와 generatePlansRefactored.ts로 이동됨
-import { generatePlansFromGroupRefactoredAction } from "./generatePlansRefactored";
+import { generatePlansFromGroupRefactoredAction, _generatePlansFromGroupRefactored } from "./generatePlansRefactored";
 import { previewPlansFromGroupRefactoredAction } from "./previewPlansRefactored";
 
-export const generatePlansFromGroupAction = generatePlansFromGroupRefactoredAction;
+/**
+ * 피처 플래그 기반 플랜 생성 액션
+ *
+ * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
+ * - true: 새로운 서비스 레이어 기반 구현 사용
+ * - false (기본): 기존 generatePlansRefactored 구현 사용
+ */
+async function _generatePlansFromGroupWithFeatureFlag(
+  groupId: string
+): Promise<{ count: number }> {
+  // 피처 플래그 확인
+  if (canUseServiceBasedGeneration()) {
+    // 새로운 서비스 레이어 기반 구현 사용
+    const access = await verifyPlanGroupAccess();
+    const tenantContext = await requireTenantContext();
+
+    const result = await generatePlansWithServices({
+      groupId,
+      context: {
+        studentId: access.user.userId,
+        tenantId: tenantContext.tenantId,
+        userId: access.user.userId,
+        role: access.role,
+        isCampMode: false, // 캠프 모드 여부는 plan group에서 확인
+      },
+      accessInfo: {
+        userId: access.user.userId,
+        role: access.role,
+      },
+    });
+
+    if (!result.success) {
+      throw new AppError(
+        result.error ?? "플랜 생성에 실패했습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true,
+        { errorCode: result.errorCode }
+      );
+    }
+
+    return { count: result.count ?? 0 };
+  }
+
+  // 기존 구현 사용
+  return _generatePlansFromGroupRefactored(groupId);
+}
+
+export const generatePlansFromGroupAction = withErrorHandling(
+  _generatePlansFromGroupWithFeatureFlag
+);
 export const previewPlansFromGroupAction = previewPlansFromGroupRefactoredAction;
+
+// 기존 구현 직접 접근이 필요한 경우를 위해 유지
+export { generatePlansFromGroupRefactoredAction as generatePlansFromGroupRefactoredActionDirect };
 
 // --- 나머지 유틸리티 함수들 ---
 

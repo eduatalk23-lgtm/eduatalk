@@ -236,7 +236,6 @@ async function getPlansFromView(options: {
         row.content_subject_category || row.view_content_subject_category || null,
       content_category: row.content_category || row.view_content_category || null,
       memo: row.memo,
-      subject_type: (row as { subject_type?: "strategy" | "weakness" | null }).subject_type ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at ?? new Date().toISOString(),
     };
