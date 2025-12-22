@@ -75,10 +75,37 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
   const tableData = useMemo<PlanTableRow[]>(() => {
     return filteredPlans.map((plan) => {
       const content = contents.get(plan.content_id);
-      const durationMinutes =
-        plan.start_time && plan.end_time
-          ? timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time)
-          : 0;
+      
+      // 소요시간 계산: start_time과 end_time이 있으면 사용, 없으면 콘텐츠 정보 기반으로 계산
+      let durationMinutes = 0;
+      if (plan.start_time && plan.end_time) {
+        durationMinutes = timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time);
+      } else if (content && plan.planned_start_page_or_time !== null && plan.planned_end_page_or_time !== null) {
+        // 시간 정보가 없으면 콘텐츠 정보 기반으로 계산
+        if (plan.content_type === "lecture" && content.episodes) {
+          // 강의의 경우 episode별 duration 합산
+          const startEpisode = plan.planned_start_page_or_time;
+          const endEpisode = plan.planned_end_page_or_time;
+          let totalDuration = 0;
+          for (let i = startEpisode; i <= endEpisode; i++) {
+            const episode = content.episodes.find((ep) => ep.episode_number === i);
+            if (episode && episode.duration !== null && episode.duration > 0) {
+              totalDuration += episode.duration;
+            } else {
+              // episode 정보가 없으면 기본값 30분 사용
+              totalDuration += 30;
+            }
+          }
+          durationMinutes = totalDuration;
+        } else if (plan.content_type === "book" && content.total_pages) {
+          // 교재의 경우 페이지 수 기반 계산 (60페이지/시간 가정)
+          const pages = plan.planned_end_page_or_time - plan.planned_start_page_or_time + 1;
+          durationMinutes = Math.round((pages / 60) * 60); // 분 단위
+        }
+      }
+
+      // 학습 내역: contentEpisode 우선, 없으면 chapter 사용
+      const learningHistory = plan.contentEpisode || plan.chapter || null;
 
       return {
         id: plan.id,
@@ -89,7 +116,7 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
         subject: content?.subject || null,
         content_type: plan.content_type as "book" | "lecture" | "custom",
         content_title: content?.title || null,
-        chapter: plan.contentEpisode || plan.chapter || null,
+        chapter: learningHistory,
         sequence: plan.sequence || null,
         planned_start_page_or_time: plan.planned_start_page_or_time,
         planned_end_page_or_time: plan.planned_end_page_or_time,
