@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getPlanGroupById, updatePlanGroup } from "@/lib/data/planGroups";
+import { getPlanGroupById, getPlanGroupByIdForAdmin, updatePlanGroup } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
@@ -21,7 +21,23 @@ async function _updatePlanGroupStatus(
   const tenantContext = await requireTenantContext();
 
   // 기존 그룹 조회 - 역할에 따라 조회
-  const group = await getPlanGroupById(groupId, access.user.userId);
+  let group;
+  if (access.role === "admin" || access.role === "consultant") {
+    // 관리자/컨설턴트는 tenantId로 조회
+    if (!tenantContext.tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+    group = await getPlanGroupByIdForAdmin(groupId, tenantContext.tenantId);
+  } else {
+    // 학생은 자신의 ID로 조회
+    group = await getPlanGroupById(groupId, access.user.userId);
+  }
+
   if (!group) {
     throw new AppError(
       "플랜 그룹을 찾을 수 없습니다.",
