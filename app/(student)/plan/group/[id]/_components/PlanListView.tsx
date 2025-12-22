@@ -31,7 +31,8 @@ type PlanTableRow = {
   content_type: "book" | "lecture" | "custom";
   content_title: string | null;
   chapter: string | null;
-  sequence: number | null;
+  plan_number: number | null; // plan_number 우선 사용
+  sequence: number | null; // 하위 호환성
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   duration_minutes: number; // 계산된 값
@@ -117,7 +118,8 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
         content_type: plan.content_type as "book" | "lecture" | "custom",
         content_title: content?.title || null,
         chapter: learningHistory,
-        sequence: plan.sequence || null,
+        plan_number: plan.plan_number ?? null, // plan_number 우선
+        sequence: plan.sequence || null, // 하위 호환성
         planned_start_page_or_time: plan.planned_start_page_or_time,
         planned_end_page_or_time: plan.planned_end_page_or_time,
         duration_minutes: durationMinutes,
@@ -226,9 +228,13 @@ export function PlanListView({ plans, contents, isLoading = false }: PlanListVie
         size: 200,
       },
       {
-        accessorKey: "sequence",
+        accessorKey: "plan_number",
         header: "회차",
-        cell: ({ row }) => row.original.sequence || "-",
+        cell: ({ row }) => {
+          // plan_number 우선, 없으면 sequence 사용
+          const planNumber = row.original.plan_number ?? row.original.sequence;
+          return planNumber !== null ? planNumber : "-";
+        },
         enableSorting: true,
         size: 80,
       },

@@ -129,8 +129,16 @@ async function _previewPlansFromGroupWithFeatureFlag(
   is_continued: boolean;
   plan_number: number | null;
 }> }> {
+  // DEBUG: Feature Flag 확인
+  const useNewServices = canUseServiceBasedGeneration();
+  console.log("[previewPlansFromGroupAction] Feature Flag check:", {
+    ENABLE_NEW_PLAN_SERVICES: process.env.ENABLE_NEW_PLAN_SERVICES,
+    canUseServiceBasedGeneration: useNewServices,
+    groupId,
+  });
+
   // 피처 플래그 확인
-  if (canUseServiceBasedGeneration()) {
+  if (useNewServices) {
     // 새로운 서비스 레이어 기반 구현 사용
     const access = await verifyPlanGroupAccess();
     const tenantContext = await requireTenantContext();

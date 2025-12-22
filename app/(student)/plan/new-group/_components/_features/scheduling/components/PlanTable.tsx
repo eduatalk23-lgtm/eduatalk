@@ -71,7 +71,8 @@ export const PlanTable = memo(
               isReviewDay &&
               planTime.originalEstimatedTime &&
               planTime.originalEstimatedTime > actualDuration;
-            const sequence = planTime.plan.sequence || 1;
+            // plan_number 우선 사용, 없으면 sequence 사용, 둘 다 없으면 "-" 표시
+              const planNumber = planTime.plan.plan_number ?? planTime.plan.sequence ?? null;
 
             return (
               <tr
@@ -121,7 +122,7 @@ export const PlanTable = memo(
                   </div>
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
-                  {sequence}
+                  {planNumber !== null ? planNumber : "-"}
                 </td>
                 <td className="px-3 py-2 border border-blue-200 text-blue-800 text-center">
                   {formatPlanLearningAmount(planTime.plan)}

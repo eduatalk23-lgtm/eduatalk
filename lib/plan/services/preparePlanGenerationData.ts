@@ -49,6 +49,7 @@ export type AllocatedPlanSegment = {
     planned_start_page_or_time: number;
     planned_end_page_or_time: number;
     block_index: number;
+    subject_type?: "strategy" | "weakness" | null;
   };
   start: string;
   end: string;
@@ -348,6 +349,12 @@ export async function preparePlanGenerationData(
       totalStudyHours
     );
 
+    // subject_type을 content_id 기반으로 조회하기 위한 맵 생성
+    const subjectTypeMap = new Map<string, "strategy" | "weakness" | null>();
+    datePlans.forEach((plan) => {
+      subjectTypeMap.set(plan.content_id, plan.subject_type ?? null);
+    });
+
     dateAllocations.push({
       date,
       segments: segments.map((seg) => ({
@@ -357,6 +364,7 @@ export async function preparePlanGenerationData(
           planned_start_page_or_time: seg.plan.planned_start_page_or_time,
           planned_end_page_or_time: seg.plan.planned_end_page_or_time,
           block_index: seg.plan.block_index ?? 0,
+          subject_type: subjectTypeMap.get(seg.plan.content_id) ?? null,
         },
         start: seg.start,
         end: seg.end,

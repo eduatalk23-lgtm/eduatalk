@@ -103,9 +103,25 @@ export async function generatePlansWithServices(
       }
     > = [];
 
+    // plan_number 계산을 위한 Map
+    const planNumberMap = new Map<string, number>();
+    let nextPlanNumber = 1;
+
     for (const { date, segments, dateMetadata, dayType } of dateAllocations) {
       segments.forEach((segment, index) => {
         const metadata = contentMetadataMap.get(segment.plan.content_id);
+
+        // plan_number 계산: 동일한 날짜+콘텐츠+범위는 같은 번호 부여
+        const planKey = `${date}:${segment.plan.content_id}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
+        let planNumber: number;
+
+        if (planNumberMap.has(planKey)) {
+          planNumber = planNumberMap.get(planKey)!;
+        } else {
+          planNumber = nextPlanNumber;
+          planNumberMap.set(planKey, planNumber);
+          nextPlanNumber++;
+        }
 
         planPayloads.push({
           plan_date: date,
@@ -122,7 +138,8 @@ export async function generatePlansWithServices(
           day: null,
           is_partial: segment.isPartial,
           is_continued: segment.isContinued,
-          plan_number: null,
+          plan_number: planNumber,
+          subject_type: segment.plan.subject_type ?? null,
           content_title: metadata?.title ?? null,
           content_subject: metadata?.subject ?? null,
         });
