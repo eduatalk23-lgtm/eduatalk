@@ -49,7 +49,11 @@ export function Step7ScheduleResult({
       await queryClient.invalidateQueries({ queryKey: ["plansExist", groupId] });
       await queryClient.invalidateQueries({ queryKey: ["planSchedule", groupId] });
       // 즉시 refetch하여 최신 데이터 표시
-      await queryClient.refetchQueries({ queryKey: ["plansExist", groupId] });
+      // refetch가 완료될 때까지 기다려서 plansCheck가 업데이트되도록 보장
+      await queryClient.refetchQueries({ 
+        queryKey: ["plansExist", groupId],
+        exact: true 
+      });
       await queryClient.refetchQueries({ queryKey: ["planSchedule", groupId] });
     },
   });
@@ -101,8 +105,13 @@ export function Step7ScheduleResult({
   const isGenerating = generatePlansMutation.isPending;
   const isLoadingData = isCheckingPlans;
   const hasError = generatePlansMutation.error;
+  
+  // 플랜 생성 성공 후 plansCheck가 업데이트될 때까지 로딩 상태 유지
+  const isWaitingForPlansCheck = 
+    generatePlansMutation.isSuccess && 
+    (!plansCheck || !plansCheck.hasPlans);
 
-  if (isLoadingData || isGenerating) {
+  if (isLoadingData || isGenerating || isWaitingForPlansCheck) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
@@ -114,7 +123,7 @@ export function Step7ScheduleResult({
         <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900"></div>
           <p className="text-sm text-gray-500">
-            {isGenerating ? "플랜 생성 중..." : "데이터를 불러오는 중..."}
+            {isGenerating ? "플랜 생성 중..." : isWaitingForPlansCheck ? "플랜 확인 중..." : "데이터를 불러오는 중..."}
           </p>
         </div>
       </div>
@@ -182,7 +191,9 @@ export function Step7ScheduleResult({
 
   // 플랜이 있을 때 스케줄 결과 표시
   // PlanScheduleView가 자체적으로 데이터를 페칭하므로 조건부 렌더링만
-  if (!plansCheck?.hasPlans && !generatePlansMutation.isSuccess) {
+  // generatePlansMutation.isSuccess일 때는 plansCheck가 업데이트될 때까지 로딩 상태로 처리되므로
+  // 여기서는 plansCheck.hasPlans만 확인
+  if (!plansCheck?.hasPlans) {
     return null;
   }
 
