@@ -37,6 +37,7 @@ export type ContentInfo = {
   total_amount: number; // end_range - start_range
   subject?: string | null; // 과목명 (전략과목/취약과목 로직용)
   subject_category?: string | null; // 과목 카테고리
+  chapter?: string | null; // 단원/회차 정보 (book: major_unit/minor_unit, lecture: episode_title)
 };
 
 export type ScheduledPlan = {
@@ -92,6 +93,7 @@ export async function generatePlansFromGroup(
   dateAvailableTimeRanges?: DateAvailableTimeRanges, // Step 2.5 스케줄 결과 (날짜별 사용 가능 시간 범위)
   dateTimeSlots?: DateTimeSlots, // Step 2.5 스케줄 결과 (날짜별 시간 타임라인)
   contentDurationMap?: ContentDurationMap, // 콘텐츠 소요시간 정보
+  contentChapterMap?: Map<string, string | null>, // 콘텐츠 chapter 정보 (원본 content_id -> chapter 문자열)
   periodStart?: string, // 재조정 시 사용할 기간 시작일 (선택사항)
   periodEnd?: string // 재조정 시 사용할 기간 종료일 (선택사항)
 ): Promise<ScheduledPlan[]> {
@@ -130,8 +132,10 @@ export async function generatePlansFromGroup(
   }
 
   // 2. 콘텐츠 정보 변환 (과목 정보 포함)
+  // chapter 정보는 contentChapterMap에서 조회 (PlanContent의 start_detail_id/end_detail_id 기반)
   const contentInfos: ContentInfo[] = contents.map((c) => {
     const subjectInfo = contentSubjects?.get(c.content_id);
+    const chapter = contentChapterMap?.get(c.content_id) || null;
     return {
       content_type: c.content_type,
       content_id: c.content_id,
@@ -140,6 +144,7 @@ export async function generatePlansFromGroup(
       total_amount: c.end_range - c.start_range,
       subject: subjectInfo?.subject || null,
       subject_category: subjectInfo?.subject_category || null,
+      chapter: chapter, // contentChapterMap에서 조회한 chapter 정보 사용
     };
   });
 
@@ -197,7 +202,8 @@ export async function generatePlansFromGroup(
       riskIndexMap,
       dateAvailableTimeRanges,
       dateTimeSlots,
-      contentDurationMap
+      contentDurationMap,
+      contentChapterMap // chapter 정보 전달
     );
     plans = [...plans, ...reallocatedPlans];
   }
@@ -309,7 +315,8 @@ function generateAdditionalPeriodReallocationPlans(
   riskIndexMap?: Map<string, { riskScore: number }>,
   dateAvailableTimeRanges?: DateAvailableTimeRanges,
   dateTimeSlots?: DateTimeSlots,
-  contentDurationMap?: ContentDurationMap
+  contentDurationMap?: ContentDurationMap,
+  contentChapterMap?: Map<string, string | null> // 콘텐츠 chapter 정보
 ): ScheduledPlan[] {
   const reallocatedPlans: ScheduledPlan[] = [];
   const reviewOfReviewFactor = reallocation.review_of_review_factor ?? 0.25;
@@ -379,6 +386,9 @@ function generateAdditionalPeriodReallocationPlans(
   // 6. 각 콘텐츠별로 재배치 플랜 생성
   for (const [contentKey, contentPlans] of plansByContent.entries()) {
     const [contentType, contentId] = contentKey.split(":");
+    
+    // 원본 플랜에서 chapter 정보 가져오기 (첫 번째 플랜의 chapter 사용)
+    const originalChapter = contentPlans[0]?.chapter || contentChapterMap?.get(contentId) || null;
     
     // 과목 필터링
     if (targetSubjects) {
@@ -469,7 +479,7 @@ function generateAdditionalPeriodReallocationPlans(
           content_id: contentId,
           planned_start_page_or_time: Math.round(currentStart),
           planned_end_page_or_time: Math.round(dayEnd),
-          chapter: null,
+          chapter: originalChapter, // 원본 플랜의 chapter 정보 사용
           is_reschedulable: true,
           start_time: startTime,
           end_time: endTime,
@@ -522,7 +532,7 @@ function generateAdditionalPeriodReallocationPlans(
           content_id: contentId,
           planned_start_page_or_time: Math.round(totalStartRange),
           planned_end_page_or_time: Math.round(totalEndRange),
-          chapter: null,
+          chapter: originalChapter, // 원본 플랜의 chapter 정보 사용
           is_reschedulable: true,
           start_time: startTime,
           end_time: endTime,
@@ -739,6 +749,7 @@ function generateDefaultPlans(
             content_id: content.content_id,
             planned_start_page_or_time: currentStart,
             planned_end_page_or_time: endAmount,
+            chapter: content.chapter || null, // ContentInfo의 chapter 정보 사용
             is_reschedulable: true,
             start_time: block.start_time, // 블록의 시작 시간
             end_time: block.end_time, // 블록의 종료 시간
@@ -808,6 +819,7 @@ function generateDefaultPlans(
               content_id: content.content_id,
               planned_start_page_or_time: start,
               planned_end_page_or_time: endPageOrTime,
+              chapter: content.chapter || null, // ContentInfo의 chapter 정보 사용
               is_reschedulable: true,
               start_time: planStartTime,
               end_time: planEndTime,
@@ -846,6 +858,7 @@ function generateDefaultPlans(
             content_id: content.content_id,
             planned_start_page_or_time: start,
             planned_end_page_or_time: endPageOrTime,
+            chapter: content.chapter || null, // ContentInfo의 chapter 정보 사용
             is_reschedulable: true,
             start_time: planStartTime,
             end_time: planEndTime,

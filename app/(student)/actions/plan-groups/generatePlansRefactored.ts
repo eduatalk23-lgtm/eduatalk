@@ -37,6 +37,7 @@ import {
   resolveContentIds,
   loadContentDurations,
   loadContentMetadata,
+  loadContentChapters,
 } from "@/lib/plan/contentResolver";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
@@ -537,6 +538,14 @@ async function _generatePlansFromGroupRefactored(
     masterQueryClient
   );
 
+  // 9.5. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
+  const contentChapterMap = await loadContentChapters(
+    contents,
+    contentIdMap,
+    studentId,
+    queryClient
+  );
+
   // 10. 스케줄러 호출 (플랜 생성)
   let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
   try {
@@ -602,7 +611,8 @@ async function _generatePlansFromGroupRefactored(
       undefined,
       dateAvailableTimeRanges,
       dateTimeSlots,
-      contentDurationMap
+      contentDurationMap,
+      contentChapterMap // chapter 정보 전달
     );
   } catch (error) {
     // PlanGroupError인 경우 failureReason을 사용하여 구체적인 메시지 전달
