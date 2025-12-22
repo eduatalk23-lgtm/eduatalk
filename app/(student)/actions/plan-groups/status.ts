@@ -8,6 +8,7 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import type { PlanStatus } from "@/lib/types/plan";
 import { verifyPlanGroupAccess, getStudentIdForPlanGroup, getSupabaseClientForStudent } from "@/lib/auth/planGroupAuth";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
+import { isCampMode } from "@/lib/plan/context";
 
 /**
  * 플랜 그룹 상태 업데이트
@@ -75,10 +76,7 @@ async function _updatePlanGroupStatus(
   // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
   if (status === "active") {
     // 현재 활성화하려는 그룹이 캠프 모드인지 확인
-    const isCampMode =
-      group.plan_type === "camp" ||
-      group.camp_template_id !== null ||
-      group.camp_invitation_id !== null;
+    const isGroupCampMode = isCampMode(group);
 
     // 같은 모드의 활성 플랜 그룹만 조회
     const query = supabase
@@ -98,13 +96,9 @@ async function _updatePlanGroupStatus(
       );
     } else if (allActiveGroups && allActiveGroups.length > 0) {
       // 같은 모드의 활성 플랜 그룹만 필터링
-      const sameModeGroups = allActiveGroups.filter((g) => {
-        const gIsCampMode =
-          g.plan_type === "camp" ||
-          g.camp_template_id !== null ||
-          g.camp_invitation_id !== null;
-        return isCampMode === gIsCampMode;
-      });
+      const sameModeGroups = allActiveGroups.filter(
+        (g) => isGroupCampMode === isCampMode(g)
+      );
 
       if (sameModeGroups.length > 0) {
         // 같은 모드의 다른 활성 플랜 그룹들을 "saved" 상태로 변경

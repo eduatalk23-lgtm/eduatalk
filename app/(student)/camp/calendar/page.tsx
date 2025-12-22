@@ -14,6 +14,7 @@ import { getCampTemplate } from "@/lib/data/campTemplates";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";
 import { enrichPlansWithContentInfo } from "@/lib/utils/calendarPageHelpers";
+import { isCampMode } from "@/lib/plan/context";
 
 type CampCalendarPageProps = {
   searchParams: Promise<{ view?: string }>;
@@ -46,11 +47,8 @@ export default async function CampCalendarPage({
     });
 
     // 캠프 모드 플랜 그룹만 필터링
-    const campModePlanGroups = allActivePlanGroups.filter(
-      (group) =>
-        group.plan_type === "camp" ||
-        group.camp_template_id !== null ||
-        group.camp_invitation_id !== null
+    const campModePlanGroups = allActivePlanGroups.filter((group) =>
+      isCampMode(group)
     );
 
     // 템플릿 존재 여부 확인 (삭제된 템플릿의 플랜 그룹 제외)
