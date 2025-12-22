@@ -197,10 +197,10 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
       // 주당 2일이므로 2주 동안 총 4일 배정
       expect(allocatedDates.length).toBe(4);
       
-      // 각 주에 2일씩 배정되었는지 확인
-      const week1Dates = allocatedDates.filter((d) => d.startsWith("2024-01-0"));
-      const week2Dates = allocatedDates.filter((d) => d.startsWith("2024-01-1"));
-      
+      // 각 주에 2일씩 배정되었는지 확인 (주 1: 01-07, 주 2: 08-14)
+      const week1Dates = allocatedDates.filter((d) => d >= "2024-01-01" && d <= "2024-01-07");
+      const week2Dates = allocatedDates.filter((d) => d >= "2024-01-08" && d <= "2024-01-14");
+
       expect(week1Dates.length).toBe(2);
       expect(week2Dates.length).toBe(2);
     });
@@ -234,11 +234,11 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
 
       // 주당 3일이므로 2주 동안 총 6일 배정
       expect(allocatedDates.length).toBe(6);
-      
-      // 각 주에 3일씩 배정되었는지 확인
-      const week1Dates = allocatedDates.filter((d) => d.startsWith("2024-01-0"));
-      const week2Dates = allocatedDates.filter((d) => d.startsWith("2024-01-1"));
-      
+
+      // 각 주에 3일씩 배정되었는지 확인 (주 1: 01-07, 주 2: 08-14)
+      const week1Dates = allocatedDates.filter((d) => d >= "2024-01-01" && d <= "2024-01-07");
+      const week2Dates = allocatedDates.filter((d) => d >= "2024-01-08" && d <= "2024-01-14");
+
       expect(week1Dates.length).toBe(3);
       expect(week2Dates.length).toBe(3);
     });
@@ -272,11 +272,11 @@ describe("전략과목/취약과목 할당 통합 테스트", () => {
 
       // 주당 4일이므로 2주 동안 총 8일 배정
       expect(allocatedDates.length).toBe(8);
-      
-      // 각 주에 4일씩 배정되었는지 확인
-      const week1Dates = allocatedDates.filter((d) => d.startsWith("2024-01-0"));
-      const week2Dates = allocatedDates.filter((d) => d.startsWith("2024-01-1"));
-      
+
+      // 각 주에 4일씩 배정되었는지 확인 (주 1: 01-07, 주 2: 08-14)
+      const week1Dates = allocatedDates.filter((d) => d >= "2024-01-01" && d <= "2024-01-07");
+      const week2Dates = allocatedDates.filter((d) => d >= "2024-01-08" && d <= "2024-01-14");
+
       expect(week1Dates.length).toBe(4);
       expect(week2Dates.length).toBe(4);
     });

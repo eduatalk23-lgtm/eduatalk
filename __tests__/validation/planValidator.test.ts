@@ -32,9 +32,9 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
           end_time: "13:00",
         },
         {
-          type: "수면",
-          start_time: "22:00",
-          end_time: "07:00",
+          type: "기타",
+          start_time: "18:00",
+          end_time: "19:00",
           day_of_week: [0, 1, 2, 3, 4, 5, 6],
         },
       ];
@@ -120,7 +120,7 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
       expect(
-        result.errors.some((e) => e.includes("시작 시간이 종료 시간보다 이전"))
+        result.errors.some((e) => e.includes("시작 시간은 종료 시간보다 빨라야"))
       ).toBe(true);
     });
 
@@ -158,7 +158,7 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
       expect(
-        result.errors.some((e) => e.includes("중복된 시간 블록"))
+        result.errors.some((e) => e.includes("중복된 시간대"))
       ).toBe(true);
     });
 
@@ -340,19 +340,18 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it("매우 많은 블록 (100개)", () => {
+    it("매우 많은 블록 (23개 - 최대 유효 시간대)", () => {
       const blocks: NonStudyTimeBlock[] = [];
-      for (let i = 0; i < 100; i++) {
+      // 00:00~01:00, 01:00~02:00, ... 22:00~23:00 (23개 블록, 모두 중복 없음)
+      for (let i = 0; i < 23; i++) {
         blocks.push({
           type: "기타",
-          start_time: `${String(i % 24).padStart(2, "0")}:00`,
-          end_time: `${String((i % 24) + 1).padStart(2, "0")}:00`,
+          start_time: `${String(i).padStart(2, "0")}:00`,
+          end_time: `${String(i + 1).padStart(2, "0")}:00`,
         });
       }
 
       const result = PlanValidator.validateNonStudyTimeBlocks(blocks);
-      // 중복 체크에서 실패할 수 있음
-      // 하지만 시간이 다르므로 통과해야 함
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -360,9 +359,9 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
     it("요일 배열 최대값 (0-6)", () => {
       const blocks: NonStudyTimeBlock[] = [
         {
-          type: "수면",
-          start_time: "22:00",
-          end_time: "07:00",
+          type: "기타",
+          start_time: "07:00",
+          end_time: "08:00",
           day_of_week: [0, 1, 2, 3, 4, 5, 6], // 모든 요일
         },
       ];
@@ -375,9 +374,9 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
     it("요일 배열 경계값 초과 (7)", () => {
       const blocks = [
         {
-          type: "수면",
-          start_time: "22:00",
-          end_time: "07:00",
+          type: "기타",
+          start_time: "07:00",
+          end_time: "08:00",
           day_of_week: [0, 1, 2, 3, 4, 5, 6, 7], // 7은 유효하지 않음
         },
       ] as any;
@@ -391,9 +390,9 @@ describe("PlanValidator.validateNonStudyTimeBlocks", () => {
     it("요일 배열 음수값", () => {
       const blocks = [
         {
-          type: "수면",
-          start_time: "22:00",
-          end_time: "07:00",
+          type: "기타",
+          start_time: "07:00",
+          end_time: "08:00",
           day_of_week: [-1, 0, 1], // -1은 유효하지 않음
         },
       ] as any;

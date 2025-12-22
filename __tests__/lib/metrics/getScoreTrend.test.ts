@@ -11,6 +11,29 @@ type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
 
+// Helper functions to create mock data matching the actual DB structure
+const createInternalScore = (
+  subjectName: string,
+  rankGrade: number | null | undefined,
+  createdAt: string | null
+) => ({
+  rank_grade: rankGrade,
+  grade: 1,
+  semester: 1,
+  created_at: createdAt,
+  subject_groups: subjectName ? { name: subjectName } : null,
+});
+
+const createMockScore = (
+  subjectName: string,
+  gradeScore: number | null | undefined,
+  examDate: string | null
+) => ({
+  grade_score: gradeScore,
+  exam_date: examDate,
+  subject_groups: subjectName ? { name: subjectName } : null,
+});
+
 describe("getScoreTrend", () => {
   let mockSupabase: SupabaseServerClient;
   const studentId = "student-123";
@@ -28,29 +51,17 @@ describe("getScoreTrend", () => {
 
   describe("성적 데이터 정렬 및 그룹화 검증", () => {
     it("내신과 모의고사 성적을 날짜순으로 정렬해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 3,
-          test_date: "2025-01-10",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 4,
-          test_date: "2025-01-05",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 3, "2025-01-10"),
+        createInternalScore("영어", 4, "2025-01-05"),
       ];
 
       const mockMockRows = [
-        {
-          subject_group: "국어",
-          grade_score: 2,
-          test_date: "2025-01-15",
-        },
+        createMockScore("국어", 2, "2025-01-15"),
       ];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any) // 내신 성적
+        .mockResolvedValueOnce(mockInternalRows as any) // 내신 성적
         .mockResolvedValueOnce(mockMockRows as any); // 모의고사 성적
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -63,28 +74,16 @@ describe("getScoreTrend", () => {
     });
 
     it("과목별로 성적을 올바르게 그룹화해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 3,
-          test_date: "2025-01-10",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 4,
-          test_date: "2025-01-05",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 5,
-          test_date: "2025-01-10",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 3, "2025-01-10"),
+        createInternalScore("수학", 4, "2025-01-05"),
+        createInternalScore("영어", 5, "2025-01-10"),
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -100,64 +99,44 @@ describe("getScoreTrend", () => {
     });
 
     it("내신과 모의고사 성적을 구분해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 3,
-          test_date: "2025-01-10",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 3, "2025-01-10"),
       ];
 
       const mockMockRows = [
-        {
-          subject_group: "수학",
-          grade_score: 4,
-          test_date: "2025-01-15",
-        },
+        createMockScore("수학", 4, "2025-01-15"),
       ];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows as any);
 
       const result = await getScoreTrend(mockSupabase, studentId);
 
-      const schoolScore = result.recentScores.find(
-        (s) => s.scoreType === "school"
+      const internalScore = result.recentScores.find(
+        (s) => s.scoreType === "internal"
       );
       const mockScore = result.recentScores.find(
         (s) => s.scoreType === "mock"
       );
 
-      expect(schoolScore?.scoreType).toBe("school");
+      expect(internalScore?.scoreType).toBe("internal");
       expect(mockScore?.scoreType).toBe("mock");
     });
   });
 
   describe("연속 하락 판단 검증", () => {
     it("최근 2회 연속 등급 하락을 올바르게 감지해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 5, // 최근 (나쁨)
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 4, // 그 전 (좋음)
-          test_date: "2025-01-10",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 3, // 더 전 (더 좋음)
-          test_date: "2025-01-05",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 5, "2025-01-15"), // 최근 (나쁨)
+        createInternalScore("수학", 4, "2025-01-10"), // 그 전 (좋음)
+        createInternalScore("수학", 3, "2025-01-05"), // 더 전 (더 좋음)
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -168,19 +147,15 @@ describe("getScoreTrend", () => {
     });
 
     it("2회 미만이면 하락으로 판단하지 않아야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 5,
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 5, "2025-01-15"),
         // 1개만 있음
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -191,23 +166,15 @@ describe("getScoreTrend", () => {
     });
 
     it("하락이 아니면 하락 목록에 포함하지 않아야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 3, // 최근 (좋음)
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 4, // 그 전 (나쁨)
-          test_date: "2025-01-10",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 3, "2025-01-15"), // 최근 (좋음)
+        createInternalScore("수학", 4, "2025-01-10"), // 그 전 (나쁨)
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -218,33 +185,17 @@ describe("getScoreTrend", () => {
     });
 
     it("여러 과목의 하락을 모두 감지해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 5,
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 4,
-          test_date: "2025-01-10",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 6,
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 5,
-          test_date: "2025-01-10",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 5, "2025-01-15"),
+        createInternalScore("수학", 4, "2025-01-10"),
+        createInternalScore("영어", 6, "2025-01-15"),
+        createInternalScore("영어", 5, "2025-01-10"),
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -256,23 +207,15 @@ describe("getScoreTrend", () => {
     });
 
     it("constants.ts의 DECLINING_TREND_THRESHOLD 값을 사용해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 5,
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 4,
-          test_date: "2025-01-10",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 5, "2025-01-15"),
+        createInternalScore("수학", 4, "2025-01-10"),
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -285,28 +228,16 @@ describe("getScoreTrend", () => {
 
   describe("저등급 과목 필터링 검증", () => {
     it("7등급 이상 과목을 저등급으로 분류해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 7, // 7등급
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 8, // 8등급
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "국어",
-          grade_score: 6, // 6등급 (7 미만)
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 7, "2025-01-15"), // 7등급
+        createInternalScore("영어", 8, "2025-01-15"), // 8등급
+        createInternalScore("국어", 6, "2025-01-15"), // 6등급 (7 미만)
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -318,23 +249,15 @@ describe("getScoreTrend", () => {
     });
 
     it("constants.ts의 LOW_GRADE_THRESHOLD 값을 사용해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: SCORE_CONSTANTS.LOW_GRADE_THRESHOLD, // 7등급
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "영어",
-          grade_score: SCORE_CONSTANTS.LOW_GRADE_THRESHOLD - 1, // 6등급
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", SCORE_CONSTANTS.LOW_GRADE_THRESHOLD, "2025-01-15"), // 7등급
+        createInternalScore("영어", SCORE_CONSTANTS.LOW_GRADE_THRESHOLD - 1, "2025-01-15"), // 6등급
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -345,23 +268,15 @@ describe("getScoreTrend", () => {
     });
 
     it("최신 성적 기준으로 저등급을 판단해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: 5, // 과거 (좋음)
-          test_date: "2025-01-05",
-        },
-        {
-          subject_group: "수학",
-          grade_score: 7, // 최신 (나쁨)
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", 5, "2025-01-05"), // 과거 (좋음)
+        createInternalScore("수학", 7, "2025-01-15"), // 최신 (나쁨)
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -373,33 +288,17 @@ describe("getScoreTrend", () => {
 
   describe("방어 로직 검증", () => {
     it("null 값이 있는 성적은 무시해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: null, // null
-          grade_score: 3,
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "수학",
-          grade_score: null, // null
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 4,
-          test_date: null, // null
-        },
-        {
-          subject_group: "국어",
-          grade_score: 5,
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("", 3, "2025-01-15"), // subject_groups.name null
+        createInternalScore("수학", null, "2025-01-15"), // rank_grade null
+        createInternalScore("영어", 4, null), // created_at null
+        createInternalScore("국어", 5, "2025-01-15"), // 유효
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -410,23 +309,15 @@ describe("getScoreTrend", () => {
     });
 
     it("undefined 값이 있는 성적은 무시해야 함", async () => {
-      const mockSchoolRows = [
-        {
-          subject_group: "수학",
-          grade_score: undefined,
-          test_date: "2025-01-15",
-        },
-        {
-          subject_group: "영어",
-          grade_score: 4,
-          test_date: "2025-01-15",
-        },
+      const mockInternalRows = [
+        createInternalScore("수학", undefined, "2025-01-15"),
+        createInternalScore("영어", 4, "2025-01-15"),
       ];
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -450,16 +341,14 @@ describe("getScoreTrend", () => {
     });
 
     it("최근 성적 개수 제한을 적용해야 함", async () => {
-      const mockSchoolRows = Array.from({ length: 30 }, (_, i) => ({
-        subject_group: "수학",
-        grade_score: 3,
-        test_date: `2025-01-${String(i + 1).padStart(2, "0")}`,
-      }));
+      const mockInternalRows = Array.from({ length: 30 }, (_, i) =>
+        createInternalScore("수학", 3, `2025-01-${String(i + 1).padStart(2, "0")}`)
+      );
 
       const mockMockRows: any[] = [];
 
       vi.mocked(safeQueryArray)
-        .mockResolvedValueOnce(mockSchoolRows as any)
+        .mockResolvedValueOnce(mockInternalRows as any)
         .mockResolvedValueOnce(mockMockRows);
 
       const result = await getScoreTrend(mockSupabase, studentId);
@@ -484,4 +373,3 @@ describe("getScoreTrend", () => {
     });
   });
 });
-
