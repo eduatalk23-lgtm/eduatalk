@@ -8,7 +8,6 @@ import {
 import { getCampDatePlans } from "@/lib/data/campLearning";
 import type { DatePlanDetail } from "@/lib/types/camp/learning";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 날짜별 플랜 조회 API

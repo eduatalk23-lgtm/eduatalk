@@ -4,7 +4,7 @@ import React, { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { SubjectGroup } from "@/lib/data/subjects";
 import type { MockScoreInputForm } from "@/lib/types/scoreInput";
-import { createMockScoresBatch } from "@/app/actions/scores-internal";
+import { createMockScoresBatch } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 

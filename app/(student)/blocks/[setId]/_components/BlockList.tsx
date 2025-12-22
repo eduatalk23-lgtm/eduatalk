@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateBlock, deleteBlock } from "@/app/actions/blocks";
+import { updateBlock, deleteBlock } from "@/lib/domains/block/actions";
 import { validateFormData, blockSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { useServerAction } from "@/lib/hooks/useServerAction";

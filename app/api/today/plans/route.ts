@@ -19,7 +19,6 @@ function normalizeIsoDate(value: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : value;
 }
 
-export const dynamic = "force-dynamic";
 
 /**
  * 오늘의 플랜 조회 API

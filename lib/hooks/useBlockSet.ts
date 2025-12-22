@@ -12,8 +12,9 @@ import {
   createBlockSet,
   getBlockSets,
   updateBlockSet,
-} from "@/app/actions/blockSets";
-import { addBlock, deleteBlock } from "@/app/actions/blocks";
+  addBlock,
+  deleteBlock,
+} from "@/lib/domains/block/actions";
 import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export type BlockSetItem = {

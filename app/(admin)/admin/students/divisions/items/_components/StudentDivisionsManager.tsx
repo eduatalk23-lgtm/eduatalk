@@ -3,9 +3,9 @@
 import {
   getStudentDivisionsAction,
   createStudentDivisionAction,
-  updateStudentDivisionAction,
+  updateStudentDivisionItemAction,
   deleteStudentDivisionAction,
-} from "@/app/actions/studentDivisionsActions";
+} from "@/lib/domains/student/actions";
 import type { StudentDivisionItem } from "@/lib/data/studentDivisions";
 import { BaseMetadataManager } from "@/app/(admin)/admin/content-metadata/_components/BaseMetadataManager";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
@@ -31,7 +31,7 @@ export function StudentDivisionsManager() {
         throw new Error(errorMessage);
       }}
       updateAction={async (id: string, data: Partial<StudentDivisionItem>) => {
-        const result = await updateStudentDivisionAction(id, data);
+        const result = await updateStudentDivisionItemAction(id, data);
         if (isSuccessResponse(result) && result.data) {
           return result.data;
         }

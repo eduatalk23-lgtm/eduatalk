@@ -4,7 +4,6 @@
  * 재조정 이력을 조회하고 관리할 수 있는 페이지입니다.
  */
 
-export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";

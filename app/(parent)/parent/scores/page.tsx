@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 
 /**
  * 학부모 영역 성적 페이지

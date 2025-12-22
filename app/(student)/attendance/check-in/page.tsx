@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { CheckInPageContent } from "./_components/CheckInPageContent";
 
-export const dynamic = "force-dynamic";
 
 type CheckInPageProps = {
   searchParams: Promise<{ success?: string; error?: string }>;

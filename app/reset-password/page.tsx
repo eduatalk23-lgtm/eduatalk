@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { updatePassword } from "@/app/actions/auth";
+import { updatePassword } from "@/lib/domains/auth/actions";
 import { Lock, Check, ArrowLeft } from "lucide-react";
 
 function ResetPasswordContent() {

@@ -7,7 +7,6 @@ import {
 import { fetchAllStudentContents } from "@/lib/data/planContents";
 import type { ContentItem } from "@/lib/data/planContents";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 학생 콘텐츠 목록 조회 API

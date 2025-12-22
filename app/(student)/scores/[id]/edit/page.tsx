@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { updateInternalScore, updateMockScore } from "@/app/actions/scores-internal";
+import { updateInternalScore, updateMockScoreAction as updateMockScore } from "@/lib/domains/score/actions";
 import { detectScoreType, getScoreById } from "@/lib/utils/scoreTypeDetector";
 import { getSubjectById } from "@/lib/data/subjects";
 import { ScoreForm } from "../../_components/ScoreForm";
@@ -88,7 +88,8 @@ async function handleUpdateMockScore(scoreId: string, formData: FormData) {
     throw new Error("로그인이 필요합니다.");
   }
 
-  // FormData에 tenant_id 추가
+  // FormData에 id와 tenant_id 추가
+  formData.append("id", scoreId);
   formData.append("tenant_id", user.tenantId);
   // exam_date는 test_date에서 가져옴
   const testDate = formData.get("test_date") as string;
@@ -100,7 +101,7 @@ async function handleUpdateMockScore(scoreId: string, formData: FormData) {
     formData.append("exam_title", "모의고사");
   }
 
-  await updateMockScore(scoreId, formData);
+  await updateMockScore(formData);
 }
 
 export default async function EditScorePage({ params }: EditScorePageProps) {

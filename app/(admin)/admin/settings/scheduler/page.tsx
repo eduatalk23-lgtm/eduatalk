@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 
 import { Metadata } from "next";
 import { SchedulerSettingsForm } from "./_components/SchedulerSettingsForm";

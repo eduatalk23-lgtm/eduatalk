@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import type { InternalScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
-import { createInternalScore, updateInternalScore } from "@/app/actions/scores-internal";
+import { createInternalScore, updateInternalScore } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";

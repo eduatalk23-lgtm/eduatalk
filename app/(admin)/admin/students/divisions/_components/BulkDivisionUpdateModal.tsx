@@ -3,8 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
-import { batchUpdateStudentDivisionAction } from "@/app/actions/students";
-import { getActiveStudentDivisionsAction } from "@/app/actions/studentDivisionsActions";
+import { batchUpdateStudentDivisionAction, getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
 import type { StudentDivision } from "@/lib/constants/students";
 import { isSuccessResponse } from "@/lib/types/actionResponse";
 import { cn } from "@/lib/cn";

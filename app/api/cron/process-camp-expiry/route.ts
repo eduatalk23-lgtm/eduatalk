@@ -14,7 +14,6 @@ import {
 } from "@/lib/services/campInvitationExpiryService";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 /**
  * API 키 검증

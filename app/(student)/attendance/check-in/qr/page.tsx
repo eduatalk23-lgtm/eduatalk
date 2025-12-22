@@ -3,7 +3,6 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { checkInWithQRCode } from "@/app/(student)/actions/attendanceActions";
 import { service } from "@/lib/domains/qrCode";
 
-export const dynamic = "force-dynamic";
 
 type QRCheckInPageProps = {
   searchParams: Promise<{ code?: string }>;

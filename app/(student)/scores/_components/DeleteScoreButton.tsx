@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteScore } from "@/app/actions/scores-internal";
+import { deleteScore } from "@/lib/domains/score/actions";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type DeleteScoreButtonProps = {

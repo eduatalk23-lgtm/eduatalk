@@ -7,7 +7,7 @@ import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { ScoreCardGrid } from "@/app/(student)/scores/_components/ScoreCardGrid";
 import { ScoreFormModal } from "@/app/(student)/scores/_components/ScoreFormModal";
 import { Dialog } from "@/components/ui/Dialog";
-import { deleteInternalScore } from "@/app/actions/scores-internal";
+import { deleteInternalScore } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type SchoolScoresViewProps = {

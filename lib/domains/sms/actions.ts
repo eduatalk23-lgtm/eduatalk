@@ -1,5 +1,9 @@
 "use server";
 
+/**
+ * SMS 도메인 Server Actions
+ */
+
 import { revalidatePath } from "next/cache";
 import { sendSMS, sendBulkSMS } from "@/lib/services/smsService";
 import {
@@ -12,17 +16,23 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { getStudentPhones, getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
-import type { ActionResponse } from "@/lib/types/actionResponse";
+import type {
+  SMSRecipientSetting,
+  AttendanceSMSType,
+  SMSRecipientType,
+  SMSResult,
+  BulkSMSResult,
+} from "./types";
 
 /**
  * 테넌트 설정과 학생 정보를 기반으로 SMS 수신자 전화번호 목록 결정
  */
 function determineRecipientPhones(
-  recipientSetting: 'mother' | 'father' | 'both' | 'auto',
+  recipientSetting: SMSRecipientSetting,
   student: { mother_phone: string | null; father_phone: string | null }
 ): string[] {
   const recipientPhones: string[] = [];
-  
+
   switch (recipientSetting) {
     case 'mother':
       if (student.mother_phone) {
@@ -52,7 +62,7 @@ function determineRecipientPhones(
       break;
     }
   }
-  
+
   return recipientPhones;
 }
 
@@ -62,13 +72,9 @@ function determineRecipientPhones(
  */
 async function _sendAttendanceSMSInternal(
   studentId: string,
-  templateType:
-    | "attendance_check_in"
-    | "attendance_check_out"
-    | "attendance_absent"
-    | "attendance_late",
+  templateType: AttendanceSMSType,
   variables: Record<string, string>
-): Promise<{ msgId?: string }> {
+): Promise<SMSResult> {
   const tenantContext = await getTenantContext();
 
   if (!tenantContext?.tenantId) {
@@ -98,7 +104,7 @@ async function _sendAttendanceSMSInternal(
     );
   }
 
-  const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
+  const recipientSetting = (tenant?.attendance_sms_recipient as SMSRecipientSetting) ?? 'auto';
 
   // 학생 전화번호 정보 조회 (공통 헬퍼 함수 사용)
   const studentPhoneData = await getStudentPhones(studentId);
@@ -167,13 +173,9 @@ export const sendAttendanceSMSInternal = withActionResponse(_sendAttendanceSMSIn
  */
 async function _sendAttendanceSMS(
   studentId: string,
-  templateType:
-    | "attendance_check_in"
-    | "attendance_check_out"
-    | "attendance_absent"
-    | "attendance_late",
+  templateType: AttendanceSMSType,
   variables: Record<string, string>
-): Promise<{ msgId?: string }> {
+): Promise<SMSResult> {
   await requireAdminAuth();
   const result = await _sendAttendanceSMSInternal(studentId, templateType, variables);
   return result;
@@ -186,17 +188,9 @@ export const sendAttendanceSMS = withActionResponse(_sendAttendanceSMS);
  */
 async function _sendBulkAttendanceSMS(
   studentIds: string[],
-  templateType:
-    | "attendance_check_in"
-    | "attendance_check_out"
-    | "attendance_absent"
-    | "attendance_late",
+  templateType: AttendanceSMSType,
   variables: Record<string, string>
-): Promise<{
-  success: number;
-  failed: number;
-  errors: Array<{ studentId: string; error: string }>;
-}> {
+): Promise<BulkSMSResult> {
   await requireAdminAuth();
   const tenantContext = await getTenantContext();
 
@@ -227,7 +221,7 @@ async function _sendBulkAttendanceSMS(
     );
   }
 
-  const recipientSetting = (tenant?.attendance_sms_recipient as 'mother' | 'father' | 'both' | 'auto') ?? 'auto';
+  const recipientSetting = (tenant?.attendance_sms_recipient as SMSRecipientSetting) ?? 'auto';
 
   // 학생 전화번호 정보 일괄 조회 (공통 헬퍼 함수 사용)
   const studentsWithPhones = await getStudentPhonesBatch(studentIds);
@@ -309,7 +303,7 @@ async function _sendGeneralSMS(
   recipientPhone: string,
   message: string,
   recipientId?: string
-): Promise<{ msgId?: string }> {
+): Promise<SMSResult> {
   await requireAdminAuth();
   const tenantContext = await getTenantContext();
 
@@ -351,12 +345,8 @@ async function _sendBulkGeneralSMS(
   studentIds: string[],
   message: string,
   templateVariables?: Record<string, string>,
-  recipientType: "student" | "mother" | "father" = "mother"
-): Promise<{
-  success: number;
-  failed: number;
-  errors: Array<{ studentId: string; error: string }>;
-}> {
+  recipientType: SMSRecipientType = "mother"
+): Promise<BulkSMSResult> {
   await requireAdminAuth();
   const tenantContext = await getTenantContext();
 
@@ -392,16 +382,19 @@ async function _sendBulkGeneralSMS(
 
   // 학원명 조회
   const supabase = await createSupabaseServerClient();
-  const { data: tenant } = await supabase
+  const { data: tenantData } = await supabase
     .from("tenants")
     .select("name")
     .eq("id", tenantContext.tenantId)
     .single();
 
-  const academyName = tenant?.name || "학원";
+  const academyName = tenantData?.name || "학원";
 
   // 전송 대상자에 따라 전화번호 선택
-  const getPhoneByRecipientType = (student: { phone: string | null; mother_phone: string | null; father_phone: string | null }, type: "student" | "mother" | "father"): string | null => {
+  const getPhoneByRecipientType = (
+    student: { phone: string | null; mother_phone: string | null; father_phone: string | null },
+    type: SMSRecipientType
+  ): string | null => {
     switch (type) {
       case "student":
         return student.phone;
@@ -424,16 +417,16 @@ async function _sendBulkGeneralSMS(
     .map((student) => {
       // 각 학생별로 메시지 변수 치환
       let finalMessage = message;
-      
+
       // 학생명 자동 치환 (항상)
       finalMessage = finalMessage.replace(
         /\{학생명\}/g,
         student.name || "학생"
       );
-      
+
       // 학원명 자동 치환 (항상)
       finalMessage = finalMessage.replace(/\{학원명\}/g, academyName);
-      
+
       // 템플릿 변수가 있으면 추가 변수 치환
       if (templateVariables) {
         for (const [key, value] of Object.entries(templateVariables)) {

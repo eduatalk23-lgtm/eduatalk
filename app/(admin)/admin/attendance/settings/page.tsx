@@ -5,7 +5,6 @@ import { LocationSettingsForm } from "./_components/LocationSettingsForm";
 import { AttendanceSMSSettingsForm } from "./_components/AttendanceSMSSettingsForm";
 import { AttendanceSettingsTabs } from "./_components/AttendanceSettingsTabs";
 
-export const dynamic = "force-dynamic";
 
 export default async function AttendanceSettingsPage() {
   const { userId, role } = await getCurrentUserRole();

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getActiveTermsContent } from "@/lib/data/termsContents";
 import type { TermsContentType } from "@/lib/types/terms";
 
-export const dynamic = "force-dynamic";
 
 export async function GET(
   request: Request,

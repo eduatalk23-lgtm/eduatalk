@@ -8,7 +8,6 @@ import {
 import { getPlanGroupsWithStats, type PlanGroupFilters } from "@/lib/data/planGroups";
 import type { PlanGroup } from "@/lib/types/plan";
 
-export const dynamic = "force-dynamic";
 
 type PlanGroupStats = {
   planCount: number;

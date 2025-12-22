@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
-import { changeUserRole } from "@/app/actions/userRole";
+import { changeUserRole } from "@/lib/domains/auth/actions";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
 export function RoleChangeSection() {

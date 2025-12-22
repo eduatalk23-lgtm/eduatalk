@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { resendConfirmationEmail } from "@/app/actions/auth";
+import { resendConfirmationEmail } from "@/lib/domains/auth/actions";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ResendEmailButtonProps = {

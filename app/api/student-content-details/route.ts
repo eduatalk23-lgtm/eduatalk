@@ -19,7 +19,6 @@ import { createTypedSingleQuery } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 
 // 동적 렌더링 설정: 인증이 필요하므로 동적 렌더링 필수
-export const dynamic = 'force-dynamic';
 
 // 캐시 설정: 콘텐츠 상세 정보는 자주 변경되지 않으므로 5분 캐시
 export const revalidate = 300;

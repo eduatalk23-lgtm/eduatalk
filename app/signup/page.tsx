@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { signUp } from "@/app/actions/auth";
-import { getTenantOptionsForSignup } from "@/app/actions/tenants";
-import type { TenantOption } from "@/app/actions/tenants";
+import { signUp } from "@/lib/domains/auth/actions";
+import { getTenantOptionsForSignup, type TenantOption } from "@/lib/domains/tenant";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 import FormInput from "@/components/ui/FormInput";

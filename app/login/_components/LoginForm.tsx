@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "@/app/actions/auth";
+import { signIn } from "@/lib/domains/auth/actions";
 import { ResendEmailButton } from "./ResendEmailButton";
 
 type LoginFormProps = {

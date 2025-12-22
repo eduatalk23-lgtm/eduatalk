@@ -3,7 +3,6 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LoginForm } from "./_components/LoginForm";
 
-export const dynamic = 'force-dynamic';
 
 type LoginPageProps = {
   searchParams: Promise<{ returnUrl?: string; error?: string; message?: string }>;

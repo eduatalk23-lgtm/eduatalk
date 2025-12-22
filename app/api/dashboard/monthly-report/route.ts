@@ -8,7 +8,6 @@ import {
 } from "@/lib/api";
 import { perfTime } from "@/lib/utils/perfLog";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 대시보드 월간 리포트 조회 API

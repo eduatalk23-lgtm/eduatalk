@@ -15,6 +15,13 @@ export * as service from "./service";
 
 // Server Actions
 export {
+  // 내신 성적 Actions
+  createInternalScore,
+  updateInternalScore,
+  deleteInternalScore,
+  deleteScore,
+  createInternalScoresBatch,
+  createMockScoresBatch,
   // 모의고사 성적 Actions
   getMockScoresAction,
   getMockScoreByIdAction,

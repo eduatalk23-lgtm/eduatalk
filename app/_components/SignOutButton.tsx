@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { signOut } from "@/app/actions/auth";
+import { signOut } from "@/lib/domains/auth/actions";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { layoutStyles } from "@/components/navigation/global/navStyles";

@@ -9,7 +9,6 @@ import { getParticipantLearningStats } from "@/lib/data/campLearningStats";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import type { ParticipantLearningStats } from "@/lib/domains/camp/types";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 학생별 학습 통계 조회 API

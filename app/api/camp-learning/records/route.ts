@@ -8,7 +8,6 @@ import {
 import { getCampLearningRecords } from "@/lib/data/campLearning";
 import type { PlanWithStudent } from "@/lib/types/camp/learning";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 캠프 학습 기록 조회 API

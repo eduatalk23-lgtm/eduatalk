@@ -15,8 +15,7 @@ import {
   getIndigoTextClasses,
   borderInput,
 } from "@/lib/utils/darkMode";
-import { updateStudentDivisionAction } from "@/app/actions/students";
-import { getActiveStudentDivisionsAction } from "@/app/actions/studentDivisionsActions";
+import { updateStudentDivisionAction, getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
 import type { StudentDivision } from "@/lib/constants/students";
 import { isSuccessResponse } from "@/lib/types/actionResponse";
 import type { Student } from "@/lib/data/students";

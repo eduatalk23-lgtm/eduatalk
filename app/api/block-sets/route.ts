@@ -6,7 +6,6 @@ import {
 } from "@/lib/api";
 import { fetchBlockSetsWithBlocks, type BlockSetWithBlocks } from "@/lib/data/blockSets";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 블록 세트 조회 API

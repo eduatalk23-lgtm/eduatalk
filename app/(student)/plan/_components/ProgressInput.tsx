@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
-import { updatePlanProgress } from "@/app/actions/progress";
+import { updatePlanProgress } from "@/lib/domains/plan/actions";
 
 type ProgressInputProps = {
   planId: string;

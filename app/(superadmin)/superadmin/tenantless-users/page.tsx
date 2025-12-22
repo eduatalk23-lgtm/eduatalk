@@ -5,7 +5,6 @@ import { TenantlessUsersList } from "./_components/TenantlessUsersList";
 import Link from "next/link";
 import { isErrorResponse } from "@/lib/types/actionResponse";
 
-export const dynamic = "force-dynamic";
 
 export default async function TenantlessUsersPage({
   searchParams,

@@ -18,7 +18,6 @@ function normalizeIsoDate(value: string | null): string | null {
   return Number.isNaN(date.getTime()) ? null : value;
 }
 
-export const dynamic = "force-dynamic";
 
 type TodayStatsResponse = {
   planDate: string;

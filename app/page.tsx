@@ -1,4 +1,3 @@
-export const dynamic = 'force-dynamic';
 
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";

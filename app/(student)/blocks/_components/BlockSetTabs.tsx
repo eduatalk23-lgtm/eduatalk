@@ -8,7 +8,7 @@ import {
   deleteBlockSet,
   setActiveBlockSet,
   duplicateBlockSet,
-} from "@/app/actions/blockSets";
+} from "@/lib/domains/block/actions";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";

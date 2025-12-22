@@ -4,7 +4,7 @@ import { useMemo, useState, useActionState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BlockForm from "./BlockForm";
-import { createBlockSet } from "@/app/actions/blockSets";
+import { createBlockSet, deleteBlockSet, addBlocksToMultipleDays } from "@/lib/domains/block/actions";
 import { validateFormData, blockSetSchema } from "@/lib/validation/schemas";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { cn } from "@/lib/cn";
@@ -158,7 +158,7 @@ export default function BlocksViewer({
                         return;
                       }
                       try {
-                        const { deleteBlockSet } = await import("@/app/actions/blockSets");
+                        // deleteBlockSet is imported at the top
                         const formData = new FormData();
                         formData.append("id", set.id);
                         await deleteBlockSet(formData);
@@ -283,7 +283,7 @@ function BlockSetCreateForm({
         
         // 시간 블록이 입력된 경우 추가
         if (selectedWeekdays.length > 0 && startTime && endTime) {
-          const { addBlocksToMultipleDays } = await import("@/app/actions/blocks");
+          // addBlocksToMultipleDays is imported at the top
           const blockFormData = new FormData();
           blockFormData.append("target_days", selectedWeekdays.join(","));
           blockFormData.append("start_time", startTime);

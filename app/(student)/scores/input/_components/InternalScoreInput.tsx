@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { SubjectGroup, SubjectType } from "@/lib/data/subjects";
 import type { InternalScoreInputForm } from "@/lib/types/scoreInput";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
-import { createInternalScoresBatch } from "@/app/actions/scores-internal";
+import { createInternalScoresBatch } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { cn } from "@/lib/cn";
 

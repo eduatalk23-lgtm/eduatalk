@@ -5,7 +5,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { sendAttendanceSMSInternal } from "@/app/actions/smsActions";
+import { sendAttendanceSMSInternal } from "@/lib/domains/sms";
 import type { AttendanceSMSSettings } from "@/lib/types/attendance";
 
 /**

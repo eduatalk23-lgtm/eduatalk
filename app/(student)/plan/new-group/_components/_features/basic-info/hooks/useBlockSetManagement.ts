@@ -3,8 +3,10 @@ import {
   createBlockSet,
   getBlockSets,
   updateBlockSet,
-} from "@/app/actions/blockSets";
-import { addBlock, deleteBlock, addBlocksToMultipleDays } from "@/app/actions/blocks";
+  addBlock,
+  deleteBlock,
+  addBlocksToMultipleDays,
+} from "@/lib/domains/block/actions";
 import {
   createTenantBlockSet,
   getTenantBlockSets,

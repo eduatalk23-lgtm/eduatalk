@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { resendConfirmationEmail } from "@/app/actions/auth";
+import { resendConfirmationEmail } from "@/lib/domains/auth/actions";
 import { Mail, RefreshCw, ArrowLeft } from "lucide-react";
 
 function VerifyEmailContent() {

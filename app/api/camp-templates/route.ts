@@ -9,7 +9,6 @@ import { getCampTemplatesForTenantWithPagination } from "@/lib/data/campTemplate
 import type { CampTemplate } from "@/lib/types/plan";
 import type { ListResult } from "@/lib/data/core/types";
 
-export const dynamic = "force-dynamic";
 
 type CampTemplatesFilters = {
   search?: string;

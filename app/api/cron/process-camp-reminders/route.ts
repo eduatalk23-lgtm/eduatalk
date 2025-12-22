@@ -11,7 +11,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { processReminders } from "@/lib/services/campReminderService";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 /**
  * API 키 검증

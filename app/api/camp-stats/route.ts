@@ -9,7 +9,6 @@ import { calculateCampAttendanceStats } from "@/lib/domains/camp/attendance";
 import { calculateCampLearningStats } from "@/lib/domains/camp/learningStats";
 import type { CampAttendanceStats, CampLearningStats } from "@/lib/domains/camp/types";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 캠프 통계 조회 API

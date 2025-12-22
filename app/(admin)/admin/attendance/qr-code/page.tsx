@@ -3,7 +3,6 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { QRCodeDisplay } from "./_components/QRCodeDisplay";
 
-export const dynamic = "force-dynamic";
 
 export default async function QRCodePage() {
   const { userId, role } = await getCurrentUserRole();

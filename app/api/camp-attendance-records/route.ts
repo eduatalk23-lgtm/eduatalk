@@ -11,7 +11,6 @@ import {
   type AttendanceRecordWithStudent,
 } from "@/lib/data/campAttendance";
 
-export const dynamic = "force-dynamic";
 
 /**
  * 캠프 출석 기록 조회 API
