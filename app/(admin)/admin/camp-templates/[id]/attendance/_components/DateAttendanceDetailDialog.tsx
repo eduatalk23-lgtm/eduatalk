@@ -7,7 +7,7 @@ import { useCampDateAttendance } from "@/lib/hooks/useCampStats";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { ATTENDANCE_STATUS_LABELS, CHECK_METHOD_LABELS } from "@/lib/domains/attendance/types";
 import type { AttendanceStatus, CheckMethod } from "@/lib/domains/attendance/types";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/atoms/Badge";
 import { cn } from "@/lib/cn";
 
 type DateAttendanceDetailDialogProps = {
