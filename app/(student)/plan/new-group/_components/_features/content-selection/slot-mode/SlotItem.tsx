@@ -187,14 +187,15 @@ function SlotItemComponent({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
       className={cn(
-        "group relative rounded-lg border-2 p-3 transition-all",
+        // 기본 스타일 - 모바일에서 더 큰 패딩
+        "group relative rounded-lg border-2 p-4 transition-all md:p-3",
         styles.border,
         styles.bg,
         isSelected && "ring-2 ring-blue-500 ring-offset-2",
         isGhost && "opacity-60",
         isDragging && "opacity-50 ring-2 ring-blue-400",
         isDragOver && "border-blue-500 bg-blue-50",
-        editable && "cursor-pointer hover:shadow-md"
+        editable && "cursor-pointer active:bg-gray-50 md:hover:shadow-md"
       )}
       onClick={onSelect}
       role="button"
@@ -209,10 +210,11 @@ function SlotItemComponent({
       {/* 드래그 핸들 & 인덱스 */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {/* 드래그 핸들 - 데스크톱에서만 표시 (모바일은 터치 드래그 미지원) */}
           {editable && (
             <GripVertical
               className={cn(
-                "h-4 w-4 cursor-grab text-gray-400 transition-colors",
+                "hidden h-4 w-4 cursor-grab text-gray-400 transition-colors md:block",
                 "hover:text-gray-600 active:cursor-grabbing"
               )}
             />
@@ -245,13 +247,14 @@ function SlotItemComponent({
                 type="button"
                 onClick={handleMenuToggle}
                 className={cn(
-                  "rounded p-1 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600",
-                  "opacity-0 group-hover:opacity-100",
-                  isMenuOpen && "bg-gray-100 text-gray-600 opacity-100"
+                  "rounded p-1.5 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600",
+                  // 모바일에서는 항상 표시, 데스크톱에서는 호버 시 표시
+                  "md:opacity-0 md:group-hover:opacity-100",
+                  isMenuOpen && "bg-gray-100 text-gray-600 !opacity-100"
                 )}
                 title="더보기"
               >
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical className="h-5 w-5 md:h-4 md:w-4" />
               </button>
 
               {/* 드롭다운 메뉴 */}
@@ -265,14 +268,14 @@ function SlotItemComponent({
                       setIsMenuOpen(false);
                     }}
                   />
-                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
                     {canMoveUp && (
                       <button
                         type="button"
                         onClick={handleMenuAction(onMoveUp!)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 active:bg-gray-100 md:gap-2 md:px-3 md:py-2 md:hover:bg-gray-50"
                       >
-                        <ChevronUp className="h-4 w-4" />
+                        <ChevronUp className="h-5 w-5 md:h-4 md:w-4" />
                         위로 이동
                       </button>
                     )}
@@ -280,9 +283,9 @@ function SlotItemComponent({
                       <button
                         type="button"
                         onClick={handleMenuAction(onMoveDown!)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 active:bg-gray-100 md:gap-2 md:px-3 md:py-2 md:hover:bg-gray-50"
                       >
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-5 w-5 md:h-4 md:w-4" />
                         아래로 이동
                       </button>
                     )}
@@ -290,9 +293,9 @@ function SlotItemComponent({
                       <button
                         type="button"
                         onClick={handleMenuAction(onDuplicate!)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-gray-700 active:bg-gray-100 md:gap-2 md:px-3 md:py-2 md:hover:bg-gray-50"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-5 w-5 md:h-4 md:w-4" />
                         복제
                       </button>
                     )}
@@ -304,9 +307,9 @@ function SlotItemComponent({
                         <button
                           type="button"
                           onClick={handleMenuAction(onRemove)}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-red-600 active:bg-red-100 md:gap-2 md:px-3 md:py-2 md:hover:bg-red-50"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-5 w-5 md:h-4 md:w-4" />
                           삭제
                         </button>
                       </>
@@ -320,7 +323,7 @@ function SlotItemComponent({
       </div>
 
       {/* 슬롯 타입 선택 */}
-      <div className="mb-2">
+      <div className="mb-3 md:mb-2">
         <div className="relative">
           <select
             value={slot.slot_type || ""}
@@ -328,7 +331,8 @@ function SlotItemComponent({
             disabled={!editable || isLocked}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "w-full appearance-none rounded-md border bg-white px-3 py-2 pr-8 text-sm",
+              // 모바일에서 더 큰 터치 타겟 (44px 이상)
+              "w-full appearance-none rounded-md border bg-white px-3 py-3 pr-8 text-base md:py-2 md:text-sm",
               "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
               (!editable || isLocked) && "cursor-not-allowed opacity-60"
             )}
@@ -340,12 +344,12 @@ function SlotItemComponent({
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 md:right-2 md:h-4 md:w-4" />
         </div>
       </div>
 
       {/* 교과 선택 */}
-      <div className="mb-2">
+      <div className="mb-3 md:mb-2">
         <div className="relative">
           <select
             value={slot.subject_category || ""}
@@ -353,7 +357,8 @@ function SlotItemComponent({
             disabled={!editable || isLocked}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "w-full appearance-none rounded-md border bg-white px-3 py-2 pr-8 text-sm",
+              // 모바일에서 더 큰 터치 타겟 (44px 이상)
+              "w-full appearance-none rounded-md border bg-white px-3 py-3 pr-8 text-base md:py-2 md:text-sm",
               "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
               (!editable || isLocked) && "cursor-not-allowed opacity-60"
             )}
@@ -365,7 +370,7 @@ function SlotItemComponent({
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 md:right-2 md:h-4 md:w-4" />
         </div>
       </div>
 

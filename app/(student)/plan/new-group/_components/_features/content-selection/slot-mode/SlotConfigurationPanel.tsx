@@ -459,7 +459,7 @@ function SlotConfigurationPanelComponent({
       {/* 하단 액션 영역 */}
       {editable && (
         <div className="mt-4 flex flex-shrink-0 flex-col gap-2">
-          {/* 프리셋 불러오기 드롭다운 */}
+          {/* 프리셋 불러오기 드롭다운 - 모바일 터치 타겟 개선 */}
           {presets.length > 0 && (
             <div className="relative">
               <button
@@ -467,16 +467,16 @@ function SlotConfigurationPanelComponent({
                 onClick={() => setShowPresetDropdown(!showPresetDropdown)}
                 disabled={isLoadingPresets}
                 className={cn(
-                  "flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
-                  "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+                  "flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-base font-medium transition-colors md:py-2.5 md:text-sm",
+                  "border-indigo-200 bg-indigo-50 text-indigo-700 active:bg-indigo-100 md:hover:bg-indigo-100",
                   isLoadingPresets && "cursor-wait opacity-70"
                 )}
               >
-                <FolderOpen className="h-4 w-4" />
+                <FolderOpen className="h-5 w-5 md:h-4 md:w-4" />
                 프리셋 불러오기
                 <ChevronDown
                   className={cn(
-                    "ml-auto h-4 w-4 transition-transform",
+                    "ml-auto h-5 w-5 transition-transform md:h-4 md:w-4",
                     showPresetDropdown && "rotate-180"
                   )}
                 />
@@ -496,10 +496,10 @@ function SlotConfigurationPanelComponent({
                         key={preset.id}
                         type="button"
                         onClick={() => handleApplyPreset(preset)}
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+                        className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm active:bg-gray-100 md:gap-2 md:py-2.5 md:hover:bg-gray-50"
                       >
                         {preset.is_default && (
-                          <Star className="h-3.5 w-3.5 flex-shrink-0 fill-amber-400 text-amber-400" />
+                          <Star className="h-4 w-4 flex-shrink-0 fill-amber-400 text-amber-400 md:h-3.5 md:w-3.5" />
                         )}
                         <div className="flex-1 truncate">
                           <div className="font-medium text-gray-900">
@@ -522,19 +522,19 @@ function SlotConfigurationPanelComponent({
             </div>
           )}
 
-          {/* 슬롯 추가 버튼 */}
+          {/* 슬롯 추가 버튼 - 모바일에서 더 큰 터치 타겟 */}
           <button
             type="button"
             onClick={handleAddSlot}
             disabled={!canAddSlot}
             className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-sm font-medium transition-colors",
+              "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 text-base font-medium transition-colors md:py-3 md:text-sm",
               canAddSlot
-                ? "border-gray-300 text-gray-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600"
+                ? "border-gray-300 text-gray-600 active:bg-blue-50 md:hover:border-blue-400 md:hover:bg-blue-50 md:hover:text-blue-600"
                 : "cursor-not-allowed border-gray-200 text-gray-400"
             )}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5 md:h-4 md:w-4" />
             슬롯 추가 ({slots.length}/{maxSlots})
           </button>
         </div>

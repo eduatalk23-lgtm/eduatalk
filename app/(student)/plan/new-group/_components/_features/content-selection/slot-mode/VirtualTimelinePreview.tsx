@@ -154,7 +154,7 @@ function VirtualTimelinePreviewComponent({
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* 헤더 및 요약 */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-blue-600" />
           <h3 className="text-sm font-medium text-gray-700">
@@ -162,45 +162,45 @@ function VirtualTimelinePreviewComponent({
           </h3>
         </div>
 
-        {/* 뷰 모드 전환 */}
+        {/* 뷰 모드 전환 - 모바일에서 더 큰 버튼 */}
         <div className="flex items-center gap-1 rounded-lg bg-gray-100 p-1">
           <button
             type="button"
             onClick={() => setViewMode("daily")}
             className={cn(
-              "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors sm:flex-initial sm:px-2 sm:py-1 sm:text-xs",
               viewMode === "daily"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-gray-600 active:bg-gray-200 sm:hover:text-gray-900"
             )}
           >
-            <CalendarDays className="h-3 w-3" />
+            <CalendarDays className="h-4 w-4 sm:h-3 sm:w-3" />
             일별
           </button>
           <button
             type="button"
             onClick={() => setViewMode("weekly")}
             className={cn(
-              "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors sm:flex-initial sm:px-2 sm:py-1 sm:text-xs",
               viewMode === "weekly"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-gray-600 active:bg-gray-200 sm:hover:text-gray-900"
             )}
           >
-            <BarChart3 className="h-3 w-3" />
+            <BarChart3 className="h-4 w-4 sm:h-3 sm:w-3" />
             주별
           </button>
           <button
             type="button"
             onClick={() => setViewMode("list")}
             className={cn(
-              "flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors sm:flex-initial sm:px-2 sm:py-1 sm:text-xs",
               viewMode === "list"
                 ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-gray-600 active:bg-gray-200 sm:hover:text-gray-900"
             )}
           >
-            <List className="h-3 w-3" />
+            <List className="h-4 w-4 sm:h-3 sm:w-3" />
             리스트
           </button>
         </div>
@@ -251,7 +251,7 @@ function VirtualTimelinePreviewComponent({
       />
 
       {/* 뷰 모드별 콘텐츠 */}
-      <div className="max-h-[400px] overflow-y-auto rounded-lg border border-gray-200 bg-white">
+      <div className="max-h-[300px] overflow-y-auto rounded-lg border border-gray-200 bg-white sm:max-h-[400px]">
         {viewMode === "daily" && (
           <DailyView groupedByDate={groupedByDate} />
         )}
@@ -276,9 +276,9 @@ type SummaryCardProps = {
 
 function SummaryCard({ label, value, icon }: SummaryCardProps) {
   return (
-    <div className="rounded-lg bg-gray-50 p-3">
+    <div className="rounded-lg bg-gray-50 p-3 sm:p-3">
       <div className="mb-1 flex items-center gap-1 text-gray-400">{icon}</div>
-      <div className="text-lg font-semibold text-gray-900">{value}</div>
+      <div className="text-base font-semibold text-gray-900 sm:text-lg">{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
     </div>
   );
