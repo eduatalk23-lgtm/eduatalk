@@ -1,6 +1,7 @@
 "use client";
 
 import React, { memo, useCallback, useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { SlotTemplate, SlotType, SlotTemplatePreset } from "@/lib/types/content-selection";
 import {
@@ -24,6 +25,7 @@ import {
   Save,
   FolderOpen,
   Star,
+  Settings,
 } from "lucide-react";
 import {
   getSlotTemplatePresets,
@@ -461,6 +463,15 @@ function SlotTemplateEditorComponent({
               <Save className="h-4 w-4" />
               프리셋 저장
             </button>
+
+            {/* 프리셋 관리 페이지 링크 */}
+            <Link
+              href="/admin/camp-templates/presets"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <Settings className="h-4 w-4" />
+              프리셋 관리
+            </Link>
           </div>
 
           {/* 설명 */}
