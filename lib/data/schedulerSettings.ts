@@ -1,7 +1,9 @@
 /**
  * 스케줄러 설정 데이터 조회 함수
+ * React cache()를 사용하여 서버 요청 내 캐싱 적용
  */
 
+import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   TenantSchedulerSettings,
@@ -15,9 +17,9 @@ import {
 } from "@/lib/utils/schedulerSettingsMerge";
 
 /**
- * 기관별 전역 스케줄러 설정 조회
+ * 기관별 전역 스케줄러 설정 조회 (내부 구현)
  */
-export async function getTenantSchedulerSettings(
+async function _getTenantSchedulerSettings(
   tenantId: string
 ): Promise<TenantSchedulerSettings | null> {
   const supabase = await createSupabaseServerClient();
@@ -37,10 +39,16 @@ export async function getTenantSchedulerSettings(
 }
 
 /**
- * 템플릿 스케줄러 설정 조회
+ * 기관별 전역 스케줄러 설정 조회 (캐시 적용)
+ * 동일 요청 내에서 같은 tenantId에 대한 반복 호출을 캐싱
+ */
+export const getTenantSchedulerSettings = cache(_getTenantSchedulerSettings);
+
+/**
+ * 템플릿 스케줄러 설정 조회 (내부 구현)
  * camp_templates.template_data.scheduler_settings에서 추출
  */
-export async function getTemplateSchedulerSettings(
+async function _getTemplateSchedulerSettings(
   templateId: string
 ): Promise<PartialSchedulerSettings | null> {
   const supabase = await createSupabaseServerClient();
@@ -66,6 +74,12 @@ export async function getTemplateSchedulerSettings(
 
   return templateData.scheduler_settings || null;
 }
+
+/**
+ * 템플릿 스케줄러 설정 조회 (캐시 적용)
+ * 동일 요청 내에서 같은 templateId에 대한 반복 호출을 캐싱
+ */
+export const getTemplateSchedulerSettings = cache(_getTemplateSchedulerSettings);
 
 /**
  * 병합된 스케줄러 설정 조회
@@ -104,9 +118,9 @@ export async function getMergedSchedulerSettings(
 }
 
 /**
- * 플랜 그룹 ID로 병합된 스케줄러 설정 조회
+ * 플랜 그룹 ID로 병합된 스케줄러 설정 조회 (내부 구현)
  */
-export async function getMergedSchedulerSettingsByGroupId(
+async function _getMergedSchedulerSettingsByGroupId(
   groupId: string
 ): Promise<SchedulerSettings | null> {
   const supabase = await createSupabaseServerClient();
@@ -128,6 +142,12 @@ export async function getMergedSchedulerSettingsByGroupId(
     data.scheduler_options as Record<string, unknown>
   );
 }
+
+/**
+ * 플랜 그룹 ID로 병합된 스케줄러 설정 조회 (캐시 적용)
+ * 동일 요청 내에서 같은 groupId에 대한 반복 호출을 캐싱
+ */
+export const getMergedSchedulerSettingsByGroupId = cache(_getMergedSchedulerSettingsByGroupId);
 
 /**
  * 전역 스케줄러 설정 생성 또는 업데이트

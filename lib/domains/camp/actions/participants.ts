@@ -21,6 +21,7 @@ import {
   validateCampTemplateAccess,
   validateCampTemplateActive,
   validateCampInvitationAccess,
+  validateCampInvitationNotExpired,
 } from "@/lib/validation/campValidation";
 import { buildCampInvitationStatusUpdate } from "@/lib/utils/campInvitationHelpers";
 import {
@@ -272,6 +273,11 @@ export const updateCampInvitationStatusAction = withErrorHandling(
     // 테넌트 컨텍스트 및 초대 권한 확인
     const tenantId = await validateTenantContext();
     await validateCampInvitationAccess(invitationId, tenantId);
+
+    // P1 개선: 수락 시 만료 여부 확인
+    if (status === "accepted") {
+      await validateCampInvitationNotExpired(invitationId, tenantId);
+    }
 
     // Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
@@ -750,4 +756,83 @@ export const getCampParticipantsAction = withErrorHandling(
     };
   }
 );
+
+/**
+ * P1 개선: 만료된 캠프 초대 자동 처리
+ * 크론 작업 또는 주기적 실행을 통해 호출
+ * pending 상태이면서 expires_at이 지난 초대를 expired 상태로 변경
+ */
+export async function autoExpireCampInvitations(): Promise<{
+  success: boolean;
+  expiredCount: number;
+  error?: string;
+}> {
+  // Admin Client 사용 (RLS 우회, 시스템 작업)
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    return {
+      success: false,
+      expiredCount: 0,
+      error: "Admin 클라이언트를 생성할 수 없습니다.",
+    };
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    // 만료된 pending 초대 조회
+    const { data: expiredInvitations, error: fetchError } = await supabase
+      .from("camp_invitations")
+      .select("id")
+      .eq("status", "pending")
+      .not("expires_at", "is", null)
+      .lt("expires_at", now);
+
+    if (fetchError) {
+      console.error("[camp/participants] 만료된 초대 조회 실패:", fetchError);
+      return {
+        success: false,
+        expiredCount: 0,
+        error: fetchError.message,
+      };
+    }
+
+    if (!expiredInvitations || expiredInvitations.length === 0) {
+      return { success: true, expiredCount: 0 };
+    }
+
+    const expiredIds = expiredInvitations.map((inv) => inv.id);
+
+    // 상태를 expired로 변경
+    const { error: updateError } = await supabase
+      .from("camp_invitations")
+      .update({
+        status: "expired",
+        updated_at: now,
+      })
+      .in("id", expiredIds);
+
+    if (updateError) {
+      console.error("[camp/participants] 만료 상태 업데이트 실패:", updateError);
+      return {
+        success: false,
+        expiredCount: 0,
+        error: updateError.message,
+      };
+    }
+
+    console.log(
+      `[camp/participants] ${expiredIds.length}개의 만료된 초대를 expired 상태로 변경했습니다.`
+    );
+
+    return { success: true, expiredCount: expiredIds.length };
+  } catch (error) {
+    console.error("[camp/participants] 자동 만료 처리 중 오류:", error);
+    return {
+      success: false,
+      expiredCount: 0,
+      error: error instanceof Error ? error.message : "알 수 없는 오류",
+    };
+  }
+}
 

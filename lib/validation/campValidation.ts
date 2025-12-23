@@ -185,3 +185,64 @@ export async function validateCampInvitationAccess(
   }
 }
 
+/**
+ * P1 개선: 초대 만료 여부 검증
+ * 초대를 수락하기 전에 만료 여부를 확인
+ */
+export async function validateCampInvitationNotExpired(
+  invitationId: string,
+  tenantId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: invitation, error: checkError } = await supabase
+    .from("camp_invitations")
+    .select("id, expires_at, status")
+    .eq("id", invitationId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (checkError) {
+    throw new AppError(
+      "초대 정보를 확인하는데 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true,
+      { originalError: checkError.message }
+    );
+  }
+
+  if (!invitation) {
+    throw new AppError(
+      "초대를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  // 만료 여부 확인
+  if (invitation.expires_at) {
+    const expiresAt = new Date(invitation.expires_at);
+    const now = new Date();
+
+    if (expiresAt < now) {
+      throw new AppError(
+        "만료된 초대장입니다. 관리자에게 새 초대를 요청해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true,
+        { expiresAt: invitation.expires_at }
+      );
+    }
+  }
+}
+
+/**
+ * P1 개선: 초대 만료 여부 확인 (boolean 반환)
+ */
+export function isInvitationExpired(expiresAt: string | null): boolean {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) < new Date();
+}
+

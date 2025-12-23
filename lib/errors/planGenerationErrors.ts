@@ -4,6 +4,7 @@
 
 /**
  * 플랜 생성 실패 원인 타입
+ * P1 개선: 더 구체적인 실패 원인 분류 추가
  */
 export type PlanGenerationFailureReason =
   | {
@@ -42,6 +43,34 @@ export type PlanGenerationFailureReason =
   | {
       type: "no_plans_generated";
       reason: string;
+    }
+  // P1 개선: 추가 실패 원인들
+  | {
+      type: "block_set_missing";
+      studentId: string;
+      groupId?: string;
+    }
+  | {
+      type: "invalid_period";
+      periodStart: string;
+      periodEnd: string;
+      reason: string;
+    }
+  | {
+      type: "schedule_conflict";
+      date: string;
+      conflictType: "academy" | "block" | "other";
+      details?: string;
+    }
+  | {
+      type: "no_available_content";
+      contentType?: string;
+      reason?: string;
+    }
+  | {
+      type: "timeline_error";
+      stage: string;
+      details?: string;
     }
   | {
       type: "unknown";
@@ -128,6 +157,37 @@ export function getPlanGenerationErrorMessage(
 
     case "no_plans_generated": {
       return `플랜이 생성되지 않았습니다. 원인: ${reason.reason}`;
+    }
+
+    // P1 개선: 추가 실패 원인 메시지
+    case "block_set_missing": {
+      return "시간 블록이 설정되지 않았습니다. 설정에서 시간 블록을 먼저 구성해주세요.";
+    }
+
+    case "invalid_period": {
+      const { periodStart, periodEnd, reason: periodReason } = reason;
+      return `학습 기간이 유효하지 않습니다. 시작: ${periodStart}, 종료: ${periodEnd}. 원인: ${periodReason}`;
+    }
+
+    case "schedule_conflict": {
+      const conflictTypeMap = {
+        academy: "학원 일정",
+        block: "시간 블록",
+        other: "기타 일정",
+      };
+      const conflictLabel = conflictTypeMap[reason.conflictType];
+      return `${reason.date}에 ${conflictLabel}과(와) 시간이 겹칩니다.${reason.details ? ` (${reason.details})` : ""}`;
+    }
+
+    case "no_available_content": {
+      const contentLabel = reason.contentType
+        ? ` (유형: ${reason.contentType})`
+        : "";
+      return `선택 가능한 콘텐츠가 없습니다${contentLabel}.${reason.reason ? ` ${reason.reason}` : " 콘텐츠 설정을 확인해주세요."}`;
+    }
+
+    case "timeline_error": {
+      return `타임라인 생성 중 오류가 발생했습니다. 단계: ${reason.stage}${reason.details ? `. ${reason.details}` : ""}`;
     }
 
     case "unknown": {
