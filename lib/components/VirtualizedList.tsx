@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { cn } from "@/lib/cn";
 
 type VirtualizedListProps<T> = {

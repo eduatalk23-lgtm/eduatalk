@@ -40,7 +40,7 @@ type PlanGroupData = {
  */
 export async function loadCampParticipants(
   templateId: string,
-  options?: { includeStats?: boolean }
+  _options?: { includeStats?: boolean }
 ): Promise<Participant[]> {
   const supabase = createSupabaseBrowserClient();
 

@@ -7,7 +7,6 @@
 
 import {
   createSupabaseServerClient,
-  createSupabasePublicClient,
   createSupabaseAdminClient,
 } from "@/lib/supabase/server";
 import { getClientForRLSBypass } from "@/lib/supabase/clientSelector";
@@ -27,9 +26,8 @@ import {
   type SubjectGroup,
   type Subject,
 } from "@/lib/data/subjects";
-import { normalizeError, logError } from "@/lib/errors";
+import { normalizeError } from "@/lib/errors";
 import {
-  getMasterContentId,
   createMasterToStudentMap,
   extractMasterIds,
 } from "@/lib/plan/content";
@@ -618,7 +616,7 @@ export async function getContentMasterById(
     }
     return { master: null, details: [] };
   } else if (content_type === "lecture") {
-    const { lecture, episodes } = await getMasterLectureById(masterId);
+    const { lecture } = await getMasterLectureById(masterId);
     if (lecture) {
       return {
         master: lecture,
@@ -648,7 +646,7 @@ export async function getContentMasterById(
   }
 
   // 강의에서 찾기
-  const { lecture, episodes } = await getMasterLectureById(masterId);
+  const { lecture } = await getMasterLectureById(masterId);
   if (lecture) {
     return {
       master: lecture,
@@ -1277,7 +1275,7 @@ export async function copyMasterToStudentContent(
   try {
     const result = await copyMasterBookToStudent(masterId, studentId, tenantId);
     return { bookId: result.bookId };
-  } catch (error) {
+  } catch {
     // 교재가 아니면 강의로 시도
     try {
       const result = await copyMasterLectureToStudent(
@@ -1286,7 +1284,7 @@ export async function copyMasterToStudentContent(
         tenantId
       );
       return { lectureId: result.lectureId };
-    } catch (lectureError) {
+    } catch {
       // 강의도 아니면 커스텀 콘텐츠로 시도
       const result = await copyMasterCustomContentToStudent(
         masterId,
@@ -2285,7 +2283,7 @@ export async function getStudentLectureEpisodes(
  */
 export async function getStudentBookDetailsBatch(
   bookIds: string[],
-  studentId: string
+  _studentId: string
 ): Promise<
   Map<
     string,
@@ -2762,7 +2760,7 @@ export async function getMasterLectureEpisodesBatch(
 export async function getLectureEpisodesWithFallback(
   lectureId: string,
   masterLectureId: string | null | undefined,
-  studentId?: string
+  _studentId?: string
 ): Promise<
   Array<{
     id: string;

@@ -2,7 +2,7 @@
  * 블록 통계 계산 유틸리티
  */
 
-import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
+import { timeToMinutes } from "@/lib/utils/time";
 
 type Block = {
   day_of_week: number;

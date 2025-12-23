@@ -1,10 +1,10 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getStudyTime, type StudyTimeMetrics } from "@/lib/metrics/getStudyTime";
-import { getPlanCompletion, type PlanCompletionMetrics } from "@/lib/metrics/getPlanCompletion";
-import { getGoalStatus, type GoalStatusMetrics } from "@/lib/metrics/getGoalStatus";
-import { getWeakSubjects, type WeakSubjectMetrics } from "@/lib/metrics/getWeakSubjects";
-import { getStudentRiskScore, type StudentRiskResult } from "@/lib/risk/engine";
-import { getRecommendations, type Recommendations } from "@/lib/recommendations/engine";
+import { getStudyTime } from "@/lib/metrics/getStudyTime";
+import { getPlanCompletion } from "@/lib/metrics/getPlanCompletion";
+import { getGoalStatus } from "@/lib/metrics/getGoalStatus";
+import { getWeakSubjects } from "@/lib/metrics/getWeakSubjects";
+import { getStudentRiskScore } from "@/lib/risk/engine";
+import { getRecommendations } from "@/lib/recommendations/engine";
 import { getHistoryPattern, type HistoryPatternMetrics } from "@/lib/metrics/getHistoryPattern";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 

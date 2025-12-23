@@ -10,7 +10,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CampTemplate, CampPlanConfig } from "@/lib/domains/camp/types";
 import type { PlanGroup } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
-import type { Json } from "@/lib/supabase/database.types";
 
 // CampPlanConfig 타입은 lib/domains/camp/types.ts에서 export
 export type { CampPlanConfig };

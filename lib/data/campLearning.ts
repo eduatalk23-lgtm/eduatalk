@@ -51,9 +51,6 @@ export async function getCampLearningRecords(
   }
 
   const planGroupIds = planGroups.map((pg) => pg.id);
-  const planGroupMap = new Map(
-    planGroups.map((pg) => [pg.student_id, pg.id])
-  );
 
   // 플랜 조회 (학생 정보 JOIN)
   const { data: plans, error: plansError } = await supabase

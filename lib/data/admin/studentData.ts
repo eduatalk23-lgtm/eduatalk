@@ -1,12 +1,8 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { getBooks, getLectures, getCustomContents } from "@/lib/data/studentContents";
-import { getSessionsInRange } from "@/lib/data/studentSessions";
-import { getGoalsForStudent } from "@/lib/data/studentGoals";
 import { getWeeklyStudyTimeSummary, getWeeklyPlanSummary } from "@/lib/reports/weekly";
 import { getMonthlyReportData } from "@/lib/reports/monthly";
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
 /**
  * 관리자용: 학생의 플랜 목록 조회

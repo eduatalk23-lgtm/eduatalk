@@ -17,22 +17,14 @@ import {
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { Database } from "@/lib/supabase/database.types";
 import type { SupabaseServerClient } from "@/lib/data/core/types";
-import type {
-  CampTemplateUpdate,
-  CampInvitationUpdate,
-} from "@/lib/domains/camp/types";
 
 // Database 타입에서 테이블 타입 추출
 type CampTemplateRow = Database["public"]["Tables"]["camp_templates"]["Row"];
 type CampTemplateInsert =
   Database["public"]["Tables"]["camp_templates"]["Insert"];
-type CampTemplateUpdateRow =
-  Database["public"]["Tables"]["camp_templates"]["Update"];
 
 type CampInvitationRow =
   Database["public"]["Tables"]["camp_invitations"]["Row"];
-type CampInvitationInsert =
-  Database["public"]["Tables"]["camp_invitations"]["Insert"];
 type CampInvitationUpdateRow =
   Database["public"]["Tables"]["camp_invitations"]["Update"];
 

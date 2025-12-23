@@ -9,8 +9,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createTypedQuery } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 
-type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
-
 export type BlockSetWithBlocks = {
   id: string;
   name: string;
@@ -189,7 +187,7 @@ export async function updateBlockSet(
   if (updates.name !== undefined) payload.name = updates.name.trim();
   if (updates.description !== undefined) payload.description = updates.description?.trim() || null;
 
-  const result = await createTypedQuery<null>(
+  await createTypedQuery<null>(
     async () => {
       return await supabase
         .from("student_block_sets")
@@ -216,7 +214,7 @@ export async function deleteBlockSet(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const result = await createTypedQuery<null>(
+  await createTypedQuery<null>(
     async () => {
       return await supabase
         .from("student_block_sets")
@@ -349,7 +347,7 @@ export async function updateBlock(
   if (updates.start_time !== undefined) payload.start_time = updates.start_time;
   if (updates.end_time !== undefined) payload.end_time = updates.end_time;
 
-  const result = await createTypedQuery<null>(
+  await createTypedQuery<null>(
     async () => {
       return await supabase
         .from("student_block_schedule")
@@ -376,7 +374,7 @@ export async function deleteBlock(
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
 
-  const result = await createTypedQuery<null>(
+  await createTypedQuery<null>(
     async () => {
       return await supabase
         .from("student_block_schedule")

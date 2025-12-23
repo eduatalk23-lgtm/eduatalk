@@ -4,10 +4,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   isRateLimitError,
   retryWithBackoff,
-  type SupabaseErrorLike,
 } from "@/lib/auth/rateLimitHandler";
 import { analyzeAuthError, logAuthError } from "./errorHandlers";
-import { isRefreshTokenError } from "./rateLimitHandler";
 import {
   extractSignupRole,
   extractTenantId,

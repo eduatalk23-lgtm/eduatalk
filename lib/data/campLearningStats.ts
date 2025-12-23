@@ -64,9 +64,6 @@ export async function getCampLearningStats(
   }
 
   const planGroupIds = (planGroups || []).map((pg) => pg.id);
-  const planGroupMap = new Map(
-    (planGroups || []).map((pg) => [pg.student_id, pg.id])
-  );
 
   if (planGroupIds.length === 0) {
     return {

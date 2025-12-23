@@ -6,8 +6,6 @@
  * 클라이언트 컴포넌트에서는 동적 import를 통해 사용됩니다.
  */
 
-import type { ParticipantAttendanceStats } from "@/lib/domains/camp/types";
-import type { ParticipantLearningStats } from "@/lib/domains/camp/types";
 
 /**
  * 참여자별 통계 정보

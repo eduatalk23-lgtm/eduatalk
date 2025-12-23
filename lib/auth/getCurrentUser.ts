@@ -3,7 +3,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUserRole, type CurrentUserRole } from "./getCurrentUserRole";
 import { isRateLimitError, retryWithBackoff } from "@/lib/auth/rateLimitHandler";
 import { analyzeAuthError, logAuthError } from "./errorHandlers";
-import { isRefreshTokenError } from "./rateLimitHandler";
 
 export type CurrentUser = {
   userId: string;
