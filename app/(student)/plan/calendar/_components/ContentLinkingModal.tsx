@@ -20,7 +20,8 @@ import {
   getAvailableContentsForSlot,
   type ContentLinkInfo,
 } from "@/lib/domains/plan/actions/linkContent";
-import { searchContentMastersAction, getRecommendedMasterContentsAction } from "@/lib/domains/content";
+import { getRecommendedMasterContentsAction } from "@/lib/domains/content";
+import { useMasterContentSearch, type MasterContentResult } from "@/lib/hooks/useMasterContentSearch";
 import { RangeSettingModal } from "@/app/(student)/plan/new-group/_components/_features/content-selection/components/RangeSettingModal";
 import type { ContentRange } from "@/lib/types/content-selection";
 import {
@@ -50,16 +51,7 @@ type ContentLinkingModalProps = {
 type ContentTab = "book" | "lecture" | "custom";
 type SourceTab = "student" | "recommended" | "master";
 
-type MasterContent = {
-  id: string;
-  title: string;
-  content_type: "book" | "lecture";
-  subject?: string | null;
-  subject_category?: string | null;
-  publisher_or_academy?: string | null;
-  total_pages?: number | null;
-  total_episodes?: number | null;
-};
+// MasterContent 타입은 useMasterContentSearch에서 MasterContentResult로 제공
 
 type RecommendedContentItem = {
   id: string;
@@ -115,11 +107,8 @@ export function ContentLinkingModal({
     custom: ContentLinkInfo[];
   }>({ books: [], lectures: [], custom: [] });
 
-  // 마스터 콘텐츠 상태
-  const [masterContents, setMasterContents] = useState<MasterContent[]>([]);
-  const [masterSearchQuery, setMasterSearchQuery] = useState("");
-  const [isMasterSearching, setIsMasterSearching] = useState(false);
-  const [hasMasterSearched, setHasMasterSearched] = useState(false);
+  // 마스터 콘텐츠 검색 훅
+  const masterSearch = useMasterContentSearch({ limit: 20 });
 
   // 추천 콘텐츠 상태
   const [recommendedContents, setRecommendedContents] = useState<RecommendedContentItem[]>([]);
@@ -145,9 +134,7 @@ export function ContentLinkingModal({
       setError(null);
       setSelectedContent(null);
       setSearchQuery("");
-      setMasterSearchQuery("");
-      setMasterContents([]);
-      setHasMasterSearched(false);
+      masterSearch.reset();
       setStartDetailId(null);
       setEndDetailId(null);
       setRecommendedContents([]);
@@ -178,32 +165,9 @@ export function ContentLinkingModal({
 
   // 마스터 콘텐츠 검색
   const handleMasterSearch = useCallback(async () => {
-    if (!masterSearchQuery.trim()) return;
-
-    setIsMasterSearching(true);
-    setHasMasterSearched(true);
-
-    try {
-      const contentType = activeTab === "custom" ? "book" : activeTab;
-
-      const result = await searchContentMastersAction({
-        content_type: contentType,
-        search: masterSearchQuery.trim(),
-        limit: 20,
-      });
-
-      if (result && "data" in result) {
-        setMasterContents(result.data as MasterContent[]);
-      } else {
-        setMasterContents([]);
-      }
-    } catch (err) {
-      console.error("[ContentLinkingModal] 마스터 콘텐츠 검색 실패:", err);
-      setError("마스터 콘텐츠 검색에 실패했습니다.");
-    } finally {
-      setIsMasterSearching(false);
-    }
-  }, [masterSearchQuery, activeTab]);
+    const contentType = activeTab === "custom" ? "book" : activeTab;
+    await masterSearch.search(contentType);
+  }, [activeTab, masterSearch]);
 
   // 추천 콘텐츠 로드
   const loadRecommendations = useCallback(async () => {
@@ -309,7 +273,7 @@ export function ContentLinkingModal({
   }, []);
 
   // 마스터 콘텐츠 선택 핸들러
-  const handleSelectMasterContent = useCallback((master: MasterContent) => {
+  const handleSelectMasterContent = useCallback((master: MasterContentResult) => {
     const content: ContentLinkInfo = {
       contentId: master.id,
       contentType: master.content_type,
@@ -548,8 +512,8 @@ export function ContentLinkingModal({
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    value={masterSearchQuery}
-                    onChange={(e) => setMasterSearchQuery(e.target.value)}
+                    value={masterSearch.searchQuery}
+                    onChange={(e) => masterSearch.setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleMasterSearch()}
                     placeholder="마스터 콘텐츠 검색..."
                     className={cn(
@@ -561,13 +525,13 @@ export function ContentLinkingModal({
                 <button
                   type="button"
                   onClick={handleMasterSearch}
-                  disabled={isMasterSearching || !masterSearchQuery.trim()}
+                  disabled={masterSearch.isSearching || !masterSearch.searchQuery.trim()}
                   className={cn(
                     "rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700",
-                    (isMasterSearching || !masterSearchQuery.trim()) && "opacity-50 cursor-not-allowed"
+                    (masterSearch.isSearching || !masterSearch.searchQuery.trim()) && "opacity-50 cursor-not-allowed"
                   )}
                 >
-                  {isMasterSearching ? (
+                  {masterSearch.isSearching ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "검색"
@@ -758,25 +722,25 @@ export function ContentLinkingModal({
               )
             ) : (
               // 마스터 콘텐츠 목록
-              !hasMasterSearched ? (
+              !masterSearch.hasSearched ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Package className="h-12 w-12 text-gray-300" />
                   <p className={cn("mt-4 text-sm", textMuted)}>
                     검색어를 입력하여 마스터 콘텐츠를 검색하세요
                   </p>
                 </div>
-              ) : isMasterSearching ? (
+              ) : masterSearch.isSearching ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                   <p className={cn("mt-2 text-sm", textMuted)}>검색 중...</p>
                 </div>
-              ) : masterContents.length === 0 ? (
+              ) : masterSearch.results.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <p className={cn("text-sm", textMuted)}>검색 결과가 없습니다</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {masterContents.map((master) => {
+                  {masterSearch.results.map((master) => {
                     const isSelected = selectedContent?.contentId === master.id;
                     const TypeIcon = master.content_type === "book" ? BookOpen : Video;
 
