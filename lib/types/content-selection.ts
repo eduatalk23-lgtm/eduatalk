@@ -894,3 +894,47 @@ export function getNextSlotIndex(slots: ContentSlot[]): number {
   return maxIndex + 1;
 }
 
+// ============================================================================
+// 슬롯 템플릿 프리셋 타입 (v2.1)
+// ============================================================================
+
+/**
+ * 슬롯 템플릿 프리셋
+ * slot_template_presets 테이블에 저장되는 구조
+ */
+export type SlotTemplatePreset = {
+  /** 프리셋 ID */
+  id: string;
+  /** 테넌트 ID */
+  tenant_id: string;
+  /** 프리셋 이름 */
+  name: string;
+  /** 프리셋 설명 */
+  description?: string | null;
+  /** 슬롯 템플릿 배열 */
+  slot_templates: SlotTemplate[];
+  /** 기본 프리셋 여부 */
+  is_default: boolean;
+  /** 생성자 ID */
+  created_by?: string | null;
+  /** 생성 일시 */
+  created_at?: string | null;
+  /** 수정 일시 */
+  updated_at?: string | null;
+};
+
+/**
+ * 슬롯 템플릿 프리셋 생성 데이터
+ */
+export type SlotTemplatePresetInsert = Omit<
+  SlotTemplatePreset,
+  "id" | "created_at" | "updated_at"
+>;
+
+/**
+ * 슬롯 템플릿 프리셋 업데이트 데이터
+ */
+export type SlotTemplatePresetUpdate = Partial<
+  Omit<SlotTemplatePreset, "id" | "tenant_id" | "created_at">
+>;
+

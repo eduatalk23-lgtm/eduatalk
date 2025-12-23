@@ -68,3 +68,12 @@ export {
   getCampInvitationWithTemplate,
   submitCampParticipation,
 } from "./student";
+
+// Slot Template Presets Actions
+export {
+  getSlotTemplatePresets,
+  createSlotTemplatePreset,
+  updateSlotTemplatePreset,
+  deleteSlotTemplatePreset,
+  setDefaultPreset,
+} from "./slotPresets";
