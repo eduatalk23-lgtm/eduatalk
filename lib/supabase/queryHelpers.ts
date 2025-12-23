@@ -100,3 +100,25 @@ export async function safeExists(
   return Array.isArray(data) && data.length > 0;
 }
 
+/**
+ * Supabase 조인 결과에서 첫 번째 요소 추출
+ * 조인 결과는 배열 또는 단일 객체로 반환될 수 있음
+ *
+ * @example
+ * const student = extractJoinResult(link.students);
+ * // link.students가 배열이면 첫 번째 요소 반환
+ * // 단일 객체면 그대로 반환
+ * // null/undefined면 null 반환
+ */
+export function extractJoinResult<T>(
+  joinResult: T | T[] | null | undefined
+): T | null {
+  if (joinResult === null || joinResult === undefined) {
+    return null;
+  }
+  if (Array.isArray(joinResult)) {
+    return joinResult.length > 0 ? joinResult[0] : null;
+  }
+  return joinResult;
+}
+

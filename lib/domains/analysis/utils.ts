@@ -6,6 +6,7 @@
 
 import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
 import { getSubjectById } from "@/lib/data/subjects";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type {
   ScoreRow,
   ProgressRow,
@@ -121,7 +122,7 @@ export async function fetchProgressMap(
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectProgress());
     }
 
@@ -170,21 +171,21 @@ export async function fetchPlansForSubject(
     let lectureIds: string[] = [];
     let customIds: string[] = [];
 
-    if (books.error && books.error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(books.error)) {
       const { data } = await selectBooks();
       bookIds = (data ?? []).map((b) => b.id);
     } else if (books.data) {
       bookIds = books.data.map((b) => b.id);
     }
 
-    if (lectures.error && lectures.error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(lectures.error)) {
       const { data } = await selectLectures();
       lectureIds = (data ?? []).map((l) => l.id);
     } else if (lectures.data) {
       lectureIds = lectures.data.map((l) => l.id);
     }
 
-    if (custom.error && custom.error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(custom.error)) {
       const { data } = await selectCustom();
       customIds = (data ?? []).map((c) => c.id);
     } else if (custom.data) {

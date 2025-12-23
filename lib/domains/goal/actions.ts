@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireStudent } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   createGoal,
@@ -31,14 +32,9 @@ import { getAllGoals } from "@/lib/goals/queries";
  * 목표 생성
  */
 export async function createGoalAction(formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new Error("로그인이 필요합니다.");
-  }
+  const { userId, tenantId } = await requireStudent();
 
-  const tenantContext = await getTenantContext();
-
-  if (!tenantContext?.tenantId) {
+  if (!tenantId) {
     throw new Error("기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.");
   }
 
@@ -88,8 +84,8 @@ export async function createGoalAction(formData: FormData): Promise<void> {
 
   // 목표 생성
   const result = await createGoal({
-    tenant_id: tenantContext.tenantId,
-    student_id: user.userId,
+    tenant_id: tenantId,
+    student_id: userId,
     goal_type: goalType as "range" | "exam" | "weekly" | "monthly",
     title,
     description: description || null,
@@ -109,7 +105,7 @@ export async function createGoalAction(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await recordHistory(
     supabase,
-    user.userId,
+    userId,
     "goal_created",
     {
       goal_type: goalType,
@@ -118,7 +114,7 @@ export async function createGoalAction(formData: FormData): Promise<void> {
       start_date: startDate,
       end_date: endDate,
     },
-    tenantContext.tenantId
+    tenantId
   );
 
   revalidatePath("/today");
@@ -129,10 +125,7 @@ export async function createGoalAction(formData: FormData): Promise<void> {
  * 목표 수정
  */
 export async function updateGoalAction(goalId: string, formData: FormData): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new Error("로그인이 필요합니다.");
-  }
+  const { userId } = await requireStudent();
 
   const goalType = String(formData.get("goal_type") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
@@ -179,7 +172,7 @@ export async function updateGoalAction(goalId: string, formData: FormData): Prom
   }
 
   // 목표 수정
-  const result = await updateGoal(goalId, user.userId, {
+  const result = await updateGoal(goalId, userId, {
     goal_type: goalType as "range" | "exam" | "weekly" | "monthly",
     title,
     description: description || null,
@@ -203,12 +196,9 @@ export async function updateGoalAction(goalId: string, formData: FormData): Prom
  * 목표 삭제
  */
 export async function deleteGoalAction(goalId: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new Error("로그인이 필요합니다.");
-  }
+  const { userId } = await requireStudent();
 
-  const result = await deleteGoal(goalId, user.userId);
+  const result = await deleteGoal(goalId, userId);
 
   if (!result.success) {
     throw new Error(result.error || "목표 삭제에 실패했습니다.");

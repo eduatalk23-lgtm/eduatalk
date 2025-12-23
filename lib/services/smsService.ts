@@ -152,14 +152,16 @@ async function getAccessToken(): Promise<string> {
     };
 
     return result.token;
-  } catch (error: any) {
-    if (error.name === "AbortError") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
       throw new Error("토큰 발급 요청 시간이 초과되었습니다.");
     }
-    if (error.message) {
+    if (error instanceof Error && error.message) {
       throw error;
     }
-    throw new Error(`토큰 발급 실패: ${error.message || String(error)}`);
+    throw new Error(
+      `토큰 발급 실패: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -502,10 +504,10 @@ export async function sendSMS(
       success: false,
       error: errorMessage,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 5. 에러 처리
     let errorMessage = "알 수 없는 오류가 발생했습니다.";
-    let errorDetails: Record<string, any> = {};
+    let errorDetails: Record<string, unknown> = {};
 
     if (error instanceof Error) {
       if (error.name === "AbortError") {
@@ -768,7 +770,7 @@ export async function cancelScheduledMessage(
         error: result.description || "예약 취소에 실패했습니다.",
       };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage =
       error instanceof Error
         ? error.message

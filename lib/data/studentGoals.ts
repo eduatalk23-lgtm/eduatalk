@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import {
   createTypedQuery,
   createTypedSingleQuery,
@@ -149,7 +150,7 @@ export async function getGoalById(
 
       const queryResult = await query;
       return {
-        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+        data: extractJoinResult(queryResult.data),
         error: queryResult.error,
       };
     },
@@ -165,7 +166,7 @@ export async function getGoalById(
           .eq("id", goalId)
           .eq("student_id", studentId);
         return {
-          data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+          data: extractJoinResult(queryResult.data),
           error: queryResult.error,
         };
       },
@@ -217,7 +218,7 @@ export async function createGoal(
         .single();
 
       return {
-        data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+        data: extractJoinResult(queryResult.data),
         error: queryResult.error,
       };
     },
@@ -233,7 +234,7 @@ export async function createGoal(
           .select("id")
           .single();
         return {
-          data: queryResult.data ? (Array.isArray(queryResult.data) ? queryResult.data[0] : queryResult.data) : null,
+          data: extractJoinResult(queryResult.data),
           error: queryResult.error,
         };
       },

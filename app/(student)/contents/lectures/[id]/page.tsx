@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { deleteLecture } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { Lecture } from "@/app/types/content";
 import { LectureDetailTabs } from "./_components/LectureDetailTabs";
 import { getMasterLectureById, getLectureEpisodesWithFallback, getMasterBookById } from "@/lib/data/contentMasters";
@@ -35,7 +36,7 @@ export default async function LectureDetailPage({
     .eq("student_id", user.id)
     .maybeSingle<Lecture & { master_lecture_id?: string | null; linked_book_id?: string | null; total_episodes?: number | null }>();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { master_lecture_id?: string | null; linked_book_id?: string | null }>());
   }
 

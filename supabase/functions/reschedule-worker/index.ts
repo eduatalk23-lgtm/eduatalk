@@ -96,18 +96,17 @@ Deno.serve(async (req: Request) => {
     }
 
     // 3. 재조정 실행
-    // TODO: 실제 재조정 로직 호출
-    // rescheduleContents 함수를 호출하거나 직접 구현
+    // NOTE: 재조정 로직 구현 필요 (rescheduleContents 함수 호출 또는 직접 구현)
     try {
       // 여기서는 간단하게 성공으로 처리
       // 실제로는 rescheduleContents 로직을 실행해야 함
-      
+
       // 4. Job 상태를 'completed'로 업데이트
       await supabase
         .from("reschedule_log")
         .update({
           status: "completed",
-          plans_after_count: 0, // TODO: 실제 생성된 플랜 수
+          plans_after_count: 0, // NOTE: 재조정 완료 후 실제 생성된 플랜 수로 업데이트 필요
         })
         .eq("id", job.id);
 

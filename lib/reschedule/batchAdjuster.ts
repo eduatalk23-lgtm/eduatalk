@@ -164,7 +164,7 @@ export function applyReplacementAdjustment(
       },
       after: {
         content_id: newContentId,
-        content_type: content.content_type, // TODO: 실제 타입 조회 필요
+        content_type: content.content_type, // NOTE: 필요시 콘텐츠 테이블에서 실제 타입 조회
         range: {
           start: content.start_range,
           end: content.end_range,

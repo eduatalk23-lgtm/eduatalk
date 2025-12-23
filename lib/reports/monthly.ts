@@ -3,6 +3,7 @@ import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 import { getSubjectFromContent } from "@/lib/studySessions/summary";
 import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
 import { getSubjectGroupById } from "@/lib/data/subjects";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -133,7 +134,7 @@ async function getPlanInfo(
 
     let { data, error } = await selectPlan().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectPlan().maybeSingle());
     }
 
@@ -300,7 +301,7 @@ export async function getMonthlyPlanSummary(
 
     let { data: plans, error } = await selectPlans().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plans, error } = await selectPlans());
     }
 
@@ -402,7 +403,7 @@ export async function getMonthlyGoalSummary(
 
     let { data: goals, error } = await selectGoals().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: goals, error } = await selectGoals());
     }
 
@@ -683,7 +684,7 @@ export async function getMonthlyContentProgress(
 
     let { data: progressData, error } = await selectProgress().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: progressData, error } = await selectProgress());
     }
 
@@ -809,7 +810,7 @@ export async function getMonthlyHistory(
 
     let { data: historyData, error } = await selectHistory().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: historyData, error } = await selectHistory());
     }
 

@@ -131,7 +131,7 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
     };
 
     // 4. 백업 데이터 저장 (향후 백업 테이블에 저장하거나 로그로 기록)
-    // TODO: 백업 테이블 생성 시 아래 주석 해제
+    // NOTE: plan_group_backups 테이블 생성 시 아래 주석 해제하여 백업 저장
     /*
     const { error: backupError } = await supabase
       .from("plan_group_backups")

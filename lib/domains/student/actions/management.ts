@@ -298,62 +298,56 @@ export async function bulkDeleteStudents(
   let successCount = 0;
   const errors: string[] = [];
 
-  // 각 학생에 대해 삭제 작업 수행
+  // NO ACTION 제약조건이 있는 테이블들을 배치 삭제 (N+1 → 5 쿼리로 최적화)
+  // 이 테이블들은 개별 에러 추적이 필요 없으므로 배치 처리
+  const batchDeleteResults = await Promise.all([
+    supabase
+      .from("student_score_analysis_cache")
+      .delete()
+      .in("student_id", studentIds),
+    supabase
+      .from("student_score_events")
+      .delete()
+      .in("student_id", studentIds),
+    supabase
+      .from("student_internal_scores")
+      .delete()
+      .in("student_id", studentIds),
+    supabase
+      .from("student_mock_scores")
+      .delete()
+      .in("student_id", studentIds),
+    supabase
+      .from("student_terms")
+      .delete()
+      .in("student_id", studentIds),
+  ]);
+
+  // 배치 삭제 에러 확인 (치명적 에러만 로깅)
+  const batchErrors = batchDeleteResults
+    .map((result, index) => {
+      const tableNames = [
+        "student_score_analysis_cache",
+        "student_score_events",
+        "student_internal_scores",
+        "student_mock_scores",
+        "student_terms",
+      ];
+      if (result.error) {
+        return `${tableNames[index]}: ${result.error.message}`;
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  if (batchErrors.length > 0) {
+    console.warn("[admin/studentManagement] 배치 삭제 경고:", batchErrors);
+  }
+
+  // 각 학생에 대해 auth 삭제 및 students 테이블 삭제 수행
   for (const studentId of studentIds) {
     try {
-      // NO ACTION 제약조건이 있는 테이블들을 먼저 삭제
-      // 1. student_score_analysis_cache
-      await supabase
-        .from("student_score_analysis_cache")
-        .delete()
-        .eq("student_id", studentId);
-
-      // 2. student_score_events
-      await supabase
-        .from("student_score_events")
-        .delete()
-        .eq("student_id", studentId);
-
-      // 3. student_internal_scores
-      const { error: internalScoresError } = await supabase
-        .from("student_internal_scores")
-        .delete()
-        .eq("student_id", studentId);
-
-      if (internalScoresError) {
-        errors.push(
-          `${studentId}: 내신 성적 삭제 실패 - ${internalScoresError.message}`
-        );
-        continue;
-      }
-
-      // 4. student_mock_scores
-      const { error: mockScoresError } = await supabase
-        .from("student_mock_scores")
-        .delete()
-        .eq("student_id", studentId);
-
-      if (mockScoresError) {
-        errors.push(
-          `${studentId}: 모의고사 성적 삭제 실패 - ${mockScoresError.message}`
-        );
-        continue;
-      }
-
-      // 5. student_terms
-      const { error: termsError } = await supabase
-        .from("student_terms")
-        .delete()
-        .eq("student_id", studentId);
-
-      if (termsError) {
-        errors.push(
-          `${studentId}: 학기 정보 삭제 실패 - ${termsError.message}`
-        );
-        continue;
-      }
-
-      // 6. auth.users에서 사용자 삭제
+      // auth.users에서 사용자 삭제
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
         studentId
       );
@@ -365,7 +359,7 @@ export async function bulkDeleteStudents(
         continue;
       }
 
-      // 7. students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
+      // students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
       const { data: deletedRows, error: deleteError } = await supabase
         .from("students")
         .delete()

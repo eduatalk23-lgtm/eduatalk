@@ -1,5 +1,6 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -60,7 +61,7 @@ export async function recordHistory(
       // Admin 클라이언트가 없으면 서버 클라이언트로 시도
       let { error } = await supabase.from("student_history").insert(payload);
 
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         // fallback: tenant_id 컬럼이 없는 경우
         const { tenant_id: _tenantId, ...fallbackPayload } = payload;
         void _tenantId;
@@ -85,7 +86,7 @@ export async function recordHistory(
     // Admin 클라이언트로 INSERT 시도
     let { error } = await adminClient.from("student_history").insert(payload);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       // fallback: tenant_id 컬럼이 없는 경우
       const { tenant_id: _tenantId, ...fallbackPayload } = payload;
       void _tenantId;

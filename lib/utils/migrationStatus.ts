@@ -6,6 +6,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/errors/handler";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 /**
  * 마이그레이션 상태 캐시
@@ -74,7 +75,7 @@ export async function checkColumnExists(
       .select(columnName)
       .limit(1);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       // 컬럼이 없음
       setCachedStatus(`${tableName}.${columnName}`, false);
       return false;

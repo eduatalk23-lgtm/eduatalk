@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { ComparePageClient } from "./_components/ComparePageClient";
 import { getWeekRange } from "@/lib/date/weekRange";
 
@@ -30,7 +31,7 @@ async function getStudentWeeklyStudyTime(
       .gte("started_at", weekStartStr)
       .lte("started_at", weekEndStr);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return 0;
     }
 
@@ -67,7 +68,7 @@ async function getStudentWeeklyPlanCompletion(
       .gte("plan_date", weekStartStr)
       .lte("plan_date", weekEndStr);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return 0;
     }
 

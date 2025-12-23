@@ -10,6 +10,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -281,7 +282,7 @@ export async function getMockAnalysis(
     .map((score) => {
       // Relational Query 결과에서 subject_group_name 추출
       // subject가 배열로 반환될 수 있으므로 첫 번째 요소 사용
-      const subject = Array.isArray(score.subject) ? score.subject[0] : score.subject;
+      const subject = extractJoinResult(score.subject);
       const subjectGroupName =
         subject?.subject_group?.name || "";
       

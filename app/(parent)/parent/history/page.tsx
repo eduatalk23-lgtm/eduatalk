@@ -1,6 +1,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getLinkedStudents, canAccessStudent } from "../../_utils";
 import { StudentSelector } from "../_components/StudentSelector";
@@ -91,7 +92,7 @@ export default async function ParentHistoryPage({ searchParams }: PageProps) {
 
   let { data: historyData, error } = await selectHistory();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: historyData, error } = await selectHistory());
   }
 

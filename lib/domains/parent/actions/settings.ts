@@ -1,7 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireParent } from "@/lib/auth/guards";
 import { canAccessStudent } from "../utils";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
@@ -14,11 +14,7 @@ import type { StudentAttendanceNotificationSettings } from "../types";
 async function _getStudentAttendanceNotificationSettings(
   studentId: string
 ): Promise<StudentAttendanceNotificationSettings | null> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError("학부모 권한이 필요합니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  const { userId } = await requireParent();
 
   const supabase = await createSupabaseServerClient();
 
@@ -73,11 +69,7 @@ async function _updateStudentAttendanceNotificationSettings(
   studentId: string,
   settings: StudentAttendanceNotificationSettings
 ): Promise<void> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError("학부모 권한이 필요합니다.", ErrorCode.FORBIDDEN, 403, true);
-  }
+  const { userId } = await requireParent();
 
   const supabase = await createSupabaseServerClient();
 

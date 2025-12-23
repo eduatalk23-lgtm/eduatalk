@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { ActionResult } from "../types";
 
 /**
@@ -101,7 +102,7 @@ export async function savePlanMemo(
 
     if (error) {
       // memo 컬럼이 없는 경우를 대비한 폴백
-      if (error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         console.warn("[planMemoActions] memo 컬럼이 없습니다. 테이블 스키마를 확인해주세요.");
         return {
           success: false,

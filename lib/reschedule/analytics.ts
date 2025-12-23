@@ -123,9 +123,9 @@ export async function getRescheduleStats(
   const processingTimes: number[] = [];
   logs.forEach((log) => {
     if (log.status === 'completed' && log.created_at) {
-      // TODO: completed_at 컬럼이 있다면 사용, 없으면 현재 시간으로 추정
+      // NOTE: completed_at 컬럼 추가 시 정확한 처리 시간 측정 가능
       const createdAt = new Date(log.created_at).getTime();
-      const completedAt = new Date().getTime(); // 임시로 현재 시간 사용
+      const completedAt = new Date().getTime(); // 임시: 현재 시간 사용
       processingTimes.push((completedAt - createdAt) / 1000); // 초 단위
     }
   });

@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { LectureEditForm } from "./LectureEditForm";
 import { Lecture } from "@/app/types/content";
 import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
@@ -34,7 +35,7 @@ export default async function EditLecturePage({
     .eq("student_id", user.id)
     .maybeSingle<Lecture & { linked_book_id?: string | null }>();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: lecture, error } = await selectLecture().maybeSingle<Lecture & { linked_book_id?: string | null }>());
   }
 

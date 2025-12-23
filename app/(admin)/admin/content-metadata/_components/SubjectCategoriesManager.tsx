@@ -167,8 +167,8 @@ export function SubjectCategoriesManager() {
     setFormData({ name: "", display_order: 0 });
   }
 
-  // SubjectCategory에는 revision_id가 없으므로 모든 항목 표시
-  // TODO: 데이터베이스 스키마에 revision_id 관계가 추가되면 필터링 로직 구현
+  // SubjectCategory는 deprecated된 테이블로 revision_id가 없음
+  // 교과정 별 필터링이 필요한 경우 /admin/subjects 페이지 사용 권장
   const filteredItems = items;
 
   if (loading) {

@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { executeQuery, executeSingleQuery } from "./core/queryBuilder";
 import type { SupabaseServerClient } from "./core/types";
 import { createTypedConditionalQuery } from "./core/typedQueryBuilder";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { StudentDivision } from "@/lib/constants/students";
 
 export type Student = {
@@ -259,8 +260,8 @@ export async function upsertStudent(
     .upsert(payload, { onConflict: "id" });
 
   // 선택적 필드가 없어서 에러가 발생하면 해당 필드 제거하고 재시도
-  if (error && error.code === "42703") {
-    const errorMessage = error.message?.toLowerCase() || "";
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
+    const errorMessage = error?.message?.toLowerCase() || "";
     
     // school_type 컬럼이 없으면 제거
     if (errorMessage.includes("school_type") && payload.school_type) {

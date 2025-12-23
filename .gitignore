@@ -70,3 +70,4 @@ next-env.d.ts
 # repomix analysis files
 repomix-output.xml
 repomix-phase*.xml
+.aider*

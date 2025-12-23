@@ -9,6 +9,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import type {
   SchoolType,
   SchoolTypeKor,
@@ -388,7 +389,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           if (!campusError && campusData) {
             universityNameData = (campusData as UniversityCampusRowWithJoin[]).map((uc) => ({
               ...uc,
-              university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+              university: extractJoinResult(uc.university),
             })) as UniversityWithCampus[];
           }
         }
@@ -412,7 +413,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           
           for (const uc of (campusNameData as CampusNameDataWithJoin[]).map((uc) => ({
             ...uc,
-            university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+            university: extractJoinResult(uc.university),
           })) as UniversityWithCampus[]) {
             if (!seenIds.has(uc.id)) {
               seenIds.add(uc.id);
@@ -473,7 +474,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
           for (const uc of campusData) {
             const universityCampus = {
               ...uc,
-              university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+              university: extractJoinResult(uc.university),
             } as UniversityWithCampus;
           const university = universityCampus.university;
           const campusName = universityCampus.campus_name;
@@ -864,7 +865,7 @@ export async function searchUniversityCampuses(
       // university 필드를 평탄화하여 UniversityWithCampus 형태로 변환
       const normalized: UniversityWithCampus = {
         ...uc,
-        university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+        university: extractJoinResult(uc.university),
       } as UniversityWithCampus;
       
       if (!seenIds.has(normalized.id)) {
@@ -880,7 +881,7 @@ export async function searchUniversityCampuses(
       // university 필드를 평탄화하여 UniversityWithCampus 형태로 변환
       const normalized: UniversityWithCampus = {
         ...uc,
-        university: Array.isArray(uc.university) ? uc.university[0] : uc.university,
+        university: extractJoinResult(uc.university),
       } as UniversityWithCampus;
       allCampusData.push(normalized);
     }

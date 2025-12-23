@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import Link from "next/link";
 import { getWeeklyStudyTimeSummary } from "@/lib/reports/weekly";
 import { getWeeklyPlanSummary } from "@/lib/reports/weekly";
@@ -128,7 +129,7 @@ async function getTopStudyTimeStudents(
       .gte("started_at", weekStartStr)
       .lte("started_at", weekEndStr);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return [];
     }
 
@@ -191,7 +192,7 @@ async function getTopPlanCompletionStudents(
       .gte("plan_date", weekStartStr)
       .lte("plan_date", weekEndStr);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return [];
     }
 
@@ -261,7 +262,7 @@ async function getTopGoalAchievementStudents(supabase: SupabaseServerClient) {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return [];
     }
 
@@ -317,7 +318,7 @@ async function getAtRiskStudents(supabase: SupabaseServerClient) {
       .select("id,name")
       .eq("is_active", true);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       const { data: retryStudents } = await supabase
         .from("students")
         .select("id,name")
@@ -387,7 +388,7 @@ async function getRecentConsultingNotes(supabase: SupabaseServerClient) {
       .order("created_at", { ascending: false })
       .limit(5);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return [];
     }
 

@@ -1,4 +1,5 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -98,7 +99,7 @@ export async function getPlansContentBatch(
 
   let { data: plans, error } = await selectPlans();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: plans, error } = await selectPlans());
   }
 

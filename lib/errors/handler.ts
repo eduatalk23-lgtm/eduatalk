@@ -165,8 +165,8 @@ export function logError(
     // 프로덕션에서는 에러 트래킹 서비스로 전송
     // 예: Sentry, LogRocket 등
     console.error("[Error]", JSON.stringify(errorInfo, null, 2));
-    
-    // TODO: 에러 트래킹 서비스 통합
+
+    // NOTE: 에러 트래킹 서비스 통합 고려 (Sentry, LogRocket 등)
     // if (typeof window !== 'undefined' && window.Sentry) {
     //   window.Sentry.captureException(error, { extra: errorInfo });
     // }

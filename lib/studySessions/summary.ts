@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "./queries";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -145,7 +146,7 @@ async function getSubjectFromPlan(
 
     let { data: plan, error } = await selectPlan().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plan, error } = await selectPlan().maybeSingle());
     }
 
@@ -180,7 +181,7 @@ export async function getSubjectFromContent(
 
     let { data, error } = await selectContent().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectContent().maybeSingle());
     }
 

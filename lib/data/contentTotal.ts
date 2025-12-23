@@ -1,6 +1,7 @@
 "use server";
 
 import type { SupabaseServerClient } from "@/lib/data/core/types";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 /**
  * 콘텐츠 타입 정의
@@ -73,11 +74,11 @@ export async function fetchContentTotal(
         .maybeSingle<BookRow>();
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성)
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         console.warn("[contentTotal] books.student_id 컬럼이 없어 fallback 처리", {
           contentId,
           studentId,
-          errorCode: error.code,
+          errorCode: error?.code,
         });
         ({ data, error } = await selectBook().maybeSingle<BookRow>());
       }
@@ -108,11 +109,11 @@ export async function fetchContentTotal(
         .maybeSingle<LectureRow>();
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성)
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         console.warn("[contentTotal] lectures.student_id 컬럼이 없어 fallback 처리", {
           contentId,
           studentId,
-          errorCode: error.code,
+          errorCode: error?.code,
         });
         ({ data, error } = await selectLecture().maybeSingle<LectureRow>());
       }
@@ -183,11 +184,11 @@ export async function fetchContentTotal(
         .maybeSingle<CustomRow>();
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성, 이론적으로 발생하지 않지만 방어적 코딩)
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         console.warn("[contentTotal] student_custom_contents.student_id 컬럼이 없어 fallback 처리", {
           contentId,
           studentId,
-          errorCode: error.code,
+          errorCode: error?.code,
         });
         ({ data, error } = await selectCustom().maybeSingle<CustomRow>());
       }

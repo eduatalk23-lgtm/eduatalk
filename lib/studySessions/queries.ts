@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -36,7 +37,7 @@ export async function getActiveSession(
 
     let { data, error } = await selectSession();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await supabase
         .from("student_study_sessions")
         .select("*")
@@ -82,7 +83,7 @@ export async function getTodaySessionsForPlan(
 
     let { data, error } = await selectSessions();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await supabase
         .from("student_study_sessions")
         .select("*")
@@ -128,7 +129,7 @@ export async function getSessionsByDateRange(
 
     let { data, error } = await selectSessions();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await supabase
         .from("student_study_sessions")
         .select("*")

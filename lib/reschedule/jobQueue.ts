@@ -60,11 +60,11 @@ export interface CreateJobInput {
 export async function enqueueRescheduleJob(
   input: CreateJobInput
 ): Promise<string> {
-  // TODO: 실제 구현
+  // NOTE: Job Queue 구현 필요
   // 1. reschedule_log 테이블에 'pending' 상태로 레코드 생성
   // 2. Job Queue에 작업 추가 (Supabase Edge Function 또는 외부 Queue)
   // 3. Job ID 반환
-  
+
   throw new Error('Not implemented: Job Queue는 향후 구현 예정입니다.');
 }
 
@@ -77,11 +77,11 @@ export async function enqueueRescheduleJob(
 export async function getRescheduleJobStatus(
   jobId: string
 ): Promise<RescheduleJob | null> {
-  // TODO: 실제 구현
+  // NOTE: Job 상태 조회 구현 필요
   // 1. reschedule_log 테이블에서 조회
   // 2. Job Queue에서 상태 조회
   // 3. 통합하여 반환
-  
+
   throw new Error('Not implemented: Job Queue는 향후 구현 예정입니다.');
 }
 
@@ -94,10 +94,10 @@ export async function getRescheduleJobStatus(
 export async function cancelRescheduleJob(
   jobId: string
 ): Promise<boolean> {
-  // TODO: 실제 구현
+  // NOTE: Job 취소 구현 필요
   // 1. Job Queue에서 취소 요청
   // 2. reschedule_log 상태 업데이트
-  
+
   throw new Error('Not implemented: Job Queue는 향후 구현 예정입니다.');
 }
 
@@ -110,10 +110,10 @@ export async function cancelRescheduleJob(
 export async function retryRescheduleJob(
   jobId: string
 ): Promise<string> {
-  // TODO: 실제 구현
+  // NOTE: Job 재시도 구현 필요
   // 1. 기존 Job 정보 조회
   // 2. 새 Job 생성
-  
+
   throw new Error('Not implemented: Job Queue는 향후 구현 예정입니다.');
 }
 

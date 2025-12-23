@@ -1,5 +1,6 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -86,7 +87,7 @@ export async function fetchTodayPlans(
         .order("block_index", { ascending: true });
 
     let { data: plans, error } = await selectPlans().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plans, error } = await selectPlans());
     }
     if (error) throw error;
@@ -224,7 +225,7 @@ async function fetchBlocksForDay(
     let { data, error } = await selectBlocks();
     
     // block_index 컬럼이 없는 경우 (42703 에러)
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       // block_index 없이 조회하고 start_time으로 정렬
       const fallbackQuery = supabase
         .from("student_block_schedule")
@@ -289,7 +290,7 @@ export async function fetchContentMap(
         .order("created_at", { ascending: false });
 
     let { data, error } = await selectContents().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectContents());
     }
     if (error) throw error;
@@ -316,7 +317,7 @@ async function fetchProgressMap(
         .select("content_type,content_id,progress");
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectProgress());
     }
     if (error) throw error;
@@ -432,7 +433,7 @@ export async function fetchLearningStatistics(
       "student_id",
       studentId
     );
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: weekPlans, error } = await selectWeekPlans());
     }
     if (error) throw error;
@@ -503,7 +504,7 @@ async function calculateTotalLearningAmount(
         .select("content_type,content_id,completed_amount");
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectProgress());
     }
     if (error) throw error;
@@ -567,7 +568,7 @@ export async function fetchWeeklyBlockCounts(
       "student_id",
       studentId
     );
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: weekPlans, error } = await selectWeekPlans());
     }
     if (error) throw error;
@@ -642,7 +643,7 @@ export async function fetchContentTypeProgress(
         .select("content_type,progress");
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectProgress());
     }
     if (error) throw error;
@@ -818,7 +819,7 @@ export async function fetchActivePlanIdOnly(
       .limit(1);
 
     // 컬럼이 없는 경우 (42703 에러) null 반환
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return null;
     }
 
@@ -862,7 +863,7 @@ export async function fetchActivePlanSimple(
       .limit(1);
 
     // 컬럼이 없는 경우 (42703 에러) 빈 결과 반환
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       return null;
     }
 
@@ -971,7 +972,7 @@ export async function fetchActivePlan(
       .limit(1);
 
     // 컬럼이 없는 경우 (42703 에러) 빈 결과 반환
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       console.warn("[dashboard] actual_start_time 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
       return null;
     }

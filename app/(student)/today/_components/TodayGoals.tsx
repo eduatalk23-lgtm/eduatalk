@@ -10,16 +10,49 @@ import {
   textTertiary,
   borderDefault,
 } from "@/lib/utils/darkMode";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { fetchGoalsSummary } from "@/lib/goals/queries";
+import { formatDateString } from "@/lib/date/calendarUtils";
 
 type TodayGoalsProps = {
   todayProgress: TodayProgress;
+  studentId: string;
 };
 
-export async function TodayGoals({ todayProgress }: TodayGoalsProps) {
+export async function TodayGoals({ todayProgress, studentId }: TodayGoalsProps) {
   try {
-    // goalProgressSummary 속성이 없으므로 빈 배열로 처리
-    // TODO: 목표 진행률 데이터를 별도로 조회하거나 TodayProgress 타입에 추가 필요
-    const topGoals: Array<{ goalId: string; title: string; progress: number }> = [];
+    // 오늘 날짜 및 주간 범위 계산
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDate = formatDateString(today);
+
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const weekStartDate = formatDateString(weekStart);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekEndDate = formatDateString(weekEnd);
+
+    // 목표 요약 조회
+    const supabase = await createSupabaseServerClient();
+    const goalsSummary = await fetchGoalsSummary(
+      supabase,
+      studentId,
+      todayDate,
+      weekStartDate,
+      weekEndDate
+    );
+
+    // 오늘 목표 데이터를 컴포넌트에서 필요한 형식으로 변환
+    const topGoals = goalsSummary.todayGoals
+      .filter((goal) => goal.status === "active" || goal.status === "upcoming")
+      .slice(0, 5) // 최대 5개만 표시
+      .map((goal) => ({
+        goalId: goal.id,
+        title: goal.title,
+        progress: goal.progressPercentage,
+      }));
 
     if (topGoals.length === 0) {
       return (

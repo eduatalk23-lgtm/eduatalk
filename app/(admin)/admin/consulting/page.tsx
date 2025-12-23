@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
@@ -55,7 +56,7 @@ export default async function AdminConsultingPage({
 
   let { data: notes, error } = await query.limit(100);
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: notes, error } = await selectNotes().limit(100));
   }
 

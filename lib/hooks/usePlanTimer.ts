@@ -148,7 +148,7 @@ export function usePlanTimer({
         syncTimeoutRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [planId, status, accumulatedSeconds, startedAt, serverNow, isCompleted, initPlanTimer, removeTimer, syncNow]);
 
   // 컴포넌트 언마운트 시 타이머 제거 (선택사항 - 여러 탭에서 사용 중이면 제거하지 않음)

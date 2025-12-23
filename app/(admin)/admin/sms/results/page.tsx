@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
@@ -68,7 +69,7 @@ export default async function SMSResultsPage({
 
   let { data: allLogs, error, count } = await query;
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     const retryQuery = selectLogs();
     if (statusFilter && ["pending", "sent", "delivered", "failed"].includes(statusFilter)) {
       retryQuery.eq("status", statusFilter);

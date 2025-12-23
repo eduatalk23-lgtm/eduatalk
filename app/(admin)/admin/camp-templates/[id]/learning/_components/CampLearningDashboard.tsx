@@ -145,7 +145,7 @@ export function CampLearningDashboard({
 
         {/* 학습 통계 카드 */}
         {learningStats && (
-          <CampLearningStatsCards stats={learningStats} />
+          <CampLearningStatsCards stats={learningStats} template={template} />
         )}
 
         {/* 학생별 학습 진행 현황 테이블 */}

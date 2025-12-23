@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { BookEditForm } from "./BookEditForm";
 import { Book } from "@/app/types/content";
 import { ContentFormLayout } from "@/app/(student)/contents/_components/ContentFormLayout";
@@ -30,7 +31,7 @@ export default async function EditBookPage({
     .eq("student_id", user.id)
     .maybeSingle<Book>();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: book, error } = await selectBook().maybeSingle<Book>());
   }
 

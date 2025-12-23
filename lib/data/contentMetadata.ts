@@ -379,7 +379,7 @@ export async function fetchContentMetadataBatch(
             .filter((id): id is string => id !== null);
 
           // 마스터 교재 배치 조회 (필요한 경우)
-          let masterBooksMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_pages?: number | null }>();
+          const masterBooksMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_pages?: number | null }>();
           if (masterBookIds.length > 0) {
             const { data: masterBooks } = await supabase
               .from("master_books")
@@ -448,7 +448,7 @@ export async function fetchContentMetadataBatch(
             .filter((id): id is string => id !== null);
 
           // 마스터 강의 배치 조회 (필요한 경우)
-          let masterLecturesMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_episodes?: number | null }>();
+          const masterLecturesMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_episodes?: number | null }>();
           if (masterLectureIds.length > 0) {
             const { data: masterLectures } = await supabase
               .from("master_lectures")

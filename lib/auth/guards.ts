@@ -55,10 +55,77 @@ export async function requireAdminOrConsultant(
 
   // role이 null이 아니고 admin, consultant, superadmin 중 하나임을 보장
   // (isAdminRole 체크를 통과했으므로)
-  return { 
-    userId, 
-    role: role as "admin" | "consultant" | "superadmin", 
-    tenantId 
+  return {
+    userId,
+    role: role as "admin" | "consultant" | "superadmin",
+    tenantId
   };
 }
+
+export type SuperAdminGuardResult = {
+  userId: string;
+  role: "superadmin";
+};
+
+/**
+ * Super Admin 권한을 검증하고 사용자 정보를 반환합니다.
+ */
+export async function requireSuperAdmin(): Promise<SuperAdminGuardResult> {
+  const { userId, role } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (role !== "superadmin") {
+    throw new AppError(
+      "Super Admin 권한이 필요합니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
+
+  return { userId, role: "superadmin" };
+}
+
+export type ParentGuardResult = {
+  userId: string;
+  role: "parent";
+};
+
+/**
+ * 학부모 권한을 검증하고 사용자 정보를 반환합니다.
+ */
+export async function requireParent(): Promise<ParentGuardResult> {
+  const { userId, role } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (role !== "parent") {
+    throw new AppError(
+      "학부모 권한이 필요합니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
+
+  return { userId, role: "parent" };
+}
+
+// 학생 권한 가드는 requireStudentAuth 사용 (더 완전한 정보 포함: tenantId, email)
+export { requireStudentAuth, requireStudentAuth as requireStudent } from "./requireStudentAuth";
 

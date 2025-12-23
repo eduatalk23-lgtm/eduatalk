@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -48,7 +49,7 @@ export async function getSchoolScoreSummary(
 
     let { data: scores, error } = await selectScores();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: scores, error } = await supabase
         .from("student_internal_scores")
         .select("*, subject_groups(name)")
@@ -172,13 +173,12 @@ export async function getSchoolScoreSummary(
         );
       }
 
-      // 다음 시험일 계산 (test_date 컬럼이 제거되어 null로 설정)
-      // TODO: 향후 다른 방식으로 다음 시험일 추적 필요
+      // 다음 시험일 정보 (test_date 컬럼 제거됨)
+      // NOTE: 시험 일정 추적이 필요한 경우 별도 exams 테이블 구현 고려
       const nextTestDate: string | null = null;
       const daysUntilNextTest: number | null = null;
 
-      // 학기 종료 임박도 계산
-      // test_date가 없으므로 기본값 설정
+      // 학기 종료 임박도 (시험일 정보 없음)
       const semesterUrgency = 0;
 
       result.set(subject, {
@@ -232,7 +232,7 @@ export async function getMockScoreSummary(
 
     let { data: scores, error } = await selectScores();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: scores, error } = await supabase
         .from("student_mock_scores")
         .select("*, subject_groups(name)")
@@ -291,8 +291,8 @@ export async function getMockScoreSummary(
           ? validGrades.reduce((a, b) => a + b, 0) / validGrades.length
           : null;
 
-      // 다음 시험일 계산 (test_date 컬럼이 제거되어 null로 설정)
-      // TODO: 향후 다른 방식으로 다음 시험일 추적 필요
+      // 다음 시험일 정보 (test_date 컬럼 제거됨)
+      // NOTE: 시험 일정 추적이 필요한 경우 별도 exams 테이블 구현 고려
       const nextTestDate: string | null = null;
       const daysUntilNextTest: number | null = null;
 

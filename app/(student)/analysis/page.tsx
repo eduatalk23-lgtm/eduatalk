@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { calculateAllRiskIndices, saveRiskAnalysis } from "./_utils";
 import { RiskIndexList } from "./_components/RiskIndexList";
 import { RecalculateButton } from "./_components/RecalculateButton";
@@ -51,7 +52,7 @@ export default async function AnalysisPage() {
     user.id
   );
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: savedAnalyses, error } = await selectAnalysis());
   }
 

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import Link from "next/link";
 import { EmptyState } from "@/components/molecules/EmptyState";
 
@@ -47,7 +48,7 @@ export default async function AdminReportsPage({
 
   let { data: students, error } = await query;
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: students, error } = await selectStudents());
   }
 

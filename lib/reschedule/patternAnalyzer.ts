@@ -297,7 +297,7 @@ function analyzePatterns(logs: RescheduleLogItem[]): {
     .sort((a, b) => b.count - a.count);
 
   return {
-    mostCommonType: "range", // TODO: adjusted_contents에서 타입 추출
+    mostCommonType: "range", // NOTE: adjusted_contents에서 content_type 통계 추출 고려
     averagePlansChanged,
     averageAffectedDates,
     commonDateRanges,

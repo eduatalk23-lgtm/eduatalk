@@ -41,11 +41,14 @@ export async function updatePlanOrder(
     }
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[planOrder] 오류:", error);
     return {
       success: false,
-      error: error.message || "플랜 순서 업데이트 중 오류가 발생했습니다.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "플랜 순서 업데이트 중 오류가 발생했습니다.",
     };
   }
 }

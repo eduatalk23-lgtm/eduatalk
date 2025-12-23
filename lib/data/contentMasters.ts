@@ -545,7 +545,13 @@ export async function getMasterLectureById(
  */
 export async function searchContentMasters(
   filters: ContentMasterFilters
-): Promise<{ data: any[]; total: number }> {
+): Promise<{
+  data: Array<
+    | (MasterBook & { content_type: "book" })
+    | (MasterLecture & { content_type: "lecture" })
+  >;
+  total: number;
+}> {
   if (filters.content_type === "book") {
     const result = await searchMasterBooks({
       ...filters,
@@ -604,7 +610,10 @@ export async function searchContentMasters(
 export async function getContentMasterById(
   masterId: string,
   content_type?: "book" | "lecture" | "custom"
-): Promise<{ master: any | null; details: BookDetail[] }> {
+): Promise<{
+  master: MasterBook | MasterLecture | MasterCustomContent | null;
+  details: BookDetail[];
+}> {
   // content_type이 명시되어 있으면 해당 타입으로 직접 조회
   if (content_type === "book") {
     const bookResult = await getMasterBookById(masterId);

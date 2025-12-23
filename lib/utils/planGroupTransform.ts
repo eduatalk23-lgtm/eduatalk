@@ -290,7 +290,7 @@ export function transformPlanGroupToWizardDataPure(
           end_time: s.end_time,
           academy_name: s.academy_name || undefined,
           subject: s.subject || undefined,
-          travel_time: undefined, // TODO: travel_time 저장/로드 추가 필요
+          travel_time: s.travel_time ?? undefined,
           // 캠프 플랜이고 템플릿 학원 일정인 경우 source와 is_locked 설정
           ...(isTemplateSchedule
             ? {

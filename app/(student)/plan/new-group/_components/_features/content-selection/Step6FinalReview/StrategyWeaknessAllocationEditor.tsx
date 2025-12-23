@@ -56,7 +56,7 @@ export function StrategyWeaknessAllocationEditor({
     if (!hasInitialized.current) {
       hasInitialized.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [contentInfos]);
 
   if (subjectGroups.length === 0) {

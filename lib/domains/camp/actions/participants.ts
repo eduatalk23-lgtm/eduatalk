@@ -681,11 +681,13 @@ export const getCampParticipantsAction = withErrorHandling(
       if (plansError) {
         console.error("[campTemplateActions] 플랜 조회 실패:", plansError);
       } else if (plansData) {
-        plansData.forEach((plan: any) => {
-          if (plan.plan_group_id) {
-            plansMap.set(plan.plan_group_id, true);
+        (plansData as Array<{ plan_group_id: string | null }>).forEach(
+          (plan) => {
+            if (plan.plan_group_id) {
+              plansMap.set(plan.plan_group_id, true);
+            }
           }
-        });
+        );
       }
     }
 

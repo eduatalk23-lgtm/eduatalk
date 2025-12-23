@@ -1,14 +1,42 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireParent } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { revalidatePath } from "next/cache";
 import { getAutoApproveSettings } from "@/lib/domains/tenant";
 import { checkAutoApproveConditions } from "@/lib/utils/autoApprove";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { SearchableStudent, LinkRequest, ParentRelation } from "../types";
+
+/**
+ * Supabase 쿼리 결과 타입: parent_student_link_requests with students join
+ * Note: Supabase 조인 쿼리는 students를 배열로 반환할 수 있음
+ */
+type LinkRequestWithStudent = {
+  id: string;
+  student_id: string;
+  relation: string | null;
+  is_approved: boolean | null;
+  created_at: string;
+  students:
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }[]
+    | null;
+};
 
 /**
  * 학부모가 학생을 검색 (이름, 학년, 반)
@@ -18,16 +46,7 @@ async function _searchStudentsForLink(
   query: string,
   parentId: string
 ): Promise<SearchableStudent[]> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
+  const { userId } = await requireParent();
 
   // 본인만 검색 가능
   if (userId !== parentId) {
@@ -100,16 +119,7 @@ async function _createLinkRequest(
   parentId: string,
   relation: ParentRelation
 ): Promise<{ requestId: string }> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
+  const { userId } = await requireParent();
 
   // 본인만 요청 가능
   if (userId !== parentId) {
@@ -280,16 +290,7 @@ export const createLinkRequest = withActionResponse(_createLinkRequest);
  * 학부모의 연결 요청 목록 조회
  */
 async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
+  const { userId } = await requireParent();
 
   // 본인만 조회 가능
   if (userId !== parentId) {
@@ -325,7 +326,7 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   let { data: links, error } = await selectLinks();
 
   // 컬럼 없음 에러 처리 (42703)
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: links, error } = await selectLinks());
   }
 
@@ -344,9 +345,9 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   }
 
   // 데이터 변환
-  const requests: LinkRequest[] = links
-    .map((link: any) => {
-      const student = link.students;
+  const requests: LinkRequest[] = (links as LinkRequestWithStudent[])
+    .map((link) => {
+      const student = extractJoinResult(link.students);
       if (!student) return null;
 
       return {
@@ -384,16 +385,7 @@ export const getLinkRequests = withActionResponse(_getLinkRequests);
  * 대기 중인 연결 요청 취소
  */
 async function _cancelLinkRequest(requestId: string, parentId: string): Promise<void> {
-  const { userId, role } = await getCurrentUserRole();
-
-  if (!userId || role !== "parent") {
-    throw new AppError(
-      PARENT_STUDENT_LINK_MESSAGES.errors.UNAUTHORIZED,
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
+  const { userId } = await requireParent();
 
   // 본인만 취소 가능
   if (userId !== parentId) {

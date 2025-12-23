@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import { requireSuperAdmin } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   TermsContentType,
@@ -19,18 +19,7 @@ import { withActionResponse } from "@/lib/utils/serverActionHandler";
 async function _createTermsContent(
   input: TermsContentInput
 ): Promise<TermsContent> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  const { userId } = await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   // 현재 최대 버전 조회
@@ -96,18 +85,7 @@ async function _updateTermsContent(
   id: string,
   input: Partial<Pick<TermsContentInput, "title" | "content">>
 ): Promise<TermsContent> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   // 약관 존재 확인
@@ -200,18 +178,7 @@ export const updateTermsContent = withActionResponse(_updateTermsContent);
  * RLS 정책을 우회하여 접근합니다.
  */
 async function _activateTermsContent(id: string): Promise<void> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   // 활성화할 약관 조회
@@ -318,18 +285,7 @@ export const activateTermsContent = withActionResponse(_activateTermsContent);
 async function _getTermsContents(
   contentType: TermsContentType
 ): Promise<TermsContent[]> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -375,18 +331,7 @@ export const getTermsContents = withActionResponse(_getTermsContents);
 async function _getActiveTermsContent(
   contentType: TermsContentType
 ): Promise<TermsContent | null> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase
@@ -435,18 +380,7 @@ export const getActiveTermsContent = withActionResponse(_getActiveTermsContent);
  * RLS 정책을 우회하여 접근합니다.
  */
 async function _getTermsContentById(id: string): Promise<TermsContent | null> {
-  const { userId, role } = await getCurrentUserRole();
-
-  // Super Admin 권한 확인
-  if (!userId || role !== "superadmin") {
-    throw new AppError(
-      "Super Admin 권한이 필요합니다.",
-      ErrorCode.FORBIDDEN,
-      403,
-      true
-    );
-  }
-
+  await requireSuperAdmin();
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase

@@ -3,11 +3,36 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { LinkedStudent } from "./types";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
+
+/**
+ * Supabase 쿼리 결과 타입: parent_student_links with students join
+ * Note: Supabase 조인 쿼리는 students를 배열로 반환할 수 있음
+ */
+type ParentStudentLinkWithStudent = {
+  student_id: string;
+  relation: string | null;
+  students:
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }
+    | {
+        id: string;
+        name: string | null;
+        grade: string | null;
+        class: string | null;
+      }[]
+    | null;
+};
 
 /**
  * 부모가 연결된 학생 목록 조회
@@ -25,7 +50,7 @@ export async function getLinkedStudents(
 
     let { data: links, error } = await selectLinks();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: links, error } = await selectLinks());
     }
 
@@ -36,16 +61,16 @@ export async function getLinkedStudents(
 
     if (!links) return [];
 
-    return links
-      .map((link: any) => {
-        const student = link.students;
+    return (links as ParentStudentLinkWithStudent[])
+      .map((link) => {
+        const student = extractJoinResult(link.students);
         if (!student) return null;
         return {
           id: student.id,
           name: student.name,
           grade: student.grade,
           class: student.class,
-          relation: link.relation,
+          relation: link.relation ?? "",
         };
       })
       .filter((s): s is LinkedStudent => s !== null);
@@ -74,7 +99,7 @@ export async function canAccessStudent(
 
     let { data: link, error } = await selectLink();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: link, error } = await selectLink());
     }
 

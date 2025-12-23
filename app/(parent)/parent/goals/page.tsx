@@ -6,6 +6,7 @@ import { getLinkedStudents, canAccessStudent } from "../../_utils";
 import { getAllGoals, getActiveGoals } from "@/lib/goals/queries";
 import { calculateGoalProgress } from "@/lib/goals/calc";
 import { StudentSelector } from "../_components/StudentSelector";
+import { ProgressBar } from "@/components/atoms/ProgressBar";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import {
@@ -181,15 +182,11 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
                         {goal.progress.progressPercentage.toFixed(1)}%
                       </span>
                     </div>
-                    {/* TODO: ProgressBar 컴포넌트로 교체 검토 필요 (서버 컴포넌트에서 클라이언트 컴포넌트 분리 필요) */}
-                    <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-600 dark:bg-indigo-500 transition-all"
-                        style={{
-                          width: `${goal.progress.progressPercentage}%`,
-                        }}
-                      />
-                    </div>
+                    <ProgressBar
+                      value={goal.progress.progressPercentage}
+                      color="indigo"
+                      height="md"
+                    />
                     <div className={cn("text-xs", textMuted)}>
                       {goal.start_date} ~ {goal.end_date}
                     </div>
@@ -275,15 +272,11 @@ export default async function ParentGoalsPage({ searchParams }: PageProps) {
                           {goal.progress.progressPercentage.toFixed(1)}%
                         </span>
                       </div>
-                      {/* TODO: ProgressBar 컴포넌트로 교체 검토 필요 (서버 컴포넌트에서 클라이언트 컴포넌트 분리 필요) */}
-                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-orange-500 dark:bg-orange-600 transition-all"
-                          style={{
-                            width: `${goal.progress.progressPercentage}%`,
-                          }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={goal.progress.progressPercentage}
+                        color="orange"
+                        height="sm"
+                      />
                     </div>
                   ))}
               </div>

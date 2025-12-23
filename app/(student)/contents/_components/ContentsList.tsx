@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ContentCard } from "./ContentCard";
 import { Pagination } from "./Pagination";
@@ -275,7 +276,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
       
-      if (countError && countError.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectBooks();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
         count = count2;
@@ -292,7 +293,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .range(from, to);
       
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         const dataQuery2 = selectBooks();
         ({ data, error } = await dataQuery2.range(from, to));
       }
@@ -354,7 +355,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
       
-      if (countError && countError.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectLectures();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
         count = count2;
@@ -371,7 +372,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .range(from, to);
       
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         const dataQuery2 = selectLectures();
         ({ data, error } = await dataQuery2.range(from, to));
       }
@@ -418,7 +419,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .select("*") as any).select("*", { count: "exact", head: true });
       
-      if (countError && countError.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(countError)) {
         const countQuery2 = selectCustomContents();
         const { count: count2 } = await (countQuery2.select("*") as any).select("*", { count: "exact", head: true });
         count = count2;
@@ -435,7 +436,7 @@ async function fetchContentsByTab(
         .eq("student_id", studentId)
         .range(from, to);
       
-      if (error && error.code === "42703") {
+      if (ErrorCodeCheckers.isColumnNotFound(error)) {
         const dataQuery2 = selectCustomContents();
         ({ data, error } = await dataQuery2.range(from, to));
       }

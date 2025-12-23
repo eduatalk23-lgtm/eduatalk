@@ -5,6 +5,7 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { TodayPlanListView } from "./TodayPlanListView";
 import { groupPlansByPlanNumber, PlanWithContent } from "../_utils/planGroupUtils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { formatDateString } from "@/lib/date/calendarUtils";
 
 type ProgressRow = {
@@ -24,7 +25,7 @@ async function fetchProgressMap(
         .select("content_type,content_id,progress");
 
     let { data, error } = await selectProgress().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectProgress());
     }
     if (error) throw error;

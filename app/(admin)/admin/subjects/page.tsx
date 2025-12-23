@@ -21,7 +21,7 @@ export default async function SubjectsPage() {
   const initialRevisionId = sortedRevisions.length > 0 ? sortedRevisions[0].id : null;
   
   let initialGroups: SubjectGroup[] = [];
-  let initialSubjectsMap: Record<string, Subject[]> = {};
+  const initialSubjectsMap: Record<string, Subject[]> = {};
   let initialSubjectTypes: SubjectType[] = [];
 
   if (initialRevisionId) {

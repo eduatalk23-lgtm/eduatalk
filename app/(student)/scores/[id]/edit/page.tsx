@@ -33,7 +33,8 @@ function convertInternalScoreToLegacy(
 ): ScoreRow {
   return {
     id: score.id,
-    subject_type: score.subject_type_id ? "일반선택" : null, // TODO: subject_type_id로 실제 타입 조회 필요
+    // subject_type은 레거시 표시용 필드이며, 실제 편집은 subject_type_id를 사용하므로 null 처리
+    subject_type: null,
     semester: score.semester ? `${score.grade}-${score.semester}` : null,
     course: subject?.subjectGroup.name ?? null,
     course_detail: subject?.name ?? null,

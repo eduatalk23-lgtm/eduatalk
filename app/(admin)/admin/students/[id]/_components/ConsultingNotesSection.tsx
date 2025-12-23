@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { ConsultingNotesForm } from "./ConsultingNotesForm";
 import { ConsultingNoteDeleteButton } from "./ConsultingNoteDeleteButton";
 
@@ -34,10 +35,10 @@ export async function ConsultingNotesSection({
     let { data: notes, error } = await selectNotes();
 
     // 컬럼이 없으면 재시도 (하위 호환성)
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       console.warn(
         "[ConsultingNotesSection] 컬럼 오류, 재시도:",
-        error.message
+        error?.message
       );
       ({ data: notes, error } = await selectNotes());
     }

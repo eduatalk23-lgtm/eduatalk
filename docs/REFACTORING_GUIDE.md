@@ -602,3 +602,4 @@ const plans = await safeQueryArray<PlanRow>(...);
 **작성자**: AI Assistant  
 **최종 업데이트**: 2025-02-05
 
+

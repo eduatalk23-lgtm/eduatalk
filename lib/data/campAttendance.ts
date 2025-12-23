@@ -4,6 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { getCampTemplate } from "./campTemplates";
 import { getCampInvitationsForTemplate } from "./campTemplates";
 import type { AttendanceRecord } from "@/lib/domains/attendance/types";
@@ -16,6 +17,13 @@ import type { CampAttendanceStats, ParticipantAttendanceStats } from "@/lib/doma
  */
 export type AttendanceRecordWithStudent = AttendanceRecord & {
   student_name: string | null;
+};
+
+/**
+ * Supabase 쿼리 결과 타입: attendance_records with students join
+ */
+type AttendanceRecordRaw = AttendanceRecord & {
+  students: { name: string | null } | { name: string | null }[] | null;
 };
 
 /**
@@ -271,10 +279,10 @@ export async function getCampAttendanceRecordsByDate(
   }
 
   // 데이터 변환 (JOIN 결과를 평탄화)
-  const records: AttendanceRecordWithStudent[] = (data || []).map((record: any) => {
-    const studentInfo = Array.isArray(record.students)
-      ? record.students[0]
-      : record.students;
+  const records: AttendanceRecordWithStudent[] = (
+    (data || []) as AttendanceRecordRaw[]
+  ).map((record) => {
+    const studentInfo = extractJoinResult(record.students);
 
     return {
       ...record,
@@ -342,10 +350,10 @@ export async function getCampAttendanceRecordsWithStudents(
   }
 
   // 데이터 변환 (JOIN 결과를 평탄화)
-  const records: AttendanceRecordWithStudent[] = (data || []).map((record: any) => {
-    const studentInfo = Array.isArray(record.students)
-      ? record.students[0]
-      : record.students;
+  const records: AttendanceRecordWithStudent[] = (
+    (data || []) as AttendanceRecordRaw[]
+  ).map((record) => {
+    const studentInfo = extractJoinResult(record.students);
 
     return {
       ...record,

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { deleteBook } from "@/lib/domains/content";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { Book } from "@/app/types/content";
 import { BookDetailTabs } from "./_components/BookDetailTabs";
 import { getMasterBookById } from "@/lib/data/contentMasters";
@@ -35,7 +36,7 @@ export default async function BookDetailPage({
     .eq("student_id", user.id)
     .maybeSingle<Book & { master_content_id?: string | null }>();
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: book, error } = await selectBook().maybeSingle<Book & { master_content_id?: string | null }>());
   }
 

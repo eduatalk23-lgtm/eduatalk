@@ -4,8 +4,10 @@ import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { revalidatePath } from "next/cache";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 // 타입 정의
 export type StudentParent = {
@@ -122,7 +124,7 @@ export async function getStudentParents(
     let { data: links, error } = await selectLinks();
 
     // 컬럼 없음 에러 처리 (42703)
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: links, error } = await selectLinks());
     }
 
@@ -141,9 +143,7 @@ export async function getStudentParents(
     // 데이터 변환
     const parents: StudentParent[] = links
       .map((link: ParentStudentLinkRow): StudentParent | null => {
-        const parentUser = Array.isArray(link.parent_users)
-          ? link.parent_users[0]
-          : link.parent_users;
+        const parentUser = extractJoinResult(link.parent_users);
         if (!parentUser) return null;
 
         return {
@@ -208,7 +208,7 @@ export async function searchParents(
     let { data: parents, error } = await queryBuilder;
 
     // 컬럼 없음 에러 처리 (42703)
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: parents, error } = await queryBuilder);
     }
 
@@ -600,7 +600,7 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
     let { data: links, error } = await selectLinks();
 
     // 컬럼 없음 에러 처리 (42703)
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: links, error } = await selectLinks());
     }
 
@@ -622,9 +622,7 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
     // parent_users.id 목록 수집
     const parentIds = links
       .map((link) => {
-        const parentUser = Array.isArray(link.parent_users)
-          ? link.parent_users[0]
-          : link.parent_users;
+        const parentUser = extractJoinResult(link.parent_users);
         return parentUser?.id;
       })
       .filter((id): id is string => id !== undefined);
@@ -645,14 +643,10 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
     // 데이터 변환
     const requests: PendingLinkRequest[] = links
       .map((link: ParentStudentLinkWithStudentRow) => {
-        const student = Array.isArray(link.students)
-          ? link.students[0]
-          : link.students;
+        const student = extractJoinResult(link.students);
         if (!student) return null;
 
-        const parentUser = Array.isArray(link.parent_users)
-          ? link.parent_users[0]
-          : link.parent_users;
+        const parentUser = extractJoinResult(link.parent_users);
         if (!parentUser) return null;
 
         return {

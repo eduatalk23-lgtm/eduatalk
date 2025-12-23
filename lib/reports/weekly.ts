@@ -6,6 +6,7 @@ import {
   getPlansContentBatch,
   getContentTitlesBatch,
 } from "./batchHelpers";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -124,7 +125,7 @@ export async function getWeeklyPlanSummary(
 
     let { data: plans, error } = await selectPlans().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plans, error } = await selectPlans());
     }
 
@@ -573,7 +574,7 @@ export async function getWeeklyWeakSubjectTrend(
 
     let { data: analyses, error } = await selectAnalysis().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: analyses, error } = await selectAnalysis());
     }
 
@@ -831,7 +832,7 @@ async function getPlanInfo(
 
     let { data: plan, error } = await selectPlan().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plan, error } = await selectPlan().maybeSingle());
     }
 
@@ -864,7 +865,7 @@ async function getPlansForWeek(
 
     let { data: plans, error } = await selectPlans().eq("student_id", studentId);
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data: plans, error } = await selectPlans());
     }
 
@@ -893,7 +894,7 @@ async function getContentTitle(
 
     let { data, error } = await selectContent().eq("student_id", studentId).maybeSingle();
 
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectContent().maybeSingle());
     }
 

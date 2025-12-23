@@ -249,12 +249,19 @@ export async function completePlan(
       100
     );
 
-    // 같은 plan_number를 가진 모든 플랜의 진행률 업데이트
-    for (const samePlan of samePlanNumberPlans) {
-      await updatePlan(samePlan.id, user.userId, {
+    // 같은 plan_number를 가진 모든 플랜의 진행률 배치 업데이트 (N+1 → 1 쿼리)
+    const planIds = samePlanNumberPlans.map((p) => p.id);
+    const { error: batchUpdateError } = await supabase
+      .from("student_plan")
+      .update({
         completed_amount: completedAmount,
         progress: progress,
-      });
+      })
+      .in("id", planIds)
+      .eq("student_id", user.userId);
+
+    if (batchUpdateError) {
+      console.error("[todayActions] 플랜 진행률 배치 업데이트 오류:", batchUpdateError);
     }
 
     // student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
@@ -266,36 +273,30 @@ export async function completePlan(
 
     const tenantId = student?.tenant_id || tenantContext?.tenantId || null;
 
-    // 같은 plan_number를 가진 모든 플랜의 student_content_progress에 기록
-    for (const samePlan of samePlanNumberPlans) {
-      const { data: existingPlanProgress } = await supabase
-        .from("student_content_progress")
-        .select("id")
-        .eq("student_id", user.userId)
-        .eq("plan_id", samePlan.id)
-        .maybeSingle();
+    // 같은 plan_number를 가진 모든 플랜의 student_content_progress에 기록 (N+1 → upsert 배치)
+    const progressTimestamp = new Date().toISOString();
+    const progressPayloads = planIds.map((planIdForProgress) => ({
+      student_id: user.userId,
+      tenant_id: tenantId,
+      plan_id: planIdForProgress,
+      content_type: plan.content_type,
+      content_id: plan.content_id,
+      progress: progress,
+      start_page_or_time: payload.startPageOrTime,
+      end_page_or_time: payload.endPageOrTime,
+      completed_amount: completedAmount,
+      last_updated: progressTimestamp,
+    }));
 
-      const progressPayload = {
-        student_id: user.userId,
-        tenant_id: tenantId,
-        plan_id: samePlan.id,
-        content_type: plan.content_type,
-        content_id: plan.content_id,
-        progress: progress,
-        start_page_or_time: payload.startPageOrTime,
-        end_page_or_time: payload.endPageOrTime,
-        completed_amount: completedAmount,
-        last_updated: new Date().toISOString(),
-      };
+    const { error: progressUpsertError } = await supabase
+      .from("student_content_progress")
+      .upsert(progressPayloads, {
+        onConflict: "student_id,plan_id",
+        ignoreDuplicates: false,
+      });
 
-      if (existingPlanProgress) {
-        await supabase
-          .from("student_content_progress")
-          .update(progressPayload)
-          .eq("id", existingPlanProgress.id);
-      } else {
-        await supabase.from("student_content_progress").insert(progressPayload);
-      }
+    if (progressUpsertError) {
+      console.error("[todayActions] 플랜별 진행률 upsert 오류:", progressUpsertError);
     }
 
     // content_type + content_id로도 진행률 업데이트 (전체 진행률)
@@ -390,56 +391,81 @@ export async function completePlan(
       }
     }
 
-    // 같은 plan_number를 가진 모든 플랜의 시간 정보 업데이트
-    for (const samePlan of samePlanNumberPlans) {
-      // 각 플랜의 actual_start_time 조회
-      const { data: samePlanData } = await supabase
-        .from("student_plan")
-        .select("actual_start_time, paused_duration_seconds, pause_count")
-        .eq("id", samePlan.id)
-        .eq("student_id", user.userId)
-        .maybeSingle();
+    // 같은 plan_number를 가진 모든 플랜의 시간 정보 업데이트 (N+1 → 배치 쿼리 최적화)
+    // 1. 모든 플랜 데이터 배치 조회
+    const { data: allPlanData } = await supabase
+      .from("student_plan")
+      .select("id, actual_start_time, paused_duration_seconds, pause_count")
+      .in("id", planIds)
+      .eq("student_id", user.userId);
+
+    // 2. 모든 활성 세션 배치 조회
+    const { data: allActiveSessions } = await supabase
+      .from("student_study_sessions")
+      .select("id, plan_id, paused_duration_seconds, paused_at, resumed_at")
+      .in("plan_id", planIds)
+      .eq("student_id", user.userId)
+      .is("ended_at", null);
+
+    // 3. plan_id별로 세션 그룹화
+    const sessionsByPlanId = new Map<string, typeof allActiveSessions>();
+    if (allActiveSessions) {
+      for (const session of allActiveSessions) {
+        const existing = sessionsByPlanId.get(session.plan_id) || [];
+        existing.push(session);
+        sessionsByPlanId.set(session.plan_id, existing);
+      }
+    }
+
+    // 4. 모든 활성 세션 종료 (병렬 처리)
+    if (allActiveSessions && allActiveSessions.length > 0) {
+      await Promise.all(
+        allActiveSessions.map((session) => endStudySession(session.id))
+      );
+    }
+
+    // 5. 각 플랜의 업데이트 데이터 계산 및 배치 업데이트
+    const planDataMap = new Map(
+      (allPlanData || []).map((p) => [p.id, p])
+    );
+    const nowTime = new Date();
+
+    const updatePromises = planIds.map((samePlanId) => {
+      const samePlanData = planDataMap.get(samePlanId);
 
       let samePlanTotalDurationSeconds: number | null = null;
       if (samePlanData?.actual_start_time) {
         const startTime = new Date(samePlanData.actual_start_time);
         const endTime = new Date(actualEndTime);
-        samePlanTotalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+        samePlanTotalDurationSeconds = Math.floor(
+          (endTime.getTime() - startTime.getTime()) / 1000
+        );
       }
 
       const samePlanPausedDuration = samePlanData?.paused_duration_seconds || 0;
       const samePlanPauseCount = samePlanData?.pause_count || 0;
 
-      // 각 플랜의 활성 세션 조회 및 종료
-      const { data: samePlanActiveSessions } = await supabase
-        .from("student_study_sessions")
-        .select("id, paused_duration_seconds, paused_at, resumed_at")
-        .eq("plan_id", samePlan.id)
-        .eq("student_id", user.userId)
-        .is("ended_at", null);
-
+      // 해당 플랜의 세션에서 일시정지 시간 계산
+      const planSessions = sessionsByPlanId.get(samePlanId) || [];
       let samePlanCurrentPauseDuration = 0;
-      if (samePlanActiveSessions && samePlanActiveSessions.length > 0) {
-        const samePlanActiveSession = samePlanActiveSessions[0];
-        samePlanCurrentPauseDuration = samePlanActiveSession.paused_duration_seconds || 0;
 
-        if (samePlanActiveSession.paused_at && !samePlanActiveSession.resumed_at) {
-          const pausedAt = new Date(samePlanActiveSession.paused_at);
-          const now = new Date();
-          const currentPauseSeconds = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
+      if (planSessions.length > 0) {
+        const firstSession = planSessions[0];
+        samePlanCurrentPauseDuration = firstSession.paused_duration_seconds || 0;
+
+        if (firstSession.paused_at && !firstSession.resumed_at) {
+          const pausedAt = new Date(firstSession.paused_at);
+          const currentPauseSeconds = Math.floor(
+            (nowTime.getTime() - pausedAt.getTime()) / 1000
+          );
           samePlanCurrentPauseDuration += currentPauseSeconds;
-        }
-
-        // 활성 세션 종료
-        for (const session of samePlanActiveSessions) {
-          await endStudySession(session.id);
         }
       }
 
-      const samePlanTotalPausedDuration = samePlanCurrentPauseDuration + samePlanPausedDuration;
+      const samePlanTotalPausedDuration =
+        samePlanCurrentPauseDuration + samePlanPausedDuration;
 
-      // 플랜 시간 정보 업데이트
-      await supabase
+      return supabase
         .from("student_plan")
         .update({
           actual_end_time: actualEndTime,
@@ -447,9 +473,11 @@ export async function completePlan(
           paused_duration_seconds: samePlanTotalPausedDuration,
           pause_count: samePlanPauseCount,
         })
-        .eq("id", samePlan.id)
+        .eq("id", samePlanId)
         .eq("student_id", user.userId);
-    }
+    });
+
+    await Promise.all(updatePromises);
 
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
     const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;

@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 
 type SupabaseServerClient = Awaited<
@@ -24,7 +25,7 @@ export async function ContentProgressSection({ studentId }: { studentId: string 
 
   let { data: progressData, error } = await selectProgress().eq("student_id", studentId);
 
-  if (error && error.code === "42703") {
+  if (ErrorCodeCheckers.isColumnNotFound(error)) {
     ({ data: progressData, error } = await selectProgress());
   }
 

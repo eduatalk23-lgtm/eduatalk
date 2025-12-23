@@ -10,7 +10,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { rollbackReschedule } from "@/lib/domains/plan";
 import { validateRollback } from "@/lib/reschedule/rollbackValidator";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { useToast } from "@/components/ui/ToastProvider";
 import { RotateCcw } from "lucide-react";
 
@@ -39,9 +38,7 @@ export function RollbackButton({
   const checkRollbackStatus = async () => {
     setValidating(true);
     try {
-      // TODO: Supabase 클라이언트를 서버에서 가져오는 방법 수정 필요
-      // 현재는 클라이언트 컴포넌트이므로 API route를 통해 검증해야 할 수 있음
-      // 일단 간단하게 서버 액션으로 검증하도록 수정
+      // 클라이언트 컴포넌트이므로 API route를 통해 검증
       const response = await fetch(
         `/api/reschedule/${rescheduleLogId}/validate-rollback`
       );

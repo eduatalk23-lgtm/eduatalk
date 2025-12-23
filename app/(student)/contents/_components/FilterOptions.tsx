@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -111,7 +112,7 @@ async function fetchDistinctValues(
         .not(fieldName, "is", null);
 
     let { data, error } = await selectQuery().eq("student_id", studentId);
-    if (error && error.code === "42703") {
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
       ({ data, error } = await selectQuery());
     }
     if (error) throw error;

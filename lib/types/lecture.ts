@@ -65,7 +65,8 @@ export interface MasterLecture {
   revision?: string | null;
   content_category?: string | null;
   // semester?: string | null; // 제거됨 (2025-02-04)
-  subject?: string | null;           // TODO: subject_id 우선 사용
+  /** @deprecated subject_id를 사용하세요. 하위 호환성을 위해 유지됩니다. */
+  subject?: string | null;
   subject_category?: string | null;
 
   // ⑨ 공통
@@ -184,16 +185,24 @@ export interface Lecture {
   progress?: number | null;  // 0-100
   
   linked_book_id?: string | null;
-  
+
   // 레거시 컬럼 (호환성 유지, 향후 제거 예정)
-  platform?: string | null;           // TODO: master_lectures.platform_name 사용
-  subject?: string | null;            // TODO: master_lectures.subject 사용
-  subject_category?: string | null;   // TODO: master_lectures.subject_category 사용
-  revision?: string | null;           // TODO: master_lectures.revision 사용
-  semester?: string | null;           // TODO: master_lectures.semester 사용
-  chapter_info?: any | null;          // TODO: lecture_episodes 사용
-  difficulty_level?: string | null;   // TODO: master_lectures.difficulty_level 사용
-  latest_version?: string | null;     // 사용 안 함
+  /** @deprecated master_lectures.platform_name을 사용하세요. */
+  platform?: string | null;
+  /** @deprecated master_lectures.subject를 사용하세요. */
+  subject?: string | null;
+  /** @deprecated master_lectures.subject_category를 사용하세요. */
+  subject_category?: string | null;
+  /** @deprecated master_lectures.revision을 사용하세요. */
+  revision?: string | null;
+  /** @deprecated master_lectures.semester를 사용하세요 (현재 제거됨). */
+  semester?: string | null;
+  /** @deprecated lecture_episodes를 사용하세요. */
+  chapter_info?: any | null;
+  /** @deprecated master_lectures.difficulty_level을 사용하세요. */
+  difficulty_level?: string | null;
+  /** @deprecated 사용하지 않습니다. */
+  latest_version?: string | null;
   
   created_at: string;
   updated_at: string;

@@ -1,10 +1,12 @@
 "use client";
 
 import type { CampLearningStats } from "@/lib/domains/camp/types";
+import type { CampTemplate } from "@/lib/types/plan";
 import { Card } from "@/components/ui/Card";
 
 type CampLearningStatsCardsProps = {
   stats: CampLearningStats;
+  template: CampTemplate;
 };
 
 /**
@@ -68,11 +70,26 @@ function calculateAverageDailyStudyTime(
   return Math.round(averageMinutesPerParticipant / totalDays);
 }
 
+/**
+ * 캠프 기간 일수 계산
+ */
+function calculateCampDays(startDate: string | null, endDate: string | null): number {
+  if (!startDate || !endDate) {
+    return 0;
+  }
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = end.getTime() - start.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+  return diffDays > 0 ? diffDays : 0;
+}
+
 export function CampLearningStatsCards({
   stats,
+  template,
 }: CampLearningStatsCardsProps) {
   const averageCompletionRate = calculateAverageCompletionRate(stats);
-  const totalDays = 30; // TODO: 템플릿에서 가져오기
+  const totalDays = calculateCampDays(template.camp_start_date, template.camp_end_date);
   const averageDailyStudyTime = calculateAverageDailyStudyTime(stats, totalDays);
 
   return (
