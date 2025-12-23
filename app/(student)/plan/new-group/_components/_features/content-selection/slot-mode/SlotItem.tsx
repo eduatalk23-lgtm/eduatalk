@@ -22,6 +22,8 @@ import {
   MoreVertical,
   Copy,
   ChevronUp,
+  Link2,
+  Unlink2,
 } from "lucide-react";
 import { SlotAdvancedSettings, GhostSlotActivator } from "./SlotAdvancedSettings";
 
@@ -91,6 +93,36 @@ const getCompletionStyles = (
   }
 };
 
+// 연결된 슬롯 이름 가져오기
+const getLinkedSlotName = (
+  linkedSlotId: string | null | undefined,
+  allSlots: ContentSlot[]
+): string | null => {
+  if (!linkedSlotId) return null;
+  const linkedSlot = allSlots.find(
+    (s) => String(s.slot_index) === linkedSlotId || s.id === linkedSlotId
+  );
+  if (!linkedSlot) return null;
+  return `슬롯 ${linkedSlot.slot_index + 1}${linkedSlot.subject_category ? ` (${linkedSlot.subject_category})` : ""}`;
+};
+
+// 배타적 슬롯 이름들 가져오기
+const getExclusiveSlotNames = (
+  exclusiveWith: string[] | undefined,
+  allSlots: ContentSlot[]
+): string[] => {
+  if (!exclusiveWith || exclusiveWith.length === 0) return [];
+  return exclusiveWith
+    .map((id) => {
+      const slot = allSlots.find(
+        (s) => String(s.slot_index) === id || s.id === id
+      );
+      if (!slot) return null;
+      return `슬롯 ${slot.slot_index + 1}`;
+    })
+    .filter((name): name is string => name !== null);
+};
+
 // ============================================================================
 // 컴포넌트
 // ============================================================================
@@ -128,6 +160,11 @@ function SlotItemComponent({
   const typeConfig = getSlotTypeIcon(slot.slot_type);
   const isLocked = slot.is_locked;
   const isGhost = slot.is_ghost;
+
+  // 관계 정보 계산
+  const linkedSlotName = getLinkedSlotName(slot.linked_slot_id, allSlots);
+  const exclusiveSlotNames = getExclusiveSlotNames(slot.exclusive_with, allSlots);
+  const hasRelationships = linkedSlotName || exclusiveSlotNames.length > 0;
 
   // 액션 메뉴 상태
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -321,6 +358,39 @@ function SlotItemComponent({
           )}
         </div>
       </div>
+
+      {/* 관계 표시 배지 */}
+      {hasRelationships && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {/* 연계 슬롯 표시 */}
+          {linkedSlotName && (
+            <div
+              className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700"
+              title={`${slot.link_type === "before" ? "이전" : "다음"}에 ${linkedSlotName} 배치`}
+            >
+              <Link2 className="h-3 w-3" />
+              <span>
+                {slot.link_type === "before" ? "→" : "←"} {linkedSlotName}
+              </span>
+            </div>
+          )}
+
+          {/* 배타적 슬롯 표시 */}
+          {exclusiveSlotNames.length > 0 && (
+            <div
+              className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700"
+              title={`${exclusiveSlotNames.join(", ")}과(와) 다른 날 배치`}
+            >
+              <Unlink2 className="h-3 w-3" />
+              <span>
+                ≠ {exclusiveSlotNames.length === 1
+                  ? exclusiveSlotNames[0]
+                  : `${exclusiveSlotNames.length}개 슬롯`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 슬롯 타입 선택 */}
       <div className="mb-3 md:mb-2">

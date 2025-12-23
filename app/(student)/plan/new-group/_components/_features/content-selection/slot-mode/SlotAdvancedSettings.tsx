@@ -11,10 +11,12 @@ import {
   Settings,
   Clock,
   Link2,
+  Unlink2,
   ChevronDown,
   ChevronUp,
   Sparkles,
   X,
+  Plus,
 } from "lucide-react";
 
 // ============================================================================
@@ -139,6 +141,31 @@ function SlotAdvancedSettingsComponent({
     [slot, onUpdate]
   );
 
+  // 배타적 슬롯 추가
+  const handleAddExclusiveSlot = useCallback(
+    (excludedSlotId: string) => {
+      const currentExclusive = slot.exclusive_with || [];
+      if (currentExclusive.includes(excludedSlotId)) return;
+      onUpdate({
+        ...slot,
+        exclusive_with: [...currentExclusive, excludedSlotId],
+      });
+    },
+    [slot, onUpdate]
+  );
+
+  // 배타적 슬롯 제거
+  const handleRemoveExclusiveSlot = useCallback(
+    (excludedSlotId: string) => {
+      const currentExclusive = slot.exclusive_with || [];
+      onUpdate({
+        ...slot,
+        exclusive_with: currentExclusive.filter((id) => id !== excludedSlotId),
+      });
+    },
+    [slot, onUpdate]
+  );
+
   // 자습 타입이 아니면 자습 목적 선택 숨김
   const showSelfStudyOptions = slot.slot_type === "self_study";
 
@@ -146,6 +173,16 @@ function SlotAdvancedSettingsComponent({
   const linkableSlots = allSlots.filter(
     (s) => s.slot_index !== slot.slot_index && s.slot_type
   );
+
+  // 배타적 관계에 추가 가능한 슬롯들 (이미 추가된 슬롯 제외)
+  const availableForExclusive = linkableSlots.filter(
+    (s) => !slot.exclusive_with?.includes(String(s.slot_index))
+  );
+
+  // 현재 배타적 관계에 있는 슬롯들
+  const exclusiveSlots = (slot.exclusive_with || [])
+    .map((id) => allSlots.find((s) => String(s.slot_index) === id))
+    .filter((s): s is ContentSlot => s !== undefined);
 
   if (!editable) return null;
 
@@ -277,7 +314,7 @@ function SlotAdvancedSettingsComponent({
             <div>
               <label className="mb-1.5 flex items-center gap-1 text-xs font-medium text-gray-700">
                 <Link2 className="h-3 w-3" />
-                슬롯 연결
+                슬롯 연결 (순서 강제)
               </label>
 
               {slot.linked_slot_id ? (
@@ -336,6 +373,63 @@ function SlotAdvancedSettingsComponent({
                     </option>
                   ))}
                 </select>
+              )}
+            </div>
+          )}
+
+          {/* 배타적 슬롯 (다른 날 배치) */}
+          {linkableSlots.length > 0 && (
+            <div>
+              <label className="mb-1.5 flex items-center gap-1 text-xs font-medium text-gray-700">
+                <Unlink2 className="h-3 w-3" />
+                다른 날 배치 (배타적)
+              </label>
+
+              {/* 현재 배타적 관계에 있는 슬롯들 */}
+              {exclusiveSlots.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1">
+                  {exclusiveSlots.map((s) => (
+                    <div
+                      key={s.slot_index}
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700"
+                    >
+                      <span>슬롯 {s.slot_index + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExclusiveSlot(String(s.slot_index))}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-amber-200"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 추가 가능한 슬롯 선택 */}
+              {availableForExclusive.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleAddExclusiveSlot(e.target.value);
+                    }
+                  }}
+                  className="w-full rounded border border-gray-200 px-2 py-1.5 text-xs"
+                >
+                  <option value="">다른 날 배치할 슬롯 추가...</option>
+                  {availableForExclusive.map((s) => (
+                    <option key={s.slot_index} value={String(s.slot_index)}>
+                      슬롯 {s.slot_index + 1} ({s.subject_category || "미정"})
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {exclusiveSlots.length === 0 && availableForExclusive.length === 0 && (
+                <div className="text-xs text-gray-400">
+                  추가할 수 있는 슬롯이 없습니다
+                </div>
               )}
             </div>
           )}
