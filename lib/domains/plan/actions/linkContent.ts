@@ -16,8 +16,11 @@ export type ContentLinkInfo = {
   subject?: string | null;
   startRange?: number;
   endRange?: number;
+  startDetailId?: string | null;
+  endDetailId?: string | null;
   totalPages?: number | null;
   totalEpisodes?: number | null;
+  masterContentId?: string | null; // 마스터 콘텐츠에서 가져온 경우
 };
 
 /**
@@ -174,6 +177,9 @@ export async function linkContentToVirtualPlan(
             content_type?: string;
             start_range?: number;
             end_range?: number;
+            start_detail_id?: string | null;
+            end_detail_id?: string | null;
+            master_content_id?: string | null;
           }>;
 
           const updatedSlots = slots.map((slot, idx) => {
@@ -185,6 +191,9 @@ export async function linkContentToVirtualPlan(
                 content_type: contentInfo.contentType,
                 start_range: contentInfo.startRange,
                 end_range: contentInfo.endRange,
+                start_detail_id: contentInfo.startDetailId,
+                end_detail_id: contentInfo.endDetailId,
+                master_content_id: contentInfo.masterContentId,
               };
             }
             return slot;
