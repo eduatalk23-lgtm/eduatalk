@@ -281,14 +281,18 @@ function checkExclusiveConstraints(
   assignedSlots: Map<string, string>,
   slots: ContentSlot[]
 ): { canPlace: boolean; conflictingSlotId?: string } {
-  if (!slot.id || !slot.exclusive_with?.length) {
+  // slot.id가 없으면 체크 불가
+  if (!slot.id) {
     return { canPlace: true };
   }
 
-  for (const excludedId of slot.exclusive_with) {
-    const excludedDate = assignedSlots.get(excludedId);
-    if (excludedDate === date) {
-      return { canPlace: false, conflictingSlotId: excludedId };
+  // 순방향 체크: 이 슬롯이 배타적으로 지정한 슬롯들
+  if (slot.exclusive_with?.length) {
+    for (const excludedId of slot.exclusive_with) {
+      const excludedDate = assignedSlots.get(excludedId);
+      if (excludedDate === date) {
+        return { canPlace: false, conflictingSlotId: excludedId };
+      }
     }
   }
 

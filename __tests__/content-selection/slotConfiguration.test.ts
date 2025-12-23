@@ -5,6 +5,7 @@ import {
   getNextSlotIndex,
   validateSlotConfiguration,
   validateContentLinking,
+  validateSlotRelationships,
   getSlotCompletionStatus,
 } from "@/lib/types/content-selection";
 
@@ -385,5 +386,375 @@ describe("Slot Move Up/Down Logic", () => {
     const result = moveSlotDown(slots, 0);
 
     expect(result).toBeNull();
+  });
+});
+
+// ============================================================================
+// 슬롯 관계 검증 테스트
+// ============================================================================
+
+describe("validateSlotRelationships", () => {
+  describe("연계 슬롯 (Linked Slots) 검증", () => {
+    it("유효한 연계 슬롯은 에러 없이 통과해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "lecture",
+          subject_category: "수학",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "self_study",
+          subject_category: "수학",
+          linked_slot_id: "slot-1",
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("자기 자신을 연결하면 에러를 반환해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          linked_slot_id: "slot-1", // 자기 자신 참조
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("자기 자신"))).toBe(true);
+    });
+
+    it("존재하지 않는 슬롯을 연결하면 경고를 반환해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          linked_slot_id: "non-existent-slot", // 존재하지 않는 슬롯
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.warnings.some((w) => w.includes("존재하지 않"))).toBe(true);
+    });
+  });
+
+  describe("배타적 슬롯 (Exclusive Slots) 검증", () => {
+    it("유효한 배타적 관계는 에러 없이 통과해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "영어",
+          exclusive_with: ["slot-2"],
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "lecture",
+          subject_category: "영어",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("배타적 관계에 자기 자신을 포함하면 에러를 반환해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          exclusive_with: ["slot-1"], // 자기 자신 참조
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(false);
+      expect(
+        result.errors.some((e) => e.includes("배타적") && e.includes("자기 자신"))
+      ).toBe(true);
+    });
+
+    it("배타적 관계에 존재하지 않는 슬롯이 있으면 경고를 반환해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          exclusive_with: ["non-existent-slot"],
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.warnings.some((w) => w.includes("배타적") && w.includes("존재하지 않"))).toBe(true);
+    });
+  });
+
+  describe("순환 참조 (Circular Reference) 검증", () => {
+    it("순환 참조가 없으면 에러 없이 통과해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "lecture",
+          subject_category: "수학",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "self_study",
+          subject_category: "수학",
+          linked_slot_id: "slot-1",
+          link_type: "after",
+        },
+        {
+          id: "slot-3",
+          slot_index: 2,
+          slot_type: "test",
+          subject_category: "수학",
+          linked_slot_id: "slot-2",
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("2개 슬롯 간 순환 참조 (A→B→A)를 감지해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          linked_slot_id: "slot-2",
+          link_type: "after",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "lecture",
+          subject_category: "수학",
+          linked_slot_id: "slot-1",
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("순환 참조"))).toBe(true);
+    });
+
+    it("3개 슬롯 간 순환 참조 (A→B→C→A)를 감지해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          linked_slot_id: "slot-2",
+          link_type: "after",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "lecture",
+          subject_category: "수학",
+          linked_slot_id: "slot-3",
+          link_type: "after",
+        },
+        {
+          id: "slot-3",
+          slot_index: 2,
+          slot_type: "self_study",
+          subject_category: "수학",
+          linked_slot_id: "slot-1",
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("순환 참조"))).toBe(true);
+    });
+
+    it("부분적인 순환 참조도 감지해야 함", () => {
+      // A → B → C → B (C와 B 사이 순환)
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+          linked_slot_id: "slot-2",
+          link_type: "after",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "lecture",
+          subject_category: "수학",
+          linked_slot_id: "slot-3",
+          link_type: "after",
+        },
+        {
+          id: "slot-3",
+          slot_index: 2,
+          slot_type: "self_study",
+          subject_category: "수학",
+          linked_slot_id: "slot-2", // slot-2로 다시 연결
+          link_type: "after",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.includes("순환 참조"))).toBe(true);
+    });
+  });
+
+  describe("복합 시나리오", () => {
+    it("연계와 배타 관계가 함께 있어도 유효성 검증이 통과해야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          id: "slot-1",
+          slot_index: 0,
+          slot_type: "lecture",
+          subject_category: "수학",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "self_study",
+          subject_category: "수학",
+          linked_slot_id: "slot-1",
+          link_type: "after",
+          self_study_purpose: "review",
+        },
+        {
+          id: "slot-3",
+          slot_index: 2,
+          slot_type: "book",
+          subject_category: "영어",
+          exclusive_with: ["slot-4"],
+        },
+        {
+          id: "slot-4",
+          slot_index: 3,
+          slot_type: "lecture",
+          subject_category: "영어",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("ID가 없는 슬롯은 관계 검증을 건너뛰어야 함", () => {
+      const slots: ContentSlot[] = [
+        {
+          // id 없음
+          slot_index: 0,
+          slot_type: "book",
+          subject_category: "수학",
+        },
+        {
+          id: "slot-2",
+          slot_index: 1,
+          slot_type: "lecture",
+          subject_category: "수학",
+        },
+      ];
+
+      const result = validateSlotRelationships(slots);
+
+      expect(result.valid).toBe(true);
+    });
+
+    it("빈 슬롯 배열은 유효해야 함", () => {
+      const result = validateSlotRelationships([]);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.warnings).toHaveLength(0);
+    });
+  });
+});
+
+describe("validateSlotConfiguration with Relationships", () => {
+  it("슬롯 구성 검증이 관계 검증을 포함해야 함", () => {
+    const slots: ContentSlot[] = [
+      {
+        id: "slot-1",
+        slot_index: 0,
+        slot_type: "book",
+        subject_category: "수학",
+        linked_slot_id: "slot-1", // 자기 자신 참조 - 에러
+      },
+    ];
+
+    const result = validateSlotConfiguration(slots);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("자기 자신"))).toBe(true);
+  });
+
+  it("순환 참조가 있으면 슬롯 구성이 유효하지 않아야 함", () => {
+    const slots: ContentSlot[] = [
+      {
+        id: "slot-1",
+        slot_index: 0,
+        slot_type: "book",
+        subject_category: "수학",
+        linked_slot_id: "slot-2",
+        link_type: "after",
+      },
+      {
+        id: "slot-2",
+        slot_index: 1,
+        slot_type: "lecture",
+        subject_category: "수학",
+        linked_slot_id: "slot-1",
+        link_type: "after",
+      },
+    ];
+
+    const result = validateSlotConfiguration(slots);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes("순환 참조"))).toBe(true);
   });
 });
