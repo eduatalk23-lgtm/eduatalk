@@ -50,6 +50,14 @@ export type VirtualPlanItem = {
   week_number: number;
   /** 일 유형 */
   day_type: DailyScheduleInfo["day_type"];
+  /** 연계 슬롯 ID (이 슬롯이 연결된 대상) */
+  linked_to_slot_index?: number;
+  /** 연계 타입 */
+  link_type?: "before" | "after";
+  /** 배타적 슬롯 인덱스 목록 */
+  exclusive_with_indices?: number[];
+  /** 연계 그룹 ID (같은 그룹에 속한 슬롯들은 같은 ID를 가짐) */
+  linked_group_id?: number;
 };
 
 /**
@@ -414,11 +422,20 @@ export function calculateVirtualTimeline(
   // 연계 슬롯 그룹화
   const linkedGroups = groupLinkedSlots(validSlots);
 
+  // 슬롯 ID → 슬롯 인덱스 매핑
+  const slotIdToIndex = new Map<string, number>();
+  validSlots.forEach((slot) => {
+    if (slot.id) {
+      slotIdToIndex.set(slot.id, slot.slot_index);
+    }
+  });
+
   // 배치 상태 추적
   let dayIndex = 0;
   let remainingMinutesInDay = availableDays[0]?.study_hours * 60 || 0;
   let currentStartTime = "09:00";
   const assignedSlots = new Map<string, string>(); // slotId → date
+  let linkedGroupIdCounter = 0;
 
   // 그룹 단위로 배치
   for (const group of linkedGroups) {
@@ -485,6 +502,16 @@ export function calculateVirtualTimeline(
       const currentDay = availableDays[dayIndex];
       const endTime = addMinutesToTime(currentStartTime, duration);
 
+      // 연계 슬롯 정보 계산
+      const linkedToSlotIndex = slot.linked_slot_id
+        ? slotIdToIndex.get(slot.linked_slot_id)
+        : undefined;
+
+      // 배타적 슬롯 인덱스 계산
+      const exclusiveWithIndices = slot.exclusive_with
+        ?.map((id) => slotIdToIndex.get(id))
+        .filter((idx): idx is number => idx !== undefined);
+
       // 플랜 아이템 생성
       plans.push({
         slot_index: slot.slot_index,
@@ -499,6 +526,14 @@ export function calculateVirtualTimeline(
         range_end: slot.end_range,
         week_number: currentDay.week_number || 1,
         day_type: currentDay.day_type,
+        // 관계 정보
+        linked_to_slot_index: linkedToSlotIndex,
+        link_type: slot.link_type ?? undefined,
+        exclusive_with_indices:
+          exclusiveWithIndices && exclusiveWithIndices.length > 0
+            ? exclusiveWithIndices
+            : undefined,
+        linked_group_id: isLinkedGroup ? linkedGroupIdCounter : undefined,
       });
 
       // 배치 상태 업데이트
@@ -529,6 +564,9 @@ export function calculateVirtualTimeline(
           `연계된 슬롯이 같은 날에 배치되지 못했습니다. (슬롯 인덱스: ${group.map((s) => s.slot_index + 1).join(", ")})`
         );
       }
+
+      // 연계 그룹 ID 증가
+      linkedGroupIdCounter++;
     }
   }
 

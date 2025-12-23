@@ -19,6 +19,8 @@ import {
   BarChart3,
   CalendarDays,
   List,
+  Link2,
+  Unlink2,
 } from "lucide-react";
 
 // ============================================================================
@@ -377,7 +379,7 @@ function DailyView({ groupedByDate }: DailyViewProps) {
 
             <div className="space-y-1">
               {plans.map((plan, index) => (
-                <PlanItemRow key={index} plan={plan} />
+                <PlanItemRow key={index} plan={plan} sameDayPlans={plans} />
               ))}
             </div>
           </div>
@@ -441,6 +443,16 @@ type ListViewProps = {
 };
 
 function ListView({ plans }: ListViewProps) {
+  // 날짜별로 그룹화하여 sameDayPlans 전달
+  const plansByDate = useMemo(() => {
+    const grouped: Record<string, VirtualPlanItem[]> = {};
+    plans.forEach((plan) => {
+      if (!grouped[plan.date]) grouped[plan.date] = [];
+      grouped[plan.date].push(plan);
+    });
+    return grouped;
+  }, [plans]);
+
   return (
     <div className="divide-y divide-gray-100">
       {plans.slice(0, 30).map((plan, index) => (
@@ -448,7 +460,7 @@ function ListView({ plans }: ListViewProps) {
           <div className="w-20 flex-shrink-0 text-xs text-gray-500">
             {formatDate(plan.date)}
           </div>
-          <PlanItemRow plan={plan} />
+          <PlanItemRow plan={plan} sameDayPlans={plansByDate[plan.date]} />
         </div>
       ))}
       {plans.length > 30 && (
@@ -462,36 +474,74 @@ function ListView({ plans }: ListViewProps) {
 
 type PlanItemRowProps = {
   plan: VirtualPlanItem;
+  /** 같은 날 다른 플랜 목록 (연계 표시용) */
+  sameDayPlans?: VirtualPlanItem[];
 };
 
-function PlanItemRow({ plan }: PlanItemRowProps) {
+function PlanItemRow({ plan, sameDayPlans = [] }: PlanItemRowProps) {
   const colors = getSlotTypeColor(plan.slot_type);
 
+  // 연계 관계 확인
+  const hasLinkedRelation =
+    plan.linked_to_slot_index !== undefined || plan.linked_group_id !== undefined;
+
+  // 배타적 관계 확인 (같은 날에 배타적 슬롯이 없어야 정상)
+  const hasExclusiveRelation =
+    plan.exclusive_with_indices && plan.exclusive_with_indices.length > 0;
+
+  // 같은 날 연계 슬롯 연결 표시 (다음 슬롯이 이 슬롯과 연계되어 있는지)
+  const isLinkedToNext = sameDayPlans.some(
+    (p) =>
+      p.linked_to_slot_index === plan.slot_index &&
+      p.link_type === "after"
+  );
+
   return (
-    <div
-      className={cn(
-        "flex items-center gap-2 rounded-md border px-2 py-1.5",
-        colors.bg,
-        colors.border
+    <div className="relative">
+      {/* 연계 연결선 (다음 슬롯과 연결됨) */}
+      {isLinkedToNext && (
+        <div className="absolute -bottom-1 left-4 z-10 flex h-2 w-px items-center justify-center bg-indigo-300">
+          <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+        </div>
       )}
-    >
-      <span className={cn("text-xs font-medium", colors.text)}>
-        {plan.start_time}-{plan.end_time}
-      </span>
-      <ChevronRight className="h-3 w-3 text-gray-400" />
-      <div className="flex-1 truncate">
-        <span className="text-xs text-gray-600">
-          {plan.subject_category}
-        </span>
-        {plan.title && (
-          <span className="ml-1 text-xs font-medium text-gray-800">
-            {plan.title}
-          </span>
+
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-md border px-2 py-1.5",
+          colors.bg,
+          colors.border,
+          // 연계 슬롯은 왼쪽에 인디고 테두리
+          hasLinkedRelation && "border-l-2 border-l-indigo-400"
         )}
+      >
+        {/* 관계 아이콘 */}
+        {(hasLinkedRelation || hasExclusiveRelation) && (
+          <div className="flex items-center gap-0.5">
+            {hasLinkedRelation && (
+              <Link2 className="h-3 w-3 text-indigo-500" />
+            )}
+            {hasExclusiveRelation && (
+              <Unlink2 className="h-3 w-3 text-amber-500" />
+            )}
+          </div>
+        )}
+
+        <span className={cn("text-xs font-medium", colors.text)}>
+          {plan.start_time}-{plan.end_time}
+        </span>
+        <ChevronRight className="h-3 w-3 text-gray-400" />
+        <div className="flex-1 truncate">
+          <span className="text-xs text-gray-600">{plan.subject_category}</span>
+          {plan.title && (
+            <span className="ml-1 text-xs font-medium text-gray-800">
+              {plan.title}
+            </span>
+          )}
+        </div>
+        <span className="flex-shrink-0 text-xs text-gray-400">
+          {SLOT_TYPE_LABEL[plan.slot_type || ""] || ""}
+        </span>
       </div>
-      <span className="flex-shrink-0 text-xs text-gray-400">
-        {SLOT_TYPE_LABEL[plan.slot_type || ""] || ""}
-      </span>
     </div>
   );
 }
