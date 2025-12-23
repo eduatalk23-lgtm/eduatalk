@@ -7,6 +7,7 @@
 
 import * as repo from "./repository";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   Block,
   BlockActionResult,
@@ -334,6 +335,7 @@ async function resolveBlockSetId(
 
 /**
  * 시간 겹침 검증
+ * P2 개선: 학원 일정과의 겹침도 검사
  */
 async function checkTimeOverlap(
   blockSetId: string,
@@ -350,24 +352,77 @@ async function checkTimeOverlap(
     ? existingBlocks.filter((b) => b.id !== excludeBlockId)
     : existingBlocks;
 
-  if (blocksToCheck.length === 0) {
-    return { valid: true };
+  // 1. 기존 블록과 겹침 검사
+  if (blocksToCheck.length > 0) {
+    const hasBlockOverlap = checkBlockOverlap(
+      { startTime, endTime },
+      blocksToCheck.map((b) => ({
+        startTime: b.start_time,
+        endTime: b.end_time,
+      }))
+    );
+
+    if (hasBlockOverlap) {
+      return {
+        valid: false,
+        error: "이미 등록된 시간 블록과 겹칩니다. 다른 시간대를 선택해주세요.",
+      };
+    }
   }
 
-  const hasOverlap = checkBlockOverlap(
-    { startTime, endTime },
-    blocksToCheck.map((b) => ({
-      startTime: b.start_time,
-      endTime: b.end_time,
-    }))
-  );
+  // 2. 학원 일정과 겹침 검사
+  const academySchedules = await getAcademySchedulesForDay(userId, dayOfWeek);
+  if (academySchedules.length > 0) {
+    const hasAcademyOverlap = checkBlockOverlap(
+      { startTime, endTime },
+      academySchedules.map((a) => ({
+        startTime: a.start_time,
+        endTime: a.end_time,
+      }))
+    );
 
-  if (hasOverlap) {
-    return {
-      valid: false,
-      error: "이미 등록된 시간 블록과 겹칩니다. 다른 시간대를 선택해주세요.",
-    };
+    if (hasAcademyOverlap) {
+      const overlappingAcademy = academySchedules.find((a) => {
+        return checkBlockOverlap(
+          { startTime, endTime },
+          [{ startTime: a.start_time, endTime: a.end_time }]
+        );
+      });
+      const academyName = overlappingAcademy?.academy_name || "학원";
+      return {
+        valid: false,
+        error: `${academyName} 일정(${overlappingAcademy?.start_time}~${overlappingAcademy?.end_time})과 시간이 겹칩니다. 다른 시간대를 선택해주세요.`,
+      };
+    }
   }
 
   return { valid: true };
+}
+
+/**
+ * P2 개선: 특정 요일의 학원 일정 조회
+ */
+async function getAcademySchedulesForDay(
+  studentId: string,
+  dayOfWeek: number
+): Promise<Array<{ start_time: string; end_time: string; academy_name: string | null }>> {
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    const { data, error } = await supabase
+      .from("academy_schedules")
+      .select("start_time, end_time, academy_name")
+      .eq("student_id", studentId)
+      .eq("day_of_week", dayOfWeek);
+
+    if (error) {
+      console.error("[block/service] 학원 일정 조회 오류:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error("[block/service] 학원 일정 조회 중 예외:", err);
+    return [];
+  }
 }
