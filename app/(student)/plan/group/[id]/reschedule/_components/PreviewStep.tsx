@@ -111,9 +111,6 @@ export function PreviewStep({
   const loadPreview = useCallback(async () => {
     // 이미 로딩 중이면 중복 호출 방지 (ref 사용)
     if (isLoadingRef.current) {
-      console.log(
-        "[PreviewStep] loadPreview: 이미 로딩 중이므로 중복 호출 방지"
-      );
       return;
     }
 
@@ -127,12 +124,6 @@ export function PreviewStep({
       const currentRescheduleRange = rescheduleDateRange;
       const currentPlacementRange = placementDateRange;
 
-      console.log("[PreviewStep] loadPreview 호출:", {
-        groupId,
-        adjustmentsCount: currentAdjustments.length,
-        rescheduleDateRange: currentRescheduleRange,
-        placementDateRange: currentPlacementRange,
-      });
       const result = await getReschedulePreview(
         groupId,
         currentAdjustments,
@@ -140,11 +131,6 @@ export function PreviewStep({
         currentPlacementRange || null,
         includeToday
       );
-      console.log("[PreviewStep] loadPreview 성공:", {
-        plansBeforeCount: result.plans_before_count,
-        plansAfterCount: result.plans_after_count,
-        affectedDates: result.affected_dates.length,
-      });
       setPreview(result);
       onLoad(result);
     } catch (error) {
@@ -172,11 +158,6 @@ export function PreviewStep({
     // 이미 미리보기가 있거나, 로딩 중이거나, 이미 시도했으면 실행하지 않음
     // preview는 의존성에서 제거 (결과값이므로)
     if (preview || isLoadingRef.current || loadAttemptedRef.current) {
-      console.log("[PreviewStep] useEffect: 조건 불만족으로 실행 안 함", {
-        hasPreview: !!preview,
-        isLoading: isLoadingRef.current,
-        loadAttempted: loadAttemptedRef.current,
-      });
       return;
     }
 
@@ -196,19 +177,7 @@ export function PreviewStep({
       hasPlacementRange ||
       includeToday
     ) {
-      console.log("[PreviewStep] useEffect: loadPreview 호출 시도", {
-        hasAdjustments,
-        hasRescheduleRange,
-        hasPlacementRange,
-      });
       loadPreview();
-    } else {
-      console.log("[PreviewStep] useEffect: 조건 불만족", {
-        adjustmentsLength: adjustments.length,
-        rescheduleDateRange,
-        placementDateRange,
-        includeToday,
-      });
     }
   }, [
     adjustments,

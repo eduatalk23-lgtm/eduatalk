@@ -52,17 +52,6 @@ export function useRecommendedContents({
       return;
     }
 
-    console.log("[useRecommendedContents] 추천 받기 요청 시작:", {
-      recommendationSettings: {
-        selectedSubjects: Array.from(recommendationSettings.selectedSubjects),
-        recommendationCounts: Object.fromEntries(
-          recommendationSettings.recommendationCounts
-        ),
-        autoAssignContents: recommendationSettings.autoAssignContents,
-      },
-      studentId,
-    });
-
     setRecommendationLoading(true);
 
     try {
@@ -142,47 +131,16 @@ export function useRecommendedContents({
       setRecommendedContents(filteredRecommendations);
       setHasRequestedRecommendations(true);
 
-      // 자동 배정 체크
-      console.log("[useRecommendedContents] 자동 배정 체크:", {
-        autoAssign: recommendationSettings.autoAssignContents,
-        filteredRecommendationsCount: filteredRecommendations.length,
-        willAutoAssign:
-          recommendationSettings.autoAssignContents &&
-          filteredRecommendations.length > 0,
-      });
-
       // 자동 배정 실행
       const shouldAutoAssign =
         recommendationSettings.autoAssignContents &&
         filteredRecommendations.length > 0;
 
       if (shouldAutoAssign) {
-        console.log("[useRecommendedContents] 자동 배정 시작:", {
-          recommendationsCount: filteredRecommendations.length,
-          recommendations: filteredRecommendations.map((r) => ({
-            id: r.id,
-            title: r.title,
-            contentType: r.contentType,
-          })),
-        });
-
         try {
           // 자동 배정 데이터 준비
           const contentsToAutoAdd = await prepareAutoAssignment(
             filteredRecommendations
-          );
-
-          console.log(
-            "[useRecommendedContents] 자동 배정 준비 완료:",
-            {
-              contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
-                content_id: c.content_id,
-                content_type: c.content_type,
-                start_range: c.start_range,
-                end_range: c.end_range,
-                title: c.title,
-              })),
-            }
           );
 
           // 제한 적용
@@ -193,13 +151,6 @@ export function useRecommendedContents({
             currentTotal,
             9
           );
-
-          console.log("[useRecommendedContents] 자동 배정 실행:", {
-            currentTotal,
-            toAdd: contentsToAutoAdd.length,
-            added: result.added.length,
-            excluded: result.excluded,
-          });
 
           if (result.added.length > 0) {
             const newRecommendedContents = [
@@ -219,22 +170,14 @@ export function useRecommendedContents({
             const autoAssignedIds = new Set(
               filteredRecommendations.map((r) => r.id)
             );
-            setRecommendedContents((prev) => {
-              const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
-              console.log("[useRecommendedContents] 자동 배정 후 목록 업데이트:", {
-                before: prev.length,
-                after: filtered.length,
-                autoAssigned: autoAssignedIds.size,
-              });
-              return filtered;
-            });
+            setRecommendedContents((prev) =>
+              prev.filter((r) => !autoAssignedIds.has(r.id))
+            );
           } else {
             setTimeout(() => {
               alert(result.message);
             }, 0);
           }
-
-          console.log("[useRecommendedContents] 자동 배정 완료");
         } catch (error) {
           console.error(
             "[useRecommendedContents] 자동 배정 중 오류 발생:",
@@ -242,14 +185,6 @@ export function useRecommendedContents({
           );
           alert("자동 배정 중 오류가 발생했습니다. 다시 시도해주세요.");
         }
-      } else {
-        console.log("[useRecommendedContents] 자동 배정 스킵:", {
-          autoAssign: recommendationSettings.autoAssignContents,
-          filteredRecommendationsCount: filteredRecommendations.length,
-          reason: !recommendationSettings.autoAssignContents
-            ? "자동 배정 옵션이 비활성화됨"
-            : "추천 콘텐츠가 없음",
-        });
       }
     } catch (error) {
       console.error("[useRecommendedContents] 추천 받기 실패:", error);

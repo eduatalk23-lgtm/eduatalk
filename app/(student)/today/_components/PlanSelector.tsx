@@ -40,7 +40,6 @@ export function PlanSelector({
     if (currentIndex > 0 && currentIndex < groups.length) {
       const prevGroup = groups[currentIndex - 1];
       if (prevGroup) {
-        console.log("handlePrevious called, selecting planId:", prevGroup.plan.id, "planNumber:", prevGroup.planNumber);
         // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
         if (onSelectById) {
           onSelectById(prevGroup.plan.id);
@@ -55,7 +54,6 @@ export function PlanSelector({
     if (currentIndex >= 0 && currentIndex < groups.length - 1) {
       const nextGroup = groups[currentIndex + 1];
       if (nextGroup) {
-        console.log("handleNext called, selecting planId:", nextGroup.plan.id, "planNumber:", nextGroup.planNumber);
         // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
         if (onSelectById) {
           onSelectById(nextGroup.plan.id);
@@ -106,7 +104,6 @@ export function PlanSelector({
             const selectedPlanId = e.target.value;
             const selectedGroup = groups.find((g) => g.plan.id === selectedPlanId);
             if (selectedGroup) {
-              console.log("select onChange called, selecting planId:", selectedPlanId, "planNumber:", selectedGroup.planNumber);
               // onSelectById가 있으면 planId로 선택, 없으면 planNumber로 선택
               if (onSelectById) {
                 onSelectById(selectedPlanId);

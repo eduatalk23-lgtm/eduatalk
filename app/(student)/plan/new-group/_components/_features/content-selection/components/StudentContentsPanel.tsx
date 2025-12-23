@@ -124,7 +124,6 @@ export function StudentContentsPanel({
           title: customContent.title,
         };
 
-        console.log(`[StudentContentsPanel] custom 콘텐츠 추가: ${customContent.title} (${contentId})`);
         const updated = [...selectedContents, newContent];
         onUpdate(updated);
         return;
@@ -253,18 +252,6 @@ export function StudentContentsPanel({
       const isMasterContent = !!content.master_content_id;
       const contentIdToUse = isMasterContent ? content.master_content_id! : content.content_id;
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("[StudentContentsPanel] handleEditRange:", {
-          content_id: content.content_id,
-          master_content_id: content.master_content_id,
-          isMasterContent,
-          contentIdToUse,
-          content_type: content.content_type,
-          title: content.title,
-          fullContent: JSON.stringify(content, null, 2),
-        });
-      }
-
       setRangeModalContent({
         id: contentIdToUse,
         type: content.content_type,
@@ -292,15 +279,6 @@ export function StudentContentsPanel({
 
       const { id, type, title, isMasterContent } = rangeModalContent;
 
-      console.log("[StudentContentsPanel] handleRangeSave 시작:", {
-        contentId: id,
-        type,
-        title,
-        isMasterContent,
-        range,
-        currentSelectedCount: selectedContents.length,
-      });
-
       // 최신 selectedContents를 사용하기 위해 함수형 업데이트 패턴 사용
       // 하지만 onUpdate가 함수형을 지원하지 않으므로, selectedContents를 직접 사용
       // 대신 onUpdate 호출 전에 최신 상태를 확인
@@ -310,14 +288,6 @@ export function StudentContentsPanel({
       const existingIndex = currentContents.findIndex(
         (c) => c.content_id === id || c.master_content_id === id
       );
-
-      console.log("[StudentContentsPanel] 기존 콘텐츠 검색 결과:", {
-        existingIndex,
-        contentId: id,
-        isMasterContent,
-        currentContentsIds: currentContents.map(c => c.content_id),
-        currentMasterContentIds: currentContents.map(c => c.master_content_id),
-      });
 
       const metadata = metadataCache.get(id);
       
@@ -350,32 +320,16 @@ export function StudentContentsPanel({
         // 기존 콘텐츠 업데이트
         updated = [...currentContents];
         updated[existingIndex] = newContent;
-        console.log("[StudentContentsPanel] 기존 콘텐츠 업데이트:", {
-          index: existingIndex,
-          oldContent: currentContents[existingIndex],
-          newContent,
-        });
       } else {
         // 새 콘텐츠 추가
         updated = [...currentContents, newContent];
-        console.log("[StudentContentsPanel] 새 콘텐츠 추가:", {
-          newContent,
-          updatedCount: updated.length,
-        });
       }
-
-      console.log("[StudentContentsPanel] onUpdate 호출 전:", {
-        updatedCount: updated.length,
-        updatedIds: updated.map(c => c.content_id),
-      });
 
       // 범위 저장 플래그 설정 (onClose에서 임시 콘텐츠를 제거하지 않도록)
       isRangeSavedRef.current = true;
 
       // onUpdate 호출
       onUpdate(updated);
-
-      console.log("[StudentContentsPanel] onUpdate 호출 완료");
 
       setRangeModalOpen(false);
       setRangeModalContent(null);
@@ -487,7 +441,6 @@ export function StudentContentsPanel({
           onClose={() => {
             // 범위가 저장된 경우 임시 콘텐츠를 제거하지 않음
             if (isRangeSavedRef.current) {
-              console.log("[StudentContentsPanel] 범위가 저장되어 임시 콘텐츠 제거하지 않음");
               setRangeModalOpen(false);
               setRangeModalContent(null);
               return;
@@ -495,20 +448,16 @@ export function StudentContentsPanel({
 
             // 모달을 닫을 때 임시로 추가한 콘텐츠 제거
             // (저장하지 않고 닫은 경우)
-            console.log("[StudentContentsPanel] 범위 저장 없이 모달 닫기 - 임시 콘텐츠 제거");
             if (rangeModalContent) {
               // 임시 콘텐츠만 제거 (isLoadingMetadata가 true인 경우)
               const hasTempContent = selectedContents.some(
                 (c) => c.content_id === rangeModalContent.id && c.isLoadingMetadata
               );
               if (hasTempContent) {
-                console.log("[StudentContentsPanel] 임시 콘텐츠 제거:", rangeModalContent.id);
                 const updated = selectedContents.filter(
                   (c) => c.content_id !== rangeModalContent.id
                 );
                 onUpdate(updated);
-              } else {
-                console.log("[StudentContentsPanel] 임시 콘텐츠가 없음 (이미 저장되었거나 없음)");
               }
             }
             setRangeModalOpen(false);

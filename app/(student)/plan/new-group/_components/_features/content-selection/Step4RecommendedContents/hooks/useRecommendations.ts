@@ -121,16 +121,6 @@ export function useRecommendations({
       setRecommendedContents((prev) => {
         const filtered = prev.filter((c) => !addedContentIds.has(c.id));
         
-        if (filtered.length !== prev.length) {
-          console.log("[useRecommendations] useEffect: 추가된 콘텐츠를 추천 목록에서 제거:", {
-            before: prev.length,
-            after: filtered.length,
-            removed: prev.length - filtered.length,
-            removedIds: prev
-              .filter((c) => addedContentIds.has(c.id))
-              .map((c) => ({ id: c.id, title: c.title })),
-          });
-        }
         
         return filtered;
       });
@@ -139,16 +129,6 @@ export function useRecommendations({
       setAllRecommendedContents((prev) => {
         const filtered = prev.filter((c) => !addedContentIds.has(c.id));
         
-        if (filtered.length !== prev.length) {
-          console.log("[useRecommendations] useEffect: 추가된 콘텐츠를 전체 추천 목록에서 제거:", {
-            before: prev.length,
-            after: filtered.length,
-            removed: prev.length - filtered.length,
-            removedIds: prev
-              .filter((c) => addedContentIds.has(c.id))
-              .map((c) => ({ id: c.id, title: c.title })),
-          });
-        }
         
         return filtered;
       });
@@ -332,10 +312,8 @@ export function useRecommendations({
                 if (infoResult.success && infoResult.data) {
                   if (r.contentType === "book" && infoResult.data.total_pages) {
                     endRange = infoResult.data.total_pages;
-                    console.log(`[useRecommendations] 자동 배정: ${r.title} 총 페이지수 ${endRange}로 설정`);
                   } else if (r.contentType === "lecture" && infoResult.data.total_episodes) {
                     endRange = infoResult.data.total_episodes;
-                    console.log(`[useRecommendations] 자동 배정: ${r.title} 총 회차 ${endRange}로 설정`);
                   }
                 }
               }
@@ -380,27 +358,11 @@ export function useRecommendations({
       }
 
       // 함수형 업데이트를 사용하여 최신 상태 보장
-      console.log("[useRecommendations] 자동 배정 시작 - 함수형 업데이트 호출");
-      
       try {
         onUpdate((prev: WizardData) => {
           const currentTotal =
             prev.student_contents.length + prev.recommended_contents.length;
           const toAdd = contentsToAutoAdd.length;
-
-          console.log("[useRecommendations] 자동 배정 실행 (함수형 업데이트 내부):", {
-            currentTotal,
-            toAdd,
-            currentRecommendedContents: prev.recommended_contents.length,
-            currentStudentContents: prev.student_contents.length,
-            contentsToAutoAdd: contentsToAutoAdd.map((c) => ({
-              content_id: c.content_id,
-              content_type: c.content_type,
-              start_range: c.start_range,
-              end_range: c.end_range,
-              title: c.title,
-            })),
-          });
 
           if (currentTotal + toAdd > 9) {
             const maxToAdd = 9 - currentTotal;
@@ -411,17 +373,6 @@ export function useRecommendations({
                 ...prev.recommended_contents,
                 ...trimmed,
               ];
-              console.log("[useRecommendations] 자동 배정 (제한 적용):", {
-                trimmed: trimmed.length,
-                excluded: toAdd - trimmed.length,
-                newRecommendedContents: newRecommendedContents.length,
-                currentRecommendedContents: prev.recommended_contents.length,
-                newContents: newRecommendedContents.map((c) => ({
-                  content_id: c.content_id,
-                  title: c.title,
-                  content_type: c.content_type,
-                })),
-              });
 
               // 비동기로 알림 표시 (상태 업데이트 후)
               setTimeout(() => {
@@ -448,18 +399,6 @@ export function useRecommendations({
               ...prev.recommended_contents,
               ...contentsToAutoAdd,
             ];
-            console.log("[useRecommendations] 자동 배정 성공:", {
-              added: contentsToAutoAdd.length,
-              currentRecommendedContents: prev.recommended_contents.length,
-              newRecommendedContents: newRecommendedContents.length,
-              contents: newRecommendedContents.map((c) => ({
-                content_id: c.content_id,
-                title: c.title,
-                content_type: c.content_type,
-                start_range: c.start_range,
-                end_range: c.end_range,
-              })),
-            });
 
             // 비동기로 알림 표시 (상태 업데이트 후)
             setTimeout(() => {
@@ -471,8 +410,6 @@ export function useRecommendations({
             };
           }
         });
-
-        console.log("[useRecommendations] onUpdate 호출 완료");
       } catch (error) {
         console.error("[useRecommendations] 자동 배정 중 오류 발생:", error);
         alert("자동 배정 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -490,13 +427,6 @@ export function useRecommendations({
       counts: Map<string, number>,
       autoAssign: boolean = false
     ) => {
-      console.log("[useRecommendations] fetchRecommendationsWithSubjects 호출:", {
-        subjects,
-        counts: Object.fromEntries(counts),
-        autoAssign,
-        studentId,
-      });
-
       // 템플릿 모드에서 studentId가 없으면 추천 콘텐츠 조회 불가
       if (!studentId) {
         console.warn("[useRecommendations] studentId가 없어 추천 콘텐츠를 조회할 수 없습니다. (템플릿 모드)");
@@ -518,21 +448,9 @@ export function useRecommendations({
         // studentId는 필수 (템플릿 모드에서는 위에서 체크)
         params.append("student_id", studentId);
 
-        // API 호출
-        console.log("[useRecommendations] API 호출 시작:", {
-          url: `/api/recommended-master-contents?${params.toString()}`,
-          params: params.toString(),
-        });
-
         const response = await fetch(
           `/api/recommended-master-contents?${params.toString()}`
         );
-
-        console.log("[useRecommendations] API 응답 받음:", {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText,
-        });
 
         if (!response.ok) {
           const errorText = await response.text();
@@ -550,15 +468,6 @@ export function useRecommendations({
 
         const result = await response.json();
 
-        // API 응답 전체 로깅
-        console.log("[useRecommendations] API 응답:", {
-          success: result.success,
-          hasData: !!result.data,
-          hasRecommendations: !!result.data?.recommendations,
-          recommendationsCount: result.data?.recommendations?.length || 0,
-          rawResponse: result,
-        });
-
         if (!result.success) {
           console.error("[useRecommendations] API 에러:", result.error);
           alert(
@@ -569,25 +478,6 @@ export function useRecommendations({
         }
 
         const rawRecommendations = result.data?.recommendations || [];
-        
-        console.log("[useRecommendations] 추천 콘텐츠 수:", {
-          count: rawRecommendations.length,
-          autoAssign,
-        });
-
-        // 각 추천 콘텐츠의 contentType 필드 확인
-        console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 전):", {
-          count: rawRecommendations.length,
-          items: rawRecommendations.map((r: any) => ({
-            id: r.id,
-            title: r.title,
-            contentType: r.contentType,
-            content_type: r.content_type,
-            hasContentType: !!r.contentType,
-            hasContent_type: !!r.content_type,
-            allKeys: Object.keys(r),
-          })),
-        });
 
         // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
         const recommendations: RecommendedContent[] = (rawRecommendations as RecommendationApiResponse[]).map((r) => {
@@ -627,17 +517,6 @@ export function useRecommendations({
             priority: r.priority ?? 0,
             scoreDetails: r.scoreDetails,
           };
-        });
-
-        // 변환 후 확인
-        console.log("[useRecommendations] 추천 콘텐츠 상세 (변환 후):", {
-          count: recommendations.length,
-          items: recommendations.map((r) => ({
-            id: r.id,
-            title: r.title,
-            contentType: r.contentType,
-            hasContentType: !!r.contentType,
-          })),
         });
 
         // 추천 콘텐츠가 없는 경우
@@ -727,22 +606,7 @@ export function useRecommendations({
         const shouldAutoAssign =
           autoAssign && filteredRecommendations.length > 0;
 
-        console.log("[useRecommendations] 자동 배정 조건 확인:", {
-          autoAssign,
-          filteredRecommendationsCount: filteredRecommendations.length,
-          shouldAutoAssign,
-        });
-
         if (shouldAutoAssign) {
-          console.log("[useRecommendations] 자동 배정 시작:", {
-            recommendationsCount: filteredRecommendations.length,
-            recommendations: filteredRecommendations.map((r) => ({
-              id: r.id,
-              title: r.title,
-              contentType: r.contentType,
-            })),
-          });
-          
           // 자동 배정 실행
           await autoAssignContents(filteredRecommendations);
           
@@ -754,40 +618,15 @@ export function useRecommendations({
           // 자동 배정 후 추천 목록에서 즉시 제거
           // useEffect가 data.recommended_contents 변경을 감지하여 제거하지만,
           // 즉시 반영을 위해 여기서도 제거
-          setRecommendedContents((prev) => {
-            const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
-            console.log("[useRecommendations] 자동 배정 후 목록 업데이트 (즉시):", {
-              before: prev.length,
-              after: filtered.length,
-              autoAssigned: autoAssignedIds.size,
-              removedIds: prev
-                .filter((r) => autoAssignedIds.has(r.id))
-                .map((r) => ({ id: r.id, title: r.title })),
-            });
-            return filtered;
-          });
-          
+          setRecommendedContents((prev) =>
+            prev.filter((r) => !autoAssignedIds.has(r.id))
+          );
+
           // allRecommendedContents에서도 제거
-          setAllRecommendedContents((prev) => {
-            const filtered = prev.filter((r) => !autoAssignedIds.has(r.id));
-            if (filtered.length !== prev.length) {
-              console.log("[useRecommendations] 자동 배정 후 전체 목록 업데이트:", {
-                before: prev.length,
-                after: filtered.length,
-                removed: prev.length - filtered.length,
-              });
-            }
-            return filtered;
-          });
+          setAllRecommendedContents((prev) =>
+            prev.filter((r) => !autoAssignedIds.has(r.id))
+          );
         } else {
-          console.log("[useRecommendations] 자동 배정 스킵:", {
-            autoAssign,
-            filteredRecommendationsCount: filteredRecommendations.length,
-            reason: !autoAssign
-              ? "자동 배정 옵션이 비활성화됨"
-              : "추천 콘텐츠가 없음",
-          });
-          
           // 자동 배정하지 않으면 추천 목록 표시
           setRecommendedContents(filteredRecommendations);
         }
@@ -843,30 +682,7 @@ export function useRecommendations({
 
       const result = await response.json();
 
-      // API 응답 전체 로깅
-      console.log("[useRecommendations] API 응답 (fetchRecommendations):", {
-        success: result.success,
-        hasData: !!result.data,
-        hasRecommendations: !!result.data?.recommendations,
-        recommendationsCount: result.data?.recommendations?.length || 0,
-        rawResponse: result,
-      });
-
       const rawRecommendations = result.data?.recommendations || [];
-
-      // 각 추천 콘텐츠의 contentType 필드 확인
-      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 전):", {
-        count: rawRecommendations.length,
-        items: rawRecommendations.map((r: any) => ({
-          id: r.id,
-          title: r.title,
-          contentType: r.contentType,
-          content_type: r.content_type,
-          hasContentType: !!r.contentType,
-          hasContent_type: !!r.content_type,
-          allKeys: Object.keys(r),
-        })),
-      });
 
       // API 응답을 RecommendedContent로 변환 (서버에서 contentType 보장)
       const recommendations: RecommendedContent[] = (rawRecommendations as RecommendationApiResponse[]).map((r) => {
@@ -906,17 +722,6 @@ export function useRecommendations({
           priority: r.priority ?? 0,
           scoreDetails: r.scoreDetails,
         };
-      });
-
-      // 변환 후 확인
-      console.log("[useRecommendations] 추천 콘텐츠 상세 (fetchRecommendations, 변환 후):", {
-        count: recommendations.length,
-        items: recommendations.map((r) => ({
-          id: r.id,
-          title: r.title,
-          contentType: r.contentType,
-          hasContentType: !!r.contentType,
-        })),
       });
 
       // 성적 데이터 존재 여부 확인

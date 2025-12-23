@@ -194,14 +194,11 @@ export function PlanViewContainer({
     }
     prevGroupsKey.current = groupsKey;
 
-    console.log("useEffect triggered, groupsKey changed, userSelected:", lastUserSelectedPlanNumber.current);
-
     // 사용자 선택이 있으면 절대 덮어쓰지 않음
     // selectedPlanId가 있으면 plan.id로 그룹을 찾아서 유효한지 확인
     if (lastUserSelectedPlanId.current !== null) {
       const userSelectedId = lastUserSelectedPlanId.current;
       if (groups.some((g) => g.plan.id === userSelectedId)) {
-        console.log("User selection (planId) is valid, keeping it:", userSelectedId);
         // 사용자 선택이 유효하면 아무것도 하지 않음
         return;
       }
@@ -210,7 +207,6 @@ export function PlanViewContainer({
     if (lastUserSelectedPlanNumber.current !== null) {
       const userSelected = lastUserSelectedPlanNumber.current;
       if (groups.some((g) => g.planNumber === userSelected)) {
-        console.log("User selection (planNumber) is valid, keeping it:", userSelected);
         // 사용자 선택이 유효하면 아무것도 하지 않음
         return;
       }
@@ -235,7 +231,6 @@ export function PlanViewContainer({
       : groups.length > 0; // null이면 그룹이 있으면 유효
     
     if (!isValidSelection) {
-      console.log("Current selection is invalid, setting to first group");
       // 유효하지 않으면 첫 번째 그룹 선택
       setSelectedPlanNumber(groups[0]?.planNumber ?? null);
       setSelectedPlanId(groups[0]?.plan.id ?? null);
@@ -269,7 +264,6 @@ export function PlanViewContainer({
   
   // selectedPlanNumber를 직접 변경하는 핸들러 (SinglePlanView에서 사용)
   const handleSelectPlan = useCallback((planNumber: number | null) => {
-    console.log("handleSelectPlan called with:", planNumber);
     lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
     setSelectedPlanNumber(planNumber);
     // planNumber로 그룹을 찾아서 planId도 설정
@@ -286,7 +280,6 @@ export function PlanViewContainer({
 
   // plan.id 기반 선택 핸들러 (우선 사용)
   const handleSelectPlanById = useCallback((planId: string) => {
-    console.log("handleSelectPlanById called with:", planId);
     // plan.id로 그룹을 찾아서 planNumber와 planId 모두 설정
     const selectedGroup = groups.find((g) => g.plan.id === planId);
     if (selectedGroup) {
