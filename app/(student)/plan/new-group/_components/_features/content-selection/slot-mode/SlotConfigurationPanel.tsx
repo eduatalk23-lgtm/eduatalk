@@ -62,6 +62,10 @@ function SlotConfigurationPanelComponent({
   const validation = validateSlotConfiguration(slots);
   const canAddSlot = slots.length < maxSlots;
 
+  // 드래그앤드롭 상태
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   // 슬롯 추가
   const handleAddSlot = useCallback(() => {
     if (!canAddSlot) return;
@@ -157,6 +161,170 @@ function SlotConfigurationPanelComponent({
     [slots, selectedSlotIndex, onSlotsChange, onSlotSelect]
   );
 
+  // ============================================================================
+  // 드래그앤드롭 핸들러
+  // ============================================================================
+
+  const handleDragStart = useCallback((index: number) => {
+    setDraggedIndex(index);
+  }, []);
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, index: number) => {
+      e.preventDefault();
+      if (draggedIndex !== null && draggedIndex !== index) {
+        setDragOverIndex(index);
+      }
+    },
+    [draggedIndex]
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+
+      if (draggedIndex === null || draggedIndex === dropIndex) {
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        return;
+      }
+
+      const newSlots = [...slots];
+      const [removed] = newSlots.splice(draggedIndex, 1);
+      newSlots.splice(dropIndex, 0, removed);
+
+      // 인덱스 재정렬
+      const reindexedSlots = newSlots.map((slot, i) => ({
+        ...slot,
+        slot_index: i,
+      }));
+
+      onSlotsChange(reindexedSlots);
+
+      // 선택 상태 조정
+      if (selectedSlotIndex !== null) {
+        if (selectedSlotIndex === draggedIndex) {
+          onSlotSelect(dropIndex);
+        } else if (
+          draggedIndex < selectedSlotIndex &&
+          dropIndex >= selectedSlotIndex
+        ) {
+          onSlotSelect(selectedSlotIndex - 1);
+        } else if (
+          draggedIndex > selectedSlotIndex &&
+          dropIndex <= selectedSlotIndex
+        ) {
+          onSlotSelect(selectedSlotIndex + 1);
+        }
+      }
+
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+    },
+    [draggedIndex, slots, selectedSlotIndex, onSlotsChange, onSlotSelect]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, []);
+
+  // ============================================================================
+  // 복제/이동 핸들러
+  // ============================================================================
+
+  const handleDuplicateSlot = useCallback(
+    (index: number) => {
+      if (slots.length >= maxSlots) return;
+
+      const slotToCopy = slots[index];
+      // 잠금 슬롯은 복제 불가
+      if (slotToCopy.is_locked) return;
+
+      const newSlot: ContentSlot = {
+        ...slotToCopy,
+        id: undefined, // 새 ID 생성 필요
+        slot_index: index + 1,
+        is_locked: false,
+        is_ghost: false,
+        ghost_message: undefined,
+      };
+
+      const newSlots = [...slots];
+      newSlots.splice(index + 1, 0, newSlot);
+
+      // 인덱스 재정렬
+      const reindexedSlots = newSlots.map((slot, i) => ({
+        ...slot,
+        slot_index: i,
+      }));
+
+      onSlotsChange(reindexedSlots);
+      onSlotSelect(index + 1);
+    },
+    [slots, maxSlots, onSlotsChange, onSlotSelect]
+  );
+
+  const handleMoveUp = useCallback(
+    (index: number) => {
+      if (index <= 0) return;
+
+      const newSlots = [...slots];
+      [newSlots[index - 1], newSlots[index]] = [
+        newSlots[index],
+        newSlots[index - 1],
+      ];
+
+      // 인덱스 재정렬
+      const reindexedSlots = newSlots.map((slot, i) => ({
+        ...slot,
+        slot_index: i,
+      }));
+
+      onSlotsChange(reindexedSlots);
+
+      // 선택 상태 조정
+      if (selectedSlotIndex === index) {
+        onSlotSelect(index - 1);
+      } else if (selectedSlotIndex === index - 1) {
+        onSlotSelect(index);
+      }
+    },
+    [slots, selectedSlotIndex, onSlotsChange, onSlotSelect]
+  );
+
+  const handleMoveDown = useCallback(
+    (index: number) => {
+      if (index >= slots.length - 1) return;
+
+      const newSlots = [...slots];
+      [newSlots[index], newSlots[index + 1]] = [
+        newSlots[index + 1],
+        newSlots[index],
+      ];
+
+      // 인덱스 재정렬
+      const reindexedSlots = newSlots.map((slot, i) => ({
+        ...slot,
+        slot_index: i,
+      }));
+
+      onSlotsChange(reindexedSlots);
+
+      // 선택 상태 조정
+      if (selectedSlotIndex === index) {
+        onSlotSelect(index + 1);
+      } else if (selectedSlotIndex === index + 1) {
+        onSlotSelect(index);
+      }
+    },
+    [slots, selectedSlotIndex, onSlotsChange, onSlotSelect]
+  );
+
   return (
     <div className={cn("flex h-full flex-col", className)}>
       {/* 과목 밸런스 차트 */}
@@ -217,6 +385,21 @@ function SlotConfigurationPanelComponent({
             allSlots={slots}
             onActivateGhost={handleActivateGhost}
             onDismissGhost={handleDismissGhost}
+            // 드래그앤드롭 props
+            isDragging={draggedIndex === index}
+            isDragOver={dragOverIndex === index}
+            onDragStart={() => handleDragStart(index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={handleDragEnd}
+            // 복제/이동 props
+            onDuplicate={() => handleDuplicateSlot(index)}
+            onMoveUp={() => handleMoveUp(index)}
+            onMoveDown={() => handleMoveDown(index)}
+            canMoveUp={index > 0}
+            canMoveDown={index < slots.length - 1}
+            canDuplicate={!slot.is_locked && slots.length < maxSlots}
           />
         ))}
 

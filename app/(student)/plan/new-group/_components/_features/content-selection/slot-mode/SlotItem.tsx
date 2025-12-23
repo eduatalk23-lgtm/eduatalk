@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useCallback } from "react";
+import React, { memo, useCallback, useState } from "react";
 import { cn } from "@/lib/cn";
 import {
   ContentSlot,
@@ -19,7 +19,9 @@ import {
   Lock,
   Check,
   ChevronDown,
-  Sparkles,
+  MoreVertical,
+  Copy,
+  ChevronUp,
 } from "lucide-react";
 import { SlotAdvancedSettings, GhostSlotActivator } from "./SlotAdvancedSettings";
 
@@ -39,6 +41,21 @@ type SlotItemProps = {
   allSlots?: ContentSlot[];
   onActivateGhost?: (slot: ContentSlot) => void;
   onDismissGhost?: (slot: ContentSlot) => void;
+  // 드래그앤드롭 props
+  isDragging?: boolean;
+  isDragOver?: boolean;
+  onDragStart?: () => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  // 복제/이동 props
+  onDuplicate?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  canDuplicate?: boolean;
 };
 
 // ============================================================================
@@ -90,12 +107,30 @@ function SlotItemComponent({
   allSlots = [],
   onActivateGhost,
   onDismissGhost,
+  // 드래그앤드롭 props
+  isDragging = false,
+  isDragOver = false,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+  // 복제/이동 props
+  onDuplicate,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
+  canDuplicate = false,
 }: SlotItemProps) {
   const completionStatus = getSlotCompletionStatus(slot);
   const styles = getCompletionStyles(completionStatus);
   const typeConfig = getSlotTypeIcon(slot.slot_type);
   const isLocked = slot.is_locked;
   const isGhost = slot.is_ghost;
+
+  // 액션 메뉴 상태
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // 슬롯 타입 변경
   const handleTypeChange = useCallback(
@@ -122,14 +157,43 @@ function SlotItemComponent({
     [slot, onUpdate]
   );
 
+  // 메뉴 토글
+  const handleMenuToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMenuOpen((prev) => !prev);
+  }, []);
+
+  // 메뉴 외부 클릭 시 닫기
+  const handleMenuAction = useCallback(
+    (action: () => void) => {
+      return (e: React.MouseEvent) => {
+        e.stopPropagation();
+        action();
+        setIsMenuOpen(false);
+      };
+    },
+    []
+  );
+
   return (
     <div
+      draggable={editable}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.();
+      }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={cn(
         "group relative rounded-lg border-2 p-3 transition-all",
         styles.border,
         styles.bg,
         isSelected && "ring-2 ring-blue-500 ring-offset-2",
         isGhost && "opacity-60",
+        isDragging && "opacity-50 ring-2 ring-blue-400",
+        isDragOver && "border-blue-500 bg-blue-50",
         editable && "cursor-pointer hover:shadow-md"
       )}
       onClick={onSelect}
@@ -145,8 +209,13 @@ function SlotItemComponent({
       {/* 드래그 핸들 & 인덱스 */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {editable && !isLocked && (
-            <GripVertical className="h-4 w-4 cursor-grab text-gray-400" />
+          {editable && (
+            <GripVertical
+              className={cn(
+                "h-4 w-4 cursor-grab text-gray-400 transition-colors",
+                "hover:text-gray-600 active:cursor-grabbing"
+              )}
+            />
           )}
           <span className="text-xs font-medium text-gray-500">
             슬롯 {index + 1}
@@ -161,25 +230,91 @@ function SlotItemComponent({
           )}
         </div>
 
-        {/* 완성 상태 표시 */}
+        {/* 완성 상태 표시 및 액션 버튼 */}
         <div className="flex items-center gap-2">
           {completionStatus === "content_linked" && (
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
               <Check className="h-3 w-3 text-white" />
             </div>
           )}
-          {editable && !isLocked && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-              className="rounded p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-              title="슬롯 삭제"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+
+          {/* 액션 메뉴 */}
+          {editable && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={handleMenuToggle}
+                className={cn(
+                  "rounded p-1 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600",
+                  "opacity-0 group-hover:opacity-100",
+                  isMenuOpen && "bg-gray-100 text-gray-600 opacity-100"
+                )}
+                title="더보기"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+
+              {/* 드롭다운 메뉴 */}
+              {isMenuOpen && (
+                <>
+                  {/* 오버레이 */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                    }}
+                  />
+                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                    {canMoveUp && (
+                      <button
+                        type="button"
+                        onClick={handleMenuAction(onMoveUp!)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                        위로 이동
+                      </button>
+                    )}
+                    {canMoveDown && (
+                      <button
+                        type="button"
+                        onClick={handleMenuAction(onMoveDown!)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        아래로 이동
+                      </button>
+                    )}
+                    {canDuplicate && (
+                      <button
+                        type="button"
+                        onClick={handleMenuAction(onDuplicate!)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <Copy className="h-4 w-4" />
+                        복제
+                      </button>
+                    )}
+                    {!isLocked && (
+                      <>
+                        {(canMoveUp || canMoveDown || canDuplicate) && (
+                          <div className="my-1 border-t border-gray-100" />
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleMenuAction(onRemove)}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          삭제
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
