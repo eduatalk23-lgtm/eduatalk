@@ -505,6 +505,12 @@ export async function detectRescheduleNeeds(
         created_at: plan.created_at,
         updated_at: plan.updated_at,
         status: plan.status as "pending" | "in_progress" | "completed" | "cancelled" | null,
+        // 추가 필드
+        subject_type: plan.subject_type ?? null,
+        origin_plan_item_id: plan.origin_plan_item_id ?? null,
+        is_active: plan.is_active ?? null,
+        version: plan.version ?? null,
+        version_group_id: plan.version_group_id ?? null,
       }));
 
       // 4. 지연 분석 수행

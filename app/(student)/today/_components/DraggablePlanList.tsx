@@ -165,7 +165,7 @@ export function DraggablePlanList({ plans: initialPlans, planDate, serverNow = D
                 <PlanTimerCard
                   planId={plan.id}
                   planTitle={plan.content?.title || "제목 없음"}
-                  contentType={plan.content_type}
+                  contentType={plan.content_type as "book" | "lecture" | "custom"}
                   startTime={null}
                   endTime={null}
                   actualStartTime={plan.actual_start_time}

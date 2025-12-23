@@ -79,34 +79,34 @@ export type PlanExclusionInsert = TablesInsert<"plan_exclusions">;
 export type PlanExclusionUpdate = TablesUpdate<"plan_exclusions">;
 
 /**
- * 블록 세트 타입
+ * 테넌트 블록 세트 타입
  */
-export type BlockSet = Tables<"block_sets">;
+export type BlockSet = Tables<"tenant_block_sets">;
 
 /**
- * 블록 세트 생성 입력 타입
+ * 테넌트 블록 세트 생성 입력 타입
  */
-export type BlockSetInsert = TablesInsert<"block_sets">;
+export type BlockSetInsert = TablesInsert<"tenant_block_sets">;
 
 /**
- * 블록 세트 수정 입력 타입
+ * 테넌트 블록 세트 수정 입력 타입
  */
-export type BlockSetUpdate = TablesUpdate<"block_sets">;
+export type BlockSetUpdate = TablesUpdate<"tenant_block_sets">;
 
 /**
- * 블록 타입
+ * 테넌트 블록 타입
  */
-export type Block = Tables<"blocks">;
+export type Block = Tables<"tenant_blocks">;
 
 /**
- * 블록 생성 입력 타입
+ * 테넌트 블록 생성 입력 타입
  */
-export type BlockInsert = TablesInsert<"blocks">;
+export type BlockInsert = TablesInsert<"tenant_blocks">;
 
 /**
- * 블록 수정 입력 타입
+ * 테넌트 블록 수정 입력 타입
  */
-export type BlockUpdate = TablesUpdate<"blocks">;
+export type BlockUpdate = TablesUpdate<"tenant_blocks">;
 
 /**
  * 학원 타입
@@ -145,12 +145,18 @@ export type AcademyScheduleUpdate = TablesUpdate<"academy_schedules">;
 /**
  * 콘텐츠 타입
  */
-export type ContentType = Enums<"content_type">;
+export type ContentType = Enums<"content_type_enum">;
 
 /**
- * 플랜 타입
+ * 플랜 상태 (Supabase enum)
  */
-export type PlanType = Enums<"plan_type">;
+export type PlanStatusEnum = Enums<"plan_status_enum">;
+
+/**
+ * 플랜 타입 (string literal type - re-exported from @/lib/types/plan)
+ * @see lib/types/plan/domain.ts
+ */
+export type { PlanType } from "@/lib/types/plan";
 
 // ============================================
 // JSONB 필드 타입 (스키마에서 파생)

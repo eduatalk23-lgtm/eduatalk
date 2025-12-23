@@ -451,6 +451,9 @@ export type Step3ContentSelectionProps = {
       excluded_subjects?: string[];
       constraint_handling?: "strict" | "warning" | "auto_fix";
     };
+    // 슬롯 모드 관련 (v2.0)
+    use_slot_mode?: boolean;
+    content_slots?: ContentSlot[];
   };
   /** 데이터 업데이트 함수 (optional: Context에서 가져올 수 있음) */
   onUpdate?: (updates: Partial<{
@@ -471,6 +474,9 @@ export type Step3ContentSelectionProps = {
       excluded_subjects?: string[];
       constraint_handling?: "strict" | "warning" | "auto_fix";
     };
+    // 슬롯 모드 관련 (v2.0)
+    use_slot_mode?: boolean;
+    content_slots?: ContentSlot[];
   }>) => void;
   
   // 콘텐츠 목록
@@ -541,4 +547,350 @@ export type RecommendedContentsResponse = {
   contents: RecommendedContent[];
   hasScoreData: boolean;
 };
+
+// ============================================================================
+// 2단계 콘텐츠 선택 시스템 - 슬롯 관련 타입 (v2.0)
+// ============================================================================
+
+/**
+ * 슬롯 타입 (콘텐츠 유형)
+ * - book: 교재
+ * - lecture: 강의
+ * - custom: 사용자 정의 콘텐츠
+ * - self_study: 자습 (숙제, 복습, 예습 등)
+ * - test: 테스트/시험
+ */
+export type SlotType = "book" | "lecture" | "custom" | "self_study" | "test";
+
+/**
+ * 자습 목적 태그
+ */
+export type SelfStudyPurpose =
+  | "homework"      // 숙제
+  | "review"        // 복습/오답노트
+  | "preview"       // 예습
+  | "memorization"  // 암기
+  | "practice";     // 문제풀이
+
+/**
+ * 슬롯 시간 제약 타입
+ */
+export type SlotTimeConstraint = {
+  /** 고정/유동 */
+  type: "fixed" | "flexible";
+  /** 선호 시간대 */
+  preferred_time_range?: {
+    start_hour: number;  // 0-23
+    end_hour: number;    // 0-23
+  } | null;
+  /** 선호 시간대 (간편 선택) */
+  preferred_period?: "morning" | "afternoon" | "evening" | null;
+  /** 분할 배치 가능 여부 */
+  can_split?: boolean;
+};
+
+/**
+ * 슬롯 연계 타입 (연계 슬롯용)
+ */
+export type SlotLinkType = "after" | "before";
+
+/**
+ * 슬롯 템플릿 (템플릿에 저장)
+ * camp_templates.slot_templates JSONB 필드에 저장되는 구조
+ */
+export type SlotTemplate = {
+  /** 슬롯 인덱스 (0-8, 최대 9개) */
+  slot_index: number;
+  /** 슬롯 타입 (아직 선택 안 함일 수 있음) */
+  slot_type: SlotType | null;
+  /** 교과 그룹명 (예: "국어", "수학") */
+  subject_category: string;
+  /** 과목 ID (선택적, 예: "수학Ⅰ") */
+  subject_id?: string | null;
+  /** 개정교육과정 ID */
+  curriculum_revision_id?: string | null;
+  /** 필수 슬롯 여부 */
+  is_required?: boolean;
+  /** 잠금 슬롯 여부 (학생이 삭제 불가) */
+  is_locked?: boolean;
+  /** 추천 슬롯(Ghost Slot) 여부 */
+  is_ghost?: boolean;
+  /** 추천 슬롯 메시지 */
+  ghost_message?: string;
+  /** 기본 검색어 (동적 기본값) */
+  default_search_term?: string;
+};
+
+/**
+ * 콘텐츠 슬롯 (플랜 그룹에 저장)
+ * plan_groups.content_slots JSONB 필드에 저장되는 구조
+ */
+export type ContentSlot = SlotTemplate & {
+  /** 슬롯 고유 ID (UUID) */
+  id?: string;
+
+  // === 콘텐츠 연결 필드 ===
+  /** 실제 콘텐츠 ID */
+  content_id?: string | null;
+  /** 시작 범위 (페이지/회차) */
+  start_range?: number;
+  /** 종료 범위 (페이지/회차) */
+  end_range?: number;
+  /** 시작 상세 ID (단원/챕터) */
+  start_detail_id?: string | null;
+  /** 종료 상세 ID (단원/챕터) */
+  end_detail_id?: string | null;
+  /** 콘텐츠 제목 */
+  title?: string;
+  /** 마스터 콘텐츠 ID */
+  master_content_id?: string | null;
+  /** 추천 콘텐츠 여부 */
+  is_auto_recommended?: boolean;
+  /** 추천 소스 */
+  recommendation_source?: "auto" | "admin" | "template" | null;
+
+  // === 자습 타입 확장 ===
+  /** 자습 목적 (slot_type이 self_study일 때) */
+  self_study_purpose?: SelfStudyPurpose | null;
+  /** 자습 설명 */
+  self_study_description?: string;
+
+  // === 시간 제약 ===
+  /** 시간 제약 조건 */
+  time_constraint?: SlotTimeConstraint | null;
+
+  // === 슬롯 관계 (연계/배타) ===
+  /** 연계될 슬롯 ID */
+  linked_slot_id?: string | null;
+  /** 연계 방향 */
+  link_type?: SlotLinkType | null;
+  /** 같은 날 배치 피할 슬롯 ID 목록 */
+  exclusive_with?: string[];
+
+  // === 상태 필드 ===
+  /** 메타데이터 로딩 중 플래그 (UI용) */
+  isLoadingMetadata?: boolean;
+  /** 메타데이터 로드 실패 시 에러 메시지 (UI용) */
+  metadataError?: string;
+};
+
+/**
+ * 슬롯 완성 상태
+ */
+export type SlotCompletionStatus =
+  | "empty"           // 빈 슬롯
+  | "type_selected"   // 타입만 선택됨
+  | "content_linked"; // 콘텐츠 연결 완료
+
+/**
+ * 슬롯 완성 상태 판별 함수
+ */
+export function getSlotCompletionStatus(slot: ContentSlot): SlotCompletionStatus {
+  if (!slot.slot_type && !slot.subject_category) {
+    return "empty";
+  }
+  if (!slot.content_id) {
+    return "type_selected";
+  }
+  return "content_linked";
+}
+
+/**
+ * 슬롯 검증 결과
+ */
+export type SlotValidationResult = {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+};
+
+/**
+ * 슬롯 구성 검증 함수
+ */
+export function validateSlotConfiguration(slots: ContentSlot[]): SlotValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 최대 9개 제한
+  if (slots.length > 9) {
+    errors.push("슬롯은 최대 9개까지 가능합니다.");
+  }
+
+  // 교과-과목 필수 검증
+  slots.forEach((slot, index) => {
+    if (!slot.subject_category) {
+      errors.push(`슬롯 ${index + 1}: 교과를 선택해주세요.`);
+    }
+  });
+
+  // 중복 슬롯 검증 (같은 교과-과목-타입 조합)
+  const slotKeys = slots.map(s =>
+    `${s.slot_type}-${s.subject_category}-${s.subject_id || ''}`
+  );
+  const duplicates = slotKeys.filter((key, index) =>
+    slotKeys.indexOf(key) !== index
+  );
+  if (duplicates.length > 0) {
+    warnings.push("동일한 교과-과목 조합의 슬롯이 중복됩니다.");
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * 콘텐츠 연결 검증 함수
+ */
+export function validateContentLinking(slots: ContentSlot[]): SlotValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  slots.forEach((slot, index) => {
+    // 자습 타입이 아닌 경우에만 콘텐츠 연결 필수
+    if (slot.slot_type !== "self_study" && slot.slot_type !== "test") {
+      if (!slot.content_id) {
+        errors.push(`슬롯 ${index + 1}: 콘텐츠를 선택해주세요.`);
+      }
+
+      // 범위 설정 필수
+      if (slot.content_id && (slot.start_range === undefined || slot.end_range === undefined)) {
+        errors.push(`슬롯 ${index + 1}: 학습 범위를 설정해주세요.`);
+      }
+
+      // 범위 유효성 검증
+      if (slot.start_range !== undefined && slot.end_range !== undefined &&
+          slot.start_range >= slot.end_range) {
+        errors.push(`슬롯 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`);
+      }
+    }
+
+    // 자습 타입인 경우 목적 검증
+    if (slot.slot_type === "self_study" && !slot.self_study_purpose) {
+      warnings.push(`슬롯 ${index + 1}: 자습 목적을 선택하면 스케줄링이 더 정확해집니다.`);
+    }
+  });
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * 과목 밸런스 계산 결과
+ */
+export type SubjectBalance = {
+  subject_category: string;
+  slot_count: number;
+  percentage: number;
+  is_warning: boolean;  // 70% 초과 시 경고
+};
+
+/**
+ * 과목 밸런스 계산 함수
+ */
+export function calculateSubjectBalance(slots: ContentSlot[]): SubjectBalance[] {
+  const totalSlots = slots.length;
+  if (totalSlots === 0) return [];
+
+  const subjectCounts = new Map<string, number>();
+
+  slots.forEach(slot => {
+    if (slot.subject_category) {
+      const count = subjectCounts.get(slot.subject_category) || 0;
+      subjectCounts.set(slot.subject_category, count + 1);
+    }
+  });
+
+  return Array.from(subjectCounts.entries()).map(([subject, count]) => ({
+    subject_category: subject,
+    slot_count: count,
+    percentage: Math.round((count / totalSlots) * 100),
+    is_warning: (count / totalSlots) > 0.7,
+  }));
+}
+
+/**
+ * 모드 전환 검증 결과
+ */
+export type ModeSwitchValidation = {
+  allowed: boolean;
+  warning?: string;
+};
+
+/**
+ * 모드 전환 검증 함수 (슬롯 모드 ↔ 레거시 모드)
+ */
+export function validateModeSwitch(
+  currentMode: "slot" | "legacy",
+  targetMode: "slot" | "legacy",
+  hasSlotData: boolean
+): ModeSwitchValidation {
+  if (currentMode === "slot" && targetMode === "legacy" && hasSlotData) {
+    return {
+      allowed: true,
+      warning: "슬롯 모드에서 작성한 데이터가 레거시 형식으로 변환됩니다. 일부 정보가 손실될 수 있습니다.",
+    };
+  }
+  return { allowed: true };
+}
+
+/**
+ * 슬롯 → 기존 콘텐츠 형식 변환 (Dual Write용)
+ */
+export function convertSlotsToContents(slots: ContentSlot[]): SelectedContent[] {
+  return slots
+    .filter(slot => slot.content_id && slot.slot_type !== "self_study" && slot.slot_type !== "test")
+    .map(slot => ({
+      content_type: (slot.slot_type === "book" || slot.slot_type === "lecture" || slot.slot_type === "custom")
+        ? slot.slot_type
+        : "book", // 기본값
+      content_id: slot.content_id!,
+      start_range: slot.start_range ?? 0,
+      end_range: slot.end_range ?? 0,
+      start_detail_id: slot.start_detail_id,
+      end_detail_id: slot.end_detail_id,
+      title: slot.title,
+      subject_category: slot.subject_category,
+      master_content_id: slot.master_content_id,
+      is_auto_recommended: slot.is_auto_recommended,
+      recommendation_source: slot.recommendation_source,
+    }));
+}
+
+/**
+ * 기존 콘텐츠 형식 → 슬롯 변환
+ */
+export function convertContentsToSlots(contents: SelectedContent[]): ContentSlot[] {
+  return contents.map((content, index) => ({
+    slot_index: index,
+    slot_type: content.content_type,
+    subject_category: content.subject_category || "",
+    content_id: content.content_id,
+    start_range: content.start_range,
+    end_range: content.end_range,
+    start_detail_id: content.start_detail_id,
+    end_detail_id: content.end_detail_id,
+    title: content.title,
+    master_content_id: content.master_content_id,
+    is_auto_recommended: content.is_auto_recommended,
+    recommendation_source: content.recommendation_source,
+  }));
+}
+
+/**
+ * 빈 슬롯 생성 함수
+ */
+export function createEmptySlot(index: number): ContentSlot {
+  return {
+    slot_index: index,
+    slot_type: null,
+    subject_category: "",
+  };
+}
+
+/**
+ * 슬롯 배열에서 다음 가용 인덱스 찾기
+ */
+export function getNextSlotIndex(slots: ContentSlot[]): number {
+  if (slots.length === 0) return 0;
+  const maxIndex = Math.max(...slots.map(s => s.slot_index));
+  return maxIndex + 1;
+}
 

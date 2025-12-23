@@ -43,7 +43,7 @@ export async function enrichPlansWithContentInfo(
       (!plan.content_subject_category && !plan.content_subject) ||
       !plan.content_title;
     if (needsFetch && plan.content_id) {
-      const contentType = plan.content_type;
+      const contentType = plan.content_type as "book" | "lecture" | "custom";
       if (contentType && missingContentIds.has(contentType)) {
         missingContentIds.get(contentType)!.add(plan.content_id);
       }

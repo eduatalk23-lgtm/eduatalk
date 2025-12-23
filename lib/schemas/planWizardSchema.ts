@@ -276,6 +276,99 @@ export const contentAllocationSchema = z.object({
   weekly_days: z.number().int().min(2).max(4).optional(),
 });
 
+// ============================================================================
+// 2단계 콘텐츠 선택 시스템 - 슬롯 관련 스키마 (v2.0)
+// ============================================================================
+
+/**
+ * 슬롯 타입 스키마
+ */
+export const slotTypeSchema = z.enum(["book", "lecture", "custom", "self_study", "test"]);
+
+/**
+ * 자습 목적 스키마
+ */
+export const selfStudyPurposeSchema = z.enum(["homework", "review", "preview", "memorization", "practice"]);
+
+/**
+ * 슬롯 시간 제약 스키마
+ */
+export const slotTimeConstraintSchema = z.object({
+  type: z.enum(["fixed", "flexible"]),
+  preferred_time_range: z.object({
+    start_hour: z.number().int().min(0).max(23),
+    end_hour: z.number().int().min(0).max(23),
+  }).nullable().optional(),
+  preferred_period: z.enum(["morning", "afternoon", "evening"]).nullable().optional(),
+  can_split: z.boolean().optional(),
+});
+
+/**
+ * 슬롯 템플릿 스키마 (camp_templates.slot_templates용)
+ */
+export const slotTemplateSchema = z.object({
+  slot_index: z.number().int().min(0).max(8),
+  slot_type: slotTypeSchema.nullable(),
+  subject_category: z.string(),
+  subject_id: z.string().nullable().optional(),
+  curriculum_revision_id: z.string().nullable().optional(),
+  is_required: z.boolean().optional(),
+  is_locked: z.boolean().optional(),
+  is_ghost: z.boolean().optional(),
+  ghost_message: z.string().optional(),
+  default_search_term: z.string().optional(),
+});
+
+/**
+ * 콘텐츠 슬롯 스키마 (plan_groups.content_slots용)
+ */
+export const contentSlotSchema = slotTemplateSchema.extend({
+  id: z.string().uuid().optional(),
+  // 콘텐츠 연결 필드
+  content_id: z.string().nullable().optional(),
+  start_range: z.number().int().min(0).optional(),
+  end_range: z.number().int().min(0).optional(),
+  start_detail_id: z.string().uuid().nullable().optional(),
+  end_detail_id: z.string().uuid().nullable().optional(),
+  title: z.string().optional(),
+  master_content_id: z.string().uuid().nullable().optional(),
+  is_auto_recommended: z.boolean().optional(),
+  recommendation_source: z.enum(["auto", "admin", "template"]).nullable().optional(),
+  // 자습 타입 확장
+  self_study_purpose: selfStudyPurposeSchema.nullable().optional(),
+  self_study_description: z.string().optional(),
+  // 시간 제약
+  time_constraint: slotTimeConstraintSchema.nullable().optional(),
+  // 슬롯 관계 (연계/배타)
+  linked_slot_id: z.string().uuid().nullable().optional(),
+  link_type: z.enum(["after", "before"]).nullable().optional(),
+  exclusive_with: z.array(z.string().uuid()).optional(),
+}).refine(
+  (data) => {
+    // content_id가 있고 self_study/test가 아닌 경우 범위 필수
+    if (data.content_id && data.slot_type !== "self_study" && data.slot_type !== "test") {
+      return data.start_range !== undefined && data.end_range !== undefined;
+    }
+    return true;
+  },
+  {
+    message: "콘텐츠를 연결한 경우 범위 설정이 필요합니다.",
+    path: ["start_range"],
+  }
+).refine(
+  (data) => {
+    // 범위가 설정된 경우 end_range > start_range
+    if (data.start_range !== undefined && data.end_range !== undefined) {
+      return data.end_range > data.start_range;
+    }
+    return true;
+  },
+  {
+    message: "종료 범위는 시작 범위보다 커야 합니다.",
+    path: ["end_range"],
+  }
+);
+
 /**
  * 스케줄러 옵션 스키마
  */
@@ -340,6 +433,16 @@ const planWizardSchemaObject = z.object({
   
   // Step 6 - 전략/취약 설정 모드
   allocation_mode: z.enum(["subject", "content"]).optional(),
+
+  // ========================================
+  // 2단계 콘텐츠 선택 시스템 (v2.0)
+  // ========================================
+
+  /** 슬롯 방식 사용 여부 */
+  use_slot_mode: z.boolean().optional(),
+
+  /** 콘텐츠 슬롯 배열 (최대 9개) */
+  content_slots: z.array(contentSlotSchema).max(9).optional(),
 });
 
 /**
@@ -398,6 +501,9 @@ export const step4Schema = planWizardSchemaObject.pick({
   recommended_contents: true,
   show_required_subjects_ui: true,
   templateLockedFields: true,
+  // 2단계 콘텐츠 선택 시스템 (v2.0)
+  use_slot_mode: true,
+  content_slots: true,
 });
 
 export const step5Schema = planWizardSchemaObject.pick({
@@ -435,6 +541,13 @@ export type Step4Data = z.infer<typeof step4Schema>;
 export type Step5Data = z.infer<typeof step5Schema>;
 export type Step6Data = z.infer<typeof step6Schema>;
 export type Step7Data = z.infer<typeof step7Schema>;
+
+// 2단계 콘텐츠 선택 시스템 타입 (v2.0)
+export type SlotType = z.infer<typeof slotTypeSchema>;
+export type SelfStudyPurpose = z.infer<typeof selfStudyPurposeSchema>;
+export type SlotTimeConstraint = z.infer<typeof slotTimeConstraintSchema>;
+export type SlotTemplate = z.infer<typeof slotTemplateSchema>;
+export type ContentSlot = z.infer<typeof contentSlotSchema>;
 
 /**
  * 검증 헬퍼 함수

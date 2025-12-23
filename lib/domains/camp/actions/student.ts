@@ -22,6 +22,28 @@ import {
   isHigherPriorityExclusionType,
 } from "@/lib/utils/exclusionHierarchy";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import type { ContentSlot, SlotTemplate } from "@/lib/types/content-selection";
+
+/**
+ * 슬롯 템플릿을 ContentSlot으로 변환
+ */
+function convertSlotTemplatesToContentSlots(
+  slotTemplates: SlotTemplate[]
+): ContentSlot[] {
+  return slotTemplates.map((template) => ({
+    ...template,
+    id: crypto.randomUUID(),
+    content_id: null,
+    start_range: undefined,
+    end_range: undefined,
+    start_detail_id: null,
+    end_detail_id: null,
+    title: undefined,
+    master_content_id: null,
+    is_auto_recommended: false,
+    recommendation_source: template.is_ghost ? "template" : null,
+  }));
+}
 
 /**
  * 학생의 캠프 초대 목록 조회
@@ -722,11 +744,27 @@ export const submitCampParticipation = withErrorHandling(
 
     if (existingGroup && existingGroup.status === "draft") {
       const { updatePlanGroupDraftAction } = await import("@/lib/domains/plan");
+
+      // 슬롯 템플릿을 content_slots로 변환 (draft 업데이트용)
+      let contentSlotsForDraft: ContentSlot[] | null = null;
+      const templateSlotTemplatesForDraft = template.slot_templates;
+      if (Array.isArray(templateSlotTemplatesForDraft) && templateSlotTemplatesForDraft.length > 0) {
+        contentSlotsForDraft = convertSlotTemplatesToContentSlots(
+          templateSlotTemplatesForDraft as SlotTemplate[]
+        );
+        console.log("[campActions] (draft) 슬롯 템플릿을 content_slots로 변환:", {
+          templateSlotTemplatesCount: templateSlotTemplatesForDraft.length,
+          contentSlotsCount: contentSlotsForDraft.length,
+        });
+      }
+
       const updateData = {
         ...creationData,
         plan_type: "camp" as const,
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
+        content_slots: contentSlotsForDraft,
+        use_slot_mode: contentSlotsForDraft !== null && contentSlotsForDraft.length > 0,
       };
 
       type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {
@@ -790,11 +828,26 @@ export const submitCampParticipation = withErrorHandling(
         }
       }
 
+      // 슬롯 템플릿을 content_slots로 변환
+      let contentSlots: ContentSlot[] | null = null;
+      const templateSlotTemplates = template.slot_templates;
+      if (Array.isArray(templateSlotTemplates) && templateSlotTemplates.length > 0) {
+        contentSlots = convertSlotTemplatesToContentSlots(
+          templateSlotTemplates as SlotTemplate[]
+        );
+        console.log("[campActions] 슬롯 템플릿을 content_slots로 변환:", {
+          templateSlotTemplatesCount: templateSlotTemplates.length,
+          contentSlotsCount: contentSlots.length,
+        });
+      }
+
       const planGroupData = {
         ...creationData,
         plan_type: "camp" as const,
         camp_template_id: invitation.camp_template_id,
         camp_invitation_id: invitationId,
+        content_slots: contentSlots,
+        use_slot_mode: contentSlots !== null && contentSlots.length > 0,
       };
 
       type SchedulerOptionsWithTemplateBlockSet = SchedulerOptions & {

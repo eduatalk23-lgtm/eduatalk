@@ -11,8 +11,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, X, ChevronRight } from "lucide-react";
 import { analyzeDelay } from "@/lib/reschedule/delayDetector";
 import { generateRescheduleSuggestions } from "@/lib/reschedule/autoSuggester";
-import type { Plan } from "@/lib/data/studentPlans";
-import type { PlanContent } from "@/lib/types/plan";
+import type { Plan, PlanContent } from "@/lib/types/plan";
 import type { RescheduleSuggestion } from "@/lib/reschedule/autoSuggester";
 
 type AutoRescheduleBannerProps = {

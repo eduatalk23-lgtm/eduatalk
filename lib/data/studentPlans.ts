@@ -8,11 +8,17 @@ import { handleQueryError } from "@/lib/data/core/errorHandler";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { Database } from "@/lib/supabase/database.types";
 import type { SupabaseServerClient } from "@/lib/data/core/types";
+import type { ContentType } from "@/lib/types/common";
 
 // Database 타입에서 테이블 타입 추출
-type PlanRow = Database["public"]["Tables"]["student_plan"]["Row"];
+type PlanRowRaw = Database["public"]["Tables"]["student_plan"]["Row"];
 type PlanInsert = Database["public"]["Tables"]["student_plan"]["Insert"];
 type PlanUpdate = Database["public"]["Tables"]["student_plan"]["Update"];
+
+// content_type을 올바른 리터럴 타입으로 오버라이드
+type PlanRow = Omit<PlanRowRaw, "content_type"> & {
+  content_type: ContentType;
+};
 
 /**
  * 플랜 쿼리 필터 옵션 (공통)
@@ -357,7 +363,7 @@ export async function getPlanById(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id"
       )
       .eq("id", planId)
       .eq("student_id", studentId);

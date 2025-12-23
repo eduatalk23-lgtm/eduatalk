@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   Step3ContentSelectionProps,
   RecommendationSettings,
+  ContentSlot,
+  convertSlotsToContents,
 } from "@/lib/types/content-selection";
 import {
   StudentContentsPanel,
@@ -11,8 +13,9 @@ import {
   MasterContentsPanel,
   UnifiedContentsView,
 } from "./components";
+import { Step3SlotModeSelection } from "./slot-mode";
 import { ContentSelectionProgress } from "../../_components/ContentSelectionProgress";
-import { BookOpen, Sparkles, Package } from "lucide-react";
+import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FieldErrors } from "../../hooks/useWizardValidation";
 import { FieldError } from "../../_components/FieldError";
@@ -72,6 +75,30 @@ function Step3ContentSelectionComponent({
     isAdminContinueMode,
     isEditMode,
   }), [isCampMode, isTemplateMode, isAdminContinueMode, isEditMode]);
+
+  // 슬롯 모드 상태 (WizardData에서 초기화)
+  const useSlotMode = data.use_slot_mode ?? false;
+  const contentSlots = data.content_slots ?? [];
+
+  // 슬롯 모드 토글 핸들러
+  const handleSlotModeChange = useCallback(
+    (newUseSlotMode: boolean) => {
+      if (onUpdate) {
+        onUpdate({ use_slot_mode: newUseSlotMode } as any);
+      }
+    },
+    [onUpdate]
+  );
+
+  // 콘텐츠 슬롯 변경 핸들러
+  const handleContentSlotsChange = useCallback(
+    (slots: ContentSlot[]) => {
+      if (onUpdate) {
+        onUpdate({ content_slots: slots } as any);
+      }
+    },
+    [onUpdate]
+  );
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<
@@ -199,6 +226,34 @@ function Step3ContentSelectionComponent({
     maxContents,
   ]);
 
+  // 슬롯 모드용 콘텐츠 목록 (contents prop에서 변환)
+  // contents는 이미 { books: [...], lectures: [...], custom: [...] } 형태
+  const availableContentsForSlotMode = useMemo(() => {
+    if (!contents) {
+      return { books: [], lectures: [], custom: [] };
+    }
+
+    // Step3SlotModeSelection이 기대하는 형태로 변환
+    const mapContentItem = (
+      item: { id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null },
+      contentType: "book" | "lecture" | "custom"
+    ) => ({
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle ?? undefined,
+      content_type: contentType,
+      subject_category: item.subject ?? undefined,
+      subject: item.subject ?? undefined,
+      master_content_id: item.master_content_id ?? undefined,
+    });
+
+    return {
+      books: contents.books.map((c) => mapContentItem(c, "book")),
+      lectures: contents.lectures.map((c) => mapContentItem(c, "lecture")),
+      custom: contents.custom.map((c) => mapContentItem(c, "custom")),
+    };
+  }, [contents]);
+
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
     (contents: typeof data.student_contents) => {
@@ -274,9 +329,60 @@ function Step3ContentSelectionComponent({
         warningMessage={warningMessage}
       />
 
-      {/* 탭 UI - 읽기 전용 모드에서는 숨김 */}
-      {editable && (
-        <div className="flex gap-2 border-b border-gray-200">
+      {/* 슬롯 모드 토글 - 일반 모드에서만 표시 (캠프/템플릿 모드 제외) */}
+      {!isCampMode && !isTemplateMode && editable && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div>
+            <div className="text-sm font-medium text-gray-700">
+              콘텐츠 선택 방식
+            </div>
+            <div className="text-xs text-gray-500">
+              {useSlotMode
+                ? "슬롯 방식: 교과-과목별로 계획적으로 구성"
+                : "기존 방식: 직접 콘텐츠 선택"}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleSlotModeChange(!useSlotMode)}
+            className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100"
+          >
+            {useSlotMode ? (
+              <>
+                <ToggleRight className="h-5 w-5 text-blue-600" />
+                <span>슬롯 모드</span>
+              </>
+            ) : (
+              <>
+                <ToggleLeft className="h-5 w-5 text-gray-400" />
+                <span>기존 모드</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* 슬롯 모드 UI */}
+      {useSlotMode && editable ? (
+        <Step3SlotModeSelection
+          contentSlots={contentSlots}
+          useSlotMode={useSlotMode}
+          studentContents={data.student_contents}
+          recommendedContents={data.recommended_contents}
+          onContentSlotsChange={handleContentSlotsChange}
+          onUseSlotModeChange={handleSlotModeChange}
+          onStudentContentsChange={handleStudentContentsUpdate}
+          availableContents={availableContentsForSlotMode}
+          editable={editable}
+          isCampMode={isCampMode}
+          isTemplateMode={isTemplateMode}
+          studentId={studentId}
+        />
+      ) : (
+        <>
+          {/* 탭 UI - 읽기 전용 모드에서는 숨김 */}
+          {editable && (
+            <div className="flex gap-2 border-b border-gray-200">
           <button
             type="button"
             onClick={() => {
@@ -423,6 +529,8 @@ function Step3ContentSelectionComponent({
           />
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

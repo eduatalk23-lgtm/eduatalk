@@ -11,13 +11,13 @@ export type Participant = {
   student_name: string;
   student_grade: string | null;
   student_class: string | null;
-  invitation_status: string; // 원본 상태 (pending, accepted, declined)
-  display_status?: string; // 표시용 상태 (submitted 추가)
+  invitation_status: string | null; // 원본 상태 (pending, accepted, declined)
+  display_status?: string | null; // 표시용 상태 (submitted 추가)
   plan_group_id: string | null;
   plan_group_name: string | null;
   plan_group_status: string | null;
   hasPlans: boolean;
-  invited_at: string;
+  invited_at: string | null;
   accepted_at: string | null;
   // 통계 정보 (선택적)
   attendance_rate?: number | null;

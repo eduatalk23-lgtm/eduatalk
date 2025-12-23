@@ -517,6 +517,8 @@ export const updateCampTemplateAction = withErrorHandling(
       String(formData.get("camp_end_date") ?? "").trim() || null;
     const campLocation =
       String(formData.get("camp_location") ?? "").trim() || null;
+    const slotTemplatesJson =
+      String(formData.get("slot_templates") ?? "").trim() || null;
 
     // 입력값 검증
     if (!name || name.length === 0) {
@@ -595,6 +597,30 @@ export const updateCampTemplateAction = withErrorHandling(
     // template_data에서 block_set_id 제거
     const { block_set_id, ...templateDataWithoutBlockSetId } = templateData;
 
+    // slot_templates 파싱
+    let slotTemplates = null;
+    if (slotTemplatesJson) {
+      try {
+        slotTemplates = JSON.parse(slotTemplatesJson);
+        if (!Array.isArray(slotTemplates)) {
+          throw new AppError(
+            "슬롯 템플릿 형식이 올바르지 않습니다.",
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
+          );
+        }
+      } catch (e) {
+        if (e instanceof AppError) throw e;
+        throw new AppError(
+          "슬롯 템플릿 형식이 올바르지 않습니다.",
+          ErrorCode.VALIDATION_ERROR,
+          400,
+          true
+        );
+      }
+    }
+
     // 날짜 유효성 검증
     if (campStartDate && campEndDate) {
       const start = new Date(campStartDate);
@@ -640,6 +666,7 @@ export const updateCampTemplateAction = withErrorHandling(
       camp_start_date: campStartDate || null,
       camp_end_date: campEndDate || null,
       camp_location: campLocation || null,
+      slot_templates: slotTemplates,
     };
 
     const { data: updatedRows, error } = await supabase

@@ -7,6 +7,7 @@
 
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { ContentType, StudentLevel, ExclusionType } from "@/lib/types/common";
+import type { SlotTemplate } from "@/lib/types/content-selection";
 
 // ============================================
 // Enum 타입
@@ -316,7 +317,7 @@ export type Plan = {
   origin_plan_item_id?: string | null; // 원본 논리 플랜 항목 참조 (Phase 2)
   plan_date: string;
   block_index: number;
-  content_type: ContentType;
+  content_type: ContentType | string; // DB에서 string으로 저장되지만 실제로는 ContentType 값만 사용
   content_id: string;
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
@@ -325,7 +326,7 @@ export type Plan = {
   progress?: number | null;
   start_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 시작 시간
   end_time?: string | null; // HH:mm 형식 - 플랜 생성 시 계산된 종료 시간
-  is_reschedulable: boolean;
+  is_reschedulable?: boolean | null; // DB에서는 nullable
   // 1730 Timetable 추가 필드
   cycle_day_number?: number | null; // 주기 내 일자 번호
   date_type?: "study" | "review" | "exclusion" | null; // 날짜 유형
@@ -335,9 +336,32 @@ export type Plan = {
   allocation_type?: AllocationType | null; // JSONB: 배정 방식 정보
   split_info?: SplitInfo | null; // JSONB: 분할된 플랜 정보
   reallocation_info?: ReallocationInfo | null; // JSONB: 추가 기간 재배치 정보
-  subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
+  subject_type?: "strategy" | "weakness" | string | null; // 전략/취약 정보
   created_at?: string | null;
   updated_at?: string | null;
+  // 추가 DB 필드
+  is_active?: boolean | null;
+  status?: string | null;
+  version?: number | null;
+  version_group_id?: string | null;
+  // View 또는 DB에서 추가로 제공되는 필드
+  actual_start_time?: string | null;
+  actual_end_time?: string | null;
+  total_duration_seconds?: number | null;
+  paused_duration_seconds?: number | null;
+  pause_count?: number | null;
+  plan_number?: number | null;
+  sequence?: number | null;
+  day_type?: string | null;
+  week?: number | null;
+  day?: number | null;
+  is_partial?: boolean | null;
+  is_continued?: boolean | null;
+  content_title?: string | null;
+  content_subject?: string | null;
+  content_subject_category?: string | null;
+  content_category?: string | null;
+  memo?: string | null;
 };
 
 /**
@@ -479,6 +503,7 @@ export type CampTemplate = {
   description: string | null;
   program_type: CampProgramType;
   template_data: Partial<WizardData> | null;
+  slot_templates: SlotTemplate[] | null; // 슬롯 템플릿 설정
   status: "draft" | "active" | "archived";
   camp_start_date: string | null; // 캠프 시작일 (date)
   camp_end_date: string | null; // 캠프 종료일 (date)

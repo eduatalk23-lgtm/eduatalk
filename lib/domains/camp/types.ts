@@ -9,7 +9,6 @@ import type {
   Tables,
   TablesInsert,
   TablesUpdate,
-  Enums,
 } from "@/lib/supabase/database.types";
 
 // ============================================
@@ -53,17 +52,17 @@ export type CampInvitationUpdate = TablesUpdate<"camp_invitations">;
 /**
  * 캠프 프로그램 유형
  */
-export type CampProgramType = Enums<"camp_program_type">;
+export type CampProgramType = "윈터캠프" | "썸머캠프" | "파이널캠프" | "기타";
 
 /**
  * 캠프 템플릿 상태
  */
-export type CampTemplateStatus = Enums<"camp_template_status">;
+export type CampTemplateStatus = "draft" | "active" | "archived";
 
 /**
  * 캠프 초대 상태
  */
-export type CampInvitationStatus = Enums<"camp_invitation_status">;
+export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expired";
 
 // ============================================
 // 비즈니스 로직용 타입

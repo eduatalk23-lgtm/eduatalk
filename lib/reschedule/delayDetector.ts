@@ -10,7 +10,7 @@
  */
 
 import { format, parseISO, differenceInDays, isBefore, isAfter, addDays, isValid } from "date-fns";
-import type { Plan } from "@/lib/data/studentPlans";
+import type { Plan } from "@/lib/types/plan";
 
 // ============================================
 // 타입 정의

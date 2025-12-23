@@ -29,30 +29,27 @@ export type InternalScoreUpdate = TablesUpdate<"student_internal_scores">;
 /**
  * 내신 성적 타입 (레거시 - 하위 호환성)
  * @deprecated InternalScore를 사용하세요
- * 
- * 주의: 이 타입은 student_school_scores 테이블을 참조하지만,
- * 실제 구현은 student_internal_scores 테이블을 사용합니다.
- * 하위 호환성을 위해 타입만 유지됩니다.
+ *
+ * student_school_scores 테이블은 student_internal_scores로 대체되었습니다.
+ * 하위 호환성을 위해 동일 테이블로 리다이렉트합니다.
  */
-export type SchoolScore = Tables<"student_school_scores">;
+export type SchoolScore = Tables<"student_internal_scores">;
 
 /**
  * 내신 성적 생성 입력 타입 (레거시)
  * @deprecated InternalScoreInsert를 사용하세요
- * 
- * 주의: 이 타입은 student_school_scores 테이블을 참조하지만,
- * 실제 구현은 student_internal_scores 테이블을 사용합니다.
+ *
+ * student_school_scores 테이블은 student_internal_scores로 대체되었습니다.
  */
-export type SchoolScoreInsert = TablesInsert<"student_school_scores">;
+export type SchoolScoreInsert = TablesInsert<"student_internal_scores">;
 
 /**
  * 내신 성적 수정 입력 타입 (레거시)
  * @deprecated InternalScoreUpdate를 사용하세요
- * 
- * 주의: 이 타입은 student_school_scores 테이블을 참조하지만,
- * 실제 구현은 student_internal_scores 테이블을 사용합니다.
+ *
+ * student_school_scores 테이블은 student_internal_scores로 대체되었습니다.
  */
-export type SchoolScoreUpdate = TablesUpdate<"student_school_scores">;
+export type SchoolScoreUpdate = TablesUpdate<"student_internal_scores">;
 
 /**
  * 모의고사 성적 타입

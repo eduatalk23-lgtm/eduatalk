@@ -408,11 +408,11 @@ function PlanCardComponent({
           onComplete={handleComplete}
           pendingAction={pendingAction}
           onPostpone={
-            group.plan.is_reschedulable && !group.plan.actual_end_time
+            (group.plan.is_reschedulable ?? false) && !group.plan.actual_end_time
               ? () => handlePostponePlan(group.plan.id)
               : undefined
           }
-          canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
+          canPostpone={(group.plan.is_reschedulable ?? false) && !group.plan.actual_end_time}
           status={timerState.status}
           accumulatedSeconds={timerState.accumulatedSeconds}
           startedAt={timerState.startedAt}
@@ -481,11 +481,11 @@ function PlanCardComponent({
           onComplete={handleComplete}
           pendingAction={pendingAction}
           onPostpone={
-            group.plan.is_reschedulable && !group.plan.actual_end_time
+            (group.plan.is_reschedulable ?? false) && !group.plan.actual_end_time
               ? () => handlePostponePlan(group.plan.id)
               : undefined
           }
-          canPostpone={group.plan.is_reschedulable && !group.plan.actual_end_time}
+          canPostpone={(group.plan.is_reschedulable ?? false) && !group.plan.actual_end_time}
           compact
           status={timerState.status}
           accumulatedSeconds={timerState.accumulatedSeconds}

@@ -139,9 +139,15 @@ async function getPlansFromView(options: {
     view_content_subject_category: string | null;
     view_content_category: string | null;
     memo: string | null;
-    subject_type: "strategy" | "weakness" | null;
+    subject_type: string | null;
     created_at: string;
     updated_at: string | null;
+    // 추가 필드 (View에서 제공되지 않을 수 있음)
+    is_active: boolean | null;
+    origin_plan_item_id: string | null;
+    status: string | null;
+    version: number | null;
+    version_group_id: string | null;
   };
 
   // View에서 필요한 필드만 조회 (view_* 필드 포함)
@@ -238,6 +244,13 @@ async function getPlansFromView(options: {
       memo: row.memo,
       created_at: row.created_at,
       updated_at: row.updated_at ?? new Date().toISOString(),
+      // 추가 필드 (View에서 제공되지 않을 수 있음)
+      is_active: row.is_active ?? null,
+      origin_plan_item_id: row.origin_plan_item_id ?? null,
+      status: row.status ?? null,
+      subject_type: row.subject_type ?? null,
+      version: row.version ?? null,
+      version_group_id: row.version_group_id ?? null,
     };
   });
 

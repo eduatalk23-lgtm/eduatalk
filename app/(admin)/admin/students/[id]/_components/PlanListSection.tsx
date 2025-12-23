@@ -7,14 +7,14 @@ type Plan = {
   id: string;
   plan_date: string;
   block_index: number;
-  content_type: "book" | "lecture" | "custom";
+  content_type: "book" | "lecture" | "custom" | string;
   content_id: string;
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
   planned_end_page_or_time?: number | null;
   completed_amount?: number | null;
   progress?: number | null;
-  is_reschedulable: boolean;
+  is_reschedulable?: boolean | null;
 };
 
 const contentTypeLabels: Record<string, string> = {

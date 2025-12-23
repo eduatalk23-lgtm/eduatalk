@@ -12,6 +12,8 @@ import { CampTemplate, CampProgramType } from "@/lib/types/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { BlockSetWithBlocks } from "@/lib/data/blockSets";
 import { CampTemplateImpactSummary } from "@/lib/data/campTemplates";
+import { SlotTemplateEditor } from "./SlotTemplateEditor";
+import type { SlotTemplate } from "@/lib/types/content-selection";
 
 type CampTemplateEditFormProps = {
   template: CampTemplate;
@@ -88,6 +90,15 @@ export function CampTemplateEditForm({
   >(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  // 슬롯 템플릿 상태
+  const [slotTemplates, setSlotTemplates] = useState<SlotTemplate[]>(() => {
+    const templates = template.slot_templates;
+    if (Array.isArray(templates)) {
+      return templates as SlotTemplate[];
+    }
+    return [];
+  });
+
   // 저장 함수를 받는 콜백을 useCallback으로 메모이제이션
   const handleSaveRequest = useCallback((saveFn: () => Promise<void>) => {
     setWizardSaveFunction(() => saveFn);
@@ -113,6 +124,11 @@ export function CampTemplateEditForm({
     }
     if (campLocation) {
       formData.append("camp_location", campLocation);
+    }
+
+    // 슬롯 템플릿 추가
+    if (slotTemplates.length > 0) {
+      formData.append("slot_templates", JSON.stringify(slotTemplates));
     }
 
     const result = await updateCampTemplateAction(template.id, formData);
@@ -360,6 +376,12 @@ export function CampTemplateEditForm({
           </div>
         )}
       </div>
+
+      {/* 슬롯 템플릿 설정 */}
+      <SlotTemplateEditor
+        slotTemplates={slotTemplates}
+        onSlotTemplatesChange={setSlotTemplates}
+      />
 
       {/* 플랜 그룹 위저드 */}
       <PlanGroupWizard

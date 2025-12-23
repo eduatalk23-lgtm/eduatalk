@@ -10,8 +10,7 @@ import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
 import { classifyPlanContents } from "@/lib/data/planContents";
-import type { PlanStatus } from "@/lib/types/plan";
-import type { Plan } from "@/lib/data/studentPlans";
+import type { PlanStatus, Plan } from "@/lib/types/plan";
 import {
   planPurposeLabels,
   schedulerTypeLabels,
@@ -142,6 +141,13 @@ export default async function PlanGroupDetailPage({
     memo: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    // 추가 필드
+    is_active: null,
+    origin_plan_item_id: null,
+    status: null,
+    subject_type: null,
+    version: null,
+    version_group_id: null,
   })) as Plan[];
 
   // 완료 여부 및 완료 개수 계산
