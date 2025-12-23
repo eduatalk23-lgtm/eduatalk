@@ -91,6 +91,10 @@ export type PlanGenerationPreparedData = {
   contentDurationMap: ContentDurationMap;
   chapterMap: Map<string, string | null>;
   dateAllocations: DateAllocationResult[];
+  /** 슬롯 모드 사용 여부 */
+  useSlotMode: boolean;
+  /** 슬롯 모드일 때 콘텐츠 슬롯 정보 */
+  contentSlots: Array<unknown> | null;
 };
 
 /**
@@ -153,13 +157,33 @@ export async function preparePlanGenerationData(
     };
   }
 
-  if (contents.length === 0) {
+  // 슬롯 모드 확인: use_slot_mode가 true이고 content_slots가 있으면 콘텐츠 없이도 허용
+  const useSlotMode = (group.scheduler_options as Record<string, unknown>)?.use_slot_mode === true;
+  const contentSlots = (group.scheduler_options as Record<string, unknown>)?.content_slots as Array<unknown> | undefined;
+  const hasContentSlots = Array.isArray(contentSlots) && contentSlots.length > 0;
+
+  if (contents.length === 0 && !useSlotMode) {
     return {
       success: false,
       error: "플랜 콘텐츠가 없습니다.",
       errorCode: ServiceErrorCodes.INVALID_INPUT,
     };
   }
+
+  // 슬롯 모드인데 content_slots도 없는 경우
+  if (contents.length === 0 && useSlotMode && !hasContentSlots) {
+    return {
+      success: false,
+      error: "슬롯 모드가 활성화되었지만 콘텐츠 슬롯이 설정되지 않았습니다.",
+      errorCode: ServiceErrorCodes.INVALID_INPUT,
+    };
+  }
+
+  logger.debug("preparePlanGenerationData", "플랜 모드 확인", {
+    useSlotMode,
+    hasContentSlots,
+    contentsCount: contents.length,
+  });
 
   logger.debug("preparePlanGenerationData", "플랜 그룹 조회 완료", {
     contentsCount: contents.length,
@@ -269,40 +293,59 @@ export async function preparePlanGenerationData(
   });
 
   // 6. 콘텐츠 해석 (서비스 레이어 사용)
-  const contentResolution = await adaptContentResolution(
-    contents,
-    context,
-    { useServiceLayer: config.useContentResolutionService }
-  );
+  // 슬롯 모드에서 콘텐츠가 없으면 빈 맵 사용 (가상 플랜 생성 시)
+  let contentIdMap: Map<string, string> = new Map();
+  let contentMetadataMap: ContentMetadataMap = new Map();
+  let contentDurationMap: ContentDurationMap = new Map();
+  let chapterMap: Map<string, string | null> = new Map();
 
-  const { contentIdMap, contentMetadataMap, contentDurationMap, chapterMap } =
-    contentResolution;
+  if (contents.length > 0) {
+    const contentResolution = await adaptContentResolution(
+      contents,
+      context,
+      { useServiceLayer: config.useContentResolutionService }
+    );
 
-  // 7. 스케줄 생성 (어댑터 통해 기존 함수 호출)
-  const scheduledPlans = await adaptScheduleGeneration({
-    group,
-    contents,
-    exclusions,
-    academySchedules,
-    blocks: baseBlocks,
-    contentIdMap,
-    contentDurationMap,
-    chapterMap,
-    dateAvailableTimeRanges,
-    dateTimeSlots,
-  });
-
-  if (scheduledPlans.length === 0) {
-    return {
-      success: false,
-      error: "일정에 맞는 플랜을 생성할 수 없습니다.",
-      errorCode: ServiceErrorCodes.SCHEDULE_GENERATION_FAILED,
-    };
+    contentIdMap = contentResolution.contentIdMap;
+    contentMetadataMap = contentResolution.contentMetadataMap;
+    contentDurationMap = contentResolution.contentDurationMap;
+    chapterMap = contentResolution.chapterMap;
+  } else {
+    logger.debug("preparePlanGenerationData", "슬롯 모드: 콘텐츠 없이 진행 (가상 플랜 생성 예정)");
   }
 
-  logger.debug("preparePlanGenerationData", "스케줄 생성 완료", {
-    scheduledPlansCount: scheduledPlans.length,
-  });
+  // 7. 스케줄 생성 (어댑터 통해 기존 함수 호출)
+  // 슬롯 모드에서 콘텐츠가 없으면 스케줄 생성 스킵 (가상 플랜 생성 시)
+  let scheduledPlans: Awaited<ReturnType<typeof adaptScheduleGeneration>> = [];
+
+  if (contents.length > 0) {
+    scheduledPlans = await adaptScheduleGeneration({
+      group,
+      contents,
+      exclusions,
+      academySchedules,
+      blocks: baseBlocks,
+      contentIdMap,
+      contentDurationMap,
+      chapterMap,
+      dateAvailableTimeRanges,
+      dateTimeSlots,
+    });
+
+    if (scheduledPlans.length === 0) {
+      return {
+        success: false,
+        error: "일정에 맞는 플랜을 생성할 수 없습니다.",
+        errorCode: ServiceErrorCodes.SCHEDULE_GENERATION_FAILED,
+      };
+    }
+
+    logger.debug("preparePlanGenerationData", "스케줄 생성 완료", {
+      scheduledPlansCount: scheduledPlans.length,
+    });
+  } else {
+    logger.debug("preparePlanGenerationData", "슬롯 모드: 스케줄 생성 스킵 (가상 플랜 생성 예정)");
+  }
 
   // 8. 날짜별 시간 할당
   const plansByDate = new Map<string, typeof scheduledPlans>();
@@ -389,5 +432,7 @@ export async function preparePlanGenerationData(
     contentDurationMap,
     chapterMap,
     dateAllocations,
+    useSlotMode,
+    contentSlots: hasContentSlots ? (contentSlots as Array<unknown>) : null,
   };
 }

@@ -28,6 +28,7 @@ import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
+import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
 import {
   getHigherPriorityExclusionType,
 } from "@/lib/utils/exclusionHierarchy";
@@ -165,6 +166,24 @@ async function _createPlanGroup(
     mergedSchedulerOptions,
     data.study_review_cycle
   );
+
+  // Dual Write: 슬롯 모드일 때 content_slots에서 subject_allocations 자동 생성
+  if (data.use_slot_mode && data.content_slots && data.content_slots.length > 0) {
+    const generatedAllocations = buildAllocationFromSlots(data.content_slots);
+    if (generatedAllocations.length > 0) {
+      // 기존 subject_allocations가 없거나 빈 배열이면 생성된 것으로 교체
+      if (!mergedSchedulerOptions.subject_allocations || mergedSchedulerOptions.subject_allocations.length === 0) {
+        mergedSchedulerOptions = {
+          ...mergedSchedulerOptions,
+          subject_allocations: generatedAllocations,
+        };
+        console.log("[_createPlanGroup] Dual Write: content_slots에서 subject_allocations 자동 생성", {
+          slotCount: data.content_slots.length,
+          allocationCount: generatedAllocations.length,
+        });
+      }
+    }
+  }
 
   // subject_allocations와 content_allocations 검증
   const subjectAllocations = mergedSchedulerOptions.subject_allocations;

@@ -221,6 +221,7 @@ export function StrategyWeaknessAllocationEditor({
         subject_type: a.subject_type,
         weekly_days: a.weekly_days,
       })),
+      undefined, // contentSlots (슬롯 모드 설정)
       false // UI에서는 로깅 비활성화
     );
   };

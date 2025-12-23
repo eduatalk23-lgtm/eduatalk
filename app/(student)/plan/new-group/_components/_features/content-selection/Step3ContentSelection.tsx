@@ -56,6 +56,9 @@ function Step3ContentSelectionComponent({
   const contextData = context?.state?.wizardData;
   const contextFieldErrors = context?.state?.fieldErrors;
   const contextUpdateData = context?.updateData;
+
+  // daily_schedule은 context에서 직접 가져옴 (가상 타임라인 계산용)
+  const dailySchedule = contextData?.daily_schedule ?? [];
   
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = (dataProp ?? contextData) as NonNullable<typeof dataProp> | NonNullable<typeof contextData>;
@@ -373,6 +376,7 @@ function Step3ContentSelectionComponent({
           onUseSlotModeChange={handleSlotModeChange}
           onStudentContentsChange={handleStudentContentsUpdate}
           availableContents={availableContentsForSlotMode}
+          dailySchedules={dailySchedule}
           editable={editable}
           isCampMode={isCampMode}
           isTemplateMode={isTemplateMode}

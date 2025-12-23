@@ -317,7 +317,10 @@ export const slotTemplateSchema = z.object({
   is_ghost: z.boolean().optional(),
   ghost_message: z.string().optional(),
   default_search_term: z.string().optional(),
-});
+  // 배정 방식 (전략/취약 과목)
+  subject_type: z.enum(["strategy", "weakness"]).nullable().optional(),
+  weekly_days: z.number().int().min(2).max(4).nullable().optional(),
+});;;
 
 /**
  * 콘텐츠 슬롯 스키마 (plan_groups.content_slots용)
@@ -367,7 +370,19 @@ export const contentSlotSchema = slotTemplateSchema.extend({
     message: "종료 범위는 시작 범위보다 커야 합니다.",
     path: ["end_range"],
   }
-);
+).refine(
+  (data) => {
+    // 전략과목인 경우 weekly_days 필수 (2, 3, 4)
+    if (data.subject_type === "strategy") {
+      return data.weekly_days !== null && data.weekly_days !== undefined;
+    }
+    return true;
+  },
+  {
+    message: "전략과목은 주당 배정 일수(2, 3, 4)를 설정해야 합니다.",
+    path: ["weekly_days"],
+  }
+);;
 
 /**
  * 스케줄러 옵션 스키마

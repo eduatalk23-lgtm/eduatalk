@@ -6,6 +6,7 @@
  */
 
 import type { ContentSlot } from "@/lib/types/content-selection";
+import type { SubjectAllocation } from "@/lib/types/plan/domain";
 import { SCHEDULER_CONFIG } from "@/lib/config/schedulerConfig";
 
 // ============================================================================
@@ -839,4 +840,273 @@ export function groupPlansBySubject(
   });
 
   return grouped;
+}
+
+// ============================================================================
+// 슬롯 → SubjectAllocation 변환
+// ============================================================================
+
+/**
+ * 슬롯 배열에서 SubjectAllocation 배열을 생성합니다.
+ *
+ * 슬롯 모드에서 설정한 subject_type과 weekly_days 정보를
+ * 기존 SubjectAllocation 형식으로 변환하여 하위 호환성을 유지합니다.
+ *
+ * 변환 규칙:
+ * - 각 슬롯의 subject_category를 기준으로 그룹화
+ * - 같은 subject_category에 여러 슬롯이 있으면 첫 번째 슬롯의 설정 사용
+ * - subject_type이 없으면 기본값 "weakness" 사용
+ * - 전략과목(strategy)인 경우 weekly_days 포함 (기본값 3)
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns SubjectAllocation 배열
+ */
+export function buildAllocationFromSlots(
+  slots: ContentSlot[]
+): SubjectAllocation[] {
+  // subject_category별로 그룹화
+  const categoryMap = new Map<
+    string,
+    {
+      subject_id: string;
+      subject_name: string;
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+    }
+  >();
+
+  for (const slot of slots) {
+    // subject_category가 없으면 건너뜀
+    if (!slot.subject_category) continue;
+
+    // 이미 해당 교과의 설정이 있으면 건너뜀 (첫 번째 슬롯 우선)
+    if (categoryMap.has(slot.subject_category)) continue;
+
+    // 기본값: 취약과목
+    const subjectType = slot.subject_type ?? "weakness";
+    const weeklyDays =
+      subjectType === "strategy" ? (slot.weekly_days ?? 3) : undefined;
+
+    categoryMap.set(slot.subject_category, {
+      // subject_id는 슬롯에 설정된 값 사용, 없으면 빈 문자열
+      subject_id: slot.subject_id ?? "",
+      // subject_name은 subject_category 사용
+      subject_name: slot.subject_category,
+      subject_type: subjectType,
+      weekly_days: weeklyDays,
+    });
+  }
+
+  // Map을 배열로 변환
+  return Array.from(categoryMap.values());
+}
+
+/**
+ * 슬롯 배열에서 고유한 교과 목록을 추출합니다.
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns 교과별 배정 정보 요약
+ */
+export function getSlotAllocationSummary(
+  slots: ContentSlot[]
+): Array<{
+  subject_category: string;
+  subject_type: "strategy" | "weakness";
+  weekly_days?: number;
+  slot_count: number;
+}> {
+  const summaryMap = new Map<
+    string,
+    {
+      subject_type: "strategy" | "weakness";
+      weekly_days?: number;
+      slot_count: number;
+    }
+  >();
+
+  for (const slot of slots) {
+    if (!slot.subject_category) continue;
+
+    const existing = summaryMap.get(slot.subject_category);
+    if (existing) {
+      existing.slot_count++;
+    } else {
+      summaryMap.set(slot.subject_category, {
+        subject_type: slot.subject_type ?? "weakness",
+        weekly_days:
+          slot.subject_type === "strategy"
+            ? (slot.weekly_days ?? 3)
+            : undefined,
+        slot_count: 1,
+      });
+    }
+  }
+
+  return Array.from(summaryMap.entries()).map(([category, data]) => ({
+    subject_category: category,
+    ...data,
+  }));
+}
+
+// ============================================================================
+// 가상 플랜 아이템 → DB 레코드 변환
+// ============================================================================
+
+/**
+ * 가상 플랜 DB 레코드 타입
+ *
+ * student_plan 테이블에 삽입할 수 있는 형식입니다.
+ */
+export type VirtualPlanDbRecord = {
+  tenant_id: string;
+  student_id: string;
+  plan_group_id: string;
+  plan_date: string;
+  block_index: number;
+  content_type: "book" | "lecture" | "custom";
+  content_id: string; // 가상 플랜의 경우 빈 UUID 사용
+  chapter: string | null;
+  planned_start_page_or_time: number | null;
+  planned_end_page_or_time: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  day_type: string | null;
+  week: number | null;
+  day: number | null;
+  subject_type: "strategy" | "weakness" | null;
+  status: string;
+  is_active: boolean;
+  // 가상 플랜 전용 필드
+  is_virtual: boolean;
+  slot_index: number | null;
+  virtual_subject_category: string | null;
+  virtual_description: string | null;
+};
+
+/**
+ * 가상 플랜 생성 옵션
+ */
+export type GenerateVirtualPlanItemsOptions = {
+  /** 테넌트 ID */
+  tenantId: string;
+  /** 학생 ID */
+  studentId: string;
+  /** 플랜 그룹 ID */
+  planGroupId: string;
+  /** 가상 플랜용 더미 content_id (기본값: 00000000-0000-0000-0000-000000000000) */
+  virtualContentId?: string;
+};
+
+/**
+ * VirtualPlanItem 배열을 DB에 삽입 가능한 형식으로 변환합니다.
+ *
+ * 콘텐츠가 연결되지 않은 슬롯(가상 플랜)을 student_plan 테이블에
+ * 저장할 수 있는 형식으로 변환합니다.
+ *
+ * 가상 플랜의 특성:
+ * - is_virtual = true
+ * - content_id는 빈 UUID (00000000-0000-0000-0000-000000000000)
+ * - slot_index로 원본 슬롯 참조
+ * - virtual_subject_category에 교과 정보 저장
+ * - virtual_description에 설명 저장 (예: "수학 학습 예정")
+ *
+ * @param virtualPlans - 가상 플랜 아이템 배열
+ * @param slots - 원본 콘텐츠 슬롯 배열 (subject_type 정보 참조)
+ * @param options - 생성 옵션 (tenantId, studentId, planGroupId)
+ * @returns DB에 삽입 가능한 가상 플랜 레코드 배열
+ */
+export function generateVirtualPlanItems(
+  virtualPlans: VirtualPlanItem[],
+  slots: ContentSlot[],
+  options: GenerateVirtualPlanItemsOptions
+): VirtualPlanDbRecord[] {
+  const {
+    tenantId,
+    studentId,
+    planGroupId,
+    virtualContentId = "00000000-0000-0000-0000-000000000000",
+  } = options;
+
+  // 슬롯 인덱스로 subject_type 조회하기 위한 맵
+  const slotSubjectTypeMap = new Map<number, "strategy" | "weakness">();
+  slots.forEach((slot, index) => {
+    slotSubjectTypeMap.set(index, slot.subject_type ?? "weakness");
+  });
+
+  // 일별 block_index 카운터 (같은 날짜에 여러 플랜이 있을 수 있음)
+  const dateBlockIndexMap = new Map<string, number>();
+
+  return virtualPlans
+    .filter((plan) => {
+      // 콘텐츠가 없는 슬롯만 가상 플랜으로 생성
+      const slot = slots[plan.slot_index];
+      return slot && !slot.content_id;
+    })
+    .map((plan) => {
+      const slot = slots[plan.slot_index];
+
+      // 해당 날짜의 block_index 계산
+      const currentBlockIndex = dateBlockIndexMap.get(plan.date) ?? 0;
+      dateBlockIndexMap.set(plan.date, currentBlockIndex + 1);
+
+      // slot_type에 따른 content_type 결정
+      const contentType: "book" | "lecture" | "custom" =
+        slot.slot_type === "lecture" ? "lecture" : "book";
+
+      // 가상 플랜 설명 생성
+      const description = `${plan.subject_category} 학습 예정`;
+
+      // subject_type 결정
+      const subjectType = slotSubjectTypeMap.get(plan.slot_index) ?? "weakness";
+
+      // 주차에서 일 번호 계산 (week_number와 date로부터)
+      const dateObj = new Date(plan.date);
+      const dayOfWeek = dateObj.getDay(); // 0 = 일요일
+
+      return {
+        tenant_id: tenantId,
+        student_id: studentId,
+        plan_group_id: planGroupId,
+        plan_date: plan.date,
+        block_index: currentBlockIndex,
+        content_type: contentType,
+        content_id: virtualContentId,
+        chapter: null,
+        planned_start_page_or_time: plan.range_start ?? null,
+        planned_end_page_or_time: plan.range_end ?? null,
+        start_time: plan.start_time,
+        end_time: plan.end_time,
+        day_type: plan.day_type,
+        week: plan.week_number,
+        day: dayOfWeek,
+        subject_type: subjectType,
+        status: "pending",
+        is_active: true,
+        // 가상 플랜 전용 필드
+        is_virtual: true,
+        slot_index: plan.slot_index,
+        virtual_subject_category: plan.subject_category,
+        virtual_description: description,
+      };
+    });
+}
+
+/**
+ * 슬롯 중 콘텐츠가 없는 가상 슬롯만 필터링합니다.
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns 가상 슬롯만 포함된 배열
+ */
+export function filterVirtualSlots(slots: ContentSlot[]): ContentSlot[] {
+  return slots.filter((slot) => !slot.content_id && slot.subject_category);
+}
+
+/**
+ * 슬롯 중 실제 콘텐츠가 연결된 슬롯만 필터링합니다.
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns 실제 콘텐츠가 연결된 슬롯만 포함된 배열
+ */
+export function filterContentSlots(slots: ContentSlot[]): ContentSlot[] {
+  return slots.filter((slot) => slot.content_id);
 }

@@ -241,6 +241,7 @@ export async function generatePlansFromGroup(
         },
         contentAllocations,
         subjectAllocations,
+        undefined, // contentSlots (슬롯 모드 설정)
         false // 프로덕션에서는 로깅 비활성화
       );
       plan.subject_type = allocation.subject_type;

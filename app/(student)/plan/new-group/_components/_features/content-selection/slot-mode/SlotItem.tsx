@@ -31,6 +31,11 @@ import { SlotAdvancedSettings, GhostSlotActivator } from "./SlotAdvancedSettings
 // 타입 정의
 // ============================================================================
 
+type SubjectInfo = {
+  id: string;
+  name: string;
+};
+
 type SlotItemProps = {
   slot: ContentSlot;
   index: number;
@@ -43,6 +48,9 @@ type SlotItemProps = {
   allSlots?: ContentSlot[];
   onActivateGhost?: (slot: ContentSlot) => void;
   onDismissGhost?: (slot: ContentSlot) => void;
+  // 과목 목록 (subject_category에 해당하는 과목들)
+  subjects?: SubjectInfo[];
+  isLoadingSubjects?: boolean;
   // 드래그앤드롭 props
   isDragging?: boolean;
   isDragOver?: boolean;
@@ -139,6 +147,9 @@ function SlotItemComponent({
   allSlots = [],
   onActivateGhost,
   onDismissGhost,
+  // 과목 목록
+  subjects = [],
+  isLoadingSubjects = false,
   // 드래그앤드롭 props
   isDragging = false,
   isDragOver = false,
@@ -189,6 +200,43 @@ function SlotItemComponent({
         subject_category: e.target.value,
         // 교과 변경 시 과목 초기화
         subject_id: null,
+      });
+    },
+    [slot, onUpdate]
+  );
+
+  // 배정 방식 변경 (전략과목/취약과목)
+  const handleSubjectTypeChange = useCallback(
+    (newSubjectType: "strategy" | "weakness") => {
+      onUpdate({
+        ...slot,
+        subject_type: newSubjectType,
+        // 취약과목으로 변경 시 weekly_days 초기화
+        weekly_days: newSubjectType === "weakness" ? null : (slot.weekly_days ?? 3),
+      });
+    },
+    [slot, onUpdate]
+  );
+
+  // 주당 배정 일수 변경
+  const handleWeeklyDaysChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const days = parseInt(e.target.value, 10);
+      onUpdate({
+        ...slot,
+        weekly_days: isNaN(days) ? null : days,
+      });
+    },
+    [slot, onUpdate]
+  );
+
+  // 과목 변경
+  const handleSubjectIdChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const subjectId = e.target.value || null;
+      onUpdate({
+        ...slot,
+        subject_id: subjectId,
       });
     },
     [slot, onUpdate]
@@ -443,6 +491,107 @@ function SlotItemComponent({
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 md:right-2 md:h-4 md:w-4" />
         </div>
       </div>
+
+      {/* 과목 선택 (교과가 선택되고 과목 목록이 있는 경우) */}
+      {slot.subject_category && subjects.length > 0 && (
+        <div className="mb-3 md:mb-2">
+          <div className="relative">
+            <select
+              value={slot.subject_id || ""}
+              onChange={handleSubjectIdChange}
+              disabled={!editable || isLocked || isLoadingSubjects}
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "w-full appearance-none rounded-md border bg-white px-3 py-3 pr-8 text-base md:py-2 md:text-sm",
+                "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500",
+                (!editable || isLocked || isLoadingSubjects) && "cursor-not-allowed opacity-60"
+              )}
+            >
+              <option value="">과목 선택 (선택사항)</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 md:right-2 md:h-4 md:w-4" />
+          </div>
+        </div>
+      )}
+
+      {/* 배정 방식 (전략과목/취약과목) - 교과가 선택된 경우에만 표시 */}
+      {slot.subject_category && (
+        <div className="mb-3 md:mb-2">
+          <div className="mb-1.5 text-xs font-medium text-gray-500">배정 방식</div>
+          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+            {/* 취약과목 라디오 */}
+            <label
+              className={cn(
+                "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-sm transition-all md:py-2",
+                slot.subject_type !== "strategy"
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
+                (!editable || isLocked) && "cursor-not-allowed opacity-60"
+              )}
+            >
+              <input
+                type="radio"
+                name={`subject-type-${slot.slot_index}`}
+                checked={slot.subject_type !== "strategy"}
+                onChange={() => handleSubjectTypeChange("weakness")}
+                disabled={!editable || isLocked}
+                className="sr-only"
+              />
+              <span>취약과목</span>
+              <span className="text-xs text-gray-400">(매일)</span>
+            </label>
+            {/* 전략과목 라디오 */}
+            <label
+              className={cn(
+                "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-sm transition-all md:py-2",
+                slot.subject_type === "strategy"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300",
+                (!editable || isLocked) && "cursor-not-allowed opacity-60"
+              )}
+            >
+              <input
+                type="radio"
+                name={`subject-type-${slot.slot_index}`}
+                checked={slot.subject_type === "strategy"}
+                onChange={() => handleSubjectTypeChange("strategy")}
+                disabled={!editable || isLocked}
+                className="sr-only"
+              />
+              <span>전략과목</span>
+            </label>
+          </div>
+
+          {/* 주당 배정 일수 (전략과목인 경우에만 표시) */}
+          {slot.subject_type === "strategy" && (
+            <div className="mt-2">
+              <div className="relative">
+                <select
+                  value={slot.weekly_days ?? 3}
+                  onChange={handleWeeklyDaysChange}
+                  disabled={!editable || isLocked}
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "w-full appearance-none rounded-md border bg-white px-3 py-2.5 pr-8 text-sm md:py-2",
+                    "focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500",
+                    (!editable || isLocked) && "cursor-not-allowed opacity-60"
+                  )}
+                >
+                  <option value={2}>주 2일</option>
+                  <option value={3}>주 3일 (기본)</option>
+                  <option value={4}>주 4일</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 연결된 콘텐츠 표시 */}
       {slot.content_id && slot.title && (

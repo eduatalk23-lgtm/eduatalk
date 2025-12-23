@@ -3,8 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getSubjectGroups, getSubjectsByGroup, getSubjectsByRevision, getSubjectTypes, getSubjectGroupsWithSubjects } from "@/lib/data/subjects";
+import { getSubjectGroups, getSubjectsByGroup, getSubjectsByRevision, getSubjectTypes, getSubjectGroupsWithSubjects, getSubjectsByGroupName } from "@/lib/data/subjects";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
+
+// ============================================================================
+// 학생/공개 액션 (인증만 필요, 관리자 권한 불필요)
+// ============================================================================
+
+/**
+ * 교과 그룹명으로 과목 목록 조회 (학생 사용 가능)
+ * 슬롯 모드에서 subject_category로 과목 목록을 가져올 때 사용
+ */
+export async function getSubjectsByGroupNameAction(
+  subjectGroupName: string,
+  curriculumRevisionId?: string
+): Promise<Subject[]> {
+  // 인증 없이 공개 데이터 접근 허용 (과목 목록은 공개 정보)
+  return getSubjectsByGroupName(subjectGroupName, curriculumRevisionId);
+}
+
+// ============================================================================
+// 관리자 전용 액션
+// ============================================================================
 
 // 교과 그룹 목록 조회 (전역 관리)
 export async function getSubjectGroupsAction(

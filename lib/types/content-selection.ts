@@ -619,6 +619,12 @@ export type SlotTemplate = {
   ghost_message?: string;
   /** 기본 검색어 (동적 기본값) */
   default_search_term?: string;
+
+  // === 배정 방식 (전략/취약 과목) ===
+  /** 과목 배정 유형 (전략과목/취약과목) */
+  subject_type?: "strategy" | "weakness" | null;
+  /** 전략과목일 경우 주당 배정 일수 (2, 3, 4) */
+  weekly_days?: number | null;
 };
 
 /**
