@@ -13,6 +13,7 @@ import { StepErrorBoundary } from "./common/StepErrorBoundary";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "./PlanGroupWizard";
 import type { WizardMode } from "./utils/modeUtils";
+import { SaveStatusIndicator, type SaveStatus } from "./_ui/SaveStatusIndicator";
 
 /**
  * BasePlanWizard Props
@@ -90,7 +91,15 @@ export function BasePlanWizard({
       validationWarnings,
       fieldErrors,
     },
+    isDirty,
   } = usePlanWizard();
+
+  // UX-3: 저장 상태 계산
+  const saveStatus: SaveStatus = isSubmitting
+    ? "saving"
+    : isDirty
+    ? "unsaved"
+    : "idle";
 
   return (
     <div className="mx-auto w-full max-w-4xl">
@@ -131,7 +140,10 @@ export function BasePlanWizard({
               </Link>
             )}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* UX-3: 저장 상태 표시기 */}
+            <SaveStatusIndicator status={saveStatus} compact />
+
             <button
               type="button"
               onClick={onCancel}

@@ -11,6 +11,10 @@ import {
 } from "react";
 import type { WizardData, WizardStep } from "../PlanGroupWizard";
 import { hasWizardDataChanged } from "../utils/wizardDataComparison";
+import {
+  scrollToFirstErrorField,
+  getHighestPriorityErrorField,
+} from "../utils/errorFieldUtils";
 
 /**
  * Wizard 상태 타입
@@ -39,6 +43,7 @@ export type WizardAction =
   | { type: "SET_ERRORS"; payload: string[] }
   | { type: "SET_WARNINGS"; payload: string[] }
   | { type: "SET_FIELD_ERROR"; payload: { field: string; error: string } }
+  | { type: "SET_FIELD_ERRORS"; payload: Map<string, string> }
   | { type: "CLEAR_FIELD_ERROR"; payload: string }
   | { type: "CLEAR_VALIDATION" }
   | { type: "SET_DRAFT_ID"; payload: string | null }
@@ -97,12 +102,18 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         ...state,
         validationWarnings: action.payload,
       };
-    case "SET_FIELD_ERROR":
+    case "SET_FIELD_ERROR": {
       const newFieldErrors = new Map(state.fieldErrors);
       newFieldErrors.set(action.payload.field, action.payload.error);
       return {
         ...state,
         fieldErrors: newFieldErrors,
+      };
+    }
+    case "SET_FIELD_ERRORS":
+      return {
+        ...state,
+        fieldErrors: new Map(action.payload),
       };
     case "CLEAR_FIELD_ERROR":
       const clearedFieldErrors = new Map(state.fieldErrors);
@@ -281,6 +292,7 @@ type PlanWizardContextType = {
   setErrors: (errors: string[]) => void;
   setWarnings: (warnings: string[]) => void;
   setFieldError: (field: string, error: string) => void;
+  setFieldErrors: (errors: Map<string, string>) => void;
   clearFieldError: (field: string) => void;
   clearValidation: () => void;
   setDraftId: (id: string | null) => void;
@@ -288,6 +300,9 @@ type PlanWizardContextType = {
   // 변경 사항 감지
   isDirty: boolean;
   resetDirtyState: () => void; // 저장 후 dirty 상태 리셋
+  // UX-1: 에러 필드 스크롤
+  scrollToFirstError: () => void;
+  getFirstErrorField: () => string | null;
 };
 
 export const PlanWizardContext = createContext<PlanWizardContextType | null>(null);
@@ -355,6 +370,10 @@ export function PlanWizardProvider({
     dispatch({ type: "CLEAR_FIELD_ERROR", payload: field });
   }, []);
 
+  const setFieldErrors = useCallback((errors: Map<string, string>) => {
+    dispatch({ type: "SET_FIELD_ERRORS", payload: errors });
+  }, []);
+
   const clearValidation = useCallback(() => {
     dispatch({ type: "CLEAR_VALIDATION" });
   }, []);
@@ -378,6 +397,16 @@ export function PlanWizardProvider({
     dispatch({ type: "RESET_DIRTY_STATE" });
   }, []);
 
+  // UX-1: 에러 필드 스크롤 함수
+  const scrollToFirstError = useCallback(() => {
+    scrollToFirstErrorField(state.fieldErrors);
+  }, [state.fieldErrors]);
+
+  // UX-1: 첫 번째 에러 필드 반환
+  const getFirstErrorField = useCallback(() => {
+    return getHighestPriorityErrorField(state.fieldErrors);
+  }, [state.fieldErrors]);
+
   const value: PlanWizardContextType = {
     state,
     dispatch,
@@ -389,12 +418,15 @@ export function PlanWizardProvider({
     setErrors,
     setWarnings,
     setFieldError,
+    setFieldErrors,
     clearFieldError,
     clearValidation,
     setDraftId,
     setSubmitting,
     isDirty,
     resetDirtyState,
+    scrollToFirstError,
+    getFirstErrorField,
   };
 
   return (
