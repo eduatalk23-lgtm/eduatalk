@@ -15,17 +15,52 @@ import {
   createPlanExclusions,
   createPlanAcademySchedules,
 } from "@/lib/data/planGroups";
+import {
+  deletePlanContentsByGroupId,
+  deleteExclusionsByGroupId,
+  deleteAcademySchedulesByGroupId,
+  checkPlanPeriodOverlap,
+} from "@/lib/domains/plan/repository";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
-import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import {
   getHigherPriorityExclusionType,
 } from "@/lib/utils/exclusionHierarchy";
+
+/**
+ * 플랜 그룹 생성 실패 시 관련 데이터를 모두 롤백합니다.
+ * 삭제 순서: contents → exclusions → academy_schedules → plan_group
+ */
+async function rollbackPlanGroupCreation(
+  groupId: string,
+  studentId: string
+): Promise<void> {
+  try {
+    // 1. 관련 데이터 삭제 (순서 중요: 자식 테이블부터)
+    await Promise.all([
+      deletePlanContentsByGroupId(groupId).catch((e) =>
+        console.error("[rollback] contents 삭제 실패:", e)
+      ),
+      deleteExclusionsByGroupId(groupId).catch((e) =>
+        console.error("[rollback] exclusions 삭제 실패:", e)
+      ),
+      deleteAcademySchedulesByGroupId(groupId).catch((e) =>
+        console.error("[rollback] academy_schedules 삭제 실패:", e)
+      ),
+    ]);
+
+    // 2. plan_group 삭제 (soft delete)
+    await deletePlanGroup(groupId, studentId);
+  } catch (error) {
+    console.error("[rollback] 플랜 그룹 롤백 실패:", error);
+    // 롤백 실패는 무시하고 원래 에러를 전파
+  }
+}
 
 /**
  * 플랜 그룹을 생성하는 내부 함수입니다.
@@ -166,11 +201,11 @@ async function _createPlanGroup(
 
     if (missingTimeSlots.length > 0) {
       const missingDates = missingTimeSlots.map((d) => d.date);
-      throw new PlanGroupError(
+      throw new AppError(
         `daily_schedule에 time_slots가 없는 날짜가 있습니다: ${missingDates.join(", ")}`,
-        PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED,
-        ErrorUserMessages[PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED],
-        false,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true,
         {
           missingDates,
           totalDays: data.daily_schedule.length,
@@ -200,11 +235,6 @@ async function _createPlanGroup(
       console.warn("[_createPlanGroup] 캠프 플랜 그룹 확인 중 에러 (무시하고 계속 진행):", campGroupError);
     } else if (existingCampGroup) {
       // 기존 캠프 플랜 그룹이 있으면 업데이트
-      console.log("[_createPlanGroup] 기존 캠프 플랜 그룹 발견, 업데이트 진행:", {
-        groupId: existingCampGroup.id,
-        status: existingCampGroup.status,
-        camp_invitation_id: data.camp_invitation_id,
-      });
       await updatePlanGroupDraftAction(existingCampGroup.id, data);
       revalidatePath("/plan");
       return { groupId: existingCampGroup.id };
@@ -224,6 +254,25 @@ async function _createPlanGroup(
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePath("/plan");
     return { groupId: existingGroup.id };
+  }
+
+  // 플랜 기간 중복 검증 (활성/진행 중인 플랜과 겹치는지 확인)
+  const overlapResult = await checkPlanPeriodOverlap(
+    studentId,
+    data.period_start,
+    data.period_end
+  );
+
+  if (overlapResult.hasOverlap) {
+    const overlappingNames = overlapResult.overlappingPlans
+      .map((p) => p.name || "이름 없음")
+      .join(", ");
+    throw new AppError(
+      `선택한 기간이 기존 플랜과 겹칩니다: ${overlappingNames}`,
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
   }
 
   const groupResult = await createPlanGroup({
@@ -252,6 +301,22 @@ async function _createPlanGroup(
   });
 
   if (!groupResult.success || !groupResult.groupId) {
+    // Unique violation (23505): 동시 요청으로 인한 중복 생성 시도
+    // 기존 draft를 찾아서 업데이트
+    if (groupResult.errorCode === "23505") {
+      const retryExistingGroup = await findExistingDraftPlanGroup(
+        supabase,
+        studentId,
+        data.name || null,
+        data.camp_invitation_id || null
+      );
+      if (retryExistingGroup) {
+        await updatePlanGroupDraftAction(retryExistingGroup.id, data);
+        revalidatePath("/plan");
+        return { groupId: retryExistingGroup.id };
+      }
+    }
+
     throw new AppError(
       groupResult.error || "플랜 그룹 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -366,9 +431,9 @@ async function _createPlanGroup(
     ]
   );
 
-  // 하나라도 실패하면 롤백 (간단한 구현)
+  // 하나라도 실패하면 전체 롤백 (관련 데이터 모두 삭제)
   if (!contentsResult.success) {
-    await deletePlanGroup(groupId, studentId); // student_id로 삭제
+    await rollbackPlanGroupCreation(groupId, studentId);
     throw new AppError(
       contentsResult.error || "플랜 콘텐츠 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -378,7 +443,7 @@ async function _createPlanGroup(
   }
 
   if (!exclusionsResult.success) {
-    await deletePlanGroup(groupId, studentId); // student_id로 삭제
+    await rollbackPlanGroupCreation(groupId, studentId);
     throw new AppError(
       exclusionsResult.error || "플랜 제외일 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -388,7 +453,7 @@ async function _createPlanGroup(
   }
 
   if (!schedulesResult.success) {
-    await deletePlanGroup(groupId, studentId); // student_id로 삭제
+    await rollbackPlanGroupCreation(groupId, studentId);
     throw new AppError(
       schedulesResult.error || "학원 일정 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -432,22 +497,6 @@ export const createPlanGroupAction = withErrorHandling(
       studentId?: string | null; // 관리자 모드에서 직접 지정하는 student_id
     }
   ) => {
-    // 입력 데이터 로깅 (개발 환경에서만, 민감 정보 제외)
-    if (process.env.NODE_ENV === "development") {
-      console.log("[createPlanGroupAction] 플랜 그룹 생성 시작:", {
-        name: data.name,
-        plan_purpose: data.plan_purpose,
-        scheduler_type: data.scheduler_type,
-        period_start: data.period_start,
-        period_end: data.period_end,
-        block_set_id: data.block_set_id,
-        contents_count: data.contents?.length || 0,
-        exclusions_count: data.exclusions?.length || 0,
-        academy_schedules_count: data.academy_schedules?.length || 0,
-        skipContentValidation: options?.skipContentValidation,
-      });
-    }
-
     return await _createPlanGroup(data, options);
   }
 );
@@ -592,6 +641,22 @@ async function _savePlanGroupDraft(
   });
 
   if (!groupResult.success || !groupResult.groupId) {
+    // Unique violation (23505): 동시 요청으로 인한 중복 생성 시도
+    // 기존 draft를 찾아서 업데이트
+    if (groupResult.errorCode === "23505") {
+      const retryExistingGroup = await findExistingDraftPlanGroup(
+        supabase,
+        studentId,
+        data.name,
+        data.camp_invitation_id || null
+      );
+      if (retryExistingGroup) {
+        await updatePlanGroupDraftAction(retryExistingGroup.id, data);
+        revalidatePath("/plan");
+        return { groupId: retryExistingGroup.id };
+      }
+    }
+
     throw new AppError(
       groupResult.error || "플랜 그룹 임시저장에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,

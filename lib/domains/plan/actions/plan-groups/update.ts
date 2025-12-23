@@ -166,13 +166,6 @@ async function _updatePlanGroupDraft(
     }
   }
   
-  // 최종 확인
-  if ("template_block_set_id" in mergedSchedulerOptions) {
-    console.log("[_updatePlanGroupDraft] 최종 mergedSchedulerOptions에 template_block_set_id 보존됨:", {
-      template_block_set_id: mergedSchedulerOptions.template_block_set_id,
-    });
-  }
-
   // subject_allocations와 content_allocations 검증
   const subjectAllocations = mergedSchedulerOptions.subject_allocations;
   const contentAllocations = mergedSchedulerOptions.content_allocations;

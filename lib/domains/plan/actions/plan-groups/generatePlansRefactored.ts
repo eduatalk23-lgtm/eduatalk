@@ -532,11 +532,6 @@ async function _generatePlansFromGroupRefactored(
         }
       }
 
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          `[generatePlansRefactored] 캠프 모드: ${contentsToUpdate.length}개 plan_contents의 detail ID를 학생 콘텐츠 ID로 업데이트`
-        );
-      }
     }
   }
 
@@ -573,16 +568,6 @@ async function _generatePlansFromGroupRefactored(
     const contentsWithoutEpisodes = lectureContentsWithEpisodes.filter(
       (c) => !c.hasEpisodes
     );
-
-    if (contentsWithEpisodes.length > 0) {
-      console.log(
-        `[generatePlansRefactored] 강의 콘텐츠 episode 정보 확인: ${contentsWithEpisodes.length}개 콘텐츠에 episode 정보 있음`,
-        contentsWithEpisodes.map((c) => ({
-          content_id: c.content_id,
-          episode_count: c.episodeCount,
-        }))
-      );
-    }
 
     if (contentsWithoutEpisodes.length > 0) {
       console.warn(
@@ -942,47 +927,6 @@ async function _generatePlansFromGroupRefactored(
       );
     }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[generatePlansRefactored] ${date} plans precalc check:`,
-        plansForAssign.map((p) => ({
-          id: p.content_id,
-          range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
-          start: p._precalculated_start,
-          end: p._precalculated_end,
-        }))
-      );
-    }
-
-    // Episode 정보 전달 확인 (개발 환경에서만)
-    if (process.env.NODE_ENV === "development") {
-      const lecturePlans = plansForAssign.filter(
-        (p) => p.content_type === "lecture"
-      );
-      if (lecturePlans.length > 0) {
-        const plansWithEpisodeInfo = lecturePlans
-          .map((p) => {
-            const durationInfo = contentDurationMap.get(p.content_id);
-            return {
-              content_id: p.content_id,
-              has_episodes: !!(
-                durationInfo?.episodes && durationInfo.episodes.length > 0
-              ),
-              episode_count: durationInfo?.episodes?.length ?? 0,
-              range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
-            };
-          })
-          .filter((p) => p.has_episodes);
-
-        if (plansWithEpisodeInfo.length > 0) {
-          console.log(
-            `[generatePlansRefactored] assignPlanTimes 호출 전 episode 정보 확인: ${plansWithEpisodeInfo.length}개 강의 플랜에 episode 정보 있음`,
-            plansWithEpisodeInfo
-          );
-        }
-      }
-    }
-
     // Episode별 플랜 분할 (Pre-calculated time 여부와 무관하게)
     // 큰 범위(예: 2~23)를 개별 episode로 분할하여 각 episode의 실제 duration을 정확히 반영
     // 단, SchedulerEngine이 이미 episode별로 분할한 경우(start === end)는 재분할하지 않음
@@ -1017,78 +961,14 @@ async function _generatePlansFromGroupRefactored(
       return [p];
     });
 
-    if (process.env.NODE_ENV === "development") {
-      const splitCount = splitPlansForAssign.length - plansForAssign.length;
-
-      // 분할 전후 precalculated time 비교
-      const beforePrecalcCount = plansForAssign.filter(
-        (p) => p._precalculated_start && p._precalculated_end
-      ).length;
-      const afterPrecalcCount = splitPlansForAssign.filter(
-        (p) => p._precalculated_start && p._precalculated_end
-      ).length;
-
-      console.log(
-        `[generatePlansRefactored] ${date} episode별 분할 및 precalc 상태:`,
-        {
-          before: plansForAssign.length,
-          after: splitPlansForAssign.length,
-          splitCount,
-          beforePrecalcCount,
-          afterPrecalcCount,
-          precalcLost: beforePrecalcCount - afterPrecalcCount,
-          // 분할 후 precalculated time 상세
-          afterSplitDetail: splitPlansForAssign.slice(0, 5).map((p) => ({
-            id: p.content_id.substring(0, 8),
-            range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
-            precalc_start: p._precalculated_start,
-            precalc_end: p._precalculated_end,
-          })),
-        }
-      );
-    }
-
-    // Pre-calculated time이 있으면 사용, 없으면 재계산
-    const hasPrecalculatedTimes = splitPlansForAssign.some(
-      (p) => p._precalculated_start && p._precalculated_end
-    );
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        `[generatePlansRefactored] ${date} assignPlanTimes 호출 전:`,
-        {
-          totalPlans: splitPlansForAssign.length,
-          hasPrecalculatedTimes,
-          studyTimeSlots: studyTimeSlots.length,
-          dayType,
-        }
-      );
-    }
-
-    let timeSegments: import("@/lib/plan/assignPlanTimes").PlanTimeSegment[];
-
-    // Episode별 분할 후 시간 재배정 (모든 플랜에 대해)
-    timeSegments = assignPlanTimes(
+    // Episode별 분할 후 시간 배정
+    const timeSegments = assignPlanTimes(
       splitPlansForAssign,
       studyTimeSlots,
       contentDurationMap,
       dayType,
       totalStudyHours
     );
-
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[generatePlansRefactored] ${date} assignPlanTimes 결과:`, {
-        totalSegments: timeSegments.length,
-        segmentDetail: timeSegments.slice(0, 5).map((s) => ({
-          content_id: s.plan.content_id.substring(0, 8),
-          range: `${s.plan.planned_start_page_or_time}~${s.plan.planned_end_page_or_time}`,
-          start: s.start,
-          end: s.end,
-          precalc_start: s.plan._precalculated_start,
-          precalc_end: s.plan._precalculated_end,
-        })),
-      });
-    }
 
     let blockIndex = 1;
     const now = new Date().toISOString();
@@ -1506,13 +1386,6 @@ async function _generatePlansFromGroupRefactored(
     }
 
     throw new AppError(userMessage, ErrorCode.INTERNAL_ERROR, 500, true);
-  }
-
-  // 성공 시 로깅
-  if (insertedData && insertedData.length > 0) {
-    console.log(
-      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨 (스케줄러 원본: ${scheduledPlans.length}개)`
-    );
   }
 
   // 16. 플랜 그룹 상태 업데이트

@@ -399,7 +399,7 @@ export async function createPlanGroup(
     camp_template_id?: string | null;
     camp_invitation_id?: string | null;
   }
-): Promise<{ success: boolean; groupId?: string; error?: string }> {
+): Promise<{ success: boolean; groupId?: string; error?: string; errorCode?: string | null }> {
   const supabase = await createSupabaseServerClient();
 
   const payload: PlanGroupPayload = {
@@ -533,12 +533,14 @@ export async function createPlanGroup(
 
   if (!result) {
     // 상세한 에러 메시지 반환
-    const errorMessage = queryResult.error 
-      ? `플랜 그룹 생성 실패: ${queryResult.error.message} (코드: ${queryResult.error.code})`
+    const errorCode = queryResult.error?.code || null;
+    const errorMessage = queryResult.error
+      ? `플랜 그룹 생성 실패: ${queryResult.error.message} (코드: ${errorCode})`
       : "플랜 그룹 생성 실패: 알 수 없는 오류";
-    
+
     console.error("[data/planGroups] createPlanGroup 최종 실패:", {
       errorMessage,
+      errorCode,
       originalError: queryResult.error,
       payload: {
         tenant_id: payload.tenant_id,
@@ -548,8 +550,8 @@ export async function createPlanGroup(
         camp_invitation_id: payload.camp_invitation_id,
       },
     });
-    
-    return { success: false, error: errorMessage };
+
+    return { success: false, error: errorMessage, errorCode };
   }
 
   return { success: true, groupId: result.id };

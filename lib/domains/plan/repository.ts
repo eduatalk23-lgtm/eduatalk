@@ -209,6 +209,88 @@ export async function deletePlanContentsByGroupId(
   if (error) throw error;
 }
 
+/**
+ * 플랜 제외일 삭제 (plan_group_id 기준)
+ */
+export async function deleteExclusionsByGroupId(
+  planGroupId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("plan_exclusions")
+    .delete()
+    .eq("plan_group_id", planGroupId);
+
+  if (error) throw error;
+}
+
+/**
+ * 학원 일정 삭제 (plan_group_id 기준)
+ */
+export async function deleteAcademySchedulesByGroupId(
+  planGroupId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("academy_schedules")
+    .delete()
+    .eq("plan_group_id", planGroupId);
+
+  if (error) throw error;
+}
+
+/**
+ * 플랜 기간 중복 검증
+ * 동일 학생의 활성/진행 중인 플랜과 기간이 겹치는지 확인
+ */
+export async function checkPlanPeriodOverlap(
+  studentId: string,
+  periodStart: string,
+  periodEnd: string,
+  excludeGroupId?: string
+): Promise<{
+  hasOverlap: boolean;
+  overlappingPlans: Array<{
+    id: string;
+    name: string | null;
+    period_start: string;
+    period_end: string;
+    status: string;
+  }>;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 활성/진행 중인 플랜 중 기간이 겹치는 것 조회
+  // 기간 겹침 조건: new_start <= existing_end AND new_end >= existing_start
+  let query = supabase
+    .from("plan_groups")
+    .select("id, name, period_start, period_end, status")
+    .eq("student_id", studentId)
+    .is("deleted_at", null)
+    .in("status", ["active", "in_progress"])
+    .lte("period_start", periodEnd)
+    .gte("period_end", periodStart);
+
+  // 자기 자신 제외 (수정 시)
+  if (excludeGroupId) {
+    query = query.neq("id", excludeGroupId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[repository] checkPlanPeriodOverlap 오류:", error);
+    return { hasOverlap: false, overlappingPlans: [] };
+  }
+
+  return {
+    hasOverlap: (data?.length ?? 0) > 0,
+    overlappingPlans: data ?? [],
+  };
+}
+
 // ============================================
 // Student Plan Repository
 // ============================================

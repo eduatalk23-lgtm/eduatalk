@@ -409,24 +409,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
     );
   }
 
-  // 개발 환경에서 조회된 플랜 수 로깅
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[_getScheduleResultData] 플랜 조회 결과:`, {
-      groupId,
-      studentId: targetStudentId,
-      planCount: plans?.length ?? 0,
-      plans: plans?.slice(0, 5).map((p) => ({
-        id: p.id,
-        plan_date: p.plan_date,
-        block_index: p.block_index,
-        content_id: p.content_id?.substring(0, 8),
-        range: `${p.planned_start_page_or_time}~${p.planned_end_page_or_time}`,
-        start_time: p.start_time,
-        end_time: p.end_time,
-      })),
-    });
-  }
-
   // 블록 에러는 로깅만 하고 계속 진행 (블록이 없어도 플랜 조회는 가능)
   if (blocksError) {
     console.error("[planGroupActions] 블록 조회 실패:", blocksError);
@@ -891,11 +873,6 @@ async function _getScheduleResultData(groupId: string): Promise<{
             exclusion_type: d.exclusion!.exclusion_type,
             reason: d.exclusion!.reason || null,
           }));
-        console.log(
-          "[planGroupActions] 저장된 daily_schedule에서 제외일 정보 추출:",
-          exclusions.length,
-          "개"
-        );
       }
 
       // 학원 일정은 academy_schedules 테이블에서 조회

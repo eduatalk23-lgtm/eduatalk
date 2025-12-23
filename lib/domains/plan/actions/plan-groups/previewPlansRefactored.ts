@@ -452,11 +452,6 @@ async function _previewPlansFromGroupRefactored(
       }
     }
 
-    console.log("[_previewPlansFromGroupRefactored] 플랜 미리보기 결과", {
-      totalPlans: previewPlans.length,
-      contentMetadataMapSize: contentMetadataMap.size,
-    });
-
     return { plans: previewPlans };
   } catch (error) {
     console.error("[planGroupActions] 플랜 미리보기 실패:", error);
