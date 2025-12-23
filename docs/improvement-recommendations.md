@@ -15,6 +15,7 @@
 | **P1** High | ✅ 완료 | `647f7d43` | 성적→플랜 연동, N+1 해결, 캐시 전략, 에러 분석 |
 | **P2** Medium | ✅ 완료 | `bc0e8f55` | 블록-학원 겹침 검증, Realtime 확장, 인덱스 최적화 |
 | **P3** Low | ✅ 완료 | `98226d80` | 진행률 시스템, 로딩 컴포넌트, JSDoc, Query 키 정리 |
+| **UX** 개선 | ✅ 완료 | `af091624` | 에러 필드 강조, 저장 상태 표시, Step 7 에러 복구 |
 
 ---
 
@@ -694,6 +695,7 @@ CREATE INDEX idx_attendance_records_student_date
 | **P1** | ✅ 완료 | 성적 → 플랜 재생성<br>N+1 쿼리 처리 (Parent)<br>에러 원인 분석 개선<br>캐시 전략 강화 | High |
 | **P2** | ✅ 완료 | 블록-학원 겹침 검증<br>실시간 기능 확대<br>인덱스 최적화<br>에러 복구 가이드 | Medium |
 | **P3** | ✅ 완료 | 진행률 시스템<br>UI/UX 개선<br>문서화<br>Query 키 정리 | Low |
+| **UX** | ✅ 완료 | 에러 필드 강조/스크롤<br>저장 상태 표시기<br>Step 7 에러 복구 | High |
 
 ---
 
@@ -724,6 +726,12 @@ CREATE INDEX idx_attendance_records_student_date
 - [x] 로딩 상태 컴포넌트 세분화 (`components/organisms/PlanGenerationProgress.tsx`)
 - [x] JSDoc 문서화 (`lib/errors/handler.ts`)
 - [x] React Query 캐시 키 상수 정리 (`lib/query/keys.ts`)
+
+### UX 개선 ✅ 완료
+- [x] UX-1: 에러 필드 시각적 강조 + 자동 스크롤 (`errorFieldUtils.ts`, `ErrorFieldWrapper.tsx`)
+- [x] UX-2: Step 6 인라인 편집 지원 (기존 구현 확인)
+- [x] UX-3: 저장 상태 표시기 + 이탈 방지 (`SaveStatusIndicator.tsx`, `usePageLeaveGuard.ts`)
+- [x] UX-4: Step 7 에러 복구 옵션 확대 (`Step7ScheduleResult.tsx` - onGoToStep, 에러 기반 복구 버튼)
 
 ### 향후 개선 (Backlog)
 - [ ] lib/data → 도메인 저장소 마이그레이션 (장기 과제)
