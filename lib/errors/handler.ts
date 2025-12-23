@@ -1,7 +1,33 @@
 /**
  * 애플리케이션 에러 처리 표준화
+ *
+ * 이 모듈은 애플리케이션 전반에서 사용되는 에러 처리 유틸리티를 제공합니다.
+ *
+ * @module lib/errors/handler
+ *
+ * @example
+ * ```typescript
+ * // Server Action에서 사용
+ * export const myAction = withErrorHandling(async (data: FormData) => {
+ *   const result = await doSomething(data);
+ *   if (!result) {
+ *     throw new AppError(
+ *       '데이터를 찾을 수 없습니다.',
+ *       ErrorCode.NOT_FOUND,
+ *       404
+ *     );
+ *   }
+ *   return result;
+ * });
+ * ```
  */
 
+/**
+ * 애플리케이션 에러 코드
+ *
+ * 각 에러 코드는 특정 유형의 오류를 나타내며,
+ * 클라이언트에서 적절한 처리를 위해 사용됩니다.
+ */
 export enum ErrorCode {
   // 인증/인가 에러
   UNAUTHORIZED = "UNAUTHORIZED",
@@ -25,7 +51,34 @@ export enum ErrorCode {
   CONFIGURATION_ERROR = "CONFIGURATION_ERROR",
 }
 
+/**
+ * 애플리케이션 표준 에러 클래스
+ *
+ * 모든 비즈니스 로직 에러는 이 클래스를 사용하여 일관된 형식으로 처리됩니다.
+ *
+ * @example
+ * ```typescript
+ * // 기본 사용
+ * throw new AppError('접근 권한이 없습니다.', ErrorCode.FORBIDDEN, 403);
+ *
+ * // 상세 정보 포함
+ * throw new AppError(
+ *   '플랜 생성에 실패했습니다.',
+ *   ErrorCode.BUSINESS_LOGIC_ERROR,
+ *   400,
+ *   true,
+ *   { reason: 'insufficient_study_days', requiredDays: 5, availableDays: 3 }
+ * );
+ * ```
+ */
 export class AppError extends Error {
+  /**
+   * @param message - 사용자에게 표시할 에러 메시지
+   * @param code - 에러 코드 (클라이언트에서 조건부 처리에 사용)
+   * @param statusCode - HTTP 상태 코드 (기본값: 500)
+   * @param isUserFacing - 사용자에게 직접 표시해도 안전한지 여부 (기본값: true)
+   * @param details - 추가 컨텍스트 정보 (디버깅용)
+   */
   constructor(
     message: string,
     public code: ErrorCode,
@@ -35,7 +88,7 @@ export class AppError extends Error {
   ) {
     super(message);
     this.name = "AppError";
-    
+
     // Error의 stack trace를 올바르게 설정
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, AppError);
@@ -45,6 +98,21 @@ export class AppError extends Error {
 
 /**
  * 사용자에게 안전한 에러 메시지 반환
+ *
+ * 프로덕션 환경에서는 민감한 정보가 노출되지 않도록
+ * 일반적인 메시지만 반환합니다.
+ *
+ * @param error - 처리할 에러 객체
+ * @returns 사용자에게 표시할 수 있는 안전한 메시지
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await riskyOperation();
+ * } catch (error) {
+ *   toast.error(getUserFacingMessage(error));
+ * }
+ * ```
  */
 export function getUserFacingMessage(error: unknown): string {
   if (error instanceof AppError && error.isUserFacing) {
@@ -119,7 +187,30 @@ function filterSensitiveData(data: unknown, depth = 0): unknown {
 }
 
 /**
- * 에러 로깅 (향후 에러 트래킹 서비스 통합 가능)
+ * 에러 로깅
+ *
+ * 에러 정보를 구조화하여 로깅합니다.
+ * 민감한 정보(비밀번호, 토큰 등)는 자동으로 필터링됩니다.
+ *
+ * @param error - 로깅할 에러 객체
+ * @param context - 추가 컨텍스트 정보 (함수명, 인자 등)
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await saveUser(userData);
+ * } catch (error) {
+ *   logError(error, {
+ *     function: 'saveUser',
+ *     userId: userData.id,
+ *     // password 등 민감 필드는 자동 필터링됨
+ *   });
+ *   throw error;
+ * }
+ * ```
+ *
+ * @remarks
+ * 향후 Sentry, LogRocket 등 에러 트래킹 서비스와 통합될 수 있습니다.
  */
 export function logError(
   error: unknown,
@@ -175,6 +266,23 @@ export function logError(
 
 /**
  * 에러를 AppError로 변환
+ *
+ * 다양한 형태의 에러를 일관된 AppError 형식으로 정규화합니다.
+ * Supabase 에러 코드를 자동으로 인식하여 적절한 에러 코드와 메시지로 변환합니다.
+ *
+ * @param error - 정규화할 에러 (Error, AppError, 또는 기타)
+ * @returns 정규화된 AppError 인스턴스
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await supabase.from('users').insert(data);
+ * } catch (error) {
+ *   const appError = normalizeError(error);
+ *   // Supabase 23505 에러 → ErrorCode.DUPLICATE_ENTRY로 변환됨
+ *   console.log(appError.code); // 'DUPLICATE_ENTRY'
+ * }
+ * ```
  */
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) {
@@ -295,7 +403,42 @@ export function normalizeError(error: unknown): AppError {
 }
 
 /**
- * 서버 액션에서 사용할 에러 핸들러 래퍼
+ * 서버 액션용 에러 핸들러 래퍼
+ *
+ * 비동기 함수를 래핑하여 에러를 자동으로 처리합니다.
+ * - 에러 정규화 및 로깅
+ * - Next.js redirect()/notFound() 에러 전파
+ * - 사용자 친화적 에러 메시지 변환
+ *
+ * @typeParam TArgs - 함수 인자 타입 배열
+ * @typeParam TReturn - 함수 반환 타입
+ * @param fn - 래핑할 비동기 함수
+ * @returns 에러 처리가 적용된 함수
+ *
+ * @example
+ * ```typescript
+ * // Server Action 정의
+ * export const createPlanGroup = withErrorHandling(
+ *   async (data: PlanGroupData) => {
+ *     const result = await planService.create(data);
+ *     if (!result.success) {
+ *       throw new AppError(result.error, ErrorCode.BUSINESS_LOGIC_ERROR, 400);
+ *     }
+ *     revalidatePath('/plan');
+ *     return result;
+ *   }
+ * );
+ *
+ * // 클라이언트에서 사용
+ * const handleSubmit = async () => {
+ *   try {
+ *     await createPlanGroup(formData);
+ *     toast.success('플랜이 생성되었습니다.');
+ *   } catch (error) {
+ *     toast.error(getUserFacingMessage(error));
+ *   }
+ * };
+ * ```
  */
 export function withErrorHandling<
   TArgs extends readonly unknown[],
