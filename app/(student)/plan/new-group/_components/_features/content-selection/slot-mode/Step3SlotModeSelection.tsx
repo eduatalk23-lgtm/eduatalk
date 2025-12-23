@@ -11,8 +11,10 @@ import {
 } from "@/lib/types/content-selection";
 import { SlotConfigurationPanel } from "./SlotConfigurationPanel";
 import { ContentLinkingPanel } from "./ContentLinkingPanel";
-import { ToggleLeft, ToggleRight, AlertTriangle } from "lucide-react";
+import { VirtualTimelinePreview } from "./VirtualTimelinePreview";
+import { ToggleLeft, ToggleRight, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import type { SelectedContent } from "@/lib/types/content-selection";
+import type { DailyScheduleInfo } from "@/lib/plan/virtualSchedulePreview";
 
 // ============================================================================
 // 타입 정의
@@ -52,11 +54,15 @@ type Step3SlotModeSelectionProps = {
   // 템플릿 슬롯 (캠프 모드에서 사용)
   templateSlots?: ContentSlot[];
 
+  // 일별 스케줄 (가상 타임라인용)
+  dailySchedules?: DailyScheduleInfo[];
+
   // 옵션
   editable?: boolean;
   isCampMode?: boolean;
   isTemplateMode?: boolean;
   studentId?: string;
+  showTimelinePreview?: boolean;
   className?: string;
 };
 
@@ -74,10 +80,12 @@ function Step3SlotModeSelectionComponent({
   onStudentContentsChange,
   availableContents,
   templateSlots,
+  dailySchedules = [],
   editable = true,
   isCampMode = false,
   isTemplateMode = false,
   studentId,
+  showTimelinePreview = true,
   className,
 }: Step3SlotModeSelectionProps) {
   // 선택된 슬롯 인덱스
@@ -87,6 +95,9 @@ function Step3SlotModeSelectionComponent({
 
   // 모드 전환 경고 표시
   const [showModeWarning, setShowModeWarning] = useState(false);
+
+  // 타임라인 미리보기 접기/펼치기
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState(true);
 
   // 선택된 슬롯
   const selectedSlot = useMemo(() => {
@@ -242,37 +253,67 @@ function Step3SlotModeSelectionComponent({
 
       {/* 슬롯 모드 UI */}
       {useSlotMode ? (
-        <div className="grid min-h-[500px] grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* 좌측: 슬롯 구성 패널 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="mb-4 text-sm font-medium text-gray-700">
-              슬롯 구성
-            </h3>
-            <SlotConfigurationPanel
-              slots={contentSlots}
-              onSlotsChange={handleSlotsChange}
-              selectedSlotIndex={selectedSlotIndex}
-              onSlotSelect={setSelectedSlotIndex}
-              editable={editable}
-              templateSlots={templateSlots}
-            />
+        <div className="flex flex-col gap-4">
+          <div className="grid min-h-[500px] grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* 좌측: 슬롯 구성 패널 */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="mb-4 text-sm font-medium text-gray-700">
+                슬롯 구성
+              </h3>
+              <SlotConfigurationPanel
+                slots={contentSlots}
+                onSlotsChange={handleSlotsChange}
+                selectedSlotIndex={selectedSlotIndex}
+                onSlotSelect={setSelectedSlotIndex}
+                editable={editable}
+                templateSlots={templateSlots}
+              />
+            </div>
+
+            {/* 우측: 콘텐츠 연결 패널 */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <h3 className="mb-4 text-sm font-medium text-gray-700">
+                콘텐츠 연결
+              </h3>
+              <ContentLinkingPanel
+                selectedSlot={selectedSlot}
+                slotIndex={selectedSlotIndex}
+                availableContents={availableContents}
+                onLinkContent={handleLinkContent}
+                onUnlinkContent={handleUnlinkContent}
+                editable={editable}
+                studentId={studentId}
+              />
+            </div>
           </div>
 
-          {/* 우측: 콘텐츠 연결 패널 */}
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            <h3 className="mb-4 text-sm font-medium text-gray-700">
-              콘텐츠 연결
-            </h3>
-            <ContentLinkingPanel
-              selectedSlot={selectedSlot}
-              slotIndex={selectedSlotIndex}
-              availableContents={availableContents}
-              onLinkContent={handleLinkContent}
-              onUnlinkContent={handleUnlinkContent}
-              editable={editable}
-              studentId={studentId}
-            />
-          </div>
+          {/* 가상 타임라인 미리보기 */}
+          {showTimelinePreview && dailySchedules.length > 0 && (
+            <div className="rounded-lg border border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsTimelineExpanded(!isTimelineExpanded)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+              >
+                <span className="text-sm font-medium text-gray-700">
+                  가상 타임라인 미리보기
+                </span>
+                {isTimelineExpanded ? (
+                  <ChevronUp className="h-4 w-4 text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                )}
+              </button>
+              {isTimelineExpanded && (
+                <div className="border-t border-gray-200 p-4">
+                  <VirtualTimelinePreview
+                    slots={contentSlots}
+                    dailySchedules={dailySchedules}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         // 기존 모드: 기존 Step3ContentSelection 사용
