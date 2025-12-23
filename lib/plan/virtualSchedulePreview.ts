@@ -109,6 +109,203 @@ export type WeekSummary = {
  */
 const DEFAULT_BLOCK_DURATION = 90;
 
+// ============================================================================
+// 슬롯 관계 처리 함수
+// ============================================================================
+
+/**
+ * 연계 슬롯 그룹화
+ *
+ * 연계된 슬롯들을 그룹으로 묶고, 각 그룹 내 순서를 결정합니다.
+ * - linked_slot_id가 있는 슬롯들을 하나의 그룹으로 묶음
+ * - link_type (before/after)에 따라 순서 정렬
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns 그룹화된 슬롯 배열
+ */
+function groupLinkedSlots(slots: ContentSlot[]): ContentSlot[][] {
+  const slotById = new Map<string, ContentSlot>();
+  const visited = new Set<string>();
+  const groups: ContentSlot[][] = [];
+  const slotsWithoutId: ContentSlot[] = [];
+
+  // ID가 있는 슬롯만 매핑
+  slots.forEach((slot) => {
+    if (slot.id) {
+      slotById.set(slot.id, slot);
+    } else {
+      slotsWithoutId.push(slot);
+    }
+  });
+
+  // 연계된 슬롯들 그룹화
+  slots.forEach((slot) => {
+    if (!slot.id || visited.has(slot.id)) return;
+
+    const group: ContentSlot[] = [];
+    const queue: ContentSlot[] = [slot];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (!current.id || visited.has(current.id)) continue;
+
+      visited.add(current.id);
+      group.push(current);
+
+      // 연결된 슬롯 찾기
+      if (current.linked_slot_id) {
+        const linked = slotById.get(current.linked_slot_id);
+        if (linked && linked.id && !visited.has(linked.id)) {
+          queue.push(linked);
+        }
+      }
+
+      // 이 슬롯을 참조하는 다른 슬롯 찾기
+      slots.forEach((other) => {
+        if (
+          other.linked_slot_id === current.id &&
+          other.id &&
+          !visited.has(other.id)
+        ) {
+          queue.push(other);
+        }
+      });
+    }
+
+    // 그룹 내 순서 결정
+    const orderedGroup = orderLinkedGroup(group);
+    groups.push(orderedGroup);
+  });
+
+  // ID가 없는 슬롯들은 개별 그룹으로 추가
+  slotsWithoutId.forEach((slot) => {
+    groups.push([slot]);
+  });
+
+  return groups;
+}
+
+/**
+ * 연계 그룹 내 순서 결정 (위상 정렬)
+ *
+ * - A.link_type === "after" && A.linked_slot_id === B → A는 B 다음에 배치
+ * - A.link_type === "before" && A.linked_slot_id === B → A는 B 이전에 배치
+ *
+ * @param group - 연계된 슬롯 그룹
+ * @returns 순서가 결정된 슬롯 배열
+ */
+function orderLinkedGroup(group: ContentSlot[]): ContentSlot[] {
+  if (group.length <= 1) return group;
+
+  // 의존성 그래프 구성: slotId → 이 슬롯 이전에 와야 하는 슬롯 ID 목록
+  const dependencies = new Map<string, string[]>();
+
+  group.forEach((slot) => {
+    if (slot.id) {
+      dependencies.set(slot.id, []);
+    }
+  });
+
+  group.forEach((slot) => {
+    if (!slot.id || !slot.linked_slot_id) return;
+
+    // linked_slot_id가 그룹 내에 있는지 확인
+    const linkedInGroup = group.some((s) => s.id === slot.linked_slot_id);
+    if (!linkedInGroup) return;
+
+    if (slot.link_type === "after") {
+      // 이 슬롯은 linked_slot_id 다음에 와야 함
+      // 즉, linked_slot_id가 이 슬롯의 선행 조건
+      const deps = dependencies.get(slot.id) || [];
+      deps.push(slot.linked_slot_id);
+      dependencies.set(slot.id, deps);
+    } else if (slot.link_type === "before") {
+      // 이 슬롯은 linked_slot_id 이전에 와야 함
+      // 즉, 이 슬롯이 linked_slot_id의 선행 조건
+      const deps = dependencies.get(slot.linked_slot_id) || [];
+      deps.push(slot.id);
+      dependencies.set(slot.linked_slot_id, deps);
+    }
+  });
+
+  // 위상 정렬
+  const result: ContentSlot[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+
+  function visit(slotId: string): boolean {
+    if (visited.has(slotId)) return true;
+    if (visiting.has(slotId)) return false; // 순환 참조
+
+    visiting.add(slotId);
+    const deps = dependencies.get(slotId) || [];
+    for (const dep of deps) {
+      if (!visit(dep)) return false;
+    }
+    visiting.delete(slotId);
+    visited.add(slotId);
+
+    const slot = group.find((s) => s.id === slotId);
+    if (slot) result.push(slot);
+    return true;
+  }
+
+  group.forEach((slot) => {
+    if (slot.id && !visited.has(slot.id)) {
+      visit(slot.id);
+    }
+  });
+
+  // 정렬 실패 시 (순환 참조 등) 원래 순서 반환
+  if (result.length !== group.length) {
+    return group;
+  }
+
+  return result;
+}
+
+/**
+ * 배타적 제약 조건 체크
+ *
+ * 해당 날짜에 exclusive_with에 지정된 슬롯이 이미 배치되어 있는지 확인합니다.
+ *
+ * @param slot - 현재 슬롯
+ * @param date - 배치하려는 날짜
+ * @param assignedSlots - 이미 배치된 슬롯들 (slotId → date)
+ * @param slots - 전체 슬롯 배열
+ * @returns 배치 가능 여부 및 충돌 슬롯 ID
+ */
+function checkExclusiveConstraints(
+  slot: ContentSlot,
+  date: string,
+  assignedSlots: Map<string, string>,
+  slots: ContentSlot[]
+): { canPlace: boolean; conflictingSlotId?: string } {
+  if (!slot.id || !slot.exclusive_with?.length) {
+    return { canPlace: true };
+  }
+
+  for (const excludedId of slot.exclusive_with) {
+    const excludedDate = assignedSlots.get(excludedId);
+    if (excludedDate === date) {
+      return { canPlace: false, conflictingSlotId: excludedId };
+    }
+  }
+
+  // 역방향 체크: 다른 슬롯이 이 슬롯을 exclusive_with에 포함하고 있는 경우
+  for (const otherSlot of slots) {
+    if (
+      otherSlot.id &&
+      otherSlot.exclusive_with?.includes(slot.id) &&
+      assignedSlots.get(otherSlot.id) === date
+    ) {
+      return { canPlace: false, conflictingSlotId: otherSlot.id };
+    }
+  }
+
+  return { canPlace: true };
+}
+
 /**
  * 슬롯 타입별 기본 소요 시간 (분)
  */
@@ -128,6 +325,7 @@ const SLOT_TYPE_DEFAULT_DURATION: Record<string, number> = {
  * 가상 타임라인 계산
  *
  * 슬롯 구성과 일별 스케줄을 기반으로 가상 플랜을 생성합니다.
+ * 연계 슬롯 및 배타적 슬롯 관계를 반영합니다.
  *
  * @param slots - 콘텐츠 슬롯 배열
  * @param dailySchedules - 일별 스케줄 정보
@@ -185,13 +383,17 @@ export function calculateVirtualTimeline(
     };
   }
 
-  // 슬롯별 소요 시간 계산
-  const slotDurations = validSlots.map((slot) =>
-    calculateSlotDuration(slot, blockDuration)
-  );
+  // 슬롯별 소요 시간 미리 계산
+  const slotDurationMap = new Map<number, number>();
+  validSlots.forEach((slot) => {
+    slotDurationMap.set(slot.slot_index, calculateSlotDuration(slot, blockDuration));
+  });
 
   // 총 필요 시간
-  const totalRequiredMinutes = slotDurations.reduce((sum, d) => sum + d, 0);
+  const totalRequiredMinutes = Array.from(slotDurationMap.values()).reduce(
+    (sum, d) => sum + d,
+    0
+  );
 
   // 총 가용 시간
   const totalAvailableMinutes = availableDays.reduce(
@@ -205,53 +407,124 @@ export function calculateVirtualTimeline(
     );
   }
 
-  // 가상 배치 수행
+  // 연계 슬롯 그룹화
+  const linkedGroups = groupLinkedSlots(validSlots);
+
+  // 배치 상태 추적
   let dayIndex = 0;
   let remainingMinutesInDay = availableDays[0]?.study_hours * 60 || 0;
-  let currentStartTime = "09:00"; // 기본 시작 시간
+  let currentStartTime = "09:00";
+  const assignedSlots = new Map<string, string>(); // slotId → date
 
-  for (let i = 0; i < validSlots.length; i++) {
-    const slot = validSlots[i];
-    const duration = slotDurations[i];
+  // 그룹 단위로 배치
+  for (const group of linkedGroups) {
+    // 연계 그룹은 같은 날 연속 배치 시도
+    const isLinkedGroup = group.length > 1 && group.some((s) => s.linked_slot_id);
 
-    // 현재 날짜에 시간이 부족하면 다음 날로 이동
-    while (remainingMinutesInDay < duration && dayIndex < availableDays.length - 1) {
-      dayIndex++;
-      remainingMinutesInDay = availableDays[dayIndex].study_hours * 60;
-      currentStartTime = "09:00";
+    for (const slot of group) {
+      const duration = slotDurationMap.get(slot.slot_index) || blockDuration;
+
+      // 현재 날짜에 시간이 부족하면 다음 날로 이동
+      while (
+        remainingMinutesInDay < duration &&
+        dayIndex < availableDays.length - 1
+      ) {
+        dayIndex++;
+        remainingMinutesInDay = availableDays[dayIndex].study_hours * 60;
+        currentStartTime = "09:00";
+      }
+
+      // 배타적 제약 조건 체크
+      let currentDayIndex = dayIndex;
+      let foundValidDay = false;
+      let exclusiveAdjusted = false;
+
+      while (currentDayIndex < availableDays.length && !foundValidDay) {
+        const checkResult = checkExclusiveConstraints(
+          slot,
+          availableDays[currentDayIndex].date,
+          assignedSlots,
+          validSlots
+        );
+
+        if (checkResult.canPlace) {
+          foundValidDay = true;
+          if (currentDayIndex !== dayIndex) {
+            exclusiveAdjusted = true;
+            dayIndex = currentDayIndex;
+            remainingMinutesInDay = availableDays[dayIndex].study_hours * 60;
+            currentStartTime = "09:00";
+          }
+        } else {
+          currentDayIndex++;
+        }
+      }
+
+      if (!foundValidDay) {
+        warnings.push(
+          `슬롯 ${slot.slot_index + 1}: 배타적 제약으로 인해 배치할 수 없습니다.`
+        );
+        continue;
+      }
+
+      if (exclusiveAdjusted) {
+        warnings.push(
+          `슬롯 ${slot.slot_index + 1}: 배타적 슬롯 관계로 인해 다른 날로 조정되었습니다.`
+        );
+      }
+
+      if (dayIndex >= availableDays.length) {
+        warnings.push(`슬롯 ${slot.slot_index + 1}: 배치 가능한 날짜가 없습니다.`);
+        continue;
+      }
+
+      const currentDay = availableDays[dayIndex];
+      const endTime = addMinutesToTime(currentStartTime, duration);
+
+      // 플랜 아이템 생성
+      plans.push({
+        slot_index: slot.slot_index,
+        slot_type: slot.slot_type,
+        subject_category: slot.subject_category,
+        title: slot.title,
+        date: currentDay.date,
+        start_time: currentStartTime,
+        end_time: endTime,
+        duration_minutes: duration,
+        range_start: slot.start_range,
+        range_end: slot.end_range,
+        week_number: currentDay.week_number || 1,
+        day_type: currentDay.day_type,
+      });
+
+      // 배치 상태 업데이트
+      if (slot.id) {
+        assignedSlots.set(slot.id, currentDay.date);
+      }
+
+      // 시간 업데이트
+      remainingMinutesInDay -= duration;
+      currentStartTime = endTime;
+
+      // 점심시간 고려 (12:00-13:00)
+      if (currentStartTime >= "12:00" && currentStartTime < "13:00") {
+        currentStartTime = "13:00";
+      }
     }
 
-    if (dayIndex >= availableDays.length) {
-      warnings.push(`슬롯 ${i + 1}: 배치 가능한 날짜가 없습니다.`);
-      continue;
-    }
+    // 연계 그룹이 같은 날에 배치되지 못한 경우 경고
+    if (isLinkedGroup) {
+      const groupDates = new Set<string>();
+      group.forEach((slot) => {
+        const plan = plans.find((p) => p.slot_index === slot.slot_index);
+        if (plan) groupDates.add(plan.date);
+      });
 
-    const currentDay = availableDays[dayIndex];
-    const endTime = addMinutesToTime(currentStartTime, duration);
-
-    // 플랜 아이템 생성
-    plans.push({
-      slot_index: slot.slot_index,
-      slot_type: slot.slot_type,
-      subject_category: slot.subject_category,
-      title: slot.title,
-      date: currentDay.date,
-      start_time: currentStartTime,
-      end_time: endTime,
-      duration_minutes: duration,
-      range_start: slot.start_range,
-      range_end: slot.end_range,
-      week_number: currentDay.week_number || 1,
-      day_type: currentDay.day_type,
-    });
-
-    // 시간 업데이트
-    remainingMinutesInDay -= duration;
-    currentStartTime = endTime;
-
-    // 점심시간 고려 (12:00-13:00)
-    if (currentStartTime >= "12:00" && currentStartTime < "13:00") {
-      currentStartTime = "13:00";
+      if (groupDates.size > 1) {
+        warnings.push(
+          `연계된 슬롯이 같은 날에 배치되지 못했습니다. (슬롯 인덱스: ${group.map((s) => s.slot_index + 1).join(", ")})`
+        );
+      }
     }
   }
 

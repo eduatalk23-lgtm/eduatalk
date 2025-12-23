@@ -734,7 +734,145 @@ export function validateSlotConfiguration(slots: ContentSlot[]): SlotValidationR
     warnings.push("동일한 교과-과목 조합의 슬롯이 중복됩니다.");
   }
 
+  // 슬롯 관계 검증 추가
+  const relationshipValidation = validateSlotRelationships(slots);
+  errors.push(...relationshipValidation.errors);
+  warnings.push(...relationshipValidation.warnings);
+
   return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * 슬롯 관계 검증 함수
+ *
+ * 연계 슬롯(linked_slot_id)과 배타적 슬롯(exclusive_with) 관계를 검증합니다.
+ *
+ * 검증 항목:
+ * 1. 자기 자신 참조 (A → A)
+ * 2. 존재하지 않는 슬롯 참조
+ * 3. 순환 참조 (A → B → A)
+ * 4. 배타적 슬롯 자기 참조
+ */
+export function validateSlotRelationships(slots: ContentSlot[]): SlotValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // 유효한 슬롯 ID 집합
+  const validSlotIds = new Set<string>();
+  const slotIndexById = new Map<string, number>();
+
+  slots.forEach((slot) => {
+    if (slot.id) {
+      validSlotIds.add(slot.id);
+      slotIndexById.set(slot.id, slot.slot_index);
+    }
+  });
+
+  // 각 슬롯별 검증
+  slots.forEach((slot, index) => {
+    const slotNum = index + 1;
+
+    // === 연계 슬롯 검증 ===
+    if (slot.linked_slot_id) {
+      // 1. 자기 자신 참조
+      if (slot.id && slot.linked_slot_id === slot.id) {
+        errors.push(`슬롯 ${slotNum}: 자기 자신을 연결할 수 없습니다.`);
+      }
+      // 2. 존재하지 않는 슬롯 참조
+      else if (!validSlotIds.has(slot.linked_slot_id)) {
+        warnings.push(`슬롯 ${slotNum}: 연결된 슬롯이 존재하지 않습니다.`);
+      }
+    }
+
+    // === 배타적 슬롯 검증 ===
+    if (slot.exclusive_with && slot.exclusive_with.length > 0) {
+      for (const excludedId of slot.exclusive_with) {
+        // 1. 자기 자신 참조
+        if (slot.id && excludedId === slot.id) {
+          errors.push(`슬롯 ${slotNum}: 배타적 관계에 자기 자신을 포함할 수 없습니다.`);
+        }
+        // 2. 존재하지 않는 슬롯 참조
+        else if (!validSlotIds.has(excludedId)) {
+          warnings.push(`슬롯 ${slotNum}: 배타적 관계의 슬롯이 존재하지 않습니다.`);
+        }
+      }
+    }
+  });
+
+  // === 순환 참조 검증 ===
+  const circularResult = detectCircularReferences(slots);
+  if (circularResult.hasCircular) {
+    errors.push(`순환 참조가 발견되었습니다: ${circularResult.path.map((id) => {
+      const idx = slotIndexById.get(id);
+      return idx !== undefined ? `슬롯 ${idx + 1}` : id;
+    }).join(" → ")}`);
+  }
+
+  return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * 순환 참조 탐지 함수 (DFS 기반)
+ *
+ * @param slots - 콘텐츠 슬롯 배열
+ * @returns 순환 참조 여부 및 경로
+ */
+function detectCircularReferences(slots: ContentSlot[]): {
+  hasCircular: boolean;
+  path: string[];
+} {
+  // linked_slot_id로 그래프 구성
+  const graph = new Map<string, string>();
+
+  slots.forEach((slot) => {
+    if (slot.id && slot.linked_slot_id) {
+      graph.set(slot.id, slot.linked_slot_id);
+    }
+  });
+
+  // DFS로 순환 탐지
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+  const path: string[] = [];
+
+  function dfs(nodeId: string): boolean {
+    if (recursionStack.has(nodeId)) {
+      // 순환 발견 - 경로 구성
+      const cycleStart = path.indexOf(nodeId);
+      if (cycleStart !== -1) {
+        path.push(nodeId); // 순환 완성
+      }
+      return true;
+    }
+
+    if (visited.has(nodeId)) {
+      return false;
+    }
+
+    visited.add(nodeId);
+    recursionStack.add(nodeId);
+    path.push(nodeId);
+
+    const nextNode = graph.get(nodeId);
+    if (nextNode && dfs(nextNode)) {
+      return true;
+    }
+
+    path.pop();
+    recursionStack.delete(nodeId);
+    return false;
+  }
+
+  // 모든 노드에서 DFS 시작
+  for (const nodeId of graph.keys()) {
+    if (!visited.has(nodeId)) {
+      if (dfs(nodeId)) {
+        return { hasCircular: true, path };
+      }
+    }
+  }
+
+  return { hasCircular: false, path: [] };
 }
 
 /**
