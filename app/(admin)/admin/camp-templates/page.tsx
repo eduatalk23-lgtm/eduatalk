@@ -72,12 +72,20 @@ export default async function CampTemplatesPage({
                 캠프 프로그램 템플릿을 생성하고 관리하세요.
               </p>
             </div>
-            <Link
-              href="/admin/camp-templates/new"
-              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-            >
-              + 템플릿 생성
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/camp-templates/presets"
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                슬롯 프리셋
+              </Link>
+              <Link
+                href="/admin/camp-templates/new"
+                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              >
+                + 템플릿 생성
+              </Link>
+            </div>
           </div>
 
           {/* 템플릿 목록 컨테이너 (클라이언트 컴포넌트) */}
