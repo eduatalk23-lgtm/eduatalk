@@ -3,7 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
-type SupabaseAdminClient = ReturnType<typeof createSupabaseAdminClient>;
+type SupabaseAdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
 
 export type SupabaseClientForStudentQuery =
   | SupabaseServerClient

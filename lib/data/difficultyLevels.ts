@@ -4,7 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 
 export type DifficultyLevel = {
   id: string;
@@ -24,9 +24,8 @@ export type DifficultyLevel = {
 export async function getDifficultyLevels(
   contentType?: "book" | "lecture" | "custom" | "common"
 ): Promise<DifficultyLevel[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   let query = supabase
     .from("difficulty_levels")
@@ -54,8 +53,8 @@ export async function getDifficultyLevels(
  * ID로 난이도 조회
  */
 export async function getDifficultyLevelById(id: string): Promise<DifficultyLevel | null> {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   const { data, error } = await supabase
     .from("difficulty_levels")
@@ -80,41 +79,10 @@ export async function createDifficultyLevel(data: {
   display_order?: number;
   description?: string;
 }): Promise<DifficultyLevel> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    const supabase = await createSupabaseServerClient();
-    const { data: result, error } = await supabase
-      .from("difficulty_levels")
-      .insert({
-        name: data.name,
-        content_type: data.content_type,
-        display_order: data.display_order ?? 0,
-        description: data.description,
-      })
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[difficultyLevels] 난이도 생성 실패", error);
-
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("difficulty_levels_name_content_type_key")) {
-          throw new Error(
-            `이미 존재하는 난이도입니다: "${data.name}" (${data.content_type})`
-          );
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-
-      throw new Error(`난이도 생성 실패: ${error.message}`);
-    }
-
-    return result as DifficultyLevel;
-  }
-
-  const { data: result, error } = await supabaseAdmin
+  const { data: result, error } = await supabase
     .from("difficulty_levels")
     .insert({
       name: data.name,
@@ -156,38 +124,10 @@ export async function updateDifficultyLevel(
     description: string;
   }>
 ): Promise<DifficultyLevel> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("difficulty_levels")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[difficultyLevels] 난이도 수정 실패", error);
-
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (
-          error.message.includes("difficulty_levels_name_content_type_key") &&
-          updates.name
-        ) {
-          throw new Error(`이미 존재하는 난이도입니다: "${updates.name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-
-      throw new Error(`난이도 수정 실패: ${error.message}`);
-    }
-
-    return data as DifficultyLevel;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("difficulty_levels")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -218,9 +158,8 @@ export async function updateDifficultyLevel(
  * 난이도 삭제 (사용 중인 경우 체크)
  */
 export async function deleteDifficultyLevel(id: string): Promise<void> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   // 사용 중인지 확인
   const [booksCheck, lecturesCheck, customCheck] = await Promise.all([

@@ -6,7 +6,7 @@
  */
 
 import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 
 /**
@@ -646,9 +646,8 @@ export type Publisher = {
 
 export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
   try {
-    // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-    const supabaseAdmin = createSupabaseAdminClient();
-    const supabase = supabaseAdmin || await createSupabaseServerClient();
+    // Admin 클라이언트 우선 사용 (RLS 우회)
+    const supabase = await getSupabaseClientForRLSBypass();
     
     const { data, error } = await supabase
       .from("curriculum_revisions")
@@ -695,35 +694,10 @@ export async function createCurriculumRevision(
   name: string,
   displayOrder?: number
 ): Promise<CurriculumRevision> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("curriculum_revisions")
-      .insert({ name, display_order: displayOrder })
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 개정교육과정 생성 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("curriculum_revisions_name_key")) {
-          throw new Error(`이미 존재하는 개정교육과정명입니다: "${name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`개정교육과정 생성 실패: ${error.message}`);
-    }
-
-    return data as CurriculumRevision;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("curriculum_revisions")
     .insert({ name, display_order: displayOrder })
     .select()
@@ -731,7 +705,7 @@ export async function createCurriculumRevision(
 
   if (error) {
     console.error("[contentMetadata] 개정교육과정 생성 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("curriculum_revisions_name_key")) {
@@ -739,7 +713,7 @@ export async function createCurriculumRevision(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`개정교육과정 생성 실패: ${error.message}`);
   }
 
@@ -750,36 +724,10 @@ export async function updateCurriculumRevision(
   id: string,
   updates: Partial<{ name: string; is_active: boolean }>
 ): Promise<CurriculumRevision> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("curriculum_revisions")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 개정교육과정 수정 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("curriculum_revisions_name_key") && updates.name) {
-          throw new Error(`이미 존재하는 개정교육과정명입니다: "${updates.name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`개정교육과정 수정 실패: ${error.message}`);
-    }
-
-    return data as CurriculumRevision;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("curriculum_revisions")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -788,7 +736,7 @@ export async function updateCurriculumRevision(
 
   if (error) {
     console.error("[contentMetadata] 개정교육과정 수정 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("curriculum_revisions_name_key") && updates.name) {
@@ -796,7 +744,7 @@ export async function updateCurriculumRevision(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`개정교육과정 수정 실패: ${error.message}`);
   }
 
@@ -804,24 +752,10 @@ export async function updateCurriculumRevision(
 }
 
 export async function deleteCurriculumRevision(id: string): Promise<void> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase
-      .from("curriculum_revisions")
-      .delete()
-      .eq("id", id);
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 개정교육과정 삭제 실패", error);
-      throw new Error(`개정교육과정 삭제 실패: ${error.message}`);
-    }
-    return;
-  }
-
-  const { error } = await supabaseAdmin
+  const { error } = await supabase
     .from("curriculum_revisions")
     .delete()
     .eq("id", id);
@@ -1001,9 +935,8 @@ export async function deleteSubject(id: string): Promise<void> {
 // ============================================
 
 export async function getPlatforms(): Promise<Platform[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
   
   const { data, error } = await supabase
     .from("platforms")
@@ -1023,35 +956,10 @@ export async function createPlatform(
   name: string,
   display_order: number
 ): Promise<Platform> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("platforms")
-      .insert({ name, display_order })
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 플랫폼 생성 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("platforms_name_key")) {
-          throw new Error(`이미 존재하는 플랫폼명입니다: "${name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`플랫폼 생성 실패: ${error.message}`);
-    }
-
-    return data as Platform;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("platforms")
     .insert({ name, display_order })
     .select()
@@ -1059,7 +967,7 @@ export async function createPlatform(
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 생성 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("platforms_name_key")) {
@@ -1067,7 +975,7 @@ export async function createPlatform(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`플랫폼 생성 실패: ${error.message}`);
   }
 
@@ -1078,36 +986,10 @@ export async function updatePlatform(
   id: string,
   updates: Partial<{ name: string; display_order: number; is_active: boolean }>
 ): Promise<Platform> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("platforms")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 플랫폼 수정 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("platforms_name_key") && updates.name) {
-          throw new Error(`이미 존재하는 플랫폼명입니다: "${updates.name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`플랫폼 수정 실패: ${error.message}`);
-    }
-
-    return data as Platform;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("platforms")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -1116,7 +998,7 @@ export async function updatePlatform(
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 수정 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("platforms_name_key") && updates.name) {
@@ -1124,7 +1006,7 @@ export async function updatePlatform(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`플랫폼 수정 실패: ${error.message}`);
   }
 
@@ -1132,21 +1014,10 @@ export async function updatePlatform(
 }
 
 export async function deletePlatform(id: string): Promise<void> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.from("platforms").delete().eq("id", id);
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 플랫폼 삭제 실패", error);
-      throw new Error(`플랫폼 삭제 실패: ${error.message}`);
-    }
-    return;
-  }
-
-  const { error } = await supabaseAdmin.from("platforms").delete().eq("id", id);
+  const { error } = await supabase.from("platforms").delete().eq("id", id);
 
   if (error) {
     console.error("[contentMetadata] 플랫폼 삭제 실패", error);
@@ -1159,9 +1030,8 @@ export async function deletePlatform(id: string): Promise<void> {
 // ============================================
 
 export async function getPublishers(): Promise<Publisher[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
   
   const { data, error } = await supabase
     .from("publishers")
@@ -1181,35 +1051,10 @@ export async function createPublisher(
   name: string,
   display_order: number
 ): Promise<Publisher> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("publishers")
-      .insert({ name, display_order })
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 출판사 생성 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("publishers_name_key")) {
-          throw new Error(`이미 존재하는 출판사명입니다: "${name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`출판사 생성 실패: ${error.message}`);
-    }
-
-    return data as Publisher;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("publishers")
     .insert({ name, display_order })
     .select()
@@ -1217,7 +1062,7 @@ export async function createPublisher(
 
   if (error) {
     console.error("[contentMetadata] 출판사 생성 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("publishers_name_key")) {
@@ -1225,7 +1070,7 @@ export async function createPublisher(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`출판사 생성 실패: ${error.message}`);
   }
 
@@ -1236,36 +1081,10 @@ export async function updatePublisher(
   id: string,
   updates: Partial<{ name: string; display_order: number; is_active: boolean }>
 ): Promise<Publisher> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("publishers")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 출판사 수정 실패", error);
-      
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("publishers_name_key") && updates.name) {
-          throw new Error(`이미 존재하는 출판사명입니다: "${updates.name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-      
-      throw new Error(`출판사 수정 실패: ${error.message}`);
-    }
-
-    return data as Publisher;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("publishers")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -1274,7 +1093,7 @@ export async function updatePublisher(
 
   if (error) {
     console.error("[contentMetadata] 출판사 수정 실패", error);
-    
+
     // 중복 키 에러 처리
     if (error.code === "23505") {
       if (error.message.includes("publishers_name_key") && updates.name) {
@@ -1282,7 +1101,7 @@ export async function updatePublisher(
       }
       throw new Error("이미 존재하는 데이터입니다.");
     }
-    
+
     throw new Error(`출판사 수정 실패: ${error.message}`);
   }
 
@@ -1290,21 +1109,10 @@ export async function updatePublisher(
 }
 
 export async function deletePublisher(id: string): Promise<void> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase.from("publishers").delete().eq("id", id);
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[contentMetadata] 출판사 삭제 실패", error);
-      throw new Error(`출판사 삭제 실패: ${error.message}`);
-    }
-    return;
-  }
-
-  const { error } = await supabaseAdmin.from("publishers").delete().eq("id", id);
+  const { error } = await supabase.from("publishers").delete().eq("id", id);
 
   if (error) {
     console.error("[contentMetadata] 출판사 삭제 실패", error);

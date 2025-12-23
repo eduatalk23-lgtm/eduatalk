@@ -4,7 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 
 /**
  * 학생 구분 항목 타입
@@ -22,9 +22,8 @@ export type StudentDivisionItem = {
  * 학생 구분 항목 목록 조회 (display_order 정렬)
  */
 export async function getStudentDivisions(): Promise<StudentDivisionItem[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   const { data, error } = await supabase
     .from("student_divisions")
@@ -44,9 +43,8 @@ export async function getStudentDivisions(): Promise<StudentDivisionItem[]> {
  * 활성 학생 구분 항목만 조회
  */
 export async function getActiveStudentDivisions(): Promise<StudentDivisionItem[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   const { data, error } = await supabase
     .from("student_divisions")
@@ -69,9 +67,8 @@ export async function getActiveStudentDivisions(): Promise<StudentDivisionItem[]
 export async function getStudentDivisionById(
   id: string
 ): Promise<StudentDivisionItem | null> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   const { data, error } = await supabase
     .from("student_divisions")
@@ -94,35 +91,10 @@ export async function createStudentDivision(
   name: string,
   displayOrder: number
 ): Promise<StudentDivisionItem> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("student_divisions")
-      .insert({ name, display_order: displayOrder })
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[studentDivisions] 학생 구분 항목 생성 실패", error);
-
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (error.message.includes("student_divisions_name_key")) {
-          throw new Error(`이미 존재하는 구분명입니다: "${name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-
-      throw new Error(`학생 구분 항목 생성 실패: ${error.message}`);
-    }
-
-    return data as StudentDivisionItem;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("student_divisions")
     .insert({ name, display_order: displayOrder })
     .select()
@@ -156,39 +128,10 @@ export async function updateStudentDivision(
     is_active: boolean;
   }>
 ): Promise<StudentDivisionItem> {
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("student_divisions")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select()
-      .single();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[studentDivisions] 학생 구분 항목 수정 실패", error);
-
-      // 중복 키 에러 처리
-      if (error.code === "23505") {
-        if (
-          error.message.includes("student_divisions_name_key") &&
-          updates.name
-        ) {
-          throw new Error(`이미 존재하는 구분명입니다: "${updates.name}"`);
-        }
-        throw new Error("이미 존재하는 데이터입니다.");
-      }
-
-      throw new Error(`학생 구분 항목 수정 실패: ${error.message}`);
-    }
-
-    return data as StudentDivisionItem;
-  }
-
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("student_divisions")
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq("id", id)
@@ -221,9 +164,8 @@ export async function updateStudentDivision(
 export async function checkDivisionInUse(
   id: string
 ): Promise<{ inUse: boolean; count: number }> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   // 해당 구분을 사용하는 학생 수 확인
   const division = await getStudentDivisionById(id);
@@ -256,24 +198,10 @@ export async function deleteStudentDivision(id: string): Promise<void> {
     );
   }
 
-  // 관리자 작업이므로 Admin 클라이언트 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  if (!supabaseAdmin) {
-    // Admin 클라이언트가 없으면 일반 서버 클라이언트 사용
-    const supabase = await createSupabaseServerClient();
-    const { error } = await supabase
-      .from("student_divisions")
-      .delete()
-      .eq("id", id);
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
-    if (error) {
-      console.error("[studentDivisions] 학생 구분 항목 삭제 실패", error);
-      throw new Error(`학생 구분 항목 삭제 실패: ${error.message}`);
-    }
-    return;
-  }
-
-  const { error } = await supabaseAdmin
+  const { error } = await supabase
     .from("student_divisions")
     .delete()
     .eq("id", id);

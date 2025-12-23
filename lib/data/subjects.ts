@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import {
   createTypedQuery,
   createTypedSingleQuery,
@@ -44,9 +44,8 @@ export type Subject = {
 export async function getSubjectGroups(
   curriculumRevisionId?: string
 ): Promise<SubjectGroup[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   return await createTypedQuery<SubjectGroup[]>(
     async () => {
@@ -78,9 +77,8 @@ export async function getSubjectGroups(
 export async function getSubjectTypes(
   curriculumRevisionId?: string
 ): Promise<SubjectType[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   return await createTypedQuery<SubjectType[]>(
     async () => {
@@ -113,9 +111,8 @@ export async function getSubjectTypes(
 export async function getSubjectsByGroup(
   subjectGroupId: string
 ): Promise<Subject[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   type SubjectWithJoin = Subject & {
     subject_types?: { name: string } | null;
@@ -161,9 +158,8 @@ export async function getSubjectsByGroup(
 export async function getSubjectsByRevision(
   curriculumRevisionId: string
 ): Promise<Subject[]> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   // 1. 먼저 해당 개정교육과정의 교과 그룹 ID 목록 조회
   const groups = await createTypedQuery<{ id: string }[]>(
@@ -380,9 +376,8 @@ export async function getSubjectHierarchyOptimized(
   })[];
   subjectTypes: SubjectType[];
 }> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   // 1. 개정교육과정 조회
   const revisionData = await createTypedSingleQuery<{
@@ -506,9 +501,8 @@ export async function getActiveCurriculumRevision(): Promise<{
   name: string;
   year?: number | null;
 } | null> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   return await createTypedSingleQuery<{
     id: string;
@@ -546,8 +540,8 @@ export async function getSubjectById(subjectId: string): Promise<
     })
   | null
 > {
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   type SubjectWithJoins = Subject & {
     subject_groups?: SubjectGroup;
@@ -607,9 +601,8 @@ export async function getSubjectById(subjectId: string): Promise<
 export async function getSubjectGroupById(
   subjectGroupId: string
 ): Promise<SubjectGroup | null> {
-  // 관리자 작업이므로 Admin 클라이언트 우선 사용 (RLS 우회)
-  const supabaseAdmin = createSupabaseAdminClient();
-  const supabase = supabaseAdmin || await createSupabaseServerClient();
+  // Admin 클라이언트 우선 사용 (RLS 우회)
+  const supabase = await getSupabaseClientForRLSBypass();
 
   return await createTypedSingleQuery<SubjectGroup>(
     async () => {
