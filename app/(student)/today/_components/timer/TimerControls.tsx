@@ -18,6 +18,8 @@ type TimerControlsProps = {
   canPostpone?: boolean;
   compact?: boolean;
   className?: string;
+  /** 가상 플랜 여부 (true이면 시작 버튼 비활성화) */
+  isVirtual?: boolean;
 };
 
 const pendingMessages: Record<
@@ -42,6 +44,7 @@ export function TimerControls({
   canPostpone = false,
   compact = false,
   className,
+  isVirtual = false,
 }: TimerControlsProps) {
   const currentPendingMessage =
     isLoading && pendingAction
@@ -69,9 +72,13 @@ export function TimerControls({
         {status === "NOT_STARTED" && (
           <button
             onClick={onStart}
-            disabled={isLoading}
+            disabled={isLoading || isVirtual}
+            title={isVirtual ? "콘텐츠가 연결되지 않은 플랜입니다. 먼저 콘텐츠를 연결해주세요." : undefined}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 font-bold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md disabled:opacity-50 active:scale-[0.98]",
+              "flex flex-1 items-center justify-center gap-2 rounded-lg font-bold text-white shadow-sm transition disabled:opacity-50 active:scale-[0.98]",
+              isVirtual
+                ? "bg-amber-500 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700 hover:shadow-md",
               buttonSize
             )}
           >
@@ -80,7 +87,7 @@ export function TimerControls({
             ) : (
               <Play className={iconSize} />
             )}
-            시작하기
+            {isVirtual ? "콘텐츠 연결 필요" : "시작하기"}
           </button>
         )}
 

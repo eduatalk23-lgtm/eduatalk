@@ -1718,6 +1718,53 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          metadata: Json | null
+          read_at: string | null
+          tenant_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          metadata?: Json | null
+          read_at?: string | null
+          tenant_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          metadata?: Json | null
+          read_at?: string | null
+          tenant_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parent_student_links: {
         Row: {
           approved_at: string | null
@@ -2609,6 +2656,50 @@ export type Database = {
             columns: ["district_id"]
             isOneToOne: false
             referencedRelation: "district_office"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slot_template_presets: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          slot_templates: Json
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          slot_templates?: Json
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          slot_templates?: Json
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slot_template_presets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3756,6 +3847,7 @@ export type Database = {
           is_continued: boolean | null
           is_partial: boolean | null
           is_reschedulable: boolean | null
+          is_virtual: boolean | null
           memo: string | null
           origin_plan_item_id: string | null
           pause_count: number | null
@@ -3767,6 +3859,7 @@ export type Database = {
           planned_start_page_or_time: number | null
           progress: number | null
           sequence: number | null
+          slot_index: number | null
           start_time: string | null
           status: string | null
           student_id: string
@@ -3776,6 +3869,8 @@ export type Database = {
           updated_at: string | null
           version: number | null
           version_group_id: string | null
+          virtual_description: string | null
+          virtual_subject_category: string | null
           week: number | null
         }
         Insert: {
@@ -3799,6 +3894,7 @@ export type Database = {
           is_continued?: boolean | null
           is_partial?: boolean | null
           is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
           memo?: string | null
           origin_plan_item_id?: string | null
           pause_count?: number | null
@@ -3810,6 +3906,7 @@ export type Database = {
           planned_start_page_or_time?: number | null
           progress?: number | null
           sequence?: number | null
+          slot_index?: number | null
           start_time?: string | null
           status?: string | null
           student_id: string
@@ -3819,6 +3916,8 @@ export type Database = {
           updated_at?: string | null
           version?: number | null
           version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
           week?: number | null
         }
         Update: {
@@ -3842,6 +3941,7 @@ export type Database = {
           is_continued?: boolean | null
           is_partial?: boolean | null
           is_reschedulable?: boolean | null
+          is_virtual?: boolean | null
           memo?: string | null
           origin_plan_item_id?: string | null
           pause_count?: number | null
@@ -3853,6 +3953,7 @@ export type Database = {
           planned_start_page_or_time?: number | null
           progress?: number | null
           sequence?: number | null
+          slot_index?: number | null
           start_time?: string | null
           status?: string | null
           student_id?: string
@@ -3862,6 +3963,8 @@ export type Database = {
           updated_at?: string | null
           version?: number | null
           version_group_id?: string | null
+          virtual_description?: string | null
+          virtual_subject_category?: string | null
           week?: number | null
         }
         Relationships: [

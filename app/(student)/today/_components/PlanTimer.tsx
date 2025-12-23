@@ -32,6 +32,8 @@ type PlanTimerProps = {
   accumulatedSeconds: number;
   startedAt: string | null;
   serverNow: number;
+  /** 가상 플랜 여부 (true이면 시작 버튼 비활성화) */
+  isVirtual?: boolean;
 };
 
 function PlanTimerComponent({
@@ -50,6 +52,7 @@ function PlanTimerComponent({
   accumulatedSeconds,
   startedAt,
   serverNow,
+  isVirtual = false,
 }: PlanTimerProps) {
   // 새로운 스토어 기반 타이머 훅 사용
   const { seconds, status: timerStatus } = usePlanTimer({
@@ -116,6 +119,7 @@ function PlanTimerComponent({
           onPostpone={onPostpone}
           canPostpone={canPostpone}
           compact={true}
+          isVirtual={isVirtual}
         />
 
         {timeStats.pauseCount > 0 && showTimer && (
@@ -184,6 +188,7 @@ function PlanTimerComponent({
           onPostpone={onPostpone}
           canPostpone={canPostpone}
           compact={false}
+          isVirtual={isVirtual}
         />
       </div>
     </div>

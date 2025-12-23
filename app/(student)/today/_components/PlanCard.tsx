@@ -213,9 +213,17 @@ function PlanCardComponent({
     }
   };
 
+  // 가상 플랜 여부
+  const isVirtual = group.plan.is_virtual === true;
+
   // 타이머 제어 핸들러
   const handleStart = async () => {
     const plan = group.plan;
+    // 가상 플랜은 학습 시작 불가
+    if (plan.is_virtual === true) {
+      showError("콘텐츠가 연결되지 않은 플랜입니다. 먼저 콘텐츠를 연결해주세요.");
+      return;
+    }
     if (plan.actual_start_time || plan.actual_end_time || isLoading) return;
     const waitingPlan = plan;
 
@@ -417,6 +425,7 @@ function PlanCardComponent({
           accumulatedSeconds={timerState.accumulatedSeconds}
           startedAt={timerState.startedAt}
           serverNow={serverNow}
+          isVirtual={isVirtual}
         />
 
 
@@ -491,6 +500,7 @@ function PlanCardComponent({
           accumulatedSeconds={timerState.accumulatedSeconds}
           startedAt={timerState.startedAt}
           serverNow={serverNow}
+          isVirtual={isVirtual}
         />
 
       </div>

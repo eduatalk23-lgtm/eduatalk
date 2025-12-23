@@ -511,6 +511,11 @@ export async function detectRescheduleNeeds(
         is_active: plan.is_active ?? null,
         version: plan.version ?? null,
         version_group_id: plan.version_group_id ?? null,
+        // 가상 플랜 필드
+        is_virtual: plan.is_virtual ?? null,
+        slot_index: plan.slot_index ?? null,
+        virtual_subject_category: plan.virtual_subject_category ?? null,
+        virtual_description: plan.virtual_description ?? null,
       }));
 
       // 4. 지연 분석 수행

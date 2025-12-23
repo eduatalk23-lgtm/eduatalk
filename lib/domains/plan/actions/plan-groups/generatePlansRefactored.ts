@@ -43,6 +43,13 @@ import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getMergedSchedulerSettings } from "@/lib/data/schedulerSettings";
 import { PlanGroupError } from "@/lib/errors/planGroupErrors";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
+import {
+  calculateVirtualTimeline,
+  generateVirtualPlanItems,
+  filterVirtualSlots,
+  type DailyScheduleInfo,
+} from "@/lib/plan/virtualSchedulePreview";
+import type { ContentSlot } from "@/lib/types/content-selection";
 
 /**
  * 리팩토링된 _generatePlansFromGroup 함수
@@ -754,6 +761,11 @@ async function _generatePlansFromGroupRefactored(
     created_at: string;
     updated_at: string;
     sequence: number | null;
+    // 가상 플랜 필드
+    is_virtual?: boolean;
+    slot_index?: number | null;
+    virtual_subject_category?: string | null;
+    virtual_description?: string | null;
   }> = [];
 
   // 역방향 콘텐츠 ID 맵 생성 (resolved ID -> original ID)
@@ -1045,6 +1057,107 @@ async function _generatePlansFromGroupRefactored(
     }
   }
 
+  // 13.5 가상 플랜 생성 (슬롯 모드이고 콘텐츠 없는 슬롯이 있는 경우)
+  const useSlotMode = group.use_slot_mode === true;
+  const contentSlots = (group.content_slots as ContentSlot[] | null) || [];
+
+  if (useSlotMode && contentSlots.length > 0) {
+    // 콘텐츠 없는 슬롯만 필터링
+    const virtualSlots = filterVirtualSlots(contentSlots);
+
+    if (virtualSlots.length > 0) {
+      console.log("[generatePlansRefactored] 가상 플랜 생성 시작:", {
+        groupId,
+        totalSlots: contentSlots.length,
+        virtualSlots: virtualSlots.length,
+      });
+
+      // 일정 정보를 DailyScheduleInfo 형태로 변환
+      const dailyScheduleInfos: DailyScheduleInfo[] =
+        scheduleResult.daily_schedule
+          .filter(
+            (d) => d.day_type === "학습일" || d.day_type === "복습일"
+          )
+          .map((d) => ({
+            date: d.date,
+            day_type: d.day_type as "학습일" | "복습일",
+            study_hours: d.study_hours,
+            week_number: d.week_number ?? undefined,
+          }));
+
+      // 가상 타임라인 계산
+      const virtualTimelineResult = calculateVirtualTimeline(
+        virtualSlots,
+        dailyScheduleInfos,
+        { studyDaysOnly: false }
+      );
+
+      if (virtualTimelineResult.warnings.length > 0) {
+        console.warn(
+          "[generatePlansRefactored] 가상 타임라인 경고:",
+          virtualTimelineResult.warnings
+        );
+      }
+
+      // 가상 플랜 DB 레코드 생성
+      const virtualPlanRecords = generateVirtualPlanItems(
+        virtualTimelineResult.plans,
+        virtualSlots,
+        {
+          tenantId,
+          studentId,
+          planGroupId: groupId,
+        }
+      );
+
+      // 가상 플랜을 planPayloads에 추가
+      const virtualNow = new Date().toISOString();
+      for (const virtualRecord of virtualPlanRecords) {
+        planPayloads.push({
+          plan_group_id: virtualRecord.plan_group_id,
+          student_id: virtualRecord.student_id,
+          tenant_id: virtualRecord.tenant_id,
+          plan_date: virtualRecord.plan_date,
+          block_index: virtualRecord.block_index,
+          status: virtualRecord.status ?? "pending",
+          content_type: virtualRecord.content_type,
+          content_id: virtualRecord.content_id,
+          planned_start_page_or_time:
+            virtualRecord.planned_start_page_or_time,
+          planned_end_page_or_time: virtualRecord.planned_end_page_or_time,
+          chapter: virtualRecord.chapter ?? null,
+          start_time: virtualRecord.start_time,
+          end_time: virtualRecord.end_time,
+          day_type: virtualRecord.day_type,
+          week: virtualRecord.week,
+          day: virtualRecord.day,
+          is_partial: false,
+          is_continued: false,
+          content_title: null, // 가상 플랜은 콘텐츠 제목 없음
+          content_subject: null,
+          content_subject_category:
+            virtualRecord.virtual_subject_category,
+          created_at: virtualNow,
+          updated_at: virtualNow,
+          sequence: null, // 가상 플랜은 sequence 없음
+          // 가상 플랜 전용 필드
+          is_virtual: virtualRecord.is_virtual,
+          slot_index: virtualRecord.slot_index,
+          virtual_subject_category:
+            virtualRecord.virtual_subject_category,
+          virtual_description: virtualRecord.virtual_description,
+        });
+      }
+
+      console.log("[generatePlansRefactored] 가상 플랜 생성 완료:", {
+        groupId,
+        realPlansCount: planPayloads.length - virtualPlanRecords.length,
+        virtualPlansCount: virtualPlanRecords.length,
+        totalPlansCount: planPayloads.length,
+      });
+    }
+  }
+
   // 14. 플랜 저장 전 검증
   if (planPayloads.length === 0) {
     // contentIdMap에 매핑되지 않은 콘텐츠 정보 포함
@@ -1093,19 +1206,21 @@ async function _generatePlansFromGroupRefactored(
 
   // 플랜 저장 전 콘텐츠 존재 여부 검증 (외래 키 제약 조건 위반 방지)
   // planPayloads의 content_id는 이미 contentIdMap을 통해 변환된 학생 콘텐츠 ID
+  // 가상 플랜은 더미 content_id를 사용하므로 검증에서 제외
+  const realPlanPayloads = planPayloads.filter((p) => !p.is_virtual);
   const uniqueContentIds = new Set(
-    planPayloads.map((p) => p.content_id).filter((id) => id)
+    realPlanPayloads.map((p) => p.content_id).filter((id) => id)
   );
-  
-  // 콘텐츠 타입별로 분류
+
+  // 콘텐츠 타입별로 분류 (가상 플랜 제외)
   const contentIdsByType = {
-    book: planPayloads
+    book: realPlanPayloads
       .filter((p) => p.content_type === "book" && p.content_id)
       .map((p) => p.content_id),
-    lecture: planPayloads
+    lecture: realPlanPayloads
       .filter((p) => p.content_type === "lecture" && p.content_id)
       .map((p) => p.content_id),
-    custom: planPayloads
+    custom: realPlanPayloads
       .filter((p) => p.content_type === "custom" && p.content_id)
       .map((p) => p.content_id),
   };
@@ -1211,7 +1326,12 @@ async function _generatePlansFromGroupRefactored(
     );
     
     // 존재하지 않는 콘텐츠를 포함한 플랜 제외
+    // 가상 플랜은 콘텐츠 검증 없이 통과
     const validPlanPayloads = planPayloads.filter((p) => {
+      // 가상 플랜은 항상 유효
+      if (p.is_virtual) {
+        return true;
+      }
       if (p.content_type === "book") {
         return existingBookIds.has(p.content_id);
       }
@@ -1251,8 +1371,9 @@ async function _generatePlansFromGroupRefactored(
     ...contentIdsByType.custom, // custom 콘텐츠는 검증하지 않음
   ]);
 
+  // 가상 플랜은 콘텐츠 검증에서 제외
   const unverifiedPlans = planPayloads.filter(
-    (p) => p.content_id && !verifiedContentIds.has(p.content_id)
+    (p) => !p.is_virtual && p.content_id && !verifiedContentIds.has(p.content_id)
   );
 
   if (unverifiedPlans.length > 0) {

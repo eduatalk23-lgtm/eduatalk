@@ -105,3 +105,11 @@ export type {
   PlanFilters,
 } from "./input";
 
+// 유틸리티 함수 및 타입
+export {
+  canStartLearning,
+  isVirtualPlan,
+  isPlanCompleted,
+} from "./utils";
+export type { LearningStartInfo } from "./utils";
+

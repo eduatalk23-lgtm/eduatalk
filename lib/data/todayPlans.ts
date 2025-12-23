@@ -148,6 +148,11 @@ async function getPlansFromView(options: {
     status: string | null;
     version: number | null;
     version_group_id: string | null;
+    // 가상 플랜 필드
+    is_virtual?: boolean | null;
+    slot_index?: number | null;
+    virtual_subject_category?: string | null;
+    virtual_description?: string | null;
   };
 
   // View에서 필요한 필드만 조회 (view_* 필드 포함)
@@ -251,6 +256,11 @@ async function getPlansFromView(options: {
       subject_type: row.subject_type ?? null,
       version: row.version ?? null,
       version_group_id: row.version_group_id ?? null,
+      // 가상 플랜 필드
+      is_virtual: row.is_virtual ?? null,
+      slot_index: row.slot_index ?? null,
+      virtual_subject_category: row.virtual_subject_category ?? null,
+      virtual_description: row.virtual_description ?? null,
     };
   });
 

@@ -44,7 +44,7 @@ export async function startPlan(
     // [경합 방지 규칙 2] 완료된 플랜 재시작 방지
     const { data: plan, error: planError } = await supabase
       .from("student_plan")
-      .select("id, actual_end_time")
+      .select("id, actual_end_time, is_virtual")
       .eq("id", planId)
       .eq("student_id", user.userId)
       .maybeSingle();
@@ -56,6 +56,14 @@ export async function startPlan(
 
     if (!plan) {
       return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
+    // 가상 플랜은 학습 시작 불가
+    if (plan.is_virtual === true) {
+      return {
+        success: false,
+        error: "콘텐츠가 연결되지 않은 플랜입니다. 먼저 콘텐츠를 연결해주세요.",
+      };
     }
 
     if (plan.actual_end_time) {

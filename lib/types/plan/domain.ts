@@ -302,6 +302,9 @@ export type PlanGroup = {
   plan_type?: PlanType | null;
   camp_template_id?: string | null;
   camp_invitation_id?: string | null;
+  // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+  use_slot_mode?: boolean | null;
+  content_slots?: unknown[] | null; // JSON: 콘텐츠 슬롯 배열
   created_at: string;
   updated_at: string;
 };
@@ -362,6 +365,15 @@ export type Plan = {
   content_subject_category?: string | null;
   content_category?: string | null;
   memo?: string | null;
+  // 가상 플랜 관련 필드 (슬롯 모드)
+  /** 가상 플랜 여부 (콘텐츠 없이 슬롯 기반으로 생성된 플랜) */
+  is_virtual?: boolean | null;
+  /** 연결된 콘텐츠 슬롯 인덱스 */
+  slot_index?: number | null;
+  /** 가상 플랜의 교과 카테고리 (슬롯에서 가져옴) */
+  virtual_subject_category?: string | null;
+  /** 가상 플랜 설명 (예: "수학 학습 예정") */
+  virtual_description?: string | null;
 };
 
 /**
