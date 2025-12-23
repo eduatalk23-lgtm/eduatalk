@@ -11,7 +11,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 export const createAdminUser = withErrorHandling(
   async (formData: FormData): Promise<{ success: boolean; error?: string }> => {
     // 권한 확인 (admin만 허용)
-    const { role: currentRole } = await requireAdminOrConsultant();
+    const { role: currentRole, tenantId } = await requireAdminOrConsultant();
 
     // Super Admin만 접근 가능
     if (currentRole !== "admin" && currentRole !== "superadmin") {
@@ -19,6 +19,16 @@ export const createAdminUser = withErrorHandling(
         "관리자 권한이 필요합니다.",
         ErrorCode.FORBIDDEN,
         403,
+        true
+      );
+    }
+
+    // 일반 Admin은 tenant 필요
+    if (currentRole === "admin" && !tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
         true
       );
     }
@@ -99,11 +109,18 @@ export const createAdminUser = withErrorHandling(
       );
     }
 
-    // admin_users에 추가
-    const { error: insertError } = await supabase.from("admin_users").insert({
+    // admin_users에 추가 (tenant_id 포함)
+    const insertPayload: { id: string; role: string; tenant_id?: string | null } = {
       id: user.id,
       role: userRole,
-    });
+    };
+
+    // 일반 Admin이 생성하는 경우 자신의 tenant에 소속
+    if (currentRole === "admin" && tenantId) {
+      insertPayload.tenant_id = tenantId;
+    }
+
+    const { error: insertError } = await supabase.from("admin_users").insert(insertPayload);
 
     if (insertError) {
       throw new AppError(
@@ -125,7 +142,7 @@ export const createAdminUser = withErrorHandling(
 export const deleteAdminUser = withErrorHandling(
   async (userId: string): Promise<{ success: boolean; error?: string }> => {
     // 권한 확인 (admin만 허용)
-    const { role: currentRole, userId: currentUserId } =
+    const { role: currentRole, userId: currentUserId, tenantId } =
       await requireAdminOrConsultant();
 
     // Super Admin만 접근 가능
@@ -134,6 +151,16 @@ export const deleteAdminUser = withErrorHandling(
         "관리자 권한이 필요합니다.",
         ErrorCode.FORBIDDEN,
         403,
+        true
+      );
+    }
+
+    // 일반 Admin은 tenant 필요
+    if (currentRole === "admin" && !tenantId) {
+      throw new AppError(
+        "기관 정보를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
         true
       );
     }
@@ -150,10 +177,18 @@ export const deleteAdminUser = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
 
-    const { error: deleteError } = await supabase
+    // 삭제 쿼리 (일반 Admin은 자기 tenant 내에서만 삭제 가능)
+    let deleteQuery = supabase
       .from("admin_users")
       .delete()
       .eq("id", userId);
+
+    // 일반 Admin인 경우 tenant_id로 필터링
+    if (currentRole === "admin" && tenantId) {
+      deleteQuery = deleteQuery.eq("tenant_id", tenantId);
+    }
+
+    const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
       throw new AppError(

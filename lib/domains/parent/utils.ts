@@ -36,6 +36,7 @@ type ParentStudentLinkWithStudent = {
 
 /**
  * 부모가 연결된 학생 목록 조회
+ * 주의: is_approved = true인 링크만 반환 (승인된 연결만)
  */
 export async function getLinkedStudents(
   supabase: SupabaseServerClient,
@@ -46,7 +47,8 @@ export async function getLinkedStudents(
       supabase
         .from("parent_student_links")
         .select("student_id, relation, students(id, name, grade, class)")
-        .eq("parent_id", parentId);
+        .eq("parent_id", parentId)
+        .eq("is_approved", true); // P0 보안: 승인된 링크만 조회
 
     let { data: links, error } = await selectLinks();
 
@@ -95,6 +97,7 @@ export async function canAccessStudent(
         .select("id")
         .eq("parent_id", parentId)
         .eq("student_id", studentId)
+        .eq("is_approved", true) // P0 보안: 승인된 링크만 접근 허용
         .maybeSingle();
 
     let { data: link, error } = await selectLink();

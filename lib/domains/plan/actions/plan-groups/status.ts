@@ -110,11 +110,12 @@ async function _updatePlanGroupStatus(
       );
 
       if (sameModeGroups.length > 0) {
-        // 같은 모드의 다른 활성 플랜 그룹들을 "saved" 상태로 변경
+        // 같은 모드의 다른 활성 플랜 그룹들을 "paused" 상태로 변경
+        // (active → paused는 유효한 상태 전환, active → saved는 아님)
         const activeGroupIds = sameModeGroups.map((g) => g.id);
         const { error: deactivateError } = await supabase
           .from("plan_groups")
-          .update({ status: "saved" })
+          .update({ status: "paused" })
           .in("id", activeGroupIds);
 
         if (deactivateError) {

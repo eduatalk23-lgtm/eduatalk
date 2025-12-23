@@ -12,7 +12,7 @@ import { getStudentById } from "@/lib/data/students";
 export const getCurrentUserName = cache(async (): Promise<string | null> => {
   try {
     const supabase = await createSupabaseServerClient();
-    const { userId, role } = await getCurrentUserRole();
+    const { userId, role, tenantId } = await getCurrentUserRole();
 
     if (!userId || !role) {
       return null;
@@ -29,7 +29,8 @@ export const getCurrentUserName = cache(async (): Promise<string | null> => {
 
     // 역할별로 테이블에서 이름 조회
     if (role === "student") {
-      const student = await getStudentById(userId);
+      // 테넌트 ID를 전달하여 보안 강화
+      const student = await getStudentById(userId, tenantId);
       return student?.name || null;
     }
 

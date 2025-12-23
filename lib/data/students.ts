@@ -63,6 +63,8 @@ async function buildStudentQuery(
 
 /**
  * 학생 ID로 학생 정보 조회
+ * @param studentId - 조회할 학생 ID
+ * @param tenantId - 테넌트 ID (제공 시 테넌트 필터 적용, 보안 강화)
  */
 export async function getStudentById(
   studentId: string,
@@ -74,22 +76,33 @@ export async function getStudentById(
   return await createTypedConditionalQuery<Student>(
     async () => {
       const selectFields = await buildStudentQuery(supabase);
-      return await supabase
+      let query = supabase
         .from("students")
         .select(selectFields)
-        .eq("id", studentId)
-        .maybeSingle<Student>();
+        .eq("id", studentId);
+
+      // tenantId가 제공되면 테넌트 필터 적용 (추가 보안)
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
+
+      return await query.maybeSingle<Student>();
     },
     {
       context: "[data/students] getStudentById",
       defaultValue: null,
       fallbackQuery: async () => {
         // fallback: 기본 필드만 사용
-        return await supabase
+        let query = supabase
           .from("students")
           .select(STUDENT_BASE_FIELDS)
-          .eq("id", studentId)
-          .maybeSingle<Student>();
+          .eq("id", studentId);
+
+        if (tenantId) {
+          query = query.eq("tenant_id", tenantId);
+        }
+
+        return await query.maybeSingle<Student>();
       },
       shouldFallback: (error) => {
         return error?.code === "42703" || error?.code === "PGRST116";
@@ -195,14 +208,21 @@ export async function upsertStudent(
   }
 
   // 기존 학생 정보 조회 (name이 없을 경우 기존 값 유지)
+  // 테넌트 보안: 동일 테넌트의 학생만 조회
   let nameValue = student.name;
   if (!nameValue) {
-    const { data: existingStudent } = await supabase
+    let existingQuery = supabase
       .from("students")
       .select("name")
-      .eq("id", student.id)
-      .maybeSingle();
-    
+      .eq("id", student.id);
+
+    // tenant_id 필터 적용 (보안 강화)
+    if (tenantId) {
+      existingQuery = existingQuery.eq("tenant_id", tenantId);
+    }
+
+    const { data: existingStudent } = await existingQuery.maybeSingle();
+
     if (existingStudent?.name) {
       nameValue = existingStudent.name;
     }
