@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useCampParticipantsLogic } from "./_components/useCampParticipantsLogic";
-import ParticipantsStats from "./_components/ParticipantsStats";
+import { CampOverviewDashboard } from "./_components/CampOverviewDashboard";
 import ParticipantsToolbar from "./_components/ParticipantsToolbar";
 import ParticipantsTable from "./_components/ParticipantsTable";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
@@ -72,6 +72,26 @@ export function CampParticipantsList({
     await handleBatchConfirm(batchStatus, () => setBatchDialogOpen(false));
   }, [handleBatchConfirm, batchStatus]);
 
+  // 빠른 액션 핸들러
+  const handleQuickAction = useCallback(
+    (action: "bulk_plan" | "send_reminder" | "bulk_activate") => {
+      switch (action) {
+        case "bulk_plan":
+          // 플랜 생성이 필요한 참여자들을 선택하고 배치 위저드 열기
+          setBatchWizardOpen(true);
+          break;
+        case "send_reminder":
+          // TODO: 리마인더 발송 기능 (향후 구현)
+          alert("리마인더 발송 기능은 준비 중입니다.");
+          break;
+        case "bulk_activate":
+          handleBatchActivate();
+          break;
+      }
+    },
+    [handleBatchActivate]
+  );
+
   if (loading) {
     return (
       <section className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -102,44 +122,14 @@ export function CampParticipantsList({
           </Link>
         </div>
 
-        {/* 작업 필요 알림 */}
-        {needsActionParticipants.length > 0 && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-blue-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-blue-900">
-                  작업이 필요한 참여자가 있습니다
-                </h3>
-                <p className="text-sm text-blue-700">
-                  {needsActionParticipants.length}명의 참여자가 제출을
-                  완료했지만 플랜이 생성되지 않았습니다. "남은 단계 진행" 버튼을
-                  클릭하여 플랜 생성을 완료해주세요.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 통계 */}
-        <ParticipantsStats
+        {/* 통합 대시보드 */}
+        <CampOverviewDashboard
           stats={stats}
           participants={participants}
-          needsActionCount={needsActionParticipants.length}
+          needsActionParticipants={needsActionParticipants}
+          onQuickAction={handleQuickAction}
+          isPending={isPending}
+          selectedCount={selectedParticipantIds.size}
         />
 
         {/* 필터 및 일괄 작업 버튼 */}

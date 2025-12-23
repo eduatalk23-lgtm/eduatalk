@@ -277,3 +277,146 @@ export async function sendCampStatusChangeNotification(
   return { success: true };
 }
 
+/**
+ * 학생 캠프 참여 수락 시 관리자에게 알림 발송
+ */
+export async function sendCampAcceptanceNotificationToAdmins(params: {
+  templateId: string;
+  templateName: string;
+  studentId: string;
+  studentName: string;
+  tenantId: string;
+  groupId: string;
+}): Promise<{ success: boolean; sentCount: number; error?: string }> {
+  const { templateId, templateName, studentId, studentName, tenantId, groupId } = params;
+
+  try {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+
+    if (!adminClient) {
+      console.error("[campNotificationService] Admin 클라이언트 초기화 실패");
+      return {
+        success: false,
+        sentCount: 0,
+        error: "서버 설정 오류: Admin 클라이언트를 초기화할 수 없습니다.",
+      };
+    }
+
+    // 해당 테넌트의 관리자 목록 조회
+    const { data: adminUsers, error: adminError } = await adminClient
+      .from("user_roles")
+      .select("user_id")
+      .eq("tenant_id", tenantId)
+      .eq("role", "admin");
+
+    if (adminError) {
+      console.error("[campNotificationService] 관리자 목록 조회 실패:", adminError);
+      return {
+        success: false,
+        sentCount: 0,
+        error: adminError.message,
+      };
+    }
+
+    if (!adminUsers || adminUsers.length === 0) {
+      console.warn("[campNotificationService] 해당 테넌트에 관리자가 없습니다:", tenantId);
+      return {
+        success: true,
+        sentCount: 0,
+      };
+    }
+
+    const adminUserIds = adminUsers.map((u) => u.user_id);
+
+    // 일괄 알림 발송
+    const { sendBulkInAppNotification } = await import("./inAppNotificationService");
+    const result = await sendBulkInAppNotification(
+      adminUserIds,
+      "admin_notification",
+      `[${templateName}] 캠프 참여 수락`,
+      `${studentName} 학생이 "${templateName}" 캠프에 참여를 수락했습니다.`,
+      {
+        templateId,
+        studentId,
+        studentName,
+        groupId,
+        action: "camp_acceptance",
+      },
+      tenantId
+    );
+
+    if (result.success) {
+      console.log("[campNotificationService] 관리자 알림 발송 완료:", {
+        templateId,
+        templateName,
+        studentId,
+        studentName,
+        adminCount: adminUserIds.length,
+        sentCount: result.sentCount,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[campNotificationService] 관리자 알림 발송 중 예외:", errorMessage);
+    return {
+      success: false,
+      sentCount: 0,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 캠프 플랜 생성 완료 시 학생에게 알림 발송
+ */
+export async function sendPlanCreatedNotificationToStudent(params: {
+  studentId: string;
+  studentName: string;
+  templateId: string;
+  templateName: string;
+  groupId: string;
+  tenantId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { studentId, studentName, templateName, templateId, groupId, tenantId } = params;
+
+  try {
+    const result = await sendInAppNotification(
+      studentId,
+      "plan_created",
+      `[${templateName}] 캠프 플랜 생성 완료`,
+      `${studentName}님, "${templateName}" 캠프 플랜이 생성되었습니다. 학습 계획을 확인해보세요.`,
+      {
+        templateId,
+        groupId,
+        action: "plan_created",
+      },
+      tenantId
+    );
+
+    if (result.success) {
+      console.log("[campNotificationService] 학생 플랜 생성 알림 발송 완료:", {
+        studentId,
+        studentName,
+        templateId,
+        templateName,
+        groupId,
+      });
+    }
+
+    return {
+      success: result.success,
+      error: result.error,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[campNotificationService] 학생 알림 발송 중 예외:", errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+

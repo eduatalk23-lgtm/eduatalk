@@ -187,12 +187,20 @@ export type CampLearningStats = {
   template_name: string;
   total_study_minutes: number;
   average_study_minutes_per_participant: number;
+  /** 전체 플랜 수 */
+  total_plans: number;
+  /** 완료된 플랜 수 */
+  completed_plans: number;
   participant_stats: Array<{
     student_id: string;
     student_name: string;
     study_minutes: number;
     plan_completion_rate: number;
     subject_distribution: Record<string, number>;
+    /** 해당 학생의 전체 플랜 수 */
+    total_plans: number;
+    /** 해당 학생의 완료된 플랜 수 */
+    completed_plans: number;
   }>;
 };
 

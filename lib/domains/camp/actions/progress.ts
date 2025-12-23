@@ -1183,6 +1183,41 @@ export const continueCampStepsForAdmin = withErrorHandling(
               "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
             );
           }
+
+          // 플랜 생성 성공 시 학생에게 알림 발송
+          try {
+            if (result.group.camp_template_id && result.group.student_id) {
+              const [studentData, templateData] = await Promise.all([
+                supabase
+                  .from("students")
+                  .select("name")
+                  .eq("user_id", result.group.student_id)
+                  .single(),
+                supabase
+                  .from("camp_templates")
+                  .select("name")
+                  .eq("id", result.group.camp_template_id)
+                  .single(),
+              ]);
+
+              if (studentData.data && templateData.data) {
+                const { sendPlanCreatedNotificationToStudent } = await import(
+                  "@/lib/services/campNotificationService"
+                );
+                await sendPlanCreatedNotificationToStudent({
+                  studentId: result.group.student_id,
+                  studentName: studentData.data.name || "학생",
+                  templateId: result.group.camp_template_id,
+                  templateName: templateData.data.name,
+                  groupId,
+                  tenantId,
+                });
+              }
+            }
+          } catch (notificationError) {
+            // 알림 발송 실패는 로그만 남기고 계속 진행
+            console.error("[continueCampStepsForAdmin] 학생 알림 발송 실패:", notificationError);
+          }
         } catch (planError) {
           logError(planError, {
             function: "continueCampStepsForAdmin",
@@ -2942,7 +2977,7 @@ export const bulkGeneratePlans = withErrorHandling(
         // 플랜 그룹 존재 및 권한 확인
         const { data: group, error: groupError } = await supabase
           .from("plan_groups")
-          .select("id, tenant_id")
+          .select("id, tenant_id, student_id, camp_template_id, plan_type")
           .eq("id", groupId)
           .eq("tenant_id", tenantContext.tenantId)
           .maybeSingle();
@@ -2959,6 +2994,41 @@ export const bulkGeneratePlans = withErrorHandling(
         try {
           await generatePlansFromGroupAction(groupId);
           successCount++;
+
+          // 캠프 모드인 경우 학생에게 알림 발송
+          if (group.plan_type === "camp" && group.camp_template_id && group.student_id) {
+            try {
+              const [studentData, templateData] = await Promise.all([
+                supabase
+                  .from("students")
+                  .select("name")
+                  .eq("user_id", group.student_id)
+                  .single(),
+                supabase
+                  .from("camp_templates")
+                  .select("name")
+                  .eq("id", group.camp_template_id)
+                  .single(),
+              ]);
+
+              if (studentData.data && templateData.data) {
+                const { sendPlanCreatedNotificationToStudent } = await import(
+                  "@/lib/services/campNotificationService"
+                );
+                await sendPlanCreatedNotificationToStudent({
+                  studentId: group.student_id,
+                  studentName: studentData.data.name || "학생",
+                  templateId: group.camp_template_id,
+                  templateName: templateData.data.name,
+                  groupId,
+                  tenantId: tenantContext.tenantId,
+                });
+              }
+            } catch (notificationError) {
+              // 알림 발송 실패는 로그만 남기고 계속 진행
+              console.error("[bulkGeneratePlans] 학생 알림 발송 실패:", notificationError);
+            }
+          }
         } catch (generateError) {
           logError(
             generateError,

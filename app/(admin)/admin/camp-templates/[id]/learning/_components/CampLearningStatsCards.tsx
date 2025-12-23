@@ -36,23 +36,13 @@ function calculateAverageCompletionRate(stats: CampLearningStats): number {
 }
 
 /**
- * 총 플랜 수 계산
+ * 전체 완료율 계산 (플랜 기준)
  */
-function calculateTotalPlans(stats: CampLearningStats): number {
-  // participant_stats에는 총 플랜 수가 없으므로
-  // 학습 통계에서 직접 계산할 수 없음
-  // 일단 0 반환 (나중에 데이터 레이어에서 제공하도록 개선 필요)
-  return 0;
-}
-
-/**
- * 완료된 플랜 수 계산
- */
-function calculateCompletedPlans(stats: CampLearningStats): number {
-  // participant_stats에는 완료된 플랜 수가 없으므로
-  // 학습 통계에서 직접 계산할 수 없음
-  // 일단 0 반환 (나중에 데이터 레이어에서 제공하도록 개선 필요)
-  return 0;
+function calculateOverallCompletionRate(stats: CampLearningStats): number {
+  if (stats.total_plans === 0) {
+    return 0;
+  }
+  return Math.round((stats.completed_plans / stats.total_plans) * 100);
 }
 
 /**
@@ -89,6 +79,7 @@ export function CampLearningStatsCards({
   template,
 }: CampLearningStatsCardsProps) {
   const averageCompletionRate = calculateAverageCompletionRate(stats);
+  const overallCompletionRate = calculateOverallCompletionRate(stats);
   const totalDays = calculateCampDays(template.camp_start_date, template.camp_end_date);
   const averageDailyStudyTime = calculateAverageDailyStudyTime(stats, totalDays);
 
@@ -96,8 +87,8 @@ export function CampLearningStatsCards({
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       <Card className="p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-600">총 참여자</p>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">총 참여자</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {stats.participant_stats.length}명
           </p>
         </div>
@@ -105,8 +96,20 @@ export function CampLearningStatsCards({
 
       <Card className="p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-600">평균 완료율</p>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">플랜 진행률</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            {stats.completed_plans} / {stats.total_plans}
+            <span className="ml-2 text-base font-normal text-gray-500">
+              ({overallCompletionRate}%)
+            </span>
+          </p>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">평균 완료율</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {averageCompletionRate}%
           </p>
         </div>
@@ -114,8 +117,8 @@ export function CampLearningStatsCards({
 
       <Card className="p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-600">총 학습 시간</p>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">총 학습 시간</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {formatStudyTime(stats.total_study_minutes)}
           </p>
         </div>
@@ -123,8 +126,8 @@ export function CampLearningStatsCards({
 
       <Card className="p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-600">평균 학습 시간</p>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">평균 학습 시간</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {formatStudyTime(stats.average_study_minutes_per_participant)}
           </p>
         </div>
@@ -132,8 +135,8 @@ export function CampLearningStatsCards({
 
       <Card className="p-6">
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-gray-600">평균 일일 학습 시간</p>
-          <p className="text-2xl font-semibold text-gray-900">
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">평균 일일 학습</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {formatStudyTime(averageDailyStudyTime)}
           </p>
         </div>

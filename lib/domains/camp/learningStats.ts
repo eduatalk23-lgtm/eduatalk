@@ -26,6 +26,8 @@ export async function calculateCampLearningStats(
       template_name: template.name,
       total_study_minutes: 0,
       average_study_minutes_per_participant: 0,
+      total_plans: 0,
+      completed_plans: 0,
       participant_stats: [],
     };
   }

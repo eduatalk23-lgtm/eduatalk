@@ -33,6 +33,8 @@ export async function getCampLearningStats(
       template_name: template.name,
       total_study_minutes: 0,
       average_study_minutes_per_participant: 0,
+      total_plans: 0,
+      completed_plans: 0,
       participant_stats: [],
     };
   }
@@ -59,6 +61,8 @@ export async function getCampLearningStats(
       template_name: template.name,
       total_study_minutes: 0,
       average_study_minutes_per_participant: 0,
+      total_plans: 0,
+      completed_plans: 0,
       participant_stats: [],
     };
   }
@@ -71,6 +75,8 @@ export async function getCampLearningStats(
       template_name: template.name,
       total_study_minutes: 0,
       average_study_minutes_per_participant: 0,
+      total_plans: 0,
+      completed_plans: 0,
       participant_stats: [],
     };
   }
@@ -166,6 +172,8 @@ export async function getCampLearningStats(
         study_minutes: studyMinutes,
         plan_completion_rate: planCompletionRate,
         subject_distribution: subjectDistribution,
+        total_plans: totalPlans,
+        completed_plans: completedPlans,
       };
     })
   );
@@ -180,11 +188,23 @@ export async function getCampLearningStats(
       ? Math.round(totalStudyMinutes / participantStats.length)
       : 0;
 
+  // 전체 플랜 수 집계
+  const aggregatedTotalPlans = participantStats.reduce(
+    (sum, stat) => sum + stat.total_plans,
+    0
+  );
+  const aggregatedCompletedPlans = participantStats.reduce(
+    (sum, stat) => sum + stat.completed_plans,
+    0
+  );
+
   return {
     template_id: templateId,
     template_name: template.name,
     total_study_minutes: totalStudyMinutes,
     average_study_minutes_per_participant: averageStudyMinutes,
+    total_plans: aggregatedTotalPlans,
+    completed_plans: aggregatedCompletedPlans,
     participant_stats: participantStats,
   };
 }

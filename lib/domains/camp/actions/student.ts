@@ -958,6 +958,30 @@ export const submitCampParticipation = withErrorHandling(
         groupId,
         studentId: user.userId,
       });
+
+      // 관리자에게 캠프 참여 수락 알림 발송
+      try {
+        const { sendCampAcceptanceNotificationToAdmins } = await import(
+          "@/lib/services/campNotificationService"
+        );
+        const { data: student } = await supabase
+          .from("students")
+          .select("name")
+          .eq("user_id", user.userId)
+          .single();
+
+        await sendCampAcceptanceNotificationToAdmins({
+          templateId: invitation.camp_template_id,
+          templateName: template.name,
+          studentId: user.userId,
+          studentName: student?.name || "알 수 없음",
+          tenantId: tenantContext.tenantId,
+          groupId: groupId,
+        });
+      } catch (notificationError) {
+        // 알림 발송 실패는 로그만 남기고 계속 진행
+        console.error("[campActions] 관리자 알림 발송 실패:", notificationError);
+      }
     }
 
     const { revalidatePath } = await import("next/cache");

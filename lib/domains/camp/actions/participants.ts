@@ -564,6 +564,10 @@ export const getCampParticipantsAction = withErrorHandling(
       invited_at: string;
       accepted_at: string | null;
     }>;
+    /** 플랜 그룹 누락 등 문제 발생 시 경고 메시지 */
+    warnings?: string[];
+    /** 문제가 있는 참여자 수 */
+    issueCount?: number;
     error?: string;
   }> => {
     await requireAdminOrConsultant();
@@ -724,9 +728,25 @@ export const getCampParticipantsAction = withErrorHandling(
       };
     });
 
+    // 플랜 그룹 누락 감지
+    const participantsWithIssues = participants.filter(
+      (p) =>
+        (p.invitation_status === "accepted" || p.display_status === "submitted") &&
+        !p.plan_group_id
+    );
+
+    const warnings: string[] = [];
+    if (participantsWithIssues.length > 0) {
+      warnings.push(
+        `${participantsWithIssues.length}명의 참여자에게 플랜 그룹이 누락되었습니다. 복구가 필요할 수 있습니다.`
+      );
+    }
+
     return {
       success: true,
       participants,
+      warnings: warnings.length > 0 ? warnings : undefined,
+      issueCount: participantsWithIssues.length,
     };
   }
 );
