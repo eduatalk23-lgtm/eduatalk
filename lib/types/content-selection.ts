@@ -1076,3 +1076,238 @@ export type SlotTemplatePresetUpdate = Partial<
   Omit<SlotTemplatePreset, "id" | "tenant_id" | "created_at">
 >;
 
+// ============================================================================
+// 콘텐츠 자동 매칭 타입 및 함수
+// ============================================================================
+
+/**
+ * 자동 매칭에 사용되는 콘텐츠 정보
+ */
+export type MatchableContent = {
+  id: string;
+  title: string;
+  subtitle?: string | null;
+  content_type: "book" | "lecture" | "custom";
+  subject_category?: string | null;
+  subject?: string | null;
+  total_pages?: number | null;
+  total_episodes?: number | null;
+  master_content_id?: string | null;
+};
+
+/**
+ * 자동 매칭 결과
+ */
+export type AutoMatchResult = {
+  /** 매칭된 슬롯 배열 */
+  slots: ContentSlot[];
+  /** 매칭 통계 */
+  stats: {
+    /** 총 슬롯 수 */
+    totalSlots: number;
+    /** 매칭된 슬롯 수 */
+    matchedSlots: number;
+    /** 이미 연결된 슬롯 수 (변경 안 함) */
+    alreadyLinkedSlots: number;
+    /** 매칭 불가 슬롯 수 */
+    unmatchedSlots: number;
+  };
+  /** 매칭 로그 (디버깅용) */
+  logs: string[];
+};
+
+/**
+ * 슬롯에 콘텐츠를 자동으로 매칭합니다.
+ *
+ * 매칭 우선순위:
+ * 1. subject_category가 정확히 일치하는 콘텐츠
+ * 2. subject가 subject_category에 포함되는 콘텐츠
+ * 3. slot_type이 일치하는 콘텐츠 중 첫 번째
+ *
+ * @param slots - 매칭할 슬롯 배열
+ * @param availableContents - 사용 가능한 콘텐츠 (교재, 강의, 커스텀)
+ * @param options - 옵션
+ * @returns 매칭 결과
+ */
+export function autoMatchSlotsToContents(
+  slots: ContentSlot[],
+  availableContents: {
+    books: MatchableContent[];
+    lectures: MatchableContent[];
+    custom: MatchableContent[];
+  },
+  options: {
+    /** 이미 연결된 슬롯도 덮어쓸지 여부 (기본: false) */
+    overwriteExisting?: boolean;
+    /** 기본 학습 범위 (페이지/회차) */
+    defaultRange?: { start: number; end: number };
+  } = {}
+): AutoMatchResult {
+  const { overwriteExisting = false, defaultRange = { start: 1, end: 10 } } = options;
+  const logs: string[] = [];
+  const usedContentIds = new Set<string>();
+
+  // 이미 연결된 콘텐츠 ID 수집 (중복 방지)
+  slots.forEach((slot) => {
+    if (slot.content_id) {
+      usedContentIds.add(slot.content_id);
+    }
+  });
+
+  let matchedCount = 0;
+  let alreadyLinkedCount = 0;
+  let unmatchedCount = 0;
+
+  const matchedSlots = slots.map((slot, index) => {
+    // 자습/테스트 슬롯은 매칭 불필요
+    if (slot.slot_type === "self_study" || slot.slot_type === "test") {
+      logs.push(`슬롯 ${index + 1}: ${slot.slot_type} 타입 - 매칭 불필요`);
+      return slot;
+    }
+
+    // 슬롯 타입이 없으면 매칭 불가
+    if (!slot.slot_type) {
+      logs.push(`슬롯 ${index + 1}: 슬롯 타입 미설정 - 매칭 스킵`);
+      unmatchedCount++;
+      return slot;
+    }
+
+    // 이미 연결된 경우
+    if (slot.content_id && !overwriteExisting) {
+      logs.push(`슬롯 ${index + 1}: 이미 연결됨 (${slot.title || slot.content_id})`);
+      alreadyLinkedCount++;
+      return slot;
+    }
+
+    // 슬롯 타입에 맞는 콘텐츠 소스 선택
+    let contentSource: MatchableContent[] = [];
+    if (slot.slot_type === "book") {
+      contentSource = availableContents.books;
+    } else if (slot.slot_type === "lecture") {
+      contentSource = availableContents.lectures;
+    } else if (slot.slot_type === "custom") {
+      contentSource = availableContents.custom;
+    }
+
+    // 사용되지 않은 콘텐츠만 필터링
+    const unusedContents = contentSource.filter((c) => !usedContentIds.has(c.id));
+
+    if (unusedContents.length === 0) {
+      logs.push(`슬롯 ${index + 1}: 사용 가능한 ${slot.slot_type} 콘텐츠 없음`);
+      unmatchedCount++;
+      return slot;
+    }
+
+    // 매칭 시도
+    let matchedContent: MatchableContent | undefined;
+
+    // 1순위: subject_category 정확히 일치
+    if (slot.subject_category) {
+      matchedContent = unusedContents.find(
+        (c) => c.subject_category === slot.subject_category
+      );
+
+      // 2순위: subject가 subject_category에 포함
+      if (!matchedContent) {
+        matchedContent = unusedContents.find(
+          (c) => c.subject && slot.subject_category &&
+                 c.subject.includes(slot.subject_category)
+        );
+      }
+
+      // 3순위: subject_category가 subject에 포함
+      if (!matchedContent) {
+        matchedContent = unusedContents.find(
+          (c) => c.subject && slot.subject_category &&
+                 slot.subject_category.includes(c.subject)
+        );
+      }
+    }
+
+    // 4순위: 아무 콘텐츠나 (같은 타입)
+    if (!matchedContent) {
+      matchedContent = unusedContents[0];
+    }
+
+    if (matchedContent) {
+      usedContentIds.add(matchedContent.id);
+      matchedCount++;
+
+      // 기본 범위 계산
+      let endRange = defaultRange.end;
+      if (slot.slot_type === "book" && matchedContent.total_pages) {
+        endRange = Math.min(defaultRange.end, matchedContent.total_pages);
+      } else if (slot.slot_type === "lecture" && matchedContent.total_episodes) {
+        endRange = Math.min(defaultRange.end, matchedContent.total_episodes);
+      }
+
+      logs.push(
+        `슬롯 ${index + 1} (${slot.subject_category || "미지정"}): ` +
+        `"${matchedContent.title}" 매칭 완료`
+      );
+
+      return {
+        ...slot,
+        content_id: matchedContent.id,
+        title: matchedContent.title,
+        master_content_id: matchedContent.master_content_id,
+        start_range: defaultRange.start,
+        end_range: endRange,
+        is_auto_recommended: true,
+        recommendation_source: "auto" as const,
+      };
+    }
+
+    logs.push(`슬롯 ${index + 1}: 매칭 실패`);
+    unmatchedCount++;
+    return slot;
+  });
+
+  return {
+    slots: matchedSlots,
+    stats: {
+      totalSlots: slots.length,
+      matchedSlots: matchedCount,
+      alreadyLinkedSlots: alreadyLinkedCount,
+      unmatchedSlots: unmatchedCount,
+    },
+    logs,
+  };
+}
+
+/**
+ * 슬롯과 콘텐츠 간의 매칭 점수를 계산합니다.
+ * (향후 더 정교한 매칭 알고리즘을 위한 헬퍼 함수)
+ */
+export function calculateMatchScore(
+  slot: ContentSlot,
+  content: MatchableContent
+): number {
+  let score = 0;
+
+  // 슬롯 타입과 콘텐츠 타입 일치 (필수)
+  if (slot.slot_type !== content.content_type) {
+    return -1; // 타입 불일치는 매칭 불가
+  }
+
+  // subject_category 정확히 일치: +100점
+  if (slot.subject_category && content.subject_category === slot.subject_category) {
+    score += 100;
+  }
+
+  // subject가 subject_category 포함: +50점
+  if (slot.subject_category && content.subject?.includes(slot.subject_category)) {
+    score += 50;
+  }
+
+  // subject_category가 subject 포함: +30점
+  if (slot.subject_category && content.subject && slot.subject_category.includes(content.subject)) {
+    score += 30;
+  }
+
+  // 기본 점수 (타입만 일치)
+  score += 10;
+
+  return score;
+}
+

@@ -8,11 +8,13 @@ import {
   validateSlotConfiguration,
   validateContentLinking,
   validateModeSwitch,
+  autoMatchSlotsToContents,
+  type MatchableContent,
 } from "@/lib/types/content-selection";
 import { SlotConfigurationPanel } from "./SlotConfigurationPanel";
 import { ContentLinkingPanel } from "./ContentLinkingPanel";
 import { VirtualTimelinePreview } from "./VirtualTimelinePreview";
-import { ToggleLeft, ToggleRight, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { ToggleLeft, ToggleRight, AlertTriangle, ChevronDown, ChevronUp, Wand2, Check, X } from "lucide-react";
 import type { SelectedContent } from "@/lib/types/content-selection";
 import type { DailyScheduleInfo } from "@/lib/plan/virtualSchedulePreview";
 
@@ -98,6 +100,12 @@ function Step3SlotModeSelectionComponent({
 
   // 타임라인 미리보기 접기/펼치기
   const [isTimelineExpanded, setIsTimelineExpanded] = useState(true);
+
+  // 자동 매칭 결과 메시지
+  const [autoMatchMessage, setAutoMatchMessage] = useState<{
+    type: "success" | "warning" | "error";
+    text: string;
+  } | null>(null);
 
   // 선택된 슬롯
   const selectedSlot = useMemo(() => {
@@ -205,6 +213,93 @@ function Step3SlotModeSelectionComponent({
     [onContentSlotsChange, onStudentContentsChange]
   );
 
+  // 자동 매칭 핸들러
+  const handleAutoMatch = useCallback(() => {
+    if (contentSlots.length === 0) {
+      setAutoMatchMessage({
+        type: "warning",
+        text: "매칭할 슬롯이 없습니다. 먼저 슬롯을 추가해주세요.",
+      });
+      setTimeout(() => setAutoMatchMessage(null), 3000);
+      return;
+    }
+
+    // ContentItem을 MatchableContent로 변환
+    const matchableContents = {
+      books: availableContents.books.map((c) => ({
+        ...c,
+        content_type: "book" as const,
+        subject_category: c.subject_category ?? null,
+        subject: c.subject ?? null,
+        total_pages: c.total_pages ?? null,
+        total_episodes: c.total_episodes ?? null,
+        master_content_id: c.master_content_id ?? null,
+      })),
+      lectures: availableContents.lectures.map((c) => ({
+        ...c,
+        content_type: "lecture" as const,
+        subject_category: c.subject_category ?? null,
+        subject: c.subject ?? null,
+        total_pages: c.total_pages ?? null,
+        total_episodes: c.total_episodes ?? null,
+        master_content_id: c.master_content_id ?? null,
+      })),
+      custom: availableContents.custom.map((c) => ({
+        ...c,
+        content_type: "custom" as const,
+        subject_category: c.subject_category ?? null,
+        subject: c.subject ?? null,
+        total_pages: null,
+        total_episodes: null,
+        master_content_id: c.master_content_id ?? null,
+      })),
+    };
+
+    const result = autoMatchSlotsToContents(contentSlots, matchableContents, {
+      overwriteExisting: false,
+      defaultRange: { start: 1, end: 10 },
+    });
+
+    // 결과 적용
+    onContentSlotsChange(result.slots);
+
+    // Dual Write
+    const convertedContents = convertSlotsToContents(result.slots);
+    onStudentContentsChange(convertedContents);
+
+    // 결과 메시지
+    const { matchedSlots, alreadyLinkedSlots, unmatchedSlots, totalSlots } = result.stats;
+
+    if (matchedSlots > 0) {
+      setAutoMatchMessage({
+        type: "success",
+        text: `${matchedSlots}개 슬롯에 콘텐츠가 자동 매칭되었습니다.${
+          alreadyLinkedSlots > 0 ? ` (이미 연결: ${alreadyLinkedSlots}개)` : ""
+        }${unmatchedSlots > 0 ? ` (매칭 실패: ${unmatchedSlots}개)` : ""}`,
+      });
+    } else if (alreadyLinkedSlots === totalSlots) {
+      setAutoMatchMessage({
+        type: "warning",
+        text: "모든 슬롯이 이미 콘텐츠와 연결되어 있습니다.",
+      });
+    } else {
+      setAutoMatchMessage({
+        type: "error",
+        text: "매칭 가능한 콘텐츠를 찾지 못했습니다. 수동으로 연결해주세요.",
+      });
+    }
+
+    // 3초 후 메시지 숨기기
+    setTimeout(() => setAutoMatchMessage(null), 4000);
+  }, [contentSlots, availableContents, onContentSlotsChange, onStudentContentsChange]);
+
+  // 미연결 슬롯 수
+  const unlinkedSlotsCount = useMemo(() => {
+    return contentSlots.filter(
+      (s) => !s.content_id && s.slot_type && s.slot_type !== "self_study" && s.slot_type !== "test"
+    ).length;
+  }, [contentSlots]);
+
   return (
     <div className={cn("flex flex-col gap-4", className)}>
       {/* 모드 전환 토글 (일반 모드에서만 표시) */}
@@ -251,9 +346,50 @@ function Step3SlotModeSelectionComponent({
         </div>
       )}
 
+      {/* 자동 매칭 결과 메시지 */}
+      {autoMatchMessage && (
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-4 py-3 text-sm",
+            autoMatchMessage.type === "success" && "bg-green-50 text-green-700",
+            autoMatchMessage.type === "warning" && "bg-amber-50 text-amber-700",
+            autoMatchMessage.type === "error" && "bg-red-50 text-red-700"
+          )}
+        >
+          {autoMatchMessage.type === "success" ? (
+            <Check className="h-4 w-4 flex-shrink-0" />
+          ) : autoMatchMessage.type === "warning" ? (
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          ) : (
+            <X className="h-4 w-4 flex-shrink-0" />
+          )}
+          <span>{autoMatchMessage.text}</span>
+        </div>
+      )}
+
       {/* 슬롯 모드 UI */}
       {useSlotMode ? (
         <div className="flex flex-col gap-4">
+          {/* 자동 매칭 버튼 (미연결 슬롯이 있고 editable일 때만 표시) */}
+          {editable && unlinkedSlotsCount > 0 && (
+            <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-700">
+                  {unlinkedSlotsCount}개 슬롯에 콘텐츠 연결이 필요합니다
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleAutoMatch}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 active:bg-blue-800"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                자동 매칭
+              </button>
+            </div>
+          )}
+
           <div className="grid min-h-[500px] grid-cols-1 gap-4 lg:grid-cols-2">
             {/* 좌측: 슬롯 구성 패널 */}
             <div className="rounded-lg border border-gray-200 bg-white p-4">
