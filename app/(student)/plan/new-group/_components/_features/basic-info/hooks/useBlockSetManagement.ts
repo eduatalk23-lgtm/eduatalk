@@ -105,10 +105,7 @@ export function useBlockSetManagement({
     if (data.block_set_id && blockSets && blockSets.length > 0) {
       const selectedSet = blockSets.find((set) => set.id === data.block_set_id);
       if (!selectedSet && isCampMode) {
-        console.log(
-          "[Step1BasicInfo] 템플릿 블록 세트를 찾을 수 없습니다:",
-          data.block_set_id
-        );
+        // 템플릿 블록 세트를 찾을 수 없는 경우 무시 (디버깅은 PlanWizardDebugger 사용)
       }
     }
   }, [data.block_set_id, blockSets, isCampMode]);
@@ -201,19 +198,10 @@ export function useBlockSetManagement({
             const templateFormData = new FormData();
             templateFormData.append("name", newBlockSetName.trim());
 
-            console.log("[Step1BasicInfo] 테넌트 블록 세트 생성:", {
-              name: newBlockSetName.trim(),
-            });
-
             // createTenantBlockSet는 ActionResponse를 반환하지 않고 직접 객체를 반환
             const templateResult = await createTenantBlockSet(templateFormData);
             blockSetId = templateResult.blockSetId;
             blockSetName = templateResult.name;
-
-            console.log("[Step1BasicInfo] 테넌트 블록 세트 생성 성공:", {
-              block_set_id: blockSetId,
-              name: blockSetName,
-            });
           } else {
             const formData = new FormData();
             formData.append("name", newBlockSetName.trim());
@@ -267,7 +255,6 @@ export function useBlockSetManagement({
                 // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 if (errorMessage.startsWith("INFO:")) {
-                  console.log("[Step1BasicInfo] 블록 추가 부분 성공:", errorMessage);
                   // 부분 성공은 계속 진행
                 } else {
                   const planGroupError = toPlanGroupError(
@@ -394,7 +381,6 @@ export function useBlockSetManagement({
             // INFO: 접두사가 있는 경우 부분 성공 메시지로 처리
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (errorMessage.startsWith("INFO:")) {
-              console.log("[Step1BasicInfo] 블록 추가 부분 성공:", errorMessage);
               // 부분 성공은 계속 진행
             } else {
               const planGroupError = toPlanGroupError(

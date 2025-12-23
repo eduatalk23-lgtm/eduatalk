@@ -78,7 +78,6 @@ export function CurriculumHierarchyManager() {
   async function loadRevisions() {
     try {
       const data = await getCurriculumRevisionsAction();
-      console.log("[CurriculumHierarchyManager] 개정교육과정 조회 결과:", data);
       setRevisions(data || []);
       if (data && data.length > 0 && !selectedRevisionId) {
         const firstRevision = data[0];
@@ -106,10 +105,6 @@ export function CurriculumHierarchyManager() {
         getSubjectTypesAction(selectedRevisionId),
         getSubjectsByRevisionAction(selectedRevisionId),
       ]);
-
-      console.log("[CurriculumHierarchyManager] 교과 조회 결과:", groups);
-      console.log("[CurriculumHierarchyManager] 과목구분 조회 결과:", types);
-      console.log("[CurriculumHierarchyManager] 전체 과목 조회 결과:", allSubjects);
 
       setSubjectGroups(groups || []);
       setSubjectTypes(types || []);

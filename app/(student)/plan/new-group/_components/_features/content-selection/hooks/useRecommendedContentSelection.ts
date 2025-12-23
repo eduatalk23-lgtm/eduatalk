@@ -93,13 +93,6 @@ export function useRecommendedContentSelection({
    * 선택된 콘텐츠 추가
    */
   const addSelectedContents = useCallback(async () => {
-    console.log("[useContentSelection] addSelectedContents 호출:", {
-      selectedContentIds: Array.from(selectedContentIds),
-      selectedContentIdsSize: selectedContentIds.size,
-      currentStudentContents: data.student_contents.length,
-      currentRecommendedContents: data.recommended_contents.length,
-    });
-
     if (selectedContentIds.size === 0) {
       console.warn("[useContentSelection] 선택된 콘텐츠가 없음");
       alert(ERROR_MESSAGES.NO_CONTENT_SELECTED);
@@ -110,13 +103,6 @@ export function useRecommendedContentSelection({
     const currentTotal =
       data.student_contents.length + data.recommended_contents.length;
     const toAdd = selectedContentIds.size;
-
-    console.log("[useContentSelection] 개수 확인:", {
-      currentTotal,
-      toAdd,
-      max: MAX_CONTENTS,
-      willExceed: currentTotal + toAdd > MAX_CONTENTS,
-    });
 
     if (currentTotal + toAdd > MAX_CONTENTS) {
       console.warn("[useContentSelection] 최대 개수 초과");
@@ -158,16 +144,6 @@ export function useRecommendedContentSelection({
     }
 
     if (contentsToAdd.length > 0) {
-      console.log("[useContentSelection] 콘텐츠 추가:", {
-        contentsToAdd: contentsToAdd.map((c) => ({
-          content_id: c.content_id,
-          content_type: c.content_type,
-          title: c.title,
-        })),
-        currentRecommendedContents: data.recommended_contents.length,
-        newRecommendedContents: data.recommended_contents.length + contentsToAdd.length,
-      });
-
       onUpdate({
         recommended_contents: [
           ...data.recommended_contents,
@@ -175,7 +151,6 @@ export function useRecommendedContentSelection({
         ],
       });
 
-      console.log("[useContentSelection] onUpdate 호출 완료");
       alert(SUCCESS_MESSAGES.CONTENTS_ADDED(contentsToAdd.length));
       setSelectedContentIds(new Set());
     } else {

@@ -253,16 +253,6 @@ export async function GET(
       }
     }
 
-    console.log("[api/score-dashboard] 입력 파라미터:", {
-      tenantId,
-      termIdParam,
-      gradeParam,
-      semesterParam,
-      effectiveTermId,
-      grade,
-      semester,
-    });
-
     // curriculum_revision_id는 활성화된 최신 교육과정 사용
     const { data: activeRevision } = await supabase
       .from("curriculum_revisions")
@@ -293,7 +283,6 @@ export async function GET(
     }
     
     const { count: internalCount } = await internalCountQuery;
-    console.log("[api/score-dashboard] 내신 데이터 개수:", internalCount);
 
     // 3-1) 내신 백분위 환산
     const internalPct =
@@ -310,14 +299,6 @@ export async function GET(
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", effectiveTenantId)
       .eq("student_id", studentId);
-
-    console.log("[api/score-dashboard] 모의고사 데이터 개수:", mockCount);
-    console.log("[api/score-dashboard] 모의고사 분석 결과:", {
-      recentExam: mock.recentExam,
-      avgPercentile: mock.avgPercentile,
-      totalStdScore: mock.totalStdScore,
-      best3GradeSum: mock.best3GradeSum,
-    });
 
     // 4-1) 학교 유형 조회 (school_property)
     let schoolProperty: string | null = null;

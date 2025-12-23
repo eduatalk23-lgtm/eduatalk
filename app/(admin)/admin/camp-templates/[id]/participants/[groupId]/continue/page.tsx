@@ -153,16 +153,6 @@ export default async function CampContinuePage({
   // 콘텐츠 조회
   const { books, lectures, custom } = await fetchAllStudentContents(studentId);
 
-  console.log("[CampContinuePage] 콘텐츠 조회 결과:", {
-    groupId,
-    studentId,
-    booksCount: books.length,
-    lecturesCount: lectures.length,
-    customCount: custom.length,
-    planContentsCount: contents.length,
-    originalContentsCount: originalContents?.length || 0,
-  });
-
   // 콘텐츠 정보 조회 및 학생/추천 구분 (제목, 과목 등 메타데이터 포함)
   // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 조회
   // 관리자/컨설턴트가 다른 학생의 콘텐츠를 조회할 때는 역할 정보 전달 (RLS 우회)
@@ -174,16 +164,6 @@ export default async function CampContinuePage({
       currentUserId: userId || undefined,
     });
 
-  console.log("[CampContinuePage] 콘텐츠 분류 결과:", {
-    groupId,
-    studentId,
-    inputContentsCount: contentsForClassification.length,
-    classifiedStudentContentsCount: classifiedStudentContents.length,
-    classifiedRecommendedContentsCount: classifiedRecommendedContents.length,
-    totalClassifiedCount: classifiedStudentContents.length + classifiedRecommendedContents.length,
-    missingCount: contentsForClassification.length - (classifiedStudentContents.length + classifiedRecommendedContents.length),
-  });
-
   // 콘텐츠 정보를 Map으로 변환하여 빠른 조회 (content_id를 키로 사용)
   const contentsMap = new Map(
     [...classifiedStudentContents, ...classifiedRecommendedContents].map((c) => [c.content_id, c])
@@ -194,23 +174,7 @@ export default async function CampContinuePage({
   // 남은 단계 진행 시에는 기존 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   // originalContents를 사용하여 master_content_id가 포함된 원본 데이터로 변환
   const contentsForWizard = originalContents || contents;
-  
-  // DB에서 불러온 모든 콘텐츠 정보 로깅
-  console.log("[CampContinuePage] DB에서 불러온 콘텐츠 정보:", {
-    groupId,
-    studentId,
-    totalContentsCount: contentsForWizard.length,
-    contents: contentsForWizard.map((c) => ({
-      content_id: c.content_id,
-      content_type: c.content_type,
-      is_auto_recommended: c.is_auto_recommended,
-      recommendation_source: c.recommendation_source,
-      // syncCreationDataToWizardData의 분류 기준에 따른 예상 분류
-      willBeStudentContent: !(c.is_auto_recommended || c.recommendation_source),
-      willBeRecommendedContent: !!(c.is_auto_recommended || c.recommendation_source),
-    })),
-  });
-  
+
   // 모든 콘텐츠를 syncCreationDataToWizardData에 전달
   // syncCreationDataToWizardData가 학생/추천 콘텐츠로 자동 분류함
   const wizardData = syncCreationDataToWizardData({
@@ -224,17 +188,7 @@ export default async function CampContinuePage({
       // 2. classifyPlanContents에서 조회한 masterContentId
       // 3. 없으면 undefined
       const masterContentId = c.master_content_id || classifiedContent?.masterContentId || undefined;
-      
-      if (process.env.NODE_ENV === "development") {
-        console.log("[CampContinuePage] 콘텐츠 변환:", {
-          content_id: c.content_id,
-          content_type: c.content_type,
-          db_master_content_id: c.master_content_id,
-          classified_masterContentId: classifiedContent?.masterContentId,
-          final_master_content_id: masterContentId,
-        });
-      }
-      
+
       return {
         ...c,
         // classifyPlanContents에서 조회한 정보가 있으면 사용
@@ -248,37 +202,7 @@ export default async function CampContinuePage({
     exclusions,
     academySchedules,
   });
-  
-  // syncCreationDataToWizardData가 분류한 결과 로깅
-  console.log("[CampContinuePage] syncCreationDataToWizardData 분류 결과:", {
-    groupId,
-    studentId,
-    studentContentsCount: wizardData.student_contents.length,
-    recommendedContentsCount: wizardData.recommended_contents.length,
-    totalContentsCount: wizardData.student_contents.length + wizardData.recommended_contents.length,
-    studentContents: wizardData.student_contents.map((c) => ({
-      content_id: c.content_id,
-      content_type: c.content_type,
-      title: c.title,
-      master_content_id: (c as any).master_content_id || null,
-    })),
-    recommendedContents: wizardData.recommended_contents.map((c) => {
-      type ContentWithRecommendation = typeof c & {
-        is_auto_recommended?: boolean;
-        recommendation_source?: "auto" | "admin" | "template" | null;
-      };
-      const contentWithRec = c as ContentWithRecommendation;
-      return {
-        content_id: c.content_id,
-        content_type: c.content_type,
-        title: c.title,
-        is_auto_recommended: contentWithRec.is_auto_recommended ?? false,
-        recommendation_source: contentWithRec.recommendation_source ?? null,
-        master_content_id: (c as any).master_content_id || null,
-      };
-    }),
-  });
-  
+
   // 남은 단계 진행 시에는 추천 콘텐츠를 제거하여 Step 4에서 새로 선택할 수 있도록 함
   // student_contents는 그대로 유지 (학생이 추가한 콘텐츠는 보존)
   // 단, 빈 배열인 경우 undefined로 설정하여 continueCampStepsForAdmin에서 기존 학생 콘텐츠가 보존되도록 함
@@ -294,26 +218,6 @@ export default async function CampContinuePage({
       : undefined,
     recommended_contents: undefined, // undefined로 설정하여 기존 추천 콘텐츠 보존 (Step 4에서 새로 선택 가능)
   };
-  
-  // 필터링 후 최종 결과 로깅
-  const recommendedContentsArray = Array.isArray(filteredWizardData.recommended_contents) 
-    ? filteredWizardData.recommended_contents 
-    : [];
-  console.log("[CampContinuePage] 필터링 후 최종 결과:", {
-    groupId,
-    studentId,
-    originalStudentContentsCount: wizardData.student_contents.length,
-    finalStudentContentsCount: filteredWizardData.student_contents?.length ?? 0,
-    finalRecommendedContentsCount: recommendedContentsArray.length,
-    originalRecommendedContentsCount: wizardData.recommended_contents.length,
-    studentContentsWillBePreserved: filteredWizardData.student_contents === undefined,
-    recommendedContentsWillBePreserved: filteredWizardData.recommended_contents === undefined,
-    finalStudentContents: filteredWizardData.student_contents?.map((c) => ({
-      content_id: c.content_id,
-      content_type: c.content_type,
-      title: c.title,
-    })) || [],
-  });
 
   // 템플릿 제외일과 학원 일정에 source, is_locked 필드 추가
   if (filteredWizardData.exclusions) {
