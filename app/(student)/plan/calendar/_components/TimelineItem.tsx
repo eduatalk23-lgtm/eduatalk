@@ -27,9 +27,10 @@ type TimelineItemProps = {
   slot: TimelineSlot;
   isLast?: boolean;
   connectedPlanIds?: Set<string>;
+  onLinkContent?: (planId: string, slotIndex: number) => void;
 };
 
-export function TimelineItem({ slot, isLast = false, connectedPlanIds }: TimelineItemProps) {
+export function TimelineItem({ slot, isLast = false, connectedPlanIds, onLinkContent }: TimelineItemProps) {
   const colorClass = getTimeSlotColorClass(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
   const IconComponent = getTimeSlotIcon(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
 
@@ -113,6 +114,7 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds }: Timelin
                     showTime={true}
                     showProgress={true}
                     isConnected={connectedPlanIds?.has(plan.id) || false}
+                    onLinkContent={onLinkContent}
                   />
                 ))}
             </div>

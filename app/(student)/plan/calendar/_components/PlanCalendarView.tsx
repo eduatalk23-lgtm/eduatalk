@@ -22,6 +22,8 @@ type PlanCalendarViewProps = {
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
   dailySchedules: DailyScheduleInfo[][]; // 플랜 그룹들의 daily_schedule 배열
+  studentId?: string;
+  onPlansUpdated?: () => void;
 };
 
 /**
@@ -64,6 +66,8 @@ export function PlanCalendarView({
   exclusions,
   academySchedules,
   dailySchedules,
+  studentId,
+  onPlansUpdated,
 }: PlanCalendarViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -405,7 +409,7 @@ export function PlanCalendarView({
         ) : view === "week" ? (
           <WeekView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : (
-          <DayView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
+          <DayView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} onPlansUpdated={onPlansUpdated} />
         )}
       </div>
     </div>

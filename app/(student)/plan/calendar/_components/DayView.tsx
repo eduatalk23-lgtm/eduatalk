@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useState, useCallback } from "react";
 import { Clock } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
@@ -12,6 +12,7 @@ import { getTimeSlotColorClass, getTimeSlotIcon, timeToMinutes, type TimeSlotTyp
 import { StatCard } from "./StatCard";
 import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
+import { ContentLinkingModal } from "./ContentLinkingModal";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { cn } from "@/lib/cn";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
@@ -31,6 +32,14 @@ type PlanConnection = {
   groupKey: string;
 };
 
+type VirtualPlanInfo = {
+  planId: string;
+  slotIndex: number;
+  subjectCategory?: string | null;
+  description?: string | null;
+  slotType?: "book" | "lecture" | "custom" | null;
+};
+
 type DayViewProps = {
   plans: PlanWithContent[];
   currentDate: Date;
@@ -39,11 +48,46 @@ type DayViewProps = {
   dayTypes: Map<string, DayTypeInfo>;
   dailyScheduleMap: Map<string, DailyScheduleInfo>;
   showOnlyStudyTime?: boolean;
+  studentId?: string;
+  onPlansUpdated?: () => void;
 };
 
-function DayViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: DayViewProps) {
+function DayViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, onPlansUpdated }: DayViewProps) {
   const dateStr = formatDateString(currentDate);
   const dayTypeInfo = dayTypes.get(dateStr);
+
+  // 콘텐츠 연결 모달 상태
+  const [linkingModalOpen, setLinkingModalOpen] = useState(false);
+  const [selectedVirtualPlan, setSelectedVirtualPlan] = useState<VirtualPlanInfo | null>(null);
+
+  // 콘텐츠 연결 핸들러
+  const handleLinkContent = useCallback((planId: string, slotIndex: number) => {
+    // 해당 플랜의 가상 정보 찾기
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+
+    const virtualPlan: VirtualPlanInfo = {
+      planId,
+      slotIndex,
+      subjectCategory: (plan as { virtual_subject_category?: string | null }).virtual_subject_category,
+      description: (plan as { virtual_description?: string | null }).virtual_description,
+      slotType: (plan as { content_type?: "book" | "lecture" | "custom" | null }).content_type || null,
+    };
+
+    setSelectedVirtualPlan(virtualPlan);
+    setLinkingModalOpen(true);
+  }, [plans]);
+
+  // 모달 닫기 핸들러
+  const handleCloseModal = useCallback(() => {
+    setLinkingModalOpen(false);
+    setSelectedVirtualPlan(null);
+  }, []);
+
+  // 콘텐츠 연결 성공 핸들러
+  const handleLinkSuccess = useCallback(() => {
+    onPlansUpdated?.();
+  }, [onPlansUpdated]);
   const dayType = dayTypeInfo?.type || "normal";
   
   // 해당 날짜의 daily_schedule 가져오기
@@ -272,6 +316,7 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
                     slot={slot}
                     isLast={index === TIME_BLOCKS.length - 1}
                     connectedPlanIds={connectedPlanIds}
+                    onLinkContent={handleLinkContent}
                   />
                 );
               })}
@@ -573,6 +618,17 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
           </div>
         </div>
       )}
+
+      {/* 콘텐츠 연결 모달 */}
+      {studentId && (
+        <ContentLinkingModal
+          isOpen={linkingModalOpen}
+          onClose={handleCloseModal}
+          virtualPlan={selectedVirtualPlan}
+          studentId={studentId}
+          onSuccess={handleLinkSuccess}
+        />
+      )}
     </div>
   );
 }
@@ -601,6 +657,8 @@ export const DayView = memo(DayViewComponent, (prevProps, nextProps) => {
     prevProps.exclusions.length === nextProps.exclusions.length &&
     prevProps.academySchedules.length === nextProps.academySchedules.length &&
     prevProps.dayTypes.size === nextProps.dayTypes.size &&
-    prevProps.dailyScheduleMap.size === nextProps.dailyScheduleMap.size
+    prevProps.dailyScheduleMap.size === nextProps.dailyScheduleMap.size &&
+    prevProps.studentId === nextProps.studentId &&
+    prevProps.onPlansUpdated === nextProps.onPlansUpdated
   );
 });

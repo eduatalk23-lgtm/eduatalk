@@ -305,6 +305,7 @@ export default async function PlanCalendarPage({
             exclusions={exclusions}
             academySchedules={academySchedules}
             dailySchedules={dailySchedules}
+            studentId={user.id}
           />
         </div>
       </section>
