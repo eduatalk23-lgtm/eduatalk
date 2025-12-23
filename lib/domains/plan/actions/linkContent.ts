@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import {
+  copyMasterBookToStudent,
+  copyMasterLectureToStudent,
+} from "@/lib/data/contentMasters";
 
 /**
  * 콘텐츠 연결에 필요한 정보
@@ -93,6 +97,69 @@ export async function linkContentToVirtualPlan(
       return { success: false, error: "이미 콘텐츠가 연결된 플랜입니다." };
     }
 
+    // 3.5. 마스터 콘텐츠인 경우 학생 콘텐츠로 복사
+    let resolvedContentId = contentInfo.contentId;
+    let resolvedStartDetailId = contentInfo.startDetailId;
+    let resolvedEndDetailId = contentInfo.endDetailId;
+
+    if (contentInfo.masterContentId) {
+      // 테넌트 ID 조회
+      const { data: planGroupData } = await adminClient
+        .from("plan_groups")
+        .select("tenant_id")
+        .eq("id", plan.plan_group_id)
+        .single();
+
+      if (!planGroupData?.tenant_id) {
+        console.error("[linkContent] 테넌트 ID를 찾을 수 없습니다.");
+        return { success: false, error: "플랜 정보를 확인할 수 없습니다." };
+      }
+
+      try {
+        if (contentInfo.contentType === "book") {
+          const { bookId, detailIdMap } = await copyMasterBookToStudent(
+            contentInfo.masterContentId,
+            user.userId,
+            planGroupData.tenant_id
+          );
+          resolvedContentId = bookId;
+
+          // 마스터 detail ID를 학생 detail ID로 변환
+          if (detailIdMap) {
+            if (contentInfo.startDetailId && detailIdMap.has(contentInfo.startDetailId)) {
+              resolvedStartDetailId = detailIdMap.get(contentInfo.startDetailId) ?? null;
+            }
+            if (contentInfo.endDetailId && detailIdMap.has(contentInfo.endDetailId)) {
+              resolvedEndDetailId = detailIdMap.get(contentInfo.endDetailId) ?? null;
+            }
+          }
+        } else if (contentInfo.contentType === "lecture") {
+          const { lectureId, episodeIdMap } = await copyMasterLectureToStudent(
+            contentInfo.masterContentId,
+            user.userId,
+            planGroupData.tenant_id
+          );
+          resolvedContentId = lectureId;
+
+          // 마스터 episode ID를 학생 episode ID로 변환
+          if (episodeIdMap) {
+            if (contentInfo.startDetailId && episodeIdMap.has(contentInfo.startDetailId)) {
+              resolvedStartDetailId = episodeIdMap.get(contentInfo.startDetailId) ?? null;
+            }
+            if (contentInfo.endDetailId && episodeIdMap.has(contentInfo.endDetailId)) {
+              resolvedEndDetailId = episodeIdMap.get(contentInfo.endDetailId) ?? null;
+            }
+          }
+        }
+      } catch (copyError) {
+        console.error("[linkContent] 마스터 콘텐츠 복사 실패:", copyError);
+        return {
+          success: false,
+          error: "마스터 콘텐츠를 가져오는데 실패했습니다.",
+        };
+      }
+    }
+
     // 4. 콘텐츠 존재 확인
     const contentTable = contentInfo.contentType === "book"
       ? "books"
@@ -103,7 +170,7 @@ export async function linkContentToVirtualPlan(
     const { data: content, error: contentError } = await supabase
       .from(contentTable)
       .select("id")
-      .eq("id", contentInfo.contentId)
+      .eq("id", resolvedContentId)
       .maybeSingle();
 
     if (contentError || !content) {
@@ -113,7 +180,7 @@ export async function linkContentToVirtualPlan(
 
     // 5. 플랜 업데이트 (가상 → 실제)
     const updateData = {
-      content_id: contentInfo.contentId,
+      content_id: resolvedContentId,
       content_type: contentInfo.contentType,
       is_virtual: false,
       virtual_subject_category: null,
@@ -143,7 +210,7 @@ export async function linkContentToVirtualPlan(
       const { error: batchUpdateError } = await adminClient
         .from("student_plans")
         .update({
-          content_id: contentInfo.contentId,
+          content_id: resolvedContentId,
           content_type: contentInfo.contentType,
           is_virtual: false,
           virtual_subject_category: null,
@@ -186,13 +253,13 @@ export async function linkContentToVirtualPlan(
             if (idx === plan.slot_index || slot.slot_index === plan.slot_index) {
               return {
                 ...slot,
-                content_id: contentInfo.contentId,
+                content_id: resolvedContentId,
                 title: contentInfo.title,
                 content_type: contentInfo.contentType,
                 start_range: contentInfo.startRange,
                 end_range: contentInfo.endRange,
-                start_detail_id: contentInfo.startDetailId,
-                end_detail_id: contentInfo.endDetailId,
+                start_detail_id: resolvedStartDetailId,
+                end_detail_id: resolvedEndDetailId,
                 master_content_id: contentInfo.masterContentId,
               };
             }

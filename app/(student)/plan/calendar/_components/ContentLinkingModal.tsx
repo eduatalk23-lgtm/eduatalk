@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Package,
   User,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -19,7 +20,7 @@ import {
   getAvailableContentsForSlot,
   type ContentLinkInfo,
 } from "@/lib/domains/plan/actions/linkContent";
-import { searchContentMastersAction } from "@/lib/domains/content";
+import { searchContentMastersAction, getRecommendedMasterContentsAction } from "@/lib/domains/content";
 import { RangeSettingModal } from "@/app/(student)/plan/new-group/_components/_features/content-selection/components/RangeSettingModal";
 import type { ContentRange } from "@/lib/types/content-selection";
 import {
@@ -47,7 +48,7 @@ type ContentLinkingModalProps = {
 };
 
 type ContentTab = "book" | "lecture" | "custom";
-type SourceTab = "student" | "master";
+type SourceTab = "student" | "recommended" | "master";
 
 type MasterContent = {
   id: string;
@@ -60,6 +61,17 @@ type MasterContent = {
   total_episodes?: number | null;
 };
 
+type RecommendedContentItem = {
+  id: string;
+  title: string;
+  contentType: "book" | "lecture";
+  subject?: string | null;
+  subject_category?: string | null;
+  total_pages?: number | null;
+  total_episodes?: number | null;
+  recommendationReason?: string | null;
+};
+
 const TAB_CONFIG: Record<ContentTab, { label: string; icon: typeof BookOpen }> = {
   book: { label: "교재", icon: BookOpen },
   lecture: { label: "강의", icon: Video },
@@ -68,7 +80,8 @@ const TAB_CONFIG: Record<ContentTab, { label: string; icon: typeof BookOpen }> =
 
 const SOURCE_TAB_CONFIG: Record<SourceTab, { label: string; icon: typeof User }> = {
   student: { label: "내 콘텐츠", icon: User },
-  master: { label: "마스터 콘텐츠", icon: Package },
+  recommended: { label: "추천", icon: Sparkles },
+  master: { label: "마스터 검색", icon: Package },
 };
 
 export function ContentLinkingModal({
@@ -108,6 +121,11 @@ export function ContentLinkingModal({
   const [isMasterSearching, setIsMasterSearching] = useState(false);
   const [hasMasterSearched, setHasMasterSearched] = useState(false);
 
+  // 추천 콘텐츠 상태
+  const [recommendedContents, setRecommendedContents] = useState<RecommendedContentItem[]>([]);
+  const [isRecommendationLoading, setIsRecommendationLoading] = useState(false);
+  const [hasLoadedRecommendations, setHasLoadedRecommendations] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +150,8 @@ export function ContentLinkingModal({
       setHasMasterSearched(false);
       setStartDetailId(null);
       setEndDetailId(null);
+      setRecommendedContents([]);
+      setHasLoadedRecommendations(false);
 
       // 슬롯 타입에 따라 기본 탭 설정
       if (virtualPlan.slotType) {
@@ -184,6 +204,53 @@ export function ContentLinkingModal({
       setIsMasterSearching(false);
     }
   }, [masterSearchQuery, activeTab]);
+
+  // 추천 콘텐츠 로드
+  const loadRecommendations = useCallback(async () => {
+    if (hasLoadedRecommendations || !studentId || !virtualPlan) return;
+
+    setIsRecommendationLoading(true);
+
+    try {
+      // 슬롯의 과목 카테고리를 기반으로 추천
+      const subjects = virtualPlan.subjectCategory
+        ? [virtualPlan.subjectCategory]
+        : ["국어", "수학", "영어"]; // 기본 과목
+
+      const counts: Record<string, number> = {};
+      subjects.forEach((s) => {
+        counts[s] = 5; // 과목당 5개 추천
+      });
+
+      const result = await getRecommendedMasterContentsAction(
+        studentId,
+        subjects,
+        counts
+      );
+
+      if (result.success && result.data?.recommendations) {
+        const transformed: RecommendedContentItem[] = result.data.recommendations.map((rec) => ({
+          id: rec.id,
+          title: rec.title,
+          contentType: rec.contentType as "book" | "lecture",
+          subject: rec.subject,
+          subject_category: rec.subject_category,
+          // RecommendedMasterContent doesn't have total_pages/episodes
+          total_pages: undefined,
+          total_episodes: undefined,
+          recommendationReason: rec.reason, // 'reason' field in RecommendedMasterContent
+        }));
+        setRecommendedContents(transformed);
+      }
+
+      setHasLoadedRecommendations(true);
+    } catch (err) {
+      console.error("[ContentLinkingModal] 추천 콘텐츠 로드 실패:", err);
+      setError("추천 콘텐츠를 불러오는 데 실패했습니다.");
+    } finally {
+      setIsRecommendationLoading(false);
+    }
+  }, [hasLoadedRecommendations, studentId, virtualPlan]);
 
   // 학생 콘텐츠 검색 필터링
   const filteredStudentContents = useMemo(() => {
@@ -263,6 +330,33 @@ export function ContentLinkingModal({
       id: master.id,
       type: master.content_type,
       title: master.title,
+      isMaster: true,
+    });
+    setRangeModalOpen(true);
+  }, []);
+
+  // 추천 콘텐츠 선택 핸들러
+  const handleSelectRecommendedContent = useCallback((rec: RecommendedContentItem) => {
+    const content: ContentLinkInfo = {
+      contentId: rec.id,
+      contentType: rec.contentType,
+      title: rec.title,
+      subjectCategory: rec.subject_category,
+      subject: rec.subject,
+      totalPages: rec.total_pages,
+      totalEpisodes: rec.total_episodes,
+      masterContentId: rec.id, // 추천 콘텐츠는 마스터 콘텐츠
+    };
+
+    setSelectedContent(content);
+    setStartDetailId(null);
+    setEndDetailId(null);
+
+    // RangeSettingModal 표시
+    setRangeModalContent({
+      id: rec.id,
+      type: rec.contentType,
+      title: rec.title,
       isMaster: true,
     });
     setRangeModalOpen(true);
@@ -356,7 +450,7 @@ export function ContentLinkingModal({
             </button>
           </div>
 
-          {/* 소스 탭: 내 콘텐츠 / 마스터 콘텐츠 */}
+          {/* 소스 탭: 내 콘텐츠 / 추천 / 마스터 검색 */}
           <div className="flex border-b border-gray-200 dark:border-gray-700 px-6 bg-gray-50 dark:bg-gray-800/50">
             {(Object.entries(SOURCE_TAB_CONFIG) as [SourceTab, typeof SOURCE_TAB_CONFIG.student][]).map(
               ([key, { label, icon: Icon }]) => (
@@ -367,6 +461,10 @@ export function ContentLinkingModal({
                     setSourceTab(key);
                     setSelectedContent(null);
                     setSearchQuery("");
+                    // 추천 탭 선택 시 추천 콘텐츠 로드
+                    if (key === "recommended") {
+                      loadRecommendations();
+                    }
                   }}
                   className={cn(
                     "flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors",
@@ -377,15 +475,20 @@ export function ContentLinkingModal({
                 >
                   <Icon className="h-4 w-4" />
                   {label}
+                  {key === "recommended" && recommendedContents.length > 0 && (
+                    <span className="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs">
+                      {recommendedContents.length}
+                    </span>
+                  )}
                 </button>
               )
             )}
           </div>
 
-          {/* 콘텐츠 타입 탭 (custom 제외 for master) */}
+          {/* 콘텐츠 타입 탭 (custom 제외 for master/recommended) */}
           <div className="flex border-b border-gray-200 dark:border-gray-700 px-6">
             {(Object.entries(TAB_CONFIG) as [ContentTab, typeof TAB_CONFIG.book][])
-              .filter(([key]) => sourceTab !== "master" || key !== "custom")
+              .filter(([key]) => sourceTab === "student" || key !== "custom")
               .map(([key, { label, icon: Icon }]) => (
                 <button
                   key={key}
@@ -555,6 +658,97 @@ export function ContentLinkingModal({
                           </div>
                           {isSelected && (
                             <Check className="h-5 w-5 text-indigo-600" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            ) : sourceTab === "recommended" ? (
+              // 추천 콘텐츠 목록
+              isRecommendationLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-amber-600" />
+                  <p className={cn("mt-2 text-sm", textMuted)}>추천 콘텐츠 로딩 중...</p>
+                </div>
+              ) : recommendedContents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Sparkles className="h-12 w-12 text-gray-300" />
+                  <p className={cn("mt-4 text-sm", textMuted)}>
+                    {hasLoadedRecommendations
+                      ? "추천할 콘텐츠가 없습니다"
+                      : "추천 콘텐츠를 불러오는 중..."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {recommendedContents
+                    .filter((rec) => activeTab === "book" ? rec.contentType === "book" : rec.contentType === "lecture")
+                    .map((rec) => {
+                    const isSelected = selectedContent?.contentId === rec.id;
+                    const TypeIcon = rec.contentType === "book" ? BookOpen : Video;
+
+                    return (
+                      <button
+                        key={rec.id}
+                        type="button"
+                        onClick={() => handleSelectRecommendedContent(rec)}
+                        className={cn(
+                          "w-full rounded-lg border-2 p-4 text-left transition-all",
+                          isSelected
+                            ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30"
+                            : "border-gray-200 dark:border-gray-700 hover:border-amber-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        )}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="relative">
+                              <TypeIcon
+                                className={cn(
+                                  "mt-0.5 h-5 w-5",
+                                  isSelected ? "text-amber-600" : "text-gray-400"
+                                )}
+                              />
+                              <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-500" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    isSelected ? "text-amber-700" : textPrimary
+                                  )}
+                                >
+                                  {rec.title}
+                                </span>
+                                <span className="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
+                                  추천
+                                </span>
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                                {rec.subject && (
+                                  <span className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-300">
+                                    {rec.subject}
+                                  </span>
+                                )}
+                                {rec.recommendationReason && (
+                                  <span className={cn("text-xs", textMuted)}>
+                                    {rec.recommendationReason}
+                                  </span>
+                                )}
+                              </div>
+                              <div className={cn("mt-1 text-xs", textMuted)}>
+                                {rec.total_pages
+                                  ? `${rec.total_pages}페이지`
+                                  : rec.total_episodes
+                                    ? `${rec.total_episodes}회차`
+                                    : null}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <Check className="h-5 w-5 text-amber-600" />
                           )}
                         </div>
                       </button>
