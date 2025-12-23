@@ -17,6 +17,7 @@ import {
   DailyScheduleInfo,
   PlanContentWithDetails,
 } from "@/lib/types/plan";
+import type { ContentSlot } from "@/lib/types/content-selection";
 import { isPlanContentWithDetails } from "@/lib/types/guards";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import {
@@ -53,6 +54,9 @@ type PlanGroupPayload = {
   plan_type?: string | null;
   camp_template_id?: string | null;
   camp_invitation_id?: string | null;
+  // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+  use_slot_mode?: boolean;
+  content_slots?: ContentSlot[] | null;
 };
 
 
@@ -398,6 +402,9 @@ export async function createPlanGroup(
     plan_type?: string | null;
     camp_template_id?: string | null;
     camp_invitation_id?: string | null;
+    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+    use_slot_mode?: boolean;
+    content_slots?: ContentSlot[] | null;
   }
 ): Promise<{ success: boolean; groupId?: string; error?: string; errorCode?: string | null }> {
   const supabase = await createSupabaseServerClient();
@@ -447,6 +454,14 @@ export async function createPlanGroup(
   }
   if (group.camp_invitation_id !== undefined && group.camp_invitation_id !== null) {
     payload.camp_invitation_id = group.camp_invitation_id;
+  }
+
+  // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+  if (group.use_slot_mode !== undefined) {
+    payload.use_slot_mode = group.use_slot_mode;
+  }
+  if (group.content_slots !== undefined && group.content_slots !== null) {
+    payload.content_slots = group.content_slots;
   }
 
   // 상세한 에러 로깅을 위한 쿼리 실행
@@ -577,6 +592,9 @@ export async function updatePlanGroup(
     subject_constraints?: SubjectConstraints | null; // JSONB: 교과 제약 조건
     additional_period_reallocation?: AdditionalPeriodReallocation | null; // JSONB: 추가 기간 재배치 정보
     non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목
+    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+    use_slot_mode?: boolean;
+    content_slots?: ContentSlot[] | null;
   }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createSupabaseServerClient();
@@ -595,6 +613,9 @@ export async function updatePlanGroup(
   if (updates.subject_constraints !== undefined) payload.subject_constraints = updates.subject_constraints;
   if (updates.additional_period_reallocation !== undefined) payload.additional_period_reallocation = updates.additional_period_reallocation;
   if (updates.non_study_time_blocks !== undefined) payload.non_study_time_blocks = updates.non_study_time_blocks;
+  // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+  if (updates.use_slot_mode !== undefined) payload.use_slot_mode = updates.use_slot_mode;
+  if (updates.content_slots !== undefined) payload.content_slots = updates.content_slots;
 
   const result = await createTypedConditionalQuery<null>(
     async () => {

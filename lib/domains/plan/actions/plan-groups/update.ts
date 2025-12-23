@@ -191,7 +191,9 @@ async function _updatePlanGroupDraft(
     data.daily_schedule !== undefined ||
     data.subject_constraints !== undefined ||
     data.additional_period_reallocation !== undefined ||
-    data.non_study_time_blocks !== undefined
+    data.non_study_time_blocks !== undefined ||
+    data.use_slot_mode !== undefined ||
+    data.content_slots !== undefined
   ) {
     const updateResult = await updatePlanGroup(groupId, studentId, {
       name: data.name || null,
@@ -209,6 +211,9 @@ async function _updatePlanGroupDraft(
       subject_constraints: data.subject_constraints || null,
       additional_period_reallocation: data.additional_period_reallocation || null,
       non_study_time_blocks: data.non_study_time_blocks || null,
+      // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+      use_slot_mode: data.use_slot_mode ?? false,
+      content_slots: data.content_slots || null,
     });
 
     if (!updateResult.success) {

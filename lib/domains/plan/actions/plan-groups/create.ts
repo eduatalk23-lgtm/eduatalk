@@ -298,6 +298,9 @@ async function _createPlanGroup(
     plan_type: data.plan_type || null,
     camp_template_id: data.camp_template_id || null,
     camp_invitation_id: data.camp_invitation_id || null,
+    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+    use_slot_mode: data.use_slot_mode ?? false,
+    content_slots: data.content_slots || null,
   });
 
   if (!groupResult.success || !groupResult.groupId) {
@@ -638,6 +641,9 @@ async function _savePlanGroupDraft(
     plan_type: data.plan_type || null,
     camp_template_id: data.camp_template_id || null,
     camp_invitation_id: data.camp_invitation_id || null,
+    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+    use_slot_mode: data.use_slot_mode ?? false,
+    content_slots: data.content_slots || null,
   });
 
   if (!groupResult.success || !groupResult.groupId) {

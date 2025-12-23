@@ -22,6 +22,7 @@ import type {
   NonStudyTimeBlock,
   DailyScheduleInfo,
 } from "./domain";
+import type { ContentSlot } from "@/lib/types/content-selection";
 
 /**
  * 플랜 그룹 생성 데이터
@@ -51,6 +52,9 @@ export type PlanGroupCreationData = {
   plan_type?: PlanType;
   camp_template_id?: string | null;
   camp_invitation_id?: string | null;
+  // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
+  use_slot_mode?: boolean;
+  content_slots?: ContentSlot[] | null;
 };
 
 /**
