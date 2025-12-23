@@ -6,6 +6,17 @@
  */
 
 import { z } from "zod";
+import { normalizeTimeToHHMM } from "@/lib/utils/timeUtils";
+
+/**
+ * 시간 필드 스키마 (HH:MM 형식으로 자동 정규화)
+ * HH:MM:SS 형식이 입력되어도 HH:MM으로 변환 후 검증
+ */
+const createTimeFieldSchema = (errorMessage: string) =>
+  z.preprocess(
+    (val) => (typeof val === "string" ? normalizeTimeToHHMM(val) : val),
+    z.string().regex(/^\d{2}:\d{2}$/, errorMessage)
+  );
 
 /**
  * 제외일 스키마
@@ -20,11 +31,12 @@ export const exclusionSchema = z.object({
 
 /**
  * 학원 일정 스키마
+ * start_time, end_time은 HH:MM:SS 형식도 허용하고 HH:MM으로 자동 정규화
  */
 export const academyScheduleSchema = z.object({
   day_of_week: z.number().int().min(0).max(6),
-  start_time: z.string().regex(/^\d{2}:\d{2}$/, "시작 시간은 HH:MM 형식이어야 합니다."),
-  end_time: z.string().regex(/^\d{2}:\d{2}$/, "종료 시간은 HH:MM 형식이어야 합니다."),
+  start_time: createTimeFieldSchema("시작 시간은 HH:MM 형식이어야 합니다."),
+  end_time: createTimeFieldSchema("종료 시간은 HH:MM 형식이어야 합니다."),
   academy_name: z.string().optional(),
   subject: z.string().optional(),
   travel_time: z.number().int().min(0).optional(),
@@ -34,10 +46,11 @@ export const academyScheduleSchema = z.object({
 
 /**
  * 시간 범위 스키마 (시작/종료 시간)
+ * HH:MM:SS 형식도 허용하고 HH:MM으로 자동 정규화
  */
 export const timeRangeSchema = z.object({
-  start: z.string().regex(/^\d{2}:\d{2}$/, "시작 시간은 HH:MM 형식이어야 합니다."),
-  end: z.string().regex(/^\d{2}:\d{2}$/, "종료 시간은 HH:MM 형식이어야 합니다."),
+  start: createTimeFieldSchema("시작 시간은 HH:MM 형식이어야 합니다."),
+  end: createTimeFieldSchema("종료 시간은 HH:MM 형식이어야 합니다."),
 });
 
 /**

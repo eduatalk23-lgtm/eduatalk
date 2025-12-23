@@ -4,6 +4,17 @@
 
 import { z } from "zod";
 import { getFormArray, getFormTags } from "@/lib/utils/formDataHelpers";
+import { normalizeTimeToHHMM } from "@/lib/utils/timeUtils";
+
+/**
+ * 시간 필드 스키마 (HH:MM 형식으로 자동 정규화)
+ * HH:MM:SS 형식이 입력되어도 HH:MM으로 변환 후 검증
+ */
+const createTimeFieldSchema = (errorMessage: string) =>
+  z.preprocess(
+    (val) => (typeof val === "string" ? normalizeTimeToHHMM(val) : val),
+    z.string().regex(/^\d{2}:\d{2}$/, errorMessage)
+  );
 
 /**
  * 공통 URL 검증 헬퍼
@@ -63,11 +74,12 @@ export const planSchema = z.object({
 
 /**
  * 시간 블록 스키마
+ * HH:MM:SS 형식도 허용하고 HH:MM으로 자동 정규화
  */
 export const blockSchema = z.object({
   day: z.number().int().min(0, "요일은 0(일요일)부터 6(토요일)까지입니다.").max(6),
-  start_time: z.string().regex(/^\d{2}:\d{2}$/, "시작 시간은 HH:MM 형식이어야 합니다."),
-  end_time: z.string().regex(/^\d{2}:\d{2}$/, "종료 시간은 HH:MM 형식이어야 합니다."),
+  start_time: createTimeFieldSchema("시작 시간은 HH:MM 형식이어야 합니다."),
+  end_time: createTimeFieldSchema("종료 시간은 HH:MM 형식이어야 합니다."),
 });
 
 /**

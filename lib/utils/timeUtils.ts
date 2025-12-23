@@ -39,7 +39,7 @@ export function timeStringToMinutes(timeString: string): number {
 
 /**
  * 분 단위를 시간 문자열로 변환
- * 
+ *
  * @param minutes 분 단위 값
  * @returns 시간 문자열 (HH:MM 형식)
  */
@@ -47,6 +47,40 @@ export function minutesToTimeString(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+/**
+ * 시간 문자열을 HH:MM 형식으로 정규화
+ *
+ * 지원 형식:
+ * - "09:00" -> "09:00" (이미 정규화됨)
+ * - "09:00:00" -> "09:00" (초 제거)
+ * - "9:00" -> "09:00" (한 자리 시간 패딩)
+ * - null/undefined/빈 문자열 -> "" (빈 문자열 반환)
+ *
+ * @param timeString 시간 문자열 (HH:MM 또는 HH:MM:SS 형식)
+ * @returns HH:MM 형식의 시간 문자열 또는 빈 문자열
+ */
+export function normalizeTimeToHHMM(timeString: string | null | undefined): string {
+  if (!timeString || typeof timeString !== "string" || timeString.trim() === "") {
+    return "";
+  }
+
+  const trimmed = timeString.trim();
+  const parts = trimmed.split(":");
+
+  if (parts.length < 2) {
+    return "";
+  }
+
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+
+  if (isNaN(hours) || isNaN(minutes)) {
+    return "";
+  }
+
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 /**
