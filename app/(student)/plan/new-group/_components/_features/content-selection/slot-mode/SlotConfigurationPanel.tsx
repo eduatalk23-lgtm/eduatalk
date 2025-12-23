@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useState, useEffect, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import {
   ContentSlot,
@@ -8,9 +8,11 @@ import {
   getNextSlotIndex,
   validateSlotConfiguration,
 } from "@/lib/types/content-selection";
+import type { SlotTemplatePreset } from "@/lib/types/content-selection";
+import { getSlotTemplatePresetsForStudent } from "@/lib/domains/camp/actions";
 import { SlotItem } from "./SlotItem";
 import { SubjectBalanceChart } from "./SubjectBalanceChart";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle, FolderOpen, ChevronDown, Star } from "lucide-react";
 
 // ============================================================================
 // 타입 정의
@@ -65,6 +67,46 @@ function SlotConfigurationPanelComponent({
   // 드래그앤드롭 상태
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // 프리셋 상태
+  const [presets, setPresets] = useState<SlotTemplatePreset[]>([]);
+  const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+  const [isLoadingPresets, startLoadingPresets] = useTransition();
+
+  // 프리셋 목록 불러오기
+  useEffect(() => {
+    const fetchPresets = async () => {
+      startLoadingPresets(async () => {
+        try {
+          const result = await getSlotTemplatePresetsForStudent();
+          if (result.success && result.presets) {
+            setPresets(result.presets);
+          }
+        } catch {
+          // 프리셋 로딩 실패 시 무시 (선택적 기능)
+        }
+      });
+    };
+    fetchPresets();
+  }, []);
+
+  // 프리셋 적용
+  const handleApplyPreset = useCallback(
+    (preset: SlotTemplatePreset) => {
+      const appliedSlots: ContentSlot[] = preset.slot_templates.map((template, index) => ({
+        slot_index: index,
+        slot_type: template.slot_type,
+        subject_category: template.subject_category || "",
+        is_locked: false,
+        is_ghost: false,
+      }));
+
+      onSlotsChange(appliedSlots);
+      setShowPresetDropdown(false);
+      onSlotSelect(null);
+    },
+    [onSlotsChange, onSlotSelect]
+  );
 
   // 슬롯 추가
   const handleAddSlot = useCallback(() => {
@@ -414,9 +456,73 @@ function SlotConfigurationPanelComponent({
         )}
       </div>
 
-      {/* 슬롯 추가 버튼 */}
+      {/* 하단 액션 영역 */}
       {editable && (
-        <div className="mt-4 flex-shrink-0">
+        <div className="mt-4 flex flex-shrink-0 flex-col gap-2">
+          {/* 프리셋 불러오기 드롭다운 */}
+          {presets.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                disabled={isLoadingPresets}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors",
+                  "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+                  isLoadingPresets && "cursor-wait opacity-70"
+                )}
+              >
+                <FolderOpen className="h-4 w-4" />
+                프리셋 불러오기
+                <ChevronDown
+                  className={cn(
+                    "ml-auto h-4 w-4 transition-transform",
+                    showPresetDropdown && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {/* 프리셋 드롭다운 메뉴 */}
+              {showPresetDropdown && (
+                <>
+                  {/* 배경 클릭 시 닫기 */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowPresetDropdown(false)}
+                  />
+                  <div className="absolute bottom-full left-0 z-20 mb-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {presets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset)}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+                      >
+                        {preset.is_default && (
+                          <Star className="h-3.5 w-3.5 flex-shrink-0 fill-amber-400 text-amber-400" />
+                        )}
+                        <div className="flex-1 truncate">
+                          <div className="font-medium text-gray-900">
+                            {preset.name}
+                          </div>
+                          {preset.description && (
+                            <div className="truncate text-xs text-gray-500">
+                              {preset.description}
+                            </div>
+                          )}
+                        </div>
+                        <span className="flex-shrink-0 text-xs text-gray-400">
+                          {preset.slot_templates.length}개 슬롯
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* 슬롯 추가 버튼 */}
           <button
             type="button"
             onClick={handleAddSlot}

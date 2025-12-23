@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import type {
   SlotTemplate,
@@ -422,3 +423,60 @@ export const setDefaultPreset = withErrorHandling(
     return { success: true };
   }
 );
+
+/**
+ * 학생용 슬롯 템플릿 프리셋 목록 조회
+ * - 로그인한 사용자의 테넌트에 속한 프리셋만 조회
+ * - 관리자가 만든 프리셋을 학생이 불러올 수 있음
+ */
+export const getSlotTemplatePresetsForStudent = withErrorHandling(async () => {
+  const { userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  const tenantContext = await getTenantContext();
+  if (!tenantContext?.tenantId) {
+    throw new AppError(
+      "기관 정보를 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
+    );
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    throw new AppError(
+      "데이터베이스 연결에 실패했습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("slot_template_presets")
+    .select("id, name, description, slot_templates, is_default")
+    .eq("tenant_id", tenantContext.tenantId)
+    .order("is_default", { ascending: false })
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new AppError(
+      "프리셋 목록을 불러오는데 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true,
+      { originalError: error.message }
+    );
+  }
+
+  return { success: true, presets: data as SlotTemplatePreset[] };
+});

@@ -72,6 +72,7 @@ export {
 // Slot Template Presets Actions
 export {
   getSlotTemplatePresets,
+  getSlotTemplatePresetsForStudent,
   createSlotTemplatePreset,
   updateSlotTemplatePreset,
   deleteSlotTemplatePreset,
