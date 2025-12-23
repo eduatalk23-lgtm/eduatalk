@@ -12,6 +12,7 @@ import type { SlotTemplatePreset } from "@/lib/types/content-selection";
 import { getSlotTemplatePresetsForStudent } from "@/lib/domains/camp/actions";
 import { SlotItem } from "./SlotItem";
 import { SubjectBalanceChart } from "./SubjectBalanceChart";
+import { SlotRecommendationDropdown } from "./SlotRecommendationDropdown";
 import { Plus, AlertCircle, FolderOpen, ChevronDown, Star } from "lucide-react";
 
 // ============================================================================
@@ -27,6 +28,7 @@ type SlotConfigurationPanelProps = {
   maxSlots?: number;
   subjectCategories?: string[];
   templateSlots?: ContentSlot[];
+  planPurpose?: string;
   className?: string;
 };
 
@@ -58,6 +60,7 @@ function SlotConfigurationPanelComponent({
   maxSlots = 9,
   subjectCategories = DEFAULT_SUBJECT_CATEGORIES,
   templateSlots,
+  planPurpose,
   className,
 }: SlotConfigurationPanelProps) {
   // 검증 결과
@@ -201,6 +204,15 @@ function SlotConfigurationPanelComponent({
       }
     },
     [slots, selectedSlotIndex, onSlotsChange, onSlotSelect]
+  );
+
+  // AI 추천 슬롯 적용
+  const handleApplyRecommendedSlots = useCallback(
+    (recommendedSlots: ContentSlot[]) => {
+      onSlotsChange(recommendedSlots);
+      onSlotSelect(null);
+    },
+    [onSlotsChange, onSlotSelect]
   );
 
   // ============================================================================
@@ -459,8 +471,19 @@ function SlotConfigurationPanelComponent({
       {/* 하단 액션 영역 */}
       {editable && (
         <div className="mt-4 flex flex-shrink-0 flex-col gap-2">
-          {/* 프리셋 불러오기 드롭다운 - 모바일 터치 타겟 개선 */}
-          {presets.length > 0 && (
+          {/* AI 추천 + 프리셋 불러오기 그리드 */}
+          <div className={cn(
+            "grid gap-2",
+            presets.length > 0 ? "grid-cols-2" : "grid-cols-1"
+          )}>
+            {/* AI 슬롯 추천 */}
+            <SlotRecommendationDropdown
+              onApply={handleApplyRecommendedSlots}
+              planPurpose={planPurpose}
+            />
+
+            {/* 프리셋 불러오기 드롭다운 - 모바일 터치 타겟 개선 */}
+            {presets.length > 0 && (
             <div className="relative">
               <button
                 type="button"
@@ -520,7 +543,8 @@ function SlotConfigurationPanelComponent({
                 </>
               )}
             </div>
-          )}
+            )}
+          </div>
 
           {/* 슬롯 추가 버튼 - 모바일에서 더 큰 터치 타겟 */}
           <button
