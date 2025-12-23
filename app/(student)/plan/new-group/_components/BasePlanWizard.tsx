@@ -30,9 +30,9 @@ export type BasePlanWizardProps = {
   // 데이터
   blockSets: Array<{ id: string; name: string }>;
   initialContents: {
-    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    custom: Array<{ id: string; title: string; subtitle?: string | null }>;
+    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null }>;
+    custom: Array<{ id: string; title: string; subtitle?: string | null; subject?: string | null }>;
   };
   initialData?: {
     templateId?: string;

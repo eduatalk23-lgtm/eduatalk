@@ -250,9 +250,9 @@ export type PlanGroupWizardProps = {
   studentId?: string; // 선택: 템플릿 모드에서는 불필요, 일반 모드에서는 필수
   initialBlockSets?: Array<{ id: string; name: string }>; // 선택: 하위 호환성 유지
   initialContents?: {
-    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null }>;
-    custom: Array<{ id: string; title: string; subtitle?: string | null }>;
+    books: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null }>;
+    lectures: Array<{ id: string; title: string; subtitle?: string | null; master_content_id?: string | null; subject?: string | null }>;
+    custom: Array<{ id: string; title: string; subtitle?: string | null; subject?: string | null }>;
   }; // 선택: 하위 호환성 유지
   initialData?: ExtendedInitialData;
   isEditMode?: boolean;

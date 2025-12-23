@@ -197,11 +197,11 @@ function ContentLinkingPanelComponent({
 
       {/* 현재 연결된 콘텐츠 */}
       {selectedSlot.content_id && (
-        <div className="mb-4 flex-shrink-0 rounded-lg border border-green-200 bg-green-50 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">
+        <div className="mb-4 flex-shrink-0 rounded-lg border border-green-200 bg-green-50 p-3 sm:p-3">
+          <div className="flex items-start justify-between gap-2 sm:items-center">
+            <div className="flex items-start gap-2 sm:items-center">
+              <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600 sm:mt-0" />
+              <span className="text-sm font-medium leading-tight text-green-700">
                 연결됨: {selectedSlot.title}
               </span>
             </div>
@@ -209,14 +209,14 @@ function ContentLinkingPanelComponent({
               <button
                 type="button"
                 onClick={handleUnlinkContent}
-                className="text-xs text-red-500 hover:text-red-700"
+                className="flex-shrink-0 rounded-md bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors active:bg-red-200 sm:bg-transparent sm:px-2 sm:py-1 sm:hover:text-red-700"
               >
                 연결 해제
               </button>
             )}
           </div>
           {selectedSlot.start_range !== undefined && (
-            <div className="mt-1 text-xs text-green-600">
+            <div className="mt-1.5 text-xs text-green-600 sm:mt-1">
               범위: {selectedSlot.start_range} - {selectedSlot.end_range}
             </div>
           )}
@@ -226,7 +226,7 @@ function ContentLinkingPanelComponent({
       {/* 검색 */}
       <div className="mb-4 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 sm:h-4 sm:w-4" />
           <input
             type="text"
             value={searchQuery}
@@ -234,33 +234,35 @@ function ContentLinkingPanelComponent({
             placeholder={`${selectedSlot.subject_category || ""} ${
               SLOT_TYPE_CONFIG[selectedSlot.slot_type]?.label || ""
             } 검색...`}
-            className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-200 py-3 pl-10 pr-4 text-base focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:py-2 sm:text-sm"
           />
         </div>
       </div>
 
       {/* 범위 설정 */}
       <div className="mb-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-500">범위:</label>
-          <input
-            type="number"
-            min={1}
-            value={rangeStart}
-            onChange={(e) => setRangeStart(Number(e.target.value))}
-            className="w-20 rounded border border-gray-200 px-2 py-1 text-sm"
-          />
-          <span className="text-gray-400">~</span>
-          <input
-            type="number"
-            min={rangeStart}
-            value={rangeEnd}
-            onChange={(e) => setRangeEnd(Number(e.target.value))}
-            className="w-20 rounded border border-gray-200 px-2 py-1 text-sm"
-          />
-          <span className="text-xs text-gray-400">
-            {selectedSlot.slot_type === "book" ? "페이지" : "회차"}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="w-full text-xs text-gray-500 sm:w-auto">범위:</label>
+          <div className="flex flex-1 items-center gap-2 sm:flex-none">
+            <input
+              type="number"
+              min={1}
+              value={rangeStart}
+              onChange={(e) => setRangeStart(Number(e.target.value))}
+              className="w-20 flex-1 rounded border border-gray-200 px-3 py-2.5 text-base sm:w-20 sm:flex-none sm:px-2 sm:py-1 sm:text-sm"
+            />
+            <span className="text-gray-400">~</span>
+            <input
+              type="number"
+              min={rangeStart}
+              value={rangeEnd}
+              onChange={(e) => setRangeEnd(Number(e.target.value))}
+              className="w-20 flex-1 rounded border border-gray-200 px-3 py-2.5 text-base sm:w-20 sm:flex-none sm:px-2 sm:py-1 sm:text-sm"
+            />
+            <span className="flex-shrink-0 text-xs text-gray-400">
+              {selectedSlot.slot_type === "book" ? "페이지" : "회차"}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -343,24 +345,24 @@ function ContentListItem({
       onClick={onSelect}
       disabled={disabled || isLinked}
       className={cn(
-        "w-full rounded-lg border p-3 text-left transition-all",
+        "w-full rounded-lg border p-4 text-left transition-all sm:p-3",
         isLinked
           ? "border-green-300 bg-green-50"
-          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50",
+          : "border-gray-200 bg-white active:border-blue-300 active:bg-blue-50 sm:hover:border-blue-300 sm:hover:bg-blue-50",
         disabled && "cursor-not-allowed opacity-60"
       )}
     >
       <div className="flex items-start justify-between">
-        <div className="flex items-start gap-2">
-          <TypeIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" />
+        <div className="flex items-start gap-2.5 sm:gap-2">
+          <TypeIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-gray-400 sm:h-4 sm:w-4" />
           <div>
-            <div className="text-sm font-medium text-gray-800">
+            <div className="text-base font-medium text-gray-800 sm:text-sm">
               {content.title}
             </div>
             {content.subtitle && (
-              <div className="text-xs text-gray-500">{content.subtitle}</div>
+              <div className="mt-0.5 text-sm text-gray-500 sm:mt-0 sm:text-xs">{content.subtitle}</div>
             )}
-            <div className="mt-1 text-xs text-gray-400">
+            <div className="mt-1.5 text-xs text-gray-400 sm:mt-1">
               {content.content_type === "book" && content.total_pages
                 ? `${content.total_pages}페이지`
                 : content.content_type === "lecture" && content.total_episodes
@@ -369,7 +371,7 @@ function ContentListItem({
             </div>
           </div>
         </div>
-        {isLinked && <Check className="h-4 w-4 text-green-600" />}
+        {isLinked && <Check className="h-5 w-5 text-green-600 sm:h-4 sm:w-4" />}
       </div>
     </button>
   );
