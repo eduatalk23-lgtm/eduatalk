@@ -13,6 +13,13 @@ export type StudentPhoneData = {
   father_phone_source?: "linked_account" | "student_profile" | null;
 };
 
+// parent_student_links 테이블 조회 결과 타입
+type ParentStudentLink = {
+  student_id: string;
+  relation: string | null;
+  parent_id: string;
+};
+
 /**
  * 단일 학생의 전화번호 정보 조회
  * students 테이블과 student_profiles 테이블을 조인하여 조회
@@ -135,7 +142,7 @@ export async function getStudentPhonesBatch(
       console.error("[studentPhoneUtils] parent_student_links 조회 실패", linksError);
     } else if (links && links.length > 0) {
       // 연결된 학부모 ID 수집
-      const parentIds = Array.from(new Set(links.map((link: any) => link.parent_id)));
+      const parentIds = Array.from(new Set((links as ParentStudentLink[]).map((link) => link.parent_id)));
 
       // Admin 클라이언트를 사용하여 auth.users에서 phone 조회
       const adminClient = createSupabaseAdminClient();
@@ -160,7 +167,7 @@ export async function getStudentPhonesBatch(
       }
 
       // student_id별로 mother/father 연락처 정리
-      links.forEach((link: any) => {
+      (links as ParentStudentLink[]).forEach((link) => {
         const studentId = link.student_id;
         const relation = link.relation;
         const parentId = link.parent_id;

@@ -18,6 +18,34 @@ type ContentProgress = {
   lastUsedDate: string | null;
 };
 
+// Supabase 쿼리 결과 타입
+type ProgressRow = {
+  content_type: string;
+  content_id: string;
+  progress: number | null;
+};
+
+type BookRow = {
+  id: string;
+  title: string;
+  subject: string | null;
+  total_pages: number | null;
+};
+
+type LectureRow = {
+  id: string;
+  title: string;
+  subject: string | null;
+  duration: number | null;
+};
+
+type CustomContentRow = {
+  id: string;
+  title: string;
+  subject: string | null;
+  total_page_or_time: number | null;
+};
+
 /**
  * 콘텐츠(책/강의/커스텀) 추천 생성
  * - 콘텐츠별 진행률
@@ -52,7 +80,7 @@ export async function getContentRecommendations(
     }
 
     const progressMap = new Map<string, number | null>();
-    (progressRows || []).forEach((row: any) => {
+    (progressRows || []).forEach((row: ProgressRow) => {
       const key = `${row.content_type}:${row.content_id}`;
       progressMap.set(key, row.progress);
     });
@@ -96,7 +124,7 @@ export async function getContentRecommendations(
       ({ data: books } = await selectBooks());
     }
 
-    (books || []).forEach((book: any) => {
+    (books || []).forEach((book: BookRow) => {
       const key = `book:${book.id}`;
       const progressValue = progressMap.get(key);
       // progress는 percentage일 수도 있고 amount일 수도 있음
@@ -141,7 +169,7 @@ export async function getContentRecommendations(
       ({ data: lectures } = await selectLectures());
     }
 
-    (lectures || []).forEach((lecture: any) => {
+    (lectures || []).forEach((lecture: LectureRow) => {
       const key = `lecture:${lecture.id}`;
       const progressValue = progressMap.get(key);
       const total = lecture.duration || null;
@@ -182,7 +210,7 @@ export async function getContentRecommendations(
       ({ data: customContents } = await selectCustom());
     }
 
-    (customContents || []).forEach((custom: any) => {
+    (customContents || []).forEach((custom: CustomContentRow) => {
       const key = `custom:${custom.id}`;
       const progressValue = progressMap.get(key);
       const total = custom.total_page_or_time || null;

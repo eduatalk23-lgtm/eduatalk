@@ -181,7 +181,7 @@ export function syncWizardDataToCreationData(
           is_auto_recommended?: boolean;
           recommendation_source?: "auto" | "admin" | "template" | null;
           recommendation_reason?: string | null;
-          recommendation_metadata?: any;
+          recommendation_metadata?: Record<string, unknown> | null;
         } = {
           content_type: c.content_type,
           content_id: c.content_id,
@@ -278,17 +278,18 @@ export function syncCreationDataToWizardData(data: {
     name: string | null;
     plan_purpose: string | null;
     scheduler_type: string | null;
-    scheduler_options?: any;
+    scheduler_options?: Record<string, unknown> | null;
     period_start: string;
     period_end: string;
     target_date: string | null;
     block_set_id: string | null;
-    daily_schedule?: any;
-    subject_constraints?: any;
-    additional_period_reallocation?: any;
-    non_study_time_blocks?: any;
-    study_hours?: any;
-    self_study_hours?: any;
+    // 아래 필드들은 DB에서 오는 JSONB 데이터로, 다양한 스키마 버전과 호환 가능
+    daily_schedule?: unknown;
+    subject_constraints?: unknown;
+    additional_period_reallocation?: unknown;
+    non_study_time_blocks?: unknown;
+    study_hours?: { start_time: string; end_time: string } | null;
+    self_study_hours?: { enabled: boolean; start_time: string; end_time: string; allow_on_holiday?: boolean } | null;
     plan_type?: string | null;
     camp_template_id?: string | null;
   };
@@ -474,10 +475,10 @@ export function syncCreationDataToWizardData(data: {
         subject_type: "strategy" | "weakness";
         weekly_days?: number;
       }> | undefined,
-      subject_constraints: group.subject_constraints || undefined,
-      additional_period_reallocation: group.additional_period_reallocation || undefined,
-      non_study_time_blocks: group.non_study_time_blocks || undefined,
-      daily_schedule: group.daily_schedule || undefined,
+      subject_constraints: (group.subject_constraints ?? undefined) as WizardData["subject_constraints"],
+      additional_period_reallocation: (group.additional_period_reallocation ?? undefined) as WizardData["additional_period_reallocation"],
+      non_study_time_blocks: (group.non_study_time_blocks ?? undefined) as WizardData["non_study_time_blocks"],
+      daily_schedule: (group.daily_schedule ?? undefined) as WizardData["daily_schedule"],
     };
 
     // 출력 데이터 검증 (부분 스키마 사용 - DB에서 온 데이터는 일부 필드가 없을 수 있음)

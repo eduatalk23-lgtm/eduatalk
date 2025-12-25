@@ -335,7 +335,7 @@ async function loadPlansForPlanGroups(
   }
 
   // 플랜 그룹별 플랜 생성 여부 매핑
-  (plansData || []).forEach((plan: any) => {
+  (plansData || []).forEach((plan) => {
     if (plan.plan_group_id) {
       plansMap.set(plan.plan_group_id, true);
     }

@@ -9,6 +9,13 @@ import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/su
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 
+// Supabase JOIN 결과 타입
+type SubjectWithGroup = {
+  id: string;
+  subject_group_id: string | null;
+  subject_groups: { name: string } | Array<{ name: string }> | null;
+};
+
 /**
  * subject_id를 통해 교과명 조회 헬퍼 함수
  */
@@ -65,10 +72,14 @@ export async function fetchSubjectGroupNamesBatch(
       return result;
     }
 
-    subjects.forEach((subject: any) => {
+    (subjects as SubjectWithGroup[]).forEach((subject) => {
       const subjectGroup = subject.subject_groups;
-      if (subjectGroup?.name) {
-        result.set(subject.id, subjectGroup.name);
+      // JOIN 결과가 배열 또는 객체일 수 있음
+      const groupName = Array.isArray(subjectGroup)
+        ? subjectGroup[0]?.name
+        : subjectGroup?.name;
+      if (groupName) {
+        result.set(subject.id, groupName);
       }
     });
   } catch (error) {

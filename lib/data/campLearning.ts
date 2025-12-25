@@ -10,6 +10,11 @@ import type { Plan } from "@/lib/types/plan/domain";
 import type { PlanWithStudent, DatePlanDetail } from "@/lib/types/camp/learning";
 import { getMasterContentId } from "@/lib/plan/content";
 
+// Supabase JOIN 결과 타입 (students 관계 포함)
+type PlanWithStudentJoin = Plan & {
+  students: { name: string } | Array<{ name: string }> | null;
+};
+
 /**
  * 캠프 기간 학습 기록 조회 (학생 정보 포함)
  * 템플릿에 초대된 모든 학생의 플랜을 조회합니다.
@@ -81,8 +86,8 @@ export async function getCampLearningRecords(
   }
 
   // 데이터 변환 (JOIN 결과를 평탄화)
-  const records: PlanWithStudent[] = ((plans || []) as any[]).map(
-    (plan: any) => {
+  const records: PlanWithStudent[] = ((plans || []) as PlanWithStudentJoin[]).map(
+    (plan) => {
       const studentInfo = Array.isArray(plan.students)
         ? plan.students[0]
         : plan.students;
@@ -185,7 +190,7 @@ export async function getCampDatePlans(
   }
 
   // 학습 세션 조회 (학습 시간 계산용)
-  const planIds = (plans || []).map((p: any) => p.id);
+  const planIds = (plans || []).map((p) => p.id);
   let studySessions: Array<{
     plan_id: string;
     duration_seconds: number | null;
@@ -227,9 +232,9 @@ export async function getCampDatePlans(
   const studentBookMap = new Map<string, string[]>(); // studentId -> bookIds
   const studentLectureMap = new Map<string, string[]>(); // studentId -> lectureIds
 
-  (plans || []).forEach((plan: any) => {
+  (plans || []).forEach((plan) => {
     const studentId = plan.student_id;
-    
+
     if (plan.content_type === "book" && plan.content_id) {
       bookIds.push(plan.content_id);
       if (!studentBookMap.has(studentId)) {
@@ -539,7 +544,7 @@ export async function getCampDatePlans(
   };
 
   // 데이터 변환
-  const planDetails = ((plans || []) as any[]).map((plan: any) => {
+  const planDetails = ((plans || []) as PlanWithStudentJoin[]).map((plan) => {
     const studentInfo = Array.isArray(plan.students)
       ? plan.students[0]
       : plan.students;
@@ -551,40 +556,38 @@ export async function getCampDatePlans(
 
     // 계획 범위 포맷팅
     let plannedRange = "-";
+    const plannedStart = plan.planned_start_page_or_time;
+    const plannedEnd = plan.planned_end_page_or_time;
     if (
-      plan.planned_start_page_or_time !== null &&
-      plan.planned_end_page_or_time !== null
+      plannedStart !== null &&
+      plannedStart !== undefined &&
+      plannedEnd !== null &&
+      plannedEnd !== undefined
     ) {
       if (plan.content_type === "book") {
         const studentBookDetails = bookDetailsMap.get(plan.student_id);
         const bookDetails = studentBookDetails?.get(plan.content_id) || [];
-        plannedRange = formatBookRange(
-          bookDetails,
-          plan.planned_start_page_or_time,
-          plan.planned_end_page_or_time
-        );
+        plannedRange = formatBookRange(bookDetails, plannedStart, plannedEnd);
       } else if (plan.content_type === "lecture") {
         const studentLectureEpisodes = lectureEpisodesMap.get(plan.student_id);
         const episodes = studentLectureEpisodes?.get(plan.content_id) || [];
-        plannedRange = formatLectureRange(
-          episodes,
-          plan.planned_start_page_or_time,
-          plan.planned_end_page_or_time
-        );
+        plannedRange = formatLectureRange(episodes, plannedStart, plannedEnd);
       } else if (plan.content_type === "custom") {
         // 커스텀 콘텐츠는 시간 형식으로 표시
-        const startMin = Math.floor(plan.planned_start_page_or_time / 60);
-        const startSec = plan.planned_start_page_or_time % 60;
-        const endMin = Math.floor(plan.planned_end_page_or_time / 60);
-        const endSec = plan.planned_end_page_or_time % 60;
+        const startMin = Math.floor(plannedStart / 60);
+        const startSec = plannedStart % 60;
+        const endMin = Math.floor(plannedEnd / 60);
+        const endSec = plannedEnd % 60;
         plannedRange = `${String(startMin).padStart(2, "0")}:${String(startSec).padStart(2, "0")}-${String(endMin).padStart(2, "0")}:${String(endSec).padStart(2, "0")}`;
       }
     }
 
     // 상태 판단
     let status: "completed" | "in_progress" | "not_started" = "not_started";
-    if (plan.completed_amount !== null && plan.completed_amount > 0) {
-      if (plan.progress !== null && plan.progress >= 100) {
+    const completedAmount = plan.completed_amount ?? 0;
+    const progress = plan.progress ?? 0;
+    if (completedAmount > 0) {
+      if (progress >= 100) {
         status = "completed";
       } else {
         status = "in_progress";
@@ -598,10 +601,10 @@ export async function getCampDatePlans(
       content_type: plan.content_type as "book" | "lecture" | "custom",
       content_title: contentInfo?.title || null,
       content_subject: contentInfo?.subject || null,
-      block_index: plan.block_index,
+      block_index: plan.block_index ?? 0,
       planned_range: plannedRange,
-      completed_amount: plan.completed_amount,
-      progress: plan.progress || 0,
+      completed_amount: completedAmount,
+      progress,
       study_minutes: planStudyTimeMap.get(plan.id) || 0,
       status,
     };
