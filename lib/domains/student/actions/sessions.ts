@@ -19,6 +19,9 @@ import {
 import { getPlanById } from "@/lib/data/studentPlans";
 import { recordHistory } from "@/lib/history/record";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSessionPaused } from "@/lib/utils/timerUtils";
+import { TIMER_ERRORS } from "@/lib/domains/today/errors";
+import { sessionLogger } from "@/lib/domains/today/logger";
 
 /**
  * 학습 세션 시작
@@ -26,15 +29,23 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function startStudySession(
   planId?: string
 ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+  // planId가 없으면 세션 생성 불가 (고아 세션 방지)
+  if (!planId) {
+    sessionLogger.warn("planId 없이 startStudySession 호출됨 - 거부", {
+      action: "startStudySession",
+    });
+    return { success: false, error: TIMER_ERRORS.PLAN_ID_REQUIRED };
+  }
+
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
-    return { success: false, error: "로그인이 필요합니다." };
+    return { success: false, error: TIMER_ERRORS.AUTH_REQUIRED };
   }
 
   const tenantContext = await getTenantContext();
 
   if (!tenantContext?.tenantId) {
-    return { success: false, error: "기관 정보를 찾을 수 없습니다. 관리자에게 문의해주세요." };
+    return { success: false, error: TIMER_ERRORS.TENANT_NOT_FOUND };
   }
 
   try {
@@ -52,9 +63,9 @@ export async function startStudySession(
 
       // 일시정지되지 않은 실제 활성 세션이 있으면 에러 반환
       // 일시정지된 세션(paused_at이 있고 resumed_at이 없는 경우)은 허용
-      if (existingSession && (!existingSession.paused_at || existingSession.resumed_at)) {
+      if (existingSession && !isSessionPaused(existingSession)) {
         // 이미 해당 플랜의 세션이 활성화되어 있으면 에러 반환
-        return { success: false, error: "이미 해당 플랜의 타이머가 실행 중입니다." };
+        return { success: false, error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_SAME_PLAN };
       }
     } else {
       // planId가 없는 경우 전체 활성 세션 확인
@@ -101,7 +112,11 @@ export async function startStudySession(
     // 중복 호출 방지를 위해 제거 (성능 최적화)
     return { success: true, sessionId: result.sessionId };
   } catch (error) {
-    console.error("[studySessions] 세션 시작 실패", error);
+    sessionLogger.error("세션 시작 실패", {
+      action: "startStudySession",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "세션 시작에 실패했습니다.",
@@ -139,10 +154,27 @@ export async function endStudySession(
     }
 
     // 일시정지된 시간 계산 (세션 종료 시)
-    let totalPausedDuration = session.paused_duration_seconds || 0;
-    if (session.paused_at && !session.resumed_at) {
-      // 현재 일시정지 중인 경우, 일시정지 시간 추가 계산
-      const pausedAt = new Date(session.paused_at);
+    // Single Source of Truth: plan의 paused_duration_seconds를 사용
+    // (resumePlan에서 plan에만 누적하고 session에는 업데이트하지 않음)
+    let totalPausedDuration = 0;
+
+    if (session.plan_id) {
+      // plan의 paused_duration_seconds 조회 (누적된 일시정지 시간)
+      const plan = await getPlanById(
+        session.plan_id,
+        user.userId,
+        tenantContext?.tenantId || null
+      );
+      totalPausedDuration = plan?.paused_duration_seconds || 0;
+    } else {
+      // plan_id가 없는 경우 fallback (이전 호환성)
+      totalPausedDuration = session.paused_duration_seconds || 0;
+    }
+
+    if (isSessionPaused(session)) {
+      // 현재 일시정지 중인 경우, 아직 plan에 반영되지 않은 일시정지 시간 추가
+      // isSessionPaused가 true면 paused_at은 반드시 존재
+      const pausedAt = new Date(session.paused_at!);
       const now = new Date();
       const currentPauseDuration = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
       totalPausedDuration += currentPauseDuration;
@@ -178,7 +210,11 @@ export async function endStudySession(
     revalidatePath("/today");
     return { success: true, durationSeconds: result.durationSeconds };
   } catch (error) {
-    console.error("[studySessions] 세션 종료 실패", error);
+    sessionLogger.error("세션 종료 실패", {
+      action: "endStudySession",
+      id: sessionId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "세션 종료에 실패했습니다.",
@@ -227,7 +263,11 @@ export async function cancelStudySession(
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("[studySessions] 세션 취소 실패", error);
+    sessionLogger.error("세션 취소 실패", {
+      action: "cancelStudySession",
+      id: sessionId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "세션 취소에 실패했습니다.",
@@ -266,7 +306,7 @@ export async function pauseStudySession(
     }
 
     // 이미 일시정지된 상태인지 확인
-    if (session.paused_at && !session.resumed_at) {
+    if (isSessionPaused(session)) {
       return { success: false, error: "이미 일시정지된 상태입니다." };
     }
 
@@ -283,7 +323,11 @@ export async function pauseStudySession(
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("[studySessions] 세션 일시정지 실패", error);
+    sessionLogger.error("세션 일시정지 실패", {
+      action: "pauseStudySession",
+      id: sessionId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "세션 일시정지에 실패했습니다.",
@@ -322,12 +366,13 @@ export async function resumeStudySession(
     }
 
     // 일시정지 상태인지 확인
-    if (!session.paused_at || session.resumed_at) {
+    if (!isSessionPaused(session)) {
       return { success: false, error: "일시정지된 상태가 아닙니다." };
     }
 
     // 일시정지 시간 계산
-    const pausedAt = new Date(session.paused_at);
+    // isSessionPaused 통과 후이므로 paused_at은 반드시 존재
+    const pausedAt = new Date(session.paused_at!);
     const resumedAt = new Date();
     const pauseDuration = Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000);
     const totalPausedDuration = (session.paused_duration_seconds || 0) + pauseDuration;
@@ -346,7 +391,11 @@ export async function resumeStudySession(
     revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
-    console.error("[studySessions] 세션 재개 실패", error);
+    sessionLogger.error("세션 재개 실패", {
+      action: "resumeStudySession",
+      id: sessionId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "세션 재개에 실패했습니다.",
