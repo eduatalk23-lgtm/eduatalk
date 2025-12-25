@@ -1053,6 +1053,45 @@ export type Database = {
           },
         ]
       }
+      idempotency_keys: {
+        Row: {
+          action_name: string
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          idempotency_key: string
+          request_hash: string | null
+          response: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action_name: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key: string
+          request_hash?: string | null
+          response?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action_name?: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          idempotency_key?: string
+          request_hash?: string | null
+          response?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lecture_episodes: {
         Row: {
           created_at: string | null
@@ -5199,9 +5238,23 @@ export type Database = {
         Args: { tenant_uuid: string }
         Returns: undefined
       }
+      check_idempotency: {
+        Args: {
+          p_action: string
+          p_key: string
+          p_request_hash?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      cleanup_expired_idempotency_keys: { Args: never; Returns: number }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       cleanup_korean_history_subjects: {
         Args: { tenant_uuid: string }
+        Returns: undefined
+      }
+      complete_idempotency: {
+        Args: { p_key_id: string; p_response: Json; p_success?: boolean }
         Returns: undefined
       }
       complete_plan_atomically: {
