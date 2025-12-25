@@ -362,14 +362,14 @@ function DailyView({ groupedByDate }: DailyViewProps) {
                 <span
                   className={cn(
                     "rounded px-1.5 py-0.5 text-xs",
-                    plans[0]?.day_type === "학습일"
+                    plans[0]?.day_type === "study"
                       ? "bg-blue-100 text-blue-700"
-                      : plans[0]?.day_type === "복습일"
+                      : plans[0]?.day_type === "review"
                         ? "bg-green-100 text-green-700"
                         : "bg-gray-100 text-gray-600"
                   )}
                 >
-                  {plans[0]?.day_type}
+                  {plans[0]?.day_type === "study" ? "학습일" : plans[0]?.day_type === "review" ? "복습일" : plans[0]?.day_type}
                 </span>
               </div>
               <span className="text-xs text-gray-500">

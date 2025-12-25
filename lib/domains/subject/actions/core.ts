@@ -50,6 +50,10 @@ export async function getSubjectsByGroupAction(
   return getSubjectsByGroup(subjectGroupId);
 }
 
+// 교과 그룹명으로 과목 목록 조회 (SlotDetailPanel용)
+// NOTE: 이 함수는 getSubjectsByGroupNameAction (line 17)과 중복되어 제거됨
+// 학생용 버전은 getSubjectsByGroupName을 직접 사용
+
 // 개정교육과정 ID로 모든 과목을 한 번에 조회 (성능 최적화)
 export async function getSubjectsByRevisionAction(
   curriculumRevisionId: string

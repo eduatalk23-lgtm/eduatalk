@@ -1,768 +1,225 @@
 /**
- * 가상 타임라인 미리보기 로직
+ * Virtual Schedule Preview (V1 - Legacy Adapter)
  *
- * 2단계 콘텐츠 선택 시스템 v2.0
- * 슬롯 구성 시점에 가상 배치 미리보기를 제공합니다.
+ * V2에서 사용하는 유틸리티 함수 제공
+ * 실제 V1 로직은 V2로 마이그레이션됨
+ * 레거시 호환성을 위한 어댑터 함수 포함
  */
 
-import type { ContentSlot } from "@/lib/types/content-selection";
-import type { SubjectAllocation } from "@/lib/types/plan/domain";
-import { SCHEDULER_CONFIG } from "@/lib/config/schedulerConfig";
+import type { ContentSlot, SlotType } from "@/lib/types/content-selection";
+import type { DailyScheduleInfo, StudyReviewCycle } from "@/lib/types/plan";
+import {
+  calculateVirtualTimelineV2,
+  groupPlansByDateV2,
+  groupPlansByWeekV2,
+  type VirtualTimelineResultV2,
+  type VirtualPlanItemV2,
+  type SubjectTimeDistributionV2,
+  type CycleSummaryV2,
+} from "./virtualSchedulePreviewV2";
+
+// V2 타입 re-export
+export type { VirtualPlanItemV2, VirtualTimelineResultV2 };
+
+// DailyScheduleInfo 타입 re-export
+export type { DailyScheduleInfo };
 
 // ============================================================================
-// 타입 정의
+// 레거시 호환 타입 정의
 // ============================================================================
 
 /**
- * 일별 스케줄 정보 (WizardData에서 가져옴)
+ * 레거시 VirtualPlanItem (V1 호환)
  */
-export type DailyScheduleInfo = {
-  date: string;
-  day_type: "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
-  study_hours: number;
-  week_number?: number;
-};
+export type VirtualPlanItem = VirtualPlanItemV2;
 
 /**
- * 가상 플랜 아이템
+ * 레거시 주간 요약 타입 (V1 호환)
  */
-export type VirtualPlanItem = {
-  /** 슬롯 인덱스 */
-  slot_index: number;
-  /** 슬롯 타입 */
-  slot_type: ContentSlot["slot_type"];
-  /** 교과 */
-  subject_category: string;
-  /** 콘텐츠 제목 (있는 경우) */
-  title?: string;
-  /** 배정 날짜 */
-  date: string;
-  /** 시작 시간 (HH:MM) */
-  start_time: string;
-  /** 종료 시간 (HH:MM) */
-  end_time: string;
-  /** 소요 시간 (분) */
-  duration_minutes: number;
-  /** 배정 범위 시작 */
-  range_start?: number;
-  /** 배정 범위 종료 */
-  range_end?: number;
-  /** 주차 */
+export interface WeekSummary {
   week_number: number;
-  /** 일 유형 */
-  day_type: DailyScheduleInfo["day_type"];
-  /** 연계 슬롯 ID (이 슬롯이 연결된 대상) */
-  linked_to_slot_index?: number;
-  /** 연계 타입 */
-  link_type?: "before" | "after";
-  /** 배타적 슬롯 인덱스 목록 */
-  exclusive_with_indices?: number[];
-  /** 연계 그룹 ID (같은 그룹에 속한 슬롯들은 같은 ID를 가짐) */
-  linked_group_id?: number;
-};
-
-/**
- * 가상 타임라인 결과
- */
-export type VirtualTimelineResult = {
-  /** 가상 플랜 아이템 목록 */
-  plans: VirtualPlanItem[];
-  /** 교과별 시간 분배 */
-  subjectDistribution: SubjectTimeDistribution[];
-  /** 주차별 요약 */
-  weekSummaries: WeekSummary[];
-  /** 총 학습 시간 (분) */
-  totalStudyMinutes: number;
-  /** 총 콘텐츠 수 */
-  totalContents: number;
-  /** 경고 메시지 */
-  warnings: string[];
-};
-
-/**
- * 교과별 시간 분배
- */
-export type SubjectTimeDistribution = {
-  subject_category: string;
-  /** 총 시간 (분) */
   total_minutes: number;
-  /** 비율 (0-100) */
-  percentage: number;
-  /** 슬롯 수 */
-  slot_count: number;
-  /** 플랜 수 */
-  plan_count: number;
-};
-
-/**
- * 주차별 요약
- */
-export type WeekSummary = {
-  week_number: number;
-  /** 학습일 수 */
   study_days: number;
-  /** 복습일 수 */
   review_days: number;
-  /** 총 학습 시간 (분) */
+  subjects: Record<string, boolean>;
+}
+
+/**
+ * 레거시 교과별 분배 타입 (V1 호환)
+ */
+export interface SubjectDistribution {
+  subject_category: string;
   total_minutes: number;
-  /** 교과별 시간 */
-  subjects: Record<string, number>;
-};
+  percentage: number;
+}
+
+/**
+ * 레거시 VirtualTimelineResult (V1 호환)
+ */
+export interface VirtualTimelineResult {
+  plans: VirtualPlanItem[];
+  subjectDistribution: SubjectDistribution[];
+  weekSummaries: WeekSummary[];
+  totalStudyMinutes: number;
+  totalContents: number;
+  warnings: string[];
+}
+
+// ============================================================================
+// 레거시 어댑터 함수
+// ============================================================================
+
+/**
+ * CycleSummaryV2를 WeekSummary로 변환
+ */
+function convertCycleSummaryToWeekSummary(cycle: CycleSummaryV2): WeekSummary {
+  const subjects: Record<string, boolean> = {};
+  for (const subject of cycle.subjects) {
+    subjects[subject] = true;
+  }
+
+  return {
+    week_number: cycle.cycle_number,
+    total_minutes: cycle.total_study_minutes + cycle.total_review_minutes,
+    study_days: cycle.study_day_count,
+    review_days: cycle.review_day_count,
+    subjects,
+  };
+}
+
+/**
+ * SubjectTimeDistributionV2를 SubjectDistribution으로 변환
+ */
+function convertSubjectDistribution(
+  dist: SubjectTimeDistributionV2
+): SubjectDistribution {
+  return {
+    subject_category: dist.subject_category,
+    total_minutes: dist.total_minutes,
+    percentage: dist.percentage,
+  };
+}
+
+/**
+ * VirtualTimelineResultV2를 VirtualTimelineResult로 변환
+ */
+function convertV2ResultToV1(result: VirtualTimelineResultV2): VirtualTimelineResult {
+  return {
+    plans: result.plans,
+    subjectDistribution: result.subjectDistribution.map(convertSubjectDistribution),
+    weekSummaries: result.cycleSummaries.map(convertCycleSummaryToWeekSummary),
+    totalStudyMinutes: result.totalStudyMinutes,
+    totalContents: result.totalContents,
+    warnings: result.warnings,
+  };
+}
+
+/**
+ * DailyScheduleInfo에서 기간 추출
+ */
+function extractPeriodFromSchedules(
+  dailySchedules: DailyScheduleInfo[]
+): { start: string; end: string } {
+  if (dailySchedules.length === 0) {
+    const today = new Date().toISOString().split("T")[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    return { start: today, end: endDate.toISOString().split("T")[0] };
+  }
+
+  const dates = dailySchedules.map((s) => s.date).sort();
+  return { start: dates[0], end: dates[dates.length - 1] };
+}
+
+/**
+ * 레거시 calculateVirtualTimeline (V1 시그니처 호환)
+ *
+ * 이전 버전과 호환되는 함수 시그니처 유지
+ * 내부적으로 V2 함수를 호출하고 결과를 V1 형식으로 변환
+ */
+export function calculateVirtualTimeline(
+  slots: ContentSlot[],
+  dailySchedules: DailyScheduleInfo[]
+): VirtualTimelineResult {
+  // 기간 추출
+  const period = extractPeriodFromSchedules(dailySchedules);
+
+  // 기본 학습-복습 주기 설정
+  const defaultStudyReviewCycle: StudyReviewCycle = {
+    study_days: 5,
+    review_days: 2,
+  };
+
+  // V2 옵션 구성
+  const options = {
+    studyReviewCycle: defaultStudyReviewCycle,
+    periodStart: period.start,
+    periodEnd: period.end,
+    dailySchedule: dailySchedules,
+    dailyStudyHours: 4,
+  };
+
+  // V2 함수 호출
+  const v2Result = calculateVirtualTimelineV2(slots, options);
+
+  // V1 형식으로 변환하여 반환
+  return convertV2ResultToV1(v2Result);
+}
+
+/**
+ * 레거시 groupPlansByDate (객체 반환)
+ */
+export function groupPlansByDate(
+  result: VirtualTimelineResult | VirtualTimelineResultV2
+): Record<string, VirtualPlanItem[]> {
+  const map = groupPlansByDateV2(result as VirtualTimelineResultV2);
+  const obj: Record<string, VirtualPlanItem[]> = {};
+  for (const [key, value] of map.entries()) {
+    obj[key] = value;
+  }
+  return obj;
+}
+
+/**
+ * 레거시 groupPlansByWeek (객체 반환)
+ */
+export function groupPlansByWeek(
+  result: VirtualTimelineResult | VirtualTimelineResultV2
+): Record<string, VirtualPlanItem[]> {
+  const map = groupPlansByWeekV2(result as VirtualTimelineResultV2);
+  const obj: Record<string, VirtualPlanItem[]> = {};
+  for (const [key, value] of map.entries()) {
+    obj[key] = value;
+  }
+  return obj;
+}
 
 // ============================================================================
 // 상수
 // ============================================================================
 
 /**
- * 기본 블록 시간 (분)
+ * 슬롯 타입별 기본 시간 (분)
  */
-const DEFAULT_BLOCK_DURATION = 90;
-
-// ============================================================================
-// 슬롯 관계 처리 함수
-// ============================================================================
-
-/**
- * 연계 슬롯 그룹화
- *
- * 연계된 슬롯들을 그룹으로 묶고, 각 그룹 내 순서를 결정합니다.
- * - linked_slot_id가 있는 슬롯들을 하나의 그룹으로 묶음
- * - link_type (before/after)에 따라 순서 정렬
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @returns 그룹화된 슬롯 배열
- */
-function groupLinkedSlots(slots: ContentSlot[]): ContentSlot[][] {
-  const slotById = new Map<string, ContentSlot>();
-  const visited = new Set<string>();
-  const groups: ContentSlot[][] = [];
-  const slotsWithoutId: ContentSlot[] = [];
-
-  // ID가 있는 슬롯만 매핑
-  slots.forEach((slot) => {
-    if (slot.id) {
-      slotById.set(slot.id, slot);
-    } else {
-      slotsWithoutId.push(slot);
-    }
-  });
-
-  // 연계된 슬롯들 그룹화
-  slots.forEach((slot) => {
-    if (!slot.id || visited.has(slot.id)) return;
-
-    const group: ContentSlot[] = [];
-    const queue: ContentSlot[] = [slot];
-
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      if (!current.id || visited.has(current.id)) continue;
-
-      visited.add(current.id);
-      group.push(current);
-
-      // 연결된 슬롯 찾기
-      if (current.linked_slot_id) {
-        const linked = slotById.get(current.linked_slot_id);
-        if (linked && linked.id && !visited.has(linked.id)) {
-          queue.push(linked);
-        }
-      }
-
-      // 이 슬롯을 참조하는 다른 슬롯 찾기
-      slots.forEach((other) => {
-        if (
-          other.linked_slot_id === current.id &&
-          other.id &&
-          !visited.has(other.id)
-        ) {
-          queue.push(other);
-        }
-      });
-    }
-
-    // 그룹 내 순서 결정
-    const orderedGroup = orderLinkedGroup(group);
-    groups.push(orderedGroup);
-  });
-
-  // ID가 없는 슬롯들은 개별 그룹으로 추가
-  slotsWithoutId.forEach((slot) => {
-    groups.push([slot]);
-  });
-
-  return groups;
-}
-
-/**
- * 연계 그룹 내 순서 결정 (위상 정렬)
- *
- * - A.link_type === "after" && A.linked_slot_id === B → A는 B 다음에 배치
- * - A.link_type === "before" && A.linked_slot_id === B → A는 B 이전에 배치
- *
- * @param group - 연계된 슬롯 그룹
- * @returns 순서가 결정된 슬롯 배열
- */
-function orderLinkedGroup(group: ContentSlot[]): ContentSlot[] {
-  if (group.length <= 1) return group;
-
-  // 의존성 그래프 구성: slotId → 이 슬롯 이전에 와야 하는 슬롯 ID 목록
-  const dependencies = new Map<string, string[]>();
-
-  group.forEach((slot) => {
-    if (slot.id) {
-      dependencies.set(slot.id, []);
-    }
-  });
-
-  group.forEach((slot) => {
-    if (!slot.id || !slot.linked_slot_id) return;
-
-    // linked_slot_id가 그룹 내에 있는지 확인
-    const linkedInGroup = group.some((s) => s.id === slot.linked_slot_id);
-    if (!linkedInGroup) return;
-
-    if (slot.link_type === "after") {
-      // 이 슬롯은 linked_slot_id 다음에 와야 함
-      // 즉, linked_slot_id가 이 슬롯의 선행 조건
-      const deps = dependencies.get(slot.id) || [];
-      deps.push(slot.linked_slot_id);
-      dependencies.set(slot.id, deps);
-    } else if (slot.link_type === "before") {
-      // 이 슬롯은 linked_slot_id 이전에 와야 함
-      // 즉, 이 슬롯이 linked_slot_id의 선행 조건
-      const deps = dependencies.get(slot.linked_slot_id) || [];
-      deps.push(slot.id);
-      dependencies.set(slot.linked_slot_id, deps);
-    }
-  });
-
-  // 위상 정렬
-  const result: ContentSlot[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-
-  function visit(slotId: string): boolean {
-    if (visited.has(slotId)) return true;
-    if (visiting.has(slotId)) return false; // 순환 참조
-
-    visiting.add(slotId);
-    const deps = dependencies.get(slotId) || [];
-    for (const dep of deps) {
-      if (!visit(dep)) return false;
-    }
-    visiting.delete(slotId);
-    visited.add(slotId);
-
-    const slot = group.find((s) => s.id === slotId);
-    if (slot) result.push(slot);
-    return true;
-  }
-
-  group.forEach((slot) => {
-    if (slot.id && !visited.has(slot.id)) {
-      visit(slot.id);
-    }
-  });
-
-  // 정렬 실패 시 (순환 참조 등) 원래 순서 반환
-  if (result.length !== group.length) {
-    return group;
-  }
-
-  return result;
-}
-
-/**
- * 배타적 제약 조건 체크
- *
- * 해당 날짜에 exclusive_with에 지정된 슬롯이 이미 배치되어 있는지 확인합니다.
- *
- * @param slot - 현재 슬롯
- * @param date - 배치하려는 날짜
- * @param assignedSlots - 이미 배치된 슬롯들 (slotId → date)
- * @param slots - 전체 슬롯 배열
- * @returns 배치 가능 여부 및 충돌 슬롯 ID
- */
-function checkExclusiveConstraints(
-  slot: ContentSlot,
-  date: string,
-  assignedSlots: Map<string, string>,
-  slots: ContentSlot[]
-): { canPlace: boolean; conflictingSlotId?: string } {
-  // slot.id가 없으면 체크 불가
-  if (!slot.id) {
-    return { canPlace: true };
-  }
-
-  // 순방향 체크: 이 슬롯이 배타적으로 지정한 슬롯들
-  if (slot.exclusive_with?.length) {
-    for (const excludedId of slot.exclusive_with) {
-      const excludedDate = assignedSlots.get(excludedId);
-      if (excludedDate === date) {
-        return { canPlace: false, conflictingSlotId: excludedId };
-      }
-    }
-  }
-
-  // 역방향 체크: 다른 슬롯이 이 슬롯을 exclusive_with에 포함하고 있는 경우
-  for (const otherSlot of slots) {
-    if (
-      otherSlot.id &&
-      otherSlot.exclusive_with?.includes(slot.id) &&
-      assignedSlots.get(otherSlot.id) === date
-    ) {
-      return { canPlace: false, conflictingSlotId: otherSlot.id };
-    }
-  }
-
-  return { canPlace: true };
-}
-
-/**
- * 슬롯 타입별 기본 소요 시간 (분)
- */
-const SLOT_TYPE_DEFAULT_DURATION: Record<string, number> = {
-  book: 90, // 교재: 1.5시간
-  lecture: 60, // 강의: 1시간
-  custom: 60, // 커스텀: 1시간
-  self_study: 60, // 자습: 1시간
-  test: 90, // 테스트: 1.5시간
+export const SLOT_TYPE_DEFAULT_DURATION: Record<SlotType, number> = {
+  book: 90,
+  lecture: 60,
+  custom: 60,
+  self_study: 30,
+  test: 90,
 };
 
 // ============================================================================
-// 메인 함수
+// 유틸리티 함수
 // ============================================================================
-
-/**
- * 가상 타임라인 계산
- *
- * 슬롯 구성과 일별 스케줄을 기반으로 가상 플랜을 생성합니다.
- * 연계 슬롯 및 배타적 슬롯 관계를 반영합니다.
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @param dailySchedules - 일별 스케줄 정보
- * @param options - 계산 옵션
- * @returns 가상 타임라인 결과
- */
-export function calculateVirtualTimeline(
-  slots: ContentSlot[],
-  dailySchedules: DailyScheduleInfo[],
-  options: {
-    /** 학습일만 사용할지 여부 */
-    studyDaysOnly?: boolean;
-    /** 블록 시간 (분) */
-    blockDuration?: number;
-  } = {}
-): VirtualTimelineResult {
-  const { studyDaysOnly = false, blockDuration = DEFAULT_BLOCK_DURATION } =
-    options;
-
-  const warnings: string[] = [];
-  const plans: VirtualPlanItem[] = [];
-
-  // 유효한 슬롯만 필터링
-  const validSlots = slots.filter(
-    (slot) => slot.slot_type && slot.subject_category
-  );
-
-  if (validSlots.length === 0) {
-    return {
-      plans: [],
-      subjectDistribution: [],
-      weekSummaries: [],
-      totalStudyMinutes: 0,
-      totalContents: 0,
-      warnings: ["유효한 슬롯이 없습니다."],
-    };
-  }
-
-  // 학습 가능한 날짜 필터링
-  const availableDays = dailySchedules.filter((day) => {
-    if (studyDaysOnly) {
-      return day.day_type === "학습일";
-    }
-    return day.day_type === "학습일" || day.day_type === "복습일";
-  });
-
-  if (availableDays.length === 0) {
-    return {
-      plans: [],
-      subjectDistribution: calculateSubjectTimeDistribution(validSlots, []),
-      weekSummaries: [],
-      totalStudyMinutes: 0,
-      totalContents: validSlots.length,
-      warnings: ["학습 가능한 날짜가 없습니다."],
-    };
-  }
-
-  // 슬롯별 소요 시간 미리 계산
-  const slotDurationMap = new Map<number, number>();
-  validSlots.forEach((slot) => {
-    slotDurationMap.set(slot.slot_index, calculateSlotDuration(slot, blockDuration));
-  });
-
-  // 총 필요 시간
-  const totalRequiredMinutes = Array.from(slotDurationMap.values()).reduce(
-    (sum, d) => sum + d,
-    0
-  );
-
-  // 총 가용 시간
-  const totalAvailableMinutes = availableDays.reduce(
-    (sum, day) => sum + day.study_hours * 60,
-    0
-  );
-
-  if (totalRequiredMinutes > totalAvailableMinutes) {
-    warnings.push(
-      `필요 시간(${Math.round(totalRequiredMinutes / 60)}시간)이 가용 시간(${Math.round(totalAvailableMinutes / 60)}시간)을 초과합니다.`
-    );
-  }
-
-  // 연계 슬롯 그룹화
-  const linkedGroups = groupLinkedSlots(validSlots);
-
-  // 슬롯 ID → 슬롯 인덱스 매핑
-  const slotIdToIndex = new Map<string, number>();
-  validSlots.forEach((slot) => {
-    if (slot.id) {
-      slotIdToIndex.set(slot.id, slot.slot_index);
-    }
-  });
-
-  // 배치 상태 추적
-  let dayIndex = 0;
-  let remainingMinutesInDay = availableDays[0]?.study_hours * 60 || 0;
-  let currentStartTime = "09:00";
-  const assignedSlots = new Map<string, string>(); // slotId → date
-  let linkedGroupIdCounter = 0;
-
-  // 그룹 단위로 배치
-  for (const group of linkedGroups) {
-    // 연계 그룹은 같은 날 연속 배치 시도
-    const isLinkedGroup = group.length > 1 && group.some((s) => s.linked_slot_id);
-
-    for (const slot of group) {
-      const duration = slotDurationMap.get(slot.slot_index) || blockDuration;
-
-      // 현재 날짜에 시간이 부족하면 다음 날로 이동
-      while (
-        remainingMinutesInDay < duration &&
-        dayIndex < availableDays.length - 1
-      ) {
-        dayIndex++;
-        remainingMinutesInDay = availableDays[dayIndex].study_hours * 60;
-        currentStartTime = "09:00";
-      }
-
-      // 배타적 제약 조건 체크
-      let currentDayIndex = dayIndex;
-      let foundValidDay = false;
-      let exclusiveAdjusted = false;
-
-      while (currentDayIndex < availableDays.length && !foundValidDay) {
-        const checkResult = checkExclusiveConstraints(
-          slot,
-          availableDays[currentDayIndex].date,
-          assignedSlots,
-          validSlots
-        );
-
-        if (checkResult.canPlace) {
-          foundValidDay = true;
-          if (currentDayIndex !== dayIndex) {
-            exclusiveAdjusted = true;
-            dayIndex = currentDayIndex;
-            remainingMinutesInDay = availableDays[dayIndex].study_hours * 60;
-            currentStartTime = "09:00";
-          }
-        } else {
-          currentDayIndex++;
-        }
-      }
-
-      if (!foundValidDay) {
-        warnings.push(
-          `슬롯 ${slot.slot_index + 1}: 배타적 제약으로 인해 배치할 수 없습니다.`
-        );
-        continue;
-      }
-
-      if (exclusiveAdjusted) {
-        warnings.push(
-          `슬롯 ${slot.slot_index + 1}: 배타적 슬롯 관계로 인해 다른 날로 조정되었습니다.`
-        );
-      }
-
-      if (dayIndex >= availableDays.length) {
-        warnings.push(`슬롯 ${slot.slot_index + 1}: 배치 가능한 날짜가 없습니다.`);
-        continue;
-      }
-
-      const currentDay = availableDays[dayIndex];
-      const endTime = addMinutesToTime(currentStartTime, duration);
-
-      // 연계 슬롯 정보 계산
-      const linkedToSlotIndex = slot.linked_slot_id
-        ? slotIdToIndex.get(slot.linked_slot_id)
-        : undefined;
-
-      // 배타적 슬롯 인덱스 계산
-      const exclusiveWithIndices = slot.exclusive_with
-        ?.map((id) => slotIdToIndex.get(id))
-        .filter((idx): idx is number => idx !== undefined);
-
-      // 플랜 아이템 생성
-      plans.push({
-        slot_index: slot.slot_index,
-        slot_type: slot.slot_type,
-        subject_category: slot.subject_category,
-        title: slot.title,
-        date: currentDay.date,
-        start_time: currentStartTime,
-        end_time: endTime,
-        duration_minutes: duration,
-        range_start: slot.start_range,
-        range_end: slot.end_range,
-        week_number: currentDay.week_number || 1,
-        day_type: currentDay.day_type,
-        // 관계 정보
-        linked_to_slot_index: linkedToSlotIndex,
-        link_type: slot.link_type ?? undefined,
-        exclusive_with_indices:
-          exclusiveWithIndices && exclusiveWithIndices.length > 0
-            ? exclusiveWithIndices
-            : undefined,
-        linked_group_id: isLinkedGroup ? linkedGroupIdCounter : undefined,
-      });
-
-      // 배치 상태 업데이트
-      if (slot.id) {
-        assignedSlots.set(slot.id, currentDay.date);
-      }
-
-      // 시간 업데이트
-      remainingMinutesInDay -= duration;
-      currentStartTime = endTime;
-
-      // 점심시간 고려 (12:00-13:00)
-      if (currentStartTime >= "12:00" && currentStartTime < "13:00") {
-        currentStartTime = "13:00";
-      }
-    }
-
-    // 연계 그룹이 같은 날에 배치되지 못한 경우 경고
-    if (isLinkedGroup) {
-      const groupDates = new Set<string>();
-      group.forEach((slot) => {
-        const plan = plans.find((p) => p.slot_index === slot.slot_index);
-        if (plan) groupDates.add(plan.date);
-      });
-
-      if (groupDates.size > 1) {
-        warnings.push(
-          `연계된 슬롯이 같은 날에 배치되지 못했습니다. (슬롯 인덱스: ${group.map((s) => s.slot_index + 1).join(", ")})`
-        );
-      }
-
-      // 연계 그룹 ID 증가
-      linkedGroupIdCounter++;
-    }
-  }
-
-  // 교과별 시간 분배 계산
-  const subjectDistribution = calculateSubjectTimeDistribution(
-    validSlots,
-    plans
-  );
-
-  // 주차별 요약 계산
-  const weekSummaries = calculateWeekSummaries(plans, availableDays);
-
-  return {
-    plans,
-    subjectDistribution,
-    weekSummaries,
-    totalStudyMinutes: plans.reduce((sum, p) => sum + p.duration_minutes, 0),
-    totalContents: validSlots.filter((s) => s.content_id).length,
-    warnings,
-  };
-}
-
-// ============================================================================
-// 교과별 시간 분배 계산
-// ============================================================================
-
-/**
- * 교과별 시간 분배 계산
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @param plans - 가상 플랜 아이템 배열
- * @returns 교과별 시간 분배
- */
-export function calculateSubjectTimeDistribution(
-  slots: ContentSlot[],
-  plans: VirtualPlanItem[]
-): SubjectTimeDistribution[] {
-  const subjectMap = new Map<
-    string,
-    { total_minutes: number; slot_count: number; plan_count: number }
-  >();
-
-  // 슬롯에서 교과 정보 수집
-  slots.forEach((slot) => {
-    if (!slot.subject_category) return;
-
-    const existing = subjectMap.get(slot.subject_category) || {
-      total_minutes: 0,
-      slot_count: 0,
-      plan_count: 0,
-    };
-
-    existing.slot_count++;
-    subjectMap.set(slot.subject_category, existing);
-  });
-
-  // 플랜에서 시간 정보 수집
-  plans.forEach((plan) => {
-    if (!plan.subject_category) return;
-
-    const existing = subjectMap.get(plan.subject_category) || {
-      total_minutes: 0,
-      slot_count: 0,
-      plan_count: 0,
-    };
-
-    existing.total_minutes += plan.duration_minutes;
-    existing.plan_count++;
-    subjectMap.set(plan.subject_category, existing);
-  });
-
-  // 총 시간 계산
-  const totalMinutes = Array.from(subjectMap.values()).reduce(
-    (sum, v) => sum + v.total_minutes,
-    0
-  );
-
-  // 결과 생성
-  return Array.from(subjectMap.entries())
-    .map(([subject, data]) => ({
-      subject_category: subject,
-      total_minutes: data.total_minutes,
-      percentage:
-        totalMinutes > 0
-          ? Math.round((data.total_minutes / totalMinutes) * 100)
-          : 0,
-      slot_count: data.slot_count,
-      plan_count: data.plan_count,
-    }))
-    .sort((a, b) => b.total_minutes - a.total_minutes);
-}
-
-// ============================================================================
-// 주차별 요약 계산
-// ============================================================================
-
-/**
- * 주차별 요약 계산
- *
- * @param plans - 가상 플랜 아이템 배열
- * @param dailySchedules - 일별 스케줄 정보
- * @returns 주차별 요약
- */
-export function calculateWeekSummaries(
-  plans: VirtualPlanItem[],
-  dailySchedules: DailyScheduleInfo[]
-): WeekSummary[] {
-  const weekMap = new Map<
-    number,
-    {
-      study_days: Set<string>;
-      review_days: Set<string>;
-      total_minutes: number;
-      subjects: Record<string, number>;
-    }
-  >();
-
-  // 플랜에서 주차 정보 수집
-  plans.forEach((plan) => {
-    const weekNumber = plan.week_number;
-
-    const existing = weekMap.get(weekNumber) || {
-      study_days: new Set<string>(),
-      review_days: new Set<string>(),
-      total_minutes: 0,
-      subjects: {},
-    };
-
-    if (plan.day_type === "학습일") {
-      existing.study_days.add(plan.date);
-    } else if (plan.day_type === "복습일") {
-      existing.review_days.add(plan.date);
-    }
-
-    existing.total_minutes += plan.duration_minutes;
-    existing.subjects[plan.subject_category] =
-      (existing.subjects[plan.subject_category] || 0) + plan.duration_minutes;
-
-    weekMap.set(weekNumber, existing);
-  });
-
-  // 결과 생성
-  return Array.from(weekMap.entries())
-    .map(([weekNumber, data]) => ({
-      week_number: weekNumber,
-      study_days: data.study_days.size,
-      review_days: data.review_days.size,
-      total_minutes: data.total_minutes,
-      subjects: data.subjects,
-    }))
-    .sort((a, b) => a.week_number - b.week_number);
-}
-
-// ============================================================================
-// 헬퍼 함수
-// ============================================================================
-
-/**
- * 슬롯 소요 시간 계산
- *
- * @param slot - 콘텐츠 슬롯
- * @param blockDuration - 블록 시간 (분)
- * @returns 소요 시간 (분)
- */
-function calculateSlotDuration(
-  slot: ContentSlot,
-  blockDuration: number
-): number {
-  // 콘텐츠가 연결된 경우: 범위 기반 계산
-  if (slot.content_id && slot.start_range !== undefined && slot.end_range !== undefined) {
-    const rangeCount = slot.end_range - slot.start_range;
-
-    if (slot.slot_type === "book") {
-      // 교재: DEFAULT_PAGE 분 per 페이지
-      const minutesPerPage = SCHEDULER_CONFIG.DURATION.DEFAULT_PAGE;
-      return rangeCount * minutesPerPage;
-    } else if (slot.slot_type === "lecture") {
-      // 강의: 회차당 30분
-      return rangeCount * SCHEDULER_CONFIG.DURATION.DEFAULT_EPISODE;
-    }
-  }
-
-  // 기본 소요 시간 사용
-  const slotType = slot.slot_type || "book";
-  return SLOT_TYPE_DEFAULT_DURATION[slotType] || blockDuration;
-}
 
 /**
  * 시간에 분 추가
- *
- * @param time - 시작 시간 (HH:MM)
- * @param minutes - 추가할 분
- * @returns 종료 시간 (HH:MM)
+ * @param time "HH:mm" 형식
+ * @param minutes 추가할 분
+ * @returns "HH:mm" 형식
  */
-function addMinutesToTime(time: string, minutes: number): string {
+export function addMinutesToTime(time: string, minutes: number): string {
   const [hours, mins] = time.split(":").map(Number);
   const totalMinutes = hours * 60 + mins + minutes;
   const newHours = Math.floor(totalMinutes / 60) % 24;
@@ -770,343 +227,241 @@ function addMinutesToTime(time: string, minutes: number): string {
   return `${String(newHours).padStart(2, "0")}:${String(newMins).padStart(2, "0")}`;
 }
 
+/**
+ * 연결된 슬롯들을 그룹화
+ *
+ * 각 슬롯을 개별 그룹으로 반환 (연결 로직 미구현)
+ * TODO: 실제 연결 로직 구현 필요
+ */
+export function groupLinkedSlots(
+  slots: ContentSlot[]
+): ContentSlot[][] {
+  // 각 슬롯을 개별 그룹으로 반환
+  return slots.map((slot) => [slot]);
+}
+
+/**
+ * 배타적 제약 조건 체크
+ *
+ * TODO: 실제 구현 필요
+ */
+export function checkExclusiveConstraints(
+  _slot: ContentSlot,
+  _date: string,
+  _assignedSlots: Map<string, string>,
+  _validSlots: ContentSlot[]
+): { canPlace: boolean; reason?: string } {
+  return { canPlace: true };
+}
+
 // ============================================================================
-// 뷰 변환 함수
+// 플랜 생성용 유틸리티 함수
 // ============================================================================
 
 /**
- * 일별 뷰로 변환
+ * 콘텐츠가 없는 슬롯(가상 슬롯)만 필터링
  *
- * @param result - 가상 타임라인 결과
- * @returns 일별로 그룹화된 플랜
+ * @param slots 전체 콘텐츠 슬롯 목록
+ * @returns 콘텐츠가 연결되지 않은 슬롯만
  */
-export function groupPlansByDate(
-  result: VirtualTimelineResult
-): Record<string, VirtualPlanItem[]> {
-  const grouped: Record<string, VirtualPlanItem[]> = {};
-
-  result.plans.forEach((plan) => {
-    if (!grouped[plan.date]) {
-      grouped[plan.date] = [];
-    }
-    grouped[plan.date].push(plan);
-  });
-
-  // 날짜순 정렬
-  return Object.fromEntries(
-    Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b))
+export function filterVirtualSlots(slots: ContentSlot[]): ContentSlot[] {
+  return slots.filter(
+    (slot) => !slot.content_id && !slot.master_content_id
   );
 }
 
 /**
- * 주차별 뷰로 변환
- *
- * @param result - 가상 타임라인 결과
- * @returns 주차별로 그룹화된 플랜
+ * 가상 플랜 아이템 생성 컨텍스트
  */
-export function groupPlansByWeek(
-  result: VirtualTimelineResult
-): Record<number, VirtualPlanItem[]> {
-  const grouped: Record<number, VirtualPlanItem[]> = {};
-
-  result.plans.forEach((plan) => {
-    const week = plan.week_number;
-    if (!grouped[week]) {
-      grouped[week] = [];
-    }
-    grouped[week].push(plan);
-  });
-
-  return grouped;
+interface VirtualPlanContext {
+  tenantId: string;
+  studentId: string;
+  planGroupId: string;
 }
 
 /**
- * 교과별 뷰로 변환
+ * 가상 플랜 DB 레코드 타입
  *
- * @param result - 가상 타임라인 결과
- * @returns 교과별로 그룹화된 플랜
+ * student_plans 테이블에 저장되는 가상 플랜 레코드
+ * 실제 플랜과 동일한 형식이되, is_virtual=true로 구분
  */
-export function groupPlansBySubject(
-  result: VirtualTimelineResult
-): Record<string, VirtualPlanItem[]> {
-  const grouped: Record<string, VirtualPlanItem[]> = {};
-
-  result.plans.forEach((plan) => {
-    const subject = plan.subject_category;
-    if (!grouped[subject]) {
-      grouped[subject] = [];
-    }
-    grouped[subject].push(plan);
-  });
-
-  return grouped;
+export interface VirtualPlanRecord {
+  plan_group_id: string;
+  student_id: string;
+  tenant_id: string;
+  // 날짜/시간
+  scheduled_date: string;
+  plan_date: string;  // scheduled_date와 동일
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  // 콘텐츠 정보
+  content_type: SlotType;
+  content_id: string | null;
+  slot_id: string;
+  slot_index: number | null;
+  // 범위 정보
+  planned_start_page_or_time: number | null;
+  planned_end_page_or_time: number | null;
+  chapter: string | null;
+  // 분류 정보
+  subject_category: string | null;
+  subject: string | null;
+  virtual_subject_category: string | null;
+  virtual_description: string | null;
+  // 상태/메타
+  status: "pending" | "in_progress" | "completed";
+  day_type: "학습일" | "복습일";
+  week: number | null;
+  day: number | null;
+  block_index: number;
+  // 가상 플랜 마커
+  is_virtual: boolean;
 }
 
-// ============================================================================
-// 슬롯 → SubjectAllocation 변환
-// ============================================================================
+/**
+ * 가상 타임라인 결과에서 가상 플랜 DB 레코드 생성
+ *
+ * V1과 V2 모두 호환되도록 slot_id 또는 slot_index 사용
+ *
+ * @param virtualPlans 가상 타임라인의 플랜 목록 (VirtualPlanItem 또는 VirtualPlanItemV2)
+ * @param virtualSlots 가상 슬롯 목록
+ * @param context 플랜 생성 컨텍스트 (tenant, student, planGroup IDs)
+ * @returns DB에 저장할 가상 플랜 레코드 배열
+ */
+export function generateVirtualPlanItems(
+  virtualPlans: Array<{
+    date: string;
+    start_time: string;
+    end_time: string;
+    duration_minutes: number;
+    slot_id?: string;
+    slot_index?: number;
+    slot_type?: SlotType | null;
+    subject_category?: string;
+    day_type?: "study" | "review";
+    range_start?: number;
+    range_end?: number;
+    cycle_number?: number;
+    cycle_day_number?: number;
+  }>,
+  virtualSlots: ContentSlot[],
+  context: VirtualPlanContext
+): VirtualPlanRecord[] {
+  // slot_id 또는 slot_index로 슬롯 맵 생성
+  const slotMapById = new Map(virtualSlots.filter((s) => s.id).map((s) => [s.id, s]));
+  const slotMapByIndex = new Map(virtualSlots.map((s) => [s.slot_index, s]));
+
+  return virtualPlans.map((plan, index) => {
+    // slot_id가 있으면 그것으로, 없으면 slot_index로 찾기
+    let slot: ContentSlot | undefined;
+    let slotId: string;
+    let slotIndex: number;
+
+    if (plan.slot_id) {
+      slot = slotMapById.get(plan.slot_id);
+      slotId = plan.slot_id;
+      slotIndex = plan.slot_index ?? slot?.slot_index ?? index;
+    } else if (plan.slot_index !== undefined) {
+      slot = slotMapByIndex.get(plan.slot_index);
+      slotId = slot?.id ?? `virtual-slot-${plan.slot_index}`;
+      slotIndex = plan.slot_index;
+    } else {
+      slotId = `virtual-slot-${index}`;
+      slotIndex = index;
+    }
+
+    // day_type 변환: "study" -> "학습일", "review" -> "복습일"
+    const dayType: "학습일" | "복습일" =
+      plan.day_type === "review" ? "복습일" : "학습일";
+
+    const subjectCategory = plan.subject_category ?? slot?.subject_category;
+
+    return {
+      plan_group_id: context.planGroupId,
+      student_id: context.studentId,
+      tenant_id: context.tenantId,
+      // 날짜/시간
+      scheduled_date: plan.date,
+      plan_date: plan.date,
+      start_time: plan.start_time,
+      end_time: plan.end_time,
+      duration_minutes: plan.duration_minutes,
+      // 콘텐츠 정보
+      content_type: (plan.slot_type ?? slot?.slot_type ?? "custom") as SlotType,
+      content_id: slot?.content_id ?? null,
+      slot_id: slotId,
+      slot_index: slotIndex,
+      // 범위 정보
+      planned_start_page_or_time: plan.range_start ?? slot?.start_range ?? null,
+      planned_end_page_or_time: plan.range_end ?? slot?.end_range ?? null,
+      chapter: null,
+      // 분류 정보
+      subject_category: subjectCategory ?? null,
+      subject: slot?.subject ?? null,
+      virtual_subject_category: subjectCategory ?? null,
+      virtual_description: null,
+      // 상태/메타
+      status: "pending" as const,
+      day_type: dayType,
+      week: plan.cycle_number ?? null,
+      day: plan.cycle_day_number ?? null,
+      block_index: index,
+      // 가상 플랜 마커
+      is_virtual: true,
+    };
+  });
+}
+
+// SubjectAllocation 타입을 1730TimetableLogic에서 가져옴
+import { type SubjectAllocation } from "./1730TimetableLogic";
 
 /**
- * 슬롯 배열에서 SubjectAllocation 배열을 생성합니다.
+ * 콘텐츠 슬롯에서 Subject Allocation 자동 생성
  *
- * 슬롯 모드에서 설정한 subject_type과 weekly_days 정보를
- * 기존 SubjectAllocation 형식으로 변환하여 하위 호환성을 유지합니다.
+ * 슬롯 모드에서 사용. 각 슬롯의 subject_category를 기반으로
+ * subject_allocations 배열을 생성합니다.
  *
- * 변환 규칙:
- * - 각 슬롯의 subject_category를 기준으로 그룹화
- * - 같은 subject_category에 여러 슬롯이 있으면 첫 번째 슬롯의 설정 사용
- * - subject_type이 없으면 기본값 "weakness" 사용
- * - 전략과목(strategy)인 경우 weekly_days 포함 (기본값 3)
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @returns SubjectAllocation 배열
+ * @param slots 콘텐츠 슬롯 목록
+ * @returns Subject Allocation 배열
  */
 export function buildAllocationFromSlots(
   slots: ContentSlot[]
 ): SubjectAllocation[] {
   // subject_category별로 그룹화
-  const categoryMap = new Map<
-    string,
-    {
-      subject_id: string;
-      subject_name: string;
-      subject_type: "strategy" | "weakness";
-      weekly_days?: number;
-    }
-  >();
+  const categoryMap = new Map<string, ContentSlot[]>();
 
   for (const slot of slots) {
-    // subject_category가 없으면 건너뜀
-    if (!slot.subject_category) continue;
+    if (slot.subject_category) {
+      const existing = categoryMap.get(slot.subject_category) || [];
+      existing.push(slot);
+      categoryMap.set(slot.subject_category, existing);
+    }
+  }
 
-    // 이미 해당 교과의 설정이 있으면 건너뜀 (첫 번째 슬롯 우선)
-    if (categoryMap.has(slot.subject_category)) continue;
+  // 각 카테고리에 대해 allocation 생성
+  const allocations: SubjectAllocation[] = [];
 
-    // 기본값: 취약과목
-    const subjectType = slot.subject_type ?? "weakness";
-    const weeklyDays =
-      subjectType === "strategy" ? (slot.weekly_days ?? 3) : undefined;
+  for (const [category, categorySlots] of categoryMap) {
+    // 슬롯의 subject_type을 기반으로 분류, 기본은 weakness
+    // 슬롯 중 하나라도 strategy면 전체가 strategy
+    const isStrategy = categorySlots.some((s) => s.subject_type === "strategy");
+    const subjectType: "strategy" | "weakness" = isStrategy ? "strategy" : "weakness";
 
-    categoryMap.set(slot.subject_category, {
-      // subject_id는 슬롯에 설정된 값 사용, 없으면 빈 문자열
-      subject_id: slot.subject_id ?? "",
-      // subject_name은 subject_category 사용
-      subject_name: slot.subject_category,
+    // 첫 번째 슬롯의 subject_id 사용, 없으면 category 기반으로 생성
+    const firstSlot = categorySlots[0];
+    const subjectId = firstSlot.subject_id ?? `subject-${category.replace(/\s+/g, "-").toLowerCase()}`;
+
+    allocations.push({
+      subject_id: subjectId,
+      subject_name: category,
       subject_type: subjectType,
-      weekly_days: weeklyDays,
+      // 전략과목인 경우 weekly_days 설정 (슬롯에서 가져오거나 기본값 3)
+      weekly_days: isStrategy
+        ? firstSlot.weekly_days ?? 3
+        : undefined,
     });
   }
 
-  // Map을 배열로 변환
-  return Array.from(categoryMap.values());
-}
-
-/**
- * 슬롯 배열에서 고유한 교과 목록을 추출합니다.
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @returns 교과별 배정 정보 요약
- */
-export function getSlotAllocationSummary(
-  slots: ContentSlot[]
-): Array<{
-  subject_category: string;
-  subject_type: "strategy" | "weakness";
-  weekly_days?: number;
-  slot_count: number;
-}> {
-  const summaryMap = new Map<
-    string,
-    {
-      subject_type: "strategy" | "weakness";
-      weekly_days?: number;
-      slot_count: number;
-    }
-  >();
-
-  for (const slot of slots) {
-    if (!slot.subject_category) continue;
-
-    const existing = summaryMap.get(slot.subject_category);
-    if (existing) {
-      existing.slot_count++;
-    } else {
-      summaryMap.set(slot.subject_category, {
-        subject_type: slot.subject_type ?? "weakness",
-        weekly_days:
-          slot.subject_type === "strategy"
-            ? (slot.weekly_days ?? 3)
-            : undefined,
-        slot_count: 1,
-      });
-    }
-  }
-
-  return Array.from(summaryMap.entries()).map(([category, data]) => ({
-    subject_category: category,
-    ...data,
-  }));
-}
-
-// ============================================================================
-// 가상 플랜 아이템 → DB 레코드 변환
-// ============================================================================
-
-/**
- * 가상 플랜 DB 레코드 타입
- *
- * student_plan 테이블에 삽입할 수 있는 형식입니다.
- */
-export type VirtualPlanDbRecord = {
-  tenant_id: string;
-  student_id: string;
-  plan_group_id: string;
-  plan_date: string;
-  block_index: number;
-  content_type: "book" | "lecture" | "custom";
-  content_id: string; // 가상 플랜의 경우 빈 UUID 사용
-  chapter: string | null;
-  planned_start_page_or_time: number | null;
-  planned_end_page_or_time: number | null;
-  start_time: string | null;
-  end_time: string | null;
-  day_type: string | null;
-  week: number | null;
-  day: number | null;
-  subject_type: "strategy" | "weakness" | null;
-  status: string;
-  is_active: boolean;
-  // 가상 플랜 전용 필드
-  is_virtual: boolean;
-  slot_index: number | null;
-  virtual_subject_category: string | null;
-  virtual_description: string | null;
-};
-
-/**
- * 가상 플랜 생성 옵션
- */
-export type GenerateVirtualPlanItemsOptions = {
-  /** 테넌트 ID */
-  tenantId: string;
-  /** 학생 ID */
-  studentId: string;
-  /** 플랜 그룹 ID */
-  planGroupId: string;
-  /** 가상 플랜용 더미 content_id (기본값: 00000000-0000-0000-0000-000000000000) */
-  virtualContentId?: string;
-};
-
-/**
- * VirtualPlanItem 배열을 DB에 삽입 가능한 형식으로 변환합니다.
- *
- * 콘텐츠가 연결되지 않은 슬롯(가상 플랜)을 student_plan 테이블에
- * 저장할 수 있는 형식으로 변환합니다.
- *
- * 가상 플랜의 특성:
- * - is_virtual = true
- * - content_id는 빈 UUID (00000000-0000-0000-0000-000000000000)
- * - slot_index로 원본 슬롯 참조
- * - virtual_subject_category에 교과 정보 저장
- * - virtual_description에 설명 저장 (예: "수학 학습 예정")
- *
- * @param virtualPlans - 가상 플랜 아이템 배열
- * @param slots - 원본 콘텐츠 슬롯 배열 (subject_type 정보 참조)
- * @param options - 생성 옵션 (tenantId, studentId, planGroupId)
- * @returns DB에 삽입 가능한 가상 플랜 레코드 배열
- */
-export function generateVirtualPlanItems(
-  virtualPlans: VirtualPlanItem[],
-  slots: ContentSlot[],
-  options: GenerateVirtualPlanItemsOptions
-): VirtualPlanDbRecord[] {
-  const {
-    tenantId,
-    studentId,
-    planGroupId,
-    virtualContentId = "00000000-0000-0000-0000-000000000000",
-  } = options;
-
-  // 슬롯 인덱스로 subject_type 조회하기 위한 맵
-  const slotSubjectTypeMap = new Map<number, "strategy" | "weakness">();
-  slots.forEach((slot, index) => {
-    slotSubjectTypeMap.set(index, slot.subject_type ?? "weakness");
-  });
-
-  // 일별 block_index 카운터 (같은 날짜에 여러 플랜이 있을 수 있음)
-  const dateBlockIndexMap = new Map<string, number>();
-
-  return virtualPlans
-    .filter((plan) => {
-      // 콘텐츠가 없는 슬롯만 가상 플랜으로 생성
-      const slot = slots[plan.slot_index];
-      return slot && !slot.content_id;
-    })
-    .map((plan) => {
-      const slot = slots[plan.slot_index];
-
-      // 해당 날짜의 block_index 계산
-      const currentBlockIndex = dateBlockIndexMap.get(plan.date) ?? 0;
-      dateBlockIndexMap.set(plan.date, currentBlockIndex + 1);
-
-      // slot_type에 따른 content_type 결정
-      const contentType: "book" | "lecture" | "custom" =
-        slot.slot_type === "lecture" ? "lecture" : "book";
-
-      // 가상 플랜 설명 생성
-      const description = `${plan.subject_category} 학습 예정`;
-
-      // subject_type 결정
-      const subjectType = slotSubjectTypeMap.get(plan.slot_index) ?? "weakness";
-
-      // 주차에서 일 번호 계산 (week_number와 date로부터)
-      const dateObj = new Date(plan.date);
-      const dayOfWeek = dateObj.getDay(); // 0 = 일요일
-
-      return {
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        plan_date: plan.date,
-        block_index: currentBlockIndex,
-        content_type: contentType,
-        content_id: virtualContentId,
-        chapter: null,
-        planned_start_page_or_time: plan.range_start ?? null,
-        planned_end_page_or_time: plan.range_end ?? null,
-        start_time: plan.start_time,
-        end_time: plan.end_time,
-        day_type: plan.day_type,
-        week: plan.week_number,
-        day: dayOfWeek,
-        subject_type: subjectType,
-        status: "pending",
-        is_active: true,
-        // 가상 플랜 전용 필드
-        is_virtual: true,
-        slot_index: plan.slot_index,
-        virtual_subject_category: plan.subject_category,
-        virtual_description: description,
-      };
-    });
-}
-
-/**
- * 슬롯 중 콘텐츠가 없는 가상 슬롯만 필터링합니다.
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @returns 가상 슬롯만 포함된 배열
- */
-export function filterVirtualSlots(slots: ContentSlot[]): ContentSlot[] {
-  return slots.filter((slot) => !slot.content_id && slot.subject_category);
-}
-
-/**
- * 슬롯 중 실제 콘텐츠가 연결된 슬롯만 필터링합니다.
- *
- * @param slots - 콘텐츠 슬롯 배열
- * @returns 실제 콘텐츠가 연결된 슬롯만 포함된 배열
- */
-export function filterContentSlots(slots: ContentSlot[]): ContentSlot[] {
-  return slots.filter((slot) => slot.content_id);
+  return allocations;
 }

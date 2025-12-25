@@ -752,7 +752,7 @@ async function _generatePlansFromGroupRefactored(
     block_index: number;
     status: string;
     content_type: string;
-    content_id: string;
+    content_id: string | null;  // 가상 플랜은 content_id가 없을 수 있음
     planned_start_page_or_time: number | null;
     planned_end_page_or_time: number | null;
     chapter: string | null;
@@ -1096,8 +1096,7 @@ async function _generatePlansFromGroupRefactored(
       // 가상 타임라인 계산
       const virtualTimelineResult = calculateVirtualTimeline(
         virtualSlots,
-        dailyScheduleInfos,
-        { studyDaysOnly: false }
+        dailyScheduleInfos
       );
 
       if (virtualTimelineResult.warnings.length > 0) {

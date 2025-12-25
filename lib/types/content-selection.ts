@@ -14,6 +14,60 @@ import type { ContentType, ExclusionType } from "@/lib/types/common";
 export type { ContentType, ExclusionType };
 
 // ============================================================================
+// 슬롯 관련 타입
+// ============================================================================
+
+/**
+ * 슬롯 타입 (콘텐츠 유형)
+ */
+export type SlotType = "book" | "lecture" | "custom" | "self_study" | "test";
+
+/**
+ * 콘텐츠 슬롯 (간소화 타입)
+ * @deprecated ContentSlot을 사용하세요 (line 685 참조)
+ * 이 타입은 이전 버전과의 호환성을 위해 남겨둡니다.
+ * 실제 ContentSlot 타입은 SlotTemplate을 확장한 완전한 버전입니다.
+ */
+export type ContentSlotLegacy = {
+  /** 슬롯 고유 ID */
+  id?: string;
+  /** 슬롯 인덱스 (0-based) */
+  slot_index: number;
+  /** 슬롯 타입 */
+  slot_type: SlotType | null;
+  /** 교과 (국어, 수학, 영어 등) */
+  subject_category?: string;
+  /** 과목 ID */
+  subject_id?: string | null;
+  /** 과목명 */
+  subject?: string | null;
+  /** 과목 유형 (전략/취약) */
+  subject_type?: "strategy" | "weakness" | null;
+  /** 주간 학습일 수 (전략과목: 주 N일) */
+  weekly_days?: number | null;
+  /** 연결된 콘텐츠 ID (학생 콘텐츠) */
+  content_id?: string | null;
+  /** 연결된 마스터 콘텐츠 ID (추천 콘텐츠) */
+  master_content_id?: string | null;
+  /** 콘텐츠 제목 */
+  title?: string | null;
+  /** 시작 범위 (페이지/회차) */
+  start_range?: number | null;
+  /** 끝 범위 (페이지/회차) */
+  end_range?: number | null;
+  /** 슬롯 메모 */
+  memo?: string | null;
+  /** 슬롯 잠금 여부 (편집 불가) */
+  is_locked?: boolean;
+  /** 연결된 슬롯 ID */
+  linked_slot_id?: string | null;
+  /** 연결 타입 (앞/뒤) */
+  link_type?: "after" | "before" | null;
+  /** 배타적 슬롯 ID들 (동시에 배정되지 않음) */
+  exclusive_with?: string[];
+};
+
+// ============================================================================
 // 콘텐츠 마스터 검색 결과 타입
 // ============================================================================
 
@@ -553,16 +607,6 @@ export type RecommendedContentsResponse = {
 // ============================================================================
 
 /**
- * 슬롯 타입 (콘텐츠 유형)
- * - book: 교재
- * - lecture: 강의
- * - custom: 사용자 정의 콘텐츠
- * - self_study: 자습 (숙제, 복습, 예습 등)
- * - test: 테스트/시험
- */
-export type SlotType = "book" | "lecture" | "custom" | "self_study" | "test";
-
-/**
  * 자습 목적 태그
  */
 export type SelfStudyPurpose =
@@ -638,6 +682,8 @@ export type ContentSlot = SlotTemplate & {
   // === 콘텐츠 연결 필드 ===
   /** 실제 콘텐츠 ID */
   content_id?: string | null;
+  /** 과목명 (선택된 과목의 이름) */
+  subject?: string | null;
   /** 시작 범위 (페이지/회차) */
   start_range?: number;
   /** 종료 범위 (페이지/회차) */
@@ -647,9 +693,11 @@ export type ContentSlot = SlotTemplate & {
   /** 종료 상세 ID (단원/챕터) */
   end_detail_id?: string | null;
   /** 콘텐츠 제목 */
-  title?: string;
+  title?: string | null;
   /** 마스터 콘텐츠 ID */
   master_content_id?: string | null;
+  /** 슬롯 메모 */
+  memo?: string | null;
   /** 추천 콘텐츠 여부 */
   is_auto_recommended?: boolean;
   /** 추천 소스 */
@@ -988,11 +1036,11 @@ export function convertSlotsToContents(slots: ContentSlot[]): SelectedContent[] 
       content_id: slot.content_id!,
       start_range: slot.start_range ?? 0,
       end_range: slot.end_range ?? 0,
-      start_detail_id: slot.start_detail_id,
-      end_detail_id: slot.end_detail_id,
-      title: slot.title,
-      subject_category: slot.subject_category,
-      master_content_id: slot.master_content_id,
+      start_detail_id: slot.start_detail_id ?? undefined,
+      end_detail_id: slot.end_detail_id ?? undefined,
+      title: slot.title ?? undefined,
+      subject_category: slot.subject_category ?? undefined,
+      master_content_id: slot.master_content_id ?? undefined,
       is_auto_recommended: slot.is_auto_recommended,
       recommendation_source: slot.recommendation_source,
     }));
