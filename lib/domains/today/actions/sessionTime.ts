@@ -22,9 +22,10 @@ export async function getTimeEventsByPlanNumber(
     const tenantContext = await getTenantContext();
 
     // 1. 해당 plan_number와 plan_date를 가진 플랜들 조회
+    // paused_duration_seconds 포함 (단일 소스 원칙: 플랜에서 일시정지 시간 관리)
     const { data: plans, error: plansError } = await supabase
       .from("student_plan")
-      .select("id, actual_start_time, actual_end_time")
+      .select("id, actual_start_time, actual_end_time, paused_duration_seconds")
       .eq("plan_number", planNumber)
       .eq("plan_date", planDate)
       .eq("student_id", user.userId);
@@ -124,9 +125,8 @@ export async function getTimeEventsByPlanNumber(
         const end = new Date(endTime).getTime();
         const totalSeconds = Math.floor((end - start) / 1000);
 
-        // 세션의 일시정지 시간 합산
-        const session = relevantSessions.find((s) => s.plan_id === plan.id);
-        const pausedSeconds = session?.paused_duration_seconds || 0;
+        // 플랜의 일시정지 시간 사용 (단일 소스 원칙)
+        const pausedSeconds = plan.paused_duration_seconds || 0;
         finalDuration = Math.max(0, totalSeconds - pausedSeconds);
       }
 
