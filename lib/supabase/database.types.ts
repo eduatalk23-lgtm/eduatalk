@@ -329,6 +329,68 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string
+          actor_role: string
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          new_data: Json | null
+          old_data: Json | null
+          resource_id: string | null
+          resource_name: string | null
+          resource_type: string
+          success: boolean
+          tenant_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id: string
+          actor_role: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type: string
+          success?: boolean
+          tenant_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string
+          actor_role?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          new_data?: Json | null
+          old_data?: Json | null
+          resource_id?: string | null
+          resource_name?: string | null
+          resource_type?: string
+          success?: boolean
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       book_details: {
         Row: {
           book_id: string
@@ -1849,6 +1911,33 @@ export type Database = {
           },
         ]
       }
+      permission_definitions: {
+        Row: {
+          category: string
+          created_at: string
+          default_allowed_for_consultant: boolean
+          description: string
+          id: string
+          permission_key: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          default_allowed_for_consultant?: boolean
+          description: string
+          id?: string
+          permission_key: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_allowed_for_consultant?: boolean
+          description?: string
+          id?: string
+          permission_key?: string
+        }
+        Relationships: []
+      }
       plan_contents: {
         Row: {
           content_id: string
@@ -2077,6 +2166,7 @@ export type Database = {
           period_start: string
           plan_purpose: string | null
           plan_type: string | null
+          request_notes: string | null
           scheduler_options: Json | null
           scheduler_type: string | null
           status: string | null
@@ -2103,6 +2193,7 @@ export type Database = {
           period_start: string
           plan_purpose?: string | null
           plan_type?: string | null
+          request_notes?: string | null
           scheduler_options?: Json | null
           scheduler_type?: string | null
           status?: string | null
@@ -2129,6 +2220,7 @@ export type Database = {
           period_start?: string
           plan_purpose?: string | null
           plan_type?: string | null
+          request_notes?: string | null
           scheduler_options?: Json | null
           scheduler_type?: string | null
           status?: string | null
@@ -2564,6 +2656,44 @@ export type Database = {
           },
           {
             foreignKeyName: "reschedule_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_allowed: boolean
+          permission_key: string
+          role: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          permission_key: string
+          role: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          permission_key?: string
+          role?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5064,6 +5194,19 @@ export type Database = {
       cleanup_korean_history_subjects: {
         Args: { tenant_uuid: string }
         Returns: undefined
+      }
+      complete_plan_atomically: {
+        Args: {
+          p_actual_end_time: string
+          p_completed_amount: number
+          p_pause_count?: number
+          p_paused_duration_seconds?: number
+          p_plan_ids: string[]
+          p_progress: number
+          p_student_id: string
+          p_total_duration_seconds?: number
+        }
+        Returns: Json
       }
       create_admin_user: {
         Args: { user_email: string; user_role?: string }

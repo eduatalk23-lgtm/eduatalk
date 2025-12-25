@@ -11,6 +11,7 @@ import {
   type PermissionDefinition,
   type RolePermission,
 } from "@/lib/auth/permissions";
+import { auditSuccess, auditFailure } from "@/lib/audit";
 
 /**
  * 모든 권한 정의를 조회합니다.
@@ -73,18 +74,30 @@ export async function setRolePermissionAction(
 
     // superadmin이 아니면 자신의 테넌트만 수정 가능
     if (userRole !== "superadmin" && userTenantId !== tenantId) {
+      await auditFailure("permission_change", "permission", "권한이 없습니다.", permissionKey, {
+        metadata: { targetTenantId: tenantId, targetRole: role },
+      });
       return { success: false, error: "권한이 없습니다." };
     }
 
     const result = await setRolePermission(tenantId, role, permissionKey, isAllowed);
 
     if (result.success) {
+      await auditSuccess("permission_change", "permission", permissionKey, {
+        newData: { role, permissionKey, isAllowed },
+        metadata: { targetTenantId: tenantId },
+      });
       revalidatePath("/admin/settings/permissions");
+    } else {
+      await auditFailure("permission_change", "permission", result.error || "설정 실패", permissionKey, {
+        metadata: { targetTenantId: tenantId, targetRole: role },
+      });
     }
 
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "권한 설정 실패";
+    await auditFailure("permission_change", "permission", message, permissionKey);
     return { success: false, error: message };
   }
 }
@@ -146,18 +159,35 @@ export async function resetRolePermissionsAction(
 
     // superadmin이 아니면 자신의 테넌트만 수정 가능
     if (userRole !== "superadmin" && userTenantId !== tenantId) {
+      await auditFailure("permission_change", "permission", "권한이 없습니다.", null, {
+        resourceName: "권한 초기화",
+        metadata: { targetTenantId: tenantId, targetRole: role, action: "reset" },
+      });
       return { success: false, error: "권한이 없습니다." };
     }
 
     const result = await resetRolePermissions(tenantId, role);
 
     if (result.success) {
+      await auditSuccess("permission_change", "permission", null, {
+        resourceName: "권한 초기화",
+        newData: { role, action: "reset_to_default" },
+        metadata: { targetTenantId: tenantId },
+      });
       revalidatePath("/admin/settings/permissions");
+    } else {
+      await auditFailure("permission_change", "permission", result.error || "초기화 실패", null, {
+        resourceName: "권한 초기화",
+        metadata: { targetTenantId: tenantId, targetRole: role },
+      });
     }
 
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "권한 초기화 실패";
+    await auditFailure("permission_change", "permission", message, null, {
+      resourceName: "권한 초기화",
+    });
     return { success: false, error: message };
   }
 }
