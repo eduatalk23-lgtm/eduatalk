@@ -73,6 +73,7 @@ export function CampParticipantDetailView({
           <CampParticipantAttendanceHistory
             templateId={template.id}
             studentId={studentId}
+            studentName={participantStats.student_name}
             attendanceStats={participantStats.attendance_stats}
           />
         )}
