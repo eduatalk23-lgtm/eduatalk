@@ -12,7 +12,7 @@ export {
   pausePlan,
   resumePlan,
   preparePlanCompletion,
-  stopAllActiveSessionsForPlan,
+  getServerTime,
 } from "./timer";
 
 // Memo Actions
@@ -29,3 +29,11 @@ export { getTimeEventsByPlanNumber } from "./sessionTime";
 
 // Reset Actions
 export { resetPlanTimer } from "./reset";
+
+// Device Conflict Actions
+export {
+  checkDeviceConflict,
+  updateSessionHeartbeat,
+  takeoverSession,
+  setSessionDeviceInfo,
+} from "./deviceConflict";

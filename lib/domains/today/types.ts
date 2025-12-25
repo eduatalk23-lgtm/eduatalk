@@ -93,3 +93,28 @@ export type ActionResult = {
   success: boolean;
   error?: string;
 };
+
+// Timer pending action type
+export type PendingAction = "start" | "pause" | "resume" | "complete";
+
+// Device conflict types
+export type DeviceConflictInfo = {
+  /** 충돌 디바이스 세션 ID */
+  deviceSessionId: string;
+  /** 디바이스 정보 (userAgent, platform) */
+  deviceInfo: {
+    userAgent?: string;
+    platform?: string;
+  } | null;
+  /** 읽기 쉬운 디바이스 설명 */
+  deviceDescription: string;
+  /** 마지막 활성 시각 */
+  lastHeartbeat: string;
+  /** 같은 디바이스의 다른 탭인지 */
+  isSameDevice: boolean;
+};
+
+export type TimerActionWithConflict<T> = T & {
+  /** 다른 디바이스 충돌 정보 */
+  deviceConflict?: DeviceConflictInfo;
+};

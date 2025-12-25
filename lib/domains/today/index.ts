@@ -22,7 +22,22 @@ export type {
   PlanOrderUpdate,
   PlanRange,
   ActionResult,
+  PendingAction,
+  DeviceConflictInfo,
+  TimerActionWithConflict,
 } from "./types";
+
+// Error constants and types
+export { TIMER_ERRORS, type TimerErrorKey } from "./errors";
+
+// Logger utilities
+export {
+  todayLogger,
+  timerLogger,
+  sessionLogger,
+  planLogger,
+  type LogLevel,
+} from "./logger";
 
 // Actions
 export {
@@ -35,7 +50,7 @@ export {
   pausePlan,
   resumePlan,
   preparePlanCompletion,
-  stopAllActiveSessionsForPlan,
+  getServerTime,
   // Memo
   getPlanMemo,
   savePlanMemo,
@@ -47,4 +62,9 @@ export {
   getTimeEventsByPlanNumber,
   // Reset
   resetPlanTimer,
+  // Device Conflict
+  checkDeviceConflict,
+  updateSessionHeartbeat,
+  takeoverSession,
+  setSessionDeviceInfo,
 } from "./actions";
