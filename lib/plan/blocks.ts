@@ -73,40 +73,77 @@ export async function getBlockSetForPlanGroup(
 ): Promise<BlockInfo[]> {
   let baseBlocks: BlockInfo[] = [];
   const isCamp = isCampMode(group);
+  let dbErrorOccurred = false;
 
   // 캠프 모드: 템플릿 블록 세트 조회
   if (isCamp && group.camp_template_id) {
-    const templateBlocks = await getTemplateBlockSet(
-      group.camp_template_id,
-      tenantId
-    );
-    if (templateBlocks && templateBlocks.length > 0) {
-      baseBlocks = templateBlocks;
+    try {
+      const templateBlocks = await getTemplateBlockSet(
+        group.camp_template_id,
+        tenantId
+      );
+      if (templateBlocks && templateBlocks.length > 0) {
+        baseBlocks = templateBlocks;
+      }
+    } catch (error) {
+      // DB 에러 발생 시 로그 후 fallback 시도
+      dbErrorOccurred = true;
+      logError(error instanceof Error ? error : new Error(String(error)), {
+        function: "getBlockSetForPlanGroup",
+        source: "getTemplateBlockSet",
+        groupId: group.id,
+        campTemplateId: group.camp_template_id,
+        message: "템플릿 블록 세트 DB 조회 실패, fallback 시도",
+      });
     }
   }
 
   // 일반 모드: 학생 블록 세트 조회
   if (baseBlocks.length === 0 && group.block_set_id) {
-    const studentBlocks = await getStudentBlockSet(
-      group.block_set_id,
-      studentId,
-      currentUserId,
-      role
-    );
-    if (studentBlocks && studentBlocks.length > 0) {
-      baseBlocks = studentBlocks;
+    try {
+      const studentBlocks = await getStudentBlockSet(
+        group.block_set_id,
+        studentId,
+        currentUserId,
+        role
+      );
+      if (studentBlocks && studentBlocks.length > 0) {
+        baseBlocks = studentBlocks;
+      }
+    } catch (error) {
+      // DB 에러 발생 시 로그 후 fallback 시도
+      dbErrorOccurred = true;
+      logError(error instanceof Error ? error : new Error(String(error)), {
+        function: "getBlockSetForPlanGroup",
+        source: "getStudentBlockSet",
+        groupId: group.id,
+        blockSetId: group.block_set_id,
+        message: "학생 블록 세트 DB 조회 실패, fallback 시도",
+      });
     }
   }
 
   // 기본 블록 세트 사용 (캠프 모드가 아닐 때만)
   if (baseBlocks.length === 0 && !isCamp) {
-    const activeBlocks = await getActiveBlockSet(
-      studentId,
-      currentUserId,
-      role
-    );
-    if (activeBlocks && activeBlocks.length > 0) {
-      baseBlocks = activeBlocks;
+    try {
+      const activeBlocks = await getActiveBlockSet(
+        studentId,
+        currentUserId,
+        role
+      );
+      if (activeBlocks && activeBlocks.length > 0) {
+        baseBlocks = activeBlocks;
+      }
+    } catch (error) {
+      // DB 에러 발생 시 로그
+      dbErrorOccurred = true;
+      logError(error instanceof Error ? error : new Error(String(error)), {
+        function: "getBlockSetForPlanGroup",
+        source: "getActiveBlockSet",
+        groupId: group.id,
+        studentId,
+        message: "활성 블록 세트 DB 조회 실패",
+      });
     }
   }
 
@@ -119,12 +156,16 @@ export async function getBlockSetForPlanGroup(
       campTemplateId: group.camp_template_id,
       blockSetId: group.block_set_id,
       tenantId,
+      dbErrorOccurred, // DB 에러로 인한 실패인지 여부
     };
-    
+
     // 캠프 모드에서 블록 세트가 필수인 경우 에러 throw
     if (isCamp) {
+      const errorMessage = dbErrorOccurred
+        ? `캠프 템플릿(${group.camp_template_id}) 블록 세트 조회 중 데이터베이스 오류가 발생했습니다.`
+        : `캠프 템플릿(${group.camp_template_id})에 연결된 블록 세트를 찾을 수 없습니다.`;
       const error = new PlanGroupError(
-        `캠프 템플릿(${group.camp_template_id})에 연결된 블록 세트를 찾을 수 없습니다.`,
+        errorMessage,
         PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND,
         ErrorUserMessages[PlanGroupErrorCodes.BLOCK_SET_NOT_FOUND],
         false,
@@ -136,10 +177,13 @@ export async function getBlockSetForPlanGroup(
       });
       throw error;
     }
-    
+
     // 일반 모드에서도 블록 세트가 없으면 경고 (빈 배열 반환)
+    const warningMessage = dbErrorOccurred
+      ? "블록 세트 DB 조회 실패로 빈 배열을 반환합니다."
+      : "블록 세트가 없어 빈 배열을 반환합니다.";
     logError(
-      new Error("블록 세트가 없어 빈 배열을 반환합니다."),
+      new Error(warningMessage),
       {
         function: "getBlockSetForPlanGroup",
         level: "warn",
@@ -212,10 +256,11 @@ async function getTemplateBlockSet(
       function: "getTemplateBlockSet",
       ...errorContext,
     });
-    // 블록 조회 실패는 null 반환 (상위에서 처리)
-    return null;
+    // DB 에러는 throw하여 호출자가 캐시 미스와 구분할 수 있도록 함
+    throw new Error(`템플릿 블록 세트 조회 실패: ${blocksError.message}`);
   }
 
+  // 블록이 없는 경우 (정상적인 캐시 미스) - null 반환
   if (!blockRows || blockRows.length === 0) {
     return null;
   }
@@ -388,9 +433,11 @@ async function getStudentBlockSet(
       blockSetId,
       studentId,
     });
-    return null;
+    // DB 에러는 throw하여 호출자가 캐시 미스와 구분할 수 있도록 함
+    throw new Error(`학생 블록 세트 조회 실패: ${blocksError.message}`);
   }
 
+  // 블록이 없는 경우 (정상적인 캐시 미스) - null 반환
   if (!blockRows || blockRows.length === 0) {
     return null;
   }
@@ -456,9 +503,11 @@ async function getActiveBlockSet(
       studentId,
       activeBlockSetId: student.active_block_set_id,
     });
-    return null;
+    // DB 에러는 throw하여 호출자가 캐시 미스와 구분할 수 있도록 함
+    throw new Error(`활성 블록 세트 조회 실패: ${blocksError.message}`);
   }
 
+  // 블록이 없는 경우 (정상적인 캐시 미스) - null 반환
   if (!blockRows || blockRows.length === 0) {
     return null;
   }

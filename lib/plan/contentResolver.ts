@@ -70,13 +70,15 @@ export async function resolveContentIds(
   };
 
   // 콘텐츠 타입별로 분류
-  const bookContents = contents
+  type ContentWithResolvedId = PlanContent & { resolvedContentId: string };
+
+  const bookContents: ContentWithResolvedId[] = contents
     .filter((c) => c.content_type === "book")
     .map((c) => ({
       ...c,
       resolvedContentId: getResolvedContentId(c),
     }));
-  const lectureContents = contents
+  const lectureContents: ContentWithResolvedId[] = contents
     .filter((c) => c.content_type === "lecture")
     .map((c) => ({
       ...c,
@@ -84,105 +86,90 @@ export async function resolveContentIds(
     }));
   const customContents = contents.filter((c) => c.content_type === "custom");
 
-  // 마스터 콘텐츠 확인 (병렬)
-  // resolvedContentId를 사용하여 마스터 콘텐츠인지 확인
-  type MasterCheckResult = { content: PlanContent; isMaster: boolean; resolvedContentId: string };
+  // 배치 쿼리: 마스터 콘텐츠 확인 (N+1 → 2 쿼리로 최적화)
+  // 모든 resolvedContentId를 수집하여 한 번에 조회
+  const bookResolvedIds = [...new Set(bookContents.map((c) => c.resolvedContentId))];
+  const lectureResolvedIds = [...new Set(lectureContents.map((c) => c.resolvedContentId))];
 
-  const masterBookQueries = bookContents.map(async (content): Promise<MasterCheckResult> => {
-    try {
-      const result = await masterQueryClient
-        .from("master_books")
-        .select("id")
-        .eq("id", content.resolvedContentId)
-        .maybeSingle();
-      return { content, isMaster: !!result.data, resolvedContentId: content.resolvedContentId };
-    } catch {
-      return { content, isMaster: false, resolvedContentId: content.resolvedContentId };
-    }
-  });
-
-  const masterLectureQueries = lectureContents.map(async (content): Promise<MasterCheckResult> => {
-    try {
-      const result = await masterQueryClient
-        .from("master_lectures")
-        .select("id")
-        .eq("id", content.resolvedContentId)
-        .maybeSingle();
-      return { content, isMaster: !!result.data, resolvedContentId: content.resolvedContentId };
-    } catch {
-      return { content, isMaster: false, resolvedContentId: content.resolvedContentId };
-    }
-  });
-
-  const [masterBookResults, masterLectureResults] = await Promise.all([
-    Promise.all(masterBookQueries),
-    Promise.all(masterLectureQueries),
+  const [masterBooksResult, masterLecturesResult] = await Promise.all([
+    bookResolvedIds.length > 0
+      ? masterQueryClient
+          .from("master_books")
+          .select("id")
+          .in("id", bookResolvedIds)
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+    lectureResolvedIds.length > 0
+      ? masterQueryClient
+          .from("master_lectures")
+          .select("id")
+          .in("id", lectureResolvedIds)
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
   ]);
 
-  // 학생 콘텐츠 확인 (병렬)
-  type StudentContentResult = { content: PlanContent; studentContentId: string };
+  // 마스터 콘텐츠 ID 셋 구성
+  const masterBookIds = new Set((masterBooksResult.data || []).map((r) => r.id));
+  const masterLectureIds = new Set((masterLecturesResult.data || []).map((r) => r.id));
 
-  const studentBookQueries = masterBookResults
-    .filter((r) => r.isMaster)
-    .map(async ({ content, resolvedContentId }): Promise<StudentContentResult> => {
-      try {
-        const result = await queryClient
+  // 마스터 콘텐츠 분류
+  const masterBookContents = bookContents.filter((c) => masterBookIds.has(c.resolvedContentId));
+  const nonMasterBookContents = bookContents.filter((c) => !masterBookIds.has(c.resolvedContentId));
+  const masterLectureContents = lectureContents.filter((c) => masterLectureIds.has(c.resolvedContentId));
+  const nonMasterLectureContents = lectureContents.filter((c) => !masterLectureIds.has(c.resolvedContentId));
+
+  // 배치 쿼리: 학생 콘텐츠 확인 (N+1 → 2 쿼리로 최적화)
+  const masterBookIdsForStudent = [...new Set(masterBookContents.map((c) => c.resolvedContentId))];
+  const masterLectureIdsForStudent = [...new Set(masterLectureContents.map((c) => c.resolvedContentId))];
+
+  const [studentBooksResult, studentLecturesResult] = await Promise.all([
+    masterBookIdsForStudent.length > 0
+      ? queryClient
           .from("books")
-          .select("id")
+          .select("id, master_content_id")
           .eq("student_id", studentId)
-          .eq("master_content_id", resolvedContentId)
-          .maybeSingle();
-        return {
-          content,
-          studentContentId: result.data?.id || resolvedContentId,
-        };
-      } catch {
-        return { content, studentContentId: resolvedContentId };
-      }
-    });
-
-  const studentLectureQueries = masterLectureResults
-    .filter((r) => r.isMaster)
-    .map(async ({ content, resolvedContentId }): Promise<StudentContentResult> => {
-      try {
-        const result = await queryClient
+          .in("master_content_id", masterBookIdsForStudent)
+      : Promise.resolve({ data: [] as { id: string; master_content_id: string }[], error: null }),
+    masterLectureIdsForStudent.length > 0
+      ? queryClient
           .from("lectures")
-          .select("id")
+          .select("id, master_content_id")
           .eq("student_id", studentId)
-          .eq("master_content_id", resolvedContentId)
-          .maybeSingle();
-        return {
-          content,
-          studentContentId: result.data?.id || resolvedContentId,
-        };
-      } catch {
-        return { content, studentContentId: resolvedContentId };
-      }
-    });
-
-  const [studentBookResults, studentLectureResults] = await Promise.all([
-    Promise.all(studentBookQueries),
-    Promise.all(studentLectureQueries),
+          .in("master_content_id", masterLectureIdsForStudent)
+      : Promise.resolve({ data: [] as { id: string; master_content_id: string }[], error: null }),
   ]);
+
+  // 마스터 콘텐츠 ID → 학생 콘텐츠 ID 맵 구성
+  const masterToStudentBookMap = new Map<string, string>();
+  (studentBooksResult.data || []).forEach((r) => {
+    if (r.master_content_id) {
+      masterToStudentBookMap.set(r.master_content_id, r.id);
+    }
+  });
+
+  const masterToStudentLectureMap = new Map<string, string>();
+  (studentLecturesResult.data || []).forEach((r) => {
+    if (r.master_content_id) {
+      masterToStudentLectureMap.set(r.master_content_id, r.id);
+    }
+  });
 
   // contentIdMap 구성
-  masterBookResults
-    .filter((r) => !r.isMaster)
-    .forEach(({ content }) => {
-      contentIdMap.set(content.content_id, content.content_id);
-    });
+  // 비마스터 콘텐츠: 원래 ID 사용
+  nonMasterBookContents.forEach((content) => {
+    contentIdMap.set(content.content_id, content.content_id);
+  });
 
-  masterLectureResults
-    .filter((r) => !r.isMaster)
-    .forEach(({ content }) => {
-      contentIdMap.set(content.content_id, content.content_id);
-    });
+  nonMasterLectureContents.forEach((content) => {
+    contentIdMap.set(content.content_id, content.content_id);
+  });
 
-  studentBookResults.forEach(({ content, studentContentId }) => {
+  // 마스터 콘텐츠: 학생 콘텐츠 ID로 매핑 (없으면 마스터 ID 유지)
+  masterBookContents.forEach((content) => {
+    const studentContentId = masterToStudentBookMap.get(content.resolvedContentId) || content.resolvedContentId;
     contentIdMap.set(content.content_id, studentContentId);
   });
 
-  studentLectureResults.forEach(({ content, studentContentId }) => {
+  masterLectureContents.forEach((content) => {
+    const studentContentId = masterToStudentLectureMap.get(content.resolvedContentId) || content.resolvedContentId;
     contentIdMap.set(content.content_id, studentContentId);
   });
 

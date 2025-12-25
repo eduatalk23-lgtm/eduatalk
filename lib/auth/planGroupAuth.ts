@@ -107,7 +107,21 @@ export function getStudentIdForPlanGroup(
 }
 
 /**
- * 상태 체크를 우회해야 하는지 여부를 반환합니다.
+ * 플랜 그룹 상태 체크를 우회해야 하는지 여부를 반환합니다.
+ *
+ * 일반적으로 플랜 생성/미리보기는 "saved" 또는 "active" 상태에서만 허용됩니다.
+ * 다음 경우에는 상태 체크를 우회합니다:
+ *
+ * - **admin/consultant**: 관리자는 모든 상태의 플랜 그룹에서 플랜을 생성/관리할 수 있어야 합니다.
+ *   예: draft 상태에서 테스트, completed 상태에서 플랜 재생성 등
+ *
+ * - **camp 플랜 타입**: 캠프 워크플로우는 일반 플랜과 다릅니다.
+ *   캠프 템플릿 기반 플랜은 draft 상태에서도 생성이 가능해야 하며,
+ *   템플릿 수정 후 플랜 재생성 시에도 상태 제한이 없어야 합니다.
+ *
+ * @param role 현재 사용자 역할
+ * @param planType 플랜 그룹의 타입 (null, "camp" 등)
+ * @returns 상태 체크 우회 여부
  */
 export function shouldBypassStatusCheck(
   role: PlanGroupAllowedRole,
