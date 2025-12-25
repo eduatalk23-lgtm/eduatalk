@@ -16,3 +16,19 @@ export * from "./types";
 // ============================================
 
 export * from "./actions";
+
+// ============================================
+// Transactions (Atomic operations via PostgreSQL RPC)
+// ============================================
+
+export {
+  createPlanGroupAtomic,
+  generatePlansAtomic,
+  type AtomicPlanGroupInput,
+  type AtomicPlanContentInput,
+  type AtomicExclusionInput,
+  type AtomicAcademyScheduleInput,
+  type AtomicPlanGroupResult,
+  type AtomicPlanPayload,
+  type AtomicPlansResult,
+} from "./transactions";
