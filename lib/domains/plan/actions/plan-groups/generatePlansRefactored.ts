@@ -361,19 +361,27 @@ async function _generatePlansFromGroupRefactored(
     .filter((c) => !contentIdMap.has(c.content_id))
     .map((c) => c.resolvedContentId);
 
-  // 플랜 생성 전 콘텐츠 검증: contentIdMap에 매핑되지 않은 콘텐츠 로그 기록
+  // 플랜 생성 전 콘텐츠 검증: contentIdMap에 매핑되지 않은 콘텐츠 발견 시 에러 발생
+  // 일부 콘텐츠 누락된 플랜 생성을 방지하기 위해 조기 실패(fail-fast) 적용
   if (missingBookIds.length > 0 || missingLectureIds.length > 0) {
-    console.warn(
+    const totalMissing = missingBookIds.length + missingLectureIds.length;
+    console.error(
       `[generatePlansRefactored] contentIdMap에 매핑되지 않은 콘텐츠 발견:`,
       {
         groupId,
         studentId,
         missingBookIds,
         missingLectureIds,
-        totalMissing: missingBookIds.length + missingLectureIds.length,
+        totalMissing,
         totalContents: contents.length,
-        message: "이 콘텐츠들은 플랜 생성 시 제외됩니다.",
       }
+    );
+
+    throw new AppError(
+      `플랜 생성에 필요한 콘텐츠 ${totalMissing}개가 학생 콘텐츠로 복사되지 않았습니다. 콘텐츠 복사 후 다시 시도해주세요.`,
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
     );
   }
 
@@ -1289,7 +1297,8 @@ async function _generatePlansFromGroupRefactored(
         : Promise.resolve({ data: [], error: null }),
     ]);
 
-    // 재시도 후에도 에러가 있으면 로그만 남기고 계속 진행
+    // 재시도 후에도 에러가 있으면 데이터 무결성 보장을 위해 에러 발생
+    // 빈 데이터로 계속 진행 시 모든 콘텐츠가 "존재하지 않음"으로 잘못 판단될 수 있음
     if (finalBooksCheck.error || finalLecturesCheck.error) {
       console.error(
         "[_generatePlansFromGroupRefactored] Admin 클라이언트로도 조회 실패:",
@@ -1299,6 +1308,13 @@ async function _generatePlansFromGroupRefactored(
           groupId,
           studentId,
         }
+      );
+
+      throw new AppError(
+        "콘텐츠 검증 중 데이터베이스 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
     }
   }
@@ -1509,22 +1525,58 @@ async function _generatePlansFromGroupRefactored(
     throw new AppError(userMessage, ErrorCode.INTERNAL_ERROR, 500, true);
   }
 
-  // 16. 플랜 그룹 상태 업데이트
-  // 관리자/컨설턴트가 다른 학생의 플랜을 생성할 때도 작동하도록 직접 업데이트
-  if ((group.status as PlanStatus) === "draft") {
-    try {
-      const { error: statusUpdateError } = await queryClient
-        .from("plan_groups")
-        .update({ status: "saved", updated_at: new Date().toISOString() })
-        .eq("id", groupId);
+  // 성공 시 로깅
+  if (insertedData && insertedData.length > 0) {
+    console.log(
+      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨 (스케줄러 원본: ${scheduledPlans.length}개)`
+    );
+  }
 
-      if (statusUpdateError) {
-        throw statusUpdateError;
+  // 16. 플랜 그룹 상태 업데이트 (트랜잭션 보장)
+  // 관리자/컨설턴트가 다른 학생의 플랜을 생성할 때도 작동하도록 직접 업데이트
+  // 상태 업데이트 실패 시 삽입된 플랜을 롤백하여 데이터 일관성 유지
+  if ((group.status as PlanStatus) === "draft") {
+    const { error: statusUpdateError } = await queryClient
+      .from("plan_groups")
+      .update({ status: "saved", updated_at: new Date().toISOString() })
+      .eq("id", groupId);
+
+    if (statusUpdateError) {
+      console.error(
+        "[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패, 롤백 시도:",
+        statusUpdateError
+      );
+
+      // 삽입된 플랜 롤백 (compensating transaction)
+      if (insertedData && insertedData.length > 0) {
+        const insertedPlanIds = insertedData.map((p) => p.id);
+        const { error: rollbackError } = await queryClient
+          .from("student_plan")
+          .delete()
+          .in("id", insertedPlanIds);
+
+        if (rollbackError) {
+          console.error(
+            "[_generatePlansFromGroupRefactored] 플랜 롤백 실패 - 데이터 불일치 가능:",
+            {
+              groupId,
+              insertedPlanIds,
+              statusUpdateError: statusUpdateError.message,
+              rollbackError: rollbackError.message,
+            }
+          );
+        } else {
+          console.log(
+            `[_generatePlansFromGroupRefactored] 플랜 롤백 완료: ${insertedPlanIds.length}개 플랜 삭제됨`
+          );
+        }
       }
-    } catch (error) {
-      console.warn(
-        "[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패:",
-        error
+
+      throw new AppError(
+        "플랜 저장 후 상태 업데이트에 실패했습니다. 작업이 취소되었습니다. 다시 시도해주세요.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
     }
   }
