@@ -208,7 +208,9 @@ export function usePlanPayloadBuilder(
           end_time: s.end_time,
           academy_name: s.academy_name,
           subject: s.subject,
-          travel_time: s.travel_time
+          travel_time: s.travel_time,
+          source: s.source,        // 일정 출처 보존
+          is_locked: s.is_locked,  // 템플릿 잠금 여부 보존
       })),
 
       // Top Level Fields

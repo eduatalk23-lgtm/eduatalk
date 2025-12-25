@@ -99,6 +99,8 @@ export type AcademyScheduleInput = {
   end_time: string; // time
   subject?: string | null; // 과목 (선택사항)
   travel_time?: number; // 이동시간 (하위 호환성, academy의 travel_time 사용)
+  source?: "template" | "student" | "time_management"; // 일정 출처 (템플릿, 학생 입력, 시간관리)
+  is_locked?: boolean; // 템플릿 잠금 여부 (잠금 시 학생 수정 불가)
 };
 
 /**

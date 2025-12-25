@@ -83,11 +83,15 @@ async function getSupabaseClient(useAdminClient: boolean = false): Promise<Supab
  * Academy 찾기 또는 생성
  */
 async function getOrCreateAcademy(
-  supabase: SupabaseClient,
   studentId: string,
   tenantId: string,
-  academyName: string
-): Promise<string | null> {
+  academyName: string,
+  travelTime: number = 60,
+  useAdminClient: boolean = false
+): Promise<{ id: string | null; error?: string }> {
+  // RLS 우회가 필요한 경우 Admin 클라이언트 사용 (캠프 모드: 관리자가 학생 대신 생성)
+  const supabase = await getSupabaseClient(useAdminClient);
+
   const { data: existingAcademy } = await supabase
     .from("academies")
     .select("id")
@@ -96,7 +100,7 @@ async function getOrCreateAcademy(
     .maybeSingle();
 
   if (existingAcademy) {
-    return existingAcademy.id;
+    return { id: existingAcademy.id };
   }
 
   const { data: newAcademy, error: academyError } = await supabase
@@ -105,7 +109,7 @@ async function getOrCreateAcademy(
       student_id: studentId,
       tenant_id: tenantId,
       name: academyName,
-      travel_time: 60, // 기본값
+      travel_time: travelTime,
     })
     .select("id")
     .single();
@@ -114,10 +118,14 @@ async function getOrCreateAcademy(
     handleQueryError(academyError as PostgrestError | null, {
       context: "[data/planGroups] getOrCreateAcademy",
     });
-    return null;
+    // 에러 메시지에 실제 DB 에러 원인 포함
+    const errorDetail = academyError
+      ? `(${academyError.code}) ${academyError.message}`
+      : "알 수 없는 오류";
+    return { id: null, error: errorDetail };
   }
 
-  return newAcademy.id;
+  return { id: newAcademy.id };
 }
 
 /**
@@ -1718,7 +1726,7 @@ export async function getStudentAcademySchedules(
     const fallbackResult = await fallbackQuery;
     error = fallbackResult.error;
     
-    // academy_id를 빈 문자열로 설정
+    // fallback 데이터 변환 (academy_id 컬럼이 없는 경우)
     if (fallbackResult.data && !error) {
       type ScheduleRow = Database["public"]["Tables"]["academy_schedules"]["Row"] & {
         academies?: { travel_time?: number } | null;
@@ -1726,9 +1734,9 @@ export async function getStudentAcademySchedules(
       };
       studentSchedulesData = fallbackResult.data.map((schedule) => ({
         id: schedule.id,
-        tenant_id: "",
+        tenant_id: schedule.tenant_id, // 실제 tenant_id 사용
         student_id: schedule.student_id,
-        academy_id: "", 
+        academy_id: null, // academy_id가 없는 경우 null로 설정
         day_of_week: schedule.day_of_week,
         start_time: schedule.start_time,
         end_time: schedule.end_time,
@@ -1737,7 +1745,7 @@ export async function getStudentAcademySchedules(
         updated_at: schedule.updated_at,
         academy_name: schedule.academy_name || null,
         travel_time: null,
-      })) as AcademySchedule[];
+      })) as unknown as AcademySchedule[];
     } else {
       studentSchedulesData = (fallbackResult.data as AcademySchedule[] | null) ?? null;
     }
@@ -1811,6 +1819,7 @@ export async function createPlanAcademySchedules(
     end_time: string;
     academy_name?: string | null;
     subject?: string | null;
+    travel_time?: number; // 이동시간 (academies 테이블에 저장)
   }>,
   useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
@@ -1924,16 +1933,19 @@ export async function createPlanAcademySchedules(
     for (const { id, schedule } of toUpdate) {
       // academy_name으로 academy 찾기 또는 생성
       const academyName = schedule.academy_name || "학원";
-      const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
-      
-      if (!academyId) {
+      const travelTime = schedule.travel_time ?? 60;
+      const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
+
+      if (!academyResult.id) {
         console.warn("[createPlanAcademySchedules] 학원 ID 확보 실패, 새로 생성으로 폴백", {
           academyName,
           scheduleId: id,
+          error: academyResult.error,
         });
         toInsert.push(schedule);
         continue;
       }
+      const academyId = academyResult.id;
 
       const { error: updateError } = await supabase
         .from("academy_schedules")
@@ -1967,13 +1979,15 @@ export async function createPlanAcademySchedules(
 
     for (const schedule of toInsert) {
       const academyName = schedule.academy_name || "학원";
-      
+      const travelTime = schedule.travel_time ?? 60;
+
       if (!academyNameMap.has(academyName)) {
-        const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
-        if (!academyId) {
-          return { success: false, error: `학원 생성에 실패했습니다: ${academyName}` };
+        const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
+        if (!academyResult.id) {
+          // 에러 메시지에 실제 DB 에러 원인 포함
+          return { success: false, error: `학원 생성에 실패했습니다: ${academyName} - ${academyResult.error}` };
         }
-        academyNameMap.set(academyName, academyId);
+        academyNameMap.set(academyName, academyResult.id);
       }
     }
 
@@ -2093,15 +2107,15 @@ export async function createStudentAcademySchedules(
 
   for (const schedule of newSchedules) {
     const academyName = schedule.academy_name || "학원";
-    
+
     if (!academyNameMap.has(academyName)) {
-      const academyId = await getOrCreateAcademy(supabase, studentId, tenantId, academyName);
-      
-      if (!academyId) {
-        return { success: false, error: `학원 생성에 실패했습니다: ${academyName}` };
+      const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, 60, useAdminClient);
+
+      if (!academyResult.id) {
+        return { success: false, error: `학원 생성에 실패했습니다: ${academyName} - ${academyResult.error}` };
       }
 
-      academyNameMap.set(academyName, academyId);
+      academyNameMap.set(academyName, academyResult.id);
     }
   }
 
