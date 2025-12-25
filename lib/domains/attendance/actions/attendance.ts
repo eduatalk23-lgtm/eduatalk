@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requirePermission } from "@/lib/auth/permissions";
 import {
   recordAttendance,
   getAttendanceRecords,
@@ -330,13 +331,15 @@ export async function getAttendanceStatisticsAction(
 
 /**
  * 출석 기록 삭제
+ * - Admin만 삭제 가능 (attendance.delete 권한 필요)
  */
 export async function deleteAttendanceRecordAction(
   recordId: string,
   studentId: string
 ): Promise<{ success: boolean; error?: string }> {
   const handler = withErrorHandling(async () => {
-    await requireAdminAuth();
+    // 권한 검증 (attendance.delete 권한 필요 - Admin만 허용)
+    await requirePermission("attendance.delete");
 
     await deleteRecord(recordId);
 

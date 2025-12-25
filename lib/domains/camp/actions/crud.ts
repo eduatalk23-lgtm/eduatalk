@@ -18,6 +18,7 @@ import {
 } from "@/lib/errors";
 import type { CampTemplateUpdate } from "@/lib/domains/camp/types";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/permissions";
 import {
   linkBlockSetToTemplate,
   unlinkBlockSetFromTemplate,
@@ -828,11 +829,12 @@ export const updateCampTemplateStatusAction = withErrorHandling(
 
 /**
  * 캠프 템플릿 삭제
+ * - Admin만 삭제 가능 (camp.delete 권한 필요)
  */
 export const deleteCampTemplateAction = withErrorHandling(
   async (templateId: string): Promise<{ success: boolean; error?: string }> => {
-    // 권한 검증
-    await requireAdminOrConsultant();
+    // 권한 검증 (camp.delete 권한 필요 - Admin만 허용)
+    await requirePermission("camp.delete");
 
     // 입력값 검증
     if (!templateId || typeof templateId !== "string") {
