@@ -32,6 +32,7 @@ import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
 import {
   getHigherPriorityExclusionType,
 } from "@/lib/utils/exclusionHierarchy";
+import { DAYS_PER_WEEK, MILLISECONDS_PER_DAY } from "@/lib/utils/time";
 
 /**
  * 플랜 그룹 생성 실패 시 관련 데이터를 모두 롤백합니다.
@@ -648,7 +649,7 @@ async function _savePlanGroupDraft(
     period_start: data.period_start || formatDateString(new Date()),
     period_end:
       data.period_end ||
-      formatDateString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+      formatDateString(new Date(Date.now() + DAYS_PER_WEEK * MILLISECONDS_PER_DAY)),
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
     status: "draft",

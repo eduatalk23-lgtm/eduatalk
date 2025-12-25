@@ -14,6 +14,7 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { AcademySchedule } from "@/lib/types/plan";
+import { DEFAULT_TRAVEL_TIME_MINUTES } from "@/lib/utils/time";
 
 /**
  * 시간 관리 데이터 반영 (학원일정)
@@ -137,7 +138,7 @@ async function _syncTimeManagementAcademySchedules(
       end_time: s.end_time,
       academy_name: s.academy_name || undefined,
       subject: s.subject || undefined,
-      travel_time: s.travel_time || 60,
+      travel_time: s.travel_time || DEFAULT_TRAVEL_TIME_MINUTES,
       source: "time_management" as const,
     })),
   };
@@ -381,7 +382,7 @@ async function _updateAcademySchedule(formData: FormData): Promise<void> {
         student_id: schedule.student_id,
         tenant_id: schedule.tenant_id,
         name: trimmedAcademyName,
-        travel_time: 60, // 기본값
+        travel_time: DEFAULT_TRAVEL_TIME_MINUTES,
       })
       .select("id")
       .single();
@@ -554,7 +555,7 @@ async function _createAcademy(formData: FormData): Promise<void> {
 
   const travelTimeNum = travelTime
     ? Number.parseInt(String(travelTime), 10)
-    : 60;
+    : DEFAULT_TRAVEL_TIME_MINUTES;
   if (Number.isNaN(travelTimeNum) || travelTimeNum < 0) {
     throw new AppError(
       "이동시간은 0 이상의 숫자여야 합니다.",
@@ -634,7 +635,7 @@ async function _updateAcademy(formData: FormData): Promise<void> {
 
   const travelTimeNum = travelTime
     ? Number.parseInt(String(travelTime), 10)
-    : 60;
+    : DEFAULT_TRAVEL_TIME_MINUTES;
   if (Number.isNaN(travelTimeNum) || travelTimeNum < 0) {
     throw new AppError(
       "이동시간은 0 이상의 숫자여야 합니다.",

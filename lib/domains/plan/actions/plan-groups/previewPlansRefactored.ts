@@ -4,7 +4,11 @@ import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { assignPlanTimes, calculatePlanEstimatedTime } from "@/lib/plan/assignPlanTimes";
-import { timeToMinutes } from "@/lib/utils/time";
+import {
+  timeToMinutes,
+  getWeekDayFromPeriod,
+  MINUTES_PER_HOUR,
+} from "@/lib/utils/time";
 import {
   getPlanGroupWithDetailsByRole,
   getStudentIdForPlanGroup,
@@ -293,13 +297,7 @@ async function _previewPlansFromGroupRefactored(
       const studyTimeSlots = timeSlotsForDate
         .filter((slot) => slot.type === "학습시간")
         .map((slot) => ({ start: slot.start, end: slot.end }))
-        .sort((a, b) => {
-          const aStart = a.start.split(":").map(Number);
-          const bStart = b.start.split(":").map(Number);
-          const aMinutes = aStart[0] * 60 + aStart[1];
-          const bMinutes = bStart[0] * 60 + bStart[1];
-          return aMinutes - bMinutes;
-        });
+        .sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
 
       const dateMetadata = dateMetadataMap.get(date) || {
         day_type: null,
@@ -404,13 +402,8 @@ async function _previewPlansFromGroupRefactored(
               weekDay = dayIndex + 1;
             }
           } else {
-            const start = new Date(group.period_start);
-            const current = new Date(date);
-            start.setHours(0, 0, 0, 0);
-            current.setHours(0, 0, 0, 0);
-            const diffTime = current.getTime() - start.getTime();
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-            weekDay = (diffDays % 7) + 1;
+            // 시간대 안전한 요일 계산
+            weekDay = getWeekDayFromPeriod(date, group.period_start);
           }
         }
 
