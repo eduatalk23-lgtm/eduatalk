@@ -11,6 +11,9 @@ import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
 import {
   isSessionPaused,
   filterActivelyRunningSessions,
+  validateTimerAction,
+  determineTimerStatus,
+  type TimerAction,
 } from "@/lib/utils/timerUtils";
 import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
 import type {
@@ -59,7 +62,7 @@ export async function startPlan(
     // [경합 방지 규칙 2] 완료된 플랜 재시작 방지
     const { data: plan, error: planError } = await supabase
       .from("student_plan")
-      .select("id, actual_end_time, is_virtual")
+      .select("id, actual_start_time, actual_end_time, is_virtual")
       .eq("id", planId)
       .eq("student_id", user.userId)
       .maybeSingle();
@@ -85,10 +88,29 @@ export async function startPlan(
       };
     }
 
-    if (plan.actual_end_time) {
+    // 현재 활성 세션 조회 (상태 판별용)
+    const { data: currentSession } = await supabase
+      .from("student_study_sessions")
+      .select("paused_at, resumed_at, ended_at")
+      .eq("plan_id", planId)
+      .eq("student_id", user.userId)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 상태 머신 검증: START 또는 RESUME 액션이 허용되는지 확인
+    const action: TimerAction = currentSession && isSessionPaused(currentSession) ? "RESUME" : "START";
+    const validationError = validateTimerAction(plan, currentSession, action);
+    if (validationError) {
+      timerLogger.warn("상태 전환 검증 실패", {
+        action: "startPlan",
+        id: planId,
+        data: { timerAction: action, error: validationError },
+      });
       return {
         success: false,
-        error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED,
+        error: action === "START" ? TIMER_ERRORS.PLAN_ALREADY_COMPLETED : validationError,
       };
     }
 
@@ -124,47 +146,10 @@ export async function startPlan(
     }
 
     // 학습 세션 시작 (내부에서 플랜 조회 및 검증 수행)
+    // Race Condition은 DB 레벨 유니크 제약(idx_unique_active_session_per_student)으로 방지
     const result = await startStudySession(planId);
     if (!result.success) {
       return { success: false, error: result.error };
-    }
-
-    // [경합 방지] 낙관적 락: 세션 시작 후 다시 확인하여 경합 감지
-    // 두 요청이 동시에 활성 세션 체크를 통과했을 수 있으므로, 시작 후 다시 확인
-    if (result.sessionId) {
-      const { data: allActiveSessions } = await supabase
-        .from("student_study_sessions")
-        .select("id, plan_id, started_at")
-        .eq("student_id", user.userId)
-        .is("ended_at", null)
-        .not("plan_id", "is", null) // plan_id가 null인 고아 세션 제외
-        .order("started_at", { ascending: true });
-
-      // 활성 세션이 여러 개면 경합 발생 - 가장 먼저 시작된 세션만 유지
-      if (allActiveSessions && allActiveSessions.length > 1) {
-        const firstSession = allActiveSessions[0];
-
-        // 자신의 세션이 가장 먼저 시작된 것이 아니면 롤백
-        if (firstSession.id !== result.sessionId) {
-          // 자신의 세션 종료 (롤백)
-          await endStudySession(result.sessionId);
-
-          timerLogger.warn("경합 감지: 세션 롤백", {
-            action: "startPlan",
-            id: planId,
-            data: {
-              rolledBackSessionId: result.sessionId,
-              winningSessionId: firstSession.id,
-              winningPlanId: firstSession.plan_id,
-            },
-          });
-
-          return {
-            success: false,
-            error: "다른 플랜의 타이머가 동시에 시작되었습니다. 다시 시도해주세요.",
-          };
-        }
-      }
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
@@ -245,6 +230,28 @@ export async function completePlan(
 
     if (!plan || !plan.content_type || !plan.content_id) {
       return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
+    // 활성 세션 조회 (상태 판별용)
+    const { data: stateCheckSession } = await supabase
+      .from("student_study_sessions")
+      .select("paused_at, resumed_at, ended_at")
+      .eq("plan_id", planId)
+      .eq("student_id", user.userId)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // 상태 머신 검증: COMPLETE 액션이 허용되는지 확인
+    const validationError = validateTimerAction(plan, stateCheckSession, "COMPLETE");
+    if (validationError) {
+      timerLogger.warn("상태 전환 검증 실패", {
+        action: "completePlan",
+        id: planId,
+        data: { timerAction: "COMPLETE", error: validationError },
+      });
+      return { success: false, error: validationError };
     }
 
     // 같은 plan_number를 가진 모든 플랜 조회 (같은 논리적 플랜)
@@ -733,10 +740,22 @@ export async function pausePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
+    // 플랜 조회 (상태 판별용)
+    const { data: plan, error: planError } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, actual_end_time")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError || !plan) {
+      return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
     // 활성 세션 조회 (최신 세션만 조회하여 최적화)
     const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, started_at, paused_at, resumed_at, paused_duration_seconds")
+      .select("id, started_at, paused_at, resumed_at, ended_at, paused_duration_seconds")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -748,9 +767,19 @@ export async function pausePlan(
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
     }
 
-    // 이미 일시정지된 상태인지 확인
-    if (isSessionPaused(activeSession)) {
-      return { success: false, error: "이미 일시정지된 상태입니다." };
+    // 상태 머신 검증: PAUSE 액션이 허용되는지 확인
+    const validationError = validateTimerAction(plan, activeSession, "PAUSE");
+    if (validationError) {
+      timerLogger.warn("상태 전환 검증 실패", {
+        action: "pausePlan",
+        id: planId,
+        data: { timerAction: "PAUSE", error: validationError },
+      });
+      // 이미 일시정지 상태인 경우 사용자 친화적 메시지
+      if (isSessionPaused(activeSession)) {
+        return { success: false, error: "이미 일시정지된 상태입니다." };
+      }
+      return { success: false, error: validationError };
     }
 
     // 세션 일시정지
@@ -853,10 +882,22 @@ export async function resumePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
+    // 플랜 조회 (상태 판별용)
+    const { data: plan, error: planError } = await supabase
+      .from("student_plan")
+      .select("actual_start_time, actual_end_time")
+      .eq("id", planId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError || !plan) {
+      return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
     // 활성 세션 조회 (최신 세션만 조회하여 최적화)
     const { data: activeSession, error: sessionError } = await supabase
       .from("student_study_sessions")
-      .select("id, started_at, paused_at, paused_duration_seconds, resumed_at")
+      .select("id, started_at, paused_at, paused_duration_seconds, resumed_at, ended_at")
       .eq("plan_id", planId)
       .eq("student_id", user.userId)
       .is("ended_at", null)
@@ -868,12 +909,22 @@ export async function resumePlan(
       return { success: false, error: "활성 세션을 찾을 수 없습니다." };
     }
 
-    // 일시정지 상태인지 확인
-    if (!isSessionPaused(activeSession)) {
-      return { success: false, error: "일시정지된 상태가 아닙니다." };
+    // 상태 머신 검증: RESUME 액션이 허용되는지 확인
+    const validationError = validateTimerAction(plan, activeSession, "RESUME");
+    if (validationError) {
+      timerLogger.warn("상태 전환 검증 실패", {
+        action: "resumePlan",
+        id: planId,
+        data: { timerAction: "RESUME", error: validationError },
+      });
+      // 일시정지 상태가 아닌 경우 사용자 친화적 메시지
+      if (!isSessionPaused(activeSession)) {
+        return { success: false, error: "일시정지된 상태가 아닙니다." };
+      }
+      return { success: false, error: validationError };
     }
 
-    const pausedAt = new Date(activeSession.paused_at);
+    const pausedAt = new Date(activeSession.paused_at!);
     // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
     const resumedAt = timestamp ? new Date(timestamp) : new Date();
     const pauseDuration = Math.max(0, Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000));
