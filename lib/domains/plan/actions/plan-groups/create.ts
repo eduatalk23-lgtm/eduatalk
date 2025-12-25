@@ -449,7 +449,11 @@ async function _createPlanGroup(
           end_time: s.end_time,
           academy_name: s.academy_name || null,
           subject: s.subject || null,
-        }))
+          travel_time: s.travel_time,
+          source: s.source,
+          is_locked: s.is_locked,
+        })),
+        isCampMode // 캠프 모드일 때 Admin 클라이언트 사용 (RLS 우회)
       ),
     ]
   );

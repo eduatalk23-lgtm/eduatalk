@@ -1772,6 +1772,104 @@ export async function getStudentAcademySchedules(
 }
 
 /**
+ * 특정 플랜 그룹의 학원 일정만 조회 (범위 명확화)
+ *
+ * getAcademySchedules와 달리 source, is_locked 필드를 포함하여 반환합니다.
+ * generatePlansRefactored에서 플랜 배치 계산 시 사용합니다.
+ *
+ * @param groupId 플랜 그룹 ID
+ * @param tenantId 테넌트 ID (옵션)
+ * @returns 해당 플랜 그룹에 속한 학원 일정 목록
+ */
+export async function getPlanGroupAcademySchedules(
+  groupId: string,
+  tenantId?: string | null
+): Promise<Array<AcademySchedule & {
+  source: "template" | "student" | "time_management";
+  is_locked: boolean;
+}>> {
+  const supabase = await createSupabaseServerClient();
+
+  // source, is_locked, travel_time 필드를 포함하여 조회
+  let query = supabase
+    .from("academy_schedules")
+    .select(
+      "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,source,is_locked,travel_time"
+    )
+    .eq("plan_group_id", groupId)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    // source, is_locked, travel_time 컬럼이 없는 경우 기존 함수로 폴백
+    if (ErrorCodeCheckers.isColumnNotFound(error)) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          "[getPlanGroupAcademySchedules] source/is_locked/travel_time 컬럼 없음, 기존 함수로 폴백",
+          { groupId }
+        );
+      }
+      const fallbackData = await getAcademySchedules(groupId, tenantId);
+      return fallbackData.map((schedule) => ({
+        ...schedule,
+        source: "student" as const,
+        is_locked: false,
+      }));
+    }
+
+    handleQueryError(error, {
+      context: "[data/planGroups] getPlanGroupAcademySchedules",
+    });
+    return [];
+  }
+
+  // 데이터 타입 매핑
+  type ScheduleRow = {
+    id: string;
+    tenant_id: string | null;
+    student_id: string;
+    plan_group_id: string | null;
+    academy_id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name: string | null;
+    subject: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+    source: string | null;
+    is_locked: boolean | null;
+    travel_time: number | null;
+  };
+
+  return (data || []).map((row) => {
+    const schedule = row as unknown as ScheduleRow;
+    return {
+      id: schedule.id,
+      tenant_id: schedule.tenant_id,
+      student_id: schedule.student_id,
+      academy_id: schedule.academy_id,
+      day_of_week: schedule.day_of_week,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      academy_name: schedule.academy_name,
+      subject: schedule.subject,
+      created_at: schedule.created_at ?? new Date().toISOString(),
+      updated_at: schedule.updated_at ?? new Date().toISOString(),
+      travel_time: schedule.travel_time ?? 60,
+      source: (schedule.source || "student") as "template" | "student" | "time_management",
+      is_locked: schedule.is_locked ?? false,
+    };
+  });
+}
+
+/**
  * 플랜 그룹 학원 일정 일괄 생성 (학생별 전역 관리)
  * @deprecated createStudentAcademySchedules 사용 권장
  */
@@ -1820,6 +1918,8 @@ export async function createPlanAcademySchedules(
     academy_name?: string | null;
     subject?: string | null;
     travel_time?: number; // 이동시간 (academies 테이블에 저장)
+    source?: "template" | "student" | "time_management"; // 일정 출처
+    is_locked?: boolean; // 템플릿 잠금 여부
   }>,
   useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
@@ -1954,6 +2054,10 @@ export async function createPlanAcademySchedules(
           academy_id: academyId,
           academy_name: schedule.academy_name || null,
           subject: schedule.subject || null,
+          // source, is_locked, travel_time 필드 저장
+          source: schedule.source || "student",
+          is_locked: schedule.is_locked ?? false,
+          travel_time: schedule.travel_time ?? 60,
         })
         .eq("id", id);
 
@@ -2010,6 +2114,10 @@ export async function createPlanAcademySchedules(
         end_time: schedule.end_time,
         academy_name: schedule.academy_name || null,
         subject: schedule.subject || null,
+        // source, is_locked, travel_time 필드 저장
+        source: schedule.source || "student",
+        is_locked: schedule.is_locked ?? false,
+        travel_time: schedule.travel_time ?? 60,
       };
     });
 
@@ -2232,7 +2340,7 @@ export async function getPlanGroupWithDetails(
     getPlanGroupById(groupId, studentId, tenantId),
     getPlanContents(groupId, tenantId),
     getPlanExclusions(groupId, tenantId), // 플랜 그룹별 제외일
-    getStudentAcademySchedules(studentId, tenantId), // 학원 일정은 여전히 전역 관리
+    getAcademySchedules(groupId, tenantId), // 플랜 그룹별 학원 일정 조회 (전역 아님)
   ]);
 
   // 결과 추출 (실패 시 기본값 사용)
@@ -2290,29 +2398,30 @@ export async function getPlanGroupWithDetailsForAdmin(
   }
 
   // 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
+  // 플랜 그룹별 학원 일정만 조회 (전역 아님)
   const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
     let adminSchedulesData: AcademySchedule[] | null = null; // Declare adminSchedulesData here
-    
+
     // 1. Service Role Key로 시도 (RLS 우회)
     const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
     const adminClient = createSupabaseAdminClient();
-    
+
     if (!adminClient) {
       // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
       if (process.env.NODE_ENV === "development") {
         console.warn("[getPlanGroupWithDetailsForAdmin] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
       }
-      return getStudentAcademySchedules(group.student_id, tenantId);
+      return getAcademySchedules(groupId, tenantId); // 플랜 그룹별 조회로 변경
     }
 
-    // academies와 조인하여 travel_time 가져오기
+    // academies와 조인하여 travel_time 가져오기 (plan_group_id로 조회)
     const selectSchedules = () =>
       adminClient
         .from("academy_schedules")
         .select(
           "id,tenant_id,student_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
         )
-        .eq("student_id", group.student_id)
+        .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
         .eq("tenant_id", tenantId)
         .order("day_of_week", { ascending: true })
         .order("start_time", { ascending: true });
@@ -2321,14 +2430,14 @@ export async function getPlanGroupWithDetailsForAdmin(
     adminSchedulesData = data as AcademySchedule[] | null;
 
     if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-      // academy_id가 없는 경우를 대비한 fallback
+      // academy_id가 없는 경우를 대비한 fallback (plan_group_id로 조회)
       const fallbackSelect = () =>
         adminClient
           .from("academy_schedules")
           .select(
             "id,tenant_id,student_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at"
           )
-          .eq("student_id", group.student_id)
+          .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
           .eq("tenant_id", tenantId)
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });

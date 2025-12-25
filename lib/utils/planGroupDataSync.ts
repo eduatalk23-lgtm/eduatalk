@@ -223,6 +223,9 @@ export function syncWizardDataToCreationData(
         academy_name: s.academy_name || undefined,
         subject: s.subject || undefined,
         travel_time: s.travel_time,
+        // source와 is_locked 필드 보존 (템플릿 출처 및 잠금 상태 추적용)
+        source: s.source,
+        is_locked: s.is_locked,
       })),
       // 1730 Timetable 추가 필드
       study_review_cycle: validatedData.study_review_cycle,
@@ -320,6 +323,8 @@ export function syncCreationDataToWizardData(data: {
     academy_name?: string | null;
     subject?: string | null;
     travel_time?: number | null;
+    source?: "template" | "student" | "time_management" | null;
+    is_locked?: boolean | null;
   }>;
 }): WizardData {
   try {
@@ -450,6 +455,9 @@ export function syncCreationDataToWizardData(data: {
         academy_name: s.academy_name || undefined,
         subject: s.subject || undefined,
         travel_time: s.travel_time || undefined,
+        // source와 is_locked 필드 보존 (템플릿 출처 및 잠금 상태 추적용)
+        source: s.source || undefined,
+        is_locked: s.is_locked ?? undefined,
       })),
       time_settings: hasTimeSettings ? timeSettings : undefined,
       student_contents: studentContents,
