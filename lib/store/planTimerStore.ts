@@ -6,16 +6,27 @@
  */
 
 import { create } from "zustand";
+import {
+  calculateDriftFreeSeconds,
+  validateTimerTransition,
+  canPerformAction,
+  type TimerStatus,
+  type TimerAction,
+} from "@/lib/utils/timerUtils";
 
-export type TimerStatus = "NOT_STARTED" | "RUNNING" | "PAUSED" | "COMPLETED";
+// 외부에서 사용할 수 있도록 re-export
+export type { TimerStatus, TimerAction } from "@/lib/utils/timerUtils";
+export { canPerformAction } from "@/lib/utils/timerUtils";
 
 export type PlanTimerData = {
   /** 현재 표시되는 시간 (초) */
   seconds: number;
   /** 타이머가 실행 중인지 여부 */
   isRunning: boolean;
-  /** 마지막 시작 시각 (밀리초, 서버 시간 기준) */
+  /** 마지막 시작 시각 (밀리초, 서버 시간 기준) - drift 보정 시 변경될 수 있음 */
   startedAt: number | null;
+  /** 원본 시작 시각 (밀리초, 서버 시간 기준) - syncNow에서도 변경되지 않음 */
+  originalStartedAt: number | null;
   /** 시작 시점의 누적 시간 (초) */
   baseAccumulated: number;
   /** 서버 시간과 클라이언트 시간의 차이 (밀리초) */
@@ -33,6 +44,8 @@ type PlanTimerStore = {
   timers: Map<string, PlanTimerData>;
   /** Visibility API 상태 */
   isVisible: boolean;
+  /** 탭이 다시 보이게 된 시점의 타임스탬프 (서버 동기화 트리거용) */
+  visibilityChangeTimestamp: number | null;
   /** 초기화 */
   initPlanTimer: (
     planId: string,
@@ -66,30 +79,6 @@ type PlanTimerStore = {
 // Global interval 관리 (모든 타이머가 하나의 interval을 공유)
 let globalIntervalId: NodeJS.Timeout | null = null;
 let isGlobalIntervalRunning = false;
-
-/**
- * Drift-free 시간 계산
- *
- * @param startedAt 시작 시각 (밀리초)
- * @param baseAccumulated 시작 시점의 누적 시간 (초)
- * @param timeOffset 서버 시간 오프셋 (밀리초)
- * @param now 현재 시간 (밀리초, 기본값: Date.now())
- * @returns 현재 경과 시간 (초)
- */
-function calculateDriftFreeSeconds(
-  startedAt: number | null,
-  baseAccumulated: number,
-  timeOffset: number,
-  now: number = Date.now()
-): number {
-  if (!startedAt) {
-    return baseAccumulated;
-  }
-
-  const serverNow = now + timeOffset;
-  const elapsed = Math.floor((serverNow - startedAt) / 1000);
-  return baseAccumulated + elapsed;
-}
 
 /**
  * 모든 활성 타이머 업데이트
@@ -167,15 +156,9 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
       set({ isVisible });
 
       if (isVisible) {
-        // 탭이 다시 보이면 모든 실행 중인 타이머 동기화
-        store.timers.forEach((timer, planId) => {
-          if (timer.status === "RUNNING" && timer.isRunning) {
-            // 서버 시간은 현재 클라이언트 시간으로 대체 (실제로는 서버에서 받아야 함)
-            const now = Date.now();
-            const serverNow = now + timer.timeOffset;
-            store.syncNow(planId, serverNow);
-          }
-        });
+        // 탭이 다시 보이면 visibilityChangeTimestamp 업데이트
+        // 실제 서버 동기화는 usePlanTimer 훅에서 처리 (서버에서 정확한 시간을 받아옴)
+        set({ visibilityChangeTimestamp: Date.now() });
         startGlobalInterval(get);
       } else {
         // 탭이 숨겨지면 interval 정지
@@ -195,6 +178,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
       typeof document !== "undefined"
         ? document.visibilityState === "visible"
         : true,
+    visibilityChangeTimestamp: null,
 
     initPlanTimer: (planId, options) => {
       const { status, accumulatedSeconds, startedAt, serverNow } = options;
@@ -207,6 +191,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
         seconds: accumulatedSeconds,
         isRunning: status === "RUNNING",
         startedAt: startedAtMs,
+        originalStartedAt: startedAtMs, // 원본 시작 시간 보존
         baseAccumulated: accumulatedSeconds,
         timeOffset,
         status,
@@ -240,11 +225,12 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
       set((state) => {
         const timer = state.timers.get(planId);
         if (!timer) {
-          // 타이머가 없으면 초기화 후 시작
+          // 타이머가 없으면 초기화 후 시작 (NOT_STARTED → RUNNING)
           const timerData: PlanTimerData = {
             seconds: 0,
             isRunning: true,
             startedAt: startedAtMs,
+            originalStartedAt: startedAtMs, // 원본 시작 시간 보존
             baseAccumulated: 0,
             timeOffset,
             status: "RUNNING",
@@ -261,13 +247,24 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
           return { timers: newTimers };
         }
 
+        // 상태 전환 검증: START (NOT_STARTED → RUNNING) 또는 RESUME (PAUSED → RUNNING)
+        const action: TimerAction = timer.status === "PAUSED" ? "RESUME" : "START";
+        const transitionResult = validateTimerTransition(timer.status, action);
+
+        if (!transitionResult.valid) {
+          console.warn("[planTimerStore] Invalid state transition:", transitionResult.error);
+          return state; // 무효한 전환은 무시
+        }
+
         const newTimer: PlanTimerData = {
           ...timer,
           isRunning: true,
           startedAt: startedAtMs, // 서버에서 받은 실제 시작 시각 사용
+          // originalStartedAt이 없으면 현재 시작 시간으로 설정 (재개 시에는 기존 값 유지)
+          originalStartedAt: timer.originalStartedAt ?? startedAtMs,
           baseAccumulated: timer.seconds, // 현재 시간을 base로 설정
           timeOffset,
-          status: "RUNNING",
+          status: transitionResult.nextStatus,
         };
 
         const newTimers = new Map(state.timers);
@@ -288,13 +285,21 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
           return state;
         }
 
+        // 상태 전환 검증: PAUSE (RUNNING → PAUSED)
+        const transitionResult = validateTimerTransition(timer.status, "PAUSE");
+
+        if (!transitionResult.valid) {
+          console.warn("[planTimerStore] Invalid state transition:", transitionResult.error);
+          return state; // 무효한 전환은 무시
+        }
+
         const newTimer: PlanTimerData = {
           ...timer,
           isRunning: false,
           startedAt: null,
           baseAccumulated: accumulatedSeconds,
           seconds: accumulatedSeconds,
-          status: "PAUSED",
+          status: transitionResult.nextStatus,
         };
 
         const newTimers = new Map(state.timers);
@@ -323,13 +328,21 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
           return state;
         }
 
+        // 상태 전환 검증: COMPLETE (RUNNING → COMPLETED 또는 PAUSED → COMPLETED)
+        const transitionResult = validateTimerTransition(timer.status, "COMPLETE");
+
+        if (!transitionResult.valid) {
+          console.warn("[planTimerStore] Invalid state transition:", transitionResult.error);
+          return state; // 무효한 전환은 무시
+        }
+
         const newTimer: PlanTimerData = {
           ...timer,
           isRunning: false,
           startedAt: null,
           baseAccumulated: accumulatedSeconds,
           seconds: accumulatedSeconds,
-          status: "COMPLETED",
+          status: transitionResult.nextStatus,
         };
 
         const newTimers = new Map(state.timers);
