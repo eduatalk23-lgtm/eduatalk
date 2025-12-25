@@ -116,48 +116,38 @@ export function useScoreFilter<T>(
     return filtered;
   }, [scoresWithInfo, filterConfig, sortConfig, customFilters]);
 
-  // 고유한 교과 및 과목 유형 목록
-  const availableSubjectGroups = useMemo(() => {
+  // 고유한 교과, 과목 유형, 과목, 학년 목록을 단일 순회로 수집 (O(n))
+  const availableOptions = useMemo(() => {
     const groups = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectGroupName) groups.add(item.subjectGroupName);
-    });
-    return Array.from(groups).sort();
-  }, [scoresWithInfo]);
-
-  const availableSubjectTypes = useMemo(() => {
     const types = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectTypeName) types.add(item.subjectTypeName);
-    });
-    return Array.from(types).sort();
-  }, [scoresWithInfo]);
-
-  const availableSubjects = useMemo(() => {
     const subjects = new Set<string>();
-    scoresWithInfo.forEach((item) => {
-      if (item.subjectName) subjects.add(item.subjectName);
-    });
-    return Array.from(subjects).sort();
-  }, [scoresWithInfo]);
-
-  const availableGrades = useMemo(() => {
     const grades = new Set<number>();
-    scoresWithInfo.forEach((item) => {
+
+    for (const item of scoresWithInfo) {
+      if (item.subjectGroupName) groups.add(item.subjectGroupName);
+      if (item.subjectTypeName) types.add(item.subjectTypeName);
+      if (item.subjectName) subjects.add(item.subjectName);
       const grade = (item.score as { grade?: number }).grade;
       if (grade) grades.add(grade);
-    });
-    return Array.from(grades).sort();
+    }
+
+    return {
+      subjectGroups: Array.from(groups).sort(),
+      subjectTypes: Array.from(types).sort(),
+      subjects: Array.from(subjects).sort(),
+      grades: Array.from(grades).sort(),
+    };
   }, [scoresWithInfo]);
 
   return {
     filteredAndSortedScores,
-    availableSubjectGroups,
-    availableSubjectTypes,
-    availableSubjects,
-    availableGrades,
+    availableSubjectGroups: availableOptions.subjectGroups,
+    availableSubjectTypes: availableOptions.subjectTypes,
+    availableSubjects: availableOptions.subjects,
+    availableGrades: availableOptions.grades,
   };
 }
+
 
 
 

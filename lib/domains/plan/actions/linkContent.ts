@@ -66,7 +66,7 @@ export async function linkContentToVirtualPlan(
 
     // 1. 현재 플랜 조회 및 권한 확인
     const { data: plan, error: fetchError } = await supabase
-      .from("student_plans")
+      .from("student_plan")
       .select(`
         id,
         student_id,
@@ -196,7 +196,7 @@ export async function linkContentToVirtualPlan(
 
     // Admin client 사용하여 RLS 우회 (plan_groups 조인으로 권한 확인 완료됨)
     const { error: updateError } = await adminClient
-      .from("student_plans")
+      .from("student_plan")
       .update(updateData)
       .eq("id", planId);
 
@@ -208,7 +208,7 @@ export async function linkContentToVirtualPlan(
     // 6. 같은 slot_index를 가진 다른 가상 플랜들도 업데이트 (여러 날에 걸친 플랜)
     if (plan.slot_index !== null && plan.plan_group_id) {
       const { error: batchUpdateError } = await adminClient
-        .from("student_plans")
+        .from("student_plan")
         .update({
           content_id: resolvedContentId,
           content_type: contentInfo.contentType,

@@ -11,8 +11,7 @@ import {
   cardBase,
   textMuted,
 } from "@/lib/utils/darkMode";
-
-type PendingAction = "start" | "pause" | "resume" | "complete" | null;
+import type { PendingAction } from "@/lib/domains/today/types";
 
 type PlanTimerProps = {
   planId: string;
@@ -46,7 +45,7 @@ function PlanTimerComponent({
   onComplete,
   onPostpone,
   canPostpone = false,
-  pendingAction = null,
+  pendingAction,
   compact = false,
   status,
   accumulatedSeconds,

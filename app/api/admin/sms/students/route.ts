@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     let students: Array<{
       id: string;
       name: string | null;
-      grade: string | null;
+      grade: number | null; // DB에서 number 타입
       division: StudentDivision | null;
       phone: string | null;
       mother_phone: string | null;
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
           recipients.push({
             studentId: student.id,
             studentName: student.name || "이름 없음",
-            grade: student.grade || null,
+            grade: student.grade != null ? String(student.grade) : null,
             division: student.division || null,
             recipientType,
             phone,

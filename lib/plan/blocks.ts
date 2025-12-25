@@ -226,8 +226,9 @@ async function getTemplateBlockSet(
   } else {
     // 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
     const template = await getCampTemplate(templateId);
-    if (template?.template_data?.block_set_id) {
-      templateBlockSetId = template.template_data.block_set_id;
+    const templateData = template?.template_data as Record<string, unknown> | null;
+    if (templateData?.block_set_id && typeof templateData.block_set_id === "string") {
+      templateBlockSetId = templateData.block_set_id;
     }
   }
 

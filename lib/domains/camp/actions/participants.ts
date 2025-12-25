@@ -148,6 +148,7 @@ export const sendCampInvitationsAction = withErrorHandling(
       });
 
       // 성공한 알림 상태 업데이트
+      // Note: notification_* 필드는 마이그레이션 후 추가됨 (20251225185457_add_camp_invitation_notification_tracking.sql)
       if (successIds.length > 0) {
         await supabase
           .from("camp_invitations")
@@ -155,7 +156,7 @@ export const sendCampInvitationsAction = withErrorHandling(
             notification_status: "sent",
             notification_sent_at: now,
             notification_attempts: 1,
-          })
+          } as Record<string, unknown>)
           .in("id", successIds);
       }
 
@@ -167,7 +168,7 @@ export const sendCampInvitationsAction = withErrorHandling(
             notification_status: "failed",
             notification_error: error.substring(0, 500), // 에러 메시지 길이 제한
             notification_attempts: 1,
-          })
+          } as Record<string, unknown>)
           .eq("id", id);
       }
 
@@ -750,9 +751,10 @@ export const getCampParticipantsAction = withErrorHandling(
 
     const participants = (invitationsData || []).map((invitation) => {
       const planGroup = planGroupsMap.get(invitation.id);
+      const invitationStatus = invitation.status ?? "pending";
       const isSubmitted =
-        invitation.status === "pending" && planGroup !== undefined;
-      const displayStatus = isSubmitted ? "submitted" : invitation.status;
+        invitationStatus === "pending" && planGroup !== undefined;
+      const displayStatus = isSubmitted ? "submitted" : invitationStatus;
 
       return {
         invitation_id: invitation.id,
@@ -762,13 +764,13 @@ export const getCampParticipantsAction = withErrorHandling(
           ? String((invitation.students as any).grade)
           : null,
         student_class: (invitation.students as any)?.class || null,
-        invitation_status: invitation.status,
+        invitation_status: invitationStatus,
         display_status: displayStatus,
         plan_group_id: planGroup?.id || null,
         plan_group_name: planGroup?.name || null,
         plan_group_status: planGroup?.status || null,
         hasPlans: planGroup ? plansMap.has(planGroup.id) : false,
-        invited_at: invitation.invited_at,
+        invited_at: invitation.invited_at ?? new Date().toISOString(),
         accepted_at: invitation.accepted_at,
       };
     });

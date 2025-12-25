@@ -61,3 +61,4 @@ console.log("[classifyPlanContents] 최종 결과:", {
 - `lib/data/planContents.ts` (1200-1208줄 수정)
 
 
+

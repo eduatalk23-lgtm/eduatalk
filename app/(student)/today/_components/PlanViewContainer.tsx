@@ -1,17 +1,14 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { SinglePlanView } from "./SinglePlanView";
 import { DailyPlanListView } from "./DailyPlanListView";
 import { ViewModeSelector } from "./ViewModeSelector";
 import { PlanDateNavigator } from "./PlanDateNavigator";
 import { usePlanRealtimeUpdates } from "@/lib/realtime/usePlanRealtimeUpdates";
 import { useTodayPlans } from "@/lib/hooks/useTodayPlans";
-import {
-  groupPlansByPlanNumber,
-  PlanGroup,
-  type PlanWithContent,
-} from "../_utils/planGroupUtils";
+import { usePlanViewState, type ViewMode } from "@/lib/hooks/usePlanViewState";
+import { groupPlansByPlanNumber } from "../_utils/planGroupUtils";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import {
   formatKoreanDateWithDay,
@@ -20,7 +17,7 @@ import {
 } from "../_utils/dateDisplay";
 import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
-export type ViewMode = "single" | "daily";
+export type { ViewMode };
 
 type PlanViewContainerProps = {
   initialMode?: ViewMode;
@@ -30,10 +27,6 @@ type PlanViewContainerProps = {
   userId?: string;
   tenantId?: string | null;
   campMode?: boolean;
-  /**
-   * If provided, uses this data as initial data instead of fetching.
-   * Used on pages like /camp/today where data is already fetched on the server.
-   */
   initialData?: TodayPlansResponse;
 };
 
@@ -45,6 +38,9 @@ type SessionState = {
   pausedDurationSeconds?: number | null;
 };
 
+/**
+ * ISO 날짜 문자열에 delta 일수를 더한 날짜를 반환
+ */
 function shiftIsoDate(baseDate: string, delta: number): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(baseDate)) {
     return null;
@@ -82,25 +78,12 @@ export function PlanViewContainer({
   campMode = false,
   initialData,
 }: PlanViewContainerProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
-  const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
-    initialSelectedPlanNumber
-  );
-  // plan.id 기반 선택을 위한 selectedPlanId 추가
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-
-  // 사용자가 마지막으로 선택한 planNumber 추적 (같은 날짜 내에서 유지)
-  const lastUserSelectedPlanNumber = useRef<number | null>(null);
-  // 사용자가 마지막으로 선택한 planId 추적
-  const lastUserSelectedPlanId = useRef<string | null>(null);
-  const lastPlanDate = useRef<string>(initialPlanDate || getTodayISODate());
-
-  // 날짜 상태 관리 (초기값은 initialPlanDate 또는 오늘 날짜)
+  // 날짜 상태 (순환 의존성 방지를 위해 컴포넌트에서 직접 관리)
   const [planDate, setPlanDate] = useState<string>(() => {
     return initialPlanDate || getTodayISODate();
   });
 
-  // React Query를 사용하여 데이터 조회
+  // 데이터 조회
   const {
     data: plansData,
     isLoading,
@@ -111,18 +94,21 @@ export function PlanViewContainer({
     tenantId,
     date: planDate,
     camp: campMode,
-    includeProgress: true, // todayProgress 포함하여 별도 API 호출 방지
-    enabled: !!userId && !!planDate && !initialData, // initialData가 있으면 fetch 비활성화
+    includeProgress: true,
+    enabled: !!userId && !!planDate && !initialData,
     initialData: initialData && planDate === initialData.planDate ? initialData : undefined,
   });
 
-  // 데이터 가공 (useMemo로 최적화)
+  // 데이터 가공
   const groups = useMemo(() => {
     if (plansData?.plans) {
       return groupPlansByPlanNumber(plansData.plans);
     }
+    if (initialData?.plans) {
+      return groupPlansByPlanNumber(initialData.plans);
+    }
     return [];
-  }, [plansData?.plans]);
+  }, [plansData?.plans, initialData?.plans]);
 
   const sessions = useMemo(() => {
     if (plansData?.sessions) {
@@ -138,181 +124,56 @@ export function PlanViewContainer({
   const isToday = Boolean(plansData?.isToday);
   const serverNow = plansData?.serverNow || Date.now();
 
-  // Realtime 구독 설정 (30초 폴링 대체)
+  // 선택 및 뷰 모드 상태 관리 Hook
+  const {
+    viewMode,
+    selectedPlanNumber,
+    selectedPlanId,
+    handleViewDetail,
+    handleSelectPlan,
+    handleSelectPlanById,
+    handleModeChange,
+  } = usePlanViewState({
+    initialMode,
+    initialSelectedPlanNumber,
+    groups,
+    planDate,
+  });
+
+  // 날짜 이동 핸들러
+  const handleMoveDay = useCallback(
+    (delta: number) => {
+      const nextDate = shiftIsoDate(planDate, delta);
+      if (nextDate) {
+        setPlanDate(nextDate);
+      }
+    },
+    [planDate]
+  );
+
+  // 오늘로 리셋 핸들러
+  const handleResetToToday = useCallback(() => {
+    setPlanDate(getTodayISODate());
+  }, []);
+
+  // Realtime 구독
   usePlanRealtimeUpdates({
     planDate: planDate || getTodayISODate(),
     userId: userId || "",
     enabled: Boolean(userId && planDate),
   });
 
-  // 데이터가 로드되면 날짜 변경 콜백 호출
+  // 데이터 로드 시 날짜 변경 콜백 호출
   useEffect(() => {
     if (!plansData) return;
 
-    // todayProgress를 포함하여 onDateChange 호출
     onDateChange?.(plansData.planDate, {
       isToday: Boolean(plansData.isToday),
       todayProgress: plansData.todayProgress,
     });
   }, [plansData, onDateChange]);
 
-  // planDate가 변경되었을 때 selectedPlanNumber와 selectedPlanId 리셋
-  useEffect(() => {
-    if (planDate !== lastPlanDate.current) {
-      lastPlanDate.current = planDate;
-      lastUserSelectedPlanNumber.current = null; // 날짜 변경 시 사용자 선택 초기화
-      lastUserSelectedPlanId.current = null; // planId도 초기화
-      if (groups.length > 0) {
-        setSelectedPlanNumber(groups[0]?.planNumber ?? null);
-        setSelectedPlanId(groups[0]?.plan.id ?? null);
-      } else {
-        setSelectedPlanNumber(null);
-        setSelectedPlanId(null);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planDate]);
-
-  // groups가 처음 로드될 때만 selectedPlanNumber 초기화 (planDate 변경 시 제외)
-  // 사용자 선택이 있으면 절대 덮어쓰지 않음
-  const groupsKey = useMemo(() => {
-    return groups.map((g) => g.plan.id).join(",");
-  }, [groups]);
-
-  const prevGroupsKey = useRef<string>("");
-
-  useEffect(() => {
-    // planDate가 변경되었는지 확인 (이미 위의 useEffect에서 처리됨)
-    if (planDate !== lastPlanDate.current) {
-      prevGroupsKey.current = groupsKey;
-      return; // planDate 변경은 위의 useEffect에서 처리
-    }
-
-    // groupsKey가 실제로 변경되었는지 확인
-    if (groupsKey === prevGroupsKey.current) {
-      return; // 변경되지 않았으면 실행하지 않음
-    }
-    prevGroupsKey.current = groupsKey;
-
-    // 사용자 선택이 있으면 절대 덮어쓰지 않음
-    // selectedPlanId가 있으면 plan.id로 그룹을 찾아서 유효한지 확인
-    if (lastUserSelectedPlanId.current !== null) {
-      const userSelectedId = lastUserSelectedPlanId.current;
-      if (groups.some((g) => g.plan.id === userSelectedId)) {
-        // 사용자 선택이 유효하면 아무것도 하지 않음
-        return;
-      }
-    }
-    // planNumber로도 확인
-    if (lastUserSelectedPlanNumber.current !== null) {
-      const userSelected = lastUserSelectedPlanNumber.current;
-      if (groups.some((g) => g.planNumber === userSelected)) {
-        // 사용자 선택이 유효하면 아무것도 하지 않음
-        return;
-      }
-    }
-
-    // 사용자 선택이 없거나 유효하지 않은 경우에만 초기화
-    if (groups.length === 0) {
-      if (selectedPlanNumber !== null) {
-        setSelectedPlanNumber(null);
-      }
-      if (selectedPlanId !== null) {
-        setSelectedPlanId(null);
-      }
-      return;
-    }
-
-    // 현재 선택이 유효한지 확인 (selectedPlanId 우선)
-    const isValidSelection = selectedPlanId
-      ? groups.some((g) => g.plan.id === selectedPlanId)
-      : selectedPlanNumber !== null
-      ? groups.some((g) => g.planNumber === selectedPlanNumber)
-      : groups.length > 0; // null이면 그룹이 있으면 유효
-    
-    if (!isValidSelection) {
-      // 유효하지 않으면 첫 번째 그룹 선택
-      setSelectedPlanNumber(groups[0]?.planNumber ?? null);
-      setSelectedPlanId(groups[0]?.plan.id ?? null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groupsKey, planDate]);
-
-  const handleViewDetail = (planId: string) => {
-    // plan.id로 그룹을 찾아서 planId와 planNumber를 모두 설정
-    const selectedGroup = groups.find((g) => g.plan.id === planId);
-    if (selectedGroup) {
-      const planNumber = selectedGroup.planNumber;
-      lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
-      lastUserSelectedPlanId.current = planId; // planId도 추적
-      setSelectedPlanNumber(planNumber);
-      setSelectedPlanId(planId); // planId 설정
-      setViewMode("single");
-    } else {
-      // 그룹을 찾을 수 없으면 첫 번째 그룹 선택
-      if (groups.length > 0) {
-        const planNumber = groups[0].planNumber;
-        const planId = groups[0].plan.id;
-        lastUserSelectedPlanNumber.current = planNumber;
-        lastUserSelectedPlanId.current = planId;
-        setSelectedPlanNumber(planNumber);
-        setSelectedPlanId(planId);
-        setViewMode("single");
-      }
-    }
-  };
-  
-  // selectedPlanNumber를 직접 변경하는 핸들러 (SinglePlanView에서 사용)
-  const handleSelectPlan = useCallback((planNumber: number | null) => {
-    lastUserSelectedPlanNumber.current = planNumber; // 사용자 선택 추적
-    setSelectedPlanNumber(planNumber);
-    // planNumber로 그룹을 찾아서 planId도 설정
-    const selectedGroup = groups.find((g) => g.planNumber === planNumber);
-    if (selectedGroup) {
-      lastUserSelectedPlanId.current = selectedGroup.plan.id;
-      setSelectedPlanId(selectedGroup.plan.id);
-    } else if (planNumber === null) {
-      // planNumber가 null인 경우 planId도 null로 설정
-      lastUserSelectedPlanId.current = null;
-      setSelectedPlanId(null);
-    }
-  }, [groups]);
-
-  // plan.id 기반 선택 핸들러 (우선 사용)
-  const handleSelectPlanById = useCallback((planId: string) => {
-    // plan.id로 그룹을 찾아서 planNumber와 planId 모두 설정
-    const selectedGroup = groups.find((g) => g.plan.id === planId);
-    if (selectedGroup) {
-      const planNumber = selectedGroup.planNumber;
-      lastUserSelectedPlanNumber.current = planNumber;
-      lastUserSelectedPlanId.current = planId;
-      setSelectedPlanNumber(planNumber);
-      setSelectedPlanId(planId);
-    }
-  }, [groups]);
-
-  const handleModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
-    if (mode === "single" && !selectedPlanNumber && groups.length > 0) {
-      setSelectedPlanNumber(groups[0]?.planNumber ?? null);
-      setSelectedPlanId(groups[0]?.plan.id ?? null);
-    }
-  };
-
-  const handleMoveDay = useCallback((delta: number) => {
-    const nextDate = shiftIsoDate(planDate, delta);
-    if (!nextDate) return;
-    // planDate 상태만 변경하면 useTodayPlans가 자동으로 리페치
-    setPlanDate(nextDate);
-  }, [planDate]);
-
-  const handleResetToToday = useCallback(() => {
-    const today = getTodayISODate();
-    // planDate 상태만 변경하면 useTodayPlans가 자동으로 리페치
-    setPlanDate(today);
-  }, []);
-
-  // 로딩 상태 처리
+  // 로딩 상태
   if (isLoading && groups.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -321,7 +182,7 @@ export function PlanViewContainer({
     );
   }
 
-  // 에러 상태 처리
+  // 에러 상태
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-8">
@@ -329,10 +190,7 @@ export function PlanViewContainer({
           {error instanceof Error ? error.message : "플랜을 불러오는 중 오류가 발생했습니다."}
         </p>
         <button
-          onClick={() => {
-            // React Query가 자동으로 리페치
-            setPlanDate(planDate);
-          }}
+          onClick={handleResetToToday}
           className="rounded-lg bg-blue-500 px-4 py-2 text-sm text-white hover:bg-blue-600"
         >
           다시 시도

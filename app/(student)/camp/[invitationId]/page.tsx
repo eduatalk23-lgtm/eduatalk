@@ -129,7 +129,7 @@ export default async function CampParticipationPage({
   }
 
   // 템플릿 데이터를 initialData로 변환
-  const templateData = template.template_data;
+  const templateData = template.template_data as Record<string, unknown> | null;
 
   // 개발 환경에서 디버깅 로그
   if (process.env.NODE_ENV === "development") {
@@ -138,8 +138,8 @@ export default async function CampParticipationPage({
       period_end: templateData?.period_end,
       block_set_id: templateData?.block_set_id,
       scheduler_type: templateData?.scheduler_type,
-      exclusions: templateData?.exclusions?.length || 0,
-      academy_schedules: templateData?.academy_schedules?.length || 0,
+      exclusions: Array.isArray(templateData?.exclusions) ? templateData.exclusions.length : 0,
+      academy_schedules: Array.isArray(templateData?.academy_schedules) ? templateData.academy_schedules.length : 0,
     });
   }
 
@@ -182,8 +182,8 @@ export default async function CampParticipationPage({
 
   // 날짜 형식 검증
   if (templateData?.period_start && templateData?.period_end) {
-    const startDate = new Date(templateData.period_start);
-    const endDate = new Date(templateData.period_end);
+    const startDate = new Date(String(templateData.period_start));
+    const endDate = new Date(String(templateData.period_end));
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       validationErrors.push(
@@ -278,7 +278,7 @@ export default async function CampParticipationPage({
   }
   
   // 하위 호환성: template_data.block_set_id도 확인 (마이그레이션 전 데이터용)
-  if (!templateBlockSet && templateData?.block_set_id) {
+  if (!templateBlockSet && templateData?.block_set_id && typeof templateData.block_set_id === "string") {
     const { data: legacyBlockSetData, error: legacyError } = await supabase
       .from("tenant_block_sets")
       .select("id, name")
@@ -339,8 +339,9 @@ export default async function CampParticipationPage({
   }
 
   // 템플릿 제외일에 source와 is_locked 필드 추가
-  const templateExclusions = (templateData?.exclusions || []).map(
-    (exclusion) => ({
+  const rawExclusions = Array.isArray(templateData?.exclusions) ? templateData.exclusions : [];
+  const templateExclusions = rawExclusions.map(
+    (exclusion: Record<string, unknown>) => ({
       ...exclusion,
       source: "template" as const,
       is_locked: true, // 템플릿에서 추가한 제외일은 삭제 불가
@@ -348,21 +349,25 @@ export default async function CampParticipationPage({
   );
 
   // 템플릿 학원 일정에 source와 is_locked 필드 추가
-  const templateAcademySchedules = (templateData?.academy_schedules || []).map(
-    (schedule) => ({
+  const rawAcademySchedules = Array.isArray(templateData?.academy_schedules) ? templateData.academy_schedules : [];
+  const templateAcademySchedules = rawAcademySchedules.map(
+    (schedule: Record<string, unknown>) => ({
       ...schedule,
       source: "template" as const,
       is_locked: true, // 템플릿에서 추가한 학원 일정은 삭제 불가 (필요시)
     })
   );
 
+  // 템플릿 추천 콘텐츠
+  const rawRecommendedContents = Array.isArray(templateData?.recommended_contents) ? templateData.recommended_contents : [];
+
   // Draft 데이터가 있으면 우선 사용, 없으면 템플릿 데이터 사용
   const baseData = draftData || {
-    ...templateData,
+    ...(templateData || {}),
     name: template.name, // 템플릿 이름 사용
     academy_schedules: templateAcademySchedules, // 템플릿 학원 일정 (학생 추가 가능)
     student_contents: [], // 학생이 선택
-    recommended_contents: templateData?.recommended_contents || [], // 템플릿 추천 콘텐츠
+    recommended_contents: rawRecommendedContents, // 템플릿 추천 콘텐츠
     exclusions: templateExclusions, // 템플릿 제외일 (source, is_locked 포함)
   };
 

@@ -15,6 +15,8 @@ import type {
   CreateAttendanceRecordInput,
   UpdateAttendanceRecordInput,
   AttendanceFilters,
+  CheckMethod,
+  AttendanceStatus,
 } from "@/lib/domains/attendance/types";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
@@ -423,11 +425,18 @@ export async function updateAttendanceRecord(
     
     // 5. 검증 (수정된 데이터 기준)
     const updatedRecord = { ...existingRecord, ...updateData };
-    // 검증을 위해 student_id와 attendance_date를 포함한 전체 입력 객체 생성
+    // 검증을 위해 UpdateAttendanceRecordInput 형식으로 변환
+    // updateData는 updates에서 온 값들만 포함하므로 타입 호환됨
     const validationInput: UpdateAttendanceRecordInput = {
-      ...updateData,
+      check_in_time: updateData.check_in_time,
+      check_out_time: updateData.check_out_time,
+      check_in_method: updateData.check_in_method as CheckMethod | null | undefined,
+      check_out_method: updateData.check_out_method as CheckMethod | null | undefined,
+      status: updateData.status as AttendanceStatus | undefined,
+      notes: updateData.notes,
     };
-    const validation = await validateAttendanceRecord(validationInput, existingRecord);
+    // existingRecord를 AttendanceRecord 타입으로 캐스팅 (DB 스키마와 도메인 타입 호환)
+    const validation = await validateAttendanceRecord(validationInput, existingRecord as unknown as Parameters<typeof validateAttendanceRecord>[1]);
     if (!validation.valid) {
       throw new AppError(
         validation.errors[0]?.message || "검증 실패",

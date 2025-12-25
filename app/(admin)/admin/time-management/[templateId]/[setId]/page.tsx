@@ -69,7 +69,7 @@ export default async function TemplateBlockSetDetailPage({ params }: PageProps) 
   }
 
   // 템플릿 데이터에서 선택된 블록 세트 확인
-  const templateData = result.template.template_data;
+  const templateData = result.template.template_data as Record<string, unknown> | null;
   const isSelected = templateData?.block_set_id === setId;
 
   return (

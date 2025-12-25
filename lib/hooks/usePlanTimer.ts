@@ -2,17 +2,28 @@
 
 /**
  * UI-only consumption hook for plan timer
- * 
+ *
  * 스토어를 구독하여 타이머 상태를 읽어옵니다.
  * 이 훅 자체는 interval을 생성하지 않습니다.
- * 
+ *
  * 최적화: selector 패턴을 사용하여 특정 planId의 타이머만 구독합니다.
+ *
+ * 동기화 전략:
+ * 1. Visibility 변경 시 즉시 동기화
+ * 2. RUNNING 상태에서 5분마다 주기적 동기화
+ * 3. 서버-클라이언트 시간 차이가 큰 경우 동기화
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
+import { getServerTime } from "@/lib/domains/today";
+
+// 주기적 동기화 간격 (5분)
+const PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+// 시간 차이 임계값 (2초 이상이면 동기화)
+const SYNC_THRESHOLD_SECONDS = 2;
 
 export type UsePlanTimerOptions = {
   /** 플랜 ID */
@@ -75,8 +86,17 @@ export function usePlanTimer({
   const removeTimer = usePlanTimerStore((state) => state.removeTimer);
   const syncNow = usePlanTimerStore((state) => state.syncNow);
 
+  // visibility 변경 감지를 위한 구독
+  const visibilityChangeTimestamp = usePlanTimerStore(
+    (state) => state.visibilityChangeTimestamp
+  );
+
   // Debounce를 위한 ref
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastVisibilityTimestampRef = useRef<number | null>(null);
+  // 주기적 동기화를 위한 ref
+  const periodicSyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPeriodicSyncRef = useRef<number>(Date.now());
 
   // 참조 카운팅: 컴포넌트 마운트 시 참조 증가
   useEffect(() => {
@@ -89,6 +109,92 @@ export function usePlanTimer({
       removeTimerRef(planId);
     };
   }, [planId]);
+
+  // Visibility 변경 시 서버에서 정확한 시간을 가져와 동기화
+  useEffect(() => {
+    // 첫 마운트 시에는 동기화 불필요
+    if (visibilityChangeTimestamp === null) {
+      return;
+    }
+
+    // 같은 타임스탬프에 대해 중복 동기화 방지
+    if (lastVisibilityTimestampRef.current === visibilityChangeTimestamp) {
+      return;
+    }
+    lastVisibilityTimestampRef.current = visibilityChangeTimestamp;
+
+    // 현재 타이머가 RUNNING 상태인 경우에만 서버 동기화
+    const currentTimer = usePlanTimerStore.getState().timers.get(planId);
+    if (!currentTimer || currentTimer.status !== "RUNNING" || !currentTimer.isRunning) {
+      return;
+    }
+
+    // 서버에서 정확한 시간을 가져와 동기화
+    const syncWithServer = async () => {
+      try {
+        const { serverNow } = await getServerTime();
+        syncNow(planId, serverNow);
+      } catch (error) {
+        // 서버 요청 실패 시 기존 offset 사용하여 폴백
+        console.warn("[usePlanTimer] 서버 시간 동기화 실패, 로컬 시간 사용:", error);
+        const now = Date.now();
+        const fallbackServerNow = now + (currentTimer.timeOffset || 0);
+        syncNow(planId, fallbackServerNow);
+      }
+    };
+
+    syncWithServer();
+  }, [planId, visibilityChangeTimestamp, syncNow]);
+
+  // 주기적 동기화: RUNNING 상태에서 5분마다 서버와 동기화
+  useEffect(() => {
+    // 현재 타이머가 RUNNING 상태인지 확인
+    const currentTimer = usePlanTimerStore.getState().timers.get(planId);
+    const isRunning = currentTimer?.status === "RUNNING" && currentTimer?.isRunning;
+
+    // RUNNING 상태가 아니면 interval 정리
+    if (!isRunning) {
+      if (periodicSyncIntervalRef.current) {
+        clearInterval(periodicSyncIntervalRef.current);
+        periodicSyncIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // 이미 interval이 있으면 중복 생성 방지
+    if (periodicSyncIntervalRef.current) {
+      return;
+    }
+
+    // 주기적 동기화 설정
+    periodicSyncIntervalRef.current = setInterval(async () => {
+      const timer = usePlanTimerStore.getState().timers.get(planId);
+      if (!timer || timer.status !== "RUNNING" || !timer.isRunning) {
+        // 더 이상 RUNNING 상태가 아니면 interval 정리
+        if (periodicSyncIntervalRef.current) {
+          clearInterval(periodicSyncIntervalRef.current);
+          periodicSyncIntervalRef.current = null;
+        }
+        return;
+      }
+
+      try {
+        const { serverNow } = await getServerTime();
+        syncNow(planId, serverNow);
+        lastPeriodicSyncRef.current = Date.now();
+      } catch (error) {
+        console.warn("[usePlanTimer] 주기적 동기화 실패:", error);
+      }
+    }, PERIODIC_SYNC_INTERVAL_MS);
+
+    // Cleanup
+    return () => {
+      if (periodicSyncIntervalRef.current) {
+        clearInterval(periodicSyncIntervalRef.current);
+        periodicSyncIntervalRef.current = null;
+      }
+    };
+  }, [planId, timer?.status, timer?.isRunning, syncNow]);
 
   // 초기화 또는 상태 동기화
   useEffect(() => {
@@ -133,8 +239,8 @@ export function usePlanTimer({
       clearTimeout(syncTimeoutRef.current);
     }
 
-    // 차이가 크면 (예: 5초 이상) debounce 후 동기화
-    if (Math.abs(currentSeconds - expectedSeconds) > 5) {
+    // 차이가 크면 (SYNC_THRESHOLD_SECONDS 이상) debounce 후 동기화
+    if (Math.abs(currentSeconds - expectedSeconds) > SYNC_THRESHOLD_SECONDS) {
       syncTimeoutRef.current = setTimeout(() => {
         syncNow(planId, serverNow);
         syncTimeoutRef.current = null;

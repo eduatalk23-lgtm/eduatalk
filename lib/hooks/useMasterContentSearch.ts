@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { searchContentMastersAction } from "@/lib/domains/content";
 
 /**
  * 마스터 콘텐츠 검색 결과 타입
@@ -10,108 +9,88 @@ export type MasterContentResult = {
   id: string;
   title: string;
   content_type: "book" | "lecture";
-  subject?: string | null;
   subject_category?: string | null;
+  subject?: string | null;
+  publisher?: string | null;
+  platform?: string | null;
   publisher_or_academy?: string | null;
   total_pages?: number | null;
   total_episodes?: number | null;
 };
 
 type UseMasterContentSearchOptions = {
-  /** 검색 결과 최대 개수 */
+  contentType?: "book" | "lecture";
+  debounceMs?: number;
   limit?: number;
 };
 
 type UseMasterContentSearchReturn = {
-  /** 검색 결과 */
-  results: MasterContentResult[];
-  /** 검색어 */
+  query: string;
+  setQuery: (query: string) => void;
   searchQuery: string;
-  /** 검색어 설정 */
   setSearchQuery: (query: string) => void;
-  /** 검색 중 여부 */
+  results: MasterContentResult[];
+  isLoading: boolean;
   isSearching: boolean;
-  /** 검색 수행 여부 */
   hasSearched: boolean;
-  /** 검색 실행 */
-  search: (contentType: "book" | "lecture") => Promise<void>;
-  /** 상태 초기화 */
-  reset: () => void;
-  /** 에러 메시지 */
   error: string | null;
+  search: (searchQuery: string) => Promise<void>;
+  reset: () => void;
 };
 
 /**
- * 마스터 콘텐츠 검색 훅
+ * 마스터 콘텐츠 검색 Hook
  *
- * 마스터 교재/강의 검색 기능을 제공합니다.
- *
- * @example
- * ```tsx
- * const { results, searchQuery, setSearchQuery, search, isSearching } = useMasterContentSearch();
- *
- * // 검색 실행
- * await search("book");
- * ```
+ * TODO: 실제 검색 API 연동 필요
  */
 export function useMasterContentSearch(
-  options: UseMasterContentSearchOptions = {}
+  _options?: UseMasterContentSearchOptions
 ): UseMasterContentSearchReturn {
-  const { limit = 20 } = options;
-
-  const [results, setResults] = useState<MasterContentResult[]>([]);
+  const [query, setQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState<MasterContentResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const search = useCallback(
-    async (contentType: "book" | "lecture") => {
-      if (!searchQuery.trim()) return;
-
-      setIsSearching(true);
+  const search = useCallback(async (_searchQuery: string) => {
+    setIsLoading(true);
+    setIsSearching(true);
+    setError(null);
+    try {
+      // TODO: 실제 검색 API 호출
+      // const response = await searchMasterContents(searchQuery, options);
+      // setResults(response);
+      setResults([]);
       setHasSearched(true);
-      setError(null);
-
-      try {
-        const result = await searchContentMastersAction({
-          content_type: contentType,
-          search: searchQuery.trim(),
-          limit,
-        });
-
-        if (result && "data" in result) {
-          setResults(result.data as MasterContentResult[]);
-        } else {
-          setResults([]);
-        }
-      } catch (err) {
-        console.error("[useMasterContentSearch] 검색 실패:", err);
-        setError("마스터 콘텐츠 검색에 실패했습니다.");
-        setResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [searchQuery, limit]
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "검색 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+      setIsSearching(false);
+    }
+  }, []);
 
   const reset = useCallback(() => {
-    setResults([]);
+    setQuery("");
     setSearchQuery("");
-    setIsSearching(false);
-    setHasSearched(false);
+    setResults([]);
     setError(null);
+    setHasSearched(false);
   }, []);
 
   return {
-    results,
+    query,
+    setQuery,
     searchQuery,
     setSearchQuery,
+    results,
+    isLoading,
     isSearching,
     hasSearched,
+    error,
     search,
     reset,
-    error,
   };
 }

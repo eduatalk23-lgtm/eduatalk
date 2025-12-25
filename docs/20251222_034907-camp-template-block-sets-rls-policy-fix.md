@@ -68,3 +68,4 @@ ALTER TABLE camp_template_block_sets ENABLE ROW LEVEL SECURITY;
 - 일반 관리자/컨설턴트는 자신의 테넌트에 속한 데이터만 접근할 수 있습니다.
 
 
+

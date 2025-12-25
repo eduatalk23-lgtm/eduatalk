@@ -16,6 +16,7 @@ import {
   NonStudyTimeBlock,
   DailyScheduleInfo,
   PlanContentWithDetails,
+  ExclusionType,
 } from "@/lib/types/plan";
 import type { ContentSlot } from "@/lib/types/content-selection";
 import { isPlanContentWithDetails } from "@/lib/types/guards";
@@ -1145,9 +1146,14 @@ export async function getPlanExclusions(
     try {
       const { getCampTemplate } = await import("@/lib/data/campTemplates");
       const template = await getCampTemplate(planGroup.camp_template_id);
+      const templateData = template?.template_data as Record<string, unknown> | null;
 
-      if (template?.template_data?.exclusions) {
-        const templateExclusions = template.template_data.exclusions;
+      if (templateData?.exclusions && Array.isArray(templateData.exclusions)) {
+        const templateExclusions = templateData.exclusions as Array<{
+          exclusion_date: string;
+          exclusion_type: ExclusionType;
+          reason?: string | null;
+        }>;
         const dbExclusionDates = new Set(
           dbExclusions.map((e) => e.exclusion_date)
         );
@@ -1165,7 +1171,7 @@ export async function getPlanExclusions(
             student_id: planGroup.student_id || "",
             plan_group_id: groupId,
             exclusion_date: te.exclusion_date,
-            exclusion_type: te.exclusion_type,
+            exclusion_type: te.exclusion_type as ExclusionType,
             reason: te.reason || null,
             created_at: new Date().toISOString(),
           }));

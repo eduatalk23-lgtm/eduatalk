@@ -6,6 +6,7 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 
 export type NotificationType =
   | "camp_invitation"
@@ -85,7 +86,7 @@ export async function sendInAppNotification(
         type,
         title,
         message,
-        metadata: data ?? {},
+        metadata: (data ?? {}) as Json,
         is_read: false,
         tenant_id: tenantId ?? null,
       })
@@ -143,7 +144,7 @@ export async function sendBulkInAppNotification(
       type,
       title,
       message,
-      metadata: data ?? {},
+      metadata: (data ?? {}) as Json,
       is_read: false,
       tenant_id: tenantId ?? null,
     }));

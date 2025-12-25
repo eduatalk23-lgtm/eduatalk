@@ -11,7 +11,7 @@ import type { ContentData, BlockData } from "../../../utils/scheduleTransform";
 import { formatNumber } from "@/lib/utils/formatNumber";
 import { TimelineBar } from "./TimelineBar";
 import { TimeSlotsWithPlans } from "./TimeSlotsWithPlans";
-import { dayTypeLabels, dayTypeColors } from "./scheduleUtils";
+import { dayTypeLabels } from "./scheduleUtils";
 import { getDayTypeBadgeClasses } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 

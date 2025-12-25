@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
+import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import {
   getCampInvitationsForTemplate,
   getCampInvitationsForTemplateWithPaginationAction,
@@ -54,7 +55,7 @@ export function CampTemplateDetail({
   const router = useRouter();
   const searchParams = useSearchParams();
   // 템플릿 데이터를 변수로 추출하여 반복 접근 최적화 및 타입 안전성 확보
-  const templateData = template.template_data;
+  const templateData = template.template_data as Partial<WizardData> | null;
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
   const [invitations, setInvitations] = useState<CampInvitation[]>([]);
@@ -88,7 +89,7 @@ export function CampTemplateDetail({
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<
     "draft" | "active" | "archived"
-  >(template.status);
+  >((template.status as "draft" | "active" | "archived") ?? "draft");
   const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [studentFormRefreshKey, setStudentFormRefreshKey] = useState(0);
@@ -445,7 +446,7 @@ export function CampTemplateDetail({
                 생성일
               </label>
               <p className="text-sm text-gray-700">
-                {new Date(template.created_at).toLocaleDateString("ko-KR")}
+                {template.created_at ? new Date(template.created_at).toLocaleDateString("ko-KR") : "-"}
               </p>
             </div>
             {template.description && (
@@ -699,7 +700,7 @@ export function CampTemplateDetail({
           </h2>
           <StudentInvitationForm
             templateId={template.id}
-            templateStatus={template.status}
+            templateStatus={template.status as "draft" | "active" | "archived" | undefined}
             onInvitationSent={handleInvitationSent}
             refreshKey={studentFormRefreshKey}
           />

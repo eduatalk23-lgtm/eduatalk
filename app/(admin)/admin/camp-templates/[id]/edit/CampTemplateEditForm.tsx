@@ -54,7 +54,7 @@ export function CampTemplateEditForm({
     (templateData as Partial<WizardData>).name || template.name || ""
   );
   const [programType, setProgramType] = useState<CampProgramType>(
-    template.program_type
+    (template.program_type as CampProgramType) ?? "기타"
   );
   const [description, setDescription] = useState(template.description || "");
 
@@ -146,8 +146,8 @@ export function CampTemplateEditForm({
     ...templateData,
     // 명시적으로 template.id 사용 (항상 최우선)
     templateId: template.id,
-    templateProgramType: template.program_type,
-    templateStatus: template.status,
+    templateProgramType: (template.program_type as CampProgramType) ?? "기타",
+    templateStatus: (template.status as "draft" | "active" | "archived") ?? "draft",
     // 학습기간 명시적으로 포함 (templateData에서 가져오기)
     period_start: templateData.period_start || "",
     period_end: templateData.period_end || "",

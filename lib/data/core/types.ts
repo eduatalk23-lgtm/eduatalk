@@ -3,6 +3,7 @@
  */
 
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseAdminClient as AdminClientType } from "@/lib/supabase/admin";
 
 /**
  * Supabase 서버 클라이언트 타입
@@ -10,6 +11,18 @@ import type { createSupabaseServerClient } from "@/lib/supabase/server";
 export type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
+
+/**
+ * Supabase Admin 클라이언트 타입 (재export)
+ * Database 타입이 적용되어 SupabaseServerClient와 호환
+ */
+export type SupabaseAdminClient = AdminClientType;
+
+/**
+ * RLS 우회가 필요한 쿼리에서 사용할 수 있는 클라이언트 타입
+ * SupabaseServerClient와 SupabaseAdminClient 모두 호환
+ */
+export type SupabaseQueryClient = SupabaseServerClient | SupabaseAdminClient;
 
 /**
  * 기본 엔티티 타입

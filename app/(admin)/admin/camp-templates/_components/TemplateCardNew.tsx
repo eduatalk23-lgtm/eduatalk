@@ -18,7 +18,7 @@ export function TemplateCardComponent({ template }: TemplateCardProps) {
   const toast = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
+  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">((template.status as "draft" | "active" | "archived") ?? "draft");
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -139,7 +139,7 @@ export function TemplateCardComponent({ template }: TemplateCardProps) {
         description={template.description}
         href={`/admin/camp-templates/${template.id}`}
         status={currentStatus}
-        createdAt={template.created_at}
+        createdAt={template.created_at ?? undefined}
         actions={statusActions}
         className="group"
       />

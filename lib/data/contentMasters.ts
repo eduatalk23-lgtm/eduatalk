@@ -1328,7 +1328,7 @@ export async function getCurriculumRevisions(): Promise<
 
   const result = await createTypedQuery<Array<{ id: string; name: string }>>(
     async () => {
-      return await (supabase as unknown as SupabaseServerClient)
+      return await supabase
         .from("curriculum_revisions")
         .select("id, name")
         .order("name", { ascending: true });

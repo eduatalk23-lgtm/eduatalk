@@ -228,6 +228,9 @@ export async function getSessionById(
 
 /**
  * 학습 세션 생성
+ *
+ * 동시성 제어: idx_unique_active_session_per_plan 유니크 인덱스로
+ * 동일 학생이 동일 플랜에 중복 활성 세션을 생성하는 것을 방지합니다.
  */
 export async function createSession(
   session: {
@@ -238,7 +241,7 @@ export async function createSession(
     content_id?: string | null;
     started_at?: string; // 없으면 현재 시간 사용
   }
-): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+): Promise<{ success: boolean; sessionId?: string; error?: string; isDuplicate?: boolean }> {
   const supabase = await createSupabaseServerClient();
 
   const payload = {
@@ -250,33 +253,71 @@ export async function createSession(
     started_at: session.started_at || new Date().toISOString(),
   };
 
-  const result = await safeQuerySingle<{ id: string }>(
-    async () => {
-      const queryResult = await supabase
-        .from("student_study_sessions")
-        .insert(payload)
-        .select("id")
-        .single();
-      return { data: queryResult.data, error: queryResult.error };
-    },
-    async () => {
-      // fallback: tenant_id, student_id 컬럼이 없는 경우
-      const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
-      const queryResult = await supabase
-        .from("student_study_sessions")
-        .insert(fallbackPayload)
-        .select("id")
-        .single();
-      return { data: queryResult.data, error: queryResult.error };
-    },
-    { context: "[data/studentSessions] 세션 생성" }
-  );
+  try {
+    // 직접 insert 실행하여 오류 코드 확인 가능하도록 함
+    const { data, error } = await supabase
+      .from("student_study_sessions")
+      .insert(payload)
+      .select("id")
+      .single();
 
-  if (!result) {
-    return { success: false, error: "세션 생성 실패" };
+    if (error) {
+      // PostgreSQL 에러 코드 23505: unique_violation
+      // 두 가지 유니크 제약:
+      // 1. idx_unique_active_session_per_plan: 동일 학생+플랜에 중복 활성 세션 방지
+      // 2. idx_unique_active_session_per_student: 학생당 하나의 활성 세션만 허용 (Race Condition 방지)
+      if (error.code === "23505") {
+        // 제약 이름으로 구분하여 적절한 에러 메시지 반환
+        const isStudentConstraint = error.message?.includes("idx_unique_active_session_per_student");
+        const errorMessage = isStudentConstraint
+          ? "다른 플랜의 타이머가 이미 실행 중입니다."
+          : "이미 해당 플랜의 타이머가 실행 중입니다.";
+
+        console.warn("[data/studentSessions] 중복 활성 세션 시도:", {
+          studentId: session.student_id,
+          planId: session.plan_id,
+          constraint: isStudentConstraint ? "per_student" : "per_plan",
+        });
+        return {
+          success: false,
+          error: errorMessage,
+          isDuplicate: true,
+        };
+      }
+
+      // 42703: undefined_column (마이그레이션 중간 상태)
+      if (error.code === "42703") {
+        // fallback: tenant_id, student_id 컬럼이 없는 경우
+        const { tenant_id: _tenantId, student_id: _studentId, ...fallbackPayload } = payload;
+        const fallbackResult = await supabase
+          .from("student_study_sessions")
+          .insert(fallbackPayload)
+          .select("id")
+          .single();
+
+        if (fallbackResult.error) {
+          console.error("[data/studentSessions] 세션 생성 fallback 실패:", fallbackResult.error);
+          return { success: false, error: "세션 생성 실패" };
+        }
+
+        return { success: true, sessionId: fallbackResult.data.id };
+      }
+
+      console.error("[data/studentSessions] 세션 생성 실패:", {
+        code: error.code,
+        message: error.message,
+      });
+      return { success: false, error: "세션 생성 실패" };
+    }
+
+    return { success: true, sessionId: data.id };
+  } catch (err) {
+    console.error("[data/studentSessions] 세션 생성 예외:", err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "세션 생성 실패",
+    };
   }
-
-  return { success: true, sessionId: result.id };
 }
 
 /**

@@ -28,7 +28,7 @@ export type StudentSearchParams = {
 export type StudentSearchResult = {
   id: string;
   name: string | null;
-  grade: string | null;
+  grade: number | null; // DB에서 number 타입
   class: string | null;
   division: StudentDivision | null;
   phone: string | null;
@@ -111,7 +111,11 @@ function buildBaseQuery(
 
   // 필터 적용
   if (filters?.grade) {
-    baseQuery = baseQuery.eq("grade", filters.grade);
+    // grade는 DB에서 number 타입이므로 변환
+    const gradeNumber = parseInt(filters.grade, 10);
+    if (!isNaN(gradeNumber)) {
+      baseQuery = baseQuery.eq("grade", gradeNumber);
+    }
   }
   if (filters?.class) {
     baseQuery = baseQuery.eq("class", filters.class);

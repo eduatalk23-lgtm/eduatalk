@@ -305,8 +305,8 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
 
     // 해당 테넌트의 관리자 목록 조회
     const { data: adminUsers, error: adminError } = await adminClient
-      .from("user_roles")
-      .select("user_id")
+      .from("admin_users")
+      .select("id")
       .eq("tenant_id", tenantId)
       .eq("role", "admin");
 
@@ -327,7 +327,7 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
       };
     }
 
-    const adminUserIds = adminUsers.map((u) => u.user_id);
+    const adminUserIds = adminUsers.map((u) => u.id);
 
     // 일괄 알림 발송
     const { sendBulkInAppNotification } = await import("./inAppNotificationService");

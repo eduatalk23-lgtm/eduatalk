@@ -1,19 +1,14 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
-import { startPlan, pausePlan, resumePlan, preparePlanCompletion } from "../actions/todayActions";
+import { useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
-import { usePlanTimerStore } from "@/lib/store/planTimerStore";
-import type { TimerStatus } from "@/lib/store/planTimerStore";
+import { usePlanCardActions } from "@/lib/hooks/usePlanCardActions";
 import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
-import { useToast } from "@/components/ui/ToastProvider";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
-import { calculateTimerState } from "@/lib/utils/timerStateCalculator";
-
-type PendingAction = "start" | "pause" | "resume" | "complete" | null;
+import type { PlanGroup } from "../_utils/planGroupUtils";
 
 type PlanTimerCardProps = {
   planId: string;
@@ -33,7 +28,7 @@ type PlanTimerCardProps = {
   sessionStartedAt?: string | null;
   sessionPausedDurationSeconds?: number | null;
   serverNow?: number;
-  campMode?: boolean; // 캠프 모드 여부
+  campMode?: boolean;
 };
 
 function PlanTimerCardComponent({
@@ -47,7 +42,6 @@ function PlanTimerCardComponent({
   totalDurationSeconds,
   pausedDurationSeconds,
   pauseCount,
-  activeSessionId,
   isPaused: initialIsPaused = false,
   currentPausedAt,
   allowTimerControl = true,
@@ -57,35 +51,109 @@ function PlanTimerCardComponent({
   campMode = false,
 }: PlanTimerCardProps) {
   const router = useRouter();
-  const { showError, showSuccess } = useToast();
-  const timerStore = usePlanTimerStore();
-  const [isLoading, setIsLoading] = useState(false);
-  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
 
-  // 서버에서 계산된 초기 타이머 상태 계산 (유틸 함수 사용)
-  const timerState = useMemo(() => {
-    return calculateTimerState({
+  // 플랜 핵심 상태 (변경 빈도 낮음)
+  const planCore = useMemo(
+    () => ({
+      id: planId,
+      contentType,
+      title: planTitle,
+      startTime: startTime ?? null,
+      endTime: endTime ?? null,
+    }),
+    [planId, contentType, planTitle, startTime, endTime]
+  );
+
+  // 진행 상태 (타이머 동작 시 변경)
+  const progressState = useMemo(
+    () => ({
       actualStartTime: actualStartTime ?? null,
       actualEndTime: actualEndTime ?? null,
       totalDurationSeconds: totalDurationSeconds ?? null,
       pausedDurationSeconds: pausedDurationSeconds ?? null,
-      isPaused: initialIsPaused,
-      currentPausedAt: currentPausedAt ?? null,
-      sessionStartedAt: sessionStartedAt ?? null,
-      sessionPausedDurationSeconds: sessionPausedDurationSeconds ?? null,
-    });
-  }, [
-    actualStartTime,
-    actualEndTime,
-    totalDurationSeconds,
-    pausedDurationSeconds,
-    initialIsPaused,
-    currentPausedAt,
-    sessionStartedAt,
-    sessionPausedDurationSeconds,
-  ]);
+    }),
+    [actualStartTime, actualEndTime, totalDurationSeconds, pausedDurationSeconds]
+  );
 
-  // 새로운 스토어 기반 타이머 훅 사용
+  // 세션 상태 (실시간 변경)
+  const sessionState = useMemo(
+    () => ({
+      isPaused: initialIsPaused,
+      startedAt: sessionStartedAt ?? null,
+      pausedAt: currentPausedAt ?? null,
+      pausedDurationSeconds: sessionPausedDurationSeconds ?? null,
+    }),
+    [initialIsPaused, sessionStartedAt, currentPausedAt, sessionPausedDurationSeconds]
+  );
+
+  // PlanTimerCard props를 PlanGroup/sessions 형태로 변환
+  const { group, sessions } = useMemo(() => {
+    // 최소한의 plan 객체 생성
+    const minimalPlan = {
+      id: planCore.id,
+      content_type: planCore.contentType,
+      actual_start_time: progressState.actualStartTime,
+      actual_end_time: progressState.actualEndTime,
+      total_duration_seconds: progressState.totalDurationSeconds,
+      paused_duration_seconds: progressState.pausedDurationSeconds,
+      is_reschedulable: false, // PlanTimerCard는 연기 기능 없음
+      // 필수 필드 추가 (사용되지 않지만 타입 호환성을 위해)
+      plan_date: "",
+      content_id: "",
+      chapter: null,
+      planned_start_page_or_time: null,
+      planned_end_page_or_time: null,
+      start_time: planCore.startTime,
+      end_time: planCore.endTime,
+      sequence: null,
+      block_index: null,
+      plan_number: null,
+      progress: null,
+    };
+
+    const minimalGroup: PlanGroup = {
+      planNumber: null,
+      plan: minimalPlan as unknown as PlanGroup["plan"],
+      content: { title: planCore.title } as unknown as PlanGroup["content"],
+      sequence: null,
+    };
+
+    const sessionsMap = new Map<
+      string,
+      {
+        isPaused: boolean;
+        startedAt?: string | null;
+        pausedAt?: string | null;
+        resumedAt?: string | null;
+        pausedDurationSeconds?: number | null;
+      }
+    >();
+
+    if (progressState.actualStartTime && !progressState.actualEndTime) {
+      sessionsMap.set(planCore.id, {
+        isPaused: sessionState.isPaused,
+        startedAt: sessionState.startedAt,
+        pausedAt: sessionState.pausedAt,
+        resumedAt: null,
+        pausedDurationSeconds: sessionState.pausedDurationSeconds,
+      });
+    }
+
+    return { group: minimalGroup, sessions: sessionsMap };
+  }, [planCore, progressState, sessionState]);
+
+  // Hook으로 추출된 타이머 액션 및 상태
+  const {
+    isLoading,
+    pendingAction,
+    timerState,
+    handleStart,
+    handlePause,
+    handleResume,
+    handleComplete,
+  } = usePlanCardActions({ group, sessions, campMode });
+
+  // 스토어 기반 타이머 훅 사용
   const { seconds, status: timerStatus } = usePlanTimer({
     planId,
     status: timerState.status,
@@ -95,126 +163,29 @@ function PlanTimerCardComponent({
     isCompleted: !!actualEndTime,
   });
 
-  const formattedStartTime = actualStartTime ? formatTimestamp(actualStartTime) : "-";
-  const formattedEndTime = actualEndTime ? formatTimestamp(actualEndTime) : "-";
+  const formattedStartTime = actualStartTime
+    ? formatTimestamp(actualStartTime)
+    : "-";
+  const formattedEndTime = actualEndTime
+    ? formatTimestamp(actualEndTime)
+    : "-";
   const formattedPureStudyTime = formatTime(Math.max(0, seconds));
-
-  const handleStart = async () => {
-    setIsLoading(true);
-    setPendingAction("start");
-    try {
-      const timestamp = new Date().toISOString();
-      const result = await startPlan(planId, timestamp);
-      if (result.success) {
-        if (result.serverNow && result.status && result.startedAt) {
-          timerStore.startTimer(planId, result.serverNow, result.startedAt);
-        }
-      } else {
-        showError(result.error || "플랜 시작에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("[PlanTimerCard] 시작 오류:", error);
-      showError("오류가 발생했습니다.");
-    } finally {
-      setPendingAction(null);
-      setIsLoading(false);
-    }
-  };
-
-  const handlePause = async () => {
-    if (isLoading || timerStatus === "PAUSED") {
-      return;
-    }
-
-    setIsLoading(true);
-    setPendingAction("pause");
-    try {
-      const timestamp = new Date().toISOString();
-      const result = await pausePlan(planId, timestamp);
-      if (result.success) {
-        if (result.serverNow && result.accumulatedSeconds !== undefined) {
-          timerStore.pauseTimer(planId, result.accumulatedSeconds);
-        }
-      } else {
-        if (result.error && !result.error.includes("이미 일시정지된 상태입니다")) {
-          showError(result.error || "플랜 일시정지에 실패했습니다.");
-        }
-      }
-    } catch (error) {
-      console.error("[PlanTimerCard] 일시정지 오류:", error);
-      showError("오류가 발생했습니다.");
-    } finally {
-      setPendingAction(null);
-      setIsLoading(false);
-    }
-  };
-
-  const handleResume = async () => {
-    setIsLoading(true);
-    setPendingAction("resume");
-    try {
-      const timestamp = new Date().toISOString();
-      const result = await resumePlan(planId, timestamp);
-      if (result.success) {
-        if (result.serverNow && result.status && result.startedAt) {
-          timerStore.startTimer(planId, result.serverNow, result.startedAt);
-        }
-      } else {
-        showError(result.error || "플랜 재개에 실패했습니다.");
-      }
-    } catch (error) {
-      console.error("[PlanTimerCard] 재개 오류:", error);
-      showError("오류가 발생했습니다.");
-    } finally {
-      setPendingAction(null);
-      setIsLoading(false);
-    }
-  };
-
-  const handleComplete = async () => {
-    // 확인 다이얼로그
-    const confirmed = confirm(
-      "지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요?"
-    );
-    
-    if (!confirmed) {
-      return;
-    }
-
-    setIsLoading(true);
-    setPendingAction("complete");
-    try {
-      const result = await preparePlanCompletion(planId);
-      
-      if (!result.success) {
-        showError(result.error || "플랜 완료 준비에 실패했습니다.");
-        return;
-      }
-
-      // 타이머 정지 (스토어에서 제거)
-      timerStore.removeTimer(planId);
-
-      // 완료 입력 페이지로 이동
-      router.push(buildPlanExecutionUrl(planId, campMode));
-    } catch (error) {
-      console.error("[PlanTimerCard] 완료 처리 오류:", error);
-      showError("오류가 발생했습니다.");
-    } finally {
-      setPendingAction(null);
-      setIsLoading(false);
-    }
-  };
 
   const isCompleted = !!actualEndTime;
   const showCompletionMeta = isCompleted && actualStartTime && actualEndTime;
-  const showTimer = timerStatus === "RUNNING" || timerStatus === "PAUSED" || timerStatus === "COMPLETED";
+  const showTimer =
+    timerStatus === "RUNNING" ||
+    timerStatus === "PAUSED" ||
+    timerStatus === "COMPLETED";
 
   if (!allowTimerControl && timerStatus === "NOT_STARTED") {
     return (
-      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div className="flex flex-col gap-1">
-          <h3 className="font-semibold text-gray-900">{planTitle}</h3>
-          <p className="text-xs text-gray-500">
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+            {planTitle}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             이 블록은 같은 플랜 번호의 대표 타이머 카드에서 제어됩니다.
           </p>
         </div>
@@ -229,12 +200,18 @@ function PlanTimerCardComponent({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex flex-col gap-1">
-        <h3 className="font-semibold text-gray-900">{planTitle}</h3>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+          {planTitle}
+        </h3>
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
           <span className="text-xs">
-            {contentType === "book" ? "📚" : contentType === "lecture" ? "🎧" : "📝"}
+            {contentType === "book"
+              ? "📚"
+              : contentType === "lecture"
+              ? "🎧"
+              : "📝"}
           </span>
           {startTime && endTime && (
             <span>
@@ -254,7 +231,7 @@ function PlanTimerCardComponent({
             compact={true}
           />
           {pauseCount != null && pauseCount > 0 && (
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               일시정지: {pauseCount}회
               {pausedDurationSeconds != null && pausedDurationSeconds > 0 && (
                 <span> ({formatTime(pausedDurationSeconds)})</span>
@@ -265,15 +242,19 @@ function PlanTimerCardComponent({
       )}
 
       {showCompletionMeta && (
-        <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
-          <div className="font-semibold text-indigo-950">학습 완료 기록</div>
+        <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200">
+          <div className="font-semibold text-indigo-950 dark:text-indigo-100">
+            학습 완료 기록
+          </div>
           <dl className="grid grid-cols-[92px,1fr] gap-1">
-            <dt className="text-indigo-700">시작 시간</dt>
+            <dt className="text-indigo-700 dark:text-indigo-300">시작 시간</dt>
             <dd className="text-right font-medium">{formattedStartTime}</dd>
-            <dt className="text-indigo-700">종료 시간</dt>
+            <dt className="text-indigo-700 dark:text-indigo-300">종료 시간</dt>
             <dd className="text-right font-medium">{formattedEndTime}</dd>
-            <dt className="text-indigo-700">총 학습</dt>
-            <dd className="text-right font-semibold text-indigo-950">{formattedPureStudyTime}</dd>
+            <dt className="text-indigo-700 dark:text-indigo-300">총 학습</dt>
+            <dd className="text-right font-semibold text-indigo-950 dark:text-indigo-100">
+              {formattedPureStudyTime}
+            </dd>
           </dl>
         </div>
       )}
@@ -301,24 +282,26 @@ function PlanTimerCardComponent({
   );
 }
 
-// React.memo로 불필요한 리렌더링 방지
-export const PlanTimerCard = memo(PlanTimerCardComponent, (prevProps, nextProps) => {
-  // 핵심 props만 비교하여 불필요한 리렌더링 방지
-  return (
-    prevProps.planId === nextProps.planId &&
-    prevProps.planTitle === nextProps.planTitle &&
-    prevProps.contentType === nextProps.contentType &&
-    prevProps.actualStartTime === nextProps.actualStartTime &&
-    prevProps.actualEndTime === nextProps.actualEndTime &&
-    prevProps.totalDurationSeconds === nextProps.totalDurationSeconds &&
-    prevProps.pausedDurationSeconds === nextProps.pausedDurationSeconds &&
-    prevProps.pauseCount === nextProps.pauseCount &&
-    prevProps.isPaused === nextProps.isPaused &&
-    prevProps.currentPausedAt === nextProps.currentPausedAt &&
-    prevProps.allowTimerControl === nextProps.allowTimerControl &&
-    prevProps.sessionStartedAt === nextProps.sessionStartedAt &&
-    prevProps.sessionPausedDurationSeconds === nextProps.sessionPausedDurationSeconds &&
-    prevProps.serverNow === nextProps.serverNow &&
-    prevProps.campMode === nextProps.campMode
-  );
-});
+export const PlanTimerCard = memo(
+  PlanTimerCardComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.planId === nextProps.planId &&
+      prevProps.planTitle === nextProps.planTitle &&
+      prevProps.contentType === nextProps.contentType &&
+      prevProps.actualStartTime === nextProps.actualStartTime &&
+      prevProps.actualEndTime === nextProps.actualEndTime &&
+      prevProps.totalDurationSeconds === nextProps.totalDurationSeconds &&
+      prevProps.pausedDurationSeconds === nextProps.pausedDurationSeconds &&
+      prevProps.pauseCount === nextProps.pauseCount &&
+      prevProps.isPaused === nextProps.isPaused &&
+      prevProps.currentPausedAt === nextProps.currentPausedAt &&
+      prevProps.allowTimerControl === nextProps.allowTimerControl &&
+      prevProps.sessionStartedAt === nextProps.sessionStartedAt &&
+      prevProps.sessionPausedDurationSeconds ===
+        nextProps.sessionPausedDurationSeconds &&
+      prevProps.serverNow === nextProps.serverNow &&
+      prevProps.campMode === nextProps.campMode
+    );
+  }
+);

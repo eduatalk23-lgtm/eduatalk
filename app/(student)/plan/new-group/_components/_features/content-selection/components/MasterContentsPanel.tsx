@@ -242,11 +242,11 @@ export function MasterContentsPanel({
       results.forEach((result, index) => {
         // searchContentMasters에서 이미 content_type을 추가했지만,
         // 혹시 모를 경우를 대비해 검증 및 추가
-        const dataWithType = result.data.map((item: any) => {
+        const dataWithType = result.data.map((item) => {
           // content_type이 없으면 검색 타입에 따라 추가
           if (!item.content_type) {
             // 첫 번째 결과는 book, 두 번째는 lecture (selectedContentType === "all"인 경우)
-            const contentType =
+            const contentType: "book" | "lecture" =
               selectedContentType === "book" ||
               (selectedContentType === "all" && index === 0)
                 ? "book"
@@ -254,7 +254,7 @@ export function MasterContentsPanel({
             return {
               ...item,
               content_type: contentType,
-            };
+            } as ContentMaster;
           }
           return item;
         });

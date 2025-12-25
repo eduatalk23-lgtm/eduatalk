@@ -1,13 +1,19 @@
 import { AppError, ErrorCode } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  createSupabaseAdminClient,
+  type SupabaseAdminClient,
+} from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
-type SupabaseAdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
 
-export type SupabaseClientForStudentQuery =
-  | SupabaseServerClient
-  | SupabaseAdminClient;
+/**
+ * RLS 우회 쿼리용 클라이언트 타입
+ * SupabaseServerClient와 SupabaseAdminClient 모두 Database 타입이 적용되어 호환
+ */
+export type SupabaseClientForStudentQuery = SupabaseClient<Database>;
 
 /**
  * Service Role Key 기반 Admin 클라이언트를 보장합니다.

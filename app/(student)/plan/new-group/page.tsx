@@ -8,7 +8,7 @@ import { studentContentsQueryOptions } from "@/lib/query-options/studentContents
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
-import { PlanGroupWizard } from "./_components/PlanGroupWizard";
+import { PlanGroupWizard, type ExtendedInitialData } from "./_components/PlanGroupWizard";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getContainerClass } from "@/lib/constants/layout";
 import { inlineButtonBase } from "@/lib/utils/darkMode";
@@ -28,7 +28,7 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
   const draftId = params.draft;
 
   // Draft 불러오기
-  let initialData: any = undefined;
+  let initialData: ExtendedInitialData | undefined = undefined;
   if (draftId) {
     try {
       const { group, contents, exclusions, academySchedules } =
@@ -41,13 +41,13 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
       if (group && group.status === "draft") {
         // 데이터 변환 함수 사용
         const { transformPlanGroupToWizardDataPure } = await import("@/lib/utils/planGroupTransform");
-        initialData = await transformPlanGroupToWizardDataPure(
+        initialData = transformPlanGroupToWizardDataPure(
           group,
           contents,
           exclusions,
           academySchedules,
           {}
-        );
+        ) as ExtendedInitialData;
       }
     } catch (error) {
       console.error("[plan/new-group] Draft 불러오기 실패", error);

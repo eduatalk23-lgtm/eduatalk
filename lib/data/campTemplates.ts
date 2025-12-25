@@ -16,7 +16,6 @@ import {
 } from "@/lib/data/core/typedQueryBuilder";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { Database } from "@/lib/supabase/database.types";
-import type { SupabaseServerClient } from "@/lib/data/core/types";
 
 // Database 타입에서 테이블 타입 추출
 type CampTemplateRow = Database["public"]["Tables"]["camp_templates"]["Row"];
@@ -47,7 +46,7 @@ export async function getCampTemplate(
 
   const result = await createTypedSingleQuery<CampTemplateRow>(
     async () => {
-      return await (supabase as unknown as SupabaseServerClient)
+      return await supabase
         .from("camp_templates")
         .select("*")
         .eq("id", templateId);
@@ -113,7 +112,7 @@ export async function createCampTemplate(data: {
 
   const result = await createTypedQuery<{ id: string }>(
     async () => {
-      return await (supabase as unknown as SupabaseServerClient)
+      return await supabase
         .from("camp_templates")
         .insert(insertData)
         .select("id")
@@ -154,7 +153,7 @@ export async function getCampTemplatesForTenant(
 
   const result = await createTypedQuery<CampTemplateRow[]>(
     async () => {
-      return await (supabase as unknown as SupabaseServerClient)
+      return await supabase
         .from("camp_templates")
         .select("*")
         .eq("tenant_id", tenantId)
@@ -378,7 +377,7 @@ export async function getCampInvitation(
 
   const result = await createTypedSingleQuery<CampInvitationRow>(
     async () => {
-      return await (supabase as unknown as SupabaseServerClient)
+      return await supabase
         .from("camp_invitations")
         .select("*")
         .eq("id", invitationId);
@@ -1109,8 +1108,8 @@ export async function copyCampTemplate(
       tenant_id: originalTemplate.tenant_id,
       name: copiedName,
       description: originalTemplate.description || undefined,
-      program_type: originalTemplate.program_type,
-      template_data: originalTemplate.template_data,
+      program_type: originalTemplate.program_type ?? "기타",
+      template_data: originalTemplate.template_data as Partial<WizardData> | null,
       created_by: originalTemplate.created_by || undefined,
       camp_start_date: originalTemplate.camp_start_date || undefined,
       camp_end_date: originalTemplate.camp_end_date || undefined,

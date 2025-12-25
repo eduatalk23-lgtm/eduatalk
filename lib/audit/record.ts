@@ -6,6 +6,7 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 
 export type AuditAction =
   | "create"
@@ -80,9 +81,9 @@ export async function recordAuditLog(entry: AuditLogEntry): Promise<void> {
       resource_type: entry.resourceType,
       resource_id: entry.resourceId,
       resource_name: entry.resourceName,
-      old_data: entry.oldData,
-      new_data: entry.newData,
-      metadata: entry.metadata || {},
+      old_data: (entry.oldData ?? null) as Json,
+      new_data: (entry.newData ?? null) as Json,
+      metadata: (entry.metadata || {}) as Json,
       success: entry.success ?? true,
       error_message: entry.errorMessage,
     };

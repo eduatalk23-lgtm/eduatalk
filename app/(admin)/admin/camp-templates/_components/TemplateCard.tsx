@@ -20,7 +20,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const toast = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">(template.status);
+  const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">((template.status as "draft" | "active" | "archived") ?? "draft");
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
 
@@ -140,7 +140,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
             {/* 날짜 */}
             <div className="flex-shrink-0 ml-auto">
               <p className="text-xs text-gray-500 whitespace-nowrap">
-                {new Date(template.created_at).toLocaleDateString("ko-KR")}
+                {template.created_at ? new Date(template.created_at).toLocaleDateString("ko-KR") : "-"}
               </p>
             </div>
           </Link>

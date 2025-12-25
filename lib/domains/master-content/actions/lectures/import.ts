@@ -15,13 +15,20 @@ const masterLectureSchema = z.object({
   linked_book_id: z.string().uuid().optional().nullable(),
   revision: z.string().optional().nullable(),
   content_category: z.string().optional().nullable(),
-  semester: z.string().optional().nullable(),
   subject_category: z.string().optional().nullable(),
   subject: z.string().optional().nullable(),
   title: z.string().min(1),
   platform: z.string().optional().nullable(),
-  instructor: z.string().optional().nullable(),
+  instructor_name: z.string().optional().nullable(),
   total_episodes: z.union([z.number(), z.string()]).optional().nullable().transform((val) => {
+    if (val === null || val === undefined || val === "") return 0; // NOT NULL 필드이므로 기본값 0
+    if (typeof val === "string") {
+      const num = parseInt(val, 10);
+      return isNaN(num) ? 0 : num;
+    }
+    return val;
+  }),
+  total_duration: z.union([z.number(), z.string()]).optional().nullable().transform((val) => {
     if (val === null || val === undefined || val === "") return null;
     if (typeof val === "string") {
       const num = parseInt(val, 10);
@@ -85,15 +92,14 @@ export async function importMasterLecturesFromExcel(
       linked_book_id?: string | null;
       revision?: string | null;
       content_category?: string | null;
-      semester?: string | null;
       subject_category?: string | null;
       subject?: string | null;
       platform?: string | null;
-      instructor?: string | null;
-      total_episodes?: number | null;
+      instructor_name?: string | null;
+      total_episodes: number;
+      total_duration?: number | null;
       difficulty_level?: string | null;
       difficulty_level_id?: string | null;
-      duration?: number | null;
       notes?: string | null;
       video_url?: string | null;
       overall_difficulty?: number | null;
@@ -110,15 +116,14 @@ export async function importMasterLecturesFromExcel(
           linked_book_id?: string | null;
           revision?: string | null;
           content_category?: string | null;
-          semester?: string | null;
           subject_category?: string | null;
           subject?: string | null;
           platform?: string | null;
-          instructor?: string | null;
-          total_episodes?: number | null;
+          instructor_name?: string | null;
+          total_episodes: number;
+          total_duration?: number | null;
           difficulty_level?: string | null;
           difficulty_level_id?: string | null;
-          duration?: number | null;
           notes?: string | null;
           video_url?: string | null;
           overall_difficulty?: number | null;
@@ -128,12 +133,12 @@ export async function importMasterLecturesFromExcel(
           linked_book_id: validated.linked_book_id || null,
           revision: validated.revision || null,
           content_category: validated.content_category || null,
-          semester: validated.semester || null,
           subject_category: validated.subject_category || null,
           subject: validated.subject || null,
           platform: validated.platform || null,
-          instructor: validated.instructor || null,
-          total_episodes: validated.total_episodes || null,
+          instructor_name: validated.instructor_name || null,
+          total_episodes: validated.total_episodes ?? 0,
+          total_duration: validated.total_duration || null,
           difficulty_level: validated.difficulty_level || null,
           notes: validated.notes || null,
           video_url: validated.video_url || null,

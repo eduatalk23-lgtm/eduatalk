@@ -7,7 +7,7 @@ import { TenantCard } from "./TenantCard";
 type Tenant = {
   id: string;
   name: string;
-  type: string;
+  type: string | null;
   status?: string | null;
   created_at: string;
   updated_at: string;

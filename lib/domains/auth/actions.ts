@@ -186,8 +186,10 @@ async function linkStudentWithConnectionCode(
       return { success: false, error: studentError.userMessage };
     }
 
-    if (!data || !data.success) {
-      const errorMessage = data?.error || "학생 계정 연결에 실패했습니다.";
+    // RPC 응답을 타입 캐스팅
+    const rpcResponse = data as { success?: boolean; error?: string; student_id?: string } | null;
+    if (!rpcResponse || !rpcResponse.success) {
+      const errorMessage = rpcResponse?.error || "학생 계정 연결에 실패했습니다.";
       const studentError = toStudentError(
         new Error(errorMessage),
         StudentErrorCodes.LINK_STUDENT_FAILED,
@@ -197,7 +199,7 @@ async function linkStudentWithConnectionCode(
         function: "linkStudentWithConnectionCode",
         userId,
         connectionCode,
-        functionResponse: data,
+        functionResponse: rpcResponse,
       });
       return { success: false, error: studentError.userMessage };
     }
@@ -207,8 +209,8 @@ async function linkStudentWithConnectionCode(
       userId,
       connectionCode,
       result: {
-        studentId: data.student_id,
-        oldStudentId: data.old_student_id,
+        studentId: rpcResponse.student_id,
+        oldStudentId: (rpcResponse as Record<string, unknown>).old_student_id,
       },
     });
 
@@ -317,9 +319,15 @@ async function createParentRecord(
       }
     }
 
+    // tenant_id는 필수 값이므로 없으면 에러 반환
+    if (!finalTenantId) {
+      console.error("[auth] 학부모 레코드 생성 실패 - 테넌트 없음", { userId });
+      return { success: false, error: "기관 정보가 없어 가입할 수 없습니다." };
+    }
+
     const { error } = await supabase.from("parent_users").insert({
       id: userId,
-      tenant_id: finalTenantId ?? null,
+      tenant_id: finalTenantId,
       name: displayName || "",
     });
 

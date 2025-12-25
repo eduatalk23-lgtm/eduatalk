@@ -1111,8 +1111,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
               .eq("id", result.group.camp_template_id)
               .maybeSingle();
 
-            if (templateData?.template_data?.block_set_id) {
-              tenantBlockSetId = templateData.template_data.block_set_id;
+            const parsedTemplateData = templateData?.template_data as Record<string, unknown> | null;
+            if (parsedTemplateData?.block_set_id && typeof parsedTemplateData.block_set_id === "string") {
+              tenantBlockSetId = parsedTemplateData.block_set_id;
             }
           }
 

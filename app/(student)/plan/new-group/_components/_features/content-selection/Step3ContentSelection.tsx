@@ -14,7 +14,7 @@ import {
   UnifiedContentsView,
 } from "./components";
 import { Step3SlotModeSelection } from "./slot-mode";
-import { ContentSelectionProgress } from "../../_components/ContentSelectionProgress";
+import { ContentSelectionProgress } from "../../common/ContentSelectionProgress";
 import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FieldErrors } from "../../hooks/useWizardValidation";

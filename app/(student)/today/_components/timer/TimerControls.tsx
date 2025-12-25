@@ -3,8 +3,7 @@
 import { Play, Pause, Square, CheckCircle2, Loader2 } from "lucide-react";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
 import { cn } from "@/lib/cn";
-
-type PendingAction = "start" | "pause" | "resume" | "complete" | null;
+import type { PendingAction } from "@/lib/domains/today/types";
 
 type TimerControlsProps = {
   status: TimerStatus;
@@ -22,10 +21,7 @@ type TimerControlsProps = {
   isVirtual?: boolean;
 };
 
-const pendingMessages: Record<
-  Exclude<PendingAction, null>,
-  string
-> = {
+const pendingMessages: Record<PendingAction, string> = {
   start: "학습 중...",
   resume: "학습 중...",
   pause: "일시정지 중...",
@@ -35,7 +31,7 @@ const pendingMessages: Record<
 export function TimerControls({
   status,
   isLoading,
-  pendingAction = null,
+  pendingAction,
   onStart,
   onPause,
   onResume,
@@ -47,9 +43,7 @@ export function TimerControls({
   isVirtual = false,
 }: TimerControlsProps) {
   const currentPendingMessage =
-    isLoading && pendingAction
-      ? pendingMessages[pendingAction as Exclude<PendingAction, null>]
-      : null;
+    isLoading && pendingAction ? pendingMessages[pendingAction] : null;
 
   // 모바일 터치 친화적 버튼 크기 (최소 44px 높이)
   const buttonSize = compact ? "text-sm px-3 py-2 min-h-[36px]" : "text-sm px-4 py-3 min-h-[44px]";

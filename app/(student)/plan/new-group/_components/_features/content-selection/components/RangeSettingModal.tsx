@@ -7,6 +7,22 @@ import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { validateRangeInput } from "@/lib/utils/rangeValidation";
 
+/** API 응답 타입 */
+type ContentDetailsApiResponse = {
+  success?: boolean;
+  error?: {
+    message?: string;
+    code?: string;
+  };
+  message?: string;
+  data?: {
+    details?: ContentDetail[];
+    episodes?: ContentDetail[];
+    total_pages?: number;
+    total_episodes?: number;
+  };
+};
+
 /**
  * RangeSettingModal - 콘텐츠 범위 설정 모달
  * 
@@ -149,7 +165,7 @@ export function RangeSettingModal({
         const response = await fetch(url);
 
         // 응답 처리: .json() 직접 사용
-        let responseData: any = null;
+        let responseData: ContentDetailsApiResponse | null = null;
         let responseText: string | null = null;
         
         try {
@@ -292,10 +308,10 @@ export function RangeSettingModal({
         }
 
         // 콘텐츠 타입에 따라 details 또는 episodes 사용
-        const detailsData = 
-          content.type === "book" 
-            ? responseData.data.details || []
-            : responseData.data.episodes || [];
+        const detailsData =
+          content.type === "book"
+            ? responseData?.data?.details || []
+            : responseData?.data?.episodes || [];
         
         // 상세정보가 없는 경우 로깅 (개발 환경에서만, 한 번만)
         if (detailsData.length === 0) {
@@ -321,11 +337,11 @@ export function RangeSettingModal({
         setDetails(detailsData);
         
         // 총량 정보를 상세 정보 API 응답에서 직접 사용
-        const totalPagesValue = content.type === "book" 
-          ? (responseData.data.total_pages || null)
+        const totalPagesValue = content.type === "book"
+          ? (responseData?.data?.total_pages ?? null)
           : null;
         const totalEpisodesValue = content.type === "lecture"
-          ? (responseData.data.total_episodes || null)
+          ? (responseData?.data?.total_episodes ?? null)
           : null;
 
         if (content.type === "book") {

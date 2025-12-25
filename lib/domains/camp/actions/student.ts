@@ -963,14 +963,55 @@ export const submitCampParticipation = withErrorHandling(
       "accepted"
     );
     if (!updateResult.success) {
+      // 트랜잭션 롤백: 초대 상태 업데이트 실패 시 생성된 플랜 그룹 삭제
       console.error(
-        "[campActions] 초대 상태 업데이트 실패 (심각):",
+        "[campActions] 초대 상태 업데이트 실패 - 롤백 시작:",
         {
           invitationId,
           groupId,
           studentId: user.userId,
           error: updateResult.error,
         }
+      );
+
+      try {
+        // 1. 플랜 삭제
+        await supabase
+          .from("student_plan")
+          .delete()
+          .eq("plan_group_id", groupId);
+
+        // 2. 플랜 콘텐츠 삭제
+        await supabase
+          .from("plan_contents")
+          .delete()
+          .eq("plan_group_id", groupId);
+
+        // 3. 플랜 제외일 삭제
+        await supabase
+          .from("plan_exclusions")
+          .delete()
+          .eq("plan_group_id", groupId);
+
+        // 4. 플랜 그룹 삭제
+        await supabase
+          .from("plan_groups")
+          .delete()
+          .eq("id", groupId);
+
+        console.log("[campActions] 롤백 완료 - 플랜 그룹 삭제됨:", { groupId });
+      } catch (rollbackError) {
+        console.error("[campActions] 롤백 실패:", {
+          groupId,
+          error: rollbackError,
+        });
+      }
+
+      throw new AppError(
+        "캠프 참여 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
     } else {
       console.log("[campActions] 초대 상태 업데이트 성공:", {

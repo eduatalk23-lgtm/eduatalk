@@ -1,6 +1,7 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import type { Json } from "@/lib/supabase/database.types";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -45,11 +46,17 @@ export async function recordHistory(
       finalTenantId = student?.tenant_id || null;
     }
 
+    // tenant_id가 null인 경우 early return (DB에서 NOT NULL)
+    if (!finalTenantId) {
+      console.warn(`[history] tenant_id가 없어 히스토리 기록을 건너뜁니다.`, { studentId, eventType });
+      return;
+    }
+
     const payload = {
       student_id: studentId,
       tenant_id: finalTenantId,
       event_type: eventType,
-      detail,
+      detail: detail as Json,
     };
 
     // RLS 정책을 우회하기 위해 Admin 클라이언트 사용
@@ -62,12 +69,13 @@ export async function recordHistory(
       let { error } = await supabase.from("student_history").insert(payload);
 
       if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        // fallback: tenant_id 컬럼이 없는 경우
+        // fallback: tenant_id 컬럼이 없는 경우 (이전 DB 스키마 호환)
         const { tenant_id: _tenantId, ...fallbackPayload } = payload;
         void _tenantId;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ({ error } = await supabase
           .from("student_history")
-          .insert(fallbackPayload));
+          .insert(fallbackPayload as any));
       }
 
       if (error) {
@@ -87,12 +95,13 @@ export async function recordHistory(
     let { error } = await adminClient.from("student_history").insert(payload);
 
     if (ErrorCodeCheckers.isColumnNotFound(error)) {
-      // fallback: tenant_id 컬럼이 없는 경우
+      // fallback: tenant_id 컬럼이 없는 경우 (이전 DB 스키마 호환)
       const { tenant_id: _tenantId, ...fallbackPayload } = payload;
       void _tenantId;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ({ error } = await adminClient
         .from("student_history")
-        .insert(fallbackPayload));
+        .insert(fallbackPayload as any));
     }
 
     if (error) {

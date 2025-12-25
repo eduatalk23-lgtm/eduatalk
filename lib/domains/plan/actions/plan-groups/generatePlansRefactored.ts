@@ -1223,13 +1223,16 @@ async function _generatePlansFromGroupRefactored(
   const contentIdsByType = {
     book: realPlanPayloads
       .filter((p) => p.content_type === "book" && p.content_id)
-      .map((p) => p.content_id),
+      .map((p) => p.content_id)
+      .filter((id): id is string => id !== null),
     lecture: realPlanPayloads
       .filter((p) => p.content_type === "lecture" && p.content_id)
-      .map((p) => p.content_id),
+      .map((p) => p.content_id)
+      .filter((id): id is string => id !== null),
     custom: realPlanPayloads
       .filter((p) => p.content_type === "custom" && p.content_id)
-      .map((p) => p.content_id),
+      .map((p) => p.content_id)
+      .filter((id): id is string => id !== null),
   };
 
   // 콘텐츠 존재 여부 확인 (병렬)
@@ -1348,10 +1351,10 @@ async function _generatePlansFromGroupRefactored(
         return true;
       }
       if (p.content_type === "book") {
-        return existingBookIds.has(p.content_id);
+        return p.content_id !== null && existingBookIds.has(p.content_id);
       }
       if (p.content_type === "lecture") {
-        return existingLectureIds.has(p.content_id);
+        return p.content_id !== null && existingLectureIds.has(p.content_id);
       }
       return true; // custom 콘텐츠는 검증하지 않음
     });
@@ -1430,9 +1433,11 @@ async function _generatePlansFromGroupRefactored(
 
   // 15. 플랜 일괄 저장
   // 관리자/컨설턴트가 다른 학생의 플랜을 생성할 때는 queryClient(Admin 클라이언트) 사용
+  // NOTE: content_id가 가상 플랜에서 null일 수 있으나, DB는 NOT NULL 제약이 있음
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: insertError, data: insertedData } = await queryClient
     .from("student_plan")
-    .insert(planPayloads)
+    .insert(planPayloads as any)
     .select();
 
   if (insertError) {

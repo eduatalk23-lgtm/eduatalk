@@ -208,7 +208,7 @@ export default function TemplateBlocksViewer({
                           }
                           
                           // template_data 업데이트
-                          const templateData = templateResult.template.template_data || {};
+                          const templateData = (templateResult.template.template_data as Record<string, unknown>) || {};
                           const updatedTemplateData = {
                             ...templateData,
                             block_set_id: set.id,
@@ -216,9 +216,9 @@ export default function TemplateBlocksViewer({
                           
                           const formData = new FormData();
                           formData.append("name", templateResult.template.name);
-                          formData.append("program_type", templateResult.template.program_type);
+                          formData.append("program_type", templateResult.template.program_type ?? "기타");
                           formData.append("description", templateResult.template.description || "");
-                          formData.append("status", templateResult.template.status);
+                          formData.append("status", templateResult.template.status ?? "draft");
                           formData.append("template_data", JSON.stringify(updatedTemplateData));
                           
                           const result = await updateCampTemplateAction(templateId, formData);

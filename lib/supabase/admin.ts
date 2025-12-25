@@ -1,11 +1,20 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import type { Database } from "./database.types";
+
+/**
+ * Admin 클라이언트 타입 (Database 타입 포함)
+ * SupabaseServerClient와 호환되어 이중 단언(as unknown as) 불필요
+ */
+export type SupabaseAdminClient = SupabaseClient<Database>;
 
 /**
  * Service Role Key를 사용하는 Supabase Admin 클라이언트
  * 주의: 이 클라이언트는 RLS를 우회하므로 서버 사이드에서만 사용해야 합니다.
+ *
+ * @returns Database 타입이 적용된 Admin 클라이언트 또는 null
  */
-export function createSupabaseAdminClient() {
+export function createSupabaseAdminClient(): SupabaseAdminClient | null {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!serviceRoleKey) {
@@ -14,7 +23,7 @@ export function createSupabaseAdminClient() {
     return null;
   }
 
-  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey, {
+  return createClient<Database>(env.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

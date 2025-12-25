@@ -124,7 +124,12 @@ export async function processReminders(): Promise<{
         return false;
       }
 
-      return shouldSendReminder(invitation, template);
+      // reminder_settings를 CampReminderSettings 타입으로 변환
+      const templateWithSettings = {
+        reminder_settings: template.reminder_settings as CampReminderSettings | null,
+      };
+
+      return shouldSendReminder(invitation, templateWithSettings);
     });
 
     if (remindersToSend.length === 0) {

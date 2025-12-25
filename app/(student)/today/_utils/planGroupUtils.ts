@@ -1,5 +1,9 @@
 import type { Plan } from "@/lib/data/studentPlans";
 import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
+import { formatTime } from "@/lib/utils/timerUtils";
+
+// re-export for backward compatibility
+export { formatTime };
 
 export type PlanWithContent = Plan & {
   content?: Book | Lecture | CustomContent;
@@ -206,26 +210,6 @@ export function getActivePlansCount(
  */
 export function getCompletedPlansCount(planGroup: PlanGroup): number {
   return planGroup.plan.actual_end_time ? 1 : 0;
-}
-
-/**
- * 시간 포맷팅 (초를 HH:MM:SS 또는 MM:SS 형식으로)
- */
-export function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  if (hours > 0) {
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(secs).padStart(2, "0")}`;
-  }
-  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(
-    2,
-    "0"
-  )}`;
 }
 
 /**

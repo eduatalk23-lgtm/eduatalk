@@ -18,5 +18,4 @@ export {
   pausePlan,
   resumePlan,
   preparePlanCompletion,
-  stopAllActiveSessionsForPlan,
 } from "@/lib/domains/today";

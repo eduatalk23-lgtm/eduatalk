@@ -102,7 +102,7 @@ async function _searchStudentsForLink(
   const searchResults: SearchableStudent[] = searchResult.students.map((student) => ({
     id: student.id,
     name: student.name ?? null,
-    grade: student.grade,
+    grade: student.grade != null ? String(student.grade) : null,
     class: student.class,
   }));
 

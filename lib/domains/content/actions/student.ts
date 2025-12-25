@@ -14,6 +14,7 @@ import {
   createBook as createBookData,
   updateBook as updateBookData,
   deleteBook as deleteBookData,
+  softDeleteBook as softDeleteBookData,
   createLecture as createLectureData,
   updateLecture as updateLectureData,
   deleteLecture as deleteLectureData,
@@ -246,7 +247,9 @@ export async function updateBook(id: string, formData: FormData) {
   return { success: true };
 }
 
-// 책 삭제
+// 책 삭제 (Soft Delete - TOCTOU 방지)
+// is_active = false로 설정하여 삭제 표시
+// 참조 확인과 삭제 사이의 Race Condition 방지
 export async function deleteBook(id: string) {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
@@ -270,7 +273,9 @@ export async function deleteBook(id: string) {
     );
   }
 
-  const result = await deleteBookData(id, user.userId);
+  // Soft Delete: is_active = false로 설정
+  // TOCTOU 방지: 삭제 대신 비활성화하여 Race Condition에서도 데이터 무결성 유지
+  const result = await softDeleteBookData(id, user.userId);
 
   if (!result.success) {
     throw new Error(result.error || "책 삭제에 실패했습니다.");

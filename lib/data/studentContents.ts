@@ -537,7 +537,8 @@ export async function updateCustomContent(
 }
 
 /**
- * 책 삭제
+ * 책 삭제 (Hard Delete)
+ * @deprecated softDeleteBook 사용 권장 (TOCTOU 방지)
  */
 export async function deleteBook(
   bookId: string,
@@ -557,6 +558,34 @@ export async function deleteBook(
 
   if (error) {
     console.error("[data/studentContents] 책 삭제 실패", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * 책 Soft Delete (TOCTOU 방지)
+ * is_active = false로 설정하여 삭제 표시
+ * 참조 확인과 삭제 사이의 Race Condition에서도 데이터 무결성 유지
+ */
+export async function softDeleteBook(
+  bookId: string,
+  studentId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("books")
+    .update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", bookId)
+    .eq("student_id", studentId);
+
+  if (error) {
+    console.error("[data/studentContents] 책 Soft Delete 실패", error);
     return { success: false, error: error.message };
   }
 

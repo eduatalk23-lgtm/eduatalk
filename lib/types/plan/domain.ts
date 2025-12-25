@@ -8,6 +8,7 @@
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { ContentType, StudentLevel, ExclusionType } from "@/lib/types/common";
 import type { SlotTemplate } from "@/lib/types/content-selection";
+import type { Json } from "@/lib/supabase/database.types";
 
 // ============================================
 // Enum 타입
@@ -507,23 +508,24 @@ export type CampReminderSettings = {
 
 /**
  * 캠프 템플릿
+ * @note DB 스키마와 호환되도록 nullable 필드 반영
  */
 export type CampTemplate = {
   id: string;
   tenant_id: string;
   name: string;
   description: string | null;
-  program_type: CampProgramType;
-  template_data: Partial<WizardData> | null;
-  slot_templates: SlotTemplate[] | null; // 슬롯 템플릿 설정
-  status: "draft" | "active" | "archived";
+  program_type: string | null; // DB: string | null (CampProgramType 값 사용)
+  template_data: Json; // DB: jsonb
+  slot_templates: Json | null; // DB: jsonb (실제로는 SlotTemplate[])
+  status: string | null; // DB: string | null ("draft" | "active" | "archived")
   camp_start_date: string | null; // 캠프 시작일 (date)
   camp_end_date: string | null; // 캠프 종료일 (date)
   camp_location: string | null; // 캠프 장소
-  reminder_settings: CampReminderSettings | null; // 리마인더 설정
+  reminder_settings: Json | null; // DB: jsonb (실제로는 CampReminderSettings)
   created_by: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null; // DB: nullable
+  updated_at: string | null; // DB: nullable
 };
 
 /**
