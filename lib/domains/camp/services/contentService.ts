@@ -175,9 +175,10 @@ export async function validateAndResolveContent(
   content: PlanContentInsert,
   studentId: string,
   tenantId: string
-): Promise<{ isValid: boolean; actualContentId: string }> {
+): Promise<{ isValid: boolean; actualContentId: string; failureReason?: string }> {
   let isValidContent = false;
   let actualContentId = content.content_id;
+  let failureReason: string | undefined;
 
   if (content.content_type === "book") {
     // 먼저 학생 교재로 직접 조회
@@ -228,6 +229,7 @@ export async function validateAndResolveContent(
               `[contentService] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
             );
           } catch (copyError) {
+            const errorMessage = copyError instanceof Error ? copyError.message : String(copyError);
             logError(copyError, {
               function: "validateAndResolveContent",
               contentId: content.content_id,
@@ -236,6 +238,7 @@ export async function validateAndResolveContent(
             // 복사 실패 시 해당 콘텐츠를 제외 (외래 키 제약 조건 위반 방지)
             // 마스터 교재 ID를 그대로 사용하면 plan_contents.content_id가 books 테이블을 참조하지 못함
             isValidContent = false;
+            failureReason = `마스터 교재 복사 실패: ${errorMessage}`;
             console.warn(
               `[contentService] 마스터 교재(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
             );
@@ -296,6 +299,7 @@ export async function validateAndResolveContent(
               `[contentService] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
             );
           } catch (copyError) {
+            const errorMessage = copyError instanceof Error ? copyError.message : String(copyError);
             logError(copyError, {
               function: "validateAndResolveContent",
               message: `마스터 강의 복사 실패: ${content.content_id}`,
@@ -303,6 +307,7 @@ export async function validateAndResolveContent(
             // 복사 실패 시 해당 콘텐츠를 제외 (외래 키 제약 조건 위반 방지)
             // 마스터 강의 ID를 그대로 사용하면 plan_contents.content_id가 lectures 테이블을 참조하지 못함
             isValidContent = false;
+            failureReason = `마스터 강의 복사 실패: ${errorMessage}`;
             console.warn(
               `[contentService] 마스터 강의(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
             );
@@ -333,7 +338,7 @@ export async function validateAndResolveContent(
     }
   }
 
-  return { isValid: isValidContent, actualContentId };
+  return { isValid: isValidContent, actualContentId, failureReason };
 }
 
 /**
@@ -537,8 +542,15 @@ export async function savePlanContents(
     recommendation_metadata?: RecommendationMetadata | null;
   }> = [];
 
+  // 실패한 콘텐츠 추적
+  const failedContents: Array<{
+    content_id: string;
+    content_type: string;
+    reason: string;
+  }> = [];
+
   for (const content of contentsToSave) {
-    const { isValid, actualContentId } = await validateAndResolveContent(
+    const { isValid, actualContentId, failureReason } = await validateAndResolveContent(
       supabase,
       content,
       studentId,
@@ -578,6 +590,13 @@ export async function savePlanContents(
         recommendation_metadata:
           contentWithRecommendation.recommendation_metadata ?? null,
       });
+    } else if (failureReason) {
+      // 실패 이유가 있는 경우만 기록 (복사 실패 등)
+      failedContents.push({
+        content_id: content.content_id,
+        content_type: content.content_type,
+        reason: failureReason,
+      });
     }
   }
 
@@ -601,6 +620,25 @@ export async function savePlanContents(
     console.warn(
       `[contentService] 학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
     );
+  }
+
+  // 실패한 콘텐츠가 있는 경우 plan_groups에 경고 저장
+  if (failedContents.length > 0) {
+    const { error: updateError } = await supabase
+      .from("plan_groups")
+      .update({ content_copy_warnings: failedContents })
+      .eq("id", groupId);
+
+    if (updateError) {
+      console.warn(
+        `[contentService] 콘텐츠 복사 경고 저장 실패 (groupId: ${groupId}):`,
+        updateError
+      );
+    } else {
+      console.warn(
+        `[contentService] ${failedContents.length}개 콘텐츠 복사 실패 경고 저장 (groupId: ${groupId})`
+      );
+    }
   }
 }
 

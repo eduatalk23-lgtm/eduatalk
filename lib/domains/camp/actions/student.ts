@@ -861,9 +861,29 @@ export const submitCampParticipation = withErrorHandling(
         template_block_set_id: planGroupSchedulerOptions?.template_block_set_id,
       });
 
-      const result = await createPlanGroupAction(planGroupData, {
-        skipContentValidation: true,
-      });
+      let result;
+      try {
+        result = await createPlanGroupAction(planGroupData, {
+          skipContentValidation: true,
+        });
+      } catch (createError) {
+        // 동시 수락으로 인한 UNIQUE 제약 위반 감지 (PostgreSQL error code 23505)
+        const errorMessage = createError instanceof Error ? createError.message : String(createError);
+        if (errorMessage.includes("23505") || errorMessage.includes("unique") || errorMessage.includes("duplicate")) {
+          console.warn("[campActions] 동시 수락 감지 - 이미 플랜 그룹이 생성됨:", {
+            invitationId,
+            studentId: user.userId,
+            error: errorMessage,
+          });
+          throw new AppError(
+            "이미 다른 요청에서 캠프 참여가 처리되었습니다. 페이지를 새로고침해주세요.",
+            ErrorCode.DUPLICATE_ENTRY,
+            409,
+            true
+          );
+        }
+        throw createError;
+      }
 
       if (!result.groupId) {
         console.error("[campActions] 플랜 그룹 생성 실패:", {

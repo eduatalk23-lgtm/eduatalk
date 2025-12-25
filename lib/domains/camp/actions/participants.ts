@@ -35,7 +35,7 @@ export const sendCampInvitationsAction = withErrorHandling(
   async (
     templateId: string,
     studentIds: string[]
-  ): Promise<{ success: boolean; error?: string; count?: number }> => {
+  ): Promise<{ success: boolean; error?: string; count?: number; failedNotifications?: number }> => {
     await requireAdminOrConsultant();
 
     // 입력값 검증
@@ -113,33 +113,72 @@ export const sendCampInvitationsAction = withErrorHandling(
       return { success: false, error: error.message };
     }
 
-    // 이메일 알림 발송 (비동기, 실패해도 초대는 성공으로 처리)
+    // 이메일 알림 발송 (결과 추적 및 DB 업데이트)
+    let failedNotifications = 0;
     if (insertedInvitations && insertedInvitations.length > 0) {
       const { sendCampInvitationNotification } = await import(
         "@/lib/services/campNotificationService"
       );
 
-      // 각 초대에 대해 이메일 발송 (병렬 처리)
-      Promise.all(
-        insertedInvitations.map((inv) =>
-          sendCampInvitationNotification(inv.id).catch((err) => {
-            logError(err, {
-              function: "sendCampInvitationsAction",
-              invitationId: inv.id,
-              action: "sendCampInvitationNotification",
-            });
-          })
-        )
-      ).catch((err) => {
-        logError(err, {
-          function: "sendCampInvitationsAction",
-          templateId,
-          action: "batchEmailNotification",
-        });
+      // 각 초대에 대해 이메일 발송 (병렬 처리, 결과 추적)
+      const notificationResults = await Promise.allSettled(
+        insertedInvitations.map((inv) => sendCampInvitationNotification(inv.id))
+      );
+
+      // 성공/실패 분리
+      const now = new Date().toISOString();
+      const successIds: string[] = [];
+      const failedUpdates: { id: string; error: string }[] = [];
+
+      notificationResults.forEach((result, index) => {
+        const invitationId = insertedInvitations[index].id;
+        if (result.status === "fulfilled") {
+          successIds.push(invitationId);
+        } else {
+          const errorMessage = result.reason instanceof Error
+            ? result.reason.message
+            : String(result.reason);
+          failedUpdates.push({ id: invitationId, error: errorMessage });
+          logError(result.reason, {
+            function: "sendCampInvitationsAction",
+            invitationId,
+            action: "sendCampInvitationNotification",
+          });
+        }
       });
+
+      // 성공한 알림 상태 업데이트
+      if (successIds.length > 0) {
+        await supabase
+          .from("camp_invitations")
+          .update({
+            notification_status: "sent",
+            notification_sent_at: now,
+            notification_attempts: 1,
+          })
+          .in("id", successIds);
+      }
+
+      // 실패한 알림 상태 업데이트
+      for (const { id, error } of failedUpdates) {
+        await supabase
+          .from("camp_invitations")
+          .update({
+            notification_status: "failed",
+            notification_error: error.substring(0, 500), // 에러 메시지 길이 제한
+            notification_attempts: 1,
+          })
+          .eq("id", id);
+      }
+
+      failedNotifications = failedUpdates.length;
     }
 
-    return { success: true, count: newStudentIds.length };
+    return {
+      success: true,
+      count: newStudentIds.length,
+      failedNotifications: failedNotifications > 0 ? failedNotifications : undefined,
+    };
   }
 );
 

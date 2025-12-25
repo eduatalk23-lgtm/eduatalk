@@ -8,6 +8,10 @@ import { startStudySession, endStudySession } from "@/lib/domains/student";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
+import {
+  isSessionPaused,
+  filterActivelyRunningSessions,
+} from "@/lib/utils/timerUtils";
 import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
 import type {
   PlanRecordPayload,
@@ -18,6 +22,17 @@ import type {
   PreparePlanCompletionResult,
   ActionResult,
 } from "../types";
+import { TIMER_ERRORS } from "../errors";
+import { timerLogger } from "../logger";
+
+/**
+ * 서버 현재 시간 조회
+ *
+ * 탭이 다시 활성화될 때 정확한 서버 시간 동기화를 위해 사용합니다.
+ */
+export async function getServerTime(): Promise<{ serverNow: number }> {
+  return { serverNow: Date.now() };
+}
 
 /**
  * 플랜 시작 (타이머 시작)
@@ -34,7 +49,7 @@ export async function startPlan(
 ): Promise<StartPlanResult> {
   const user = await getCurrentUser();
   if (!user || user.role !== "student") {
-    return { success: false, error: "로그인이 필요합니다." };
+    return { success: false, error: TIMER_ERRORS.AUTH_REQUIRED };
   }
 
   try {
@@ -50,12 +65,16 @@ export async function startPlan(
       .maybeSingle();
 
     if (planError) {
-      console.error("[todayActions] 플랜 조회 오류:", planError);
-      return { success: false, error: "플랜 정보 조회 중 오류가 발생했습니다." };
+      timerLogger.error("플랜 조회 오류", {
+        action: "startPlan",
+        id: planId,
+        error: planError instanceof Error ? planError : new Error(String(planError)),
+      });
+      return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
     }
 
     if (!plan) {
-      return { success: false, error: "플랜을 찾을 수 없습니다." };
+      return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
     }
 
     // 가상 플랜은 학습 시작 불가
@@ -69,7 +88,7 @@ export async function startPlan(
     if (plan.actual_end_time) {
       return {
         success: false,
-        error: "이미 완료된 플랜입니다. 완료된 플랜은 다시 시작할 수 없습니다.",
+        error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED,
       };
     }
 
@@ -81,23 +100,26 @@ export async function startPlan(
       .select("plan_id, paused_at, resumed_at")
       .eq("student_id", user.userId)
       .is("ended_at", null)
+      .not("plan_id", "is", null) // plan_id가 null인 고아 세션 제외
       .neq("plan_id", planId);
 
     if (sessionError) {
-      console.error("[todayActions] 활성 세션 조회 오류:", sessionError);
-      return { success: false, error: "활성 세션 조회 중 오류가 발생했습니다." };
+      timerLogger.error("활성 세션 조회 오류", {
+        action: "startPlan",
+        id: planId,
+        error: sessionError instanceof Error ? sessionError : new Error(String(sessionError)),
+      });
+      return { success: false, error: TIMER_ERRORS.SESSION_QUERY_ERROR };
     }
 
     // 일시정지되지 않은 실제 활성 세션만 필터링
-    const trulyActiveSessions = activeSessions?.filter(
-      (session) => !session.paused_at || session.resumed_at
-    ) || [];
+    const trulyActiveSessions = filterActivelyRunningSessions(activeSessions);
 
     // 다른 플랜이 활성화되어 있으면 에러 반환
     if (trulyActiveSessions.length > 0) {
       return {
         success: false,
-        error: "다른 플랜의 타이머가 실행 중입니다. 먼저 해당 플랜의 타이머를 중지해주세요."
+        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
       };
     }
 
@@ -105,6 +127,44 @@ export async function startPlan(
     const result = await startStudySession(planId);
     if (!result.success) {
       return { success: false, error: result.error };
+    }
+
+    // [경합 방지] 낙관적 락: 세션 시작 후 다시 확인하여 경합 감지
+    // 두 요청이 동시에 활성 세션 체크를 통과했을 수 있으므로, 시작 후 다시 확인
+    if (result.sessionId) {
+      const { data: allActiveSessions } = await supabase
+        .from("student_study_sessions")
+        .select("id, plan_id, started_at")
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .not("plan_id", "is", null) // plan_id가 null인 고아 세션 제외
+        .order("started_at", { ascending: true });
+
+      // 활성 세션이 여러 개면 경합 발생 - 가장 먼저 시작된 세션만 유지
+      if (allActiveSessions && allActiveSessions.length > 1) {
+        const firstSession = allActiveSessions[0];
+
+        // 자신의 세션이 가장 먼저 시작된 것이 아니면 롤백
+        if (firstSession.id !== result.sessionId) {
+          // 자신의 세션 종료 (롤백)
+          await endStudySession(result.sessionId);
+
+          timerLogger.warn("경합 감지: 세션 롤백", {
+            action: "startPlan",
+            id: planId,
+            data: {
+              rolledBackSessionId: result.sessionId,
+              winningSessionId: firstSession.id,
+              winningPlanId: firstSession.plan_id,
+            },
+          });
+
+          return {
+            success: false,
+            error: "다른 플랜의 타이머가 동시에 시작되었습니다. 다시 시도해주세요.",
+          };
+        }
+      }
     }
 
     // 플랜의 actual_start_time 업데이트 (처음 시작하는 경우만)
@@ -147,7 +207,11 @@ export async function startPlan(
       startedAt: sessionStartedAt,
     };
   } catch (error) {
-    console.error("[todayActions] 플랜 시작 실패", error);
+    timerLogger.error("플랜 시작 실패", {
+      action: "startPlan",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 시작에 실패했습니다.",
@@ -209,12 +273,15 @@ export async function completePlan(
         plan.content_id
       );
     } catch (error) {
-      console.error("[todayActions] 콘텐츠 총량 조회 중 예외 발생", {
-        planId,
-        contentType: plan.content_type,
-        contentId: plan.content_id,
-        studentId: user.userId,
-        error: error instanceof Error ? error.message : String(error),
+      timerLogger.error("콘텐츠 총량 조회 중 예외 발생", {
+        action: "completePlan",
+        id: planId,
+        userId: user.userId,
+        data: {
+          contentType: plan.content_type,
+          contentId: plan.content_id,
+        },
+        error: error instanceof Error ? error : new Error(String(error)),
       });
       return {
         success: false,
@@ -224,11 +291,14 @@ export async function completePlan(
 
     // 상세한 에러 메시지 제공
     if (totalAmount === null) {
-      console.error("[todayActions] 콘텐츠 총량이 null", {
-        planId,
-        contentType: plan.content_type,
-        contentId: plan.content_id,
-        studentId: user.userId,
+      timerLogger.error("콘텐츠 총량이 null", {
+        action: "completePlan",
+        id: planId,
+        userId: user.userId,
+        data: {
+          contentType: plan.content_type,
+          contentId: plan.content_id,
+        },
       });
       return {
         success: false,
@@ -237,12 +307,15 @@ export async function completePlan(
     }
 
     if (totalAmount <= 0) {
-      console.error("[todayActions] 콘텐츠 총량이 0 이하", {
-        planId,
-        contentType: plan.content_type,
-        contentId: plan.content_id,
-        totalAmount,
-        studentId: user.userId,
+      timerLogger.error("콘텐츠 총량이 0 이하", {
+        action: "completePlan",
+        id: planId,
+        userId: user.userId,
+        data: {
+          contentType: plan.content_type,
+          contentId: plan.content_id,
+          totalAmount,
+        },
       });
       return {
         success: false,
@@ -269,7 +342,11 @@ export async function completePlan(
       .eq("student_id", user.userId);
 
     if (batchUpdateError) {
-      console.error("[todayActions] 플랜 진행률 배치 업데이트 오류:", batchUpdateError);
+      timerLogger.error("플랜 진행률 배치 업데이트 오류", {
+        action: "completePlan",
+        id: planId,
+        error: batchUpdateError instanceof Error ? batchUpdateError : new Error(String(batchUpdateError)),
+      });
     }
 
     // student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
@@ -304,7 +381,11 @@ export async function completePlan(
       });
 
     if (progressUpsertError) {
-      console.error("[todayActions] 플랜별 진행률 upsert 오류:", progressUpsertError);
+      timerLogger.error("플랜별 진행률 upsert 오류", {
+        action: "completePlan",
+        id: planId,
+        error: progressUpsertError instanceof Error ? progressUpsertError : new Error(String(progressUpsertError)),
+      });
     }
 
     // content_type + content_id로도 진행률 업데이트 (전체 진행률)
@@ -377,27 +458,20 @@ export async function completePlan(
 
     // 여러 세션이 있는 경우 가장 최근 세션 사용
     const activeSession = activeSessions && activeSessions.length > 0 ? activeSessions[0] : null;
-    const sessionPausedDuration = activeSession?.paused_duration_seconds || 0;
-    const planPausedDuration = planData?.paused_duration_seconds || 0;
 
-    // 현재 일시정지 중인 경우 일시정지 시간 추가 계산
-    let currentPauseDuration = sessionPausedDuration;
-    if (activeSession?.paused_at && !activeSession.resumed_at) {
-      const pausedAt = new Date(activeSession.paused_at);
+    // 플랜의 paused_duration_seconds만 사용 (단일 소스 원칙 - 이중 계산 방지)
+    let totalPausedDuration = planData?.paused_duration_seconds || 0;
+
+    // 현재 일시정지 중인 경우, 아직 플랜에 반영되지 않은 현재 일시정지 시간 추가
+    if (activeSession && isSessionPaused(activeSession)) {
+      // isSessionPaused가 true면 paused_at은 반드시 존재
+      const pausedAt = new Date(activeSession.paused_at!);
       const now = new Date();
-      const currentPauseSeconds = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
-      currentPauseDuration += currentPauseSeconds;
+      const currentPauseSeconds = Math.max(0, Math.floor((now.getTime() - pausedAt.getTime()) / 1000));
+      totalPausedDuration += currentPauseSeconds;
     }
 
-    const totalPausedDuration = currentPauseDuration + planPausedDuration;
     const pauseCount = planData?.pause_count || 0;
-
-    // 활성 세션 종료 (모든 활성 세션 종료)
-    if (activeSessions && activeSessions.length > 0) {
-      for (const session of activeSessions) {
-        await endStudySession(session.id);
-      }
-    }
 
     // 같은 plan_number를 가진 모든 플랜의 시간 정보 업데이트 (N+1 → 배치 쿼리 최적화)
     // 1. 모든 플랜 데이터 배치 조회
@@ -425,11 +499,28 @@ export async function completePlan(
       }
     }
 
-    // 4. 모든 활성 세션 종료 (병렬 처리)
+    // 4. 모든 활성 세션 종료 (병렬 처리, 부분 실패 허용)
     if (allActiveSessions && allActiveSessions.length > 0) {
-      await Promise.all(
+      const sessionEndResults = await Promise.allSettled(
         allActiveSessions.map((session) => endStudySession(session.id))
       );
+
+      // 실패한 세션 종료 로깅
+      const failedSessions = sessionEndResults
+        .map((result, idx) => ({ result, sessionId: allActiveSessions[idx].id }))
+        .filter((item) => item.result.status === "rejected");
+
+      if (failedSessions.length > 0) {
+        timerLogger.error("일부 세션 종료 실패", {
+          action: "completePlan",
+          id: planId,
+          data: {
+            failedCount: failedSessions.length,
+            totalCount: allActiveSessions.length,
+            failedSessionIds: failedSessions.map((f) => f.sessionId),
+          },
+        });
+      }
     }
 
     // 5. 각 플랜의 업데이트 데이터 계산 및 배치 업데이트
@@ -450,42 +541,59 @@ export async function completePlan(
         );
       }
 
-      const samePlanPausedDuration = samePlanData?.paused_duration_seconds || 0;
+      // 플랜의 paused_duration_seconds만 사용 (단일 소스 원칙 - 이중 계산 방지)
+      let samePlanTotalPausedDuration = samePlanData?.paused_duration_seconds || 0;
       const samePlanPauseCount = samePlanData?.pause_count || 0;
 
-      // 해당 플랜의 세션에서 일시정지 시간 계산
+      // 현재 일시정지 중인 경우, 아직 플랜에 반영되지 않은 현재 일시정지 시간만 추가
       const planSessions = sessionsByPlanId.get(samePlanId) || [];
-      let samePlanCurrentPauseDuration = 0;
-
       if (planSessions.length > 0) {
         const firstSession = planSessions[0];
-        samePlanCurrentPauseDuration = firstSession.paused_duration_seconds || 0;
-
-        if (firstSession.paused_at && !firstSession.resumed_at) {
+        if (isSessionPaused(firstSession)) {
           const pausedAt = new Date(firstSession.paused_at);
-          const currentPauseSeconds = Math.floor(
+          const currentPauseSeconds = Math.max(0, Math.floor(
             (nowTime.getTime() - pausedAt.getTime()) / 1000
-          );
-          samePlanCurrentPauseDuration += currentPauseSeconds;
+          ));
+          samePlanTotalPausedDuration += currentPauseSeconds;
         }
       }
 
-      const samePlanTotalPausedDuration =
-        samePlanCurrentPauseDuration + samePlanPausedDuration;
-
-      return supabase
-        .from("student_plan")
-        .update({
-          actual_end_time: actualEndTime,
-          total_duration_seconds: samePlanTotalDurationSeconds,
-          paused_duration_seconds: samePlanTotalPausedDuration,
-          pause_count: samePlanPauseCount,
-        })
-        .eq("id", samePlanId)
-        .eq("student_id", user.userId);
+      return {
+        planId: samePlanId,
+        promise: supabase
+          .from("student_plan")
+          .update({
+            actual_end_time: actualEndTime,
+            total_duration_seconds: samePlanTotalDurationSeconds,
+            paused_duration_seconds: samePlanTotalPausedDuration,
+            pause_count: samePlanPauseCount,
+          })
+          .eq("id", samePlanId)
+          .eq("student_id", user.userId),
+      };
     });
 
-    await Promise.all(updatePromises);
+    // 플랜 업데이트 실행 (부분 실패 허용)
+    const planUpdateResults = await Promise.allSettled(
+      updatePromises.map((item) => item.promise)
+    );
+
+    // 실패한 플랜 업데이트 로깅
+    const failedPlanUpdates = planUpdateResults
+      .map((result, idx) => ({ result, planId: updatePromises[idx].planId }))
+      .filter((item) => item.result.status === "rejected");
+
+    if (failedPlanUpdates.length > 0) {
+      timerLogger.error("일부 플랜 업데이트 실패", {
+        action: "completePlan",
+        id: planId,
+        data: {
+          failedCount: failedPlanUpdates.length,
+          totalCount: planIds.length,
+          failedPlanIds: failedPlanUpdates.map((f) => f.planId),
+        },
+      });
+    }
 
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
     const finalDuration = totalDurationSeconds ? Math.max(0, totalDurationSeconds - totalPausedDuration) : 0;
@@ -504,7 +612,11 @@ export async function completePlan(
       startedAt: null,
     };
   } catch (error) {
-    console.error("[todayActions] 플랜 완료 실패", error);
+    timerLogger.error("플랜 완료 실패", {
+      action: "completePlan",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 완료에 실패했습니다.",
@@ -551,7 +663,11 @@ export async function postponePlan(
     await revalidateTimerPaths(false, false);
     return { success: true };
   } catch (error) {
-    console.error("[todayActions] 플랜 미루기 실패", error);
+    timerLogger.error("플랜 미루기 실패", {
+      action: "postponePlan",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 미루기에 실패했습니다.",
@@ -590,7 +706,11 @@ export async function endTimer(
     await revalidateTimerPaths(false, true);
     return result;
   } catch (error) {
-    console.error("[todayActions] 타이머 종료 실패", error);
+    timerLogger.error("타이머 종료 실패", {
+      action: "endTimer",
+      id: sessionId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "타이머 종료에 실패했습니다.",
@@ -629,7 +749,7 @@ export async function pausePlan(
     }
 
     // 이미 일시정지된 상태인지 확인
-    if (activeSession.paused_at && !activeSession.resumed_at) {
+    if (isSessionPaused(activeSession)) {
       return { success: false, error: "이미 일시정지된 상태입니다." };
     }
 
@@ -649,7 +769,11 @@ export async function pausePlan(
       .eq("student_id", user.userId);
 
     if (pauseError) {
-      console.error("[todayActions] 세션 일시정지 오류:", pauseError);
+      timerLogger.error("세션 일시정지 오류", {
+        action: "pausePlan",
+        id: planId,
+        error: pauseError instanceof Error ? pauseError : new Error(String(pauseError)),
+      });
       return { success: false, error: "세션 일시정지에 실패했습니다." };
     }
 
@@ -663,22 +787,25 @@ export async function pausePlan(
     );
 
     if (rpcError) {
-      console.error("[todayActions] pause_count 증가 오류:", rpcError);
+      timerLogger.warn("pause_count 증가 오류", {
+        action: "pausePlan",
+        id: planId,
+        error: rpcError instanceof Error ? rpcError : new Error(String(rpcError)),
+      });
       // 일시정지는 성공했으므로 경고만 로그하고 계속 진행
     }
 
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 플랜의 현재 누적 시간 계산 (세션 정보 사용)
+    // 플랜의 현재 누적 시간 계산 (플랜의 paused_duration_seconds만 사용 - 단일 소스 원칙)
     let accumulatedSeconds = 0;
     if (activeSession?.started_at) {
       const sessionStartMs = new Date(activeSession.started_at).getTime();
       const now = Date.now();
       const elapsed = Math.floor((now - sessionStartMs) / 1000);
-      const sessionPausedDuration = activeSession.paused_duration_seconds || 0;
 
-      // 플랜의 paused_duration_seconds도 고려
+      // 플랜의 paused_duration_seconds만 사용 (세션 값은 사용하지 않음 - 이중 계산 방지)
       const { data: planData } = await supabase
         .from("student_plan")
         .select("paused_duration_seconds")
@@ -687,7 +814,7 @@ export async function pausePlan(
         .maybeSingle();
 
       const planPausedDuration = planData?.paused_duration_seconds || 0;
-      accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
+      accumulatedSeconds = Math.max(0, elapsed - planPausedDuration);
     }
 
     // 현재 경로만 재검증 (성능 최적화)
@@ -699,7 +826,11 @@ export async function pausePlan(
       accumulatedSeconds,
     };
   } catch (error) {
-    console.error("[todayActions] 플랜 일시정지 실패", error);
+    timerLogger.error("플랜 일시정지 실패", {
+      action: "pausePlan",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 일시정지에 실패했습니다.",
@@ -738,26 +869,24 @@ export async function resumePlan(
     }
 
     // 일시정지 상태인지 확인
-    if (!activeSession.paused_at || activeSession.resumed_at) {
+    if (!isSessionPaused(activeSession)) {
       return { success: false, error: "일시정지된 상태가 아닙니다." };
     }
 
     const pausedAt = new Date(activeSession.paused_at);
     // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
     const resumedAt = timestamp ? new Date(timestamp) : new Date();
-    const pauseDuration = Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000);
-    const totalPausedDuration = (activeSession.paused_duration_seconds || 0) + pauseDuration;
+    const pauseDuration = Math.max(0, Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000));
 
-    // 세션 재개
+    // 세션 재개 (resumed_at만 업데이트, paused_duration_seconds는 플랜에서만 관리)
     await supabase
       .from("student_study_sessions")
       .update({
         resumed_at: resumedAt.toISOString(),
-        paused_duration_seconds: totalPausedDuration,
       })
       .eq("id", activeSession.id);
 
-    // 플랜의 paused_duration_seconds 업데이트 및 현재 누적 시간 계산을 위한 조회
+    // 플랜의 paused_duration_seconds 업데이트 (단일 소스 원칙: 플랜에서만 관리)
     const { data: planData } = await supabase
       .from("student_plan")
       .select("actual_start_time, paused_duration_seconds")
@@ -765,12 +894,13 @@ export async function resumePlan(
       .eq("student_id", user.userId)
       .maybeSingle();
 
-    // 플랜의 paused_duration_seconds 업데이트
     const planPausedDuration = planData?.paused_duration_seconds || 0;
+    const updatedPlanPausedDuration = planPausedDuration + pauseDuration;
+
     await supabase
       .from("student_plan")
       .update({
-        paused_duration_seconds: planPausedDuration + pauseDuration,
+        paused_duration_seconds: updatedPlanPausedDuration,
       })
       .eq("id", planId)
       .eq("student_id", user.userId);
@@ -784,9 +914,8 @@ export async function resumePlan(
       const sessionStartMs = new Date(activeSession.started_at).getTime();
       const now = Date.now();
       const elapsed = Math.floor((now - sessionStartMs) / 1000);
-      const sessionPausedDuration = activeSession.paused_duration_seconds || 0;
-      const planPausedDuration = planData.paused_duration_seconds || 0;
-      accumulatedSeconds = Math.max(0, elapsed - sessionPausedDuration - planPausedDuration);
+      // 플랜의 paused_duration_seconds만 사용 (이중 계산 방지)
+      accumulatedSeconds = Math.max(0, elapsed - updatedPlanPausedDuration);
       startedAt = activeSession.started_at;
     }
 
@@ -800,7 +929,11 @@ export async function resumePlan(
       startedAt: startedAt ?? null,
     };
   } catch (error) {
-    console.error("[todayActions] 플랜 재개 실패", error);
+    timerLogger.error("플랜 재개 실패", {
+      action: "resumePlan",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 재개에 실패했습니다.",
@@ -871,7 +1004,11 @@ export async function preparePlanCompletion(
       .is("ended_at", null);
 
     if (sessionError) {
-      console.error("[todayActions] 세션 조회 오류:", sessionError);
+      timerLogger.error("세션 조회 오류", {
+        action: "preparePlanCompletion",
+        id: planId,
+        error: sessionError instanceof Error ? sessionError : new Error(String(sessionError)),
+      });
       return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}`, hasActiveSession: false, isAlreadyCompleted: false };
     }
 
@@ -881,21 +1018,18 @@ export async function preparePlanCompletion(
     if (hasActiveSession && activeSessions) {
       let newlyAccumulatedPausedSeconds = 0;
 
+      // 현재 일시정지 중인 세션만 추가 계산 (단일 소스 원칙 - 세션의 paused_duration_seconds는 사용하지 않음)
       for (const session of activeSessions) {
-        let pausedSeconds = session.paused_duration_seconds || 0;
-
-        // 현재 일시정지 중이었다면 추가 계산
-        if (session.paused_at && !session.resumed_at) {
-          const pausedAt = new Date(session.paused_at);
-          const currentPause = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
-          pausedSeconds += currentPause;
+        // 현재 일시정지 중이었다면 아직 플랜에 반영되지 않은 일시정지 시간만 추가
+        if (isSessionPaused(session)) {
+          const pausedAt = new Date(session.paused_at!);
+          const currentPause = Math.max(0, Math.floor((now.getTime() - pausedAt.getTime()) / 1000));
+          newlyAccumulatedPausedSeconds += currentPause;
         }
-
-        newlyAccumulatedPausedSeconds += pausedSeconds;
         await endStudySession(session.id);
       }
 
-      // 플랜의 paused_duration_seconds 업데이트
+      // 플랜의 paused_duration_seconds 업데이트 (플랜에서만 관리)
       const planPausedDuration = plan.paused_duration_seconds || 0;
       const updatedPausedDuration = planPausedDuration + newlyAccumulatedPausedSeconds;
 
@@ -960,7 +1094,11 @@ export async function preparePlanCompletion(
       isAlreadyCompleted: false,
     };
   } catch (error) {
-    console.error("[todayActions] 플랜 완료 준비 실패", error);
+    timerLogger.error("플랜 완료 준비 실패", {
+      action: "preparePlanCompletion",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 완료 준비에 실패했습니다.",
@@ -970,95 +1108,4 @@ export async function preparePlanCompletion(
   }
 }
 
-/**
- * 플랜의 모든 활성 세션 종료 (완료 버튼 클릭 시 타이머 중지용)
- * @deprecated Use preparePlanCompletion instead for new code
- */
-export async function stopAllActiveSessionsForPlan(
-  planId: string
-): Promise<ActionResult> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    return { success: false, error: "로그인이 필요합니다." };
-  }
-
-  try {
-    const supabase = await createSupabaseServerClient();
-    const now = new Date();
-
-    // 플랜 정보 조회 (시간 계산용)
-    const { data: planData, error: planError } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, actual_end_time, paused_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
-    if (planError || !planData) {
-      console.error("[todayActions] 플랜 조회 실패:", planError);
-      return { success: false, error: "플랜 정보를 가져오지 못했습니다." };
-    }
-
-    // 해당 플랜의 모든 활성 세션 조회 (일시정지 정보 포함)
-    const { data: activeSessions, error: sessionError } = await supabase
-      .from("student_study_sessions")
-      .select("id, paused_duration_seconds, paused_at, resumed_at")
-      .eq("plan_id", planId)
-      .eq("student_id", user.userId)
-      .is("ended_at", null);
-
-    if (sessionError) {
-      console.error("[todayActions] 세션 조회 오류:", sessionError);
-      return { success: false, error: `세션 조회 중 오류가 발생했습니다: ${sessionError.message}` };
-    }
-
-    let newlyAccumulatedPausedSeconds = 0;
-
-    if (activeSessions && activeSessions.length > 0) {
-      for (const session of activeSessions) {
-        let pausedSeconds = session.paused_duration_seconds || 0;
-
-        // 현재 일시정지 중이었다면 추가 계산
-        if (session.paused_at && !session.resumed_at) {
-          const pausedAt = new Date(session.paused_at);
-          const currentPause = Math.floor((now.getTime() - pausedAt.getTime()) / 1000);
-          pausedSeconds += currentPause;
-        }
-
-        newlyAccumulatedPausedSeconds += pausedSeconds;
-        await endStudySession(session.id);
-      }
-    }
-
-    const planPausedDuration = planData.paused_duration_seconds || 0;
-    const updatedPausedDuration = planPausedDuration + newlyAccumulatedPausedSeconds;
-
-    const actualEndTime = planData.actual_end_time || now.toISOString();
-    const endDate = new Date(actualEndTime);
-
-    let totalDurationSeconds: number | null = null;
-    if (planData.actual_start_time) {
-      const startTime = new Date(planData.actual_start_time);
-      totalDurationSeconds = Math.floor((endDate.getTime() - startTime.getTime()) / 1000);
-    }
-
-    await supabase
-      .from("student_plan")
-      .update({
-        actual_end_time: actualEndTime,
-        total_duration_seconds: totalDurationSeconds,
-        paused_duration_seconds: updatedPausedDuration,
-      })
-      .eq("id", planId)
-      .eq("student_id", user.userId);
-
-    await revalidateTimerPaths(false, false);
-    return { success: true };
-  } catch (error) {
-    console.error("[todayActions] 세션 종료 실패", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "세션 종료에 실패했습니다.",
-    };
-  }
-}
+// stopAllActiveSessionsForPlan was removed - use preparePlanCompletion instead
