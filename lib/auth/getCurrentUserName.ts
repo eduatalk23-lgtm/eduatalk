@@ -77,10 +77,13 @@ export const getCurrentUserName = cache(async (): Promise<string | null> => {
 
     return null;
   } catch (error) {
-    console.error("[getCurrentUserName] 사용자 이름 조회 실패:", error);
+    // 프로덕션에서는 에러 객체 전체 로깅 제외 (스택 트레이스에 민감 정보 포함 가능)
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[getCurrentUserName] 사용자 이름 조회 실패:", errorMessage);
     return null;
   }
 });
+
 
 
 

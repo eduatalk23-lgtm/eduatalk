@@ -38,11 +38,18 @@ export async function getTenantInfo(): Promise<{
       if (error.code === "PGRST116") {
         return null;
       }
-      console.error("[auth] tenant 정보 조회 실패", {
-        tenantId: tenantContext.tenantId,
-        error: error.message,
-        code: error.code,
-      });
+      // 에러 코드와 메시지만 로깅 (tenantId는 개발 환경에서만)
+      if (process.env.NODE_ENV === "development") {
+        console.error("[auth] tenant 정보 조회 실패", {
+          tenantId: tenantContext.tenantId,
+          error: error.message,
+          code: error.code,
+        });
+      } else {
+        console.error("[auth] tenant 정보 조회 실패", {
+          code: error.code,
+        });
+      }
       return null;
     }
 
@@ -55,14 +62,13 @@ export async function getTenantInfo(): Promise<{
       type: tenant.type || undefined,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[auth] getTenantInfo 실패", {
-      message: errorMessage,
-      error,
-    });
+    // 프로덕션에서는 에러 객체 전체 로깅 제외
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[auth] getTenantInfo 실패:", errorMessage);
     return null;
   }
 }
+
 
 
 

@@ -321,14 +321,24 @@ export async function getCurrentUserRole(
     }
 
     // 어떤 테이블에도 없고 signup_role도 없으면 null 반환
-    console.warn("[auth] 사용자 역할을 찾을 수 없음", {
-      userId: user.id,
-      email: user.email,
-      adminFound: !!adminRole,
-      parentFound: !!parentRole,
-      studentFound: !!studentRole,
-      signupRole,
-    });
+    // 프로덕션에서는 민감 정보(email) 로깅 제외
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[auth] 사용자 역할을 찾을 수 없음", {
+        userId: user.id,
+        email: user.email,
+        adminFound: !!adminRole,
+        parentFound: !!parentRole,
+        studentFound: !!studentRole,
+        signupRole,
+      });
+    } else {
+      console.warn("[auth] 사용자 역할을 찾을 수 없음", {
+        adminFound: !!adminRole,
+        parentFound: !!parentRole,
+        studentFound: !!studentRole,
+        signupRole,
+      });
+    }
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {
     // 에러 처리: 공통 에러 분석 유틸리티 사용

@@ -96,12 +96,20 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     const { userId, role, tenantId } = await getCurrentUserRole(user);
 
     if (!userId || !role) {
-      console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
-        userId,
-        role,
-        userEmail: user.email,
-        userIdFromAuth: user.id,
-      });
+      // 프로덕션에서는 민감 정보(email, userId) 로깅 제외
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
+          userId,
+          role,
+          userEmail: user.email,
+          userIdFromAuth: user.id,
+        });
+      } else {
+        console.warn("[auth] getCurrentUser: userId 또는 role이 없음", {
+          hasUserId: !!userId,
+          hasRole: !!role,
+        });
+      }
       return null;
     }
 
