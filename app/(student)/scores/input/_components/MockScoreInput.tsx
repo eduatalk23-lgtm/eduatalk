@@ -6,6 +6,7 @@ import type { SubjectGroup } from "@/lib/data/subjects";
 import type { MockScoreInputForm } from "@/lib/types/scoreInput";
 import { createMockScoresBatch } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { cn } from "@/lib/cn";
 
 type MockScoreInputProps = {
@@ -45,19 +46,7 @@ export default function MockScoreInput({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 페이지 이탈 방지
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges]);
+  useBeforeUnload(hasUnsavedChanges);
 
   // 성적 변경 감지
   useEffect(() => {

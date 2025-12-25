@@ -7,6 +7,7 @@ import type { InternalScoreInputForm } from "@/lib/types/scoreInput";
 import { calculateSchoolYear } from "@/lib/utils/schoolYear";
 import { createInternalScoresBatch } from "@/lib/domains/score/actions";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { cn } from "@/lib/cn";
 
 type InternalScoreInputProps = {
@@ -49,19 +50,7 @@ export default function InternalScoreInput({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 페이지 이탈 방지
-  useEffect(() => {
-    if (!hasUnsavedChanges) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [hasUnsavedChanges]);
+  useBeforeUnload(hasUnsavedChanges);
 
   // 성적 변경 감지
   useEffect(() => {

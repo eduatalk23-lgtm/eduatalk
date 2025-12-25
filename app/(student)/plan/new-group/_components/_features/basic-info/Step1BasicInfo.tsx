@@ -9,7 +9,7 @@ import {
   toPlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
-import { BlockSetTimeline } from "../../_components/BlockSetTimeline";
+import { BlockSetTimeline } from "../../common/BlockSetTimeline";
 import { CollapsibleSection } from "../../_summary/CollapsibleSection";
 
 import {
@@ -21,8 +21,8 @@ import {
 } from "@/lib/utils/date";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
 import { FieldErrors } from "../../hooks/useWizardValidation";
-import { FieldError } from "../../_components/FieldError";
-import { getFieldErrorClasses } from "../../_components/fieldErrorUtils";
+import { FieldError } from "../../common/FieldError";
+import { getFieldErrorClasses } from "../../common/fieldErrorUtils";
 import { cn } from "@/lib/cn";
 import { isFieldLocked, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
 import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";

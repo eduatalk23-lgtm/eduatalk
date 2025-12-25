@@ -31,6 +31,7 @@ import { BasePlanWizard } from "./BasePlanWizard";
 import { PlanWizardDebugger } from "./debug/PlanWizardDebugger";
 import { useBlockSets } from "@/lib/hooks/useBlockSets";
 import { useStudentContents } from "@/lib/hooks/useStudentContents";
+import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { planGroupsQueryOptions } from "@/lib/query-options/planGroups";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
@@ -234,7 +235,7 @@ export type WizardData = {
 };
 */
 
-type ExtendedInitialData = Partial<WizardData> & {
+export type ExtendedInitialData = Partial<WizardData> & {
   groupId?: string;
   templateId?: string;
   templateProgramType?: string;
@@ -760,22 +761,7 @@ function PlanGroupWizardInner({
   }, [isTemplateMode, onSaveRequest]);
 
   // 이탈 방지: beforeunload 이벤트 처리
-  useEffect(() => {
-    if (!isDirty) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // 표준에 따라 메시지를 설정해야 함
-      e.preventDefault();
-      e.returnValue = ""; // Chrome에서는 빈 문자열이 필요
-      return ""; // 일부 브라우저에서는 반환값 필요
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [isDirty]);
+  useBeforeUnload(isDirty);
 
   // 취소 핸들러 (변경 사항 감지)
   const handleCancel = useCallback(() => {

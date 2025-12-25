@@ -7,7 +7,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
 import { ExclusionImportModal } from "../modals/ExclusionImportModal";
 import { formatDateFromDate, parseDateString, generateDateRange } from "@/lib/utils/date";
-import { DateInput } from "../../../_components/DateInput";
+import { DateInput } from "../../../common/DateInput";
 
 type ExclusionsPanelProps = {
   data: WizardData;

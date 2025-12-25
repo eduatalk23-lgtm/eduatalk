@@ -14,13 +14,13 @@ type UseRequiredSubjectsProps = {
   recommendedContents: RecommendedContent[];
 };
 
-type RequiredSubject = {
+export type RequiredSubject = {
   subject_category: string;
   subject?: string;
   min_count: number;
 };
 
-type MissingRequiredSubject = {
+export type MissingRequiredSubject = {
   name: string;
   current: number;
   required: number;

@@ -18,7 +18,7 @@ import { ContentSelectionProgress } from "../../_components/ContentSelectionProg
 import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FieldErrors } from "../../hooks/useWizardValidation";
-import { FieldError } from "../../_components/FieldError";
+import { FieldError } from "../../common/FieldError";
 import { createWizardMode, isStudentMode } from "../../utils/modeUtils";
 import { useContext } from "react";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";

@@ -2,9 +2,9 @@ import { CollapsibleSection } from "../../../_summary/CollapsibleSection";
 import { WizardData, TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { usePeriodCalculation } from "../hooks/usePeriodCalculation";
 import { getTodayParts, formatDateString, addDaysToDate } from "@/lib/utils/date";
-import { DateInput } from "../../../_components/DateInput";
+import { DateInput } from "../../../common/DateInput";
 import { FieldErrors } from "../../../hooks/useWizardValidation";
-import { FieldError } from "../../../_components/FieldError";
+import { FieldError } from "../../../common/FieldError";
 import { cn } from "@/lib/cn";
 
 type Step1FieldName = keyof NonNullable<TemplateLockedFields["step1"]>;

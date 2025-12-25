@@ -6,7 +6,7 @@
 import { useState, useCallback } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { RecommendedContent } from "@/lib/types/content-selection";
-import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../Step4RecommendedContents/constants";
+import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
 
 export type UseContentSelectionReturn = {
   selectedContentIds: Set<string>;

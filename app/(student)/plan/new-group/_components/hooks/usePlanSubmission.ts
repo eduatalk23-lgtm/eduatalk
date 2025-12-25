@@ -8,7 +8,7 @@
 import { useCallback } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { WizardData, WizardStep } from "../PlanGroupWizard";
-import { usePlanValidator } from "./usePlanValidator";
+import { validatePeriod } from "../utils/validationUtils";
 import { usePlanDraft } from "./usePlanDraft";
 import { usePlanGenerator } from "./usePlanGenerator";
 import { useWizardNavigation } from "./useWizardNavigation";
@@ -67,15 +67,8 @@ export function usePlanSubmission({
   onSaveSuccess,
 }: UsePlanSubmissionProps) {
   const toast = useToast();
-  
-  // 분리된 훅들 사용
-  const { validatePeriod } = usePlanValidator({
-    wizardData,
-    currentStep,
-    isTemplateMode: mode.isTemplateMode,
-    isCampMode: mode.isCampMode,
-  });
 
+  // 분리된 훅들 사용
   const { saveDraft, isSaving } = usePlanDraft({
     wizardData,
     draftGroupId,
@@ -130,7 +123,7 @@ export function usePlanSubmission({
 
       try {
         // 0. 기간 검증 (동기, 빠름)
-        const periodValidation = validatePeriod();
+        const periodValidation = validatePeriod(wizardData, mode.isCampMode);
         if (!periodValidation.isValid && periodValidation.error) {
           setValidationErrors([periodValidation.error]);
           return;
@@ -202,7 +195,7 @@ export function usePlanSubmission({
     },
     [
       isSubmitting,
-      validatePeriod,
+      wizardData,
       createOrUpdatePlanGroup,
       generatePlans,
       currentStep,

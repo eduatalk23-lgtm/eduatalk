@@ -1,7 +1,7 @@
 import React from "react";
 import type { CurriculumRevision } from "@/lib/data/contentMetadata";
 import type { SubjectGroup } from "@/lib/data/subjects";
-import RequiredSubjectItem from "../Step4RecommendedContents/components/RequiredSubjectItem";
+import RequiredSubjectItem from "./RequiredSubjectItem";
 
 interface RequiredSubjectConstraint {
   subject_group_id: string;
