@@ -62,7 +62,7 @@ export type CampTemplateStatus = "draft" | "active" | "archived";
 /**
  * 캠프 초대 상태
  */
-export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expired";
+export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expired" | "cancelled";
 
 // ============================================
 // 비즈니스 로직용 타입

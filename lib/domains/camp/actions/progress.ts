@@ -1202,7 +1202,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
               ]);
 
               if (studentData.data && templateData.data) {
-                const { sendPlanCreatedNotificationToStudent } = await import(
+                const {
+                  sendPlanCreatedNotificationToStudent,
+                  sendPlanCreatedNotificationToParents,
+                } = await import(
                   "@/lib/services/campNotificationService"
                 );
                 await sendPlanCreatedNotificationToStudent({
@@ -1212,6 +1215,18 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   templateName: templateData.data.name,
                   groupId,
                   tenantId,
+                });
+
+                // A4 개선: 학부모에게도 플랜 생성 알림 발송 (비동기)
+                sendPlanCreatedNotificationToParents({
+                  studentId: result.group.student_id,
+                  studentName: studentData.data.name || "학생",
+                  templateId: result.group.camp_template_id,
+                  templateName: templateData.data.name,
+                  groupId,
+                  tenantId,
+                }).catch((err) => {
+                  console.error("[continueCampStepsForAdmin] 학부모 알림 발송 실패:", err);
                 });
               }
             }
@@ -3013,7 +3028,10 @@ export const bulkGeneratePlans = withErrorHandling(
               ]);
 
               if (studentData.data && templateData.data) {
-                const { sendPlanCreatedNotificationToStudent } = await import(
+                const {
+                  sendPlanCreatedNotificationToStudent,
+                  sendPlanCreatedNotificationToParents,
+                } = await import(
                   "@/lib/services/campNotificationService"
                 );
                 await sendPlanCreatedNotificationToStudent({
@@ -3023,6 +3041,18 @@ export const bulkGeneratePlans = withErrorHandling(
                   templateName: templateData.data.name,
                   groupId,
                   tenantId: tenantContext.tenantId,
+                });
+
+                // A4 개선: 학부모에게도 플랜 생성 알림 발송 (비동기)
+                sendPlanCreatedNotificationToParents({
+                  studentId: group.student_id,
+                  studentName: studentData.data.name || "학생",
+                  templateId: group.camp_template_id,
+                  templateName: templateData.data.name,
+                  groupId,
+                  tenantId: tenantContext.tenantId,
+                }).catch((err) => {
+                  console.error("[generatePlansFromGroupBulkAction] 학부모 알림 발송 실패:", err);
                 });
               }
             } catch (notificationError) {

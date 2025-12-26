@@ -1,6 +1,5 @@
 "use server";
 
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import {
   AppError,
@@ -9,7 +8,6 @@ import {
   logError,
 } from "@/lib/errors";
 import type { CampInvitation } from "@/lib/domains/camp/types";
-import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   validateCampTemplateId,
@@ -17,16 +15,18 @@ import {
   validateInvitationIds,
   validateCampInvitationId,
   validateCampInvitationStatus,
-  validateTenantContext,
-  validateCampTemplateAccess,
-  validateCampTemplateActive,
-  validateCampInvitationAccess,
   validateCampInvitationNotExpired,
 } from "@/lib/validation/campValidation";
 import { buildCampInvitationStatusUpdate } from "@/lib/utils/campInvitationHelpers";
 import {
   getCampInvitationsForTemplateWithPagination,
 } from "@/lib/data/campTemplates";
+import {
+  requireCampAdminAuth,
+  requireCampInvitePermission,
+  requireCampTemplateAccess,
+  requireCampInvitationAccess,
+} from "@/lib/domains/camp/permissions";
 
 /**
  * 학생 초대 발송
@@ -36,18 +36,14 @@ export const sendCampInvitationsAction = withErrorHandling(
     templateId: string,
     studentIds: string[]
   ): Promise<{ success: boolean; error?: string; count?: number; failedNotifications?: number }> => {
-    await requireAdminOrConsultant();
+    // 권한 검증: camp.invite 권한 + 템플릿 접근 권한
+    const { tenantId } = await requireCampInvitePermission(templateId);
 
     // 입력값 검증
-    validateCampTemplateId(templateId);
     validateStudentIds(studentIds);
 
     // 중복 제거
     const uniqueStudentIds = Array.from(new Set(studentIds));
-
-    // 테넌트 컨텍스트 및 템플릿 권한 확인
-    const tenantId = await validateTenantContext();
-    await validateCampTemplateActive(templateId, tenantId);
 
     // Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
@@ -173,6 +169,39 @@ export const sendCampInvitationsAction = withErrorHandling(
       }
 
       failedNotifications = failedUpdates.length;
+
+      // A4 개선: 학부모에게도 캠프 초대 알림 발송 (비동기, 실패해도 초대 프로세스는 성공 처리)
+      if (successIds.length > 0) {
+        const template = await getCampTemplate(templateId);
+        if (template) {
+          const { sendCampInvitationNotificationToParents } = await import(
+            "@/lib/services/campNotificationService"
+          );
+
+          // 학생 정보 조회
+          const { data: studentsInfo } = await supabase
+            .from("students")
+            .select("id, name")
+            .in("id", newStudentIds);
+
+          // 각 학생의 학부모에게 알림 발송 (병렬 처리)
+          if (studentsInfo) {
+            Promise.allSettled(
+              studentsInfo.map((student) =>
+                sendCampInvitationNotificationToParents({
+                  studentId: student.id,
+                  studentName: student.name || "학생",
+                  templateId,
+                  templateName: template.name,
+                  tenantId,
+                })
+              )
+            ).catch((err) => {
+              console.error("[campParticipants] 학부모 알림 발송 중 예외:", err);
+            });
+          }
+        }
+      }
     }
 
     return {
@@ -188,20 +217,14 @@ export const sendCampInvitationsAction = withErrorHandling(
  */
 export const getCampInvitationsForTemplate = withErrorHandling(
   async (templateId: string) => {
-    await requireAdminOrConsultant();
+    // 권한 검증: 관리자/컨설턴트 + 테넌트 컨텍스트
+    const { tenantId } = await requireCampAdminAuth();
 
     // 입력값 검증
     validateCampTemplateId(templateId);
-    const tenantId = await validateTenantContext();
 
     // 템플릿 존재 확인 (템플릿이 없어도 초대 목록은 조회 가능 - 삭제된 템플릿의 초대도 볼 수 있어야 함)
-    const template = await getCampTemplate(templateId);
-    if (template) {
-      // 템플릿이 존재하는 경우, 권한 확인
-      await validateCampTemplateAccess(templateId, tenantId);
-    }
-    // 템플릿이 없는 경우 (삭제된 경우 등)에도 초대 목록은 조회 가능
-    // 초대 목록 자체가 tenant_id로 필터링되므로 보안 문제 없음
+    // Note: 삭제된 템플릿의 초대도 볼 수 있어야 하므로 requireCampTemplateAccess 대신 기본 권한만 확인
 
     // Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
@@ -269,11 +292,8 @@ export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandli
       status?: string;
     }
   ) => {
-    await requireAdminOrConsultant();
-
-    // 입력값 검증
-    validateCampTemplateId(templateId);
-    const tenantId = await validateTenantContext();
+    // 권한 검증: 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
 
     // 페이지네이션된 초대 목록 조회 (필터 적용)
     const result = await getCampInvitationsForTemplateWithPagination(
@@ -302,17 +322,13 @@ export const getCampInvitationsForTemplateWithPaginationAction = withErrorHandli
 export const updateCampInvitationStatusAction = withErrorHandling(
   async (
     invitationId: string,
-    status: "pending" | "accepted" | "declined"
+    status: "pending" | "accepted" | "declined" | "expired"
   ): Promise<{ success: boolean; error?: string }> => {
-    await requireAdminOrConsultant();
+    // 권한 검증: 초대 접근 권한
+    const { tenantId } = await requireCampInvitationAccess(invitationId);
 
     // 입력값 검증
-    validateCampInvitationId(invitationId);
     validateCampInvitationStatus(status);
-
-    // 테넌트 컨텍스트 및 초대 권한 확인
-    const tenantId = await validateTenantContext();
-    await validateCampInvitationAccess(invitationId, tenantId);
 
     // P1 개선: 수락 시 만료 여부 확인
     if (status === "accepted") {
@@ -371,54 +387,8 @@ export const deleteCampInvitationAction = withErrorHandling(
   async (
     invitationId: string
   ): Promise<{ success: boolean; error?: string }> => {
-    await requireAdminOrConsultant();
-
-    // 입력값 검증
-    if (!invitationId || typeof invitationId !== "string") {
-      throw new AppError(
-        "초대 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 초대 존재 및 권한 확인 (강화된 검증)
-    const { getCampInvitation } = await import("@/lib/data/campTemplates");
-    const invitation = await getCampInvitation(invitationId);
-    if (!invitation) {
-      throw new AppError(
-        "초대를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 권한 확인
-    const template = await getCampTemplate(invitation.camp_template_id);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    // 권한 검증: 초대 접근 권한 (이미 초대 존재/소유권 확인 포함)
+    await requireCampInvitationAccess(invitationId);
 
     const { deleteCampInvitation } = await import("@/lib/data/campTemplates");
     const result = await deleteCampInvitation(invitationId);
@@ -443,7 +413,8 @@ export const deleteCampInvitationsAction = withErrorHandling(
   async (
     invitationIds: string[]
   ): Promise<{ success: boolean; error?: string; count?: number }> => {
-    await requireAdminOrConsultant();
+    // 권한 검증: 관리자/컨설턴트 + 테넌트 컨텍스트
+    const { tenantId } = await requireCampAdminAuth();
 
     // 입력값 검증
     if (!invitationIds || invitationIds.length === 0) {
@@ -451,16 +422,6 @@ export const deleteCampInvitationsAction = withErrorHandling(
         "삭제할 초대를 선택해주세요.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
         true
       );
     }
@@ -490,7 +451,7 @@ export const deleteCampInvitationsAction = withErrorHandling(
     );
 
     const invalidTemplates = templates.some(
-      (t) => !t || t.tenant_id !== tenantContext.tenantId
+      (t) => !t || t.tenant_id !== tenantId
     );
     if (invalidTemplates) {
       throw new AppError(
@@ -525,18 +486,14 @@ export const resendCampInvitationsAction = withErrorHandling(
     templateId: string,
     invitationIds: string[]
   ): Promise<{ success: boolean; error?: string; count?: number }> => {
-    await requireAdminOrConsultant();
+    // 권한 검증: camp.invite 권한 + 템플릿 접근 권한
+    await requireCampInvitePermission(templateId);
 
     // 입력값 검증
-    validateCampTemplateId(templateId);
     validateInvitationIds(invitationIds);
 
     // 중복 제거
     const uniqueInvitationIds = Array.from(new Set(invitationIds));
-
-    // 테넌트 컨텍스트 및 템플릿 권한 확인
-    const tenantId = await validateTenantContext();
-    await validateCampTemplateActive(templateId, tenantId);
 
     // 초대 조회 및 학생 ID 추출
     const { getCampInvitation } = await import("@/lib/data/campTemplates");
@@ -616,14 +573,8 @@ export const getCampParticipantsAction = withErrorHandling(
     issueCount?: number;
     error?: string;
   }> => {
-    await requireAdminOrConsultant();
-
-    // 입력값 검증
-    validateCampTemplateId(templateId);
-    const tenantId = await validateTenantContext();
-
-    // 템플릿 권한 확인
-    await validateCampTemplateAccess(templateId, tenantId);
+    // 권한 검증: 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
 
     // Admin Client 사용 (RLS 우회)
     const supabase = createSupabaseAdminClient();
@@ -798,6 +749,307 @@ export const getCampParticipantsAction = withErrorHandling(
   }
 );
 
+
+/**
+ * 캠프 참여자 목록 조회 (페이지네이션 지원)
+ * 관리자가 참여자 목록을 조회할 수 있도록 Admin Client 사용
+ */
+export type ParticipantSortColumn = "name" | "attendance_rate" | "study_minutes" | "plan_completion_rate" | "invited_at";
+export type ParticipantSortOrder = "asc" | "desc";
+export type ParticipantStatusFilter = "all" | "accepted" | "pending" | "declined" | "submitted";
+
+export type PaginatedParticipantsResult = {
+  success: boolean;
+  participants?: Array<{
+    invitation_id: string;
+    student_id: string;
+    student_name: string;
+    student_grade: string | null;
+    student_class: string | null;
+    invitation_status: string;
+    display_status?: string;
+    plan_group_id: string | null;
+    plan_group_name: string | null;
+    plan_group_status: string | null;
+    hasPlans: boolean;
+    invited_at: string;
+    accepted_at: string | null;
+    attendance_rate?: number | null;
+    study_minutes?: number | null;
+    plan_completion_rate?: number | null;
+  }>;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+  warnings?: string[];
+  issueCount?: number;
+  error?: string;
+};
+
+export const getCampParticipantsWithPaginationAction = withErrorHandling(
+  async (
+    templateId: string,
+    options: {
+      page?: number;
+      pageSize?: number;
+      statusFilter?: ParticipantStatusFilter;
+      sortBy?: ParticipantSortColumn;
+      sortOrder?: ParticipantSortOrder;
+      search?: string;
+    } = {}
+  ): Promise<PaginatedParticipantsResult> => {
+    // 권한 검증: 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
+
+    // 기본값 설정
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 20;
+    const statusFilter = options.statusFilter ?? "all";
+    const sortBy = options.sortBy ?? "invited_at";
+    const sortOrder = options.sortOrder ?? "desc";
+    const search = options.search ?? "";
+
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 전체 카운트 조회 (필터 적용)
+    let countQuery = supabase
+      .from("camp_invitations")
+      .select("id", { count: "exact", head: true })
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId);
+
+    // 상태 필터 적용 (카운트 쿼리에도)
+    if (statusFilter !== "all" && statusFilter !== "submitted") {
+      countQuery = countQuery.eq("status", statusFilter);
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
+
+    if (countError) {
+      console.error("[campParticipants] 카운트 조회 실패:", countError);
+      throw new AppError(
+        "참여자 수를 조회하는데 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: countError.message }
+      );
+    }
+
+    const total = totalCount ?? 0;
+    const totalPages = Math.ceil(total / pageSize);
+
+    // 데이터가 없으면 빈 배열 반환
+    if (total === 0) {
+      return {
+        success: true,
+        participants: [],
+        pagination: {
+          page,
+          pageSize,
+          totalCount: 0,
+          totalPages: 0,
+        },
+      };
+    }
+
+    // 페이지네이션 범위 계산
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // 초대와 학생 정보 조회 (페이지네이션 적용)
+    let dataQuery = supabase
+      .from("camp_invitations")
+      .select(
+        `
+        id,
+        student_id,
+        status,
+        invited_at,
+        accepted_at,
+        students:student_id (
+          name,
+          grade,
+          class
+        )
+      `
+      )
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId);
+
+    // 상태 필터 적용
+    if (statusFilter !== "all" && statusFilter !== "submitted") {
+      dataQuery = dataQuery.eq("status", statusFilter);
+    }
+
+    // 정렬 적용 (기본 정렬: invited_at)
+    if (sortBy === "invited_at" || sortBy === "name") {
+      const ascending = sortOrder === "asc";
+      if (sortBy === "invited_at") {
+        dataQuery = dataQuery.order("invited_at", { ascending });
+      }
+      // name 정렬은 클라이언트에서 처리 (students 조인 필드)
+    }
+
+    // 페이지네이션 적용
+    dataQuery = dataQuery.range(from, to);
+
+    const { data: invitationsData, error: invitationsError } = await dataQuery;
+
+    if (invitationsError) {
+      console.error("[campParticipants] 초대 조회 실패:", invitationsError);
+      throw new AppError(
+        "참여자 목록을 불러오는데 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: invitationsError.message }
+      );
+    }
+
+    // 플랜 그룹 정보 조회
+    const invitationIds = (invitationsData || []).map((inv) => inv.id);
+    let planGroupsData: Array<{
+      id: string;
+      name: string | null;
+      status: string | null;
+      camp_invitation_id: string | null;
+      camp_template_id: string | null;
+      student_id: string;
+    }> = [];
+
+    if (invitationIds.length > 0) {
+      // camp_invitation_id로 직접 조회
+      const { data: pgData, error: pgError } = await supabase
+        .from("plan_groups")
+        .select("id, name, status, camp_invitation_id, camp_template_id, student_id")
+        .in("camp_invitation_id", invitationIds)
+        .is("deleted_at", null);
+
+      if (!pgError && pgData) {
+        planGroupsData = pgData.filter((pg) => pg.camp_invitation_id !== null);
+      }
+    }
+
+    // 플랜 생성 여부 확인
+    const planGroupIds = planGroupsData.map((pg) => pg.id);
+    const plansMap = new Map<string, boolean>();
+
+    if (planGroupIds.length > 0) {
+      const { data: plansData, error: plansError } = await supabase
+        .from("student_plan")
+        .select("plan_group_id")
+        .in("plan_group_id", planGroupIds)
+        .limit(1000);
+
+      if (!plansError && plansData) {
+        (plansData as Array<{ plan_group_id: string | null }>).forEach((plan) => {
+          if (plan.plan_group_id) {
+            plansMap.set(plan.plan_group_id, true);
+          }
+        });
+      }
+    }
+
+    // 데이터 병합
+    const planGroupsMap = new Map<string, typeof planGroupsData[0]>();
+    planGroupsData.forEach((pg) => {
+      if (pg.camp_invitation_id) {
+        planGroupsMap.set(pg.camp_invitation_id, pg);
+      }
+    });
+
+    let participants = (invitationsData || []).map((invitation) => {
+      const planGroup = planGroupsMap.get(invitation.id);
+      const invitationStatus = invitation.status ?? "pending";
+      const isSubmitted =
+        invitationStatus === "pending" && planGroup !== undefined;
+      const displayStatus = isSubmitted ? "submitted" : invitationStatus;
+
+      return {
+        invitation_id: invitation.id,
+        student_id: invitation.student_id,
+        student_name: (invitation.students as any)?.name || "이름 없음",
+        student_grade: (invitation.students as any)?.grade
+          ? String((invitation.students as any).grade)
+          : null,
+        student_class: (invitation.students as any)?.class || null,
+        invitation_status: invitationStatus,
+        display_status: displayStatus,
+        plan_group_id: planGroup?.id || null,
+        plan_group_name: planGroup?.name || null,
+        plan_group_status: planGroup?.status || null,
+        hasPlans: planGroup ? plansMap.has(planGroup.id) : false,
+        invited_at: invitation.invited_at ?? new Date().toISOString(),
+        accepted_at: invitation.accepted_at,
+        attendance_rate: null as number | null,
+        study_minutes: null as number | null,
+        plan_completion_rate: null as number | null,
+      };
+    });
+
+    // submitted 필터 적용 (서버에서 처리 불가하므로 클라이언트에서)
+    if (statusFilter === "submitted") {
+      participants = participants.filter((p) => p.display_status === "submitted");
+    }
+
+    // 이름 정렬 (클라이언트에서 처리)
+    if (sortBy === "name") {
+      participants = [...participants].sort((a, b) => {
+        const compare = a.student_name.localeCompare(b.student_name, "ko");
+        return sortOrder === "asc" ? compare : -compare;
+      });
+    }
+
+    // 검색 필터 적용
+    if (search) {
+      const searchLower = search.toLowerCase();
+      participants = participants.filter((p) =>
+        p.student_name.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // 플랜 그룹 누락 감지
+    const participantsWithIssues = participants.filter(
+      (p) =>
+        (p.invitation_status === "accepted" || p.display_status === "submitted") &&
+        !p.plan_group_id
+    );
+
+    const warnings: string[] = [];
+    if (participantsWithIssues.length > 0) {
+      warnings.push(
+        `${participantsWithIssues.length}명의 참여자에게 플랜 그룹이 누락되었습니다. 복구가 필요할 수 있습니다.`
+      );
+    }
+
+    return {
+      success: true,
+      participants,
+      pagination: {
+        page,
+        pageSize,
+        totalCount: total,
+        totalPages,
+      },
+      warnings: warnings.length > 0 ? warnings : undefined,
+      issueCount: participantsWithIssues.length,
+    };
+  }
+);
+
 /**
  * P1 개선: 만료된 캠프 초대 자동 처리
  * 크론 작업 또는 주기적 실행을 통해 호출
@@ -876,4 +1128,109 @@ export async function autoExpireCampInvitations(): Promise<{
     };
   }
 }
+
+/**
+ * Phase 6 P3: 누락된 플랜 그룹 복구
+ *
+ * 수락된 초대 중 플랜 그룹이 생성되지 않은 참여자에 대해
+ * 플랜 그룹을 일괄 생성합니다.
+ */
+export const recoverMissingPlanGroupsAction = withErrorHandling(
+  async (
+    templateId: string
+  ): Promise<{
+    success: boolean;
+    recoveredCount: number;
+    failedCount: number;
+    errors?: Array<{ invitationId: string; studentName?: string; error: string }>;
+  }> => {
+    // 권한 검증: 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
+
+    // Admin Client 사용 (RLS 우회)
+    const supabase = createSupabaseAdminClient();
+    if (!supabase) {
+      throw new AppError(
+        "관리자 권한이 필요합니다. Service Role Key가 설정되지 않았습니다.",
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true
+      );
+    }
+
+    // 수락된 초대 중 플랜 그룹이 없는 참여자 조회
+    const { data: invitationsWithoutGroups, error: fetchError } = await supabase
+      .from("camp_invitations")
+      .select(`
+        id,
+        student_id,
+        students!inner(name)
+      `)
+      .eq("camp_template_id", templateId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "accepted");
+
+    if (fetchError) {
+      throw new AppError(
+        "초대 목록 조회에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true,
+        { originalError: fetchError.message }
+      );
+    }
+
+    if (!invitationsWithoutGroups || invitationsWithoutGroups.length === 0) {
+      return { success: true, recoveredCount: 0, failedCount: 0 };
+    }
+
+    // 이미 플랜 그룹이 있는 초대 ID 조회
+    const { data: existingGroups } = await supabase
+      .from("plan_groups")
+      .select("camp_invitation_id")
+      .eq("camp_template_id", templateId)
+      .is("deleted_at", null);
+
+    const existingGroupInvitationIds = new Set(
+      (existingGroups || []).map((g) => g.camp_invitation_id)
+    );
+
+    // 플랜 그룹이 없는 초대만 필터링
+    const missingGroupInvitations = invitationsWithoutGroups.filter(
+      (inv) => !existingGroupInvitationIds.has(inv.id)
+    );
+
+    if (missingGroupInvitations.length === 0) {
+      return { success: true, recoveredCount: 0, failedCount: 0 };
+    }
+
+    // bulkCreatePlanGroupsForCamp 호출
+    const { bulkCreatePlanGroupsForCamp } = await import("./progress");
+    const result = await bulkCreatePlanGroupsForCamp(
+      templateId,
+      missingGroupInvitations.map((inv) => inv.id)
+    );
+
+    // 학생 이름 매핑
+    const studentNameMap = new Map(
+      missingGroupInvitations.map((inv) => [
+        inv.id,
+        (inv.students as { name: string } | null)?.name || "알 수 없음",
+      ])
+    );
+
+    // 에러에 학생 이름 추가
+    const errorsWithNames = result.errors?.map((err) => ({
+      ...err,
+      studentName: studentNameMap.get(err.invitationId),
+    }));
+
+    return {
+      success: result.success,
+      recoveredCount: result.successCount,
+      failedCount: result.failureCount,
+      errors: errorsWithNames,
+    };
+  }
+);
 

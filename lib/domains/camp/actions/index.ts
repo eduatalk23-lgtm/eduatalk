@@ -25,10 +25,20 @@ export {
   getCampInvitationsForTemplate,
   getCampInvitationsForTemplateWithPaginationAction,
   getCampParticipantsAction,
+  getCampParticipantsWithPaginationAction,
   updateCampInvitationStatusAction,
   deleteCampInvitationAction,
   deleteCampInvitationsAction,
   resendCampInvitationsAction,
+  recoverMissingPlanGroupsAction, // Phase 6 P3
+} from "./participants";
+
+// Participants Types
+export type {
+  ParticipantSortColumn,
+  ParticipantSortOrder,
+  ParticipantStatusFilter,
+  PaginatedParticipantsResult,
 } from "./participants";
 
 // Progress Actions
@@ -67,6 +77,9 @@ export {
   getStudentCampInvitations,
   getCampInvitationWithTemplate,
   submitCampParticipation,
+  declineCampInvitation,
+  cancelCampParticipation,
+  editCampParticipation,
 } from "./student";
 
 // Slot Template Presets Actions

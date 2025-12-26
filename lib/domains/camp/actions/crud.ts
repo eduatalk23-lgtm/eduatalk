@@ -3,9 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { revalidateCampTemplatePaths } from "@/lib/utils/revalidation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
-  getCampTemplate,
   createCampTemplate,
   copyCampTemplate,
 } from "@/lib/data/campTemplates";
@@ -17,8 +15,12 @@ import {
   logError,
 } from "@/lib/errors";
 import type { CampTemplateUpdate } from "@/lib/domains/camp/types";
-import { requireAdminOrConsultant } from "@/lib/auth/guards";
-import { requirePermission } from "@/lib/auth/permissions";
+import {
+  requireCampAdminAuth,
+  requireCampTemplateAccess,
+  requireCampTemplateDelete,
+  requireCampPermission,
+} from "@/lib/domains/camp/permissions";
 import {
   linkBlockSetToTemplate,
   unlinkBlockSetFromTemplate,
@@ -29,17 +31,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  * 캠프 템플릿 목록 조회
  */
 export const getCampTemplates = withErrorHandling(async () => {
-  await requireAdminOrConsultant();
-
-  const tenantContext = await getTenantContext();
-  if (!tenantContext?.tenantId) {
-    throw new AppError(
-      "기관 정보를 찾을 수 없습니다.",
-      ErrorCode.NOT_FOUND,
-      404,
-      true
-    );
-  }
+  // 권한 검증: 관리자/컨설턴트 + 테넌트 컨텍스트
+  const { tenantId } = await requireCampAdminAuth();
 
   // Admin Client 사용 (RLS 우회)
   const supabase = createSupabaseAdminClient();
@@ -55,7 +48,7 @@ export const getCampTemplates = withErrorHandling(async () => {
   const { data, error } = await supabase
     .from("camp_templates")
     .select("*")
-    .eq("tenant_id", tenantContext.tenantId)
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -76,8 +69,8 @@ export const getCampTemplates = withErrorHandling(async () => {
  */
 export const getCampTemplateById = withErrorHandling(
   async (templateId: string) => {
-    // 권한 검증
-    await requireAdminOrConsultant();
+    // 권한 검증: 관리자/컨설턴트 + 테넌트 컨텍스트
+    const { tenantId } = await requireCampAdminAuth();
 
     // 템플릿 ID 검증
     if (!templateId || typeof templateId !== "string") {
@@ -85,16 +78,6 @@ export const getCampTemplateById = withErrorHandling(
         "템플릿 ID가 올바르지 않습니다.",
         ErrorCode.VALIDATION_ERROR,
         400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
         true
       );
     }
@@ -115,7 +98,7 @@ export const getCampTemplateById = withErrorHandling(
       .from("camp_templates")
       .select("*")
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
 
     if (templateError) {
@@ -124,7 +107,7 @@ export const getCampTemplateById = withErrorHandling(
         logError(templateError, {
           function: "getCampTemplateById",
           templateId,
-          tenantId: tenantContext.tenantId,
+          tenantId,
           errorCode: templateError.code,
         });
         throw new AppError(
@@ -134,7 +117,7 @@ export const getCampTemplateById = withErrorHandling(
           true,
           {
             templateId,
-            tenantId: tenantContext.tenantId,
+            tenantId,
             originalError: templateError.message,
           }
         );
@@ -144,7 +127,7 @@ export const getCampTemplateById = withErrorHandling(
     if (!template) {
       throw new AppError("템플릿을 찾을 수 없습니다.", ErrorCode.NOT_FOUND, 404, true, {
         templateId,
-        tenantId: tenantContext.tenantId,
+        tenantId,
       });
     }
 
@@ -160,17 +143,8 @@ export const createCampTemplateDraftAction = withErrorHandling(
   async (
     formData: FormData
   ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
-    const { userId } = await requireAdminOrConsultant();
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+    // 권한 검증: camp.create 권한 필요
+    const { userId, tenantId } = await requireCampPermission("camp.create");
 
     // 최소 정보만 검증 (이름, 프로그램 유형)
     const name = String(formData.get("name") ?? "").trim();
@@ -274,7 +248,7 @@ export const createCampTemplateDraftAction = withErrorHandling(
 
     // 템플릿 생성 (기본 정보 포함)
     const result = await createCampTemplate({
-      tenant_id: tenantContext.tenantId,
+      tenant_id: tenantId,
       name,
       description: description || undefined,
       program_type: programType,
@@ -305,17 +279,8 @@ export const createCampTemplateAction = withErrorHandling(
   async (
     formData: FormData
   ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
-    const { userId } = await requireAdminOrConsultant();
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
+    // 권한 검증: camp.create 권한 필요
+    const { userId, tenantId } = await requireCampPermission("camp.create");
 
     // 입력값 검증
     const name = String(formData.get("name") ?? "").trim();
@@ -422,7 +387,7 @@ export const createCampTemplateAction = withErrorHandling(
 
     // 템플릿 생성 (block_set_id는 template_data에서 제거됨)
     const result = await createCampTemplate({
-      tenant_id: tenantContext.tenantId,
+      tenant_id: tenantId,
       name,
       description: description || undefined,
       program_type: programType,
@@ -469,42 +434,8 @@ export const updateCampTemplateAction = withErrorHandling(
     templateId: string,
     formData: FormData
   ): Promise<{ success: boolean; error?: string }> => {
-    await requireAdminOrConsultant();
-
-    // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인 (강화된 검증)
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    // 권한 검증: camp.update 권한 + 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
 
     const name = String(formData.get("name") ?? "").trim();
     const description =
@@ -674,7 +605,7 @@ export const updateCampTemplateAction = withErrorHandling(
       .from("camp_templates")
       .update(updateData)
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId)
+      .eq("tenant_id", tenantId)
       .select();
 
     if (error) {
@@ -735,18 +666,10 @@ export const updateCampTemplateStatusAction = withErrorHandling(
     templateId: string,
     status: "draft" | "active" | "archived"
   ): Promise<{ success: boolean; error?: string }> => {
-    await requireAdminOrConsultant();
+    // 권한 검증: 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateAccess(templateId);
 
-    // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
+    // 상태 검증
     const validStatuses = ["draft", "active", "archived"];
     if (!validStatuses.includes(status)) {
       throw new AppError(
@@ -755,31 +678,6 @@ export const updateCampTemplateStatusAction = withErrorHandling(
         400,
         true
       );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
     }
 
     // 상태 변경
@@ -801,7 +699,7 @@ export const updateCampTemplateStatusAction = withErrorHandling(
         updated_at: new Date().toISOString(),
       })
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId)
+      .eq("tenant_id", tenantId)
       .select();
 
     if (error) {
@@ -833,43 +731,8 @@ export const updateCampTemplateStatusAction = withErrorHandling(
  */
 export const deleteCampTemplateAction = withErrorHandling(
   async (templateId: string): Promise<{ success: boolean; error?: string }> => {
-    // 권한 검증 (camp.delete 권한 필요 - Admin만 허용)
-    await requirePermission("camp.delete");
-
-    // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인 (강화된 검증)
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    // 권한 검증: camp.delete 권한 + 템플릿 접근 권한
+    const { tenantId } = await requireCampTemplateDelete(templateId);
 
     // 템플릿 삭제 전에 관련된 플랜 그룹 삭제
     const { deletePlanGroupsByTemplateId } = await import(
@@ -881,7 +744,7 @@ export const deleteCampTemplateAction = withErrorHandling(
       logError(new Error(planGroupResult.error || "플랜 그룹 삭제 실패"), {
         function: "deleteCampTemplateAction",
         templateId,
-        tenantId: tenantContext.tenantId,
+        tenantId,
         action: "deletePlanGroupsByTemplateId",
       });
       // 플랜 그룹 삭제 실패해도 템플릿 삭제는 계속 진행
@@ -898,7 +761,7 @@ export const deleteCampTemplateAction = withErrorHandling(
       .from("camp_templates")
       .delete()
       .eq("id", templateId)
-      .eq("tenant_id", tenantContext.tenantId)
+      .eq("tenant_id", tenantId)
       .select();
 
     let deletedSuccessfully = false;
@@ -916,7 +779,7 @@ export const deleteCampTemplateAction = withErrorHandling(
       // 삭제된 행이 없음 (RLS 정책으로 차단되었을 가능성)
       console.warn("[deleteCampTemplateAction] 삭제된 행이 없음, Admin Client로 재시도:", {
         templateId,
-        tenantId: tenantContext.tenantId,
+        tenantId,
       });
     }
 
@@ -936,14 +799,14 @@ export const deleteCampTemplateAction = withErrorHandling(
           .from("camp_templates")
           .delete()
           .eq("id", templateId)
-          .eq("tenant_id", tenantContext.tenantId)
+          .eq("tenant_id", tenantId)
           .select();
 
         if (adminError) {
           logError(adminError, {
             function: "deleteCampTemplateAction",
             templateId,
-            tenantId: tenantContext.tenantId,
+            tenantId,
             action: "adminClientDelete",
           });
           throw new AppError(
@@ -959,7 +822,7 @@ export const deleteCampTemplateAction = withErrorHandling(
           // Admin Client로도 삭제 실패 (템플릿이 이미 삭제되었거나 존재하지 않음)
           console.warn("[deleteCampTemplateAction] Admin Client로도 삭제된 행이 없음:", {
             templateId,
-            tenantId: tenantContext.tenantId,
+            tenantId,
           });
           // 이미 삭제되었을 가능성이 높으므로 성공으로 처리
           deletedSuccessfully = true;
@@ -974,7 +837,7 @@ export const deleteCampTemplateAction = withErrorHandling(
         logError(adminError, {
           function: "deleteCampTemplateAction",
           templateId,
-          tenantId: tenantContext.tenantId,
+          tenantId,
           action: "adminClientDelete",
         });
         throw new AppError(
@@ -1022,42 +885,8 @@ export const copyCampTemplateAction = withErrorHandling(
     templateId: string,
     newName?: string
   ): Promise<{ success: boolean; templateId?: string; error?: string }> => {
-    await requireAdminOrConsultant();
-
-    // 입력값 검증
-    if (!templateId || typeof templateId !== "string") {
-      throw new AppError(
-        "템플릿 ID가 올바르지 않습니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-
-    const tenantContext = await getTenantContext();
-    if (!tenantContext?.tenantId) {
-      throw new AppError(
-        "기관 정보를 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // 템플릿 존재 및 권한 확인
-    const template = await getCampTemplate(templateId);
-    if (!template) {
-      throw new AppError(
-        "템플릿을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    if (template.tenant_id !== tenantContext.tenantId) {
-      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
-    }
+    // 권한 검증: 템플릿 접근 권한 (복사하려면 원본 접근 권한 필요)
+    await requireCampTemplateAccess(templateId);
 
     // 템플릿 복사 실행
     const result = await copyCampTemplate(templateId, newName);

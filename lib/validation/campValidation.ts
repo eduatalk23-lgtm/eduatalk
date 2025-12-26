@@ -68,8 +68,8 @@ export function validateInvitationIds(invitationIds: string[]): void {
  */
 export function validateCampInvitationStatus(
   status: string
-): status is "pending" | "accepted" | "declined" {
-  if (!["pending", "accepted", "declined"].includes(status)) {
+): status is "pending" | "accepted" | "declined" | "expired" {
+  if (!["pending", "accepted", "declined", "expired"].includes(status)) {
     throw new AppError(
       "올바른 상태를 선택해주세요.",
       ErrorCode.VALIDATION_ERROR,

@@ -420,3 +420,223 @@ export async function sendPlanCreatedNotificationToStudent(params: {
   }
 }
 
+/**
+ * A4 개선: 학생의 연결된 학부모 ID 목록 조회
+ */
+async function getLinkedParentIds(studentId: string): Promise<string[]> {
+  try {
+    const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+    const adminClient = createSupabaseAdminClient();
+
+    if (!adminClient) {
+      console.error("[campNotificationService] Admin 클라이언트 초기화 실패");
+      return [];
+    }
+
+    const { data, error } = await adminClient
+      .from("parent_student_links")
+      .select("parent_id")
+      .eq("student_id", studentId)
+      .eq("is_approved", true);
+
+    if (error) {
+      console.error("[campNotificationService] 학부모 조회 실패:", error);
+      return [];
+    }
+
+    return (data ?? []).map((link) => link.parent_id);
+  } catch (error) {
+    console.error("[campNotificationService] 학부모 조회 중 예외:", error);
+    return [];
+  }
+}
+
+/**
+ * A4 개선: 캠프 초대 시 학부모에게 알림 발송
+ */
+export async function sendCampInvitationNotificationToParents(params: {
+  studentId: string;
+  studentName: string;
+  templateId: string;
+  templateName: string;
+  tenantId?: string;
+}): Promise<{ success: boolean; sentCount: number; error?: string }> {
+  const { studentId, studentName, templateId, templateName, tenantId } = params;
+
+  try {
+    const parentIds = await getLinkedParentIds(studentId);
+
+    if (parentIds.length === 0) {
+      console.log("[campNotificationService] 연결된 학부모 없음:", studentId);
+      return { success: true, sentCount: 0 };
+    }
+
+    const { sendBulkInAppNotification } = await import("./inAppNotificationService");
+    const result = await sendBulkInAppNotification(
+      parentIds,
+      "camp_invitation",
+      `[${templateName}] 캠프 초대 안내`,
+      `${studentName} 학생이 "${templateName}" 캠프에 초대되었습니다.`,
+      {
+        templateId,
+        studentId,
+        studentName,
+        action: "camp_invitation_parent",
+      },
+      tenantId
+    );
+
+    if (result.success) {
+      console.log("[campNotificationService] 학부모 캠프 초대 알림 발송 완료:", {
+        studentId,
+        studentName,
+        templateName,
+        parentCount: parentIds.length,
+        sentCount: result.sentCount,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[campNotificationService] 학부모 알림 발송 중 예외:", errorMessage);
+    return {
+      success: false,
+      sentCount: 0,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * A4 개선: 캠프 플랜 생성 완료 시 학부모에게 알림 발송
+ */
+export async function sendPlanCreatedNotificationToParents(params: {
+  studentId: string;
+  studentName: string;
+  templateId: string;
+  templateName: string;
+  groupId: string;
+  tenantId?: string;
+}): Promise<{ success: boolean; sentCount: number; error?: string }> {
+  const { studentId, studentName, templateId, templateName, groupId, tenantId } = params;
+
+  try {
+    const parentIds = await getLinkedParentIds(studentId);
+
+    if (parentIds.length === 0) {
+      console.log("[campNotificationService] 연결된 학부모 없음:", studentId);
+      return { success: true, sentCount: 0 };
+    }
+
+    const { sendBulkInAppNotification } = await import("./inAppNotificationService");
+    const result = await sendBulkInAppNotification(
+      parentIds,
+      "plan_created",
+      `[${templateName}] 캠프 플랜 생성`,
+      `${studentName} 학생의 "${templateName}" 캠프 학습 플랜이 생성되었습니다.`,
+      {
+        templateId,
+        studentId,
+        studentName,
+        groupId,
+        action: "plan_created_parent",
+      },
+      tenantId
+    );
+
+    if (result.success) {
+      console.log("[campNotificationService] 학부모 플랜 생성 알림 발송 완료:", {
+        studentId,
+        studentName,
+        templateName,
+        groupId,
+        parentCount: parentIds.length,
+        sentCount: result.sentCount,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[campNotificationService] 학부모 플랜 알림 발송 중 예외:", errorMessage);
+    return {
+      success: false,
+      sentCount: 0,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * A4 개선: 캠프 학습 진행 마일스톤 달성 시 학부모에게 알림 발송
+ */
+export async function sendCampProgressNotificationToParents(params: {
+  studentId: string;
+  studentName: string;
+  templateName: string;
+  completionRate: number;
+  tenantId?: string;
+}): Promise<{ success: boolean; sentCount: number; error?: string }> {
+  const { studentId, studentName, templateName, completionRate, tenantId } = params;
+
+  try {
+    const parentIds = await getLinkedParentIds(studentId);
+
+    if (parentIds.length === 0) {
+      return { success: true, sentCount: 0 };
+    }
+
+    // 마일스톤 메시지 생성
+    let milestoneMessage: string;
+    if (completionRate >= 100) {
+      milestoneMessage = `${studentName} 학생이 "${templateName}" 캠프 학습을 완료했습니다! 🎉`;
+    } else if (completionRate >= 75) {
+      milestoneMessage = `${studentName} 학생이 "${templateName}" 캠프 학습의 75%를 완료했습니다.`;
+    } else if (completionRate >= 50) {
+      milestoneMessage = `${studentName} 학생이 "${templateName}" 캠프 학습의 절반을 완료했습니다.`;
+    } else if (completionRate >= 25) {
+      milestoneMessage = `${studentName} 학생이 "${templateName}" 캠프 학습을 시작했습니다.`;
+    } else {
+      return { success: true, sentCount: 0 }; // 25% 미만은 알림 안 함
+    }
+
+    const { sendBulkInAppNotification } = await import("./inAppNotificationService");
+    const result = await sendBulkInAppNotification(
+      parentIds,
+      "camp_status_change",
+      `[${templateName}] 학습 진행 현황`,
+      milestoneMessage,
+      {
+        studentId,
+        studentName,
+        templateName,
+        completionRate,
+        action: "progress_milestone_parent",
+      },
+      tenantId
+    );
+
+    if (result.success) {
+      console.log("[campNotificationService] 학부모 진행 알림 발송 완료:", {
+        studentId,
+        studentName,
+        templateName,
+        completionRate,
+        parentCount: parentIds.length,
+        sentCount: result.sentCount,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[campNotificationService] 학부모 진행 알림 발송 중 예외:", errorMessage);
+    return {
+      success: false,
+      sentCount: 0,
+      error: errorMessage,
+    };
+  }
+}
+

@@ -10,3 +10,10 @@ export * from "./types";
 
 // Actions (Server Actions - can be used in client components)
 export * from "./actions";
+
+// Errors (Client & Server - error handling utilities)
+export * from "./errors";
+
+// Permissions (Server-only - permission guards)
+// Note: 권한 검증 유틸리티는 서버에서만 사용
+// import { requireCampAdminAuth, ... } from "@/lib/domains/camp/permissions"

@@ -16,7 +16,9 @@ export type CampStatus =
   | "READY_TO_START" // 플랜 생성 완료, 시작 전
   | "IN_PROGRESS" // 학습 중
   | "COMPLETED" // 완료됨
-  | "PAUSED"; // 일시정지됨
+  | "PAUSED" // 일시정지됨
+  | "DECLINED" // 초대 거절됨
+  | "CANCELLED"; // 참여 취소됨
 
 /**
  * 캠프 상태 정보 (UI 렌더링용)
@@ -51,6 +53,16 @@ export function getCampStatus(
   isDraft: boolean = false,
   planGroupId: string | null = null
 ): CampStatus {
+  // 0. 초대가 declined인 경우 (거절됨)
+  if (invitationStatus === "declined") {
+    return "DECLINED";
+  }
+
+  // 0.5. 초대가 cancelled인 경우 (취소됨)
+  if (invitationStatus === "cancelled") {
+    return "CANCELLED";
+  }
+
   // 1. 초대가 pending이고 플랜 그룹이 draft인 경우 (폼 작성 중)
   // 단, planGroupId가 있어야 함 (플랜 그룹이 실제로 존재해야 함)
   if (invitationStatus === "pending" && isDraft && planGroupId) {
@@ -199,6 +211,30 @@ export function getCampStatusInfo(
         canStart: false,
         nextStep: undefined,
         badgeClassName: "inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-800",
+      };
+
+    case "DECLINED":
+      return {
+        status: "DECLINED",
+        label: "거절됨",
+        color: "red",
+        description: "초대를 거절했습니다.",
+        canEdit: false,
+        canStart: false,
+        nextStep: undefined,
+        badgeClassName: "inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800",
+      };
+
+    case "CANCELLED":
+      return {
+        status: "CANCELLED",
+        label: "취소됨",
+        color: "gray",
+        description: "참여를 취소했습니다.",
+        canEdit: false,
+        canStart: false,
+        nextStep: undefined,
+        badgeClassName: "inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600",
       };
 
     default:

@@ -23,6 +23,7 @@ import {
 } from "@/lib/utils/exclusionHierarchy";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { ContentSlot, SlotTemplate } from "@/lib/types/content-selection";
+import { revalidatePath } from "next/cache";
 
 /**
  * 슬롯 템플릿을 ContentSlot으로 변환
@@ -1045,7 +1046,6 @@ export const submitCampParticipation = withErrorHandling(
       }
     }
 
-    const { revalidatePath } = await import("next/cache");
     revalidatePath("/camp");
     revalidatePath(`/camp/${invitationId}`);
     revalidatePath(`/admin/camp-templates/${invitation.camp_template_id}/participants`);
@@ -1055,6 +1055,331 @@ export const submitCampParticipation = withErrorHandling(
       success: true,
       groupId: groupId,
       invitationId: invitationId,
+    };
+  }
+);
+
+/**
+ * 캠프 초대 거절
+ */
+export const declineCampInvitation = withErrorHandling(
+  async (
+    invitationId: string,
+    declineReason?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "student") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (!invitationId || typeof invitationId !== "string") {
+      throw new AppError(
+        "초대 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const invitation = await getCampInvitation(invitationId);
+    if (!invitation) {
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    if (invitation.student_id !== user.userId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (invitation.status !== "pending") {
+      throw new AppError(
+        "이미 처리된 초대입니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 기존 draft 플랜 그룹이 있으면 삭제
+    const { data: draftGroup } = await supabase
+      .from("plan_groups")
+      .select("id")
+      .eq("camp_invitation_id", invitationId)
+      .eq("status", "draft")
+      .maybeSingle();
+
+    if (draftGroup) {
+      // 관련 데이터 삭제
+      await supabase.from("student_plan").delete().eq("plan_group_id", draftGroup.id);
+      await supabase.from("plan_contents").delete().eq("plan_group_id", draftGroup.id);
+      await supabase.from("plan_exclusions").delete().eq("plan_group_id", draftGroup.id);
+      await supabase.from("plan_groups").delete().eq("id", draftGroup.id);
+    }
+
+    // 초대 상태를 declined로 업데이트하고 거절 사유 저장
+    const { error: updateError } = await supabase
+      .from("camp_invitations")
+      .update({
+        status: "declined",
+        decline_reason: declineReason || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invitationId);
+
+    if (updateError) {
+      console.error("[declineCampInvitation] 초대 상태 업데이트 실패:", updateError);
+      throw new AppError(
+        "초대 거절 처리에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const template = await getCampTemplate(invitation.camp_template_id);
+
+    revalidatePath("/camp");
+    revalidatePath(`/camp/${invitationId}`);
+    if (template) {
+      revalidatePath(`/admin/camp-templates/${template.id}/participants`);
+    }
+
+    return { success: true };
+  }
+);
+
+/**
+ * 캠프 참여 취소 (accepted 상태에서 취소)
+ */
+export const cancelCampParticipation = withErrorHandling(
+  async (
+    invitationId: string,
+    cancelReason?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "student") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (!invitationId || typeof invitationId !== "string") {
+      throw new AppError(
+        "초대 ID가 올바르지 않습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const invitation = await getCampInvitation(invitationId);
+    if (!invitation) {
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    if (invitation.student_id !== user.userId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (invitation.status !== "accepted") {
+      throw new AppError(
+        "참여 상태가 아닌 초대는 취소할 수 없습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 플랜 그룹 조회
+    const { data: planGroup } = await supabase
+      .from("plan_groups")
+      .select("id, status")
+      .eq("camp_invitation_id", invitationId)
+      .maybeSingle();
+
+    // 플랜 그룹이 active/paused 상태면 취소 불가 (학습이 이미 시작됨)
+    if (planGroup && (planGroup.status === "active" || planGroup.status === "paused")) {
+      throw new AppError(
+        "학습이 시작된 캠프는 취소할 수 없습니다. 관리자에게 문의해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
+
+    // 플랜 그룹이 있으면 삭제
+    if (planGroup) {
+      await supabase.from("student_plan").delete().eq("plan_group_id", planGroup.id);
+      await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
+      await supabase.from("plan_exclusions").delete().eq("plan_group_id", planGroup.id);
+      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+    }
+
+    // 초대 상태를 cancelled로 업데이트 (사용자 취소 상태)
+    const { error: updateError } = await supabase
+      .from("camp_invitations")
+      .update({
+        status: "cancelled",
+        cancel_reason: cancelReason || null,
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invitationId);
+
+    if (updateError) {
+      console.error("[cancelCampParticipation] 초대 상태 업데이트 실패:", updateError);
+      throw new AppError(
+        "참여 취소 처리에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const template = await getCampTemplate(invitation.camp_template_id);
+
+    revalidatePath("/camp");
+    revalidatePath(`/camp/${invitationId}`);
+    if (template) {
+      revalidatePath(`/admin/camp-templates/${template.id}/participants`);
+    }
+
+    return { success: true };
+  }
+);
+
+/**
+ * 참여 정보 수정 (accepted 상태에서 수정)
+ * 플랜이 아직 생성되지 않은 경우에만 수정 가능
+ */
+export const editCampParticipation = withErrorHandling(
+  async (
+    invitationId: string
+  ): Promise<{ success: boolean; canEdit: boolean; redirectUrl?: string; error?: string }> => {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "student") {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    const invitation = await getCampInvitation(invitationId);
+    if (!invitation) {
+      throw new AppError(
+        "초대를 찾을 수 없습니다.",
+        ErrorCode.NOT_FOUND,
+        404,
+        true
+      );
+    }
+
+    if (invitation.student_id !== user.userId) {
+      throw new AppError("권한이 없습니다.", ErrorCode.FORBIDDEN, 403, true);
+    }
+
+    if (invitation.status !== "accepted") {
+      return {
+        success: false,
+        canEdit: false,
+        error: "참여 상태가 아닌 초대는 수정할 수 없습니다.",
+      };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 플랜 그룹 및 플랜 존재 여부 확인
+    const { data: planGroup } = await supabase
+      .from("plan_groups")
+      .select("id, status")
+      .eq("camp_invitation_id", invitationId)
+      .maybeSingle();
+
+    if (!planGroup) {
+      return {
+        success: false,
+        canEdit: false,
+        error: "플랜 그룹을 찾을 수 없습니다.",
+      };
+    }
+
+    // 플랜이 생성되었는지 확인
+    const { data: plans } = await supabase
+      .from("student_plan")
+      .select("id")
+      .eq("plan_group_id", planGroup.id)
+      .limit(1);
+
+    const hasPlans = (plans?.length || 0) > 0;
+
+    if (hasPlans) {
+      return {
+        success: false,
+        canEdit: false,
+        error: "이미 플랜이 생성되어 참여 정보를 수정할 수 없습니다.",
+      };
+    }
+
+    // 플랜 그룹 상태가 active/paused면 수정 불가
+    if (planGroup.status === "active" || planGroup.status === "paused") {
+      return {
+        success: false,
+        canEdit: false,
+        error: "학습이 시작된 캠프는 수정할 수 없습니다.",
+      };
+    }
+
+    // 플랜 그룹을 draft로 변경하고 초대 상태를 pending으로 변경
+    const { error: groupUpdateError } = await supabase
+      .from("plan_groups")
+      .update({ status: "draft", updated_at: new Date().toISOString() })
+      .eq("id", planGroup.id);
+
+    if (groupUpdateError) {
+      console.error("[editCampParticipation] 플랜 그룹 상태 업데이트 실패:", groupUpdateError);
+      throw new AppError(
+        "수정 모드 전환에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    const { error: invitationUpdateError } = await supabase
+      .from("camp_invitations")
+      .update({ status: "pending", updated_at: new Date().toISOString() })
+      .eq("id", invitationId);
+
+    if (invitationUpdateError) {
+      console.error("[editCampParticipation] 초대 상태 업데이트 실패:", invitationUpdateError);
+      // 롤백
+      await supabase
+        .from("plan_groups")
+        .update({ status: "saved" })
+        .eq("id", planGroup.id);
+      throw new AppError(
+        "수정 모드 전환에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
+    }
+
+    revalidatePath("/camp");
+    revalidatePath(`/camp/${invitationId}`);
+
+    return {
+      success: true,
+      canEdit: true,
+      redirectUrl: `/camp/${invitationId}`,
     };
   }
 );
