@@ -1,19 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+import { useRecharts, ChartLoadingSkeleton } from "@/components/charts/LazyRecharts";
 import { Card } from "@/components/ui/Card";
 import type { CampLearningStats, CampAttendanceStats } from "@/lib/domains/camp/types";
 
@@ -38,6 +26,9 @@ export function CampParticipationCharts({
   attendanceStats,
   learningStats,
 }: CampParticipationChartsProps) {
+  // Lazy load recharts
+  const { recharts, loading } = useRecharts();
+
   // 참여자별 학습 시간 데이터 (상위 10명)
   const studyTimeData = useMemo(() => {
     if (!learningStats?.participant_stats) return [];
@@ -133,6 +124,35 @@ export function CampParticipationCharts({
   if (!hasLearningData && !hasSubjectData && !hasAttendanceDistribution) {
     return null;
   }
+
+  // Show loading skeleton while recharts loads
+  if (loading || !recharts) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="p-6">
+            <div className="mb-4 h-6 w-48 animate-pulse rounded bg-gray-200" />
+            <ChartLoadingSkeleton height={320} />
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  // Extract recharts components
+  const {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+  } = recharts;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
