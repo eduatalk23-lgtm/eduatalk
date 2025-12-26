@@ -40,6 +40,11 @@ export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expire
 export type SchedulerType = "1730_timetable";
 
 /**
+ * 날짜 유형 (학습일/복습일/제외일)
+ */
+export type DayType = "study" | "review" | "exclusion";
+
+/**
  * 플랜 상태
  * 
  * 통합 타입 정의:
@@ -306,6 +311,11 @@ export type PlanGroup = {
   // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
   use_slot_mode?: boolean | null;
   content_slots?: unknown[] | null; // JSON: 콘텐츠 슬롯 배열
+  // 콘텐츠별 플랜그룹 관련 필드 (4단계 간소화 플로우)
+  template_plan_group_id?: string | null; // 템플릿(위저드) 플랜그룹 참조
+  study_type?: 'strategy' | 'weakness' | null; // 학습 유형 (전략/취약)
+  strategy_days_per_week?: number | null; // 전략 과목 주당 학습일 (2-4)
+  creation_mode?: 'wizard' | 'content_based' | 'template' | 'camp' | null; // 생성 모드
   created_at: string;
   updated_at: string;
 };

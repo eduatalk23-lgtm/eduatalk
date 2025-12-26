@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
+import { isCampMode } from "@/lib/plan/context";
 import {
   getSessionsInRange,
   getActiveSessionsForPlans,
@@ -293,9 +294,6 @@ export type GetTodayPlansOptions = {
   studentId: string;
   tenantId: string | null;
   date?: string | null;
-  /**
-   * @deprecated 캠프/일반 통합으로 더 이상 사용되지 않음. 무시됨.
-   */
   camp?: boolean;
   /**
    * If true, includes todayProgress in the response.
@@ -335,7 +333,7 @@ export async function getTodayPlans(
     studentId,
     tenantId,
     date,
-    camp: _camp, // deprecated, ignored
+    camp = false,
     includeProgress = true,
     narrowQueries = false,
     useCache = true,
@@ -367,13 +365,12 @@ export async function getTodayPlans(
     try {
       // Build cache query with tenant_id handling (NULL-safe)
       // Use partial index: one for NULL tenant_id, one for non-NULL
-      // is_camp_mode is always false for unified view (camp/normal combined)
       let cacheQuery = supabase
         .from("today_plans_cache")
         .select("payload, expires_at")
         .eq("student_id", studentId)
         .eq("plan_date", targetDate)
-        .eq("is_camp_mode", false)
+        .eq("is_camp_mode", !!camp)
         .gt("expires_at", new Date().toISOString()); // Only valid (non-expired) cache
 
       // Handle tenant_id (NULL or value)
@@ -411,14 +408,18 @@ export async function getTodayPlans(
 
   // Wave 1: Independent queries that can run in parallel
   // - planGroups (needed to filter plans)
-  // 캠프/일반 통합으로 모든 활성 플랜 그룹 사용 (모드 필터링 제거)
-  const activePlanGroups = await getPlanGroupsForStudent({
+  const allActivePlanGroups = await getPlanGroupsForStudent({
     studentId,
     tenantId,
     status: "active",
   });
 
-  const planGroupIds = activePlanGroups.map((g) => g.id);
+  // Filter plan groups based on camp mode
+  // isCampMode 헬퍼를 사용하여 모드별 필터링 통합
+  const filteredPlanGroups = allActivePlanGroups.filter((group) =>
+    camp ? isCampMode(group) : !isCampMode(group)
+  );
+  const planGroupIds = filteredPlanGroups.map((g) => g.id);
 
   // 선택한 날짜 플랜 조회 (View 사용으로 최적화)
   // today_plan_view를 통해 콘텐츠 정보가 이미 조인되어 있음
@@ -874,7 +875,6 @@ export async function getTodayPlans(
       // Use upsert with single UNIQUE constraint
       // Constraint: today_plans_cache_unique_key (tenant_id, student_id, plan_date, is_camp_mode)
       // Always use all 4 columns for onConflict, regardless of tenant_id being NULL or not
-      // is_camp_mode is always false for unified view (camp/normal combined)
       const { error: cacheError } = await supabase
         .from("today_plans_cache")
         .upsert(
@@ -882,7 +882,7 @@ export async function getTodayPlans(
             tenant_id: tenantId ?? null,
             student_id: studentId,
             plan_date: targetDate,
-            is_camp_mode: false,
+            is_camp_mode: !!camp,
             payload: result,
             computed_at: now.toISOString(),
             expires_at: expiresAt.toISOString(),

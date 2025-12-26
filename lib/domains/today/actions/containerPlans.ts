@@ -31,6 +31,8 @@ export interface ContainerPlan {
   actual_start_time: string | null;
   actual_end_time: string | null;
   total_duration_seconds: number | null;
+  // 학습 유형 (전략/취약/복습)
+  subject_type: 'strategy' | 'weakness' | 'review' | null;
 }
 
 export interface ContainerSummary {
@@ -115,7 +117,8 @@ export async function getTodayContainerPlans(
         sequence,
         actual_start_time,
         actual_end_time,
-        total_duration_seconds
+        total_duration_seconds,
+        subject_type
       `)
       .eq('student_id', user.userId)
       .eq('is_active', true)
@@ -278,6 +281,200 @@ export async function moveToWeekly(
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * 컨테이너와 날짜를 동시에 변경
+ * @param planId 플랜 ID
+ * @param container 컨테이너 타입
+ * @param targetDate 대상 날짜 (optional, 기본값: 오늘)
+ * @param planType 플랜 타입
+ */
+export async function movePlanToContainerWithDate(
+  planId: string,
+  container: ContainerType,
+  targetDate?: string,
+  planType: 'student_plan' | 'ad_hoc_plan' = 'student_plan'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'student') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const tableName = planType === 'ad_hoc_plan' ? 'ad_hoc_plans' : 'student_plan';
+    const today = new Date().toISOString().split('T')[0];
+
+    // 날짜 결정 로직
+    let finalDate = targetDate;
+    if (!finalDate) {
+      if (container === 'daily') {
+        finalDate = today;
+      }
+      // weekly나 unfinished는 기존 날짜 유지
+    }
+
+    const updateData: Record<string, unknown> = {
+      container_type: container,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (finalDate) {
+      updateData.plan_date = finalDate;
+    }
+
+    const { error } = await supabase
+      .from(tableName)
+      .update(updateData)
+      .eq('id', planId)
+      .eq('student_id', user.userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export type StudentDropTarget = {
+  container: ContainerType;
+  date?: string;
+  position?: number;
+};
+
+/**
+ * 학생용 드래그 앤 드롭 처리
+ * @param planId 플랜 ID
+ * @param dropTarget 드롭 대상 정보
+ * @param planType 플랜 타입
+ */
+export async function handleStudentPlanDrop(
+  planId: string,
+  dropTarget: StudentDropTarget,
+  planType: 'student_plan' | 'ad_hoc_plan' = 'student_plan'
+): Promise<{ success: boolean; error?: string; newDate?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'student') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const tableName = planType === 'ad_hoc_plan' ? 'ad_hoc_plans' : 'student_plan';
+    const today = new Date().toISOString().split('T')[0];
+
+    // 기존 플랜 조회
+    const { data: existingPlan, error: fetchError } = await supabase
+      .from(tableName)
+      .select('id, plan_date')
+      .eq('id', planId)
+      .eq('student_id', user.userId)
+      .single();
+
+    if (fetchError || !existingPlan) {
+      return { success: false, error: 'Plan not found' };
+    }
+
+    // 날짜 결정
+    let finalDate = dropTarget.date || existingPlan.plan_date;
+    if (dropTarget.container === 'daily' && !dropTarget.date) {
+      finalDate = today;
+    }
+
+    const updateData: Record<string, unknown> = {
+      container_type: dropTarget.container,
+      plan_date: finalDate,
+      updated_at: new Date().toISOString(),
+    };
+
+    // 위치가 지정된 경우 sequence 업데이트
+    if (dropTarget.position !== undefined && planType === 'student_plan') {
+      updateData.sequence = dropTarget.position;
+    }
+
+    const { error: updateError } = await supabase
+      .from(tableName)
+      .update(updateData)
+      .eq('id', planId)
+      .eq('student_id', user.userId);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true, newDate: finalDate };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * 플랜 순서 변경 (같은 컨테이너 내)
+ * @param planIds 플랜 ID 배열 (새로운 순서대로)
+ */
+export async function reorderContainerPlans(
+  planIds: string[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'student') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    if (planIds.length === 0) {
+      return { success: true };
+    }
+
+    const supabase = await createSupabaseServerClient();
+
+    // 모든 플랜이 해당 학생의 것인지 확인
+    const { data: plans, error: fetchError } = await supabase
+      .from('student_plan')
+      .select('id')
+      .in('id', planIds)
+      .eq('student_id', user.userId);
+
+    if (fetchError) {
+      return { success: false, error: fetchError.message };
+    }
+
+    if (plans?.length !== planIds.length) {
+      return { success: false, error: 'Some plans not found or unauthorized' };
+    }
+
+    // 순서 업데이트
+    for (let i = 0; i < planIds.length; i++) {
+      const { error: updateError } = await supabase
+        .from('student_plan')
+        .update({
+          sequence: i + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', planIds[i])
+        .eq('student_id', user.userId);
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
     }
 
     return { success: true };

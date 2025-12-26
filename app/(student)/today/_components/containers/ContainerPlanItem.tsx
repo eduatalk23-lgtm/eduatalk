@@ -91,6 +91,21 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                   단발성
                 </span>
               )}
+              {!isAdHoc && plan?.subject_type === 'weakness' && (
+                <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                  취약
+                </span>
+              )}
+              {!isAdHoc && plan?.subject_type === 'strategy' && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                  전략
+                </span>
+              )}
+              {!isAdHoc && plan?.subject_type === 'review' && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                  복습
+                </span>
+              )}
             </div>
 
             {/* 범위 및 과목 */}
