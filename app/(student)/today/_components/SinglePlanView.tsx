@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { memo } from "react";
 import { PlanCard } from "./PlanCard";
 import { PlanSelector } from "./PlanSelector";
 import { PlanGroup } from "../_utils/planGroupUtils";
@@ -21,7 +21,7 @@ type SinglePlanViewProps = {
   campMode?: boolean; // 캠프 모드 여부
 };
 
-export function SinglePlanView({
+function SinglePlanViewComponent({
   groups,
   sessions,
   planDate,
@@ -88,3 +88,45 @@ export function SinglePlanView({
     </div>
   );
 }
+
+// 커스텀 비교 함수로 불필요한 리렌더링 방지
+function arePropsEqual(
+  prevProps: SinglePlanViewProps,
+  nextProps: SinglePlanViewProps
+): boolean {
+  // 기본 값 비교
+  if (
+    prevProps.planDate !== nextProps.planDate ||
+    prevProps.selectedPlanNumber !== nextProps.selectedPlanNumber ||
+    prevProps.selectedPlanId !== nextProps.selectedPlanId ||
+    prevProps.campMode !== nextProps.campMode
+  ) {
+    return false;
+  }
+
+  // groups 배열 비교 (length와 각 plan.id 비교)
+  if (prevProps.groups.length !== nextProps.groups.length) {
+    return false;
+  }
+  for (let i = 0; i < prevProps.groups.length; i++) {
+    if (prevProps.groups[i].plan.id !== nextProps.groups[i].plan.id) {
+      return false;
+    }
+    // 완료 상태 변경 확인
+    if (
+      prevProps.groups[i].plan.status !== nextProps.groups[i].plan.status ||
+      prevProps.groups[i].plan.progress !== nextProps.groups[i].plan.progress
+    ) {
+      return false;
+    }
+  }
+
+  // sessions Map 비교 (size와 내용)
+  if (prevProps.sessions.size !== nextProps.sessions.size) {
+    return false;
+  }
+
+  return true;
+}
+
+export const SinglePlanView = memo(SinglePlanViewComponent, arePropsEqual);

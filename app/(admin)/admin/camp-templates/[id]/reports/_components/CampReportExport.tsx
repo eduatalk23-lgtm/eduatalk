@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Download, FileSpreadsheet } from "lucide-react";
-import * as XLSX from "xlsx";
 import type { CampAttendanceStats, CampLearningStats } from "@/lib/domains/camp/types";
 
 type CampReportExportProps = {
@@ -21,6 +20,8 @@ export function CampReportExport({
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
+      // 동적 import로 번들 크기 최적화 (~650KB 절감)
+      const XLSX = await import("xlsx");
       const workbook = XLSX.utils.book_new();
 
       // 1. 요약 시트

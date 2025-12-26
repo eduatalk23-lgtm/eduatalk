@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { formatTime, calculateGroupTotalStudyTime, getActivePlansCount, getCompletedPlansCount } from "../_utils/planGroupUtils";
@@ -14,7 +15,7 @@ type PlanSelectorProps = {
   sessions: Map<string, { isPaused: boolean; pausedAt?: string | null; resumedAt?: string | null }>;
 };
 
-export function PlanSelector({
+function PlanSelectorBase({
   groups,
   selectedPlanNumber,
   selectedPlanId,
@@ -22,19 +23,44 @@ export function PlanSelector({
   onSelectById,
   sessions,
 }: PlanSelectorProps) {
-  // 현재 선택된 그룹 찾기 (selectedPlanId가 있으면 plan.id로 먼저 찾기, 없으면 planNumber로 찾기)
-  const currentGroup = selectedPlanId
-    ? groups.find((g) => g.plan.id === selectedPlanId)
-    : selectedPlanNumber !== null
-    ? groups.find((g) => g.planNumber === selectedPlanNumber)
-    : null;
-  
-  // currentGroup이 없으면 첫 번째 그룹을 표시용으로 사용
-  const displayGroup = currentGroup || groups[0];
-  
-  const currentIndex = displayGroup 
-    ? groups.findIndex((g) => g.plan.id === displayGroup.plan.id)
-    : -1;
+  // groups를 planId로 인덱싱하여 O(1) 조회 가능하게 함 (useMemo로 캐싱)
+  const groupsIndexMap = useMemo(() => {
+    const map = new Map<string, { group: PlanGroup; index: number }>();
+    groups.forEach((g, idx) => {
+      map.set(g.plan.id, { group: g, index: idx });
+    });
+    return map;
+  }, [groups]);
+
+  // 현재 선택된 그룹과 인덱스 계산 (O(1) 조회)
+  const { displayGroup, currentIndex } = useMemo(() => {
+    let foundGroup: PlanGroup | null = null;
+    let foundIndex = -1;
+
+    if (selectedPlanId) {
+      const entry = groupsIndexMap.get(selectedPlanId);
+      if (entry) {
+        foundGroup = entry.group;
+        foundIndex = entry.index;
+      }
+    } else if (selectedPlanNumber !== null) {
+      const entry = Array.from(groupsIndexMap.values()).find(
+        (e) => e.group.planNumber === selectedPlanNumber
+      );
+      if (entry) {
+        foundGroup = entry.group;
+        foundIndex = entry.index;
+      }
+    }
+
+    // 찾지 못하면 첫 번째 그룹 사용
+    if (!foundGroup && groups.length > 0) {
+      foundGroup = groups[0];
+      foundIndex = 0;
+    }
+
+    return { displayGroup: foundGroup, currentIndex: foundIndex };
+  }, [selectedPlanId, selectedPlanNumber, groupsIndexMap, groups]);
 
   const handlePrevious = () => {
     if (currentIndex > 0 && currentIndex < groups.length) {
@@ -152,3 +178,41 @@ export function PlanSelector({
   );
 }
 
+// 커스텀 비교 함수로 불필요한 리렌더링 방지
+function arePropsEqual(
+  prevProps: PlanSelectorProps,
+  nextProps: PlanSelectorProps
+): boolean {
+  // 선택 상태 비교
+  if (
+    prevProps.selectedPlanNumber !== nextProps.selectedPlanNumber ||
+    prevProps.selectedPlanId !== nextProps.selectedPlanId
+  ) {
+    return false;
+  }
+
+  // groups 배열 비교 (length와 각 plan.id 비교)
+  if (prevProps.groups.length !== nextProps.groups.length) {
+    return false;
+  }
+  for (let i = 0; i < prevProps.groups.length; i++) {
+    const prevGroup = prevProps.groups[i];
+    const nextGroup = nextProps.groups[i];
+    if (prevGroup.plan.id !== nextGroup.plan.id) {
+      return false;
+    }
+    // 상태 변경 확인
+    if (prevGroup.plan.status !== nextGroup.plan.status) {
+      return false;
+    }
+  }
+
+  // sessions Map 비교 (size)
+  if (prevProps.sessions.size !== nextProps.sessions.size) {
+    return false;
+  }
+
+  return true;
+}
+
+export const PlanSelector = memo(PlanSelectorBase, arePropsEqual);

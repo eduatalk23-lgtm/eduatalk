@@ -392,6 +392,42 @@ export async function getCampInvitation(
 }
 
 /**
+ * 캠프 초대 배치 조회 (N+1 쿼리 방지)
+ * 여러 ID를 한 번의 쿼리로 조회
+ */
+export async function getCampInvitationsByIds(
+  invitationIds: string[]
+): Promise<CampInvitation[]> {
+  if (!invitationIds || invitationIds.length === 0) {
+    return [];
+  }
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) {
+    handleQueryError(null, {
+      context: "[data/campTemplates] getCampInvitationsByIds",
+      logError: true,
+    });
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("camp_invitations")
+    .select("*")
+    .in("id", invitationIds);
+
+  if (error) {
+    handleQueryError(error, {
+      context: "[data/campTemplates] getCampInvitationsByIds",
+      logError: true,
+    });
+    return [];
+  }
+
+  return (data || []) as CampInvitation[];
+}
+
+/**
  * 캠프 초대 상태 업데이트
  */
 export async function updateCampInvitationStatus(

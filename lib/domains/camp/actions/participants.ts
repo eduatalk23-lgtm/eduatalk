@@ -426,13 +426,11 @@ export const deleteCampInvitationsAction = withErrorHandling(
       );
     }
 
-    // 모든 초대의 템플릿 권한 확인
-    const { getCampInvitation } = await import("@/lib/data/campTemplates");
-    const invitations = await Promise.all(
-      invitationIds.map((id) => getCampInvitation(id))
-    );
+    // 모든 초대의 템플릿 권한 확인 (배치 조회로 N+1 방지)
+    const { getCampInvitationsByIds } = await import("@/lib/data/campTemplates");
+    const invitations = await getCampInvitationsByIds(invitationIds);
 
-    const validInvitations = invitations.filter(Boolean);
+    const validInvitations = invitations;
     if (validInvitations.length !== invitationIds.length) {
       throw new AppError(
         "일부 초대를 찾을 수 없습니다.",
@@ -444,7 +442,7 @@ export const deleteCampInvitationsAction = withErrorHandling(
 
     // 템플릿 권한 확인
     const templateIds = new Set(
-      validInvitations.map((inv) => inv!.camp_template_id)
+      validInvitations.map((inv) => inv.camp_template_id)
     );
     const templates = await Promise.all(
       Array.from(templateIds).map((id) => getCampTemplate(id))
@@ -495,13 +493,11 @@ export const resendCampInvitationsAction = withErrorHandling(
     // 중복 제거
     const uniqueInvitationIds = Array.from(new Set(invitationIds));
 
-    // 초대 조회 및 학생 ID 추출
-    const { getCampInvitation } = await import("@/lib/data/campTemplates");
-    const invitations = await Promise.all(
-      uniqueInvitationIds.map((id) => getCampInvitation(id))
-    );
+    // 초대 조회 및 학생 ID 추출 (배치 조회로 N+1 방지)
+    const { getCampInvitationsByIds } = await import("@/lib/data/campTemplates");
+    const invitations = await getCampInvitationsByIds(uniqueInvitationIds);
 
-    const validInvitations = invitations.filter(Boolean);
+    const validInvitations = invitations;
     if (validInvitations.length === 0) {
       throw new AppError(
         "유효한 초대를 찾을 수 없습니다.",
@@ -513,7 +509,7 @@ export const resendCampInvitationsAction = withErrorHandling(
 
     // 모든 초대가 같은 템플릿인지 확인
     const allSameTemplate = validInvitations.every(
-      (inv) => inv!.camp_template_id === templateId
+      (inv) => inv.camp_template_id === templateId
     );
     if (!allSameTemplate) {
       throw new AppError(
@@ -524,7 +520,7 @@ export const resendCampInvitationsAction = withErrorHandling(
       );
     }
 
-    const studentIds = validInvitations.map((inv) => inv!.student_id);
+    const studentIds = validInvitations.map((inv) => inv.student_id);
 
     // 기존 초대 삭제 후 재발송
     const { deleteCampInvitations } = await import("@/lib/data/campTemplates");

@@ -344,10 +344,10 @@ export async function bulkDeleteStudents(
     console.warn("[admin/studentManagement] 배치 삭제 경고:", batchErrors);
   }
 
-  // 각 학생에 대해 auth 삭제 및 students 테이블 삭제 수행
+  // 1단계: auth.users에서 사용자 삭제 (Supabase API 제한으로 개별 처리 필요)
+  const authDeletedIds: string[] = [];
   for (const studentId of studentIds) {
     try {
-      // auth.users에서 사용자 삭제
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
         studentId
       );
@@ -359,33 +359,39 @@ export async function bulkDeleteStudents(
         continue;
       }
 
-      // students 테이블에서 삭제 (CASCADE로 나머지 관련 데이터 자동 삭제)
-      const { data: deletedRows, error: deleteError } = await supabase
-        .from("students")
-        .delete()
-        .eq("id", studentId)
-        .eq("tenant_id", tenantContext.tenantId)
-        .select();
-
-      if (deleteError) {
-        errors.push(`${studentId}: 학생 삭제 실패 - ${deleteError.message}`);
-        continue;
-      }
-
-      if (!deletedRows || deletedRows.length === 0) {
-        errors.push(`${studentId}: 학생을 찾을 수 없습니다.`);
-        continue;
-      }
-
-      successCount++;
+      authDeletedIds.push(studentId);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "알 수 없는 오류";
       errors.push(`${studentId}: ${errorMessage}`);
       console.error(
-        `[admin/studentManagement] 학생 삭제 중 오류 (${studentId}):`,
+        `[admin/studentManagement] Auth 삭제 중 오류 (${studentId}):`,
         error
       );
+    }
+  }
+
+  // 2단계: students 테이블에서 배치 삭제 (N+1 방지)
+  if (authDeletedIds.length > 0) {
+    const { data: deletedRows, error: deleteError } = await supabase
+      .from("students")
+      .delete()
+      .in("id", authDeletedIds)
+      .eq("tenant_id", tenantContext.tenantId)
+      .select("id");
+
+    if (deleteError) {
+      errors.push(`학생 테이블 배치 삭제 실패: ${deleteError.message}`);
+    } else {
+      successCount = deletedRows?.length || 0;
+
+      // 삭제되지 않은 학생 확인
+      const deletedIdSet = new Set(deletedRows?.map((r) => r.id) || []);
+      for (const id of authDeletedIds) {
+        if (!deletedIdSet.has(id)) {
+          errors.push(`${id}: 학생을 찾을 수 없습니다.`);
+        }
+      }
     }
   }
 
