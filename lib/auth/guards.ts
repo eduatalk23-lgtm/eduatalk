@@ -126,6 +126,42 @@ export async function requireParent(): Promise<ParentGuardResult> {
   return { userId, role: "parent" };
 }
 
+export type AdminOnlyGuardResult = {
+  userId: string;
+  role: "admin" | "superadmin";
+  tenantId: string | null;
+};
+
+/**
+ * 관리자 권한(컨설턴트 제외)을 검증하고 사용자 정보를 반환합니다.
+ * consultant는 제외되며, admin 또는 superadmin만 허용됩니다.
+ */
+export async function requireAdmin(): Promise<AdminOnlyGuardResult> {
+  const { userId, role, tenantId } = await getCurrentUserRole();
+
+  if (!userId) {
+    throw new AppError(
+      "로그인이 필요합니다.",
+      ErrorCode.UNAUTHORIZED,
+      401,
+      true
+    );
+  }
+
+  if (role !== "admin" && role !== "superadmin") {
+    const errorMessage =
+      role === null
+        ? "사용자 역할을 확인할 수 없습니다. 다시 로그인해주세요."
+        : role === "consultant"
+        ? "관리자 권한이 필요합니다. 컨설턴트 권한으로는 이 작업을 수행할 수 없습니다."
+        : "관리자 권한이 필요합니다.";
+
+    throw new AppError(errorMessage, ErrorCode.FORBIDDEN, 403, true);
+  }
+
+  return { userId, role, tenantId };
+}
+
 // 학생 권한 가드는 requireStudentAuth 사용 (더 완전한 정보 포함: tenantId, email)
 export { requireStudentAuth, requireStudentAuth as requireStudent } from "./requireStudentAuth";
 
