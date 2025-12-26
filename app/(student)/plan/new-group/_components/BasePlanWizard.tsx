@@ -4,6 +4,8 @@
  * BasePlanWizard
  *
  * Phase 2 성능 최적화: 동적 임포트
+ * Phase 4 UX 개선: 접근성 및 네비게이션 플로우
+ *
  * Step 컴포넌트를 동적으로 로딩하여 초기 번들 크기를 줄입니다.
  */
 
@@ -16,24 +18,31 @@ import {
   ContentSelectionSkeleton,
   SchedulePreviewSkeleton,
   FinalReviewSkeleton,
+  Step1Skeleton,
+  Step2Skeleton,
+  Step7Skeleton,
 } from "./common/StepSkeleton";
+import { WizardProgressIndicator } from "./common/WizardProgressIndicator";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "./PlanGroupWizard";
 import { isStepReadOnly, type WizardMode } from "./utils/modeUtils";
 import { SaveStatusIndicator, type SaveStatus } from "./_ui/SaveStatusIndicator";
 import { SubmissionProgress, type SubmissionPhase } from "./_ui/SubmissionProgress";
 import { AutoSaveIndicator } from "./_ui/AutoSaveIndicator";
+// Phase 4: 접근성 훅
+import { useWizardKeyboardNavigation } from "./hooks/useWizardKeyboardNavigation";
+import { useWizardFocusManagement } from "./hooks/useWizardFocusManagement";
 
 // Phase 2: 동적 임포트로 Step 컴포넌트 로딩
-// 초기 번들 크기 감소 및 필요할 때만 로딩
+// Phase 4: 단계별 맞춤 스켈레톤 적용
 const Step1BasicInfo = dynamic(
   () => import("./_features/basic-info/Step1BasicInfo").then((mod) => mod.Step1BasicInfo),
-  { loading: () => <StepSkeleton lines={4} /> }
+  { loading: () => <Step1Skeleton /> }
 );
 
 const Step2TimeSettings = dynamic(
   () => import("./_features/scheduling/Step2TimeSettings").then((mod) => mod.Step2TimeSettings),
-  { loading: () => <SchedulePreviewSkeleton /> }
+  { loading: () => <Step2Skeleton /> }
 );
 
 const Step3SchedulePreview = dynamic(
@@ -58,7 +67,7 @@ const Step6Simplified = dynamic(
 
 const Step7ScheduleResult = dynamic(
   () => import("./_features/scheduling/Step7ScheduleResult").then((mod) => mod.Step7ScheduleResult),
-  { loading: () => <StepSkeleton lines={3} showButtons={false} /> }
+  { loading: () => <Step7Skeleton /> }
 );
 
 /**
@@ -110,6 +119,14 @@ export type BasePlanWizardProps = {
   // A4 개선: 오토세이브 상태
   autoSaveStatus?: "idle" | "saving" | "saved" | "error";
   autoSaveLastSavedAt?: Date | null;
+
+  // Phase 4: 접근성 및 네비게이션
+  /** 최대 도달 단계 (클릭 가능 범위) */
+  maxReachedStep?: WizardStep;
+  /** 에러가 있는 단계들 */
+  errorSteps?: WizardStep[];
+  /** 완료된 단계들 */
+  completedSteps?: WizardStep[];
 };
 
 /**
@@ -143,6 +160,10 @@ export function BasePlanWizard({
   // A4 개선: 오토세이브 상태
   autoSaveStatus = "idle",
   autoSaveLastSavedAt,
+  // Phase 4: 접근성 및 네비게이션
+  maxReachedStep,
+  errorSteps = [],
+  completedSteps = [],
 }: BasePlanWizardProps) {
   // PlanWizardContext에서 상태 가져오기 (렌더링에 필요한 데이터만)
   const {
@@ -156,6 +177,23 @@ export function BasePlanWizard({
     isDirty,
   } = usePlanWizard();
 
+  // Phase 4: 키보드 네비게이션 훅
+  useWizardKeyboardNavigation({
+    currentStep,
+    maxReachedStep: maxReachedStep ?? currentStep,
+    onNext,
+    onBack,
+    onSetStep,
+    onCancel,
+    disabled: isSubmitting,
+  });
+
+  // Phase 4: 포커스 관리 훅
+  const { containerRef } = useWizardFocusManagement({
+    currentStep,
+    enabled: !isSubmitting,
+  });
+
   // UX-3: 저장 상태 계산
   const saveStatus: SaveStatus = isSubmitting
     ? "saving"
@@ -164,20 +202,18 @@ export function BasePlanWizard({
     : "idle";
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      {/* 진행률 표시 바 */}
+    <div className="mx-auto w-full max-w-4xl" ref={containerRef}>
+      {/* Phase 4: 향상된 진행 표시기 */}
       {!isTemplateMode && (
         <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
-            <span>진행률</span>
-            <span className="font-semibold">{Math.round(progress)}%</span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              className="h-full bg-gray-900 transition-all duration-300"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </div>
+          <WizardProgressIndicator
+            currentStep={currentStep}
+            maxReachedStep={maxReachedStep ?? currentStep}
+            onStepClick={onSetStep}
+            disabled={isSubmitting}
+            errorSteps={errorSteps}
+            completedSteps={completedSteps}
+          />
         </div>
       )}
 
