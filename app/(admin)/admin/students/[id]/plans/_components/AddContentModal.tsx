@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { createFlexibleContent } from '@/lib/domains/admin-plan/actions/flexibleContent';
 import { cn } from '@/lib/cn';
 import type { ContentType, RangeType } from '@/lib/domains/admin-plan/types';
+import { usePlanToast } from './PlanToast';
 
 interface AddContentModalProps {
   studentId: string;
@@ -23,6 +24,7 @@ export function AddContentModal({
   onSuccess,
 }: AddContentModalProps) {
   const [isPending, startTransition] = useTransition();
+  const { showToast } = usePlanToast();
 
   // 콘텐츠 유형
   const [contentType, setContentType] = useState<ContentType>('book');
@@ -52,7 +54,7 @@ export function AddContentModal({
     e.preventDefault();
 
     if (!title.trim()) {
-      alert('콘텐츠 제목을 입력하세요');
+      showToast('콘텐츠 제목을 입력하세요', 'warning');
       return;
     }
 
@@ -73,7 +75,7 @@ export function AddContentModal({
       });
 
       if (!result.success) {
-        alert('콘텐츠 생성 실패: ' + result.error);
+        showToast('콘텐츠 생성 실패: ' + result.error, 'error');
         return;
       }
 

@@ -5,6 +5,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer, DraggablePlanItem } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
+import { usePlanToast } from './PlanToast';
 
 interface UnfinishedDockProps {
   studentId: string;
@@ -36,6 +37,7 @@ export function UnfinishedDock({
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const { showToast } = usePlanToast();
 
   useEffect(() => {
     async function fetchUnfinished() {
@@ -131,7 +133,7 @@ export function UnfinishedDock({
 
   const handleBulkRedistribute = () => {
     if (selectedPlans.size === 0) {
-      alert('작업할 플랜을 선택하세요');
+      showToast('작업할 플랜을 선택하세요', 'warning');
       return;
     }
     setShowBulkModal(true);
