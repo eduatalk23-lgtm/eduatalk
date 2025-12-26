@@ -8,6 +8,11 @@
  * - WizardStepContext: 네비게이션 상태 전용
  * - WizardValidationContext: 검증 상태 전용
  *
+ * Phase 3 코드 구조 개선: 리듀서 분리
+ * - dataReducer: 데이터 관련 액션
+ * - stepReducer: 단계 네비게이션 액션
+ * - validationReducer: 검증 관련 액션
+ *
  * 각 Context를 분리하여 불필요한 리렌더를 방지합니다.
  */
 
@@ -33,12 +38,20 @@ import {
   formatDateString,
   addDaysToDate,
 } from "@/lib/utils/date";
-import { TIMING } from "../constants/wizardConstants";
+import { TIMING, WIZARD_STEPS, TOTAL_STEPS } from "../constants/wizardConstants";
 
 // 분리된 Context들 import
 import { WizardDataProvider, type WizardDataContextValue } from "./WizardDataContext";
 import { WizardStepProvider, type WizardStepContextValue } from "./WizardStepContext";
 import { WizardValidationProvider, type WizardValidationContextValue } from "./WizardValidationContext";
+
+// Phase 3: 분리된 리듀서들 import
+import {
+  isDataAction,
+  isStepAction,
+  isValidationAction,
+  type WizardAction as CombinedWizardAction,
+} from "./reducers";
 
 /**
  * Wizard 상태 타입
@@ -76,103 +89,121 @@ export type WizardAction =
 
 /**
  * Wizard Reducer
+ *
+ * Phase 3: 액션 타입에 따라 적절한 서브 리듀서로 위임합니다.
+ * 각 서브 리듀서의 로직을 인라인으로 유지하되, 타입 체크 헬퍼를 활용합니다.
  */
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
-  switch (action.type) {
-    case "UPDATE_DATA": {
-      const newWizardData = { ...state.wizardData, ...action.payload };
-      const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
-      return {
-        ...state,
-        wizardData: newWizardData,
-        isDirty,
-        validationErrors: [],
-        validationWarnings: [],
-      };
+  // Phase 3: 데이터 관련 액션
+  if (isDataAction(action)) {
+    switch (action.type) {
+      case "UPDATE_DATA": {
+        const newWizardData = { ...state.wizardData, ...action.payload };
+        const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
+        return {
+          ...state,
+          wizardData: newWizardData,
+          isDirty,
+          validationErrors: [],
+          validationWarnings: [],
+        };
+      }
+      case "UPDATE_DATA_FN": {
+        const newWizardData = { ...state.wizardData, ...action.payload(state.wizardData) };
+        const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
+        return {
+          ...state,
+          wizardData: newWizardData,
+          isDirty,
+          validationErrors: [],
+          validationWarnings: [],
+        };
+      }
+      case "SET_DRAFT_ID":
+        return {
+          ...state,
+          draftGroupId: action.payload,
+        };
+      case "SET_SUBMITTING":
+        return {
+          ...state,
+          isSubmitting: action.payload,
+        };
+      case "RESET_DIRTY_STATE":
+        return {
+          ...state,
+          initialWizardData: { ...state.wizardData },
+          isDirty: false,
+        };
     }
-    case "UPDATE_DATA_FN": {
-      const newWizardData = { ...state.wizardData, ...action.payload(state.wizardData) };
-      const isDirty = hasWizardDataChanged(state.initialWizardData, newWizardData);
-      return {
-        ...state,
-        wizardData: newWizardData,
-        isDirty,
-        validationErrors: [],
-        validationWarnings: [],
-      };
-    }
-    case "NEXT_STEP":
-      return {
-        ...state,
-        currentStep: Math.min(state.currentStep + 1, 7) as WizardStep,
-      };
-    case "PREV_STEP":
-      return {
-        ...state,
-        currentStep: Math.max(state.currentStep - 1, 1) as WizardStep,
-      };
-    case "SET_STEP":
-      return {
-        ...state,
-        currentStep: action.payload,
-      };
-    case "SET_ERRORS":
-      return {
-        ...state,
-        validationErrors: action.payload,
-      };
-    case "SET_WARNINGS":
-      return {
-        ...state,
-        validationWarnings: action.payload,
-      };
-    case "SET_FIELD_ERROR": {
-      const newFieldErrors = new Map(state.fieldErrors);
-      newFieldErrors.set(action.payload.field, action.payload.error);
-      return {
-        ...state,
-        fieldErrors: newFieldErrors,
-      };
-    }
-    case "SET_FIELD_ERRORS":
-      return {
-        ...state,
-        fieldErrors: new Map(action.payload),
-      };
-    case "CLEAR_FIELD_ERROR":
-      const clearedFieldErrors = new Map(state.fieldErrors);
-      clearedFieldErrors.delete(action.payload);
-      return {
-        ...state,
-        fieldErrors: clearedFieldErrors,
-      };
-    case "CLEAR_VALIDATION":
-      return {
-        ...state,
-        validationErrors: [],
-        validationWarnings: [],
-        fieldErrors: new Map(),
-      };
-    case "SET_DRAFT_ID":
-      return {
-        ...state,
-        draftGroupId: action.payload,
-      };
-    case "SET_SUBMITTING":
-      return {
-        ...state,
-        isSubmitting: action.payload,
-      };
-    case "RESET_DIRTY_STATE":
-      // 저장 후 초기 데이터를 현재 데이터로 업데이트하여 dirty 상태 리셋
-      return {
-        ...state,
-        initialWizardData: { ...state.wizardData },
-        isDirty: false,
-      };
-    default:
-      return state;
   }
+
+  // Phase 3: 단계 네비게이션 액션
+  if (isStepAction(action)) {
+    switch (action.type) {
+      case "NEXT_STEP":
+        return {
+          ...state,
+          currentStep: Math.min(state.currentStep + 1, TOTAL_STEPS) as WizardStep,
+        };
+      case "PREV_STEP":
+        return {
+          ...state,
+          currentStep: Math.max(state.currentStep - 1, WIZARD_STEPS.BASIC_INFO) as WizardStep,
+        };
+      case "SET_STEP":
+        return {
+          ...state,
+          currentStep: action.payload,
+        };
+    }
+  }
+
+  // Phase 3: 검증 관련 액션
+  if (isValidationAction(action)) {
+    switch (action.type) {
+      case "SET_ERRORS":
+        return {
+          ...state,
+          validationErrors: action.payload,
+        };
+      case "SET_WARNINGS":
+        return {
+          ...state,
+          validationWarnings: action.payload,
+        };
+      case "SET_FIELD_ERROR": {
+        const newFieldErrors = new Map(state.fieldErrors);
+        newFieldErrors.set(action.payload.field, action.payload.error);
+        return {
+          ...state,
+          fieldErrors: newFieldErrors,
+        };
+      }
+      case "SET_FIELD_ERRORS":
+        return {
+          ...state,
+          fieldErrors: new Map(action.payload),
+        };
+      case "CLEAR_FIELD_ERROR": {
+        const clearedFieldErrors = new Map(state.fieldErrors);
+        clearedFieldErrors.delete(action.payload);
+        return {
+          ...state,
+          fieldErrors: clearedFieldErrors,
+        };
+      }
+      case "CLEAR_VALIDATION":
+        return {
+          ...state,
+          validationErrors: [],
+          validationWarnings: [],
+          fieldErrors: new Map(),
+        };
+    }
+  }
+
+  return state;
 }
 
 /**
