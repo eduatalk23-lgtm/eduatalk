@@ -13,6 +13,7 @@ type ParticipantsToolbarProps = {
   onBulkRecommendOpen: () => void;
   onBatchActivate: () => void;
   onBatchStatusChange: (status: string) => void;
+  onBulkExclude: () => void;
 };
 
 export default function ParticipantsToolbar({
@@ -26,6 +27,7 @@ export default function ParticipantsToolbar({
   onBulkRecommendOpen,
   onBatchActivate,
   onBatchStatusChange,
+  onBulkExclude,
 }: ParticipantsToolbarProps) {
   // 선택된 참여자 중 플랜 그룹이 없는 참여자
   const selectedWithoutGroup = participants.filter((p) => {
@@ -128,6 +130,16 @@ export default function ParticipantsToolbar({
               <option value="paused">일시정지</option>
               <option value="completed">완료</option>
             </select>
+            {/* 일괄 제외 버튼 */}
+            <button
+              type="button"
+              onClick={onBulkExclude}
+              disabled={isPending}
+              className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              title="선택한 참여자를 캠프에서 제외합니다"
+            >
+              제외 ({selectedParticipantIds.size})
+            </button>
           </div>
         </div>
       )}

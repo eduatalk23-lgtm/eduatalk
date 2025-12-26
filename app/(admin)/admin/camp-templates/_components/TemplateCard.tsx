@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampTemplate } from "@/lib/types/plan";
-import { deleteCampTemplateAction, updateCampTemplateStatusAction } from "@/lib/domains/camp/actions";
+import { deleteCampTemplateAction, updateCampTemplateStatusAction, copyCampTemplateAction } from "@/lib/domains/camp/actions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
@@ -19,7 +19,10 @@ export function TemplateCard({ template }: TemplateCardProps) {
   const router = useRouter();
   const toast = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+  const [copyName, setCopyName] = useState("");
   const [currentStatus, setCurrentStatus] = useState<"draft" | "active" | "archived">((template.status as "draft" | "active" | "archived") ?? "draft");
   const [isChangingStatus, setIsChangingStatus] = useState(false);
 
@@ -81,6 +84,33 @@ export function TemplateCard({ template }: TemplateCardProps) {
 
   const handleDeleteClick = () => {
     setShowDeleteDialog(true);
+  };
+
+  const handleCopyClick = () => {
+    setCopyName(`${template.name} (복사본)`);
+    setShowCopyDialog(true);
+  };
+
+  const confirmCopy = async () => {
+    setIsCopying(true);
+    try {
+      const result = await copyCampTemplateAction(template.id, copyName.trim() || undefined);
+      if (result.success && result.templateId) {
+        toast.showSuccess("템플릿이 복사되었습니다.");
+        setShowCopyDialog(false);
+        setCopyName("");
+        router.push(`/admin/camp-templates/${result.templateId}`);
+        router.refresh();
+      } else {
+        toast.showError(result.error || "템플릿 복사에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error("템플릿 복사 실패:", error);
+      const errorMessage = getUserFacingMessage(error);
+      toast.showError(errorMessage);
+    } finally {
+      setIsCopying(false);
+    }
   };
 
   const getStatusBadge = () => {
@@ -215,6 +245,21 @@ export function TemplateCard({ template }: TemplateCardProps) {
                 {/* 구분선 */}
                 <DropdownMenu.Separator />
 
+                {/* 복사 옵션 */}
+                <DropdownMenu.Item
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCopyClick();
+                  }}
+                  disabled={isCopying}
+                >
+                  {isCopying ? "복사 중..." : "복사"}
+                </DropdownMenu.Item>
+
+                {/* 구분선 */}
+                <DropdownMenu.Separator />
+
                 {/* 삭제 옵션 */}
                 <DropdownMenu.Item
                   onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -260,6 +305,52 @@ export function TemplateCard({ template }: TemplateCardProps) {
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
           >
             {isDeleting ? "삭제 중..." : "삭제"}
+          </button>
+        </DialogFooter>
+      </Dialog>
+
+      {/* 복사 확인 다이얼로그 */}
+      <Dialog
+        open={showCopyDialog}
+        onOpenChange={(open) => {
+          setShowCopyDialog(open);
+          if (!open) setCopyName("");
+        }}
+        title="템플릿 복사"
+        description="템플릿을 복사하여 새 템플릿을 생성합니다. 초대 목록은 복사되지 않습니다."
+        maxWidth="md"
+      >
+        <div className="py-4">
+          <label htmlFor="copy-name" className="block text-sm font-medium text-gray-700 mb-2">
+            새 템플릿 이름
+          </label>
+          <input
+            id="copy-name"
+            type="text"
+            value={copyName}
+            onChange={(e) => setCopyName(e.target.value)}
+            placeholder="새 템플릿 이름을 입력하세요"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            disabled={isCopying}
+          />
+        </div>
+        <DialogFooter>
+          <button
+            onClick={() => {
+              setShowCopyDialog(false);
+              setCopyName("");
+            }}
+            disabled={isCopying}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={confirmCopy}
+            disabled={isCopying || !copyName.trim()}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {isCopying ? "복사 중..." : "복사"}
           </button>
         </DialogFooter>
       </Dialog>

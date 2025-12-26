@@ -9,7 +9,10 @@ import ParticipantsTable from "./_components/ParticipantsTable";
 import { BatchOperationDialog } from "./_components/BatchOperationDialog";
 import { BulkRecommendContentsModal } from "./_components/BulkRecommendContentsModal";
 import { BatchPlanWizard } from "./_components/BatchPlanWizard";
-import type { CampParticipantsListProps } from "./_components/types";
+import { CampParticipantsListSkeleton } from "./_components/CampParticipantsListSkeleton";
+import { Dialog, DialogFooter } from "@/components/ui/Dialog";
+import { Pagination } from "@/components/organisms/Pagination";
+import type { CampParticipantsListProps, Participant } from "./_components/types";
 
 export function CampParticipantsList({
   templateId,
@@ -27,6 +30,9 @@ export function CampParticipantsList({
     stats,
     needsActionParticipants,
     lastLoadTimeRef,
+    pagination,
+    handlePageChange,
+    handlePageSizeChange,
     setStatusFilter,
     handleSort,
     handleSelectAll,
@@ -36,6 +42,8 @@ export function CampParticipantsList({
     getSelectedWithGroup,
     getSelectedWithoutGroup,
     handleBatchConfirm,
+    handleBulkExclude,
+    handleExcludeParticipant,
   } = useCampParticipantsLogic(templateId);
 
   // 일괄 작업 다이얼로그 상태
@@ -46,6 +54,11 @@ export function CampParticipantsList({
   const [batchStatus, setBatchStatus] = useState<string>("active");
   const [bulkRecommendModalOpen, setBulkRecommendModalOpen] = useState(false);
   const [batchWizardOpen, setBatchWizardOpen] = useState(false);
+
+  // 제외 다이얼로그 상태
+  const [excludeDialogOpen, setExcludeDialogOpen] = useState(false);
+  const [excludeTarget, setExcludeTarget] = useState<Participant | null>(null);
+  const [isBulkExclude, setIsBulkExclude] = useState(false);
 
   // 일괄 작업 핸들러
   const handleBatchActivate = useCallback(() => {
@@ -72,6 +85,29 @@ export function CampParticipantsList({
     await handleBatchConfirm(batchStatus, () => setBatchDialogOpen(false));
   }, [handleBatchConfirm, batchStatus]);
 
+  // 일괄 제외 다이얼로그 열기
+  const handleOpenBulkExcludeDialog = useCallback(() => {
+    setIsBulkExclude(true);
+    setExcludeTarget(null);
+    setExcludeDialogOpen(true);
+  }, []);
+
+  // 개별 제외 다이얼로그 열기
+  const handleOpenExcludeDialog = useCallback((participant: Participant) => {
+    setIsBulkExclude(false);
+    setExcludeTarget(participant);
+    setExcludeDialogOpen(true);
+  }, []);
+
+  // 제외 확인
+  const handleExcludeConfirm = useCallback(async () => {
+    if (isBulkExclude) {
+      await handleBulkExclude(() => setExcludeDialogOpen(false));
+    } else if (excludeTarget) {
+      await handleExcludeParticipant(excludeTarget.invitation_id, () => setExcludeDialogOpen(false));
+    }
+  }, [isBulkExclude, excludeTarget, handleBulkExclude, handleExcludeParticipant]);
+
   // 빠른 액션 핸들러
   const handleQuickAction = useCallback(
     (action: "bulk_plan" | "send_reminder" | "bulk_activate") => {
@@ -92,14 +128,9 @@ export function CampParticipantsList({
     [handleBatchActivate]
   );
 
+  // C1 개선: 로딩 상태 - 캠프 참여자 전용 스켈레톤 사용
   if (loading) {
-    return (
-      <section className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="text-sm text-gray-500">
-          참여자 목록을 불러오는 중...
-        </div>
-      </section>
-    );
+    return <CampParticipantsListSkeleton rowCount={8} />;
   }
 
   return (
@@ -124,10 +155,12 @@ export function CampParticipantsList({
 
         {/* 통합 대시보드 */}
         <CampOverviewDashboard
+          templateId={templateId}
           stats={stats}
           participants={participants}
           needsActionParticipants={needsActionParticipants}
           onQuickAction={handleQuickAction}
+          onReload={loadParticipants}
           isPending={isPending}
           selectedCount={selectedParticipantIds.size}
         />
@@ -144,6 +177,7 @@ export function CampParticipantsList({
           onBulkRecommendOpen={() => setBulkRecommendModalOpen(true)}
           onBatchActivate={handleBatchActivate}
           onBatchStatusChange={handleBatchStatusChange}
+          onBulkExclude={handleOpenBulkExcludeDialog}
         />
 
         {/* 참여자 목록 */}
@@ -159,7 +193,40 @@ export function CampParticipantsList({
           onSelectAll={handleSelectAll}
           onToggleSelect={handleToggleSelect}
           onReload={loadParticipants}
+          onExclude={handleOpenExcludeDialog}
         />
+
+        {/* 페이지네이션 */}
+        {pagination.totalPages > 1 && (
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>
+                총 {pagination.totalCount}명 중 {(pagination.page - 1) * pagination.pageSize + 1}-
+                {Math.min(pagination.page * pagination.pageSize, pagination.totalCount)}명 표시
+              </span>
+              <span className="text-gray-300">|</span>
+              <label htmlFor="pageSize" className="sr-only">페이지당 항목 수</label>
+              <select
+                id="pageSize"
+                value={pagination.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value={10}>10명</option>
+                <option value={20}>20명</option>
+                <option value={50}>50명</option>
+                <option value={100}>100명</option>
+              </select>
+            </div>
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+              siblingCount={1}
+              showFirstLast={true}
+            />
+          </div>
+        )}
 
         {/* 일괄 설정 및 플랜 생성 위저드 */}
         <BatchPlanWizard
@@ -206,6 +273,52 @@ export function CampParticipantsList({
           onConfirm={handleBatchDialogConfirm}
           isPending={isPending}
         />
+
+        {/* 참여자 제외 확인 다이얼로그 */}
+        <Dialog
+          open={excludeDialogOpen}
+          onOpenChange={setExcludeDialogOpen}
+          title={isBulkExclude ? "참여자 일괄 제외" : "참여자 제외"}
+          description={
+            isBulkExclude
+              ? `선택한 ${selectedParticipantIds.size}명의 참여자를 캠프에서 제외하시겠습니까?`
+              : `${excludeTarget?.student_name}님을 캠프에서 제외하시겠습니까?`
+          }
+          variant="destructive"
+          maxWidth="md"
+        >
+          <div className="py-4">
+            <p className="text-sm text-gray-700">
+              {isBulkExclude ? (
+                <>
+                  선택한 참여자들의 초대가 삭제됩니다. 이미 생성된 플랜 그룹이 있는 경우
+                  함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                </>
+              ) : (
+                <>
+                  해당 참여자의 초대가 삭제됩니다. 이미 생성된 플랜 그룹이 있는 경우
+                  함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                </>
+              )}
+            </p>
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setExcludeDialogOpen(false)}
+              disabled={isPending}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleExcludeConfirm}
+              disabled={isPending}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {isPending ? "제외 중..." : "제외"}
+            </button>
+          </DialogFooter>
+        </Dialog>
       </div>
     </section>
   );

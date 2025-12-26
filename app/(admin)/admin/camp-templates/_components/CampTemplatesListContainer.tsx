@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCampTemplates } from "@/lib/hooks/useCampTemplates";
 import { TemplateCard } from "./TemplateCard";
 import { CampTemplatesPagination } from "./CampTemplatesPagination";
-import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
+import { CampTemplatesListSkeleton } from "./CampTemplatesListSkeleton";
 
 type CampTemplatesListContainerProps = {
   tenantId: string;
@@ -81,9 +81,9 @@ export function CampTemplatesListContainer({
   const total = templatesData?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  // 로딩 상태
+  // C1 개선: 로딩 상태 - 캠프 템플릿 전용 스켈레톤 사용
   if (isLoading) {
-    return <SuspenseFallback />;
+    return <CampTemplatesListSkeleton count={5} showFilter={true} />;
   }
 
   return (

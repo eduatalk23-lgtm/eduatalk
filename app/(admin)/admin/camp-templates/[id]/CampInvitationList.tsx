@@ -48,18 +48,19 @@ export function CampInvitationList({
   const [statusInput, setStatusInput] = useState(filters.status || "");
   
   // 상태 변경 확인 다이얼로그 상태
+  type InvitationStatus = "pending" | "accepted" | "declined" | "expired";
   const [statusChangeDialog, setStatusChangeDialog] = useState<{
     open: boolean;
     invitationId: string;
-    oldStatus: "pending" | "accepted" | "declined";
-    newStatus: "pending" | "accepted" | "declined";
+    oldStatus: InvitationStatus;
+    newStatus: InvitationStatus;
   } | null>(null);
   
   const totalPages = total ? Math.ceil(total / pageSize) : 0;
   
   // TanStack Query를 사용한 Optimistic Update 패턴
   const statusChangeMutation = useMutation({
-    mutationFn: async ({ invitationId, newStatus }: { invitationId: string; newStatus: "pending" | "accepted" | "declined" }) => {
+    mutationFn: async ({ invitationId, newStatus }: { invitationId: string; newStatus: InvitationStatus }) => {
       const result = await updateCampInvitationStatusAction(invitationId, newStatus);
       if (!result.success) {
         throw new Error(result.error || "상태 변경에 실패했습니다.");
@@ -132,6 +133,7 @@ export function CampInvitationList({
     pending: invitationsWithOptimistic.filter((inv) => inv.status === "pending").length,
     accepted: invitationsWithOptimistic.filter((inv) => inv.status === "accepted").length,
     declined: invitationsWithOptimistic.filter((inv) => inv.status === "declined").length,
+    expired: invitationsWithOptimistic.filter((inv) => inv.status === "expired").length,
   };
 
   const handleToggleSelect = (invitationId: string) => {
@@ -317,6 +319,7 @@ export function CampInvitationList({
                 <option value="pending">대기중</option>
                 <option value="accepted">수락</option>
                 <option value="declined">거절</option>
+                <option value="expired">만료됨</option>
               </select>
             </div>
             <div className="flex items-end">
@@ -333,7 +336,7 @@ export function CampInvitationList({
       )}
 
       {/* 통계 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-800">대기중</div>
           <div className="mt-1 text-2xl font-semibold text-yellow-600">{stats.pending}</div>
@@ -345,6 +348,10 @@ export function CampInvitationList({
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="text-sm text-gray-800">거절</div>
           <div className="mt-1 text-2xl font-semibold text-red-600">{stats.declined}</div>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-sm text-gray-800">만료됨</div>
+          <div className="mt-1 text-2xl font-semibold text-gray-500">{stats.expired}</div>
         </div>
       </div>
 
@@ -444,15 +451,17 @@ export function CampInvitationList({
                   <select
                     value={invitation.status}
                     onChange={(e) => {
-                      const newStatus = e.target.value as "pending" | "accepted" | "declined";
-                      const oldStatus = invitation.status;
-                      
+                      const newStatus = e.target.value as InvitationStatus;
+                      const oldStatus = invitation.status as InvitationStatus;
+
                       if (newStatus !== oldStatus) {
-                        // accepted ↔ declined 변경 시 확인 필수
-                        const requiresConfirmation = 
+                        // 중요한 상태 변경 시 확인 필수
+                        const requiresConfirmation =
                           (oldStatus === "accepted" && newStatus === "declined") ||
-                          (oldStatus === "declined" && newStatus === "accepted");
-                        
+                          (oldStatus === "declined" && newStatus === "accepted") ||
+                          (oldStatus === "expired" && newStatus === "pending") || // 만료된 초대 재발송
+                          (oldStatus === "accepted" && newStatus === "expired");
+
                         if (requiresConfirmation) {
                           // 확인 다이얼로그 표시
                           setStatusChangeDialog({
@@ -475,6 +484,7 @@ export function CampInvitationList({
                     <option value="pending">대기중</option>
                     <option value="accepted">수락</option>
                     <option value="declined">거절</option>
+                    <option value="expired">만료됨</option>
                   </select>
                 </td>
                 <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-800">
@@ -549,12 +559,17 @@ export function CampInvitationList({
                 case "pending": return "대기중";
                 case "accepted": return "수락";
                 case "declined": return "거절";
+                case "expired": return "만료됨";
                 default: return status;
               }
             };
+            // 만료된 초대를 대기중으로 변경하는 경우 (재발송)
+            if (statusChangeDialog.oldStatus === "expired" && statusChangeDialog.newStatus === "pending") {
+              return "만료된 초대를 다시 발송하시겠습니까? 초대가 대기중 상태로 변경됩니다.";
+            }
             return `초대 상태를 "${getStatusLabel(statusChangeDialog.newStatus)}"로 변경하시겠습니까?`;
           })()}
-          confirmLabel="변경"
+          confirmLabel={statusChangeDialog.oldStatus === "expired" && statusChangeDialog.newStatus === "pending" ? "재발송" : "변경"}
           cancelLabel="취소"
           variant="default"
           isLoading={statusChangeMutation.isPending}

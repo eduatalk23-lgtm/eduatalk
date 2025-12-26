@@ -3,10 +3,22 @@
 import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
-import { getCampParticipantsAction } from "@/lib/domains/camp/actions";
+import {
+  getCampParticipantsWithPaginationAction,
+  deleteCampInvitationsAction
+} from "@/lib/domains/camp/actions";
 import type { Participant } from "@/lib/data/campParticipants";
 import { batchUpdateCampPlanGroupStatus, bulkCreatePlanGroupsForCamp } from "@/lib/domains/camp/actions";
 import type { SortColumn, SortOrder, StatusFilter, ParticipantsStats } from "./types";
+import { handleCampError, handlePartialSuccess } from "@/lib/domains/camp/errors";
+
+// 페이지네이션 타입
+export type PaginationState = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
 
 export function useCampParticipantsLogic(templateId: string) {
   const toast = useToast();
@@ -19,12 +31,20 @@ export function useCampParticipantsLogic(templateId: string) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<Set<string>>(new Set());
 
+  // 페이지네이션 상태
+  const [pagination, setPagination] = useState<PaginationState>({
+    page: 1,
+    pageSize: 20,
+    totalCount: 0,
+    totalPages: 0,
+  });
+
   // 마지막 로드 시간 추적 (중복 로드 방지)
   const lastLoadTimeRef = useRef<number>(0);
   const isLoadingRef = useRef<boolean>(false);
 
   // loadParticipants 함수를 useCallback으로 메모이제이션
-  const loadParticipants = useCallback(async () => {
+  const loadParticipants = useCallback(async (pageOverride?: number) => {
     // 중복 로드 방지: 1초 이내 재요청 차단
     const now = Date.now();
     if (isLoadingRef.current || (now - lastLoadTimeRef.current < 1000)) {
@@ -34,11 +54,28 @@ export function useCampParticipantsLogic(templateId: string) {
     isLoadingRef.current = true;
     lastLoadTimeRef.current = now;
 
+    const currentPage = pageOverride ?? pagination.page;
+
     try {
       setLoading(true);
-      const result = await getCampParticipantsAction(templateId);
+      const result = await getCampParticipantsWithPaginationAction(templateId, {
+        page: currentPage,
+        pageSize: pagination.pageSize,
+        statusFilter: statusFilter as "all" | "accepted" | "pending" | "declined" | "submitted",
+        sortBy: sortBy ?? "invited_at",
+        sortOrder: sortOrder,
+      });
+
       if (result.success && result.participants) {
         setParticipants(result.participants as Participant[]);
+        if (result.pagination) {
+          setPagination({
+            page: result.pagination.page,
+            pageSize: result.pagination.pageSize,
+            totalCount: result.pagination.totalCount,
+            totalPages: result.pagination.totalPages,
+          });
+        }
       } else {
         throw new Error(result.error || "참여자 목록을 불러오는데 실패했습니다.");
       }
@@ -57,7 +94,7 @@ export function useCampParticipantsLogic(templateId: string) {
       setLoading(false);
       isLoadingRef.current = false;
     }
-  }, [templateId, toast]);
+  }, [templateId, toast, pagination.page, pagination.pageSize, statusFilter, sortBy, sortOrder]);
 
   // 초기 로드 및 templateId 변경 시
   useEffect(() => {
@@ -203,14 +240,29 @@ export function useCampParticipantsLogic(templateId: string) {
     });
   }, []);
 
-  // 필터 변경 시 선택 해제
+  // 필터 변경 시 선택 해제 및 페이지 초기화
   const prevStatusFilterRef = useRef<string>(statusFilter);
   useEffect(() => {
     if (prevStatusFilterRef.current !== statusFilter) {
       setSelectedParticipantIds(new Set());
+      setPagination((prev) => ({ ...prev, page: 1 }));
       prevStatusFilterRef.current = statusFilter;
     }
   }, [statusFilter]);
+
+  // 페이지 변경 핸들러
+  const handlePageChange = useCallback((newPage: number) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
+    loadParticipants(newPage);
+    setSelectedParticipantIds(new Set()); // 페이지 변경 시 선택 해제
+  }, [loadParticipants]);
+
+  // 페이지 크기 변경 핸들러
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPagination((prev) => ({ ...prev, page: 1, pageSize: newPageSize }));
+    loadParticipants(1);
+    setSelectedParticipantIds(new Set());
+  }, [loadParticipants]);
 
   // 통계 (메모이제이션)
   const stats = useMemo<ParticipantsStats>(() => {
@@ -253,32 +305,26 @@ export function useCampParticipantsLogic(templateId: string) {
       try {
         const result = await bulkCreatePlanGroupsForCamp(templateId, invitationIds);
 
-        if (result.success) {
-          toast.showSuccess(
-            `${result.successCount}명의 학생에게 플랜 그룹이 생성되었습니다.`
-          );
+        handlePartialSuccess(result, {
+          showSuccess: toast.showSuccess,
+          showWarning: toast.showWarning,
+          showError: toast.showError,
+          successMessage: (count) => `${count}명의 학생에게 플랜 그룹이 생성되었습니다.`,
+          failureMessage: (count, errors) =>
+            `${count}건 실패${errors?.[0] ? `: ${errors[0]}` : ""}`,
+        });
+
+        if (result.success || (result.successCount && result.successCount > 0)) {
           setSelectedParticipantIds(new Set());
           setTimeout(() => {
             loadParticipants();
           }, 500);
-        } else {
-          const errorMsg =
-            result.errors && result.errors.length > 0
-              ? `${result.failureCount}개 실패: ${result.errors[0].error}`
-              : "플랜 그룹 일괄 생성에 실패했습니다.";
-          toast.showError(errorMsg);
-
-          if (result.successCount > 0) {
-            setTimeout(() => {
-              loadParticipants();
-            }, 500);
-          }
         }
       } catch (error) {
-        console.error("플랜 그룹 일괄 생성 실패:", error);
-        toast.showError(
-          error instanceof Error ? error.message : "플랜 그룹 일괄 생성에 실패했습니다."
-        );
+        handleCampError(error, {
+          context: "플랜 그룹 일괄 생성",
+          showError: toast.showError,
+        });
       }
     });
   }, [participants, selectedParticipantIds, templateId, toast, loadParticipants]);
@@ -315,9 +361,66 @@ export function useCampParticipantsLogic(templateId: string) {
       try {
         const result = await batchUpdateCampPlanGroupStatus(groupIds, batchStatus);
 
+        handlePartialSuccess(result, {
+          showSuccess: toast.showSuccess,
+          showWarning: toast.showWarning,
+          showError: toast.showError,
+          successMessage: (count) => `${count}개 플랜 그룹의 상태가 변경되었습니다.`,
+          failureMessage: (count, errors) =>
+            `${count}건 실패${errors?.[0] ? `: ${errors[0]}` : ""}`,
+        });
+
+        if (result.success || (result.successCount && result.successCount > 0)) {
+          if (result.errors && result.errors.length > 0) {
+            // 실패한 항목만 선택 유지
+            const failedIds = new Set(result.errors.map((e) => e.groupId));
+            setSelectedParticipantIds(failedIds);
+          } else {
+            setSelectedParticipantIds(new Set());
+          }
+          onClose();
+          setTimeout(() => {
+            loadParticipants();
+          }, 500);
+        }
+      } catch (error) {
+        handleCampError(error, {
+          context: "플랜 그룹 상태 일괄 변경",
+          showError: toast.showError,
+        });
+      }
+    });
+  }, [selectedParticipantIds, participants, toast, loadParticipants]);
+
+  // 참여자 제외 (일괄) 핸들러
+  const handleBulkExclude = useCallback(async (onClose: () => void) => {
+    if (selectedParticipantIds.size === 0) {
+      toast.showError("선택된 참여자가 없습니다.");
+      onClose();
+      return;
+    }
+
+    // 선택된 참여자의 invitation_id 목록 수집
+    const invitationIds = participants
+      .filter((p) => {
+        const key = p.plan_group_id || p.invitation_id;
+        return selectedParticipantIds.has(key);
+      })
+      .map((p) => p.invitation_id);
+
+    if (invitationIds.length === 0) {
+      toast.showError("제외할 참여자를 찾을 수 없습니다.");
+      onClose();
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const result = await deleteCampInvitationsAction(invitationIds);
+
         if (result.success) {
           toast.showSuccess(
-            `${result.successCount}개 플랜 그룹의 상태가 변경되었습니다.`
+            `${result.count ?? invitationIds.length}명의 참여자가 제외되었습니다.`
           );
           setSelectedParticipantIds(new Set());
           onClose();
@@ -325,32 +428,46 @@ export function useCampParticipantsLogic(templateId: string) {
             loadParticipants();
           }, 500);
         } else {
-          const errorMsg =
-            result.errors && result.errors.length > 0
-              ? `${result.failureCount}개 실패: ${result.errors[0].error}`
-              : "일괄 작업에 실패했습니다.";
-          toast.showError(errorMsg);
-
-          if (result.successCount > 0) {
-            const successIds = new Set(
-              groupIds.filter(
-                (id) => !result.errors?.some((e) => e.groupId === id)
-              )
-            );
-            setSelectedParticipantIds(successIds);
-            setTimeout(() => {
-              loadParticipants();
-            }, 500);
-          }
+          handleCampError(result, {
+            context: "참여자 일괄 제외",
+            showError: toast.showError,
+          });
         }
       } catch (error) {
-        console.error("일괄 작업 실패:", error);
-        toast.showError(
-          error instanceof Error ? error.message : "일괄 작업에 실패했습니다."
-        );
+        handleCampError(error, {
+          context: "참여자 일괄 제외",
+          showError: toast.showError,
+        });
       }
     });
   }, [selectedParticipantIds, participants, toast, loadParticipants]);
+
+  // 개별 참여자 제외 핸들러
+  const handleExcludeParticipant = useCallback(async (invitationId: string, onClose: () => void) => {
+    startTransition(async () => {
+      try {
+        const result = await deleteCampInvitationsAction([invitationId]);
+
+        if (result.success) {
+          toast.showSuccess("참여자가 제외되었습니다.");
+          onClose();
+          setTimeout(() => {
+            loadParticipants();
+          }, 500);
+        } else {
+          handleCampError(result, {
+            context: "참여자 제외",
+            showError: toast.showError,
+          });
+        }
+      } catch (error) {
+        handleCampError(error, {
+          context: "참여자 제외",
+          showError: toast.showError,
+        });
+      }
+    });
+  }, [toast, loadParticipants]);
 
   return {
     // 상태
@@ -367,7 +484,12 @@ export function useCampParticipantsLogic(templateId: string) {
     stats,
     needsActionParticipants,
     lastLoadTimeRef,
-    
+
+    // 페이지네이션
+    pagination,
+    handlePageChange,
+    handlePageSizeChange,
+
     // 액션
     setStatusFilter,
     handleSort,
@@ -378,6 +500,8 @@ export function useCampParticipantsLogic(templateId: string) {
     getSelectedWithGroup,
     getSelectedWithoutGroup,
     handleBatchConfirm,
+    handleBulkExclude,
+    handleExcludeParticipant,
   };
 }
 

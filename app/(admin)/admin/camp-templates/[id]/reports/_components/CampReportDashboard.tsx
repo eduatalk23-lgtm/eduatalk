@@ -6,6 +6,8 @@ import { useCampStats } from "@/lib/hooks/useCampStats";
 import { CampReportSummaryCards } from "./CampReportSummaryCards";
 import { CampAttendanceReportSection } from "./CampAttendanceReportSection";
 import { CampLearningReportSection } from "./CampLearningReportSection";
+import { CampParticipationCharts } from "./CampParticipationCharts";
+import { CampReportExport } from "./CampReportExport";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type CampReportDashboardProps = {
@@ -46,6 +48,11 @@ export function CampReportDashboard({
               ← 템플릿 상세
             </Link>
             <div className="flex flex-wrap items-center gap-3">
+              <CampReportExport
+                templateName={template.name}
+                attendanceStats={attendanceStats}
+                learningStats={learningStats}
+              />
               <Link
                 href={`/admin/camp-templates/${template.id}/attendance`}
                 className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -81,6 +88,19 @@ export function CampReportDashboard({
         {/* 학습 리포트 섹션 */}
         {learningStats && (
           <CampLearningReportSection learningStats={learningStats} />
+        )}
+
+        {/* 참여 현황 차트 */}
+        {(attendanceStats || learningStats) && (
+          <div className="flex flex-col gap-6">
+            <h2 className="text-xl font-semibold text-gray-900">
+              참여 현황 분석
+            </h2>
+            <CampParticipationCharts
+              attendanceStats={attendanceStats}
+              learningStats={learningStats}
+            />
+          </div>
         )}
 
         {!isLoading && !attendanceStats && !learningStats && (
