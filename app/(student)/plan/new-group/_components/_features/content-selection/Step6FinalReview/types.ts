@@ -16,7 +16,7 @@ export type Step6FinalReviewProps = {
 };
 
 export type ContentInfo = {
-  content_type: "book" | "lecture";
+  content_type: "book" | "lecture" | "custom";
   content_id: string;
   title: string;
   subject_category?: string | null;

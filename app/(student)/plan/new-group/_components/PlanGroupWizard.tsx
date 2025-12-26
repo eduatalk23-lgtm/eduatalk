@@ -26,13 +26,14 @@ import { usePlanSubmission } from "./hooks/usePlanSubmission";
 import { useWizardScroll } from "./hooks/useWizardScroll";
 import { PlanGroupError, toPlanGroupError, isRecoverableError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import type { SchedulerOptions } from "@/lib/types/plan";
-import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack } from "./utils/modeUtils";
+import { createWizardMode, isLastStep as checkIsLastStep, shouldSubmitAtStep4, shouldSaveOnlyWithoutPlanGeneration, canGoBack, isStepReadOnly } from "./utils/modeUtils";
 import { BasePlanWizard } from "./BasePlanWizard";
 import { PlanWizardDebugger } from "./debug/PlanWizardDebugger";
 import { useBlockSets } from "@/lib/hooks/useBlockSets";
 import { useStudentContents } from "@/lib/hooks/useStudentContents";
 import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { planGroupsQueryOptions } from "@/lib/query-options/planGroups";
+import { WIZARD_STEPS, STEP_WEIGHTS, isTemplateExcludedStep } from "./constants/wizardConstants";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
@@ -267,16 +268,8 @@ export type PlanGroupWizardProps = {
 };
 
 
-// Step별 가중치 (진행률 계산용)
-export const stepWeights: Record<WizardStep, number> = {
-  1: 16.67,  // 기본 정보 (1/6)
-  2: 16.67,  // 블록 및 제외일 (2/6)
-  3: 16.67,  // 스케줄 확인 (3/6)
-  4: 16.67,  // 콘텐츠 선택 (4/6)
-  5: 16.67,  // 추천 콘텐츠 (5/6)
-  6: 16.65,  // 최종 확인 (6/6)
-  7: 0,      // 스케줄 결과 (완료 후)
-};
+// Step별 가중치 (진행률 계산용) - 상수에서 import
+export const stepWeights: Record<WizardStep, number> = STEP_WEIGHTS as Record<WizardStep, number>;
 
 /**
  * 진행률 계산 함수
@@ -285,17 +278,17 @@ function calculateProgress(currentStep: WizardStep, wizardData: WizardData, isTe
   let progress = 0;
 
   // 완료된 Step들의 가중치 합산
-  for (let step = 1; step < currentStep; step++) {
-    // 템플릿 모드일 때 Step 5, 6, 7 제외 (1, 2, 3, 4만)
-    if (isTemplateMode && (step === 5 || step === 6 || step === 7)) {
+  for (let step = WIZARD_STEPS.BASIC_INFO; step < currentStep; step++) {
+    // 템플릿 모드일 때 제외 단계 건너뛰기
+    if (isTemplateMode && isTemplateExcludedStep(step)) {
       continue;
     }
     progress += stepWeights[step as WizardStep];
   }
 
   // 현재 Step의 부분 완료도 계산
-  // 템플릿 모드일 때 Step 5, 6, 7은 가중치 0으로 처리
-  const currentStepWeight = (isTemplateMode && (currentStep === 5 || currentStep === 6 || currentStep === 7)) ? 0 : stepWeights[currentStep];
+  // 템플릿 모드일 때 제외 단계는 가중치 0으로 처리
+  const currentStepWeight = (isTemplateMode && isTemplateExcludedStep(currentStep)) ? 0 : stepWeights[currentStep];
   let currentStepProgress = 0;
 
   switch (currentStep) {
@@ -409,6 +402,7 @@ function PlanGroupWizardInner({
     setSubmitting,
     isDirty,
     resetDirtyState,
+    initialWizardData,
   } = usePlanWizard();
 
   // 모드 통합 관리
@@ -465,8 +459,17 @@ function PlanGroupWizardInner({
     clearValidation,
   });
 
-  // Submission Hook
-  const { executeSave, handleSubmit, isSubmitting: isSubmittingFromHook } = usePlanSubmission({
+  // Submission Hook (A3 개선: 제출 진행 상태 추가, A4 개선: 오토세이브 추가)
+  const {
+    executeSave,
+    handleSubmit,
+    isSubmitting: isSubmittingFromHook,
+    submissionPhase,
+    submissionError,
+    resetSubmissionPhase,
+    autoSaveStatus,
+    autoSaveLastSavedAt,
+  } = usePlanSubmission({
       wizardData,
       draftGroupId,
       setDraftGroupId: setDraftId,
@@ -475,9 +478,11 @@ function PlanGroupWizardInner({
       setValidationErrors: setErrors,
       campInvitationId,
       initialData,
+      initialWizardData, // A4: 오토세이브용 초기 데이터
       onSaveRequest,
       mode,
       onSaveSuccess: resetDirtyState, // 저장 성공 시 dirty 상태 리셋
+      autoSaveEnabled: !isTemplateMode, // A4: 템플릿 모드에서는 비활성화
   });
 
   // isSubmitting 상태 동기화
@@ -811,6 +816,13 @@ function PlanGroupWizardInner({
         onCancel={handleCancel}
         onSetStep={setStep}
         onBlockSetsLoaded={() => {}} // blockSets는 useMemo로 관리되므로 콜백 불필요
+        // A3 개선: 제출 진행 상태
+        submissionPhase={submissionPhase}
+        submissionError={submissionError}
+        onResetSubmissionPhase={resetSubmissionPhase}
+        // A4 개선: 오토세이브 상태
+        autoSaveStatus={autoSaveStatus}
+        autoSaveLastSavedAt={autoSaveLastSavedAt}
       />
 
       {/* 플랜 그룹 활성화 다이얼로그 */}

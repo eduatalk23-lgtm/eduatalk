@@ -205,8 +205,8 @@ export function useContentInfos({
           let subjectCategory = content.subject_category;
           let metadata: ContentMetadata | null = batchMetadataMap.get(content.content_id) || null;
 
-          // 저장된 정보가 없으면 서버 액션으로 조회
-          if (!title || !subjectCategory || !metadata?.subject_group_name) {
+          // 저장된 정보가 없으면 서버 액션으로 조회 (custom 타입은 제외)
+          if (content.content_type !== "custom" && (!title || !subjectCategory || !metadata?.subject_group_name)) {
             try {
               const result = await fetchContentMetadataAction(
                 content.content_id,
@@ -285,8 +285,8 @@ export function useContentInfos({
             let metadata: ContentMetadata | null = null;
             let totalValue: number | null = null;
 
-            // 타이틀이나 과목 카테고리가 없으면 메타데이터 조회
-            if (!title || !subjectCategory) {
+            // 타이틀이나 과목 카테고리가 없으면 메타데이터 조회 (custom 타입은 제외)
+            if (content.content_type !== "custom" && (!title || !subjectCategory)) {
               try {
                 const result = await fetchContentMetadataAction(
                   content.content_id,

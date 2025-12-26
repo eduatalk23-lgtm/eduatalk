@@ -70,7 +70,7 @@ export const timeSettingsSchema = z.object({
  * 학생 콘텐츠 스키마
  */
 export const studentContentSchema = z.object({
-  content_type: z.enum(["book", "lecture"]),
+  content_type: z.enum(["book", "lecture", "custom"]),
   content_id: z.string().min(1, "콘텐츠 ID를 입력해주세요."), // UUID가 아닐 수도 있음 (custom 콘텐츠 등)
   start_range: z.number().int().min(0),
   end_range: z.number().int().min(0),
@@ -79,6 +79,7 @@ export const studentContentSchema = z.object({
   title: z.string().optional(),
   subject_category: z.string().optional(),
   subject: z.string().optional(),
+  subject_id: z.string().uuid().nullable().optional(), // 과목 ID (FK to subjects) - 전략과목/취약과목 매칭용
   master_content_id: z.string().uuid().nullable().optional(),
 }).refine((data) => data.end_range > data.start_range, {
   message: "종료 범위는 시작 범위보다 커야 합니다.",
@@ -89,7 +90,7 @@ export const studentContentSchema = z.object({
  * 추천 콘텐츠 스키마
  */
 export const recommendedContentSchema = z.object({
-  content_type: z.enum(["book", "lecture"]),
+  content_type: z.enum(["book", "lecture", "custom"]),
   content_id: z.string().min(1, "콘텐츠 ID를 입력해주세요."), // UUID가 아닐 수도 있음 (custom 콘텐츠 등)
   start_range: z.number().int().min(0),
   end_range: z.number().int().min(0),
@@ -98,6 +99,7 @@ export const recommendedContentSchema = z.object({
   title: z.string().optional(),
   subject_category: z.string().optional(),
   subject: z.string().optional(),
+  subject_id: z.string().uuid().nullable().optional(), // 과목 ID (FK to subjects) - 전략과목/취약과목 매칭용
   is_auto_recommended: z.boolean().optional(),
   recommendation_source: z.enum(["auto", "admin", "template"]).nullable().optional(),
   recommendation_reason: z.string().nullable().optional(),
@@ -270,7 +272,7 @@ export type TemplateLockedFields = z.infer<typeof templateLockedFieldsSchema>;
  * 콘텐츠 할당 스키마
  */
 export const contentAllocationSchema = z.object({
-  content_type: z.enum(["book", "lecture"]),
+  content_type: z.enum(["book", "lecture", "custom"]),
   content_id: z.string().min(1), // UUID가 아닐 수도 있음
   subject_type: z.enum(["strategy", "weakness"]),
   weekly_days: z.number().int().min(2).max(4).optional(),

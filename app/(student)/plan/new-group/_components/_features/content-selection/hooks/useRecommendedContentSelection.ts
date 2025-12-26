@@ -7,6 +7,7 @@ import { useState, useCallback } from "react";
 import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { RecommendedContent } from "@/lib/types/content-selection";
 import { MAX_CONTENTS, ERROR_MESSAGES, SUCCESS_MESSAGES } from "../constants";
+import type { ContentType } from "@/lib/types/common";
 
 export type UseContentSelectionReturn = {
   selectedContentIds: Set<string>;
@@ -61,9 +62,13 @@ export function useRecommendedContentSelection({
    * 총 페이지수/회차 조회
    */
   const fetchContentTotal = useCallback(async (
-    contentType: "book" | "lecture",
+    contentType: ContentType,
     contentId: string
   ): Promise<number | null> => {
+    // custom 타입은 총량 조회 지원하지 않음
+    if (contentType === "custom") {
+      return null;
+    }
     try {
       const response = await fetch(
         `/api/master-content-info?content_type=${contentType}&content_id=${contentId}`

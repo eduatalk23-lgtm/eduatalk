@@ -15,6 +15,11 @@ import {
   scrollToFirstErrorField,
   getHighestPriorityErrorField,
 } from "../utils/errorFieldUtils";
+import {
+  getTodayParts,
+  formatDateString,
+  addDaysToDate,
+} from "@/lib/utils/date";
 
 /**
  * Wizard 상태 타입
@@ -180,12 +185,36 @@ function createInitialState(
     recommended_contents: initialData?.recommended_contents || [],
   };
 
+  // B1 개선: 새 플랜 생성 시 기본값 설정
+  // groupId가 없으면 새 플랜 생성으로 판단 (edit 모드가 아님)
+  const isNewPlan = !initialData?.groupId && !initialDraftId;
+
+  // 오늘 날짜 기본값 계산
+  const getDefaultPeriodStart = (): string => {
+    if (initialData?.period_start) return initialData.period_start;
+    if (!isNewPlan) return ""; // 기존 플랜은 기본값 없음
+
+    const today = getTodayParts();
+    return formatDateString(today.year, today.month, today.day);
+  };
+
+  // 시작일 + 30일 기본값 계산
+  const getDefaultPeriodEnd = (periodStart: string): string => {
+    if (initialData?.period_end) return initialData.period_end;
+    if (!isNewPlan || !periodStart) return "";
+
+    return addDaysToDate(periodStart, 30);
+  };
+
+  const defaultPeriodStart = getDefaultPeriodStart();
+  const defaultPeriodEnd = getDefaultPeriodEnd(defaultPeriodStart);
+
   const defaultWizardData: WizardData = {
     name: initialData?.name || "",
     plan_purpose: denormalizePlanPurpose(initialData?.plan_purpose),
     scheduler_type: (initialData?.scheduler_type as "1730_timetable" | "") || "1730_timetable",
-    period_start: initialData?.period_start || "",
-    period_end: initialData?.period_end || "",
+    period_start: defaultPeriodStart,
+    period_end: defaultPeriodEnd,
     target_date: initialData?.target_date || undefined,
     block_set_id: initialData?.block_set_id || "",
     scheduler_options: (() => {
@@ -300,6 +329,8 @@ type PlanWizardContextType = {
   // 변경 사항 감지
   isDirty: boolean;
   resetDirtyState: () => void; // 저장 후 dirty 상태 리셋
+  // A4: 오토세이브용 초기 데이터
+  initialWizardData: WizardData;
   // UX-1: 에러 필드 스크롤
   scrollToFirstError: () => void;
   getFirstErrorField: () => string | null;
@@ -425,6 +456,7 @@ export function PlanWizardProvider({
     setSubmitting,
     isDirty,
     resetDirtyState,
+    initialWizardData: state.initialWizardData,
     scrollToFirstError,
     getFirstErrorField,
   };

@@ -125,8 +125,13 @@ export function isLectureEpisodesResponse(
  */
 export function parseContentDetailsResponse(
   response: unknown,
-  contentType: "book" | "lecture"
+  contentType: "book" | "lecture" | "custom"
 ): { details: BookDetail[] | LectureEpisode[]; type: "book" | "lecture" } | null {
+  // custom 타입은 상세정보가 없음
+  if (contentType === "custom") {
+    return null;
+  }
+
   // 기본 검증: 객체인지 확인
   if (!response || typeof response !== "object") {
     console.error("[parseContentDetailsResponse] 응답이 유효한 객체가 아닙니다:", response);

@@ -12,8 +12,10 @@ import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult"
 import { StepErrorBoundary } from "./common/StepErrorBoundary";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "./PlanGroupWizard";
-import type { WizardMode } from "./utils/modeUtils";
+import { isStepReadOnly, type WizardMode } from "./utils/modeUtils";
 import { SaveStatusIndicator, type SaveStatus } from "./_ui/SaveStatusIndicator";
+import { SubmissionProgress, type SubmissionPhase } from "./_ui/SubmissionProgress";
+import { AutoSaveIndicator } from "./_ui/AutoSaveIndicator";
 
 /**
  * BasePlanWizard Props
@@ -55,6 +57,15 @@ export type BasePlanWizardProps = {
   onCancel: () => void;
   onSetStep: (step: WizardStep) => void;
   onBlockSetsLoaded: (blockSets: Array<{ id: string; name: string }>) => void;
+
+  // A3 개선: 제출 진행 상태
+  submissionPhase?: SubmissionPhase;
+  submissionError?: string;
+  onResetSubmissionPhase?: () => void;
+
+  // A4 개선: 오토세이브 상태
+  autoSaveStatus?: "idle" | "saving" | "saved" | "error";
+  autoSaveLastSavedAt?: Date | null;
 };
 
 /**
@@ -81,6 +92,13 @@ export function BasePlanWizard({
   onCancel,
   onSetStep,
   onBlockSetsLoaded,
+  // A3 개선: 제출 진행 상태
+  submissionPhase = "idle",
+  submissionError,
+  onResetSubmissionPhase,
+  // A4 개선: 오토세이브 상태
+  autoSaveStatus = "idle",
+  autoSaveLastSavedAt,
 }: BasePlanWizardProps) {
   // PlanWizardContext에서 상태 가져오기 (렌더링에 필요한 데이터만)
   const {
@@ -141,8 +159,15 @@ export function BasePlanWizard({
             )}
           </div>
           <div className="flex items-center gap-3">
-            {/* UX-3: 저장 상태 표시기 */}
-            <SaveStatusIndicator status={saveStatus} compact />
+            {/* A4: 오토세이브 상태 표시기 */}
+            <AutoSaveIndicator
+              status={autoSaveStatus}
+              lastSavedAt={autoSaveLastSavedAt}
+            />
+            {/* UX-3: 저장 상태 표시기 (오토세이브가 idle일 때만 표시) */}
+            {autoSaveStatus === "idle" && (
+              <SaveStatusIndicator status={saveStatus} compact />
+            )}
 
             <button
               type="button"
@@ -196,8 +221,44 @@ export function BasePlanWizard({
         </div>
       )}
 
+      {/* A3 개선: 제출 진행 상태 표시 */}
+      {submissionPhase !== "idle" && submissionPhase !== "completed" && (
+        <div className="mb-6">
+          <SubmissionProgress
+            phase={submissionPhase}
+            errorMessage={submissionError}
+          />
+          {/* 에러 발생 시 다시 시도 버튼 */}
+          {submissionPhase === "error" && onResetSubmissionPhase && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={onResetSubmissionPhase}
+                className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                다시 시도
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 단계별 폼 */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        {/* 읽기 전용 단계 안내 배너 */}
+        {isStepReadOnly(currentStep, mode) && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <svg className="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span>
+              <strong>읽기 전용:</strong> 이 단계는 학생이 이미 제출한 내용입니다. 확인만 가능합니다.
+            </span>
+          </div>
+        )}
         {currentStep === 1 && (
           <StepErrorBoundary stepName="기본 정보" step={currentStep} wizardData={wizardData}>
             <Step1BasicInfo

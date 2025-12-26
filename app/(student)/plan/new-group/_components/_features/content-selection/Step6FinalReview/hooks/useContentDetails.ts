@@ -41,10 +41,20 @@ export function useContentDetails({
     >
   >(new Map());
 
+  // AbortController for canceling previous requests (race condition prevention)
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (!editingRangeIndex) {
       return;
     }
+
+    // Cancel previous request (race condition prevention)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     const fetchDetails = async () => {
       const content =
@@ -74,7 +84,7 @@ export function useContentDetails({
             ? `/api/student-content-details?contentType=${content.content_type}&contentId=${content.content_id}${studentIdParam}`
             : `/api/master-content-details?contentType=${content.content_type}&contentId=${content.content_id}`;
 
-        const response = await fetch(apiPath);
+        const response = await fetch(apiPath, { signal: abortController.signal });
         if (response.ok) {
           const result = await response.json();
           
@@ -176,6 +186,11 @@ export function useContentDetails({
           }
         }
       } catch (error) {
+        // Abort된 요청은 무시 (race condition 방지)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
@@ -191,6 +206,11 @@ export function useContentDetails({
     };
 
     fetchDetails();
+
+    // Cleanup: 컴포넌트 언마운트 또는 의존성 변경 시 요청 취소
+    return () => {
+      abortController.abort();
+    };
   }, [editingRangeIndex, data.student_contents, data.recommended_contents, isCampMode, studentId]);
 
   return {

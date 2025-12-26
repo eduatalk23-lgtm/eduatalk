@@ -8,6 +8,7 @@ import { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroup
 import { BookDetail, LectureEpisode, UseRangeEditorReturn } from "../types";
 import { toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { parseContentDetailsResponse } from "@/lib/api/contentDetails";
+import type { ContentType } from "@/lib/types/common";
 
 type ContentDetail =
   | { details: BookDetail[]; type: "book" }
@@ -41,15 +42,22 @@ export function useRangeEditor({
   const cachedDetailsRef = useRef<Map<string, ContentDetail>>(new Map());
   const cachedTotalsRef = useRef<Map<string, number>>(new Map());
 
+  // AbortController for canceling previous requests (race condition prevention)
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   /**
    * 총 페이지수/회차 조회
    */
   const fetchContentTotal = useCallback(async (
-    contentType: "book" | "lecture",
+    contentType: ContentType,
     contentId: string,
     studentId?: string,
     isStudentContent?: boolean
   ): Promise<number | null> => {
+    // custom 타입은 총량 조회 지원하지 않음
+    if (contentType === "custom") {
+      return null;
+    }
     // 캐시 확인 (학생 콘텐츠의 경우 studentId를 포함한 키 사용)
     const cacheKey = isStudentContent && studentId 
       ? `${contentId}_${studentId}` 
@@ -100,18 +108,25 @@ export function useRangeEditor({
       return;
     }
 
-    const contents = editingContentType === "recommended" 
-      ? data.recommended_contents 
+    const contents = editingContentType === "recommended"
+      ? data.recommended_contents
       : data.student_contents;
     const content = contents[editingRangeIndex];
     if (!content) return;
+
+    // Cancel previous request (race condition prevention)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     const fetchDetails = async () => {
       // 캐시 확인
       if (cachedDetailsRef.current.has(content.content_id)) {
         const cached = cachedDetailsRef.current.get(content.content_id)!;
         setContentDetails(new Map([[editingRangeIndex, cached]]));
-        
+
         // 총 페이지수/회차 정보도 확인
         const cachedTotal = cachedTotalsRef.current.get(content.content_id);
         if (cachedTotal) {
@@ -130,7 +145,7 @@ export function useRangeEditor({
 
         // 상세정보와 총 페이지수/회차를 동시에 조회
         const [detailsResponse, total] = await Promise.all([
-          fetch(apiEndpoint),
+          fetch(apiEndpoint, { signal: abortController.signal }),
           fetchContentTotal(content.content_type, content.content_id, studentId, editingContentType === "student"),
         ]);
 
@@ -283,6 +298,11 @@ export function useRangeEditor({
           }
         }
       } catch (error) {
+        // Abort된 요청은 무시 (race condition 방지)
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
@@ -341,6 +361,11 @@ export function useRangeEditor({
     };
 
     fetchDetails();
+
+    // Cleanup: 컴포넌트 언마운트 또는 의존성 변경 시 요청 취소
+    return () => {
+      abortController.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingRangeIndex, fetchContentTotal]);
 
