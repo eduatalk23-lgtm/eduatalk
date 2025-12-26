@@ -2,6 +2,7 @@
 
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { CircularProgress } from "./CircularProgress";
 import {
   formatKoreanDateWithDay,
   getRelativeDateLabel,
@@ -14,6 +15,19 @@ import {
   textMuted,
   textTertiary,
 } from "@/lib/utils/darkMode";
+
+/**
+ * B4 개선: 진행률에 따른 동기부여 메시지
+ */
+function getMotivationalMessage(completionRate: number, hasPlans: boolean): string {
+  if (!hasPlans) return "오늘의 학습 플랜을 확인해보세요!";
+  if (completionRate === 0) return "오늘 학습을 시작해보세요! 💪";
+  if (completionRate < 30) return "좋은 시작이에요! 계속 힘내세요!";
+  if (completionRate < 50) return "잘하고 있어요! 절반까지 파이팅!";
+  if (completionRate < 70) return "반 이상 완료! 조금만 더요!";
+  if (completionRate < 100) return "거의 다 왔어요! 마무리까지 화이팅!";
+  return "오늘 학습 완료! 🎉 수고하셨습니다!";
+}
 
 type TodayAchievementsProps = {
   todayProgress: TodayProgress;
@@ -72,23 +86,35 @@ export function TodayAchievements({
     );
   }
 
+  // B4 개선: 동기부여 메시지
+  const motivationalMessage = getMotivationalMessage(completionRate, hasPlans);
+
   return (
     <div className={cn(cardBase, "p-4")}>
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div>
+        {/* B4 개선: 상단 헤더 + 원형 진행률 */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
             <h2 className={cn("text-lg font-semibold", textPrimary)}>학습 성취도 요약</h2>
             <p className={cn("text-xs", textMuted)}>
               {relativeLabel} · {formattedDate}
             </p>
+            {/* B4 개선: 동기부여 메시지 */}
+            <p className={cn(
+              "mt-2 text-sm font-medium",
+              completionRate === 100
+                ? "text-green-600 dark:text-green-400"
+                : "text-indigo-600 dark:text-indigo-400"
+            )}>
+              {motivationalMessage}
+            </p>
           </div>
-          <div className={cn(
-            "rounded-full px-3 py-1 text-xs font-semibold",
-            "bg-indigo-50 dark:bg-indigo-900/30",
-            "text-indigo-700 dark:text-indigo-300"
-          )}>
-            {selectedDate || "-"}
-          </div>
+          {/* B4 개선: 원형 진행률 표시 */}
+          <CircularProgress
+            percentage={completionRate}
+            size="md"
+            showPercentage
+          />
         </div>
 
         <div className="flex flex-col gap-4">

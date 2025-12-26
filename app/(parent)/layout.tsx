@@ -33,6 +33,7 @@ export default async function ParentLayout({ children }: { children: ReactNode }
       roleLabel="Parent"
       tenantInfo={tenantInfo}
       userName={userName}
+      userId={userId}
     >
       {children}
     </RoleBasedLayout>

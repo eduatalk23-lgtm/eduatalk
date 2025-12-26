@@ -20,6 +20,8 @@ export type ProgressBarProps = {
   className?: string;
   barClassName?: string;
   autoColor?: boolean; // value에 따라 자동으로 색상 결정
+  /** B2 개선: 애니메이션 활성화 여부 */
+  animated?: boolean;
 };
 
 const variantClasses: Record<ProgressBarVariant, string> = {
@@ -64,6 +66,7 @@ function ProgressBarComponent({
   className,
   barClassName,
   autoColor = false,
+  animated = true, // B2 개선: 기본적으로 애니메이션 활성화
 }: ProgressBarProps) {
   const percentage = Math.min(100, Math.max(0, (value / max) * 100));
 
@@ -97,7 +100,9 @@ function ProgressBarComponent({
       >
         <div
           className={cn(
-            "h-full rounded-full transition-base",
+            "h-full rounded-full",
+            // B2 개선: 더 부드러운 애니메이션 효과
+            animated && "transition-all duration-500 ease-out",
             finalColorClass,
             barClassName
           )}

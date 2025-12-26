@@ -5,6 +5,7 @@ import { CategoryNav } from "@/components/navigation/global/CategoryNav";
 import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { LogoSection } from "@/components/navigation/global/LogoSection";
 import { SidebarUserSection } from "@/components/navigation/global/SidebarUserSection";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useSidebar } from "./SidebarContext";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -23,6 +24,8 @@ type RoleBasedLayoutProps = {
     type?: string;
   } | null;
   userName?: string | null;
+  /** A1 개선: 인앱 알림 센터에 사용할 userId */
+  userId?: string | null;
 };
 
 function SharedSidebarContent({
@@ -67,6 +70,7 @@ function SidebarContent({
   tenantInfo,
   onNavigate,
   userName,
+  userId,
 }: {
   role: RoleBasedLayoutProps["role"];
   dashboardHref: string;
@@ -74,15 +78,20 @@ function SidebarContent({
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
   onNavigate?: () => void;
   userName?: string | null;
+  userId?: string | null;
 }) {
   return (
     <>
       {/* 로고 - 그림자 추가로 구분 */}
       <div className={cn(sidebarStyles.header, "shadow-sm")}>
-        <LogoSection
-          dashboardHref={dashboardHref}
-          roleLabel={roleLabel}
-        />
+        <div className="flex items-center justify-between w-full">
+          <LogoSection
+            dashboardHref={dashboardHref}
+            roleLabel={roleLabel}
+          />
+          {/* A1 개선: 데스크톱 알림 센터 */}
+          {userId && <NotificationCenter userId={userId} />}
+        </div>
       </div>
 
       {/* 사용자 정보 섹션 - 배경색 조정 */}
@@ -304,6 +313,7 @@ export function RoleBasedLayout({
   wrapper,
   tenantInfo,
   userName,
+  userId,
 }: RoleBasedLayoutProps) {
   const content = (
     <div className="flex min-h-screen bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
@@ -323,6 +333,7 @@ export function RoleBasedLayout({
               roleLabel={roleLabel}
               tenantInfo={tenantInfo}
               userName={userName}
+              userId={userId}
             />
           </div>
         </aside>
@@ -340,13 +351,17 @@ export function RoleBasedLayout({
                   roleLabel={roleLabel}
                   variant="mobile"
                 />
-                <MobileSidebar
-                  role={role}
-                  dashboardHref={dashboardHref}
-                  roleLabel={roleLabel}
-                  tenantInfo={tenantInfo}
-                  userName={userName}
-                />
+                <div className="flex items-center gap-2">
+                  {/* A1 개선: 인앱 알림 센터 */}
+                  {userId && <NotificationCenter userId={userId} />}
+                  <MobileSidebar
+                    role={role}
+                    dashboardHref={dashboardHref}
+                    roleLabel={roleLabel}
+                    tenantInfo={tenantInfo}
+                    userName={userName}
+                  />
+                </div>
               </div>
             </div>
           </nav>

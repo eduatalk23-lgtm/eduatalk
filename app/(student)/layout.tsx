@@ -33,6 +33,7 @@ export default async function StudentLayout({ children }: { children: ReactNode 
       roleLabel="학생"
       tenantInfo={tenantInfo}
       userName={userName}
+      userId={userId}
     >
       {children}
     </RoleBasedLayout>

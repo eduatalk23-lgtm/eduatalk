@@ -9,6 +9,8 @@ type CircularProgressProps = {
   className?: string;
   showPercentage?: boolean;
   children?: React.ReactNode;
+  /** B2 개선: 애니메이션 활성화 여부 */
+  animated?: boolean;
 };
 
 const sizeMap = {
@@ -24,6 +26,7 @@ export function CircularProgress({
   className,
   showPercentage = false,
   children,
+  animated = true, // B2 개선: 기본적으로 애니메이션 활성화
 }: CircularProgressProps) {
   const { dimension, fontSize, sizeClass } = sizeMap[size];
   const radius = (dimension - strokeWidth) / 2;
@@ -54,7 +57,7 @@ export function CircularProgress({
           strokeWidth={strokeWidth}
           className="text-gray-200"
         />
-        {/* 진행률 원 */}
+        {/* 진행률 원 - B2 개선: 더 부드러운 애니메이션 */}
         <circle
           cx={dimension / 2}
           cy={dimension / 2}
@@ -65,7 +68,10 @@ export function CircularProgress({
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="text-indigo-600 transition-all duration-300 ease-in-out"
+          className={cn(
+            "text-indigo-600",
+            animated && "transition-all duration-700 ease-out"
+          )}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -7,18 +7,23 @@ import { getCurrentUser } from "./getCurrentUser";
 import { AppError, ErrorCode } from "@/lib/errors";
 
 /**
- * 현재 사용자가 학생인지 확인하고, 학생 정보를 반환합니다.
- * 학생이 아니면 에러를 throw합니다.
- * 
- * @returns 학생 사용자 정보
- * @throws AppError - 학생이 아닌 경우 또는 로그인되지 않은 경우
+ * 학생 인증 결과 타입
  */
-export async function requireStudentAuth(): Promise<{
+export type StudentAuthResult = {
   userId: string;
   role: "student";
   tenantId: string | null;
   email?: string | null;
-}> {
+};
+
+/**
+ * 현재 사용자가 학생인지 확인하고, 학생 정보를 반환합니다.
+ * 학생이 아니면 에러를 throw합니다.
+ *
+ * @returns 학생 사용자 정보
+ * @throws AppError - 학생이 아닌 경우 또는 로그인되지 않은 경우
+ */
+export async function requireStudentAuth(): Promise<StudentAuthResult> {
   const user = await getCurrentUser();
 
   if (!user) {

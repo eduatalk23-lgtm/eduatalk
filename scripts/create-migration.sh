@@ -119,3 +119,4 @@ echo -e "  2. 'npx supabase db push' 명령으로 적용"
 
 
 
+

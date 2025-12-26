@@ -33,6 +33,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       roleLabel="Admin"
       tenantInfo={tenantInfo}
       userName={userName}
+      userId={userId}
     >
       {children}
     </RoleBasedLayout>

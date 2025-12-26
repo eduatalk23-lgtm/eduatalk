@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CampInvitationActions } from "./CampInvitationActions";
+import { CampActionDialogs } from "./CampActionDialogs";
 import { getCampStatusFromInvitation } from "@/lib/camp/campStatus";
 
 type CampInvitationCardProps = {
@@ -160,16 +161,25 @@ export function CampInvitationCard({
             })()}
           </div>
         </div>
-        <CampInvitationActions
-          invitation={{
-            id: invitation.id,
-            status: invitation.status,
-            isDraft: invitation.isDraft,
-            planGroupId: invitation.planGroupId,
-            planGroupStatus: invitation.planGroupStatus,
-            hasPlans: invitation.hasPlans,
-          }}
-        />
+        <div className="flex flex-col items-end gap-3">
+          <CampInvitationActions
+            invitation={{
+              id: invitation.id,
+              status: invitation.status,
+              isDraft: invitation.isDraft,
+              planGroupId: invitation.planGroupId,
+              planGroupStatus: invitation.planGroupStatus,
+              hasPlans: invitation.hasPlans,
+            }}
+          />
+          <CampActionDialogs
+            invitationId={invitation.id}
+            invitationStatus={invitation.status}
+            planGroupStatus={invitation.planGroupStatus}
+            hasPlans={invitation.hasPlans}
+            templateName={invitation.template?.name}
+          />
+        </div>
       </div>
     </div>
   );
