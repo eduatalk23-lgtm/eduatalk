@@ -38,20 +38,11 @@ export default async function PlanCalendarPage({
   const tenantContext = await requireTenantContext();
 
   try {
-    // 활성화된 플랜 그룹 조회
-    const allActivePlanGroups = await getPlanGroupsForStudent({
+    // 활성화된 플랜 그룹 조회 (캠프/일반 통합)
+    const activePlanGroups = await getPlanGroupsForStudent({
       studentId: user.id,
       status: "active",
     });
-
-    // 캠프 템플릿 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
-    // /today와 동일한 필터링 로직 적용: plan_type이 "camp"가 아니고, camp_template_id와 camp_invitation_id가 null인 경우만
-    const activePlanGroups = allActivePlanGroups.filter(
-      (group) =>
-        group.plan_type !== "camp" &&
-        group.camp_template_id === null &&
-        group.camp_invitation_id === null
-    );
 
     if (activePlanGroups.length === 0) {
       return (

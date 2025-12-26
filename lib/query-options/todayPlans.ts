@@ -7,15 +7,15 @@ import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
 /**
  * Today Plans 조회 쿼리 옵션 (타입 안전)
- * 
+ *
  * queryOptions를 사용하여 타입 안전성을 향상시킵니다.
  * queryClient.getQueryData()에서도 타입 추론이 자동으로 됩니다.
  * 서버 컴포넌트에서 prefetchQuery로도 사용 가능합니다.
- * 
+ *
  * @param studentId - 학생 ID
  * @param tenantId - 테넌트 ID (null 가능)
  * @param date - 조회할 날짜 (YYYY-MM-DD 형식)
- * @param options - 추가 옵션 (camp, includeProgress)
+ * @param options - 추가 옵션 (includeProgress)
  * @returns React Query 쿼리 옵션
  */
 export function todayPlansQueryOptions(
@@ -23,6 +23,7 @@ export function todayPlansQueryOptions(
   tenantId: string | null,
   date: string,
   options?: {
+    /** @deprecated 캠프/일반 통합으로 더 이상 사용되지 않음. 무시됨. */
     camp?: boolean;
     includeProgress?: boolean;
   }
@@ -34,16 +35,13 @@ export function todayPlansQueryOptions(
       tenantId,
       date,
       {
-        camp: options?.camp ?? false,
         includeProgress: options?.includeProgress ?? true,
       },
     ] as const,
     queryFn: async (): Promise<TodayPlansResponse> => {
       const queryParams = new URLSearchParams();
       queryParams.set("date", date);
-      if (options?.camp) {
-        queryParams.set("camp", "true");
-      }
+      // camp 파라미터는 더 이상 사용되지 않음 (캠프/일반 통합)
       if (options?.includeProgress !== undefined) {
         queryParams.set("includeProgress", options.includeProgress ? "true" : "false");
       }

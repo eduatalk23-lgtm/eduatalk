@@ -84,6 +84,9 @@ export function CampTemplateEditForm({
   const [campLocation, setCampLocation] = useState(
     template.camp_location || ""
   );
+  const [allowNormalPlanActivation, setAllowNormalPlanActivation] = useState(
+    template.allow_normal_plan_activation ?? false
+  );
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
   const [wizardSaveFunction, setWizardSaveFunction] = useState<
     (() => Promise<void>) | null
@@ -125,6 +128,12 @@ export function CampTemplateEditForm({
     if (campLocation) {
       formData.append("camp_location", campLocation);
     }
+
+    // 일반 플랜 활성화 허용 옵션
+    formData.append(
+      "allow_normal_plan_activation",
+      allowNormalPlanActivation ? "true" : "false"
+    );
 
     // 슬롯 템플릿 추가
     if (slotTemplates.length > 0) {
@@ -371,6 +380,33 @@ export function CampTemplateEditForm({
                   maxLength={200}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:border-gray-900 focus:outline-none"
                 />
+              </div>
+
+              {/* 일반 플랜 활성화 허용 */}
+              <div className="md:col-span-2">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="allow_normal_plan_activation"
+                    checked={allowNormalPlanActivation}
+                    onChange={(e) =>
+                      setAllowNormalPlanActivation(e.target.checked)
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                  />
+                  <div className="flex flex-col">
+                    <label
+                      htmlFor="allow_normal_plan_activation"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      캠프 진행 중 일반 플랜 활성화 허용
+                    </label>
+                    <span className="text-xs text-gray-500">
+                      이 옵션을 활성화하면 학생이 캠프 플랜 외에 일반 플랜도
+                      활성화할 수 있습니다. 기본값은 캠프 전용 모드입니다.
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

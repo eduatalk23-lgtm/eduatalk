@@ -451,6 +451,10 @@ export const updateCampTemplateAction = withErrorHandling(
       String(formData.get("camp_location") ?? "").trim() || null;
     const slotTemplatesJson =
       String(formData.get("slot_templates") ?? "").trim() || null;
+    const allowNormalPlanActivationStr = String(
+      formData.get("allow_normal_plan_activation") ?? ""
+    ).trim();
+    const allowNormalPlanActivation = allowNormalPlanActivationStr === "true";
 
     // 입력값 검증
     if (!name || name.length === 0) {
@@ -599,6 +603,7 @@ export const updateCampTemplateAction = withErrorHandling(
       camp_end_date: campEndDate || null,
       camp_location: campLocation || null,
       slot_templates: slotTemplates,
+      allow_normal_plan_activation: allowNormalPlanActivation,
     };
 
     const { data: updatedRows, error } = await supabase

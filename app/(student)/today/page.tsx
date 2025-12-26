@@ -100,21 +100,13 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const targetProgressDate = requestedDate ?? todayDate;
 
-  // 활성화된 일반 플랜 그룹 확인
-  const allActivePlanGroups = await getPlanGroupsForStudent({
+  // 활성화된 플랜 그룹 확인 (캠프/일반 통합)
+  const activePlanGroups = await getPlanGroupsForStudent({
     studentId: userId,
     status: "active",
   });
 
-  // 일반 모드 플랜 그룹만 필터링 (캠프 모드 제외)
-  const activePlanGroups = allActivePlanGroups.filter(
-    (group) =>
-      group.plan_type !== "camp" &&
-      group.camp_template_id === null &&
-      group.camp_invitation_id === null
-  );
-
-  // 활성 일반 플랜 그룹이 없을 때 안내 메시지 표시
+  // 활성 플랜 그룹이 없을 때 안내 메시지 표시
   if (activePlanGroups.length === 0) {
     pageTimer.end();
     return (
@@ -144,7 +136,6 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         tenantContext?.tenantId || null,
         targetProgressDate,
         {
-          camp: false, // 일반 모드
           includeProgress: false, // Statistics는 Suspense로 별도 처리
         }
       )
@@ -189,7 +180,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       >
         <div className={getContainerClass("DASHBOARD", "md")}>
           <div className="flex flex-col gap-6">
-            <TodayHeader />
+            <TodayHeader selectedDate={requestedDate} />
             <CurrentLearningSection />
             <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">

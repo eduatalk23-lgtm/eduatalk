@@ -765,6 +765,7 @@ export type Database = {
       }
       camp_templates: {
         Row: {
+          allow_normal_plan_activation: boolean | null
           camp_end_date: string | null
           camp_location: string | null
           camp_start_date: string | null
@@ -782,6 +783,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          allow_normal_plan_activation?: boolean | null
           camp_end_date?: string | null
           camp_location?: string | null
           camp_start_date?: string | null
@@ -799,6 +801,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          allow_normal_plan_activation?: boolean | null
           camp_end_date?: string | null
           camp_location?: string | null
           camp_start_date?: string | null

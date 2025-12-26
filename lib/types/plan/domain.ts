@@ -523,6 +523,7 @@ export type CampTemplate = {
   camp_end_date: string | null; // 캠프 종료일 (date)
   camp_location: string | null; // 캠프 장소
   reminder_settings: Json | null; // DB: jsonb (실제로는 CampReminderSettings)
+  allow_normal_plan_activation: boolean | null; // 캠프 진행 중 일반 플랜 활성화 허용 여부
   created_by: string | null;
   created_at: string | null; // DB: nullable
   updated_at: string | null; // DB: nullable

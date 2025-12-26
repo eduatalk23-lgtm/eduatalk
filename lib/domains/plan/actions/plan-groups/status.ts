@@ -9,6 +9,7 @@ import type { PlanStatus } from "@/lib/types/plan";
 import { verifyPlanGroupAccess, getStudentIdForPlanGroup, getSupabaseClientForStudent } from "@/lib/auth/planGroupAuth";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { isCampMode } from "@/lib/plan/context";
+import { getCampTemplate } from "@/lib/data/campTemplates";
 
 /**
  * 플랜 그룹 상태 업데이트
@@ -81,14 +82,13 @@ async function _updatePlanGroupStatus(
     );
   }
 
-  // 활성화 시 같은 모드의 다른 활성 플랜 그룹만 비활성화
-  // 일반 모드와 캠프 모드는 각각 1개씩 활성화 가능
+  // 활성화 시 기존 활성 플랜 그룹을 비활성화
+  // 원칙: 학생이 한 번에 하나의 학습에 집중하도록 전체 1개만 활성화
   if (status === "active") {
-    // 현재 활성화하려는 그룹이 캠프 모드인지 확인
     const isGroupCampMode = isCampMode(group);
 
-    // 같은 모드의 활성 플랜 그룹만 조회
-    const query = supabase
+    // 모든 활성 플랜 그룹 조회
+    const { data: allActiveGroups, error: activeGroupsError } = await supabase
       .from("plan_groups")
       .select("id, plan_type, camp_template_id, camp_invitation_id")
       .eq("student_id", studentId)
@@ -96,35 +96,47 @@ async function _updatePlanGroupStatus(
       .neq("id", groupId)
       .is("deleted_at", null);
 
-    const { data: allActiveGroups, error: activeGroupsError } = await query;
-
     if (activeGroupsError) {
       console.error(
         "[planGroupActions] 활성 플랜 그룹 조회 실패",
         activeGroupsError
       );
-    } else if (allActiveGroups && allActiveGroups.length > 0) {
-      // 같은 모드의 활성 플랜 그룹만 필터링
-      const sameModeGroups = allActiveGroups.filter(
-        (g) => isGroupCampMode === isCampMode(g)
-      );
+    }
 
-      if (sameModeGroups.length > 0) {
-        // 같은 모드의 다른 활성 플랜 그룹들을 "paused" 상태로 변경
-        // (active → paused는 유효한 상태 전환, active → saved는 아님)
-        const activeGroupIds = sameModeGroups.map((g) => g.id);
-        const { error: deactivateError } = await supabase
-          .from("plan_groups")
-          .update({ status: "paused" })
-          .in("id", activeGroupIds);
+    // 일반 플랜 활성화 시 캠프 제한 체크
+    if (!isGroupCampMode && allActiveGroups && allActiveGroups.length > 0) {
+      const activeCampGroups = allActiveGroups.filter((g) => isCampMode(g));
 
-        if (deactivateError) {
-          console.error(
-            "[planGroupActions] 같은 모드의 다른 활성 플랜 그룹 비활성화 실패",
-            deactivateError
+      if (activeCampGroups.length > 0) {
+        // 캠프 템플릿의 allow_normal_plan_activation 설정 확인
+        const campGroup = activeCampGroups[0];
+        const template = await getCampTemplate(campGroup.camp_template_id!);
+
+        if (!template?.allow_normal_plan_activation) {
+          throw new AppError(
+            "캠프 진행 중에는 일반 플랜을 활성화할 수 없습니다.",
+            ErrorCode.VALIDATION_ERROR,
+            400,
+            true
           );
-          // 비활성화 실패해도 계속 진행 (경고만)
         }
+      }
+    }
+
+    // 모든 활성 플랜 그룹 비활성화 (모드 무관)
+    if (allActiveGroups && allActiveGroups.length > 0) {
+      const activeGroupIds = allActiveGroups.map((g) => g.id);
+      const { error: deactivateError } = await supabase
+        .from("plan_groups")
+        .update({ status: "paused" })
+        .in("id", activeGroupIds);
+
+      if (deactivateError) {
+        console.error(
+          "[planGroupActions] 활성 플랜 그룹 비활성화 실패",
+          deactivateError
+        );
+        // 비활성화 실패해도 계속 진행 (경고만)
       }
     }
   }
