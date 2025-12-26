@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import { getSchoolByName, getRegions } from "@/lib/data/schools";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import {
   apiSuccess,
   apiBadRequest,
+  apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
 
@@ -22,6 +24,7 @@ type AutoRegisterResponse = {
  * 학교 자동 등록 API
  * POST /api/schools/auto-register
  * 학교 선택 시 DB에 없으면 자동으로 등록
+ * 인증된 사용자만 접근 가능
  *
  * @body { name: string, type: string, region?: string }
  * @returns
@@ -30,6 +33,12 @@ type AutoRegisterResponse = {
  */
 export async function POST(request: NextRequest) {
   try {
+    // 인증 체크 - 로그인한 사용자만 학교 등록 가능
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return apiUnauthorized("로그인이 필요합니다.");
+    }
+
     const body = await request.json();
     const { name, type, region } = body;
 

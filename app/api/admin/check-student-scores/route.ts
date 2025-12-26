@@ -1,12 +1,11 @@
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSchoolScoreSummary, getMockScoreSummary, getRiskIndexBySubject } from "@/lib/scheduler/scoreLoader";
-import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import {
   apiSuccess,
   apiUnauthorized,
   apiForbidden,
-  apiNotFound,
   handleApiError,
 } from "@/lib/api";
 
@@ -20,6 +19,13 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
+    // 관리자/컨설턴트 권한 체크 + tenant 정보 획득
+    const authResult = await requireAdminOrConsultant({ requireTenant: true });
+    if (!authResult) {
+      return apiUnauthorized("관리자 또는 컨설턴트 권한이 필요합니다.");
+    }
+    const { tenantId } = authResult;
+
     const searchParams = request.nextUrl.searchParams;
     const email = searchParams.get("email");
     const studentIdParam = searchParams.get("student_id");
@@ -29,45 +35,43 @@ export async function GET(request: NextRequest) {
     let studentId: string | null = null;
     let targetEmail: string | null = null;
 
-    // student_id가 직접 제공된 경우 우선 사용
+    // student_id가 직접 제공된 경우 - tenant 격리 확인
     if (studentIdParam) {
-      studentId = studentIdParam;
-      targetEmail = email || null;
+      // 해당 학생이 현재 tenant에 속하는지 확인
+      const { data: studentCheck, error: checkError } = await supabase
+        .from("students")
+        .select("id, email")
+        .eq("id", studentIdParam)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (checkError || !studentCheck) {
+        return apiForbidden("해당 학생을 조회할 권한이 없습니다.");
+      }
+
+      studentId = studentCheck.id;
+      targetEmail = email || studentCheck.email || null;
     } else if (email) {
-      const currentUser = await getCurrentUser();
+      // 이메일로 학생 조회 - tenant 격리 적용
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select("id")
+        .eq("email", email)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
 
-      if (currentUser?.email === email) {
-        studentId = currentUser.userId;
-        targetEmail = email;
-      } else {
-        const { data: student, error: studentError } = await supabase
-          .from("students")
-          .select("id")
-          .eq("email", email)
-          .maybeSingle();
-
-        if (studentError || !student) {
-          return apiForbidden(
-            "다른 사용자의 데이터를 조회하려면 student_id 파라미터를 사용하거나 관리자 권한이 필요합니다."
-          );
-        }
-
-        studentId = student.id;
-        targetEmail = email;
+      if (studentError || !student) {
+        return apiForbidden("해당 학생을 조회할 권한이 없거나 학생을 찾을 수 없습니다.");
       }
+
+      studentId = student.id;
+      targetEmail = email;
     } else {
-      const currentUser = await getCurrentUser();
-
-      if (!currentUser) {
-        return apiUnauthorized();
-      }
-
-      studentId = currentUser.userId;
-      targetEmail = currentUser.email || null;
+      return apiForbidden("student_id 또는 email 파라미터가 필요합니다.");
     }
 
     if (!studentId) {
-      return apiNotFound("사용자 ID를 찾을 수 없습니다.");
+      return apiForbidden("사용자 ID를 찾을 수 없습니다.");
     }
 
     // ⚠️ DEPRECATED: student_school_scores 테이블 사용
@@ -121,20 +125,23 @@ export async function GET(request: NextRequest) {
       console.error("[check-student-scores] 모의고사 성적 조회 오류:", mockError);
     }
 
-    // 디버깅: 테이블에 데이터가 있는지 확인
+    // 디버깅: 테이블에 데이터가 있는지 확인 (tenant 격리 적용)
     const { data: allSchoolScores } = await supabase
       .from("student_school_scores")
-      .select("id, student_id, subject_group, grade_score")
+      .select("id, student_id, subject_group, grade_score, students!inner(tenant_id)")
+      .eq("students.tenant_id", tenantId)
       .limit(10);
 
     const { data: allMockScores } = await supabase
       .from("student_mock_scores")
-      .select("id, student_id, subject_group, percentile")
+      .select("id, student_id, subject_group, percentile, students!inner(tenant_id)")
+      .eq("students.tenant_id", tenantId)
       .limit(10);
 
     const { data: uniqueStudentIds } = await supabase
       .from("student_school_scores")
-      .select("student_id")
+      .select("student_id, students!inner(tenant_id)")
+      .eq("students.tenant_id", tenantId)
       .limit(100);
 
     const uniqueIds = uniqueStudentIds

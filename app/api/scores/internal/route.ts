@@ -1,25 +1,41 @@
 /**
  * @deprecated 이 API Route는 더 이상 사용되지 않습니다.
- * 
+ *
  * 대체 방법: app/actions/scores-internal.ts의 createInternalScoresBatch Server Action을 사용하세요.
- * 
+ *
  * InternalScoreInput 컴포넌트가 이미 Server Actions를 사용하도록 변경되었습니다.
- * 
+ *
  * 이 파일은 하위 호환성을 위해 유지되지만, 향후 삭제될 예정입니다.
  */
 import { NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getOrCreateStudentTerm } from "@/lib/data/studentTerms";
-import type { InternalScoreInputForm, InternalScoreInsert } from "@/lib/types/scoreInput";
+import type {
+  InternalScoreInputForm,
+  InternalScoreInsert,
+} from "@/lib/types/scoreInput";
 import {
-  apiSuccess,
   apiCreated,
   apiBadRequest,
+  apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   try {
+    // 인증 체크
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return apiUnauthorized("로그인이 필요합니다.");
+    }
+
+    // Deprecated 경고 로깅
+    console.warn(
+      `[DEPRECATED] /api/scores/internal 호출됨 - user: ${currentUser.userId}. ` +
+        "Server Action 'createInternalScoresBatch'를 사용하세요."
+    );
+
     const body = await request.json();
     const {
       studentId,

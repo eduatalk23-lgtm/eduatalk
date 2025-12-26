@@ -1,13 +1,14 @@
 /**
  * 캠프 초대 만료 처리 Cron Job
- * 
+ *
  * 이 API는 외부 Cron 서비스(예: Vercel Cron)에서 주기적으로 호출됩니다.
  * 매일 오전 9시에 실행하는 것을 권장합니다.
- * 
+ *
  * 보안: Authorization 헤더에 API 키를 포함하여 호출해야 합니다.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual, randomBytes } from "crypto";
 import {
   processExpiredInvitations,
   sendExpiryReminderNotifications,
@@ -16,20 +17,43 @@ import {
 export const runtime = "nodejs";
 
 /**
- * API 키 검증
+ * 타이밍 공격 방지를 위한 안전한 문자열 비교
+ */
+function safeCompare(a: string, b: string): boolean {
+  try {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) {
+      const randomBuf = randomBytes(bufA.length);
+      timingSafeEqual(bufA, randomBuf);
+      return false;
+    }
+    return timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * API 키 검증 (타이밍 공격 방지)
  */
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get("authorization")?.replace("Bearer ", "");
   const expectedApiKey = process.env.CRON_SECRET;
 
   if (!expectedApiKey) {
-    console.warn(
-      "[process-camp-expiry] CRON_SECRET이 설정되지 않았습니다."
+    console.error(
+      "[process-camp-expiry] CRON_SECRET이 설정되지 않았습니다. 프로덕션 환경에서는 반드시 설정해야 합니다."
     );
     return false;
   }
 
-  return apiKey === expectedApiKey;
+  if (!apiKey) {
+    console.warn("[process-camp-expiry] Authorization 헤더가 없습니다.");
+    return false;
+  }
+
+  return safeCompare(apiKey, expectedApiKey);
 }
 
 /**
