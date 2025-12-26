@@ -1,21 +1,65 @@
 "use client";
 
+/**
+ * BasePlanWizard
+ *
+ * Phase 2 성능 최적화: 동적 임포트
+ * Step 컴포넌트를 동적으로 로딩하여 초기 번들 크기를 줄입니다.
+ */
+
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePlanWizard } from "./_context/PlanWizardContext";
-import { Step1BasicInfo } from "./_features/basic-info/Step1BasicInfo";
-import { Step2TimeSettings } from "./_features/scheduling/Step2TimeSettings";
-import { Step3SchedulePreview } from "./_features/scheduling/Step3SchedulePreview";
-import { Step3ContentSelection } from "./_features/content-selection/Step3ContentSelection";
-import { Step6FinalReview } from "./_features/content-selection/Step6FinalReview";
-import { Step6Simplified } from "./Step6Simplified";
-import { Step7ScheduleResult } from "./_features/scheduling/Step7ScheduleResult";
 import { StepErrorBoundary } from "./common/StepErrorBoundary";
+import {
+  StepSkeleton,
+  ContentSelectionSkeleton,
+  SchedulePreviewSkeleton,
+  FinalReviewSkeleton,
+} from "./common/StepSkeleton";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "./PlanGroupWizard";
 import { isStepReadOnly, type WizardMode } from "./utils/modeUtils";
 import { SaveStatusIndicator, type SaveStatus } from "./_ui/SaveStatusIndicator";
 import { SubmissionProgress, type SubmissionPhase } from "./_ui/SubmissionProgress";
 import { AutoSaveIndicator } from "./_ui/AutoSaveIndicator";
+
+// Phase 2: 동적 임포트로 Step 컴포넌트 로딩
+// 초기 번들 크기 감소 및 필요할 때만 로딩
+const Step1BasicInfo = dynamic(
+  () => import("./_features/basic-info/Step1BasicInfo").then((mod) => mod.Step1BasicInfo),
+  { loading: () => <StepSkeleton lines={4} /> }
+);
+
+const Step2TimeSettings = dynamic(
+  () => import("./_features/scheduling/Step2TimeSettings").then((mod) => mod.Step2TimeSettings),
+  { loading: () => <SchedulePreviewSkeleton /> }
+);
+
+const Step3SchedulePreview = dynamic(
+  () => import("./_features/scheduling/Step3SchedulePreview").then((mod) => mod.Step3SchedulePreview),
+  { loading: () => <SchedulePreviewSkeleton /> }
+);
+
+const Step3ContentSelection = dynamic(
+  () => import("./_features/content-selection/Step3ContentSelection").then((mod) => mod.Step3ContentSelection),
+  { loading: () => <ContentSelectionSkeleton /> }
+);
+
+const Step6FinalReview = dynamic(
+  () => import("./_features/content-selection/Step6FinalReview").then((mod) => mod.Step6FinalReview),
+  { loading: () => <FinalReviewSkeleton /> }
+);
+
+const Step6Simplified = dynamic(
+  () => import("./Step6Simplified").then((mod) => mod.Step6Simplified),
+  { loading: () => <FinalReviewSkeleton /> }
+);
+
+const Step7ScheduleResult = dynamic(
+  () => import("./_features/scheduling/Step7ScheduleResult").then((mod) => mod.Step7ScheduleResult),
+  { loading: () => <StepSkeleton lines={3} showButtons={false} /> }
+);
 
 /**
  * BasePlanWizard Props

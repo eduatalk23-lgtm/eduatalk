@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * PlanWizardContext - 통합 Context Provider
+ *
+ * Phase 2 성능 최적화: Context 분리
+ * - WizardDataContext: 데이터 상태 전용
+ * - WizardStepContext: 네비게이션 상태 전용
+ * - WizardValidationContext: 검증 상태 전용
+ *
+ * 각 Context를 분리하여 불필요한 리렌더를 방지합니다.
+ */
+
 import {
   createContext,
   useContext,
@@ -7,6 +18,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
+  useState,
   type ReactNode,
 } from "react";
 import type { WizardData, WizardStep } from "../PlanGroupWizard";
@@ -20,6 +33,12 @@ import {
   formatDateString,
   addDaysToDate,
 } from "@/lib/utils/date";
+import { TIMING } from "../constants/wizardConstants";
+
+// 분리된 Context들 import
+import { WizardDataProvider, type WizardDataContextValue } from "./WizardDataContext";
+import { WizardStepProvider, type WizardStepContextValue } from "./WizardStepContext";
+import { WizardValidationProvider, type WizardValidationContextValue } from "./WizardValidationContext";
 
 /**
  * Wizard 상태 타입
@@ -417,15 +436,35 @@ export function PlanWizardProvider({
     dispatch({ type: "SET_SUBMITTING", payload: isSubmitting });
   }, []);
 
-  // 변경 사항 감지 (메모이제이션)
-  const isDirty = useMemo(() => {
-    return hasWizardDataChanged(state.initialWizardData, state.wizardData);
+  // Phase 2: Dirty 상태 계산 디바운스
+  // 매 업데이트마다 JSON.stringify 하는 것을 방지
+  const [debouncedIsDirty, setDebouncedIsDirty] = useState(false);
+  const dirtyCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // 이전 타이머 클리어
+    if (dirtyCheckTimeoutRef.current) {
+      clearTimeout(dirtyCheckTimeoutRef.current);
+    }
+
+    // 디바운스된 dirty 상태 계산
+    dirtyCheckTimeoutRef.current = setTimeout(() => {
+      const isDirtyNow = hasWizardDataChanged(state.initialWizardData, state.wizardData);
+      setDebouncedIsDirty(isDirtyNow);
+    }, TIMING.DIRTY_CHECK_DEBOUNCE_MS);
+
+    return () => {
+      if (dirtyCheckTimeoutRef.current) {
+        clearTimeout(dirtyCheckTimeoutRef.current);
+      }
+    };
   }, [state.initialWizardData, state.wizardData]);
 
   // 저장 후 dirty 상태 리셋
   const resetDirtyState = useCallback(() => {
     // initialWizardData를 현재 wizardData로 업데이트하여 dirty 상태 리셋
     dispatch({ type: "RESET_DIRTY_STATE" });
+    setDebouncedIsDirty(false); // 즉시 리셋
   }, []);
 
   // UX-1: 에러 필드 스크롤 함수
@@ -438,6 +477,76 @@ export function PlanWizardProvider({
     return getHighestPriorityErrorField(state.fieldErrors);
   }, [state.fieldErrors]);
 
+  // Phase 2: 분리된 Context 값들 생성
+  const dataContextValue: WizardDataContextValue = useMemo(
+    () => ({
+      wizardData: state.wizardData,
+      initialWizardData: state.initialWizardData,
+      draftGroupId: state.draftGroupId,
+      isDirty: debouncedIsDirty,
+      isSubmitting: state.isSubmitting,
+      updateData,
+      updateDataFn,
+      setDraftId,
+      setSubmitting,
+      resetDirtyState,
+    }),
+    [
+      state.wizardData,
+      state.initialWizardData,
+      state.draftGroupId,
+      debouncedIsDirty,
+      state.isSubmitting,
+      updateData,
+      updateDataFn,
+      setDraftId,
+      setSubmitting,
+      resetDirtyState,
+    ]
+  );
+
+  const stepContextValue: WizardStepContextValue = useMemo(
+    () => ({
+      currentStep: state.currentStep,
+      nextStep,
+      prevStep,
+      setStep,
+    }),
+    [state.currentStep, nextStep, prevStep, setStep]
+  );
+
+  const validationContextValue: WizardValidationContextValue = useMemo(
+    () => ({
+      validationErrors: state.validationErrors,
+      validationWarnings: state.validationWarnings,
+      fieldErrors: state.fieldErrors,
+      setErrors,
+      setWarnings,
+      setFieldError,
+      setFieldErrors,
+      clearFieldError,
+      clearValidation,
+      scrollToFirstError,
+      getFirstErrorField,
+      hasErrors: state.validationErrors.length > 0 || state.fieldErrors.size > 0,
+      hasWarnings: state.validationWarnings.length > 0,
+    }),
+    [
+      state.validationErrors,
+      state.validationWarnings,
+      state.fieldErrors,
+      setErrors,
+      setWarnings,
+      setFieldError,
+      setFieldErrors,
+      clearFieldError,
+      clearValidation,
+      scrollToFirstError,
+      getFirstErrorField,
+    ]
+  );
+
+  // 기존 통합 Context 값 (하위 호환성 유지)
   const value: PlanWizardContextType = {
     state,
     dispatch,
@@ -454,25 +563,34 @@ export function PlanWizardProvider({
     clearValidation,
     setDraftId,
     setSubmitting,
-    isDirty,
+    isDirty: debouncedIsDirty,
     resetDirtyState,
     initialWizardData: state.initialWizardData,
     scrollToFirstError,
     getFirstErrorField,
   };
 
+  // Phase 2: 분리된 Context들을 조합하여 제공
   return (
     <PlanWizardContext.Provider value={value}>
-      {children}
+      <WizardDataProvider value={dataContextValue}>
+        <WizardStepProvider value={stepContextValue}>
+          <WizardValidationProvider value={validationContextValue}>
+            {children}
+          </WizardValidationProvider>
+        </WizardStepProvider>
+      </WizardDataProvider>
     </PlanWizardContext.Provider>
   );
 }
 
 /**
  * usePlanWizard Hook
- * 
+ *
  * PlanWizardContext를 사용하기 위한 커스텀 훅입니다.
  * Provider 외부에서 사용하면 에러를 발생시킵니다.
+ *
+ * @deprecated 성능 최적화를 위해 useWizardData, useWizardStep, useWizardValidation 사용을 권장합니다.
  */
 export function usePlanWizard(): PlanWizardContextType {
   const context = useContext(PlanWizardContext);
@@ -481,4 +599,14 @@ export function usePlanWizard(): PlanWizardContextType {
   }
   return context;
 }
+
+// Phase 2: 분리된 Context hooks re-export
+export { useWizardData } from "./WizardDataContext";
+export { useWizardStep } from "./WizardStepContext";
+export { useWizardValidation } from "./WizardValidationContext";
+
+// Type exports
+export type { WizardDataContextValue } from "./WizardDataContext";
+export type { WizardStepContextValue } from "./WizardStepContext";
+export type { WizardValidationContextValue } from "./WizardValidationContext";
 

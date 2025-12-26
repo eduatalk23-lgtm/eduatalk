@@ -1,9 +1,9 @@
 /**
  * useContentDataFetcher - 통합 콘텐츠 데이터 페칭 훅
- * 
+ *
  * 여러 컴포넌트에서 사용되는 콘텐츠 데이터 페칭 로직을 중앙화합니다.
  * - 배치 API 호출 최적화
- * - 캐싱을 통한 중복 요청 방지
+ * - LRU 캐싱을 통한 중복 요청 방지 (Phase 2 성능 최적화)
  * - 메타데이터 및 상세 정보 통합 관리
  */
 
@@ -16,6 +16,10 @@ import {
 } from "@/lib/utils/contentDetailsUtils";
 import { fetchContentMetadataAction } from "@/lib/domains/content";
 import { toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import {
+  contentDetailsLRUCache,
+  contentMetadataLRUCache,
+} from "../utils/lruCache";
 
 /**
  * 콘텐츠 상세 정보 데이터 타입
@@ -138,11 +142,38 @@ type UseContentDataFetcherReturn = {
 };
 
 /**
+ * Phase 2 성능 최적화: LRU 캐시 사용
+ *
  * 전역 캐시 (모든 인스턴스에서 공유)
- * 컴포넌트가 언마운트되어도 캐시는 유지되어 재사용 가능
+ * - LRU 알고리즘으로 메모리 사용량 제한
+ * - TTL 지원으로 오래된 데이터 자동 만료
+ * - 컴포넌트가 언마운트되어도 캐시는 유지되어 재사용 가능
  */
-const globalContentDetailsCache = new Map<string, ContentDetailData>();
-const globalContentMetadataCache = new Map<string, ContentMetadata>();
+
+// LRU 캐시에서 데이터를 가져오는 헬퍼 함수
+function getFromDetailsCache(key: string): ContentDetailData | undefined {
+  return contentDetailsLRUCache.get(key) as ContentDetailData | undefined;
+}
+
+function setToDetailsCache(key: string, value: ContentDetailData): void {
+  contentDetailsLRUCache.set(key, value);
+}
+
+function hasInDetailsCache(key: string): boolean {
+  return contentDetailsLRUCache.has(key);
+}
+
+function getFromMetadataCache(key: string): ContentMetadata | undefined {
+  return contentMetadataLRUCache.get(key) as ContentMetadata | undefined;
+}
+
+function setToMetadataCache(key: string, value: ContentMetadata): void {
+  contentMetadataLRUCache.set(key, value);
+}
+
+function hasInMetadataCache(key: string): boolean {
+  return contentMetadataLRUCache.has(key);
+}
 
 /**
  * useContentDataFetcher 훅
@@ -199,9 +230,10 @@ export function useContentDataFetcher({
    */
   const fetchMetadata = useCallback(
     async (contentId: string, contentType: "book" | "lecture"): Promise<ContentMetadata | null> => {
-      // 캐시 확인
-      if (globalContentMetadataCache.has(contentId)) {
-        return globalContentMetadataCache.get(contentId)!;
+      // LRU 캐시 확인
+      const cachedMetadata = getFromMetadataCache(contentId);
+      if (cachedMetadata) {
+        return cachedMetadata;
       }
 
       try {
@@ -217,8 +249,8 @@ export function useContentDataFetcher({
             publisher: result.data.publisher,
             platform: result.data.platform,
           };
-          // 캐시에 저장
-          globalContentMetadataCache.set(contentId, metadata);
+          // LRU 캐시에 저장
+          setToMetadataCache(contentId, metadata);
           return metadata;
         }
       } catch (error) {
@@ -279,13 +311,15 @@ export function useContentDataFetcher({
       const newInfos: ContentInfo[] = [];
 
       try {
-        // 1. 전역 캐시에서 먼저 확인
+        // 1. LRU 캐시에서 먼저 확인
         const contentIdsToFetch: string[] = [];
         for (const contentId of contentIds) {
-          if (globalContentDetailsCache.has(contentId)) {
-            newDetails.set(contentId, globalContentDetailsCache.get(contentId)!);
-            if (globalContentMetadataCache.has(contentId)) {
-              newMetadata.set(contentId, globalContentMetadataCache.get(contentId)!);
+          const cachedDetails = getFromDetailsCache(contentId);
+          if (cachedDetails) {
+            newDetails.set(contentId, cachedDetails);
+            const cachedMetadata = getFromMetadataCache(contentId);
+            if (cachedMetadata) {
+              newMetadata.set(contentId, cachedMetadata);
             }
           } else {
             contentIdsToFetch.push(contentId);
@@ -359,13 +393,13 @@ export function useContentDataFetcher({
                           total_episodes: transformed.total_episodes ?? null,
                         };
 
-                  // 전역 캐시 및 로컬 상태에 저장
-                  globalContentDetailsCache.set(contentId, detailData);
+                  // LRU 캐시 및 로컬 상태에 저장
+                  setToDetailsCache(contentId, detailData);
                   newDetails.set(contentId, detailData);
 
                   // 메타데이터 저장
                   if (transformed.metadata) {
-                    globalContentMetadataCache.set(contentId, transformed.metadata);
+                    setToMetadataCache(contentId, transformed.metadata);
                     newMetadata.set(contentId, transformed.metadata);
                   }
 
