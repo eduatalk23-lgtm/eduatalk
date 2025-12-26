@@ -29,6 +29,9 @@ import {
   CalendarDays,
   Target,
   Wrench,
+  Radio,
+  AlertTriangle,
+  UserCircle,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -231,6 +234,36 @@ export const adminCategories: NavigationCategory[] = [
         label: "캠프 템플릿",
         href: "/admin/camp-templates",
         icon: <Tent className="w-4 h-4" />,
+      },
+      {
+        id: "admin-camp-live",
+        label: "실시간 모니터링",
+        href: "/admin/camp-live",
+        icon: <Radio className="w-4 h-4" />,
+      },
+      {
+        id: "admin-camp-attendance",
+        label: "출석 통합 관리",
+        href: "/admin/camp-attendance",
+        icon: <CheckCircle className="w-4 h-4" />,
+      },
+      {
+        id: "admin-camp-plans",
+        label: "플랜 통합 관리",
+        href: "/admin/camp-plans",
+        icon: <ClipboardList className="w-4 h-4" />,
+      },
+      {
+        id: "admin-camp-alerts",
+        label: "이상 징후 감지",
+        href: "/admin/camp-alerts",
+        icon: <AlertTriangle className="w-4 h-4" />,
+      },
+      {
+        id: "admin-camp-students",
+        label: "학생 통합 관리",
+        href: "/admin/camp-students",
+        icon: <UserCircle className="w-4 h-4" />,
       },
     ],
   },
