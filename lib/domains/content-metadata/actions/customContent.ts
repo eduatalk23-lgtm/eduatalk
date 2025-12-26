@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
   createMasterCustomContent,

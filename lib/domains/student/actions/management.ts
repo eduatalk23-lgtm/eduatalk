@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
-import { requireAdminOrConsultant } from "@/lib/auth/requireAdminOrConsultant";
+import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import {
