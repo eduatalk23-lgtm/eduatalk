@@ -10,6 +10,7 @@ import {
 } from '@/lib/domains/admin-plan/actions';
 import { usePlanToast } from './PlanToast';
 import { validateVolumeRange } from '@/lib/domains/admin-plan/validation';
+import { createTransactionContext } from '@/lib/supabase/transaction';
 
 interface RedistributeModalProps {
   planId: string;
@@ -212,23 +213,122 @@ export function RedistributeModal({
     const newVolume = newEnd - newStart;
 
     startTransition(async () => {
-      // 현재 플랜 업데이트
-      const { error: updateError } = await supabase
-        .from('student_plan')
-        .update({
-          planned_start_page_or_time: newStart,
-          planned_end_page_or_time: newEnd,
-          original_volume: originalVolume,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', planId);
+      // 트랜잭션 컨텍스트 생성
+      const tx = createTransactionContext();
 
-      if (updateError) {
-        showToast('플랜 업데이트 실패: ' + updateError.message, 'error');
+      // 1. 현재 플랜 업데이트
+      tx.add({
+        name: 'Update current plan',
+        rollbackId: planId,
+        execute: async () => {
+          const { error } = await supabase
+            .from('student_plan')
+            .update({
+              planned_start_page_or_time: newStart,
+              planned_end_page_or_time: newEnd,
+              original_volume: originalVolume,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', planId);
+
+          return { success: !error, error: error?.message };
+        },
+      });
+
+      // 2. 재분배 모드에 따른 추가 작업
+      if (mode === 'auto' && preview.length > 0) {
+        // 미래 플랜들 업데이트
+        for (const p of preview) {
+          tx.add({
+            name: `Update future plan ${p.id}`,
+            rollbackId: p.id,
+            execute: async () => {
+              const { error } = await supabase
+                .from('student_plan')
+                .update({
+                  planned_end_page_or_time: p.new_end,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', p.id);
+
+              return { success: !error, error: error?.message };
+            },
+          });
+        }
+      } else if (mode === 'weekly') {
+        // Weekly dock으로 이동 - 남은 볼륨으로 새 플랜 생성
+        const remainingVolume = Math.abs(volumeChange);
+        const newPlanStart = newEnd;
+        const newPlanEnd = newPlanStart + remainingVolume;
+
+        tx.add({
+          name: 'Create weekly plan',
+          execute: async () => {
+            const { error } = await supabase.from('student_plan').insert({
+              student_id: studentId,
+              tenant_id: tenantId,
+              plan_group_id: plan.plan_group_id,
+              content_id: plan.content_id,
+              content_title: plan.content_title,
+              content_subject: plan.content_subject,
+              custom_title: plan.custom_title,
+              plan_date: plan.plan_date,
+              planned_start_page_or_time: newPlanStart,
+              planned_end_page_or_time: newPlanEnd,
+              container_type: 'weekly',
+              is_active: true,
+              is_completed: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+            return { success: !error, error: error?.message };
+          },
+        });
+      } else if (mode === 'manual' && manualDate) {
+        // 특정 날짜에 새 플랜 추가
+        const remainingVolume = Math.abs(volumeChange);
+        const newPlanStart = newEnd;
+        const newPlanEnd = newPlanStart + remainingVolume;
+
+        tx.add({
+          name: 'Create manual plan',
+          execute: async () => {
+            const { error } = await supabase.from('student_plan').insert({
+              student_id: studentId,
+              tenant_id: tenantId,
+              plan_group_id: plan.plan_group_id,
+              content_id: plan.content_id,
+              content_title: plan.content_title,
+              content_subject: plan.content_subject,
+              custom_title: plan.custom_title,
+              plan_date: manualDate,
+              planned_start_page_or_time: newPlanStart,
+              planned_end_page_or_time: newPlanEnd,
+              container_type: 'daily',
+              is_active: true,
+              is_completed: false,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+            return { success: !error, error: error?.message };
+          },
+        });
+      }
+
+      // 트랜잭션 실행
+      const txResult = await tx.commit();
+
+      if (!txResult.success) {
+        showToast(
+          `재분배 중 오류 발생 (${txResult.completedCount}/${txResult.totalCount} 완료): ${txResult.error}`,
+          'error'
+        );
         return;
       }
 
-      // 볼륨 조정 이벤트 로깅
+      // 성공 시 이벤트 로깅
       if (plan.plan_group_id) {
         await logVolumeAdjusted(
           tenantId,
@@ -241,23 +341,8 @@ export function RedistributeModal({
             reason: mode === 'auto' ? '자동 재분배' : mode === 'weekly' ? 'Weekly Dock 이동' : '수동 지정',
           }
         );
-      }
 
-      // 재분배 모드에 따른 처리
-      if (mode === 'auto' && preview.length > 0) {
-        // 미래 플랜들 업데이트
-        for (const p of preview) {
-          await supabase
-            .from('student_plan')
-            .update({
-              planned_end_page_or_time: p.new_end,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', p.id);
-        }
-
-        // 재분배 이벤트 로깅
-        if (plan.plan_group_id) {
+        if (mode === 'auto' && preview.length > 0) {
           await logVolumeRedistributed(
             tenantId,
             studentId,
@@ -276,99 +361,39 @@ export function RedistributeModal({
             undefined,
             correlationId
           );
-        }
-      } else if (mode === 'weekly') {
-        // Weekly dock으로 이동 - 남은 볼륨으로 새 플랜 생성
-        const remainingVolume = Math.abs(volumeChange);
-        const newPlanStart = newEnd; // 현재 플랜의 끝에서 시작
-        const newPlanEnd = newPlanStart + remainingVolume;
-
-        const { error: insertError } = await supabase.from('student_plan').insert({
-          student_id: studentId,
-          tenant_id: tenantId,
-          plan_group_id: plan.plan_group_id,
-          content_id: plan.content_id,
-          content_title: plan.content_title,
-          content_subject: plan.content_subject,
-          custom_title: plan.custom_title,
-          plan_date: plan.plan_date, // 원본 날짜 유지
-          planned_start_page_or_time: newPlanStart,
-          planned_end_page_or_time: newPlanEnd,
-          container_type: 'weekly',
-          is_active: true,
-          is_completed: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        if (insertError) {
-          showToast('Weekly 플랜 생성 실패: ' + insertError.message, 'error');
-          return;
-        }
-
-        if (plan.plan_group_id) {
+        } else if (mode === 'weekly') {
           await logVolumeRedistributed(
             tenantId,
             studentId,
             plan.plan_group_id,
             {
               mode: 'weekly',
-              total_redistributed: remainingVolume,
+              total_redistributed: Math.abs(volumeChange),
               affected_dates: [],
               changes: [{
                 plan_id: 'new',
                 date: plan.plan_date,
                 original: 0,
-                new: remainingVolume,
+                new: Math.abs(volumeChange),
               }],
             },
             undefined,
             correlationId
           );
-        }
-      } else if (mode === 'manual' && manualDate) {
-        // 특정 날짜에 새 플랜 추가
-        const remainingVolume = Math.abs(volumeChange);
-        const newPlanStart = newEnd;
-        const newPlanEnd = newPlanStart + remainingVolume;
-
-        const { error: insertError } = await supabase.from('student_plan').insert({
-          student_id: studentId,
-          tenant_id: tenantId,
-          plan_group_id: plan.plan_group_id,
-          content_id: plan.content_id,
-          content_title: plan.content_title,
-          content_subject: plan.content_subject,
-          custom_title: plan.custom_title,
-          plan_date: manualDate,
-          planned_start_page_or_time: newPlanStart,
-          planned_end_page_or_time: newPlanEnd,
-          container_type: 'daily',
-          is_active: true,
-          is_completed: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        if (insertError) {
-          showToast('수동 플랜 생성 실패: ' + insertError.message, 'error');
-          return;
-        }
-
-        if (plan.plan_group_id) {
+        } else if (mode === 'manual' && manualDate) {
           await logVolumeRedistributed(
             tenantId,
             studentId,
             plan.plan_group_id,
             {
               mode: 'manual',
-              total_redistributed: remainingVolume,
+              total_redistributed: Math.abs(volumeChange),
               affected_dates: [manualDate],
               changes: [{
                 plan_id: 'new',
                 date: manualDate,
                 original: 0,
-                new: remainingVolume,
+                new: Math.abs(volumeChange),
               }],
             },
             undefined,

@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
+import { createTransactionContext } from '@/lib/supabase/transaction';
 import { logPlanCarryover, generateCorrelationId } from './planEvent';
 import type { AdminPlanResponse } from '../types';
 
@@ -70,9 +71,16 @@ export async function runCarryoverForStudent(
       };
     }
 
-    const carryoverResults: CarryoverResult['carryoverPlans'] = [];
+    // 트랜잭션 컨텍스트 생성 - 모든 업데이트를 그룹화
+    const tx = createTransactionContext<{
+      id: string;
+      title: string;
+      fromDate: string;
+      carryoverCount: number;
+      remainingVolume: number;
+    }>();
 
-    // 각 플랜을 Unfinished로 이동
+    // 각 플랜에 대한 업데이트 작업 추가
     for (const plan of incompletePlans) {
       const newCarryoverCount = (plan.carryover_count ?? 0) + 1;
       const originalDate = plan.carryover_from_date ?? plan.plan_date;
@@ -86,36 +94,74 @@ export async function runCarryoverForStudent(
         (plan.completed_start_page_or_time ?? 0);
       const remainingVolume = Math.max(0, plannedVolume - completedVolume);
 
-      // Unfinished로 이동 (tenant 격리)
-      const { error: updateError } = await supabase
-        .from('student_plan')
-        .update({
-          container_type: 'unfinished',
-          carryover_count: newCarryoverCount,
-          carryover_from_date: originalDate,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', plan.id)
-        .eq('tenant_id', input.tenantId);
+      tx.add({
+        name: `Carryover plan ${plan.id}`,
+        rollbackId: plan.id,
+        execute: async () => {
+          // Unfinished로 이동 (tenant 격리)
+          const { error: updateError } = await supabase
+            .from('student_plan')
+            .update({
+              container_type: 'unfinished',
+              carryover_count: newCarryoverCount,
+              carryover_from_date: originalDate,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', plan.id)
+            .eq('tenant_id', input.tenantId);
 
-      if (updateError) {
-        console.error(`Failed to carryover plan ${plan.id}:`, updateError);
-        continue;
-      }
+          if (updateError) {
+            return { success: false, error: updateError.message };
+          }
 
-      // 이벤트 로깅
-      await logPlanCarryover(input.tenantId, input.studentId, plan.id, {
-        from_date: plan.plan_date,
+          return {
+            success: true,
+            data: {
+              id: plan.id,
+              title: plan.custom_title ?? plan.content_title ?? '제목 없음',
+              fromDate: plan.plan_date,
+              carryoverCount: newCarryoverCount,
+              remainingVolume,
+            },
+          };
+        },
+      });
+    }
+
+    // 트랜잭션 실행
+    const txResult = await tx.commit();
+
+    if (!txResult.success) {
+      // 부분 실패 시 롤백 정보와 함께 에러 반환
+      console.error('Carryover transaction failed:', {
+        error: txResult.error,
+        completedCount: txResult.completedCount,
+        totalCount: txResult.totalCount,
+        rollbackIds: txResult.rollbackIds,
+      });
+
+      return {
+        success: false,
+        error: `이월 처리 중 오류 발생 (${txResult.completedCount}/${txResult.totalCount} 완료): ${txResult.error}`,
+      };
+    }
+
+    // 성공한 플랜들에 대해 이벤트 로깅
+    const carryoverResults: CarryoverResult['carryoverPlans'] = [];
+
+    for (const result of txResult.data ?? []) {
+      await logPlanCarryover(input.tenantId, input.studentId, result.id, {
+        from_date: result.fromDate,
         to_date: today,
-        carryover_count: newCarryoverCount,
-        remaining_volume: remainingVolume,
+        carryover_count: result.carryoverCount,
+        remaining_volume: result.remainingVolume,
       });
 
       carryoverResults.push({
-        id: plan.id,
-        title: plan.custom_title ?? plan.content_title ?? '제목 없음',
-        fromDate: plan.plan_date,
-        carryoverCount: newCarryoverCount,
+        id: result.id,
+        title: result.title,
+        fromDate: result.fromDate,
+        carryoverCount: result.carryoverCount,
       });
     }
 
