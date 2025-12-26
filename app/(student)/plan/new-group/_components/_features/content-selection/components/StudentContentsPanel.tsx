@@ -11,6 +11,7 @@ import { ContentCard } from "./ContentCard";
 import { ContentSelector } from "./ContentSelector";
 import { RangeSettingModal } from "./RangeSettingModal";
 import { fetchContentMetadataAction } from "@/lib/domains/content";
+import { hasMasterContentId } from "../../../utils/typeGuards";
 
 /**
  * StudentContentsPanel - 학생 콘텐츠 선택 패널
@@ -95,7 +96,7 @@ export function StudentContentsPanel({
         if (content?.master_content_id) {
           // 이미 선택된 콘텐츠 중 같은 master_content_id를 가진 것이 있는지 확인
           const hasDuplicateMasterId = selectedContents.some(
-            (c) => (c as any).master_content_id === content.master_content_id
+            (c) => hasMasterContentId(c) && c.master_content_id === content.master_content_id
           );
 
           if (hasDuplicateMasterId) {

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Info } from "lucide-react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
+import { type NonStudyTimeBlockType, isValidNonStudyTimeBlockType } from "../../../utils/typeGuards";
 
 type NonStudyTimeBlocksPanelProps = {
   data: WizardData;
@@ -172,10 +173,13 @@ export const NonStudyTimeBlocksPanel = React.memo(function NonStudyTimeBlocksPan
                   value={newNonStudyTimeBlock.type}
                   onChange={(e) => {
                     if (!editable) return;
-                    setNewNonStudyTimeBlock({
-                      ...newNonStudyTimeBlock,
-                      type: e.target.value as any,
-                    });
+                    const value = e.target.value;
+                    if (isValidNonStudyTimeBlockType(value)) {
+                      setNewNonStudyTimeBlock({
+                        ...newNonStudyTimeBlock,
+                        type: value,
+                      });
+                    }
                   }}
                   disabled={!editable}
                 >

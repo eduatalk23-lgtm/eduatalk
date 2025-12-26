@@ -8,6 +8,12 @@ import { RangeSettingModal } from "./RangeSettingModal";
 import { searchContentMastersAction } from "@/lib/domains/content";
 import { Package, Search, BookOpen, Headphones } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  hasMasterContentId,
+  extractMasterContentIds,
+  findContentByMasterId,
+  filterContentsWithMasterId,
+} from "../../../utils/typeGuards";
 
 type MasterContentsPanelProps = {
   selectedContents: SelectedContent[];
@@ -71,13 +77,7 @@ export function MasterContentsPanel({
 
   // 이미 선택된 마스터 콘텐츠 ID 수집 (중복 체크용)
   const selectedMasterIds = useMemo(() => {
-    const ids = new Set<string>();
-    selectedContents.forEach((c) => {
-      if ((c as any).master_content_id) {
-        ids.add((c as any).master_content_id);
-      }
-    });
-    return ids;
+    return extractMasterContentIds(selectedContents);
   }, [selectedContents]);
 
   // 개정교육과정 목록 로드
@@ -349,8 +349,9 @@ export function MasterContentsPanel({
         return;
       }
 
-      const masterContentId =
-        (content as any).master_content_id || content.content_id;
+      const masterContentId = hasMasterContentId(content)
+        ? content.master_content_id
+        : content.content_id;
 
       setRangeModalContent({
         id: masterContentId,
@@ -378,7 +379,7 @@ export function MasterContentsPanel({
 
       // 기존 콘텐츠 찾기 (master_content_id로 검색)
       const existingIndex = selectedContents.findIndex(
-        (c) => (c as any).master_content_id === masterContentId
+        (c) => hasMasterContentId(c) && c.master_content_id === masterContentId
       );
 
       const newContent: SelectedContent = {
@@ -416,7 +417,7 @@ export function MasterContentsPanel({
 
   // 마스터 콘텐츠에서 추가된 콘텐츠만 필터링
   const masterContentsAdded = useMemo(() => {
-    return selectedContents.filter((c) => (c as any).master_content_id);
+    return filterContentsWithMasterId(selectedContents);
   }, [selectedContents]);
 
   return (
@@ -695,10 +696,9 @@ export function MasterContentsPanel({
           </div>
           <div className="space-y-3">
             {masterContentsAdded.map((content) => {
-              const masterId = (content as any).master_content_id;
               return (
                 <ContentCard
-                  key={masterId || content.content_id}
+                  key={content.master_content_id || content.content_id}
                   content={{
                     id: content.content_id,
                     title: content.title || "제목 없음",

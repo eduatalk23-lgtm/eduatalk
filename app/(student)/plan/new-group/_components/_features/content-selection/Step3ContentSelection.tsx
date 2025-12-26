@@ -87,7 +87,7 @@ function Step3ContentSelectionComponent({
   const handleSlotModeChange = useCallback(
     (newUseSlotMode: boolean) => {
       if (onUpdate) {
-        onUpdate({ use_slot_mode: newUseSlotMode } as any);
+        onUpdate({ use_slot_mode: newUseSlotMode } as Partial<WizardData>);
       }
     },
     [onUpdate]
@@ -97,7 +97,7 @@ function Step3ContentSelectionComponent({
   const handleContentSlotsChange = useCallback(
     (slots: ContentSlot[]) => {
       if (onUpdate) {
-        onUpdate({ content_slots: slots } as any);
+        onUpdate({ content_slots: slots } as Partial<WizardData>);
       }
     },
     [onUpdate]
@@ -154,7 +154,7 @@ function Step3ContentSelectionComponent({
     onUpdate: (updates) => {
       // onUpdate가 WizardData 전체를 받을 수 있도록 래핑
       if (onUpdate) {
-        onUpdate(updates as any);
+        onUpdate(updates as Partial<WizardData>);
       }
     },
   });
@@ -267,7 +267,7 @@ function Step3ContentSelectionComponent({
       });
 
       if (onUpdate) {
-        const updatePayload = { student_contents: contents } as any;
+        const updatePayload: Partial<WizardData> = { student_contents: contents };
         console.log("[Step3ContentSelection] onUpdate 호출:", {
           updatePayload,
           hasOnUpdate: !!onUpdate,
@@ -285,7 +285,7 @@ function Step3ContentSelectionComponent({
   const handleRecommendedContentsUpdate = useCallback(
     (contents: typeof data.recommended_contents) => {
       if (onUpdate) {
-        onUpdate({ recommended_contents: contents } as any);
+        onUpdate({ recommended_contents: contents } as Partial<WizardData>);
       }
 
       // 선택된 ID 업데이트

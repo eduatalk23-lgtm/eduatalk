@@ -437,15 +437,14 @@ export function ContentList({
                                     const endDetailIdValue =
                                       endDetailId.get(contentKey) || null;
                                     
-                                    // any 타입으로 캐스팅하여 업데이트 (WizardData 타입 호환성)
-                                    // 실제로는 student_contents와 recommended_contents 타입이 거의 동일함
+                                    // 업데이트된 콘텐츠 (student_contents와 recommended_contents는 동일한 기본 구조)
                                     updated[index] = {
                                       ...content,
                                       start_range: start,
                                       end_range: end,
                                       start_detail_id: startDetailIdValue,
                                       end_detail_id: endDetailIdValue,
-                                    } as any;
+                                    } as (typeof contents)[number];
 
                                     onUpdateContents(updated);
                                     setEditingRangeIndex(null);

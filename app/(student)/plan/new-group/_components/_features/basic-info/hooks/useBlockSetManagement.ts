@@ -100,6 +100,17 @@ export function useBlockSetManagement({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // B1 개선: 블록 세트가 하나만 있으면 자동 선택
+  useEffect(() => {
+    // 이미 선택된 블록 세트가 있거나 캠프 모드면 스킵
+    if (data.block_set_id || isCampMode || isTemplateMode) return;
+
+    // 블록 세트가 정확히 1개일 때 자동 선택
+    if (blockSets.length === 1) {
+      onUpdate({ block_set_id: blockSets[0].id });
+    }
+  }, [blockSets, data.block_set_id, isCampMode, isTemplateMode, onUpdate]);
+
   // 템플릿 블록 세트 자동 선택
   useEffect(() => {
     if (data.block_set_id && blockSets && blockSets.length > 0) {

@@ -6,6 +6,7 @@ import { ContentRangeInput } from "./ContentRangeInput";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { validateRangeInput } from "@/lib/utils/rangeValidation";
+import { getDetailRangeLabel } from "../../../utils/typeGuards";
 
 /** API 응답 타입 */
 type ContentDetailsApiResponse = {
@@ -501,14 +502,8 @@ export function RangeSettingModal({
       }
 
       // 범위 문자열 생성
-      const startStr =
-        content.type === "book"
-          ? `p.${(startDetail as any).page_number}`
-          : `${(startDetail as any).episode_number}강`;
-      const endStr =
-        content.type === "book"
-          ? `p.${(endDetail as any).page_number}`
-          : `${(endDetail as any).episode_number}강`;
+      const startStr = getDetailRangeLabel(startDetail, content.type);
+      const endStr = getDetailRangeLabel(endDetail, content.type);
 
       onSave({
         start: startStr,

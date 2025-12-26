@@ -121,7 +121,7 @@ export function RecommendedContentsPanel({
           content,
           allKeys: Object.keys(content),
           contentType: content.contentType,
-          content_type: (content as any).content_type,
+          content_type: (content as Record<string, unknown>).content_type,
         });
         alert("콘텐츠 타입 정보가 없습니다. 페이지를 새로고침해주세요.");
         return;

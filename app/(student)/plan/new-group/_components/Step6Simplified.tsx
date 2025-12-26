@@ -13,6 +13,7 @@ import {
 import { PlanWizardContext } from "./_context/PlanWizardContext";
 import { StrategyWeaknessAllocationEditor } from "./_features/content-selection/Step6FinalReview/StrategyWeaknessAllocationEditor";
 import { useContentInfos } from "./_features/content-selection/Step6FinalReview/hooks/useContentInfos";
+import type { WizardStep } from "./utils/typeGuards";
 
 /**
  * Step6Simplified - 최종 확인 (간소화)
@@ -109,7 +110,7 @@ export function Step6Simplified({
   // Props가 있으면 우선 사용, 없으면 Context에서 가져오기
   const data = dataProp ?? contextData;
   const onUpdate = onUpdateProp ?? contextUpdateData ?? (() => {}); // fallback to no-op
-  const onEditStep = onEditStepProp ?? (setStep ? (step: 1 | 2 | 4) => setStep(step as any) : undefined);
+  const onEditStep = onEditStepProp ?? (setStep ? (step: 1 | 2 | 4) => setStep(step as WizardStep) : undefined);
 
   // data가 없으면 에러 메시지 표시
   if (!data) {

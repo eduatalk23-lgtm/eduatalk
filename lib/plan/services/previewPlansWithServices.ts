@@ -107,12 +107,14 @@ export async function previewPlansWithServices(
     const {
       group,
       contentMetadataMap,
+      contentIdMap,
       weekDatesMap,
       dateAllocations,
     } = preparedData;
 
     logger.debug("previewPlansWithServices", "데이터 준비 완료", {
       dateAllocationsCount: dateAllocations.length,
+      contentIdMapSize: contentIdMap.size,
     });
 
     // DEBUG: 데이터 확인
@@ -137,7 +139,12 @@ export async function previewPlansWithServices(
       let blockIndex = 1;
 
       for (const segment of segments) {
-        const metadata = contentMetadataMap.get(segment.plan.content_id);
+        // 원본 content_id에서 변환된 ID 조회 (마스터 콘텐츠 ID → 학생 콘텐츠 ID)
+        const originalContentId = segment.plan.content_id;
+        const resolvedContentId = contentIdMap.get(originalContentId) ?? originalContentId;
+
+        // 메타데이터는 변환된 ID로 조회
+        const metadata = contentMetadataMap.get(resolvedContentId) ?? contentMetadataMap.get(originalContentId);
 
         // 주차별 일차 계산
         let weekDay: number | null = null;
@@ -159,8 +166,8 @@ export async function previewPlansWithServices(
           }
         }
 
-        // 플랜 번호 부여
-        const planKey = `${date}:${segment.plan.content_id}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
+        // 플랜 번호 부여 (변환된 ID 사용)
+        const planKey = `${date}:${resolvedContentId}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
         let planNumber: number | null = null;
 
         if (previewPlanNumberMap.has(planKey)) {
@@ -178,7 +185,7 @@ export async function previewPlansWithServices(
             blockIndex,
             planKey,
             planNumber,
-            content_id: segment.plan.content_id.substring(0, 8),
+            content_id: resolvedContentId.substring(0, 8),
           });
         }
 
@@ -186,7 +193,7 @@ export async function previewPlansWithServices(
           plan_date: date,
           block_index: blockIndex,
           content_type: segment.plan.content_type,
-          content_id: segment.plan.content_id,
+          content_id: resolvedContentId, // 변환된 학생 콘텐츠 ID 사용
           content_title: metadata?.title ?? null,
           content_subject: metadata?.subject ?? null,
           content_subject_category: metadata?.subject_category ?? null,

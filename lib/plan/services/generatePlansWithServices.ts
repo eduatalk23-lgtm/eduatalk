@@ -88,10 +88,11 @@ export async function generatePlansWithServices(
       };
     }
 
-    const { contentMetadataMap, dateAllocations } = preparedData;
+    const { contentMetadataMap, contentIdMap, dateAllocations } = preparedData;
 
     logger.debug("generatePlansWithServices", "데이터 준비 완료", {
       dateAllocationsCount: dateAllocations.length,
+      contentIdMapSize: contentIdMap.size,
     });
 
     // 8. 플랜 페이로드 생성
@@ -109,10 +110,15 @@ export async function generatePlansWithServices(
 
     for (const { date, segments, dateMetadata, dayType } of dateAllocations) {
       segments.forEach((segment, index) => {
-        const metadata = contentMetadataMap.get(segment.plan.content_id);
+        // 원본 content_id에서 변환된 ID 조회 (마스터 콘텐츠 ID → 학생 콘텐츠 ID)
+        const originalContentId = segment.plan.content_id;
+        const resolvedContentId = contentIdMap.get(originalContentId) ?? originalContentId;
+
+        // 메타데이터는 변환된 ID로 조회 (contentMetadataMap은 변환된 ID를 키로 사용)
+        const metadata = contentMetadataMap.get(resolvedContentId) ?? contentMetadataMap.get(originalContentId);
 
         // plan_number 계산: 동일한 날짜+콘텐츠+범위는 같은 번호 부여
-        const planKey = `${date}:${segment.plan.content_id}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
+        const planKey = `${date}:${resolvedContentId}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
         let planNumber: number;
 
         if (planNumberMap.has(planKey)) {
@@ -127,7 +133,7 @@ export async function generatePlansWithServices(
           plan_date: date,
           block_index: segment.plan.block_index ?? index,
           content_type: segment.plan.content_type,
-          content_id: segment.plan.content_id,
+          content_id: resolvedContentId, // 변환된 학생 콘텐츠 ID 사용
           planned_start_page_or_time: segment.plan.planned_start_page_or_time,
           planned_end_page_or_time: segment.plan.planned_end_page_or_time,
           chapter: null,
