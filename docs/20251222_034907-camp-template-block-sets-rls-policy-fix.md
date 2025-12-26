@@ -69,3 +69,4 @@ ALTER TABLE camp_template_block_sets ENABLE ROW LEVEL SECURITY;
 
 
 
+
