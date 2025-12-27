@@ -181,8 +181,7 @@ export async function startPlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 현재 경로만 재검증 (성능 최적화)
-    await revalidateTimerPaths(false, false);
+    // 클라이언트에서 React Query invalidateQueries로 처리 (Optimistic Update)
     return {
       success: true,
       sessionId: result.sessionId,
@@ -436,8 +435,9 @@ export async function completePlan(
     }
 
     // 플랜의 actual_end_time 및 시간 정보 업데이트
+    // 항상 현재 시간을 사용하여 정확한 종료 시간 기록
     const now = new Date();
-    const actualEndTime = plan.actual_end_time || now.toISOString();
+    const actualEndTime = now.toISOString();
 
     // 플랜의 actual_start_time 조회
     const { data: planData } = await supabase
@@ -585,7 +585,7 @@ export async function completePlan(
       updatePromises.map((item) => item.promise)
     );
 
-    // 실패한 플랜 업데이트 로깅
+    // 실패한 플랜 업데이트 확인
     const failedPlanUpdates = planUpdateResults
       .map((result, idx) => ({ result, planId: updatePromises[idx].planId }))
       .filter((item) => item.result.status === "rejected");
@@ -600,6 +600,15 @@ export async function completePlan(
           failedPlanIds: failedPlanUpdates.map((f) => f.planId),
         },
       });
+
+      // 메인 플랜 업데이트 실패 시 에러 반환
+      const mainPlanFailed = failedPlanUpdates.some((f) => f.planId === planId);
+      if (mainPlanFailed) {
+        return {
+          success: false,
+          error: "플랜 완료 저장에 실패했습니다. 다시 시도해주세요.",
+        };
+      }
     }
 
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
@@ -740,28 +749,33 @@ export async function pausePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 플랜 조회 (상태 판별용)
-    const { data: plan, error: planError } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, actual_end_time")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
+    // [병렬화 최적화] 플랜과 세션을 동시에 조회
+    const [planResult, sessionResult] = await Promise.all([
+      // 플랜 조회 (상태 판별용 + paused_duration_seconds 포함)
+      supabase
+        .from("student_plan")
+        .select("actual_start_time, actual_end_time, paused_duration_seconds")
+        .eq("id", planId)
+        .eq("student_id", user.userId)
+        .maybeSingle(),
+      // 활성 세션 조회 (최신 세션만)
+      supabase
+        .from("student_study_sessions")
+        .select("id, started_at, paused_at, resumed_at, ended_at, paused_duration_seconds")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const { data: plan, error: planError } = planResult;
+    const { data: activeSession, error: sessionError } = sessionResult;
 
     if (planError || !plan) {
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
-
-    // 활성 세션 조회 (최신 세션만 조회하여 최적화)
-    const { data: activeSession, error: sessionError } = await supabase
-      .from("student_study_sessions")
-      .select("id, started_at, paused_at, resumed_at, ended_at, paused_duration_seconds")
-      .eq("plan_id", planId)
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(); // 최신 세션만 조회
 
     if (!activeSession) {
       return { success: false, error: "활성 세션을 찾을 수 없습니다. 플랜을 먼저 시작해주세요." };
@@ -786,16 +800,26 @@ export async function pausePlan(
     // 클라이언트에서 전달한 타임스탬프 사용, 없으면 서버에서 생성 (하위 호환성)
     const pauseTimestamp = timestamp || new Date().toISOString();
 
-    // 재개 후 다시 일시정지하는 경우를 위해 resumed_at을 null로 리셋
-    // 이전 일시정지 시간이 있다면 paused_duration_seconds에 이미 누적되어 있음
-    const { error: pauseError } = await supabase
-      .from("student_study_sessions")
-      .update({
-        paused_at: pauseTimestamp,
-        resumed_at: null, // 재개 후 다시 일시정지할 때 리셋
-      })
-      .eq("id", activeSession.id)
-      .eq("student_id", user.userId);
+    // [병렬화 최적화] 세션 업데이트와 pause_count 증가를 동시에 실행
+    const [sessionUpdateResult, rpcResult] = await Promise.all([
+      // 재개 후 다시 일시정지하는 경우를 위해 resumed_at을 null로 리셋
+      supabase
+        .from("student_study_sessions")
+        .update({
+          paused_at: pauseTimestamp,
+          resumed_at: null, // 재개 후 다시 일시정지할 때 리셋
+        })
+        .eq("id", activeSession.id)
+        .eq("student_id", user.userId),
+      // 플랜의 pause_count 증가 (RPC 함수)
+      supabase.rpc("increment_pause_count", {
+        p_plan_id: planId,
+        p_student_id: user.userId,
+      }),
+    ]);
+
+    const { error: pauseError } = sessionUpdateResult;
+    const { error: rpcError } = rpcResult;
 
     if (pauseError) {
       timerLogger.error("세션 일시정지 오류", {
@@ -805,15 +829,6 @@ export async function pausePlan(
       });
       return { success: false, error: "세션 일시정지에 실패했습니다." };
     }
-
-    // 플랜의 pause_count 증가 (RPC 함수로 한 번의 쿼리로 최적화)
-    const { data: newPauseCount, error: rpcError } = await supabase.rpc(
-      "increment_pause_count",
-      {
-        p_plan_id: planId,
-        p_student_id: user.userId,
-      }
-    );
 
     if (rpcError) {
       timerLogger.warn("pause_count 증가 오류", {
@@ -827,27 +842,19 @@ export async function pausePlan(
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
-    // 플랜의 현재 누적 시간 계산 (플랜의 paused_duration_seconds만 사용 - 단일 소스 원칙)
+    // 플랜의 현재 누적 시간 계산 (첫 조회에서 이미 paused_duration_seconds를 가져옴)
     let accumulatedSeconds = 0;
     if (activeSession?.started_at) {
       const sessionStartMs = new Date(activeSession.started_at).getTime();
       const now = Date.now();
       const elapsed = Math.floor((now - sessionStartMs) / 1000);
 
-      // 플랜의 paused_duration_seconds만 사용 (세션 값은 사용하지 않음 - 이중 계산 방지)
-      const { data: planData } = await supabase
-        .from("student_plan")
-        .select("paused_duration_seconds")
-        .eq("id", planId)
-        .eq("student_id", user.userId)
-        .maybeSingle();
-
-      const planPausedDuration = planData?.paused_duration_seconds || 0;
+      // 플랜의 paused_duration_seconds 사용 (추가 쿼리 없이 첫 조회에서 가져온 값)
+      const planPausedDuration = plan.paused_duration_seconds || 0;
       accumulatedSeconds = Math.max(0, elapsed - planPausedDuration);
     }
 
-    // 현재 경로만 재검증 (성능 최적화)
-    await revalidateTimerPaths(false, false);
+    // 클라이언트에서 React Query invalidateQueries로 처리 (Optimistic Update)
     return {
       success: true,
       serverNow,
@@ -882,28 +889,33 @@ export async function resumePlan(
   try {
     const supabase = await createSupabaseServerClient();
 
-    // 플랜 조회 (상태 판별용)
-    const { data: plan, error: planError } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, actual_end_time")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
+    // [병렬화 최적화] 플랜과 세션을 동시에 조회
+    const [planResult, sessionResult] = await Promise.all([
+      // 플랜 조회 (상태 판별용 + paused_duration_seconds 포함)
+      supabase
+        .from("student_plan")
+        .select("actual_start_time, actual_end_time, paused_duration_seconds")
+        .eq("id", planId)
+        .eq("student_id", user.userId)
+        .maybeSingle(),
+      // 활성 세션 조회 (최신 세션만)
+      supabase
+        .from("student_study_sessions")
+        .select("id, started_at, paused_at, paused_duration_seconds, resumed_at, ended_at")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const { data: plan, error: planError } = planResult;
+    const { data: activeSession, error: sessionError } = sessionResult;
 
     if (planError || !plan) {
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
-
-    // 활성 세션 조회 (최신 세션만 조회하여 최적화)
-    const { data: activeSession, error: sessionError } = await supabase
-      .from("student_study_sessions")
-      .select("id, started_at, paused_at, paused_duration_seconds, resumed_at, ended_at")
-      .eq("plan_id", planId)
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(); // 최신 세션만 조회
 
     if (!activeSession) {
       return { success: false, error: "활성 세션을 찾을 수 없습니다." };
@@ -929,39 +941,35 @@ export async function resumePlan(
     const resumedAt = timestamp ? new Date(timestamp) : new Date();
     const pauseDuration = Math.max(0, Math.floor((resumedAt.getTime() - pausedAt.getTime()) / 1000));
 
-    // 세션 재개 (resumed_at만 업데이트, paused_duration_seconds는 플랜에서만 관리)
-    await supabase
-      .from("student_study_sessions")
-      .update({
-        resumed_at: resumedAt.toISOString(),
-      })
-      .eq("id", activeSession.id);
-
-    // 플랜의 paused_duration_seconds 업데이트 (단일 소스 원칙: 플랜에서만 관리)
-    const { data: planData } = await supabase
-      .from("student_plan")
-      .select("actual_start_time, paused_duration_seconds")
-      .eq("id", planId)
-      .eq("student_id", user.userId)
-      .maybeSingle();
-
-    const planPausedDuration = planData?.paused_duration_seconds || 0;
+    // 첫 조회에서 가져온 paused_duration_seconds 사용 (추가 쿼리 제거)
+    const planPausedDuration = plan.paused_duration_seconds || 0;
     const updatedPlanPausedDuration = planPausedDuration + pauseDuration;
 
-    await supabase
-      .from("student_plan")
-      .update({
-        paused_duration_seconds: updatedPlanPausedDuration,
-      })
-      .eq("id", planId)
-      .eq("student_id", user.userId);
+    // [병렬화 최적화] 세션 업데이트와 플랜 업데이트를 동시에 실행
+    await Promise.all([
+      // 세션 재개 (resumed_at만 업데이트)
+      supabase
+        .from("student_study_sessions")
+        .update({
+          resumed_at: resumedAt.toISOString(),
+        })
+        .eq("id", activeSession.id),
+      // 플랜의 paused_duration_seconds 업데이트
+      supabase
+        .from("student_plan")
+        .update({
+          paused_duration_seconds: updatedPlanPausedDuration,
+        })
+        .eq("id", planId)
+        .eq("student_id", user.userId),
+    ]);
 
     // 서버 현재 시간 반환
     const serverNow = Date.now();
 
     let accumulatedSeconds = 0;
     let startedAt: string | null = null;
-    if (planData?.actual_start_time && activeSession?.started_at) {
+    if (plan.actual_start_time && activeSession?.started_at) {
       const sessionStartMs = new Date(activeSession.started_at).getTime();
       const now = Date.now();
       const elapsed = Math.floor((now - sessionStartMs) / 1000);
@@ -970,8 +978,7 @@ export async function resumePlan(
       startedAt = activeSession.started_at;
     }
 
-    // 현재 경로만 재검증 (성능 최적화)
-    await revalidateTimerPaths(false, false);
+    // 클라이언트에서 React Query invalidateQueries로 처리 (Optimistic Update)
     return {
       success: true,
       serverNow,

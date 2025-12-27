@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { textPrimaryVar, textSecondaryVar } from "@/lib/utils/darkMode";
+import { textPrimaryVar, textSecondaryVar, textTertiaryVar } from "@/lib/utils/darkMode";
 
 type PageHeaderProps = {
   title: string;
@@ -8,6 +9,10 @@ type PageHeaderProps = {
   action?: ReactNode;
   className?: string;
   level?: "h1" | "h2";
+  /** 뒤로가기 링크 URL */
+  backHref?: string;
+  /** 뒤로가기 링크 라벨 (기본값: "뒤로 가기") */
+  backLabel?: string;
 };
 
 /**
@@ -28,11 +33,38 @@ export function PageHeader({
   action,
   className,
   level = "h1",
+  backHref,
+  backLabel = "뒤로 가기",
 }: PageHeaderProps) {
   const HeadingTag = level;
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
+      {backHref && (
+        <Link
+          href={backHref}
+          className={cn(
+            "inline-flex items-center gap-1 text-sm font-medium transition-colors hover:underline w-fit",
+            textTertiaryVar,
+            "hover:text-[rgb(var(--color-primary-600))] dark:hover:text-[rgb(var(--color-primary-400))]"
+          )}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          {backLabel}
+        </Link>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-2 flex-1 min-w-0">
           <HeadingTag className={cn("text-h1", textPrimaryVar)}>{title}</HeadingTag>

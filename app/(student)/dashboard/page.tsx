@@ -7,6 +7,8 @@ import {
   fetchActivePlanIdOnly,
 } from "./_utils";
 import { ActiveLearningWidget } from "./_components/ActiveLearningWidget";
+import { SmartInsightsCard } from "./_components/SmartInsightsCard";
+import { LearningStatsCard } from "./_components/LearningStatsCard";
 import { perfTime } from "@/lib/utils/perfLog";
 import { getDashboardCategories } from "@/lib/navigation/dashboardUtils";
 import { getContainerClass } from "@/lib/constants/layout";
@@ -89,6 +91,12 @@ export default async function DashboardPage() {
 
           {/* 실시간 학습 중 위젯 (지연 로딩) */}
           {activePlanId && <ActiveLearningWidget activePlanId={activePlanId} />}
+
+          {/* 스마트 인사이트 & 학습 통계 */}
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+            <SmartInsightsCard />
+            <LearningStatsCard />
+          </div>
 
           {/* 주요 기능 바로가기 */}
           <div className="flex flex-col gap-4 md:gap-6">

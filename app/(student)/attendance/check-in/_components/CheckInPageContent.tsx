@@ -70,13 +70,14 @@ export function CheckInPageContent({
     try {
       const result = await checkOut();
       if (result.success) {
+        showSuccess("퇴실 체크가 완료되었습니다.");
         await loadAttendance();
       } else {
-        alert(result.error || "퇴실 체크에 실패했습니다.");
+        showError(result.error || "퇴실 체크에 실패했습니다.");
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "퇴실 체크 중 오류가 발생했습니다.";
-      alert(errorMessage);
+      showError(errorMessage);
     } finally {
       setCheckingOut(false);
     }

@@ -7,7 +7,6 @@ import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
 import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
 import { TodayPlansSection } from "@/app/(student)/today/_components/TodayPlansSection";
-import { TodayAchievementsSection } from "@/app/(student)/today/_components/TodayAchievementsSection";
 import { TodayPageContextProvider } from "@/app/(student)/today/_components/TodayPageContext";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";
 import { CompletionToast } from "@/app/(student)/today/_components/CompletionToast";
@@ -79,24 +78,12 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
     return undefined;
   };
 
-  const dateParam = getParam("date");
-  const viewParam = getParam("view");
   const completedPlanIdParam = getParam("completedPlanId");
-
-  const requestedDate =
-    typeof dateParam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
-      ? dateParam
-      : undefined;
-
-  const requestedView =
-    viewParam === "single" || viewParam === "daily" ? viewParam : "daily";
 
   // 오늘 날짜 계산
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayDate = today.toISOString().slice(0, 10);
-
-  const targetProgressDate = requestedDate ?? todayDate;
 
   // 활성화된 캠프 플랜 그룹 확인 및 템플릿 검증
   const supabase = await createSupabaseServerClient();
@@ -179,7 +166,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
   const todayPlansData = await getTodayPlans({
     studentId: userId,
     tenantId: tenantContext?.tenantId || null,
-    date: requestedDate,
+    date: todayDate,
     camp: true,
     includeProgress: true, // Include progress to avoid separate /api/today/progress call
     narrowQueries: true, // Optimize: only fetch progress/sessions for relevant plans
@@ -211,7 +198,7 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
 
   const page = (
     <TodayPageContextProvider
-      initialProgressDate={targetProgressDate}
+      initialProgressDate={todayDate}
       initialProgress={todayProgress}
       initialPlansData={plansDataForContext}
     >
@@ -227,22 +214,11 @@ export default async function CampTodayPage({ searchParams }: CampTodayPageProps
           </div>
           <CurrentLearningSection campMode={true} />
           <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-8">
-              <TodayPlansSection
-                initialMode={requestedView}
-                initialPlanDate={requestedDate}
-                userId={userId}
-                campMode={true}
-                initialPlansData={plansDataForContext}
-              />
-            </div>
-            <div className="lg:col-span-4">
-              <div className="sticky top-6 flex flex-col gap-4">
-                <TodayAchievementsSection />
-              </div>
-            </div>
-          </div>
+          <TodayPlansSection
+            userId={userId}
+            campMode={true}
+            initialPlansData={plansDataForContext}
+          />
         </div>
       </div>
     </TodayPageContextProvider>

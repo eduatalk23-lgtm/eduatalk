@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { Badge } from "@/components/atoms/Badge";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
 import { buildPlanExecutionUrl } from "../_utils/navigationUtils";
+import { cn } from "@/lib/cn";
+import {
+  completedPlanStyles,
+  getCompletedPlanClasses,
+} from "@/lib/utils/darkMode";
 
 type TodayPlanItemProps = {
   plan: Plan & {
@@ -57,35 +63,65 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
   const status = getPlanStatus(plan);
   const statusLabel = statusLabels[status];
   const statusVariant = getStatusVariant(status);
+  const isCompleted = status === "completed" || !!plan.actual_end_time;
 
   const contentTitle = plan.content?.title || "제목 없음";
   const contentType = contentTypeLabels[plan.content_type] || plan.content_type;
 
   return (
-    <div className="transition">
+    <div
+      className={cn(
+        "rounded-lg border p-4 transition",
+        isCompleted
+          ? getCompletedPlanClasses("subtle")
+          : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+      )}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between">
-          <div className="flex-1 flex flex-col gap-1">
+          <div className="flex flex-1 flex-col gap-1">
             <div className="flex items-center gap-2">
+              {isCompleted && (
+                <span className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+                </span>
+              )}
               <Badge variant={statusVariant} size="sm">
                 {statusLabel}
               </Badge>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{contentType}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {contentType}
+              </span>
             </div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{contentTitle}</h3>
+            <h3
+              className={cn(
+                "font-semibold",
+                isCompleted
+                  ? completedPlanStyles.title
+                  : "text-gray-900 dark:text-gray-100"
+              )}
+            >
+              {contentTitle}
+            </h3>
             {plan.chapter && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">챕터: {plan.chapter}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                챕터: {plan.chapter}
+              </p>
             )}
           </div>
         </div>
 
-        {plan.progress !== null && plan.progress !== undefined && plan.progress > 0 && (
+        {plan.progress !== null && plan.progress !== undefined && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
               <span>진행률</span>
               <span>{plan.progress}%</span>
             </div>
-            <ProgressBar value={plan.progress} height="sm" color="blue" />
+            <ProgressBar
+              value={plan.progress}
+              height="sm"
+              color={isCompleted ? "green" : plan.progress > 0 ? "blue" : undefined}
+            />
           </div>
         )}
 
@@ -94,16 +130,22 @@ export function TodayPlanItem({ plan, campMode = false }: TodayPlanItemProps) {
             {plan.planned_start_page_or_time !== null &&
               plan.planned_end_page_or_time !== null && (
                 <span>
-                  {plan.planned_start_page_or_time} ~ {plan.planned_end_page_or_time}
+                  {plan.planned_start_page_or_time} ~{" "}
+                  {plan.planned_end_page_or_time}
                   {plan.content_type === "book" ? "페이지" : "분"}
                 </span>
               )}
           </div>
           <Link
             href={buildPlanExecutionUrl(plan.id, campMode)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-semibold transition",
+              isCompleted
+                ? "bg-gray-500 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500"
+                : "bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            )}
           >
-            {status === "completed" ? "보기" : "시작하기"}
+            {isCompleted ? "보기" : "시작하기"}
           </Link>
         </div>
       </div>

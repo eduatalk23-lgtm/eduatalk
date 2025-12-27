@@ -864,3 +864,482 @@ export async function getTemplatePlanGroups(): Promise<PlanGroup[]> {
 
   return (data ?? []) as PlanGroup[];
 }
+
+// ============================================
+// Near Completion PlanGroups
+// ============================================
+
+type PlanGroupSummary = {
+  id: string;
+  name: string;
+  progressPercent: number;
+  canComplete: boolean;
+};
+
+/**
+ * 완료에 가까운 플랜그룹 목록 조회 (95% 이상 진행)
+ */
+export async function getNearCompletionPlanGroups(): Promise<PlanGroupSummary[]> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return [];
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 활성 content_based 플랜그룹 조회
+  const { data: planGroups, error: pgError } = await supabase
+    .from("plan_groups")
+    .select("id, name")
+    .eq("student_id", user.userId)
+    .eq("creation_mode", "content_based")
+    .eq("status", "active")
+    .is("deleted_at", null);
+
+  if (pgError || !planGroups) {
+    return [];
+  }
+
+  const results: PlanGroupSummary[] = [];
+
+  for (const pg of planGroups) {
+    // 해당 플랜그룹의 플랜 진행률 조회
+    const { data: plans } = await supabase
+      .from("student_plan")
+      .select("status")
+      .eq("plan_group_id", pg.id)
+      .eq("is_active", true);
+
+    if (!plans || plans.length === 0) continue;
+
+    const total = plans.length;
+    const completed = plans.filter((p) => p.status === "completed").length;
+    const progressPercent = Math.round((completed / total) * 100);
+
+    if (progressPercent >= 95) {
+      results.push({
+        id: pg.id,
+        name: pg.name ?? "이름 없음",
+        progressPercent,
+        canComplete: true,
+      });
+    }
+  }
+
+  // 진행률 높은 순으로 정렬
+  return results.sort((a, b) => b.progressPercent - a.progressPercent);
+}
+
+// ============================================
+// Quick Create (Content-First Approach)
+// ============================================
+
+/**
+ * 빠른 플랜 생성 입력 타입
+ * 템플릿 없이 콘텐츠에서 직접 플랜 생성
+ */
+export type QuickCreateInput = {
+  content: {
+    type: "book" | "lecture" | "custom";
+    id: string;
+    name: string;
+    subject?: string;
+    subjectCategory?: string;
+    totalUnits?: number; // 총 페이지/회차
+  };
+  range: {
+    start: number;
+    end: number;
+    unit: "page" | "episode" | "chapter" | "unit";
+  };
+  schedule: {
+    startDate: string;
+    endDate: string;
+    weekdays: number[]; // 0-6 (일-토)
+    studyType: StudyType;
+    reviewEnabled?: boolean;
+  };
+};
+
+/**
+ * 빠른 플랜 생성 (템플릿 없이)
+ *
+ * 콘텐츠 우선 접근법: 사용자가 콘텐츠를 선택하고
+ * 간단한 스케줄 설정만으로 플랜을 빠르게 생성합니다.
+ */
+export async function quickCreateFromContent(
+  input: QuickCreateInput
+): Promise<ContentPlanGroupResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    // 1. 9개 제한 체크
+    const countInfo = await getContentPlanGroupCount();
+    if (!countInfo.canAdd) {
+      return {
+        success: false,
+        error: `콘텐츠별 플랜그룹은 최대 ${MAX_CONTENT_PLAN_GROUPS}개까지 생성할 수 있습니다.`,
+      };
+    }
+
+    // 2. 학습일 계산
+    const startDate = new Date(input.schedule.startDate);
+    const endDate = new Date(input.schedule.endDate);
+    const studyDates = getAvailableStudyDates(
+      startDate,
+      endDate,
+      input.schedule.weekdays,
+      [], // 제외일 없음 (빠른 생성)
+      input.schedule.studyType,
+      input.schedule.studyType === "strategy" ? 3 : undefined, // 전략 과목 기본 주 3일
+      undefined
+    );
+
+    if (studyDates.length === 0) {
+      return {
+        success: false,
+        error: "선택한 기간에 학습 가능한 날짜가 없습니다.",
+      };
+    }
+
+    // 3. 플랜그룹 생성
+    const { data: planGroup, error: pgError } = await supabase
+      .from("plan_groups")
+      .insert({
+        tenant_id: user.tenantId,
+        student_id: user.userId,
+        name: input.content.name,
+        period_start: input.schedule.startDate,
+        period_end: input.schedule.endDate,
+        status: "active",
+        creation_mode: "content_based",
+        study_type: input.schedule.studyType,
+        scheduler_options: {
+          weekdays: input.schedule.weekdays,
+          studyType: input.schedule.studyType,
+          reviewEnabled: input.schedule.reviewEnabled ?? false,
+        },
+      })
+      .select()
+      .single();
+
+    if (pgError || !planGroup) {
+      console.error("Quick create plan group error:", pgError);
+      return { success: false, error: "플랜그룹 생성에 실패했습니다." };
+    }
+
+    // 4. plan_contents 생성
+    const { error: pcError } = await supabase.from("plan_contents").insert({
+      plan_group_id: planGroup.id,
+      content_type: input.content.type,
+      content_id: input.content.id,
+      content_name: input.content.name,
+      start_page_or_time: input.range.start,
+      end_page_or_time: input.range.end,
+      subject_name: input.content.subject ?? null,
+      subject_category: input.content.subjectCategory ?? null,
+    });
+
+    if (pcError) {
+      console.error("Quick create plan content error:", pcError);
+      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      return { success: false, error: "콘텐츠 연결에 실패했습니다." };
+    }
+
+    // 5. student_plans 생성
+    const totalAmount = input.range.end - input.range.start + 1;
+    const dailyAmounts = distributeDailyAmounts(totalAmount, studyDates.length);
+
+    const plans: GeneratedPlan[] = [];
+    let currentPosition = input.range.start;
+
+    const studentPlansToInsert = studyDates.map((date, index) => {
+      const amount = dailyAmounts[index];
+      const rangeStart = currentPosition;
+      const rangeEnd = currentPosition + amount - 1;
+      currentPosition += amount;
+
+      const planId = crypto.randomUUID();
+      plans.push({
+        id: planId,
+        date: date.toISOString().split("T")[0],
+        rangeStart,
+        rangeEnd,
+        status: "pending",
+        containerType: "daily",
+        estimatedDuration: amount * 5,
+      });
+
+      return {
+        id: planId,
+        tenant_id: user.tenantId,
+        student_id: user.userId,
+        plan_group_id: planGroup.id,
+        plan_date: date.toISOString().split("T")[0],
+        block_index: 0,
+        content_type: input.content.type,
+        content_id: input.content.id,
+        content_title: input.content.name,
+        content_subject: input.content.subject ?? null,
+        content_subject_category: input.content.subjectCategory ?? null,
+        planned_start_page_or_time: rangeStart,
+        planned_end_page_or_time: rangeEnd,
+        status: "pending",
+        container_type: "daily",
+        subject_type: input.schedule.studyType,
+        is_active: true,
+      };
+    });
+
+    const { error: spError } = await supabase
+      .from("student_plan")
+      .insert(studentPlansToInsert);
+
+    if (spError) {
+      console.error("Quick create student plans error:", spError);
+      await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
+      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      return { success: false, error: "플랜 생성에 실패했습니다." };
+    }
+
+    // 6. 복습 플랜 생성 (선택적)
+    let reviewDays = 0;
+    if (input.schedule.reviewEnabled) {
+      const reviewDateInfos = getReviewDates(studyDates, endDate);
+      reviewDays = reviewDateInfos.length;
+
+      const dateRangeMap = new Map<string, { start: number; end: number }>();
+      let pos = input.range.start;
+      for (let i = 0; i < studyDates.length; i++) {
+        const amount = dailyAmounts[i];
+        dateRangeMap.set(studyDates[i].toISOString().split("T")[0], {
+          start: pos,
+          end: pos + amount - 1,
+        });
+        pos += amount;
+      }
+
+      const reviewPlansToInsert = reviewDateInfos
+        .map((reviewInfo) => {
+          let weekRangeStart = Infinity;
+          let weekRangeEnd = 0;
+          for (const planDate of reviewInfo.plansToReview) {
+            const range = dateRangeMap.get(planDate.toISOString().split("T")[0]);
+            if (range) {
+              weekRangeStart = Math.min(weekRangeStart, range.start);
+              weekRangeEnd = Math.max(weekRangeEnd, range.end);
+            }
+          }
+
+          if (weekRangeStart === Infinity) return null;
+
+          const reviewPlanId = crypto.randomUUID();
+          plans.push({
+            id: reviewPlanId,
+            date: reviewInfo.date.toISOString().split("T")[0],
+            rangeStart: weekRangeStart,
+            rangeEnd: weekRangeEnd,
+            status: "pending",
+            containerType: "daily",
+            estimatedDuration: Math.ceil((weekRangeEnd - weekRangeStart + 1) * 2),
+          });
+
+          return {
+            id: reviewPlanId,
+            tenant_id: user.tenantId,
+            student_id: user.userId,
+            plan_group_id: planGroup.id,
+            plan_date: reviewInfo.date.toISOString().split("T")[0],
+            block_index: 0,
+            content_type: input.content.type,
+            content_id: input.content.id,
+            content_title: `[복습] ${input.content.name}`,
+            content_subject: input.content.subject ?? null,
+            content_subject_category: input.content.subjectCategory ?? null,
+            planned_start_page_or_time: weekRangeStart,
+            planned_end_page_or_time: weekRangeEnd,
+            status: "pending",
+            container_type: "daily",
+            subject_type: "review",
+            is_active: true,
+          };
+        })
+        .filter((p): p is NonNullable<typeof p> => p !== null);
+
+      if (reviewPlansToInsert.length > 0) {
+        await supabase.from("student_plan").insert(reviewPlansToInsert);
+      }
+    }
+
+    // 7. 캐시 재검증
+    revalidatePath("/plan");
+    revalidatePath("/today");
+
+    const studyDaysCount = studyDates.length;
+    return {
+      success: true,
+      planGroup: {
+        ...planGroup,
+        study_type: input.schedule.studyType,
+        creation_mode: "content_based" as const,
+      },
+      plans,
+      summary: {
+        totalPlans: studyDaysCount + reviewDays,
+        studyDays: studyDaysCount,
+        reviewDays,
+        dailyAmount: Math.ceil(totalAmount / studyDaysCount),
+        estimatedEndDate: studyDates[studyDates.length - 1].toISOString().split("T")[0],
+        totalRange: totalAmount,
+      },
+    };
+  } catch (error) {
+    console.error("Quick create error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 콘텐츠 기반 스마트 추천 스케줄 계산
+ *
+ * 콘텐츠 분량과 사용자 학습 패턴을 분석하여
+ * 적절한 학습 일정을 추천합니다.
+ */
+export async function getSmartScheduleRecommendation(
+  contentId: string,
+  totalUnits: number,
+  unitType: "page" | "episode" | "chapter"
+): Promise<{
+  recommendedDuration: number; // 총 학습 기간 (일)
+  recommendedDailyAmount: number;
+  recommendedWeekdays: number[];
+  studyType: StudyType;
+  estimatedEndDate: string;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) {
+    // 기본 추천
+    return getDefaultRecommendation(totalUnits, unitType);
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 사용자의 과거 학습 패턴 분석
+  const { data: pastPlans } = await supabase
+    .from("student_plan")
+    .select("plan_date, planned_start_page_or_time, planned_end_page_or_time, status")
+    .eq("student_id", user.userId)
+    .eq("status", "completed")
+    .order("plan_date", { ascending: false })
+    .limit(100);
+
+  if (!pastPlans || pastPlans.length < 10) {
+    // 데이터 부족 - 기본 추천
+    return getDefaultRecommendation(totalUnits, unitType);
+  }
+
+  // 일일 평균 학습량 계산
+  let totalDailyAmount = 0;
+  let planCount = 0;
+  const weekdayFrequency = new Map<number, number>();
+
+  for (const plan of pastPlans) {
+    const start = plan.planned_start_page_or_time ?? 0;
+    const end = plan.planned_end_page_or_time ?? 0;
+    const amount = end - start + 1;
+
+    if (amount > 0) {
+      totalDailyAmount += amount;
+      planCount++;
+    }
+
+    // 요일 빈도
+    const dayOfWeek = new Date(plan.plan_date).getDay();
+    weekdayFrequency.set(dayOfWeek, (weekdayFrequency.get(dayOfWeek) ?? 0) + 1);
+  }
+
+  const avgDailyAmount = planCount > 0 ? Math.ceil(totalDailyAmount / planCount) : 10;
+
+  // 가장 자주 학습하는 요일 선택 (상위 5개)
+  const sortedWeekdays = Array.from(weekdayFrequency.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([day]) => day);
+
+  const recommendedWeekdays = sortedWeekdays.length >= 3 ? sortedWeekdays : [1, 2, 3, 4, 5];
+
+  // 추천 기간 계산
+  const daysPerWeek = recommendedWeekdays.length;
+  const totalStudyDays = Math.ceil(totalUnits / avgDailyAmount);
+  const totalWeeks = Math.ceil(totalStudyDays / daysPerWeek);
+  const recommendedDuration = totalWeeks * 7;
+
+  const today = new Date();
+  const estimatedEnd = new Date(today);
+  estimatedEnd.setDate(estimatedEnd.getDate() + recommendedDuration);
+
+  return {
+    recommendedDuration,
+    recommendedDailyAmount: avgDailyAmount,
+    recommendedWeekdays,
+    studyType: totalUnits > 100 ? "strategy" : "weakness",
+    estimatedEndDate: estimatedEnd.toISOString().split("T")[0],
+    confidence: pastPlans.length > 50 ? "high" : "medium",
+    reasoning:
+      pastPlans.length > 50
+        ? `과거 ${pastPlans.length}개 학습 기록 분석: 일평균 ${avgDailyAmount}단위`
+        : `${pastPlans.length}개 학습 기록 기반 추천`,
+  };
+}
+
+/**
+ * 기본 추천 (학습 기록 부족 시)
+ */
+function getDefaultRecommendation(
+  totalUnits: number,
+  unitType: "page" | "episode" | "chapter"
+): {
+  recommendedDuration: number;
+  recommendedDailyAmount: number;
+  recommendedWeekdays: number[];
+  studyType: StudyType;
+  estimatedEndDate: string;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+} {
+  // 단위 타입별 기본 일일 학습량
+  const defaultAmounts: Record<typeof unitType, number> = {
+    page: 20,
+    episode: 2,
+    chapter: 1,
+  };
+
+  const dailyAmount = defaultAmounts[unitType];
+  const totalStudyDays = Math.ceil(totalUnits / dailyAmount);
+  const totalWeeks = Math.ceil(totalStudyDays / 5); // 주 5일 기준
+  const recommendedDuration = totalWeeks * 7;
+
+  const today = new Date();
+  const estimatedEnd = new Date(today);
+  estimatedEnd.setDate(estimatedEnd.getDate() + recommendedDuration);
+
+  return {
+    recommendedDuration,
+    recommendedDailyAmount: dailyAmount,
+    recommendedWeekdays: [1, 2, 3, 4, 5], // 월-금
+    studyType: totalUnits > 100 ? "strategy" : "weakness",
+    estimatedEndDate: estimatedEnd.toISOString().split("T")[0],
+    confidence: "low",
+    reasoning: `기본 추천: ${unitType === "page" ? "페이지" : unitType === "episode" ? "회차" : "챕터"}당 일일 ${dailyAmount}${unitType === "page" ? "페이지" : "단위"}`,
+  };
+}

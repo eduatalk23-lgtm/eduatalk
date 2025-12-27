@@ -1019,6 +1019,65 @@ export const statusBadgeStyles = {
   pending: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 };
 
+// ============================================
+// 완료된 플랜 스타일 유틸리티
+// ============================================
+
+/**
+ * 완료된 플랜에 적용할 시각적 스타일
+ * 투명도, 배경색, 테두리, 텍스트 스타일을 포함
+ *
+ * @example
+ * ```tsx
+ * import { completedPlanStyles } from "@/lib/utils/darkMode";
+ *
+ * <div className={cn(isCompleted && completedPlanStyles.container)}>
+ *   <h3 className={cn(isCompleted && completedPlanStyles.title)}>제목</h3>
+ * </div>
+ * ```
+ */
+export const completedPlanStyles = {
+  /** 컨테이너 투명도 */
+  container: "opacity-60 dark:opacity-50",
+  /** 회색 배경 */
+  bgSubtle: "bg-gray-50 dark:bg-gray-800/30",
+  /** 녹색 성공 배경 */
+  bgSuccess: "bg-green-50/50 dark:bg-green-900/20",
+  /** 제목 취소선 + 회색 텍스트 */
+  title: "line-through text-gray-500 dark:text-gray-400",
+  /** 녹색 테두리 */
+  borderSuccess: "border-green-200 dark:border-green-700",
+  /** 기본 회색 테두리 */
+  borderSubtle: "border-gray-200 dark:border-gray-700",
+} as const;
+
+/**
+ * 완료된 플랜 컨테이너 클래스 조합
+ *
+ * @param variant - 'default' | 'success' | 'subtle'
+ * @returns Tailwind 클래스 문자열
+ */
+export function getCompletedPlanClasses(
+  variant: "default" | "success" | "subtle" = "default"
+): string {
+  switch (variant) {
+    case "success":
+      return cn(
+        completedPlanStyles.container,
+        completedPlanStyles.bgSuccess,
+        completedPlanStyles.borderSuccess
+      );
+    case "subtle":
+      return cn(
+        completedPlanStyles.container,
+        completedPlanStyles.bgSubtle,
+        completedPlanStyles.borderSubtle
+      );
+    default:
+      return completedPlanStyles.container;
+  }
+}
+
 /**
  * 모달 내부 구분선 스타일
  */

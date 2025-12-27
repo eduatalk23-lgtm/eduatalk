@@ -70,3 +70,22 @@ export { getRecommendedMasterContentsAction } from "./recommendations";
 
 // Student Content Master IDs
 export { getStudentContentMasterIdsAction } from "./student-master-ids";
+
+// Enhanced Custom Content CRUD & Templates (Phase 5)
+export {
+  createCustomContent as createEnhancedCustomContent,
+  getCustomContent,
+  listCustomContents,
+  updateCustomContent as updateEnhancedCustomContent,
+  deleteCustomContent as deleteEnhancedCustomContent,
+  archiveCustomContent,
+  restoreCustomContent,
+  saveAsTemplate,
+  createFromTemplate,
+  listTemplates,
+  createTemplate,
+  deleteTemplate,
+  duplicateCustomContent,
+  bulkUpdateStatus,
+  searchByTags,
+} from "./custom";

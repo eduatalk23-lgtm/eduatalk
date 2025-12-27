@@ -68,6 +68,7 @@ export type EventType =
   | 'adhoc_created'
   | 'adhoc_completed'
   | 'adhoc_cancelled'
+  | 'adhoc_promoted'
   // 상담 이벤트
   | 'consultation_requested'
   | 'consultation_scheduled'
@@ -177,6 +178,24 @@ export interface AdHocPlan {
   updated_at: string;
   started_at: string | null;
   completed_at: string | null;
+  // Enhanced fields (Phase 3)
+  page_range_start: number | null;
+  page_range_end: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  recurrence_rule: RecurrenceRule | null;
+  recurrence_parent_id: string | null;
+}
+
+/**
+ * 반복 규칙 (RRULE 형식)
+ */
+export interface RecurrenceRule {
+  type: "daily" | "weekly" | "custom";
+  interval?: number;
+  daysOfWeek?: number[]; // 0-6 (일-토)
+  endDate?: string;
+  count?: number;
 }
 
 export interface AdHocPlanInsert {
@@ -190,6 +209,13 @@ export interface AdHocPlanInsert {
   estimated_minutes?: number | null;
   container_type?: ContainerType;
   created_by?: string | null;
+  // Enhanced fields (Phase 3)
+  page_range_start?: number | null;
+  page_range_end?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  recurrence_rule?: RecurrenceRule | null;
+  recurrence_parent_id?: string | null;
 }
 
 export interface AdHocPlanUpdate {
@@ -204,6 +230,12 @@ export interface AdHocPlanUpdate {
   container_type?: ContainerType;
   started_at?: string | null;
   completed_at?: string | null;
+  // Enhanced fields (Phase 3)
+  page_range_start?: number | null;
+  page_range_end?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  recurrence_rule?: RecurrenceRule | null;
 }
 
 // ============================================

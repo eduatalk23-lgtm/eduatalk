@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { usePlanGroups, type PlanGroupFilters } from "@/lib/hooks/usePlanGroups";
 import { PlanGroupList } from "./PlanGroupList";
 import { PlanGroupStatsCard } from "./PlanGroupStatsCard";
@@ -103,7 +104,17 @@ export function PlanGroupListContainer({
       <EmptyState
         icon="📋"
         title="등록된 플랜 그룹이 없습니다"
-        description="새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요."
+        description={
+          <>
+            <Link
+              href="/plan/new-group"
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+            >
+              새로운 플랜 그룹
+            </Link>
+            을 만들어 기간별 학습 계획을 세워보세요.
+          </>
+        }
         actionLabel="플랜 그룹 생성하기"
         actionHref="/plan/new-group"
       />

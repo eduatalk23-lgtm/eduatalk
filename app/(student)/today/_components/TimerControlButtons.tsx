@@ -37,7 +37,7 @@ function TimerControlButtonsComponent({
   const router = useRouter();
 
   const handleComplete = () => {
-    if (!confirm("지금까지의 학습을 기준으로 이 플랜을 완료 입력 화면으로 이동할까요?")) {
+    if (!confirm("학습을 마무리하고 결과를 입력하시겠습니까?\n\n• 지금까지 학습한 시간이 기록됩니다\n• 실제 학습한 범위를 입력할 수 있습니다")) {
       return;
     }
     onComplete();
@@ -92,11 +92,11 @@ function TimerControlButtonsComponent({
         <button
           onClick={handleComplete}
           disabled={isLoading}
-          aria-label="학습 완료하기"
+          aria-label="학습 기록 입력하기"
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
-          <Square className="h-4 w-4" aria-hidden="true" />
-          완료하기
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          기록 입력
         </button>
       </div>
     );
@@ -118,11 +118,11 @@ function TimerControlButtonsComponent({
         <button
           onClick={handleComplete}
           disabled={isLoading}
-          aria-label="학습 완료하기"
+          aria-label="학습 기록 입력하기"
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
-          <Square className="h-4 w-4" aria-hidden="true" />
-          완료하기
+          <FileText className="h-4 w-4" aria-hidden="true" />
+          기록 입력
         </button>
       </div>
     );

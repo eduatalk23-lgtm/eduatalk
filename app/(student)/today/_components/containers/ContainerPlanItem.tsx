@@ -1,14 +1,17 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import type { ContainerPlan } from '@/lib/domains/today/actions/containerPlans';
 import type { AdHocPlan } from '@/lib/domains/admin-plan/types';
+import type { ContainerType } from '@/lib/domains/plan/actions/move';
+import { useContainerDragDropContext } from './ContainerDragDropContext';
 
 interface ContainerPlanItemProps {
   plan?: ContainerPlan;
   adHocPlan?: AdHocPlan;
-  containerType: 'unfinished' | 'daily' | 'weekly';
+  containerType: ContainerType;
   onSelect?: () => void;
   onMoveToDaily?: () => void;
   onMoveToWeekly?: () => void;
@@ -22,6 +25,8 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
   onMoveToDaily,
   onMoveToWeekly,
 }: ContainerPlanItemProps) {
+  const { getDraggableProps, isDragging, isProcessing } = useContainerDragDropContext();
+
   const isAdHoc = !!adHocPlan;
   const item = plan ?? adHocPlan;
 
@@ -50,20 +55,48 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
       ? `${formatRelativeDate(plan!.carryover_from_date)}부터 이월`
       : null;
 
+  // 드래그 가능 여부 (완료되지 않은 항목만)
+  const canDrag = !isCompleted && !isProcessing;
+
+  // 드래그 아이템 데이터
+  const itemType: 'student_plan' | 'ad_hoc_plan' = isAdHoc ? 'ad_hoc_plan' : 'student_plan';
+  const dragItem = useMemo(
+    () => ({
+      id: item.id,
+      type: itemType,
+      sourceContainer: containerType,
+      title,
+    }),
+    [item.id, itemType, containerType, title]
+  );
+
+  const draggableProps = canDrag ? getDraggableProps(dragItem) : {};
+
   return (
     <div
+      {...draggableProps}
       className={cn(
-        'bg-white rounded-lg p-3 shadow-sm border',
+        'bg-white rounded-lg p-3 shadow-sm border transition-all',
         isCompleted && 'opacity-60',
         isInProgress && 'border-blue-400 ring-1 ring-blue-200',
-        !isCompleted && !isInProgress && 'border-gray-200 hover:border-gray-300'
+        !isCompleted && !isInProgress && 'border-gray-200 hover:border-gray-300',
+        canDrag && 'cursor-grab active:cursor-grabbing',
+        canDrag && 'hover:shadow-md',
+        isDragging && 'ring-2 ring-blue-400 ring-opacity-50'
       )}
     >
       <div className="flex items-start justify-between gap-2">
+        {/* 드래그 핸들 */}
+        {canDrag && (
+          <div className="flex-shrink-0 mt-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+            <GripVertical className="w-4 h-4" />
+          </div>
+        )}
+
         {/* 왼쪽: 상태 + 제목 */}
         <div className="flex items-start gap-2 flex-1 min-w-0">
           {/* 상태 아이콘 */}
-          <span className="mt-0.5">
+          <span className="mt-0.5 flex-shrink-0">
             {isCompleted ? (
               <span className="text-green-500">✓</span>
             ) : isInProgress ? (
@@ -77,7 +110,7 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
 
           {/* 콘텐츠 정보 */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 className={cn(
                   'font-medium truncate',
@@ -87,22 +120,22 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                 {title}
               </span>
               {isAdHoc && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex-shrink-0">
                   단발성
                 </span>
               )}
               {!isAdHoc && plan?.subject_type === 'weakness' && (
-                <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded flex-shrink-0">
                   취약
                 </span>
               )}
               {!isAdHoc && plan?.subject_type === 'strategy' && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex-shrink-0">
                   전략
                 </span>
               )}
               {!isAdHoc && plan?.subject_type === 'review' && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded flex-shrink-0">
                   복습
                 </span>
               )}
@@ -132,12 +165,15 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
         </div>
 
         {/* 오른쪽: 액션 버튼 */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {!isCompleted && (
             <>
               {/* 시작/선택 버튼 */}
               <button
-                onClick={onSelect}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect?.();
+                }}
                 className={cn(
                   'px-3 py-1.5 text-sm rounded-md transition-colors',
                   isInProgress
@@ -151,7 +187,10 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
               {/* 이동 드롭다운 (간소화) */}
               {(onMoveToDaily || onMoveToWeekly) && (
                 <div className="relative group">
-                  <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded">
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
+                  >
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -169,7 +208,10 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                   <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[120px]">
                     {onMoveToDaily && (
                       <button
-                        onClick={onMoveToDaily}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMoveToDaily();
+                        }}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
                         오늘로 이동
@@ -177,7 +219,10 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                     )}
                     {onMoveToWeekly && (
                       <button
-                        onClick={onMoveToWeekly}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMoveToWeekly();
+                        }}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
                         주간으로 이동

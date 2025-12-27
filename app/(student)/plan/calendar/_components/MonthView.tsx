@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 import { formatDateString } from "@/lib/date/calendarUtils";
@@ -11,6 +12,10 @@ import { DayTimelineModal } from "./DayTimelineModal";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
 import { useCalendarData } from "../_hooks/useCalendarData";
 import { getTimelineSlots } from "../_hooks/useTimelineSlots";
+import { useCalendarDragDrop, type DragItem } from "../_hooks/useCalendarDragDrop";
+import { QuickAddPlanModal } from "./QuickAddPlanModal";
+import { PlanDetailModal } from "./PlanDetailModal";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 type MonthViewProps = {
@@ -21,11 +26,35 @@ type MonthViewProps = {
   dayTypes: Map<string, DayTypeInfo>;
   dailyScheduleMap: Map<string, DailyScheduleInfo>;
   showOnlyStudyTime?: boolean;
+  studentId?: string;
+  tenantId?: string | null;
+  onPlansUpdated?: () => void;
 };
 
-export function MonthView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: MonthViewProps) {
+export function MonthView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: MonthViewProps) {
+  const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [quickAddDate, setQuickAddDate] = useState<string | null>(null);
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanWithContent | null>(null);
+  const [isPlanDetailOpen, setIsPlanDetailOpen] = useState(false);
+
+  // 드래그 앤 드롭 훅
+  const {
+    draggedItem,
+    dropTarget,
+    isMoving,
+    isDragging,
+    dragHandlers,
+    dropHandlers,
+    setDragImageElement,
+  } = useCalendarDragDrop({
+    onMoveSuccess: () => {
+      router.refresh();
+      onPlansUpdated?.();
+    },
+  });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -129,6 +158,21 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       }
     };
 
+    const handlePlanClick = (plan: PlanWithContent) => {
+      setSelectedPlan(plan);
+      setIsPlanDetailOpen(true);
+    };
+
+    const handleQuickAdd = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setQuickAddDate(dateStr);
+      setIsQuickAddOpen(true);
+    };
+
+    // 드롭 대상 여부
+    const isDropTarget = dropTarget === dateStr;
+    const canDrop = draggedItem && draggedItem.planDate !== dateStr;
+
     return (
       <div
         key={day}
@@ -139,18 +183,39 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
         className={cn(
           "min-h-[120px] md:min-h-[140px] lg:min-h-[160px] cursor-pointer rounded-lg border-2 p-2 md:p-3 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
           bgColorClass,
-          isToday && "ring-2 ring-indigo-500 ring-offset-2"
+          isToday && "ring-2 ring-indigo-500 ring-offset-2",
+          // 드래그 중 드롭 대상 스타일
+          isDropTarget && canDrop && "ring-2 ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 scale-[1.02]",
+          isDragging && !canDrop && "opacity-50"
         )}
         onClick={handleDateClick}
         onKeyDown={handleKeyDown}
+        // 드롭 핸들러
+        onDragEnter={(e) => dropHandlers.onDragEnter(e, dateStr)}
+        onDragOver={(e) => dropHandlers.onDragOver(e, dateStr)}
+        onDragLeave={dropHandlers.onDragLeave}
+        onDrop={(e) => dropHandlers.onDrop(e, dateStr)}
       >
         {/* 날짜 헤더 */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <div className="flex items-center justify-between gap-1">
-            <div className={cn("text-base md:text-lg font-bold leading-tight", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
-              {day}
-              {isToday && (
-                <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
+            <div className="flex items-center gap-1">
+              <span className={cn("text-base md:text-lg font-bold leading-tight", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
+                {day}
+                {isToday && (
+                  <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
+                )}
+              </span>
+              {/* 빠른 추가 버튼 */}
+              {studentId && (
+                <button
+                  onClick={handleQuickAdd}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-0.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
+                  aria-label={`${dateStr}에 플랜 추가`}
+                  title="빠른 플랜 추가"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
               )}
             </div>
             {/* 날짜 타입 배지 - 학습일/복습일과 동일한 구조로 통일 */}
@@ -255,6 +320,14 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                     // 연결 상태 계산
                     const connectionState = getPlanConnectionState(dateStr, plan.id);
                     
+                    // 가상 플랜이 아닌 경우만 드래그 가능
+                    const isVirtual = (plan as { is_virtual?: boolean | null }).is_virtual === true;
+                    const dragItem: DragItem = {
+                      planId: plan.id,
+                      planDate: dateStr,
+                      contentTitle: plan.contentTitle || plan.content_title || "플랜",
+                    };
+
                     items.push(
                       <CalendarPlanCard
                         key={plan.id}
@@ -266,13 +339,18 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                         isFirst={connectionState.isFirst}
                         isLast={connectionState.isLast}
                         isMiddle={connectionState.isMiddle}
+                        draggable={!isVirtual && !isMoving}
+                        onDragStart={(e) => dragHandlers.onDragStart(e, dragItem)}
+                        onDragEnd={dragHandlers.onDragEnd}
+                        isDragging={draggedItem?.planId === plan.id}
+                        onClick={() => handlePlanClick(plan)}
                       />
                     );
                     displayedCount++;
                   });
               }
             });
-            
+
             // 플랜이 타임라인 슬롯에 매칭되지 않은 경우 (시간 정보가 없는 기존 플랜)
             const unmatchedPlans = dayPlans.filter((plan) => !addedPlanIds.has(plan.id));
             if (unmatchedPlans.length > 0 && displayedCount < maxDisplay) {
@@ -282,7 +360,15 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                 .forEach((plan) => {
                   // 연결 상태 계산
                   const connectionState = getPlanConnectionState(dateStr, plan.id);
-                  
+
+                  // 가상 플랜이 아닌 경우만 드래그 가능
+                  const isVirtual = (plan as { is_virtual?: boolean | null }).is_virtual === true;
+                  const dragItem: DragItem = {
+                    planId: plan.id,
+                    planDate: dateStr,
+                    contentTitle: plan.contentTitle || plan.content_title || "플랜",
+                  };
+
                   items.push(
                     <CalendarPlanCard
                       key={plan.id}
@@ -294,6 +380,11 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
                       isFirst={connectionState.isFirst}
                       isLast={connectionState.isLast}
                       isMiddle={connectionState.isMiddle}
+                      draggable={!isVirtual && !isMoving}
+                      onDragStart={(e) => dragHandlers.onDragStart(e, dragItem)}
+                      onDragEnd={dragHandlers.onDragEnd}
+                      isDragging={draggedItem?.planId === plan.id}
+                      onClick={() => handlePlanClick(plan)}
                     />
                   );
                   displayedCount++;
@@ -371,6 +462,13 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
 
   return (
     <>
+      {/* 드래그 이미지 (화면에 표시되지 않음) */}
+      <div
+        ref={setDragImageElement}
+        className="fixed -left-[9999px] top-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white shadow-lg"
+        aria-hidden="true"
+      />
+
       <div className="w-full" role="grid" aria-label="월별 캘린더">
         {/* 요일 헤더 - 개선된 스타일 */}
         <div className="grid grid-cols-7 gap-2 md:gap-3" role="row">
@@ -395,7 +493,7 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
       {selectedDate && (() => {
         const selectedDateStr = formatDateString(selectedDate);
         const selectedDatePlans = plans.filter((plan) => plan.plan_date === selectedDateStr);
-        
+
         return (
           <DayTimelineModal
             open={isModalOpen}
@@ -409,6 +507,29 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
           />
         );
       })()}
+
+      {/* 빠른 플랜 추가 모달 */}
+      {quickAddDate && studentId && (
+        <QuickAddPlanModal
+          open={isQuickAddOpen}
+          onOpenChange={setIsQuickAddOpen}
+          date={quickAddDate}
+          studentId={studentId}
+          tenantId={tenantId ?? null}
+          onSuccess={onPlansUpdated}
+        />
+      )}
+
+      {/* 플랜 상세 모달 */}
+      {selectedPlan && (
+        <PlanDetailModal
+          open={isPlanDetailOpen}
+          onOpenChange={setIsPlanDetailOpen}
+          plan={selectedPlan}
+          studentId={studentId}
+          onPlanUpdated={onPlansUpdated}
+        />
+      )}
     </>
   );
 }

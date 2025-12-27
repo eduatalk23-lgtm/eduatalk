@@ -135,6 +135,25 @@ export interface CreateContentPlanGroupInput {
     weekdays?: number[];
     blockSetId?: string;
   };
+
+  /**
+   * Step 5: 콘텐츠별 독립 스케줄 (선택적)
+   * 템플릿 기본값과 다른 스케줄을 원할 때 사용
+   */
+  individualSchedule?: {
+    /** 이 콘텐츠만의 학습 요일 (0-6) */
+    studyDays?: number[];
+    /** 일일 학습 시간 (분) */
+    dailyMinutes?: number;
+    /** 일일 분량 */
+    dailyAmount?: number;
+    /** 복습 활성화 */
+    reviewEnabled?: boolean;
+    /** 복습 주기 (일) */
+    reviewCycleInDays?: number;
+    /** 선호 블록 ID */
+    preferredBlockId?: string;
+  };
 }
 
 // ============================================================
@@ -288,4 +307,27 @@ export interface GetTemplateSettingsParams {
 export interface PreviewContentPlanGroupParams extends CreateContentPlanGroupInput {
   /** 미리보기 플랜 최대 개수 (기본: 전체) */
   maxPreviewPlans?: number;
+}
+
+/**
+ * 콘텐츠별 독립 스케줄 설정 (UI에서 사용)
+ * plan_contents.individual_schedule에 저장됨
+ */
+export interface ContentIndividualSchedule {
+  /** 학습 요일 (0-6, 0=일요일) */
+  studyDays?: number[];
+  /** 일일 학습 시간 (분) */
+  dailyMinutes?: number;
+  /** 일일 분량 */
+  dailyAmount?: number;
+  /** 복습 활성화 */
+  reviewEnabled?: boolean;
+  /** 복습 주기 (일) */
+  reviewCycleInDays?: number;
+  /** 선호 블록 ID */
+  preferredBlockId?: string;
+  /** 시작일 (템플릿과 다른 경우) */
+  startDate?: string;
+  /** 종료일 (템플릿과 다른 경우) */
+  endDate?: string;
 }

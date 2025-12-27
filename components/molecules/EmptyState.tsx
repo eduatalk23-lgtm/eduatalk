@@ -8,7 +8,7 @@ import { textPrimaryVar, textTertiaryVar, borderDefaultVar } from "@/lib/utils/d
 
 export type EmptyStateProps = {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   icon?: React.ReactNode;
   actionLabel?: string;
   actionHref?: string;

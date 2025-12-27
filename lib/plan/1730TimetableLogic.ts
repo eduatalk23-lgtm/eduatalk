@@ -555,6 +555,253 @@ export function buildPlanTimeline(
   };
 }
 
+// ============================================================
+// 콘텐츠별 배정 함수 (타임존 시스템용)
+// ============================================================
+
+export type ContentSchedulerOptions = {
+  study_days?: number; // 학습일 수 (기본: 6)
+  review_days?: number; // 복습일 수 (기본: 1)
+  subject_type?: "strategy" | "weakness";
+  weekly_allocation_days?: number; // 전략과목: 주당 배정일 (2, 3, 4)
+  target_type: "page" | "episode" | "unit" | "time";
+  target_value: number; // 목표 페이지/회차/시간(분)
+  daily_amount?: number; // 일일 목표량
+  auto_review: boolean; // 복습일 자동 생성
+  review_ratio?: number; // 복습 분량 비율 (기본: 0.3)
+  distribution_strategy: "even" | "front_loaded" | "back_loaded" | "custom";
+};
+
+export type ContentReviewPlan = {
+  content_id: string;
+  plan_date: string;
+  day_type: "review";
+  range_start: number;
+  range_end: number;
+  estimated_duration: number;
+  review_source_content_ids: string[];
+  week_number: number;
+};
+
+/**
+ * 콘텐츠별 학습일 배정 날짜 계산
+ *
+ * 타임존 시스템에서 개별 콘텐츠의 학습일 배정에 사용됩니다.
+ * subject_type에 따라 다른 배정 전략을 적용합니다:
+ * - weakness: 모든 학습일에 배정
+ * - strategy: 주당 weekly_allocation_days일만 배정
+ * - undefined: 모든 학습일에 배정 (기본값)
+ */
+export function calculateContentAllocationDates(
+  cycleDays: CycleDayInfo[],
+  options: ContentSchedulerOptions
+): string[] {
+  const studyDays = cycleDays.filter((d) => d.day_type === "study");
+
+  // 취약과목 또는 타입 미지정: 전체 학습일 배정
+  if (!options.subject_type || options.subject_type === "weakness") {
+    return studyDays.map((d) => d.date);
+  }
+
+  // 전략과목: 주당 N일 배정
+  const weeklyDays = options.weekly_allocation_days || 3;
+  return calculateStrategyAllocationDates(studyDays, weeklyDays);
+}
+
+/**
+ * 전략과목 배정 날짜 계산 (주당 N일)
+ */
+function calculateStrategyAllocationDates(
+  studyDays: CycleDayInfo[],
+  weeklyAllocationDays: number
+): string[] {
+  const allocatedDates: string[] = [];
+
+  // 주차별로 그룹화
+  const weeklyGroups = groupByWeek(studyDays);
+
+  for (const [_, weekDates] of weeklyGroups.entries()) {
+    const selectedCount = Math.min(weeklyAllocationDays, weekDates.length);
+    if (selectedCount === 0) continue;
+
+    // 균등하게 분배하기 위한 간격 계산
+    const step = weekDates.length / selectedCount;
+
+    for (let i = 0; i < selectedCount; i++) {
+      // 중간값을 사용하여 더 균등하게 분배
+      const index = Math.floor((i + 0.5) * step);
+      allocatedDates.push(weekDates[index]);
+    }
+  }
+
+  return allocatedDates;
+}
+
+/**
+ * 주차별로 학습일 그룹화
+ */
+function groupByWeek(studyDays: CycleDayInfo[]): Map<number, string[]> {
+  const weeks = new Map<number, string[]>();
+
+  for (const day of studyDays) {
+    if (!weeks.has(day.cycle_number)) {
+      weeks.set(day.cycle_number, []);
+    }
+    weeks.get(day.cycle_number)!.push(day.date);
+  }
+
+  return weeks;
+}
+
+/**
+ * 콘텐츠별 복습 플랜 생성
+ *
+ * 주차별로 해당 콘텐츠의 학습 범위를 그룹핑하여 복습 플랜을 생성합니다.
+ */
+export function generateContentReviewPlan(
+  contentId: string,
+  weekStudyPlans: Array<{
+    date: string;
+    range_start: number;
+    range_end: number;
+    estimated_duration: number;
+  }>,
+  reviewDate: string,
+  weekNumber: number,
+  options: ContentSchedulerOptions
+): ContentReviewPlan | null {
+  if (weekStudyPlans.length === 0) {
+    return null;
+  }
+
+  // 해당 주차의 학습 범위 계산
+  const rangeStart = Math.min(...weekStudyPlans.map((p) => p.range_start));
+  const rangeEnd = Math.max(...weekStudyPlans.map((p) => p.range_end));
+  const totalDuration = weekStudyPlans.reduce(
+    (sum, p) => sum + p.estimated_duration,
+    0
+  );
+
+  // 복습 분량 비율 적용 (기본 0.3)
+  const reviewRatio = options.review_ratio || 0.3;
+  const estimatedDuration = Math.round(totalDuration * reviewRatio);
+
+  return {
+    content_id: contentId,
+    plan_date: reviewDate,
+    day_type: "review",
+    range_start: rangeStart,
+    range_end: rangeEnd,
+    estimated_duration: estimatedDuration,
+    review_source_content_ids: [contentId],
+    week_number: weekNumber,
+  };
+}
+
+/**
+ * 콘텐츠 범위를 배정된 날짜들에 분배
+ *
+ * distribution_strategy에 따라 다르게 분배합니다:
+ * - even: 균등 분배
+ * - front_loaded: 앞쪽에 더 많이 배정
+ * - back_loaded: 뒤쪽에 더 많이 배정
+ */
+export function distributeContentRange(
+  startRange: number,
+  endRange: number,
+  allocatedDates: string[],
+  distributionStrategy: "even" | "front_loaded" | "back_loaded" | "custom" = "even"
+): Map<string, { start: number; end: number }> {
+  const result = new Map<string, { start: number; end: number }>();
+  const totalRange = endRange - startRange;
+  const dateCount = allocatedDates.length;
+
+  if (dateCount === 0 || totalRange <= 0) {
+    return result;
+  }
+
+  let weights: number[];
+
+  switch (distributionStrategy) {
+    case "front_loaded":
+      // 앞쪽에 더 많이: 1.5, 1.3, 1.1, 0.9, 0.7...
+      weights = allocatedDates.map((_, i) =>
+        Math.max(0.5, 1.5 - (i * 0.4 / Math.max(1, dateCount - 1)))
+      );
+      break;
+    case "back_loaded":
+      // 뒤쪽에 더 많이: 0.7, 0.9, 1.1, 1.3, 1.5...
+      weights = allocatedDates.map((_, i) =>
+        Math.max(0.5, 0.5 + (i * 1.0 / Math.max(1, dateCount - 1)))
+      );
+      break;
+    case "custom":
+    case "even":
+    default:
+      // custom도 기본적으로 even 분배 사용 (별도 설정이 없는 경우)
+      weights = allocatedDates.map(() => 1);
+  }
+
+  // 가중치 정규화
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  const normalizedWeights = weights.map((w) => w / totalWeight);
+
+  let currentStart = startRange;
+
+  for (let i = 0; i < allocatedDates.length; i++) {
+    const date = allocatedDates[i];
+    const isLast = i === allocatedDates.length - 1;
+
+    const dayRange = isLast
+      ? endRange - currentStart
+      : Math.round(totalRange * normalizedWeights[i]);
+
+    const dayEnd = Math.min(currentStart + dayRange, endRange);
+
+    result.set(date, {
+      start: Math.round(currentStart),
+      end: Math.round(dayEnd),
+    });
+
+    currentStart = dayEnd;
+  }
+
+  return result;
+}
+
+/**
+ * 주차의 복습일 날짜 찾기
+ */
+export function getReviewDateForWeek(
+  cycleDays: CycleDayInfo[],
+  weekNumber: number
+): string | null {
+  const reviewDay = cycleDays.find(
+    (d) => d.cycle_number === weekNumber && d.day_type === "review"
+  );
+  return reviewDay?.date || null;
+}
+
+/**
+ * 주차별 학습일 목록 가져오기
+ */
+export function getStudyDaysForWeek(
+  cycleDays: CycleDayInfo[],
+  weekNumber: number
+): CycleDayInfo[] {
+  return cycleDays.filter(
+    (d) => d.cycle_number === weekNumber && d.day_type === "study"
+  );
+}
+
+/**
+ * 전체 주차 수 계산
+ */
+export function getTotalWeeks(cycleDays: CycleDayInfo[]): number {
+  const cycleNumbers = new Set(cycleDays.map((d) => d.cycle_number));
+  return cycleNumbers.size;
+}
+
 /**
  * 유틸리티 함수
  */

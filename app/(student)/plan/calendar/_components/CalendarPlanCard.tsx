@@ -19,6 +19,13 @@ type PlanCardProps = {
   isMiddle?: boolean;
   // 콘텐츠 연결 콜백 (가상 플랜 전용)
   onLinkContent?: (planId: string, slotIndex: number) => void;
+  // 드래그 앤 드롭
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+  isDragging?: boolean;
+  // 클릭 핸들러
+  onClick?: () => void;
 };
 
 /**
@@ -42,6 +49,11 @@ export function CalendarPlanCard({
   isLast = false,
   isMiddle = false,
   onLinkContent,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  isDragging = false,
+  onClick,
 }: PlanCardProps) {
   const ContentTypeIcon = getContentTypeIcon(plan.content_type);
   const isCompleted = plan.progress != null && plan.progress >= 100;
@@ -120,9 +132,19 @@ export function CalendarPlanCard({
           connectionClasses,
           borderColorClass,
           bgColorClass,
-          borderClasses
+          borderClasses,
+          draggable && "cursor-grab active:cursor-grabbing",
+          isDragging && "opacity-50 ring-2 ring-indigo-400",
+          onClick && "cursor-pointer"
         )}
         title={tooltipText || undefined}
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onClick={onClick}
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
       >
         {/* 연결선 표시 (아래쪽에 연결선) */}
         {isConnected && !isLast && (
@@ -201,8 +223,18 @@ export function CalendarPlanCard({
       className={cn(
         "group rounded-lg border-2 p-4 md:p-5 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)] relative",
         normalBorderClass,
-        normalBgClass
+        normalBgClass,
+        draggable && "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-50 ring-2 ring-indigo-400",
+        onClick && "cursor-pointer"
       )}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}
     >
       <div className="flex items-start justify-between gap-4">
         {/* 왼쪽: 콘텐츠 정보 */}

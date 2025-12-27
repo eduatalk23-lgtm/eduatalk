@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from "lucide-react";
 import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
+import { CalendarLegend } from "./CalendarLegend";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { formatMonthYear, formatWeekRangeShort, formatDay, parseDateString, formatDateString } from "@/lib/date/calendarUtils";
 import { buildDayTypesFromDailySchedule } from "@/lib/date/calendarDayTypes";
-import { useMemo } from "react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
+import { useTouchGestures } from "../_hooks/useTouchGestures";
+import { PlanFilters, filterPlans, type FilterState } from "./PlanFilters";
+import { CalendarExport } from "./CalendarExport";
 
 type PlanCalendarViewProps = {
   plans: PlanWithContent[];
@@ -87,6 +90,28 @@ export function PlanCalendarView({
   const [currentDate, setCurrentDate] = useState(startDate);
   const [view, setView] = useState<"month" | "week" | "day">(startView);
   const [showOnlyStudyTime, setShowOnlyStudyTime] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    contentTypes: [],
+    statuses: [],
+    planGroups: [],
+  });
+
+  // 필터링된 플랜
+  const filteredPlans = useMemo(() => {
+    return filterPlans(plans, filters);
+  }, [plans, filters]);
+
+  // 플랜 그룹 목록 추출
+  const availablePlanGroups = useMemo(() => {
+    const groupMap = new Map<string, string>();
+    plans.forEach((plan) => {
+      if (plan.plan_group_id) {
+        // plan_group_id만 있으면 이름은 ID의 처음 8자로 대체
+        groupMap.set(plan.plan_group_id, plan.plan_group_id.slice(0, 8));
+      }
+    });
+    return Array.from(groupMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [plans]);
 
   // URL 파라미터 추출 (의존성 최적화를 위해 값만 추출)
   const currentDateParam = searchParams.get("date");
@@ -264,10 +289,31 @@ export function PlanCalendarView({
     return today === current;
   }, [currentDate]);
 
+  // 터치 제스처
+  const handleSwipeNext = useCallback(() => {
+    if (canGoNext) moveDate("next");
+  }, [canGoNext, moveDate]);
+
+  const handleSwipePrev = useCallback(() => {
+    if (canGoPrevious) moveDate("prev");
+  }, [canGoPrevious, moveDate]);
+
+  const { containerRef: touchContainerRef } = useTouchGestures({
+    onSwipeLeft: handleSwipeNext,
+    onSwipeRight: handleSwipePrev,
+    threshold: 75,
+  });
+
+  // Combine refs
+  const setRefs = useCallback((node: HTMLDivElement | null) => {
+    calendarRef.current = node;
+    touchContainerRef.current = node;
+  }, [touchContainerRef]);
+
   return (
-    <div 
-      ref={calendarRef}
-      className="rounded-xl border-2 border-gray-200 bg-white shadow-lg"
+    <div
+      ref={setRefs}
+      className="rounded-xl border-2 border-gray-200 bg-white shadow-lg touch-pan-y"
       role="application"
       aria-label="플랜 캘린더"
       tabIndex={0}
@@ -378,14 +424,14 @@ export function PlanCalendarView({
               </button>
             </div>
 
-            {/* 필터 버튼 */}
+            {/* 타임슬롯 필터 */}
             <button
               onClick={() => setShowOnlyStudyTime(!showOnlyStudyTime)}
               aria-pressed={showOnlyStudyTime}
               aria-label={showOnlyStudyTime ? "모든 타임슬롯 표시" : "학습시간만 표시"}
               className={`flex items-center gap-2 rounded-lg border-2 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                showOnlyStudyTime 
-                  ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm" 
+                showOnlyStudyTime
+                  ? "border-indigo-400 bg-indigo-50 text-indigo-700 shadow-sm"
                   : "border-gray-200 text-gray-700 hover:bg-gray-50"
               }`}
               title={showOnlyStudyTime ? "모든 타임슬롯 표시" : "학습시간만 표시"}
@@ -393,24 +439,43 @@ export function PlanCalendarView({
               <Filter className="h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{showOnlyStudyTime ? "전체" : "학습시간만"}</span>
             </button>
+
+            {/* 플랜 필터 */}
+            <PlanFilters
+              filters={filters}
+              onFiltersChange={setFilters}
+              availablePlanGroups={availablePlanGroups}
+            />
+
+            {/* 캘린더 내보내기 */}
+            <CalendarExport
+              plans={filteredPlans}
+              minDate={minDate}
+              maxDate={maxDate}
+            />
           </div>
         </div>
       </div>
 
       {/* 캘린더 뷰 - 확대된 패딩 */}
-      <div 
+      <div
         id="calendar-view"
         role="region"
         aria-label={`${view === "month" ? "월별" : view === "week" ? "주별" : "일별"} 캘린더 뷰`}
         className="p-4 md:p-6 lg:p-8"
       >
         {view === "month" ? (
-          <MonthView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
+          <MonthView plans={filteredPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} onPlansUpdated={onPlansUpdated} />
         ) : view === "week" ? (
-          <WeekView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
+          <WeekView plans={filteredPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} />
         ) : (
-          <DayView plans={plans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} onPlansUpdated={onPlansUpdated} />
+          <DayView plans={filteredPlans} currentDate={currentDate} exclusions={exclusions} academySchedules={academySchedules} dayTypes={dayTypes} dailyScheduleMap={dailyScheduleMap} showOnlyStudyTime={showOnlyStudyTime} studentId={studentId} onPlansUpdated={onPlansUpdated} />
         )}
+      </div>
+
+      {/* 캘린더 범례 - 가용 날짜 설명 */}
+      <div className="border-t border-gray-200 px-4 md:px-6 lg:px-8 py-4">
+        <CalendarLegend compact={view !== "month"} />
       </div>
     </div>
   );

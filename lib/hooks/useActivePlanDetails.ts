@@ -4,7 +4,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { useTypedQuery } from "@/lib/hooks/useTypedQuery";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { POSTGRES_ERROR_CODES } from "@/lib/constants/errorCodes";
-import { CACHE_STALE_TIME_REALTIME, CACHE_GC_TIME_REALTIME } from "@/lib/constants/queryCache";
+import { CACHE_GC_TIME_REALTIME } from "@/lib/constants/queryCache";
 
 type ActivePlanDetails = {
   id: string;
@@ -108,9 +108,11 @@ function activePlanDetailsQueryOptions(planId: string) {
         isPaused: !!isPaused,
       };
     },
-    staleTime: CACHE_STALE_TIME_REALTIME, // 10초 (실시간 업데이트를 위해 짧게)
+    // Optimistic Update로 즉각적인 UI 반응이 보장되므로 캐시 전략 완화
+    staleTime: 1000 * 60, // 1분 (Optimistic Update가 실시간성 보장)
     gcTime: CACHE_GC_TIME_REALTIME, // 5분 (캐시 유지 시간)
-    refetchInterval: 1000 * 30, // 30초마다 자동 리페치
+    refetchInterval: 1000 * 60, // 1분마다 자동 리페치 (백그라운드 동기화)
+    refetchOnWindowFocus: false, // usePlanTimer가 포커스 시 동기화 처리
   });
 }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/atoms/Button";
+
 type BaseGroupFormProps = {
   name: string;
   isPending: boolean;
@@ -39,41 +41,45 @@ export default function BaseGroupForm({
         </div>
         {isInline && (
           <div className="flex gap-2">
-            <button
+            <Button
               type="submit"
+              variant="primary"
+              size="sm"
               disabled={isPending}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              isLoading={isPending}
             >
               {isPending ? "저장 중..." : "저장"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onCancel}
               disabled={isPending}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
             >
               취소
-            </button>
+            </Button>
           </div>
         )}
       </div>
       {!isInline && (
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isPending}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
           >
             취소
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
             disabled={isPending}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            isLoading={isPending}
           >
             {isPending ? "저장 중..." : "저장"}
-          </button>
+          </Button>
         </div>
       )}
     </form>

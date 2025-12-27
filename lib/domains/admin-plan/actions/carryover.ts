@@ -33,7 +33,7 @@ export async function runCarryoverForStudent(
     // 인증 검증
     await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
-    const correlationId = generateCorrelationId();
+    const correlationId = await generateCorrelationId();
 
     // cutoffDate 기준으로 이전 날짜의 미완료 플랜 조회
     const today = input.cutoffDate ?? new Date().toISOString().split('T')[0];

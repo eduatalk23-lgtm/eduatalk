@@ -6,7 +6,21 @@ import { cn } from '@/lib/cn';
 // 타입 정의
 // ============================================
 
-export type ZoneType = 'study' | 'lunch' | 'transit' | 'academy' | 'free' | 'completed';
+export type ZoneType = 'study' | 'lunch' | 'transit' | 'academy' | 'free' | 'completed' | 'active';
+
+// 오버레이 플랜 정보 (시간대 블록 내에 표시될 완료/진행 중인 플랜)
+export interface OverlayPlan {
+  id: string;
+  title: string;
+  chapter?: string;
+  contentType?: 'book' | 'lecture' | 'custom';
+  range?: string; // "p.1-10" 또는 "00:00-10:00"
+  durationMinutes: number;
+  startTime: string;
+  endTime: string;
+  status: 'completed' | 'active';
+  isPaused?: boolean;
+}
 
 export interface TimeBlock {
   id: string;
@@ -15,11 +29,20 @@ export interface TimeBlock {
   zoneType: ZoneType;
   label: string;
   description?: string;
-  // 완료된 학습 기록
+  // 시간대 내에 중첩 표시할 플랜들
+  overlayPlans?: OverlayPlan[];
+  // 완료된 학습 기록 (레거시 - 하위 호환성)
   completedPlan?: {
     id: string;
     title: string;
     durationMinutes: number;
+  };
+  // 진행 중인 학습 기록 (레거시 - 하위 호환성)
+  activePlan?: {
+    id: string;
+    title: string;
+    elapsedMinutes: number;
+    isPaused?: boolean;
   };
 }
 
@@ -40,46 +63,53 @@ const zoneConfig: Record<ZoneType, {
   icon: string;
 }> = {
   study: {
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    textColor: 'text-blue-700',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/30',
+    borderColor: 'border-blue-200 dark:border-blue-700',
+    textColor: 'text-blue-700 dark:text-blue-300',
     pattern: 'solid',
     icon: '📗',
   },
   lunch: {
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
-    textColor: 'text-yellow-700',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/30',
+    borderColor: 'border-yellow-200 dark:border-yellow-700',
+    textColor: 'text-yellow-700 dark:text-yellow-300',
     pattern: 'striped',
     icon: '🍽️',
   },
   transit: {
-    bgColor: 'bg-gray-100',
-    borderColor: 'border-gray-300',
-    textColor: 'text-gray-600',
+    bgColor: 'bg-gray-100 dark:bg-gray-800',
+    borderColor: 'border-gray-300 dark:border-gray-600',
+    textColor: 'text-gray-600 dark:text-gray-400',
     pattern: 'dotted',
     icon: '🚗',
   },
   academy: {
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200',
-    textColor: 'text-purple-700',
+    bgColor: 'bg-purple-50 dark:bg-purple-900/30',
+    borderColor: 'border-purple-200 dark:border-purple-700',
+    textColor: 'text-purple-700 dark:text-purple-300',
     pattern: 'striped',
     icon: '🏫',
   },
   free: {
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    textColor: 'text-green-700',
+    bgColor: 'bg-green-50 dark:bg-green-900/30',
+    borderColor: 'border-green-200 dark:border-green-700',
+    textColor: 'text-green-700 dark:text-green-300',
     pattern: 'solid',
     icon: '📚',
   },
   completed: {
-    bgColor: 'bg-emerald-100',
-    borderColor: 'border-emerald-400',
-    textColor: 'text-emerald-800',
+    bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
+    borderColor: 'border-emerald-400 dark:border-emerald-600',
+    textColor: 'text-emerald-800 dark:text-emerald-300',
     pattern: 'solid',
     icon: '✓',
+  },
+  active: {
+    bgColor: 'bg-blue-100 dark:bg-blue-900/40',
+    borderColor: 'border-blue-500 dark:border-blue-400',
+    textColor: 'text-blue-800 dark:text-blue-200',
+    pattern: 'solid',
+    icon: '▶',
   },
 };
 
@@ -90,15 +120,15 @@ const zoneConfig: Record<ZoneType, {
 export function TimelineZone({ blocks, currentTime }: TimelineZoneProps) {
   if (blocks.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
+      <div className="py-8 text-center text-gray-500 dark:text-gray-400">
         <p>타임라인 정보가 없습니다</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
+    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+      <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
         <span>⏰</span>
         <span>오늘의 Timeline</span>
       </h3>
@@ -123,9 +153,17 @@ function TimeBlockItem({ block, currentTime }: { block: TimeBlock; currentTime?:
   const isCurrentBlock = currentTime && isTimeInBlock(currentTime, block);
   const isPastBlock = currentTime && block.endTime < currentTime;
 
-  // 분 단위 높이 계산 (최소 32px, 최대 120px)
+  // 분 단위 높이 계산 - overlayPlans가 있으면 더 높게
   const durationMinutes = calculateDurationMinutes(block.startTime, block.endTime);
-  const height = Math.min(Math.max(durationMinutes * 0.8, 32), 120);
+  const overlayCount = block.overlayPlans?.length || 0;
+  const baseHeight = Math.min(Math.max(durationMinutes * 0.8, 48), 120);
+  const height = overlayCount > 0 ? Math.max(baseHeight, 80 + overlayCount * 60) : baseHeight;
+
+  const getContentIcon = (contentType?: 'book' | 'lecture' | 'custom') => {
+    if (contentType === 'book') return '📚';
+    if (contentType === 'lecture') return '🎧';
+    return '📝';
+  };
 
   return (
     <div
@@ -138,33 +176,140 @@ function TimeBlockItem({ block, currentTime }: { block: TimeBlock; currentTime?:
       )}
       style={{ minHeight: `${height}px` }}
     >
-      {/* 시간 표시 */}
-      <div className="w-16 flex-shrink-0 flex flex-col justify-center px-2 border-r border-gray-200 bg-white/50">
-        <span className="text-xs font-mono text-gray-600">{block.startTime}</span>
+      {/* 시간 표시 - 시작/끝 시간 모두 표시 */}
+      <div className="w-20 flex-shrink-0 flex flex-col justify-between py-2 px-2 border-r border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-800/50">
+        <span className="text-xs font-mono text-gray-700 dark:text-gray-300 font-medium">{block.startTime}</span>
+        <span className="text-xs font-mono text-gray-400 dark:text-gray-500">~</span>
+        <span className="text-xs font-mono text-gray-700 dark:text-gray-300 font-medium">{block.endTime}</span>
       </div>
 
       {/* 콘텐츠 */}
-      <div className={cn('flex-1 px-3 py-2 flex items-center gap-2', getPatternClass(config.pattern))}>
-        <span className="text-sm">{config.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className={cn('text-sm font-medium truncate', config.textColor)}>
-            {block.label}
-          </div>
-          {block.description && (
-            <div className="text-xs text-gray-500 truncate">{block.description}</div>
-          )}
-          {block.completedPlan && (
-            <div className="text-xs text-emerald-600 mt-0.5">
-              ✓ {block.completedPlan.title} ({block.completedPlan.durationMinutes}분)
+      <div className={cn('flex-1 px-3 py-2 flex flex-col gap-2', getPatternClass(config.pattern))}>
+        {/* 기본 블록 정보 */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{config.icon}</span>
+          <div className="flex-1 min-w-0">
+            <div className={cn('text-sm font-medium truncate', config.textColor)}>
+              {block.label}
             </div>
+            {block.description && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{block.description}</div>
+            )}
+            {/* 소요 시간 표시 */}
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+              {durationMinutes >= 60
+                ? `${Math.floor(durationMinutes / 60)}시간 ${durationMinutes % 60 > 0 ? `${durationMinutes % 60}분` : ''}`
+                : `${durationMinutes}분`
+              }
+            </div>
+          </div>
+          {/* 비-학습 영역 표시 */}
+          {(block.zoneType === 'lunch' || block.zoneType === 'transit' || block.zoneType === 'academy') && (
+            <span className="text-xs text-gray-400" title="학습 가능하나 다른 일정 영역입니다">
+              ⓘ
+            </span>
           )}
         </div>
 
-        {/* 비-학습 영역 경고 */}
-        {(block.zoneType === 'lunch' || block.zoneType === 'transit' || block.zoneType === 'academy') && (
-          <span className="text-xs text-gray-400" title="학습 가능하나 다른 일정 영역입니다">
-            ⓘ
-          </span>
+        {/* 오버레이 플랜 표시 (상세 정보 포함) */}
+        {block.overlayPlans && block.overlayPlans.length > 0 && (
+          <div className="space-y-2 mt-1">
+            {block.overlayPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={cn(
+                  'rounded-md p-2 border',
+                  plan.status === 'completed'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-700'
+                    : plan.isPaused
+                    ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700'
+                    : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700'
+                )}
+              >
+                {/* 헤더: 상태 표시 + 시간 */}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    {plan.status === 'completed' ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 dark:bg-emerald-600">
+                          <span className="text-white text-[10px]">✓</span>
+                        </span>
+                        완료됨
+                      </span>
+                    ) : (
+                      <span className={cn(
+                        "flex items-center gap-1 text-xs font-medium",
+                        plan.isPaused ? "text-yellow-700 dark:text-yellow-300" : "text-blue-700 dark:text-blue-300"
+                      )}>
+                        <span className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          plan.isPaused ? "bg-yellow-500" : "bg-blue-500 animate-pulse"
+                        )} />
+                        {plan.isPaused ? "일시정지" : "학습 중"}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                    {plan.startTime} ~ {plan.endTime}
+                  </span>
+                </div>
+
+                {/* 타이틀 */}
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{getContentIcon(plan.contentType)}</span>
+                  <span className={cn(
+                    "font-medium text-sm",
+                    plan.status === 'completed'
+                      ? "text-emerald-800 dark:text-emerald-200"
+                      : plan.isPaused
+                      ? "text-yellow-800 dark:text-yellow-200"
+                      : "text-blue-800 dark:text-blue-200"
+                  )}>
+                    {plan.title}
+                  </span>
+                </div>
+
+                {/* 상세 정보 */}
+                <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-gray-600 dark:text-gray-400">
+                  {plan.chapter && (
+                    <span className="inline-flex items-center gap-1">
+                      📖 {plan.chapter}
+                    </span>
+                  )}
+                  {plan.range && (
+                    <span className="inline-flex items-center gap-1">
+                      📄 {plan.range}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    ⏱️ {plan.durationMinutes}분
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 레거시: completedPlan, activePlan (하위 호환성) */}
+        {!block.overlayPlans?.length && block.completedPlan && (
+          <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+            ✓ {block.completedPlan.title} ({block.completedPlan.durationMinutes}분)
+          </div>
+        )}
+        {!block.overlayPlans?.length && block.activePlan && (
+          <div className={cn(
+            "text-xs mt-0.5 flex items-center gap-1",
+            block.activePlan.isPaused ? "text-yellow-600 dark:text-yellow-400" : "text-blue-600 dark:text-blue-400"
+          )}>
+            <span className={cn(
+              "h-2 w-2 rounded-full",
+              block.activePlan.isPaused ? "bg-yellow-500" : "bg-blue-500 animate-pulse"
+            )} />
+            <span>
+              {block.activePlan.isPaused ? "일시정지됨" : "학습 중"}
+              ({block.activePlan.elapsedMinutes}분)
+            </span>
+          </div>
         )}
       </div>
     </div>

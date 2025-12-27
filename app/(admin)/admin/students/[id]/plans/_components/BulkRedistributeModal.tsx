@@ -73,7 +73,7 @@ export function BulkRedistributeModal({
 
   const handleApply = async () => {
     const supabase = createSupabaseBrowserClient();
-    const correlationId = generateCorrelationId();
+    const correlationId = await generateCorrelationId();
 
     startTransition(async () => {
       if (action === 'move_to_daily') {

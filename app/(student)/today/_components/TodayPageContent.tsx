@@ -2,13 +2,11 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { PlanViewContainer, type ViewMode } from "./PlanViewContainer";
+import { PlanViewContainer } from "./PlanViewContainer";
 import { TodayAchievements } from "./TodayAchievements";
 import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 
 type TodayPageContentProps = {
-  initialMode: ViewMode;
-  initialPlanDate?: string | null;
   initialProgressDate: string;
   initialProgress: TodayProgress;
   showPlans?: boolean;
@@ -28,8 +26,6 @@ type ProgressResponse = {
 };
 
 export function TodayPageContent({
-  initialMode,
-  initialPlanDate = null,
   initialProgressDate,
   initialProgress,
   showPlans = true,
@@ -38,8 +34,7 @@ export function TodayPageContent({
   campMode = false,
   initialPlansData,
 }: TodayPageContentProps) {
-  const fallbackDate = initialPlanDate ?? initialProgressDate;
-  const [selectedDate, setSelectedDate] = useState<string>(fallbackDate);
+  const [selectedDate, setSelectedDate] = useState<string>(initialProgressDate);
   
   // If initialPlansData includes todayProgress, use it instead of initialProgress
   // This avoids the need for a separate /api/today/progress call
@@ -47,7 +42,7 @@ export function TodayPageContent({
   const [progress, setProgress] = useState<TodayProgress>(effectiveInitialProgress);
   const [isProgressLoading, setIsProgressLoading] = useState(false);
   const [progressError, setProgressError] = useState<string | null>(null);
-  const lastFetchedDateRef = useRef<string>(fallbackDate);
+  const lastFetchedDateRef = useRef<string>(initialProgressDate);
   
   // Track if we should skip progress fetch (when data comes from /api/today/plans)
   const shouldSkipProgressFetch = Boolean(initialPlansData?.todayProgress);
@@ -115,8 +110,6 @@ export function TodayPageContent({
     <div className="flex flex-col gap-6">
       {showPlans && (
         <PlanViewContainer
-          initialMode={initialMode}
-          initialPlanDate={initialPlanDate}
           onDateChange={handleDateChange}
           userId={userId}
           campMode={campMode}

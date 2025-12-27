@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
+import Button from "@/components/atoms/Button";
 import { batchUpdateStudentDivisionAction, getActiveStudentDivisionsAction } from "@/lib/domains/student/actions";
 import type { StudentDivision } from "@/lib/constants/students";
 import { isSuccessResponse } from "@/lib/types/actionResponse";
@@ -12,9 +13,8 @@ import {
   bgSurface,
   textPrimary,
   textSecondary,
-  inlineButtonPrimary,
 } from "@/lib/utils/darkMode";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 type BulkDivisionUpdateModalProps = {
   open: boolean;
@@ -166,36 +166,26 @@ export function BulkDivisionUpdateModal({
         </div>
 
         <div className="flex items-center justify-end gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               onOpenChange(false);
               setSelectedDivision("");
             }}
             disabled={isPending}
-            className={cn(
-              "rounded-lg border px-4 py-2 text-body-2 font-semibold transition",
-              borderInput,
-              bgSurface,
-              textSecondary,
-              "hover:bg-gray-50 dark:hover:bg-gray-800",
-              isPending && "opacity-50 cursor-not-allowed"
-            )}
           >
             취소
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
             onClick={handleSubmit}
             disabled={isPending || selectedDivision === ""}
-            className={cn(
-              "rounded-lg px-4 py-2 text-body-2 font-semibold text-white transition",
-              inlineButtonPrimary(),
-              (isPending || selectedDivision === "") && "opacity-50 cursor-not-allowed"
-            )}
+            isLoading={isPending}
           >
             {isPending ? "변경 중..." : "변경하기"}
-          </button>
+          </Button>
         </div>
       </div>
     </Dialog>

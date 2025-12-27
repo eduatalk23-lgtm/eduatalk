@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/molecules/EmptyState";
 import { DateInput } from "@/app/(student)/plan/new-group/_components/common/DateInput";
 import { generateDateRange, formatDateFromDate, parseDateString } from "@/lib/utils/date";
 import { MultiSelectCalendar } from "./MultiSelectCalendar";
+import { useToast } from "@/components/ui/ToastProvider";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type ExclusionManagementProps = {
   studentId: string;
@@ -32,23 +34,28 @@ export default function ExclusionManagement({
 }: ExclusionManagementProps) {
   const [planExclusions, setPlanExclusions] = useState<PlanExclusion[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // 날짜 선택 타입
   const [exclusionInputType, setExclusionInputType] = useState<ExclusionInputType>("single");
-  
+
   // 단일 날짜
   const [newExclusionDate, setNewExclusionDate] = useState("");
-  
+
   // 범위 선택
   const [newExclusionStartDate, setNewExclusionStartDate] = useState("");
   const [newExclusionEndDate, setNewExclusionEndDate] = useState("");
-  
+
   // 비연속 다중 선택
   const [newExclusionDates, setNewExclusionDates] = useState<string[]>([]);
-  
+
   const [newExclusionType, setNewExclusionType] = useState<"휴가" | "개인사정" | "휴일지정" | "기타">("휴가");
   const [newExclusionReason, setNewExclusionReason] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  // Toast & Confirm Dialog
+  const { showWarning, showError, showSuccess } = useToast();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [exclusionToDelete, setExclusionToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -130,23 +137,23 @@ export default function ExclusionManagement({
     // 날짜 선택 타입에 따라 처리
     if (exclusionInputType === "single") {
       if (!newExclusionDate) {
-        alert("날짜를 입력해주세요.");
+        showWarning("날짜를 입력해주세요.");
         return;
       }
       datesToAdd = [newExclusionDate];
     } else if (exclusionInputType === "range") {
       if (!newExclusionStartDate || !newExclusionEndDate) {
-        alert("시작일과 종료일을 선택해주세요.");
+        showWarning("시작일과 종료일을 선택해주세요.");
         return;
       }
       if (new Date(newExclusionStartDate) > new Date(newExclusionEndDate)) {
-        alert("시작일은 종료일보다 앞서야 합니다.");
+        showWarning("시작일은 종료일보다 앞서야 합니다.");
         return;
       }
       datesToAdd = generateDateRange(newExclusionStartDate, newExclusionEndDate);
     } else if (exclusionInputType === "multiple") {
       if (newExclusionDates.length === 0) {
-        alert("날짜를 최소 1개 이상 선택해주세요.");
+        showWarning("날짜를 최소 1개 이상 선택해주세요.");
         return;
       }
       datesToAdd = [...newExclusionDates];
@@ -157,7 +164,7 @@ export default function ExclusionManagement({
     const duplicates = datesToAdd.filter((date) => existingDates.has(date));
 
     if (duplicates.length > 0) {
-      alert(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
+      showWarning(`이미 등록된 제외일이 있습니다: ${duplicates.join(", ")}`);
       return;
     }
 
@@ -183,30 +190,42 @@ export default function ExclusionManagement({
         setNewExclusionReason("");
         onAddRequest?.(); // 상위 컴포넌트에 상태 토글 요청
 
+        showSuccess(`${datesToAdd.length}개의 제외일이 추가되었습니다.`);
+
         // 데이터 다시 로드
         await loadData();
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "제외일 추가에 실패했습니다.";
-        alert(errorMessage);
+        showError(errorMessage);
       }
     });
   };
 
-  const handleDeleteExclusion = async (exclusionId: string) => {
-    if (!confirm("이 제외일을 삭제하시겠습니까?")) return;
+  const handleDeleteClick = (exclusionId: string) => {
+    setExclusionToDelete(exclusionId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!exclusionToDelete) return;
 
     startTransition(async () => {
       try {
         const formData = new FormData();
-        formData.append("exclusion_id", exclusionId);
+        formData.append("exclusion_id", exclusionToDelete);
 
         await deletePlanExclusion(formData);
+
+        showSuccess("제외일이 삭제되었습니다.");
 
         // 데이터 다시 로드
         await loadData();
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : "제외일 삭제에 실패했습니다.";
-        alert(errorMessage);
+        showError(errorMessage);
+      } finally {
+        setDeleteConfirmOpen(false);
+        setExclusionToDelete(null);
       }
     });
   };
@@ -471,7 +490,7 @@ export default function ExclusionManagement({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleDeleteExclusion(exclusion.id)}
+                          onClick={() => handleDeleteClick(exclusion.id)}
                           disabled={isPending}
                           className="rounded p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                           title="삭제"
@@ -487,6 +506,19 @@ export default function ExclusionManagement({
           </div>
         )}
       </div>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="제외일 삭제"
+        description="이 제외일을 삭제하시겠습니까?"
+        confirmLabel="삭제"
+        cancelLabel="취소"
+        onConfirm={handleDeleteConfirm}
+        variant="destructive"
+        isLoading={isPending}
+      />
     </div>
   );
 }

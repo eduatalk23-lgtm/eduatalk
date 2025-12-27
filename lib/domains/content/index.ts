@@ -14,7 +14,30 @@
  */
 
 // Types only (re-export from data layer - safe for client)
-export type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
+export type { Book, Lecture, CustomContent as LegacyCustomContent } from "@/lib/data/studentContents";
+
+// Enhanced Custom Content Types (Phase 5)
+export type {
+  CustomContent,
+  CustomContentInput,
+  CustomContentUpdate,
+  CustomContentFilters,
+  CustomContentTemplate,
+  TemplateInput,
+  RangeType,
+  DifficultyLevel,
+  ContentStatus,
+} from "./types";
+
+// Type utilities
+export {
+  toCustomContent,
+  toCustomContentTemplate,
+  formatRange,
+  getRangeTypeDefaultUnit,
+  getDifficultyLabel,
+  getDifficultyColor,
+} from "./types";
 
 // Server Actions (CRUD 작업용 - 클라이언트 컴포넌트에서 사용)
 export * from "./actions";

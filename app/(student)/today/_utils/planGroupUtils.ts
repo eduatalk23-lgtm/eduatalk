@@ -97,22 +97,30 @@ export function groupPlansByPlanNumber(plans: PlanWithContent[] | null | undefin
     sequence: plan.sequence ?? null,
   }));
 
-  // 4. 결과 병합 및 정렬 (start_time 또는 block_index 기준)
+  // 4. 결과 병합 및 정렬 (완료된 플랜은 하단으로 이동)
   const allGroups = [...groupedPlans, ...individualGroups];
-  
+
   return allGroups.sort((a, b) => {
+    // 먼저 완료 여부로 분리 (미완료 → 완료)
+    const aCompleted = !!a.plan.actual_end_time;
+    const bCompleted = !!b.plan.actual_end_time;
+
+    if (aCompleted && !bCompleted) return 1;
+    if (!aCompleted && bCompleted) return -1;
+
+    // 같은 완료 상태 내에서 시간 기준 정렬
     const aTime = a.plan.start_time || "";
     const bTime = b.plan.start_time || "";
-    
+
     // start_time이 있으면 시간 비교
     if (aTime && bTime) {
       return aTime < bTime ? -1 : aTime > bTime ? 1 : 0;
     }
-    
+
     // start_time이 있는 것 우선
     if (aTime && !bTime) return -1;
     if (!aTime && bTime) return 1;
-    
+
     // 둘 다 없으면 block_index로 비교
     const aIndex = a.plan.block_index ?? 0;
     const bIndex = b.plan.block_index ?? 0;

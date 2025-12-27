@@ -1,12 +1,26 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type {
   InheritedTemplateSettings,
   ContentPlanGroupPreview,
 } from "@/lib/types/plan";
 import { previewContentPlanGroup } from "@/lib/domains/plan/actions";
+import { getWeeklyScheduleOverview } from "@/lib/domains/plan/actions/contentSchedule";
+import { WeeklyTimelinePreview } from "@/app/(student)/plan/new-group/_components/_features/scheduling/components/WeeklyTimelinePreview";
+import { IndividualWeekdaySelector } from "./IndividualWeekdaySelector";
+import { AvailableDatesPreview } from "./AvailableDatesPreview";
 import type { WizardData } from "./ContentAddWizard";
+
+// 개별 스케줄 설정 타입
+type IndividualScheduleSettings = {
+  studyDays?: number[];
+  dailyMinutes?: number;
+  dailyAmount?: number;
+  reviewEnabled?: boolean;
+  reviewCycleInDays?: number;
+};
 
 // WizardData에서 null을 제외한 완전한 데이터 타입
 interface CompleteWizardData {
@@ -24,6 +38,7 @@ interface PreviewStepProps {
   onCreate: () => void;
   isPending: boolean;
   onOverridesChange?: (overrides: WizardData["overrides"]) => void;
+  onIndividualScheduleChange?: (schedule: IndividualScheduleSettings | undefined) => void;
 }
 
 export function PreviewStep({
@@ -34,15 +49,51 @@ export function PreviewStep({
   onCreate,
   isPending,
   onOverridesChange,
+  onIndividualScheduleChange,
 }: PreviewStepProps) {
   const [preview, setPreview] = useState<ContentPlanGroupPreview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showOverrides, setShowOverrides] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
   const [overrides, setOverrides] = useState<{
     period?: { startDate: string; endDate: string };
     weekdays?: number[];
   }>({});
+  const [individualSchedule, setIndividualSchedule] = useState<IndividualScheduleSettings | undefined>(undefined);
+
+  // 효과적인 학습 요일 계산 (개별 스케줄 > 오버라이드 > 기본값)
+  const effectiveWeekdays =
+    individualSchedule?.studyDays ??
+    overrides.weekdays ??
+    (wizardData.studyType.type === "weakness"
+      ? templateSettings.weekdays
+      : templateSettings.weekdays.slice(0, wizardData.studyType.daysPerWeek ?? 3));
+
+  // 주간 스케줄 오버뷰 조회 (새 콘텐츠 미리보기 포함)
+  const { data: weeklyOverview, isLoading: isLoadingTimeline } = useQuery({
+    queryKey: [
+      "weeklyScheduleOverview",
+      templateId,
+      wizardData.content.name,
+      wizardData.studyType,
+      effectiveWeekdays,
+      individualSchedule?.dailyMinutes,
+    ],
+    queryFn: () =>
+      getWeeklyScheduleOverview(templateId, {
+        contentTitle: wizardData.content.name,
+        contentType: wizardData.content.type === "book" ? "book" : "lecture",
+        subject: wizardData.content.subject ?? null,
+        weekdays: effectiveWeekdays,
+        estimatedMinutesPerDay:
+          individualSchedule?.dailyMinutes ??
+          (wizardData.content.type === "lecture" ? 45 : 30),
+        totalVolume: wizardData.range.end - wizardData.range.start + 1,
+      }),
+    enabled: showTimeline,
+    staleTime: 1000 * 60, // 1분
+  });
 
   const loadPreview = useCallback(async () => {
     setIsLoading(true);
@@ -55,6 +106,15 @@ export function PreviewStep({
         studyType: wizardData.studyType,
         maxPreviewPlans: 10,
         overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+        individualSchedule: individualSchedule
+          ? {
+              studyDays: individualSchedule.studyDays,
+              dailyMinutes: individualSchedule.dailyMinutes,
+              dailyAmount: individualSchedule.dailyAmount,
+              reviewEnabled: individualSchedule.reviewEnabled,
+              reviewCycleInDays: individualSchedule.reviewCycleInDays,
+            }
+          : undefined,
       });
       setPreview(result);
     } catch {
@@ -62,7 +122,7 @@ export function PreviewStep({
     } finally {
       setIsLoading(false);
     }
-  }, [templateId, wizardData, overrides]);
+  }, [templateId, wizardData, overrides, individualSchedule]);
 
   useEffect(() => {
     loadPreview();
@@ -71,6 +131,11 @@ export function PreviewStep({
   const handleOverrideChange = (newOverrides: typeof overrides) => {
     setOverrides(newOverrides);
     onOverridesChange?.(newOverrides);
+  };
+
+  const handleIndividualScheduleChange = (newSchedule: IndividualScheduleSettings | undefined) => {
+    setIndividualSchedule(newSchedule);
+    onIndividualScheduleChange?.(newSchedule);
   };
 
   const formatDate = (dateStr: string) => {
@@ -140,6 +205,66 @@ export function PreviewStep({
           ))}
         </div>
       )}
+
+      {/* Weekly Timeline Preview Section */}
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-medium text-gray-900 dark:text-gray-100">
+            주간 학습량 미리보기
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowTimeline(!showTimeline)}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {showTimeline ? "접기 ▲" : "기존 배치 확인 ▼"}
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          새 콘텐츠를 추가할 때 기존 콘텐츠와의 요일별 학습량을 확인할 수 있습니다.
+        </p>
+
+        {showTimeline && (
+          <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+            {isLoadingTimeline ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600" />
+              </div>
+            ) : weeklyOverview?.success && weeklyOverview.data ? (
+              <WeeklyTimelinePreview
+                data={weeklyOverview.data}
+                newContentTitle={wizardData.content.name}
+              />
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                타임라인을 불러올 수 없습니다.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Available Dates Preview - 가용 날짜 시각화 (타임존 기능 흡수) */}
+      {preview && (
+        <AvailableDatesPreview
+          periodStart={overrides.period?.startDate ?? templateSettings.period.startDate}
+          periodEnd={overrides.period?.endDate ?? templateSettings.period.endDate}
+          weekdays={effectiveWeekdays}
+          totalStudyDays={preview.distribution.studyDays}
+          dailyAmount={preview.distribution.dailyAmount}
+          rangeUnit={wizardData.range.unit}
+        />
+      )}
+
+      {/* Individual Schedule Section */}
+      <IndividualWeekdaySelector
+        templateWeekdays={templateSettings.weekdays}
+        value={individualSchedule}
+        onChange={handleIndividualScheduleChange}
+        studyType={wizardData.studyType.type}
+        strategyDaysPerWeek={wizardData.studyType.daysPerWeek}
+        disabled={isPending}
+      />
 
       {/* Template Override Section */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">

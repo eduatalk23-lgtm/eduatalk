@@ -52,7 +52,7 @@ export async function createPlanEvent(
 /**
  * 연관 이벤트 그룹 생성을 위한 correlation ID 생성
  */
-export function generateCorrelationId(): string {
+export async function generateCorrelationId(): Promise<string> {
   return crypto.randomUUID();
 }
 
@@ -65,7 +65,7 @@ export async function createPlanEvents(
 ): Promise<AdminPlanResponse<PlanEvent[]>> {
   try {
     const supabase = await createSupabaseServerClient();
-    const corrId = correlationId ?? generateCorrelationId();
+    const corrId = correlationId ?? await generateCorrelationId();
 
     const eventsData = events.map((event) => ({
       ...event,

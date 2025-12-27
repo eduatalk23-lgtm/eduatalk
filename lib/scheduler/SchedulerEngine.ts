@@ -381,7 +381,46 @@ export class SchedulerEngine {
       return result;
     }
     
-    // 교재 및 커스텀 콘텐츠: Capacity-Aware 배치 (기존 로직)
+    // 교재(book) 콘텐츠: 학습일 수에 맞춰 균등 분배 (강의와 동일한 패턴)
+    // 버그 수정: 기존 Capacity-Aware 로직은 용량이 차면 조기 종료되어 
+    // 20일 학습 기간인데 3일만에 플랜이 끝나는 문제가 있었음
+    if (content.content_type === "book" && totalStudyDays > 0 && totalRange > 0) {
+      const dailyRange = totalRange / totalStudyDays;
+      let currentPos = 0; // 0부터 시작하는 상대 위치
+      
+      for (let i = 0; i < sortedDates.length; i++) {
+        const date = sortedDates[i];
+        const isLastDay = i === sortedDates.length - 1;
+        
+        // 마지막 날이 아니면 dailyRange를 반올림, 마지막 날이면 남은 모든 페이지 배정
+        const dayRange = isLastDay
+          ? totalRange - currentPos
+          : Math.round(dailyRange);
+        
+        // 최소 1페이지는 배정되도록 보장
+        const effectiveDayRange = Math.max(1, dayRange);
+        const dayEnd = Math.min(currentPos + effectiveDayRange, totalRange);
+        
+        // 실제 페이지 범위 (start_range 오프셋 적용)
+        const actualStart = content.start_range + currentPos;
+        const actualEnd = content.start_range + dayEnd;
+        
+        // 페이지가 있는 경우만 배정
+        if (actualEnd > actualStart) {
+          result.set(date, { start: actualStart, end: actualEnd });
+        }
+        
+        // 다음 날을 위해 현재 위치 업데이트
+        currentPos = dayEnd;
+        
+        // 모든 페이지가 배정되면 종료
+        if (currentPos >= totalRange) break;
+      }
+      
+      return result;
+    }
+    
+    // 커스텀 콘텐츠: Capacity-Aware 배치 (기존 로직 유지)
     for (let i = 0; i < sortedDates.length; i++) {
       const date = sortedDates[i];
       const isLastDay = i === sortedDates.length - 1;
@@ -401,20 +440,8 @@ export class SchedulerEngine {
       // Capacity-Aware Filling
       while (dayEnd < totalEnd) {
         // Determine unit size and duration
-        let unitSize = 1; 
-        let unitDuration = 0;
-        
-        if (content.content_type === "book") {
-          // Book pages
-          unitSize = 1; // 1 page
-          unitDuration = 2; // default 2 mins/page
-          if (durationInfo.total_pages && durationInfo.duration) {
-             unitDuration = durationInfo.duration / durationInfo.total_pages;
-          }
-        } else {
-          // Custom / Fallback
-          unitDuration = 1; // 1 min per unit
-        }
+        const unitSize = 1; 
+        const unitDuration = 1; // 1 min per unit for custom
         
         // Check fit
         if (usedTime + unitDuration <= dayCapacity) {

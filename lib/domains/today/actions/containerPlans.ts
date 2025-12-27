@@ -236,6 +236,7 @@ export async function moveToDaily(
       .update({
         container_type: 'daily',
         plan_date: today,
+        is_active: true, // 명시적으로 활성 상태 유지
         updated_at: new Date().toISOString(),
       })
       .eq('id', planId)
@@ -274,6 +275,7 @@ export async function moveToWeekly(
       .from(tableName)
       .update({
         container_type: 'weekly',
+        is_active: true, // 명시적으로 활성 상태 유지
         updated_at: new Date().toISOString(),
       })
       .eq('id', planId)

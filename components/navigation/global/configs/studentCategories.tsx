@@ -1,5 +1,14 @@
 /**
  * 학생 영역 카테고리 설정
+ *
+ * 구조 (7개 카테고리):
+ * 1. 홈 - 대시보드
+ * 2. 오늘 학습 - 핵심 기능 (독립 카테고리)
+ * 3. 플랜 관리 - 플랜 + 콘텐츠 + 시간 통합
+ * 4. 캠프 - 캠프 관련 기능
+ * 5. 학습 분석 - 분석 + 리포트 통합
+ * 6. 성적 관리 - 성적 입력 및 분석
+ * 7. 설정 - 출석 + 프로필 + 계정 통합
  */
 
 "use client";
@@ -23,13 +32,20 @@ import {
   Lock,
   User,
   Settings,
+  Activity,
+  AlertTriangle,
+  Timer,
+  Home,
+  CalendarCheck,
+  CalendarX,
 } from "lucide-react";
 
 export const studentCategories: NavigationCategory[] = [
+  // 1. 홈
   {
-    id: "dashboard",
-    label: "대시보드",
-    icon: <BarChart3 className="w-4 h-4" />,
+    id: "home",
+    label: "홈",
+    icon: <Home className="w-4 h-4" />,
     items: [
       {
         id: "dashboard-main",
@@ -39,31 +55,23 @@ export const studentCategories: NavigationCategory[] = [
       },
     ],
   },
+
+  // 2. 오늘 학습 (핵심 기능 - 독립 카테고리로 승격)
   {
-    id: "camp",
-    label: "캠프 관리",
-    icon: <Tent className="w-4 h-4" />,
+    id: "today",
+    label: "오늘 학습",
+    icon: <CalendarCheck className="w-4 h-4" />,
     items: [
       {
-        id: "camp-list",
-        label: "캠프 목록",
-        href: "/camp",
-        icon: <ClipboardList className="w-4 h-4" />,
-      },
-      {
-        id: "camp-calendar",
-        label: "캠프 플랜 캘린더",
-        href: "/camp/calendar",
-        icon: <Calendar className="w-4 h-4" />,
-      },
-      {
-        id: "camp-today",
-        label: "캠프 학습관리",
-        href: "/camp/today",
-        icon: <CalendarDays className="w-4 h-4" />,
+        id: "today-main",
+        label: "오늘 학습",
+        href: "/today",
+        icon: <CalendarCheck className="w-4 h-4" />,
       },
     ],
   },
+
+  // 3. 플랜 관리 (플랜 + 콘텐츠 + 시간 통합)
   {
     id: "plan",
     label: "플랜 관리",
@@ -82,43 +90,35 @@ export const studentCategories: NavigationCategory[] = [
         icon: <Calendar className="w-4 h-4" />,
       },
       {
-        id: "plan-today",
-        label: "학습 관리",
-        href: "/today",
+        id: "plan-adjust",
+        label: "플랜 재조정",
+        href: "/plan/adjust",
         icon: <CalendarDays className="w-4 h-4" />,
       },
-    ],
-  },
-  {
-    id: "contents",
-    label: "콘텐츠 관리",
-    icon: <BookOpen className="w-4 h-4" />,
-    items: [
+      {
+        id: "plan-stats",
+        label: "학습 통계",
+        href: "/plan/stats",
+        icon: <TrendingUp className="w-4 h-4" />,
+      },
       {
         id: "contents-list",
         label: "콘텐츠",
         href: "/contents",
         icon: <BookOpen className="w-4 h-4" />,
       },
-    ],
-  },
-  {
-    id: "time",
-    label: "시간 관리",
-    icon: <Clock className="w-4 h-4" />,
-    items: [
       {
         id: "blocks-sets",
         label: "블록 세트",
         href: "/blocks?tab=blocks",
-        icon: <CalendarDays className="w-4 h-4" />,
+        icon: <Clock className="w-4 h-4" />,
         queryParams: { tab: "blocks" },
       },
       {
         id: "blocks-exclusions",
         label: "학습 제외 일정",
         href: "/blocks?tab=exclusions",
-        icon: <Calendar className="w-4 h-4" />,
+        icon: <CalendarX className="w-4 h-4" />,
         queryParams: { tab: "exclusions" },
       },
       {
@@ -130,6 +130,74 @@ export const studentCategories: NavigationCategory[] = [
       },
     ],
   },
+
+  // 4. 캠프
+  {
+    id: "camp",
+    label: "캠프",
+    icon: <Tent className="w-4 h-4" />,
+    items: [
+      {
+        id: "camp-list",
+        label: "캠프 목록",
+        href: "/camp",
+        icon: <ClipboardList className="w-4 h-4" />,
+      },
+      {
+        id: "camp-calendar",
+        label: "캠프 캘린더",
+        href: "/camp/calendar",
+        icon: <Calendar className="w-4 h-4" />,
+      },
+      {
+        id: "camp-today",
+        label: "캠프 학습관리",
+        href: "/camp/today",
+        icon: <CalendarDays className="w-4 h-4" />,
+      },
+    ],
+  },
+
+  // 5. 학습 분석 (분석 + 리포트 통합)
+  {
+    id: "analysis",
+    label: "학습 분석",
+    icon: <Activity className="w-4 h-4" />,
+    items: [
+      {
+        id: "analysis-risk",
+        label: "취약 과목 분석",
+        href: "/analysis",
+        icon: <AlertTriangle className="w-4 h-4" />,
+      },
+      {
+        id: "analysis-pattern",
+        label: "학습 패턴 분석",
+        href: "/analysis/patterns",
+        icon: <TrendingUp className="w-4 h-4" />,
+      },
+      {
+        id: "analysis-time",
+        label: "시간 분석",
+        href: "/analysis/time",
+        icon: <Timer className="w-4 h-4" />,
+      },
+      {
+        id: "reports-weekly",
+        label: "주간 리포트",
+        href: "/report/weekly",
+        icon: <CalendarDays className="w-4 h-4" />,
+      },
+      {
+        id: "reports-monthly",
+        label: "월간 리포트",
+        href: "/report/monthly",
+        icon: <Calendar className="w-4 h-4" />,
+      },
+    ],
+  },
+
+  // 6. 성적 관리
   {
     id: "scores",
     label: "성적 관리",
@@ -157,16 +225,18 @@ export const studentCategories: NavigationCategory[] = [
       },
       {
         id: "scores-analysis",
-        label: "상세 분석 보기",
+        label: "성적 분석",
         href: "/scores/analysis",
         icon: <TrendingUp className="w-4 h-4" />,
       },
     ],
   },
+
+  // 7. 설정 (출석 + 프로필 + 계정 통합)
   {
-    id: "attendance",
-    label: "출석 관리",
-    icon: <CheckCircle className="w-4 h-4" />,
+    id: "settings",
+    label: "설정",
+    icon: <Settings className="w-4 h-4" />,
     items: [
       {
         id: "attendance-check-in",
@@ -174,46 +244,6 @@ export const studentCategories: NavigationCategory[] = [
         href: "/attendance/check-in",
         icon: <CheckCircle className="w-4 h-4" />,
       },
-    ],
-  },
-  {
-    id: "reports",
-    label: "학습 리포트",
-    icon: <BarChart3 className="w-4 h-4" />,
-    items: [
-      {
-        id: "reports-weekly",
-        label: "주간 리포트",
-        href: "/reports?period=weekly",
-        icon: <CalendarDays className="w-4 h-4" />,
-        queryParams: { period: "weekly" },
-      },
-      {
-        id: "reports-monthly",
-        label: "월간 리포트",
-        href: "/reports?period=monthly",
-        icon: <Calendar className="w-4 h-4" />,
-        queryParams: { period: "monthly" },
-      },
-      {
-        id: "reports-weekly-detail",
-        label: "상세 주간 리포트",
-        href: "/report/weekly",
-        icon: <TrendingUp className="w-4 h-4" />,
-      },
-      {
-        id: "reports-monthly-detail",
-        label: "상세 월간 리포트",
-        href: "/report/monthly",
-        icon: <BarChart3 className="w-4 h-4" />,
-      },
-    ],
-  },
-  {
-    id: "settings",
-    label: "설정",
-    icon: <Settings className="w-4 h-4" />,
-    items: [
       {
         id: "settings-profile",
         label: "프로필",
@@ -241,4 +271,3 @@ export const studentCategories: NavigationCategory[] = [
     ],
   },
 ];
-

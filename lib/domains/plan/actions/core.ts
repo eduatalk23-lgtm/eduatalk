@@ -38,13 +38,13 @@ import type {
 // Context Helper
 // ============================================
 
-interface PlanServiceContext {
+export interface PlanServiceContext {
   userId: string;
   tenantId: string | null;
   studentId: string;
 }
 
-async function getServiceContext(): Promise<PlanServiceContext> {
+export async function getServiceContext(): Promise<PlanServiceContext> {
   const user = await getCurrentUser();
   if (!user) {
     throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);

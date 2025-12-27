@@ -133,7 +133,11 @@ export default async function AdminStudentDetailPage({
     <StudentDetailWrapper studentId={studentId} studentName={student.name}>
       <PageContainer widthType="LIST">
         <div className="flex flex-col gap-6 md:gap-8">
-          <PageHeader title={`${student.name ?? "이름 없음"} 학생 상세`} />
+          <PageHeader
+            title={`${student.name ?? "이름 없음"} 학생 상세`}
+            backHref="/admin/students"
+            backLabel="학생 목록으로"
+          />
 
           {/* 위험 분석 및 추천 (항상 표시) */}
           <div className="grid gap-6 md:grid-cols-2">

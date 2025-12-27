@@ -208,7 +208,7 @@ export function RedistributeModal({
     }
 
     const supabase = createSupabaseBrowserClient();
-    const correlationId = generateCorrelationId();
+    const correlationId = await generateCorrelationId();
     const originalVolume = (plan.planned_end_page_or_time ?? 0) - (plan.planned_start_page_or_time ?? 0);
     const newVolume = newEnd - newStart;
 

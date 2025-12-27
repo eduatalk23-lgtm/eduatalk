@@ -4,7 +4,7 @@ import { useMemo, memo } from "react";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { getActivePlan, getTimeStats } from "../_utils/planGroupUtils";
 import { PlanTimer } from "./PlanTimer";
-import { Clock } from "lucide-react";
+import { Clock, Check } from "lucide-react";
 import { usePlanCardActions } from "@/lib/hooks/usePlanCardActions";
 import {
   bgSurface,
@@ -12,6 +12,8 @@ import {
   textPrimary,
   textSecondary,
   getIndigoTextClasses,
+  completedPlanStyles,
+  getCompletedPlanClasses,
 } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
 
@@ -54,6 +56,9 @@ function PlanCardComponent({
     handlePostponePlan,
     canPostpone,
   } = usePlanCardActions({ group, sessions, campMode });
+
+  // 완료 상태 확인
+  const isCompleted = !!group.plan.actual_end_time;
 
   // 콘텐츠 정보
   const contentInfo = useMemo(
@@ -111,17 +116,49 @@ function PlanCardComponent({
   // 단일 뷰
   if (viewMode === "single") {
     return (
-      <div className="flex flex-col gap-6">
+      <div
+        className={cn(
+          "flex flex-col gap-6",
+          isCompleted && completedPlanStyles.container
+        )}
+      >
         {/* 헤더 */}
         <div className="flex flex-col items-center gap-3 text-center">
+          {/* 완료 표시 */}
+          {isCompleted && (
+            <div className="inline-flex items-center gap-2 self-center">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </span>
+              <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                완료됨
+              </span>
+            </div>
+          )}
           {planTimeRange && (
-            <div className={cn("inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-[var(--elevation-1)]", bgSurface, getIndigoTextClasses("heading"))}>
-              <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
+            <div
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md px-4 py-1 text-sm font-semibold shadow-[var(--elevation-1)]",
+                bgSurface,
+                getIndigoTextClasses("heading")
+              )}
+            >
+              <Clock
+                className={cn("h-4 w-4", getIndigoTextClasses("icon"))}
+                aria-hidden="true"
+              />
               <span>{planTimeRange}</span>
             </div>
           )}
           <div className="text-4xl">{contentInfo.icon}</div>
-          <h2 className={cn("text-2xl font-bold", textPrimary)}>{contentInfo.title}</h2>
+          <h2
+            className={cn(
+              "text-2xl font-bold",
+              isCompleted ? completedPlanStyles.title : textPrimary
+            )}
+          >
+            {contentInfo.title}
+          </h2>
           <div className="flex items-center gap-3">
             <span className="text-4xl" aria-hidden="true">
               {planChapterIcon}
@@ -162,20 +199,54 @@ function PlanCardComponent({
 
   // 일일 뷰 - 모바일 친화적 카드 레이아웃
   return (
-    <div className={cn("rounded-xl border p-4 shadow-[var(--elevation-1)] transition-base hover:shadow-[var(--elevation-4)] sm:p-5", borderDefault, bgSurface)}>
+    <div
+      className={cn(
+        "rounded-xl border p-4 shadow-[var(--elevation-1)] transition-base sm:p-5",
+        isCompleted
+          ? getCompletedPlanClasses("subtle")
+          : cn("hover:shadow-[var(--elevation-4)]", borderDefault, bgSurface)
+      )}
+    >
       <div className="flex flex-col gap-4 sm:gap-5">
         {/* 카드 헤더 */}
         <div className="flex flex-col gap-3 text-center sm:text-left">
+          {/* 완료 표시 */}
+          {isCompleted && (
+            <div className="inline-flex items-center gap-2 self-center sm:self-start">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+              </span>
+              <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                완료됨
+              </span>
+            </div>
+          )}
           {planTimeRange && (
-            <div className={cn("inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-[var(--elevation-1)] sm:self-start", bgSurface, getIndigoTextClasses("heading"))}>
-              <Clock className={cn("h-4 w-4", getIndigoTextClasses("icon"))} aria-hidden="true" />
+            <div
+              className={cn(
+                "inline-flex items-center justify-center gap-2 self-center rounded-md px-3 py-1 text-xs font-semibold shadow-[var(--elevation-1)] sm:self-start",
+                bgSurface,
+                getIndigoTextClasses("heading")
+              )}
+            >
+              <Clock
+                className={cn("h-4 w-4", getIndigoTextClasses("icon"))}
+                aria-hidden="true"
+              />
               <span>{planTimeRange}</span>
             </div>
           )}
           <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-lg">
               <span>{contentInfo.icon}</span>
-              <h3 className={cn("font-semibold", textPrimary)}>{contentInfo.title}</h3>
+              <h3
+                className={cn(
+                  "font-semibold",
+                  isCompleted ? completedPlanStyles.title : textPrimary
+                )}
+              >
+                {contentInfo.title}
+              </h3>
             </div>
             {onViewDetail && (
               <button

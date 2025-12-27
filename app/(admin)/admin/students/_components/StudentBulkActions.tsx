@@ -13,12 +13,16 @@ import {
   bgSurface,
 } from "@/lib/utils/darkMode";
 import { cn } from "@/lib/cn";
+import { ConfirmDialog } from "@/components/ui/Dialog";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type StudentBulkActionsProps = {
   selectedIds: string[];
   isAdmin: boolean;
   onClearSelection: () => void;
 };
+
+type ConfirmAction = "activate" | "deactivate" | "delete" | null;
 
 export function StudentBulkActions({
   selectedIds,
@@ -27,146 +31,165 @@ export function StudentBulkActions({
 }: StudentBulkActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const { showSuccess, showError } = useToast();
   const selectedCount = selectedIds.length;
 
-  const handleBulkActivate = () => {
-    if (selectedCount === 0) {
-      return;
-    }
-
-    if (
-      !confirm(
-        `선택한 ${selectedCount}명의 학생을 활성화하시겠습니까?`
-      )
-    ) {
-      return;
-    }
+  const handleConfirm = () => {
+    if (!confirmAction || selectedCount === 0) return;
 
     startTransition(async () => {
-      const result = await bulkToggleStudentStatus(selectedIds, true);
-      if (result.success) {
-        onClearSelection();
-        router.refresh();
-      } else {
-        alert(result.error || "활성화에 실패했습니다.");
+      try {
+        if (confirmAction === "activate") {
+          const result = await bulkToggleStudentStatus(selectedIds, true);
+          if (result.success) {
+            showSuccess(`${selectedCount}명의 학생이 활성화되었습니다.`);
+            onClearSelection();
+            router.refresh();
+          } else {
+            showError(result.error || "활성화에 실패했습니다.");
+          }
+        } else if (confirmAction === "deactivate") {
+          const result = await bulkToggleStudentStatus(selectedIds, false);
+          if (result.success) {
+            showSuccess(`${selectedCount}명의 학생이 비활성화되었습니다.`);
+            onClearSelection();
+            router.refresh();
+          } else {
+            showError(result.error || "비활성화에 실패했습니다.");
+          }
+        } else if (confirmAction === "delete") {
+          const result = await bulkDeleteStudents(selectedIds);
+          if (result.success) {
+            showSuccess(`${selectedCount}명의 학생이 삭제되었습니다.`);
+            onClearSelection();
+            router.refresh();
+          } else {
+            showError(result.error || "삭제에 실패했습니다.");
+          }
+        }
+      } finally {
+        setConfirmAction(null);
       }
     });
   };
 
-  const handleBulkDeactivate = () => {
-    if (selectedCount === 0) {
-      return;
+  const getConfirmDialogProps = () => {
+    switch (confirmAction) {
+      case "activate":
+        return {
+          title: "학생 활성화",
+          description: `선택한 ${selectedCount}명의 학생을 활성화하시겠습니까?`,
+          confirmLabel: "활성화",
+          variant: "default" as const,
+        };
+      case "deactivate":
+        return {
+          title: "학생 비활성화",
+          description: `선택한 ${selectedCount}명의 학생을 비활성화하시겠습니까?`,
+          confirmLabel: "비활성화",
+          variant: "destructive" as const,
+        };
+      case "delete":
+        return {
+          title: "학생 삭제",
+          description: `정말 선택한 ${selectedCount}명의 학생을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 학생의 모든 데이터가 삭제됩니다.`,
+          confirmLabel: "삭제",
+          variant: "destructive" as const,
+        };
+      default:
+        return {
+          title: "",
+          description: "",
+          confirmLabel: "확인",
+          variant: "default" as const,
+        };
     }
-
-    if (
-      !confirm(
-        `선택한 ${selectedCount}명의 학생을 비활성화하시겠습니까?`
-      )
-    ) {
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await bulkToggleStudentStatus(selectedIds, false);
-      if (result.success) {
-        onClearSelection();
-        router.refresh();
-      } else {
-        alert(result.error || "비활성화에 실패했습니다.");
-      }
-    });
   };
 
-  const handleBulkDelete = () => {
-    if (selectedCount === 0) {
-      return;
-    }
-
-    if (
-      !confirm(
-        `정말 선택한 ${selectedCount}명의 학생을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없으며, 학생의 모든 데이터가 삭제됩니다.`
-      )
-    ) {
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await bulkDeleteStudents(selectedIds);
-      if (result.success) {
-        onClearSelection();
-        router.refresh();
-      } else {
-        alert(result.error || "삭제에 실패했습니다.");
-      }
-    });
-  };
+  const dialogProps = getConfirmDialogProps();
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-4 rounded-lg border p-4",
-        borderInput,
-        bgSurface
-      )}
-    >
-      <span className={cn("text-sm font-semibold", textSecondary)}>
-        {selectedCount > 0 ? `${selectedCount}개 선택됨` : "기능"}
-      </span>
+    <>
+      <div
+        className={cn(
+          "flex items-center gap-4 rounded-lg border p-4",
+          borderInput,
+          bgSurface
+        )}
+      >
+        <span className={cn("text-sm font-semibold", textSecondary)}>
+          {selectedCount > 0 ? `${selectedCount}개 선택됨` : "기능"}
+        </span>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleBulkActivate}
-          disabled={isPending || selectedCount === 0}
-          className={cn(
-            "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
-            "bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          활성화
-        </button>
-
-        <button
-          onClick={handleBulkDeactivate}
-          disabled={isPending || selectedCount === 0}
-          className={cn(
-            "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
-            "bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          비활성화
-        </button>
-
-        {isAdmin && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={handleBulkDelete}
+            onClick={() => setConfirmAction("activate")}
             disabled={isPending || selectedCount === 0}
             className={cn(
               "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
-              "bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              "bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            삭제
+            활성화
           </button>
-        )}
 
-        {selectedCount > 0 && (
           <button
-            onClick={onClearSelection}
-            disabled={isPending}
+            onClick={() => setConfirmAction("deactivate")}
+            disabled={isPending || selectedCount === 0}
             className={cn(
-              "rounded-lg border px-4 py-2 text-sm font-semibold transition",
-              borderInput,
-              bgSurface,
-              textSecondary,
-              bgHover,
-              "disabled:opacity-50"
+              "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+              "bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            선택 해제
+            비활성화
           </button>
-        )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setConfirmAction("delete")}
+              disabled={isPending || selectedCount === 0}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+                "bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              삭제
+            </button>
+          )}
+
+          {selectedCount > 0 && (
+            <button
+              onClick={onClearSelection}
+              disabled={isPending}
+              className={cn(
+                "rounded-lg border px-4 py-2 text-sm font-semibold transition",
+                borderInput,
+                bgSurface,
+                textSecondary,
+                bgHover,
+                "disabled:opacity-50"
+              )}
+            >
+              선택 해제
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+
+      {/* 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={dialogProps.title}
+        description={dialogProps.description}
+        confirmLabel={dialogProps.confirmLabel}
+        cancelLabel="취소"
+        onConfirm={handleConfirm}
+        variant={dialogProps.variant}
+        isLoading={isPending}
+      />
+    </>
   );
 }
 

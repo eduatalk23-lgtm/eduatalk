@@ -5,14 +5,11 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { perfTime } from "@/lib/utils/perfLog";
-import { Suspense } from "react";
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/providers/getQueryClient";
 import { todayPlansQueryOptions } from "@/lib/query-options/todayPlans";
 import { TodayHeader } from "./_components/TodayHeader";
 import { TodayPlansSection } from "./_components/TodayPlansSection";
-import { TodayAchievementsSection } from "./_components/TodayAchievementsSection";
-import { TodayAchievementsAsyncWithSuspense } from "./_components/TodayAchievementsAsync";
 import { TodayPageContextProvider } from "./_components/TodayPageContext";
 import { CurrentLearningSection } from "./_components/CurrentLearningSection";
 import { CompletionToast } from "./_components/CompletionToast";
@@ -21,6 +18,10 @@ import { getPlanGroupsForStudent } from "@/lib/data/planGroups";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { getPlanById } from "@/lib/data/studentPlans";
 import { getContainerClass } from "@/lib/constants/layout";
+import { getTodayContainerPlans } from "@/lib/domains/today/actions/containerPlans";
+import { ContainerView } from "./_components/containers/ContainerView";
+import { AddPlanButton } from "./_components/AddPlanButton";
+import { PromotionSuggestionCard } from "./_components/PromotionSuggestionCard";
 
 type TodayPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -82,16 +83,12 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
   };
 
   const dateParam = getParam("date");
-  const viewParam = getParam("view");
   const completedPlanIdParam = getParam("completedPlanId");
 
   const requestedDate =
     typeof dateParam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
       ? dateParam
       : undefined;
-
-  const requestedView =
-    viewParam === "single" || viewParam === "daily" ? viewParam : "daily";
 
   // 오늘 날짜 계산
   const today = new Date();
@@ -100,11 +97,27 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
   const targetProgressDate = requestedDate ?? todayDate;
 
-  // 활성화된 플랜 그룹 확인 (캠프/일반 통합)
-  const activePlanGroups = await getPlanGroupsForStudent({
+  // 활성화된 일반 플랜 그룹 확인
+  const allActivePlanGroups = await getPlanGroupsForStudent({
     studentId: userId,
     status: "active",
   });
+
+  // 일반 모드 플랜 그룹만 필터링 (캠프 모드 제외)
+  const activePlanGroups = allActivePlanGroups.filter(
+    (group) =>
+      group.plan_type !== "camp" &&
+      group.camp_template_id === null &&
+      group.camp_invitation_id === null
+  );
+
+  // 오늘 날짜의 daily_schedule 추출 (타임라인 표시용)
+  const todayDailySchedule = activePlanGroups[0]?.daily_schedule?.find(
+    (ds) => ds.date === targetProgressDate
+  ) ?? null;
+
+  // Container 기반 플랜 데이터 조회
+  const containerResult = await getTodayContainerPlans(targetProgressDate);
 
   // 활성 플랜 그룹이 없을 때 안내 메시지 표시
   if (activePlanGroups.length === 0) {
@@ -112,11 +125,19 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     return (
       <div className={getContainerClass("DASHBOARD", "md")}>
         <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">오늘의 학습</h1>
+            <AddPlanButton
+              studentId={userId}
+              tenantId={tenantContext?.tenantId || null}
+              defaultDate={targetProgressDate}
+            />
+          </div>
           <TodayHeader />
           <EmptyState
             icon="📚"
             title="활성화된 플랜 그룹이 없습니다"
-            description="플랜 그룹을 생성하고 활성화하면 여기서 확인할 수 있습니다."
+            description="플랜 그룹을 생성하고 활성화하거나, 위의 '플랜 추가' 버튼으로 일회성 플랜을 추가해보세요."
           />
         </div>
       </div>
@@ -180,23 +201,39 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
       >
         <div className={getContainerClass("DASHBOARD", "md")}>
           <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">오늘의 학습</h1>
+              <AddPlanButton
+                studentId={userId}
+                tenantId={tenantContext?.tenantId || null}
+                defaultDate={targetProgressDate}
+              />
+            </div>
             <TodayHeader selectedDate={requestedDate} />
             <CurrentLearningSection />
             <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
+            <PromotionSuggestionCard
+              studentId={userId}
+              tenantId={tenantContext?.tenantId || null}
+            />
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-              <div className="lg:col-span-8">
-              <TodayPlansSection
-                initialMode={requestedView}
-                initialPlanDate={requestedDate}
-                userId={userId}
-                tenantId={tenantContext?.tenantId || null}
-              />
+              <div className="lg:col-span-6">
+                <TodayPlansSection
+                  userId={userId}
+                  tenantId={tenantContext?.tenantId || null}
+                  dailySchedule={todayDailySchedule}
+                />
               </div>
-              <div className="lg:col-span-4">
-                <div className="sticky top-6 flex flex-col gap-4">
-                  {/* Statistics를 Suspense로 비동기 처리 */}
-                  <TodayAchievementsAsyncWithSuspense selectedDate={targetProgressDate} />
-                </div>
+              <div className="lg:col-span-6">
+                {containerResult.success && containerResult.data && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <ContainerView
+                      data={containerResult.data}
+                      date={containerResult.date ?? targetProgressDate}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

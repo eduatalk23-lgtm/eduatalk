@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { StudySession } from "@/lib/data/studentSessions";
@@ -9,6 +10,7 @@ import { startPlan, completePlan, postponePlan, preparePlanCompletion } from "@/
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ConfirmDialog } from "@/components/ui/Dialog";
 
 type PlanCompletionMode = "today" | "camp";
 
@@ -36,6 +38,7 @@ export function PlanExecutionForm({
   relatedPlans,
 }: PlanExecutionFormProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const timerStore = usePlanTimerStore();
   const { showError } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -50,6 +53,7 @@ export function PlanExecutionForm({
   const [memo, setMemo] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [hasActiveSession, setHasActiveSession] = useState(!!activeSession);
+  const [showPostponeConfirm, setShowPostponeConfirm] = useState(false);
 
   // 상태 결정
   const isAlreadyCompleted = !!plan.actual_end_time;
@@ -153,7 +157,12 @@ export function PlanExecutionForm({
       if (result.success) {
         // 타이머 스토어에서 제거
         timerStore.removeTimer(plan.id);
-        
+
+        // React Query 캐시 무효화 (클라이언트 보조 - revalidatePath는 서버에서 처리)
+        queryClient.invalidateQueries({ queryKey: ["activePlanDetails"] });
+        queryClient.invalidateQueries({ queryKey: ["todayContainerPlans"] });
+        queryClient.invalidateQueries({ queryKey: ["todayPlans"] });
+
         // 모드에 따른 리다이렉트
         if (mode === "camp") {
           // 캠프 모드: /camp/today로 리다이렉트
@@ -189,11 +198,8 @@ export function PlanExecutionForm({
     }
   };
 
-  const handlePostpone = async () => {
-    if (!confirm("이 플랜을 내일 일정으로 미루시겠습니까?")) {
-      return;
-    }
-
+  const handlePostponeConfirm = async () => {
+    setShowPostponeConfirm(false);
     setIsLoading(true);
     setErrors({});
 
@@ -223,6 +229,10 @@ export function PlanExecutionForm({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePostpone = () => {
+    setShowPostponeConfirm(true);
   };
 
   // 상태 D: 이미 완료됨
@@ -274,20 +284,37 @@ export function PlanExecutionForm({
               학습 기록을 입력하려면 먼저 타이머를 종료해야 합니다.
             </p>
           </div>
-          <button
-            onClick={handleClearSession}
-            disabled={isClearingSession || isLoading}
-            className="w-full rounded-lg bg-yellow-600 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-yellow-700 hover:shadow-lg disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
-          >
-            {isClearingSession ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                타이머 정리 중...
-              </span>
-            ) : (
-              "타이머 정리 후 기록하기"
-            )}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              onClick={handleClearSession}
+              disabled={isClearingSession || isLoading}
+              className="flex-1 rounded-lg bg-yellow-600 px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-yellow-700 hover:shadow-lg disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
+            >
+              {isClearingSession ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  타이머 정리 중...
+                </span>
+              ) : (
+                "타이머 정리 후 기록하기"
+              )}
+            </button>
+            <button
+              onClick={() => {
+                const basePath = mode === "camp" ? "/camp/today" : "/today";
+                const params = new URLSearchParams();
+                if (plan.plan_date) {
+                  params.set("date", plan.plan_date);
+                }
+                const query = params.toString();
+                router.push(query ? `${basePath}?${query}` : basePath);
+              }}
+              disabled={isClearingSession || isLoading}
+              className="flex-1 rounded-lg border-2 border-yellow-300 bg-white px-4 py-3 text-base font-bold text-yellow-700 transition hover:bg-yellow-50 disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
+            >
+              타이머 확인하러 가기
+            </button>
+          </div>
         </div>
 
         {/* 학습 기록 폼 (비활성화) - 타이머 정리 전까지 비활성화 */}
@@ -547,6 +574,18 @@ export function PlanExecutionForm({
             </div>
           </div>
       )}
+
+      {/* 일정 미루기 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={showPostponeConfirm}
+        onOpenChange={setShowPostponeConfirm}
+        title="일정 미루기"
+        description="이 플랜을 내일 일정으로 미루시겠습니까? 오늘 학습한 내용은 저장되지 않습니다."
+        confirmLabel="미루기"
+        cancelLabel="취소"
+        onConfirm={handlePostponeConfirm}
+        variant="default"
+      />
     </div>
   );
 }

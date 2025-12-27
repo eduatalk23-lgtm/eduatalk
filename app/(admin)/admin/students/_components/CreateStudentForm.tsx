@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useController } from "react-hook-form";
 import type { FormControl } from "@/lib/types/forms";
-import { DialogFooter } from "@/components/ui/Dialog";
+import { DialogFooter, ConfirmDialog } from "@/components/ui/Dialog";
 import Button from "@/components/atoms/Button";
 import FormField, { FormSelect } from "@/components/molecules/FormField";
 import SchoolSelect from "@/components/ui/SchoolSelect";
@@ -39,6 +39,12 @@ export function CreateStudentForm({
   const { form, control } = useCreateStudentForm();
   const { showError } = useToast();
   const [schoolType, setSchoolType] = useState<"중학교" | "고등학교" | undefined>();
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleReset = () => {
+    form.reset();
+    setShowResetConfirm(false);
+  };
 
   const onSubmit = async (data: CreateStudentFormData): Promise<void> => {
     setIsSubmitting(true);
@@ -168,7 +174,7 @@ export function CreateStudentForm({
         <Button
           type="button"
           variant="outline"
-          onClick={() => form.reset()}
+          onClick={() => setShowResetConfirm(true)}
           disabled={isSubmitting}
         >
           초기화
@@ -177,6 +183,18 @@ export function CreateStudentForm({
           등록
         </Button>
       </DialogFooter>
+
+      {/* 초기화 확인 다이얼로그 */}
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title="폼 초기화"
+        description="입력한 모든 내용이 삭제됩니다. 초기화하시겠습니까?"
+        confirmLabel="초기화"
+        cancelLabel="취소"
+        onConfirm={handleReset}
+        variant="destructive"
+      />
     </form>
   );
 }

@@ -140,16 +140,21 @@ export function StudentSearchFilter({
         <div className="flex flex-col gap-1">
           <label className={cn("text-sm font-medium", textSecondary)}>
             구분
+            {loadingDivisions && (
+              <span className="ml-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600" />
+            )}
           </label>
           <select
             name="division"
             defaultValue={divisionFilter || ""}
+            disabled={loadingDivisions}
             className={cn(
               "rounded-lg border px-4 py-2 focus:outline-none focus:ring-2",
               borderInput,
               bgSurface,
               textPrimary,
-              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+              "focus:border-indigo-500 focus:ring-indigo-200 dark:focus:ring-indigo-800",
+              loadingDivisions && "opacity-60 cursor-wait"
             )}
           >
             <option value="">전체</option>

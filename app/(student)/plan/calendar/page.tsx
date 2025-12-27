@@ -8,6 +8,7 @@ import {
 } from "@/lib/data/planGroups";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "./_components/PlanCalendarView";
+import { CalendarSidebar } from "./_components/CalendarSidebar";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { formatDateString } from "@/lib/date/calendarUtils";
@@ -38,11 +39,20 @@ export default async function PlanCalendarPage({
   const tenantContext = await requireTenantContext();
 
   try {
-    // 활성화된 플랜 그룹 조회 (캠프/일반 통합)
-    const activePlanGroups = await getPlanGroupsForStudent({
+    // 활성화된 플랜 그룹 조회
+    const allActivePlanGroups = await getPlanGroupsForStudent({
       studentId: user.id,
       status: "active",
     });
+
+    // 캠프 템플릿 플랜 제외 (캠프 관련 플랜은 /camp 경로에서만 확인)
+    // /today와 동일한 필터링 로직 적용: plan_type이 "camp"가 아니고, camp_template_id와 camp_invitation_id가 null인 경우만
+    const activePlanGroups = allActivePlanGroups.filter(
+      (group) =>
+        group.plan_type !== "camp" &&
+        group.camp_template_id === null &&
+        group.camp_invitation_id === null
+    );
 
     if (activePlanGroups.length === 0) {
       return (
@@ -287,17 +297,35 @@ export default async function PlanCalendarPage({
             </div>
           </div>
 
-          <PlanCalendarView
-            plans={plansWithContent}
-            view={view}
-            minDate={minDateStr}
-            maxDate={maxDateStr}
-            initialDate={firstPlanDate}
-            exclusions={exclusions}
-            academySchedules={academySchedules}
-            dailySchedules={dailySchedules}
-            studentId={user.id}
-          />
+          {/* 캘린더와 사이드바 레이아웃 */}
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* 메인 캘린더 */}
+            <div className="flex-1 min-w-0">
+              <PlanCalendarView
+                plans={plansWithContent}
+                view={view}
+                minDate={minDateStr}
+                maxDate={maxDateStr}
+                initialDate={firstPlanDate}
+                exclusions={exclusions}
+                academySchedules={academySchedules}
+                dailySchedules={dailySchedules}
+                studentId={user.id}
+              />
+            </div>
+
+            {/* 사이드바 - 큰 화면에서만 표시 */}
+            <div className="hidden lg:block w-80 shrink-0">
+              <div className="sticky top-4">
+                <CalendarSidebar
+                  plans={plansWithContent}
+                  minDate={minDateStr}
+                  maxDate={maxDateStr}
+                  initialDate={firstPlanDate}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     );
