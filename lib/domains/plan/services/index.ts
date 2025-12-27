@@ -27,6 +27,59 @@ export {
   createPlanPersistenceService,
 } from "./planPersistenceService";
 
+// 슬롯 검증 서비스
+export {
+  validateSlots,
+  validateRequiredSlots,
+  validateSlotRelationships,
+  validateSubjectConstraints,
+  validateContentConnections,
+  validateTimeConstraints,
+  validateDuplicateContent,
+  findSlotTemplate,
+  isSlotLocked as isSlotLockedByTemplate,
+  isSlotGhost,
+  calculateSlotCompleteness,
+  calculateOverallCompleteness,
+  formatValidationResults,
+} from "./slotValidationService";
+
+export type {
+  SlotValidationError,
+  SlotValidationResult,
+  SlotRelationship,
+  SubjectConstraint,
+  SlotValidationContext,
+} from "./slotValidationService";
+
+// 템플릿 잠금 서비스
+export {
+  isFieldLocked,
+  isSlotLocked,
+  isSlotFieldLocked,
+  validateFieldChange,
+  validateSlotChange,
+  validateLockedFields,
+  getLockedFields,
+  getLockedFieldsForStep,
+  getLockSummary,
+  getLockIconType,
+  getLockStyleClasses,
+  getLockHintMessage,
+  getSlotLockHintMessage,
+  applyTemplateLockToSlots,
+  initializeSlotsFromTemplates,
+  LOCKABLE_FIELDS,
+} from "./templateLockService";
+
+export type {
+  LockableFieldCategory,
+  LockedFieldInfo,
+  LockValidationResult,
+  LockViolation,
+  TemplateLockContext,
+} from "./templateLockService";
+
 // 타입
 export type {
   // 서비스 컨텍스트

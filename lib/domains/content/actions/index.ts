@@ -89,3 +89,22 @@ export {
   bulkUpdateStatus,
   searchByTags,
 } from "./custom";
+
+// Free Learning Items (자유 학습 아이템)
+export {
+  getFreeLearningItems,
+  getFreeLearningItem,
+  getRecentFreeLearningItems,
+  getFreeLearningTemplates,
+  createFreeLearningItem,
+  createQuickFreeLearningItem,
+  createFromTemplate as createFreeLearningItemFromTemplate,
+  updateFreeLearningItem,
+  saveAsTemplate as saveFreeLearningItemAsTemplate,
+  archiveFreeLearningItem,
+  restoreFreeLearningItem,
+  deleteFreeLearningItem,
+} from "./freeItems";
+
+// 자연어 파싱 유틸리티 (서버 액션이 아닌 순수 함수)
+export { parseNaturalInput } from "../utils";

@@ -10,3 +10,10 @@ export { ContentLinkingPanel } from "./ContentLinkingPanel";
 export { Step3SlotModeSelection } from "./Step3SlotModeSelection";
 export { VirtualTimelinePreview } from "./VirtualTimelinePreview";
 export { SlotAdvancedSettings, GhostSlotActivator } from "./SlotAdvancedSettings";
+export {
+  SlotValidationStatus,
+  SlotCompletenessIndicator,
+  ValidationMessageList,
+  SlotLockIndicator,
+  SlotCompletionBadge,
+} from "./SlotValidationStatus";

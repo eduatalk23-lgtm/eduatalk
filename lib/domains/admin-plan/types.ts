@@ -7,7 +7,7 @@
 // 기본 타입
 // ============================================
 
-export type ContentType = 'book' | 'lecture' | 'custom';
+export type ContentType = 'book' | 'lecture' | 'custom' | 'free' | 'review' | 'practice' | 'reading' | 'video' | 'assignment';
 
 export type RangeType = 'page' | 'chapter' | 'lecture_num' | 'custom';
 
@@ -216,6 +216,10 @@ export interface AdHocPlanInsert {
   end_time?: string | null;
   recurrence_rule?: RecurrenceRule | null;
   recurrence_parent_id?: string | null;
+  // Free learning item fields
+  tags?: string[] | null;
+  color?: string | null;
+  icon?: string | null;
 }
 
 export interface AdHocPlanUpdate {

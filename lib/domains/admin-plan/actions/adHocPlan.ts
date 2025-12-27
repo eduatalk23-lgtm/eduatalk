@@ -995,6 +995,11 @@ export interface StudentAdHocPlanInput {
     range_start: number;
     range_end: number;
   };
+  // Free learning item fields
+  content_type?: 'book' | 'lecture' | 'custom' | 'free' | 'review' | 'practice' | 'reading' | 'video' | 'assignment';
+  tags?: string[] | null;
+  color?: string | null;
+  icon?: string | null;
 }
 
 /**
@@ -1030,12 +1035,17 @@ export async function createStudentAdHocPlan(
       plan_date: input.plan_date,
       container_type: input.container_type || 'daily',
       estimated_minutes: input.estimated_minutes || null,
-      content_type: input.content_link?.content_type || null,
+      // content_type: 직접 지정 > content_link에서 추출 > null
+      content_type: input.content_type || input.content_link?.content_type || null,
       flexible_content_id: input.content_link?.content_id || null,
       page_range_start: input.content_link?.range_start || null,
       page_range_end: input.content_link?.range_end || null,
       recurrence_rule: input.recurrence_rule || null,
       created_by: user.userId,
+      // Free learning item fields
+      tags: input.tags || null,
+      color: input.color || null,
+      icon: input.icon || null,
     };
 
     const { data, error } = await supabase

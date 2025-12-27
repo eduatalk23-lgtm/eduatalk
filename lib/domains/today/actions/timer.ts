@@ -27,6 +27,7 @@ import type {
 } from "../types";
 import { TIMER_ERRORS } from "../errors";
 import { timerLogger } from "../logger";
+import { updateGamificationOnPlanComplete } from "@/lib/domains/gamification";
 
 /**
  * 서버 현재 시간 조회
@@ -616,6 +617,34 @@ export async function completePlan(
 
     // 서버 현재 시간 반환
     const serverNow = Date.now();
+
+    // 게이미피케이션 업데이트 (비동기로 처리, 실패해도 플랜 완료에 영향 없음)
+    const studyDurationMinutes = Math.floor(finalDuration / 60);
+    try {
+      const gamificationResult = await updateGamificationOnPlanComplete({
+        studentId: user.userId,
+        tenantId: tenantId || "",
+        eventType: "plan_completed",
+        studyDurationMinutes,
+        completedAt: new Date(),
+        planId,
+      });
+
+      if (gamificationResult.success && gamificationResult.data) {
+        timerLogger.info("게이미피케이션 업데이트 성공", {
+          action: "completePlan",
+          id: planId,
+          data: gamificationResult.data,
+        });
+      }
+    } catch (gamificationError) {
+      // 게이미피케이션 오류는 플랜 완료에 영향을 주지 않음
+      timerLogger.warn("게이미피케이션 업데이트 실패", {
+        action: "completePlan",
+        id: planId,
+        error: gamificationError instanceof Error ? gamificationError : new Error(String(gamificationError)),
+      });
+    }
 
     // 현재 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요

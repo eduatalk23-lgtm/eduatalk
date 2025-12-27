@@ -22,6 +22,7 @@ import { getTodayContainerPlans } from "@/lib/domains/today/actions/containerPla
 import { ContainerView } from "./_components/containers/ContainerView";
 import { AddPlanButton } from "./_components/AddPlanButton";
 import { PromotionSuggestionCard } from "./_components/PromotionSuggestionCard";
+import { GamificationWidget } from "./_components/GamificationWidget";
 
 type TodayPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -225,7 +226,11 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
                   dailySchedule={todayDailySchedule}
                 />
               </div>
-              <div className="lg:col-span-6">
+              <div className="lg:col-span-6 flex flex-col gap-6">
+                <GamificationWidget
+                  studentId={userId}
+                  tenantId={tenantContext?.tenantId || ""}
+                />
                 {containerResult.success && containerResult.data && (
                   <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <ContainerView

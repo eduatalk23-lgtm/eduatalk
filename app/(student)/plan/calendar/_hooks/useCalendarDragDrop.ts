@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { movePlanToDate } from "@/lib/domains/plan/actions/move";
+import { rescheduleOnDrop, PlanType } from "@/lib/domains/plan/actions/calendarDrag";
 import { useToast } from "@/components/ui/ToastProvider";
 
 export type DragItem = {
   planId: string;
   planDate: string;
   contentTitle: string;
+  planType?: PlanType; // student_plan | ad_hoc_plan
+  startTime?: string | null;
 };
 
 export type DropTarget = {
@@ -123,7 +125,7 @@ export function useCalendarDragDrop(options?: UseCalendarDragDropOptions) {
 
   // 드롭 처리
   const handleDrop = useCallback(
-    async (e: React.DragEvent, targetDate: string) => {
+    async (e: React.DragEvent, targetDate: string, targetStartTime?: string) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -135,20 +137,27 @@ export function useCalendarDragDrop(options?: UseCalendarDragDropOptions) {
       try {
         const item: DragItem = JSON.parse(data);
 
-        // 같은 날짜로는 이동하지 않음
-        if (item.planDate === targetDate) {
+        // 같은 날짜, 같은 시간으로는 이동하지 않음
+        if (item.planDate === targetDate && item.startTime === targetStartTime) {
           return;
         }
 
         setIsMoving(true);
 
-        const result = await movePlanToDate(item.planId, targetDate, {
-          keepTime: true,
-        });
+        // 플랜 타입 결정 (기본값: student_plan)
+        const planType = item.planType || "student_plan";
+
+        const result = await rescheduleOnDrop(
+          item.planId,
+          planType,
+          targetDate,
+          targetStartTime
+        );
 
         if (result.success) {
+          const timeInfo = targetStartTime ? ` ${targetStartTime}` : "";
           showToast(
-            `"${item.contentTitle}"을(를) ${targetDate}로 이동했습니다.`,
+            `"${item.contentTitle}"을(를) ${targetDate}${timeInfo}로 이동했습니다.`,
             "success"
           );
           options?.onMoveSuccess?.(item.planId, targetDate);

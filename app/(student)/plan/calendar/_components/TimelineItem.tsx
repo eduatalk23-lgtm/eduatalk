@@ -1,12 +1,14 @@
 "use client";
 
+import { useCallback } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { PlanWithContent } from "../_types/plan";
 import type { AcademySchedule } from "@/lib/types/plan";
 import { getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
-import { CalendarPlanCard } from "./CalendarPlanCard";
-import { 
-  bgSurface, 
-  textPrimary, 
+import { ResizablePlanCard } from "./ResizablePlanCard";
+import {
+  bgSurface,
+  textPrimary,
   textTertiary,
   textMuted,
   getSemiTransparentBgClasses,
@@ -28,11 +30,41 @@ type TimelineItemProps = {
   isLast?: boolean;
   connectedPlanIds?: Set<string>;
   onLinkContent?: (planId: string, slotIndex: number) => void;
+  onPlanResized?: (planId: string, newStart: string, newEnd: string) => void;
+  enableResize?: boolean;
 };
 
-export function TimelineItem({ slot, isLast = false, connectedPlanIds, onLinkContent }: TimelineItemProps) {
+export function TimelineItem({
+  slot,
+  isLast = false,
+  connectedPlanIds,
+  onLinkContent,
+  onPlanResized,
+  enableResize = true,
+}: TimelineItemProps) {
+  const { showToast } = useToast();
   const colorClass = getTimeSlotColorClass(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
   const IconComponent = getTimeSlotIcon(slot.type as "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습");
+
+  // 리사이즈 이벤트 핸들러
+  const handleResizeStart = useCallback((planId: string) => {
+    // 리사이즈 시작 시 필요한 처리 (선택적)
+  }, []);
+
+  const handleResizeEnd = useCallback(
+    (planId: string, newStart: string, newEnd: string) => {
+      showToast(`시간이 ${newStart} ~ ${newEnd}로 변경되었습니다.`, "success");
+      onPlanResized?.(planId, newStart, newEnd);
+    },
+    [onPlanResized, showToast]
+  );
+
+  const handleResizeError = useCallback(
+    (error: string) => {
+      showToast(error, "error");
+    },
+    [showToast]
+  );
 
   // 시간에서 시(hour)만 추출 (예: "10:00" -> "10시")
   const startHour = slot.start.split(":")[0];
@@ -107,14 +139,19 @@ export function TimelineItem({ slot, isLast = false, connectedPlanIds, onLinkCon
                   return (a.block_index || 0) - (b.block_index || 0);
                 })
                 .map((plan) => (
-                  <CalendarPlanCard
+                  <ResizablePlanCard
                     key={plan.id}
                     plan={plan}
+                    planType="student_plan"
                     compact={false}
                     showTime={true}
                     showProgress={true}
                     isConnected={connectedPlanIds?.has(plan.id) || false}
                     onLinkContent={onLinkContent}
+                    onResizeStart={handleResizeStart}
+                    onResizeEnd={handleResizeEnd}
+                    onResizeError={handleResizeError}
+                    enableResize={enableResize && !!plan.start_time && !!plan.end_time}
                   />
                 ))}
             </div>
