@@ -2542,6 +2542,12 @@ export type PlanGroupStats = {
   completedCount: number;
   totalCount: number;
   isCompleted: boolean; // 실제 완료 상태
+  /** 상태별 개수 (pending, in_progress, completed) */
+  statusBreakdown?: {
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
 };
 
 /**
@@ -2563,7 +2569,7 @@ export async function getPlanGroupsWithStats(
   const studentId = filters.studentId;
 
   // 2. 플랜 개수 및 완료 상태 조회 (배치)
-  const [planCountsResult, planCompletionResult] = await Promise.all([
+  const [planCountsResult, planCompletionResult, planStatusResult] = await Promise.all([
     // 플랜 개수 조회
     supabase
       .from("student_plan")
@@ -2576,6 +2582,13 @@ export async function getPlanGroupsWithStats(
       .select(
         "plan_group_id, planned_end_page_or_time, completed_amount"
       )
+      .eq("student_id", studentId)
+      .in("plan_group_id", groupIds)
+      .not("plan_group_id", "is", null),
+    // 플랜 상태별 개수 조회
+    supabase
+      .from("student_plan")
+      .select("plan_group_id, status")
       .eq("student_id", studentId)
       .in("plan_group_id", groupIds)
       .not("plan_group_id", "is", null),
@@ -2596,6 +2609,29 @@ export async function getPlanGroupsWithStats(
     string,
     { completedCount: number; totalCount: number; isCompleted: boolean }
   >();
+
+  // 상태별 개수 계산
+  const statusBreakdownMap = new Map<
+    string,
+    { pending: number; inProgress: number; completed: number }
+  >();
+  (planStatusResult.data || []).forEach((plan) => {
+    if (plan.plan_group_id) {
+      const breakdown = statusBreakdownMap.get(plan.plan_group_id) || {
+        pending: 0,
+        inProgress: 0,
+        completed: 0,
+      };
+      if (plan.status === "pending") {
+        breakdown.pending++;
+      } else if (plan.status === "in_progress") {
+        breakdown.inProgress++;
+      } else if (plan.status === "completed") {
+        breakdown.completed++;
+      }
+      statusBreakdownMap.set(plan.plan_group_id, breakdown);
+    }
+  });
 
   // plan_group_id별로 그룹화
   const plansByGroup = new Map<
@@ -2663,6 +2699,12 @@ export async function getPlanGroupsWithStats(
       displayStatus = "completed";
     }
 
+    const statusBreakdown = statusBreakdownMap.get(group.id) || {
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+    };
+
     return {
       ...group,
       status: displayStatus as typeof group.status,
@@ -2670,6 +2712,7 @@ export async function getPlanGroupsWithStats(
       completedCount: completion.completedCount,
       totalCount: completion.totalCount,
       isCompleted: completion.isCompleted,
+      statusBreakdown,
     };
   });
 }

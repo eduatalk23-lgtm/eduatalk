@@ -26,6 +26,7 @@ import { useRecommendedContents } from "./hooks/useRecommendedContents";
 import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 import { RequiredSubjectsSection } from "./components/RequiredSubjectsSection";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -400,6 +401,9 @@ function Step3ContentSelectionComponent({
 
   return (
     <div className="flex flex-col gap-6" data-field-id="content_selection">
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step3} />
+
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
       {mode.isTemplateMode && (
         <RequiredSubjectsSection

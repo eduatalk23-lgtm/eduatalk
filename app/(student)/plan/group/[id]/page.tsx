@@ -313,12 +313,71 @@ export default async function PlanGroupDetailPage({
           </div>
         )}
 
+        {/* 캘린더 전용 그룹 - 콘텐츠 추가 안내 */}
+        {group.is_calendar_only && group.content_status === "pending" && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-amber-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-2 flex-1">
+                <h3 className="text-sm font-semibold text-amber-900">
+                  콘텐츠를 추가해주세요
+                </h3>
+                <p className="text-sm text-amber-700">
+                  캘린더(일정)만 생성된 상태입니다. 학습할 콘텐츠를 추가하면 플랜이 자동으로 생성됩니다.
+                </p>
+                <Link
+                  href={`/plan/group/${id}/add-content`}
+                  className="mt-1 inline-flex w-fit items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  콘텐츠 추가하기
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 헤더 정보 카드 */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4">
             {/* 상태 뱃지들 */}
             <div className="flex flex-wrap items-center gap-2">
-              {hasPlans && (
+              {/* 콘텐츠 대기중 뱃지 (캘린더 전용 그룹) */}
+              {group.is_calendar_only && group.content_status === "pending" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  콘텐츠 대기중
+                </span>
+              )}
+              {hasPlans && !(group.is_calendar_only && group.content_status === "pending") && (
                 <span className="inline-block rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800">
                   플랜 생성 완료
                 </span>

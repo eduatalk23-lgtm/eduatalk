@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2, CheckSquare, Square, Eye } from "lucide-react";
+import { Trash2, CheckSquare, Square, Eye, Plus, AlertCircle } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
-import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";
@@ -20,12 +21,19 @@ import {
   schedulerTypeLabels,
 } from "@/lib/constants/planLabels";
 
+type StatusBreakdown = {
+  pending: number;
+  inProgress: number;
+  completed: number;
+};
+
 type PlanGroupListItemProps = {
   group: PlanGroup;
   planCount: number;
   hasPlans: boolean; // 플랜이 생성되었는지 여부
   completedCount?: number; // 완료된 플랜 개수
   totalCount?: number; // 전체 플랜 개수
+  statusBreakdown?: StatusBreakdown; // 상태별 개수
   isSelected?: boolean;
   onToggleSelect?: () => void;
 };
@@ -36,6 +44,7 @@ export function PlanGroupListItem({
   hasPlans,
   completedCount = 0,
   totalCount = 0,
+  statusBreakdown,
   isSelected = false,
   onToggleSelect,
 }: PlanGroupListItemProps) {
@@ -45,15 +54,37 @@ export function PlanGroupListItem({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [toggleDialogOpen, setToggleDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [currentActiveGroup, setCurrentActiveGroup] = useState<{ id: string; name: string | null } | null>(null);
 
   const isActive = group.status === "active";
   const isCompleted = group.status === "completed";
 
+  // 다이얼로그가 열릴 때 현재 활성 그룹 조회
+  useEffect(() => {
+    if (toggleDialogOpen && !isActive) {
+      // 활성화하려는 경우에만 현재 활성 그룹 조회
+      getActivePlanGroups(group.id).then((result) => {
+        if (result && result.length > 0) {
+          setCurrentActiveGroup(result[0]);
+        } else {
+          setCurrentActiveGroup(null);
+        }
+      }).catch((error) => {
+        console.error("[PlanGroupListItem] 활성 그룹 조회 실패:", error);
+        setCurrentActiveGroup(null);
+      });
+    }
+  }, [toggleDialogOpen, isActive, group.id]);
+
   // 캠프 플랜 여부 확인
   const isCampPlan = !!(group.plan_type === "camp" && group.camp_invitation_id);
 
-  // 플랜이 생성되고, 완료 상태가 아닌 경우만 토글 가능
-  const canToggle = hasPlans && planCount > 0 && !isCompleted;
+  // 캘린더 전용 그룹 여부 (콘텐츠 추가 필요)
+  const isCalendarOnly = group.is_calendar_only === true;
+  const needsContent = isCalendarOnly && group.content_status === "pending";
+
+  // 플랜이 생성된 경우 토글 가능 (완료 상태에서도 재개 가능)
+  const canToggle = hasPlans && planCount > 0;
 
   // 캠프 플랜은 삭제 불가 (제출 전까지는 수정 가능)
   const canDelete = !isCampPlan;
@@ -62,8 +93,6 @@ export function PlanGroupListItem({
     if (!canToggle) {
       if (!hasPlans || planCount === 0) {
         toast.showInfo("플랜이 생성된 후 활성화할 수 있습니다.");
-      } else if (isCompleted) {
-        toast.showInfo("완료된 플랜 그룹은 활성화할 수 없습니다.");
       }
       return;
     }
@@ -176,8 +205,15 @@ export function PlanGroupListItem({
                   캠프 프로그램
                 </Badge>
               )}
+              {/* 콘텐츠 추가 필요 뱃지 (캘린더 전용 그룹) */}
+              {needsContent && (
+                <Badge variant="warning" size="sm" className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  콘텐츠 추가 필요
+                </Badge>
+              )}
               {/* 플랜 생성 완료 뱃지 */}
-              {hasPlans && planCount > 0 && (
+              {hasPlans && planCount > 0 && !needsContent && (
                 <Badge variant="info" size="sm">
                   플랜 생성 완료
                 </Badge>
@@ -187,6 +223,18 @@ export function PlanGroupListItem({
 
           {/* 우측: 버튼들 */}
           <div className="flex shrink-0 items-center gap-3 relative z-20">
+            {/* 콘텐츠 추가 버튼 (캘린더 전용 그룹) */}
+            {needsContent && (
+              <Link
+                href={`/plan/group/${group.id}/add-content`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                콘텐츠 추가
+              </Link>
+            )}
+
             {/* 보기 버튼 */}
             <Button
               variant="ghost"
@@ -263,15 +311,11 @@ export function PlanGroupListItem({
                 />
               </button>
               
-              {/* 비활성화 상태일 때 툴팁 표시 */}
+              {/* 토글 불가 상태일 때 툴팁 표시 */}
               {!canToggle && (
                 <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-[var(--elevation-8)] transition-opacity group-hover:block group-hover:opacity-100 z-50" style={{ marginBottom: '0.5rem' }}>
                   <div className="whitespace-normal break-words">
-                    {!hasPlans || planCount === 0
-                      ? "플랜이 생성된 후 활성화할 수 있습니다"
-                      : isCompleted
-                      ? "완료된 플랜 그룹은 활성화할 수 없습니다"
-                      : "활성화할 수 없습니다"}
+                    플랜이 생성된 후 활성화할 수 있습니다
                   </div>
                   {/* 툴팁 화살표 */}
                   <div className="absolute bottom-0 right-4 translate-y-full">
@@ -331,6 +375,30 @@ export function PlanGroupListItem({
                     </span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* 상태별 개수 */}
+            {hasPlans && planCount > 0 && statusBreakdown && (
+              <div className="flex flex-wrap items-center gap-2">
+                {statusBreakdown.pending > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400" />
+                    대기 {statusBreakdown.pending}
+                  </span>
+                )}
+                {statusBreakdown.inProgress > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    진행중 {statusBreakdown.inProgress}
+                  </span>
+                )}
+                {statusBreakdown.completed > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    완료 {statusBreakdown.completed}
+                  </span>
+                )}
               </div>
             )}
 
@@ -406,8 +474,10 @@ export function PlanGroupListItem({
         onOpenChange={setToggleDialogOpen}
         groupName={group.name}
         isActive={isActive}
+        isCompleted={isCompleted}
         onConfirm={handleToggleActiveConfirm}
         isPending={isPending}
+        currentActiveGroup={currentActiveGroup}
       />
     </li>
   );

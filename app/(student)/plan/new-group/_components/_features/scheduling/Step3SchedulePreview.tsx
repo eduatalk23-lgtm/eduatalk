@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, Loader2 } from "lucide-react";
 import { usePlanWizard } from "../../_context/PlanWizardContext";
 import { saveCalendarOnlyPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups";
 import { useToast } from "@/components/ui/ToastProvider";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 type Step3SchedulePreviewProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -151,6 +152,9 @@ export function Step3SchedulePreview({
           </button>
         )}
       </div>
+
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step4} />
 
       {/* 안내 메시지 */}
       <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">

@@ -428,6 +428,13 @@ export function BasePlanWizard({
               isAdminContinueMode={mode.isAdminContinueMode}
               isCampMode={mode.isCampMode}
               onComplete={onComplete}
+              planName={wizardData.name || "학습 플랜"}
+              periodLabel={
+                wizardData.period_start && wizardData.period_end
+                  ? `${wizardData.period_start} ~ ${wizardData.period_end}`
+                  : undefined
+              }
+              onGoToStep={(step) => onSetStep(step as 1 | 2 | 3 | 4 | 5 | 6 | 7)}
             />
           </StepErrorBoundary>
         )}

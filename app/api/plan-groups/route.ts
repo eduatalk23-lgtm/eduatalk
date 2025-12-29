@@ -14,6 +14,11 @@ type PlanGroupStats = {
   completedCount: number;
   totalCount: number;
   isCompleted: boolean;
+  statusBreakdown?: {
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
 };
 
 type PlanGroupWithStats = PlanGroup & PlanGroupStats;

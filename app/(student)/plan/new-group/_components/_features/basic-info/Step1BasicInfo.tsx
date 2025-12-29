@@ -13,6 +13,7 @@ import { isFieldLocked, toggleFieldControl as toggleFieldControlUtil, updateFiel
 import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
 import { useFieldPermission } from "../../hooks/useFieldPermission";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 type Step1BasicInfoProps = {
   data?: WizardData;
@@ -154,6 +155,9 @@ function Step1BasicInfoComponent({
             : "플랜의 목적과 기간, 스케줄러 유형을 설정해주세요."}
         </p>
       </div>
+
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step1} />
 
       {/* 플랜/캠프 이름 */}
       <PlanNameSection

@@ -10,7 +10,7 @@ const STATUS_TRANSITIONS: Record<PlanStatus, PlanStatus[]> = {
   saved: ["active", "draft", "paused"], // 중단은 일시정지로 통합
   active: ["paused", "completed"], // 중단은 일시정지로 통합
   paused: ["active"], // 일시정지에서 재개만 가능 (완료/중단은 active로 가서 처리)
-  completed: [], // 완료 상태는 변경 불가
+  completed: ["active"], // 완료 상태에서도 재개(활성화) 가능
   cancelled: ["active"], // 기존 데이터 호환성을 위해 유지 (UI에서는 표시 안 함)
   pending: ["in_progress", "cancelled"], // 대기 중
   in_progress: ["completed", "paused", "cancelled"], // 진행 중
@@ -176,6 +176,7 @@ export class PlanStatusManager {
       "active->paused": "플랜 일시정지",
       "active->completed": "플랜 완료",
       "paused->active": "플랜 재개",
+      "completed->active": "완료된 플랜 재개 (재시작)",
       "cancelled->active": "중단 해제 (재개)",
     };
 
@@ -190,10 +191,13 @@ export class PlanStatusManager {
   }
 
   /**
-   * 완료 상태 확인
+   * 완전히 종료된 상태 확인 (더 이상 변경 불가)
+   * 참고: completed 상태에서도 active로 재개 가능
    */
   static isTerminalStatus(status: PlanStatus): boolean {
-    return status === "completed" || status === "cancelled";
+    // completed는 재개 가능하므로 더 이상 terminal이 아님
+    // cancelled만 진정한 terminal status
+    return status === "cancelled";
   }
 
   /**

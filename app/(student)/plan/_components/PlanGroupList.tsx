@@ -1,20 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { EmptyState } from "@/components/molecules/EmptyState";
+import { PlanEmptyState } from "../_shared/EmptyStatePresets";
 import { Trash2, CheckSquare, Square } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanGroupListItem } from "./PlanGroupListItem";
 import { PlanGroupBulkDeleteDialog } from "./PlanGroupBulkDeleteDialog";
 
+type StatusBreakdown = {
+  pending: number;
+  inProgress: number;
+  completed: number;
+};
+
 type PlanGroupListProps = {
   groups: PlanGroup[];
   planCounts: Map<string, number>; // groupId -> 플랜 개수
   planProgressData: Map<string, { completedCount: number; totalCount: number }>; // groupId -> 진행 상황
+  statusBreakdownData?: Map<string, StatusBreakdown>; // groupId -> 상태별 개수
 };
 
-export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGroupListProps) {
+export function PlanGroupList({ groups, planCounts, planProgressData, statusBreakdownData }: PlanGroupListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
@@ -71,15 +77,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
   const selectedGroupNames = selectedGroups.map((g) => g.name);
 
   if (groups.length === 0) {
-    return (
-      <EmptyState
-        icon="📋"
-        title="등록된 플랜 그룹이 없습니다"
-        description="새로운 플랜 그룹을 만들어 기간별 학습 계획을 세워보세요."
-        actionLabel="플랜 그룹 생성하기"
-        actionHref="/plan/new-group"
-      />
-    );
+    return <PlanEmptyState preset="planGroup" />;
   }
 
   const allSelected = allSelectableSelected;
@@ -132,7 +130,8 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
           const progressData = planProgressData.get(group.id);
           const completedCount = progressData?.completedCount || 0;
           const totalCount = progressData?.totalCount || planCount;
-          
+          const statusBreakdown = statusBreakdownData?.get(group.id);
+
           return (
             <PlanGroupListItem
               key={group.id}
@@ -141,6 +140,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData }: PlanGrou
               hasPlans={hasPlans}
               completedCount={completedCount}
               totalCount={totalCount}
+              statusBreakdown={statusBreakdown}
               isSelected={isSelected}
               onToggleSelect={() => handleToggleSelect(group.id)}
             />

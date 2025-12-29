@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { usePlanGroups, type PlanGroupFilters } from "@/lib/hooks/usePlanGroups";
 import { getProgressRangeFromPreset, isDateInRange } from "@/lib/utils/dateRangePresets";
 import { PlanGroupList } from "./PlanGroupList";
@@ -9,7 +8,7 @@ import { PlanGroupStatsCard } from "./PlanGroupStatsCard";
 import { RescheduleRecommendations } from "./RescheduleRecommendations";
 import { AdaptiveScheduleInsights } from "./AdaptiveScheduleInsights";
 import { WeakSubjectReinforcementCard } from "./WeakSubjectReinforcementCard";
-import { EmptyState } from "@/components/molecules/EmptyState";
+import { PlanEmptyState } from "../_shared/EmptyStatePresets";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 
 type PlanGroupListContainerProps = {
@@ -104,11 +103,15 @@ export function PlanGroupListContainer({
   }, [planGroupsWithStats, sortOrder, statusFilter, dateRange, progressRange]);
 
   // 통계 데이터 생성
-  const { planCounts, planProgressData, stats } = useMemo(() => {
+  const { planCounts, planProgressData, statusBreakdownData, stats } = useMemo(() => {
     const counts = new Map<string, number>();
     const progress = new Map<
       string,
       { completedCount: number; totalCount: number }
+    >();
+    const statusBreakdown = new Map<
+      string,
+      { pending: number; inProgress: number; completed: number }
     >();
 
     processedPlanGroups.forEach((group) => {
@@ -117,6 +120,10 @@ export function PlanGroupListContainer({
         completedCount: group.completedCount,
         totalCount: group.totalCount,
       });
+      // 상태별 개수 데이터 설정
+      if (group.statusBreakdown) {
+        statusBreakdown.set(group.id, group.statusBreakdown);
+      }
     });
 
     const statistics = {
@@ -133,6 +140,7 @@ export function PlanGroupListContainer({
     return {
       planCounts: counts,
       planProgressData: progress,
+      statusBreakdownData: statusBreakdown,
       stats: statistics,
     };
   }, [processedPlanGroups]);
@@ -144,25 +152,7 @@ export function PlanGroupListContainer({
 
   // 빈 상태
   if (processedPlanGroups.length === 0) {
-    return (
-      <EmptyState
-        icon="📋"
-        title="등록된 플랜 그룹이 없습니다"
-        description={
-          <>
-            <Link
-              href="/plan/new-group"
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
-            >
-              새로운 플랜 그룹
-            </Link>
-            을 만들어 기간별 학습 계획을 세워보세요.
-          </>
-        }
-        actionLabel="플랜 그룹 생성하기"
-        actionHref="/plan/new-group"
-      />
-    );
+    return <PlanEmptyState preset="planGroup" />;
   }
 
   return (
@@ -202,6 +192,7 @@ export function PlanGroupListContainer({
           groups={processedPlanGroups}
           planCounts={planCounts}
           planProgressData={planProgressData}
+          statusBreakdownData={statusBreakdownData}
         />
       </div>
     </>

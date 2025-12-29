@@ -14,6 +14,12 @@ export type PlanGroupStats = {
   completedCount: number;
   totalCount: number;
   isCompleted: boolean;
+  /** 상태별 개수 (pending, in_progress, completed) */
+  statusBreakdown?: {
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
 };
 
 /**
