@@ -20,9 +20,7 @@ export function campLearningStatsQueryOptions(templateId: string) {
   return queryOptions({
     queryKey: ["campLearningStats", templateId] as const,
     queryFn: async (): Promise<CampLearningStats | null> => {
-      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -74,10 +72,7 @@ export function campDatePlansQueryOptions(
       }
 
       const response = await fetch(
-        `/api/camp-learning/date/${encodeURIComponent(date)}?${params.toString()}`,
-        {
-          cache: "no-store",
-        }
+        `/api/camp-learning/date/${encodeURIComponent(date)}?${params.toString()}`
       );
 
       if (!response.ok) {
@@ -130,10 +125,7 @@ export function campLearningRecordsQueryOptions(
       // 클라이언트에서는 API를 통해 조회해야 하므로 임시로 빈 배열 반환
       // 실제로는 서버 컴포넌트에서 prefetch하거나 별도 API 엔드포인트 필요
       const response = await fetch(
-        `/api/camp-learning/records?templateId=${encodeURIComponent(templateId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
-        {
-          cache: "no-store",
-        }
+        `/api/camp-learning/records?templateId=${encodeURIComponent(templateId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
       );
 
       if (!response.ok) {
@@ -182,10 +174,7 @@ export function campStudentLearningStatsQueryOptions(
     queryKey: ["campStudentLearningStats", templateId, studentId] as const,
     queryFn: async (): Promise<ParticipantLearningStats | null> => {
       const response = await fetch(
-        `/api/camp-learning/students/${encodeURIComponent(studentId)}?templateId=${encodeURIComponent(templateId)}`,
-        {
-          cache: "no-store",
-        }
+        `/api/camp-learning/students/${encodeURIComponent(studentId)}?templateId=${encodeURIComponent(templateId)}`
       );
 
       if (!response.ok) {

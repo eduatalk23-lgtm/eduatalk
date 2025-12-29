@@ -22,9 +22,7 @@ export function campStatsQueryOptions(templateId: string) {
       attendance: CampAttendanceStats | null;
       learning: CampLearningStats | null;
     }> => {
-      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -71,9 +69,7 @@ export function campAttendanceStatsQueryOptions(templateId: string) {
   return queryOptions({
     queryKey: ["campAttendanceStats", templateId] as const,
     queryFn: async (): Promise<CampAttendanceStats | null> => {
-      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -110,9 +106,7 @@ export function campLearningStatsQueryOptions(templateId: string) {
   return queryOptions({
     queryKey: ["campLearningStats", templateId] as const,
     queryFn: async (): Promise<CampLearningStats | null> => {
-      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/camp-stats?templateId=${encodeURIComponent(templateId)}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -156,10 +150,7 @@ export function campDateAttendanceQueryOptions(
     queryKey: ["campDateAttendance", templateId, date] as const,
     queryFn: async (): Promise<AttendanceRecordWithStudent[]> => {
       const response = await fetch(
-        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&date=${encodeURIComponent(date)}`,
-        {
-          cache: "no-store",
-        }
+        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&date=${encodeURIComponent(date)}`
       );
 
       if (!response.ok) {
@@ -209,10 +200,7 @@ export function campAttendanceRecordsQueryOptions(
     queryKey: ["campAttendanceRecords", templateId, startDate, endDate] as const,
     queryFn: async (): Promise<AttendanceRecordWithStudent[]> => {
       const response = await fetch(
-        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
-        {
-          cache: "no-store",
-        }
+        `/api/camp-attendance-records?templateId=${encodeURIComponent(templateId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
       );
 
       if (!response.ok) {

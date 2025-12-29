@@ -162,6 +162,9 @@ export function PlanGroupListItem({
 
   return (
     <li
+      role="listitem"
+      aria-current={isSelected ? "true" : undefined}
+      aria-label={`플랜 그룹: ${group.name || "이름 없음"}${isActive ? ", 활성화됨" : ""}${isCompleted ? ", 완료됨" : ""}`}
       className={cn(
         "group relative rounded-xl border bg-white dark:bg-gray-800 p-4 shadow-[var(--elevation-1)] transition-base",
         isSelected
@@ -207,9 +210,9 @@ export function PlanGroupListItem({
               )}
               {/* 콘텐츠 추가 필요 뱃지 (캘린더 전용 그룹) */}
               {needsContent && (
-                <Badge variant="warning" size="sm" className="flex items-center gap-1">
+                <Badge variant="info" size="sm" className="flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
-                  콘텐츠 추가 필요
+                  플랜 준비중
                 </Badge>
               )}
               {/* 플랜 생성 완료 뱃지 */}
@@ -240,6 +243,7 @@ export function PlanGroupListItem({
               variant="ghost"
               size="sm"
               onClick={handleViewClick}
+              aria-label={`${group.name || "플랜 그룹"} 상세보기`}
               className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <div className="flex items-center gap-1">
@@ -258,6 +262,7 @@ export function PlanGroupListItem({
                   e.preventDefault();
                   setDeleteDialogOpen(true);
                 }}
+                aria-label={`${group.name || "플랜 그룹"} 삭제`}
                 className="text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
               >
                 <div className="flex items-center gap-1">
@@ -270,6 +275,8 @@ export function PlanGroupListItem({
                 variant="ghost"
                 size="sm"
                 disabled
+                aria-label="삭제 불가: 캠프 플랜은 삭제할 수 없습니다"
+                aria-disabled="true"
                 className="text-gray-300 dark:text-gray-600 cursor-not-allowed"
                 title="캠프 플랜은 삭제할 수 없습니다"
               >
@@ -281,9 +288,10 @@ export function PlanGroupListItem({
             )}
 
             {/* 활성/비활성 토글 스위치 */}
-            <div className="group relative">
+            <div className="group relative" role="group" aria-label="플랜 활성화 토글">
               <button
                 type="button"
+                role="switch"
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -294,7 +302,9 @@ export function PlanGroupListItem({
                   "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:cursor-not-allowed disabled:opacity-50",
                   isActive ? "bg-green-600 dark:bg-green-500" : "bg-gray-200 dark:bg-gray-700"
                 )}
-                aria-label={isActive ? "비활성화" : "활성화"}
+                aria-checked={isActive}
+                aria-label={`${group.name || "플랜 그룹"} ${isActive ? "비활성화" : "활성화"}`}
+                aria-describedby={!canToggle ? "toggle-hint" : undefined}
                 title={
                   !canToggle
                     ? "플랜이 생성된 후 활성화할 수 있습니다"
@@ -313,7 +323,12 @@ export function PlanGroupListItem({
               
               {/* 토글 불가 상태일 때 툴팁 표시 */}
               {!canToggle && (
-                <div className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-[var(--elevation-8)] transition-opacity group-hover:block group-hover:opacity-100 z-50" style={{ marginBottom: '0.5rem' }}>
+                <div
+                  id="toggle-hint"
+                  role="tooltip"
+                  className="pointer-events-none absolute bottom-full right-0 hidden w-48 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-[var(--elevation-8)] transition-opacity group-hover:block group-hover:opacity-100 z-50"
+                  style={{ marginBottom: '0.5rem' }}
+                >
                   <div className="whitespace-normal break-words">
                     플랜이 생성된 후 활성화할 수 있습니다
                   </div>
@@ -465,7 +480,7 @@ export function PlanGroupListItem({
         onOpenChange={setDeleteDialogOpen}
         groupId={group.id}
         groupName={group.name}
-        groupStatus={group.status as any}
+        groupStatus={group.status as PlanStatus}
         isCampPlan={isCampPlan}
       />
 

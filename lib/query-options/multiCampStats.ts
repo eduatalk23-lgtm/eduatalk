@@ -29,9 +29,7 @@ export function multiCampAttendanceQueryOptions(
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
 
-      const response = await fetch(`/api/admin/camps/attendance?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/attendance?${params.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -87,9 +85,7 @@ export function multiCampPlansQueryOptions(
       if (options?.startDate) params.set("startDate", options.startDate);
       if (options?.endDate) params.set("endDate", options.endDate);
 
-      const response = await fetch(`/api/admin/camps/plans?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/plans?${params.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -129,9 +125,7 @@ export function campAlertsQueryOptions(campIds: string[]) {
       const params = new URLSearchParams();
       params.set("campIds", campIds.join(","));
 
-      const response = await fetch(`/api/admin/camps/alerts?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/alerts?${params.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -170,9 +164,7 @@ export function studentCampProfileQueryOptions(studentId: string | null) {
     queryFn: async (): Promise<StudentCampProfile> => {
       if (!studentId) throw new Error("학생 ID가 필요합니다.");
 
-      const response = await fetch(`/api/admin/camps/students/${studentId}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/students/${studentId}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -228,9 +220,7 @@ export function campStudentsListQueryOptions(
       if (options?.sortBy) params.set("sortBy", options.sortBy);
       if (options?.sortOrder) params.set("sortOrder", options.sortOrder);
 
-      const response = await fetch(`/api/admin/camps/students?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/students?${params.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -269,9 +259,7 @@ export function liveMonitoringQueryOptions(campIds: string[]) {
       const params = new URLSearchParams();
       params.set("campIds", campIds.join(","));
 
-      const response = await fetch(`/api/admin/camps/live?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/admin/camps/live?${params.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();

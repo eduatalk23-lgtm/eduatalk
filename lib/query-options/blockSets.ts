@@ -19,9 +19,7 @@ export function blockSetsQueryOptions(studentId: string) {
   return queryOptions({
     queryKey: ["blockSets", studentId] as const,
     queryFn: async (): Promise<BlockSetWithBlocks[]> => {
-      const response = await fetch("/api/block-sets", {
-        cache: "no-store",
-      });
+      const response = await fetch("/api/block-sets");
 
       if (!response.ok) {
         const errorText = await response.text();

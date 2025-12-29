@@ -46,9 +46,7 @@ export function todayPlansQueryOptions(
         queryParams.set("includeProgress", options.includeProgress ? "true" : "false");
       }
 
-      const response = await fetch(`/api/today/plans?${queryParams.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/today/plans?${queryParams.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();

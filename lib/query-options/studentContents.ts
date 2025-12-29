@@ -23,9 +23,7 @@ export function studentContentsQueryOptions(studentId: string) {
       lectures: ContentItem[];
       custom: ContentItem[];
     }> => {
-      const response = await fetch("/api/student-contents", {
-        cache: "no-store",
-      });
+      const response = await fetch("/api/student-contents");
 
       if (!response.ok) {
         const errorText = await response.text();

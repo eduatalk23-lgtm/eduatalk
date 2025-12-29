@@ -54,9 +54,7 @@ export function campTemplatesQueryOptions(
         queryParams.set("programType", options.filters.programType);
       }
 
-      const response = await fetch(`/api/camp-templates?${queryParams.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/camp-templates?${queryParams.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();
