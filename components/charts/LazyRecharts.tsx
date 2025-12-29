@@ -14,7 +14,11 @@
  * const { BarChart, Bar, ... } = await useRechartsComponents();
  */
 
-import React, { Suspense, lazy, ComponentType } from "react";
+import React, { ComponentType } from "react";
+
+// Recharts 차트 컴포넌트의 공통 Props 타입 (런타임에 동적 로딩되므로 정확한 타입 불필요)
+// Record<string, unknown>은 any보다 안전하면서도 유연성 제공
+type ChartProps = Record<string, unknown>;
 
 // Loading skeleton for charts
 export function ChartLoadingSkeleton({ height = 300 }: { height?: number }) {
@@ -98,38 +102,38 @@ function createLazyChart<P extends object>(
 }
 
 // Export lazy-loaded chart components
-export const LazyBarChart = createLazyChart(
-  (r) => r.BarChart as ComponentType<any>,
+export const LazyBarChart = createLazyChart<ChartProps>(
+  (r) => r.BarChart as ComponentType<ChartProps>,
   "LazyBarChart"
 );
 
-export const LazyLineChart = createLazyChart(
-  (r) => r.LineChart as ComponentType<any>,
+export const LazyLineChart = createLazyChart<ChartProps>(
+  (r) => r.LineChart as ComponentType<ChartProps>,
   "LazyLineChart"
 );
 
-export const LazyAreaChart = createLazyChart(
-  (r) => r.AreaChart as ComponentType<any>,
+export const LazyAreaChart = createLazyChart<ChartProps>(
+  (r) => r.AreaChart as ComponentType<ChartProps>,
   "LazyAreaChart"
 );
 
-export const LazyPieChart = createLazyChart(
-  (r) => r.PieChart as ComponentType<any>,
+export const LazyPieChart = createLazyChart<ChartProps>(
+  (r) => r.PieChart as ComponentType<ChartProps>,
   "LazyPieChart"
 );
 
-export const LazyComposedChart = createLazyChart(
-  (r) => r.ComposedChart as ComponentType<any>,
+export const LazyComposedChart = createLazyChart<ChartProps>(
+  (r) => r.ComposedChart as ComponentType<ChartProps>,
   "LazyComposedChart"
 );
 
-export const LazyScatterChart = createLazyChart(
-  (r) => r.ScatterChart as ComponentType<any>,
+export const LazyScatterChart = createLazyChart<ChartProps>(
+  (r) => r.ScatterChart as ComponentType<ChartProps>,
   "LazyScatterChart"
 );
 
-export const LazyRadarChart = createLazyChart(
-  (r) => r.RadarChart as ComponentType<any>,
+export const LazyRadarChart = createLazyChart<ChartProps>(
+  (r) => r.RadarChart as ComponentType<ChartProps>,
   "LazyRadarChart"
 );
 

@@ -28,6 +28,22 @@ import {
   requireCampInvitationAccess,
 } from "@/lib/domains/camp/permissions";
 
+// Supabase 조인 결과 타입 정의
+interface StudentJoinResult {
+  name: string | null;
+  grade: number | null;
+  class: string | null;
+}
+
+interface InvitationWithStudent {
+  id: string;
+  student_id: string;
+  status: string | null;
+  invited_at: string | null;
+  accepted_at: string | null;
+  students: StudentJoinResult | null;
+}
+
 /**
  * 학생 초대 발송
  */
@@ -260,15 +276,11 @@ export const getCampInvitationsForTemplate = withErrorHandling(
     }
 
     // 학생 정보를 평탄화
-    type InvitationWithStudent = CampInvitation & {
-      students?: {
-        name: string | null;
-        grade: number | null;
-        class: string | null;
-      } | null;
+    type InvitationWithStudentAndCamp = CampInvitation & {
+      students: StudentJoinResult | null;
     };
-    
-    const formattedInvitations = (invitations || []).map((invitation: InvitationWithStudent) => ({
+
+    const formattedInvitations = (invitations || []).map((invitation: InvitationWithStudentAndCamp) => ({
       ...invitation,
       student_name: invitation.students?.name ?? null,
       student_grade: invitation.students?.grade ?? null,
@@ -696,7 +708,7 @@ export const getCampParticipantsAction = withErrorHandling(
       }
     });
 
-    const participants = (invitationsData || []).map((invitation) => {
+    const participants = ((invitationsData || []) as InvitationWithStudent[]).map((invitation) => {
       const planGroup = planGroupsMap.get(invitation.id);
       const invitationStatus = invitation.status ?? "pending";
       const isSubmitted =
@@ -706,11 +718,11 @@ export const getCampParticipantsAction = withErrorHandling(
       return {
         invitation_id: invitation.id,
         student_id: invitation.student_id,
-        student_name: (invitation.students as any)?.name || "이름 없음",
-        student_grade: (invitation.students as any)?.grade
-          ? String((invitation.students as any).grade)
+        student_name: invitation.students?.name || "이름 없음",
+        student_grade: invitation.students?.grade
+          ? String(invitation.students.grade)
           : null,
-        student_class: (invitation.students as any)?.class || null,
+        student_class: invitation.students?.class || null,
         invitation_status: invitationStatus,
         display_status: displayStatus,
         plan_group_id: planGroup?.id || null,
@@ -967,7 +979,7 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
       }
     });
 
-    let participants = (invitationsData || []).map((invitation) => {
+    let participants = ((invitationsData || []) as InvitationWithStudent[]).map((invitation) => {
       const planGroup = planGroupsMap.get(invitation.id);
       const invitationStatus = invitation.status ?? "pending";
       const isSubmitted =
@@ -977,11 +989,11 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
       return {
         invitation_id: invitation.id,
         student_id: invitation.student_id,
-        student_name: (invitation.students as any)?.name || "이름 없음",
-        student_grade: (invitation.students as any)?.grade
-          ? String((invitation.students as any).grade)
+        student_name: invitation.students?.name || "이름 없음",
+        student_grade: invitation.students?.grade
+          ? String(invitation.students.grade)
           : null,
-        student_class: (invitation.students as any)?.class || null,
+        student_class: invitation.students?.class || null,
         invitation_status: invitationStatus,
         display_status: displayStatus,
         plan_group_id: planGroup?.id || null,

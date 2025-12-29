@@ -84,35 +84,7 @@ export function QuickCreateModal({
     reasoning: string;
   } | null>(null);
 
-  // Load smart recommendation when range changes
-  useEffect(() => {
-    if (step === "schedule" && content.id && range.end > range.start) {
-      setIsLoadingRecommendation(true);
-      getSmartScheduleRecommendation(
-        content.id,
-        range.end - range.start + 1,
-        range.unit === "unit" ? "chapter" : range.unit
-      )
-        .then((rec) => {
-          setRecommendation({
-            recommendedDailyAmount: rec.recommendedDailyAmount,
-            estimatedEndDate: rec.estimatedEndDate,
-            reasoning: rec.reasoning,
-          });
-          setSchedule((prev) => ({
-            ...prev,
-            endDate: rec.estimatedEndDate,
-            weekdays: rec.recommendedWeekdays,
-            studyType: rec.studyType,
-          }));
-        })
-        .catch(console.error)
-        .finally(() => setIsLoadingRecommendation(false));
-    }
-  }, [step, content.id, range.end, range.start, range.unit]);
-
-  if (!isOpen) return null;
-
+  // Hooks must be called before any early return
   const handleCreate = useCallback(() => {
     startTransition(async () => {
       const input: QuickCreateInput = {
@@ -164,6 +136,36 @@ export function QuickCreateModal({
     () => (studyDays > 0 ? Math.ceil(totalUnits / studyDays) : 0),
     [studyDays, totalUnits]
   );
+
+  // Load smart recommendation when range changes
+  useEffect(() => {
+    if (step === "schedule" && content.id && range.end > range.start) {
+      setIsLoadingRecommendation(true);
+      getSmartScheduleRecommendation(
+        content.id,
+        range.end - range.start + 1,
+        range.unit === "unit" ? "chapter" : range.unit
+      )
+        .then((rec) => {
+          setRecommendation({
+            recommendedDailyAmount: rec.recommendedDailyAmount,
+            estimatedEndDate: rec.estimatedEndDate,
+            reasoning: rec.reasoning,
+          });
+          setSchedule((prev) => ({
+            ...prev,
+            endDate: rec.estimatedEndDate,
+            weekdays: rec.recommendedWeekdays,
+            studyType: rec.studyType,
+          }));
+        })
+        .catch(console.error)
+        .finally(() => setIsLoadingRecommendation(false));
+    }
+  }, [step, content.id, range.end, range.start, range.unit]);
+
+  // Early return after all hooks
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

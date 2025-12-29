@@ -8,6 +8,34 @@ import { getMasterContentId, extractMasterIds } from "@/lib/plan/content";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
+// Supabase 쿼리 결과 타입 정의
+interface BookRow {
+  id: string;
+  title: string | null;
+  subject: string | null;
+  subject_id: string | null;
+  curriculum_revision_id: string | null;
+  master_content_id: string | null;
+  semester: string | null;
+  revision: string | null;
+  difficulty_level: string | null;
+  publisher: string | null;
+}
+
+interface LectureRow {
+  id: string;
+  title: string | null;
+  subject: string | null;
+  subject_id: string | null;
+  curriculum_revision_id: string | null;
+  master_content_id: string | null;
+  master_lecture_id: string | null;
+  semester: string | null;
+  revision: string | null;
+  difficulty_level: string | null;
+  platform: string | null;
+}
+
 /**
  * 여러 curriculum_revision_id를 배치로 조회하여 개정교육과정명 맵 반환
  */
@@ -179,7 +207,7 @@ export async function fetchStudentBooks(
         : Promise.resolve(new Map<string, string>()),
     ]);
 
-    return data.map((book) => {
+    return (data as BookRow[]).map((book) => {
       const masterInfo = book.master_content_id
         ? masterContentsMap.get(book.master_content_id)
         : null;
@@ -201,10 +229,10 @@ export async function fetchStudentBooks(
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
-        semester: (book as any).semester || masterInfo?.semester || null,
-        revision: (book as any).revision || masterInfo?.revision || null,
-        difficulty_level: (book as any).difficulty_level || masterInfo?.difficulty_level || null,
-        publisher: (book as any).publisher || masterInfo?.publisher || null,
+        semester: book.semester || masterInfo?.semester || null,
+        revision: book.revision || masterInfo?.revision || null,
+        difficulty_level: book.difficulty_level || masterInfo?.difficulty_level || null,
+        publisher: book.publisher || masterInfo?.publisher || null,
       };
     });
   } catch (err) {
@@ -304,7 +332,7 @@ export async function fetchStudentLectures(
         : Promise.resolve(new Map<string, string>()),
     ]);
 
-    return data.map((lecture) => {
+    return (data as LectureRow[]).map((lecture) => {
       // ContentResolverService를 사용하여 마스터 ID 추출
       const masterId = getMasterContentId(lecture, "lecture");
       const masterInfo = masterId ? masterLecturesMap.get(masterId) : null;
@@ -326,10 +354,10 @@ export async function fetchStudentLectures(
         curriculum_revision_name: finalCurriculumRevisionId
           ? curriculumRevisionNamesMap.get(finalCurriculumRevisionId) || null
           : null,
-        semester: (lecture as any).semester || masterInfo?.semester || null,
-        revision: (lecture as any).revision || masterInfo?.revision || null,
-        difficulty_level: (lecture as any).difficulty_level || masterInfo?.difficulty_level || null,
-        platform: (lecture as any).platform || masterInfo?.platform || null,
+        semester: lecture.semester || masterInfo?.semester || null,
+        revision: lecture.revision || masterInfo?.revision || null,
+        difficulty_level: lecture.difficulty_level || masterInfo?.difficulty_level || null,
+        platform: lecture.platform || masterInfo?.platform || null,
       };
     });
   } catch (err) {

@@ -67,6 +67,29 @@ export type ReportData = {
   nextWeekSchedule: NextWeekSchedule[];
 };
 
+// Supabase 쿼리 결과 타입들
+interface SubjectGroupRow { id: string; name?: string | null; }
+interface SubjectRow { id: string; name?: string | null; }
+interface InternalScoreRow {
+  subject_group_id?: string | null;
+  subject_id?: string | null;
+  rank_grade?: number | null;
+  raw_score?: number | null;
+  created_at?: string | null;
+}
+interface MockScoreRow {
+  subject_group_id?: string | null;
+  subject_id?: string | null;
+  grade_score?: number | null;
+  raw_score?: number | null;
+  exam_date?: string | null;
+}
+interface BlockRow {
+  day_of_week?: number | null;
+  start_time?: string | null;
+  end_time?: string | null;
+}
+
 // 학생 정보 조회
 export async function fetchStudentInfo(
   supabase: SupabaseServerClient,
@@ -285,7 +308,7 @@ export async function fetchSubjectGradeTrends(
         const subjectGroupIds = new Set<string>();
         const subjectIds = new Set<string>();
 
-        (internalData || []).forEach((score: any) => {
+        (internalData || []).forEach((score: InternalScoreRow) => {
           if (score.subject_group_id)
             subjectGroupIds.add(score.subject_group_id);
           if (score.subject_id) subjectIds.add(score.subject_id);
@@ -308,18 +331,18 @@ export async function fetchSubjectGradeTrends(
         ]);
 
         const subjectGroupMap = new Map<string, string>();
-        (subjectGroupsData.data || []).forEach((sg: any) => {
-          subjectGroupMap.set(sg.id, sg.name);
+        (subjectGroupsData.data || []).forEach((sg: SubjectGroupRow) => {
+          subjectGroupMap.set(sg.id, sg.name ?? '');
         });
 
         const subjectMap = new Map<string, string>();
-        (subjectsData.data || []).forEach((s: any) => {
-          subjectMap.set(s.id, s.name);
+        (subjectsData.data || []).forEach((s: SubjectRow) => {
+          subjectMap.set(s.id, s.name ?? '');
         });
 
         // 데이터 변환
         // student_internal_scores에는 test_date가 없으므로 created_at을 사용하거나 null 처리
-        internalScoresResult = (internalData || []).map((score: any) => ({
+        internalScoresResult = (internalData || []).map((score: InternalScoreRow) => ({
           subject_group: score.subject_group_id
             ? subjectGroupMap.get(score.subject_group_id) || null
             : null,
@@ -373,7 +396,7 @@ export async function fetchSubjectGradeTrends(
         const subjectGroupIds = new Set<string>();
         const subjectIds = new Set<string>();
 
-        (mockData || []).forEach((score: any) => {
+        (mockData || []).forEach((score: MockScoreRow) => {
           if (score.subject_group_id)
             subjectGroupIds.add(score.subject_group_id);
           if (score.subject_id) subjectIds.add(score.subject_id);
@@ -396,17 +419,17 @@ export async function fetchSubjectGradeTrends(
         ]);
 
         const subjectGroupMap = new Map<string, string>();
-        (subjectGroupsData.data || []).forEach((sg: any) => {
-          subjectGroupMap.set(sg.id, sg.name);
+        (subjectGroupsData.data || []).forEach((sg: SubjectGroupRow) => {
+          subjectGroupMap.set(sg.id, sg.name ?? '');
         });
 
         const subjectMap = new Map<string, string>();
-        (subjectsData.data || []).forEach((s: any) => {
-          subjectMap.set(s.id, s.name);
+        (subjectsData.data || []).forEach((s: SubjectRow) => {
+          subjectMap.set(s.id, s.name ?? '');
         });
 
         // 데이터 변환
-        mockScoresResult = (mockData || []).map((score: any) => ({
+        mockScoresResult = (mockData || []).map((score: MockScoreRow) => ({
           subject_group: score.subject_group_id
             ? subjectGroupMap.get(score.subject_group_id) || null
             : null,
@@ -677,7 +700,7 @@ export async function fetchNextWeekSchedule(
         blocks = [];
       } else {
         // block_index는 없으므로 null로 설정
-        blocks = (blocksData || []).map((block: any) => ({
+        blocks = (blocksData || []).map((block: BlockRow) => ({
           day_of_week: block.day_of_week,
           start_time: block.start_time,
           end_time: block.end_time,

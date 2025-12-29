@@ -30,16 +30,32 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
   const isAdHoc = !!adHocPlan;
   const item = plan ?? adHocPlan;
 
-  if (!item) return null;
-
-  // 공통 필드 추출
+  // 공통 필드 추출 (item이 없을 수 있으므로 기본값 사용)
   const title = isAdHoc
-    ? adHocPlan!.title
-    : plan!.custom_title ?? plan!.content_title ?? '제목 없음';
+    ? adHocPlan?.title ?? ''
+    : plan?.custom_title ?? plan?.content_title ?? '제목 없음';
 
-  const status = isAdHoc ? adHocPlan!.status : plan!.status;
+  const status = isAdHoc ? adHocPlan?.status : plan?.status;
   const isCompleted = status === 'completed';
   const isInProgress = status === 'in_progress';
+
+  // 드래그 가능 여부 (완료되지 않은 항목만)
+  const canDrag = !isCompleted && !isProcessing;
+
+  // 드래그 아이템 데이터 - useMemo must be called before early return
+  const itemType: 'student_plan' | 'ad_hoc_plan' = isAdHoc ? 'ad_hoc_plan' : 'student_plan';
+  const dragItem = useMemo(
+    () => ({
+      id: item?.id ?? '',
+      type: itemType,
+      sourceContainer: containerType,
+      title,
+    }),
+    [item?.id, itemType, containerType, title]
+  );
+
+  // Early return after all hooks
+  if (!item) return null;
 
   // 범위 표시
   const rangeDisplay = isAdHoc
@@ -54,21 +70,6 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
     !isAdHoc && plan!.carryover_from_date
       ? `${formatRelativeDate(plan!.carryover_from_date)}부터 이월`
       : null;
-
-  // 드래그 가능 여부 (완료되지 않은 항목만)
-  const canDrag = !isCompleted && !isProcessing;
-
-  // 드래그 아이템 데이터
-  const itemType: 'student_plan' | 'ad_hoc_plan' = isAdHoc ? 'ad_hoc_plan' : 'student_plan';
-  const dragItem = useMemo(
-    () => ({
-      id: item.id,
-      type: itemType,
-      sourceContainer: containerType,
-      title,
-    }),
-    [item.id, itemType, containerType, title]
-  );
 
   const draggableProps = canDrag ? getDraggableProps(dragItem) : {};
 

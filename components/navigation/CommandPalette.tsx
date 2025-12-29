@@ -601,12 +601,12 @@ export function usePageCommands(commands: Command[]) {
 
 /**
  * 네비게이션 명령어 생성 헬퍼
+ * Note: router must be passed as parameter since this is not a React hook
  */
 export function createNavigationCommands(
-  routes: { path: string; label: string; description?: string; icon?: ReactNode }[]
+  routes: { path: string; label: string; description?: string; icon?: ReactNode }[],
+  router: ReturnType<typeof useRouter>
 ): Command[] {
-  const router = useRouter();
-
   return routes.map((route) => ({
     id: `nav-${route.path}`,
     label: route.label,
@@ -616,6 +616,20 @@ export function createNavigationCommands(
     group: "navigation",
     action: () => router.push(route.path),
   }));
+}
+
+/**
+ * 네비게이션 명령어 생성 훅 (React 컴포넌트 내에서 사용)
+ */
+export function useNavigationCommands(
+  routes: { path: string; label: string; description?: string; icon?: ReactNode }[]
+): Command[] {
+  const router = useRouter();
+
+  return useMemo(
+    () => createNavigationCommands(routes, router),
+    [routes, router]
+  );
 }
 
 // ============================================================================
