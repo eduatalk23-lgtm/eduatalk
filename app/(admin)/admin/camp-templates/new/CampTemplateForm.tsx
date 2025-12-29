@@ -37,45 +37,18 @@ export function CampTemplateForm({ initialBlockSets }: CampTemplateFormProps) {
   const [campLocation, setCampLocation] = useState("");
 
   const handleTemplateSave = async (wizardData: WizardData) => {
-    // 디버깅: wizardData 확인
-    console.log("[CampTemplateForm] handleTemplateSave 호출:", {
-      has_block_set_id: !!wizardData.block_set_id,
-      block_set_id: wizardData.block_set_id,
-      wizardDataKeys: Object.keys(wizardData),
-    });
-
     const finalWizardData: WizardData = {
       ...wizardData,
-      name: templateName || wizardData.name, // templateName을 우선 사용
+      name: templateName || wizardData.name,
     };
 
-    // 디버깅: finalWizardData 확인
-    console.log("[CampTemplateForm] finalWizardData:", {
-      has_block_set_id: !!finalWizardData.block_set_id,
-      block_set_id: finalWizardData.block_set_id,
-      template_data_string: JSON.stringify(finalWizardData).substring(0, 200),
-    });
-
     const formData = new FormData();
-    formData.append("name", templateName || finalWizardData.name); // templateName을 명시적으로 사용
+    formData.append("name", templateName || finalWizardData.name);
     formData.append("program_type", programType);
     formData.append("description", description);
-    formData.append("status", "draft"); // 템플릿 생성 시 기본값은 draft
+    formData.append("status", "draft");
     formData.append("template_data", JSON.stringify(finalWizardData));
-    
-    // 디버깅: FormData 확인
-    const templateDataFromForm = formData.get("template_data");
-    if (templateDataFromForm) {
-      try {
-        const parsed = JSON.parse(templateDataFromForm as string);
-        console.log("[CampTemplateForm] FormData의 template_data:", {
-          has_block_set_id: !!parsed.block_set_id,
-          block_set_id: parsed.block_set_id,
-        });
-      } catch (e) {
-        console.error("[CampTemplateForm] FormData 파싱 에러:", e);
-      }
-    }
+
     if (campStartDate) {
       formData.append("camp_start_date", campStartDate);
     }

@@ -19,6 +19,7 @@ type SinglePlanViewProps = {
   onSelectPlanById?: (planId: string) => void; // plan.id 기반 선택 (우선 사용)
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
+  studentId?: string; // 인라인 콘텐츠 연결 모달용
 };
 
 function SinglePlanViewComponent({
@@ -31,6 +32,7 @@ function SinglePlanViewComponent({
   onSelectPlanById,
   serverNow = Date.now(),
   campMode = false,
+  studentId,
 }: SinglePlanViewProps) {
   // SinglePlanView에서는 자동 선택을 하지 않음
   // PlanViewContainer에서 처리하도록 함
@@ -84,6 +86,7 @@ function SinglePlanViewComponent({
         viewMode="single"
         serverNow={serverNow}
         campMode={campMode}
+        studentId={studentId}
       />
     </div>
   );

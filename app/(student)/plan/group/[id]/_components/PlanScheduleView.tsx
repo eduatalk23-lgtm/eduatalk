@@ -1,16 +1,22 @@
 "use client";
 
 import { useImperativeHandle, forwardRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
 import { getScheduleResultDataAction } from "@/app/(student)/actions/planGroupActions";
-import { 
+import {
   CACHE_STALE_TIME_STABLE,
-  CACHE_GC_TIME_STABLE 
+  CACHE_GC_TIME_STABLE
 } from "@/lib/constants/queryCache";
-import { ScheduleTableView } from "@/app/(student)/plan/new-group/_components/_features/scheduling/components/ScheduleTableView";
 import { PlanListView } from "./PlanListView";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
+
+// 스케줄 테이블 뷰를 동적 import로 로드 (번들 분할)
+const ScheduleTableView = dynamic(
+  () => import("@/app/(student)/plan/new-group/_components/_features/scheduling/components/ScheduleTableView").then((mod) => ({ default: mod.ScheduleTableView })),
+  { loading: () => <LoadingSkeleton variant="schedule" />, ssr: false }
+);
 import type {
   ContentData,
   BlockData,

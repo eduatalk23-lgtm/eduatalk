@@ -16,6 +16,7 @@ type TodayPlanListViewProps = {
   initialSelectedPlanNumber?: number | null;
   serverNow?: number;
   campMode?: boolean; // 캠프 모드 여부
+  studentId?: string; // 인라인 콘텐츠 연결 모달용
 };
 
 export function TodayPlanListView({
@@ -28,6 +29,7 @@ export function TodayPlanListView({
   initialSelectedPlanNumber = null,
   serverNow = Date.now(),
   campMode = false,
+  studentId,
 }: TodayPlanListViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(initialMode);
   const [selectedPlanNumber, setSelectedPlanNumber] = useState<number | null>(
@@ -82,6 +84,7 @@ export function TodayPlanListView({
           planDate={planDate}
           serverNow={serverNow}
           campMode={campMode}
+          studentId={studentId}
         />
       )}
     </div>

@@ -396,7 +396,16 @@ export const SchedulePreviewPanel = React.memo(function SchedulePreviewPanel({
 
   // 에러 상태
   if (error) {
-    return <ScheduleErrorState error={error} />;
+    return (
+      <ScheduleErrorState
+        error={error}
+        onRetry={() => {
+          if (debouncedScheduleParams) {
+            calculateSchedule(debouncedScheduleParams);
+          }
+        }}
+      />
+    );
   }
 
   // 빈 상태

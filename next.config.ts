@@ -89,10 +89,29 @@ const nextConfig: NextConfig = {
 
   // 실험적 기능
   experimental: {
+    // 패키지 임포트 최적화 - 트리 쉐이킹 및 번들 크기 감소
     optimizePackageImports: [
+      // 아이콘
       "lucide-react",
+      // 차트
       "recharts",
+      // Supabase
       "@supabase/supabase-js",
+      // 드래그 앤 드롭
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+      // 폼 관리
+      "react-hook-form",
+      "@hookform/resolvers",
+      "zod",
+      // 날짜 처리
+      "date-fns",
+      // 애니메이션
+      "framer-motion",
+      // 유틸리티
+      "clsx",
+      "tailwind-merge",
     ],
   },
 

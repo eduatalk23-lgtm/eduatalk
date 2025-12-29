@@ -152,11 +152,6 @@ export function RecommendedContentsPanel({
         recommendedContent: content,
       };
 
-      console.log("[RecommendedContentsPanel] 범위 설정 모달 열기:", {
-        modalContent,
-        originalContent: content,
-      });
-
       setRangeModalContent(modalContent);
       setRangeModalOpen(true);
     },

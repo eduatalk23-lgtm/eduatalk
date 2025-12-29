@@ -1,19 +1,38 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo, Suspense } from "react";
+import dynamic from "next/dynamic";
 import {
   Step3ContentSelectionProps,
   RecommendationSettings,
   ContentSlot,
   convertSlotsToContents,
 } from "@/lib/types/content-selection";
-import {
-  StudentContentsPanel,
-  RecommendedContentsPanel,
-  MasterContentsPanel,
-  UnifiedContentsView,
-} from "./components";
+import { UnifiedContentsView } from "./components";
 import { Step3SlotModeSelection } from "./slot-mode";
+
+// 패널 로딩 스켈레톤
+function PanelLoadingSkeleton() {
+  return (
+    <div className="h-64 w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+  );
+}
+
+// 무거운 패널 컴포넌트들을 동적 import로 로드 (번들 분할)
+const StudentContentsPanel = dynamic(
+  () => import("./components/StudentContentsPanel").then((mod) => ({ default: mod.StudentContentsPanel })),
+  { loading: () => <PanelLoadingSkeleton />, ssr: false }
+);
+
+const RecommendedContentsPanel = dynamic(
+  () => import("./components/RecommendedContentsPanel").then((mod) => ({ default: mod.RecommendedContentsPanel })),
+  { loading: () => <PanelLoadingSkeleton />, ssr: false }
+);
+
+const MasterContentsPanel = dynamic(
+  () => import("./components/MasterContentsPanel").then((mod) => ({ default: mod.MasterContentsPanel })),
+  { loading: () => <PanelLoadingSkeleton />, ssr: false }
+);
 import { ContentSelectionProgress } from "../../common/ContentSelectionProgress";
 import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -261,25 +280,11 @@ function Step3ContentSelectionComponent({
   // 학생 콘텐츠 업데이트
   const handleStudentContentsUpdate = useCallback(
     (contents: typeof data.student_contents) => {
-      console.log("[Step3ContentSelection] handleStudentContentsUpdate 호출:", {
-        contentsCount: contents.length,
-        contentsIds: contents.map(c => c.content_id),
-        currentDataCount: data.student_contents.length,
-      });
-
       if (onUpdate) {
-        const updatePayload: Partial<WizardData> = { student_contents: contents };
-        console.log("[Step3ContentSelection] onUpdate 호출:", {
-          updatePayload,
-          hasOnUpdate: !!onUpdate,
-        });
-        onUpdate(updatePayload);
-        console.log("[Step3ContentSelection] onUpdate 호출 완료");
-      } else {
-        console.warn("[Step3ContentSelection] onUpdate가 없습니다!");
+        onUpdate({ student_contents: contents });
       }
     },
-    [onUpdate, data.student_contents]
+    [onUpdate]
   );
 
   // 추천 콘텐츠 업데이트

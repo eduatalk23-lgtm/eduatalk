@@ -44,19 +44,30 @@ function ErrorStateComponent({
           <h3 className="text-body-1 text-error-900 dark:text-error-100">{title}</h3>
           <p className="text-body-2 text-error-700 dark:text-error-300">{displayMessage}</p>
         </div>
-        {/* actionHref가 있으면 Link 사용, onRetry가 있으면 Button 사용 */}
-        {actionLabel && actionHref && (
-          <Link
-            href={actionHref}
-            className="inline-flex items-center justify-center rounded-lg bg-error-600 px-6 py-3 text-sm font-semibold text-white transition-base hover:bg-error-700"
-          >
-            {actionLabel}
-          </Link>
-        )}
-        {onRetry && !actionHref && (
-          <Button variant="destructive" onClick={onRetry}>
-            {retryLabel}
-          </Button>
+        {/* 액션 버튼들: onRetry와 actionHref가 모두 있을 수 있음 */}
+        {(onRetry || (actionLabel && actionHref)) && (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {/* 재시도 버튼 (있으면 항상 표시) */}
+            {onRetry && (
+              <Button variant="destructive" onClick={onRetry}>
+                {retryLabel}
+              </Button>
+            )}
+            {/* 이동 링크 (있으면 항상 표시) */}
+            {actionLabel && actionHref && (
+              <Link
+                href={actionHref}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition-base",
+                  onRetry
+                    ? "border border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                    : "bg-error-600 text-white hover:bg-error-700"
+                )}
+              >
+                {actionLabel}
+              </Link>
+            )}
+          </div>
         )}
       </div>
     </div>

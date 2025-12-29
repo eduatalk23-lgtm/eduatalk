@@ -72,9 +72,16 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
 
   const draggableProps = canDrag ? getDraggableProps(dragItem) : {};
 
+  const containerLabel = containerType === 'unfinished' ? '미완료' : containerType === 'daily' ? '오늘 할 일' : '주간 유동';
+  const statusLabel = isCompleted ? '완료됨' : isInProgress ? '진행 중' : '대기 중';
+  const ariaLabel = `${title}, ${statusLabel}, ${containerLabel}${canDrag ? ', 다른 섹션으로 드래그하여 이동 가능' : ''}`;
+
   return (
     <div
       {...draggableProps}
+      role="listitem"
+      aria-label={ariaLabel}
+      aria-grabbed={canDrag ? isDragging : undefined}
       className={cn(
         'bg-white rounded-lg p-3 shadow-sm border transition-all',
         isCompleted && 'opacity-60',
@@ -174,6 +181,7 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                   e.stopPropagation();
                   onSelect?.();
                 }}
+                aria-label={isInProgress ? `${title} 이어하기` : `${title} 시작`}
                 className={cn(
                   'px-3 py-1.5 text-sm rounded-md transition-colors',
                   isInProgress
@@ -189,6 +197,8 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                 <div className="relative group">
                   <button
                     onClick={(e) => e.stopPropagation()}
+                    aria-label={`${title} 이동 옵션`}
+                    aria-haspopup="menu"
                     className="p-1.5 text-gray-400 hover:text-gray-600 rounded"
                   >
                     <svg
@@ -196,6 +206,7 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         strokeLinecap="round"
@@ -205,13 +216,18 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                       />
                     </svg>
                   </button>
-                  <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[120px]">
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 min-w-[120px]"
+                  >
                     {onMoveToDaily && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           onMoveToDaily();
                         }}
+                        role="menuitem"
+                        aria-label={`${title}을(를) 오늘 할 일로 이동`}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
                         오늘로 이동
@@ -223,6 +239,8 @@ export const ContainerPlanItem = memo(function ContainerPlanItem({
                           e.stopPropagation();
                           onMoveToWeekly();
                         }}
+                        role="menuitem"
+                        aria-label={`${title}을(를) 주간 유동으로 이동`}
                         className="w-full px-3 py-1.5 text-sm text-left hover:bg-gray-50"
                       >
                         주간으로 이동

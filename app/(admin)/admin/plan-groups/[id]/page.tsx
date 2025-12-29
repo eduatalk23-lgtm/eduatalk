@@ -171,13 +171,6 @@ export default async function AdminPlanGroupDetailPage({
         templateBlockSetName = campConfig.templateBlockSetName;
         templateBlockSetId = campConfig.templateBlockSetId;
 
-        console.log("[AdminPlanGroupDetailPage] 캠프 설정 파싱 완료:", {
-          blockSetId: campConfig.blockSetId,
-          templateBlocksCount: templateBlocks.length,
-          templateBlockSetName,
-          templateBlockSetId,
-          isLegacy: campConfig.isLegacy,
-        });
       }
     } catch (error) {
       console.error("[AdminPlanGroupDetailPage] 템플릿 블록 조회 중 에러:", error);

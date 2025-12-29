@@ -331,6 +331,7 @@ export async function TodayPlanList() {
         initialMode="daily"
         initialSelectedPlanNumber={groups[0]?.planNumber ?? null}
         serverNow={Date.now()}
+        studentId={user.userId}
       />
     </div>
   );

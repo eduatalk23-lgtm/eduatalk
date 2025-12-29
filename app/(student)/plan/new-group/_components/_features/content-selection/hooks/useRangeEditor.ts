@@ -225,14 +225,6 @@ export function useRangeEditor({
               }
             });
           } else {
-            console.log("[useRangeEditor] 상세정보 조회 성공:", {
-              type: "SUCCESS",
-              contentType: content.content_type,
-              contentId: content.content_id,
-              title: content.title,
-              detailsCount: detailData.details.length,
-            });
-
             // 캐시 저장
             cachedDetailsRef.current.set(content.content_id, detailData);
             setContentDetails(new Map([[editingRangeIndex, detailData]]));

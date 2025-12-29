@@ -154,7 +154,7 @@ function PlanTimerCardComponent({
   } = usePlanCardActions({ group, sessions, campMode });
 
   // 스토어 기반 타이머 훅 사용
-  const { seconds, status: timerStatus } = usePlanTimer({
+  const { seconds, status: timerStatus, syncState } = usePlanTimer({
     planId,
     status: timerState.status,
     accumulatedSeconds: timerState.accumulatedSeconds,
@@ -223,13 +223,46 @@ function PlanTimerCardComponent({
 
       {showTimer && (
         <div className="flex flex-col gap-2">
-          <TimerDisplay
-            seconds={seconds}
-            status={timerStatus}
-            subtitle="학습 시간"
-            showStatusBadge={true}
-            compact={true}
-          />
+          <div className="relative">
+            <TimerDisplay
+              seconds={seconds}
+              status={timerStatus}
+              subtitle="학습 시간"
+              showStatusBadge={true}
+              compact={true}
+            />
+            {/* 동기화 상태 배지 */}
+            {syncState !== "idle" && timerStatus === "RUNNING" && (
+              <span
+                className={`absolute -right-1 -top-1 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                  syncState === "syncing"
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+                    : syncState === "synced"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300"
+                }`}
+              >
+                {syncState === "syncing" && (
+                  <>
+                    <span className="h-2 w-2 animate-spin rounded-full border border-blue-500 border-t-transparent" />
+                    동기화
+                  </>
+                )}
+                {syncState === "synced" && (
+                  <>
+                    <span className="text-green-500">✓</span>
+                    저장됨
+                  </>
+                )}
+                {syncState === "error" && (
+                  <>
+                    <span className="text-red-500">!</span>
+                    오프라인
+                  </>
+                )}
+              </span>
+            )}
+          </div>
           {pauseCount != null && pauseCount > 0 && (
             <div className="text-xs text-gray-500 dark:text-gray-400">
               일시정지: {pauseCount}회

@@ -2,11 +2,14 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Filter, RefreshCw, AlertTriangle } from "lucide-react";
 import { MonthView } from "./MonthView";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
 import { CalendarLegend } from "./CalendarLegend";
+import { CalendarRescheduleModal } from "./CalendarRescheduleModal";
+import { ConflictResolutionModal } from "./ConflictResolutionModal";
+import type { PlanForConflict } from "@/lib/domains/plan/services/conflictResolver";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { formatMonthYear, formatWeekRangeShort, formatDay, parseDateString, formatDateString } from "@/lib/date/calendarUtils";
@@ -95,11 +98,53 @@ export function PlanCalendarView({
     statuses: [],
     planGroups: [],
   });
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [isConflictModalOpen, setIsConflictModalOpen] = useState(false);
 
   // 필터링된 플랜
   const filteredPlans = useMemo(() => {
     return filterPlans(plans, filters);
   }, [plans, filters]);
+
+  // 충돌 감지용 플랜 데이터 변환
+  const plansForConflict: PlanForConflict[] = useMemo(() => {
+    return filteredPlans.map((plan) => ({
+      id: plan.id,
+      plan_date: plan.plan_date,
+      start_time: plan.start_time,
+      end_time: plan.end_time,
+      status: plan.status,
+      content_type: plan.content_type,
+      estimated_duration: null, // duration_info가 필요하면 별도 조회 필요
+      plan_group_id: plan.plan_group_id,
+    }));
+  }, [filteredPlans]);
+
+  // 사용 가능한 날짜 목록 (제외일 제외)
+  const availableDates = useMemo(() => {
+    const exclusionDatesSet = new Set<string>();
+    exclusions.forEach((exc) => {
+      if (exc.exclusion_date) {
+        exclusionDatesSet.add(exc.exclusion_date);
+      }
+    });
+
+    // minDate부터 maxDate까지의 날짜 중 제외일이 아닌 날짜
+    const dates: string[] = [];
+    const start = parseDateString(minDate);
+    const end = parseDateString(maxDate);
+    const current = new Date(start);
+
+    while (current <= end) {
+      const dateStr = formatDateString(current);
+      if (!exclusionDatesSet.has(dateStr)) {
+        dates.push(dateStr);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+  }, [minDate, maxDate, exclusions]);
 
   // 플랜 그룹 목록 추출
   const availablePlanGroups = useMemo(() => {
@@ -447,6 +492,28 @@ export function PlanCalendarView({
               availablePlanGroups={availablePlanGroups}
             />
 
+            {/* 일정 재조정 버튼 */}
+            <button
+              onClick={() => setIsRescheduleModalOpen(true)}
+              aria-label="일정 재조정"
+              className="flex items-center gap-2 rounded-lg border-2 border-gray-200 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              title="플랜 일정 재조정"
+            >
+              <RefreshCw className="h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">재조정</span>
+            </button>
+
+            {/* 충돌 해결 버튼 */}
+            <button
+              onClick={() => setIsConflictModalOpen(true)}
+              aria-label="충돌 해결"
+              className="flex items-center gap-2 rounded-lg border-2 border-amber-200 bg-amber-50 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold text-amber-700 transition-all duration-200 hover:bg-amber-100 hover:shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+              title="스케줄 충돌 확인 및 해결"
+            >
+              <AlertTriangle className="h-3 w-3 md:h-4 md:w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">충돌 확인</span>
+            </button>
+
             {/* 캘린더 내보내기 */}
             <CalendarExport
               plans={filteredPlans}
@@ -477,6 +544,34 @@ export function PlanCalendarView({
       <div className="border-t border-gray-200 px-4 md:px-6 lg:px-8 py-4">
         <CalendarLegend compact={view !== "month"} />
       </div>
+
+      {/* 일정 재조정 모달 */}
+      <CalendarRescheduleModal
+        isOpen={isRescheduleModalOpen}
+        onClose={() => setIsRescheduleModalOpen(false)}
+        plans={filteredPlans}
+        onRescheduleComplete={() => {
+          onPlansUpdated?.();
+          router.refresh();
+        }}
+      />
+
+      {/* 충돌 해결 모달 */}
+      <ConflictResolutionModal
+        isOpen={isConflictModalOpen}
+        onClose={() => setIsConflictModalOpen(false)}
+        plans={plansForConflict}
+        exclusions={exclusions}
+        academySchedules={academySchedules}
+        availableDates={availableDates}
+        onBatchResolve={async (changes) => {
+          // 실제 해결 로직은 추후 구현
+          // 현재는 새로고침으로 대체
+          console.log("Conflict resolution changes:", changes);
+          onPlansUpdated?.();
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

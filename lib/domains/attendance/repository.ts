@@ -13,6 +13,25 @@ import type {
   CheckMethod,
 } from "./types";
 
+/**
+ * AttendanceRecord 테이블에서 조회할 컬럼 목록
+ * 모든 조회 쿼리에서 select("*") 대신 사용
+ */
+const ATTENDANCE_COLUMNS = `
+  id,
+  tenant_id,
+  student_id,
+  attendance_date,
+  check_in_time,
+  check_out_time,
+  check_in_method,
+  check_out_method,
+  status,
+  notes,
+  created_at,
+  updated_at
+` as const;
+
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
 >;
@@ -28,7 +47,7 @@ export async function findAttendanceByStudentAndDate(
 
   const { data, error } = await supabase
     .from("attendance_records")
-    .select("*")
+    .select(ATTENDANCE_COLUMNS)
     .eq("student_id", studentId)
     .eq("attendance_date", date)
     .maybeSingle<AttendanceRecord>();
@@ -181,7 +200,7 @@ export async function findAttendanceRecordsByDateRange(
 
   let query = supabase
     .from("attendance_records")
-    .select("*")
+    .select(ATTENDANCE_COLUMNS)
     .order("attendance_date", { ascending: false })
     .order("check_in_time", { ascending: false });
 
@@ -276,7 +295,7 @@ export async function findAttendanceRecordsWithPagination(
   // 기본 쿼리 (학생 정보는 별도로 조회)
   let query = supabase
     .from("attendance_records")
-    .select("*", { count: "exact" });
+    .select(ATTENDANCE_COLUMNS, { count: "exact" });
 
   // 테넌트 필터
   if (tenantId) {

@@ -11,6 +11,7 @@ import { useState, useMemo } from "react";
 import { format, parseISO, isAfter, isBefore, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isCompletedPlan } from "@/lib/utils/planStatusUtils";
+import type { PlanStatus } from "@/lib/types/plan";
 
 type DateRange = {
   from: string | null; // YYYY-MM-DD
@@ -52,7 +53,7 @@ export function DateRangeSelector({
   const completedPlanDates = useMemo(() => {
     const dates = new Set<string>();
     existingPlans.forEach((plan) => {
-      if (isCompletedPlan({ status: plan.status as any })) {
+      if (isCompletedPlan({ status: plan.status as PlanStatus })) {
         dates.add(plan.plan_date);
       }
     });

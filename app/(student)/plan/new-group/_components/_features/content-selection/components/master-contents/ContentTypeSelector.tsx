@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { BookOpen, Headphones } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { ContentTypeSelectorProps } from "./types";
@@ -7,7 +8,7 @@ import type { ContentTypeSelectorProps } from "./types";
 /**
  * 콘텐츠 타입 선택 버튼 그룹
  */
-export function ContentTypeSelector({
+export const ContentTypeSelector = memo(function ContentTypeSelector({
   value,
   onChange,
   disabled = false,
@@ -65,4 +66,4 @@ export function ContentTypeSelector({
       </div>
     </div>
   );
-}
+});

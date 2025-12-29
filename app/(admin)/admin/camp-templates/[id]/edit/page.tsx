@@ -83,12 +83,6 @@ export default async function EditCampTemplatePage({
       blocks: bs.blocks || []
     }));
     
-    console.log("[EditCampTemplatePage] 테넌트 블록 세트 조회 성공:", {
-      template_id: id,
-      block_sets_count: initialBlockSets.length,
-      block_set_ids: initialBlockSets.map(bs => bs.id),
-    });
-    
     // 템플릿에 연결된 블록 세트 조회
     const linkedBlockSet = await getTemplateBlockSet(id);
     if (linkedBlockSet) {
@@ -100,10 +94,6 @@ export default async function EditCampTemplatePage({
         initialBlockSets = [{ ...linkedBlockSet, blocks: linkedBlockSet.blocks || [] }, ...initialBlockSets];
       }
       
-      console.log("[EditCampTemplatePage] 템플릿에 연결된 블록 세트:", {
-        block_set_id: linkedBlockSet.id,
-        block_set_name: linkedBlockSet.name,
-      });
     }
   } catch (error) {
     console.error("[EditCampTemplatePage] 블록 세트 조회 실패:", {

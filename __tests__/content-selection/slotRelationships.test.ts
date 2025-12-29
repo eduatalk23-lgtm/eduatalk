@@ -16,6 +16,8 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateVirtualTimeline,
+  groupLinkedSlots,
+  checkExclusiveConstraints,
   type DailyScheduleInfo,
 } from "@/lib/plan/virtualSchedulePreview";
 import {
@@ -277,5 +279,191 @@ describe("슬롯 관계 검증 (validateSlotRelationships)", () => {
 
       expect(result.valid).toBe(true);
     });
+  });
+});
+
+// ============================================================================
+// groupLinkedSlots 함수 테스트
+// ============================================================================
+
+describe("groupLinkedSlots 함수", () => {
+  it("빈 배열은 빈 배열을 반환해야 함", () => {
+    const result = groupLinkedSlots([]);
+    expect(result).toHaveLength(0);
+  });
+
+  it("연결되지 않은 슬롯들은 각각 별도 그룹으로 반환해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0" }),
+      createSlot(1, { id: "slot-1" }),
+      createSlot(2, { id: "slot-2" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toHaveLength(1);
+    expect(result[1]).toHaveLength(1);
+    expect(result[2]).toHaveLength(1);
+  });
+
+  it("A→B 연결된 슬롯은 하나의 그룹으로 묶어야 함 (link_type: after)", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0" }),
+      createSlot(1, { id: "slot-1", linked_slot_id: "slot-0", link_type: "after" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveLength(2);
+    // slot-0이 먼저, slot-1이 다음에 와야 함
+    expect(result[0][0].id).toBe("slot-0");
+    expect(result[0][1].id).toBe("slot-1");
+  });
+
+  it("A→B 연결된 슬롯은 하나의 그룹으로 묶어야 함 (link_type: before)", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", linked_slot_id: "slot-1", link_type: "before" }),
+      createSlot(1, { id: "slot-1" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveLength(2);
+    // slot-0이 먼저 (before), slot-1이 다음에 와야 함
+    expect(result[0][0].id).toBe("slot-0");
+    expect(result[0][1].id).toBe("slot-1");
+  });
+
+  it("A→B→C 체인은 하나의 그룹으로 올바른 순서로 정렬해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0" }),
+      createSlot(1, { id: "slot-1", linked_slot_id: "slot-0", link_type: "after" }),
+      createSlot(2, { id: "slot-2", linked_slot_id: "slot-1", link_type: "after" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveLength(3);
+    expect(result[0][0].id).toBe("slot-0");
+    expect(result[0][1].id).toBe("slot-1");
+    expect(result[0][2].id).toBe("slot-2");
+  });
+
+  it("존재하지 않는 linked_slot_id를 가진 슬롯은 별도 그룹으로 처리해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", linked_slot_id: "non-existent", link_type: "after" }),
+      createSlot(1, { id: "slot-1" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    expect(result).toHaveLength(2);
+  });
+
+  it("복합 연결 관계도 올바르게 처리해야 함", () => {
+    // slot-0 (시작점)
+    // slot-1 → slot-0 뒤에
+    // slot-2 → slot-0 뒤에 (slot-1과 형제)
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0" }),
+      createSlot(1, { id: "slot-1", linked_slot_id: "slot-0", link_type: "after" }),
+      createSlot(2, { id: "slot-2", linked_slot_id: "slot-0", link_type: "after" }),
+    ];
+
+    const result = groupLinkedSlots(slots);
+
+    // 모두 slot-0에 연결되어 있으므로 하나의 그룹
+    expect(result).toHaveLength(1);
+    expect(result[0]).toHaveLength(3);
+    expect(result[0][0].id).toBe("slot-0"); // 시작점이 먼저
+  });
+});
+
+// ============================================================================
+// checkExclusiveConstraints 함수 테스트
+// ============================================================================
+
+describe("checkExclusiveConstraints 함수", () => {
+  it("exclusive_with가 없는 슬롯은 항상 배치 가능해야 함", () => {
+    const slot: ContentSlot = createSlot(0, { id: "slot-0" });
+    const assignedSlots = new Map<string, string>();
+    const validSlots: ContentSlot[] = [slot];
+
+    const result = checkExclusiveConstraints(slot, "2025-01-06", assignedSlots, validSlots);
+
+    expect(result.canPlace).toBe(true);
+  });
+
+  it("배타적 슬롯이 같은 날짜에 없으면 배치 가능해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", exclusive_with: ["slot-1"] }),
+      createSlot(1, { id: "slot-1" }),
+    ];
+    const assignedSlots = new Map<string, string>([["slot-1", "2025-01-07"]]); // 다른 날짜
+
+    const result = checkExclusiveConstraints(slots[0], "2025-01-06", assignedSlots, slots);
+
+    expect(result.canPlace).toBe(true);
+  });
+
+  it("배타적 슬롯이 같은 날짜에 있으면 배치 불가해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", exclusive_with: ["slot-1"] }),
+      createSlot(1, { id: "slot-1" }),
+    ];
+    const assignedSlots = new Map<string, string>([["slot-1", "2025-01-06"]]); // 같은 날짜
+
+    const result = checkExclusiveConstraints(slots[0], "2025-01-06", assignedSlots, slots);
+
+    expect(result.canPlace).toBe(false);
+    expect(result.reason).toBeDefined();
+    expect(result.conflictingSlotIds).toContain("slot-1");
+  });
+
+  it("양방향 배타적 관계도 감지해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0" }),
+      createSlot(1, { id: "slot-1", exclusive_with: ["slot-0"] }),
+    ];
+    // slot-1이 slot-0과 배타적 관계 (slot-0은 slot-1을 exclusive_with에 가지고 있지 않음)
+    const assignedSlots = new Map<string, string>([["slot-1", "2025-01-06"]]);
+
+    // slot-0을 같은 날짜에 배치하려고 함
+    const result = checkExclusiveConstraints(slots[0], "2025-01-06", assignedSlots, slots);
+
+    expect(result.canPlace).toBe(false);
+    expect(result.conflictingSlotIds).toContain("slot-1");
+  });
+
+  it("존재하지 않는 배타적 슬롯은 무시해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", exclusive_with: ["non-existent"] }),
+    ];
+    const assignedSlots = new Map<string, string>();
+
+    const result = checkExclusiveConstraints(slots[0], "2025-01-06", assignedSlots, slots);
+
+    expect(result.canPlace).toBe(true);
+  });
+
+  it("여러 배타적 슬롯과의 충돌을 모두 감지해야 함", () => {
+    const slots: ContentSlot[] = [
+      createSlot(0, { id: "slot-0", exclusive_with: ["slot-1", "slot-2"] }),
+      createSlot(1, { id: "slot-1" }),
+      createSlot(2, { id: "slot-2" }),
+    ];
+    const assignedSlots = new Map<string, string>([
+      ["slot-1", "2025-01-06"],
+      ["slot-2", "2025-01-06"],
+    ]);
+
+    const result = checkExclusiveConstraints(slots[0], "2025-01-06", assignedSlots, slots);
+
+    expect(result.canPlace).toBe(false);
+    expect(result.conflictingSlotIds?.length).toBe(2);
   });
 });

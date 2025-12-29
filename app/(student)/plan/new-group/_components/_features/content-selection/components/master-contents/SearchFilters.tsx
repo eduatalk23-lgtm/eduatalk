@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { Search } from "lucide-react";
 import type { SearchFiltersProps } from "./types";
 
 /**
  * 마스터 콘텐츠 검색 필터
  */
-export function SearchFilters({
+export const SearchFilters = memo(function SearchFilters({
   searchQuery,
   onSearchQueryChange,
   curriculumRevisionId,
@@ -132,4 +133,4 @@ export function SearchFilters({
       </button>
     </div>
   );
-}
+});

@@ -9,7 +9,7 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { isReschedulable, isCompletedPlan } from "@/lib/utils/planStatusUtils";
-import type { PlanContent, PlanGroup } from "@/lib/types/plan";
+import type { PlanContent, PlanGroup, PlanStatus } from "@/lib/types/plan";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { SmartDateRangeSuggestions } from "./SmartDateRangeSuggestions";
 import { getTodayDateString, getNextDayString, isDateBefore } from "@/lib/reschedule/periodCalculator";
@@ -110,14 +110,14 @@ export function ContentSelectStep({
 
       const reschedulable = plans.filter((p) =>
         isReschedulable({
-          status: (p.status as any) || "pending",
+          status: (p.status as PlanStatus) || "pending",
           is_active: p.is_active ?? true,
         })
       );
 
       const completed = plans.filter((p) =>
         isCompletedPlan({
-          status: (p.status as any) || "pending",
+          status: (p.status as PlanStatus) || "pending",
         })
       ).length;
 

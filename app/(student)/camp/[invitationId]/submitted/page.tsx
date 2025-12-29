@@ -191,10 +191,6 @@ export default async function CampSubmissionDetailPage({
             directError
           );
         } else if (directGroup) {
-          console.log("[CampSubmissionDetailPage] 직접 조회 결과:", {
-            scheduler_options: directGroup.scheduler_options,
-            scheduler_options_type: typeof directGroup.scheduler_options,
-          });
           // 직접 조회한 값으로 업데이트
           group.scheduler_options = directGroup.scheduler_options;
         }
@@ -212,13 +208,6 @@ export default async function CampSubmissionDetailPage({
       templateBlockSetName = campConfig.templateBlockSetName;
       templateBlockSetId = campConfig.templateBlockSetId;
 
-      console.log("[CampSubmissionDetailPage] 캠프 설정 파싱 완료:", {
-        blockSetId: campConfig.blockSetId,
-        templateBlocksCount: templateBlocks.length,
-        templateBlockSetName,
-        templateBlockSetId,
-        isLegacy: campConfig.isLegacy,
-      });
     } catch (error) {
       console.error(
         "[CampSubmissionDetailPage] 템플릿 블록 조회 중 에러:",
@@ -226,16 +215,6 @@ export default async function CampSubmissionDetailPage({
       );
     }
   }
-
-  // 디버깅: 렌더링 직전 값 확인
-  console.log("[CampSubmissionDetailPage] 렌더링 직전 값 확인:", {
-    templateBlockSetName,
-    templateBlocks_length: templateBlocks.length,
-    templateBlocks,
-    will_render: !!templateBlockSetName,
-    plan_type: group.plan_type,
-    camp_template_id: group.camp_template_id,
-  });
 
   return (
     <section className={getContainerClass("CAMP_PLAN", "md")}>

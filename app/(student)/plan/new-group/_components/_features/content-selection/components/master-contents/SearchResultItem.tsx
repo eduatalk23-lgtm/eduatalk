@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/cn";
 import type { SearchResultItemProps } from "./types";
 
 /**
  * 개별 검색 결과 아이템
  */
-export function SearchResultItem({
+export const SearchResultItem = memo(function SearchResultItem({
   result,
   onSelect,
   disabled,
@@ -53,4 +54,4 @@ export function SearchResultItem({
       </button>
     </div>
   );
-}
+});

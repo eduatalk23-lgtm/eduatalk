@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ContentCard } from "../ContentCard";
 import type { AddedMasterContentsListProps } from "./types";
 import { hasMasterContentId } from "../../../../utils/typeGuards";
@@ -7,7 +8,7 @@ import { hasMasterContentId } from "../../../../utils/typeGuards";
 /**
  * 추가된 마스터 콘텐츠 목록
  */
-export function AddedMasterContentsList({
+export const AddedMasterContentsList = memo(function AddedMasterContentsList({
   contents,
   onRemove,
   onEditRange,
@@ -53,4 +54,4 @@ export function AddedMasterContentsList({
       </div>
     </div>
   );
-}
+});

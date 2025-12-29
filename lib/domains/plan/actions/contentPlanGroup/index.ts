@@ -1,18 +1,20 @@
-"use server";
-
 /**
- * Content-based PlanGroup Server Actions
+ * Content-based PlanGroup Actions
  *
- * 콘텐츠별 플랜그룹 생성을 위한 4단계 간소화 플로우:
+ * 콘텐츠별 플랜그룹 생성을 위한 서버 액션 모듈
+ *
+ * 4단계 간소화 플로우:
  * 1. 콘텐츠 선택
  * 2. 범위 설정
  * 3. 학습 유형 (전략/취약)
  * 4. 미리보기 및 생성
  *
- * 위저드 플랜그룹(템플릿)에서 설정을 상속받아 빠르게 생성합니다.
- *
- * @deprecated 직접 import 대신 "@/lib/domains/plan/actions/contentPlanGroup" 폴더에서 import 권장
- * 이 파일은 하위 호환성을 위해 re-export만 제공합니다.
+ * 파일 구조:
+ * - types.ts: 타입 및 상수 정의
+ * - helpers.ts: 스케줄링 헬퍼 함수
+ * - queries.ts: 조회 관련 서버 액션
+ * - create.ts: 생성 관련 서버 액션
+ * - quickCreate.ts: 빠른 생성 관련 서버 액션
  */
 
 // Types
@@ -25,9 +27,9 @@ export {
   type AddContentToCalendarOnlyInput,
   type DefaultRecommendation,
   type ReviewDate,
-} from "./contentPlanGroup/types";
+} from "./types";
 
-// Helpers
+// Helpers (for internal use, export selectively)
 export {
   getWeekKey,
   getWeekNumber,
@@ -36,7 +38,7 @@ export {
   distributeDailyAmounts,
   getReviewDates,
   getDefaultRecommendation,
-} from "./contentPlanGroup/helpers";
+} from "./helpers";
 
 // Query Actions
 export {
@@ -46,14 +48,14 @@ export {
   getTemplatePlanGroups,
   getNearCompletionPlanGroups,
   getSmartScheduleRecommendation,
-} from "./contentPlanGroup/queries";
+} from "./queries";
 
 // Create Actions
 export {
   previewContentPlanGroup,
   createContentPlanGroup,
   addContentToCalendarOnlyGroup,
-} from "./contentPlanGroup/create";
+} from "./create";
 
 // Quick Create Actions
-export { quickCreateFromContent, createQuickPlan } from "./contentPlanGroup/quickCreate";
+export { quickCreateFromContent, createQuickPlan } from "./quickCreate";

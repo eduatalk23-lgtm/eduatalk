@@ -1,5 +1,5 @@
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { WizardData } from "../../PlanGroupWizard";
 import {
@@ -75,7 +75,7 @@ export function Step6FinalReview({
   } = useContentDetails({ editingRangeIndex, data, isCampMode, studentId });
 
   // Helper functions for range editing
-  const setStartRange = (detailId: string) => {
+  const setStartRange = useCallback((detailId: string) => {
     if (!editingRangeIndex) return;
     const contentKey = `${editingRangeIndex.type}-${editingRangeIndex.index}`;
     setStartDetailId((prev) => {
@@ -83,9 +83,9 @@ export function Step6FinalReview({
       newMap.set(contentKey, detailId);
       return newMap;
     });
-  };
+  }, [editingRangeIndex]);
 
-  const setEndRange = (detailId: string) => {
+  const setEndRange = useCallback((detailId: string) => {
     if (!editingRangeIndex) return;
     const contentKey = `${editingRangeIndex.type}-${editingRangeIndex.index}`;
     setEndDetailId((prev) => {
@@ -93,17 +93,20 @@ export function Step6FinalReview({
       newMap.set(contentKey, detailId);
       return newMap;
     });
-  };
+  }, [editingRangeIndex]);
 
   // 과목별 정렬 및 필수 과목 처리
-  const contentsBySubject = new Map<string, ContentInfo[]>();
-  contentInfos.forEach((content) => {
-    const subject = content.subject_category || "기타";
-    if (!contentsBySubject.has(subject)) {
-      contentsBySubject.set(subject, []);
-    }
-    contentsBySubject.get(subject)!.push(content);
-  });
+  const contentsBySubject = useMemo(() => {
+    const map = new Map<string, ContentInfo[]>();
+    contentInfos.forEach((content) => {
+      const subject = content.subject_category || "기타";
+      if (!map.has(subject)) {
+        map.set(subject, []);
+      }
+      map.get(subject)!.push(content);
+    });
+    return map;
+  }, [contentInfos]);
 
   const requiredSubjects = useMemo(() => {
     if (!isCampMode) return [];
@@ -131,8 +134,11 @@ export function Step6FinalReview({
   const recommendedCount = data.recommended_contents.length;
   const totalCount = studentCount + recommendedCount;
 
-  const selectedSubjectCategories = new Set(
-    contentInfos.map((c) => c.subject_category).filter((s): s is string => !!s)
+  const selectedSubjectCategories = useMemo(
+    () => new Set(
+      contentInfos.map((c) => c.subject_category).filter((s): s is string => !!s)
+    ),
+    [contentInfos]
   );
 
   // 학습량 요약 상태 계산

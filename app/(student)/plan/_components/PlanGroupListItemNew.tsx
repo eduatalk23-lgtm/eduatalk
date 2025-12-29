@@ -240,7 +240,7 @@ export function PlanGroupListItem({
         onOpenChange={setDeleteDialogOpen}
         groupId={group.id}
         groupName={group.name}
-        groupStatus={group.status as any}
+        groupStatus={group.status as PlanStatus}
         isCampPlan={isCampPlan}
       />
 

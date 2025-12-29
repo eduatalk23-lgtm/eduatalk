@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { SearchResultItem } from "./SearchResultItem";
 import type { SearchResultsListProps } from "./types";
 
 /**
  * 마스터 콘텐츠 검색 결과 목록
  */
-export function SearchResultsList({
+export const SearchResultsList = memo(function SearchResultsList({
   results,
   isSearching,
   onSelect,
@@ -41,4 +42,4 @@ export function SearchResultsList({
       )}
     </div>
   );
-}
+});

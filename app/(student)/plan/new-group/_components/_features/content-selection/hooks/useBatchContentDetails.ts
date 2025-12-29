@@ -148,8 +148,10 @@ export function useBatchContentDetails({
           }
         } else {
             // Fallback to individual fetch if batch fails
-            console.warn("[useBatchContentDetails] Batch API failed, falling back");
-            
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[useBatchContentDetails] Batch API failed, falling back");
+            }
+
             const fetchPromises = contentIdsToFetch.map(async (contentId) => {
                 const contentType = contentsToFetch.find((c) => c.contentId === contentId)?.contentType || "book";
                 try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   X,
@@ -113,7 +113,7 @@ export function QuickCreateModal({
 
   if (!isOpen) return null;
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     startTransition(async () => {
       const input: QuickCreateInput = {
         content,
@@ -137,31 +137,37 @@ export function QuickCreateModal({
         showToast(`생성 실패: ${result.error}`, "error");
       }
     });
-  };
+  }, [content, range, schedule, showToast, onClose, router]);
 
-  const toggleWeekday = (day: number) => {
+  const toggleWeekday = useCallback((day: number) => {
     setSchedule((prev) => ({
       ...prev,
       weekdays: prev.weekdays.includes(day)
         ? prev.weekdays.filter((d) => d !== day)
         : [...prev.weekdays, day].sort(),
     }));
-  };
+  }, []);
 
-  const totalUnits = range.end - range.start + 1;
-  const studyDays = schedule.endDate
-    ? Math.ceil(
-        ((new Date(schedule.endDate).getTime() -
-          new Date(schedule.startDate).getTime()) /
-          86400000) *
-          (schedule.weekdays.length / 7)
-      )
-    : 0;
-  const dailyAmount = studyDays > 0 ? Math.ceil(totalUnits / studyDays) : 0;
+  const totalUnits = useMemo(() => range.end - range.start + 1, [range.start, range.end]);
+
+  const studyDays = useMemo(() => {
+    if (!schedule.endDate) return 0;
+    return Math.ceil(
+      ((new Date(schedule.endDate).getTime() -
+        new Date(schedule.startDate).getTime()) /
+        86400000) *
+        (schedule.weekdays.length / 7)
+    );
+  }, [schedule.endDate, schedule.startDate, schedule.weekdays.length]);
+
+  const dailyAmount = useMemo(
+    () => (studyDays > 0 ? Math.ceil(totalUnits / studyDays) : 0),
+    [studyDays, totalUnits]
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-xl dark:bg-gray-800">
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-gray-800">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2">
@@ -203,7 +209,7 @@ export function QuickCreateModal({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           {/* Step 1: Content Selection */}
           {step === "content" && (
             <div className="space-y-4">

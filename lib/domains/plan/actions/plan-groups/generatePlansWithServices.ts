@@ -156,7 +156,7 @@ async function _generatePlansWithServices(
   const mergedSettings = await getMergedSchedulerSettings(
     group.tenant_id,
     group.camp_template_id,
-    group.scheduler_options as Record<string, unknown>
+    (group.scheduler_options as Record<string, unknown> | null) ?? null
   );
 
   const schedulerOptions = {

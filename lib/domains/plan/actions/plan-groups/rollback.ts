@@ -160,7 +160,7 @@ async function _rollbackReschedule(
       }
 
       // 4-3. 백업된 플랜 복원
-      const restoredPlans: any[] = [];
+      const restoredPlans: string[] = [];
       for (const history of histories) {
         const planData = history.plan_data;
         if (!planData || !planData.id) {

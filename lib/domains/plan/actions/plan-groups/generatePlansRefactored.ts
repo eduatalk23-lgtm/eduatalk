@@ -270,14 +270,14 @@ async function _generatePlansFromGroupRefactored(
           .select("id, master_content_id")
           .in("id", bookContents.map((c) => c.resolvedContentId))
           .eq("student_id", studentId)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     lectureContents.length > 0
       ? queryClient
           .from("lectures")
           .select("id, master_content_id")
           .in("id", lectureContents.map((c) => c.resolvedContentId))
           .eq("student_id", studentId)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     bookContents.length > 0
       ? queryClient
           .from("books")
@@ -287,7 +287,7 @@ async function _generatePlansFromGroupRefactored(
             bookContents.map((c) => c.resolvedContentId)
           )
           .eq("student_id", studentId)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     lectureContents.length > 0
       ? queryClient
           .from("lectures")
@@ -297,8 +297,33 @@ async function _generatePlansFromGroupRefactored(
             lectureContents.map((c) => c.resolvedContentId)
           )
           .eq("student_id", studentId)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  // 에러 체크: 학생 콘텐츠 조회 실패 시 에러 발생
+  const contentQueryErrors = [
+    directBooksResult.error,
+    directLecturesResult.error,
+    masterBooksResult.error,
+    masterLecturesResult.error,
+  ].filter(Boolean);
+
+  if (contentQueryErrors.length > 0) {
+    console.error(
+      "[_generatePlansFromGroupRefactored] 학생 콘텐츠 조회 실패:",
+      {
+        groupId,
+        studentId,
+        errors: contentQueryErrors.map((e) => e?.message),
+      }
+    );
+    throw new AppError(
+      "학생 콘텐츠 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
+  }
 
   // 직접 조회한 학생 콘텐츠 매핑 (plan_contents의 content_id가 이미 학생 콘텐츠 ID인 경우)
   // 원본 content_id를 찾아서 매핑해야 함
@@ -392,14 +417,39 @@ async function _generatePlansFromGroupRefactored(
           .from("master_books")
           .select("id")
           .in("id", missingBookIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
     missingLectureIds.length > 0
       ? masterQueryClient
           .from("master_lectures")
           .select("id")
           .in("id", missingLectureIds)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  // 에러 체크: 마스터 콘텐츠 조회 실패 시 에러 발생
+  const masterQueryErrors = [
+    masterBooksCheckResult.error,
+    masterLecturesCheckResult.error,
+  ].filter(Boolean);
+
+  if (masterQueryErrors.length > 0) {
+    console.error(
+      "[_generatePlansFromGroupRefactored] 마스터 콘텐츠 조회 실패:",
+      {
+        groupId,
+        studentId,
+        missingBookIds,
+        missingLectureIds,
+        errors: masterQueryErrors.map((e) => e?.message),
+      }
+    );
+    throw new AppError(
+      "마스터 콘텐츠 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
+  }
 
   const masterBookIds = new Set(
     (masterBooksCheckResult.data || []).map((b) => b.id)

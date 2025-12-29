@@ -33,6 +33,7 @@ export type ContentLinkInfo = {
 export type LinkContentResult = {
   success: boolean;
   error?: string;
+  warnings?: string[];
   updatedPlanId?: string;
 };
 
@@ -178,6 +179,9 @@ export async function linkContentToVirtualPlan(
       return { success: false, error: "선택한 콘텐츠를 찾을 수 없습니다." };
     }
 
+    // 부분 실패 경고 수집
+    const warnings: string[] = [];
+
     // 5. 플랜 업데이트 (가상 → 실제)
     const updateData = {
       content_id: resolvedContentId,
@@ -221,8 +225,8 @@ export async function linkContentToVirtualPlan(
         .eq("is_virtual", true);
 
       if (batchUpdateError) {
-        console.warn("[linkContent] 동일 슬롯 플랜 일괄 업데이트 실패:", batchUpdateError);
-        // 주 플랜은 성공했으므로 계속 진행
+        console.error("[linkContent] 동일 슬롯 플랜 일괄 업데이트 실패:", batchUpdateError);
+        warnings.push("일부 관련 플랜 업데이트에 실패했습니다. 개별적으로 콘텐츠를 연결해주세요.");
       }
     }
 
@@ -272,8 +276,8 @@ export async function linkContentToVirtualPlan(
             .eq("id", plan.plan_group_id);
         }
       } catch (slotUpdateError) {
-        console.warn("[linkContent] content_slots 업데이트 실패:", slotUpdateError);
-        // 주 기능은 성공했으므로 계속 진행
+        console.error("[linkContent] content_slots 업데이트 실패:", slotUpdateError);
+        warnings.push("플랜 그룹 정보 동기화에 실패했습니다. 플랜 실행에는 영향이 없습니다.");
       }
     }
 
@@ -284,6 +288,7 @@ export async function linkContentToVirtualPlan(
     return {
       success: true,
       updatedPlanId: planId,
+      ...(warnings.length > 0 && { warnings }),
     };
   } catch (error) {
     console.error("[linkContent] 예외 발생:", error);
@@ -451,9 +456,12 @@ export async function updatePlanContent(
       .eq("student_id", user.userId)
       .eq("plan_id", planId);
 
+    // 부분 실패 경고 수집
+    const warnings: string[] = [];
+
     // 9. 같은 slot_index를 가진 다른 플랜들도 업데이트 (선택사항)
     if (plan.slot_index !== null && plan.plan_group_id) {
-      await adminClient
+      const { error: batchUpdateError } = await adminClient
         .from("student_plan")
         .update({
           content_id: contentInfo.contentId,
@@ -470,6 +478,11 @@ export async function updatePlanContent(
         .eq("plan_group_id", plan.plan_group_id)
         .eq("slot_index", plan.slot_index)
         .neq("id", planId);
+
+      if (batchUpdateError) {
+        console.error("[updatePlanContent] 동일 슬롯 플랜 일괄 업데이트 실패:", batchUpdateError);
+        warnings.push("일부 관련 플랜의 콘텐츠 변경에 실패했습니다. 개별적으로 변경해주세요.");
+      }
     }
 
     // 10. 캐시 갱신
@@ -485,6 +498,7 @@ export async function updatePlanContent(
     return {
       success: true,
       updatedPlanId: planId,
+      ...(warnings.length > 0 && { warnings }),
     };
   } catch (error) {
     console.error("[updatePlanContent] 예외 발생:", error);

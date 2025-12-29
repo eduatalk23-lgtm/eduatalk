@@ -71,9 +71,7 @@ export function planGroupsQueryOptions(filters: PlanGroupFilters) {
         queryParams.set("includeDeleted", "true");
       }
 
-      const response = await fetch(`/api/plan-groups?${queryParams.toString()}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/plan-groups?${queryParams.toString()}`);
 
       if (!response.ok) {
         const errorText = await response.text();

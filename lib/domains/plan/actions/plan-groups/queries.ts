@@ -747,7 +747,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
    * 저장된 daily_schedule 유효성 검증 함수
    */
   const isValidDailySchedule = (
-    storedSchedule: any[],
+    storedSchedule: DailyScheduleInfo[],
     periodStart: string | null,
     periodEnd: string | null
   ): boolean => {
@@ -786,7 +786,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
    * 재계산 필요 여부 판단 함수
    */
   const shouldRecalculateDailySchedule = (group: {
-    daily_schedule: any;
+    daily_schedule: DailyScheduleInfo[] | null;
     period_start: string | null;
     period_end: string | null;
   }): {

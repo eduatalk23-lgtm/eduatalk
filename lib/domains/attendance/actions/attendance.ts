@@ -386,7 +386,20 @@ export async function updateAttendanceRecord(
     // 3. 기존 기록 조회 및 원본 백업
     const { data: existingRecord, error: fetchError } = await supabase
       .from("attendance_records")
-      .select("*")
+      .select(`
+        id,
+        tenant_id,
+        student_id,
+        attendance_date,
+        check_in_time,
+        check_out_time,
+        check_in_method,
+        check_out_method,
+        status,
+        notes,
+        created_at,
+        updated_at
+      `)
       .eq("id", recordId)
       .eq("tenant_id", tenantContext.tenantId)
       .single();

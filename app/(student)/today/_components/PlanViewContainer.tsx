@@ -6,6 +6,7 @@ import { usePlanRealtimeUpdates } from "@/lib/realtime/usePlanRealtimeUpdates";
 import { useTodayPlans } from "@/lib/hooks/useTodayPlans";
 import { groupPlansByPlanNumber } from "../_utils/planGroupUtils";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { getTodayISODate } from "../_utils/dateDisplay";
 import type { TodayPlansResponse } from "@/lib/data/todayPlans";
 import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
@@ -36,6 +37,7 @@ export function PlanViewContainer({
     isLoading,
     isError,
     error,
+    refetch,
   } = useTodayPlans({
     studentId: userId || "",
     tenantId,
@@ -88,10 +90,13 @@ export function PlanViewContainer({
   // 에러 상태
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-8">
-        <p className="text-sm text-red-600">
-          {error instanceof Error ? error.message : "플랜을 불러오는 중 오류가 발생했습니다."}
-        </p>
+      <div className="p-4">
+        <ErrorState
+          title="플랜을 불러올 수 없습니다"
+          message={error instanceof Error ? error.message : "플랜을 불러오는 중 오류가 발생했습니다."}
+          onRetry={() => refetch()}
+          retryLabel="다시 시도"
+        />
       </div>
     );
   }

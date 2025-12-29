@@ -14,7 +14,7 @@
  * 3. 서버-클라이언트 시간 차이가 큰 경우 동기화
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
@@ -40,6 +40,9 @@ export type UsePlanTimerOptions = {
   isCompleted?: boolean;
 };
 
+/** 동기화 상태 */
+export type SyncState = "idle" | "syncing" | "synced" | "error";
+
 export type UsePlanTimerReturn = {
   /** 현재 경과 시간 (초) */
   seconds: number;
@@ -47,6 +50,10 @@ export type UsePlanTimerReturn = {
   isRunning: boolean;
   /** 타이머 상태 */
   status: TimerStatus;
+  /** 동기화 상태 */
+  syncState: SyncState;
+  /** 마지막 동기화 시간 (밀리초 타임스탬프) */
+  lastSyncAt: number | null;
 };
 
 /**
@@ -91,6 +98,10 @@ export function usePlanTimer({
     (state) => state.visibilityChangeTimestamp
   );
 
+  // 동기화 상태 추적
+  const [syncState, setSyncState] = useState<SyncState>("idle");
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+
   // Debounce를 위한 ref
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastVisibilityTimestampRef = useRef<number | null>(null);
@@ -131,6 +142,7 @@ export function usePlanTimer({
 
     // 서버에서 정확한 시간을 가져와 동기화
     const syncWithServer = async () => {
+      setSyncState("syncing");
       try {
         const { serverNow } = await getServerTime();
         syncNow(planId, serverNow);
@@ -141,12 +153,20 @@ export function usePlanTimer({
         if (timer && timer.seconds > 0) {
           await syncTimerProgress(planId, timer.seconds);
         }
+
+        setSyncState("synced");
+        setLastSyncAt(Date.now());
+        // 3초 후 idle로 복귀
+        setTimeout(() => setSyncState("idle"), 3000);
       } catch (error) {
         // 서버 요청 실패 시 기존 offset 사용하여 폴백
         console.warn("[usePlanTimer] 서버 시간 동기화 실패, 로컬 시간 사용:", error);
         const now = Date.now();
         const fallbackServerNow = now + (currentTimer.timeOffset || 0);
         syncNow(planId, fallbackServerNow);
+        setSyncState("error");
+        // 5초 후 idle로 복귀
+        setTimeout(() => setSyncState("idle"), 5000);
       }
     };
 
@@ -185,6 +205,7 @@ export function usePlanTimer({
         return;
       }
 
+      setSyncState("syncing");
       try {
         // 서버 시간 동기화
         const { serverNow } = await getServerTime();
@@ -196,8 +217,14 @@ export function usePlanTimer({
         if (currentSeconds > 0) {
           await syncTimerProgress(planId, currentSeconds);
         }
+
+        setSyncState("synced");
+        setLastSyncAt(Date.now());
+        setTimeout(() => setSyncState("idle"), 3000);
       } catch (error) {
         console.warn("[usePlanTimer] 주기적 동기화 실패:", error);
+        setSyncState("error");
+        setTimeout(() => setSyncState("idle"), 5000);
       }
     }, PERIODIC_SYNC_INTERVAL_MS);
 
@@ -282,5 +309,7 @@ export function usePlanTimer({
     seconds: timer?.seconds ?? accumulatedSeconds,
     isRunning: timer?.isRunning ?? (status === "RUNNING"),
     status: timer?.status ?? status,
+    syncState,
+    lastSyncAt,
   };
 }
