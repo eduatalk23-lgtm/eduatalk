@@ -446,6 +446,168 @@ function MyChart() {
 
 ---
 
+## 인터랙션 컴포넌트
+
+### FloatingWidget
+
+드래그 가능한 떠다니는 위젯입니다. 타이머, 미니 플레이어 등에 사용합니다.
+
+```tsx
+import { FloatingWidget, FloatingWidgetManager } from "@/components/interactions";
+
+// Provider로 감싸기
+<FloatingWidgetManager>
+  <FloatingWidget
+    id="timer"
+    initialPosition="bottom-right"
+    draggable
+    minimizable
+    header="타이머"
+    onClose={() => setShowWidget(false)}
+  >
+    <TimerContent />
+  </FloatingWidget>
+</FloatingWidgetManager>
+```
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `id` | `string` | **필수** | 위젯 고유 ID |
+| `initialPosition` | `"bottom-right" \| "bottom-left" \| "top-right" \| "top-left" \| "custom"` | `"bottom-right"` | 초기 위치 |
+| `draggable` | `boolean` | `true` | 드래그 가능 여부 |
+| `minimizable` | `boolean` | `true` | 최소화 가능 여부 |
+| `onClose` | `() => void` | `undefined` | 닫기 핸들러 |
+| `header` | `string \| ReactNode` | `undefined` | 헤더 제목 |
+
+---
+
+### ContextMenu
+
+우클릭 컨텍스트 메뉴입니다.
+
+```tsx
+import {
+  ContextMenuProvider,
+  ContextMenuTrigger,
+} from "@/components/interactions";
+
+<ContextMenuProvider>
+  <ContextMenuTrigger
+    items={[
+      { id: "edit", label: "수정", icon: Edit, shortcut: "⌘E" },
+      { id: "delete", label: "삭제", icon: Trash, variant: "danger" },
+      { type: "separator" },
+      {
+        id: "more",
+        label: "더보기",
+        submenu: [
+          { id: "copy", label: "복사" },
+          { id: "move", label: "이동" },
+        ]
+      },
+    ]}
+    onSelect={(id) => handleAction(id)}
+  >
+    <Card>Right click me</Card>
+  </ContextMenuTrigger>
+</ContextMenuProvider>
+```
+
+---
+
+### SortableList
+
+드래그로 순서를 변경할 수 있는 목록입니다.
+
+```tsx
+import { SortableList, DragDropProvider } from "@/components/interactions";
+
+<DragDropProvider>
+  <SortableList
+    items={items}
+    onReorder={(newItems) => setItems(newItems)}
+    renderItem={(item, { isDragging, dragHandleProps }) => (
+      <div className={isDragging ? "opacity-50" : ""}>
+        <span {...dragHandleProps}>⋮⋮</span>
+        {item.name}
+      </div>
+    )}
+    keyExtractor={(item) => item.id}
+  />
+</DragDropProvider>
+```
+
+---
+
+## 접근성 유틸리티
+
+접근성 관련 유틸리티 함수와 훅을 제공합니다.
+
+### 함수
+
+```tsx
+import {
+  announce,
+  focusFirst,
+  trapFocus,
+  getChartA11yProps
+} from "@/lib/accessibility";
+
+// 스크린 리더 알림
+announce("저장되었습니다");
+
+// 첫 번째 포커스 가능 요소로 이동
+focusFirst(containerRef.current);
+
+// 차트 접근성 속성
+<div {...getChartA11yProps({
+  title: "월별 학습 시간",
+  description: "최근 6개월간 학습 시간 추이를 보여줍니다."
+})} />
+```
+
+### 훅
+
+```tsx
+import {
+  useFocusTrap,
+  useAnnounce,
+  useReducedMotion,
+  useEscapeKey
+} from "@/lib/accessibility/hooks";
+
+// 포커스 트랩 (모달용)
+function Modal({ isOpen, onClose }) {
+  const { containerRef } = useFocusTrap(isOpen);
+  useEscapeKey(onClose, isOpen);
+
+  return <div ref={containerRef}>...</div>;
+}
+
+// 스크린 리더 알림
+function SaveButton() {
+  const { announce } = useAnnounce();
+
+  const handleSave = async () => {
+    await save();
+    announce("저장되었습니다");
+  };
+}
+
+// 모션 감소 선호
+function AnimatedComponent() {
+  const prefersReduced = useReducedMotion();
+
+  return (
+    <motion.div
+      transition={{ duration: prefersReduced ? 0 : 0.3 }}
+    />
+  );
+}
+```
+
+---
+
 ## 추가 리소스
 
 - [프로젝트 README](../README.md)
@@ -454,5 +616,5 @@ function MyChart() {
 
 ---
 
-**마지막 업데이트**: 2025-02-04
+**마지막 업데이트**: 2025-12-30
 

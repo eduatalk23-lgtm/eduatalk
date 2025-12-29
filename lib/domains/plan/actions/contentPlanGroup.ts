@@ -1,5 +1,3 @@
-"use server";
-
 /**
  * Content-based PlanGroup Server Actions
  *
@@ -10,6 +8,11 @@
  * 4. 미리보기 및 생성
  *
  * 위저드 플랜그룹(템플릿)에서 설정을 상속받아 빠르게 생성합니다.
+ *
+ * NOTE: "use server" 지시어를 제거했습니다.
+ * Next.js에서 "use server" 파일은 async 함수만 export할 수 있지만,
+ * 이 파일은 타입과 helper 함수도 re-export합니다.
+ * 실제 서버 액션은 각 하위 파일에서 "use server"로 정의됩니다.
  *
  * @deprecated 직접 import 대신 "@/lib/domains/plan/actions/contentPlanGroup" 폴더에서 import 권장
  * 이 파일은 하위 호환성을 위해 re-export만 제공합니다.

@@ -1,6 +1,15 @@
 "use client";
 
 import { memo, useEffect, useState } from "react";
+import {
+  Info,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Lightbulb,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type ToastVariant = "default" | "success" | "error" | "warning" | "info";
@@ -21,12 +30,12 @@ const variantClasses: Record<ToastVariant, string> = {
   info: "bg-info-600 text-white",
 };
 
-const iconMap: Record<ToastVariant, string> = {
-  default: "ℹ️",
-  success: "✅",
-  error: "❌",
-  warning: "⚠️",
-  info: "💡",
+const iconMap: Record<ToastVariant, LucideIcon> = {
+  default: Info,
+  success: CheckCircle2,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Lightbulb,
 };
 
 function ToastComponent({
@@ -37,6 +46,7 @@ function ToastComponent({
   onClose,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
+  const Icon = iconMap[variant];
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -60,17 +70,17 @@ function ToastComponent({
           : "translate-y-2 opacity-0"
       )}
     >
-      <span className="flex-shrink-0" aria-hidden="true">{iconMap[variant]}</span>
+      <Icon className="size-5 flex-shrink-0" aria-hidden="true" />
       <p className="text-body-2 font-medium">{message}</p>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(() => onClose(id), 300);
         }}
-        className="ml-auto flex-shrink-0 text-white/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-current rounded"
+        className="ml-auto flex-shrink-0 text-white/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-current rounded p-0.5"
         aria-label="닫기"
       >
-        ✕
+        <X className="size-4" />
       </button>
     </div>
   );

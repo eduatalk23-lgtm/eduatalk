@@ -41,3 +41,11 @@ export type { ProgressBarProps, ProgressBarVariant, ProgressBarSize } from "./Pr
 export { default as ToggleSwitch } from "./ToggleSwitch";
 export type { ToggleSwitchProps } from "./ToggleSwitch";
 
+// Avatar
+export { Avatar, default as AvatarDefault } from "./Avatar";
+export type { AvatarProps, AvatarSize, AvatarVariant } from "./Avatar";
+
+// TextArea
+export { TextArea, default as TextAreaDefault } from "./TextArea";
+export type { TextAreaProps, TextAreaSize, TextAreaResize } from "./TextArea";
+
