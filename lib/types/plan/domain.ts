@@ -40,6 +40,15 @@ export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expire
 export type SchedulerType = "1730_timetable";
 
 /**
+ * 플랜 생성 모드
+ * - structured: 7단계 위저드 (전체 설정)
+ * - content_based: 4단계 콘텐츠 추가 위저드
+ * - quick: 3단계 빠른 생성
+ * - adhoc_migrated: ad_hoc_plans에서 마이그레이션됨
+ */
+export type PlanMode = "structured" | "content_based" | "quick" | "adhoc_migrated";
+
+/**
  * 날짜 유형 (학습일/복습일/제외일)
  */
 export type DayType = "study" | "review" | "exclusion";
@@ -315,7 +324,15 @@ export type PlanGroup = {
   template_plan_group_id?: string | null; // 템플릿(위저드) 플랜그룹 참조
   study_type?: 'strategy' | 'weakness' | null; // 학습 유형 (전략/취약)
   strategy_days_per_week?: number | null; // 전략 과목 주당 학습일 (2-4)
-  creation_mode?: 'wizard' | 'content_based' | 'template' | 'camp' | null; // 생성 모드
+  creation_mode?: 'wizard' | 'content_based' | 'template' | 'camp' | null; // 생성 모드 (deprecated, use plan_mode)
+  // 통합 플랜 생성 모드 필드
+  plan_mode?: PlanMode | null; // 플랜 생성 모드 (structured/content_based/quick/adhoc_migrated)
+  is_single_day?: boolean | null; // 단일 날짜 플랜 여부 (빠른 생성용)
+  migrated_from_adhoc_id?: string | null; // ad_hoc_plans에서 마이그레이션된 경우 원본 ID
+  // 캘린더 우선 생성 관련 필드
+  is_calendar_only?: boolean | null; // 캘린더 전용 (콘텐츠 없이 생성)
+  content_status?: 'pending' | 'partial' | 'complete' | null; // 콘텐츠 상태
+  schedule_generated_at?: string | null; // 일정 생성 시점
   created_at: string;
   updated_at: string;
 };
@@ -859,5 +876,73 @@ export type MasterLectureWithJoins = MasterLecture & {
     subject_groups?: Array<{ id: string; name: string }> | null;
   }> | null;
   difficulty_levels?: Array<{ id: string; name: string }> | null;
+};
+
+// ============================================
+// 실행 로그 타입 (Plan Execution Logs)
+// ============================================
+
+/**
+ * 플랜 실행 이벤트 유형
+ */
+export type PlanExecutionEventType =
+  | "timer_start"       // 타이머 시작
+  | "timer_pause"       // 타이머 일시정지
+  | "timer_resume"      // 타이머 재개
+  | "timer_complete"    // 타이머 완료
+  | "progress_update"   // 진행률 업데이트
+  | "content_change"    // 콘텐츠 변경
+  | "status_change"     // 상태 변경
+  | "session_takeover"  // 세션 인계
+  | "visibility_change" // 탭 가시성 변경
+  | "sync";             // 동기화
+
+/**
+ * 플랜 실행 로그 엔트리
+ */
+export type PlanExecutionLog = {
+  id: string;
+  plan_id: string;
+  student_id: string;
+  tenant_id: string;
+  event_type: PlanExecutionEventType;
+  created_at: string;
+  elapsed_seconds: number | null;
+  progress_percent: number | null;
+  status: string | null;
+  previous_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  metadata: PlanExecutionMetadata | null;
+  log_date: string; // YYYY-MM-DD
+};
+
+/**
+ * 실행 로그 메타데이터
+ */
+export type PlanExecutionMetadata = {
+  device_info?: {
+    type?: "mobile" | "tablet" | "desktop";
+    os?: string;
+    browser?: string;
+  };
+  session_id?: string;
+  user_agent?: string;
+  ip_address?: string;
+  trigger?: string; // 이벤트 트리거 (예: "user_action", "auto_sync", "visibility")
+  [key: string]: unknown;
+};
+
+/**
+ * 실행 로그 생성 입력
+ */
+export type CreatePlanExecutionLogInput = {
+  plan_id: string;
+  event_type: PlanExecutionEventType;
+  elapsed_seconds?: number;
+  progress_percent?: number;
+  status?: string;
+  previous_value?: Record<string, unknown>;
+  new_value?: Record<string, unknown>;
+  metadata?: PlanExecutionMetadata;
 };
 

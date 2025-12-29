@@ -58,6 +58,10 @@ type PlanGroupPayload = {
   // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
   use_slot_mode?: boolean;
   content_slots?: ContentSlot[] | null;
+  // 캘린더 우선 생성 지원
+  is_calendar_only?: boolean;
+  content_status?: "pending" | "partial" | "complete";
+  schedule_generated_at?: string | null;
 };
 
 
@@ -155,7 +159,7 @@ export async function getPlanGroupsForStudent(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,plan_mode,is_single_day,created_at,updated_at"
       )
       .eq("student_id", filters.studentId);
 
@@ -202,7 +206,7 @@ export async function getPlanGroupsForStudent(
         const fallbackQuery = supabase
           .from("plan_groups")
           .select(
-            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+            "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,plan_type,camp_template_id,camp_invitation_id,plan_mode,is_single_day,created_at,updated_at"
           )
           .eq("student_id", filters.studentId);
 
@@ -284,7 +288,7 @@ export async function getPlanGroupById(
     supabase
       .from("plan_groups")
       .select(
-        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+        "id,tenant_id,student_id,name,plan_purpose,scheduler_type,scheduler_options,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,plan_mode,is_single_day,created_at,updated_at"
       )
       .eq("id", groupId)
       .eq("student_id", studentId)
@@ -309,7 +313,7 @@ export async function getPlanGroupById(
           supabase
             .from("plan_groups")
             .select(
-              "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,created_at,updated_at"
+              "id,tenant_id,student_id,name,plan_purpose,scheduler_type,period_start,period_end,target_date,block_set_id,status,deleted_at,daily_schedule,subject_constraints,additional_period_reallocation,non_study_time_blocks,plan_type,camp_template_id,camp_invitation_id,plan_mode,is_single_day,created_at,updated_at"
             )
             .eq("id", groupId)
             .eq("student_id", studentId)
@@ -414,6 +418,10 @@ export async function createPlanGroup(
     // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
     use_slot_mode?: boolean;
     content_slots?: ContentSlot[] | null;
+    // 캘린더 우선 생성 지원
+    is_calendar_only?: boolean;
+    content_status?: "pending" | "partial" | "complete";
+    schedule_generated_at?: string | null;
   }
 ): Promise<{ success: boolean; groupId?: string; error?: string; errorCode?: string | null }> {
   const supabase = await createSupabaseServerClient();
@@ -471,6 +479,17 @@ export async function createPlanGroup(
   }
   if (group.content_slots !== undefined && group.content_slots !== null) {
     payload.content_slots = group.content_slots;
+  }
+
+  // 캘린더 우선 생성 지원
+  if (group.is_calendar_only !== undefined) {
+    payload.is_calendar_only = group.is_calendar_only;
+  }
+  if (group.content_status !== undefined && group.content_status !== null) {
+    payload.content_status = group.content_status;
+  }
+  if (group.schedule_generated_at !== undefined) {
+    payload.schedule_generated_at = group.schedule_generated_at;
   }
 
   // 상세한 에러 로깅을 위한 쿼리 실행

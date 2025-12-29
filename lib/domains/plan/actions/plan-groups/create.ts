@@ -894,3 +894,165 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
 
 export const copyPlanGroupAction = withErrorHandling(_copyPlanGroup);
 
+/**
+ * 캘린더만 저장을 위한 입력 타입
+ * PlanGroupCreationData에서 필수 필드를 선택적으로 변경
+ */
+type CalendarOnlyPlanGroupInput = {
+  name: string;
+  plan_purpose?: string | null;
+  scheduler_type?: string | null;
+  scheduler_options?: PlanGroupCreationData["scheduler_options"];
+  time_settings?: PlanGroupCreationData["time_settings"];
+  period_start: string;
+  period_end: string;
+  target_date?: string | null;
+  block_set_id?: string | null;
+  exclusions?: PlanGroupCreationData["exclusions"];
+  academy_schedules?: PlanGroupCreationData["academy_schedules"];
+  study_review_cycle?: PlanGroupCreationData["study_review_cycle"];
+  subject_constraints?: PlanGroupCreationData["subject_constraints"];
+  additional_period_reallocation?: PlanGroupCreationData["additional_period_reallocation"];
+  non_study_time_blocks?: PlanGroupCreationData["non_study_time_blocks"];
+  daily_schedule?: PlanGroupCreationData["daily_schedule"];
+  plan_type?: PlanGroupCreationData["plan_type"];
+  camp_template_id?: string | null;
+  camp_invitation_id?: string | null;
+  use_slot_mode?: boolean;
+};
+
+/**
+ * 캘린더만 저장 (콘텐츠 없이 일정만 생성)
+ * Step 3에서 조기 종료 시 호출됩니다.
+ *
+ * 주요 특징:
+ * - 콘텐츠 없이 일정(캘린더)만 생성
+ * - status는 'active' (draft가 아님)
+ * - is_calendar_only: true
+ * - content_status: 'pending' (나중에 콘텐츠 추가 가능)
+ *
+ * @param data - 플랜 그룹 생성 데이터 (Step 1-3의 데이터)
+ * @returns 생성된 플랜 그룹 ID
+ */
+async function _saveCalendarOnlyPlanGroup(
+  data: CalendarOnlyPlanGroupInput
+): Promise<{ groupId: string }> {
+  // 권한 확인: 학생만 가능
+  const studentAuth = await requireStudentAuth();
+  const tenantContext = await requireTenantContext();
+
+  // 최소 검증 (이름만 필수)
+  if (!data.name || data.name.trim() === "") {
+    throw new AppError(
+      "플랜 이름을 입력해주세요.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // 기간 검증
+  if (!data.period_start || !data.period_end) {
+    throw new AppError(
+      "학습 기간을 설정해주세요.",
+      ErrorCode.VALIDATION_ERROR,
+      400,
+      true
+    );
+  }
+
+  // time_settings를 scheduler_options에 안전하게 병합
+  let mergedSchedulerOptions = mergeTimeSettingsSafely(
+    data.scheduler_options || {},
+    data.time_settings
+  );
+
+  // study_review_cycle을 scheduler_options에 병합
+  mergedSchedulerOptions = mergeStudyReviewCycle(
+    mergedSchedulerOptions,
+    data.study_review_cycle
+  );
+
+  // 플랜 그룹 생성 (active 상태, 캘린더 전용)
+  const groupResult = await createPlanGroup({
+    tenant_id: tenantContext.tenantId,
+    student_id: studentAuth.userId,
+    name: data.name,
+    plan_purpose: normalizePlanPurpose(data.plan_purpose),
+    scheduler_type: data.scheduler_type || null,
+    scheduler_options:
+      Object.keys(mergedSchedulerOptions).length > 0
+        ? mergedSchedulerOptions
+        : null,
+    period_start: data.period_start,
+    period_end: data.period_end,
+    target_date: data.target_date || null,
+    block_set_id: data.block_set_id || null,
+    status: "active", // draft가 아닌 active로 생성
+    subject_constraints: data.subject_constraints || null,
+    additional_period_reallocation: data.additional_period_reallocation || null,
+    non_study_time_blocks: data.non_study_time_blocks || null,
+    daily_schedule: data.daily_schedule || null,
+    plan_type: data.plan_type || null,
+    camp_template_id: data.camp_template_id || null,
+    camp_invitation_id: data.camp_invitation_id || null,
+    use_slot_mode: data.use_slot_mode ?? false,
+    content_slots: null, // 캘린더 전용이므로 콘텐츠 슬롯 없음
+    // 캘린더 전용 설정
+    is_calendar_only: true,
+    content_status: "pending",
+    schedule_generated_at: new Date().toISOString(),
+  });
+
+  if (!groupResult.success || !groupResult.groupId) {
+    throw new AppError(
+      groupResult.error || "캘린더 저장에 실패했습니다.",
+      ErrorCode.DATABASE_ERROR,
+      500,
+      true
+    );
+  }
+
+  const groupId = groupResult.groupId;
+
+  // 제외일 저장 (있을 경우만)
+  if (data.exclusions && data.exclusions.length > 0) {
+    const exclusionsResult = await createPlanExclusions(
+      groupId,
+      tenantContext.tenantId,
+      data.exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type,
+        reason: e.reason || null,
+      }))
+    );
+
+    if (!exclusionsResult.success) {
+      // 실패해도 그룹은 생성되었으므로 경고만 로깅
+      console.warn("[saveCalendarOnlyPlanGroup] 제외일 저장 실패:", exclusionsResult.error);
+    }
+  }
+
+  // 학원 일정 저장 (있을 경우만)
+  if (data.academy_schedules && data.academy_schedules.length > 0) {
+    await createPlanAcademySchedules(
+      groupId,
+      tenantContext.tenantId,
+      data.academy_schedules.map((s) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name || null,
+        subject: s.subject || null,
+      }))
+    );
+  }
+
+  revalidatePath("/plan");
+  revalidatePath(`/plan/group/${groupId}`);
+
+  return { groupId };
+}
+
+export const saveCalendarOnlyPlanGroupAction = withErrorHandling(_saveCalendarOnlyPlanGroup);
+

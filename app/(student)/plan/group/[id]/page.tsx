@@ -276,6 +276,8 @@ export default async function PlanGroupDetailPage({
             }
             canEdit={canEdit}
             canDelete={canDelete || isCompleted}
+            isCalendarOnly={group.is_calendar_only ?? false}
+            contentCount={contents.length}
           />
         </div>
 

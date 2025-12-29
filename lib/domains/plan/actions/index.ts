@@ -112,4 +112,23 @@ export {
   createContentPlanGroup,
   getContentPlanGroups,
   getTemplatePlanGroups,
+  // Quick Create (빠른 플랜 생성)
+  quickCreateFromContent,
+  getSmartScheduleRecommendation,
+  createQuickPlan,
+  type QuickCreateInput,
+  type CreateQuickPlanInput,
+  type CreateQuickPlanResult,
+  // Calendar-Only Group (캘린더 전용 그룹에 콘텐츠 추가)
+  addContentToCalendarOnlyGroup,
+  type AddContentToCalendarOnlyInput,
 } from "./contentPlanGroup";
+
+// Link Content Actions (콘텐츠 연결/변경)
+export {
+  linkContentToVirtualPlan,
+  updatePlanContent,
+  getAvailableContentsForSlot,
+  type ContentLinkInfo,
+  type LinkContentResult,
+} from "./linkContent";

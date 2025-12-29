@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil, Copy, Trash2, RefreshCw } from "lucide-react";
+import { Pencil, Copy, Trash2, RefreshCw, Plus } from "lucide-react";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { deletePlanGroupAction, copyPlanGroupAction } from "@/app/(student)/actions/planGroupActions";
@@ -16,6 +16,10 @@ type PlanGroupActionButtonsProps = {
   groupStatus: PlanStatus;
   canEdit: boolean;
   canDelete: boolean;
+  /** 캘린더 전용 모드 (콘텐츠 없이 생성된 플랜 그룹) */
+  isCalendarOnly?: boolean;
+  /** 현재 콘텐츠 개수 */
+  contentCount?: number;
 };
 
 export function PlanGroupActionButtons({
@@ -24,12 +28,18 @@ export function PlanGroupActionButtons({
   groupStatus,
   canEdit,
   canDelete,
+  isCalendarOnly = false,
+  contentCount = 0,
 }: PlanGroupActionButtonsProps) {
   const router = useRouter();
   const toast = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [copyPending, setCopyPending] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // 콘텐츠 추가 버튼 표시 여부
+  // 캘린더 전용 모드이거나 콘텐츠가 아직 없는 경우
+  const showAddContent = isCalendarOnly || contentCount === 0;
 
   const handleCopy = () => {
     if (
@@ -60,6 +70,19 @@ export function PlanGroupActionButtons({
   return (
     <>
       <div className="flex items-center gap-2">
+        {/* 콘텐츠 추가 버튼 (캘린더 전용 모드 또는 콘텐츠 없는 경우) */}
+        {showAddContent && canEdit && (
+          <Link
+            href={`/plan/group/${groupId}/add-content`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+            title="콘텐츠 추가"
+            aria-label="플랜에 콘텐츠 추가"
+          >
+            <Plus className="h-4 w-4" />
+            콘텐츠 추가
+          </Link>
+        )}
+
         {canEdit && (
           <>
             <Link
