@@ -1036,11 +1036,12 @@ export function convertSlotsToContents(slots: ContentSlot[]): SelectedContent[] 
       content_id: slot.content_id!,
       start_range: slot.start_range ?? 0,
       end_range: slot.end_range ?? 0,
-      start_detail_id: slot.start_detail_id ?? undefined,
-      end_detail_id: slot.end_detail_id ?? undefined,
+      // null 값 보존: null은 명시적으로 "값 없음"을 의미, undefined는 "필드 없음"
+      start_detail_id: slot.start_detail_id,
+      end_detail_id: slot.end_detail_id,
       title: slot.title ?? undefined,
       subject_category: slot.subject_category ?? undefined,
-      master_content_id: slot.master_content_id ?? undefined,
+      master_content_id: slot.master_content_id,
       is_auto_recommended: slot.is_auto_recommended,
       recommendation_source: slot.recommendation_source,
     }));
