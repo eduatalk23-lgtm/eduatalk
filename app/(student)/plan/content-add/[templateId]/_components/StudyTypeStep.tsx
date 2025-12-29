@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { StudyType } from "@/lib/types/plan";
-import type { WizardData } from "./ContentAddWizard";
+import type { WizardData } from "./types";
 
 interface StudyTypeStepProps {
   onSelect: (studyType: WizardData["studyType"]) => void;

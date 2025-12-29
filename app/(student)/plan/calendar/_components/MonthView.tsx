@@ -1,21 +1,17 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
-import { timeToMinutes, getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
-import { CalendarPlanCard } from "./CalendarPlanCard";
 import { DayTimelineModal } from "./DayTimelineModal";
-import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
 import { useCalendarData } from "../_hooks/useCalendarData";
-import { getTimelineSlots } from "../_hooks/useTimelineSlots";
-import { useCalendarDragDrop, type DragItem } from "../_hooks/useCalendarDragDrop";
+import { useCalendarDragDrop } from "../_hooks/useCalendarDragDrop";
 import { QuickAddPlanModal } from "./QuickAddPlanModal";
 import { PlanDetailModal } from "./PlanDetailModal";
-import { Plus } from "lucide-react";
+import { MemoizedDayCell } from "./MemoizedDayCell";
 import { cn } from "@/lib/cn";
 
 type MonthViewProps = {
@@ -31,7 +27,7 @@ type MonthViewProps = {
   onPlansUpdated?: () => void;
 };
 
-export function MonthView({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: MonthViewProps) {
+function MonthViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: MonthViewProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +66,22 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
 
   // 날짜별 데이터 그룹화 (공통 훅 사용)
   const { plansByDate, exclusionsByDate } = useCalendarData(plans, exclusions, academySchedules);
+
+  // 콜백 함수들 (메모이제이션)
+  const handleDateClick = useCallback((date: Date) => {
+    setSelectedDate(date);
+    setIsModalOpen(true);
+  }, []);
+
+  const handlePlanClick = useCallback((plan: PlanWithContent) => {
+    setSelectedPlan(plan);
+    setIsPlanDetailOpen(true);
+  }, []);
+
+  const handleQuickAdd = useCallback((dateStr: string) => {
+    setQuickAddDate(dateStr);
+    setIsQuickAddOpen(true);
+  }, []);
 
   // 같은 plan_number를 가진 플랜들의 연결 상태 계산
   const getPlanConnectionState = useMemo(() => {
@@ -128,337 +140,119 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
   // 오늘 날짜 확인
   const todayStr = formatDateString(new Date());
 
-  // 날짜 셀 렌더링
-  const renderDayCell = (day: number) => {
-    const date = new Date(year, month, day);
-    const dateStr = formatDateString(date);
-    const dayPlans = plansByDate.get(dateStr) || [];
-    const dayExclusions = exclusionsByDate.get(dateStr) || [];
-    const dayTypeInfo = dayTypes.get(dateStr);
-    const isToday = dateStr === todayStr;
-    
-    // 날짜 타입별 스타일링 (공통 유틸리티 사용)
-    const {
-      bgColorClass,
-      textColorClass,
-      dayTypeBadgeClass,
-    } = getDayTypeStyling(date, dayTypeInfo, dayExclusions);
-
-    const dayType = dayTypeInfo?.type || "normal";
-
-    const handleDateClick = () => {
-      setSelectedDate(date);
-      setIsModalOpen(true);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleDateClick();
-      }
-    };
-
-    const handlePlanClick = (plan: PlanWithContent) => {
-      setSelectedPlan(plan);
-      setIsPlanDetailOpen(true);
-    };
-
-    const handleQuickAdd = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setQuickAddDate(dateStr);
-      setIsQuickAddOpen(true);
-    };
-
-    // 드롭 대상 여부
-    const isDropTarget = dropTarget === dateStr;
-    const canDrop = draggedItem && draggedItem.planDate !== dateStr;
-
-    return (
-      <div
-        key={day}
-        role="button"
-        tabIndex={0}
-        aria-label={`${dateStr} 날짜, ${dayPlans.length}개의 플랜`}
-        aria-current={isToday ? "date" : undefined}
-        className={cn(
-          "min-h-[120px] md:min-h-[140px] lg:min-h-[160px] cursor-pointer rounded-lg border-2 p-2 md:p-3 transition-base hover:scale-[1.02] hover:shadow-[var(--elevation-8)] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-          bgColorClass,
-          isToday && "ring-2 ring-indigo-500 ring-offset-2",
-          // 드래그 중 드롭 대상 스타일
-          isDropTarget && canDrop && "ring-2 ring-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 scale-[1.02]",
-          isDragging && !canDrop && "opacity-50"
-        )}
-        onClick={handleDateClick}
-        onKeyDown={handleKeyDown}
-        // 드롭 핸들러
-        onDragEnter={(e) => dropHandlers.onDragEnter(e, dateStr)}
-        onDragOver={(e) => dropHandlers.onDragOver(e, dateStr)}
-        onDragLeave={dropHandlers.onDragLeave}
-        onDrop={(e) => dropHandlers.onDrop(e, dateStr)}
-      >
-        {/* 날짜 헤더 */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <div className="flex items-center justify-between gap-1">
-            <div className="flex items-center gap-1">
-              <span className={cn("text-base md:text-lg font-bold leading-tight", textColorClass, isToday && "text-indigo-600 dark:text-indigo-400")}>
-                {day}
-                {isToday && (
-                  <span className="ml-0.5 text-[10px] leading-none" aria-label="오늘">●</span>
-                )}
-              </span>
-              {/* 빠른 추가 버튼 */}
-              {studentId && (
-                <button
-                  onClick={handleQuickAdd}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-0.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30"
-                  aria-label={`${dateStr}에 플랜 추가`}
-                  title="빠른 플랜 추가"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-            {/* 날짜 타입 배지 - 학습일/복습일과 동일한 구조로 통일 */}
-            {dayTypeInfo && dayType !== "normal" && (
-              <div className="flex items-center gap-0.5 shrink-0">
-                {dayTypeInfo.icon && (
-                  <dayTypeInfo.icon className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
-                )}
-                <span className={cn("text-[9px] md:text-[10px] font-medium", textColorClass)}>
-                  {dayTypeInfo.label}
-                </span>
-              </div>
-            )}
-          </div>
-          {/* 타임라인 슬롯 기반으로 플랜 및 기타 슬롯 표시 */}
-          <div className="flex flex-col gap-1 min-w-0">
-          {(() => {
-            const dailySchedule = dailyScheduleMap.get(dateStr);
-            
-            // 해당 날짜의 학원일정 (요일 기반)
-            const dayOfWeek = date.getDay();
-            const dayAcademySchedules = academySchedules.filter(
-              (schedule) => schedule.day_of_week === dayOfWeek
-            );
-            
-            // 타임라인 슬롯 생성 및 정렬/필터링 (공통 유틸리티 사용)
-            const { filteredSlots } = getTimelineSlots(
-              dateStr,
-              dailySchedule,
-              dayPlans,
-              dayAcademySchedules,
-              dayExclusions,
-              showOnlyStudyTime
-            );
-            
-            const items: React.ReactElement[] = [];
-            const addedPlanIds = new Set<string>();
-            
-            // 최대 6개까지만 표시 (공간 제약)
-            let displayedCount = 0;
-            const maxDisplay = 6;
-            
-            filteredSlots.forEach((slot) => {
-              if (displayedCount >= maxDisplay) return;
-              
-              // 학원일정 표시
-              if (slot.type === "학원일정" && slot.academy) {
-                if (displayedCount < maxDisplay) {
-                  const AcademyIcon = getTimeSlotIcon("학원일정");
-                  items.push(
-                    <div
-                      key={`slot-${slot.start}-${slot.end}-academy`}
-                      className="truncate rounded bg-purple-100 dark:bg-purple-900/30 px-1.5 py-0.5 text-[10px] text-purple-800 dark:text-purple-200 border border-purple-200 dark:border-purple-800 flex items-center gap-0.5"
-                      title={`${slot.academy.academy_name || "학원"}: ${slot.start} ~ ${slot.end}`}
-                    >
-                      <AcademyIcon className="w-3 h-3 shrink-0" />
-                      <span>{slot.academy.academy_name || "학원"}</span>
-                    </div>
-                  );
-                  displayedCount++;
-                }
-                return;
-              }
-              
-              // 점심시간, 이동시간, 자율학습 표시
-              if (slot.type !== "학습시간") {
-                if (displayedCount < maxDisplay && !showOnlyStudyTime) {
-                  const IconComponent = getTimeSlotIcon(slot.type);
-                  // 공통 유틸리티 함수 사용하여 색상 통일
-                  const colorClass = getTimeSlotColorClass(slot.type);
-                  items.push(
-                    <div
-                      key={`slot-${slot.start}-${slot.end}-${slot.type}`}
-                      className={`truncate rounded px-1.5 py-0.5 text-[10px] border flex items-center gap-0.5 ${colorClass}`}
-                      title={`${slot.type}: ${slot.start} ~ ${slot.end}`}
-                    >
-                      <IconComponent className="w-3 h-3 shrink-0" />
-                      <span>{slot.type}</span>
-                    </div>
-                  );
-                  displayedCount++;
-                }
-                return;
-              }
-              
-              // 학습시간인 경우 플랜 표시
-              if (slot.type === "학습시간" && slot.plans && slot.plans.length > 0) {
-                slot.plans
-                  .sort((a, b) => {
-                    // 시간 정보가 있으면 시간 순, 없으면 block_index 순
-                    if (a.start_time && b.start_time) {
-                      return timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
-                    }
-                    return a.block_index - b.block_index;
-                  })
-                  .forEach((plan) => {
-                    if (displayedCount >= maxDisplay || addedPlanIds.has(plan.id)) {
-                      return;
-                    }
-                    addedPlanIds.add(plan.id);
-                    
-                    // 연결 상태 계산
-                    const connectionState = getPlanConnectionState(dateStr, plan.id);
-                    
-                    // 가상 플랜이 아닌 경우만 드래그 가능
-                    const isVirtual = (plan as { is_virtual?: boolean | null }).is_virtual === true;
-                    const dragItem: DragItem = {
-                      planId: plan.id,
-                      planDate: dateStr,
-                      contentTitle: plan.contentTitle || plan.content_title || "플랜",
-                    };
-
-                    items.push(
-                      <CalendarPlanCard
-                        key={plan.id}
-                        plan={plan}
-                        compact={true}
-                        showTime={false}
-                        showProgress={false}
-                        isConnected={connectionState.isConnected}
-                        isFirst={connectionState.isFirst}
-                        isLast={connectionState.isLast}
-                        isMiddle={connectionState.isMiddle}
-                        draggable={!isVirtual && !isMoving}
-                        onDragStart={(e) => dragHandlers.onDragStart(e, dragItem)}
-                        onDragEnd={dragHandlers.onDragEnd}
-                        isDragging={draggedItem?.planId === plan.id}
-                        onClick={() => handlePlanClick(plan)}
-                      />
-                    );
-                    displayedCount++;
-                  });
-              }
-            });
-
-            // 플랜이 타임라인 슬롯에 매칭되지 않은 경우 (시간 정보가 없는 기존 플랜)
-            const unmatchedPlans = dayPlans.filter((plan) => !addedPlanIds.has(plan.id));
-            if (unmatchedPlans.length > 0 && displayedCount < maxDisplay) {
-              unmatchedPlans
-                .sort((a, b) => a.block_index - b.block_index)
-                .slice(0, maxDisplay - displayedCount)
-                .forEach((plan) => {
-                  // 연결 상태 계산
-                  const connectionState = getPlanConnectionState(dateStr, plan.id);
-
-                  // 가상 플랜이 아닌 경우만 드래그 가능
-                  const isVirtual = (plan as { is_virtual?: boolean | null }).is_virtual === true;
-                  const dragItem: DragItem = {
-                    planId: plan.id,
-                    planDate: dateStr,
-                    contentTitle: plan.contentTitle || plan.content_title || "플랜",
-                  };
-
-                  items.push(
-                    <CalendarPlanCard
-                      key={plan.id}
-                      plan={plan}
-                      compact={true}
-                      showTime={false}
-                      showProgress={false}
-                      isConnected={connectionState.isConnected}
-                      isFirst={connectionState.isFirst}
-                      isLast={connectionState.isLast}
-                      isMiddle={connectionState.isMiddle}
-                      draggable={!isVirtual && !isMoving}
-                      onDragStart={(e) => dragHandlers.onDragStart(e, dragItem)}
-                      onDragEnd={dragHandlers.onDragEnd}
-                      isDragging={draggedItem?.planId === plan.id}
-                      onClick={() => handlePlanClick(plan)}
-                    />
-                  );
-                  displayedCount++;
-                });
-            }
-            
-            // 총 개수 표시
-            const totalItems = filteredSlots.reduce((count, slot) => {
-              if (slot.type === "학습시간" && slot.plans) {
-                return count + slot.plans.length;
-              }
-              return count + 1;
-            }, 0) + unmatchedPlans.length;
-            
-            return (
-              <>
-                {/* 제외일 안내 (제외일이 있고 플랜이 있는 경우) */}
-                {dayExclusions.length > 0 && items.length > 0 && (
-                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 mb-1">
-                    <span className="text-[9px] text-orange-700 dark:text-orange-300 font-semibold">
-                      ⚠️
-                    </span>
-                    <span className="text-[9px] text-orange-600 dark:text-orange-400 font-medium">
-                      제외일
-                    </span>
-                    {dayExclusions[0].exclusion_type && (
-                      <span className="text-[9px] text-orange-500 dark:text-orange-500">
-                        ({dayExclusions[0].exclusion_type})
-                      </span>
-                    )}
-                  </div>
-                )}
-                {items}
-                {totalItems > maxDisplay && (
-                  <div 
-                    className="flex items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700"
-                    title={`${totalItems - maxDisplay}개 더 있음`}
-                  >
-                    <span className="text-[10px] font-medium">+{totalItems - maxDisplay}</span>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // 빈 셀 렌더링
-  const renderEmptyCell = (key: string) => (
-    <div key={key} className="min-h-[120px] md:min-h-[140px] lg:min-h-[160px] border border-gray-200 bg-gray-50 rounded-lg" />
+  const renderEmptyCell = useCallback(
+    (key: string) => (
+      <div
+        key={key}
+        className="min-h-[120px] md:min-h-[140px] lg:min-h-[160px] border border-gray-200 bg-gray-50 rounded-lg"
+      />
+    ),
+    []
   );
 
-  // 캘린더 그리드 생성
-  const cells: (React.ReactElement | null)[] = [];
-  
-  // 첫 주의 빈 셀
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    cells.push(renderEmptyCell(`empty-${i}`));
-  }
+  // 날짜별 학원일정 맵 생성 (요일 기반)
+  const academySchedulesByDay = useMemo(() => {
+    const map = new Map<number, AcademySchedule[]>();
+    for (let i = 0; i < 7; i++) {
+      map.set(
+        i,
+        academySchedules.filter((schedule) => schedule.day_of_week === i)
+      );
+    }
+    return map;
+  }, [academySchedules]);
 
-  // 날짜 셀
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push(renderDayCell(day));
-  }
+  // 캘린더 그리드 생성 (메모이제이션)
+  const cells = useMemo(() => {
+    const result: React.ReactElement[] = [];
 
-  // 마지막 주의 빈 셀 (총 42개 셀 유지)
-  const totalCells = 42;
-  const remainingCells = totalCells - cells.length;
-  for (let i = 0; i < remainingCells; i++) {
-    cells.push(renderEmptyCell(`empty-end-${i}`));
-  }
+    // 첫 주의 빈 셀
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      result.push(renderEmptyCell(`empty-${i}`));
+    }
+
+    // 날짜 셀
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dateStr = formatDateString(date);
+      const dayPlans = plansByDate.get(dateStr) || [];
+      const dayExclusions = exclusionsByDate.get(dateStr) || [];
+      const dayTypeInfo = dayTypes.get(dateStr);
+      const dailySchedule = dailyScheduleMap.get(dateStr);
+      const dayOfWeek = date.getDay();
+      const dayAcademySchedules = academySchedulesByDay.get(dayOfWeek) || [];
+      const isToday = dateStr === todayStr;
+      const isDropTargetCell = dropTarget === dateStr;
+      const canDropHere = draggedItem && draggedItem.planDate !== dateStr;
+
+      result.push(
+        <MemoizedDayCell
+          key={day}
+          day={day}
+          year={year}
+          month={month}
+          dateStr={dateStr}
+          dayPlans={dayPlans}
+          dayExclusions={dayExclusions}
+          dayAcademySchedules={dayAcademySchedules}
+          dayTypeInfo={dayTypeInfo}
+          dailySchedule={dailySchedule}
+          isToday={isToday}
+          showOnlyStudyTime={showOnlyStudyTime}
+          studentId={studentId}
+          getConnectionState={getPlanConnectionState}
+          onDateClick={handleDateClick}
+          onPlanClick={handlePlanClick}
+          onQuickAdd={handleQuickAdd}
+          isDropTarget={isDropTargetCell}
+          canDrop={!!canDropHere}
+          isDragging={isDragging}
+          isMoving={isMoving}
+          draggedItemPlanId={draggedItem?.planId}
+          onDragEnter={dropHandlers.onDragEnter}
+          onDragOver={dropHandlers.onDragOver}
+          onDragLeave={dropHandlers.onDragLeave}
+          onDrop={dropHandlers.onDrop}
+          onDragStart={dragHandlers.onDragStart}
+          onDragEnd={dragHandlers.onDragEnd}
+        />
+      );
+    }
+
+    // 마지막 주의 빈 셀 (총 42개 셀 유지)
+    const totalCells = 42;
+    const remainingCells = totalCells - result.length;
+    for (let i = 0; i < remainingCells; i++) {
+      result.push(renderEmptyCell(`empty-end-${i}`));
+    }
+
+    return result;
+  }, [
+    startingDayOfWeek,
+    daysInMonth,
+    year,
+    month,
+    plansByDate,
+    exclusionsByDate,
+    dayTypes,
+    dailyScheduleMap,
+    academySchedulesByDay,
+    todayStr,
+    showOnlyStudyTime,
+    studentId,
+    getPlanConnectionState,
+    handleDateClick,
+    handlePlanClick,
+    handleQuickAdd,
+    dropTarget,
+    draggedItem,
+    isDragging,
+    isMoving,
+    dropHandlers,
+    dragHandlers,
+    renderEmptyCell,
+  ]);
 
   return (
     <>
@@ -533,4 +327,48 @@ export function MonthView({ plans, currentDate, exclusions, academySchedules, da
     </>
   );
 }
+
+/**
+ * 메모이제이션된 MonthView 컴포넌트
+ *
+ * 주요 props가 변경되지 않으면 리렌더링을 방지합니다.
+ */
+export const MonthView = memo(MonthViewComponent, (prevProps, nextProps) => {
+  // 기본 속성 비교
+  if (
+    prevProps.currentDate.getTime() !== nextProps.currentDate.getTime() ||
+    prevProps.showOnlyStudyTime !== nextProps.showOnlyStudyTime ||
+    prevProps.studentId !== nextProps.studentId ||
+    prevProps.tenantId !== nextProps.tenantId
+  ) {
+    return false;
+  }
+
+  // plans 배열 비교 (길이만 비교 - 상세 비교는 MemoizedDayCell에서 수행)
+  if (prevProps.plans.length !== nextProps.plans.length) {
+    return false;
+  }
+
+  // exclusions 배열 비교
+  if (prevProps.exclusions.length !== nextProps.exclusions.length) {
+    return false;
+  }
+
+  // academySchedules 배열 비교
+  if (prevProps.academySchedules.length !== nextProps.academySchedules.length) {
+    return false;
+  }
+
+  // dayTypes Map 비교
+  if (prevProps.dayTypes.size !== nextProps.dayTypes.size) {
+    return false;
+  }
+
+  // dailyScheduleMap Map 비교
+  if (prevProps.dailyScheduleMap.size !== nextProps.dailyScheduleMap.size) {
+    return false;
+  }
+
+  return true;
+});
 

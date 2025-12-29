@@ -166,3 +166,48 @@ export const templateProgramTypeFilter: FilterConfig = {
   ],
 };
 
+// 플랜 그룹 상태 필터
+export const planGroupStatusFilter: FilterConfig = {
+  name: "status",
+  label: "상태",
+  type: "select",
+  options: [
+    { value: "", label: "전체" },
+    { value: "draft", label: "초안" },
+    { value: "saved", label: "저장됨" },
+    { value: "active", label: "활성" },
+    { value: "paused", label: "일시정지" },
+    { value: "completed", label: "완료" },
+    { value: "cancelled", label: "취소됨" },
+  ],
+};
+
+// 진행률 필터
+export const progressFilter: FilterConfig = {
+  name: "progress",
+  label: "진행률",
+  type: "select",
+  options: [
+    { value: "", label: "전체" },
+    { value: "0-25", label: "0~25%" },
+    { value: "25-50", label: "25~50%" },
+    { value: "50-75", label: "50~75%" },
+    { value: "75-100", label: "75~100%" },
+    { value: "100", label: "완료 (100%)" },
+  ],
+};
+
+// 날짜 범위 프리셋 필터
+export const dateRangeFilter: FilterConfig = {
+  name: "dateRange",
+  label: "기간",
+  type: "select",
+  options: [
+    { value: "", label: "전체" },
+    { value: "today", label: "오늘" },
+    { value: "week", label: "이번 주" },
+    { value: "month", label: "이번 달" },
+    { value: "quarter", label: "최근 3개월" },
+  ],
+};
+

@@ -4,6 +4,7 @@ import { useMemo, memo } from "react";
 import { PlanGroup } from "../_utils/planGroupUtils";
 import { getActivePlan, getTimeStats } from "../_utils/planGroupUtils";
 import { PlanTimer } from "./PlanTimer";
+import { PlanProgressBadge, PlanPriorityIndicator } from "./PlanProgressBadge";
 import { Clock, Check } from "lucide-react";
 import { usePlanCardActions } from "@/lib/hooks/usePlanCardActions";
 import {
@@ -172,6 +173,15 @@ function PlanCardComponent({
           {planRangeLabel && (
             <div className={cn("text-sm", textSecondary)}>{planRangeLabel}</div>
           )}
+          {/* 진행률 표시 (단일 뷰) */}
+          {!isCompleted && (
+            <div className="mt-3 w-full max-w-xs">
+              <PlanProgressBadge
+                progress={group.plan.progress ?? 0}
+                status={group.plan.status}
+              />
+            </div>
+          )}
         </div>
 
         {/* 타이머 */}
@@ -270,6 +280,21 @@ function PlanCardComponent({
               <div className={cn("text-sm", textSecondary)}>{planRangeLabel}</div>
             )}
           </div>
+          {/* 진행률 및 우선순위 표시 */}
+          {!isCompleted && (
+            <div className="mt-2 flex items-center justify-between gap-4">
+              <PlanProgressBadge
+                progress={group.plan.progress ?? 0}
+                status={group.plan.status}
+                compact
+              />
+              <PlanPriorityIndicator
+                startTime={group.plan.start_time}
+                blockIndex={group.plan.block_index}
+                compact
+              />
+            </div>
+          )}
         </div>
 
         {/* 타이머 */}
@@ -315,6 +340,7 @@ export const PlanCard = memo(PlanCardComponent, (prevProps, nextProps) => {
     prevProps.group.planNumber === nextProps.group.planNumber &&
     prevPlan.id === nextPlan.id &&
     prevPlan.progress === nextPlan.progress &&
+    prevPlan.status === nextPlan.status && // 상태 변경 감지
     prevPlan.actual_start_time === nextPlan.actual_start_time &&
     prevPlan.actual_end_time === nextPlan.actual_end_time &&
     prevProps.planDate === nextProps.planDate &&

@@ -1195,4 +1195,112 @@ export async function preparePlanCompletion(
   }
 }
 
+/**
+ * 타이머 진행 상태 동기화 (주기적 저장)
+ *
+ * RUNNING 상태에서 주기적으로 호출되어 현재 학습 시간을 DB에 저장합니다.
+ * 브라우저 종료/새로고침 시 데이터 손실을 방지합니다.
+ *
+ * @param planId 플랜 ID
+ * @param elapsedSeconds 클라이언트에서 측정한 경과 시간 (초)
+ */
+export async function syncTimerProgress(
+  planId: string,
+  elapsedSeconds: number
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 플랜과 활성 세션 동시 조회
+    const [planResult, sessionResult] = await Promise.all([
+      supabase
+        .from("student_plan")
+        .select("actual_start_time, actual_end_time, paused_duration_seconds")
+        .eq("id", planId)
+        .eq("student_id", user.userId)
+        .maybeSingle(),
+      supabase
+        .from("student_study_sessions")
+        .select("id, paused_at, resumed_at, ended_at")
+        .eq("plan_id", planId)
+        .eq("student_id", user.userId)
+        .is("ended_at", null)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const { data: plan, error: planError } = planResult;
+    const { data: activeSession, error: sessionError } = sessionResult;
+
+    if (planError || !plan) {
+      return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
+    // 이미 완료된 플랜은 동기화하지 않음
+    if (plan.actual_end_time) {
+      return { success: false, error: "이미 완료된 플랜입니다." };
+    }
+
+    // 활성 세션이 없거나 일시정지 상태면 동기화하지 않음
+    if (!activeSession) {
+      return { success: false, error: "활성 세션이 없습니다." };
+    }
+
+    if (isSessionPaused(activeSession)) {
+      return { success: false, error: "일시정지 상태입니다." };
+    }
+
+    // 현재 시점의 순수 학습 시간 저장 (일시정지 시간 제외)
+    // 클라이언트에서 측정한 시간을 신뢰하되, 서버에서 검증 가능한 범위 내에서 저장
+    const pausedDuration = plan.paused_duration_seconds || 0;
+    const totalDurationSeconds = elapsedSeconds + pausedDuration;
+
+    // student_plan의 actual_duration 필드에 저장
+    // actual_duration은 분 단위로 저장 (기존 스키마 호환)
+    const actualDurationMinutes = Math.floor(elapsedSeconds / 60);
+
+    const { error: updateError } = await supabase
+      .from("student_plan")
+      .update({
+        actual_duration: actualDurationMinutes,
+        // total_duration_seconds는 완료 시에만 저장하므로 여기서는 업데이트하지 않음
+      })
+      .eq("id", planId)
+      .eq("student_id", user.userId);
+
+    if (updateError) {
+      timerLogger.warn("타이머 진행 동기화 실패", {
+        action: "syncTimerProgress",
+        id: planId,
+        error: updateError instanceof Error ? updateError : new Error(String(updateError)),
+      });
+      return { success: false, error: "동기화에 실패했습니다." };
+    }
+
+    timerLogger.debug("타이머 진행 동기화 완료", {
+      action: "syncTimerProgress",
+      id: planId,
+      data: { elapsedSeconds, actualDurationMinutes },
+    });
+
+    return { success: true };
+  } catch (error) {
+    timerLogger.error("타이머 진행 동기화 예외", {
+      action: "syncTimerProgress",
+      id: planId,
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "동기화 중 오류가 발생했습니다.",
+    };
+  }
+}
+
 // stopAllActiveSessionsForPlan was removed - use preparePlanCompletion instead

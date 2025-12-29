@@ -279,6 +279,34 @@ export type PlanGroupFilters = {
 };
 
 /**
+ * 플랜 상태 필터
+ */
+export type PlanStatusFilter =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "skipped"
+  | "postponed";
+
+/**
+ * 진행률 필터
+ */
+export type ProgressFilter = {
+  /** 최소 진행률 (0-100) */
+  min?: number;
+  /** 최대 진행률 (0-100) */
+  max?: number;
+};
+
+/**
+ * 정렬 옵션
+ */
+export type PlanSortOption = {
+  field: "plan_date" | "progress" | "created_at" | "updated_at" | "block_index";
+  direction: "asc" | "desc";
+};
+
+/**
  * 학생 플랜 조회 필터
  */
 export type StudentPlanFilters = {
@@ -291,6 +319,16 @@ export type StudentPlanFilters = {
   planDate?: string;
   contentType?: ContentType;
   planGroupIds?: string[];
+  /** 플랜 상태 필터 (단일 또는 배열) */
+  status?: PlanStatusFilter | PlanStatusFilter[];
+  /** 진행률 필터 */
+  progress?: ProgressFilter;
+  /** 정렬 옵션 (기본: plan_date asc, block_index asc) */
+  orderBy?: PlanSortOption[];
+  /** 조회 개수 제한 */
+  limit?: number;
+  /** 오프셋 (페이지네이션) */
+  offset?: number;
 };
 
 // ============================================

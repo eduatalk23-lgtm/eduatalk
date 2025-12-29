@@ -80,6 +80,42 @@ export type {
   TemplateLockContext,
 } from "./templateLockService";
 
+// 진행률 계산 서비스
+export {
+  calculateProgress,
+  calculateCompletionProgress,
+  determineStatusFromProgress,
+  formatMinutesToTime,
+  getProgressStatusLabel,
+  getProgressColorClass,
+} from "./progressCalculator";
+
+export type {
+  ProgressCalculationInput,
+  ProgressCalculationResult,
+  ProgressWeights,
+} from "./progressCalculator";
+
+// 적응형 스케줄러 서비스
+export {
+  analyzeLearningPatterns,
+  analyzeAdaptiveSchedule,
+  analyzeGroupSchedule,
+  generateWeakSubjectReinforcement,
+  generateStudentReinforcement,
+} from "./adaptiveScheduler";
+
+export type {
+  TimePeriodPerformance,
+  DayOfWeekPerformance,
+  SubjectPerformance,
+  LearningPatternAnalysis,
+  ScheduleRecommendation,
+  AdaptiveScheduleAnalysis,
+  WeakSubjectReinforcement,
+  WeakSubjectReinforcementPlan,
+} from "./adaptiveScheduler";
+
 // 타입
 export type {
   // 서비스 컨텍스트

@@ -13,6 +13,7 @@ export {
   resumePlan,
   preparePlanCompletion,
   getServerTime,
+  syncTimerProgress,
 } from "./timer";
 
 // Memo Actions
@@ -48,3 +49,13 @@ export {
   type ContainerSummary,
   type TodayContainerResult,
 } from "./containerPlans";
+
+// Execution Log Actions
+export {
+  logPlanExecutionEvent,
+  getPlanExecutionLogs,
+  getTodayExecutionSummary,
+  logTimerEvent,
+  type LogExecutionEventResult,
+  type GetExecutionLogsResult,
+} from "./executionLog";

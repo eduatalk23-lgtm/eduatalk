@@ -1,8 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import type { RangeUnit } from "@/lib/types/plan";
-import type { WizardData } from "./ContentAddWizard";
+import type { WizardData } from "./types";
+
+interface ContentDetailsResponse {
+  success: boolean;
+  data?: {
+    details?: unknown[];
+    episodes?: unknown[];
+    total_pages?: number | null;
+    total_episodes?: number | null;
+  };
+}
 
 interface RangeSettingStepProps {
   content: NonNullable<WizardData["content"]>;
@@ -17,10 +29,42 @@ export function RangeSettingStep({
   onBack,
   selectedRange,
 }: RangeSettingStepProps) {
-  const totalUnits = content.totalUnits ?? 100;
+  // 비-커스텀 콘텐츠의 경우 상세 정보 조회
+  const { data: contentDetails, isLoading: isLoadingDetails } = useQuery<ContentDetailsResponse>({
+    queryKey: ["content-details", content.id, content.type],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/student-content-details?contentType=${content.type}&contentId=${content.id}`
+      );
+      return res.json();
+    },
+    enabled: !!content.id && content.type !== "custom",
+    staleTime: 5 * 60 * 1000, // 5분 캐시
+  });
+
+  // 조회된 상세 정보에서 total units 가져오기
+  const fetchedTotalUnits = useMemo(() => {
+    if (!contentDetails?.success || !contentDetails.data) return null;
+    if (content.type === "book") {
+      return contentDetails.data.total_pages;
+    } else if (content.type === "lecture") {
+      return contentDetails.data.total_episodes;
+    }
+    return null;
+  }, [contentDetails, content.type]);
+
+  // totalUnits 결정: 조회된 값 > props 값 > 기본값
+  const totalUnits = fetchedTotalUnits ?? content.totalUnits ?? 100;
   const [start, setStart] = useState(selectedRange?.start ?? 1);
   const [end, setEnd] = useState(selectedRange?.end ?? totalUnits);
   const [unit, setUnit] = useState<RangeUnit>(selectedRange?.unit ?? "page");
+
+  // totalUnits가 변경되면 end 값 업데이트 (이미 선택된 범위가 없는 경우)
+  useEffect(() => {
+    if (!selectedRange?.end && fetchedTotalUnits) {
+      setEnd(fetchedTotalUnits);
+    }
+  }, [fetchedTotalUnits, selectedRange?.end]);
 
   // Quick presets based on total units
   const presets = useMemo(() => {
@@ -81,14 +125,22 @@ export function RangeSettingStep({
       </div>
 
       {/* Total Info */}
-      {content.totalUnits && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            총 {content.totalUnits}
-            {content.type === "lecture" ? "회" : "페이지"}
+      {isLoadingDetails && content.type !== "custom" ? (
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            콘텐츠 정보 조회 중...
           </p>
         </div>
-      )}
+      ) : totalUnits ? (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            총 {totalUnits}
+            {content.type === "lecture" ? "회" : "페이지"}
+            {fetchedTotalUnits && " (서버에서 조회됨)"}
+          </p>
+        </div>
+      ) : null}
 
       {/* Unit Selection */}
       <div>
@@ -113,7 +165,7 @@ export function RangeSettingStep({
       </div>
 
       {/* Quick Presets */}
-      {content.totalUnits && (
+      {totalUnits > 1 && (
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             빠른 선택

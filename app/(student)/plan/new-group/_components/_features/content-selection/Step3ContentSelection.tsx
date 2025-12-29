@@ -306,6 +306,98 @@ function Step3ContentSelectionComponent({
     }
   }, [isEditMode, data.recommended_contents, setSelectedRecommendedIds]);
 
+  // 탭 패널 메모이제이션 - 탭 전환 시 불필요한 리렌더링 방지
+  const studentPanel = useMemo(
+    () => (
+      <StudentContentsPanel
+        contents={contents}
+        selectedContents={data.student_contents}
+        maxContents={maxContents}
+        currentTotal={currentTotal}
+        onUpdate={handleStudentContentsUpdate}
+        editable={editable}
+        isCampMode={isCampMode}
+        studentId={studentId}
+      />
+    ),
+    [
+      contents,
+      data.student_contents,
+      maxContents,
+      currentTotal,
+      handleStudentContentsUpdate,
+      editable,
+      isCampMode,
+      studentId,
+    ]
+  );
+
+  const recommendedPanel = useMemo(
+    () => (
+      <RecommendedContentsPanel
+        recommendedContents={recommendedContents}
+        allRecommendedContents={allRecommendedContents}
+        selectedContents={data.recommended_contents}
+        selectedRecommendedIds={selectedRecommendedIds}
+        maxContents={maxContents}
+        currentTotal={currentTotal}
+        settings={recommendationSettings}
+        onSettingsChange={setRecommendationSettings}
+        onUpdate={handleRecommendedContentsUpdate}
+        onRequestRecommendations={handleRequestRecommendations}
+        isEditMode={isEditMode}
+        isCampMode={isCampMode}
+        loading={recommendationLoading}
+        hasRequestedRecommendations={hasRequestedRecommendations}
+        hasScoreData={hasScoreData}
+        studentId={studentId}
+        isAdminContinueMode={isAdminContinueMode}
+        editable={editable}
+      />
+    ),
+    [
+      recommendedContents,
+      allRecommendedContents,
+      data.recommended_contents,
+      selectedRecommendedIds,
+      maxContents,
+      currentTotal,
+      recommendationSettings,
+      setRecommendationSettings,
+      handleRecommendedContentsUpdate,
+      handleRequestRecommendations,
+      isEditMode,
+      isCampMode,
+      recommendationLoading,
+      hasRequestedRecommendations,
+      hasScoreData,
+      studentId,
+      isAdminContinueMode,
+      editable,
+    ]
+  );
+
+  const masterPanel = useMemo(
+    () => (
+      <MasterContentsPanel
+        selectedContents={data.student_contents}
+        maxContents={maxContents}
+        currentTotal={currentTotal}
+        onUpdate={handleStudentContentsUpdate}
+        editable={editable}
+        isCampMode={isCampMode}
+      />
+    ),
+    [
+      data.student_contents,
+      maxContents,
+      currentTotal,
+      handleStudentContentsUpdate,
+      editable,
+      isCampMode,
+    ]
+  );
+
   return (
     <div className="flex flex-col gap-6" data-field-id="content_selection">
       {/* 필수 교과 설정 섹션 - 템플릿 모드에서만 표시 */}
@@ -479,49 +571,19 @@ function Step3ContentSelectionComponent({
       {/* 탭 내용 또는 통합 뷰 */}
       <div>
         {editable ? (
-          // 편집 모드: 탭별 표시
-          activeTab === "student" ? (
-            <StudentContentsPanel
-              contents={contents}
-              selectedContents={data.student_contents}
-              maxContents={maxContents}
-              currentTotal={currentTotal}
-              onUpdate={handleStudentContentsUpdate}
-              editable={editable}
-              isCampMode={isCampMode}
-              studentId={studentId}
-            />
-          ) : activeTab === "recommended" ? (
-            <RecommendedContentsPanel
-              recommendedContents={recommendedContents}
-              allRecommendedContents={allRecommendedContents}
-              selectedContents={data.recommended_contents}
-              selectedRecommendedIds={selectedRecommendedIds}
-              maxContents={maxContents}
-              currentTotal={currentTotal}
-              settings={recommendationSettings}
-              onSettingsChange={setRecommendationSettings}
-              onUpdate={handleRecommendedContentsUpdate}
-              onRequestRecommendations={handleRequestRecommendations}
-              isEditMode={isEditMode}
-              isCampMode={isCampMode}
-              loading={recommendationLoading}
-              hasRequestedRecommendations={hasRequestedRecommendations}
-              hasScoreData={hasScoreData}
-              studentId={studentId}
-              isAdminContinueMode={isAdminContinueMode}
-              editable={editable}
-            />
-          ) : (
-            <MasterContentsPanel
-              selectedContents={data.student_contents}
-              maxContents={maxContents}
-              currentTotal={currentTotal}
-              onUpdate={handleStudentContentsUpdate}
-              editable={editable}
-              isCampMode={isCampMode}
-            />
-          )
+          // 편집 모드: 모든 탭 패널 렌더링 (비활성 탭은 CSS로 숨김)
+          // 탭 전환 시 상태 유지 및 리렌더링 최소화
+          <>
+            <div className={activeTab === "student" ? "block" : "hidden"}>
+              {studentPanel}
+            </div>
+            <div className={activeTab === "recommended" ? "block" : "hidden"}>
+              {recommendedPanel}
+            </div>
+            <div className={activeTab === "master" ? "block" : "hidden"}>
+              {masterPanel}
+            </div>
+          </>
         ) : (
           // 읽기 전용 모드: 통합 뷰
           <UnifiedContentsView

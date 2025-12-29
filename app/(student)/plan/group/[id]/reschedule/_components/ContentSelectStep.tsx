@@ -27,6 +27,8 @@ type ContentSelectStepProps = {
     status: string | null;
     is_active: boolean | null;
     content_id: string;
+    content_type?: string;
+    master_content_id?: string | null; // 마스터 콘텐츠 ID (plan_contents와 매칭용)
     plan_date: string; // YYYY-MM-DD
   }>;
   onComplete: (
@@ -98,8 +100,12 @@ export function ContentSelectStep({
     >();
 
     contents.forEach((content) => {
+      // plan_contents.content_id는 마스터 콘텐츠 ID일 수 있으므로
+      // student_plan의 master_content_id 또는 content_id로 매칭
       const plans = existingPlans.filter(
-        (p) => p.content_id === content.content_id
+        (p) =>
+          p.content_id === content.content_id ||
+          p.master_content_id === content.content_id
       );
 
       const reschedulable = plans.filter((p) =>

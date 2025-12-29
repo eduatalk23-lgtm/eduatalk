@@ -8,10 +8,14 @@ import { studentContentsQueryOptions } from "@/lib/query-options/studentContents
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
-import { PlanGroupWizard, type ExtendedInitialData } from "./_components/PlanGroupWizard";
+import { PlanGroupWizardWrapper } from "./_components/PlanGroupWizardWrapper";
+import type { ExtendedInitialData } from "./_components/PlanGroupWizard";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { getContainerClass } from "@/lib/constants/layout";
 import { inlineButtonBase } from "@/lib/utils/darkMode";
+
+// 통합 위저드 시스템 사용 여부 (환경 변수로 제어)
+const USE_UNIFIED_WIZARD = process.env.NEXT_PUBLIC_USE_UNIFIED_WIZARD === "true";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -92,9 +96,10 @@ export default async function NewPlanGroupPage({ searchParams }: PageProps) {
             </Link>
           </div>
 
-          <PlanGroupWizard
+          <PlanGroupWizardWrapper
             studentId={user.userId}
             initialData={initialData}
+            useUnifiedWizard={USE_UNIFIED_WIZARD}
           />
         </div>
       </section>

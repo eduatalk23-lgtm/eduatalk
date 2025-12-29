@@ -12,6 +12,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
 import { getContainerClass } from "@/lib/constants/layout";
+import { getDateRangeFromPreset } from "@/lib/utils/dateRangePresets";
 import { PlanGroupListContainer } from "./_components/PlanGroupListContainer";
 import { FilterBar } from "./_components/FilterBar";
 import { QuickCreateButton } from "./_components/QuickCreateButton";
@@ -24,9 +25,17 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
   const params = await searchParams;
   const createdCount = params?.created;
   const planPurpose = params?.planPurpose;
-  const sortOrder = (params?.sortOrder === "asc" || params?.sortOrder === "desc") 
-    ? params.sortOrder 
+  const sortOrder = (params?.sortOrder === "asc" || params?.sortOrder === "desc")
+    ? params.sortOrder
     : "desc" as "asc" | "desc"; // 기본값: 최신순(내림차순)
+
+  // 고급 필터 파라미터
+  const statusFilter = params?.status;
+  const progressFilter = params?.progress;
+  const dateRangePreset = params?.dateRange;
+
+  // 날짜 프리셋을 실제 날짜 범위로 변환
+  const dateRange = getDateRangeFromPreset(dateRangePreset);
 
   const user = await getCurrentUser();
   if (!user) {
@@ -40,11 +49,10 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
     studentId: user.userId,
     tenantId: tenantContext?.tenantId ?? null,
     includeDeleted: false,
+    ...(planPurpose && { planPurpose }),
+    ...(statusFilter && { status: statusFilter }),
+    ...(dateRange && { dateRange }),
   };
-
-  if (planPurpose) {
-    planGroupFilters.planPurpose = planPurpose;
-  }
 
   // React Query를 사용하여 데이터 프리패칭
   const queryClient = getQueryClient();
@@ -105,6 +113,9 @@ export default async function PlanListPage({ searchParams }: PlanPageProps) {
             studentId={user.userId}
             planPurpose={planPurpose}
             sortOrder={sortOrder}
+            statusFilter={statusFilter}
+            progressFilter={progressFilter}
+            dateRange={dateRange ?? undefined}
           />
         </div>
       </section>

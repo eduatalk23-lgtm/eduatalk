@@ -43,6 +43,7 @@ export type {
   CampProgramType,
   CampInvitationStatus,
   SchedulerType,
+  PlanMode,
   DayType,
   PlanStatus,
   ExclusionType,

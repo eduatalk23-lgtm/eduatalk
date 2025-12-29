@@ -299,6 +299,202 @@ export async function linkContentToVirtualPlan(
  *
  * 슬롯의 과목 카테고리에 맞는 콘텐츠를 필터링하여 반환합니다.
  */
+
+/**
+ * 기존 플랜의 콘텐츠를 변경합니다.
+ *
+ * 콘텐츠가 변경되면 진행률 관련 데이터가 리셋됩니다:
+ * - progress: 0
+ * - completed_amount: null
+ * - actual_start_time: null
+ * - actual_end_time: null
+ * - actual_duration: null
+ * - total_duration_seconds: null
+ * - paused_duration_seconds: null
+ * - pause_count: 0
+ *
+ * @param planId - 변경할 플랜 ID
+ * @param contentInfo - 새로운 콘텐츠 정보
+ * @returns 변경 결과
+ */
+export async function updatePlanContent(
+  planId: string,
+  contentInfo: ContentLinkInfo
+): Promise<LinkContentResult> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: "인증되지 않은 사용자입니다." };
+    }
+
+    const supabase = await createSupabaseServerClient();
+    const adminClient = createSupabaseAdminClient();
+
+    if (!adminClient) {
+      console.error("[updatePlanContent] Admin client를 생성할 수 없습니다.");
+      return { success: false, error: "서버 설정 오류가 발생했습니다." };
+    }
+
+    // 1. 현재 플랜 조회 및 권한 확인
+    const { data: plan, error: fetchError } = await supabase
+      .from("student_plan")
+      .select(`
+        id,
+        student_id,
+        content_id,
+        content_type,
+        is_virtual,
+        slot_index,
+        plan_group_id,
+        plan_groups!inner(student_id)
+      `)
+      .eq("id", planId)
+      .single();
+
+    if (fetchError) {
+      console.error("[updatePlanContent] 플랜 조회 실패:", fetchError);
+      return { success: false, error: "플랜을 찾을 수 없습니다." };
+    }
+
+    // 2. 권한 확인 (학생 본인만 변경 가능)
+    const planGroups = plan.plan_groups as unknown as { student_id: string } | null;
+    const planStudentId = planGroups?.student_id;
+    if (planStudentId !== user.userId) {
+      return { success: false, error: "권한이 없습니다." };
+    }
+
+    // 3. 가상 플랜인 경우 linkContentToVirtualPlan 사용 유도
+    if (plan.is_virtual) {
+      return {
+        success: false,
+        error: "가상 플랜은 linkContentToVirtualPlan을 사용해주세요.",
+      };
+    }
+
+    // 4. 콘텐츠가 동일한 경우 업데이트 불필요
+    if (plan.content_id === contentInfo.contentId) {
+      return { success: true, updatedPlanId: planId };
+    }
+
+    // 5. 새 콘텐츠 존재 확인
+    const contentTable = contentInfo.contentType === "book"
+      ? "books"
+      : contentInfo.contentType === "lecture"
+        ? "lectures"
+        : "student_custom_contents";
+
+    const { data: content, error: contentError } = await supabase
+      .from(contentTable)
+      .select("id")
+      .eq("id", contentInfo.contentId)
+      .maybeSingle();
+
+    if (contentError || !content) {
+      console.error("[updatePlanContent] 콘텐츠 조회 실패:", contentError);
+      return { success: false, error: "선택한 콘텐츠를 찾을 수 없습니다." };
+    }
+
+    // 6. 활성 세션이 있는 경우 종료
+    const { data: activeSessions } = await supabase
+      .from("student_study_sessions")
+      .select("id")
+      .eq("plan_id", planId)
+      .eq("student_id", user.userId)
+      .is("ended_at", null);
+
+    if (activeSessions && activeSessions.length > 0) {
+      // 모든 활성 세션 종료
+      for (const session of activeSessions) {
+        await adminClient
+          .from("student_study_sessions")
+          .update({ ended_at: new Date().toISOString() })
+          .eq("id", session.id);
+      }
+    }
+
+    // 7. 플랜 업데이트 (콘텐츠 변경 + 진행률 리셋)
+    const updateData = {
+      content_id: contentInfo.contentId,
+      content_type: contentInfo.contentType,
+      // 진행률 관련 필드 리셋
+      progress: 0,
+      completed_amount: null,
+      actual_start_time: null,
+      actual_end_time: null,
+      actual_duration: null,
+      total_duration_seconds: null,
+      paused_duration_seconds: null,
+      pause_count: 0,
+      // 범위 정보가 있으면 업데이트
+      ...(contentInfo.startRange !== undefined && {
+        planned_start_page_or_time: contentInfo.startRange,
+      }),
+      ...(contentInfo.endRange !== undefined && {
+        planned_end_page_or_time: contentInfo.endRange,
+      }),
+    };
+
+    const { error: updateError } = await adminClient
+      .from("student_plan")
+      .update(updateData)
+      .eq("id", planId);
+
+    if (updateError) {
+      console.error("[updatePlanContent] 플랜 업데이트 실패:", updateError);
+      return { success: false, error: "콘텐츠 변경에 실패했습니다." };
+    }
+
+    // 8. student_content_progress에서 기존 진행률 삭제
+    await adminClient
+      .from("student_content_progress")
+      .delete()
+      .eq("student_id", user.userId)
+      .eq("plan_id", planId);
+
+    // 9. 같은 slot_index를 가진 다른 플랜들도 업데이트 (선택사항)
+    if (plan.slot_index !== null && plan.plan_group_id) {
+      await adminClient
+        .from("student_plan")
+        .update({
+          content_id: contentInfo.contentId,
+          content_type: contentInfo.contentType,
+          progress: 0,
+          completed_amount: null,
+          actual_start_time: null,
+          actual_end_time: null,
+          actual_duration: null,
+          total_duration_seconds: null,
+          paused_duration_seconds: null,
+          pause_count: 0,
+        })
+        .eq("plan_group_id", plan.plan_group_id)
+        .eq("slot_index", plan.slot_index)
+        .neq("id", planId);
+    }
+
+    // 10. 캐시 갱신
+    revalidatePath("/plan/calendar");
+    revalidatePath("/today");
+
+    console.log("[updatePlanContent] 콘텐츠 변경 및 진행률 리셋 완료:", {
+      planId,
+      oldContentId: plan.content_id,
+      newContentId: contentInfo.contentId,
+    });
+
+    return {
+      success: true,
+      updatedPlanId: planId,
+    };
+  } catch (error) {
+    console.error("[updatePlanContent] 예외 발생:", error);
+    return {
+      success: false,
+      error: "콘텐츠 변경 중 오류가 발생했습니다.",
+    };
+  }
+}
+
 export async function getAvailableContentsForSlot(
   studentId: string,
   subjectCategory?: string | null,

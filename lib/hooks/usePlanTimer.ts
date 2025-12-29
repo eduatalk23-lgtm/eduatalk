@@ -18,7 +18,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
-import { getServerTime } from "@/lib/domains/today";
+import { getServerTime, syncTimerProgress } from "@/lib/domains/today";
 
 // 주기적 동기화 간격 (5분)
 const PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000;
@@ -134,6 +134,13 @@ export function usePlanTimer({
       try {
         const { serverNow } = await getServerTime();
         syncNow(planId, serverNow);
+
+        // 탭이 숨겨질 때 (visibilityChangeTimestamp가 있으면) DB에도 저장
+        // 브라우저 종료/새로고침 시 데이터 손실 방지
+        const timer = usePlanTimerStore.getState().timers.get(planId);
+        if (timer && timer.seconds > 0) {
+          await syncTimerProgress(planId, timer.seconds);
+        }
       } catch (error) {
         // 서버 요청 실패 시 기존 offset 사용하여 폴백
         console.warn("[usePlanTimer] 서버 시간 동기화 실패, 로컬 시간 사용:", error);
@@ -179,9 +186,16 @@ export function usePlanTimer({
       }
 
       try {
+        // 서버 시간 동기화
         const { serverNow } = await getServerTime();
         syncNow(planId, serverNow);
         lastPeriodicSyncRef.current = Date.now();
+
+        // DB에 학습 시간 저장 (데이터 손실 방지)
+        const currentSeconds = timer.seconds;
+        if (currentSeconds > 0) {
+          await syncTimerProgress(planId, currentSeconds);
+        }
       } catch (error) {
         console.warn("[usePlanTimer] 주기적 동기화 실패:", error);
       }

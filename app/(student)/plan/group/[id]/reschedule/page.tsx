@@ -56,11 +56,40 @@ export default async function ReschedulePage({
   }
 
   // 기존 플랜 조회 (재조정 대상 확인용)
-  const { data: existingPlans } = await supabase
+  // content_id와 함께 master_content_id도 조회하여 plan_contents와 매칭 가능하도록 함
+  const { data: existingPlansRaw } = await supabase
     .from("student_plan")
-    .select("id, status, is_active, content_id, plan_date")
+    .select("id, status, is_active, content_id, content_type, plan_date")
     .eq("plan_group_id", id)
     .eq("student_id", user.id);
+
+  // 콘텐츠 타입별로 master_content_id 조회
+  const existingPlans = await Promise.all(
+    (existingPlansRaw || []).map(async (plan) => {
+      let masterContentId: string | null = null;
+
+      if (plan.content_type === "lecture") {
+        const { data: lecture } = await supabase
+          .from("lectures")
+          .select("master_lecture_id")
+          .eq("id", plan.content_id)
+          .maybeSingle();
+        masterContentId = lecture?.master_lecture_id || null;
+      } else if (plan.content_type === "book") {
+        const { data: book } = await supabase
+          .from("books")
+          .select("master_book_id")
+          .eq("id", plan.content_id)
+          .maybeSingle();
+        masterContentId = book?.master_book_id || null;
+      }
+
+      return {
+        ...plan,
+        master_content_id: masterContentId,
+      };
+    })
+  );
 
   // URL 쿼리 파라미터에서 날짜 범위 파싱
   let initialDateRange: { from: string; to: string } | null = null;

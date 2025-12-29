@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { WizardData } from "./ContentAddWizard";
+import type { WizardData } from "./types";
 
 interface ContentSelectionStepProps {
   onSelect: (content: WizardData["content"]) => void;

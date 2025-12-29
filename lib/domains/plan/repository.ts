@@ -297,6 +297,8 @@ export async function checkPlanPeriodOverlap(
 
 /**
  * 학생 플랜 목록 조회
+ *
+ * DB 레벨에서 필터링, 정렬, 페이지네이션을 수행합니다.
  */
 export async function findStudentPlans(
   filters: StudentPlanFilters
@@ -306,8 +308,93 @@ export async function findStudentPlans(
   let query = supabase
     .from("student_plan")
     .select(
-      "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,subject_type,created_at,updated_at"
+      "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,subject_type,status,created_at,updated_at"
     )
+    .eq("student_id", filters.studentId);
+
+  // Tenant 필터
+  if (filters.tenantId) {
+    query = query.eq("tenant_id", filters.tenantId);
+  }
+
+  // 날짜 필터
+  if (filters.planDate) {
+    const planDateStr = filters.planDate.slice(0, 10);
+    query = query.eq("plan_date", planDateStr);
+  } else if (filters.dateRange) {
+    const startStr = filters.dateRange.start.slice(0, 10);
+    const endStr = filters.dateRange.end.slice(0, 10);
+    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
+  }
+
+  // 콘텐츠 타입 필터
+  if (filters.contentType) {
+    query = query.eq("content_type", filters.contentType);
+  }
+
+  // 플랜 그룹 필터
+  if (filters.planGroupIds && filters.planGroupIds.length > 0) {
+    query = query.in("plan_group_id", filters.planGroupIds);
+  }
+
+  // 상태 필터 (DB 레벨)
+  if (filters.status) {
+    if (Array.isArray(filters.status)) {
+      query = query.in("status", filters.status);
+    } else {
+      query = query.eq("status", filters.status);
+    }
+  }
+
+  // 진행률 필터 (DB 레벨)
+  if (filters.progress) {
+    if (filters.progress.min !== undefined) {
+      query = query.gte("progress", filters.progress.min);
+    }
+    if (filters.progress.max !== undefined) {
+      query = query.lte("progress", filters.progress.max);
+    }
+  }
+
+  // 정렬 옵션
+  if (filters.orderBy && filters.orderBy.length > 0) {
+    for (const sort of filters.orderBy) {
+      query = query.order(sort.field, { ascending: sort.direction === "asc" });
+    }
+  } else {
+    // 기본 정렬: plan_date asc, block_index asc
+    query = query
+      .order("plan_date", { ascending: true })
+      .order("block_index", { ascending: true });
+  }
+
+  // 페이지네이션
+  if (filters.offset !== undefined && filters.offset > 0) {
+    query = query.range(
+      filters.offset,
+      filters.offset + (filters.limit ?? 100) - 1
+    );
+  } else if (filters.limit !== undefined) {
+    query = query.limit(filters.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data as Plan[]) ?? [];
+}
+
+/**
+ * 학생 플랜 개수 조회 (페이지네이션용)
+ */
+export async function countStudentPlans(
+  filters: Omit<StudentPlanFilters, "orderBy" | "limit" | "offset">
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("student_plan")
+    .select("id", { count: "exact", head: true })
     .eq("student_id", filters.studentId);
 
   if (filters.tenantId) {
@@ -331,12 +418,77 @@ export async function findStudentPlans(
     query = query.in("plan_group_id", filters.planGroupIds);
   }
 
-  const { data, error } = await query
-    .order("plan_date", { ascending: true })
-    .order("block_index", { ascending: true });
+  if (filters.status) {
+    if (Array.isArray(filters.status)) {
+      query = query.in("status", filters.status);
+    } else {
+      query = query.eq("status", filters.status);
+    }
+  }
+
+  if (filters.progress) {
+    if (filters.progress.min !== undefined) {
+      query = query.gte("progress", filters.progress.min);
+    }
+    if (filters.progress.max !== undefined) {
+      query = query.lte("progress", filters.progress.max);
+    }
+  }
+
+  const { count, error } = await query;
 
   if (error) throw error;
-  return (data as Plan[]) ?? [];
+  return count ?? 0;
+}
+
+/**
+ * 학생 플랜 통계 조회
+ *
+ * 상태별 개수와 평균 진행률을 반환합니다.
+ */
+export async function getStudentPlanStats(
+  studentId: string,
+  dateRange?: { start: string; end: string }
+): Promise<{
+  total: number;
+  byStatus: Record<string, number>;
+  averageProgress: number;
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("student_plan")
+    .select("status, progress")
+    .eq("student_id", studentId);
+
+  if (dateRange) {
+    const startStr = dateRange.start.slice(0, 10);
+    const endStr = dateRange.end.slice(0, 10);
+    query = query.gte("plan_date", startStr).lte("plan_date", endStr);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+
+  const plans = data ?? [];
+  const total = plans.length;
+
+  // 상태별 개수 집계
+  const byStatus: Record<string, number> = {};
+  let progressSum = 0;
+
+  for (const plan of plans) {
+    const status = plan.status ?? "pending";
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+    progressSum += plan.progress ?? 0;
+  }
+
+  return {
+    total,
+    byStatus,
+    averageProgress: total > 0 ? Math.round(progressSum / total) : 0,
+  };
 }
 
 /**

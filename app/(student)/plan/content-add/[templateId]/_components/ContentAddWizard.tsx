@@ -1,137 +1,191 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
+/**
+ * ContentAddWizard - 콘텐츠 추가 위저드
+ *
+ * lib/wizard의 통합 시스템을 사용하는 4단계 위저드
+ */
+
+import { useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import type {
-  InheritedTemplateSettings,
+  InheritedTemplateSettings as ExternalTemplateSettings,
   CreateContentPlanGroupInput,
-  StudyType,
-  RangeUnit,
 } from "@/lib/types/plan";
 import { createContentPlanGroup } from "@/lib/domains/plan/actions";
+
+import {
+  UnifiedWizardProvider,
+  useWizard,
+  createContentAddWizardData,
+  createContentAddModeValidators,
+  WizardProgress,
+  WizardStepWrapper,
+  WizardErrorList,
+  type ContentAddWizardData,
+  type InheritedTemplateSettings as WizardTemplateSettings,
+} from "@/lib/wizard";
+
 import { ContentSelectionStep } from "./ContentSelectionStep";
 import { RangeSettingStep } from "./RangeSettingStep";
 import { StudyTypeStep } from "./StudyTypeStep";
 import { PreviewStep } from "./PreviewStep";
+import type { WizardData } from "./types";
 
-interface ContentAddWizardProps {
-  templateId: string;
-  templateSettings: InheritedTemplateSettings;
-  remainingSlots: number;
-}
+// ============================================
+// 타입 변환 유틸리티
+// ============================================
 
-export interface WizardData {
-  content: {
-    id: string;
-    type: "book" | "lecture" | "custom";
-    name: string;
-    totalUnits?: number;
-    subject?: string;
-    subjectCategory?: string;
-  } | null;
-  range: {
-    start: number;
-    end: number;
-    unit: RangeUnit;
-  } | null;
-  studyType: {
-    type: StudyType;
-    daysPerWeek?: 2 | 3 | 4;
-    reviewEnabled?: boolean;
-  } | null;
-  overrides?: {
-    period?: { startDate: string; endDate: string };
-    weekdays?: number[];
+/**
+ * 외부 템플릿 설정을 위저드 내부 타입으로 변환
+ */
+function toWizardTemplateSettings(
+  external: ExternalTemplateSettings
+): WizardTemplateSettings {
+  return {
+    periodStart: external.period.startDate,
+    periodEnd: external.period.endDate,
+    weekdays: external.weekdays,
+    blockSetId: external.blockSetId ?? undefined,
+    studyHoursPerDay: undefined, // External type doesn't have this
   };
 }
 
-const STEPS = [
-  { id: 1, name: "콘텐츠 선택" },
-  { id: 2, name: "범위 설정" },
-  { id: 3, name: "학습 유형" },
-  { id: 4, name: "미리보기" },
-];
+// ============================================
+// Props
+// ============================================
 
-export function ContentAddWizard({
+interface ContentAddWizardProps {
+  templateId: string;
+  templateSettings: ExternalTemplateSettings;
+  remainingSlots: number;
+}
+
+// ============================================
+// 내부 컴포넌트
+// ============================================
+
+interface WizardContentProps {
+  templateId: string;
+  templateSettings: ExternalTemplateSettings;
+  remainingSlots: number;
+}
+
+function WizardContent({
   templateId,
   templateSettings,
   remainingSlots,
-}: ContentAddWizardProps) {
+}: WizardContentProps) {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [wizardData, setWizardData] = useState<WizardData>({
-    content: null,
-    range: null,
-    studyType: null,
-  });
 
+  const {
+    data,
+    currentStep,
+    steps,
+    validation,
+    isSubmitting,
+    updateData,
+    nextStep,
+    prevStep,
+    goToStep,
+    setSubmitting,
+    stepStatus,
+  } = useWizard<ContentAddWizardData>();
+
+  // 콘텐츠 선택
   const handleContentSelect = useCallback(
     (content: WizardData["content"]) => {
-      setWizardData((prev) => ({ ...prev, content }));
-      setCurrentStep(2);
+      if (content) {
+        updateData({
+          content: {
+            id: content.id,
+            type: content.type,
+            name: content.name,
+            totalUnits: content.totalUnits,
+            subject: content.subject,
+            subjectCategory: content.subjectCategory,
+          },
+        });
+        nextStep();
+      }
     },
-    []
+    [updateData, nextStep]
   );
 
+  // 범위 설정
   const handleRangeSet = useCallback(
     (range: WizardData["range"]) => {
-      setWizardData((prev) => ({ ...prev, range }));
-      setCurrentStep(3);
+      if (range) {
+        updateData({ range });
+        nextStep();
+      }
     },
-    []
+    [updateData, nextStep]
   );
 
+  // 학습 유형 선택
   const handleStudyTypeSelect = useCallback(
     (studyType: WizardData["studyType"]) => {
-      setWizardData((prev) => ({ ...prev, studyType }));
-      setCurrentStep(4);
+      if (studyType) {
+        updateData({ studyType });
+        nextStep();
+      }
     },
-    []
+    [updateData, nextStep]
   );
 
-  const handleBack = useCallback(() => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  }, [currentStep]);
-
+  // 오버라이드 변경
   const handleOverridesChange = useCallback(
     (overrides: WizardData["overrides"]) => {
-      setWizardData((prev) => ({ ...prev, overrides }));
+      updateData({ overrides });
     },
-    []
+    [updateData]
   );
 
+  // 생성
   const handleCreate = useCallback(() => {
-    if (!wizardData.content || !wizardData.range || !wizardData.studyType) {
+    if (!data.content || !data.range || !data.studyType) {
       showError("모든 정보를 입력해주세요.");
       return;
     }
 
     const input: CreateContentPlanGroupInput = {
       templatePlanGroupId: templateId,
-      content: wizardData.content,
-      range: wizardData.range,
-      studyType: wizardData.studyType,
-      overrides: wizardData.overrides,
+      content: data.content,
+      range: data.range,
+      studyType: data.studyType,
+      overrides: data.overrides,
     };
 
     startTransition(async () => {
-      const result = await createContentPlanGroup(input);
+      setSubmitting(true);
+      try {
+        const result = await createContentPlanGroup(input);
 
-      if (result.success) {
-        showSuccess(
-          `${result.summary?.totalPlans}개의 플랜이 생성되었습니다!`
-        );
-        router.push("/plan");
-      } else {
-        showError(result.error ?? "플랜그룹 생성에 실패했습니다.");
+        if (result.success) {
+          showSuccess(
+            `${result.summary?.totalPlans}개의 플랜이 생성되었습니다!`
+          );
+          router.push("/plan");
+        } else {
+          showError(result.error ?? "플랜그룹 생성에 실패했습니다.");
+        }
+      } finally {
+        setSubmitting(false);
       }
     });
-  }, [wizardData, templateId, router, showSuccess, showError]);
+  }, [data, templateId, router, showSuccess, showError, setSubmitting]);
+
+  // 데이터 변환
+  const wizardDataForSteps: WizardData = {
+    content: data.content,
+    range: data.range,
+    studyType: data.studyType,
+    overrides: data.overrides,
+  };
 
   return (
     <div className="py-8">
@@ -140,90 +194,106 @@ export function ContentAddWizard({
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           콘텐츠 추가
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           남은 슬롯: {remainingSlots}개
         </p>
       </div>
 
       {/* Progress */}
       <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {STEPS.map((step, index) => (
-            <div key={step.id} className="flex items-center flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                    currentStep >= step.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                  }`}
-                >
-                  {step.id}
-                </div>
-                <span
-                  className={`text-xs mt-2 ${
-                    currentStep >= step.id
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                >
-                  {step.name}
-                </span>
-              </div>
-              {index < STEPS.length - 1 && (
-                <div
-                  className={`flex-1 h-1 mx-2 ${
-                    currentStep > step.id
-                      ? "bg-blue-600"
-                      : "bg-gray-200 dark:bg-gray-700"
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+        <WizardProgress
+          currentStepId={data.currentStepId}
+          steps={steps}
+          onStepClick={goToStep}
+          getStepStatus={stepStatus}
+        />
       </div>
+
+      {/* Errors */}
+      {validation.errors.length > 0 && (
+        <div className="mb-4">
+          <WizardErrorList errors={validation.errors} />
+        </div>
+      )}
 
       {/* Step Content */}
       <div className="min-h-[400px]">
-        {currentStep === 1 && (
-          <ContentSelectionStep
-            onSelect={handleContentSelect}
-            selectedContent={wizardData.content}
-          />
-        )}
-        {currentStep === 2 && wizardData.content && (
-          <RangeSettingStep
-            content={wizardData.content}
-            onSet={handleRangeSet}
-            onBack={handleBack}
-            selectedRange={wizardData.range}
-          />
-        )}
-        {currentStep === 3 && (
-          <StudyTypeStep
-            onSelect={handleStudyTypeSelect}
-            onBack={handleBack}
-            selectedStudyType={wizardData.studyType}
-          />
-        )}
-        {currentStep === 4 && wizardData.content && wizardData.range && wizardData.studyType && (
-          <PreviewStep
-            templateId={templateId}
-            templateSettings={templateSettings}
-            wizardData={{
-              content: wizardData.content,
-              range: wizardData.range,
-              studyType: wizardData.studyType,
-              overrides: wizardData.overrides,
-            }}
-            onBack={handleBack}
-            onCreate={handleCreate}
-            isPending={isPending}
-            onOverridesChange={handleOverridesChange}
-          />
-        )}
+        <WizardStepWrapper step={currentStep}>
+          {currentStep.id === "content-selection" && (
+            <ContentSelectionStep
+              onSelect={handleContentSelect}
+              selectedContent={wizardDataForSteps.content}
+            />
+          )}
+          {currentStep.id === "range-setting" && wizardDataForSteps.content && (
+            <RangeSettingStep
+              content={wizardDataForSteps.content}
+              onSet={handleRangeSet}
+              onBack={prevStep}
+              selectedRange={wizardDataForSteps.range}
+            />
+          )}
+          {currentStep.id === "study-type" && (
+            <StudyTypeStep
+              onSelect={handleStudyTypeSelect}
+              onBack={prevStep}
+              selectedStudyType={wizardDataForSteps.studyType}
+            />
+          )}
+          {currentStep.id === "preview" &&
+            wizardDataForSteps.content &&
+            wizardDataForSteps.range &&
+            wizardDataForSteps.studyType && (
+              <PreviewStep
+                templateId={templateId}
+                templateSettings={templateSettings}
+                wizardData={{
+                  content: wizardDataForSteps.content,
+                  range: wizardDataForSteps.range,
+                  studyType: wizardDataForSteps.studyType,
+                  overrides: wizardDataForSteps.overrides,
+                }}
+                onBack={prevStep}
+                onCreate={handleCreate}
+                isPending={isPending || isSubmitting}
+                onOverridesChange={handleOverridesChange}
+              />
+            )}
+        </WizardStepWrapper>
       </div>
     </div>
+  );
+}
+
+// ============================================
+// 메인 컴포넌트
+// ============================================
+
+export function ContentAddWizard({
+  templateId,
+  templateSettings,
+  remainingSlots,
+}: ContentAddWizardProps) {
+  // 외부 타입을 내부 위저드 타입으로 변환
+  const wizardTemplateSettings = toWizardTemplateSettings(templateSettings);
+
+  const initialData = createContentAddWizardData({
+    templateId,
+    templateSettings: wizardTemplateSettings,
+  });
+
+  const validators = createContentAddModeValidators();
+
+  return (
+    <UnifiedWizardProvider
+      initialData={initialData}
+      validators={validators as Record<string, (data: ContentAddWizardData) => { isValid: boolean; errors: { field: string; message: string; severity: "error" | "warning" }[]; warnings: { field: string; message: string; severity: "error" | "warning" }[] }>}
+    >
+      <WizardContent
+        templateId={templateId}
+        templateSettings={templateSettings}
+        remainingSlots={remainingSlots}
+      />
+    </UnifiedWizardProvider>
   );
 }

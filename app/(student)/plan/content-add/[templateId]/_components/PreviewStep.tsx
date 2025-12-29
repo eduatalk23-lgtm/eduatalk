@@ -11,7 +11,7 @@ import { getWeeklyScheduleOverview } from "@/lib/domains/plan/actions/contentSch
 import { WeeklyTimelinePreview } from "@/app/(student)/plan/new-group/_components/_features/scheduling/components/WeeklyTimelinePreview";
 import { IndividualWeekdaySelector } from "./IndividualWeekdaySelector";
 import { AvailableDatesPreview } from "./AvailableDatesPreview";
-import type { WizardData } from "./ContentAddWizard";
+import type { WizardData } from "./types";
 
 // 개별 스케줄 설정 타입
 type IndividualScheduleSettings = {

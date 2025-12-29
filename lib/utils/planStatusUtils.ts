@@ -43,34 +43,32 @@ export interface PlanWithStatus {
 
 /**
  * 재조정 대상 여부 판단
- * 
+ *
  * 재조정 가능한 플랜:
- * - status가 'pending' 또는 'in_progress'
+ * - status가 'pending' 또는 'in_progress' (NULL은 'pending'으로 처리)
  * - is_active가 true (또는 undefined/null)
- * 
+ *
  * @param plan 플랜 객체
  * @returns 재조정 가능 여부
  */
 export function isReschedulable(plan: PlanWithStatus): boolean {
   const { status, is_active } = plan;
-  
-  // status가 없으면 재조정 불가
-  if (!status) {
-    return false;
-  }
-  
+
+  // NULL/undefined status는 'pending'으로 간주 (신규 플랜)
+  const effectiveStatus = status || 'pending';
+
   // 완료되거나 취소된 플랜은 재조정 불가
-  if (status === 'completed' || status === 'cancelled') {
+  if (effectiveStatus === 'completed' || effectiveStatus === 'cancelled') {
     return false;
   }
-  
+
   // 비활성화된 플랜은 재조정 불가
   if (is_active === false) {
     return false;
   }
-  
+
   // pending 또는 in_progress 상태만 재조정 가능
-  return status === 'pending' || status === 'in_progress';
+  return effectiveStatus === 'pending' || effectiveStatus === 'in_progress';
 }
 
 /**

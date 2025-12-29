@@ -6,7 +6,7 @@ import {
 } from "@/lib/domains/plan/actions";
 import { getNearCompletionPlanGroups } from "@/lib/domains/plan/actions/contentPlanGroup";
 import { getContainerClass } from "@/lib/constants/layout";
-import { ContentAddWizard } from "./_components/ContentAddWizard";
+import { ContentAddWizardWrapper } from "./_components/ContentAddWizardWrapper";
 import { LimitReachedGuide } from "../../_components/LimitReachedGuide";
 
 type PageProps = {
@@ -60,7 +60,7 @@ export default async function ContentAddWizardPage({ params }: PageProps) {
 
   return (
     <div className={getContainerClass("CAMP_PLAN", "md")}>
-      <ContentAddWizard
+      <ContentAddWizardWrapper
         templateId={templateId}
         templateSettings={templateSettings}
         remainingSlots={countInfo.remaining}

@@ -51,6 +51,7 @@ export {
   resumePlan,
   preparePlanCompletion,
   getServerTime,
+  syncTimerProgress,
   // Memo
   getPlanMemo,
   savePlanMemo,
@@ -67,4 +68,9 @@ export {
   updateSessionHeartbeat,
   takeoverSession,
   setSessionDeviceInfo,
+  // Execution Log
+  logPlanExecutionEvent,
+  getPlanExecutionLogs,
+  getTodayExecutionSummary,
+  logTimerEvent,
 } from "./actions";
