@@ -15,6 +15,7 @@ import type {
   PlanStatus,
 } from '../types';
 import { createPlanEvent } from './planEvent';
+import { checkFlexibleContentExists } from '@/lib/domains/plan/utils/contentValidation';
 
 /**
  * 단발성 플랜 목록 조회
@@ -164,6 +165,21 @@ export async function createAdHocPlan(
     const supabase = await createSupabaseServerClient();
     const resolvedActorId = actorId ?? userId;
 
+    // FK 검증: flexible_content_id가 있는 경우 콘텐츠 존재 여부 확인
+    if (input.flexible_content_id) {
+      const contentCheck = await checkFlexibleContentExists(
+        input.flexible_content_id,
+        (input.content_type as 'book' | 'lecture' | 'custom') ?? null,
+        input.student_id
+      );
+      if (!contentCheck.exists) {
+        return {
+          success: false,
+          error: `콘텐츠를 찾을 수 없습니다. (ID: ${input.flexible_content_id.substring(0, 8)}...)`,
+        };
+      }
+    }
+
     const { data, error } = await supabase
       .from('ad_hoc_plans')
       .insert(input)
@@ -223,6 +239,26 @@ export async function updateAdHocPlan(
       .eq('id', id)
       .eq('tenant_id', tenantId)
       .single();
+
+    if (!previousData) {
+      return { success: false, error: '플랜을 찾을 수 없습니다.' };
+    }
+
+    // FK 검증: flexible_content_id가 업데이트되는 경우 콘텐츠 존재 여부 확인
+    if (input.flexible_content_id !== undefined && input.flexible_content_id !== null) {
+      const contentType = (input.content_type ?? previousData.content_type) as 'book' | 'lecture' | 'custom' | null;
+      const contentCheck = await checkFlexibleContentExists(
+        input.flexible_content_id,
+        contentType,
+        previousData.student_id
+      );
+      if (!contentCheck.exists) {
+        return {
+          success: false,
+          error: `콘텐츠를 찾을 수 없습니다. (ID: ${input.flexible_content_id.substring(0, 8)}...)`,
+        };
+      }
+    }
 
     const { data, error } = await supabase
       .from('ad_hoc_plans')
@@ -448,6 +484,21 @@ export async function createEnhancedAdHocPlan(
     const { userId } = await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
     const resolvedActorId = actorId ?? userId;
+
+    // FK 검증: flexibleContentId가 있는 경우 콘텐츠 존재 여부 확인
+    if (input.flexibleContentId) {
+      const contentCheck = await checkFlexibleContentExists(
+        input.flexibleContentId,
+        input.contentType ?? null,
+        input.studentId
+      );
+      if (!contentCheck.exists) {
+        return {
+          success: false,
+          error: `콘텐츠를 찾을 수 없습니다. (ID: ${input.flexibleContentId})`,
+        };
+      }
+    }
 
     const insertData: AdHocPlanInsert = {
       tenant_id: input.tenantId,
@@ -1021,6 +1072,21 @@ export async function createStudentAdHocPlan(
     }
 
     const supabase = await createSupabaseServerClient();
+
+    // FK 검증: content_link가 있는 경우 콘텐츠 존재 여부 확인
+    if (input.content_link?.content_id) {
+      const contentCheck = await checkFlexibleContentExists(
+        input.content_link.content_id,
+        input.content_link.content_type ?? null,
+        input.student_id
+      );
+      if (!contentCheck.exists) {
+        return {
+          success: false,
+          error: `콘텐츠를 찾을 수 없습니다. (ID: ${input.content_link.content_id})`,
+        };
+      }
+    }
 
     // 콘텐츠 연결 정보가 있으면 제목에 범위 포함
     const finalTitle = input.content_link

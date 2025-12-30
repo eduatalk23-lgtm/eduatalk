@@ -459,12 +459,19 @@ async function _generatePlansFromGroupRefactored(
   );
 
   // 마스터 콘텐츠 복사 (복사는 순차 처리 필요 - DB 트랜잭션)
-  // 복사 실패 시 contentIdMap에 매핑하지 않음 (외래 키 제약 조건 위반 방지)
+  // 복사 실패 시 에러 수집 후 임계점 도달 시 에러 발생
   // missingBookIds와 missingLectureIds는 resolvedContentId를 포함하므로,
   // 복사 후 원본 content_id를 키로 매핑해야 함
 
   // detail ID 매핑 수집 (마스터 → 학생)
   const masterToStudentDetailIdMap = new Map<string, string>();
+
+  // 복사 실패 추적
+  const copyFailures: Array<{
+    contentId: string;
+    contentType: "book" | "lecture";
+    reason: string;
+  }> = [];
 
   for (const resolvedContentId of missingBookIds) {
     if (masterBookIds.has(resolvedContentId)) {
@@ -492,14 +499,23 @@ async function _generatePlansFromGroupRefactored(
           console.warn(
             `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패: bookId가 없습니다.`
           );
-          // 복사 실패 시 contentIdMap에 매핑하지 않음
+          copyFailures.push({
+            contentId: resolvedContentId,
+            contentType: "book",
+            reason: "복사 결과에 bookId가 없음",
+          });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
         console.error(
           `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패:`,
           error
         );
-        // 복사 실패 시 contentIdMap에 매핑하지 않음
+        copyFailures.push({
+          contentId: resolvedContentId,
+          contentType: "book",
+          reason: errorMessage,
+        });
       }
     } else {
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
@@ -507,6 +523,11 @@ async function _generatePlansFromGroupRefactored(
       console.warn(
         `[generatePlansRefactored] 교재(${resolvedContentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다.`
       );
+      copyFailures.push({
+        contentId: resolvedContentId,
+        contentType: "book",
+        reason: "마스터/학생 테이블 모두에서 찾을 수 없음",
+      });
     }
   }
 
@@ -536,20 +557,71 @@ async function _generatePlansFromGroupRefactored(
           console.warn(
             `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패: lectureId가 없습니다.`
           );
-          // 복사 실패 시 contentIdMap에 매핑하지 않음
+          copyFailures.push({
+            contentId: resolvedContentId,
+            contentType: "lecture",
+            reason: "복사 결과에 lectureId가 없음",
+          });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
         console.error(
           `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패:`,
           error
         );
-        // 복사 실패 시 contentIdMap에 매핑하지 않음
+        copyFailures.push({
+          contentId: resolvedContentId,
+          contentType: "lecture",
+          reason: errorMessage,
+        });
       }
     } else {
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
       // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
       console.warn(
         `[generatePlansRefactored] 강의(${resolvedContentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
+      );
+      copyFailures.push({
+        contentId: resolvedContentId,
+        contentType: "lecture",
+        reason: "마스터/학생 테이블 모두에서 찾을 수 없음",
+      });
+    }
+  }
+
+  // 복사 실패가 있으면 에러 발생 (전체 콘텐츠 중 복사 실패가 있는 경우)
+  if (copyFailures.length > 0) {
+    const totalRequired = missingBookIds.length + missingLectureIds.length;
+    const failedCount = copyFailures.length;
+
+    console.error(
+      "[generatePlansRefactored] 마스터 콘텐츠 복사 실패 요약:",
+      {
+        groupId,
+        studentId,
+        totalRequired,
+        failedCount,
+        failures: copyFailures.map((f) => ({
+          id: f.contentId.substring(0, 8) + "...",
+          type: f.contentType,
+          reason: f.reason,
+        })),
+      }
+    );
+
+    // 모든 복사가 실패한 경우 에러 발생
+    // 부분 실패는 경고만 하고 계속 진행 (일부 콘텐츠만 있어도 플랜 생성 가능)
+    if (failedCount === totalRequired && totalRequired > 0) {
+      throw new AppError(
+        `콘텐츠 복사에 실패했습니다. 콘텐츠를 다시 선택하거나 잠시 후 다시 시도해주세요.`,
+        ErrorCode.INTERNAL_ERROR,
+        500,
+        true,
+        {
+          failedCount,
+          totalRequired,
+          failures: copyFailures,
+        }
       );
     }
   }

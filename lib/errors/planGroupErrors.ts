@@ -45,6 +45,10 @@ export const PlanGroupErrorCodes = {
   CONTENT_FETCH_FAILED: 'CONTENT_FETCH_FAILED',
   CONTENT_NOT_FOUND: 'CONTENT_NOT_FOUND',
   CONTENT_METADATA_FETCH_FAILED: 'CONTENT_METADATA_FETCH_FAILED',
+
+  // FK 관련
+  FK_VIOLATION: 'FK_VIOLATION',
+  FK_CONTENT_NOT_FOUND: 'FK_CONTENT_NOT_FOUND',
   
   // 스케줄 관련
   SCHEDULE_CALCULATION_FAILED: 'SCHEDULE_CALCULATION_FAILED',
@@ -87,6 +91,9 @@ export const ErrorUserMessages: Record<PlanGroupErrorCode, string> = {
   [PlanGroupErrorCodes.CONTENT_FETCH_FAILED]: '콘텐츠 정보를 불러올 수 없습니다.',
   [PlanGroupErrorCodes.CONTENT_NOT_FOUND]: '선택한 콘텐츠를 찾을 수 없습니다.',
   [PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED]: '콘텐츠 상세 정보를 불러올 수 없습니다.',
+
+  [PlanGroupErrorCodes.FK_VIOLATION]: '참조 데이터가 존재하지 않습니다. 데이터를 확인해주세요.',
+  [PlanGroupErrorCodes.FK_CONTENT_NOT_FOUND]: '연결하려는 콘텐츠를 찾을 수 없습니다. 콘텐츠가 삭제되었을 수 있습니다.',
 
   [PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED]: '스케줄 계산에 실패했습니다. 입력값을 확인해주세요.',
   [PlanGroupErrorCodes.SCHEDULE_INVALID]: '스케줄 정보가 유효하지 않습니다.',
@@ -205,6 +212,26 @@ export const ErrorActionGuides: Record<PlanGroupErrorCode, ErrorActionGuide> = {
     severity: 'error',
   },
 
+  [PlanGroupErrorCodes.FK_VIOLATION]: {
+    actions: [
+      '연결된 데이터가 삭제되었거나 변경되었을 수 있습니다',
+      '콘텐츠 또는 플랜 그룹 정보를 다시 확인해주세요',
+      '문제가 지속되면 관리자에게 문의해주세요',
+    ],
+    canRetry: false,
+    needsSupport: true,
+    severity: 'critical',
+  },
+  [PlanGroupErrorCodes.FK_CONTENT_NOT_FOUND]: {
+    actions: [
+      '선택한 콘텐츠가 삭제되었거나 접근 권한이 없을 수 있습니다',
+      '다른 콘텐츠를 선택하거나 콘텐츠 목록을 새로고침해주세요',
+    ],
+    canRetry: false,
+    needsSupport: true,
+    severity: 'error',
+  },
+
   [PlanGroupErrorCodes.SCHEDULE_CALCULATION_FAILED]: {
     actions: [
       '학습 기간 설정을 확인해주세요',
@@ -301,24 +328,52 @@ export function toPlanGroupError(
     // 에러 메시지를 분석하여 적절한 에러 코드로 매핑
     let errorCode = defaultCode;
     let userMessage = ErrorUserMessages[defaultCode];
+    let recoverable = false;
 
     const errorMessage = error.message.toLowerCase();
-    
+    // Supabase/PostgreSQL 에러 코드 추출
+    const errorObj = error as Error & { code?: string };
+    const pgErrorCode = errorObj.code || '';
+
+    // FK violation 에러 감지 (PostgreSQL 에러 코드 23503)
+    if (pgErrorCode === '23503' || errorMessage.includes('foreign key') || errorMessage.includes('fk_')) {
+      errorCode = PlanGroupErrorCodes.FK_VIOLATION;
+      userMessage = ErrorUserMessages[PlanGroupErrorCodes.FK_VIOLATION];
+
+      // 콘텐츠 관련 FK 에러인지 확인
+      if (errorMessage.includes('content') || errorMessage.includes('book') || errorMessage.includes('lecture')) {
+        errorCode = PlanGroupErrorCodes.FK_CONTENT_NOT_FOUND;
+        userMessage = ErrorUserMessages[PlanGroupErrorCodes.FK_CONTENT_NOT_FOUND];
+      }
+    }
     // 제외일 중복 에러 감지
-    if (errorMessage.includes('이미 등록된 제외일') || errorMessage.includes('exclusion') && errorMessage.includes('duplicate')) {
+    else if (errorMessage.includes('이미 등록된 제외일') || (errorMessage.includes('exclusion') && errorMessage.includes('duplicate'))) {
       errorCode = PlanGroupErrorCodes.EXCLUSION_DUPLICATE;
       // 원본 에러 메시지에 중복된 날짜 정보가 있으면 그대로 사용, 없으면 기본 메시지 사용
-      userMessage = error.message.includes('이미 등록된 제외일') 
-        ? error.message 
+      userMessage = error.message.includes('이미 등록된 제외일')
+        ? error.message
         : ErrorUserMessages[PlanGroupErrorCodes.EXCLUSION_DUPLICATE];
     }
+    // 콘텐츠 찾을 수 없음 에러 감지
+    else if (errorMessage.includes('콘텐츠를 찾을 수 없') || errorMessage.includes('content not found')) {
+      errorCode = PlanGroupErrorCodes.CONTENT_NOT_FOUND;
+      userMessage = error.message || ErrorUserMessages[PlanGroupErrorCodes.CONTENT_NOT_FOUND];
+    }
+    // 권한 에러 감지
+    else if (errorMessage.includes('권한') || errorMessage.includes('unauthorized') || errorMessage.includes('로그인')) {
+      errorCode = PlanGroupErrorCodes.UNAUTHORIZED;
+      userMessage = ErrorUserMessages[PlanGroupErrorCodes.UNAUTHORIZED];
+    }
+
+    // recoverable 여부 결정
+    recoverable = ErrorActionGuides[errorCode]?.canRetry ?? false;
 
     return new PlanGroupError(
       error.message,
       errorCode,
       userMessage,
-      false,
-      { ...context, originalError: error.message }
+      recoverable,
+      { ...context, originalError: error.message, pgErrorCode }
     );
   }
 

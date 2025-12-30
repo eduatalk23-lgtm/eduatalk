@@ -17,6 +17,8 @@ import {
 import {
   toPlanGroupError,
   PlanGroupErrorCodes,
+  getErrorInfo,
+  type PlanGroupError,
 } from "@/lib/errors/planGroupErrors";
 
 type UseStep7CompletionProps = {
@@ -71,7 +73,9 @@ export function useStep7Completion({
         const checkResult = await checkPlansExistAction(draftGroupId);
 
         if (!checkResult.hasPlans) {
-          toast.showError("플랜이 생성되지 않았습니다. 잠시 후 다시 시도해주세요.");
+          const errorInfo = getErrorInfo(PlanGroupErrorCodes.PLAN_GENERATION_FAILED);
+          toast.showError(errorInfo.message);
+          setErrors([errorInfo.message, ...errorInfo.guide.actions]);
           return;
         }
 
@@ -88,9 +92,10 @@ export function useStep7Completion({
         window.location.href = `/admin/plan-groups/${draftGroupId}`;
       } catch (error) {
         console.error("[useStep7Completion] 관리자 캠프 완료 처리 실패:", error);
-        const errorMessage = error instanceof Error ? error.message : "완료 처리에 실패했습니다.";
-        setErrors([errorMessage]);
-        toast.showError(errorMessage);
+        const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
+        const errorInfo = getErrorInfo(planGroupError.code as keyof typeof PlanGroupErrorCodes);
+        setErrors([planGroupError.userMessage, ...errorInfo.guide.actions]);
+        toast.showError(planGroupError.userMessage);
       }
       return;
     }
@@ -100,13 +105,16 @@ export function useStep7Completion({
     try {
       const checkResult = await checkPlansExistAction(draftGroupId);
       if (!checkResult.hasPlans) {
-        // 플랜이 없으면 경고만 표시 (Step 7에서 이미 생성되어야 함)
-        alert("플랜이 생성되지 않았습니다. 플랜 재생성 버튼을 클릭하여 다시 시도해주세요.");
+        // 플랜이 없으면 에러 표시 (Step 7에서 이미 생성되어야 함)
+        const errorInfo = getErrorInfo(PlanGroupErrorCodes.PLAN_GENERATION_FAILED);
+        toast.showError("플랜이 생성되지 않았습니다. 플랜 재생성 버튼을 클릭해주세요.");
+        setErrors([errorInfo.message, ...errorInfo.guide.actions]);
         return;
       }
     } catch (error) {
-      // 플랜 확인 실패는 경고만 표시하고 계속 진행
-      console.warn("[useStep7Completion] 플랜 확인 실패:", error);
+      // 플랜 확인 실패는 경고만 표시하고 계속 진행 (네트워크 문제일 수 있음)
+      const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
+      console.warn("[useStep7Completion] 플랜 확인 실패:", planGroupError.userMessage);
     }
 
     // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
@@ -152,8 +160,15 @@ export function useStep7Completion({
         router.refresh(); // 캐시 갱신
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       } catch (statusError) {
-        // 활성화 실패 시에도 리다이렉트 (경고만)
-        console.warn("플랜 그룹 활성화 실패:", statusError);
+        // 활성화 실패 시 구체적인 에러 로깅 후 리다이렉트
+        const planGroupError = toPlanGroupError(statusError, PlanGroupErrorCodes.PLAN_GROUP_UPDATE_FAILED);
+        console.warn("[useStep7Completion] 플랜 그룹 활성화 실패:", {
+          code: planGroupError.code,
+          message: planGroupError.userMessage,
+          context: planGroupError.context,
+        });
+        // 플랜은 생성되었으므로 저장된 상태로 이동 (활성화만 실패한 경우)
+        toast.showInfo("플랜이 저장되었습니다. 활성화는 상세 페이지에서 진행해주세요.");
         router.refresh(); // 캐시 갱신
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       }

@@ -24,6 +24,74 @@ import { getAvailableStudyDates, getReviewDates, distributeDailyAmounts } from "
 import { getContentPlanGroupCount } from "./queries";
 
 // ============================================
+// Rollback Helper Functions
+// ============================================
+
+/**
+ * 빠른 플랜 생성 실패 시 롤백을 수행합니다.
+ * 각 삭제 작업의 실패를 로깅하되, 전체 롤백을 계속 진행합니다.
+ */
+async function rollbackQuickCreate(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  planGroupId: string,
+  options?: {
+    deleteStudentPlans?: boolean;
+    deletePlanContents?: boolean;
+    deletePlanGroup?: boolean;
+  }
+): Promise<{ success: boolean; errors: string[] }> {
+  const errors: string[] = [];
+  const opts = {
+    deleteStudentPlans: true,
+    deletePlanContents: true,
+    deletePlanGroup: true,
+    ...options,
+  };
+
+  // 1. student_plan 삭제
+  if (opts.deleteStudentPlans) {
+    const { error: spErr } = await supabase
+      .from("student_plan")
+      .delete()
+      .eq("plan_group_id", planGroupId);
+    if (spErr) {
+      errors.push(`student_plan 삭제 실패: ${spErr.message}`);
+      console.error("[rollbackQuickCreate] student_plan 삭제 실패:", spErr);
+    }
+  }
+
+  // 2. plan_contents 삭제
+  if (opts.deletePlanContents) {
+    const { error: pcErr } = await supabase
+      .from("plan_contents")
+      .delete()
+      .eq("plan_group_id", planGroupId);
+    if (pcErr) {
+      errors.push(`plan_contents 삭제 실패: ${pcErr.message}`);
+      console.error("[rollbackQuickCreate] plan_contents 삭제 실패:", pcErr);
+    }
+  }
+
+  // 3. plan_groups 삭제
+  if (opts.deletePlanGroup) {
+    const { error: pgErr } = await supabase
+      .from("plan_groups")
+      .delete()
+      .eq("id", planGroupId);
+    if (pgErr) {
+      errors.push(`plan_groups 삭제 실패: ${pgErr.message}`);
+      console.error("[rollbackQuickCreate] plan_groups 삭제 실패:", pgErr);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error("[rollbackQuickCreate] 롤백 중 일부 실패:", errors);
+  }
+
+  return { success: errors.length === 0, errors };
+}
+
+// ============================================
 // Helper Functions
 // ============================================
 
@@ -217,7 +285,15 @@ export async function quickCreateFromContent(
 
     if (pcError) {
       console.error("Quick create plan content error:", pcError);
-      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      // 롤백: plan_group만 삭제 (plan_contents는 생성 실패)
+      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
+        deleteStudentPlans: false,
+        deletePlanContents: false,
+        deletePlanGroup: true,
+      });
+      if (!rollback.success) {
+        console.error("Rollback partial failure:", rollback.errors);
+      }
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
     }
 
@@ -272,8 +348,15 @@ export async function quickCreateFromContent(
 
     if (spError) {
       console.error("Quick create student plans error:", spError);
-      await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
-      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      // 롤백: plan_contents와 plan_groups 삭제 (student_plan은 생성 실패)
+      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
+        deleteStudentPlans: false,
+        deletePlanContents: true,
+        deletePlanGroup: true,
+      });
+      if (!rollback.success) {
+        console.error("Rollback partial failure:", rollback.errors);
+      }
       return { success: false, error: "플랜 생성에 실패했습니다." };
     }
 
@@ -445,8 +528,15 @@ export async function createQuickPlan(
 
     if (planError || !plan) {
       console.error("Failed to create quick plan:", planError);
-      // 롤백: plan_group 삭제
-      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      // 롤백: plan_group만 삭제 (student_plan은 생성 실패)
+      const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
+        deleteStudentPlans: false,
+        deletePlanContents: false,
+        deletePlanGroup: true,
+      });
+      if (!rollback.success) {
+        console.error("Rollback partial failure:", rollback.errors);
+      }
       return {
         success: false,
         error: planError?.message ?? "플랜 생성에 실패했습니다.",

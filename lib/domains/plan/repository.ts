@@ -601,6 +601,22 @@ export async function deleteStudentPlansByGroupId(
   if (error) throw error;
 }
 
+/**
+ * 플랜 그룹 아이템 삭제 (plan_group_id 기준)
+ */
+export async function deletePlanGroupItemsByGroupId(
+  planGroupId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("plan_group_items")
+    .delete()
+    .eq("plan_group_id", planGroupId);
+
+  if (error) throw error;
+}
+
 // ============================================
 // Plan Exclusion Repository
 // ============================================

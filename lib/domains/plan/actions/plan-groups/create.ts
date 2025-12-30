@@ -19,6 +19,8 @@ import {
   deletePlanContentsByGroupId,
   deleteExclusionsByGroupId,
   deleteAcademySchedulesByGroupId,
+  deleteStudentPlansByGroupId,
+  deletePlanGroupItemsByGroupId,
   checkPlanPeriodOverlap,
 } from "@/lib/domains/plan/repository";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -36,32 +38,149 @@ import { DAYS_PER_WEEK, MILLISECONDS_PER_DAY } from "@/lib/utils/time";
 
 /**
  * 플랜 그룹 생성 실패 시 관련 데이터를 모두 롤백합니다.
- * 삭제 순서: contents → exclusions → academy_schedules → plan_group
+ * 삭제 순서 (자식 → 부모): student_plan → plan_group_items → contents → exclusions → academy_schedules → plan_group
+ *
+ * CASCADE DELETE가 설정되어 있지만, soft delete 시에는 수동 정리가 필요합니다.
  */
 async function rollbackPlanGroupCreation(
   groupId: string,
   studentId: string
 ): Promise<void> {
+  console.log("[rollback] 플랜 그룹 롤백 시작:", { groupId, studentId });
+
   try {
-    // 1. 관련 데이터 삭제 (순서 중요: 자식 테이블부터)
-    await Promise.all([
-      deletePlanContentsByGroupId(groupId).catch((e) =>
-        console.error("[rollback] contents 삭제 실패:", e)
-      ),
-      deleteExclusionsByGroupId(groupId).catch((e) =>
-        console.error("[rollback] exclusions 삭제 실패:", e)
-      ),
-      deleteAcademySchedulesByGroupId(groupId).catch((e) =>
-        console.error("[rollback] academy_schedules 삭제 실패:", e)
-      ),
+    // 1. 모든 자식 테이블 데이터 삭제 (병렬 처리, 개별 에러 처리)
+    const deleteResults = await Promise.allSettled([
+      deleteStudentPlansByGroupId(groupId, studentId),
+      deletePlanGroupItemsByGroupId(groupId),
+      deletePlanContentsByGroupId(groupId),
+      deleteExclusionsByGroupId(groupId),
+      deleteAcademySchedulesByGroupId(groupId),
     ]);
+
+    // 삭제 결과 로깅
+    const tableNames = ["student_plan", "plan_group_items", "plan_contents", "plan_exclusions", "academy_schedules"];
+    deleteResults.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`[rollback] ${tableNames[index]} 삭제 실패:`, result.reason);
+      }
+    });
 
     // 2. plan_group 삭제 (soft delete)
     await deletePlanGroup(groupId, studentId);
+    console.log("[rollback] 플랜 그룹 롤백 완료:", groupId);
   } catch (error) {
     console.error("[rollback] 플랜 그룹 롤백 실패:", error);
     // 롤백 실패는 무시하고 원래 에러를 전파
   }
+}
+
+/**
+ * 원자적 플랜 그룹 생성을 위한 RPC 호출 헬퍼
+ *
+ * 이 함수는 Supabase RPC를 통해 plan_groups, plan_contents, plan_exclusions,
+ * academy_schedules를 하나의 트랜잭션 내에서 생성합니다.
+ * 어떤 단계에서든 실패하면 전체 트랜잭션이 자동으로 롤백됩니다.
+ */
+interface AtomicCreateResult {
+  success: boolean;
+  groupId?: string;
+  error?: string;
+  errorCode?: string;
+}
+
+interface PlanGroupAtomicInput {
+  name: string | null;
+  plan_purpose: string | null;
+  scheduler_type: string | null;
+  scheduler_options: Record<string, unknown> | null;
+  period_start: string;
+  period_end: string;
+  target_date: string | null;
+  block_set_id: string | null;
+  status: string;
+  subject_constraints: Record<string, unknown> | null;
+  additional_period_reallocation: Record<string, unknown> | null;
+  non_study_time_blocks: Record<string, unknown>[] | null;
+  daily_schedule: Record<string, unknown>[] | null;
+  plan_type: string | null;
+  camp_template_id: string | null;
+  camp_invitation_id: string | null;
+  use_slot_mode: boolean;
+  content_slots: Record<string, unknown>[] | null;
+}
+
+interface ContentInput {
+  content_type: string;
+  content_id: string;
+  master_content_id: string | null;
+  start_range: number | null;
+  end_range: number | null;
+  display_order: number;
+}
+
+interface ExclusionInput {
+  exclusion_date: string;
+  exclusion_type: string;
+  reason: string | null;
+}
+
+interface ScheduleInput {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  academy_name: string | null;
+  subject: string | null;
+  travel_time: number;
+  source: string;
+  is_locked: boolean;
+}
+
+async function createPlanGroupAtomic(
+  tenantId: string,
+  studentId: string,
+  planGroup: PlanGroupAtomicInput,
+  contents: ContentInput[],
+  exclusions: ExclusionInput[],
+  schedules: ScheduleInput[]
+): Promise<AtomicCreateResult> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase.rpc("create_plan_group_atomic", {
+    p_tenant_id: tenantId,
+    p_student_id: studentId,
+    p_plan_group: planGroup,
+    p_contents: contents,
+    p_exclusions: exclusions,
+    p_schedules: schedules,
+  });
+
+  if (error) {
+    console.error("[atomic-create] RPC 호출 실패:", error);
+    return {
+      success: false,
+      error: error.message,
+      errorCode: error.code,
+    };
+  }
+
+  // RPC 결과 파싱 (JSONB 반환)
+  const result = data as { success: boolean; group_id?: string; error?: string; error_code?: string };
+
+  if (!result.success) {
+    console.error("[atomic-create] 원자적 생성 실패:", result);
+    return {
+      success: false,
+      error: result.error || "원자적 플랜 그룹 생성에 실패했습니다.",
+      errorCode: result.error_code,
+    };
+  }
+
+  console.log("[atomic-create] 원자적 플랜 그룹 생성 성공:", result.group_id);
+  return {
+    success: true,
+    groupId: result.group_id,
+  };
 }
 
 /**
@@ -295,9 +414,93 @@ async function _createPlanGroup(
     );
   }
 
-  const groupResult = await createPlanGroup({
-    tenant_id: tenantContext.tenantId,
-    student_id: studentId, // 관리자 모드에서는 지정된 student_id 사용
+  // 학생 콘텐츠의 master_content_id 조회 (배치 조회) - RPC 호출 전에 준비
+  const masterContentIdMap = new Map<string, string | null>();
+  const bookIds = data.contents
+    .filter((c) => c.content_type === "book")
+    .map((c) => c.content_id);
+  const lectureIds = data.contents
+    .filter((c) => c.content_type === "lecture")
+    .map((c) => c.content_id);
+
+  if (bookIds.length > 0) {
+    const { data: books } = await supabase
+      .from("books")
+      .select("id, master_content_id")
+      .in("id", bookIds)
+      .eq("student_id", studentId);
+    books?.forEach((book) => {
+      masterContentIdMap.set(book.id, book.master_content_id || null);
+    });
+  }
+
+  if (lectureIds.length > 0) {
+    const { data: lectures } = await supabase
+      .from("lectures")
+      .select("id, master_content_id")
+      .in("id", lectureIds)
+      .eq("student_id", studentId);
+    lectures?.forEach((lecture) => {
+      masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
+    });
+  }
+
+  // 마스터 콘텐츠 ID를 그대로 저장 (복사는 플랜 생성 시에만 수행)
+  const processedContents = data.contents.map((c) => ({
+    content_type: c.content_type,
+    content_id: c.content_id,
+    master_content_id: c.master_content_id ?? (masterContentIdMap.get(c.content_id) || null),
+    start_range: c.start_range ?? null,
+    end_range: c.end_range ?? null,
+    display_order: c.display_order ?? 0,
+  }));
+
+  // 제외일 위계 기반 중복 제거 (캠프 모드)
+  let processedExclusions = data.exclusions;
+  const isCampMode = data.plan_type === "camp";
+
+  if (isCampMode && data.exclusions && data.exclusions.length > 0) {
+    const exclusionMap = new Map<string, typeof data.exclusions[0]>();
+
+    for (const exclusion of data.exclusions) {
+      const existing = exclusionMap.get(exclusion.exclusion_date);
+
+      if (existing) {
+        const higherType = getHigherPriorityExclusionType(
+          exclusion.exclusion_type,
+          existing.exclusion_type
+        );
+        if (higherType === exclusion.exclusion_type) {
+          exclusionMap.set(exclusion.exclusion_date, exclusion);
+        }
+      } else {
+        exclusionMap.set(exclusion.exclusion_date, exclusion);
+      }
+    }
+
+    processedExclusions = Array.from(exclusionMap.values());
+  }
+
+  // 제외일 및 학원 일정 데이터 준비
+  const exclusionsData = processedExclusions.map((e) => ({
+    exclusion_date: e.exclusion_date,
+    exclusion_type: e.exclusion_type,
+    reason: e.reason || null,
+  }));
+
+  const schedulesData = data.academy_schedules.map((s) => ({
+    day_of_week: s.day_of_week,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    academy_name: s.academy_name || null,
+    subject: s.subject || null,
+    travel_time: s.travel_time ?? 0,
+    source: s.source ?? "student",
+    is_locked: s.is_locked ?? false,
+  }));
+
+  // 플랜 그룹 데이터 준비
+  const planGroupData: PlanGroupAtomicInput = {
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type,
@@ -314,19 +517,28 @@ async function _createPlanGroup(
     additional_period_reallocation: data.additional_period_reallocation || null,
     non_study_time_blocks: data.non_study_time_blocks || null,
     daily_schedule: data.daily_schedule || null,
-    // 캠프 관련 필드
     plan_type: data.plan_type || null,
     camp_template_id: data.camp_template_id || null,
     camp_invitation_id: data.camp_invitation_id || null,
-    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: data.content_slots || null,
-  });
+  };
 
-  if (!groupResult.success || !groupResult.groupId) {
+  // 원자적 플랜 그룹 생성 (plan_groups + plan_contents + plan_exclusions + academy_schedules)
+  // 하나의 트랜잭션 내에서 모든 테이블에 데이터 삽입, 실패 시 자동 롤백
+  const atomicResult = await createPlanGroupAtomic(
+    tenantContext.tenantId,
+    studentId,
+    planGroupData,
+    processedContents,
+    exclusionsData,
+    schedulesData
+  );
+
+  if (!atomicResult.success || !atomicResult.groupId) {
     // Unique violation (23505): 동시 요청으로 인한 중복 생성 시도
     // 기존 draft를 찾아서 업데이트
-    if (groupResult.errorCode === "23505") {
+    if (atomicResult.errorCode === "23505") {
       const retryExistingGroup = await findExistingDraftPlanGroup(
         supabase,
         studentId,
@@ -341,153 +553,14 @@ async function _createPlanGroup(
     }
 
     throw new AppError(
-      groupResult.error || "플랜 그룹 생성에 실패했습니다.",
+      atomicResult.error || "플랜 그룹 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
     );
   }
 
-  const groupId = groupResult.groupId;
-
-  // 학생 콘텐츠의 master_content_id 조회 (배치 조회)
-  const masterContentIdMap = new Map<string, string | null>();
-  const bookIds = data.contents
-    .filter((c) => c.content_type === "book")
-    .map((c) => c.content_id);
-  const lectureIds = data.contents
-    .filter((c) => c.content_type === "lecture")
-    .map((c) => c.content_id);
-
-  if (bookIds.length > 0) {
-    const { data: books } = await supabase
-      .from("books")
-      .select("id, master_content_id")
-      .in("id", bookIds)
-      .eq("student_id", studentId); // student_id로 조회
-    books?.forEach((book) => {
-      masterContentIdMap.set(book.id, book.master_content_id || null);
-    });
-  }
-
-  if (lectureIds.length > 0) {
-    const { data: lectures } = await supabase
-      .from("lectures")
-      .select("id, master_content_id")
-      .in("id", lectureIds)
-      .eq("student_id", studentId); // student_id로 조회
-    lectures?.forEach((lecture) => {
-      masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
-    });
-  }
-
-  // 마스터 콘텐츠 ID를 그대로 저장 (복사는 플랜 생성 시에만 수행)
-  // 이렇게 하면 불러올 때 마스터 콘텐츠로 올바르게 인식할 수 있음
-  const processedContents = data.contents.map((c) => ({
-    content_type: c.content_type,
-    content_id: c.content_id, // 마스터 콘텐츠 ID 그대로 저장
-    // 이미 설정된 master_content_id가 있으면 우선 사용 (planGroupDataSync에서 설정)
-    // 없으면 학생 콘텐츠의 master_content_id 조회
-    master_content_id: c.master_content_id ?? (masterContentIdMap.get(c.content_id) || null),
-    start_range: c.start_range,
-    end_range: c.end_range,
-    display_order: c.display_order ?? 0,
-  }));
-
-  // 제외일 위계 기반 중복 제거 (캠프 모드)
-  // 같은 날짜에 여러 제외일이 있으면 위계가 높은 것만 남기기
-  let processedExclusions = data.exclusions;
-  const isCampMode = data.plan_type === "camp";
-  
-  if (isCampMode && data.exclusions && data.exclusions.length > 0) {
-    const exclusionMap = new Map<string, typeof data.exclusions[0]>();
-    
-    for (const exclusion of data.exclusions) {
-      const existing = exclusionMap.get(exclusion.exclusion_date);
-      
-      if (existing) {
-        // 같은 날짜에 이미 제외일이 있으면 위계 비교
-        const higherType = getHigherPriorityExclusionType(
-          exclusion.exclusion_type,
-          existing.exclusion_type
-        );
-        
-        // 더 높은 위계의 제외일로 교체
-        if (higherType === exclusion.exclusion_type) {
-          exclusionMap.set(exclusion.exclusion_date, exclusion);
-        }
-        // existing이 더 높은 위계면 유지 (변경 없음)
-      } else {
-        // 새로운 날짜면 추가
-        exclusionMap.set(exclusion.exclusion_date, exclusion);
-      }
-    }
-    
-    processedExclusions = Array.from(exclusionMap.values());
-  }
-
-  // 관련 데이터 일괄 생성
-  // 제외일은 플랜 그룹별 관리, 학원 일정은 학생별 전역 관리
-  const [contentsResult, exclusionsResult, schedulesResult] = await Promise.all(
-    [
-      createPlanContents(groupId, tenantContext.tenantId, processedContents),
-      createPlanExclusions(
-        groupId,
-        tenantContext.tenantId,
-        processedExclusions.map((e) => ({
-          exclusion_date: e.exclusion_date,
-          exclusion_type: e.exclusion_type,
-          reason: e.reason || null,
-        }))
-      ),
-      createPlanAcademySchedules(
-        groupId,
-        tenantContext.tenantId,
-        data.academy_schedules.map((s) => ({
-          day_of_week: s.day_of_week,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          academy_name: s.academy_name || null,
-          subject: s.subject || null,
-          travel_time: s.travel_time,
-          source: s.source,
-          is_locked: s.is_locked,
-        })),
-        isCampMode // 캠프 모드일 때 Admin 클라이언트 사용 (RLS 우회)
-      ),
-    ]
-  );
-
-  // 하나라도 실패하면 전체 롤백 (관련 데이터 모두 삭제)
-  if (!contentsResult.success) {
-    await rollbackPlanGroupCreation(groupId, studentId);
-    throw new AppError(
-      contentsResult.error || "플랜 콘텐츠 생성에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-
-  if (!exclusionsResult.success) {
-    await rollbackPlanGroupCreation(groupId, studentId);
-    throw new AppError(
-      exclusionsResult.error || "플랜 제외일 생성에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
-
-  if (!schedulesResult.success) {
-    await rollbackPlanGroupCreation(groupId, studentId);
-    throw new AppError(
-      schedulesResult.error || "학원 일정 생성에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true
-    );
-  }
+  const groupId = atomicResult.groupId;
 
   revalidatePath("/plan");
   return { groupId };

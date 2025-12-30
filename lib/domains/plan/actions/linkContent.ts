@@ -166,7 +166,7 @@ export async function linkContentToVirtualPlan(
       ? "books"
       : contentInfo.contentType === "lecture"
         ? "lectures"
-        : "student_custom_contents";
+        : "custom_contents";
 
     const { data: content, error: contentError } = await supabase
       .from(contentTable)
