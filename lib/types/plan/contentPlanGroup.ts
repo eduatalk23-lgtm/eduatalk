@@ -7,7 +7,12 @@
  * - 전략/취약 과목 배분
  */
 
-import type { PlanGroup, SchedulerOptions } from './domain';
+import type {
+  PlanGroup,
+  SchedulerOptions,
+  TimeSettings,
+  NonStudyTimeBlock,
+} from './domain';
 
 // ============================================================
 // 기본 타입
@@ -40,6 +45,9 @@ export type RangeUnit = 'page' | 'episode' | 'day' | 'chapter' | 'unit';
 
 /**
  * 템플릿(위저드 플랜그룹)에서 상속받는 설정값
+ *
+ * P3 확장: timeSettings, nonStudyTimeBlocks 추가
+ * 콘텐츠 기반 플랜 생성 시 위저드 템플릿의 모든 설정을 상속
  */
 export interface InheritedTemplateSettings {
   /** 학습 기간 */
@@ -67,6 +75,10 @@ export interface InheritedTemplateSettings {
     studyDays: number;
     reviewDays: number;
   };
+  /** 시간 설정 (점심시간, 캠프학습시간 등) - P3 추가 */
+  timeSettings?: TimeSettings | null;
+  /** 학습 제외 시간대 (식사, 수면 등) - P3 추가 */
+  nonStudyTimeBlocks?: NonStudyTimeBlock[] | null;
 }
 
 // ============================================================

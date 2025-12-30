@@ -15,7 +15,7 @@ import type {
   GetTemplateSettingsParams,
   StudyType,
 } from "@/lib/types/plan";
-import type { PlanGroup } from "@/lib/types/plan";
+import type { PlanGroup, TimeSettings, NonStudyTimeBlock } from "@/lib/types/plan";
 import { MAX_CONTENT_PLAN_GROUPS, type PlanGroupSummary } from "./types";
 import { getDefaultRecommendation } from "./helpers";
 
@@ -141,6 +141,31 @@ export async function getTemplateSettings(
   const weekdays =
     (schedulerOptions?.weekdays as number[]) ?? [1, 2, 3, 4, 5]; // 기본: 월-금
 
+  // P3: 추가 설정 추출
+  // 시간 설정 추출 (scheduler_options에서)
+  const timeSettings: TimeSettings | null = schedulerOptions
+    ? {
+        lunch_time: schedulerOptions.lunch_time as TimeSettings["lunch_time"],
+        camp_study_hours: schedulerOptions.camp_study_hours as TimeSettings["camp_study_hours"],
+        camp_self_study_hours: schedulerOptions.camp_self_study_hours as TimeSettings["camp_self_study_hours"],
+        designated_holiday_hours: schedulerOptions.designated_holiday_hours as TimeSettings["designated_holiday_hours"],
+        use_self_study_with_blocks: schedulerOptions.use_self_study_with_blocks as boolean | undefined,
+        enable_self_study_for_holidays: schedulerOptions.enable_self_study_for_holidays as boolean | undefined,
+        enable_self_study_for_study_days: schedulerOptions.enable_self_study_for_study_days as boolean | undefined,
+      }
+    : null;
+
+  // 학습/복습 주기 추출
+  const studyReviewCycle = schedulerOptions
+    ? {
+        studyDays: (schedulerOptions.study_days as number) ?? 6,
+        reviewDays: (schedulerOptions.review_days as number) ?? 1,
+      }
+    : undefined;
+
+  // non_study_time_blocks 추출
+  const nonStudyTimeBlocks = template.non_study_time_blocks as NonStudyTimeBlock[] | null;
+
   return {
     period: {
       startDate: template.period_start,
@@ -152,6 +177,10 @@ export async function getTemplateSettings(
     selfStudyHours: template.self_study_hours,
     exclusions,
     schedulerOptions: template.scheduler_options as InheritedTemplateSettings["schedulerOptions"],
+    // P3: 추가 필드
+    studyReviewCycle,
+    timeSettings,
+    nonStudyTimeBlocks,
   };
 }
 

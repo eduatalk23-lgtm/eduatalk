@@ -383,6 +383,27 @@ export async function createContentPlanGroup(
     }
 
     // 5. 플랜그룹 생성
+    // P3: 템플릿의 timeSettings, studyReviewCycle, nonStudyTimeBlocks 상속
+    const mergedSchedulerOptions = {
+      ...templateSettings.schedulerOptions,
+      weekdays,
+      // P3: timeSettings 병합
+      ...(templateSettings.timeSettings && {
+        lunch_time: templateSettings.timeSettings.lunch_time,
+        camp_study_hours: templateSettings.timeSettings.camp_study_hours,
+        camp_self_study_hours: templateSettings.timeSettings.camp_self_study_hours,
+        designated_holiday_hours: templateSettings.timeSettings.designated_holiday_hours,
+        use_self_study_with_blocks: templateSettings.timeSettings.use_self_study_with_blocks,
+        enable_self_study_for_holidays: templateSettings.timeSettings.enable_self_study_for_holidays,
+        enable_self_study_for_study_days: templateSettings.timeSettings.enable_self_study_for_study_days,
+      }),
+      // P3: studyReviewCycle 병합
+      ...(templateSettings.studyReviewCycle && {
+        study_days: templateSettings.studyReviewCycle.studyDays,
+        review_days: templateSettings.studyReviewCycle.reviewDays,
+      }),
+    };
+
     const { data: planGroup, error: pgError } = await supabase
       .from("plan_groups")
       .insert({
@@ -400,12 +421,11 @@ export async function createContentPlanGroup(
           input.studyType.type === "strategy"
             ? input.studyType.daysPerWeek ?? null
             : null,
-        scheduler_options: {
-          ...templateSettings.schedulerOptions,
-          weekdays,
-        },
+        scheduler_options: mergedSchedulerOptions,
         study_hours: templateSettings.studyHours,
         self_study_hours: templateSettings.selfStudyHours,
+        // P3: nonStudyTimeBlocks 상속
+        non_study_time_blocks: templateSettings.nonStudyTimeBlocks ?? null,
       })
       .select()
       .single();

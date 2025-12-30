@@ -50,6 +50,17 @@ import {
   type DailyScheduleInfo,
 } from "@/lib/plan/virtualSchedulePreview";
 import type { ContentSlot } from "@/lib/types/content-selection";
+import {
+  shouldUseCachedDailySchedule,
+  reconstructScheduleResult,
+} from "@/lib/domains/plan/utils/dailyScheduleReconstructor";
+import {
+  validateSubjectConstraints,
+  formatValidationResultForLog,
+  getValidationErrorMessage,
+  type ContentMetadataForValidation,
+} from "@/lib/domains/plan/utils/subjectConstraintValidator";
+import type { SubjectConstraints } from "@/lib/types/plan/domain";
 
 /**
  * 리팩토링된 _generatePlansFromGroup 함수
@@ -137,47 +148,66 @@ async function _generatePlansFromGroupRefactored(
   // scheduler_options에서 TimeSettings 추출 (타입 안전하게)
   const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);
 
-  // 4. 스케줄 계산
-  const scheduleResult = calculateAvailableDates(
+  // 4. 스케줄 계산 (P1 최적화: 저장된 daily_schedule 재사용)
+  // 저장된 daily_schedule이 유효하면 재계산 없이 재사용
+  const cachedScheduleCheck = shouldUseCachedDailySchedule(
+    group.daily_schedule,
     group.period_start,
-    group.period_end,
-    baseBlocks.map((b) => ({
-      day_of_week: b.day_of_week,
-      start_time: b.start_time,
-      end_time: b.end_time,
-    })),
-    exclusions.map((e) => ({
-      exclusion_date: e.exclusion_date,
-      exclusion_type: e.exclusion_type as
-        | "휴가"
-        | "개인사정"
-        | "휴일지정"
-        | "기타",
-      reason: e.reason || undefined,
-    })),
-    academySchedules.map((a) => ({
-      day_of_week: a.day_of_week,
-      start_time: a.start_time,
-      end_time: a.end_time,
-      academy_name: a.academy_name || undefined,
-      subject: a.subject || undefined,
-      travel_time: a.travel_time || undefined,
-    })),
-    {
-      scheduler_type: "1730_timetable",
-      scheduler_options: schedulerOptions || null,
-      use_self_study_with_blocks: true,
-      enable_self_study_for_holidays:
-        groupSchedulerOptions?.enable_self_study_for_holidays === true,
-      enable_self_study_for_study_days:
-        groupSchedulerOptions?.enable_self_study_for_study_days === true,
-      lunch_time: schedulerOptions.lunch_time,
-      camp_study_hours: schedulerOptions.camp_study_hours,
-      camp_self_study_hours: schedulerOptions.self_study_hours,
-      designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours,
-      non_study_time_blocks: group.non_study_time_blocks || undefined,
-    }
+    group.period_end
   );
+
+  let scheduleResult: import("@/lib/scheduler/calculateAvailableDates").ScheduleAvailabilityResult;
+
+  if (!cachedScheduleCheck.shouldRecalculate && cachedScheduleCheck.storedSchedule) {
+    // 저장된 daily_schedule 재사용 (성능 최적화)
+    scheduleResult = reconstructScheduleResult(
+      cachedScheduleCheck.storedSchedule,
+      group.period_start,
+      group.period_end
+    );
+  } else {
+    // 재계산 필요한 경우 calculateAvailableDates 호출
+    scheduleResult = calculateAvailableDates(
+      group.period_start,
+      group.period_end,
+      baseBlocks.map((b) => ({
+        day_of_week: b.day_of_week,
+        start_time: b.start_time,
+        end_time: b.end_time,
+      })),
+      exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type as
+          | "휴가"
+          | "개인사정"
+          | "휴일지정"
+          | "기타",
+        reason: e.reason || undefined,
+      })),
+      academySchedules.map((a) => ({
+        day_of_week: a.day_of_week,
+        start_time: a.start_time,
+        end_time: a.end_time,
+        academy_name: a.academy_name || undefined,
+        subject: a.subject || undefined,
+        travel_time: a.travel_time || undefined,
+      })),
+      {
+        scheduler_type: "1730_timetable",
+        scheduler_options: schedulerOptions || null,
+        use_self_study_with_blocks: true,
+        enable_self_study_for_holidays:
+          groupSchedulerOptions?.enable_self_study_for_holidays === true,
+        enable_self_study_for_study_days:
+          groupSchedulerOptions?.enable_self_study_for_study_days === true,
+        lunch_time: schedulerOptions.lunch_time,
+        camp_study_hours: schedulerOptions.camp_study_hours,
+        camp_self_study_hours: schedulerOptions.self_study_hours,
+        designated_holiday_hours: groupSchedulerOptions?.designated_holiday_hours,
+        non_study_time_blocks: group.non_study_time_blocks || undefined,
+      }
+    );
+  }
 
   // 5. 스케줄 맵 추출 (새 모듈 사용)
   const { dateTimeSlots, dateMetadataMap, weekDatesMap } =
@@ -727,7 +757,66 @@ async function _generatePlansFromGroupRefactored(
     masterQueryClient
   );
 
-  // 9.5. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
+  // 9.5 P2: subject_constraints 검증
+  // 플랜 그룹에 저장된 subject_constraints가 있으면 콘텐츠 검증 수행
+  if (group.subject_constraints) {
+    const subjectConstraints = group.subject_constraints as SubjectConstraints;
+
+    // 콘텐츠 메타데이터를 검증용 형식으로 변환
+    const contentsForValidation: ContentMetadataForValidation[] = contents
+      .filter((c) => !isDummyContent(c.content_id))
+      .map((c) => {
+        const metadata = contentMetadataMap.get(c.content_id) || {};
+        return {
+          contentId: c.content_id,
+          title: metadata.title,
+          subject: metadata.subject,
+          subject_category: metadata.subject_category,
+        };
+      });
+
+    const validationResult = validateSubjectConstraints(
+      contentsForValidation,
+      subjectConstraints
+    );
+
+    // 검증 결과 로깅
+    console.log(
+      "[generatePlansRefactored] subject_constraints 검증 결과:",
+      {
+        groupId,
+        isValid: validationResult.isValid,
+        hasWarnings: validationResult.hasWarnings,
+        summary: validationResult.summary,
+        details: formatValidationResultForLog(validationResult),
+      }
+    );
+
+    // strict 모드에서 에러가 있으면 플랜 생성 차단
+    if (!validationResult.isValid) {
+      const errorMessage = getValidationErrorMessage(validationResult);
+      throw new AppError(
+        errorMessage || "과목 제약 조건을 충족하지 못했습니다.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true,
+        {
+          constraintViolations: validationResult.errors,
+          summary: validationResult.summary,
+        }
+      );
+    }
+
+    // 경고가 있는 경우 로그만 남기고 계속 진행
+    if (validationResult.hasWarnings) {
+      console.warn(
+        "[generatePlansRefactored] subject_constraints 경고 - 플랜 생성은 계속됨:",
+        validationResult.warnings.map((w) => w.message)
+      );
+    }
+  }
+
+  // 9.6. 콘텐츠 chapter 정보 조회 (start_detail_id/end_detail_id 사용)
   // 캠프 모드에서는 마스터 테이블의 detail ID를 사용할 수 있으므로 masterQueryClient도 전달
   const contentChapterMap = await loadContentChapters(
     contents,
