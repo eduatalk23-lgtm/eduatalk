@@ -396,3 +396,116 @@ export function isRecoverableError(error: unknown): boolean {
   return false;
 }
 
+/**
+ * M4 개선: DB 에러 메시지를 사용자 친화적 메시지로 변환
+ *
+ * 이 함수는 DB 에러 메시지(테이블명, 컬럼명 등 스키마 정보 포함)를
+ * 사용자에게 노출해도 안전한 메시지로 변환합니다.
+ *
+ * @param error - 원본 에러 (Error 객체 또는 unknown)
+ * @param fallbackMessage - 매핑되지 않는 경우 사용할 기본 메시지
+ * @returns 사용자에게 표시할 안전한 에러 메시지
+ *
+ * @example
+ * ```typescript
+ * catch (error) {
+ *   return {
+ *     success: false,
+ *     error: getSafeErrorMessage(error, "플랜 저장에 실패했습니다.")
+ *   };
+ * }
+ * ```
+ */
+export function getSafeErrorMessage(
+  error: unknown,
+  fallbackMessage: string = "예상치 못한 오류가 발생했습니다."
+): string {
+  // PlanGroupError인 경우 userMessage 사용
+  if (error instanceof PlanGroupError) {
+    return error.userMessage;
+  }
+
+  if (!(error instanceof Error)) {
+    return fallbackMessage;
+  }
+
+  const errorMessage = error.message.toLowerCase();
+  const errorObj = error as Error & { code?: string };
+  const pgErrorCode = errorObj.code || '';
+
+  // PostgreSQL 에러 코드 기반 매핑
+  const pgErrorMap: Record<string, string> = {
+    '23503': '참조 데이터가 존재하지 않습니다. 데이터를 확인해주세요.',  // FK violation
+    '23505': '이미 존재하는 데이터입니다.',  // Unique violation
+    '23502': '필수 항목이 누락되었습니다.',  // NOT NULL violation
+    '23514': '입력값이 허용 범위를 벗어났습니다.',  // Check violation
+    '42501': '권한이 없습니다.',  // Insufficient privilege
+    '42P01': '데이터를 찾을 수 없습니다.',  // Undefined table
+    '57014': '요청 시간이 초과되었습니다. 다시 시도해주세요.',  // Query canceled (timeout)
+    'PGRST116': '데이터를 찾을 수 없습니다.',  // PostgREST not found
+  };
+
+  if (pgErrorCode && pgErrorMap[pgErrorCode]) {
+    return pgErrorMap[pgErrorCode];
+  }
+
+  // 에러 메시지 패턴 기반 매핑
+  const patternMap: Array<{ pattern: RegExp | string; message: string }> = [
+    { pattern: /foreign key/i, message: '참조 데이터가 존재하지 않습니다.' },
+    { pattern: /unique.*constraint/i, message: '이미 존재하는 데이터입니다.' },
+    { pattern: /not.null.*constraint/i, message: '필수 항목이 누락되었습니다.' },
+    { pattern: /timeout|timed out/i, message: '요청 시간이 초과되었습니다. 다시 시도해주세요.' },
+    { pattern: /network|connection|fetch/i, message: '네트워크 연결을 확인해주세요.' },
+    { pattern: /unauthorized|permission|denied|권한/i, message: '권한이 없습니다. 로그인 상태를 확인해주세요.' },
+    { pattern: /not found|찾을 수 없/i, message: '데이터를 찾을 수 없습니다.' },
+    { pattern: /invalid.*input|잘못된.*입력/i, message: '입력값을 확인해주세요.' },
+    { pattern: /duplicate|중복/i, message: '이미 존재하는 데이터입니다.' },
+  ];
+
+  for (const { pattern, message } of patternMap) {
+    if (typeof pattern === 'string' ? errorMessage.includes(pattern) : pattern.test(errorMessage)) {
+      return message;
+    }
+  }
+
+  // 한글 메시지는 사용자에게 직접 표시해도 괜찮음
+  // 단, 너무 기술적인 내용이 아닌 경우에만
+  if (/^[가-힣\s.,!?]+$/.test(error.message) && error.message.length < 100) {
+    return error.message;
+  }
+
+  // 매핑되지 않은 경우 fallback 메시지 반환
+  return fallbackMessage;
+}
+
+/**
+ * M4 개선: 에러를 로깅하면서 안전한 메시지를 반환하는 헬퍼
+ *
+ * 개발자용 로그에는 전체 에러 정보를 기록하고,
+ * 사용자에게는 안전한 메시지만 반환합니다.
+ *
+ * @param error - 원본 에러
+ * @param context - 로깅에 포함할 컨텍스트 정보
+ * @param fallbackMessage - 사용자에게 보여줄 기본 메시지
+ * @returns 사용자에게 표시할 안전한 에러 메시지
+ */
+export function logAndGetSafeError(
+  error: unknown,
+  context: string,
+  fallbackMessage?: string
+): string {
+  // 개발자용 전체 로그
+  console.error(`[${context}] Error:`, error);
+
+  // 추가 컨텍스트 로깅
+  if (error instanceof Error) {
+    const errorObj = error as Error & { code?: string; details?: string; hint?: string };
+    if (errorObj.code) console.error(`[${context}] Error code:`, errorObj.code);
+    if (errorObj.details) console.error(`[${context}] Details:`, errorObj.details);
+    if (errorObj.hint) console.error(`[${context}] Hint:`, errorObj.hint);
+  }
+
+  // 사용자용 안전한 메시지 반환
+  return getSafeErrorMessage(error, fallbackMessage);
+}
+
