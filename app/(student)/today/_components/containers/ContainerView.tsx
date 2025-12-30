@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { ContainerDock } from './ContainerDock';
 import { ContainerDragDropProvider } from './ContainerDragDropContext';
-import { startPlan } from '@/lib/domains/today/actions/timer';
+import { startPlanUnified } from '@/lib/domains/today/actions/timer';
 import type { ContainerSummary } from '@/lib/domains/today/actions/containerPlans';
 import type { ContainerType } from '@/lib/domains/admin-plan/types';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -36,18 +36,18 @@ export function ContainerView({ data, date }: ContainerViewProps) {
       if (planType === 'student_plan') {
         router.push(`/today/plan/${planId}`);
       } else {
-        router.push(`/today/plan/${planId}?type=adhoc`);
+        router.push(`/today/plan/${planId}?mode=adhoc`);
       }
       return;
     }
 
     // Optimistic Update: 즉시 Zustand 상태 업데이트
     const timestamp = new Date().toISOString();
-    timerStore.startTimer(planId, Date.now(), timestamp);
+    timerStore.startTimer(planId, Date.now(), timestamp, planType);
 
-    // 새로 시작하는 경우: startPlan 호출 후 서버 데이터와 동기화
+    // 새로 시작하는 경우: startPlanUnified 호출 후 서버 데이터와 동기화
     startTransition(async () => {
-      const result = await startPlan(planId, timestamp);
+      const result = await startPlanUnified(planId, planType, timestamp);
       if (result.success) {
         // 서버 시간으로 동기화
         if (result.serverNow) {

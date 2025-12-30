@@ -43,6 +43,10 @@ export type QuickCreateInput = {
     weekdays: number[]; // 0-6 (일-토)
     studyType: StudyType;
     reviewEnabled?: boolean;
+    /** 복습 설정 모드: inherit(캘린더 설정 따르기) | custom(새로 설정) */
+    reviewMode?: "inherit" | "custom";
+    /** custom 모드일 때 복습 요일 (0-6, 일-토) */
+    reviewDayOfWeek?: number;
   };
 };
 
@@ -64,6 +68,7 @@ export type CreateQuickPlanResult = {
   success: boolean;
   planId?: string;
   planGroupId?: string;
+  flexibleContentId?: string;
   error?: string;
 };
 
@@ -105,4 +110,17 @@ export type ReviewDate = {
   date: Date;
   weekNumber: number;
   plansToReview: Date[];
+};
+
+/**
+ * 복습 설정 타입
+ * 사용자가 복습일 설정 방식을 선택할 수 있도록 함
+ */
+export type ReviewSettings = {
+  /** 복습 설정 모드: inherit(캘린더 설정 따르기) | custom(새로 설정) */
+  mode: "inherit" | "custom";
+  /** 복습 활성화 여부 */
+  enabled: boolean;
+  /** custom 모드일 때 복습 요일 (0-6, 일-토) */
+  customDayOfWeek?: number;
 };

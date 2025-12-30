@@ -1061,7 +1061,7 @@ async function _saveCalendarOnlyPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
-    status: "active", // draft가 아닌 active로 생성
+    status: "draft", // 캘린더 전용은 draft로 생성, 콘텐츠 추가 후 active로 변경
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
     non_study_time_blocks: data.non_study_time_blocks || null,

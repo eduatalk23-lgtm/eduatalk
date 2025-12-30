@@ -28,6 +28,11 @@ import type {
 import { TIMER_ERRORS } from "../errors";
 import { timerLogger } from "../logger";
 import { updateGamificationOnPlanComplete } from "@/lib/domains/gamification";
+import {
+  startAdHocPlan,
+  completeAdHocPlan,
+  cancelAdHocPlan,
+} from "./adHocTimer";
 
 /**
  * 서버 현재 시간 조회
@@ -367,12 +372,14 @@ export async function completePlan(
 
     // 같은 plan_number를 가진 모든 플랜의 student_content_progress에 기록 (N+1 → upsert 배치)
     const progressTimestamp = new Date().toISOString();
+    // Calendar-First: content_id가 빈 문자열이면 null로 변환 (UUID 타입 호환성)
+    const normalizedContentId = plan.content_id && plan.content_id.trim() !== "" ? plan.content_id : null;
     const progressPayloads = planIds.map((planIdForProgress) => ({
       student_id: user.userId,
       tenant_id: tenantId,
       plan_id: planIdForProgress,
       content_type: plan.content_type,
-      content_id: plan.content_id,
+      content_id: normalizedContentId,
       progress: progress,
       start_page_or_time: payload.startPageOrTime,
       end_page_or_time: payload.endPageOrTime,
@@ -396,43 +403,46 @@ export async function completePlan(
     }
 
     // content_type + content_id로도 진행률 업데이트 (전체 진행률)
-    const { data: existingContentProgress } = await supabase
-      .from("student_content_progress")
-      .select("id,completed_amount")
-      .eq("student_id", user.userId)
-      .eq("content_type", plan.content_type)
-      .eq("content_id", plan.content_id)
-      .is("plan_id", null)
-      .maybeSingle();
-
-    if (existingContentProgress) {
-      // 기존 완료량에 추가
-      const newCompletedAmount =
-        (existingContentProgress.completed_amount || 0) + completedAmount;
-      const newProgress = Math.min(
-        Math.round((newCompletedAmount / totalAmount) * 100),
-        100
-      );
-
-      await supabase
+    // Calendar-First: content_id가 null이거나 빈 문자열인 경우 (자유 학습) 전체 진행률 업데이트 스킵
+    if (normalizedContentId) {
+      const { data: existingContentProgress } = await supabase
         .from("student_content_progress")
-        .update({
-          completed_amount: newCompletedAmount,
-          progress: newProgress,
+        .select("id,completed_amount")
+        .eq("student_id", user.userId)
+        .eq("content_type", plan.content_type)
+        .eq("content_id", normalizedContentId)
+        .is("plan_id", null)
+        .maybeSingle();
+
+      if (existingContentProgress) {
+        // 기존 완료량에 추가
+        const newCompletedAmount =
+          (existingContentProgress.completed_amount || 0) + completedAmount;
+        const newProgress = Math.min(
+          Math.round((newCompletedAmount / totalAmount) * 100),
+          100
+        );
+
+        await supabase
+          .from("student_content_progress")
+          .update({
+            completed_amount: newCompletedAmount,
+            progress: newProgress,
+            last_updated: new Date().toISOString(),
+          })
+          .eq("id", existingContentProgress.id);
+      } else {
+        // 새로 생성
+        await supabase.from("student_content_progress").insert({
+          student_id: user.userId,
+          tenant_id: tenantId,
+          content_type: plan.content_type,
+          content_id: normalizedContentId,
+          completed_amount: completedAmount,
+          progress: progress,
           last_updated: new Date().toISOString(),
-        })
-        .eq("id", existingContentProgress.id);
-    } else {
-      // 새로 생성
-      await supabase.from("student_content_progress").insert({
-        student_id: user.userId,
-        tenant_id: tenantId,
-        content_type: plan.content_type,
-        content_id: plan.content_id,
-        completed_amount: completedAmount,
-        progress: progress,
-        last_updated: new Date().toISOString(),
-      });
+        });
+      }
     }
 
     // 플랜의 actual_end_time 및 시간 정보 업데이트
@@ -1304,3 +1314,63 @@ export async function syncTimerProgress(
 }
 
 // stopAllActiveSessionsForPlan was removed - use preparePlanCompletion instead
+
+// =====================
+// 통합 타이머 래퍼 함수들
+// =====================
+
+// Ad-hoc plan timer functions are imported at the top of this file
+
+export type PlanType = "student_plan" | "ad_hoc_plan";
+
+/**
+ * 통합 플랜 시작 함수
+ *
+ * planType에 따라 student_plan 또는 ad_hoc_plan 타이머 로직을 실행합니다.
+ */
+export async function startPlanUnified(
+  planId: string,
+  planType: PlanType,
+  timestamp?: string
+): Promise<StartPlanResult> {
+  if (planType === "ad_hoc_plan") {
+    return startAdHocPlan(planId);
+  }
+  return startPlan(planId, timestamp);
+}
+
+/**
+ * 통합 플랜 완료 함수
+ *
+ * planType에 따라 student_plan 또는 ad_hoc_plan 완료 로직을 실행합니다.
+ * student_plan의 경우 PlanRecordPayload가 필요하며, ad_hoc_plan의 경우 actualMinutes만 필요합니다.
+ */
+export async function completePlanUnified(
+  planId: string,
+  planType: PlanType,
+  payloadOrMinutes?: PlanRecordPayload | number
+): Promise<CompletePlanResult> {
+  if (planType === "ad_hoc_plan") {
+    const actualMinutes = typeof payloadOrMinutes === "number" ? payloadOrMinutes : undefined;
+    return completeAdHocPlan(planId, actualMinutes);
+  }
+  // student_plan의 경우 payload가 필요
+  const payload = (typeof payloadOrMinutes === "object" ? payloadOrMinutes : {}) as PlanRecordPayload;
+  return completePlan(planId, payload);
+}
+
+/**
+ * 통합 플랜 취소 함수
+ *
+ * planType에 따라 student_plan 또는 ad_hoc_plan 취소 로직을 실행합니다.
+ */
+export async function cancelPlanUnified(
+  planId: string,
+  planType: PlanType
+): Promise<ActionResult> {
+  if (planType === "ad_hoc_plan") {
+    return cancelAdHocPlan(planId);
+  }
+  // student_plan은 미완료 상태로 두거나 일시정지 처리
+  return pausePlan(planId);
+}

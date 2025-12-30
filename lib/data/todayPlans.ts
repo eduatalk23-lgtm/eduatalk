@@ -108,7 +108,7 @@ async function getPlansFromView(options: {
     plan_date: string;
     block_index: number;
     content_type: "custom" | "book" | "lecture";
-    content_id: string;
+    content_id: string | null; // Calendar-First: nullable
     chapter: string | null;
     planned_start_page_or_time: number | null;
     planned_end_page_or_time: number | null;
@@ -153,6 +153,19 @@ async function getPlansFromView(options: {
     slot_index?: number | null;
     virtual_subject_category?: string | null;
     virtual_description?: string | null;
+    // Calendar-First 추가 필드
+    container_type?: string | null;
+    is_locked?: boolean | null;
+    estimated_minutes?: number | null;
+    order_index?: number | null;
+    flexible_content_id?: string | null;
+    original_volume?: number | null;
+    carryover_from_date?: string | null;
+    carryover_count?: number | null;
+    custom_title?: string | null;
+    custom_range_display?: string | null;
+    review_group_id?: string | null;
+    review_source_content_ids?: string[] | null;
   };
 
   // View에서 필요한 필드만 조회 (view_* 필드 포함)
@@ -261,6 +274,19 @@ async function getPlansFromView(options: {
       slot_index: row.slot_index ?? null,
       virtual_subject_category: row.virtual_subject_category ?? null,
       virtual_description: row.virtual_description ?? null,
+      // Calendar-First 추가 필드
+      container_type: row.container_type ?? null,
+      is_locked: row.is_locked ?? null,
+      estimated_minutes: row.estimated_minutes ?? null,
+      order_index: row.order_index ?? null,
+      flexible_content_id: row.flexible_content_id ?? null,
+      original_volume: row.original_volume ?? null,
+      carryover_from_date: row.carryover_from_date ?? null,
+      carryover_count: row.carryover_count ?? null,
+      custom_title: row.custom_title ?? null,
+      custom_range_display: row.custom_range_display ?? null,
+      review_group_id: row.review_group_id ?? null,
+      review_source_content_ids: row.review_source_content_ids ?? null,
     };
   });
 

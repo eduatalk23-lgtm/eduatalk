@@ -629,11 +629,22 @@ export async function classifyPlanContents(
   const masterLectureIds: string[] = [];
   const masterCustomContentIds: string[] = [];
 
+  // UUID 검증 정규식 (빈 문자열 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   contents.forEach((content) => {
+    // content_id가 없거나 UUID 형식이 아닌 경우 스킵
+    if (!content.content_id || !uuidRegex.test(content.content_id)) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[classifyPlanContents] 유효하지 않은 content_id 스킵:", content.content_id);
+      }
+      return;
+    }
+
     if (content.content_type === "book") {
       bookContentIds.push(content.content_id);
       // plan_contents에 저장된 master_content_id가 있으면 마스터 콘텐츠 ID로도 수집
-      if (content.master_content_id) {
+      if (content.master_content_id && uuidRegex.test(content.master_content_id)) {
         masterBookIds.push(content.master_content_id);
       }
       // content_id 자체가 마스터 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
@@ -642,7 +653,7 @@ export async function classifyPlanContents(
     } else if (content.content_type === "lecture") {
       lectureContentIds.push(content.content_id);
       // plan_contents에 저장된 master_content_id가 있으면 마스터 콘텐츠 ID로도 수집
-      if (content.master_content_id) {
+      if (content.master_content_id && uuidRegex.test(content.master_content_id)) {
         masterLectureIds.push(content.master_content_id);
       }
       // content_id 자체가 마스터 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함
@@ -650,7 +661,7 @@ export async function classifyPlanContents(
     } else if (content.content_type === "custom") {
       customContentIds.push(content.content_id);
       // plan_contents에 저장된 master_content_id가 있으면 마스터 커스텀 콘텐츠 ID로도 수집
-      if (content.master_content_id) {
+      if (content.master_content_id && uuidRegex.test(content.master_content_id)) {
         masterCustomContentIds.push(content.master_content_id);
       }
       // content_id 자체가 마스터 커스텀 콘텐츠 ID일 수 있으므로 마스터 콘텐츠 조회 대상에 포함

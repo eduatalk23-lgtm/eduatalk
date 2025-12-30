@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
+import type { AdHocPlanForCalendar } from "./PlanCalendarView";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { DayTimelineModal } from "./DayTimelineModal";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/cn";
 
 type MonthViewProps = {
   plans: PlanWithContent[];
+  adHocPlans?: AdHocPlanForCalendar[];
   currentDate: Date;
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
@@ -27,7 +29,7 @@ type MonthViewProps = {
   onPlansUpdated?: () => void;
 };
 
-function MonthViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: MonthViewProps) {
+function MonthViewComponent({ plans, adHocPlans = [], currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: MonthViewProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,6 +68,19 @@ function MonthViewComponent({ plans, currentDate, exclusions, academySchedules, 
 
   // 날짜별 데이터 그룹화 (공통 훅 사용)
   const { plansByDate, exclusionsByDate } = useCalendarData(plans, exclusions, academySchedules);
+
+  // Ad-hoc 플랜 날짜별 그룹화
+  const adHocPlansByDate = useMemo(() => {
+    const map = new Map<string, AdHocPlanForCalendar[]>();
+    adHocPlans.forEach((plan) => {
+      const dateStr = plan.plan_date;
+      if (!map.has(dateStr)) {
+        map.set(dateStr, []);
+      }
+      map.get(dateStr)!.push(plan);
+    });
+    return map;
+  }, [adHocPlans]);
 
   // 콜백 함수들 (메모이제이션)
   const handleDateClick = useCallback((date: Date) => {
@@ -177,6 +192,7 @@ function MonthViewComponent({ plans, currentDate, exclusions, academySchedules, 
       const date = new Date(year, month, day);
       const dateStr = formatDateString(date);
       const dayPlans = plansByDate.get(dateStr) || [];
+      const dayAdHocPlans = adHocPlansByDate.get(dateStr) || [];
       const dayExclusions = exclusionsByDate.get(dateStr) || [];
       const dayTypeInfo = dayTypes.get(dateStr);
       const dailySchedule = dailyScheduleMap.get(dateStr);
@@ -194,6 +210,7 @@ function MonthViewComponent({ plans, currentDate, exclusions, academySchedules, 
           month={month}
           dateStr={dateStr}
           dayPlans={dayPlans}
+          dayAdHocPlans={dayAdHocPlans}
           dayExclusions={dayExclusions}
           dayAcademySchedules={dayAcademySchedules}
           dayTypeInfo={dayTypeInfo}

@@ -14,6 +14,11 @@ export {
   preparePlanCompletion,
   getServerTime,
   syncTimerProgress,
+  // Unified Timer Actions (for student_plan and ad_hoc_plan)
+  startPlanUnified,
+  completePlanUnified,
+  cancelPlanUnified,
+  type PlanType,
 } from "./timer";
 
 // Memo Actions
@@ -59,3 +64,11 @@ export {
   type LogExecutionEventResult,
   type GetExecutionLogsResult,
 } from "./executionLog";
+
+// Ad-hoc Timer Actions
+export {
+  startAdHocPlan,
+  completeAdHocPlan,
+  getAdHocPlanStatus,
+  cancelAdHocPlan,
+} from "./adHocTimer";

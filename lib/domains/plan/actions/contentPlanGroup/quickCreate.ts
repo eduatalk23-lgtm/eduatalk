@@ -105,17 +105,23 @@ async function ensureStudentContent(
   studentId: string,
   tenantId: string
 ): Promise<{ success: boolean; studentContentId?: string; error?: string }> {
+  // contentId UUID 검증 (빈 문자열 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!contentId || !uuidRegex.test(contentId)) {
+    return { success: false, error: "유효하지 않은 콘텐츠 ID입니다." };
+  }
+
   // custom 타입은 마스터 복사 불필요
   if (contentType === "custom") {
     const { data, error } = await supabase
-      .from("custom_contents")
+      .from("student_custom_contents")
       .select("id")
       .eq("id", contentId)
       .eq("student_id", studentId)
       .maybeSingle();
 
     if (error) {
-      console.error(`[ensureStudentContent] custom_contents 조회 실패:`, error);
+      console.error(`[ensureStudentContent] student_custom_contents 조회 실패:`, error);
       return { success: false, error: "콘텐츠 정보를 확인할 수 없습니다." };
     }
 
@@ -200,6 +206,12 @@ export async function quickCreateFromContent(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
+  // tenant_id 필수 검증
+  if (!user.tenantId) {
+    return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
+  }
+  const tenantId = user.tenantId;
+
   const supabase = await createSupabaseServerClient();
 
   try {
@@ -218,7 +230,7 @@ export async function quickCreateFromContent(
       input.content.id,
       input.content.type,
       user.userId,
-      user.tenantId ?? ""
+      tenantId
     );
     if (!contentResult.success || !contentResult.studentContentId) {
       return { success: false, error: contentResult.error ?? "콘텐츠 접근 권한이 없습니다." };
@@ -249,7 +261,7 @@ export async function quickCreateFromContent(
     const { data: planGroup, error: pgError } = await supabase
       .from("plan_groups")
       .insert({
-        tenant_id: user.tenantId,
+        tenant_id: tenantId,
         student_id: user.userId,
         name: input.content.name,
         period_start: input.schedule.startDate,
@@ -323,7 +335,7 @@ export async function quickCreateFromContent(
 
       return {
         id: planId,
-        tenant_id: user.tenantId,
+        tenant_id: tenantId,
         student_id: user.userId,
         plan_group_id: planGroup.id,
         plan_date: date.toISOString().split("T")[0],
@@ -404,7 +416,7 @@ export async function quickCreateFromContent(
 
           return {
             id: reviewPlanId,
-            tenant_id: user.tenantId,
+            tenant_id: tenantId,
             student_id: user.userId,
             plan_group_id: planGroup.id,
             plan_date: reviewInfo.date.toISOString().split("T")[0],
@@ -471,15 +483,62 @@ export async function createQuickPlan(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
+  // tenant_id 필수 검증
+  if (!user.tenantId) {
+    return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
+  }
+  const tenantId = user.tenantId;
+
   const supabase = await createSupabaseServerClient();
 
   try {
+    // 0. content_id 확보 (자유 학습인 경우 flexible_contents 생성)
+    let resolvedContentId: string;
+    const isFreeLearning = input.isFreeLearning || !input.contentId || input.contentId === "";
+
+    if (isFreeLearning) {
+      // 자유 학습: flexible_contents에 플레이스홀더 생성
+      const { data: flexibleContent, error: fcError } = await supabase
+        .from("flexible_contents")
+        .insert({
+          tenant_id: tenantId,
+          student_id: user.userId,
+          content_type: "free",
+          title: input.title,
+          item_type: input.freeLearningType ?? "free",
+          estimated_minutes: input.estimatedMinutes ?? 30,
+        })
+        .select("id")
+        .single();
+
+      if (fcError || !flexibleContent) {
+        console.error("Failed to create flexible content:", fcError);
+        return {
+          success: false,
+          error: fcError?.message ?? "자유 학습 콘텐츠 생성에 실패했습니다.",
+        };
+      }
+      resolvedContentId = flexibleContent.id;
+    } else {
+      // 기존 콘텐츠 사용: UUID 형식 검증
+      // isFreeLearning이 false이면 input.contentId는 truthy하고 빈 문자열이 아님
+      const contentId = input.contentId as string;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(contentId)) {
+        return {
+          success: false,
+          error: "유효하지 않은 콘텐츠 ID입니다.",
+        };
+      }
+      resolvedContentId = contentId;
+    }
+
     // 1. plan_group 생성 (plan_mode='quick', is_single_day=true)
     const { data: planGroup, error: groupError } = await supabase
       .from("plan_groups")
       .insert({
         student_id: user.userId,
-        tenant_id: user.tenantId ?? null,
+        tenant_id: tenantId,
         name: input.title,
         plan_purpose: "기타",
         period_start: input.planDate,
@@ -487,7 +546,7 @@ export async function createQuickPlan(
         status: "active",
         plan_mode: "quick",
         is_single_day: true,
-        creation_mode: "content_based",
+        creation_mode: isFreeLearning ? "free_learning" : "content_based",
       })
       .select("id")
       .single();
@@ -502,33 +561,34 @@ export async function createQuickPlan(
 
     // 2. student_plan 생성
     const estimatedMinutes = input.estimatedMinutes ?? 30;
+    const contentType = isFreeLearning
+      ? input.freeLearningType ?? "free"
+      : input.contentType ?? "custom";
+
     const { data: plan, error: planError } = await supabase
       .from("student_plan")
       .insert({
         student_id: user.userId,
-        tenant_id: user.tenantId ?? null,
+        tenant_id: tenantId,
         plan_group_id: planGroup.id,
-        title: input.title,
         plan_date: input.planDate,
+        block_index: 0, // NOT NULL 필수
+        content_type: contentType,
+        content_id: resolvedContentId,
+        content_title: input.title,
         container_type: input.containerType ?? "daily",
-        content_type: input.isFreeLearning
-          ? input.freeLearningType ?? "free"
-          : input.contentType ?? "custom",
         status: "pending",
-        order_index: 0,
         is_virtual: false,
-        estimated_minutes: estimatedMinutes,
-        // 콘텐츠 연결 정보 (있는 경우)
-        content_id: input.contentId ?? null,
-        range_start: input.rangeStart ?? null,
-        range_end: input.rangeEnd ?? null,
+        flexible_content_id: isFreeLearning ? resolvedContentId : null,
+        planned_start_page_or_time: input.rangeStart ?? null,
+        planned_end_page_or_time: input.rangeEnd ?? null,
       })
       .select("id")
       .single();
 
     if (planError || !plan) {
       console.error("Failed to create quick plan:", planError);
-      // 롤백: plan_group만 삭제 (student_plan은 생성 실패)
+      // 롤백: plan_group 삭제
       const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
         deleteStudentPlans: false,
         deletePlanContents: false,
@@ -536,6 +596,16 @@ export async function createQuickPlan(
       });
       if (!rollback.success) {
         console.error("Rollback partial failure:", rollback.errors);
+      }
+      // 자유 학습인 경우 flexible_contents도 삭제
+      if (isFreeLearning) {
+        const { error: fcDeleteError } = await supabase
+          .from("flexible_contents")
+          .delete()
+          .eq("id", resolvedContentId);
+        if (fcDeleteError) {
+          console.error("Failed to rollback flexible content:", fcDeleteError);
+        }
       }
       return {
         success: false,
@@ -551,6 +621,7 @@ export async function createQuickPlan(
       success: true,
       planGroupId: planGroup.id,
       planId: plan.id,
+      flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
     };
   } catch (error) {
     console.error("createQuickPlan error:", error);

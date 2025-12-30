@@ -363,7 +363,7 @@ export async function getPlanById(
     supabase
       .from("student_plan")
       .select(
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description"
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,memo,created_at,updated_at,is_active,origin_plan_item_id,status,subject_type,version,version_group_id,is_virtual,slot_index,virtual_subject_category,virtual_description,container_type,is_locked,estimated_minutes,order_index,flexible_content_id,original_volume,carryover_from_date,carryover_count,custom_title,custom_range_display,review_group_id,review_source_content_ids"
       )
       .eq("id", planId)
       .eq("student_id", studentId);
@@ -398,8 +398,8 @@ export type CreatePlanInput = {
   student_id: string;
   plan_date: string;
   block_index: number;
-  content_type: "book" | "lecture" | "custom";
-  content_id: string;
+  content_type: "book" | "lecture" | "custom" | "free";
+  content_id: string | null; // Calendar-First: nullable for free learning
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
   planned_end_page_or_time?: number | null;
@@ -734,4 +734,142 @@ export async function deletePlans(
   }
 
   return { success: true };
+}
+
+/**
+ * Ad-hoc 플랜 타입 정의
+ */
+export type AdHocPlan = {
+  id: string;
+  tenant_id: string | null;
+  student_id: string;
+  plan_date: string;
+  title: string;
+  description: string | null;
+  content_type: string | null;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  started_at: string | null;
+  completed_at: string | null;
+  estimated_minutes: number | null;
+  actual_minutes: number | null;
+  color: string | null;
+  icon: string | null;
+  container_type: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Ad-hoc 플랜 ID로 조회 (학생용)
+ *
+ * @param planId - 플랜 ID
+ * @param studentId - 학생 ID
+ * @param tenantId - 테넌트 ID (선택적)
+ * @returns Ad-hoc 플랜 또는 null
+ */
+export async function getAdHocPlanById(
+  planId: string,
+  studentId: string,
+  tenantId?: string | null
+): Promise<AdHocPlan | null> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("ad_hoc_plans")
+    .select(
+      `
+      id,
+      tenant_id,
+      student_id,
+      plan_date,
+      title,
+      description,
+      content_type,
+      status,
+      started_at,
+      completed_at,
+      estimated_minutes,
+      actual_minutes,
+      color,
+      icon,
+      container_type,
+      created_at,
+      updated_at
+    `
+    )
+    .eq("id", planId)
+    .eq("student_id", studentId);
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("[data/studentPlans] getAdHocPlanById 오류:", error);
+    return null;
+  }
+
+  return data as AdHocPlan | null;
+}
+
+/**
+ * 캘린더용 Ad-hoc 플랜 조회
+ *
+ * @param studentId - 학생 ID
+ * @param dateRange - 조회할 날짜 범위
+ * @returns Ad-hoc 플랜 목록
+ */
+export async function getAdHocPlansForCalendar(
+  studentId: string,
+  dateRange: { start: string; end: string }
+): Promise<{
+  id: string;
+  plan_date: string;
+  title: string;
+  content_type: string | null;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  estimated_minutes: number | null;
+  actual_minutes: number | null;
+  color: string | null;
+  icon: string | null;
+  planType: "ad_hoc_plan";
+}[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("ad_hoc_plans")
+    .select(
+      `
+      id,
+      plan_date,
+      title,
+      content_type,
+      status,
+      started_at,
+      completed_at,
+      estimated_minutes,
+      actual_minutes,
+      color,
+      icon
+    `
+    )
+    .eq("student_id", studentId)
+    .gte("plan_date", dateRange.start)
+    .lte("plan_date", dateRange.end)
+    .order("plan_date", { ascending: true });
+
+  if (error) {
+    console.error("[data/studentPlans] getAdHocPlansForCalendar 오류:", error);
+    return [];
+  }
+
+  // planType 추가하여 반환
+  return (data ?? []).map((plan) => ({
+    ...plan,
+    planType: "ad_hoc_plan" as const,
+  }));
 }

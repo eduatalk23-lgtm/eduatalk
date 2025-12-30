@@ -564,11 +564,11 @@ export async function getCampDatePlans(
       plannedEnd !== null &&
       plannedEnd !== undefined
     ) {
-      if (plan.content_type === "book") {
+      if (plan.content_type === "book" && plan.content_id) {
         const studentBookDetails = bookDetailsMap.get(plan.student_id);
         const bookDetails = studentBookDetails?.get(plan.content_id) || [];
         plannedRange = formatBookRange(bookDetails, plannedStart, plannedEnd);
-      } else if (plan.content_type === "lecture") {
+      } else if (plan.content_type === "lecture" && plan.content_id) {
         const studentLectureEpisodes = lectureEpisodesMap.get(plan.student_id);
         const episodes = studentLectureEpisodes?.get(plan.content_id) || [];
         plannedRange = formatLectureRange(episodes, plannedStart, plannedEnd);

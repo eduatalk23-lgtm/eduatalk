@@ -8,6 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureAdminClient } from "@/lib/supabase/clientSelector";
+import type { Json } from "@/lib/supabase/database.types";
 
 /**
  * 플랜 그룹 생성 데이터 타입
@@ -106,30 +107,49 @@ export async function createPlanGroupAtomic(
     };
   }
 
+  // RPC 함수의 새 시그니처에 맞게 plan_group JSONB로 전달
+  const planGroupJsonb = {
+    tenant_id: groupData.tenant_id,
+    student_id: groupData.student_id,
+    name: groupData.name,
+    plan_purpose: groupData.plan_purpose,
+    scheduler_type: groupData.scheduler_type,
+    scheduler_options: groupData.scheduler_options
+      ? JSON.parse(JSON.stringify(groupData.scheduler_options))
+      : null,
+    period_start: groupData.period_start,
+    period_end: groupData.period_end,
+    target_date: groupData.target_date,
+    block_set_id: groupData.block_set_id,
+    status: groupData.status,
+    subject_constraints: groupData.subject_constraints
+      ? JSON.parse(JSON.stringify(groupData.subject_constraints))
+      : null,
+    additional_period_reallocation: groupData.additional_period_reallocation
+      ? JSON.parse(JSON.stringify(groupData.additional_period_reallocation))
+      : null,
+    non_study_time_blocks: groupData.non_study_time_blocks
+      ? JSON.parse(JSON.stringify(groupData.non_study_time_blocks))
+      : null,
+    daily_schedule: groupData.daily_schedule
+      ? JSON.parse(JSON.stringify(groupData.daily_schedule))
+      : null,
+    plan_type: groupData.plan_type,
+    camp_template_id: groupData.camp_template_id,
+    camp_invitation_id: groupData.camp_invitation_id,
+    use_slot_mode: groupData.use_slot_mode,
+    content_slots: groupData.content_slots
+      ? JSON.parse(JSON.stringify(groupData.content_slots))
+      : null,
+  };
+
   const { data, error } = await supabase.rpc("create_plan_group_atomic", {
     p_tenant_id: groupData.tenant_id,
     p_student_id: groupData.student_id,
-    p_name: groupData.name,
-    p_plan_purpose: groupData.plan_purpose,
-    p_scheduler_type: groupData.scheduler_type,
-    p_scheduler_options: groupData.scheduler_options,
-    p_period_start: groupData.period_start,
-    p_period_end: groupData.period_end,
-    p_target_date: groupData.target_date,
-    p_block_set_id: groupData.block_set_id,
-    p_status: groupData.status,
-    p_subject_constraints: groupData.subject_constraints,
-    p_additional_period_reallocation: groupData.additional_period_reallocation,
-    p_non_study_time_blocks: groupData.non_study_time_blocks,
-    p_daily_schedule: groupData.daily_schedule,
-    p_plan_type: groupData.plan_type,
-    p_camp_template_id: groupData.camp_template_id,
-    p_camp_invitation_id: groupData.camp_invitation_id,
-    p_use_slot_mode: groupData.use_slot_mode,
-    p_content_slots: groupData.content_slots,
-    p_contents: contents,
-    p_exclusions: exclusions,
-    p_academy_schedules: academySchedules,
+    p_plan_group: planGroupJsonb as unknown as Json,
+    p_contents: contents as unknown as Json,
+    p_exclusions: exclusions as unknown as Json,
+    p_schedules: academySchedules as unknown as Json,
   });
 
   if (error) {
@@ -194,6 +214,12 @@ export type AtomicPlanPayload = {
   slot_index?: number | null;
   virtual_subject_category?: string | null;
   virtual_description?: string | null;
+  // 복습 시스템 필드
+  subject_type?: string | null;
+  review_group_id?: string | null;
+  review_source_content_ids?: string[] | null;
+  container_type?: string | null;
+  is_active?: boolean;
 };
 
 /**
@@ -238,7 +264,7 @@ export async function generatePlansAtomic(
   const { data, error } = await supabase.rpc("generate_plans_atomic", {
     p_group_id: groupId,
     p_plans: plans,
-    p_update_status_to: updateStatusTo ?? null,
+    p_update_status_to: updateStatusTo ?? undefined,
   });
 
   if (error) {

@@ -58,8 +58,28 @@ export async function fetchContentTotal(
   supabase: SupabaseServerClient,
   studentId: string,
   contentType: ContentType,
-  contentId: string
+  contentId: string | null
 ): Promise<number | null> {
+  // Calendar-First: content_id가 null 또는 빈 문자열인 경우 (자유 학습)
+  if (!contentId) {
+    console.warn("[contentTotal] content_id가 없음 (자유 학습)", {
+      contentType,
+      studentId,
+    });
+    return null;
+  }
+
+  // UUID 형식 검증 (빈 문자열 및 잘못된 형식 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(contentId)) {
+    console.warn("[contentTotal] 유효하지 않은 content_id 형식", {
+      contentType,
+      contentId,
+      studentId,
+    });
+    return null;
+  }
+
   try {
     if (contentType === "book") {
       const selectBook = () =>

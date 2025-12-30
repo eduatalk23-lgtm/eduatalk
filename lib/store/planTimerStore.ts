@@ -18,7 +18,11 @@ import {
 export type { TimerStatus, TimerAction } from "@/lib/utils/timerUtils";
 export { canPerformAction } from "@/lib/utils/timerUtils";
 
+export type PlanType = "student_plan" | "ad_hoc_plan";
+
 export type PlanTimerData = {
+  /** 플랜 타입 (student_plan 또는 ad_hoc_plan) */
+  planType: PlanType;
   /** 현재 표시되는 시간 (초) */
   seconds: number;
   /** 타이머가 실행 중인지 여부 */
@@ -54,10 +58,11 @@ type PlanTimerStore = {
       accumulatedSeconds: number;
       startedAt: string | null;
       serverNow: number;
+      planType?: PlanType;
     }
   ) => void;
   /** 타이머 시작 */
-  startTimer: (planId: string, serverNow: number, startedAt: string) => void;
+  startTimer: (planId: string, serverNow: number, startedAt: string, planType?: PlanType) => void;
   /** 타이머 일시정지 */
   pauseTimer: (planId: string, accumulatedSeconds: number) => void;
   /** 타이머 정지 (완료) */
@@ -181,13 +186,14 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
     visibilityChangeTimestamp: null,
 
     initPlanTimer: (planId, options) => {
-      const { status, accumulatedSeconds, startedAt, serverNow } = options;
+      const { status, accumulatedSeconds, startedAt, serverNow, planType = "student_plan" } = options;
       const now = Date.now();
       const timeOffset = serverNow - now;
 
       const startedAtMs = startedAt ? new Date(startedAt).getTime() : null;
 
       const timerData: PlanTimerData = {
+        planType,
         seconds: accumulatedSeconds,
         isRunning: status === "RUNNING",
         startedAt: startedAtMs,
@@ -212,7 +218,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
       });
     },
 
-    startTimer: (planId, serverNow, startedAt) => {
+    startTimer: (planId, serverNow, startedAt, planType = "student_plan") => {
       const now = Date.now();
       const timeOffset = serverNow - now;
       const startedAtMs = new Date(startedAt).getTime();
@@ -227,6 +233,7 @@ export const usePlanTimerStore = create<PlanTimerStore>((set, get) => {
         if (!timer) {
           // 타이머가 없으면 초기화 후 시작 (NOT_STARTED → RUNNING)
           const timerData: PlanTimerData = {
+            planType,
             seconds: 0,
             isRunning: true,
             startedAt: startedAtMs,

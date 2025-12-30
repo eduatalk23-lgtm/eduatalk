@@ -7,10 +7,11 @@
  * 날짜 데이터가 변경되지 않으면 리렌더링하지 않습니다.
  */
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { Plus } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, DailyScheduleInfo, AcademySchedule } from "@/lib/types/plan";
+import type { AdHocPlanForCalendar } from "./PlanCalendarView";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { timeToMinutes, getTimeSlotColorClass, getTimeSlotIcon } from "../_utils/timelineUtils";
@@ -33,6 +34,7 @@ type MemoizedDayCellProps = {
   month: number;
   dateStr: string;
   dayPlans: PlanWithContent[];
+  dayAdHocPlans?: AdHocPlanForCalendar[];
   dayExclusions: PlanExclusion[];
   dayAcademySchedules: AcademySchedule[];
   dayTypeInfo?: DayTypeInfo;
@@ -64,6 +66,7 @@ function MemoizedDayCellComponent({
   month,
   dateStr,
   dayPlans,
+  dayAdHocPlans = [],
   dayExclusions,
   dayAcademySchedules,
   dayTypeInfo,
@@ -97,6 +100,48 @@ function MemoizedDayCellComponent({
   );
 
   const dayType = dayTypeInfo?.type || "normal";
+
+  // 컨테이너별 플랜 개수 계산
+  const containerCounts = useMemo(() => {
+    type ContainerType = "unfinished" | "daily" | "weekly";
+    const counts: Record<ContainerType, number> = {
+      unfinished: 0,
+      daily: 0,
+      weekly: 0,
+    };
+
+    // dayPlans에서 컨테이너별 집계
+    dayPlans.forEach((plan) => {
+      const containerType = (plan as { container_type?: string | null }).container_type;
+      // 미완료/이월 플랜 체크 (carryover_count > 0 또는 status가 미완료)
+      const carryoverCount = (plan as { carryover_count?: number | null }).carryover_count || 0;
+      const isUnfinished = carryoverCount > 0 || plan.status === "overdue";
+
+      if (isUnfinished) {
+        counts.unfinished++;
+      } else if (containerType === "weekly") {
+        counts.weekly++;
+      } else {
+        // 기본값은 daily
+        counts.daily++;
+      }
+    });
+
+    // dayAdHocPlans에서 컨테이너별 집계
+    dayAdHocPlans.forEach((adHocPlan) => {
+      const containerType = adHocPlan.container_type;
+      if (containerType === "weekly") {
+        counts.weekly++;
+      } else {
+        counts.daily++;
+      }
+    });
+
+    return counts;
+  }, [dayPlans, dayAdHocPlans]);
+
+  // 컨테이너가 있는지 확인
+  const hasContainers = containerCounts.unfinished > 0 || containerCounts.daily > 0 || containerCounts.weekly > 0;
 
   const handleDateClick = useCallback(() => {
     onDateClick(date);
@@ -273,6 +318,36 @@ function MemoizedDayCellComponent({
         });
     }
 
+    // Ad-hoc 플랜 표시
+    if (dayAdHocPlans.length > 0 && displayedCount < maxDisplay) {
+      dayAdHocPlans.slice(0, maxDisplay - displayedCount).forEach((adHocPlan) => {
+        const isCompleted = adHocPlan.status === "completed" || !!adHocPlan.completed_at;
+        const isInProgress = adHocPlan.status === "in_progress" && !!adHocPlan.started_at;
+
+        items.push(
+          <div
+            key={`adhoc-${adHocPlan.id}`}
+            className={cn(
+              "group flex items-center gap-1.5 px-2 py-1 rounded-md text-xs cursor-pointer transition-all",
+              "border border-dashed",
+              isCompleted
+                ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                : isInProgress
+                ? "bg-blue-50 border-blue-300 text-blue-700"
+                : "bg-purple-50 border-purple-300 text-purple-700",
+              adHocPlan.color ? `border-[${adHocPlan.color}]` : ""
+            )}
+            title={adHocPlan.title}
+          >
+            <span className="text-[10px]">⚡</span>
+            <span className="truncate font-medium">{adHocPlan.title}</span>
+            {isCompleted && <span className="text-[9px]">✓</span>}
+          </div>
+        );
+        displayedCount++;
+      });
+    }
+
     // 총 개수 계산
     const totalItems =
       filteredSlots.reduce((count, slot) => {
@@ -280,7 +355,7 @@ function MemoizedDayCellComponent({
           return count + slot.plans.length;
         }
         return count + 1;
-      }, 0) + unmatchedPlans.length;
+      }, 0) + unmatchedPlans.length + dayAdHocPlans.length;
 
     return (
       <>
@@ -358,6 +433,32 @@ function MemoizedDayCellComponent({
                 </span>
               )}
             </span>
+            {/* 컨테이너 인디케이터 도트 */}
+            {hasContainers && (
+              <div className="flex items-center gap-0.5 ml-0.5" aria-label="컨테이너 현황">
+                {containerCounts.unfinished > 0 && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-red-500"
+                    title={`미완료 ${containerCounts.unfinished}개`}
+                    aria-label={`미완료 플랜 ${containerCounts.unfinished}개`}
+                  />
+                )}
+                {containerCounts.daily > 0 && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-blue-500"
+                    title={`오늘 ${containerCounts.daily}개`}
+                    aria-label={`오늘 플랜 ${containerCounts.daily}개`}
+                  />
+                )}
+                {containerCounts.weekly > 0 && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-green-500"
+                    title={`주간 ${containerCounts.weekly}개`}
+                    aria-label={`주간 플랜 ${containerCounts.weekly}개`}
+                  />
+                )}
+              </div>
+            )}
             {/* 빠른 추가 버튼 */}
             {studentId && (
               <button
@@ -419,17 +520,23 @@ export const MemoizedDayCell = memo(
       return false;
     }
 
-    // 플랜 배열 비교 (길이와 ID 비교)
+    // 플랜 배열 비교 (길이와 ID, 상태, 컨테이너 타입 비교)
     if (prevProps.dayPlans.length !== nextProps.dayPlans.length) {
       return false;
     }
     for (let i = 0; i < prevProps.dayPlans.length; i++) {
       const prevPlan = prevProps.dayPlans[i];
       const nextPlan = nextProps.dayPlans[i];
+      const prevContainerType = (prevPlan as { container_type?: string | null }).container_type;
+      const nextContainerType = (nextPlan as { container_type?: string | null }).container_type;
+      const prevCarryover = (prevPlan as { carryover_count?: number | null }).carryover_count;
+      const nextCarryover = (nextPlan as { carryover_count?: number | null }).carryover_count;
       if (
         prevPlan.id !== nextPlan.id ||
         prevPlan.progress !== nextPlan.progress ||
-        prevPlan.status !== nextPlan.status
+        prevPlan.status !== nextPlan.status ||
+        prevContainerType !== nextContainerType ||
+        prevCarryover !== nextCarryover
       ) {
         return false;
       }
@@ -443,6 +550,24 @@ export const MemoizedDayCell = memo(
     // 학원일정 배열 비교
     if (prevProps.dayAcademySchedules.length !== nextProps.dayAcademySchedules.length) {
       return false;
+    }
+
+    // Ad-hoc 플랜 배열 비교
+    const prevAdHocPlans = prevProps.dayAdHocPlans || [];
+    const nextAdHocPlans = nextProps.dayAdHocPlans || [];
+    if (prevAdHocPlans.length !== nextAdHocPlans.length) {
+      return false;
+    }
+    for (let i = 0; i < prevAdHocPlans.length; i++) {
+      const prevAdHoc = prevAdHocPlans[i];
+      const nextAdHoc = nextAdHocPlans[i];
+      if (
+        prevAdHoc.id !== nextAdHoc.id ||
+        prevAdHoc.status !== nextAdHoc.status ||
+        prevAdHoc.container_type !== nextAdHoc.container_type
+      ) {
+        return false;
+      }
     }
 
     // dayTypeInfo 비교

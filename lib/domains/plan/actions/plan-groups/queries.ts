@@ -439,9 +439,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
     (p) => p.content_type === "lecture"
   );
   const customPlans = (plans || []).filter((p) => p.content_type === "custom");
-  const bookIds = Array.from(new Set(bookPlans.map((p) => p.content_id)));
-  const lectureIds = Array.from(new Set(lecturePlans.map((p) => p.content_id)));
-  const customIds = Array.from(new Set(customPlans.map((p) => p.content_id)));
+  // Calendar-First: content_id가 null일 수 있으므로 필터링
+  const bookIds = Array.from(new Set(bookPlans.map((p) => p.content_id).filter((id): id is string => id !== null)));
+  const lectureIds = Array.from(new Set(lecturePlans.map((p) => p.content_id).filter((id): id is string => id !== null)));
+  const customIds = Array.from(new Set(customPlans.map((p) => p.content_id).filter((id): id is string => id !== null)));
 
   // 학생 콘텐츠들을 병렬로 조회
   const studentContentQueries = [];

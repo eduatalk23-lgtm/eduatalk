@@ -516,6 +516,19 @@ export async function detectRescheduleNeeds(
         slot_index: plan.slot_index ?? null,
         virtual_subject_category: plan.virtual_subject_category ?? null,
         virtual_description: plan.virtual_description ?? null,
+        // Calendar-First 추가 필드
+        container_type: plan.container_type ?? null,
+        is_locked: plan.is_locked ?? null,
+        estimated_minutes: plan.estimated_minutes ?? null,
+        order_index: plan.order_index ?? null,
+        flexible_content_id: plan.flexible_content_id ?? null,
+        original_volume: plan.original_volume ?? null,
+        carryover_from_date: plan.carryover_from_date ?? null,
+        carryover_count: plan.carryover_count ?? null,
+        custom_title: plan.custom_title ?? null,
+        custom_range_display: plan.custom_range_display ?? null,
+        review_group_id: plan.review_group_id ?? null,
+        review_source_content_ids: plan.review_source_content_ids ?? null,
       }));
 
       // 4. 지연 분석 수행

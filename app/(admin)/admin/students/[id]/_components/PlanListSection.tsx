@@ -7,8 +7,8 @@ type Plan = {
   id: string;
   plan_date: string;
   block_index: number;
-  content_type: "book" | "lecture" | "custom" | string;
-  content_id: string;
+  content_type: "book" | "lecture" | "custom" | "free" | string;
+  content_id: string | null; // Calendar-First: nullable for free learning
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
   planned_end_page_or_time?: number | null;

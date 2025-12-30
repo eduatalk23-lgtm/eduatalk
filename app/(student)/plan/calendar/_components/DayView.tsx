@@ -4,6 +4,7 @@ import React, { useMemo, memo, useState, useCallback } from "react";
 import { Clock } from "lucide-react";
 import type { PlanWithContent } from "../_types/plan";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
+import type { AdHocPlanForCalendar } from "./PlanCalendarView";
 import { getContentTypeIcon } from "../../_shared/utils/contentTypeUtils";
 import { formatDateString, formatDateFull } from "@/lib/date/calendarUtils";
 import type { DayTypeInfo } from "@/lib/date/calendarDayTypes";
@@ -14,6 +15,7 @@ import { CalendarPlanCard } from "./CalendarPlanCard";
 import { TimelineItem } from "./TimelineItem";
 import { ContentLinkingModal } from "./ContentLinkingModal";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { ContainerSection, AdHocPlanListItem } from "@/components/plan";
 import { cn } from "@/lib/cn";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
 import { getTimelineSlots } from "../_hooks/useTimelineSlots";
@@ -42,6 +44,7 @@ type VirtualPlanInfo = {
 
 type DayViewProps = {
   plans: PlanWithContent[];
+  adHocPlans?: AdHocPlanForCalendar[];
   currentDate: Date;
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
@@ -49,10 +52,11 @@ type DayViewProps = {
   dailyScheduleMap: Map<string, DailyScheduleInfo>;
   showOnlyStudyTime?: boolean;
   studentId?: string;
+  tenantId?: string;
   onPlansUpdated?: () => void;
 };
 
-function DayViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, onPlansUpdated }: DayViewProps) {
+function DayViewComponent({ plans, adHocPlans = [], currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false, studentId, tenantId, onPlansUpdated }: DayViewProps) {
   const dateStr = formatDateString(currentDate);
   const dayTypeInfo = dayTypes.get(dateStr);
 
@@ -97,6 +101,12 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
   const dayPlans = useMemo(
     () => plans.filter((plan) => plan.plan_date === dateStr),
     [plans, dateStr]
+  );
+
+  // 해당 날짜의 ad-hoc 플랜 필터링
+  const dayAdHocPlans = useMemo(
+    () => adHocPlans.filter((plan) => plan.plan_date === dateStr),
+    [adHocPlans, dateStr]
   );
 
   // 같은 플랜의 동일 회차를 그룹화 (plan_number 또는 content_id + sequence 기준)
@@ -215,15 +225,81 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
     dayTypeBadgeClass,
   } = getDayTypeStyling(currentDate, dayTypeInfo, dayExclusions);
 
-  // 플랜 통계 계산
-  const totalPlans = dayPlans.length;
-  const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length;
-  const activePlans = dayPlans.filter((p) => p.actual_start_time && !p.actual_end_time).length;
-  const averageProgress = totalPlans > 0
+  // 플랜 통계 계산 (ad-hoc 플랜 포함)
+  const totalPlans = dayPlans.length + dayAdHocPlans.length;
+  const completedPlans = dayPlans.filter((p) => p.progress != null && p.progress >= 100).length
+    + dayAdHocPlans.filter((p) => p.status === "completed" || !!p.completed_at).length;
+  const activePlans = dayPlans.filter((p) => p.actual_start_time && !p.actual_end_time).length
+    + dayAdHocPlans.filter((p) => p.status === "in_progress" && !!p.started_at).length;
+  const averageProgress = dayPlans.length > 0
     ? Math.round(
-        dayPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / totalPlans
+        dayPlans.reduce((sum, p) => sum + (p.progress || 0), 0) / dayPlans.length
       )
     : 0;
+
+  // 컨테이너별 플랜 그룹화
+  const plansByContainer = useMemo(() => {
+    type ContainerType = "unfinished" | "daily" | "weekly";
+    const containers: Record<ContainerType, { plans: PlanWithContent[]; adHocPlans: AdHocPlanForCalendar[] }> = {
+      unfinished: { plans: [], adHocPlans: [] },
+      daily: { plans: [], adHocPlans: [] },
+      weekly: { plans: [], adHocPlans: [] },
+    };
+
+    dayPlans.forEach((plan) => {
+      const containerType = (plan as { container_type?: string }).container_type as ContainerType | undefined;
+      if (containerType && containers[containerType]) {
+        containers[containerType].plans.push(plan);
+      } else {
+        containers.daily.plans.push(plan); // 기본값은 daily
+      }
+    });
+
+    dayAdHocPlans.forEach((plan) => {
+      const containerType = plan.container_type as ContainerType | undefined;
+      if (containerType && containers[containerType]) {
+        containers[containerType].adHocPlans.push(plan);
+      } else {
+        containers.daily.adHocPlans.push(plan);
+      }
+    });
+
+    return containers;
+  }, [dayPlans, dayAdHocPlans]);
+
+  // 가용 시간 계산 (학습시간 슬롯의 총 시간)
+  const availableMinutes = useMemo(() => {
+    let total = 0;
+    timelineSlots.forEach((slot) => {
+      if (slot.type === "학습시간") {
+        const startMins = timeToMinutes(slot.start);
+        const endMins = timeToMinutes(slot.end);
+        total += endMins - startMins;
+      }
+    });
+    return total;
+  }, [timelineSlots]);
+
+  // 예상 소요시간 계산 (각 플랜의 범위 기반)
+  const estimatedMinutes = useMemo(() => {
+    let total = 0;
+    dayPlans.forEach((plan) => {
+      if (plan.planned_start_page_or_time != null && plan.planned_end_page_or_time != null) {
+        // 교재는 페이지당 5분, 강의는 분 단위
+        const range = plan.planned_end_page_or_time - plan.planned_start_page_or_time + 1;
+        total += plan.content_type === "book" ? range * 5 : range;
+      }
+    });
+    dayAdHocPlans.forEach((plan) => {
+      if (plan.estimated_minutes) {
+        total += plan.estimated_minutes;
+      }
+    });
+    return total;
+  }, [dayPlans, dayAdHocPlans]);
+
+  // 시간 초과 여부
+  const isTimeExceeded = estimatedMinutes > availableMinutes;
 
   return (
     <div className="flex w-full flex-col gap-6 md:gap-8">
@@ -278,8 +354,132 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
               )}
             </div>
           )}
+
+          {/* 가용시간 지표 */}
+          {availableMinutes > 0 && (
+            <div className={cn(
+              "mt-4 flex items-center gap-4 rounded-lg border p-3",
+              isTimeExceeded
+                ? "border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
+                : "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20"
+            )}>
+              <Clock className={cn(
+                "h-5 w-5 shrink-0",
+                isTimeExceeded ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+              )} />
+              <div className="flex flex-1 flex-col gap-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className={cn("font-medium", textSecondary)}>가용시간</span>
+                  <span className={cn("font-bold", textPrimary)}>
+                    {Math.floor(availableMinutes / 60)}시간 {availableMinutes % 60}분
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className={cn("font-medium", textSecondary)}>예상 소요</span>
+                  <span className={cn(
+                    "font-bold",
+                    isTimeExceeded ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
+                  )}>
+                    {Math.floor(estimatedMinutes / 60)}시간 {estimatedMinutes % 60}분
+                    {isTimeExceeded && " (초과!)"}
+                  </span>
+                </div>
+              </div>
+              {/* 진행 바 */}
+              <div className="w-24">
+                <ProgressBar
+                  value={Math.min(100, (estimatedMinutes / availableMinutes) * 100)}
+                  variant={isTimeExceeded ? "error" : "success"}
+                  size="sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* 컨테이너 기반 플랜 목록 */}
+      {totalPlans > 0 && (
+        <div className="flex flex-col gap-4">
+          {/* 미완료 컨테이너 */}
+          <ContainerSection
+            type="unfinished"
+            count={plansByContainer.unfinished.plans.length + plansByContainer.unfinished.adHocPlans.length}
+          >
+            {plansByContainer.unfinished.plans.map((plan) => (
+              <CalendarPlanCard
+                key={plan.id}
+                plan={plan}
+                isConnected={connectedPlanIds.has(plan.id)}
+                onLinkContent={handleLinkContent}
+              />
+            ))}
+            {plansByContainer.unfinished.adHocPlans.map((plan) => (
+              <AdHocPlanListItem
+                key={plan.id}
+                id={plan.id}
+                title={plan.title}
+                icon={plan.icon || undefined}
+                estimatedMinutes={plan.estimated_minutes || undefined}
+                status={plan.status || undefined}
+                borderClass="border-red-200 dark:border-red-800"
+              />
+            ))}
+          </ContainerSection>
+
+          {/* 오늘 할 일 컨테이너 */}
+          <ContainerSection
+            type="daily"
+            count={plansByContainer.daily.plans.length + plansByContainer.daily.adHocPlans.length}
+          >
+            {plansByContainer.daily.plans.map((plan) => (
+              <CalendarPlanCard
+                key={plan.id}
+                plan={plan}
+                isConnected={connectedPlanIds.has(plan.id)}
+                onLinkContent={handleLinkContent}
+              />
+            ))}
+            {plansByContainer.daily.adHocPlans.map((plan) => (
+              <AdHocPlanListItem
+                key={plan.id}
+                id={plan.id}
+                title={plan.title}
+                icon={plan.icon || undefined}
+                estimatedMinutes={plan.estimated_minutes || undefined}
+                status={plan.status || undefined}
+                borderClass="border-blue-200 dark:border-blue-800"
+              />
+            ))}
+          </ContainerSection>
+
+          {/* 주간 유동 컨테이너 */}
+          <ContainerSection
+            type="weekly"
+            count={plansByContainer.weekly.plans.length + plansByContainer.weekly.adHocPlans.length}
+          >
+            {plansByContainer.weekly.plans.map((plan) => (
+              <CalendarPlanCard
+                key={plan.id}
+                plan={plan}
+                isConnected={connectedPlanIds.has(plan.id)}
+                onLinkContent={handleLinkContent}
+              />
+            ))}
+            {plansByContainer.weekly.adHocPlans.map((plan) => (
+              <AdHocPlanListItem
+                key={plan.id}
+                id={plan.id}
+                title={plan.title}
+                icon={plan.icon || undefined}
+                estimatedMinutes={plan.estimated_minutes || undefined}
+                status={plan.status || undefined}
+                borderClass="border-green-200 dark:border-green-800"
+              />
+            ))}
+          </ContainerSection>
+        </div>
+      )}
 
       {/* 타임라인 뷰 (시간 순서대로) - 개선된 패딩 */}
       <div className={cn("rounded-xl border-2 shadow-[var(--elevation-4)]", borderDefault, bgSurface)}>
@@ -324,6 +524,76 @@ function DayViewComponent({ plans, currentDate, exclusions, academySchedules, da
           )}
         </div>
       </div>
+
+      {/* 빠른 추가 플랜 섹션 */}
+      {dayAdHocPlans.length > 0 && (
+        <div className={cn("rounded-xl border-2 shadow-[var(--elevation-4)]", borderDefault, bgSurface)}>
+          <div className={cn("border-b-2 px-6 md:px-8 py-4 md:py-5 bg-gradient-to-r", borderDefault, "from-amber-50 to-white dark:from-amber-900/20 dark:to-gray-800")}>
+            <h3 className={cn("text-xl md:text-2xl font-bold flex items-center gap-2", textPrimary)}>
+              <span className="text-lg">⚡</span>
+              빠른 추가 플랜
+            </h3>
+          </div>
+          <div className="p-6 md:p-8">
+            <div className="flex flex-col gap-3">
+              {dayAdHocPlans.map((plan) => {
+                const isCompleted = plan.status === "completed" || !!plan.completed_at;
+                const isInProgress = plan.status === "in_progress" && !!plan.started_at;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={cn(
+                      "flex items-center gap-4 rounded-lg border p-4",
+                      isCompleted
+                        ? "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-900/20"
+                        : isInProgress
+                        ? "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/20"
+                        : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg",
+                      plan.color
+                        ? `bg-${plan.color}-100 dark:bg-${plan.color}-900/30`
+                        : "bg-amber-100 dark:bg-amber-900/30"
+                    )}>
+                      {plan.icon || "⚡"}
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1">
+                      <span className={cn(
+                        "font-medium",
+                        textPrimary,
+                        isCompleted && "line-through opacity-70"
+                      )}>
+                        {plan.title}
+                      </span>
+                      {plan.estimated_minutes && (
+                        <span className={cn("text-sm", textSecondary)}>
+                          예상 시간: {plan.estimated_minutes}분
+                          {plan.actual_minutes && ` (실제: ${plan.actual_minutes}분)`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isCompleted && (
+                        <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                          ✓ 완료
+                        </span>
+                      )}
+                      {isInProgress && (
+                        <span className="flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                          ▶ 진행중
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 기존 테이블 뷰 (숨김 처리 - 필요시 주석 해제) */}
       {false && (

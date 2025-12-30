@@ -1107,7 +1107,9 @@ export async function createStudentAdHocPlan(
       page_range_start: input.content_link?.range_start || null,
       page_range_end: input.content_link?.range_end || null,
       recurrence_rule: input.recurrence_rule || null,
-      created_by: user.userId,
+      // 학생이 직접 생성하는 플랜은 created_by를 null로 설정
+      // (created_by는 admin_users.id를 참조하므로 학생 ID 사용 불가)
+      created_by: null,
       // Free learning item fields
       tags: input.tags || null,
       color: input.color || null,

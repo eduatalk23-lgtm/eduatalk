@@ -193,6 +193,12 @@ export function QuickAddPlanModal({
       return;
     }
 
+    // tenantId가 없으면 에러 처리 (UUID 빈 문자열 방지)
+    if (!tenantId) {
+      showToast("테넌트 정보가 없습니다. 페이지를 새로고침해주세요.", "error");
+      return;
+    }
+
     startTransition(async () => {
       try {
         // 자연어 파싱 결과 적용
@@ -201,14 +207,15 @@ export function QuickAddPlanModal({
 
         const result = await createStudentAdHocPlan({
           student_id: studentId,
-          tenant_id: tenantId ?? "",
+          tenant_id: tenantId,
           title: parsed.title ?? title.trim(),
           description: description.trim() || undefined,
           plan_date: date,
           estimated_minutes: finalMinutes,
           container_type: "daily",
-          // 자유 학습 아이템 메타데이터
-          content_type: activeTab === "free" ? freeItemType : legacyContentType,
+          // 자유 학습 아이템은 DB CHECK 제약 조건에 따라 'custom' 타입으로 저장
+          // 세부 유형은 color/icon으로 구분
+          content_type: activeTab === "free" ? "custom" : legacyContentType,
           // 자유 학습 항목의 색상 및 아이콘 자동 설정
           color: activeTab === "free" ? FREE_LEARNING_ITEM_COLORS[freeItemType] : undefined,
           icon: activeTab === "free" ? FREE_LEARNING_ITEM_ICONS[freeItemType] : undefined,

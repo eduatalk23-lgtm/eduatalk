@@ -388,7 +388,7 @@ async function getContentTitle(
     if (data) title = data.title;
   } else if (contentType === "custom") {
     const { data } = await supabase
-      .from("custom_contents")
+      .from("student_custom_contents")
       .select("title")
       .eq("id", contentId)
       .single();

@@ -118,6 +118,18 @@ export async function fetchContentMetadata(
   contentType: "book" | "lecture",
   studentId?: string
 ): Promise<ContentMetadata> {
+  // UUID 검증 (빈 문자열 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!contentId || !uuidRegex.test(contentId)) {
+    throw new PlanGroupError(
+      `유효하지 않은 콘텐츠 ID: ${contentId}`,
+      PlanGroupErrorCodes.VALIDATION_FAILED,
+      "유효하지 않은 콘텐츠 ID입니다.",
+      false,
+      { contentId, contentType }
+    );
+  }
+
   const supabase = await createSupabaseServerClient();
 
   try {
@@ -358,12 +370,20 @@ export async function fetchContentMetadataBatch(
   const results = new Map<string, ContentMetadata>();
   const supabase = await createSupabaseServerClient();
 
-  // 콘텐츠를 타입별로 그룹화
+  // UUID 검증 정규식
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // 콘텐츠를 타입별로 그룹화 (유효한 UUID만 포함)
   const bookIds: string[] = [];
   const lectureIds: string[] = [];
   const contentMap = new Map<string, { content_id: string; content_type: "book" | "lecture" }>();
-  
+
   contents.forEach((content) => {
+    // UUID 형식이 아닌 content_id는 스킵
+    if (!content.content_id || !uuidRegex.test(content.content_id)) {
+      console.warn("[fetchContentMetadataBatch] 유효하지 않은 content_id 스킵:", content.content_id);
+      return;
+    }
     contentMap.set(content.content_id, content);
     if (content.content_type === "book") {
       bookIds.push(content.content_id);

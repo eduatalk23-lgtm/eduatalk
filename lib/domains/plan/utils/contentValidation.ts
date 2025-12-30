@@ -28,6 +28,12 @@ export async function checkContentExists(
   contentType: ContentType,
   studentId?: string
 ): Promise<ContentExistsResult> {
+  // UUID 검증 (빈 문자열 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!contentId || !uuidRegex.test(contentId)) {
+    return { exists: false, error: "유효하지 않은 콘텐츠 ID입니다." };
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
 
@@ -69,13 +75,19 @@ async function checkContentExistsDirect(
   contentType: ContentType,
   studentId?: string
 ): Promise<ContentExistsResult> {
+  // UUID 검증 (빈 문자열 방지)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!contentId || !uuidRegex.test(contentId)) {
+    return { exists: false, error: "유효하지 않은 콘텐츠 ID입니다." };
+  }
+
   try {
     // 테이블 결정
     const tableName = contentType === "book"
       ? "books"
       : contentType === "lecture"
         ? "lectures"
-        : "custom_contents";
+        : "student_custom_contents";
 
     const masterTableName = contentType === "book"
       ? "master_books"

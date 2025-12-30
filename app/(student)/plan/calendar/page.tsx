@@ -6,7 +6,7 @@ import {
   getPlanExclusions,
   getAcademySchedules,
 } from "@/lib/data/planGroups";
-import { getPlansForStudent } from "@/lib/data/studentPlans";
+import { getPlansForStudent, getAdHocPlansForCalendar } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "./_components/PlanCalendarView";
 import { CalendarSidebar } from "./_components/CalendarSidebar";
 import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
@@ -135,14 +135,21 @@ export default async function PlanCalendarPage({
 
     // 활성 플랜 그룹에 속한 플랜만 조회 (데이터베이스 레벨 필터링)
     // 날짜 형식이 문자열(YYYY-MM-DD)임을 보장
-    const filteredPlans = await getPlansForStudent({
-      studentId: user.id,
-      dateRange: {
+    // student_plan과 ad_hoc_plans를 병렬로 조회
+    const [filteredPlans, adHocPlans] = await Promise.all([
+      getPlansForStudent({
+        studentId: user.id,
+        dateRange: {
+          start: minDateStr,
+          end: maxDateStr,
+        },
+        planGroupIds: activeGroupIds, // 데이터베이스 레벨에서 필터링
+      }),
+      getAdHocPlansForCalendar(user.id, {
         start: minDateStr,
         end: maxDateStr,
-      },
-      planGroupIds: activeGroupIds, // 데이터베이스 레벨에서 필터링
-    });
+      }),
+    ]);
 
     // 플랜 그룹 불일치 확인
     const planGroupIdsInPlans = [...new Set(filteredPlans.map((p) => p.plan_group_id).filter(Boolean))];
@@ -303,6 +310,7 @@ export default async function PlanCalendarPage({
             <div className="flex-1 min-w-0">
               <PlanCalendarView
                 plans={plansWithContent}
+                adHocPlans={adHocPlans}
                 view={view}
                 minDate={minDateStr}
                 maxDate={maxDateStr}
@@ -311,6 +319,7 @@ export default async function PlanCalendarPage({
                 academySchedules={academySchedules}
                 dailySchedules={dailySchedules}
                 studentId={user.id}
+                tenantId={tenantContext.tenantId}
               />
             </div>
 

@@ -76,6 +76,8 @@ export function QuickCreateModal({
     weekdays: [1, 2, 3, 4, 5] as number[],
     studyType: "weakness" as "strategy" | "weakness",
     reviewEnabled: true,
+    reviewMode: "inherit" as "inherit" | "custom",
+    reviewDayOfWeek: 6, // 기본값: 토요일
   });
 
   const [recommendation, setRecommendation] = useState<{
@@ -96,6 +98,8 @@ export function QuickCreateModal({
           weekdays: schedule.weekdays,
           studyType: schedule.studyType,
           reviewEnabled: schedule.reviewEnabled,
+          reviewMode: schedule.reviewMode,
+          reviewDayOfWeek: schedule.reviewMode === "custom" ? schedule.reviewDayOfWeek : undefined,
         },
       };
 
@@ -268,7 +272,7 @@ export function QuickCreateModal({
                     type="text"
                     value={content.name}
                     onChange={(e) =>
-                      setContent((prev) => ({ ...prev, name: e.target.value, id: e.target.value }))
+                      setContent((prev) => ({ ...prev, name: e.target.value }))
                     }
                     placeholder="예: 수학의 정석, 영어 기초 강의"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
@@ -458,24 +462,100 @@ export function QuickCreateModal({
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    type="checkbox"
-                    checked={schedule.reviewEnabled}
-                    onChange={(e) =>
-                      setSchedule((prev) => ({
-                        ...prev,
-                        reviewEnabled: e.target.checked,
-                      }))
-                    }
-                    className="peer sr-only"
-                  />
-                  <div className="peer h-5 w-9 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700" />
-                </label>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  주간 복습 포함
-                </span>
+              {/* 복습 설정 */}
+              <div className="space-y-3 rounded-lg border border-gray-200 dark:border-gray-600 p-4">
+                <div className="flex items-center gap-3">
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input
+                      type="checkbox"
+                      checked={schedule.reviewEnabled}
+                      onChange={(e) =>
+                        setSchedule((prev) => ({
+                          ...prev,
+                          reviewEnabled: e.target.checked,
+                        }))
+                      }
+                      className="peer sr-only"
+                    />
+                    <div className="peer h-5 w-9 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-indigo-600 peer-checked:after:translate-x-full peer-checked:after:border-white dark:bg-gray-700" />
+                  </label>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    주간 복습 포함
+                  </span>
+                </div>
+
+                {schedule.reviewEnabled && (
+                  <div className="space-y-3 pt-2">
+                    {/* 복습 설정 모드 */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSchedule((prev) => ({ ...prev, reviewMode: "inherit" }))
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors",
+                          schedule.reviewMode === "inherit"
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/20 dark:text-indigo-300"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-600 dark:text-gray-400"
+                        )}
+                      >
+                        캘린더 설정 따르기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSchedule((prev) => ({ ...prev, reviewMode: "custom" }))
+                        }
+                        className={cn(
+                          "flex-1 rounded-lg border-2 px-3 py-2 text-xs font-medium transition-colors",
+                          schedule.reviewMode === "custom"
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-900/20 dark:text-indigo-300"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-600 dark:text-gray-400"
+                        )}
+                      >
+                        복습일 직접 설정
+                      </button>
+                    </div>
+
+                    {/* 커스텀 복습일 선택 */}
+                    {schedule.reviewMode === "custom" && (
+                      <div>
+                        <label className="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          복습 요일 선택
+                        </label>
+                        <div className="flex gap-1">
+                          {WEEKDAY_LABELS.map((label, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() =>
+                                setSchedule((prev) => ({
+                                  ...prev,
+                                  reviewDayOfWeek: index,
+                                }))
+                              }
+                              className={cn(
+                                "flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors",
+                                schedule.reviewDayOfWeek === index
+                                  ? "bg-purple-600 text-white"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400"
+                              )}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {schedule.reviewMode === "inherit"
+                        ? "캘린더에 설정된 복습일(기본: 토요일)을 사용합니다."
+                        : `매주 ${WEEKDAY_LABELS[schedule.reviewDayOfWeek]}요일에 복습을 진행합니다.`}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -524,7 +604,9 @@ export function QuickCreateModal({
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500 dark:text-gray-400">복습</span>
                     <span className="font-medium text-indigo-600 dark:text-indigo-400">
-                      주간 복습 포함
+                      {schedule.reviewMode === "inherit"
+                        ? "주간 복습 (캘린더 설정)"
+                        : `주간 복습 (매주 ${WEEKDAY_LABELS[schedule.reviewDayOfWeek]})`}
                     </span>
                   </div>
                 )}

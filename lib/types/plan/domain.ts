@@ -349,7 +349,7 @@ export type Plan = {
   plan_date: string;
   block_index: number;
   content_type: ContentType | string; // DB에서 string으로 저장되지만 실제로는 ContentType 값만 사용
-  content_id: string;
+  content_id: string | null; // Calendar-First: 자유 학습 시 null 허용
   chapter?: string | null;
   planned_start_page_or_time?: number | null;
   planned_end_page_or_time?: number | null;
@@ -402,6 +402,31 @@ export type Plan = {
   virtual_subject_category?: string | null;
   /** 가상 플랜 설명 (예: "수학 학습 예정") */
   virtual_description?: string | null;
+  // Calendar-First 아키텍처 추가 필드
+  /** 컨테이너 타입 (daily/weekly/unfinished) */
+  container_type?: "daily" | "weekly" | "unfinished" | string | null;
+  /** 잠금 상태 (관리자가 잠금 설정) */
+  is_locked?: boolean | null;
+  /** 예상 학습 시간 (분) */
+  estimated_minutes?: number | null;
+  /** UI 표시 정렬 순서 */
+  order_index?: number | null;
+  /** 자유 학습 콘텐츠 ID */
+  flexible_content_id?: string | null;
+  /** 원본 분량 (이월 전) */
+  original_volume?: number | null;
+  /** 이월 원본 날짜 */
+  carryover_from_date?: string | null;
+  /** 이월 횟수 */
+  carryover_count?: number | null;
+  /** 커스텀 제목 (자유 학습용) */
+  custom_title?: string | null;
+  /** 커스텀 범위 표시 (예: "1-50페이지") */
+  custom_range_display?: string | null;
+  /** 복습 그룹 ID */
+  review_group_id?: string | null;
+  /** 복습 원본 콘텐츠 IDs */
+  review_source_content_ids?: string[] | null;
 };
 
 /**

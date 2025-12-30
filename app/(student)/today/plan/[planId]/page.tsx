@@ -1,10 +1,11 @@
 import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
-import { getPlanById, getPlansForStudent, Plan } from "@/lib/data/studentPlans";
+import { getPlanById, getPlansForStudent, Plan, getAdHocPlanById, AdHocPlan } from "@/lib/data/studentPlans";
 import { getBooks, getLectures, getCustomContents } from "@/lib/data/studentContents";
 import { getActiveSession } from "@/lib/data/studentSessions";
 import { PlanExecutionForm } from "./_components/PlanExecutionForm";
+import { AdHocPlanExecutionForm } from "./_components/AdHocPlanExecutionForm";
 import Link from "next/link";
 import {
   calculateStudyTimeFromTimestamps,
@@ -13,14 +14,14 @@ import {
 } from "@/app/(student)/today/_utils/planGroupUtils";
 import { getContainerClass } from "@/lib/constants/layout";
 
-type PlanCompletionMode = "today" | "camp";
+type PlanCompletionMode = "today" | "camp" | "adhoc";
 
 type PlanExecutionPageProps = {
   params: Promise<{ planId: string }>;
   searchParams: Promise<{ mode?: string }>;
 };
 
-export default async function PlanExecutionPage({ 
+export default async function PlanExecutionPage({
   params,
   searchParams,
 }: PlanExecutionPageProps) {
@@ -32,6 +33,93 @@ export default async function PlanExecutionPage({
   }
 
   const tenantContext = await getTenantContext();
+
+  // 모드 읽기 (기본값: "today")
+  const resolvedSearchParams = await searchParams;
+  const modeParam = resolvedSearchParams?.mode;
+  const mode: PlanCompletionMode =
+    modeParam === "camp" ? "camp" :
+    modeParam === "adhoc" ? "adhoc" :
+    "today";
+
+  // ad_hoc_plan 모드인 경우 별도 처리
+  if (mode === "adhoc") {
+    const adHocPlan = await getAdHocPlanById(planId, user.userId, tenantContext?.tenantId || null);
+
+    if (!adHocPlan) {
+      notFound();
+    }
+
+    return (
+      <div className={getContainerClass("FORM", "md")}>
+        <div className="flex flex-col gap-6">
+          <Link
+            href="/today"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+          >
+            <span>←</span>
+            <span>Today로 돌아가기</span>
+          </Link>
+
+          <div className="flex flex-col gap-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-purple-100 px-3 py-1.5 text-xs font-bold text-purple-700">
+                  빠른 플랜
+                </span>
+                {adHocPlan.content_type && (
+                  <span className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
+                    {adHocPlan.content_type}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{adHocPlan.title}</h1>
+              {adHocPlan.description && (
+                <p className="text-sm font-medium text-gray-600">{adHocPlan.description}</p>
+              )}
+            </div>
+
+            {adHocPlan.estimated_minutes && (
+              <div className="flex flex-col gap-3 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-gray-600">예상 소요 시간</span>
+                  <span className="font-bold text-gray-900">
+                    약 {adHocPlan.estimated_minutes}분
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {adHocPlan.status === "completed" && adHocPlan.started_at && adHocPlan.completed_at && (
+              <div className="flex flex-col gap-4 rounded-xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-md">
+                <h2 className="text-base font-bold text-emerald-900">학습 완료 기록</h2>
+                <div className="grid gap-3 text-sm text-emerald-950 sm:grid-cols-3">
+                  <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                    <span className="text-xs font-medium text-emerald-600">시작 시간</span>
+                    <span className="text-sm font-bold">{formatTimestamp(adHocPlan.started_at)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                    <span className="text-xs font-medium text-emerald-600">종료 시간</span>
+                    <span className="text-sm font-bold">{formatTimestamp(adHocPlan.completed_at)}</span>
+                  </div>
+                  {adHocPlan.actual_minutes && (
+                    <div className="flex flex-col gap-1 rounded-lg bg-white/80 p-3 shadow-sm">
+                      <span className="text-xs font-medium text-emerald-600">총 학습 시간</span>
+                      <span className="text-lg font-bold text-emerald-900">{adHocPlan.actual_minutes}분</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <AdHocPlanExecutionForm plan={adHocPlan} />
+        </div>
+      </div>
+    );
+  }
+
+  // student_plan 처리
   const plan = await getPlanById(planId, user.userId, tenantContext?.tenantId || null);
 
   if (!plan || !plan.content_type || !plan.content_id) {
@@ -112,12 +200,7 @@ export default async function PlanExecutionPage({
     : 0;
   const formattedPureStudyTime = hasCompletedTimer ? formatTime(Math.max(0, pureStudySeconds)) : null;
 
-  // 모드 읽기 (기본값: "today")
-  const resolvedSearchParams = await searchParams;
-  const modeParam = resolvedSearchParams?.mode;
-  const mode: PlanCompletionMode = modeParam === "camp" ? "camp" : "today";
-
-  // 모드에 따른 뒤로가기 링크
+  // 모드에 따른 뒤로가기 링크 (mode는 이미 상단에서 결정됨)
   const backLinkHref = mode === "camp" ? "/camp/today" : "/today";
   const backLinkText = mode === "camp" ? "캠프 일정으로 돌아가기" : "Today로 돌아가기";
 
