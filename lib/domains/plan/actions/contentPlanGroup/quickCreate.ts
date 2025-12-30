@@ -286,13 +286,15 @@ export async function quickCreateFromContent(
     // 4. plan_contents 생성
     const { error: pcError } = await supabase.from("plan_contents").insert({
       plan_group_id: planGroup.id,
+      tenant_id: tenantId,
       content_type: input.content.type,
       content_id: resolvedContentId,
       content_name: input.content.name,
-      start_page_or_time: input.range.start,
-      end_page_or_time: input.range.end,
+      start_range: input.range.start,
+      end_range: input.range.end,
       subject_name: input.content.subject ?? null,
       subject_category: input.content.subjectCategory ?? null,
+      display_order: 0,
     });
 
     if (pcError) {

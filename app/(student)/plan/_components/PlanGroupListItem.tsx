@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2, CheckSquare, Square, Eye, Plus, AlertCircle } from "lucide-react";
+import { Trash2, CheckSquare, Square, Eye, Plus, AlertCircle, BookOpen, Video, FileText, Zap } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
@@ -27,6 +27,15 @@ type StatusBreakdown = {
   completed: number;
 };
 
+export type ContentSummary = {
+  bookCount: number;
+  lectureCount: number;
+  customCount: number;
+  adHocCount: number;
+  totalContentCount: number;
+  contentNames: string[];
+};
+
 type PlanGroupListItemProps = {
   group: PlanGroup;
   planCount: number;
@@ -34,6 +43,7 @@ type PlanGroupListItemProps = {
   completedCount?: number; // 완료된 플랜 개수
   totalCount?: number; // 전체 플랜 개수
   statusBreakdown?: StatusBreakdown; // 상태별 개수
+  contentSummary?: ContentSummary; // 콘텐츠 요약
   isSelected?: boolean;
   onToggleSelect?: () => void;
 };
@@ -45,6 +55,7 @@ export function PlanGroupListItem({
   completedCount = 0,
   totalCount = 0,
   statusBreakdown,
+  contentSummary,
   isSelected = false,
   onToggleSelect,
 }: PlanGroupListItemProps) {
@@ -414,6 +425,59 @@ export function PlanGroupListItem({
                     완료 {statusBreakdown.completed}
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* 콘텐츠 요약 */}
+            {contentSummary && contentSummary.totalContentCount > 0 && (
+              <div className="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-2.5">
+                <div className="flex flex-col gap-2">
+                  {/* 콘텐츠 타입별 개수 */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {contentSummary.bookCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <BookOpen className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        교재 {contentSummary.bookCount}
+                      </span>
+                    )}
+                    {contentSummary.lectureCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <Video className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                        강의 {contentSummary.lectureCount}
+                      </span>
+                    )}
+                    {contentSummary.customCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <FileText className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                        커스텀 {contentSummary.customCount}
+                      </span>
+                    )}
+                    {contentSummary.adHocCount > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <Zap className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                        빠른추가 {contentSummary.adHocCount}
+                      </span>
+                    )}
+                  </div>
+                  {/* 콘텐츠 이름 칩 */}
+                  {contentSummary.contentNames.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {contentSummary.contentNames.slice(0, 4).map((name, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center rounded-md bg-white dark:bg-gray-800 px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                      {contentSummary.contentNames.length > 4 && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          +{contentSummary.contentNames.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

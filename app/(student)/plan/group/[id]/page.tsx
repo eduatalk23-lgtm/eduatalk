@@ -9,7 +9,10 @@ import { PlanGroupDetailView } from "./_components/PlanGroupDetailView";
 import { PlanGroupActionButtons } from "./_components/PlanGroupActionButtons";
 import { PlanGroupProgressCard } from "./_components/PlanGroupProgressCard";
 import { AutoRescheduleBanner } from "./_components/AutoRescheduleBanner";
-import { classifyPlanContents } from "@/lib/data/planContents";
+import { PlanContentCardList } from "./_components/PlanContentCardList";
+import { AdHocPlansSection } from "./_components/AdHocPlansSection";
+import { classifyPlanContents, getPlanContentsList } from "@/lib/data/planContents";
+import { getAdHocPlansByPlanGroup } from "@/lib/data/studentPlans";
 import type { PlanStatus, Plan } from "@/lib/types/plan";
 import {
   planPurposeLabels,
@@ -89,7 +92,26 @@ export default async function PlanGroupDetailPage({
   const { fetchBlockSetsWithBlocks } = await import("@/lib/data/blockSets");
   const blockSets = await fetchBlockSetsWithBlocks(user.id);
 
+  // Phase 5: 콘텐츠 카드 목록 및 빠른 추가 플랜 조회
+  const [planContentsList, adHocPlans] = await Promise.all([
+    getPlanContentsList(id),
+    getAdHocPlansByPlanGroup(id),
+  ]);
 
+  // 콘텐츠 카드 데이터 변환
+  const contentCardsData = planContentsList.map((item) => ({
+    id: item.content.id,
+    contentId: item.content.content_id,
+    contentType: item.contentType,
+    title: item.contentTitle,
+    subtitle: null as string | null,
+    startRange: item.content.start_range,
+    endRange: item.content.end_range,
+    totalPlans: item.stats.totalPlans,
+    completedPlans: item.stats.completedPlans,
+    progress: item.stats.progress,
+    totalDurationSeconds: item.stats.totalDurationSeconds,
+  }));
 
   // 플랜 데이터 조회 (자동 재조정 제안을 위해 전체 플랜 정보 필요)
   const { data: plans } = await supabase
@@ -466,6 +488,21 @@ export default async function PlanGroupDetailPage({
             completedCount={completedCount}
             hasPlans={hasPlans}
           />
+        )}
+
+        {/* Phase 5: 콘텐츠 카드 목록 */}
+        {contentCardsData.length > 0 && (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <PlanContentCardList
+              groupId={id}
+              contents={contentCardsData}
+            />
+          </div>
+        )}
+
+        {/* Phase 5: 빠른 추가 플랜 섹션 */}
+        {adHocPlans.length > 0 && (
+          <AdHocPlansSection plans={adHocPlans} />
         )}
 
         {/* 탭 컨텐츠 영역 */}

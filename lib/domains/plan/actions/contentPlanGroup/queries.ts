@@ -102,19 +102,33 @@ export async function getTemplateSettings(
       })) ?? [];
   }
 
-  // 학원 일정 조회
-  if (params.includeAcademySchedules) {
+  // 학원 일정 조회 (요일 기반 → 날짜로 변환)
+  // academy_schedules는 day_of_week (0=일, 1=월, ..., 6=토) 기반
+  if (params.includeAcademySchedules && template.period_start && template.period_end) {
     const { data: academySchedules } = await supabase
       .from("academy_schedules")
-      .select("schedule_date")
+      .select("day_of_week, academy_name")
       .eq("plan_group_id", params.templatePlanGroupId);
 
-    if (academySchedules) {
-      for (const schedule of academySchedules) {
-        exclusions.push({
-          date: schedule.schedule_date,
-          reason: "학원 일정",
-        });
+    if (academySchedules && academySchedules.length > 0) {
+      // 학원 일정 요일들을 Set으로 변환
+      const academyDaysOfWeek = new Set(academySchedules.map(s => s.day_of_week));
+
+      // 기간 내 모든 날짜를 순회하며 학원 일정 요일에 해당하는 날짜를 exclusion에 추가
+      const startDate = new Date(template.period_start);
+      const endDate = new Date(template.period_end);
+      const currentDate = new Date(startDate);
+
+      while (currentDate <= endDate) {
+        const dayOfWeek = currentDate.getDay(); // 0=일, 1=월, ..., 6=토
+        if (academyDaysOfWeek.has(dayOfWeek)) {
+          const schedule = academySchedules.find(s => s.day_of_week === dayOfWeek);
+          exclusions.push({
+            date: currentDate.toISOString().split("T")[0],
+            reason: schedule?.academy_name ? `${schedule.academy_name} 수업` : "학원 일정",
+          });
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
       }
     }
   }

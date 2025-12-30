@@ -1051,6 +1051,8 @@ export interface StudentAdHocPlanInput {
   tags?: string[] | null;
   color?: string | null;
   icon?: string | null;
+  // 캘린더 연결
+  plan_group_id?: string | null;
 }
 
 /**
@@ -1114,6 +1116,8 @@ export async function createStudentAdHocPlan(
       tags: input.tags || null,
       color: input.color || null,
       icon: input.icon || null,
+      // 캘린더 연결
+      plan_group_id: input.plan_group_id || null,
     };
 
     const { data, error } = await supabase

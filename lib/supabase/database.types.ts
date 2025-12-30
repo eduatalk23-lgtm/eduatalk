@@ -203,6 +203,7 @@ export type Database = {
           page_range_end: number | null
           page_range_start: number | null
           plan_date: string
+          plan_group_id: string | null
           priority: number | null
           recurrence_parent_id: string | null
           recurrence_rule: Json | null
@@ -234,6 +235,7 @@ export type Database = {
           page_range_end?: number | null
           page_range_start?: number | null
           plan_date: string
+          plan_group_id?: string | null
           priority?: number | null
           recurrence_parent_id?: string | null
           recurrence_rule?: Json | null
@@ -265,6 +267,7 @@ export type Database = {
           page_range_end?: number | null
           page_range_start?: number | null
           plan_date?: string
+          plan_group_id?: string | null
           priority?: number | null
           recurrence_parent_id?: string | null
           recurrence_rule?: Json | null
@@ -311,6 +314,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_hoc_plans_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -2502,6 +2512,7 @@ export type Database = {
       plan_contents: {
         Row: {
           content_id: string
+          content_name: string | null
           content_scheduler_options: Json | null
           content_type: string
           created_at: string | null
@@ -2526,11 +2537,14 @@ export type Database = {
           scheduler_mode: string | null
           start_detail_id: string | null
           start_range: number
+          subject_category: string | null
+          subject_name: string | null
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
           content_id: string
+          content_name?: string | null
           content_scheduler_options?: Json | null
           content_type: string
           created_at?: string | null
@@ -2555,11 +2569,14 @@ export type Database = {
           scheduler_mode?: string | null
           start_detail_id?: string | null
           start_range: number
+          subject_category?: string | null
+          subject_name?: string | null
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
           content_id?: string
+          content_name?: string | null
           content_scheduler_options?: Json | null
           content_type?: string
           created_at?: string | null
@@ -2584,6 +2601,8 @@ export type Database = {
           scheduler_mode?: string | null
           start_detail_id?: string | null
           start_range?: number
+          subject_category?: string | null
+          subject_name?: string | null
           tenant_id?: string
           updated_at?: string | null
         }
@@ -6472,3 +6491,4 @@ export const Constants = {
     },
   },
 } as const
+

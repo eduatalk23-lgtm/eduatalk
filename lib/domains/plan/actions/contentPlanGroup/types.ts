@@ -11,6 +11,7 @@ import type { StudyType } from "@/lib/types/plan";
 // ============================================
 
 export const MAX_CONTENT_PLAN_GROUPS = 9;
+export const MAX_CONTENTS_PER_PLAN_GROUP = 10;
 
 // ============================================
 // Types

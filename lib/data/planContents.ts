@@ -1278,3 +1278,249 @@ export async function classifyPlanContents(
   return { studentContents, recommendedContents };
 }
 
+/**
+ * 특정 plan_content의 플랜(student_plan) 목록 조회
+ * 콘텐츠 상세 페이지에서 해당 콘텐츠의 모든 플랜을 날짜별로 표시하기 위해 사용
+ *
+ * @param planGroupId 플랜 그룹 ID
+ * @param contentId 콘텐츠 ID (plan_contents.id)
+ * @returns 해당 콘텐츠의 플랜 목록 (날짜순 정렬)
+ */
+export async function getPlansByPlanContent(
+  planGroupId: string,
+  contentId: string
+): Promise<{
+  content: PlanContent | null;
+  plans: Array<{
+    id: string;
+    plan_date: string;
+    block_index: number;
+    planned_start_page_or_time: number;
+    planned_end_page_or_time: number;
+    completed_amount: number | null;
+    progress: number | null;
+    content_title: string | null;
+    content_subject: string | null;
+    total_duration_seconds: number | null;
+    status: "pending" | "in_progress" | "completed";
+  }>;
+  stats: {
+    totalPlans: number;
+    completedPlans: number;
+    inProgressPlans: number;
+    pendingPlans: number;
+    totalDurationSeconds: number;
+    averageProgress: number;
+  };
+}> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. plan_contents에서 콘텐츠 정보 조회
+  const { data: contentData, error: contentError } = await supabase
+    .from("plan_contents")
+    .select("*")
+    .eq("id", contentId)
+    .eq("plan_group_id", planGroupId)
+    .single();
+
+  if (contentError || !contentData) {
+    console.warn("[getPlansByPlanContent] 콘텐츠를 찾을 수 없음:", {
+      planGroupId,
+      contentId,
+      error: contentError?.message,
+    });
+    return {
+      content: null,
+      plans: [],
+      stats: {
+        totalPlans: 0,
+        completedPlans: 0,
+        inProgressPlans: 0,
+        pendingPlans: 0,
+        totalDurationSeconds: 0,
+        averageProgress: 0,
+      },
+    };
+  }
+
+  // 2. student_plan에서 해당 콘텐츠의 플랜들 조회
+  // student_plan.content_id가 plan_contents.content_id와 같고
+  // student_plan.plan_group_id가 같은 플랜들을 조회
+  const { data: plansData, error: plansError } = await supabase
+    .from("student_plan")
+    .select(`
+      id,
+      plan_date,
+      block_index,
+      planned_start_page_or_time,
+      planned_end_page_or_time,
+      completed_amount,
+      progress,
+      content_title,
+      content_subject,
+      total_duration_seconds
+    `)
+    .eq("plan_group_id", planGroupId)
+    .eq("content_id", contentData.content_id)
+    .order("plan_date", { ascending: true })
+    .order("block_index", { ascending: true });
+
+  if (plansError) {
+    console.error("[getPlansByPlanContent] 플랜 조회 실패:", plansError);
+    return {
+      content: contentData as PlanContent,
+      plans: [],
+      stats: {
+        totalPlans: 0,
+        completedPlans: 0,
+        inProgressPlans: 0,
+        pendingPlans: 0,
+        totalDurationSeconds: 0,
+        averageProgress: 0,
+      },
+    };
+  }
+
+  // 3. 플랜 상태 계산 및 통계 생성
+  const plans = (plansData || []).map((plan) => {
+    // 진행률 기반 상태 결정
+    const progress = plan.progress ?? 0;
+    let status: "pending" | "in_progress" | "completed" = "pending";
+    if (progress >= 100) {
+      status = "completed";
+    } else if (progress > 0) {
+      status = "in_progress";
+    }
+
+    return {
+      id: plan.id,
+      plan_date: plan.plan_date,
+      block_index: plan.block_index,
+      planned_start_page_or_time: plan.planned_start_page_or_time,
+      planned_end_page_or_time: plan.planned_end_page_or_time,
+      completed_amount: plan.completed_amount,
+      progress: plan.progress,
+      content_title: plan.content_title,
+      content_subject: plan.content_subject,
+      total_duration_seconds: plan.total_duration_seconds,
+      status,
+    };
+  });
+
+  // 4. 통계 계산
+  const completedPlans = plans.filter((p) => p.status === "completed").length;
+  const inProgressPlans = plans.filter((p) => p.status === "in_progress").length;
+  const pendingPlans = plans.filter((p) => p.status === "pending").length;
+  const totalDurationSeconds = plans.reduce(
+    (sum, p) => sum + (p.total_duration_seconds || 0),
+    0
+  );
+  const averageProgress =
+    plans.length > 0
+      ? plans.reduce((sum, p) => sum + (p.progress || 0), 0) / plans.length
+      : 0;
+
+  return {
+    content: contentData as PlanContent,
+    plans,
+    stats: {
+      totalPlans: plans.length,
+      completedPlans,
+      inProgressPlans,
+      pendingPlans,
+      totalDurationSeconds,
+      averageProgress: Math.round(averageProgress),
+    },
+  };
+}
+
+/**
+ * 플랜 그룹의 콘텐츠 목록과 각 콘텐츠별 통계 조회
+ * 캘린더 상세 페이지에서 콘텐츠 카드 목록을 표시하기 위해 사용
+ *
+ * @param planGroupId 플랜 그룹 ID
+ * @returns 콘텐츠 목록 및 통계
+ */
+export async function getPlanContentsList(
+  planGroupId: string
+): Promise<Array<{
+  content: PlanContent;
+  contentTitle: string;
+  contentType: "book" | "lecture" | "custom";
+  stats: {
+    totalPlans: number;
+    completedPlans: number;
+    progress: number;
+    totalDurationSeconds: number;
+  };
+}>> {
+  const supabase = await createSupabaseServerClient();
+
+  // 1. plan_contents에서 해당 그룹의 모든 콘텐츠 조회
+  const { data: contentsData, error: contentsError } = await supabase
+    .from("plan_contents")
+    .select("*")
+    .eq("plan_group_id", planGroupId)
+    .order("display_order", { ascending: true });
+
+  if (contentsError || !contentsData || contentsData.length === 0) {
+    return [];
+  }
+
+  // 2. 각 콘텐츠의 플랜 통계 조회
+  const contentIds = contentsData.map((c) => c.content_id);
+
+  const { data: plansData, error: plansError } = await supabase
+    .from("student_plan")
+    .select("content_id, progress, total_duration_seconds, content_title")
+    .eq("plan_group_id", planGroupId)
+    .in("content_id", contentIds);
+
+  if (plansError) {
+    console.error("[getPlanContentsList] 플랜 통계 조회 실패:", plansError);
+  }
+
+  // 3. 콘텐츠별 통계 집계
+  const plansByContent = new Map<string, Array<{
+    progress: number | null;
+    total_duration_seconds: number | null;
+    content_title: string | null;
+  }>>();
+
+  (plansData || []).forEach((plan) => {
+    if (!plan.content_id) return;
+    const existing = plansByContent.get(plan.content_id) || [];
+    existing.push({
+      progress: plan.progress,
+      total_duration_seconds: plan.total_duration_seconds,
+      content_title: plan.content_title,
+    });
+    plansByContent.set(plan.content_id, existing);
+  });
+
+  // 4. 결과 생성
+  return contentsData.map((content) => {
+    const plans = plansByContent.get(content.content_id) || [];
+    const completedPlans = plans.filter((p) => (p.progress ?? 0) >= 100).length;
+    const totalProgress = plans.reduce((sum, p) => sum + (p.progress ?? 0), 0);
+    const avgProgress = plans.length > 0 ? Math.round(totalProgress / plans.length) : 0;
+    const totalDurationSeconds = plans.reduce(
+      (sum, p) => sum + (p.total_duration_seconds || 0),
+      0
+    );
+    const contentTitle = plans[0]?.content_title || `콘텐츠 ${content.display_order + 1}`;
+
+    return {
+      content: content as PlanContent,
+      contentTitle,
+      contentType: content.content_type as "book" | "lecture" | "custom",
+      stats: {
+        totalPlans: plans.length,
+        completedPlans,
+        progress: avgProgress,
+        totalDurationSeconds,
+      },
+    };
+  });
+}
+

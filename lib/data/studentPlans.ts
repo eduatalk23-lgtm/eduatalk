@@ -873,3 +873,62 @@ export async function getAdHocPlansForCalendar(
     planType: "ad_hoc_plan" as const,
   }));
 }
+
+/**
+ * 플랜 그룹에 연결된 Ad-hoc 플랜 목록 조회
+ * Phase 5: 캘린더 상세 페이지에서 연결된 빠른 추가 플랜 표시
+ *
+ * @param planGroupId - 플랜 그룹 ID
+ * @returns Ad-hoc 플랜 목록
+ */
+export async function getAdHocPlansByPlanGroup(
+  planGroupId: string
+): Promise<{
+  id: string;
+  plan_date: string;
+  title: string;
+  description: string | null;
+  content_type: string | null;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  estimated_minutes: number | null;
+  actual_minutes: number | null;
+  color: string | null;
+  icon: string | null;
+  container_type: string | null;
+  created_at: string;
+}[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("ad_hoc_plans")
+    .select(
+      `
+      id,
+      plan_date,
+      title,
+      description,
+      content_type,
+      status,
+      started_at,
+      completed_at,
+      estimated_minutes,
+      actual_minutes,
+      color,
+      icon,
+      container_type,
+      created_at
+    `
+    )
+    .eq("plan_group_id", planGroupId)
+    .order("plan_date", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("[data/studentPlans] getAdHocPlansByPlanGroup 오류:", error);
+    return [];
+  }
+
+  return data ?? [];
+}

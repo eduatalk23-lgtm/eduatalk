@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PlanEmptyState } from "../_shared/EmptyStatePresets";
 import { Trash2, CheckSquare, Square } from "lucide-react";
 import { PlanGroup } from "@/lib/types/plan";
-import { PlanGroupListItem } from "./PlanGroupListItem";
+import { PlanGroupListItem, type ContentSummary } from "./PlanGroupListItem";
 import { PlanGroupBulkDeleteDialog } from "./PlanGroupBulkDeleteDialog";
 
 type StatusBreakdown = {
@@ -18,9 +18,10 @@ type PlanGroupListProps = {
   planCounts: Map<string, number>; // groupId -> 플랜 개수
   planProgressData: Map<string, { completedCount: number; totalCount: number }>; // groupId -> 진행 상황
   statusBreakdownData?: Map<string, StatusBreakdown>; // groupId -> 상태별 개수
+  contentSummaryData?: Map<string, ContentSummary>; // groupId -> 콘텐츠 요약
 };
 
-export function PlanGroupList({ groups, planCounts, planProgressData, statusBreakdownData }: PlanGroupListProps) {
+export function PlanGroupList({ groups, planCounts, planProgressData, statusBreakdownData, contentSummaryData }: PlanGroupListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
@@ -131,6 +132,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData, statusBrea
           const completedCount = progressData?.completedCount || 0;
           const totalCount = progressData?.totalCount || planCount;
           const statusBreakdown = statusBreakdownData?.get(group.id);
+          const contentSummary = contentSummaryData?.get(group.id);
 
           return (
             <PlanGroupListItem
@@ -141,6 +143,7 @@ export function PlanGroupList({ groups, planCounts, planProgressData, statusBrea
               completedCount={completedCount}
               totalCount={totalCount}
               statusBreakdown={statusBreakdown}
+              contentSummary={contentSummary}
               isSelected={isSelected}
               onToggleSelect={() => handleToggleSelect(group.id)}
             />

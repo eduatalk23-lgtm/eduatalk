@@ -121,6 +121,8 @@ export {
   type CreateQuickPlanResult,
   // Calendar-Only Group (캘린더 전용 그룹에 콘텐츠 추가)
   addContentToCalendarOnlyGroup,
+  // Existing Group (기존 그룹에 추가 콘텐츠 추가)
+  addContentToExistingPlanGroup,
   type AddContentToCalendarOnlyInput,
 } from "./contentPlanGroup";
 

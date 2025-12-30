@@ -2717,3 +2717,190 @@ export async function getPlanGroupsWithStats(
   });
 }
 
+/**
+ * 플랜 그룹의 콘텐츠 요약 정보 조회
+ * 콘텐츠 유형별 개수와 콘텐츠 이름 목록을 반환
+ */
+export type PlanGroupContentSummary = {
+  bookCount: number;
+  lectureCount: number;
+  customCount: number;
+  adHocCount: number;
+  totalContentCount: number;
+  contentNames: string[]; // 최대 4개
+};
+
+export async function getPlanGroupContentSummary(
+  planGroupId: string
+): Promise<PlanGroupContentSummary> {
+  const supabase = await createSupabaseServerClient();
+
+  // 기본 응답
+  const defaultSummary: PlanGroupContentSummary = {
+    bookCount: 0,
+    lectureCount: 0,
+    customCount: 0,
+    adHocCount: 0,
+    totalContentCount: 0,
+    contentNames: [],
+  };
+
+  try {
+    // 1. plan_contents에서 콘텐츠 유형별 개수 및 이름 조회
+    const { data: planContents, error: contentsError } = await supabase
+      .from("plan_contents")
+      .select("content_type, content_name")
+      .eq("plan_group_id", planGroupId)
+      .order("display_order", { ascending: true });
+
+    if (contentsError) {
+      console.error("[getPlanGroupContentSummary] plan_contents 조회 오류:", contentsError);
+      return defaultSummary;
+    }
+
+    // 2. ad_hoc_plans에서 연결된 플랜 개수 조회
+    const { count: adHocCount, error: adHocError } = await supabase
+      .from("ad_hoc_plans")
+      .select("*", { count: "exact", head: true })
+      .eq("plan_group_id", planGroupId);
+
+    if (adHocError) {
+      console.error("[getPlanGroupContentSummary] ad_hoc_plans 조회 오류:", adHocError);
+    }
+
+    // 3. 콘텐츠 유형별 개수 집계
+    let bookCount = 0;
+    let lectureCount = 0;
+    let customCount = 0;
+    const contentNames: string[] = [];
+
+    for (const content of planContents || []) {
+      switch (content.content_type) {
+        case "book":
+          bookCount++;
+          break;
+        case "lecture":
+          lectureCount++;
+          break;
+        case "custom":
+          customCount++;
+          break;
+      }
+
+      // 콘텐츠 이름 수집 (최대 4개)
+      if (content.content_name && contentNames.length < 4) {
+        contentNames.push(content.content_name);
+      }
+    }
+
+    return {
+      bookCount,
+      lectureCount,
+      customCount,
+      adHocCount: adHocCount ?? 0,
+      totalContentCount: (planContents?.length ?? 0) + (adHocCount ?? 0),
+      contentNames,
+    };
+  } catch (error) {
+    console.error("[getPlanGroupContentSummary] 오류:", error);
+    return defaultSummary;
+  }
+}
+
+/**
+ * 여러 플랜 그룹의 콘텐츠 요약 정보를 일괄 조회
+ */
+export async function getPlanGroupContentSummaries(
+  planGroupIds: string[]
+): Promise<Map<string, PlanGroupContentSummary>> {
+  const supabase = await createSupabaseServerClient();
+  const summaryMap = new Map<string, PlanGroupContentSummary>();
+
+  if (planGroupIds.length === 0) {
+    return summaryMap;
+  }
+
+  // 기본값 초기화
+  for (const id of planGroupIds) {
+    summaryMap.set(id, {
+      bookCount: 0,
+      lectureCount: 0,
+      customCount: 0,
+      adHocCount: 0,
+      totalContentCount: 0,
+      contentNames: [],
+    });
+  }
+
+  try {
+    // 1. plan_contents 일괄 조회
+    const { data: planContents, error: contentsError } = await supabase
+      .from("plan_contents")
+      .select("plan_group_id, content_type, content_name")
+      .in("plan_group_id", planGroupIds)
+      .order("display_order", { ascending: true });
+
+    if (contentsError) {
+      console.error("[getPlanGroupContentSummaries] plan_contents 조회 오류:", contentsError);
+    }
+
+    // 2. ad_hoc_plans 일괄 조회 (plan_group_id별 개수)
+    const { data: adHocCounts, error: adHocError } = await supabase
+      .from("ad_hoc_plans")
+      .select("plan_group_id")
+      .in("plan_group_id", planGroupIds);
+
+    if (adHocError) {
+      console.error("[getPlanGroupContentSummaries] ad_hoc_plans 조회 오류:", adHocError);
+    }
+
+    // 3. ad_hoc_plans 개수 집계
+    const adHocCountMap = new Map<string, number>();
+    for (const item of adHocCounts || []) {
+      if (item.plan_group_id) {
+        adHocCountMap.set(
+          item.plan_group_id,
+          (adHocCountMap.get(item.plan_group_id) ?? 0) + 1
+        );
+      }
+    }
+
+    // 4. plan_contents 집계
+    for (const content of planContents || []) {
+      const summary = summaryMap.get(content.plan_group_id);
+      if (!summary) continue;
+
+      switch (content.content_type) {
+        case "book":
+          summary.bookCount++;
+          break;
+        case "lecture":
+          summary.lectureCount++;
+          break;
+        case "custom":
+          summary.customCount++;
+          break;
+      }
+
+      if (content.content_name && summary.contentNames.length < 4) {
+        summary.contentNames.push(content.content_name);
+      }
+    }
+
+    // 5. ad_hoc 개수 및 총 개수 계산
+    for (const [id, summary] of summaryMap) {
+      summary.adHocCount = adHocCountMap.get(id) ?? 0;
+      summary.totalContentCount =
+        summary.bookCount +
+        summary.lectureCount +
+        summary.customCount +
+        summary.adHocCount;
+    }
+
+    return summaryMap;
+  } catch (error) {
+    console.error("[getPlanGroupContentSummaries] 오류:", error);
+    return summaryMap;
+  }
+}
+

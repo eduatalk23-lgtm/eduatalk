@@ -139,7 +139,6 @@ async function getPlansFromView(options: {
     view_content_subject_category: string | null;
     view_content_category: string | null;
     memo: string | null;
-    subject_type: string | null;
     created_at: string;
     updated_at: string | null;
     // 추가 필드 (View에서 제공되지 않을 수 있음)
@@ -174,7 +173,7 @@ async function getPlansFromView(options: {
       const query = buildPlanQuery(
         supabase,
         "today_plan_view",
-        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,subject_type,created_at,updated_at",
+        "id,tenant_id,student_id,plan_date,block_index,content_type,content_id,chapter,planned_start_page_or_time,planned_end_page_or_time,completed_amount,progress,is_reschedulable,plan_group_id,start_time,end_time,actual_start_time,actual_end_time,total_duration_seconds,paused_duration_seconds,pause_count,plan_number,sequence,day_type,week,day,is_partial,is_continued,content_title,content_subject,content_subject_category,content_category,view_content_title,view_content_subject,view_content_subject_category,view_content_category,memo,created_at,updated_at,status,is_active,origin_plan_item_id,version,version_group_id",
         {
           studentId: options.studentId,
           tenantId: options.tenantId,
@@ -266,7 +265,8 @@ async function getPlansFromView(options: {
       is_active: row.is_active ?? null,
       origin_plan_item_id: row.origin_plan_item_id ?? null,
       status: row.status ?? null,
-      subject_type: row.subject_type ?? null,
+      // subject_type은 today_plan_view에서 제공되지 않음 (student_plan 테이블에서 직접 조회 필요)
+      subject_type: null,
       version: row.version ?? null,
       version_group_id: row.version_group_id ?? null,
       // 가상 플랜 필드

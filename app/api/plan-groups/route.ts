@@ -5,7 +5,12 @@ import {
   apiUnauthorized,
   handleApiError,
 } from "@/lib/api";
-import { getPlanGroupsWithStats, type PlanGroupFilters } from "@/lib/data/planGroups";
+import {
+  getPlanGroupsWithStats,
+  getPlanGroupContentSummaries,
+  type PlanGroupFilters,
+  type PlanGroupContentSummary,
+} from "@/lib/data/planGroups";
 import type { PlanGroup } from "@/lib/types/plan";
 
 
@@ -21,7 +26,9 @@ type PlanGroupStats = {
   };
 };
 
-type PlanGroupWithStats = PlanGroup & PlanGroupStats;
+type PlanGroupWithStats = PlanGroup & PlanGroupStats & {
+  contentSummary?: PlanGroupContentSummary;
+};
 
 /**
  * 플랜 그룹 목록 조회 API
@@ -72,7 +79,22 @@ export async function GET(request: Request) {
       filters.includeDeleted = true;
     }
 
+    const includeContentSummary = searchParams.get("includeContentSummary") === "true";
+
     const data = await getPlanGroupsWithStats(filters);
+
+    // 콘텐츠 요약 정보 포함 옵션
+    if (includeContentSummary && data.length > 0) {
+      const planGroupIds = data.map((g) => g.id);
+      const contentSummaries = await getPlanGroupContentSummaries(planGroupIds);
+
+      const dataWithSummaries: PlanGroupWithStats[] = data.map((group) => ({
+        ...group,
+        contentSummary: contentSummaries.get(group.id),
+      }));
+
+      return apiSuccess<PlanGroupWithStats[]>(dataWithSummaries);
+    }
 
     return apiSuccess<PlanGroupWithStats[]>(data);
   } catch (error) {

@@ -38,8 +38,9 @@ export function PlanGroupActionButtons({
   const [isPending, startTransition] = useTransition();
 
   // 콘텐츠 추가 버튼 표시 여부
-  // 캘린더 전용 모드이거나 콘텐츠가 아직 없는 경우
-  const showAddContent = isCalendarOnly || contentCount === 0;
+  // 최대 10개까지 추가 가능
+  const MAX_CONTENTS = 10;
+  const showAddContent = contentCount < MAX_CONTENTS;
 
   const handleCopy = () => {
     if (

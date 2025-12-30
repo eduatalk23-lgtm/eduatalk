@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { PlanGroupFilters } from "@/lib/data/planGroups";
+import type { PlanGroupFilters, PlanGroupContentSummary } from "@/lib/data/planGroups";
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
@@ -20,6 +20,8 @@ export type PlanGroupStats = {
     inProgress: number;
     completed: number;
   };
+  /** 콘텐츠 요약 정보 */
+  contentSummary?: PlanGroupContentSummary;
 };
 
 /**
@@ -70,6 +72,9 @@ export function planGroupsQueryOptions(filters: PlanGroupFilters) {
       if (filters.includeDeleted) {
         queryParams.set("includeDeleted", "true");
       }
+
+      // 콘텐츠 요약 정보 포함
+      queryParams.set("includeContentSummary", "true");
 
       const response = await fetch(`/api/plan-groups?${queryParams.toString()}`);
 

@@ -11,7 +11,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { PlanGroup, PlanExclusion, AcademySchedule, RangeUnit } from "@/lib/types/plan";
-import { addContentToCalendarOnlyGroup } from "@/lib/domains/plan/actions";
+import { addContentToExistingPlanGroup } from "@/lib/domains/plan/actions";
 import type { AddContentToCalendarOnlyInput } from "@/lib/domains/plan/actions";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 
@@ -163,7 +163,7 @@ export function AddContentWizard({
     startTransition(async () => {
       setIsSubmitting(true);
       try {
-        const result = await addContentToCalendarOnlyGroup(input);
+        const result = await addContentToExistingPlanGroup(input);
 
         if (result.success) {
           showSuccess(

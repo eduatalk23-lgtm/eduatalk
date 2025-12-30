@@ -21,6 +21,7 @@
 // Types
 export {
   MAX_CONTENT_PLAN_GROUPS,
+  MAX_CONTENTS_PER_PLAN_GROUP,
   type PlanGroupSummary,
   type QuickCreateInput,
   type CreateQuickPlanInput,
@@ -56,6 +57,7 @@ export {
   previewContentPlanGroup,
   createContentPlanGroup,
   addContentToCalendarOnlyGroup,
+  addContentToExistingPlanGroup,
 } from "./contentPlanGroup/create";
 
 // Quick Create Actions

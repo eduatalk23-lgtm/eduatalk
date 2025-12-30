@@ -22,6 +22,7 @@ import {
 import { createStudentAdHocPlan } from "@/lib/domains/admin-plan/actions/adHocPlan";
 import { getRecentFreeLearningItems } from "@/lib/domains/content/actions/freeItems";
 import { parseNaturalInput } from "@/lib/domains/content/utils";
+import { PlanGroupSelector } from "@/components/plan/PlanGroupSelector";
 import {
   FreeLearningItemType,
   FREE_LEARNING_ITEM_LABELS,
@@ -115,6 +116,9 @@ export function QuickAddPlanModal({
   // 자연어 파싱 결과
   const [parsedHint, setParsedHint] = useState<string | null>(null);
 
+  // 캘린더 선택
+  const [selectedPlanGroupId, setSelectedPlanGroupId] = useState<string | null>(null);
+
   // 최근 항목 로드
   useEffect(() => {
     if (open && studentId) {
@@ -174,6 +178,7 @@ export function QuickAddPlanModal({
     setDescription("");
     setShowRecent(false);
     setParsedHint(null);
+    setSelectedPlanGroupId(null);
   };
 
   const handleRecentItemClick = (item: RecentItem) => {
@@ -219,6 +224,8 @@ export function QuickAddPlanModal({
           // 자유 학습 항목의 색상 및 아이콘 자동 설정
           color: activeTab === "free" ? FREE_LEARNING_ITEM_COLORS[freeItemType] : undefined,
           icon: activeTab === "free" ? FREE_LEARNING_ITEM_ICONS[freeItemType] : undefined,
+          // 캘린더 연결
+          plan_group_id: selectedPlanGroupId,
         });
 
         if (result.success) {
@@ -307,6 +314,19 @@ export function QuickAddPlanModal({
         {/* 폼 */}
         <form onSubmit={handleSubmit} className="p-6">
           <div className="flex flex-col gap-4">
+            {/* 캘린더 선택 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                연결할 캘린더 <span className="text-gray-400">(선택)</span>
+              </label>
+              <PlanGroupSelector
+                studentId={studentId}
+                selectedId={selectedPlanGroupId}
+                onSelect={setSelectedPlanGroupId}
+                allowNone={true}
+              />
+            </div>
+
             {/* 제목 */}
             <div>
               <div className="flex items-center justify-between mb-1.5">

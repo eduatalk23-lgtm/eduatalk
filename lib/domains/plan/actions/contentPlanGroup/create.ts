@@ -22,7 +22,7 @@ import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
 } from "@/lib/data/contentMasters";
-import { MAX_CONTENT_PLAN_GROUPS, type AddContentToCalendarOnlyInput } from "./types";
+import { MAX_CONTENT_PLAN_GROUPS, MAX_CONTENTS_PER_PLAN_GROUP, type AddContentToCalendarOnlyInput } from "./types";
 import {
   getAvailableStudyDates,
   getReviewDates,
@@ -418,13 +418,15 @@ export async function createContentPlanGroup(
     // 6. plan_contents 생성
     const { error: pcError } = await supabase.from("plan_contents").insert({
       plan_group_id: planGroup.id,
+      tenant_id: tenantId,
       content_type: input.content.type === "custom" ? "custom" : input.content.type,
       content_id: resolvedContentId,
       content_name: input.content.name,
-      start_page_or_time: input.range.start,
-      end_page_or_time: input.range.end,
+      start_range: input.range.start,
+      end_range: input.range.end,
       subject_name: input.content.subject ?? null,
       subject_category: input.content.subjectCategory ?? null,
+      display_order: 0,
     });
 
     if (pcError) {
@@ -698,13 +700,15 @@ export async function addContentToCalendarOnlyGroup(
     // 5. plan_contents 생성
     const { error: pcError } = await supabase.from("plan_contents").insert({
       plan_group_id: input.planGroupId,
+      tenant_id: tenantId,
       content_type: input.content.type === "custom" ? "custom" : input.content.type,
       content_id: resolvedContentId,
       content_name: input.content.name,
-      start_page_or_time: input.range.start,
-      end_page_or_time: input.range.end,
+      start_range: input.range.start,
+      end_range: input.range.end,
       subject_name: input.content.subject ?? null,
       subject_category: input.content.subjectCategory ?? null,
+      display_order: 0,
     });
 
     if (pcError) {
@@ -895,6 +899,315 @@ export async function addContentToCalendarOnlyGroup(
     };
   } catch (error) {
     console.error("Add content to calendar-only group error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+    };
+  }
+}
+
+/**
+ * 기존 플랜 그룹에 추가 콘텐츠를 넣는 함수
+ * addContentToCalendarOnlyGroup과 달리 is_calendar_only 여부와 관계없이
+ * 최대 콘텐츠 수(10개)까지 추가 가능
+ */
+export async function addContentToExistingPlanGroup(
+  input: AddContentToCalendarOnlyInput
+): Promise<ContentPlanGroupResult> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  // tenant_id 필수 검증
+  if (!user.tenantId) {
+    return { success: false, error: "테넌트 정보가 없습니다. 관리자에게 문의하세요." };
+  }
+  const tenantId = user.tenantId;
+
+  const supabase = await createSupabaseServerClient();
+
+  try {
+    // 1. 플랜 그룹 조회 및 검증
+    const { data: planGroup, error: groupError } = await supabase
+      .from("plan_groups")
+      .select("*")
+      .eq("id", input.planGroupId)
+      .eq("student_id", user.userId)
+      .is("deleted_at", null)
+      .single();
+
+    if (groupError || !planGroup) {
+      return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+    }
+
+    // 2. 기존 콘텐츠 수 확인 (최대 10개 제한)
+    const { data: existingContents, error: contentsError } = await supabase
+      .from("plan_contents")
+      .select("id, display_order")
+      .eq("plan_group_id", input.planGroupId)
+      .order("display_order", { ascending: false });
+
+    if (contentsError) {
+      return { success: false, error: "기존 콘텐츠 조회에 실패했습니다." };
+    }
+
+    const currentContentCount = existingContents?.length ?? 0;
+    if (currentContentCount >= MAX_CONTENTS_PER_PLAN_GROUP) {
+      return {
+        success: false,
+        error: `플랜 그룹당 최대 ${MAX_CONTENTS_PER_PLAN_GROUP}개의 콘텐츠만 추가할 수 있습니다.`,
+      };
+    }
+
+    // 다음 display_order 계산
+    const nextDisplayOrder = (existingContents?.[0]?.display_order ?? -1) + 1;
+
+    // 3. 콘텐츠 확보 (소유권 검증 또는 마스터 콘텐츠 복사)
+    const contentResult = await ensureStudentContent(
+      supabase,
+      input.content.masterContentId || input.content.id,
+      input.content.type,
+      user.userId,
+      tenantId
+    );
+    if (!contentResult.success || !contentResult.studentContentId) {
+      return { success: false, error: contentResult.error ?? "콘텐츠 접근 권한이 없습니다." };
+    }
+    const resolvedContentId = contentResult.studentContentId;
+
+    // 4. 학습일 계산
+    const startDate = new Date(planGroup.period_start);
+    const endDate = new Date(planGroup.period_end);
+
+    // 스케줄러 옵션에서 요일 가져오기
+    const schedulerOptions = planGroup.scheduler_options as { weekdays?: number[] } | null;
+    const weekdays = schedulerOptions?.weekdays ?? [1, 2, 3, 4, 5]; // 기본: 월-금
+
+    // 제외일 조회
+    const { data: exclusions } = await supabase
+      .from("plan_exclusions")
+      .select("date")
+      .eq("plan_group_id", input.planGroupId);
+
+    const studyDates = getAvailableStudyDates(
+      startDate,
+      endDate,
+      weekdays,
+      exclusions ?? [],
+      input.studyType.type,
+      input.studyType.daysPerWeek,
+      input.studyType.preferredDays
+    );
+
+    if (studyDates.length === 0) {
+      return {
+        success: false,
+        error: "선택한 기간에 학습 가능한 날짜가 없습니다.",
+      };
+    }
+
+    // 5. plan_contents 생성 (display_order 증가)
+    const { data: newContent, error: pcError } = await supabase
+      .from("plan_contents")
+      .insert({
+        plan_group_id: input.planGroupId,
+        tenant_id: tenantId,
+        content_type: input.content.type === "custom" ? "custom" : input.content.type,
+        content_id: resolvedContentId,
+        content_name: input.content.name,
+        start_range: input.range.start,
+        end_range: input.range.end,
+        subject_name: input.content.subject ?? null,
+        subject_category: input.content.subjectCategory ?? null,
+        display_order: nextDisplayOrder,
+      })
+      .select("id")
+      .single();
+
+    if (pcError || !newContent) {
+      console.error("Plan content creation error:", pcError);
+      return { success: false, error: "콘텐츠 연결에 실패했습니다." };
+    }
+
+    // 6. student_plans 생성 (기존 플랜과 별도로 추가)
+    const totalAmount = input.range.end - input.range.start + 1;
+    const dailyAmounts = distributeDailyAmounts(totalAmount, studyDates.length);
+
+    const plans: GeneratedPlan[] = [];
+    const newPlansToInsert: AtomicPlanPayload[] = [];
+    let currentPosition = input.range.start;
+
+    // 6a. 학습 플랜 준비
+    const dateRangeMap = new Map<string, { start: number; end: number; planId: string }>();
+
+    for (let index = 0; index < studyDates.length; index++) {
+      const date = studyDates[index];
+      const amount = dailyAmounts[index];
+      const rangeStart = currentPosition;
+      const rangeEnd = currentPosition + amount - 1;
+      currentPosition += amount;
+
+      const planId = crypto.randomUUID();
+      const dateStr = date.toISOString().split("T")[0];
+
+      dateRangeMap.set(dateStr, {
+        start: rangeStart,
+        end: rangeEnd,
+        planId,
+      });
+
+      plans.push({
+        id: planId,
+        date: dateStr,
+        rangeStart,
+        rangeEnd,
+        status: "pending",
+        containerType: "daily",
+        estimatedDuration: amount * 5,
+      });
+
+      newPlansToInsert.push({
+        plan_group_id: input.planGroupId,
+        tenant_id: tenantId,
+        student_id: user.userId,
+        plan_date: dateStr,
+        block_index: 0,
+        content_type: input.content.type === "custom" ? "custom" : input.content.type,
+        content_id: resolvedContentId,
+        content_title: input.content.name,
+        content_subject: input.content.subject ?? null,
+        content_subject_category: input.content.subjectCategory ?? null,
+        planned_start_page_or_time: rangeStart,
+        planned_end_page_or_time: rangeEnd,
+        status: "pending",
+        container_type: "daily",
+        subject_type: input.studyType.type,
+        is_active: true,
+      });
+    }
+
+    // 6b. 복습 플랜 준비 (reviewEnabled인 경우)
+    let reviewDays = 0;
+    if (input.studyType.reviewEnabled) {
+      const reviewDateInfos = getReviewDates(studyDates, endDate);
+      reviewDays = reviewDateInfos.length;
+
+      for (const reviewInfo of reviewDateInfos) {
+        // 해당 주의 범위 및 원본 플랜 ID 수집
+        let weekRangeStart = Infinity;
+        let weekRangeEnd = 0;
+        const sourcePlanIds: string[] = [];
+
+        for (const planDate of reviewInfo.plansToReview) {
+          const range = dateRangeMap.get(planDate.toISOString().split("T")[0]);
+          if (range) {
+            weekRangeStart = Math.min(weekRangeStart, range.start);
+            weekRangeEnd = Math.max(weekRangeEnd, range.end);
+            if (range.planId) {
+              sourcePlanIds.push(range.planId);
+            }
+          }
+        }
+
+        if (weekRangeStart === Infinity) continue;
+
+        // 각 복습 플랜에 고유한 review_group_id 생성
+        const reviewGroupId = crypto.randomUUID();
+        const reviewPlanId = crypto.randomUUID();
+        const reviewDateStr = reviewInfo.date.toISOString().split("T")[0];
+
+        plans.push({
+          id: reviewPlanId,
+          date: reviewDateStr,
+          rangeStart: weekRangeStart,
+          rangeEnd: weekRangeEnd,
+          status: "pending",
+          containerType: "daily",
+          estimatedDuration: Math.ceil((weekRangeEnd - weekRangeStart + 1) * 2),
+        });
+
+        newPlansToInsert.push({
+          plan_group_id: input.planGroupId,
+          tenant_id: tenantId,
+          student_id: user.userId,
+          plan_date: reviewDateStr,
+          block_index: 0,
+          content_type: input.content.type === "custom" ? "custom" : input.content.type,
+          content_id: resolvedContentId,
+          content_title: `[복습] ${input.content.name}`,
+          content_subject: input.content.subject ?? null,
+          content_subject_category: input.content.subjectCategory ?? null,
+          planned_start_page_or_time: weekRangeStart,
+          planned_end_page_or_time: weekRangeEnd,
+          status: "pending",
+          container_type: "daily",
+          subject_type: "review",
+          day_type: "review",
+          review_group_id: reviewGroupId,
+          review_source_content_ids: sourcePlanIds,
+          is_active: true,
+        });
+      }
+    }
+
+    // 6c. 새 플랜만 삽입 (기존 플랜 유지, generatePlansAtomic 대신 직접 삽입)
+    const { error: insertError } = await supabase
+      .from("student_plan")
+      .insert(newPlansToInsert);
+
+    if (insertError) {
+      console.error("Plans insertion error:", insertError);
+      // 롤백: 새로 추가한 plan_contents 삭제
+      await supabase.from("plan_contents").delete().eq("id", newContent.id);
+      return { success: false, error: "플랜 생성에 실패했습니다." };
+    }
+
+    // 7. 플랜 그룹 업데이트 (캘린더 전용 해제 + 활성화)
+    const { error: updateError } = await supabase
+      .from("plan_groups")
+      .update({
+        is_calendar_only: false,
+        content_status: "complete",
+        status: "active",
+      })
+      .eq("id", input.planGroupId);
+
+    if (updateError) {
+      console.error("Plan group update error:", updateError);
+    }
+
+    // 8. 캐시 재검증
+    revalidatePath("/plan");
+    revalidatePath("/today");
+    revalidatePath(`/plan/group/${input.planGroupId}`);
+
+    const studyDaysCount = studyDates.length;
+    return {
+      success: true,
+      planGroup: {
+        ...planGroup,
+        template_plan_group_id: planGroup.template_plan_group_id ?? planGroup.id,
+        study_type: input.studyType.type,
+        strategy_days_per_week: input.studyType.type === "strategy"
+          ? input.studyType.daysPerWeek ?? null
+          : null,
+        creation_mode: "content_based" as const,
+        is_calendar_only: false,
+        content_status: "complete",
+      },
+      plans,
+      summary: {
+        totalPlans: studyDaysCount + reviewDays,
+        studyDays: studyDaysCount,
+        reviewDays,
+        dailyAmount: Math.ceil(totalAmount / studyDaysCount),
+        estimatedEndDate: studyDates[studyDates.length - 1].toISOString().split("T")[0],
+        totalRange: totalAmount,
+      },
+    };
+  } catch (error) {
+    console.error("Add content to existing plan group error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",

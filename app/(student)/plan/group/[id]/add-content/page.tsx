@@ -35,9 +35,10 @@ export default async function AddContentPage({ params }: PageProps) {
     notFound();
   }
 
-  // 이미 콘텐츠가 있는 경우 상세 페이지로 리다이렉트
-  if (contents.length > 0 && !group.is_calendar_only) {
-    redirect(`/plan/group/${id}`);
+  // 최대 콘텐츠 수 초과 시 상세 페이지로 리다이렉트
+  const MAX_CONTENTS = 10;
+  if (contents.length >= MAX_CONTENTS) {
+    redirect(`/plan/group/${id}?error=max_contents`);
   }
 
   return (

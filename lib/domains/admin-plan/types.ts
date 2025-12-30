@@ -185,6 +185,8 @@ export interface AdHocPlan {
   end_time: string | null;
   recurrence_rule: RecurrenceRule | null;
   recurrence_parent_id: string | null;
+  // 캘린더 연결
+  plan_group_id: string | null;
 }
 
 /**
@@ -220,6 +222,8 @@ export interface AdHocPlanInsert {
   tags?: string[] | null;
   color?: string | null;
   icon?: string | null;
+  // 캘린더 연결
+  plan_group_id?: string | null;
 }
 
 export interface AdHocPlanUpdate {

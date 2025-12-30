@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { usePlanGroups, type PlanGroupFilters } from "@/lib/hooks/usePlanGroups";
 import { getProgressRangeFromPreset, isDateInRange } from "@/lib/utils/dateRangePresets";
+import { type ContentSummary } from "./PlanGroupListItem";
 import { PlanGroupList } from "./PlanGroupList";
 import { PlanGroupStatsCard } from "./PlanGroupStatsCard";
 import { RescheduleRecommendations } from "./RescheduleRecommendations";
@@ -103,7 +104,7 @@ export function PlanGroupListContainer({
   }, [planGroupsWithStats, sortOrder, statusFilter, dateRange, progressRange]);
 
   // 통계 데이터 생성
-  const { planCounts, planProgressData, statusBreakdownData, stats } = useMemo(() => {
+  const { planCounts, planProgressData, statusBreakdownData, contentSummaryData, stats } = useMemo(() => {
     const counts = new Map<string, number>();
     const progress = new Map<
       string,
@@ -113,6 +114,7 @@ export function PlanGroupListContainer({
       string,
       { pending: number; inProgress: number; completed: number }
     >();
+    const contentSummary = new Map<string, ContentSummary>();
 
     processedPlanGroups.forEach((group) => {
       counts.set(group.id, group.planCount);
@@ -123,6 +125,10 @@ export function PlanGroupListContainer({
       // 상태별 개수 데이터 설정
       if (group.statusBreakdown) {
         statusBreakdown.set(group.id, group.statusBreakdown);
+      }
+      // 콘텐츠 요약 데이터 설정
+      if (group.contentSummary) {
+        contentSummary.set(group.id, group.contentSummary);
       }
     });
 
@@ -141,6 +147,7 @@ export function PlanGroupListContainer({
       planCounts: counts,
       planProgressData: progress,
       statusBreakdownData: statusBreakdown,
+      contentSummaryData: contentSummary,
       stats: statistics,
     };
   }, [processedPlanGroups]);
@@ -193,6 +200,7 @@ export function PlanGroupListContainer({
           planCounts={planCounts}
           planProgressData={planProgressData}
           statusBreakdownData={statusBreakdownData}
+          contentSummaryData={contentSummaryData}
         />
       </div>
     </>
