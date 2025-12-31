@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError, logActionSuccess, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   CreateContentPlanGroupInput,
@@ -62,7 +63,7 @@ async function ensureStudentContent(
       .maybeSingle();
 
     if (error) {
-      console.error(`[ensureStudentContent] student_custom_contents 조회 실패:`, error);
+      logActionError({ domain: "plan", action: "ensureStudentContent" }, error, { contentId, contentType, step: "student_custom_contents" });
       return { success: false, error: "콘텐츠 정보를 확인할 수 없습니다." };
     }
 
@@ -86,7 +87,7 @@ async function ensureStudentContent(
     .maybeSingle();
 
   if (studentError) {
-    console.error(`[ensureStudentContent] ${tableName} 조회 실패:`, studentError);
+    logActionError({ domain: "plan", action: "ensureStudentContent" }, studentError, { contentId, contentType, step: tableName });
     return { success: false, error: "콘텐츠 정보를 확인할 수 없습니다." };
   }
 
@@ -104,7 +105,7 @@ async function ensureStudentContent(
     .maybeSingle();
 
   if (masterError) {
-    console.error(`[ensureStudentContent] ${masterTableName} 조회 실패:`, masterError);
+    logActionError({ domain: "plan", action: "ensureStudentContent" }, masterError, { contentId, contentType, step: masterTableName });
     return { success: false, error: "마스터 콘텐츠 정보를 확인할 수 없습니다." };
   }
 
@@ -116,15 +117,15 @@ async function ensureStudentContent(
   try {
     if (contentType === "book") {
       const result = await copyMasterBookToStudent(contentId, studentId, tenantId);
-      console.log(`[ensureStudentContent] 마스터 교재 복사 완료: ${contentId} → ${result.bookId}`);
+      logActionSuccess({ domain: "plan", action: "ensureStudentContent" }, { contentId, newContentId: result.bookId, contentType: "book" });
       return { success: true, studentContentId: result.bookId };
     } else {
       const result = await copyMasterLectureToStudent(contentId, studentId, tenantId);
-      console.log(`[ensureStudentContent] 마스터 강의 복사 완료: ${contentId} → ${result.lectureId}`);
+      logActionSuccess({ domain: "plan", action: "ensureStudentContent" }, { contentId, newContentId: result.lectureId, contentType: "lecture" });
       return { success: true, studentContentId: result.lectureId };
     }
   } catch (copyError) {
-    console.error(`[ensureStudentContent] 마스터 콘텐츠 복사 실패:`, copyError);
+    logActionError({ domain: "plan", action: "ensureStudentContent" }, copyError, { contentId, contentType, step: "copy" });
     return {
       success: false,
       error: copyError instanceof Error ? copyError.message : "콘텐츠 복사에 실패했습니다.",
@@ -431,7 +432,7 @@ export async function createContentPlanGroup(
       .single();
 
     if (pgError || !planGroup) {
-      console.error("Plan group creation error:", pgError);
+      logActionError({ domain: "plan", action: "createContentPlanGroup" }, pgError, { step: "planGroup", templateId: input.templatePlanGroupId });
       return { success: false, error: "플랜그룹 생성에 실패했습니다." };
     }
 
@@ -450,7 +451,7 @@ export async function createContentPlanGroup(
     });
 
     if (pcError) {
-      console.error("Plan content creation error:", pcError);
+      logActionError({ domain: "plan", action: "createContentPlanGroup" }, pcError, { step: "planContents", planGroupId: planGroup.id });
       // 롤백: 플랜그룹 삭제
       await supabase.from("plan_groups").delete().eq("id", planGroup.id);
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
@@ -586,7 +587,7 @@ export async function createContentPlanGroup(
     );
 
     if (!atomicResult.success) {
-      console.error("Atomic plans creation error:", atomicResult.error);
+      logActionError({ domain: "plan", action: "createContentPlanGroup" }, new Error(atomicResult.error ?? "Unknown"), { step: "atomicPlans", planGroupId: planGroup.id });
       // 롤백: plan_contents와 plan_group 삭제
       await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
       await supabase.from("plan_groups").delete().eq("id", planGroup.id);
@@ -621,7 +622,7 @@ export async function createContentPlanGroup(
       },
     };
   } catch (error) {
-    console.error("Create content plan group error:", error);
+    logActionError({ domain: "plan", action: "createContentPlanGroup" }, error, { templateId: input.templatePlanGroupId, contentId: input.content.id });
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
@@ -732,7 +733,7 @@ export async function addContentToCalendarOnlyGroup(
     });
 
     if (pcError) {
-      console.error("Plan content creation error:", pcError);
+      logActionError({ domain: "plan", action: "addContentToCalendarOnlyGroup" }, pcError, { step: "planContents", planGroupId: input.planGroupId });
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
     }
 
@@ -866,7 +867,7 @@ export async function addContentToCalendarOnlyGroup(
     );
 
     if (!atomicResult.success) {
-      console.error("Atomic plans creation error:", atomicResult.error);
+      logActionError({ domain: "plan", action: "addContentToCalendarOnlyGroup" }, new Error(atomicResult.error ?? "Unknown"), { step: "atomicPlans", planGroupId: input.planGroupId });
       // 롤백: plan_contents 삭제
       await supabase.from("plan_contents").delete().eq("plan_group_id", input.planGroupId);
       return { success: false, error: atomicResult.error ?? "플랜 생성에 실패했습니다." };
@@ -885,7 +886,7 @@ export async function addContentToCalendarOnlyGroup(
       .eq("id", input.planGroupId);
 
     if (updateError) {
-      console.error("Plan group update error:", updateError);
+      logActionWarn({ domain: "plan", action: "addContentToCalendarOnlyGroup" }, "플랜 그룹 업데이트 실패", { planGroupId: input.planGroupId });
     }
 
     // 8. 캐시 재검증
@@ -918,7 +919,7 @@ export async function addContentToCalendarOnlyGroup(
       },
     };
   } catch (error) {
-    console.error("Add content to calendar-only group error:", error);
+    logActionError({ domain: "plan", action: "addContentToCalendarOnlyGroup" }, error, { planGroupId: input.planGroupId, contentId: input.content.id });
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
@@ -1046,7 +1047,7 @@ export async function addContentToExistingPlanGroup(
       .single();
 
     if (pcError || !newContent) {
-      console.error("Plan content creation error:", pcError);
+      logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, pcError, { step: "planContents", planGroupId: input.planGroupId });
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
     }
 
@@ -1177,7 +1178,7 @@ export async function addContentToExistingPlanGroup(
       .insert(newPlansToInsert);
 
     if (insertError) {
-      console.error("Plans insertion error:", insertError);
+      logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, insertError, { step: "plansInsertion", planGroupId: input.planGroupId });
       // 롤백: 새로 추가한 plan_contents 삭제
       await supabase.from("plan_contents").delete().eq("id", newContent.id);
       return { success: false, error: "플랜 생성에 실패했습니다." };
@@ -1194,7 +1195,7 @@ export async function addContentToExistingPlanGroup(
       .eq("id", input.planGroupId);
 
     if (updateError) {
-      console.error("Plan group update error:", updateError);
+      logActionWarn({ domain: "plan", action: "addContentToExistingPlanGroup" }, "플랜 그룹 업데이트 실패", { planGroupId: input.planGroupId });
     }
 
     // 8. 캐시 재검증
@@ -1227,7 +1228,7 @@ export async function addContentToExistingPlanGroup(
       },
     };
   } catch (error) {
-    console.error("Add content to existing plan group error:", error);
+    logActionError({ domain: "plan", action: "addContentToExistingPlanGroup" }, error, { planGroupId: input.planGroupId, contentId: input.content.id });
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
