@@ -59,6 +59,11 @@ export function PlanViewContainer({
     return [];
   }, [plansData?.plans, initialData?.plans]);
 
+  // Ad-hoc plans 추출
+  const adHocPlans = useMemo(() => {
+    return plansData?.adHocPlans ?? initialData?.adHocPlans ?? [];
+  }, [plansData?.adHocPlans, initialData?.adHocPlans]);
+
   const serverNow = plansData?.serverNow || Date.now();
 
   // Realtime 구독
@@ -106,6 +111,7 @@ export function PlanViewContainer({
       groups={groups}
       serverNow={serverNow}
       dailySchedule={dailySchedule}
+      adHocPlans={adHocPlans}
     />
   );
 }

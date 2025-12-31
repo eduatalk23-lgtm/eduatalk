@@ -32,15 +32,20 @@ export function usePlanRealtimeUpdates({
         {
           event: "*",
           schema: "public",
-          table: "student_plan_items",
+          table: "student_plan",
           filter: `student_id=eq.${userId}`,
         },
         (payload) => {
           console.log("[Realtime] Plan updated:", payload);
-          // 특정 planDate와 userId에 해당하는 플랜 목록 쿼리만 무효화
-          queryClient.invalidateQueries({ queryKey: ["plans", userId, planDate] });
-          // today 관련 쿼리는 부분 매칭으로 무효화
-          queryClient.invalidateQueries({ queryKey: ["today", "plans"] });
+          // predicate 기반 무효화로 모든 관련 쿼리 처리
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              Array.isArray(query.queryKey) &&
+              (query.queryKey[0] === "todayPlans" ||
+                query.queryKey[0] === "todayContainerPlans" ||
+                query.queryKey[0] === "today" ||
+                query.queryKey[0] === "plans"),
+          });
         }
       )
       .subscribe();
@@ -53,15 +58,19 @@ export function usePlanRealtimeUpdates({
         {
           event: "*",
           schema: "public",
-          table: "study_sessions",
+          table: "student_study_sessions",
           filter: `student_id=eq.${userId}`,
         },
         (payload) => {
           console.log("[Realtime] Session updated:", payload);
-          // 특정 planDate와 userId에 해당하는 세션 쿼리만 무효화
-          queryClient.invalidateQueries({ queryKey: ["sessions", userId, planDate] });
-          // today 관련 쿼리는 부분 매칭으로 무효화
-          queryClient.invalidateQueries({ queryKey: ["today", "progress"] });
+          // predicate 기반 무효화로 모든 관련 쿼리 처리
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              Array.isArray(query.queryKey) &&
+              (query.queryKey[0] === "todayPlans" ||
+                query.queryKey[0] === "today" ||
+                query.queryKey[0] === "sessions"),
+          });
         }
       )
       .subscribe();

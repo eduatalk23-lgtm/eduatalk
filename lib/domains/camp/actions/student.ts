@@ -16,7 +16,7 @@ import {
   updateCampInvitationStatus,
 } from "@/lib/data/campTemplates";
 import { createPlanGroupAction } from "@/lib/domains/plan";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode, withErrorHandling, isErrorResult } from "@/lib/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SchedulerOptions } from "@/lib/types/plan";
 import {
@@ -800,14 +800,14 @@ export const submitCampParticipation = withErrorHandling(
         { hasTemplateBlockSetId: !!planGroupSchedulerOptions?.template_block_set_id }
       );
 
-      let result;
-      try {
-        result = await createPlanGroupAction(planGroupData, {
-          skipContentValidation: true,
-        });
-      } catch (createError) {
+      const result = await createPlanGroupAction(planGroupData, {
+        skipContentValidation: true,
+      });
+
+      // 에러 결과 체크 (withErrorHandlingSafe 반환 형식)
+      if (isErrorResult(result)) {
+        const errorMessage = result.error.message;
         // 동시 수락으로 인한 UNIQUE 제약 위반 감지 (PostgreSQL error code 23505)
-        const errorMessage = createError instanceof Error ? createError.message : String(createError);
         if (errorMessage.includes("23505") || errorMessage.includes("unique") || errorMessage.includes("duplicate")) {
           logActionDebug(
             { domain: "camp", action: "submitCampParticipation", userId: user.userId },
@@ -821,7 +821,12 @@ export const submitCampParticipation = withErrorHandling(
             true
           );
         }
-        throw createError;
+        throw new AppError(
+          result.error.message,
+          result.error.code,
+          result.error.statusCode,
+          result.error.isUserFacing
+        );
       }
 
       if (!result.groupId) {

@@ -14,7 +14,7 @@ import {
   createPlanAcademySchedules,
 } from "@/lib/data/planGroups";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode, withErrorHandling, withErrorHandlingSafe } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import type {
   PlanGroupCreationData,
@@ -393,7 +393,9 @@ async function _updatePlanGroupDraft(
   revalidatePath(`/plan/new-group?draft=${groupId}`);
 }
 
-export const updatePlanGroupDraftAction = withErrorHandling(
+// withErrorHandlingSafe: 에러 발생 시 throw 대신 직렬화 가능한 에러 객체 반환
+// 클라이언트에서 isErrorResult로 체크하여 안전하게 에러 처리
+export const updatePlanGroupDraftAction = withErrorHandlingSafe(
   _updatePlanGroupDraft
 );
 

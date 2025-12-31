@@ -24,7 +24,7 @@ import {
   deletePlanGroupItemsByGroupId,
   checkPlanPeriodOverlap,
 } from "@/lib/domains/plan/repository";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { AppError, ErrorCode, withErrorHandling, withErrorHandlingSafe } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
@@ -592,7 +592,9 @@ async function _createPlanGroup(
  * }
  * ```
  */
-export const createPlanGroupAction = withErrorHandling(
+// withErrorHandlingSafe: 에러 발생 시 throw 대신 직렬화 가능한 에러 객체 반환
+// 클라이언트에서 isErrorResult로 체크하여 안전하게 에러 처리
+export const createPlanGroupAction = withErrorHandlingSafe(
   async (
     data: PlanGroupCreationData,
     options?: {
@@ -827,7 +829,9 @@ async function _savePlanGroupDraft(
   return { groupId };
 }
 
-export const savePlanGroupDraftAction = withErrorHandling(
+// withErrorHandlingSafe: 에러 발생 시 throw 대신 직렬화 가능한 에러 객체 반환
+// 클라이언트에서 isErrorResult로 체크하여 안전하게 에러 처리
+export const savePlanGroupDraftAction = withErrorHandlingSafe(
   async (
     data: PlanGroupCreationData,
     options?: {

@@ -4,11 +4,16 @@ import { useMemo } from "react";
 import { TimelineZone, type TimeBlock, type ZoneType, type OverlayPlan } from "./containers/TimelineZone";
 import type { PlanGroup } from "../_utils/planGroupUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan/domain";
+import type { AdHocPlan } from "@/lib/data/studentPlans";
 
 type TimelineViewProps = {
   groups: PlanGroup[];
   serverNow?: number;
   dailySchedule?: DailyScheduleInfo | null;
+  /**
+   * 단발성 플랜 목록
+   */
+  adHocPlans?: AdHocPlan[];
 };
 
 /**
@@ -65,6 +70,7 @@ export function TimelineView({
   groups,
   serverNow = Date.now(),
   dailySchedule = null,
+  adHocPlans = [],
 }: TimelineViewProps) {
   // 현재 시간 계산 (HH:mm 형식)
   const currentTime = useMemo(() => {
@@ -198,6 +204,85 @@ export function TimelineView({
       }
     }
 
+    // 3. Ad-hoc plans 처리 (단발성 플랜)
+    for (const adHocPlan of adHocPlans) {
+      const isCompleted = adHocPlan.status === "completed";
+      const isActive = adHocPlan.status === "in_progress" || adHocPlan.status === "paused";
+      const isPaused = adHocPlan.status === "paused" || !!adHocPlan.paused_at;
+
+      // 완료된 ad-hoc 플랜
+      if (isCompleted && adHocPlan.started_at && adHocPlan.completed_at) {
+        const startDate = new Date(adHocPlan.started_at);
+        const endDate = new Date(adHocPlan.completed_at);
+        const planStartTime = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
+        const planEndTime = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+        const durationMinutes = adHocPlan.actual_minutes ?? Math.round((endDate.getTime() - startDate.getTime()) / 60000);
+
+        // 해당 시간대 블록 찾기
+        const matchingBlock = blocks.find(block =>
+          isTimeInRange(planStartTime, block.startTime, block.endTime)
+        );
+
+        if (matchingBlock) {
+          if (!matchingBlock.overlayPlans) {
+            matchingBlock.overlayPlans = [];
+          }
+          matchingBlock.overlayPlans.push({
+            id: adHocPlan.id,
+            title: adHocPlan.title || "단발성 학습",
+            chapter: undefined,
+            contentType: "custom",
+            range: undefined,
+            durationMinutes,
+            startTime: planStartTime,
+            endTime: planEndTime,
+            status: "completed",
+          });
+        }
+      }
+
+      // 진행 중인 ad-hoc 플랜
+      if (isActive && adHocPlan.started_at) {
+        const startDate = new Date(adHocPlan.started_at);
+        const planStartTime = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
+
+        // 일시정지 시간 계산
+        const pausedDurationMs = (adHocPlan.paused_duration_seconds ?? 0) * 1000;
+        let elapsedMs = now.getTime() - startDate.getTime() - pausedDurationMs;
+
+        // 일시정지 상태면 paused_at 시점까지만 계산
+        if (isPaused && adHocPlan.paused_at) {
+          const pausedAt = new Date(adHocPlan.paused_at).getTime();
+          elapsedMs = pausedAt - startDate.getTime() - pausedDurationMs;
+        }
+
+        const elapsedMinutes = Math.max(0, Math.round(elapsedMs / 60000));
+
+        // 해당 시간대 블록 찾기
+        const matchingBlock = blocks.find(block =>
+          isTimeInRange(planStartTime, block.startTime, block.endTime)
+        );
+
+        if (matchingBlock) {
+          if (!matchingBlock.overlayPlans) {
+            matchingBlock.overlayPlans = [];
+          }
+          matchingBlock.overlayPlans.push({
+            id: adHocPlan.id,
+            title: adHocPlan.title || "단발성 학습",
+            chapter: undefined,
+            contentType: "custom",
+            range: undefined,
+            durationMinutes: elapsedMinutes,
+            startTime: planStartTime,
+            endTime: currentTimeStr,
+            status: "active",
+            isPaused,
+          });
+        }
+      }
+    }
+
     // 각 블록 내 overlayPlans 시간순 정렬
     for (const block of blocks) {
       if (block.overlayPlans) {
@@ -206,7 +291,7 @@ export function TimelineView({
     }
 
     return blocks;
-  }, [groups, dailySchedule, serverNow]);
+  }, [groups, dailySchedule, serverNow, adHocPlans]);
 
   // groups가 비어있어도 타임라인(시간대)은 항상 표시
   return <TimelineZone blocks={timeBlocks} currentTime={currentTime} />;
