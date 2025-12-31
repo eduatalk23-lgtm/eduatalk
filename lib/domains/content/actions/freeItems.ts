@@ -8,6 +8,7 @@
 import { revalidatePath } from 'next/cache';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { logActionError } from '@/lib/logging/actionLogger';
 import {
   FreeLearningItem,
   FreeLearningItemInput,
@@ -101,7 +102,7 @@ export async function getFreeLearningItems(
     const { data, error } = await query;
 
     if (error) {
-      console.error('[getFreeLearningItems] Query error:', error);
+      logActionError({ domain: 'content', action: 'getFreeLearningItems' }, error, { filters });
       return { success: false, error: '목록을 불러오는데 실패했습니다.' };
     }
 
@@ -109,7 +110,7 @@ export async function getFreeLearningItems(
 
     return { success: true, data: items };
   } catch (error) {
-    console.error('[getFreeLearningItems] Error:', error);
+    logActionError({ domain: 'content', action: 'getFreeLearningItems' }, error, { filters });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -139,13 +140,13 @@ export async function getFreeLearningItem(
       if (error.code === 'PGRST116') {
         return { success: false, error: '아이템을 찾을 수 없습니다.' };
       }
-      console.error('[getFreeLearningItem] Query error:', error);
+      logActionError({ domain: 'content', action: 'getFreeLearningItem' }, error, { id });
       return { success: false, error: '조회에 실패했습니다.' };
     }
 
     return { success: true, data: toFreeLearningItem(data as FreeLearningItemDbRow) };
   } catch (error) {
-    console.error('[getFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'getFreeLearningItem' }, error, { id });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -176,7 +177,7 @@ export async function getRecentFreeLearningItems(
       .limit(limit);
 
     if (error) {
-      console.error('[getRecentFreeLearningItems] Query error:', error);
+      logActionError({ domain: 'content', action: 'getRecentFreeLearningItems' }, error, { studentId, limit });
       return { success: false, error: '최근 항목을 불러오는데 실패했습니다.' };
     }
 
@@ -184,7 +185,7 @@ export async function getRecentFreeLearningItems(
 
     return { success: true, data: items };
   } catch (error) {
-    console.error('[getRecentFreeLearningItems] Error:', error);
+    logActionError({ domain: 'content', action: 'getRecentFreeLearningItems' }, error, { studentId, limit });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -222,7 +223,7 @@ export async function getFreeLearningTemplates(
     const { data, error } = await query;
 
     if (error) {
-      console.error('[getFreeLearningTemplates] Query error:', error);
+      logActionError({ domain: 'content', action: 'getFreeLearningTemplates' }, error, { tenantId, studentId });
       return { success: false, error: '템플릿 목록을 불러오는데 실패했습니다.' };
     }
 
@@ -230,7 +231,7 @@ export async function getFreeLearningTemplates(
 
     return { success: true, data: items };
   } catch (error) {
-    console.error('[getFreeLearningTemplates] Error:', error);
+    logActionError({ domain: 'content', action: 'getFreeLearningTemplates' }, error, { tenantId, studentId });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -270,7 +271,7 @@ export async function createFreeLearningItem(
       .single();
 
     if (error) {
-      console.error('[createFreeLearningItem] Insert error:', error);
+      logActionError({ domain: 'content', action: 'createFreeLearningItem' }, error, { title: input.title, itemType: input.itemType });
       return { success: false, error: '생성에 실패했습니다.' };
     }
 
@@ -279,7 +280,7 @@ export async function createFreeLearningItem(
 
     return { success: true, data: toFreeLearningItem(data as FreeLearningItemDbRow) };
   } catch (error) {
-    console.error('[createFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'createFreeLearningItem' }, error, { title: input.title, itemType: input.itemType });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -344,7 +345,7 @@ export async function createFromTemplate(
 
     return createFreeLearningItem(input);
   } catch (error) {
-    console.error('[createFromTemplate] Error:', error);
+    logActionError({ domain: 'content', action: 'createFromTemplate' }, error, { templateId, tenantId, studentId });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -400,7 +401,7 @@ export async function updateFreeLearningItem(
       .single();
 
     if (error) {
-      console.error('[updateFreeLearningItem] Update error:', error);
+      logActionError({ domain: 'content', action: 'updateFreeLearningItem' }, error, { id });
       return { success: false, error: '수정에 실패했습니다.' };
     }
 
@@ -409,7 +410,7 @@ export async function updateFreeLearningItem(
 
     return { success: true, data: toFreeLearningItem(data as FreeLearningItemDbRow) };
   } catch (error) {
-    console.error('[updateFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'updateFreeLearningItem' }, error, { id });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -455,7 +456,7 @@ export async function saveAsTemplate(
 
     return createFreeLearningItem(input);
   } catch (error) {
-    console.error('[saveAsTemplate] Error:', error);
+    logActionError({ domain: 'content', action: 'saveAsTemplate' }, error, { id, templateName });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -489,7 +490,7 @@ export async function archiveFreeLearningItem(
       .eq('content_type', 'free');
 
     if (error) {
-      console.error('[archiveFreeLearningItem] Archive error:', error);
+      logActionError({ domain: 'content', action: 'archiveFreeLearningItem' }, error, { id });
       return { success: false, error: '아카이브에 실패했습니다.' };
     }
 
@@ -498,7 +499,7 @@ export async function archiveFreeLearningItem(
 
     return { success: true };
   } catch (error) {
-    console.error('[archiveFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'archiveFreeLearningItem' }, error, { id });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -528,7 +529,7 @@ export async function restoreFreeLearningItem(
       .eq('content_type', 'free');
 
     if (error) {
-      console.error('[restoreFreeLearningItem] Restore error:', error);
+      logActionError({ domain: 'content', action: 'restoreFreeLearningItem' }, error, { id });
       return { success: false, error: '복원에 실패했습니다.' };
     }
 
@@ -537,7 +538,7 @@ export async function restoreFreeLearningItem(
 
     return { success: true };
   } catch (error) {
-    console.error('[restoreFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'restoreFreeLearningItem' }, error, { id });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
@@ -563,7 +564,7 @@ export async function deleteFreeLearningItem(
       .eq('content_type', 'free');
 
     if (error) {
-      console.error('[deleteFreeLearningItem] Delete error:', error);
+      logActionError({ domain: 'content', action: 'deleteFreeLearningItem' }, error, { id });
       return { success: false, error: '삭제에 실패했습니다.' };
     }
 
@@ -572,7 +573,7 @@ export async function deleteFreeLearningItem(
 
     return { success: true };
   } catch (error) {
-    console.error('[deleteFreeLearningItem] Error:', error);
+    logActionError({ domain: 'content', action: 'deleteFreeLearningItem' }, error, { id });
     return { success: false, error: '서버 오류가 발생했습니다.' };
   }
 }
