@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling, logError } from "@/lib/errors";
+import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { saveUserSession } from "@/lib/auth/sessionManager";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getDefaultTenant } from "@/lib/data/tenants";
@@ -42,7 +43,10 @@ function getAdminClientOrError():
   const supabase = createSupabaseAdminClient();
 
   if (!supabase) {
-    console.error("[auth] Admin 클라이언트 생성 실패: SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
+    logActionError(
+      { domain: "auth", action: "getAdminClient" },
+      new Error("SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.")
+    );
     return {
       success: false,
       error: "서버 설정 오류입니다. 관리자에게 문의하세요.",
@@ -76,26 +80,26 @@ async function ensureUserRecord(user: UserWithSignupMetadata): Promise<void> {
         .maybeSingle();
 
       if (checkError) {
-        console.error("[auth] 학생 레코드 확인 실패", {
-          userId: user.id,
-          error: checkError.message,
-          code: checkError.code,
-        });
+        logActionError(
+          { domain: "auth", action: "ensureUserRecord", userId: user.id },
+          checkError,
+          { context: "학생 레코드 확인", code: checkError.code }
+        );
         return;
       }
 
       if (!student) {
         const result = await createStudentRecord(user.id, tenantId, displayName);
         if (result.success) {
-          console.log("[auth] 첫 로그인 시 학생 레코드 생성 성공", {
-            userId: user.id,
-            tenantId: tenantId || "기본 tenant",
-          });
+          logActionSuccess(
+            { domain: "auth", action: "createStudentRecord", userId: user.id },
+            { context: "첫 로그인", tenantId: tenantId || "기본 tenant" }
+          );
         } else {
-          console.error("[auth] 첫 로그인 시 학생 레코드 생성 실패", {
-            userId: user.id,
-            error: result.error,
-          });
+          logActionError(
+            { domain: "auth", action: "createStudentRecord", userId: user.id },
+            new Error(result.error || "학생 레코드 생성 실패")
+          );
         }
       }
     } else if (signupRole === "parent") {
@@ -106,35 +110,34 @@ async function ensureUserRecord(user: UserWithSignupMetadata): Promise<void> {
         .maybeSingle();
 
       if (checkError) {
-        console.error("[auth] 학부모 레코드 확인 실패", {
-          userId: user.id,
-          error: checkError.message,
-          code: checkError.code,
-        });
+        logActionError(
+          { domain: "auth", action: "ensureUserRecord", userId: user.id },
+          checkError,
+          { context: "학부모 레코드 확인", code: checkError.code }
+        );
         return;
       }
 
       if (!parent) {
         const result = await createParentRecord(user.id, tenantId, displayName);
         if (result.success) {
-          console.log("[auth] 첫 로그인 시 학부모 레코드 생성 성공", {
-            userId: user.id,
-            tenantId: tenantId || "기본 tenant 또는 null",
-          });
+          logActionSuccess(
+            { domain: "auth", action: "createParentRecord", userId: user.id },
+            { context: "첫 로그인", tenantId: tenantId || "기본 tenant 또는 null" }
+          );
         } else {
-          console.error("[auth] 첫 로그인 시 학부모 레코드 생성 실패", {
-            userId: user.id,
-            error: result.error,
-          });
+          logActionError(
+            { domain: "auth", action: "createParentRecord", userId: user.id },
+            new Error(result.error || "학부모 레코드 생성 실패")
+          );
         }
       }
     }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[auth] ensureUserRecord 예외", {
-      userId: user.id,
-      error: errorMessage,
-    });
+    logActionError(
+      { domain: "auth", action: "ensureUserRecord", userId: user.id },
+      error
+    );
   }
 }
 
@@ -204,15 +207,14 @@ async function linkStudentWithConnectionCode(
       return { success: false, error: studentError.userMessage };
     }
 
-    console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
-      function: "linkStudentWithConnectionCode",
-      userId,
-      connectionCode,
-      result: {
+    logActionSuccess(
+      { domain: "auth", action: "linkStudentWithConnectionCode", userId },
+      {
+        connectionCode,
         studentId: rpcResponse.student_id,
         oldStudentId: (rpcResponse as Record<string, unknown>).old_student_id,
-      },
-    });
+      }
+    );
 
     return { success: true };
   } catch (error) {
@@ -264,34 +266,41 @@ async function createStudentRecord(
 
     if (error) {
       if (error.code === DATABASE_ERROR_CODES.UNIQUE_VIOLATION) {
-        console.log("[auth] 학생 레코드가 이미 존재합니다.", { userId });
+        logActionDebug(
+          { domain: "auth", action: "createStudentRecord", userId },
+          "학생 레코드가 이미 존재합니다."
+        );
         return { success: true };
       }
 
       if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
-        console.error("[auth] 학생 레코드 생성 실패 - RLS 정책 위반", {
-          userId,
-          tenantId: finalTenantId,
-          error: error.message,
-          code: error.code,
-        });
+        logActionError(
+          { domain: "auth", action: "createStudentRecord", userId },
+          error,
+          { tenantId: finalTenantId, context: "RLS 정책 위반" }
+        );
         return { success: false, error: "레코드 생성 권한이 없습니다. RLS 정책을 확인하세요." };
       }
 
-      console.error("[auth] 학생 레코드 생성 실패", {
-        userId,
-        tenantId: finalTenantId,
-        error: error.message,
-        code: error.code,
-      });
+      logActionError(
+        { domain: "auth", action: "createStudentRecord", userId },
+        error,
+        { tenantId: finalTenantId }
+      );
       return { success: false, error: error.message || "학생 레코드 생성에 실패했습니다." };
     }
 
-    console.log("[auth] 학생 레코드 생성 성공", { userId, tenantId: finalTenantId });
+    logActionSuccess(
+      { domain: "auth", action: "createStudentRecord", userId },
+      { tenantId: finalTenantId }
+    );
     return { success: true };
   } catch (error) {
+    logActionError(
+      { domain: "auth", action: "createStudentRecord", userId },
+      error
+    );
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[auth] createStudentRecord 예외", { userId, error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
@@ -321,7 +330,10 @@ async function createParentRecord(
 
     // tenant_id는 필수 값이므로 없으면 에러 반환
     if (!finalTenantId) {
-      console.error("[auth] 학부모 레코드 생성 실패 - 테넌트 없음", { userId });
+      logActionError(
+        { domain: "auth", action: "createParentRecord", userId },
+        new Error("테넌트 없음")
+      );
       return { success: false, error: "기관 정보가 없어 가입할 수 없습니다." };
     }
 
@@ -333,34 +345,41 @@ async function createParentRecord(
 
     if (error) {
       if (error.code === DATABASE_ERROR_CODES.UNIQUE_VIOLATION) {
-        console.log("[auth] 학부모 레코드가 이미 존재합니다.", { userId });
+        logActionDebug(
+          { domain: "auth", action: "createParentRecord", userId },
+          "학부모 레코드가 이미 존재합니다."
+        );
         return { success: true };
       }
 
       if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
-        console.error("[auth] 학부모 레코드 생성 실패 - RLS 정책 위반", {
-          userId,
-          tenantId: finalTenantId,
-          error: error.message,
-          code: error.code,
-        });
+        logActionError(
+          { domain: "auth", action: "createParentRecord", userId },
+          error,
+          { tenantId: finalTenantId, context: "RLS 정책 위반" }
+        );
         return { success: false, error: "레코드 생성 권한이 없습니다. RLS 정책을 확인하세요." };
       }
 
-      console.error("[auth] 학부모 레코드 생성 실패", {
-        userId,
-        tenantId: finalTenantId,
-        error: error.message,
-        code: error.code,
-      });
+      logActionError(
+        { domain: "auth", action: "createParentRecord", userId },
+        error,
+        { tenantId: finalTenantId }
+      );
       return { success: false, error: error.message || "학부모 레코드 생성에 실패했습니다." };
     }
 
-    console.log("[auth] 학부모 레코드 생성 성공", { userId, tenantId: finalTenantId });
+    logActionSuccess(
+      { domain: "auth", action: "createParentRecord", userId },
+      { tenantId: finalTenantId }
+    );
     return { success: true };
   } catch (error) {
+    logActionError(
+      { domain: "auth", action: "createParentRecord", userId },
+      error
+    );
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[auth] createParentRecord 예외", { userId, error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
@@ -423,11 +442,11 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
     );
 
     if (isEmailNotConfirmed) {
-      console.log("[auth] 이메일 미인증 감지:", {
-        email: validation.data.email,
-        errorMessage: error.message,
-        errorStatus: error.status,
-      });
+      logActionDebug(
+        { domain: "auth", action: "signIn" },
+        "이메일 미인증 감지",
+        { email: validation.data.email, errorStatus: error.status }
+      );
 
       return {
         error: "이메일 인증이 완료되지 않았습니다. 이메일을 확인하여 인증을 완료해주세요.",
@@ -436,11 +455,11 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
       };
     }
 
-    console.log("[auth] 로그인 실패:", {
-      email: validation.data.email,
-      errorMessage: error.message,
-      errorStatus: error.status,
-    });
+    logActionError(
+      { domain: "auth", action: "signIn" },
+      error,
+      { email: validation.data.email }
+    );
 
     throw new AppError(
       error.message || "로그인에 실패했습니다.",
@@ -530,27 +549,31 @@ export async function signUp(
             connectionCode
           );
           if (linkResult.success) {
-            console.log("[auth] 연결 코드로 학생 계정 연결 성공", {
-              userId: authData.user.id,
-              connectionCode,
-            });
+            logActionSuccess(
+              { domain: "auth", action: "signUp", userId: authData.user.id },
+              { connectionCode, context: "연결 코드 연결 성공" }
+            );
           } else {
-            console.error("[auth] 연결 코드 검증 실패:", linkResult.error);
+            logActionError(
+              { domain: "auth", action: "signUp", userId: authData.user.id },
+              new Error(linkResult.error || "연결 코드 검증 실패"),
+              { connectionCode }
+            );
             const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName);
             if (!result.success) {
-              console.error("[auth] 학생 레코드 생성 실패:", result.error);
+              // createStudentRecord에서 이미 로깅됨
             }
           }
         } else {
           const result = await createStudentRecord(authData.user.id, userTenantId, userDisplayName);
           if (!result.success) {
-            console.error("[auth] 학생 레코드 생성 실패:", result.error);
+            // createStudentRecord에서 이미 로깅됨
           }
         }
       } else if (userRole === "parent") {
         const result = await createParentRecord(authData.user.id, userTenantId, userDisplayName);
         if (!result.success) {
-          console.error("[auth] 학부모 레코드 생성 실패:", result.error);
+          // createParentRecord에서 이미 로깅됨
         }
       }
 
@@ -610,9 +633,11 @@ export async function resendConfirmationEmail(email: string): Promise<ActionResp
     const supabase = await createSupabaseServerClient();
     const emailRedirectTo = await getEmailRedirectUrl();
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[auth] 이메일 재발송 요청");
-    }
+    logActionDebug(
+      { domain: "auth", action: "resendConfirmationEmail" },
+      "이메일 재발송 요청",
+      { email }
+    );
 
     const { data, error } = await supabase.auth.resend({
       type: "signup",
@@ -660,19 +685,28 @@ export async function sendPasswordResetEmail(email: string): Promise<AuthResult>
     });
 
     if (error) {
-      console.error("[auth] 비밀번호 재설정 이메일 발송 실패:", error);
+      logActionError(
+        { domain: "auth", action: "requestPasswordReset" },
+        error,
+        { email }
+      );
       return {
         success: false,
         error: error.message || "비밀번호 재설정 이메일 발송에 실패했습니다.",
       };
     }
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[auth] 비밀번호 재설정 이메일 발송 성공");
-    }
+    logActionSuccess(
+      { domain: "auth", action: "requestPasswordReset" },
+      { email }
+    );
     return { success: true };
   } catch (error) {
-    console.error("[auth] 비밀번호 재설정 이메일 발송 예외:", error);
+    logActionError(
+      { domain: "auth", action: "requestPasswordReset" },
+      error,
+      { email }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "비밀번호 재설정 이메일 발송에 실패했습니다.",
@@ -692,7 +726,10 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
     });
 
     if (error) {
-      console.error("[auth] 비밀번호 업데이트 실패:", error);
+      logActionError(
+        { domain: "auth", action: "updatePassword" },
+        error
+      );
       return {
         success: false,
         error: error.message || "비밀번호 변경에 실패했습니다.",
@@ -701,12 +738,15 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
 
     await supabase.auth.signOut();
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[auth] 비밀번호 업데이트 성공");
-    }
+    logActionSuccess(
+      { domain: "auth", action: "updatePassword" }
+    );
     return { success: true };
   } catch (error) {
-    console.error("[auth] 비밀번호 업데이트 예외:", error);
+    logActionError(
+      { domain: "auth", action: "updatePassword" },
+      error
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.",
