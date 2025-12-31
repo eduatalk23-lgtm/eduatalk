@@ -16,6 +16,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { TIMER_ERRORS } from "../errors";
+import {
+  validateAdHocTimerAction,
+  type AdHocPlanStatus,
+} from "@/lib/utils/timerUtils";
 import type {
   StartPlanResult,
   PausePlanResult,
@@ -57,20 +61,21 @@ export async function startAdHocPlan(
       return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
     }
 
-    // 2. 이미 완료된 플랜인지 확인
-    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+    // 2. 상태 머신 검증: START 액션이 허용되는지 확인
+    // 추가 안전 체크: completed_at이 있으면 완료된 것으로 처리
+    if (adHocPlan.completed_at) {
       return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
     }
 
-    // 3. 이미 시작된 플랜인지 확인 (재시작 방지)
-    if (adHocPlan.status === "in_progress" && adHocPlan.started_at) {
-      return {
-        success: false,
-        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_SAME_PLAN,
-      };
+    const validationError = validateAdHocTimerAction(
+      adHocPlan.status as AdHocPlanStatus,
+      "START"
+    );
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
-    // 4. 다른 활성 세션 확인 (student_plan 기반)
+    // 3. 다른 활성 세션 확인 (student_plan 기반)
     const { data: activeSessions } = await supabase
       .from("student_study_sessions")
       .select("plan_id, paused_at")
@@ -176,9 +181,18 @@ export async function completeAdHocPlan(
       return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
     }
 
-    // 2. 이미 완료된 플랜인지 확인
-    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+    // 2. 상태 머신 검증: COMPLETE 액션이 허용되는지 확인
+    // 추가 안전 체크: completed_at이 있으면 이미 완료된 것으로 처리
+    if (adHocPlan.completed_at) {
       return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
+    }
+
+    const validationError = validateAdHocTimerAction(
+      adHocPlan.status as AdHocPlanStatus,
+      "COMPLETE"
+    );
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
     // 3. 실제 소요 시간 계산 (일시정지 시간 제외)
@@ -428,22 +442,21 @@ export async function pauseAdHocPlan(
       return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
     }
 
-    // 2. 이미 완료된 플랜인지 확인
-    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+    // 2. 상태 머신 검증: PAUSE 액션이 허용되는지 확인
+    // 추가 안전 체크: completed_at이 있으면 완료된 것으로 처리
+    if (adHocPlan.completed_at) {
       return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
     }
 
-    // 3. 진행 중인 플랜만 일시정지 가능
-    if (adHocPlan.status !== "in_progress" || !adHocPlan.started_at) {
-      return { success: false, error: "진행 중인 플랜만 일시정지할 수 있습니다." };
+    const validationError = validateAdHocTimerAction(
+      adHocPlan.status as AdHocPlanStatus,
+      "PAUSE"
+    );
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
-    // 4. 이미 일시정지 상태인지 확인
-    if (adHocPlan.paused_at) {
-      return { success: false, error: "이미 일시정지 상태입니다." };
-    }
-
-    // 5. 일시정지 처리
+    // 3. 일시정지 처리
     const pausedAt = new Date().toISOString();
     const newPauseCount = (adHocPlan.pause_count ?? 0) + 1;
 
@@ -521,17 +534,21 @@ export async function resumeAdHocPlan(
       return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
     }
 
-    // 2. 이미 완료된 플랜인지 확인
-    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+    // 2. 상태 머신 검증: RESUME 액션이 허용되는지 확인
+    // 추가 안전 체크: completed_at이 있으면 완료된 것으로 처리
+    if (adHocPlan.completed_at) {
       return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
     }
 
-    // 3. 일시정지 상태만 재시작 가능
-    if (adHocPlan.status !== "paused" || !adHocPlan.paused_at) {
-      return { success: false, error: "일시정지 상태의 플랜만 재시작할 수 있습니다." };
+    const validationError = validateAdHocTimerAction(
+      adHocPlan.status as AdHocPlanStatus,
+      "RESUME"
+    );
+    if (validationError) {
+      return { success: false, error: validationError };
     }
 
-    // 4. 다른 활성 세션 확인 (student_plan 기반)
+    // 3. 다른 활성 세션 확인 (student_plan 기반)
     const { data: activeSessions } = await supabase
       .from("student_study_sessions")
       .select("plan_id, paused_at")

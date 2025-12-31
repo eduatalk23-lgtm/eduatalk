@@ -199,6 +199,66 @@ export function validateTimerAction(
 }
 
 // ============================================================================
+// Ad-hoc Plan Timer Validation
+// ============================================================================
+
+/**
+ * Ad-hoc 플랜 상태 타입 (DB의 status 필드 값)
+ */
+export type AdHocPlanStatus = "pending" | "in_progress" | "paused" | "completed";
+
+/**
+ * Ad-hoc 플랜의 status 필드를 TimerStatus로 변환
+ *
+ * @param status Ad-hoc 플랜의 status 필드 값
+ * @returns TimerStatus
+ */
+export function mapAdHocStatusToTimerStatus(status: AdHocPlanStatus): TimerStatus {
+  const statusMap: Record<AdHocPlanStatus, TimerStatus> = {
+    pending: "NOT_STARTED",
+    in_progress: "RUNNING",
+    paused: "PAUSED",
+    completed: "COMPLETED",
+  };
+  return statusMap[status];
+}
+
+/**
+ * Ad-hoc 플랜의 상태 전이 검증
+ *
+ * @param currentStatus Ad-hoc 플랜의 현재 status 필드 값
+ * @param action 실행할 타이머 액션
+ * @returns 에러 메시지 (유효하면 null)
+ */
+export function validateAdHocTimerAction(
+  currentStatus: AdHocPlanStatus,
+  action: TimerAction
+): string | null {
+  const timerStatus = mapAdHocStatusToTimerStatus(currentStatus);
+  const result = validateTimerTransition(timerStatus, action);
+
+  if (!result.valid) {
+    // 사용자 친화적 에러 메시지 반환
+    const errorMessages: Record<string, string> = {
+      "COMPLETED→START": "이미 완료된 플랜입니다.",
+      "COMPLETED→PAUSE": "이미 완료된 플랜입니다.",
+      "COMPLETED→RESUME": "이미 완료된 플랜입니다.",
+      "NOT_STARTED→PAUSE": "시작되지 않은 플랜은 일시정지할 수 없습니다.",
+      "NOT_STARTED→RESUME": "시작되지 않은 플랜은 재개할 수 없습니다.",
+      "RUNNING→START": "이미 실행 중인 플랜입니다.",
+      "RUNNING→RESUME": "이미 실행 중인 플랜입니다.",
+      "PAUSED→START": "일시정지된 플랜은 재개를 사용해주세요.",
+      "PAUSED→PAUSE": "이미 일시정지 상태입니다.",
+    };
+
+    const key = `${timerStatus}→${action}`;
+    return errorMessages[key] || result.error;
+  }
+
+  return null;
+}
+
+// ============================================================================
 // Timer Formatting Utilities
 // ============================================================================
 
