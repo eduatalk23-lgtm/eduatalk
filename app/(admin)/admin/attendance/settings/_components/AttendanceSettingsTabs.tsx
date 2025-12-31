@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "@/components/molecules/Card";
 
 type AttendanceSettingsTabsProps = {
   locationForm: React.ReactNode;

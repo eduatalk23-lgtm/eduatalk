@@ -7,8 +7,6 @@ import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { cn } from "@/lib/cn";
 import {
   bgSurface,
-  textPrimary,
-  textSecondary,
   borderInput,
 } from "@/lib/utils/darkMode";
 import { format } from "date-fns";

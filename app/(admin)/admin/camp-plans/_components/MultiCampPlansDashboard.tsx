@@ -5,10 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Calendar,
-  Clock,
-  CheckCircle2,
-  PlayCircle,
-  PauseCircle,
   RefreshCw,
   Filter,
 } from "lucide-react";

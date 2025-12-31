@@ -8,7 +8,6 @@ import {
   bgSurface,
   bgHover,
   textPrimary,
-  textSecondary,
 } from "@/lib/utils/darkMode";
 import Label from "@/components/atoms/Label";
 

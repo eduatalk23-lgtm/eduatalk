@@ -10,7 +10,6 @@ import { cn } from "@/lib/cn";
 import {
   bgSurface,
   borderDefault,
-  textPrimary,
   textSecondary,
   textTertiary,
   textMuted,

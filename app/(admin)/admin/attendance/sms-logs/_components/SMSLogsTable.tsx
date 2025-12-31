@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/atoms/Badge";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { maskPhoneNumber } from "@/lib/utils/phone";
