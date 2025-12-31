@@ -4,7 +4,6 @@
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
-import type { SupabaseServerClient } from "./types";
 import { handleQueryError, isColumnNotFoundError } from "./errorHandler";
 
 /**

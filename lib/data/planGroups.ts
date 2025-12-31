@@ -8,8 +8,6 @@ import {
   PlanContent,
   PlanExclusion,
   AcademySchedule,
-  PlanGroupCreationData,
-  PlanFilters,
   SchedulerOptions,
   SubjectConstraints,
   AdditionalPeriodReallocation,
@@ -22,14 +20,11 @@ import type { ContentSlot } from "@/lib/types/content-selection";
 import { isPlanContentWithDetails } from "@/lib/types/guards";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import {
-  createTypedQuery,
   createTypedConditionalQuery,
 } from "@/lib/data/core/typedQueryBuilder";
 import type { Database } from "@/lib/supabase/database.types";
-import type { SupabaseServerClient } from "@/lib/data/core/types";
 
 // Database 타입에서 테이블 타입 추출
-type PlanGroupRow = Database["public"]["Tables"]["plan_groups"]["Row"];
 type PlanGroupInsert = Database["public"]["Tables"]["plan_groups"]["Insert"];
 type PlanGroupUpdate = Database["public"]["Tables"]["plan_groups"]["Update"];
 

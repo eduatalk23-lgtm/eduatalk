@@ -6,7 +6,6 @@
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
-import type { SupabaseServerClient } from "./types";
 import { executeQuery, executeSingleQuery, type QueryOptions } from "./queryBuilder";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 

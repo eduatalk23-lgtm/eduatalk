@@ -5,7 +5,7 @@
  * 이는 마스터 콘텐츠의 subject_category가 더 정확하고 일관된 정보를 제공하기 때문입니다.
  */
 
-import { createSupabaseServerClient, createSupabasePublicClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 

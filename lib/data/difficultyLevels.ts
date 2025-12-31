@@ -3,7 +3,6 @@
  * 패턴: lib/data/contentMetadata.ts의 publishers/platforms 패턴 참고
  */
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 
 export type DifficultyLevel = {

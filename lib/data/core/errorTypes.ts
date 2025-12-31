@@ -5,7 +5,7 @@
  */
 
 import type { PostgrestError } from "@supabase/supabase-js";
-import { ErrorCodeCheckers, POSTGRES_ERROR_CODES, POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
+import { POSTGRES_ERROR_CODES, POSTGREST_ERROR_CODES } from "@/lib/constants/errorCodes";
 
 /**
  * 에러 심각도 레벨

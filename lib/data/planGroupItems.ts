@@ -7,10 +7,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupItem, PlanGroupItemInput } from "@/lib/types/plan";
 
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
-
 // ============================================
 // CRUD 함수
 // ============================================
