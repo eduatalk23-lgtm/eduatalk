@@ -489,6 +489,8 @@ export type Step3ContentSelectionProps = {
   data?: {
     student_contents: SelectedContent[];
     recommended_contents: SelectedContent[];
+    // Note: 다양한 버전의 schedule_summary가 사용되므로 타입을 느슨하게 유지
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     schedule_summary?: any;
     subject_constraints?: {
       enable_required_subjects_validation?: boolean;

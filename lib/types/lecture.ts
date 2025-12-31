@@ -1,10 +1,12 @@
 /**
  * 강의 관련 TypeScript 타입 정의
- * 
+ *
  * @description 강의 스키마 리팩토링 후 타입 정의
  * @see docs/lecture-schema-refactoring.md
  * @updated 2024-11-29
  */
+
+import type { Json } from "@/lib/supabase/database.types";
 
 // ============================================
 // Master Lectures (마스터 강의)
@@ -59,7 +61,7 @@ export interface MasterLecture {
   // ⑦ 파일/AI 분석 결과
   video_url?: string | null;
   transcript?: string | null;
-  episode_analysis?: any | null;  // jsonb
+  episode_analysis?: Json | null;  // jsonb
 
   // ⑧ 레거시 컬럼 (호환성 유지)
   revision?: string | null;
@@ -198,7 +200,7 @@ export interface Lecture {
   /** @deprecated master_lectures.semester를 사용하세요 (현재 제거됨). */
   semester?: string | null;
   /** @deprecated lecture_episodes를 사용하세요. */
-  chapter_info?: any | null;
+  chapter_info?: Json | null;
   /** @deprecated master_lectures.difficulty_level을 사용하세요. */
   difficulty_level?: string | null;
   /** @deprecated 사용하지 않습니다. */

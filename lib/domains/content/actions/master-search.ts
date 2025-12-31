@@ -21,6 +21,7 @@ import { searchMasterBooks, searchMasterLectures } from "@/lib/data/contentMaste
 import type { ContentSortOption } from "@/lib/types/contentFilters";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import type { ContentMasterSearchResult } from "@/lib/types/content-selection";
+import type { MasterBook, MasterLecture, MasterCustomContent, BookDetail } from "@/lib/types/plan/domain";
 
 /**
  * 콘텐츠 마스터 검색
@@ -142,8 +143,8 @@ async function _getContentMasterById(
   masterId: string,
   content_type?: "book" | "lecture" | "custom"
 ): Promise<{
-  master: any | null;
-  details: any[];
+  master: MasterBook | MasterLecture | MasterCustomContent | null;
+  details: BookDetail[];
 }> {
   const user = await getCurrentUser();
   const { role } = await getCurrentUserRole();
