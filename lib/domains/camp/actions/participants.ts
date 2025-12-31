@@ -13,7 +13,6 @@ import {
   validateCampTemplateId,
   validateStudentIds,
   validateInvitationIds,
-  validateCampInvitationId,
   validateCampInvitationStatus,
   validateCampInvitationNotExpired,
 } from "@/lib/validation/campValidation";

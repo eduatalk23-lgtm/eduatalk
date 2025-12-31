@@ -9,11 +9,8 @@ import * as repo from "./repository";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
-  Block,
   BlockActionResult,
   BlockServiceContext,
-  CreateBlockInput,
-  UpdateBlockInput,
 } from "./types";
 
 // ============================================

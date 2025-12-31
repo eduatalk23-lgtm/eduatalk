@@ -23,7 +23,7 @@ import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { UserWithSignupMetadata } from "@/lib/types/auth";
 import { getEmailRedirectUrl } from "@/lib/utils/getEmailRedirectUrl";
 import { saveUserConsents } from "@/lib/data/userConsents";
-import { StudentError, StudentErrorCodes, toStudentError } from "@/lib/errors/studentErrors";
+import { StudentErrorCodes, toStudentError } from "@/lib/errors/studentErrors";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
 import { signInSchema, signUpSchema, type SignInResult, type AuthResult } from "./types";

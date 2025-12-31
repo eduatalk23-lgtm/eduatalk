@@ -19,7 +19,6 @@ import type {
 } from "@/lib/types/plan";
 import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
 import type { PlanContentInsert } from "@/lib/types/plan/schema";
-import type { RecommendationMetadata } from "@/lib/types/content-selection";
 import type {
   PreviewPlan,
   Exclusion,
@@ -33,7 +32,6 @@ import { getRangeRecommendationConfig } from "@/lib/recommendations/config/confi
 import { calculateRecommendedRanges } from "@/lib/plan/rangeRecommendation";
 import { timeToMinutes } from "@/lib/utils/time";
 import { logError } from "@/lib/errors/handler";
-import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 
 export const getCampPlanGroupForReview = withErrorHandling(
   async (groupId: string) => {

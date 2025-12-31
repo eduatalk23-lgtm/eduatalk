@@ -10,7 +10,6 @@ import type {
   CreateAttendanceRecordInput,
   UpdateAttendanceRecordInput,
   AttendanceFilters,
-  CheckMethod,
 } from "./types";
 
 /**
@@ -31,10 +30,6 @@ const ATTENDANCE_COLUMNS = `
   created_at,
   updated_at
 ` as const;
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
 
 /**
  * 학생 ID와 날짜로 출석 기록 조회
