@@ -6,6 +6,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { logActionError, logActionSuccess } from "@/lib/logging/actionLogger";
 import {
   type CustomContent,
   type CustomContentInput,
@@ -47,7 +48,7 @@ export async function createCustomContent(
     .single();
 
   if (error) {
-    console.error('[content/custom] 커스텀 콘텐츠 생성 실패:', error);
+    logActionError({ domain: "content", action: "createCustomContent" }, error);
     return { success: false, error: error.message };
   }
 
@@ -75,7 +76,7 @@ export async function getCustomContent(
     .single();
 
   if (error) {
-    console.error('[content/custom] 커스텀 콘텐츠 조회 실패:', error);
+    logActionError({ domain: "content", action: "getCustomContent" }, error);
     return { success: false, error: error.message };
   }
 
@@ -134,7 +135,7 @@ export async function listCustomContents(
   const { data, error } = await query;
 
   if (error) {
-    console.error('[content/custom] 커스텀 콘텐츠 목록 조회 실패:', error);
+    logActionError({ domain: "content", action: "listCustomContents" }, error);
     return { success: false, error: error.message };
   }
 
@@ -179,7 +180,7 @@ export async function updateCustomContent(
     .single();
 
   if (error) {
-    console.error('[content/custom] 커스텀 콘텐츠 업데이트 실패:', error);
+    logActionError({ domain: "content", action: "updateCustomContent" }, error);
     return { success: false, error: error.message };
   }
 
@@ -206,7 +207,7 @@ export async function deleteCustomContent(
     .eq('id', contentId);
 
   if (error) {
-    console.error('[content/custom] 커스텀 콘텐츠 삭제 실패:', error);
+    logActionError({ domain: "content", action: "deleteCustomContent" }, error);
     return { success: false, error: error.message };
   }
 
@@ -255,7 +256,7 @@ export async function saveAsTemplate(
     .single();
 
   if (fetchError || !content) {
-    console.error('[content/custom] 템플릿 저장 - 콘텐츠 조회 실패:', fetchError);
+    logActionError({ domain: "content", action: "saveAsTemplate" }, fetchError);
     return { success: false, error: fetchError?.message || '콘텐츠를 찾을 수 없습니다.' };
   }
 
@@ -283,7 +284,7 @@ export async function saveAsTemplate(
     .single();
 
   if (insertError) {
-    console.error('[content/custom] 템플릿 생성 실패:', insertError);
+    logActionError({ domain: "content", action: "saveAsTemplate" }, insertError);
     return { success: false, error: insertError.message };
   }
 
@@ -323,7 +324,7 @@ export async function createFromTemplate(
     .single();
 
   if (fetchError || !template) {
-    console.error('[content/custom] 템플릿 조회 실패:', fetchError);
+    logActionError({ domain: "content", action: "createFromTemplate" }, fetchError);
     return { success: false, error: fetchError?.message || '템플릿을 찾을 수 없습니다.' };
   }
 
@@ -376,7 +377,7 @@ export async function listTemplates(
   const { data, error } = await query;
 
   if (error) {
-    console.error('[content/custom] 템플릿 목록 조회 실패:', error);
+    logActionError({ domain: "content", action: "listTemplates" }, error);
     return { success: false, error: error.message };
   }
 
@@ -414,7 +415,7 @@ export async function createTemplate(
     .single();
 
   if (error) {
-    console.error('[content/custom] 템플릿 생성 실패:', error);
+    logActionError({ domain: "content", action: "createTemplate" }, error);
     return { success: false, error: error.message };
   }
 
@@ -438,7 +439,7 @@ export async function deleteTemplate(
     .eq('id', templateId);
 
   if (error) {
-    console.error('[content/custom] 템플릿 삭제 실패:', error);
+    logActionError({ domain: "content", action: "deleteTemplate" }, error);
     return { success: false, error: error.message };
   }
 
@@ -504,7 +505,7 @@ export async function bulkUpdateStatus(
     .select('id');
 
   if (error) {
-    console.error('[content/custom] 일괄 상태 변경 실패:', error);
+    logActionError({ domain: "content", action: "bulkUpdateStatus" }, error);
     return { success: false, error: error.message };
   }
 

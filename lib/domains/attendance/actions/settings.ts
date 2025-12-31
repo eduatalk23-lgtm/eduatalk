@@ -12,6 +12,7 @@ import {
   getUserFacingMessage,
   logError,
 } from "@/lib/errors";
+import { logActionError, logActionSuccess, logActionDebug } from "@/lib/logging/actionLogger";
 import { DATABASE_ERROR_CODES } from "@/lib/constants/databaseErrorCodes";
 import type { AttendanceSMSSettings } from "@/lib/types/attendance";
 
@@ -96,7 +97,11 @@ export async function updateLocationSettings(
       .eq("id", tenantContext.tenantId);
 
     if (error) {
-      console.error("[attendanceSettings] 위치 설정 업데이트 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "updateLocationSettings", tenantId: tenantContext.tenantId },
+        error,
+        { latitude: input.latitude, longitude: input.longitude, radiusMeters: input.radiusMeters }
+      );
       throw new AppError(
         error.message || "위치 설정 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -168,7 +173,10 @@ export async function getLocationSettings(): Promise<{
       .single();
 
     if (error) {
-      console.error("[attendanceSettings] 위치 설정 조회 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "getLocationSettings", tenantId: tenantContext.tenantId },
+        error
+      );
       throw new AppError(
         error.message || "위치 설정 조회에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -251,7 +259,10 @@ export async function getAttendanceSMSSettings(): Promise<{
       .single();
 
     if (error) {
-      console.error("[attendanceSettings] SMS 설정 조회 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "getAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+        error
+      );
       throw new AppError(
         error.message || "SMS 설정 조회에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -384,12 +395,11 @@ export async function updateAttendanceSMSSettings(
       updated_at: new Date().toISOString(),
     };
 
-    console.log("[attendanceSettings] SMS 설정 업데이트 시작:", {
-      tenantId: tenantContext.tenantId,
-      inputData: input,
-      updateData,
-      usingAdminClient: true,
-    });
+    logActionDebug(
+      { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+      "SMS 설정 업데이트 시작",
+      { inputData: input, usingAdminClient: true }
+    );
 
     // SMS 설정 업데이트
     const { error, data } = await supabase
@@ -402,16 +412,16 @@ export async function updateAttendanceSMSSettings(
 
     // 에러 처리
     if (error) {
-      console.error("[attendanceSettings] SMS 설정 업데이트 실패:", {
+      logActionError(
+        { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
         error,
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetails: error.details,
-        errorHint: error.hint,
-        tenantId: tenantContext.tenantId,
-        updateData,
-        isRLSPolicyViolation: error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION,
-      });
+        {
+          errorCode: error.code,
+          errorDetails: error.details,
+          errorHint: error.hint,
+          isRLSPolicyViolation: error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION,
+        }
+      );
 
       // RLS 정책 위반 에러 명시적 처리
       if (error.code === DATABASE_ERROR_CODES.RLS_POLICY_VIOLATION) {
@@ -433,10 +443,10 @@ export async function updateAttendanceSMSSettings(
 
     // update().select() 결과 확인
     if (!data || data.length === 0) {
-      console.error("[attendanceSettings] 업데이트된 행이 없습니다:", {
-        tenantId: tenantContext.tenantId,
-        updateData,
-      });
+      logActionError(
+        { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+        new Error("업데이트된 행이 없습니다")
+      );
       throw new AppError(
         "SMS 설정 업데이트에 실패했습니다. 업데이트된 행이 없습니다. RLS 정책 문제일 수 있습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -446,20 +456,21 @@ export async function updateAttendanceSMSSettings(
     }
 
     const updatedRow = data[0];
-    console.log("[attendanceSettings] 업데이트 직후 결과 확인:", {
-      tenantId: tenantContext.tenantId,
-      updatedRow,
-      requested: updateData,
-      immediateMatch: {
-        checkIn: updatedRow.attendance_sms_check_in_enabled === input.attendance_sms_check_in_enabled,
-        checkOut: updatedRow.attendance_sms_check_out_enabled === input.attendance_sms_check_out_enabled,
-        absent: updatedRow.attendance_sms_absent_enabled === input.attendance_sms_absent_enabled,
-        late: updatedRow.attendance_sms_late_enabled === input.attendance_sms_late_enabled,
-        studentCheckIn: updatedRow.attendance_sms_student_checkin_enabled === input.attendance_sms_student_checkin_enabled,
-        recipient: updatedRow.attendance_sms_recipient === input.attendance_sms_recipient,
-        showFailure: updatedRow.attendance_sms_show_failure_to_user === (input.attendance_sms_show_failure_to_user ?? false),
-      },
-    });
+    logActionDebug(
+      { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+      "업데이트 직후 결과 확인",
+      {
+        immediateMatch: {
+          checkIn: updatedRow.attendance_sms_check_in_enabled === input.attendance_sms_check_in_enabled,
+          checkOut: updatedRow.attendance_sms_check_out_enabled === input.attendance_sms_check_out_enabled,
+          absent: updatedRow.attendance_sms_absent_enabled === input.attendance_sms_absent_enabled,
+          late: updatedRow.attendance_sms_late_enabled === input.attendance_sms_late_enabled,
+          studentCheckIn: updatedRow.attendance_sms_student_checkin_enabled === input.attendance_sms_student_checkin_enabled,
+          recipient: updatedRow.attendance_sms_recipient === input.attendance_sms_recipient,
+          showFailure: updatedRow.attendance_sms_show_failure_to_user === (input.attendance_sms_show_failure_to_user ?? false),
+        },
+      }
+    );
 
     // 업데이트 직후 값 불일치 확인
     const mismatches: string[] = [];
@@ -486,12 +497,11 @@ export async function updateAttendanceSMSSettings(
     }
 
     if (mismatches.length > 0) {
-      console.error("[attendanceSettings] 업데이트 직후 값 불일치 감지:", {
-        tenantId: tenantContext.tenantId,
-        mismatches,
-        updatedRow,
-        requested: updateData,
-      });
+      logActionError(
+        { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+        new Error("업데이트 직후 값 불일치 감지"),
+        { mismatches }
+      );
       throw new AppError(
         `SMS 설정 저장 중 오류가 발생했습니다. 일부 설정이 올바르게 저장되지 않았습니다: ${mismatches.join(", ")}`,
         ErrorCode.DATABASE_ERROR,
@@ -510,12 +520,11 @@ export async function updateAttendanceSMSSettings(
       .single();
 
     if (verifyError) {
-      console.error("[attendanceSettings] SMS 설정 재검증 실패:", {
-        error: verifyError,
-        errorCode: verifyError.code,
-        errorMessage: verifyError.message,
-        tenantId: tenantContext.tenantId,
-      });
+      logActionDebug(
+        { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+        "SMS 설정 재검증 실패 (경고)",
+        { errorCode: verifyError.code, errorMessage: verifyError.message }
+      );
       // 재검증 실패는 경고만 로깅 (이미 업데이트는 성공했을 수 있음)
     } else if (verifyData) {
       // 최종 검증: 재조회한 값과 요청한 값 비교
@@ -543,12 +552,11 @@ export async function updateAttendanceSMSSettings(
       }
 
       if (finalMismatches.length > 0) {
-        console.error("[attendanceSettings] 재검증 시 값 불일치 감지:", {
-          tenantId: tenantContext.tenantId,
-          mismatches: finalMismatches,
-          verifyData,
-          requested: input,
-        });
+        logActionError(
+          { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+          new Error("재검증 시 값 불일치 감지"),
+          { mismatches: finalMismatches }
+        );
         throw new AppError(
           `SMS 설정 저장 후 검증 중 오류가 발생했습니다. 일부 설정이 올바르게 저장되지 않았습니다: ${finalMismatches.join(", ")}`,
           ErrorCode.DATABASE_ERROR,
@@ -557,11 +565,10 @@ export async function updateAttendanceSMSSettings(
         );
       }
 
-      console.log("[attendanceSettings] SMS 설정 업데이트 성공 및 검증 완료:", {
-        tenantId: tenantContext.tenantId,
-        savedData: verifyData,
-        allFieldsMatch: true,
-      });
+      logActionSuccess(
+        { domain: "attendance", action: "updateAttendanceSMSSettings", tenantId: tenantContext.tenantId },
+        { allFieldsMatch: true }
+      );
     }
 
     revalidatePath("/admin/attendance/settings");
@@ -660,7 +667,11 @@ export async function updateStudentAttendanceSettings(
         .eq("student_id", studentId);
 
       if (error) {
-        console.error("[attendanceSettings] 학생 알림 설정 업데이트 실패:", error);
+        logActionError(
+          { domain: "attendance", action: "updateStudentAttendanceSettings", tenantId: tenantContext.tenantId },
+          error,
+          { studentId }
+        );
         throw new AppError(
           error.message || "학생 알림 설정 업데이트에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
@@ -678,7 +689,11 @@ export async function updateStudentAttendanceSettings(
         });
 
       if (error) {
-        console.error("[attendanceSettings] 학생 알림 설정 생성 실패:", error);
+        logActionError(
+          { domain: "attendance", action: "updateStudentAttendanceSettings", tenantId: tenantContext.tenantId },
+          error,
+          { studentId, operation: "create" }
+        );
         throw new AppError(
           error.message || "학생 알림 설정 생성에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
