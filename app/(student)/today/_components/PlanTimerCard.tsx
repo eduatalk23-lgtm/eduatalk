@@ -111,6 +111,8 @@ function PlanTimerCardComponent({
       progress: null,
     };
 
+    // NOTE: 타입 단언 사용 이유 - usePlanCardActions가 전체 PlanGroup을 요구하지만,
+    // 이 컴포넌트에서는 timer 관련 필드만 필요함. 향후 MinimalPlanGroup 타입 도입 검토.
     const minimalGroup: PlanGroup = {
       planNumber: null,
       plan: minimalPlan as unknown as PlanGroup["plan"],
