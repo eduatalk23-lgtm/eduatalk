@@ -12,6 +12,7 @@
  */
 
 import * as repository from "./repository";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   SchoolType,
   SchoolTypeKor,
@@ -53,7 +54,7 @@ export async function getAllRegions(): Promise<Region[]> {
   try {
     return await repository.findAllRegions();
   } catch (error) {
-    console.error("[school/service] 지역 조회 실패:", error);
+    logActionError({ domain: "school", action: "getAllRegions" }, error);
     return [];
   }
 }
@@ -65,7 +66,7 @@ export async function getRegionsByLevel(level: 1 | 2 | 3): Promise<Region[]> {
   try {
     return await repository.findRegionsByLevel(level);
   } catch (error) {
-    console.error("[school/service] 레벨별 지역 조회 실패:", error);
+    logActionError({ domain: "school", action: "getRegionsByLevel" }, error, { level });
     return [];
   }
 }
@@ -77,7 +78,7 @@ export async function getRegionsByParent(parentId: string): Promise<Region[]> {
   try {
     return await repository.findRegionsByParent(parentId);
   } catch (error) {
-    console.error("[school/service] 하위 지역 조회 실패:", error);
+    logActionError({ domain: "school", action: "getRegionsByParent" }, error, { parentId });
     return [];
   }
 }
@@ -90,7 +91,7 @@ export async function isValidRegionId(regionId: string): Promise<boolean> {
     const region = await repository.findRegionById(regionId);
     return region !== null;
   } catch (error) {
-    console.error("[school/service] 지역 검증 실패:", error);
+    logActionError({ domain: "school", action: "isValidRegionId" }, error, { regionId });
     return false;
   }
 }
@@ -104,7 +105,7 @@ export async function findRegionIdByName(regionName: string): Promise<string | n
     const matchedRegion = regions.find((r) => r.name === regionName);
     return matchedRegion?.id ?? null;
   } catch (error) {
-    console.error("[school/service] 지역 ID 검색 실패:", error);
+    logActionError({ domain: "school", action: "findRegionIdByName" }, error, { regionName });
     return null;
   }
 }
@@ -120,7 +121,7 @@ export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSch
   try {
     return await repository.findAllSchools(options);
   } catch (error) {
-    console.error("[school/service] 학교 조회 실패:", error);
+    logActionError({ domain: "school", action: "getAllSchools" }, error, { options });
     return [];
   }
 }
@@ -140,7 +141,7 @@ export async function searchSchools(options: SearchSchoolsOptions): Promise<Scho
       sourceId: s.source_id,
     }));
   } catch (error) {
-    console.error("[school/service] 학교 검색 실패:", error);
+    logActionError({ domain: "school", action: "searchSchools" }, error, { options });
     return [];
   }
 }
@@ -152,7 +153,7 @@ export async function getSchoolByUnifiedId(unifiedId: string): Promise<AllSchool
   try {
     return await repository.findSchoolByUnifiedId(unifiedId);
   } catch (error) {
-    console.error("[school/service] 학교 조회 실패:", error);
+    logActionError({ domain: "school", action: "getSchoolByUnifiedId" }, error, { unifiedId });
     return null;
   }
 }
@@ -167,7 +168,7 @@ export async function getSchoolByName(
   try {
     return await repository.findSchoolByName(name, schoolType);
   } catch (error) {
-    console.error("[school/service] 학교명 조회 실패:", error);
+    logActionError({ domain: "school", action: "getSchoolByName" }, error, { name, schoolType });
     return null;
   }
 }
@@ -187,7 +188,7 @@ export async function getSchoolInfoList(options?: {
   try {
     return await repository.findSchoolInfoList(options);
   } catch (error) {
-    console.error("[school/service] 중·고등학교 조회 실패:", error);
+    logActionError({ domain: "school", action: "getSchoolInfoList" }, error, { options });
     return [];
   }
 }
@@ -199,7 +200,7 @@ export async function getSchoolInfoById(id: number): Promise<SchoolInfo | null> 
   try {
     return await repository.findSchoolInfoById(id);
   } catch (error) {
-    console.error("[school/service] 중·고등학교 조회 실패:", error);
+    logActionError({ domain: "school", action: "getSchoolInfoById" }, error, { id });
     return null;
   }
 }
@@ -215,7 +216,7 @@ export async function searchSchoolInfo(
   try {
     return await repository.searchSchoolInfo(query, schoolLevel, limit);
   } catch (error) {
-    console.error("[school/service] 중·고등학교 검색 실패:", error);
+    logActionError({ domain: "school", action: "searchSchoolInfo" }, error, { query, schoolLevel, limit });
     return [];
   }
 }
@@ -235,7 +236,7 @@ export async function getUniversities(options?: {
   try {
     return await repository.findUniversities(options);
   } catch (error) {
-    console.error("[school/service] 대학교 조회 실패:", error);
+    logActionError({ domain: "school", action: "getUniversities" }, error, { options });
     return [];
   }
 }
@@ -251,7 +252,7 @@ export async function getUniversityCampuses(options?: {
   try {
     return await repository.findUniversityCampuses(options);
   } catch (error) {
-    console.error("[school/service] 대학교 캠퍼스 조회 실패:", error);
+    logActionError({ domain: "school", action: "getUniversityCampuses" }, error, { options });
     return [];
   }
 }
@@ -263,7 +264,7 @@ export async function getUniversityCampusById(id: number): Promise<UniversityWit
   try {
     return await repository.findUniversityCampusById(id);
   } catch (error) {
-    console.error("[school/service] 대학교 캠퍼스 조회 실패:", error);
+    logActionError({ domain: "school", action: "getUniversityCampusById" }, error, { id });
     return null;
   }
 }
@@ -278,7 +279,7 @@ export async function searchUniversityCampuses(
   try {
     return await repository.searchUniversityCampuses(query, limit);
   } catch (error) {
-    console.error("[school/service] 대학교 검색 실패:", error);
+    logActionError({ domain: "school", action: "searchUniversityCampuses" }, error, { query, limit });
     return [];
   }
 }
@@ -292,7 +293,7 @@ export async function searchUniversityCampuses(
  * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
  */
 export async function createSchool(): Promise<SchoolActionResult> {
-  console.warn("[school/service] createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "createSchool" }, "createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -304,7 +305,7 @@ export async function createSchool(): Promise<SchoolActionResult> {
  * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
  */
 export async function updateSchool(): Promise<SchoolActionResult> {
-  console.warn("[school/service] updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "updateSchool" }, "updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -316,7 +317,7 @@ export async function updateSchool(): Promise<SchoolActionResult> {
  * 학교 CRUD 작업은 더 이상 지원되지 않습니다.
  */
 export async function deleteSchool(): Promise<SchoolActionResult> {
-  console.warn("[school/service] deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "deleteSchool" }, "deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -327,7 +328,7 @@ export async function deleteSchool(): Promise<SchoolActionResult> {
  * @deprecated 새 테이블은 읽기 전용입니다.
  */
 export async function autoRegisterSchool(): Promise<SchoolSimple | null> {
-  console.warn("[school/service] autoRegisterSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "autoRegisterSchool" }, "autoRegisterSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return null;
 }
 
@@ -335,6 +336,6 @@ export async function autoRegisterSchool(): Promise<SchoolSimple | null> {
  * @deprecated checkDuplicateSchool은 더 이상 필요 없습니다.
  */
 export async function checkDuplicateSchool(): Promise<boolean> {
-  console.warn("[school/service] checkDuplicateSchool은 더 이상 지원되지 않습니다.");
+  logActionWarn({ domain: "school", action: "checkDuplicateSchool" }, "checkDuplicateSchool은 더 이상 지원되지 않습니다.");
   return false;
 }
