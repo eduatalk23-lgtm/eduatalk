@@ -12,6 +12,7 @@ export function normalizePlanPurpose(
 }
 
 import { timeToMinutes } from "@/lib/utils/time";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // Re-export time utility function for convenience
 export { timeToMinutes };
@@ -50,7 +51,11 @@ export async function findExistingDraftPlanGroup(
 
   if (checkError && checkError.code !== "PGRST116") {
     // PGRST116은 "multiple rows" 에러인데, 이는 이미 처리됨 (limit(1) 사용)
-    console.error("[findExistingDraftPlanGroup] 기존 플랜 그룹 확인 중 에러:", checkError);
+    logActionError(
+      { domain: "plan", action: "findExistingDraftPlanGroup" },
+      checkError,
+      { studentId, name, campInvitationId }
+    );
     // 에러가 있어도 null 반환 (새로 생성 시도)
     return null;
   }

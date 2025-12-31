@@ -5,6 +5,7 @@
  */
 
 import { ErrorCode } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 에러 타입 정의
@@ -373,14 +374,17 @@ export function handleCampError(
   // 에러 메시지 표시
   showError(errorInfo.userMessage);
 
-  // 콘솔 로깅 (개발 환경에서만)
+  // 구조화된 로깅 (개발 환경에서만)
   if (process.env.NODE_ENV === "development") {
-    console.error(`[Camp Error] ${context || "Unknown context"}:`, {
-      category: errorInfo.category,
-      userMessage: errorInfo.userMessage,
-      technicalMessage: errorInfo.technicalMessage,
-      originalError: error,
-    });
+    logActionError(
+      { domain: "camp", action: context || "handleError" },
+      error,
+      {
+        category: errorInfo.category,
+        userMessage: errorInfo.userMessage,
+        technicalMessage: errorInfo.technicalMessage,
+      }
+    );
   }
 
   return errorInfo;

@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logContainerMoved, logPlanDeleted } from './planEvent';
+import { logActionError } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse, ContainerType } from '../types';
 
 /**
@@ -87,7 +88,11 @@ export async function movePlanToContainer(
 
     return { success: true, data: { success: true } };
   } catch (error) {
-    console.error('Failed to move plan:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'movePlanToContainer' },
+      error,
+      { planId: input.planId, planType: input.planType, fromContainer: input.fromContainer, toContainer: input.toContainer }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -151,7 +156,11 @@ export async function deletePlanWithLogging(
 
     return { success: true, data: { success: true } };
   } catch (error) {
-    console.error('Failed to delete plan:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'deletePlanWithLogging' },
+      error,
+      { planId: input.planId, planType: input.planType }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

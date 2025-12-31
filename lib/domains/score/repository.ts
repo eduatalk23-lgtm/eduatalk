@@ -13,6 +13,7 @@ import {
   calculateSchoolYear,
 } from "@/lib/data/studentTerms";
 import { getActiveCurriculumRevision } from "@/lib/data/subjects";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   InternalScore,
   MockScore,
@@ -223,9 +224,10 @@ export async function insertMockScore(
     });
   } catch (error) {
     // 모의고사 성적의 경우 student_term_id가 없어도 저장 가능
-    console.warn(
-      "[domains/score/repository] student_term 조회/생성 실패 (NULL로 저장)",
-      error
+    logActionWarn(
+      { domain: "score", action: "insertMockScore" },
+      "student_term 조회/생성 실패 (NULL로 저장)",
+      { error: error instanceof Error ? error.message : String(error), studentId: input.student_id }
     );
     // student_term_id는 null로 유지
   }

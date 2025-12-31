@@ -19,6 +19,7 @@ import type {
   AttendanceStatus,
 } from "@/lib/domains/attendance/types";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -189,7 +190,11 @@ export async function recordAttendanceAction(
       }
     } catch (error) {
       // SMS 발송 실패는 로그만 남기고 출석 기록 저장은 정상 처리
-      console.error("[Attendance] SMS 발송 중 오류:", error);
+      logActionError(
+        { domain: "attendance", action: "recordAttendanceAction" },
+        error,
+        { studentId: input.student_id, phase: "sms_send" }
+      );
       const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
       smsResult = {
         success: false,
@@ -497,7 +502,11 @@ export async function updateAttendanceRecord(
     
     if (historyError) {
       // 이력 저장 실패는 경고만 하고 롤백하지 않음 (기록 수정은 성공)
-      console.error("[attendance] 수정 이력 저장 실패:", historyError);
+      logActionWarn(
+        { domain: "attendance", action: "updateAttendanceRecord" },
+        "수정 이력 저장 실패",
+        { recordId, error: historyError.message }
+      );
     }
     
     revalidatePath("/admin/attendance");

@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { StudentDivision } from "@/lib/constants/students";
 import * as repository from "../repository";
@@ -95,7 +96,11 @@ export async function getStudentsByDivisionAction(
       data: students,
     };
   } catch (error) {
-    console.error("[student/actions] 구분별 학생 목록 조회 실패", error);
+    logActionError(
+      { domain: "student", action: "getStudentsByDivision" },
+      error,
+      { division }
+    );
     return {
       success: false,
       error:
@@ -128,7 +133,10 @@ export async function getStudentDivisionStatsAction(): Promise<{
       data: stats,
     };
   } catch (error) {
-    console.error("[student/actions] 구분별 통계 조회 실패", error);
+    logActionError(
+      { domain: "student", action: "getStudentDivisionStats" },
+      error
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "통계 조회에 실패했습니다.",

@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getServiceContext } from "./core";
+import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import {
   calculateStudyReviewCycle,
   calculateContentAllocationDates as calc1730AllocationDates,
@@ -49,7 +50,11 @@ export async function addContentToTimezone(
     const ctx = await getServiceContext();
     const supabase = await createSupabaseServerClient();
 
-    console.log("[addContentToTimezone] input:", JSON.stringify(input, null, 2));
+    logActionDebug(
+      { domain: "plan", action: "addContentToTimezone" },
+      "Processing content addition request",
+      { input }
+    );
 
     // 타임존 확인
     const { data: timezone, error: tzError } = await supabase
@@ -141,7 +146,11 @@ export async function addContentToTimezone(
       data: { content_id: planContent.id, preview },
     };
   } catch (error) {
-    console.log("[addContentToTimezone] error:", error);
+    logActionError(
+      { domain: "plan", action: "addContentToTimezone" },
+      error,
+      { timezoneId: input.timezone_id, contentType: input.content_type }
+    );
     return {
       success: false,
       error:

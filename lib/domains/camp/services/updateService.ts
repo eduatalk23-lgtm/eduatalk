@@ -9,6 +9,7 @@ import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
 import type { DailyScheduleInfo, TimeSettings } from "@/lib/types/plan";
 import { AppError, ErrorCode, logError } from "@/lib/errors";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 import {
   createPlanExclusions,
   createStudentAcademySchedules,
@@ -337,13 +338,17 @@ export async function updateAcademySchedules(
     return !existingKeys.has(key);
   });
 
-  console.log("[updateAcademySchedules] 학원 일정 업데이트:", {
-    studentId,
-    totalSchedules: academySchedules.length,
-    existingSchedulesCount: existingSchedules.length,
-    newSchedulesCount: newSchedules.length,
-    skippedCount: academySchedules.length - newSchedules.length,
-  });
+  logActionDebug(
+    { domain: "camp", action: "updateAcademySchedules" },
+    "학원 일정 업데이트",
+    {
+      studentId,
+      totalSchedules: academySchedules.length,
+      existingSchedulesCount: existingSchedules.length,
+      newSchedulesCount: newSchedules.length,
+      skippedCount: academySchedules.length - newSchedules.length,
+    }
+  );
 
   // 중복되지 않은 새로운 학원 일정만 추가 (관리자 모드: Admin 클라이언트 사용)
   if (newSchedules.length > 0) {
@@ -370,7 +375,11 @@ export async function updateAcademySchedules(
     }
   } else if (academySchedules.length > 0) {
     // 모든 학원 일정이 이미 존재하는 경우 로그만 출력
-    console.log("[updateAcademySchedules] 모든 학원 일정이 이미 존재합니다.");
+    logActionDebug(
+      { domain: "camp", action: "updateAcademySchedules" },
+      "모든 학원 일정이 이미 존재합니다.",
+      { studentId }
+    );
   }
 }
 

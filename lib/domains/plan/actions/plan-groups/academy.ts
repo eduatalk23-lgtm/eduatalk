@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { AcademySchedule } from "@/lib/types/plan";
 import { DEFAULT_TRAVEL_TIME_MINUTES } from "@/lib/utils/time";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 시간 관리 데이터 반영 (학원일정)
@@ -454,11 +455,11 @@ async function _deleteAcademySchedule(formData: FormData): Promise<void> {
 
   // PGRST116은 "no rows returned" 에러이므로 정상적인 경우 (데이터 없음)
   if (fetchError && fetchError.code !== "PGRST116") {
-    console.error("[_deleteAcademySchedule] 학원 일정 조회 실패", {
-      scheduleId,
-      errorCode: fetchError.code,
-      errorMessage: fetchError.message,
-    });
+    logActionError(
+      { domain: "plan", action: "deleteAcademySchedule" },
+      fetchError,
+      { scheduleId, errorCode: fetchError.code }
+    );
     throw new AppError(
       fetchError.message || "학원 일정 조회 중 오류가 발생했습니다.",
       ErrorCode.DATABASE_ERROR,

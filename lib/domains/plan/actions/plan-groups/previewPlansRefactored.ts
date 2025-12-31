@@ -27,6 +27,7 @@ import {
 } from "@/lib/plan/contentResolver";
 import { extractScheduleMaps } from "@/lib/plan/planDataLoader";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
+import { logActionWarn, logActionError } from "@/lib/logging/actionLogger";
 
 // 프리뷰 플랜 타입
 type PreviewPlan = {
@@ -316,8 +317,10 @@ async function _previewPlansFromGroupRefactored(
           const finalContentId = contentIdMap.get(plan.content_id);
           // contentIdMap에 없는 경우 null 반환하여 필터링
           if (!finalContentId) {
-            console.warn(
-              `[previewPlansRefactored] 콘텐츠 ID(${plan.content_id})가 contentIdMap에 없어 플랜에서 제외합니다.`
+            logActionWarn(
+              { domain: "plan", action: "previewPlansRefactored" },
+              "콘텐츠 ID가 contentIdMap에 없어 플랜에서 제외합니다.",
+              { contentId: plan.content_id }
             );
             return null;
           }
@@ -447,7 +450,11 @@ async function _previewPlansFromGroupRefactored(
 
     return { plans: previewPlans };
   } catch (error) {
-    console.error("[planGroupActions] 플랜 미리보기 실패:", error);
+    logActionError(
+      { domain: "plan", action: "previewPlansRefactored" },
+      error,
+      { groupId }
+    );
     if (error instanceof AppError) {
       throw error;
     }

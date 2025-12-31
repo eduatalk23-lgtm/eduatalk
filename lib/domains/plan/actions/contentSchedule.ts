@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { revalidatePath } from "next/cache";
 import type { StudentPlan, PlanContent } from "@/lib/domains/plan/types";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 // ============================================
 // Types
@@ -295,7 +296,11 @@ export async function updateContentSchedule(
             .eq("id", plan.id);
 
           if (updateError) {
-            console.error("Failed to update plan date:", updateError);
+            logActionWarn(
+              { domain: "plan", action: "updateContentSchedule" },
+              "Failed to update plan date",
+              { planId: plan.id, error: updateError.message }
+            );
           }
 
           plansOnCurrentDay++;

@@ -8,6 +8,7 @@
 import * as repo from "./repository";
 import { checkBlockOverlap } from "@/lib/blocks/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   BlockActionResult,
   BlockServiceContext,
@@ -413,13 +414,21 @@ async function getAcademySchedulesForDay(
       .eq("day_of_week", dayOfWeek);
 
     if (error) {
-      console.error("[block/service] 학원 일정 조회 오류:", error);
+      logActionError(
+        { domain: "block", action: "getAcademySchedulesForDay" },
+        error,
+        { studentId, dayOfWeek }
+      );
       return [];
     }
 
     return data || [];
   } catch (err) {
-    console.error("[block/service] 학원 일정 조회 중 예외:", err);
+    logActionError(
+      { domain: "block", action: "getAcademySchedulesForDay" },
+      err,
+      { studentId, dayOfWeek }
+    );
     return [];
   }
 }

@@ -18,6 +18,7 @@ import {
   loadContentChapters,
 } from "@/lib/plan/contentResolver";
 import { isDummyContent } from "@/lib/utils/planUtils";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   PlanServiceContext,
   ContentResolutionResult,
@@ -487,9 +488,10 @@ export class ContentResolutionService {
           .eq("id", content.id);
 
         if (updateError) {
-          console.error(
-            `[ContentResolutionService] plan_contents detail ID 업데이트 실패:`,
-            { contentId: content.id, updateData, error: updateError }
+          logActionError(
+            { domain: "plan", action: "updateDetailIds" },
+            updateError,
+            { contentId: content.id, updateData }
           );
         } else {
           // 로컬 contents 배열도 업데이트

@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { blockSchema, validateFormData } from "@/lib/validation/schemas";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 테넌트 블록 세트 생성
@@ -274,7 +275,11 @@ async function _getTenantBlockSets(): Promise<
         .order("start_time", { ascending: true });
 
       if (blocksError) {
-        console.error(`[tenantBlockSets] 블록 조회 실패 (세트 ${set.id}):`, blocksError);
+        logActionError(
+          { domain: "tenant", action: "getTenantBlockSets" },
+          blocksError,
+          { blockSetId: set.id }
+        );
         return { ...set, blocks: [] };
       }
 

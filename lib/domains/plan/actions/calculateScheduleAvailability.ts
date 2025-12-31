@@ -7,6 +7,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import {
   calculateAvailableDates,
   type Block,
@@ -285,7 +286,11 @@ export async function calculateScheduleAvailability(
       data: result,
     };
   } catch (error) {
-    console.error("[calculateScheduleAvailability] 계산 실패", error);
+    logActionError(
+      { domain: "plan", action: "calculateScheduleAvailability" },
+      error,
+      { periodStart: params.periodStart, periodEnd: params.periodEnd }
+    );
     return {
       success: false,
       error:

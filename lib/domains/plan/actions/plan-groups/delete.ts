@@ -145,7 +145,11 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
       });
 
     if (backupError) {
-      console.error("[planGroupActions] 백업 데이터 저장 실패", backupError);
+      logActionError(
+        { domain: "plan", action: "deletePlanGroup" },
+        backupError,
+        { groupId, step: "backupStorage" }
+      );
       // 백업 실패해도 삭제는 진행
     }
     */

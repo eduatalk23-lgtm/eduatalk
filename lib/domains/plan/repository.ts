@@ -6,6 +6,7 @@
  * 데이터 접근 로직을 추출했습니다.
  */
 
+import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   PlanGroup,
@@ -281,7 +282,11 @@ export async function checkPlanPeriodOverlap(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[repository] checkPlanPeriodOverlap 오류:", error);
+    logActionError(
+      { domain: "plan", action: "checkPlanPeriodOverlap" },
+      error,
+      { studentId, periodStart, periodEnd, excludeGroupId }
+    );
     return { hasOverlap: false, overlappingPlans: [] };
   }
 

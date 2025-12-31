@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 템플릿에 블록 세트 연결 (기존 연결이 있으면 업데이트)
@@ -189,7 +190,11 @@ async function _getTemplateBlockSet(templateId: string): Promise<{
     .order("start_time", { ascending: true });
 
   if (blocksError) {
-    console.error(`[campTemplateBlockSets] 블록 조회 실패 (세트 ${blockSet.id}):`, blocksError);
+    logActionError(
+      { domain: "camp", action: "getTemplateBlockSet" },
+      blocksError,
+      { blockSetId: blockSet.id }
+    );
     return {
       id: blockSet.id,
       name: blockSet.name,

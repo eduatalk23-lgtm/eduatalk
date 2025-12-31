@@ -10,6 +10,7 @@ import {
   getUserFacingMessage,
   logError,
 } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type SMSLogFilter = {
   startDate?: string;
@@ -105,7 +106,11 @@ export async function getAttendanceSMSLogs(
     const { data: logs, error, count } = await query;
 
     if (error) {
-      console.error("[smsLogs] SMS 로그 조회 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "getAttendanceSMSLogs" },
+        error,
+        { filters }
+      );
       throw new AppError(
         error.message || "SMS 로그 조회에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,

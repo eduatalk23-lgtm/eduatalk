@@ -16,6 +16,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { getStudentPhones, getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   SMSRecipientSetting,
   AttendanceSMSType,
@@ -95,7 +96,11 @@ async function _sendAttendanceSMSInternal(
     .single();
 
   if (tenantError) {
-    console.error("[SMS] 테넌트 설정 조회 실패:", tenantError);
+    logActionError(
+      { domain: "sms", action: "sendAttendanceSMSInternal" },
+      tenantError,
+      { tenantId: tenantContext.tenantId }
+    );
     throw new AppError(
       "테넌트 설정을 조회하는 중 오류가 발생했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -212,7 +217,11 @@ async function _sendBulkAttendanceSMS(
     .single();
 
   if (tenantError) {
-    console.error("[SMS] 테넌트 설정 조회 실패:", tenantError);
+    logActionError(
+      { domain: "sms", action: "sendBulkAttendanceSMS" },
+      tenantError,
+      { tenantId: tenantContext.tenantId }
+    );
     throw new AppError(
       "테넌트 설정을 조회하는 중 오류가 발생했습니다.",
       ErrorCode.DATABASE_ERROR,

@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { getPlanGroupById, getPlanGroupByIdForAdmin, updatePlanGroup } from "@/lib/data/planGroups";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import type { PlanStatus } from "@/lib/types/plan";
@@ -10,6 +9,7 @@ import { verifyPlanGroupAccess, getStudentIdForPlanGroup, getSupabaseClientForSt
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { isCampMode } from "@/lib/plan/context";
 import { getCampTemplate } from "@/lib/data/campTemplates";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 플랜 그룹 상태 업데이트
@@ -97,9 +97,10 @@ async function _updatePlanGroupStatus(
       .is("deleted_at", null);
 
     if (activeGroupsError) {
-      console.error(
-        "[planGroupActions] 활성 플랜 그룹 조회 실패",
-        activeGroupsError
+      logActionError(
+        { domain: "plan", action: "updatePlanGroupStatus" },
+        activeGroupsError,
+        { groupId, studentId, operation: "fetchActiveGroups" }
       );
     }
 
@@ -132,9 +133,10 @@ async function _updatePlanGroupStatus(
         .in("id", activeGroupIds);
 
       if (deactivateError) {
-        console.error(
-          "[planGroupActions] 활성 플랜 그룹 비활성화 실패",
-          deactivateError
+        logActionError(
+          { domain: "plan", action: "updatePlanGroupStatus" },
+          deactivateError,
+          { groupId, studentId, operation: "deactivateOtherGroups", activeGroupIds }
         );
         // 비활성화 실패해도 계속 진행 (경고만)
       }

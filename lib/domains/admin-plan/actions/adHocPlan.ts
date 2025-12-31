@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { logActionError } from '@/lib/logging/actionLogger';
 import type {
   AdHocPlan,
   AdHocPlanInsert,
@@ -974,7 +975,11 @@ export async function promoteToRegularPlan(
       });
 
       if (contentError) {
-        console.error('[promoteToRegularPlan] Content creation error:', contentError);
+        logActionError(
+          { domain: 'admin-plan', action: 'promoteToRegularPlan' },
+          contentError,
+          { planGroupId: planGroup.id, contentId: input.candidate.contentId }
+        );
       }
     }
 
@@ -989,7 +994,11 @@ export async function promoteToRegularPlan(
         .in('id', input.candidate.relatedPlanIds);
 
       if (updateError) {
-        console.error('[promoteToRegularPlan] Update error:', updateError);
+        logActionError(
+          { domain: 'admin-plan', action: 'promoteToRegularPlan' },
+          updateError,
+          { planGroupId: planGroup.id, relatedPlanIds: input.candidate.relatedPlanIds }
+        );
       }
     }
 

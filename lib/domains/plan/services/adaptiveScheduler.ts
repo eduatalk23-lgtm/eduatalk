@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Plan } from "@/lib/data/studentPlans";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 상수 정의
@@ -576,7 +577,11 @@ export async function analyzeAdaptiveSchedule(
     .order("plan_date", { ascending: true });
 
   if (error) {
-    console.error("[analyzeAdaptiveSchedule] 플랜 조회 실패:", error);
+    logActionError(
+      { domain: "plan", action: "analyzeAdaptiveSchedule" },
+      error,
+      { studentId, daysBack }
+    );
     throw error;
   }
 
@@ -806,7 +811,11 @@ export async function analyzeGroupSchedule(
     .order("plan_date", { ascending: true });
 
   if (error) {
-    console.error("[analyzeGroupSchedule] 플랜 조회 실패:", error);
+    logActionError(
+      { domain: "plan", action: "analyzeGroupSchedule" },
+      error,
+      { planGroupId }
+    );
     throw error;
   }
 

@@ -14,6 +14,7 @@ import {
   previewPlansWithServices,
   canUseServiceBasedGeneration,
 } from "@/lib/plan/services";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // --- 리팩토링된 함수 import 및 re-export ---
 // 원본 함수는 previewPlansRefactored.ts와 generatePlansRefactored.ts로 이동됨
@@ -256,7 +257,11 @@ async function _getPlansByGroupId(groupId: string): Promise<{
     .order("block_index", { ascending: true });
 
   if (error) {
-    console.error("[planGroupActions] 플랜 목록 조회 실패", error);
+    logActionError(
+      { domain: "plan", action: "getPlansByGroupId" },
+      error,
+      { groupId }
+    );
     throw new AppError(
       error.message || "플랜 목록 조회에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -322,7 +327,11 @@ async function _checkPlansExist(groupId: string): Promise<{
     .eq("student_id", user.userId);
 
   if (error) {
-    console.error("[planGroupActions] 플랜 개수 확인 실패", error);
+    logActionError(
+      { domain: "plan", action: "checkPlansExist" },
+      error,
+      { groupId }
+    );
     throw new AppError(
       error.message || "플랜 개수 확인에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,

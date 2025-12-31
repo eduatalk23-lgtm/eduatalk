@@ -21,6 +21,7 @@ import {
 import { getPlanById } from "@/lib/data/studentPlans";
 import { getSessionById } from "@/lib/data/studentSessions";
 import { recordHistory } from "@/lib/history/record";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAllGoals } from "@/lib/goals/queries";
 
@@ -230,7 +231,7 @@ export async function getAllGoalsAction(): Promise<Array<{ id: string; title: st
       goal_type: g.goal_type,
     }));
   } catch (error) {
-    console.error("[goals] 목표 목록 조회 실패", error);
+    logActionError({ domain: "goal", action: "getAllGoalsAction" }, error);
     return [];
   }
 }
@@ -335,7 +336,7 @@ export async function recordGoalProgressAction(
     revalidatePath("/today");
     return { success: true };
   } catch (error) {
-    console.error("[goals] 진행률 기록 실패", error);
+    logActionError({ domain: "goal", action: "recordGoalProgressAction" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "진행률 기록에 실패했습니다.",

@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
+import { logActionError } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse } from '../types';
 
 export interface PlanFilterParams {
@@ -163,7 +164,11 @@ export async function getFilteredPlans(
       },
     };
   } catch (error) {
-    console.error('Failed to get filtered plans:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'getFilteredPlans' },
+      error,
+      { studentId: params.studentId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -200,7 +205,11 @@ export async function getStudentSubjects(
 
     return { success: true, data: subjects };
   } catch (error) {
-    console.error('Failed to get student subjects:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'getStudentSubjects' },
+      error,
+      { studentId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

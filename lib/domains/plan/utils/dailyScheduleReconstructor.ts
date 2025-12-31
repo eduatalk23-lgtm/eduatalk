@@ -12,6 +12,7 @@ import type {
   ScheduleAvailabilityResult,
   ScheduleSummary,
 } from "@/lib/scheduler/calculateAvailableDates";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 저장된 daily_schedule의 유효성 검사 결과
@@ -219,8 +220,9 @@ export function shouldUseCachedDailySchedule(
   );
 
   if (validation.isValid && validation.storedSchedule) {
-    console.log(
-      "[dailyScheduleReconstructor] 저장된 daily_schedule 재사용:",
+    logActionDebug(
+      { domain: "plan", action: "shouldUseCachedDailySchedule" },
+      "저장된 daily_schedule 재사용",
       {
         periodStart,
         periodEnd,
@@ -233,9 +235,10 @@ export function shouldUseCachedDailySchedule(
     };
   }
 
-  console.log(
-    "[dailyScheduleReconstructor] daily_schedule 재계산 필요:",
-    validation.reason
+  logActionDebug(
+    { domain: "plan", action: "shouldUseCachedDailySchedule" },
+    "daily_schedule 재계산 필요",
+    { reason: validation.reason }
   );
   return {
     shouldRecalculate: true,
