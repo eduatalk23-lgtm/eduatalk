@@ -36,6 +36,7 @@ export type PausePlanResult = {
   serverNow?: number;
   status?: "PAUSED";
   accumulatedSeconds?: number;
+  pausedAt?: string;
 };
 
 export type ResumePlanResult = {

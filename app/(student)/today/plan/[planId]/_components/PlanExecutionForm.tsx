@@ -158,10 +158,21 @@ export function PlanExecutionForm({
         // 타이머 스토어에서 제거
         timerStore.removeTimer(plan.id);
 
-        // React Query 캐시 무효화 (클라이언트 보조 - revalidatePath는 서버에서 처리)
-        queryClient.invalidateQueries({ queryKey: ["activePlanDetails"] });
-        queryClient.invalidateQueries({ queryKey: ["todayContainerPlans"] });
-        queryClient.invalidateQueries({ queryKey: ["todayPlans"] });
+        // React Query 캐시 무효화 - predicate 사용하여 관련 쿼리 모두 무효화
+        await queryClient.invalidateQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) &&
+            (query.queryKey[0] === "todayPlans" ||
+              query.queryKey[0] === "todayContainerPlans" ||
+              query.queryKey[0] === "activePlanDetails" ||
+              query.queryKey[0] === "today"),
+        });
+
+        // 리다이렉트 전 refetch 대기 - 캐시 갱신 완료 보장
+        await queryClient.refetchQueries({
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey[0] === "todayPlans",
+        });
 
         // 모드에 따른 리다이렉트
         if (mode === "camp") {

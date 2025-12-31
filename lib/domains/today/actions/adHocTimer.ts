@@ -162,13 +162,13 @@ export async function completeAdHocPlan(
     // 1. Ad-hoc 플랜 조회
     const { data: adHocPlan, error: planError } = await supabase
       .from("ad_hoc_plans")
-      .select("id, started_at, completed_at, status")
+      .select("id, started_at, completed_at, status, paused_at, paused_duration_seconds")
       .eq("id", adHocPlanId)
       .eq("student_id", user.userId)
       .maybeSingle();
 
     if (planError) {
-      logActionError({ domain: "today", action: "startAdHocPlan.fetch" }, planError, { adHocPlanId });
+      logActionError({ domain: "today", action: "completeAdHocPlan.fetch" }, planError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
     }
 
@@ -181,14 +181,24 @@ export async function completeAdHocPlan(
       return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
     }
 
-    // 3. 실제 소요 시간 계산
+    // 3. 실제 소요 시간 계산 (일시정지 시간 제외)
     const completedAt = new Date().toISOString();
     let calculatedMinutes = actualMinutes;
+    let pausedDurationSeconds = adHocPlan.paused_duration_seconds ?? 0;
+
+    // 일시정지 상태에서 완료하는 경우, 현재 일시정지 시간도 누적
+    if (adHocPlan.paused_at) {
+      const pausedAt = new Date(adHocPlan.paused_at).getTime();
+      const now = Date.now();
+      pausedDurationSeconds += Math.round((now - pausedAt) / 1000);
+    }
 
     if (!calculatedMinutes && adHocPlan.started_at) {
       const startTime = new Date(adHocPlan.started_at).getTime();
       const endTime = new Date(completedAt).getTime();
-      calculatedMinutes = Math.round((endTime - startTime) / 1000 / 60);
+      const totalSeconds = Math.round((endTime - startTime) / 1000);
+      const activeSeconds = totalSeconds - pausedDurationSeconds;
+      calculatedMinutes = Math.round(activeSeconds / 60);
     }
 
     // 4. 플랜 완료 업데이트
@@ -198,6 +208,8 @@ export async function completeAdHocPlan(
         completed_at: completedAt,
         status: "completed",
         actual_minutes: calculatedMinutes ?? null,
+        paused_at: null,
+        paused_duration_seconds: pausedDurationSeconds,
       })
       .eq("id", adHocPlanId)
       .eq("student_id", user.userId);
@@ -238,8 +250,9 @@ export async function completeAdHocPlan(
 export async function getAdHocPlanStatus(adHocPlanId: string): Promise<{
   success: boolean;
   error?: string;
-  status?: "IDLE" | "RUNNING" | "COMPLETED";
+  status?: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
   startedAt?: string | null;
+  pausedAt?: string | null;
   accumulatedSeconds?: number;
 }> {
   const user = await getCurrentUser();
@@ -252,7 +265,7 @@ export async function getAdHocPlanStatus(adHocPlanId: string): Promise<{
 
     const { data: adHocPlan, error } = await supabase
       .from("ad_hoc_plans")
-      .select("id, started_at, completed_at, status, actual_minutes")
+      .select("id, started_at, completed_at, status, actual_minutes, paused_at, paused_duration_seconds")
       .eq("id", adHocPlanId)
       .eq("student_id", user.userId)
       .maybeSingle();
@@ -266,27 +279,40 @@ export async function getAdHocPlanStatus(adHocPlanId: string): Promise<{
     }
 
     // 상태 매핑
-    let timerStatus: "IDLE" | "RUNNING" | "COMPLETED" = "IDLE";
+    let timerStatus: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED" = "IDLE";
     if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
       timerStatus = "COMPLETED";
+    } else if (adHocPlan.status === "paused" && adHocPlan.paused_at) {
+      timerStatus = "PAUSED";
     } else if (adHocPlan.status === "in_progress" && adHocPlan.started_at) {
       timerStatus = "RUNNING";
     }
 
-    // 누적 시간 계산
+    // 누적 시간 계산 (일시정지 시간 제외)
     let accumulatedSeconds = 0;
     if (adHocPlan.actual_minutes) {
       accumulatedSeconds = adHocPlan.actual_minutes * 60;
     } else if (adHocPlan.started_at && !adHocPlan.completed_at) {
-      // 진행 중인 경우 현재까지 경과 시간
       const startTime = new Date(adHocPlan.started_at).getTime();
-      accumulatedSeconds = Math.round((Date.now() - startTime) / 1000);
+      const pausedDurationSeconds = adHocPlan.paused_duration_seconds ?? 0;
+
+      if (adHocPlan.paused_at) {
+        // 일시정지 상태: 일시정지 시점까지의 시간
+        const pausedAt = new Date(adHocPlan.paused_at).getTime();
+        const totalElapsed = Math.round((pausedAt - startTime) / 1000);
+        accumulatedSeconds = totalElapsed - pausedDurationSeconds;
+      } else {
+        // 진행 중: 현재까지 경과 시간
+        const totalElapsed = Math.round((Date.now() - startTime) / 1000);
+        accumulatedSeconds = totalElapsed - pausedDurationSeconds;
+      }
     }
 
     return {
       success: true,
       status: timerStatus,
       startedAt: adHocPlan.started_at,
+      pausedAt: adHocPlan.paused_at,
       accumulatedSeconds,
     };
   } catch (error) {
@@ -343,6 +369,9 @@ export async function cancelAdHocPlan(adHocPlanId: string): Promise<{
         started_at: null,
         status: "pending",
         actual_minutes: null,
+        paused_at: null,
+        paused_duration_seconds: 0,
+        pause_count: 0,
       })
       .eq("id", adHocPlanId)
       .eq("student_id", user.userId);
@@ -361,6 +390,222 @@ export async function cancelAdHocPlan(adHocPlanId: string): Promise<{
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 취소에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * Ad-hoc 플랜 타이머 일시정지
+ *
+ * @param adHocPlanId - ad_hoc_plans 테이블의 ID
+ * @returns PausePlanResult
+ */
+export async function pauseAdHocPlan(
+  adHocPlanId: string
+): Promise<PausePlanResult> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    return { success: false, error: TIMER_ERRORS.AUTH_REQUIRED };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 1. Ad-hoc 플랜 조회
+    const { data: adHocPlan, error: planError } = await supabase
+      .from("ad_hoc_plans")
+      .select("id, started_at, completed_at, status, paused_at, paused_duration_seconds, pause_count")
+      .eq("id", adHocPlanId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError) {
+      logActionError({ domain: "today", action: "pauseAdHocPlan.fetch" }, planError, { adHocPlanId });
+      return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
+    }
+
+    if (!adHocPlan) {
+      return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
+    }
+
+    // 2. 이미 완료된 플랜인지 확인
+    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+      return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
+    }
+
+    // 3. 진행 중인 플랜만 일시정지 가능
+    if (adHocPlan.status !== "in_progress" || !adHocPlan.started_at) {
+      return { success: false, error: "진행 중인 플랜만 일시정지할 수 있습니다." };
+    }
+
+    // 4. 이미 일시정지 상태인지 확인
+    if (adHocPlan.paused_at) {
+      return { success: false, error: "이미 일시정지 상태입니다." };
+    }
+
+    // 5. 일시정지 처리
+    const pausedAt = new Date().toISOString();
+    const newPauseCount = (adHocPlan.pause_count ?? 0) + 1;
+
+    const { error: updateError } = await supabase
+      .from("ad_hoc_plans")
+      .update({
+        paused_at: pausedAt,
+        status: "paused",
+        pause_count: newPauseCount,
+      })
+      .eq("id", adHocPlanId)
+      .eq("student_id", user.userId);
+
+    if (updateError) {
+      logActionError({ domain: "today", action: "pauseAdHocPlan.update" }, updateError, { adHocPlanId });
+      return { success: false, error: TIMER_ERRORS.PLAN_UPDATE_FAILED };
+    }
+
+    // 누적 시간 계산 (시작부터 현재까지, 기존 일시정지 시간 제외)
+    const startTime = new Date(adHocPlan.started_at).getTime();
+    const now = Date.now();
+    const totalElapsedSeconds = Math.round((now - startTime) / 1000);
+    const accumulatedSeconds = totalElapsedSeconds - (adHocPlan.paused_duration_seconds ?? 0);
+
+    revalidatePath("/today");
+    revalidatePath("/plan/calendar");
+
+    return {
+      success: true,
+      serverNow: Date.now(),
+      status: "PAUSED",
+      accumulatedSeconds,
+      pausedAt,
+    };
+  } catch (error) {
+    logActionError({ domain: "today", action: "pauseAdHocPlan" }, error, { adHocPlanId });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "일시정지에 실패했습니다.",
+    };
+  }
+}
+
+/**
+ * Ad-hoc 플랜 타이머 재시작
+ *
+ * @param adHocPlanId - ad_hoc_plans 테이블의 ID
+ * @returns ResumePlanResult
+ */
+export async function resumeAdHocPlan(
+  adHocPlanId: string
+): Promise<ResumePlanResult> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "student") {
+    return { success: false, error: TIMER_ERRORS.AUTH_REQUIRED };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+
+    // 1. Ad-hoc 플랜 조회
+    const { data: adHocPlan, error: planError } = await supabase
+      .from("ad_hoc_plans")
+      .select("id, started_at, completed_at, status, paused_at, paused_duration_seconds")
+      .eq("id", adHocPlanId)
+      .eq("student_id", user.userId)
+      .maybeSingle();
+
+    if (planError) {
+      logActionError({ domain: "today", action: "resumeAdHocPlan.fetch" }, planError, { adHocPlanId });
+      return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
+    }
+
+    if (!adHocPlan) {
+      return { success: false, error: TIMER_ERRORS.PLAN_NOT_FOUND };
+    }
+
+    // 2. 이미 완료된 플랜인지 확인
+    if (adHocPlan.status === "completed" || adHocPlan.completed_at) {
+      return { success: false, error: TIMER_ERRORS.PLAN_ALREADY_COMPLETED };
+    }
+
+    // 3. 일시정지 상태만 재시작 가능
+    if (adHocPlan.status !== "paused" || !adHocPlan.paused_at) {
+      return { success: false, error: "일시정지 상태의 플랜만 재시작할 수 있습니다." };
+    }
+
+    // 4. 다른 활성 세션 확인 (student_plan 기반)
+    const { data: activeSessions } = await supabase
+      .from("student_study_sessions")
+      .select("plan_id, paused_at")
+      .eq("student_id", user.userId)
+      .is("ended_at", null)
+      .not("plan_id", "is", null);
+
+    const trulyActiveSessions = activeSessions?.filter(
+      (s) => !s.paused_at
+    ) ?? [];
+
+    if (trulyActiveSessions.length > 0) {
+      return {
+        success: false,
+        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+      };
+    }
+
+    // 5. 다른 활성 ad_hoc_plan 확인
+    const { data: activeAdHocPlans } = await supabase
+      .from("ad_hoc_plans")
+      .select("id")
+      .eq("student_id", user.userId)
+      .eq("status", "in_progress")
+      .neq("id", adHocPlanId);
+
+    if (activeAdHocPlans && activeAdHocPlans.length > 0) {
+      return {
+        success: false,
+        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+      };
+    }
+
+    // 6. 일시정지 시간 누적 및 재시작 처리
+    const now = Date.now();
+    const pausedAt = new Date(adHocPlan.paused_at).getTime();
+    const pauseDuration = Math.round((now - pausedAt) / 1000);
+    const newPausedDurationSeconds = (adHocPlan.paused_duration_seconds ?? 0) + pauseDuration;
+
+    const { error: updateError } = await supabase
+      .from("ad_hoc_plans")
+      .update({
+        paused_at: null,
+        status: "in_progress",
+        paused_duration_seconds: newPausedDurationSeconds,
+      })
+      .eq("id", adHocPlanId)
+      .eq("student_id", user.userId);
+
+    if (updateError) {
+      logActionError({ domain: "today", action: "resumeAdHocPlan.update" }, updateError, { adHocPlanId });
+      return { success: false, error: TIMER_ERRORS.PLAN_UPDATE_FAILED };
+    }
+
+    // 누적 시간 계산 (시작부터 현재까지, 전체 일시정지 시간 제외)
+    const startTime = new Date(adHocPlan.started_at!).getTime();
+    const totalElapsedSeconds = Math.round((now - startTime) / 1000);
+    const accumulatedSeconds = totalElapsedSeconds - newPausedDurationSeconds;
+
+    revalidatePath("/today");
+    revalidatePath("/plan/calendar");
+
+    return {
+      success: true,
+      serverNow: Date.now(),
+      status: "RUNNING",
+      accumulatedSeconds,
+      startedAt: adHocPlan.started_at,
+    };
+  } catch (error) {
+    logActionError({ domain: "today", action: "resumeAdHocPlan" }, error, { adHocPlanId });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "재시작에 실패했습니다.",
     };
   }
 }

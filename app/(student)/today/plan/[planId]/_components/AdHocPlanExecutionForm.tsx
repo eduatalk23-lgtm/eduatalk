@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdHocPlan } from "@/lib/data/studentPlans";
@@ -8,34 +8,101 @@ import {
   startAdHocPlan,
   completeAdHocPlan,
   cancelAdHocPlan,
+  pauseAdHocPlan,
+  resumeAdHocPlan,
 } from "@/lib/domains/today/actions/adHocTimer";
-import { usePlanTimerStore } from "@/lib/store/planTimerStore";
+import { usePlanTimerStore, type TimerStatus } from "@/lib/store/planTimerStore";
+import { TimerDisplay } from "@/app/(student)/today/_components/timer/TimerDisplay";
+import { TimerControls } from "@/app/(student)/today/_components/timer/TimerControls";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import type { PendingAction } from "@/lib/domains/today/types";
 
 type AdHocPlanExecutionFormProps = {
   plan: AdHocPlan;
 };
+
+/**
+ * ad_hoc_plans 상태를 TimerStatus로 변환
+ */
+function mapPlanStatusToTimerStatus(
+  status: string,
+  pausedAt: string | null
+): TimerStatus {
+  if (status === "completed") return "COMPLETED";
+  if (status === "paused" || pausedAt) return "PAUSED";
+  if (status === "in_progress") return "RUNNING";
+  return "NOT_STARTED";
+}
 
 export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const timerStore = usePlanTimerStore();
   const { showError, showToast } = useToast();
+
   const [isLoading, setIsLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | undefined>();
   const [isCompleting, setIsCompleting] = useState(false);
   const [memo, setMemo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
+  // 타이머 경과 시간 (초)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   // 상태 결정
   const isAlreadyCompleted = plan.status === "completed";
   const isInProgress = plan.status === "in_progress";
+  const isPaused = plan.status === "paused" || !!plan.paused_at;
+
+  // TimerStatus 변환
+  const timerStatus = mapPlanStatusToTimerStatus(
+    plan.status,
+    plan.paused_at ?? null
+  );
+
+  // 타이머 경과 시간 계산
+  useEffect(() => {
+    if (!plan.started_at || isAlreadyCompleted) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const calculateElapsed = () => {
+      const startTime = new Date(plan.started_at!).getTime();
+      const pausedDuration = (plan.paused_duration_seconds ?? 0) * 1000;
+
+      if (isPaused && plan.paused_at) {
+        // 일시정지 상태: 일시정지 시점까지의 시간
+        const pausedAt = new Date(plan.paused_at).getTime();
+        const elapsed = pausedAt - startTime - pausedDuration;
+        return Math.max(0, Math.floor(elapsed / 1000));
+      } else {
+        // 진행 중: 현재까지 경과 시간
+        const now = Date.now();
+        const elapsed = now - startTime - pausedDuration;
+        return Math.max(0, Math.floor(elapsed / 1000));
+      }
+    };
+
+    setElapsedSeconds(calculateElapsed());
+
+    // 진행 중일 때만 interval 설정
+    if (isInProgress && !isPaused) {
+      const interval = setInterval(() => {
+        setElapsedSeconds(calculateElapsed());
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [plan.started_at, plan.paused_at, plan.paused_duration_seconds, isInProgress, isPaused, isAlreadyCompleted]);
 
   // 타이머 시작
-  const handleStart = async () => {
+  const handleStart = useCallback(async () => {
     setIsLoading(true);
+    setPendingAction("start");
     setError(null);
     try {
       const result = await startAdHocPlan(plan.id);
@@ -52,13 +119,64 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
       showError("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
+      setPendingAction(undefined);
     }
-  };
+  }, [plan.id, timerStore, showToast, showError, router]);
+
+  // 타이머 일시정지
+  const handlePause = useCallback(async () => {
+    setIsLoading(true);
+    setPendingAction("pause");
+    setError(null);
+    try {
+      const result = await pauseAdHocPlan(plan.id);
+      if (result.success) {
+        timerStore.pauseTimer(plan.id, result.accumulatedSeconds ?? elapsedSeconds);
+        showToast("학습을 일시정지했습니다", "info");
+        router.refresh();
+      } else {
+        setError(result.error || "일시정지에 실패했습니다.");
+        showError(result.error || "일시정지에 실패했습니다.");
+      }
+    } catch (err) {
+      setError("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+      setPendingAction(undefined);
+    }
+  }, [plan.id, timerStore, elapsedSeconds, showToast, showError, router]);
+
+  // 타이머 재시작
+  const handleResume = useCallback(async () => {
+    setIsLoading(true);
+    setPendingAction("resume");
+    setError(null);
+    try {
+      const result = await resumeAdHocPlan(plan.id);
+      if (result.success) {
+        // 재시작은 startTimer를 다시 호출
+        timerStore.startTimer(plan.id, Date.now(), result.startedAt!, "ad_hoc_plan");
+        showToast("학습을 재시작합니다", "success");
+        router.refresh();
+      } else {
+        setError(result.error || "재시작에 실패했습니다.");
+        showError(result.error || "재시작에 실패했습니다.");
+      }
+    } catch (err) {
+      setError("오류가 발생했습니다.");
+      showError("오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+      setPendingAction(undefined);
+    }
+  }, [plan.id, timerStore, showToast, showError, router]);
 
   // 타이머 완료
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     setIsCompleting(true);
     setIsLoading(true);
+    setPendingAction("complete");
     setError(null);
 
     try {
@@ -85,11 +203,12 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
       setIsCompleting(false);
     } finally {
       setIsLoading(false);
+      setPendingAction(undefined);
     }
-  };
+  }, [plan.id, timerStore, queryClient, showToast, showError, router]);
 
   // 타이머 취소
-  const handleCancel = async () => {
+  const handleCancel = useCallback(async () => {
     setShowCancelConfirm(false);
     setIsLoading(true);
     setError(null);
@@ -111,7 +230,7 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [plan.id, timerStore, showToast, showError, router]);
 
   // 상태: 이미 완료됨
   if (isAlreadyCompleted) {
@@ -121,7 +240,11 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
           <div className="flex flex-col items-center justify-center gap-3 text-center">
             <StatusBadge status="COMPLETED" size="lg" />
             <span className="text-base font-bold text-emerald-900">이 플랜은 이미 완료되었습니다.</span>
-            <p className="text-sm text-emerald-700">위에서 완료된 학습 기록을 확인할 수 있습니다.</p>
+            {plan.actual_minutes && (
+              <p className="text-sm text-emerald-700">
+                총 학습 시간: {plan.actual_minutes}분
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -142,8 +265,8 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
     );
   }
 
-  // 상태: 진행 중
-  if (isInProgress) {
+  // 상태: 진행 중 또는 일시정지
+  if (isInProgress || isPaused) {
     return (
       <div className="space-y-4">
         {error && (
@@ -152,17 +275,24 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
           </div>
         )}
 
-        <div className="flex flex-col gap-4 rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-white p-5 shadow-md">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <StatusBadge status="RUNNING" size="md" />
-              <h3 className="text-base font-bold text-yellow-900">학습 진행 중</h3>
-            </div>
-            <p className="text-sm text-yellow-800">
-              학습을 완료하면 아래 버튼을 눌러주세요.
-            </p>
-          </div>
-        </div>
+        {/* 타이머 디스플레이 */}
+        <TimerDisplay
+          seconds={elapsedSeconds}
+          status={timerStatus}
+          subtitle="학습 시간"
+          showStatusBadge={true}
+        />
+
+        {/* 타이머 컨트롤 */}
+        <TimerControls
+          status={timerStatus}
+          isLoading={isLoading}
+          pendingAction={pendingAction}
+          onStart={handleStart}
+          onPause={handlePause}
+          onResume={handleResume}
+          onComplete={handleComplete}
+        />
 
         {/* 메모 입력 */}
         <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -180,30 +310,14 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
           </div>
         </div>
 
-        {/* 완료 버튼 */}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            onClick={handleComplete}
-            disabled={isLoading}
-            className="flex-1 rounded-xl bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 text-base font-bold text-white shadow-lg transition hover:from-green-700 hover:to-green-800 hover:shadow-xl disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                처리 중...
-              </span>
-            ) : (
-              "학습 완료"
-            )}
-          </button>
-          <button
-            onClick={() => setShowCancelConfirm(true)}
-            disabled={isLoading}
-            className="flex-1 rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
-          >
-            학습 취소
-          </button>
-        </div>
+        {/* 취소 버튼 */}
+        <button
+          onClick={() => setShowCancelConfirm(true)}
+          disabled={isLoading}
+          className="w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
+        >
+          학습 취소
+        </button>
 
         <ConfirmDialog
           open={showCancelConfirm}
@@ -240,20 +354,15 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
         </div>
       </div>
 
-      <button
-        onClick={handleStart}
-        disabled={isLoading}
-        className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-4 text-base font-bold text-white shadow-lg transition hover:from-indigo-700 hover:to-indigo-800 hover:shadow-xl disabled:opacity-50 active:scale-[0.98] min-h-[44px]"
-      >
-        {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            시작 중...
-          </span>
-        ) : (
-          "학습 시작"
-        )}
-      </button>
+      <TimerControls
+        status={timerStatus}
+        isLoading={isLoading}
+        pendingAction={pendingAction}
+        onStart={handleStart}
+        onPause={handlePause}
+        onResume={handleResume}
+        onComplete={handleComplete}
+      />
     </div>
   );
 }
