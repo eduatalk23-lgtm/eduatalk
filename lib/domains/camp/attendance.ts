@@ -6,7 +6,6 @@
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { getCampInvitationsForTemplate } from "@/lib/data/campTemplates";
 import { getCampAttendanceRecords, getCampAttendanceStats, getParticipantAttendanceStats } from "@/lib/data/campAttendance";
-import type { CampTemplate } from "./types";
 import type { CampAttendanceStats, ParticipantAttendanceStats } from "./types";
 import type { AttendanceRecord } from "@/lib/domains/attendance/types";
 

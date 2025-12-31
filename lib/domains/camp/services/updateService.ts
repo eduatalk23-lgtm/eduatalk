@@ -5,7 +5,6 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Json } from "@/lib/supabase/database.types";
 import type { PlanGroupSchedulerOptions } from "@/lib/types/schedulerSettings";
 import type { DailyScheduleInfo, TimeSettings } from "@/lib/types/plan";
 import { AppError, ErrorCode, logError } from "@/lib/errors";

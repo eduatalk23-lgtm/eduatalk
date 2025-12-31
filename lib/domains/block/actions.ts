@@ -12,7 +12,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { validateFormData } from "@/lib/validation/schemas";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
-import { getStudentById, type Student } from "@/lib/data/students";
+import { getStudentById } from "@/lib/data/students";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import * as service from "./service";
 import {
