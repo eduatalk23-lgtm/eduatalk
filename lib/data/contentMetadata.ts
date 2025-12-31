@@ -393,145 +393,135 @@ export async function fetchContentMetadataBatch(
   });
 
   try {
-    // 학생 콘텐츠가 있는 경우: 학생 콘텐츠를 배치로 조회
+    // 학생 콘텐츠가 있는 경우: 학생 콘텐츠를 배치로 조회 (병렬)
     if (studentId) {
-      // 학생 교재 배치 조회
-      if (bookIds.length > 0) {
-        const { data: studentBooks, error: booksError } = await supabase
-          .from("books")
-          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, publisher")
-          .eq("student_id", studentId)
-          .in("id", bookIds);
+      // Phase 1: 학생 books/lectures 동시 조회
+      const [studentBooksResult, studentLecturesResult] = await Promise.all([
+        bookIds.length > 0
+          ? supabase
+              .from("books")
+              .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, publisher")
+              .eq("student_id", studentId)
+              .in("id", bookIds)
+          : Promise.resolve({ data: null, error: null }),
+        lectureIds.length > 0
+          ? supabase
+              .from("lectures")
+              .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, platform")
+              .eq("student_id", studentId)
+              .in("id", lectureIds)
+          : Promise.resolve({ data: null, error: null }),
+      ]);
 
-        if (!booksError && studentBooks) {
-          // 마스터 콘텐츠 ID 수집
-          const masterBookIds = studentBooks
-            .map((book) => book.master_content_id)
-            .filter((id): id is string => id !== null);
+      const studentBooks = studentBooksResult.data;
+      const studentLectures = studentLecturesResult.data;
 
-          // 마스터 교재 배치 조회 (필요한 경우)
-          const masterBooksMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_pages?: number | null }>();
-          if (masterBookIds.length > 0) {
-            const { data: masterBooks } = await supabase
+      // Phase 2: 마스터 콘텐츠 병렬 조회 (master_content_id가 있는 경우)
+      const masterBookIds = studentBooks
+        ?.map((book) => book.master_content_id)
+        .filter((id): id is string => id !== null) ?? [];
+      const masterLectureIds = studentLectures
+        ?.map((lecture) => lecture.master_content_id)
+        .filter((id): id is string => id !== null) ?? [];
+
+      const [masterBooksResult, masterLecturesResult] = await Promise.all([
+        masterBookIds.length > 0
+          ? supabase
               .from("master_books")
               .select("id, subject_category, subject_id, total_pages")
-              .in("id", masterBookIds);
-
-            if (masterBooks) {
-              masterBooks.forEach((book) => {
-                masterBooksMap.set(book.id, {
-                  subject_category: book.subject_category,
-                  subject_id: book.subject_id,
-                  total_pages: book.total_pages,
-                });
-              });
-            }
-          }
-
-          // subject_id 수집 (교과명 조회용)
-          const allSubjectIds = studentBooks
-            .map((book) => {
-              const masterBook = book.master_content_id ? masterBooksMap.get(book.master_content_id) : null;
-              return book.subject_id || masterBook?.subject_id || null;
-            })
-            .filter((id): id is string => id !== null);
-
-          // 교과명 배치 조회
-          const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
-
-          // 학생 교재 메타데이터 매핑
-          studentBooks.forEach((book) => {
-            const masterBook = book.master_content_id
-              ? masterBooksMap.get(book.master_content_id)
-              : null;
-            
-            const finalSubjectId = book.subject_id || masterBook?.subject_id || null;
-            const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
-            
-            results.set(book.id, {
-              title: book.title || "제목 없음",
-              subject_category: masterBook?.subject_category || book.subject_category || "기타",
-              subject_id: finalSubjectId,
-              subject_group_name: subjectGroupName,
-              total_pages: masterBook?.total_pages ?? undefined,
-              subject: book.subject,
-              semester: book.semester,
-              revision: book.revision,
-              difficulty_level: book.difficulty_level,
-              publisher: book.publisher,
-            });
-          });
-        }
-      }
-
-      // 학생 강의 배치 조회
-      if (lectureIds.length > 0) {
-        const { data: studentLectures, error: lecturesError } = await supabase
-          .from("lectures")
-          .select("id, title, subject_category, subject_id, master_content_id, subject, semester, revision, difficulty_level, platform")
-          .eq("student_id", studentId)
-          .in("id", lectureIds);
-
-        if (!lecturesError && studentLectures) {
-          // 마스터 콘텐츠 ID 수집
-          const masterLectureIds = studentLectures
-            .map((lecture) => lecture.master_content_id)
-            .filter((id): id is string => id !== null);
-
-          // 마스터 강의 배치 조회 (필요한 경우)
-          const masterLecturesMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_episodes?: number | null }>();
-          if (masterLectureIds.length > 0) {
-            const { data: masterLectures } = await supabase
+              .in("id", masterBookIds)
+          : Promise.resolve({ data: null }),
+        masterLectureIds.length > 0
+          ? supabase
               .from("master_lectures")
               .select("id, subject_category, subject_id, total_episodes")
-              .in("id", masterLectureIds);
+              .in("id", masterLectureIds)
+          : Promise.resolve({ data: null }),
+      ]);
 
-            if (masterLectures) {
-              masterLectures.forEach((lecture) => {
-                masterLecturesMap.set(lecture.id, {
-                  subject_category: lecture.subject_category,
-                  subject_id: lecture.subject_id,
-                  total_episodes: lecture.total_episodes,
-                });
-              });
-            }
-          }
+      // 마스터 콘텐츠 맵 생성
+      const masterBooksMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_pages?: number | null }>();
+      const masterLecturesMap = new Map<string, { subject_category?: string | null; subject_id?: string | null; total_episodes?: number | null }>();
 
-          // subject_id 수집 (교과명 조회용)
-          const allSubjectIds = studentLectures
-            .map((lecture) => {
-              const masterLecture = lecture.master_content_id ? masterLecturesMap.get(lecture.master_content_id) : null;
-              return lecture.subject_id || masterLecture?.subject_id || null;
-            })
-            .filter((id): id is string => id !== null);
+      masterBooksResult.data?.forEach((book) => {
+        masterBooksMap.set(book.id, {
+          subject_category: book.subject_category,
+          subject_id: book.subject_id,
+          total_pages: book.total_pages,
+        });
+      });
 
-          // 교과명 배치 조회
-          const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
+      masterLecturesResult.data?.forEach((lecture) => {
+        masterLecturesMap.set(lecture.id, {
+          subject_category: lecture.subject_category,
+          subject_id: lecture.subject_id,
+          total_episodes: lecture.total_episodes,
+        });
+      });
 
-          // 학생 강의 메타데이터 매핑
-          studentLectures.forEach((lecture) => {
-            const masterLecture = lecture.master_content_id
-              ? masterLecturesMap.get(lecture.master_content_id)
-              : null;
-            
-            const finalSubjectId = lecture.subject_id || masterLecture?.subject_id || null;
-            const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
-            
-            results.set(lecture.id, {
-              title: lecture.title || "제목 없음",
-              subject_category: masterLecture?.subject_category || lecture.subject_category || "기타",
-              subject_id: finalSubjectId,
-              subject_group_name: subjectGroupName,
-              total_episodes: masterLecture?.total_episodes ?? undefined,
-              subject: lecture.subject,
-              semester: lecture.semester,
-              revision: lecture.revision,
-              difficulty_level: lecture.difficulty_level,
-              platform: lecture.platform,
-            });
-          });
-        }
-      }
+      // 모든 subject_id 수집 (한 번에 배치 조회)
+      const allSubjectIds = new Set<string>();
+      
+      studentBooks?.forEach((book) => {
+        const masterBook = book.master_content_id ? masterBooksMap.get(book.master_content_id) : null;
+        const subjectId = book.subject_id || masterBook?.subject_id;
+        if (subjectId) allSubjectIds.add(subjectId);
+      });
+
+      studentLectures?.forEach((lecture) => {
+        const masterLecture = lecture.master_content_id ? masterLecturesMap.get(lecture.master_content_id) : null;
+        const subjectId = lecture.subject_id || masterLecture?.subject_id;
+        if (subjectId) allSubjectIds.add(subjectId);
+      });
+
+      // 교과명 배치 조회 (한 번만)
+      const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, Array.from(allSubjectIds));
+
+      // 학생 교재 메타데이터 매핑
+      studentBooks?.forEach((book) => {
+        const masterBook = book.master_content_id
+          ? masterBooksMap.get(book.master_content_id)
+          : null;
+        
+        const finalSubjectId = book.subject_id || masterBook?.subject_id || null;
+        const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
+        
+        results.set(book.id, {
+          title: book.title || "제목 없음",
+          subject_category: masterBook?.subject_category || book.subject_category || "기타",
+          subject_id: finalSubjectId,
+          subject_group_name: subjectGroupName,
+          total_pages: masterBook?.total_pages ?? undefined,
+          subject: book.subject,
+          semester: book.semester,
+          revision: book.revision,
+          difficulty_level: book.difficulty_level,
+          publisher: book.publisher,
+        });
+      });
+
+      // 학생 강의 메타데이터 매핑
+      studentLectures?.forEach((lecture) => {
+        const masterLecture = lecture.master_content_id
+          ? masterLecturesMap.get(lecture.master_content_id)
+          : null;
+        
+        const finalSubjectId = lecture.subject_id || masterLecture?.subject_id || null;
+        const subjectGroupName = finalSubjectId ? subjectGroupNamesMap.get(finalSubjectId) || null : null;
+        
+        results.set(lecture.id, {
+          title: lecture.title || "제목 없음",
+          subject_category: masterLecture?.subject_category || lecture.subject_category || "기타",
+          subject_id: finalSubjectId,
+          subject_group_name: subjectGroupName,
+          total_episodes: masterLecture?.total_episodes ?? undefined,
+          subject: lecture.subject,
+          semester: lecture.semester,
+          revision: lecture.revision,
+          difficulty_level: lecture.difficulty_level,
+          platform: lecture.platform,
+        });
+      });
     }
 
     // 마스터 콘텐츠 조회 (학생 콘텐츠가 없거나 studentId가 없는 경우)
@@ -539,75 +529,74 @@ export async function fetchContentMetadataBatch(
     const missingBookIds = bookIds.filter((id) => !results.has(id));
     const missingLectureIds = lectureIds.filter((id) => !results.has(id));
 
-    // 마스터 교재 배치 조회
-    if (missingBookIds.length > 0) {
-      const { data: masterBooks, error: masterBooksError } = await supabase
-        .from("master_books")
-        .select("id, title, subject_category, subject_id, total_pages, subject, semester, revision, difficulty_level, publisher")
-        .in("id", missingBookIds);
+    // Phase 3: 마스터 books/lectures 동시 조회 (missing items)
+    const [missingMasterBooksResult, missingMasterLecturesResult] = await Promise.all([
+      missingBookIds.length > 0
+        ? supabase
+            .from("master_books")
+            .select("id, title, subject_category, subject_id, total_pages, subject, semester, revision, difficulty_level, publisher")
+            .in("id", missingBookIds)
+        : Promise.resolve({ data: null, error: null }),
+      missingLectureIds.length > 0
+        ? supabase
+            .from("master_lectures")
+            .select("id, title, subject_category, subject_id, total_episodes, subject, semester, revision, difficulty_level, platform")
+            .in("id", missingLectureIds)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
 
-      if (!masterBooksError && masterBooks) {
-        // subject_id 수집 (교과명 조회용)
-        const allSubjectIds = masterBooks
-          .map((book) => book.subject_id)
-          .filter((id): id is string => id !== null);
+    const missingMasterBooks = missingMasterBooksResult.data;
+    const missingMasterLectures = missingMasterLecturesResult.data;
 
-        // 교과명 배치 조회
-        const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
+    // 모든 subject_id 수집 (한 번에 배치 조회)
+    const missingSubjectIds = new Set<string>();
+    missingMasterBooks?.forEach((book) => {
+      if (book.subject_id) missingSubjectIds.add(book.subject_id);
+    });
+    missingMasterLectures?.forEach((lecture) => {
+      if (lecture.subject_id) missingSubjectIds.add(lecture.subject_id);
+    });
 
-        masterBooks.forEach((book) => {
-          const subjectGroupName = book.subject_id ? subjectGroupNamesMap.get(book.subject_id) || null : null;
-          
-          results.set(book.id, {
-            title: book.title || "제목 없음",
-            subject_category: book.subject_category || "기타",
-            subject_id: book.subject_id || null,
-            subject_group_name: subjectGroupName,
-            total_pages: book.total_pages,
-            subject: book.subject,
-            semester: book.semester,
-            revision: book.revision,
-            difficulty_level: book.difficulty_level,
-            publisher: book.publisher,
-          });
-        });
-      }
-    }
+    // 교과명 배치 조회 (한 번만)
+    const missingSubjectGroupNamesMap = missingSubjectIds.size > 0
+      ? await fetchSubjectGroupNamesBatch(supabase, Array.from(missingSubjectIds))
+      : new Map<string, string>();
 
-    // 마스터 강의 배치 조회
-    if (missingLectureIds.length > 0) {
-      const { data: masterLectures, error: masterLecturesError } = await supabase
-        .from("master_lectures")
-        .select("id, title, subject_category, subject_id, total_episodes, subject, semester, revision, difficulty_level, platform")
-        .in("id", missingLectureIds);
+    // 마스터 교재 메타데이터 매핑
+    missingMasterBooks?.forEach((book) => {
+      const subjectGroupName = book.subject_id ? missingSubjectGroupNamesMap.get(book.subject_id) || null : null;
+      
+      results.set(book.id, {
+        title: book.title || "제목 없음",
+        subject_category: book.subject_category || "기타",
+        subject_id: book.subject_id || null,
+        subject_group_name: subjectGroupName,
+        total_pages: book.total_pages,
+        subject: book.subject,
+        semester: book.semester,
+        revision: book.revision,
+        difficulty_level: book.difficulty_level,
+        publisher: book.publisher,
+      });
+    });
 
-      if (!masterLecturesError && masterLectures) {
-        // subject_id 수집 (교과명 조회용)
-        const allSubjectIds = masterLectures
-          .map((lecture) => lecture.subject_id)
-          .filter((id): id is string => id !== null);
-
-        // 교과명 배치 조회
-        const subjectGroupNamesMap = await fetchSubjectGroupNamesBatch(supabase, allSubjectIds);
-
-        masterLectures.forEach((lecture) => {
-          const subjectGroupName = lecture.subject_id ? subjectGroupNamesMap.get(lecture.subject_id) || null : null;
-          
-          results.set(lecture.id, {
-            title: lecture.title || "제목 없음",
-            subject_category: lecture.subject_category || "기타",
-            subject_id: lecture.subject_id || null,
-            subject_group_name: subjectGroupName,
-            total_episodes: lecture.total_episodes,
-            subject: lecture.subject,
-            semester: lecture.semester,
-            revision: lecture.revision,
-            difficulty_level: lecture.difficulty_level,
-            platform: lecture.platform,
-          });
-        });
-      }
-    }
+    // 마스터 강의 메타데이터 매핑
+    missingMasterLectures?.forEach((lecture) => {
+      const subjectGroupName = lecture.subject_id ? missingSubjectGroupNamesMap.get(lecture.subject_id) || null : null;
+      
+      results.set(lecture.id, {
+        title: lecture.title || "제목 없음",
+        subject_category: lecture.subject_category || "기타",
+        subject_id: lecture.subject_id || null,
+        subject_group_name: subjectGroupName,
+        total_episodes: lecture.total_episodes,
+        subject: lecture.subject,
+        semester: lecture.semester,
+        revision: lecture.revision,
+        difficulty_level: lecture.difficulty_level,
+        platform: lecture.platform,
+      });
+    });
   } catch (error) {
     console.error("[fetchContentMetadataBatch] 배치 조회 실패:", error);
     // 에러 발생 시 빈 Map 반환 (기존 동작 유지)
