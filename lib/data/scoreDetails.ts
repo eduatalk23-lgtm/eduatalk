@@ -9,9 +9,6 @@ import type { Tables } from "@/lib/supabase/database.types";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import type { InternalScoreWithRelations, MockScoreWithRelations } from "@/lib/types/scoreAnalysis";
 
-type InternalScore = Tables<"student_internal_scores">;
-type MockScore = Tables<"student_mock_scores">;
-
 /**
  * Supabase 조인 쿼리 결과 타입
  * 

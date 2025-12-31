@@ -22,9 +22,6 @@ import type {
   SearchSchoolsOptions,
   GetSchoolsOptions,
   Region,
-  SCHOOL_TYPE_MAP,
-  SCHOOL_TYPE_REVERSE_MAP,
-  parseSchoolId,
 } from "@/lib/domains/school/types";
 
 // Re-export types for convenience

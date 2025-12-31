@@ -49,10 +49,6 @@ export type {
   MasterCustomContentFilters,
 } from "@/lib/types/contentFilters";
 
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
-
 /**
  * 통합 검색 필터 (하위 호환성)
  * @deprecated master_books, master_lectures로 분리됨. MasterBookFilters 또는 MasterLectureFilters 사용 권장
