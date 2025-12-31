@@ -1,5 +1,6 @@
 "use server";
 
+import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import {
@@ -35,7 +36,11 @@ import { logError } from "@/lib/errors/handler";
 
 export const getCampPlanGroupForReview = withErrorHandling(
   async (groupId: string) => {
-    console.log("[getCampPlanGroupForReview] 함수 호출됨, groupId:", groupId);
+    logActionDebug(
+      { domain: "camp", action: "getCampPlanGroupForReview" },
+      "함수 호출됨",
+      { groupId }
+    );
 
     await requireAdminOrConsultant();
 
@@ -49,9 +54,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
       );
     }
 
-    console.log(
-      "[getCampPlanGroupForReview] 플랜 그룹 조회 시작, tenantId:",
-      tenantContext.tenantId
+    logActionDebug(
+      { domain: "camp", action: "getCampPlanGroupForReview" },
+      "플랜 그룹 조회 시작",
+      { tenantId: tenantContext.tenantId }
     );
 
     const { getPlanGroupWithDetailsForAdmin } = await import(
@@ -75,12 +81,11 @@ export const getCampPlanGroupForReview = withErrorHandling(
       );
     }
 
-    console.log("[getCampPlanGroupForReview] 플랜 그룹 조회 성공:", {
-      groupId: result.group.id,
-      planType: result.group.plan_type,
-      campTemplateId: result.group.camp_template_id,
-      schedulerOptions: JSON.stringify(result.group.scheduler_options),
-    });
+    logActionDebug(
+      { domain: "camp", action: "getCampPlanGroupForReview" },
+      "플랜 그룹 조회 성공",
+      { groupId: result.group.id, planType: result.group.plan_type, campTemplateId: result.group.camp_template_id }
+    );
 
     // 캠프 플랜 그룹인지 확인
     if (result.group.plan_type !== "camp") {
@@ -118,9 +123,10 @@ export const getCampPlanGroupForReview = withErrorHandling(
           templateId: result.group.camp_template_id,
         });
       } else if (!template) {
-        console.warn(
-          "[getCampPlanGroupForReview] 템플릿을 찾을 수 없음:",
-          result.group.camp_template_id
+        logActionDebug(
+          { domain: "camp", action: "getCampPlanGroupForReview" },
+          "템플릿을 찾을 수 없음",
+          { campTemplateId: result.group.camp_template_id }
         );
       } else {
         // block_set_id 찾기: 공통 함수 사용
@@ -178,31 +184,29 @@ export const getCampPlanGroupForReview = withErrorHandling(
                 end_time: b.end_time,
               }));
 
-              console.log(
-                "[getCampPlanGroupForReview] 템플릿 블록 조회 성공:",
-                {
-                  blockSetName: templateBlockSetName,
-                  blockCount: templateBlocks.length,
-                }
+              logActionDebug(
+                { domain: "camp", action: "getCampPlanGroupForReview" },
+                "템플릿 블록 조회 성공",
+                { blockSetName: templateBlockSetName, blockCount: templateBlocks.length }
               );
             } else {
-              console.warn("[getCampPlanGroupForReview] 템플릿 블록이 없음:", {
-                tenantBlockSetId,
-                templateBlockSetName,
-              });
+              logActionDebug(
+                { domain: "camp", action: "getCampPlanGroupForReview" },
+                "템플릿 블록이 없음",
+                { tenantBlockSetId, templateBlockSetName }
+              );
             }
           } else {
-            console.warn(
-              "[getCampPlanGroupForReview] 템플릿 블록 세트를 찾을 수 없음:",
-              {
-                tenantBlockSetId,
-                templateId: result.group.camp_template_id,
-              }
+            logActionDebug(
+              { domain: "camp", action: "getCampPlanGroupForReview" },
+              "템플릿 블록 세트를 찾을 수 없음",
+              { tenantBlockSetId, templateId: result.group.camp_template_id }
             );
           }
         } else {
-          console.warn(
-            "[getCampPlanGroupForReview] template_block_set_id를 찾을 수 없음:",
+          logActionDebug(
+            { domain: "camp", action: "getCampPlanGroupForReview" },
+            "template_block_set_id를 찾을 수 없음",
             {
               campTemplateId: result.group.camp_template_id,
               schedulerOptions: JSON.stringify(schedulerOptions),
@@ -212,35 +216,43 @@ export const getCampPlanGroupForReview = withErrorHandling(
         }
       }
     } else {
-      console.warn(
-        "[getCampPlanGroupForReview] camp_template_id가 없음, groupId:",
-        groupId
+      logActionDebug(
+        { domain: "camp", action: "getCampPlanGroupForReview" },
+        "camp_template_id가 없음",
+        { groupId }
       );
     }
 
-    console.log("[getCampPlanGroupForReview] 최종 결과:", {
-      templateBlocksCount: templateBlocks.length,
-      templateBlockSetName,
-      exclusionsCount: result.exclusions.length,
-      academySchedulesCount: result.academySchedules.length,
-    });
+    logActionDebug(
+      { domain: "camp", action: "getCampPlanGroupForReview" },
+      "최종 결과",
+      {
+        templateBlocksCount: templateBlocks.length,
+        templateBlockSetName,
+        exclusionsCount: result.exclusions.length,
+        academySchedulesCount: result.academySchedules.length,
+      }
+    );
 
     // 콘텐츠 상세 정보 조회 (관리자가 학생의 추가 콘텐츠 정보를 제대로 볼 수 있도록)
     let contentsWithDetails = result.contents;
     if (result.group.student_id && result.contents.length > 0) {
       try {
         // 입력 데이터 검증 및 로그
-        console.log("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 시작:", {
-          groupId: result.group.id,
-          studentId: result.group.student_id,
-          contentsCount: result.contents.length,
-          contents: result.contents.map((c) => ({
-            content_type: c.content_type,
-            content_id: c.content_id,
-            master_content_id: c.master_content_id,
-            start_range: c.start_range,
-            end_range: c.end_range,
-          })),
+        logActionDebug(
+          { domain: "camp", action: "getCampPlanGroupForReview" },
+          "콘텐츠 상세 정보 조회 시작",
+          {
+            groupId: result.group.id,
+            studentId: result.group.student_id,
+            contentsCount: result.contents.length,
+            contents: result.contents.map((c) => ({
+              content_type: c.content_type,
+              content_id: c.content_id,
+              master_content_id: c.master_content_id,
+              start_range: c.start_range,
+              end_range: c.end_range,
+            })),
         });
 
         const { classifyPlanContents } = await import(
@@ -261,15 +273,19 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const totalOriginalContents = result.contents.length;
         
         if (totalClassifiedContents !== totalOriginalContents) {
-          console.warn("[getCampPlanGroupForReview] 콘텐츠 개수 불일치:", {
-            groupId: result.group.id,
-            studentId: result.group.student_id,
-            originalCount: totalOriginalContents,
-            classifiedCount: totalClassifiedContents,
-            studentContentsCount: studentContents.length,
-            recommendedContentsCount: recommendedContents.length,
-            missingCount: totalOriginalContents - totalClassifiedContents,
-          });
+          logActionDebug(
+            { domain: "camp", action: "getCampPlanGroupForReview" },
+            "콘텐츠 개수 불일치",
+            {
+              groupId: result.group.id,
+              studentId: result.group.student_id,
+              originalCount: totalOriginalContents,
+              classifiedCount: totalClassifiedContents,
+              studentContentsCount: studentContents.length,
+              recommendedContentsCount: recommendedContents.length,
+              missingCount: totalOriginalContents - totalClassifiedContents,
+            }
+          );
         }
 
         // 상세 페이지 형식으로 변환
@@ -287,8 +303,9 @@ export const getCampPlanGroupForReview = withErrorHandling(
           const detail = contentsMap.get(content.content_id);
           if (!detail) {
             missingByType[content.content_type]++;
-            console.warn(
-              `[getCampPlanGroupForReview] 콘텐츠를 찾을 수 없음:`,
+            logActionDebug(
+              { domain: "camp", action: "getCampPlanGroupForReview" },
+              "콘텐츠를 찾을 수 없음",
               {
                 content_type: content.content_type,
                 content_id: content.content_id,
@@ -316,8 +333,9 @@ export const getCampPlanGroupForReview = withErrorHandling(
         const totalMissing =
           missingByType.book + missingByType.lecture + missingByType.custom;
         if (totalMissing > 0) {
-          console.warn(
-            "[getCampPlanGroupForReview] 누락된 콘텐츠 집계:",
+          logActionDebug(
+            { domain: "camp", action: "getCampPlanGroupForReview" },
+            "누락된 콘텐츠 집계",
             {
               groupId: result.group.id,
               studentId: result.group.student_id,
@@ -328,16 +346,20 @@ export const getCampPlanGroupForReview = withErrorHandling(
           );
         }
 
-        console.log("[getCampPlanGroupForReview] 콘텐츠 상세 정보 조회 완료:", {
-          groupId: result.group.id,
-          studentId: result.group.student_id,
-          originalContentsCount: result.contents.length,
-          studentContentsCount: studentContents.length,
-          recommendedContentsCount: recommendedContents.length,
-          totalClassifiedCount: studentContents.length + recommendedContents.length,
-          missingCount: totalMissing,
-          missingByType,
-        });
+        logActionDebug(
+          { domain: "camp", action: "getCampPlanGroupForReview" },
+          "콘텐츠 상세 정보 조회 완료",
+          {
+            groupId: result.group.id,
+            studentId: result.group.student_id,
+            originalContentsCount: result.contents.length,
+            studentContentsCount: studentContents.length,
+            recommendedContentsCount: recommendedContents.length,
+            totalClassifiedCount: studentContents.length + recommendedContents.length,
+            missingCount: totalMissing,
+            missingByType,
+          }
+        );
       } catch (error) {
         logError(
           error,
@@ -427,7 +449,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
       );
     }
     
-    console.log("[continueCampStepsForAdmin] Admin 클라이언트 사용 (RLS 우회)");
+    logActionDebug(
+      { domain: "camp", action: "continueCampStepsForAdmin" },
+      "Admin 클라이언트 사용 (RLS 우회)"
+    );
 
     // 플랜 그룹 조회 및 권한 확인
     const { getPlanGroupWithDetailsForAdmin } = await import(
@@ -525,17 +550,19 @@ export const continueCampStepsForAdmin = withErrorHandling(
           };
           (creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet).template_block_set_id =
             tenantBlockSetId;
-          console.log(
-            "[continueCampStepsForAdmin] scheduler_options에 template_block_set_id 추가:",
+          logActionDebug(
+            { domain: "camp", action: "continueCampStepsForAdmin" },
+            "scheduler_options에 template_block_set_id 추가",
             {
               template_block_set_id: tenantBlockSetId,
               scheduler_options: creationData.scheduler_options,
             }
           );
         } else {
-          console.warn(
-            "[continueCampStepsForAdmin] 템플릿 블록 세트 ID를 찾을 수 없습니다:",
-            result.group.camp_template_id
+          logActionDebug(
+            { domain: "camp", action: "continueCampStepsForAdmin" },
+            "템플릿 블록 세트 ID를 찾을 수 없습니다",
+            { campTemplateId: result.group.camp_template_id }
           );
         }
       }
@@ -552,16 +579,20 @@ export const continueCampStepsForAdmin = withErrorHandling(
       const hasStudentContents = wizardData.student_contents !== undefined;
       const hasRecommendedContents = wizardData.recommended_contents !== undefined;
       
-      console.log("[continueCampStepsForAdmin] 콘텐츠 업데이트 시작:", {
-        groupId,
-        step,
-        hasStudentContents,
-        studentContentsLength: wizardData.student_contents?.length ?? 0,
-        hasRecommendedContents,
-        recommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
-        studentContentsIsEmptyArray: hasStudentContents && wizardData.student_contents?.length === 0,
-        recommendedContentsIsEmptyArray: hasRecommendedContents && wizardData.recommended_contents?.length === 0,
-      });
+      logActionDebug(
+        { domain: "camp", action: "continueCampStepsForAdmin" },
+        "콘텐츠 업데이트 시작",
+        {
+          groupId,
+          step,
+          hasStudentContents,
+          studentContentsLength: wizardData.student_contents?.length ?? 0,
+          hasRecommendedContents,
+          recommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
+          studentContentsIsEmptyArray: hasStudentContents && wizardData.student_contents?.length === 0,
+          recommendedContentsIsEmptyArray: hasRecommendedContents && wizardData.recommended_contents?.length === 0,
+        }
+      );
       
       // 기존 콘텐츠 조회 (보존할 콘텐츠 확인용)
       const { data: existingPlanContents } = await supabase
@@ -587,12 +618,16 @@ export const continueCampStepsForAdmin = withErrorHandling(
         }
       }
       
-      console.log("[continueCampStepsForAdmin] 기존 콘텐츠 조회 결과:", {
-        groupId,
-        existingTotalCount: existingPlanContents?.length ?? 0,
-        existingStudentContentsCount: existingStudentContents.length,
-        existingRecommendedContentsCount: existingRecommendedContents.length,
-      });
+      logActionDebug(
+        { domain: "camp", action: "continueCampStepsForAdmin" },
+        "기존 콘텐츠 조회 결과",
+        {
+          groupId,
+          existingTotalCount: existingPlanContents?.length ?? 0,
+          existingStudentContentsCount: existingStudentContents.length,
+          existingRecommendedContentsCount: existingRecommendedContents.length,
+        }
+      );
 
       // 콘텐츠 업데이트가 필요한 경우에만 처리
       if (hasStudentContents || hasRecommendedContents) {
@@ -654,13 +689,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
           }));
           contentsToSave.push(...preservedStudentContents);
           
-          console.log("[continueCampStepsForAdmin] 기존 학생 콘텐츠 보존:", {
-            groupId,
-            hasStudentContents,
-            wizardDataStudentContentsLength: wizardData.student_contents?.length ?? 0,
-            existingStudentContentsCount: existingStudentContents.length,
-            preservedCount: preservedStudentContents.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "continueCampStepsForAdmin" },
+            "기존 학생 콘텐츠 보존",
+            {
+              groupId,
+              hasStudentContents,
+              wizardDataStudentContentsLength: wizardData.student_contents?.length ?? 0,
+              existingStudentContentsCount: existingStudentContents.length,
+              preservedCount: preservedStudentContents.length,
+            }
+          );
         }
 
         // 추천 콘텐츠 처리
@@ -704,21 +743,29 @@ export const continueCampStepsForAdmin = withErrorHandling(
           }));
           contentsToSave.push(...preservedRecommendedContents);
           
-          console.log("[continueCampStepsForAdmin] 기존 추천 콘텐츠 보존:", {
-            groupId,
-            hasRecommendedContents,
-            wizardDataRecommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
-            existingRecommendedContentsCount: existingRecommendedContents.length,
-            preservedCount: preservedRecommendedContents.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "continueCampStepsForAdmin" },
+            "기존 추천 콘텐츠 보존",
+            {
+              groupId,
+              hasRecommendedContents,
+              wizardDataRecommendedContentsLength: wizardData.recommended_contents?.length ?? 0,
+              existingRecommendedContentsCount: existingRecommendedContents.length,
+              preservedCount: preservedRecommendedContents.length,
+            }
+          );
         }
 
-        console.log("[continueCampStepsForAdmin] 저장할 콘텐츠 목록:", {
-          groupId,
-          totalContentsToSave: contentsToSave.length,
-          studentContentsToSave: contentsToSave.filter((c) => !c.is_auto_recommended && !c.recommendation_source).length,
-          recommendedContentsToSave: contentsToSave.filter((c) => c.is_auto_recommended || c.recommendation_source).length,
-        });
+        logActionDebug(
+          { domain: "camp", action: "continueCampStepsForAdmin" },
+          "저장할 콘텐츠 목록",
+          {
+            groupId,
+            totalContentsToSave: contentsToSave.length,
+            studentContentsToSave: contentsToSave.filter((c) => !c.is_auto_recommended && !c.recommendation_source).length,
+            recommendedContentsToSave: contentsToSave.filter((c) => c.is_auto_recommended || c.recommendation_source).length,
+          }
+        );
         
         if (contentsToSave.length > 0) {
           // savePlanContents 함수를 사용하여 콘텐츠 저장
@@ -745,17 +792,21 @@ export const continueCampStepsForAdmin = withErrorHandling(
             (c) => c.is_auto_recommended || c.recommendation_source
           ) || [];
 
-          console.log("[campTemplateActions] 콘텐츠 병합 검증:", {
-            groupId,
-            studentId,
-            hasStudentContents,
-            hasRecommendedContents,
-            existingStudentContentsCount: existingStudentContents.length,
-            existingRecommendedContentsCount: existingRecommendedContents.length,
-            savedStudentContentsCount: savedStudentContents.length,
-            savedRecommendedContentsCount: savedRecommendedContents.length,
-            contentsToSaveCount: contentsToSave.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "콘텐츠 병합 검증",
+            {
+              groupId,
+              studentId,
+              hasStudentContents,
+              hasRecommendedContents,
+              existingStudentContentsCount: existingStudentContents.length,
+              existingRecommendedContentsCount: existingRecommendedContents.length,
+              savedStudentContentsCount: savedStudentContents.length,
+              savedRecommendedContentsCount: savedRecommendedContents.length,
+              contentsToSaveCount: contentsToSave.length,
+            }
+          );
 
             // 검증: 기존 학생 콘텐츠가 보존되었는지 확인
             // hasStudentContents가 false이거나 빈 배열인 경우 기존 콘텐츠가 보존되어야 함
@@ -772,8 +823,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
               ).length;
 
               if (preservedCount !== existingStudentContents.length) {
-                console.warn(
-                  `[campTemplateActions] 기존 학생 콘텐츠 보존 검증 실패:`,
+                logActionDebug(
+                  { domain: "camp", action: "campTemplateActions" },
+                  "기존 학생 콘텐츠 보존 검증 실패",
                   {
                     expected: existingStudentContents.length,
                     actual: preservedCount,
@@ -782,8 +834,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   }
                 );
               } else {
-                console.log(
-                  `[campTemplateActions] 기존 학생 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
+                logActionDebug(
+                  { domain: "camp", action: "campTemplateActions" },
+                  `기존 학생 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
                 );
               }
             }
@@ -803,8 +856,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
               ).length;
 
               if (preservedCount !== existingRecommendedContents.length) {
-                console.warn(
-                  `[campTemplateActions] 기존 추천 콘텐츠 보존 검증 실패:`,
+                logActionDebug(
+                  { domain: "camp", action: "campTemplateActions" },
+                  "기존 추천 콘텐츠 보존 검증 실패",
                   {
                     expected: existingRecommendedContents.length,
                     actual: preservedCount,
@@ -815,8 +869,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   }
                 );
               } else {
-                console.log(
-                  `[campTemplateActions] 기존 추천 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
+                logActionDebug(
+                  { domain: "camp", action: "campTemplateActions" },
+                  `기존 추천 콘텐츠 보존 검증 성공: ${preservedCount}개 보존됨`
                 );
               }
             }
@@ -869,16 +924,20 @@ export const continueCampStepsForAdmin = withErrorHandling(
 
         const hasPlanContents = existingPlanContents && existingPlanContents.length > 0;
 
-        console.log("[campTemplateActions] Step 6 콘텐츠 검증 시작:", {
-          groupId,
-          step,
-          hasPlanContents,
-          existingPlanContentsCount: existingPlanContents?.length || 0,
-          wizardDataStudentContents: wizardData.student_contents?.length ?? 0,
-          wizardDataRecommendedContents: wizardData.recommended_contents?.length ?? 0,
-          wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
-          wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
-        });
+        logActionDebug(
+          { domain: "camp", action: "campTemplateActions" },
+          "Step 6 콘텐츠 검증 시작",
+          {
+            groupId,
+            step,
+            hasPlanContents,
+            existingPlanContentsCount: existingPlanContents?.length || 0,
+            wizardDataStudentContents: wizardData.student_contents?.length ?? 0,
+            wizardDataRecommendedContents: wizardData.recommended_contents?.length ?? 0,
+            wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
+            wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
+          }
+        );
 
         // wizardData에서 콘텐츠 확인 (플랜 생성 전이므로 plan_contents 테이블이 비어있을 수 있음)
         // wizardData가 undefined이면 DB에서 콘텐츠를 로드하여 wizardData에 채움
@@ -896,11 +955,15 @@ export const continueCampStepsForAdmin = withErrorHandling(
           (!hasWizardDataContents && hasPlanContents) ||
           (wizardData.student_contents === undefined || wizardData.recommended_contents === undefined)
         ) {
-          console.log("[campTemplateActions] Step 6 DB에서 콘텐츠 로드:", {
-            wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
-            wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
-            hasPlanContents,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 DB에서 콘텐츠 로드",
+            {
+              wizardDataStudentContentsIsUndefined: wizardData.student_contents === undefined,
+              wizardDataRecommendedContentsIsUndefined: wizardData.recommended_contents === undefined,
+              hasPlanContents,
+            }
+          );
           
           // DB에서 콘텐츠 조회
           const { getPlanGroupWithDetailsForAdmin } = await import(
@@ -939,29 +1002,41 @@ export const continueCampStepsForAdmin = withErrorHandling(
         
         // DB에서 로드한 콘텐츠 로그 (undefined 체크 이후)
         if (hasPlanContents) {
-          console.log("[campTemplateActions] Step 6 DB에서 로드한 콘텐츠:", {
-            loadedStudentContentsCount: studentContents.length,
-            loadedRecommendedContentsCount: recommendedContents.length,
-            totalLoadedContents: studentContents.length + recommendedContents.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 DB에서 로드한 콘텐츠",
+            {
+              loadedStudentContentsCount: studentContents.length,
+              loadedRecommendedContentsCount: recommendedContents.length,
+              totalLoadedContents: studentContents.length + recommendedContents.length,
+            }
+          );
         }
         
         const totalContents = studentContents.length + recommendedContents.length;
 
         // DB에 콘텐츠가 있으면 저장 로직 스킵 (이미 저장되어 있음)
         if (hasPlanContents) {
-          console.log("[campTemplateActions] Step 6 콘텐츠 저장 스킵:", {
-            reason: "DB에 이미 콘텐츠가 있음",
-            existingPlanContentsCount: existingPlanContents?.length || 0,
-            wizardDataTotalContents: totalContents,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 콘텐츠 저장 스킵",
+            {
+              reason: "DB에 이미 콘텐츠가 있음",
+              existingPlanContentsCount: existingPlanContents?.length || 0,
+              wizardDataTotalContents: totalContents,
+            }
+          );
         } else if (totalContents > 0) {
           // wizardData에 콘텐츠가 있고 plan_contents에 없으면 저장
-          console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 필요:", {
-            totalContents,
-            studentContents: studentContents.length,
-            recommendedContents: recommendedContents.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6에서 콘텐츠 저장 필요",
+            {
+              totalContents,
+              studentContents: studentContents.length,
+              recommendedContents: recommendedContents.length,
+            }
+          );
 
           // creationData를 다시 생성하여 콘텐츠 저장
           const creationDataForContents = syncWizardDataToCreationData(
@@ -1012,20 +1087,28 @@ export const continueCampStepsForAdmin = withErrorHandling(
               contentsToSave
             );
 
-            console.log("[campTemplateActions] Step 6에서 콘텐츠 저장 완료:", {
-              totalContents: creationDataForContents.contents.length,
-              contentsToSaveCount: contentsToSave.length,
-            });
+            logActionDebug(
+              { domain: "camp", action: "campTemplateActions" },
+              "Step 6에서 콘텐츠 저장 완료",
+              {
+                totalContents: creationDataForContents.contents.length,
+                contentsToSaveCount: contentsToSave.length,
+              }
+            );
           }
         } else {
-          console.log("[campTemplateActions] Step 6 콘텐츠 저장 스킵:", {
-            totalContents,
-            hasPlanContents,
-            reason:
-              totalContents === 0
-                ? "wizardData에 콘텐츠가 없음"
-                : "plan_contents에 이미 콘텐츠가 있음",
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 콘텐츠 저장 스킵",
+            {
+              totalContents,
+              hasPlanContents,
+              reason:
+                totalContents === 0
+                  ? "wizardData에 콘텐츠가 없음"
+                  : "plan_contents에 이미 콘텐츠가 있음",
+            }
+          );
         }
 
         // 최종 콘텐츠 검증
@@ -1034,13 +1117,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
         const finalRecommendedContents = recommendedContents;
         const finalTotalContents = finalStudentContents.length + finalRecommendedContents.length;
 
-        console.log("[campTemplateActions] Step 6 최종 콘텐츠 검증:", {
-          wizardDataStudentContents: finalStudentContents.length,
-          wizardDataRecommendedContents: finalRecommendedContents.length,
-          wizardDataTotalContents: finalTotalContents,
-          hasPlanContents,
-          existingPlanContentsCount: existingPlanContents?.length || 0,
-        });
+        logActionDebug(
+          { domain: "camp", action: "campTemplateActions" },
+          "Step 6 최종 콘텐츠 검증",
+          {
+            wizardDataStudentContents: finalStudentContents.length,
+            wizardDataRecommendedContents: finalRecommendedContents.length,
+            wizardDataTotalContents: finalTotalContents,
+            hasPlanContents,
+            existingPlanContentsCount: existingPlanContents?.length || 0,
+          }
+        );
 
         // 최종적으로 plan_contents 테이블에 콘텐츠가 있는지 확인
         // (wizardData에 콘텐츠가 없어도 DB에 있으면 플랜 생성 가능)
@@ -1050,13 +1137,17 @@ export const continueCampStepsForAdmin = withErrorHandling(
           .eq("plan_group_id", groupId)
           .limit(1);
 
-        console.log("[campTemplateActions] Step 6 최종 plan_contents 테이블 확인:", {
-          finalPlanContentsCount: finalPlanContents?.length || 0,
-          hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
-          wizardDataTotalContents: finalTotalContents,
-          wizardDataStudentContents: finalStudentContents.length,
-          wizardDataRecommendedContents: finalRecommendedContents.length,
-        });
+        logActionDebug(
+          { domain: "camp", action: "campTemplateActions" },
+          "Step 6 최종 plan_contents 테이블 확인",
+          {
+            finalPlanContentsCount: finalPlanContents?.length || 0,
+            hasFinalPlanContents: finalPlanContents && finalPlanContents.length > 0,
+            wizardDataTotalContents: finalTotalContents,
+            wizardDataStudentContents: finalStudentContents.length,
+            wizardDataRecommendedContents: finalRecommendedContents.length,
+          }
+        );
 
         // 검증: DB에 콘텐츠가 없고 wizardData에도 콘텐츠가 없는 경우에만 에러
         const hasFinalPlanContents = finalPlanContents && finalPlanContents.length > 0;
@@ -1070,8 +1161,9 @@ export const continueCampStepsForAdmin = withErrorHandling(
         } else if (!hasFinalPlanContents && hasWizardContents) {
           // wizardData에 콘텐츠가 있지만 DB에 저장되지 않은 경우
           // (콘텐츠 저장 과정에서 모든 콘텐츠가 필터링되었을 수 있음)
-          console.warn(
-            "[campTemplateActions] Step 6 검증: wizardData에 콘텐츠가 있지만 DB에 저장되지 않음. 콘텐츠 저장 과정을 확인하세요.",
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 검증: wizardData에 콘텐츠가 있지만 DB에 저장되지 않음. 콘텐츠 저장 과정을 확인하세요.",
             {
               wizardDataStudentContents: finalStudentContents.length,
               wizardDataRecommendedContents: finalRecommendedContents.length,
@@ -1081,12 +1173,16 @@ export const continueCampStepsForAdmin = withErrorHandling(
           // 이 경우에도 플랜 생성은 가능하도록 허용 (플랜 생성 시 콘텐츠가 자동으로 처리될 수 있음)
           // 단, 경고 로그만 남기고 검증 에러는 발생시키지 않음
         } else {
-          console.log("[campTemplateActions] Step 6 최종 검증: 콘텐츠가 있어 플랜 생성 가능:", {
-            hasFinalPlanContents,
-            hasWizardContents,
-            finalPlanContentsCount: finalPlanContents?.length || 0,
-            wizardDataTotalContents: finalTotalContents,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "Step 6 최종 검증: 콘텐츠가 있어 플랜 생성 가능",
+            {
+              hasFinalPlanContents,
+              hasWizardContents,
+              finalPlanContentsCount: finalPlanContents?.length || 0,
+              wizardDataTotalContents: finalTotalContents,
+            }
+          );
         }
 
         // 3. 템플릿 블록 세트 검증 (캠프 모드)
@@ -1178,8 +1274,10 @@ export const continueCampStepsForAdmin = withErrorHandling(
               action: "updatePlanGroupStatus",
             });
             // 상태 업데이트 실패는 경고만 (플랜은 생성됨)
-            console.warn(
-              "[campTemplateActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다."
+            logActionDebug(
+              { domain: "camp", action: "campTemplateActions" },
+              "플랜 그룹 상태를 saved로 변경하지 못했습니다",
+              { groupId }
             );
           }
 
@@ -1224,13 +1322,21 @@ export const continueCampStepsForAdmin = withErrorHandling(
                   groupId,
                   tenantId,
                 }).catch((err) => {
-                  console.error("[continueCampStepsForAdmin] 학부모 알림 발송 실패:", err);
+                  logActionError(
+                    { domain: "camp", action: "continueCampStepsForAdmin" },
+                    err,
+                    { context: "학부모 알림 발송 실패" }
+                  );
                 });
               }
             }
           } catch (notificationError) {
             // 알림 발송 실패는 로그만 남기고 계속 진행
-            console.error("[continueCampStepsForAdmin] 학생 알림 발송 실패:", notificationError);
+            logActionError(
+              { domain: "camp", action: "continueCampStepsForAdmin" },
+              notificationError,
+              { context: "학생 알림 발송 실패" }
+            );
           }
         } catch (planError) {
           logError(planError, {
@@ -1248,10 +1354,14 @@ export const continueCampStepsForAdmin = withErrorHandling(
           );
           }
         } else {
-          console.log("[campTemplateActions] 플랜이 이미 생성되어 있어 플랜 생성 스킵:", {
-            groupId,
-            existingPlansCount: existingPlans?.length || 0,
-          });
+          logActionDebug(
+            { domain: "camp", action: "campTemplateActions" },
+            "플랜이 이미 생성되어 있어 플랜 생성 스킵",
+            {
+              groupId,
+              existingPlansCount: existingPlans?.length || 0,
+            }
+          );
         }
       }
     } catch (error) {
@@ -1855,8 +1965,10 @@ export const bulkApplyRecommendedContents = withErrorHandling(
         );
 
         if (recommendations.length === 0) {
-          console.warn(
-            `[bulkApplyRecommendedContents] 추천 콘텐츠가 없습니다. groupId: ${groupId}, studentId: ${studentId}`
+          logActionDebug(
+            { domain: "camp", action: "bulkApplyRecommendedContents" },
+            "추천 콘텐츠가 없습니다",
+            { groupId, studentId }
           );
           continue;
         }
@@ -3050,12 +3162,20 @@ export const bulkGeneratePlans = withErrorHandling(
                   groupId,
                   tenantId: tenantContext.tenantId,
                 }).catch((err) => {
-                  console.error("[generatePlansFromGroupBulkAction] 학부모 알림 발송 실패:", err);
+                  logActionError(
+                    { domain: "camp", action: "generatePlansFromGroupBulkAction" },
+                    err,
+                    { context: "학부모 알림 발송 실패" }
+                  );
                 });
               }
             } catch (notificationError) {
               // 알림 발송 실패는 로그만 남기고 계속 진행
-              console.error("[bulkGeneratePlans] 학생 알림 발송 실패:", notificationError);
+              logActionError(
+                { domain: "camp", action: "bulkGeneratePlans" },
+                notificationError,
+                { context: "학생 알림 발송 실패" }
+              );
             }
           }
         } catch (generateError) {
