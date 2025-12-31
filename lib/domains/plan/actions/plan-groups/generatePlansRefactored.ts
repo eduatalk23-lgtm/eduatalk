@@ -1,5 +1,6 @@
 "use server";
 
+import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
@@ -339,13 +340,10 @@ async function _generatePlansFromGroupRefactored(
   ].filter(Boolean);
 
   if (contentQueryErrors.length > 0) {
-    console.error(
-      "[_generatePlansFromGroupRefactored] 학생 콘텐츠 조회 실패:",
-      {
-        groupId,
-        studentId,
-        errors: contentQueryErrors.map((e) => e?.message),
-      }
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("학생 콘텐츠 조회 실패"),
+      { groupId, studentId, errors: contentQueryErrors.map((e) => e?.message) }
     );
     throw new AppError(
       "학생 콘텐츠 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
@@ -420,16 +418,10 @@ async function _generatePlansFromGroupRefactored(
   // 일부 콘텐츠 누락된 플랜 생성을 방지하기 위해 조기 실패(fail-fast) 적용
   if (missingBookIds.length > 0 || missingLectureIds.length > 0) {
     const totalMissing = missingBookIds.length + missingLectureIds.length;
-    console.error(
-      `[generatePlansRefactored] contentIdMap에 매핑되지 않은 콘텐츠 발견:`,
-      {
-        groupId,
-        studentId,
-        missingBookIds,
-        missingLectureIds,
-        totalMissing,
-        totalContents: contents.length,
-      }
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("contentIdMap에 매핑되지 않은 콘텐츠 발견"),
+      { groupId, studentId, missingBookIds, missingLectureIds, totalMissing, totalContents: contents.length }
     );
 
     throw new AppError(
@@ -463,15 +455,10 @@ async function _generatePlansFromGroupRefactored(
   ].filter(Boolean);
 
   if (masterQueryErrors.length > 0) {
-    console.error(
-      "[_generatePlansFromGroupRefactored] 마스터 콘텐츠 조회 실패:",
-      {
-        groupId,
-        studentId,
-        missingBookIds,
-        missingLectureIds,
-        errors: masterQueryErrors.map((e) => e?.message),
-      }
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("마스터 콘텐츠 조회 실패"),
+      { groupId, studentId, missingBookIds, missingLectureIds, errors: masterQueryErrors.map((e) => e?.message) }
     );
     throw new AppError(
       "마스터 콘텐츠 조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
@@ -526,8 +513,9 @@ async function _generatePlansFromGroupRefactored(
             });
           }
         } else {
-          console.warn(
-            `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패: bookId가 없습니다.`
+          logActionDebug(
+            { domain: "plan", action: "generatePlansRefactored" },
+            `마스터 교재(${resolvedContentId}) 복사 실패: bookId가 없습니다`
           );
           copyFailures.push({
             contentId: resolvedContentId,
@@ -537,9 +525,10 @@ async function _generatePlansFromGroupRefactored(
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
-        console.error(
-          `[generatePlansRefactored] 마스터 교재(${resolvedContentId}) 복사 실패:`,
-          error
+        logActionError(
+          { domain: "plan", action: "generatePlansRefactored" },
+          error,
+          { contentId: resolvedContentId, context: "마스터 교재 복사 실패" }
         );
         copyFailures.push({
           contentId: resolvedContentId,
@@ -550,8 +539,9 @@ async function _generatePlansFromGroupRefactored(
     } else {
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
       // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
-      console.warn(
-        `[generatePlansRefactored] 교재(${resolvedContentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다.`
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        `교재(${resolvedContentId})가 마스터 교재가 아니며 학생 교재로도 찾을 수 없습니다`
       );
       copyFailures.push({
         contentId: resolvedContentId,
@@ -584,8 +574,9 @@ async function _generatePlansFromGroupRefactored(
             });
           }
         } else {
-          console.warn(
-            `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패: lectureId가 없습니다.`
+          logActionDebug(
+            { domain: "plan", action: "generatePlansRefactored" },
+            `마스터 강의(${resolvedContentId}) 복사 실패: lectureId가 없습니다`
           );
           copyFailures.push({
             contentId: resolvedContentId,
@@ -595,9 +586,10 @@ async function _generatePlansFromGroupRefactored(
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
-        console.error(
-          `[generatePlansRefactored] 마스터 강의(${resolvedContentId}) 복사 실패:`,
-          error
+        logActionError(
+          { domain: "plan", action: "generatePlansRefactored" },
+          error,
+          { contentId: resolvedContentId, context: "마스터 강의 복사 실패" }
         );
         copyFailures.push({
           contentId: resolvedContentId,
@@ -608,8 +600,9 @@ async function _generatePlansFromGroupRefactored(
     } else {
       // 마스터 콘텐츠가 아닌 경우 원본 ID를 그대로 사용하지 않음
       // plan_contents에 이미 저장된 콘텐츠 ID이므로 contentIdMap에 매핑하지 않음
-      console.warn(
-        `[generatePlansRefactored] 강의(${resolvedContentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다.`
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        `강의(${resolvedContentId})가 마스터 강의가 아니며 학생 강의로도 찾을 수 없습니다`
       );
       copyFailures.push({
         contentId: resolvedContentId,
@@ -624,8 +617,9 @@ async function _generatePlansFromGroupRefactored(
     const totalRequired = missingBookIds.length + missingLectureIds.length;
     const failedCount = copyFailures.length;
 
-    console.error(
-      "[generatePlansRefactored] 마스터 콘텐츠 복사 실패 요약:",
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("마스터 콘텐츠 복사 실패 요약"),
       {
         groupId,
         studentId,
@@ -683,9 +677,10 @@ async function _generatePlansFromGroupRefactored(
             .eq("id", content.id);
 
           if (updateError) {
-            console.error(
-              `[generatePlansRefactored] plan_contents detail ID 업데이트 실패:`,
-              { contentId: content.id, updateData, error: updateError }
+            logActionError(
+              { domain: "plan", action: "generatePlansRefactored" },
+              updateError,
+              { contentId: content.id, updateData, context: "plan_contents detail ID 업데이트 실패" }
             );
           } else {
             // 로컬 contents 배열도 업데이트 (플랜 생성에 사용됨)
@@ -737,13 +732,10 @@ async function _generatePlansFromGroupRefactored(
     );
 
     if (contentsWithoutEpisodes.length > 0) {
-      console.warn(
-        `[generatePlansRefactored] 강의 콘텐츠 episode 정보 누락: ${contentsWithoutEpisodes.length}개 콘텐츠에 episode 정보 없음`,
-        contentsWithoutEpisodes.map((c) => ({
-          content_id: c.content_id,
-          has_duration: c.hasDuration,
-          total_episodes: c.totalEpisodes,
-        }))
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        `강의 콘텐츠 episode 정보 누락: ${contentsWithoutEpisodes.length}개 콘텐츠에 episode 정보 없음`,
+        { contents: contentsWithoutEpisodes.map((c) => ({ content_id: c.content_id, has_duration: c.hasDuration, total_episodes: c.totalEpisodes })) }
       );
     }
   }
@@ -781,8 +773,9 @@ async function _generatePlansFromGroupRefactored(
     );
 
     // 검증 결과 로깅
-    console.log(
-      "[generatePlansRefactored] subject_constraints 검증 결과:",
+    logActionDebug(
+      { domain: "plan", action: "generatePlansRefactored" },
+      "subject_constraints 검증 결과",
       {
         groupId,
         isValid: validationResult.isValid,
@@ -809,9 +802,10 @@ async function _generatePlansFromGroupRefactored(
 
     // 경고가 있는 경우 로그만 남기고 계속 진행
     if (validationResult.hasWarnings) {
-      console.warn(
-        "[generatePlansRefactored] subject_constraints 경고 - 플랜 생성은 계속됨:",
-        validationResult.warnings.map((w) => w.message)
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        "subject_constraints 경고 - 플랜 생성은 계속됨",
+        { warnings: validationResult.warnings.map((w) => w.message) }
       );
     }
   }
@@ -867,8 +861,9 @@ async function _generatePlansFromGroupRefactored(
       (c) => !contentIdMap.has(c.content_id) && !isDummyContent(c.content_id)
     );
     if (excludedContents.length > 0) {
-      console.warn(
-        `[generatePlansRefactored] contentIdMap에 매핑되지 않은 ${excludedContents.length}개 콘텐츠가 플랜 생성에서 제외됩니다:`,
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        `contentIdMap에 매핑되지 않은 ${excludedContents.length}개 콘텐츠가 플랜 생성에서 제외됩니다`,
         {
           groupId,
           studentId,
@@ -1143,8 +1138,9 @@ async function _generatePlansFromGroupRefactored(
 
     // 제외된 콘텐츠 로그 기록
     if (excludedContents.length > 0) {
-      console.warn(
-        `[generatePlansRefactored] ${date} 플랜 생성 시 제외된 콘텐츠:`,
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        `${date} 플랜 생성 시 제외된 콘텐츠`,
         {
           date,
           excludedCount: excludedContents.length,
@@ -1285,11 +1281,11 @@ async function _generatePlansFromGroupRefactored(
     const virtualSlots = filterVirtualSlots(contentSlots);
 
     if (virtualSlots.length > 0) {
-      console.log("[generatePlansRefactored] 가상 플랜 생성 시작:", {
-        groupId,
-        totalSlots: contentSlots.length,
-        virtualSlots: virtualSlots.length,
-      });
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        "가상 플랜 생성 시작",
+        { groupId, totalSlots: contentSlots.length, virtualSlots: virtualSlots.length }
+      );
 
       // 일정 정보를 DailyScheduleInfo 형태로 변환
       const dailyScheduleInfos: DailyScheduleInfo[] =
@@ -1311,9 +1307,10 @@ async function _generatePlansFromGroupRefactored(
       );
 
       if (virtualTimelineResult.warnings.length > 0) {
-        console.warn(
-          "[generatePlansRefactored] 가상 타임라인 경고:",
-          virtualTimelineResult.warnings
+        logActionDebug(
+          { domain: "plan", action: "generatePlansRefactored" },
+          "가상 타임라인 경고",
+          { warnings: virtualTimelineResult.warnings }
         );
       }
 
@@ -1367,12 +1364,16 @@ async function _generatePlansFromGroupRefactored(
         });
       }
 
-      console.log("[generatePlansRefactored] 가상 플랜 생성 완료:", {
-        groupId,
-        realPlansCount: planPayloads.length - virtualPlanRecords.length,
-        virtualPlansCount: virtualPlanRecords.length,
-        totalPlansCount: planPayloads.length,
-      });
+      logActionDebug(
+        { domain: "plan", action: "generatePlansRefactored" },
+        "가상 플랜 생성 완료",
+        {
+          groupId,
+          realPlansCount: planPayloads.length - virtualPlanRecords.length,
+          virtualPlansCount: virtualPlanRecords.length,
+          totalPlansCount: planPayloads.length,
+        }
+      );
     }
   }
 
@@ -1406,13 +1407,10 @@ async function _generatePlansFromGroupRefactored(
   );
 
   if (invalidPayloads.length > 0) {
-    console.error(
-      "[_generatePlansFromGroupRefactored] 유효하지 않은 플랜 페이로드:",
-      {
-        invalidCount: invalidPayloads.length,
-        totalCount: planPayloads.length,
-        sampleInvalid: invalidPayloads[0],
-      }
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("유효하지 않은 플랜 페이로드"),
+      { invalidCount: invalidPayloads.length, totalCount: planPayloads.length, sampleInvalid: invalidPayloads[0] }
     );
     throw new AppError(
       `${invalidPayloads.length}개의 플랜에 필수 필드가 누락되었습니다.`,
@@ -1478,8 +1476,9 @@ async function _generatePlansFromGroupRefactored(
   let finalLecturesCheck = lecturesCheck;
 
   if (booksCheck.error || lecturesCheck.error) {
-    console.warn(
-      "[_generatePlansFromGroupRefactored] 콘텐츠 조회 실패, Admin 클라이언트로 재시도:",
+    logActionDebug(
+      { domain: "plan", action: "generatePlansRefactored" },
+      "콘텐츠 조회 실패, Admin 클라이언트로 재시도",
       {
         booksError: booksCheck.error?.message,
         lecturesError: lecturesCheck.error?.message,
@@ -1513,14 +1512,10 @@ async function _generatePlansFromGroupRefactored(
     // 재시도 후에도 에러가 있으면 데이터 무결성 보장을 위해 에러 발생
     // 빈 데이터로 계속 진행 시 모든 콘텐츠가 "존재하지 않음"으로 잘못 판단될 수 있음
     if (finalBooksCheck.error || finalLecturesCheck.error) {
-      console.error(
-        "[_generatePlansFromGroupRefactored] Admin 클라이언트로도 조회 실패:",
-        {
-          booksError: finalBooksCheck.error?.message,
-          lecturesError: finalLecturesCheck.error?.message,
-          groupId,
-          studentId,
-        }
+      logActionError(
+        { domain: "plan", action: "generatePlansRefactored" },
+        new Error("Admin 클라이언트로도 조회 실패"),
+        { booksError: finalBooksCheck.error?.message, lecturesError: finalLecturesCheck.error?.message, groupId, studentId }
       );
 
       throw new AppError(
@@ -1540,16 +1535,15 @@ async function _generatePlansFromGroupRefactored(
   const missingLectures = contentIdsByType.lecture.filter((id) => !existingLectureIds.has(id));
 
   if (missingBooks.length > 0 || missingLectures.length > 0) {
-    console.error(
-      "[_generatePlansFromGroupRefactored] 존재하지 않는 콘텐츠 발견:",
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("존재하지 않는 콘텐츠 발견"),
       {
         groupId,
         studentId,
         missingBooks,
         missingLectures,
         totalMissing: missingBooks.length + missingLectures.length,
-        booksCheckError: finalBooksCheck.error?.message,
-        lecturesCheckError: finalLecturesCheck.error?.message,
         message: "이 콘텐츠들은 플랜에서 제외됩니다.",
       }
     );
@@ -1579,8 +1573,9 @@ async function _generatePlansFromGroupRefactored(
       );
     }
 
-    console.warn(
-      `[generatePlansRefactored] 존재하지 않는 콘텐츠를 포함한 ${planPayloads.length - validPlanPayloads.length}개의 플랜이 제외되었습니다.`
+    logActionDebug(
+      { domain: "plan", action: "generatePlansRefactored" },
+      `존재하지 않는 콘텐츠를 포함한 ${planPayloads.length - validPlanPayloads.length}개의 플랜이 제외되었습니다`
     );
     
     // 유효한 플랜만 사용
@@ -1606,8 +1601,9 @@ async function _generatePlansFromGroupRefactored(
   );
 
   if (unverifiedPlans.length > 0) {
-    console.error(
-      "[_generatePlansFromGroupRefactored] 검증되지 않은 콘텐츠를 포함한 플랜 발견:",
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      new Error("검증되지 않은 콘텐츠를 포함한 플랜 발견"),
       {
         groupId,
         studentId,
@@ -1634,8 +1630,9 @@ async function _generatePlansFromGroupRefactored(
       );
     }
 
-    console.warn(
-      `[generatePlansRefactored] 검증되지 않은 콘텐츠를 포함한 ${planPayloads.length - finalValidPlanPayloads.length}개의 플랜이 제외되었습니다.`
+    logActionDebug(
+      { domain: "plan", action: "generatePlansRefactored" },
+      `검증되지 않은 콘텐츠를 포함한 ${planPayloads.length - finalValidPlanPayloads.length}개의 플랜이 제외되었습니다`
     );
 
     planPayloads.length = 0;
@@ -1669,8 +1666,9 @@ async function _generatePlansFromGroupRefactored(
         (p) => p.content_id === problematicContentId
       );
 
-      console.error(
-        "[_generatePlansFromGroupRefactored] 외래 키 제약 조건 위반:",
+      logActionError(
+        { domain: "plan", action: "generatePlansRefactored" },
+        new Error("외래 키 제약 조건 위반"),
         {
           groupId,
           studentId,
@@ -1704,10 +1702,11 @@ async function _generatePlansFromGroupRefactored(
       samplePayload: planPayloads[0], // 첫 번째 페이로드 샘플 (디버깅용)
     };
 
-    console.error("[_generatePlansFromGroupRefactored] 플랜 저장 실패:", {
-      ...errorDetails,
-      fullError: insertError,
-    });
+    logActionError(
+      { domain: "plan", action: "generatePlansRefactored" },
+      insertError,
+      { ...errorDetails, context: "플랜 저장 실패" }
+    );
 
     // 사용자 친화적인 에러 메시지 생성
     let userMessage = "플랜 저장에 실패했습니다.";
@@ -1742,8 +1741,9 @@ async function _generatePlansFromGroupRefactored(
 
   // 성공 시 로깅
   if (insertedData && insertedData.length > 0) {
-    console.log(
-      `[_generatePlansFromGroupRefactored] 플랜 저장 성공: ${insertedData.length}개 플랜 저장됨 (스케줄러 원본: ${scheduledPlans.length}개)`
+    logActionSuccess(
+      { domain: "plan", action: "generatePlansRefactored" },
+      { savedCount: insertedData.length, schedulerCount: scheduledPlans.length }
     );
   }
 
@@ -1757,9 +1757,10 @@ async function _generatePlansFromGroupRefactored(
       .eq("id", groupId);
 
     if (statusUpdateError) {
-      console.error(
-        "[_generatePlansFromGroupRefactored] 플랜 그룹 상태 변경 실패, 롤백 시도:",
-        statusUpdateError
+      logActionError(
+        { domain: "plan", action: "generatePlansRefactored" },
+        statusUpdateError,
+        { context: "플랜 그룹 상태 변경 실패, 롤백 시도", groupId }
       );
 
       // 삽입된 플랜 롤백 (compensating transaction)
@@ -1771,18 +1772,20 @@ async function _generatePlansFromGroupRefactored(
           .in("id", insertedPlanIds);
 
         if (rollbackError) {
-          console.error(
-            "[_generatePlansFromGroupRefactored] 플랜 롤백 실패 - 데이터 불일치 가능:",
+          logActionError(
+            { domain: "plan", action: "generatePlansRefactored" },
+            rollbackError,
             {
+              context: "플랜 롤백 실패 - 데이터 불일치 가능",
               groupId,
               insertedPlanIds,
               statusUpdateError: statusUpdateError.message,
-              rollbackError: rollbackError.message,
             }
           );
         } else {
-          console.log(
-            `[_generatePlansFromGroupRefactored] 플랜 롤백 완료: ${insertedPlanIds.length}개 플랜 삭제됨`
+          logActionDebug(
+            { domain: "plan", action: "generatePlansRefactored" },
+            `플랜 롤백 완료: ${insertedPlanIds.length}개 플랜 삭제됨`
           );
         }
       }
