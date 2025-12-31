@@ -22,6 +22,7 @@ import {
 } from "./types";
 import { getAvailableStudyDates, getReviewDates, distributeDailyAmounts } from "./helpers";
 import { getContentPlanGroupCount } from "./queries";
+import { logActionError, logActionSuccess, logActionWarn } from "@/lib/logging/actionLogger";
 
 // ============================================
 // Rollback Helper Functions
@@ -56,7 +57,11 @@ async function rollbackQuickCreate(
       .eq("plan_group_id", planGroupId);
     if (spErr) {
       errors.push(`student_plan 삭제 실패: ${spErr.message}`);
-      console.error("[rollbackQuickCreate] student_plan 삭제 실패:", spErr);
+      logActionError(
+        { domain: "plan", action: "rollbackQuickCreate" },
+        spErr,
+        { planGroupId, step: "student_plan" }
+      );
     }
   }
 
@@ -68,7 +73,11 @@ async function rollbackQuickCreate(
       .eq("plan_group_id", planGroupId);
     if (pcErr) {
       errors.push(`plan_contents 삭제 실패: ${pcErr.message}`);
-      console.error("[rollbackQuickCreate] plan_contents 삭제 실패:", pcErr);
+      logActionError(
+        { domain: "plan", action: "rollbackQuickCreate" },
+        pcErr,
+        { planGroupId, step: "plan_contents" }
+      );
     }
   }
 
@@ -80,12 +89,20 @@ async function rollbackQuickCreate(
       .eq("id", planGroupId);
     if (pgErr) {
       errors.push(`plan_groups 삭제 실패: ${pgErr.message}`);
-      console.error("[rollbackQuickCreate] plan_groups 삭제 실패:", pgErr);
+      logActionError(
+        { domain: "plan", action: "rollbackQuickCreate" },
+        pgErr,
+        { planGroupId, step: "plan_groups" }
+      );
     }
   }
 
   if (errors.length > 0) {
-    console.error("[rollbackQuickCreate] 롤백 중 일부 실패:", errors);
+    logActionWarn(
+      { domain: "plan", action: "rollbackQuickCreate" },
+      "롤백 중 일부 실패",
+      { planGroupId, errors }
+    );
   }
 
   return { success: errors.length === 0, errors };
@@ -121,7 +138,11 @@ async function ensureStudentContent(
       .maybeSingle();
 
     if (error) {
-      console.error(`[ensureStudentContent] student_custom_contents 조회 실패:`, error);
+      logActionError(
+        { domain: "plan", action: "ensureStudentContent" },
+        error,
+        { contentId, contentType, studentId }
+      );
       return { success: false, error: "콘텐츠 정보를 확인할 수 없습니다." };
     }
 
@@ -145,7 +166,11 @@ async function ensureStudentContent(
     .maybeSingle();
 
   if (studentError) {
-    console.error(`[ensureStudentContent] ${tableName} 조회 실패:`, studentError);
+    logActionError(
+      { domain: "plan", action: "ensureStudentContent" },
+      studentError,
+      { contentId, contentType, studentId, tableName }
+    );
     return { success: false, error: "콘텐츠 정보를 확인할 수 없습니다." };
   }
 
@@ -163,7 +188,11 @@ async function ensureStudentContent(
     .maybeSingle();
 
   if (masterError) {
-    console.error(`[ensureStudentContent] ${masterTableName} 조회 실패:`, masterError);
+    logActionError(
+      { domain: "plan", action: "ensureStudentContent" },
+      masterError,
+      { contentId, contentType, masterTableName }
+    );
     return { success: false, error: "마스터 콘텐츠 정보를 확인할 수 없습니다." };
   }
 
@@ -175,15 +204,25 @@ async function ensureStudentContent(
   try {
     if (contentType === "book") {
       const result = await copyMasterBookToStudent(contentId, studentId, tenantId);
-      console.log(`[ensureStudentContent] 마스터 교재 복사 완료: ${contentId} → ${result.bookId}`);
+      logActionSuccess(
+        { domain: "plan", action: "ensureStudentContent" },
+        { masterContentId: contentId, studentContentId: result.bookId, contentType: "book" }
+      );
       return { success: true, studentContentId: result.bookId };
     } else {
       const result = await copyMasterLectureToStudent(contentId, studentId, tenantId);
-      console.log(`[ensureStudentContent] 마스터 강의 복사 완료: ${contentId} → ${result.lectureId}`);
+      logActionSuccess(
+        { domain: "plan", action: "ensureStudentContent" },
+        { masterContentId: contentId, studentContentId: result.lectureId, contentType: "lecture" }
+      );
       return { success: true, studentContentId: result.lectureId };
     }
   } catch (copyError) {
-    console.error(`[ensureStudentContent] 마스터 콘텐츠 복사 실패:`, copyError);
+    logActionError(
+      { domain: "plan", action: "ensureStudentContent" },
+      copyError,
+      { contentId, contentType, step: "copyMasterContent" }
+    );
     return {
       success: false,
       error: copyError instanceof Error ? copyError.message : "콘텐츠 복사에 실패했습니다.",
@@ -279,7 +318,11 @@ export async function quickCreateFromContent(
       .single();
 
     if (pgError || !planGroup) {
-      console.error("Quick create plan group error:", pgError);
+      logActionError(
+        { domain: "plan", action: "quickCreateFromContent" },
+        pgError ?? new Error("planGroup is null"),
+        { userId: user.userId, step: "plan_groups" }
+      );
       return { success: false, error: "플랜그룹 생성에 실패했습니다." };
     }
 
@@ -298,7 +341,11 @@ export async function quickCreateFromContent(
     });
 
     if (pcError) {
-      console.error("Quick create plan content error:", pcError);
+      logActionError(
+        { domain: "plan", action: "quickCreateFromContent" },
+        pcError,
+        { planGroupId: planGroup.id, step: "plan_contents" }
+      );
       // 롤백: plan_group만 삭제 (plan_contents는 생성 실패)
       const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
         deleteStudentPlans: false,
@@ -306,7 +353,11 @@ export async function quickCreateFromContent(
         deletePlanGroup: true,
       });
       if (!rollback.success) {
-        console.error("Rollback partial failure:", rollback.errors);
+        logActionWarn(
+          { domain: "plan", action: "quickCreateFromContent" },
+          "Rollback partial failure",
+          { planGroupId: planGroup.id, errors: rollback.errors }
+        );
       }
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
     }
@@ -361,7 +412,11 @@ export async function quickCreateFromContent(
       .insert(studentPlansToInsert);
 
     if (spError) {
-      console.error("Quick create student plans error:", spError);
+      logActionError(
+        { domain: "plan", action: "quickCreateFromContent" },
+        spError,
+        { planGroupId: planGroup.id, step: "student_plan" }
+      );
       // 롤백: plan_contents와 plan_groups 삭제 (student_plan은 생성 실패)
       const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
         deleteStudentPlans: false,
@@ -369,7 +424,11 @@ export async function quickCreateFromContent(
         deletePlanGroup: true,
       });
       if (!rollback.success) {
-        console.error("Rollback partial failure:", rollback.errors);
+        logActionWarn(
+          { domain: "plan", action: "quickCreateFromContent" },
+          "Rollback partial failure",
+          { planGroupId: planGroup.id, errors: rollback.errors }
+        );
       }
       return { success: false, error: "플랜 생성에 실패했습니다." };
     }
@@ -466,7 +525,11 @@ export async function quickCreateFromContent(
       },
     };
   } catch (error) {
-    console.error("Quick create error:", error);
+    logActionError(
+      { domain: "plan", action: "quickCreateFromContent" },
+      error,
+      { userId: user.userId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
@@ -514,7 +577,11 @@ export async function createQuickPlan(
         .single();
 
       if (fcError || !flexibleContent) {
-        console.error("Failed to create flexible content:", fcError);
+        logActionError(
+          { domain: "plan", action: "createQuickPlan" },
+          fcError ?? new Error("flexibleContent is null"),
+          { userId: user.userId, step: "flexible_contents" }
+        );
         return {
           success: false,
           error: fcError?.message ?? "자유 학습 콘텐츠 생성에 실패했습니다.",
@@ -554,7 +621,11 @@ export async function createQuickPlan(
       .single();
 
     if (groupError || !planGroup) {
-      console.error("Failed to create quick plan group:", groupError);
+      logActionError(
+        { domain: "plan", action: "createQuickPlan" },
+        groupError ?? new Error("planGroup is null"),
+        { userId: user.userId, step: "plan_groups" }
+      );
       return {
         success: false,
         error: groupError?.message ?? "플랜그룹 생성에 실패했습니다.",
@@ -589,7 +660,11 @@ export async function createQuickPlan(
       .single();
 
     if (planError || !plan) {
-      console.error("Failed to create quick plan:", planError);
+      logActionError(
+        { domain: "plan", action: "createQuickPlan" },
+        planError ?? new Error("plan is null"),
+        { planGroupId: planGroup.id, step: "student_plan" }
+      );
       // 롤백: plan_group 삭제
       const rollback = await rollbackQuickCreate(supabase, planGroup.id, {
         deleteStudentPlans: false,
@@ -597,7 +672,11 @@ export async function createQuickPlan(
         deletePlanGroup: true,
       });
       if (!rollback.success) {
-        console.error("Rollback partial failure:", rollback.errors);
+        logActionWarn(
+          { domain: "plan", action: "createQuickPlan" },
+          "Rollback partial failure",
+          { planGroupId: planGroup.id, errors: rollback.errors }
+        );
       }
       // 자유 학습인 경우 flexible_contents도 삭제
       if (isFreeLearning) {
@@ -606,7 +685,11 @@ export async function createQuickPlan(
           .delete()
           .eq("id", resolvedContentId);
         if (fcDeleteError) {
-          console.error("Failed to rollback flexible content:", fcDeleteError);
+          logActionError(
+            { domain: "plan", action: "createQuickPlan" },
+            fcDeleteError,
+            { resolvedContentId, step: "rollback_flexible_contents" }
+          );
         }
       }
       return {
@@ -626,7 +709,11 @@ export async function createQuickPlan(
       flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
     };
   } catch (error) {
-    console.error("createQuickPlan error:", error);
+    logActionError(
+      { domain: "plan", action: "createQuickPlan" },
+      error,
+      { userId: user.userId }
+    );
     return {
       success: false,
       error:
