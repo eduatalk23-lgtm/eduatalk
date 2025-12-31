@@ -14,6 +14,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { TIMER_ERRORS } from "../errors";
 import type {
   StartPlanResult,
@@ -48,7 +49,7 @@ export async function startAdHocPlan(
       .maybeSingle();
 
     if (planError) {
-      console.error("[adHocTimer] 플랜 조회 오류:", planError);
+      logActionError({ domain: "today", action: "startAdHocPlan.fetch" }, planError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
     }
 
@@ -116,7 +117,7 @@ export async function startAdHocPlan(
       .eq("student_id", user.userId);
 
     if (updateError) {
-      console.error("[adHocTimer] 플랜 업데이트 오류:", updateError);
+      logActionError({ domain: "today", action: "startAdHocPlan.update" }, updateError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_UPDATE_FAILED };
     }
 
@@ -131,7 +132,7 @@ export async function startAdHocPlan(
       accumulatedSeconds: 0,
     };
   } catch (error) {
-    console.error("[adHocTimer] 플랜 시작 실패:", error);
+    logActionError({ domain: "today", action: "startAdHocPlan" }, error, { adHocPlanId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 시작에 실패했습니다.",
@@ -167,7 +168,7 @@ export async function completeAdHocPlan(
       .maybeSingle();
 
     if (planError) {
-      console.error("[adHocTimer] 플랜 조회 오류:", planError);
+      logActionError({ domain: "today", action: "startAdHocPlan.fetch" }, planError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_QUERY_ERROR };
     }
 
@@ -202,7 +203,7 @@ export async function completeAdHocPlan(
       .eq("student_id", user.userId);
 
     if (updateError) {
-      console.error("[adHocTimer] 플랜 완료 오류:", updateError);
+      logActionError({ domain: "today", action: "completeAdHocPlan.update" }, updateError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_UPDATE_FAILED };
     }
 
@@ -220,7 +221,7 @@ export async function completeAdHocPlan(
       startedAt: adHocPlan.started_at,
     };
   } catch (error) {
-    console.error("[adHocTimer] 플랜 완료 실패:", error);
+    logActionError({ domain: "today", action: "completeAdHocPlan" }, error, { adHocPlanId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 완료에 실패했습니다.",
@@ -289,7 +290,7 @@ export async function getAdHocPlanStatus(adHocPlanId: string): Promise<{
       accumulatedSeconds,
     };
   } catch (error) {
-    console.error("[adHocTimer] 상태 조회 실패:", error);
+    logActionError({ domain: "today", action: "getAdHocPlanStatus" }, error, { adHocPlanId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "상태 조회에 실패했습니다.",
@@ -347,7 +348,7 @@ export async function cancelAdHocPlan(adHocPlanId: string): Promise<{
       .eq("student_id", user.userId);
 
     if (updateError) {
-      console.error("[adHocTimer] 플랜 취소 오류:", updateError);
+      logActionError({ domain: "today", action: "cancelAdHocPlan.update" }, updateError, { adHocPlanId });
       return { success: false, error: TIMER_ERRORS.PLAN_UPDATE_FAILED };
     }
 
@@ -356,7 +357,7 @@ export async function cancelAdHocPlan(adHocPlanId: string): Promise<{
 
     return { success: true };
   } catch (error) {
-    console.error("[adHocTimer] 플랜 취소 실패:", error);
+    logActionError({ domain: "today", action: "cancelAdHocPlan" }, error, { adHocPlanId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 취소에 실패했습니다.",

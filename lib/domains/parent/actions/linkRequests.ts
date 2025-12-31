@@ -9,6 +9,7 @@ import { checkAutoApproveConditions } from "@/lib/utils/autoApprove";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 import type { SearchableStudent, LinkRequest, ParentRelation } from "../types";
 
@@ -73,7 +74,7 @@ async function _searchStudentsForLink(
     .eq("parent_id", parentId);
 
   if (linksError) {
-    console.error("[parent/linkRequest] 기존 연결 조회 실패", linksError);
+    logActionError({ domain: "parent", action: "searchStudentsForLink" }, linksError);
     // 에러가 있어도 계속 진행 (RLS 정책 문제일 수 있음)
   }
 
@@ -153,7 +154,7 @@ async function _createLinkRequest(
     .maybeSingle();
 
   if (checkError && checkError.code !== "PGRST116") {
-    console.error("[parent/linkRequest] 중복 체크 실패", checkError);
+    logActionError({ domain: "parent", action: "createLinkRequest.checkDuplicate" }, checkError);
     throw new AppError(
       "연결 확인 중 오류가 발생했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -199,12 +200,12 @@ async function _createLinkRequest(
   const { data: parent, error: parentError } = parentResult;
 
   if (studentError) {
-    console.error("[parent/linkRequest] 학생 정보 조회 실패", studentError);
+    logActionError({ domain: "parent", action: "createLinkRequest.fetchStudent" }, studentError);
     // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
   }
 
   if (parentError) {
-    console.error("[parent/linkRequest] 학부모 정보 조회 실패", parentError);
+    logActionError({ domain: "parent", action: "createLinkRequest.fetchParent" }, parentError);
     // 에러가 있어도 계속 진행 (자동 승인 실패 시 수동 승인으로 폴백)
   }
 
@@ -230,7 +231,7 @@ async function _createLinkRequest(
         );
       }
     } catch (error) {
-      console.error("[parent/linkRequest] 자동 승인 설정 조회 실패", error);
+      logActionError({ domain: "parent", action: "createLinkRequest.autoApprove" }, error);
       // 에러 발생 시 수동 승인으로 폴백
     }
   }
@@ -270,7 +271,7 @@ async function _createLinkRequest(
       );
     }
 
-    console.error("[parent/linkRequest] 연결 요청 생성 실패", error);
+    logActionError({ domain: "parent", action: "createLinkRequest" }, error);
     throw new AppError(
       error.message || "연결 요청 생성에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -331,7 +332,7 @@ async function _getLinkRequests(parentId: string): Promise<LinkRequest[]> {
   }
 
   if (error) {
-    console.error("[parent/linkRequest] 요청 목록 조회 실패", error);
+    logActionError({ domain: "parent", action: "getLinkRequests" }, error);
     throw new AppError(
       error.message || "요청 목록을 조회할 수 없습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -408,7 +409,7 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
     .maybeSingle();
 
   if (fetchError) {
-    console.error("[parent/linkRequest] 요청 조회 실패", fetchError);
+    logActionError({ domain: "parent", action: "cancelLinkRequest.fetch" }, fetchError);
     throw new AppError(
       "요청 정보를 찾을 수 없습니다.",
       ErrorCode.NOT_FOUND,
@@ -439,7 +440,7 @@ async function _cancelLinkRequest(requestId: string, parentId: string): Promise<
     .eq("parent_id", parentId);
 
   if (error) {
-    console.error("[parent/linkRequest] 요청 취소 실패", error);
+    logActionError({ domain: "parent", action: "cancelLinkRequest" }, error);
     throw new AppError(
       error.message || "요청 취소에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
