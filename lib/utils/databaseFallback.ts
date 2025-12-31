@@ -9,7 +9,6 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import {
   ErrorCodeCheckers,
   POSTGREST_ERROR_CODES,
-  POSTGRES_ERROR_CODES,
 } from "@/lib/constants/errorCodes";
 
 // Deprecated 함수들은 제거되었습니다.

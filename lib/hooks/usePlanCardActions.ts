@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { usePlanTimerStore, type TimerStatus } from "@/lib/store/planTimerStore";
+import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { useToast } from "@/components/ui/ToastProvider";
 import { calculateTimerState, type TimerState } from "@/lib/utils/timerStateCalculator";
 import { buildPlanExecutionUrl } from "@/app/(student)/today/_utils/navigationUtils";

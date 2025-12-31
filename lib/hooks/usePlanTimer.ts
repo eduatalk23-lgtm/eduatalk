@@ -14,7 +14,7 @@
  * 3. 서버-클라이언트 시간 차이가 큰 경우 동기화
  */
 
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";

@@ -7,7 +7,7 @@
  * Step1BasicInfo 등에서 사용합니다.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   getTodayParts,
   parseDateString,

@@ -5,7 +5,6 @@
  * 일관된 에러 메시지 패턴을 제공합니다.
  */
 
-import type { PostgrestError } from "@supabase/supabase-js";
 import { isPostgrestError } from "@/lib/types/errors";
 
 // ============================================================================
