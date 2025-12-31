@@ -151,6 +151,30 @@ export async function startPlan(
       };
     }
 
+    // [경합 방지 규칙 1-b] Ad-hoc 플랜 동시 실행 금지
+    // Ad-hoc 플랜이 진행 중인지 확인
+    const { data: activeAdHocPlans, error: adHocError } = await supabase
+      .from("ad_hoc_plans")
+      .select("id")
+      .eq("student_id", user.userId)
+      .eq("status", "in_progress");
+
+    if (adHocError) {
+      timerLogger.error("Ad-hoc 플랜 조회 오류", {
+        action: "startPlan",
+        id: planId,
+        error: adHocError instanceof Error ? adHocError : new Error(String(adHocError)),
+      });
+      return { success: false, error: TIMER_ERRORS.SESSION_QUERY_ERROR };
+    }
+
+    if (activeAdHocPlans && activeAdHocPlans.length > 0) {
+      return {
+        success: false,
+        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+      };
+    }
+
     // 학습 세션 시작 (내부에서 플랜 조회 및 검증 수행)
     // Race Condition은 DB 레벨 유니크 제약(idx_unique_active_session_per_student)으로 방지
     const result = await startStudySession(planId);
@@ -973,6 +997,30 @@ export async function resumePlan(
         return { success: false, error: "일시정지된 상태가 아닙니다." };
       }
       return { success: false, error: validationError };
+    }
+
+    // [경합 방지 규칙 1-b] Ad-hoc 플랜 동시 실행 금지
+    // 재개 시에도 활성 Ad-hoc 플랜이 있으면 차단
+    const { data: activeAdHocPlans, error: adHocError } = await supabase
+      .from("ad_hoc_plans")
+      .select("id")
+      .eq("student_id", user.userId)
+      .eq("status", "in_progress");
+
+    if (adHocError) {
+      timerLogger.error("Ad-hoc 플랜 조회 오류", {
+        action: "resumePlan",
+        id: planId,
+        error: adHocError instanceof Error ? adHocError : new Error(String(adHocError)),
+      });
+      return { success: false, error: TIMER_ERRORS.SESSION_QUERY_ERROR };
+    }
+
+    if (activeAdHocPlans && activeAdHocPlans.length > 0) {
+      return {
+        success: false,
+        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+      };
     }
 
     const pausedAt = new Date(activeSession.paused_at!);

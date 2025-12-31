@@ -90,4 +90,38 @@ async function checkTimeConflict(
 
 ---
 
-*생성일: 2025-12-31*
+---
+
+## 5. 타이머 교차 타입 활성 체크 추가 (MEDIUM)
+
+### 파일
+`lib/domains/today/actions/timer.ts`
+
+### 문제점
+- `startPlan()`과 `resumePlan()`이 활성 `ad_hoc_plans`를 체크하지 않음
+- 학생이 ad_hoc_plan 실행 중에도 student_plan 시작/재개 가능
+
+### 수정 내용
+```typescript
+// [경합 방지 규칙 1-b] Ad-hoc 플랜 동시 실행 금지
+const { data: activeAdHocPlans, error: adHocError } = await supabase
+  .from("ad_hoc_plans")
+  .select("id")
+  .eq("student_id", user.userId)
+  .eq("status", "in_progress");
+
+if (activeAdHocPlans && activeAdHocPlans.length > 0) {
+  return {
+    success: false,
+    error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+  };
+}
+```
+
+### 적용 함수
+- `startPlan()` - line 154-176
+- `resumePlan()` - line 1002-1024
+
+---
+
+*마지막 업데이트: 2025-12-31*
