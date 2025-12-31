@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -46,7 +47,11 @@ async function rollbackPlanGroupCreation(
   groupId: string,
   studentId: string
 ): Promise<void> {
-  console.log("[rollback] 플랜 그룹 롤백 시작:", { groupId, studentId });
+  logActionDebug(
+    { domain: "plan", action: "rollbackPlanGroupCreation" },
+    "플랜 그룹 롤백 시작",
+    { groupId, studentId }
+  );
 
   try {
     // 1. 모든 자식 테이블 데이터 삭제 (병렬 처리, 개별 에러 처리)
@@ -62,15 +67,26 @@ async function rollbackPlanGroupCreation(
     const tableNames = ["student_plan", "plan_group_items", "plan_contents", "plan_exclusions", "academy_schedules"];
     deleteResults.forEach((result, index) => {
       if (result.status === "rejected") {
-        console.error(`[rollback] ${tableNames[index]} 삭제 실패:`, result.reason);
+        logActionError(
+          { domain: "plan", action: "rollbackPlanGroupCreation" },
+          result.reason,
+          { table: tableNames[index], groupId }
+        );
       }
     });
 
     // 2. plan_group 삭제 (soft delete)
     await deletePlanGroup(groupId, studentId);
-    console.log("[rollback] 플랜 그룹 롤백 완료:", groupId);
+    logActionSuccess(
+      { domain: "plan", action: "rollbackPlanGroupCreation" },
+      { groupId }
+    );
   } catch (error) {
-    console.error("[rollback] 플랜 그룹 롤백 실패:", error);
+    logActionError(
+      { domain: "plan", action: "rollbackPlanGroupCreation" },
+      error,
+      { groupId, studentId }
+    );
     // 롤백 실패는 무시하고 원래 에러를 전파
   }
 }
@@ -156,7 +172,11 @@ async function createPlanGroupAtomic(
   });
 
   if (error) {
-    console.error("[atomic-create] RPC 호출 실패:", error);
+    logActionError(
+      { domain: "plan", action: "createPlanGroupAtomic" },
+      error,
+      { tenantId, studentId, errorCode: error.code }
+    );
     return {
       success: false,
       error: error.message,
@@ -168,7 +188,11 @@ async function createPlanGroupAtomic(
   const result = data as { success: boolean; group_id?: string; error?: string; error_code?: string };
 
   if (!result.success) {
-    console.error("[atomic-create] 원자적 생성 실패:", result);
+    logActionError(
+      { domain: "plan", action: "createPlanGroupAtomic" },
+      result.error,
+      { tenantId, studentId, errorCode: result.error_code }
+    );
     return {
       success: false,
       error: result.error || "원자적 플랜 그룹 생성에 실패했습니다.",
@@ -176,7 +200,10 @@ async function createPlanGroupAtomic(
     };
   }
 
-  console.log("[atomic-create] 원자적 플랜 그룹 생성 성공:", result.group_id);
+  logActionSuccess(
+    { domain: "plan", action: "createPlanGroupAtomic" },
+    { groupId: result.group_id, tenantId, studentId }
+  );
   return {
     success: true,
     groupId: result.group_id,
@@ -297,10 +324,11 @@ async function _createPlanGroup(
           ...mergedSchedulerOptions,
           subject_allocations: generatedAllocations,
         };
-        console.log("[_createPlanGroup] Dual Write: content_slots에서 subject_allocations 자동 생성", {
-          slotCount: data.content_slots.length,
-          allocationCount: generatedAllocations.length,
-        });
+        logActionDebug(
+          { domain: "plan", action: "createPlanGroup", userId: studentId },
+          "Dual Write: content_slots에서 subject_allocations 자동 생성",
+          { slotCount: data.content_slots.length, allocationCount: generatedAllocations.length }
+        );
       }
     }
   }
@@ -311,12 +339,11 @@ async function _createPlanGroup(
   if (subjectAllocations || contentAllocations) {
     const validation = validateAllocations(contentAllocations, subjectAllocations);
     if (!validation.valid) {
-      console.warn("[_createPlanGroup] 전략과목/취약과목 설정 검증 실패:", {
-        errors: validation.errors,
-        subjectAllocations,
-        contentAllocations,
-      });
-      // 검증 실패 시에도 계속 진행하되, 경고만 출력
+      logActionDebug(
+        { domain: "plan", action: "createPlanGroup", userId: studentId },
+        "전략과목/취약과목 설정 검증 실패 (계속 진행)",
+        { errors: validation.errors, subjectAllocations, contentAllocations }
+      );
     }
   }
 
@@ -371,7 +398,11 @@ async function _createPlanGroup(
       .maybeSingle();
 
     if (campGroupError && campGroupError.code !== "PGRST116") {
-      console.warn("[_createPlanGroup] 캠프 플랜 그룹 확인 중 에러 (무시하고 계속 진행):", campGroupError);
+      logActionDebug(
+        { domain: "plan", action: "createPlanGroup", userId: studentId },
+        "캠프 플랜 그룹 확인 중 에러 (무시하고 계속 진행)",
+        { error: campGroupError }
+      );
     } else if (existingCampGroup) {
       // 기존 캠프 플랜 그룹이 있으면 업데이트
       await updatePlanGroupDraftAction(existingCampGroup.id, data);
@@ -1102,7 +1133,11 @@ async function _saveCalendarOnlyPlanGroup(
 
     if (!exclusionsResult.success) {
       // 실패해도 그룹은 생성되었으므로 경고만 로깅
-      console.warn("[saveCalendarOnlyPlanGroup] 제외일 저장 실패:", exclusionsResult.error);
+      logActionDebug(
+        { domain: "plan", action: "saveCalendarOnlyPlanGroup" },
+        "제외일 저장 실패",
+        { error: exclusionsResult.error }
+      );
     }
   }
 
