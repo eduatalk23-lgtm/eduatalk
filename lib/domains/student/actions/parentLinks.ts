@@ -8,6 +8,7 @@ import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { revalidatePath } from "next/cache";
 import { PARENT_STUDENT_LINK_MESSAGES } from "@/lib/constants/parentStudentLinkMessages";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // 타입 정의
 export type StudentParent = {
@@ -129,7 +130,11 @@ export async function getStudentParents(
     }
 
     if (error) {
-      console.error("[admin/parentStudentLink] 학부모 목록 조회 실패", error);
+      logActionError(
+        { domain: "student", action: "getStudentParents" },
+        error,
+        { studentId }
+      );
       return {
         success: false,
         error: error.message || "학부모 목록을 조회할 수 없습니다.",
@@ -158,7 +163,11 @@ export async function getStudentParents(
 
     return { success: true, data: parents };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 학부모 목록 조회 중 오류", error);
+    logActionError(
+      { domain: "student", action: "getStudentParents" },
+      error,
+      { studentId }
+    );
     return {
       success: false,
       error: "학부모 목록을 조회하는 중 오류가 발생했습니다.",
@@ -213,7 +222,11 @@ export async function searchParents(
     }
 
     if (error) {
-      console.error("[admin/parentStudentLink] 학부모 검색 실패", error);
+      logActionError(
+        { domain: "student", action: "searchParents" },
+        error,
+        { query, tenantId }
+      );
       return {
         success: false,
         error: error.message || "학부모 검색에 실패했습니다.",
@@ -239,7 +252,11 @@ export async function searchParents(
 
     return { success: true, data: searchResults };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 학부모 검색 중 오류", error);
+    logActionError(
+      { domain: "student", action: "searchParents" },
+      error,
+      { query, tenantId }
+    );
     return {
       success: false,
       error: "학부모 검색 중 오류가 발생했습니다.",
@@ -284,7 +301,11 @@ export async function createParentStudentLink(
       .maybeSingle();
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.error("[admin/parentStudentLink] 중복 체크 실패", checkError);
+      logActionError(
+        { domain: "student", action: "createParentStudentLink" },
+        checkError,
+        { studentId, parentId, relation }
+      );
       return {
         success: false,
         error: "연결 확인 중 오류가 발생했습니다.",
@@ -318,7 +339,11 @@ export async function createParentStudentLink(
         };
       }
 
-      console.error("[admin/parentStudentLink] 연결 생성 실패", error);
+      logActionError(
+        { domain: "student", action: "createParentStudentLink" },
+        error,
+        { studentId, parentId, relation }
+      );
       return {
         success: false,
         error: error.message || "연결 생성에 실패했습니다.",
@@ -330,7 +355,11 @@ export async function createParentStudentLink(
 
     return { success: true, linkId: data.id };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 연결 생성 중 오류", error);
+    logActionError(
+      { domain: "student", action: "createParentStudentLink" },
+      error,
+      { studentId, parentId, relation }
+    );
     return {
       success: false,
       error: "연결 생성 중 오류가 발생했습니다.",
@@ -372,7 +401,11 @@ export async function deleteParentStudentLink(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[admin/parentStudentLink] 연결 조회 실패", fetchError);
+      logActionError(
+        { domain: "student", action: "deleteParentStudentLink" },
+        fetchError,
+        { linkId }
+      );
       return {
         success: false,
         error: "연결 정보를 찾을 수 없습니다.",
@@ -396,7 +429,11 @@ export async function deleteParentStudentLink(
       .select();
 
     if (error) {
-      console.error("[admin/parentStudentLink] 연결 삭제 실패", error);
+      logActionError(
+        { domain: "student", action: "deleteParentStudentLink" },
+        error,
+        { linkId }
+      );
       return {
         success: false,
         error: error.message || "연결 삭제에 실패했습니다.",
@@ -415,7 +452,11 @@ export async function deleteParentStudentLink(
 
     return { success: true };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 연결 삭제 중 오류", error);
+    logActionError(
+      { domain: "student", action: "deleteParentStudentLink" },
+      error,
+      { linkId }
+    );
     return {
       success: false,
       error: "연결 삭제 중 오류가 발생했습니다.",
@@ -472,7 +513,11 @@ export async function updateLinkRelation(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[admin/parentStudentLink] 연결 조회 실패", fetchError);
+      logActionError(
+        { domain: "student", action: "updateLinkRelation" },
+        fetchError,
+        { linkId, relation }
+      );
       return {
         success: false,
         error: "연결 정보를 찾을 수 없습니다.",
@@ -496,7 +541,11 @@ export async function updateLinkRelation(
       .select();
 
     if (error) {
-      console.error("[admin/parentStudentLink] 관계 수정 실패", error);
+      logActionError(
+        { domain: "student", action: "updateLinkRelation" },
+        error,
+        { linkId, relation }
+      );
       return {
         success: false,
         error: error.message || "관계 수정에 실패했습니다.",
@@ -515,7 +564,11 @@ export async function updateLinkRelation(
 
     return { success: true };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 관계 수정 중 오류", error);
+    logActionError(
+      { domain: "student", action: "updateLinkRelation" },
+      error,
+      { linkId, relation }
+    );
     return {
       success: false,
       error: "관계 수정 중 오류가 발생했습니다.",
@@ -547,9 +600,10 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
         .eq("tenant_id", targetTenantId);
 
       if (studentsError) {
-        console.error(
-          "[admin/parentStudentLink] 학생 목록 조회 실패",
-          studentsError
+        logActionError(
+          { domain: "student", action: "getPendingLinkRequests" },
+          studentsError,
+          { tenantId: targetTenantId }
         );
         return {
           success: false,
@@ -605,9 +659,10 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
     }
 
     if (error) {
-      console.error(
-        "[admin/parentStudentLink] 승인 대기 요청 조회 실패",
-        error
+      logActionError(
+        { domain: "student", action: "getPendingLinkRequests" },
+        error,
+        { tenantId: targetTenantId }
       );
       return {
         success: false,
@@ -666,9 +721,10 @@ export async function getPendingLinkRequests(tenantId?: string): Promise<{
 
     return { success: true, data: requests };
   } catch (error) {
-    console.error(
-      "[admin/parentStudentLink] 승인 대기 요청 조회 중 오류",
-      error
+    logActionError(
+      { domain: "student", action: "getPendingLinkRequests" },
+      error,
+      { tenantId: targetTenantId }
     );
     return {
       success: false,
@@ -711,7 +767,11 @@ export async function approveLinkRequest(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[admin/parentStudentLink] 요청 조회 실패", fetchError);
+      logActionError(
+        { domain: "student", action: "approveLinkRequest" },
+        fetchError,
+        { linkId }
+      );
       return {
         success: false,
         error: PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR,
@@ -744,7 +804,11 @@ export async function approveLinkRequest(
       .select();
 
     if (error) {
-      console.error("[admin/parentStudentLink] 요청 승인 실패", error);
+      logActionError(
+        { domain: "student", action: "approveLinkRequest" },
+        error,
+        { linkId }
+      );
       return {
         success: false,
         error: error.message || "요청 승인에 실패했습니다.",
@@ -763,7 +827,11 @@ export async function approveLinkRequest(
 
     return { success: true };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 요청 승인 중 오류", error);
+    logActionError(
+      { domain: "student", action: "approveLinkRequest" },
+      error,
+      { linkId }
+    );
     return {
       success: false,
       error: "요청 승인 중 오류가 발생했습니다.",
@@ -805,7 +873,11 @@ export async function rejectLinkRequest(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("[admin/parentStudentLink] 요청 조회 실패", fetchError);
+      logActionError(
+        { domain: "student", action: "rejectLinkRequest" },
+        fetchError,
+        { linkId }
+      );
       return {
         success: false,
         error: PARENT_STUDENT_LINK_MESSAGES.errors.FETCH_ERROR,
@@ -829,7 +901,11 @@ export async function rejectLinkRequest(
       .select();
 
     if (error) {
-      console.error("[admin/parentStudentLink] 요청 거부 실패", error);
+      logActionError(
+        { domain: "student", action: "rejectLinkRequest" },
+        error,
+        { linkId }
+      );
       return {
         success: false,
         error: error.message || "요청 거부에 실패했습니다.",
@@ -848,7 +924,11 @@ export async function rejectLinkRequest(
 
     return { success: true };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 요청 거부 중 오류", error);
+    logActionError(
+      { domain: "student", action: "rejectLinkRequest" },
+      error,
+      { linkId }
+    );
     return {
       success: false,
       error: "요청 거부 중 오류가 발생했습니다.",
@@ -955,10 +1035,11 @@ export async function approveLinkRequests(linkIds: string[]): Promise<{
         }
 
         return { linkId, error: null, link };
-      } catch (error) {
-        console.error(
-          `[admin/parentStudentLink] 요청 승인 중 오류 (linkId: ${linkId})`,
-          error
+      } catch (err) {
+        logActionError(
+          { domain: "student", action: "approveLinkRequests" },
+          err,
+          { linkId }
         );
         return {
           linkId,
@@ -994,7 +1075,11 @@ export async function approveLinkRequests(linkIds: string[]): Promise<{
       errors: errors.length > 0 ? errors : undefined,
     };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 일괄 승인 중 오류", error);
+    logActionError(
+      { domain: "student", action: "approveLinkRequests" },
+      error,
+      { linkIds }
+    );
     return {
       success: false,
       approvedCount: 0,
@@ -1092,10 +1177,11 @@ export async function rejectLinkRequests(linkIds: string[]): Promise<{
         }
 
         return { linkId, error: null, studentId };
-      } catch (error) {
-        console.error(
-          `[admin/parentStudentLink] 요청 거부 중 오류 (linkId: ${linkId})`,
-          error
+      } catch (err) {
+        logActionError(
+          { domain: "student", action: "rejectLinkRequests" },
+          err,
+          { linkId }
         );
         return {
           linkId,
@@ -1131,7 +1217,11 @@ export async function rejectLinkRequests(linkIds: string[]): Promise<{
       errors: errors.length > 0 ? errors : undefined,
     };
   } catch (error) {
-    console.error("[admin/parentStudentLink] 일괄 거부 중 오류", error);
+    logActionError(
+      { domain: "student", action: "rejectLinkRequests" },
+      error,
+      { linkIds }
+    );
     return {
       success: false,
       rejectedCount: 0,
