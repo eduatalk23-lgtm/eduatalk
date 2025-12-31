@@ -252,7 +252,10 @@ async function createStudentRecord(
     if (!finalTenantId) {
       const defaultTenant = await getDefaultTenant();
       if (!defaultTenant) {
-        console.error("[auth] Default Tenant가 존재하지 않습니다. 학생 레코드 생성 실패");
+        logActionError(
+          { domain: "auth", action: "createStudentRecord", userId },
+          new Error("Default Tenant가 존재하지 않습니다.")
+        );
         return { success: false, error: "기본 기관 정보가 설정되지 않았습니다." };
       }
       finalTenantId = defaultTenant.id;
@@ -420,11 +423,19 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
       : undefined;
 
     saveUserSession(data.user.id, data.session.access_token, expiresAt).catch((err) => {
-      console.error("[auth] 세션 저장 실패 (무시됨):", err);
+      logActionDebug(
+        { domain: "auth", action: "signIn" },
+        "세션 저장 실패 (무시됨)",
+        { error: err instanceof Error ? err.message : String(err) }
+      );
     });
 
     ensureUserRecord(data.user).catch((err) => {
-      console.error("[auth] 레코드 확인/생성 실패 (무시됨):", err);
+      logActionDebug(
+        { domain: "auth", action: "signIn" },
+        "레코드 확인/생성 실패 (무시됨)",
+        { error: err instanceof Error ? err.message : String(err) }
+      );
     });
   }
 
@@ -589,7 +600,11 @@ export async function signUp(
       );
 
       if (!consentResult.success) {
-        console.error("[auth] 약관 동의 저장 실패:", consentResult.error);
+        logActionError(
+          { domain: "auth", action: "signUp" },
+          new Error(consentResult.error ?? "약관 동의 저장 실패"),
+          { email: validation.data.email }
+        );
       }
     }
 
@@ -656,7 +671,11 @@ export async function resendConfirmationEmail(email: string): Promise<ActionResp
         return createErrorResponse("이 계정은 이미 인증되었습니다. 로그인을 시도해주세요.");
       }
 
-      console.error("[auth] 이메일 재발송 실패:", error);
+      logActionError(
+        { domain: "auth", action: "resendConfirmationEmail" },
+        error,
+        { email }
+      );
       return createErrorResponse(error.message || "이메일 재발송에 실패했습니다.");
     }
 
@@ -665,7 +684,11 @@ export async function resendConfirmationEmail(email: string): Promise<ActionResp
       "인증 메일을 재발송했습니다. 이메일을 확인해주세요. (스팸 메일함도 확인해주세요)"
     );
   } catch (error) {
-    console.error("[auth] 이메일 재발송 예외:", error);
+    logActionError(
+      { domain: "auth", action: "resendConfirmationEmail" },
+      error,
+      { email }
+    );
     return createErrorResponse(
       error instanceof Error ? error.message : "이메일 재발송에 실패했습니다."
     );
@@ -786,7 +809,10 @@ export async function changePassword(
   });
 
   if (updateError) {
-    console.error("[auth] 비밀번호 변경 실패:", updateError);
+    logActionError(
+      { domain: "auth", action: "changePassword" },
+      updateError
+    );
     return { success: false, error: updateError.message };
   }
 
@@ -824,12 +850,18 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
         .maybeSingle();
 
       if (tenantError) {
-        console.error("[userRole] Default Tenant 조회 실패:", tenantError);
+        logActionError(
+          { domain: "auth", action: "changeUserRole", userId },
+          tenantError
+        );
         return createErrorResponse("기본 기관 정보를 조회할 수 없습니다.");
       }
 
       if (!defaultTenant) {
-        console.error("[userRole] Default Tenant가 존재하지 않습니다.");
+        logActionError(
+          { domain: "auth", action: "changeUserRole", userId },
+          new Error("Default Tenant가 존재하지 않습니다.")
+        );
         return createErrorResponse("기본 기관 정보가 설정되지 않았습니다. 관리자에게 문의하세요.");
       }
 
@@ -843,7 +875,11 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
         .eq("id", userId);
 
       if (deleteParentError && deleteParentError.code !== "PGRST116") {
-        console.error("[userRole] 학부모 레코드 삭제 실패:", deleteParentError);
+        logActionDebug(
+          { domain: "auth", action: "changeUserRole", userId },
+          "학부모 레코드 삭제 실패 (무시됨)",
+          { error: deleteParentError.message }
+        );
       }
 
       const displayName = (user.user_metadata?.display_name as string) || "이름 없음";
@@ -858,7 +894,11 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
       });
 
       if (createStudentError) {
-        console.error("[userRole] 학생 레코드 생성 실패:", createStudentError);
+        logActionError(
+          { domain: "auth", action: "changeUserRole", userId },
+          createStudentError,
+          { newRole: "student", tenantId }
+        );
         return createErrorResponse(createStudentError.message || "학생 권한 변경에 실패했습니다.");
       }
 
@@ -876,7 +916,11 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
       }
 
       if (deleteStudentError && deleteStudentError.code !== "PGRST116") {
-        console.error("[userRole] 학생 레코드 삭제 실패:", deleteStudentError);
+        logActionDebug(
+          { domain: "auth", action: "changeUserRole", userId },
+          "학생 레코드 삭제 실패 (무시됨)",
+          { error: deleteStudentError.message }
+        );
       }
 
       const { error: createParentError } = await supabase.from("parent_users").upsert({
@@ -887,7 +931,11 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
       });
 
       if (createParentError) {
-        console.error("[userRole] 학부모 레코드 생성 실패:", createParentError);
+        logActionError(
+          { domain: "auth", action: "changeUserRole", userId },
+          createParentError,
+          { newRole: "parent", tenantId }
+        );
         return createErrorResponse(createParentError.message || "학부모 권한 변경에 실패했습니다.");
       }
 
@@ -901,7 +949,10 @@ export async function changeUserRole(newRole: "student" | "parent"): Promise<Act
 
     return createSuccessResponse();
   } catch (error) {
-    console.error("[userRole] 권한 변경 중 오류:", error);
+    logActionError(
+      { domain: "auth", action: "changeUserRole", userId },
+      error
+    );
     return createErrorResponse(
       error instanceof Error ? error.message : "권한 변경 중 오류가 발생했습니다."
     );

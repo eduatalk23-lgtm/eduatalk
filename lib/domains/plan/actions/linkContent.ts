@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError, logActionSuccess, logActionDebug } from "@/lib/logging/actionLogger";
 import {
   copyMasterBookToStudent,
   copyMasterLectureToStudent,
@@ -61,7 +62,10 @@ export async function linkContentToVirtualPlan(
     const adminClient = createSupabaseAdminClient();
 
     if (!adminClient) {
-      console.error("[linkContent] Admin client를 생성할 수 없습니다.");
+      logActionError(
+        { domain: "plan", action: "linkContentToVirtualPlan" },
+        new Error("Admin client를 생성할 수 없습니다.")
+      );
       return { success: false, error: "서버 설정 오류가 발생했습니다." };
     }
 
@@ -81,7 +85,11 @@ export async function linkContentToVirtualPlan(
       .single();
 
     if (fetchError) {
-      console.error("[linkContent] 플랜 조회 실패:", fetchError);
+      logActionError(
+        { domain: "plan", action: "linkContentToVirtualPlan" },
+        fetchError,
+        { planId }
+      );
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
 
@@ -112,7 +120,11 @@ export async function linkContentToVirtualPlan(
         .single();
 
       if (!planGroupData?.tenant_id) {
-        console.error("[linkContent] 테넌트 ID를 찾을 수 없습니다.");
+        logActionError(
+          { domain: "plan", action: "linkContentToVirtualPlan" },
+          new Error("테넌트 ID를 찾을 수 없습니다."),
+          { planGroupId: plan.plan_group_id }
+        );
         return { success: false, error: "플랜 정보를 확인할 수 없습니다." };
       }
 
@@ -153,7 +165,11 @@ export async function linkContentToVirtualPlan(
           }
         }
       } catch (copyError) {
-        console.error("[linkContent] 마스터 콘텐츠 복사 실패:", copyError);
+        logActionError(
+          { domain: "plan", action: "linkContentToVirtualPlan" },
+          copyError,
+          { masterContentId: contentInfo.masterContentId, contentType: contentInfo.contentType }
+        );
         return {
           success: false,
           error: "마스터 콘텐츠를 가져오는데 실패했습니다.",
@@ -175,7 +191,11 @@ export async function linkContentToVirtualPlan(
       .maybeSingle();
 
     if (contentError || !content) {
-      console.error("[linkContent] 콘텐츠 조회 실패:", contentError);
+      logActionError(
+        { domain: "plan", action: "linkContentToVirtualPlan" },
+        contentError ?? new Error("콘텐츠를 찾을 수 없습니다."),
+        { contentId: resolvedContentId, contentTable }
+      );
       return { success: false, error: "선택한 콘텐츠를 찾을 수 없습니다." };
     }
 
@@ -205,7 +225,11 @@ export async function linkContentToVirtualPlan(
       .eq("id", planId);
 
     if (updateError) {
-      console.error("[linkContent] 플랜 업데이트 실패:", updateError);
+      logActionError(
+        { domain: "plan", action: "linkContentToVirtualPlan" },
+        updateError,
+        { planId }
+      );
       return { success: false, error: "콘텐츠 연결에 실패했습니다." };
     }
 
@@ -225,7 +249,11 @@ export async function linkContentToVirtualPlan(
         .eq("is_virtual", true);
 
       if (batchUpdateError) {
-        console.error("[linkContent] 동일 슬롯 플랜 일괄 업데이트 실패:", batchUpdateError);
+        logActionError(
+          { domain: "plan", action: "linkContentToVirtualPlan" },
+          batchUpdateError,
+          { planGroupId: plan.plan_group_id, slotIndex: plan.slot_index }
+        );
         warnings.push("일부 관련 플랜 업데이트에 실패했습니다. 개별적으로 콘텐츠를 연결해주세요.");
       }
     }
@@ -276,7 +304,11 @@ export async function linkContentToVirtualPlan(
             .eq("id", plan.plan_group_id);
         }
       } catch (slotUpdateError) {
-        console.error("[linkContent] content_slots 업데이트 실패:", slotUpdateError);
+        logActionError(
+          { domain: "plan", action: "linkContentToVirtualPlan" },
+          slotUpdateError,
+          { planGroupId: plan.plan_group_id, slotIndex: plan.slot_index }
+        );
         warnings.push("플랜 그룹 정보 동기화에 실패했습니다. 플랜 실행에는 영향이 없습니다.");
       }
     }
@@ -291,7 +323,11 @@ export async function linkContentToVirtualPlan(
       ...(warnings.length > 0 && { warnings }),
     };
   } catch (error) {
-    console.error("[linkContent] 예외 발생:", error);
+    logActionError(
+      { domain: "plan", action: "linkContentToVirtualPlan" },
+      error,
+      { planId, contentId: contentInfo.contentId }
+    );
     return {
       success: false,
       error: "콘텐츠 연결 중 오류가 발생했습니다.",
@@ -336,7 +372,10 @@ export async function updatePlanContent(
     const adminClient = createSupabaseAdminClient();
 
     if (!adminClient) {
-      console.error("[updatePlanContent] Admin client를 생성할 수 없습니다.");
+      logActionError(
+        { domain: "plan", action: "updatePlanContent" },
+        new Error("Admin client를 생성할 수 없습니다.")
+      );
       return { success: false, error: "서버 설정 오류가 발생했습니다." };
     }
 
@@ -357,7 +396,11 @@ export async function updatePlanContent(
       .single();
 
     if (fetchError) {
-      console.error("[updatePlanContent] 플랜 조회 실패:", fetchError);
+      logActionError(
+        { domain: "plan", action: "updatePlanContent" },
+        fetchError,
+        { planId }
+      );
       return { success: false, error: "플랜을 찾을 수 없습니다." };
     }
 
@@ -395,7 +438,11 @@ export async function updatePlanContent(
       .maybeSingle();
 
     if (contentError || !content) {
-      console.error("[updatePlanContent] 콘텐츠 조회 실패:", contentError);
+      logActionError(
+        { domain: "plan", action: "updatePlanContent" },
+        contentError ?? new Error("콘텐츠를 찾을 수 없습니다."),
+        { contentId: contentInfo.contentId, contentTable }
+      );
       return { success: false, error: "선택한 콘텐츠를 찾을 수 없습니다." };
     }
 
@@ -445,7 +492,11 @@ export async function updatePlanContent(
       .eq("id", planId);
 
     if (updateError) {
-      console.error("[updatePlanContent] 플랜 업데이트 실패:", updateError);
+      logActionError(
+        { domain: "plan", action: "updatePlanContent" },
+        updateError,
+        { planId }
+      );
       return { success: false, error: "콘텐츠 변경에 실패했습니다." };
     }
 
@@ -480,7 +531,11 @@ export async function updatePlanContent(
         .neq("id", planId);
 
       if (batchUpdateError) {
-        console.error("[updatePlanContent] 동일 슬롯 플랜 일괄 업데이트 실패:", batchUpdateError);
+        logActionError(
+          { domain: "plan", action: "updatePlanContent" },
+          batchUpdateError,
+          { planGroupId: plan.plan_group_id, slotIndex: plan.slot_index }
+        );
         warnings.push("일부 관련 플랜의 콘텐츠 변경에 실패했습니다. 개별적으로 변경해주세요.");
       }
     }
@@ -489,11 +544,14 @@ export async function updatePlanContent(
     revalidatePath("/plan/calendar");
     revalidatePath("/today");
 
-    console.log("[updatePlanContent] 콘텐츠 변경 및 진행률 리셋 완료:", {
-      planId,
-      oldContentId: plan.content_id,
-      newContentId: contentInfo.contentId,
-    });
+    logActionSuccess(
+      { domain: "plan", action: "updatePlanContent" },
+      {
+        planId,
+        oldContentId: plan.content_id,
+        newContentId: contentInfo.contentId,
+      }
+    );
 
     return {
       success: true,
@@ -501,7 +559,11 @@ export async function updatePlanContent(
       ...(warnings.length > 0 && { warnings }),
     };
   } catch (error) {
-    console.error("[updatePlanContent] 예외 발생:", error);
+    logActionError(
+      { domain: "plan", action: "updatePlanContent" },
+      error,
+      { planId, contentId: contentInfo.contentId }
+    );
     return {
       success: false,
       error: "콘텐츠 변경 중 오류가 발생했습니다.",
@@ -635,7 +697,11 @@ export async function getAvailableContentsForSlot(
 
     return { books, lectures, custom };
   } catch (error) {
-    console.error("[getAvailableContentsForSlot] 오류:", error);
+    logActionError(
+      { domain: "plan", action: "getAvailableContentsForSlot" },
+      error,
+      { studentId, subjectCategory, slotType }
+    );
     return { books: [], lectures: [], custom: [] };
   }
 }
