@@ -8,6 +8,7 @@
  */
 
 import * as repository from "./repository";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   PlanGroup,
   Plan,
@@ -37,7 +38,7 @@ export async function getPlanGroups(
   try {
     return await repository.findPlanGroups(filters);
   } catch (error) {
-    console.error("[plan/service] 플랜 그룹 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getPlanGroups" }, error, { filters });
     return [];
   }
 }
@@ -53,7 +54,7 @@ export async function getPlanGroupById(
   try {
     return await repository.findPlanGroupById(groupId, studentId, tenantId);
   } catch (error) {
-    console.error("[plan/service] 플랜 그룹 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getPlanGroupById" }, error, { groupId, studentId });
     return null;
   }
 }
@@ -82,7 +83,7 @@ export async function createPlanGroup(
     const planGroup = await repository.insertPlanGroup(data);
     return { success: true, planGroupId: planGroup.id, planGroup };
   } catch (error) {
-    console.error("[plan/service] 플랜 그룹 생성 실패:", error);
+    logActionError({ domain: "plan", action: "createPlanGroup" }, error, { studentId: data.student_id });
     return {
       success: false,
       error:
@@ -120,7 +121,7 @@ export async function updatePlanGroup(
     );
     return { success: true, planGroup };
   } catch (error) {
-    console.error("[plan/service] 플랜 그룹 수정 실패:", error);
+    logActionError({ domain: "plan", action: "updatePlanGroup" }, error, { groupId, studentId });
     return {
       success: false,
       error:
@@ -146,7 +147,7 @@ export async function deletePlanGroup(
     await repository.softDeletePlanGroup(groupId, studentId);
     return { success: true };
   } catch (error) {
-    console.error("[plan/service] 플랜 그룹 삭제 실패:", error);
+    logActionError({ domain: "plan", action: "deletePlanGroup" }, error, { groupId, studentId });
     return {
       success: false,
       error:
@@ -192,7 +193,7 @@ export async function getPlanContents(
   try {
     return await repository.findPlanContents(planGroupId);
   } catch (error) {
-    console.error("[plan/service] 플랜 콘텐츠 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getPlanContents" }, error, { planGroupId });
     return [];
   }
 }
@@ -220,7 +221,7 @@ export async function savePlanContents(
 
     return { success: true };
   } catch (error) {
-    console.error("[plan/service] 플랜 콘텐츠 저장 실패:", error);
+    logActionError({ domain: "plan", action: "savePlanContents" }, error, { planGroupId, contentsCount: contents.length });
     return {
       success: false,
       error:
@@ -244,7 +245,7 @@ export async function getStudentPlans(
   try {
     return await repository.findStudentPlans(filters);
   } catch (error) {
-    console.error("[plan/service] 플랜 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getStudentPlans" }, error, { filters });
     return [];
   }
 }
@@ -259,7 +260,7 @@ export async function getStudentPlanById(
   try {
     return await repository.findStudentPlanById(planId, studentId);
   } catch (error) {
-    console.error("[plan/service] 플랜 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getStudentPlanById" }, error, { planId, studentId });
     return null;
   }
 }
@@ -282,7 +283,7 @@ export async function createStudentPlan(
     const planId = await repository.insertStudentPlan(plan);
     return { success: true, planId };
   } catch (error) {
-    console.error("[plan/service] 플랜 생성 실패:", error);
+    logActionError({ domain: "plan", action: "createStudentPlan" }, error, { studentId: plan.student_id, planDate: plan.plan_date });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 생성에 실패했습니다.",
@@ -304,7 +305,7 @@ export async function createStudentPlans(
     const planIds = await repository.insertStudentPlans(plans);
     return { success: true, planIds };
   } catch (error) {
-    console.error("[plan/service] 플랜 일괄 생성 실패:", error);
+    logActionError({ domain: "plan", action: "createStudentPlans" }, error, { plansCount: plans.length });
     return {
       success: false,
       error:
@@ -331,7 +332,7 @@ export async function updateStudentPlan(
     await repository.updateStudentPlanById(planId, studentId, updates);
     return { success: true, planId };
   } catch (error) {
-    console.error("[plan/service] 플랜 수정 실패:", error);
+    logActionError({ domain: "plan", action: "updateStudentPlan" }, error, { planId, studentId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 수정에 실패했습니다.",
@@ -356,7 +357,7 @@ export async function deleteStudentPlan(
     await repository.deleteStudentPlanById(planId, studentId);
     return { success: true };
   } catch (error) {
-    console.error("[plan/service] 플랜 삭제 실패:", error);
+    logActionError({ domain: "plan", action: "deleteStudentPlan" }, error, { planId, studentId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 삭제에 실패했습니다.",
@@ -375,7 +376,7 @@ export async function deleteStudentPlansByGroupId(
     await repository.deleteStudentPlansByGroupId(planGroupId, studentId);
     return { success: true };
   } catch (error) {
-    console.error("[plan/service] 플랜 일괄 삭제 실패:", error);
+    logActionError({ domain: "plan", action: "deleteStudentPlansByGroupId" }, error, { planGroupId, studentId });
     return {
       success: false,
       error:
@@ -398,7 +399,7 @@ export async function getPlanExclusions(
   try {
     return await repository.findPlanExclusions(studentId, tenantId);
   } catch (error) {
-    console.error("[plan/service] 제외일 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getPlanExclusions" }, error, { studentId });
     return [];
   }
 }
@@ -421,7 +422,7 @@ export async function createPlanExclusion(
     const created = await repository.insertPlanExclusion(exclusion);
     return { success: true, exclusion: created };
   } catch (error) {
-    console.error("[plan/service] 제외일 생성 실패:", error);
+    logActionError({ domain: "plan", action: "createPlanExclusion" }, error, { studentId: exclusion.student_id, exclusionDate: exclusion.exclusion_date });
     return {
       success: false,
       error:
@@ -441,7 +442,7 @@ export async function deletePlanExclusion(
     await repository.deletePlanExclusionById(exclusionId, studentId);
     return { success: true };
   } catch (error) {
-    console.error("[plan/service] 제외일 삭제 실패:", error);
+    logActionError({ domain: "plan", action: "deletePlanExclusion" }, error, { exclusionId, studentId });
     return {
       success: false,
       error:
@@ -464,7 +465,7 @@ export async function getAcademySchedules(
   try {
     return await repository.findAcademySchedules(studentId, tenantId);
   } catch (error) {
-    console.error("[plan/service] 학원 일정 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getAcademySchedules" }, error, { studentId });
     return [];
   }
 }
@@ -495,7 +496,7 @@ export async function getActivePlanGroupsForDate(
       return targetDate >= start && targetDate <= end;
     });
   } catch (error) {
-    console.error("[plan/service] 활성 플랜 그룹 조회 실패:", error);
+    logActionError({ domain: "plan", action: "getActivePlanGroupsForDate" }, error, { studentId, date });
     return [];
   }
 }
