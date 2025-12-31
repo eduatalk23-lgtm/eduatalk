@@ -7,6 +7,7 @@ import {
   withErrorHandling,
   logError,
 } from "@/lib/errors";
+import { logActionError, logActionSuccess } from "@/lib/logging/actionLogger";
 import type { CampInvitation } from "@/lib/domains/camp/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
@@ -212,7 +213,7 @@ export const sendCampInvitationsAction = withErrorHandling(
                 })
               )
             ).catch((err) => {
-              console.error("[campParticipants] 학부모 알림 발송 중 예외:", err);
+              logActionError({ domain: "camp", action: "sendParentNotifications" }, err, { templateId });
             });
           }
         }
@@ -270,7 +271,7 @@ export const getCampInvitationsForTemplate = withErrorHandling(
       .order("invited_at", { ascending: false });
 
     if (error) {
-      console.error("[campTemplateActions] 초대 목록 조회 실패", error);
+      logActionError({ domain: "camp", action: "getCampInvitations" }, error, { templateId });
       return { success: true, invitations: [] };
     }
 
@@ -616,7 +617,7 @@ export const getCampParticipantsAction = withErrorHandling(
       .order("invited_at", { ascending: false });
 
     if (invitationsError) {
-      console.error("[campTemplateActions] 초대 조회 실패:", invitationsError);
+      logActionError({ domain: "camp", action: "getParticipantsWithStats" }, invitationsError, { templateId });
       throw new AppError(
         "참여자 목록을 불러오는데 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -646,7 +647,7 @@ export const getCampParticipantsAction = withErrorHandling(
         .is("deleted_at", null);
 
       if (method1Error) {
-        console.error("[campTemplateActions] 플랜 그룹 조회 실패 (방법 1):", method1Error);
+        logActionError({ domain: "camp", action: "getParticipantsWithStats.planGroups.method1" }, method1Error, { templateId });
       } else if (method1Data) {
         planGroupsData = [
           ...planGroupsData,
@@ -665,7 +666,7 @@ export const getCampParticipantsAction = withErrorHandling(
         .is("deleted_at", null);
 
       if (method2Error) {
-        console.error("[campTemplateActions] 플랜 그룹 조회 실패 (방법 2):", method2Error);
+        logActionError({ domain: "camp", action: "getParticipantsWithStats.planGroups.method2" }, method2Error, { templateId });
       } else if (method2Data) {
         const existingGroupIds = new Set(planGroupsData.map((pg) => pg.id));
         const newGroups = method2Data.filter(
@@ -687,7 +688,7 @@ export const getCampParticipantsAction = withErrorHandling(
         .limit(1000);
 
       if (plansError) {
-        console.error("[campTemplateActions] 플랜 조회 실패:", plansError);
+        logActionError({ domain: "camp", action: "getParticipantsWithStats.plans" }, plansError, { templateId });
       } else if (plansData) {
         (plansData as Array<{ plan_group_id: string | null }>).forEach(
           (plan) => {
@@ -845,7 +846,7 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
     const { count: totalCount, error: countError } = await countQuery;
 
     if (countError) {
-      console.error("[campParticipants] 카운트 조회 실패:", countError);
+      logActionError({ domain: "camp", action: "getCampParticipantsPaginated.count" }, countError, { templateId });
       throw new AppError(
         "참여자 수를 조회하는데 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -916,7 +917,7 @@ export const getCampParticipantsWithPaginationAction = withErrorHandling(
     const { data: invitationsData, error: invitationsError } = await dataQuery;
 
     if (invitationsError) {
-      console.error("[campParticipants] 초대 조회 실패:", invitationsError);
+      logActionError({ domain: "camp", action: "getCampParticipantsPaginated.invitations" }, invitationsError, { templateId });
       throw new AppError(
         "참여자 목록을 불러오는데 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -1089,7 +1090,7 @@ export async function autoExpireCampInvitations(): Promise<{
       .lt("expires_at", now);
 
     if (fetchError) {
-      console.error("[camp/participants] 만료된 초대 조회 실패:", fetchError);
+      logActionError({ domain: "camp", action: "autoExpireInvitations.fetch" }, fetchError);
       return {
         success: false,
         expiredCount: 0,
@@ -1113,7 +1114,7 @@ export async function autoExpireCampInvitations(): Promise<{
       .in("id", expiredIds);
 
     if (updateError) {
-      console.error("[camp/participants] 만료 상태 업데이트 실패:", updateError);
+      logActionError({ domain: "camp", action: "autoExpireInvitations.update" }, updateError, { expiredIds });
       return {
         success: false,
         expiredCount: 0,
@@ -1121,13 +1122,11 @@ export async function autoExpireCampInvitations(): Promise<{
       };
     }
 
-    console.log(
-      `[camp/participants] ${expiredIds.length}개의 만료된 초대를 expired 상태로 변경했습니다.`
-    );
+    logActionSuccess({ domain: "camp", action: "autoExpireInvitations" }, { expiredCount: expiredIds.length });
 
     return { success: true, expiredCount: expiredIds.length };
   } catch (error) {
-    console.error("[camp/participants] 자동 만료 처리 중 오류:", error);
+    logActionError({ domain: "camp", action: "autoExpireInvitations" }, error);
     return {
       success: false,
       expiredCount: 0,

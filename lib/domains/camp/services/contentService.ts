@@ -9,6 +9,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import type { PlanContentInsert } from "@/lib/types/plan/schema";
 import type { RecommendationMetadata } from "@/lib/types/content-selection";
 import { AppError, ErrorCode, logError } from "@/lib/errors";
+import { logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import { createPlanContents } from "@/lib/data/planGroups";
 
 type WizardContent = {
@@ -225,8 +226,9 @@ export async function validateAndResolveContent(
             );
             isValidContent = true;
             actualContentId = bookId;
-            console.log(
-              `[contentService] 마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
+            logActionDebug(
+              { domain: "camp", action: "contentService.copyMasterBook" },
+              `마스터 교재(${content.content_id})를 학생 교재(${bookId})로 복사했습니다.`
             );
           } catch (copyError) {
             const errorMessage = copyError instanceof Error ? copyError.message : String(copyError);
@@ -239,14 +241,16 @@ export async function validateAndResolveContent(
             // 마스터 교재 ID를 그대로 사용하면 plan_contents.content_id가 books 테이블을 참조하지 못함
             isValidContent = false;
             failureReason = `마스터 교재 복사 실패: ${errorMessage}`;
-            console.warn(
-              `[contentService] 마스터 교재(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
+            logActionWarn(
+              { domain: "camp", action: "contentService.copyMasterBook" },
+              `마스터 교재(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
             );
           }
         }
       } else {
-        console.warn(
-          `[contentService] 교재(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+        logActionWarn(
+          { domain: "camp", action: "contentService.validateBook" },
+          `교재(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
         );
       }
     }
@@ -295,8 +299,9 @@ export async function validateAndResolveContent(
             );
             isValidContent = true;
             actualContentId = lectureId;
-            console.log(
-              `[contentService] 마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
+            logActionDebug(
+              { domain: "camp", action: "contentService.copyMasterLecture" },
+              `마스터 강의(${content.content_id})를 학생 강의(${lectureId})로 복사했습니다.`
             );
           } catch (copyError) {
             const errorMessage = copyError instanceof Error ? copyError.message : String(copyError);
@@ -308,14 +313,16 @@ export async function validateAndResolveContent(
             // 마스터 강의 ID를 그대로 사용하면 plan_contents.content_id가 lectures 테이블을 참조하지 못함
             isValidContent = false;
             failureReason = `마스터 강의 복사 실패: ${errorMessage}`;
-            console.warn(
-              `[contentService] 마스터 강의(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
+            logActionWarn(
+              { domain: "camp", action: "contentService.copyMasterLecture" },
+              `마스터 강의(${content.content_id}) 복사 실패로 콘텐츠에서 제외합니다.`
             );
           }
         }
       } else {
-        console.warn(
-          `[contentService] 강의(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+        logActionWarn(
+          { domain: "camp", action: "contentService.validateLecture" },
+          `강의(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
         );
       }
     }
@@ -332,8 +339,9 @@ export async function validateAndResolveContent(
       isValidContent = true;
       actualContentId = customContent.id;
     } else {
-      console.warn(
-        `[contentService] 커스텀 콘텐츠(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
+      logActionWarn(
+        { domain: "camp", action: "contentService.validateCustomContent" },
+        `커스텀 콘텐츠(${content.content_id})를 찾을 수 없습니다. 콘텐츠에서 제외합니다.`
       );
     }
   }
@@ -424,13 +432,11 @@ export async function prepareContentsToSave(
       );
     contentsToSave.push(...preservedStudentContents);
 
-    console.log("[contentService] 기존 학생 콘텐츠 보존:", {
-      groupId,
-      hasStudentContents,
-      wizardDataStudentContentsLength: wizardData.student_contents?.length ?? 0,
-      existingStudentContentsCount: existingStudentContents.length,
-      preservedCount: preservedStudentContents.length,
-    });
+    logActionDebug(
+      { domain: "camp", action: "contentService.preserveStudentContents" },
+      `기존 학생 콘텐츠 ${preservedStudentContents.length}개 보존`,
+      { groupId, preservedCount: preservedStudentContents.length }
+    );
   }
 
   // 추천 콘텐츠 처리
@@ -470,14 +476,11 @@ export async function prepareContentsToSave(
       );
     contentsToSave.push(...preservedRecommendedContents);
 
-    console.log("[contentService] 기존 추천 콘텐츠 보존:", {
-      groupId,
-      hasRecommendedContents,
-      wizardDataRecommendedContentsLength:
-        wizardData.recommended_contents?.length ?? 0,
-      existingRecommendedContentsCount: existingRecommendedContents.length,
-      preservedCount: preservedRecommendedContents.length,
-    });
+    logActionDebug(
+      { domain: "camp", action: "contentService.preserveRecommendedContents" },
+      `기존 추천 콘텐츠 ${preservedRecommendedContents.length}개 보존`,
+      { groupId, preservedCount: preservedRecommendedContents.length }
+    );
   }
 
   return contentsToSave;
@@ -617,8 +620,9 @@ export async function savePlanContents(
     }
   } else if (contentsToSave.length > 0) {
     // 유효한 콘텐츠가 없는 경우 경고만 출력 (에러는 발생시키지 않음)
-    console.warn(
-      `[contentService] 학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
+    logActionWarn(
+      { domain: "camp", action: "contentService.saveContents" },
+      `학생(${studentId})이 가지고 있는 유효한 콘텐츠가 없습니다.`
     );
   }
 
@@ -630,13 +634,16 @@ export async function savePlanContents(
       .eq("id", groupId);
 
     if (updateError) {
-      console.warn(
-        `[contentService] 콘텐츠 복사 경고 저장 실패 (groupId: ${groupId}):`,
-        updateError
+      logActionWarn(
+        { domain: "camp", action: "contentService.saveContentWarnings" },
+        `콘텐츠 복사 경고 저장 실패`,
+        { groupId, error: updateError.message }
       );
     } else {
-      console.warn(
-        `[contentService] ${failedContents.length}개 콘텐츠 복사 실패 경고 저장 (groupId: ${groupId})`
+      logActionWarn(
+        { domain: "camp", action: "contentService.saveContentWarnings" },
+        `${failedContents.length}개 콘텐츠 복사 실패 경고 저장`,
+        { groupId, failedCount: failedContents.length }
       );
     }
   }
