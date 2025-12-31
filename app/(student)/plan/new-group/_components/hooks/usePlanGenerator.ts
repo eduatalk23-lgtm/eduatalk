@@ -14,6 +14,7 @@ import {
   PlanGroupErrorCodes,
   ErrorUserMessages,
 } from "@/lib/errors/planGroupErrors";
+import { isErrorResult } from "@/lib/errors";
 import {
   createPlanGroupAction,
   updatePlanGroupDraftAction,
@@ -123,7 +124,17 @@ export function usePlanGenerator({
 
     // Create or Update Plan Group
     if (draftGroupId) {
-      await updatePlanGroupDraftAction(draftGroupId, creationData);
+      const updateResult = await updatePlanGroupDraftAction(draftGroupId, creationData);
+
+      // 에러 결과 체크 (Server Action이 throw 대신 에러 객체 반환)
+      if (isErrorResult(updateResult)) {
+        throw new PlanGroupError(
+          updateResult.error.message,
+          PlanGroupErrorCodes.DRAFT_UPDATE_FAILED,
+          updateResult.error.message,
+          true
+        );
+      }
       finalGroupId = draftGroupId;
     } else {
       // 템플릿 모드일 때는 플랜 그룹을 생성하지 않음
@@ -147,6 +158,15 @@ export function usePlanGenerator({
       }
       
       const result = await createPlanGroupAction(creationData, options);
+
+      // 에러 결과 체크 (Server Action이 throw 대신 에러 객체 반환)
+      if (isErrorResult(result)) {
+        throw new PlanGroupError(
+          result.error.message,
+          PlanGroupErrorCodes.PLAN_GROUP_CREATE_FAILED,
+          result.error.message
+        );
+      }
 
       if (!result?.groupId) {
         throw new PlanGroupError(

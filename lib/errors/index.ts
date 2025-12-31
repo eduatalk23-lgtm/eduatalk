@@ -5,6 +5,10 @@ export {
   logError,
   normalizeError,
   withErrorHandling,
+  withErrorHandlingSafe,
+  isErrorResult,
+  type SerializableError,
+  type ActionResult,
 } from "./handler";
 
 // P2 개선: 에러 복구 가이드

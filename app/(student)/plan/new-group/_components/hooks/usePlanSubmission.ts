@@ -18,6 +18,7 @@ import { useWizardNavigation } from "./useWizardNavigation";
 import { useAutoSave, type AutoSaveStatus } from "./useAutoSave";
 import {
   toPlanGroupError,
+  PlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
 import type { SubmissionPhase } from "../_ui/SubmissionProgress";
@@ -201,14 +202,35 @@ export function usePlanSubmission({
               setDraftGroupId(finalGroupId);
             })
             .catch((error) => {
-              planSubmissionLogger.error("Background save failed", error, { hook: "usePlanSubmission" });
-              const planGroupError = toPlanGroupError(
-                error,
-                PlanGroupErrorCodes.UNKNOWN_ERROR
-              );
+              // 안전한 에러 메시지 추출 (Next.js Server Action 직렬화로 인한 빈 객체 처리)
+              let errorMessage = "저장 중 오류가 발생했습니다.";
+
+              if (error instanceof Error && error.message) {
+                errorMessage = error.message;
+              } else if (error instanceof PlanGroupError) {
+                errorMessage = error.userMessage;
+              } else if (error && typeof error === "object") {
+                if ("message" in error && error.message) {
+                  errorMessage = String(error.message);
+                } else if ("error" in error && typeof error.error === "object") {
+                  const nestedError = error.error as { message?: string };
+                  if (nestedError.message) {
+                    errorMessage = nestedError.message;
+                  }
+                }
+              }
+
+              planSubmissionLogger.error("Background save failed", error, {
+                hook: "usePlanSubmission",
+                data: {
+                  extractedMessage: errorMessage,
+                  errorType: error?.constructor?.name || typeof error,
+                },
+              });
+
               // 사용자에게 명확한 에러 메시지 표시
-              toast.showError(planGroupError.userMessage);
-              setValidationErrors([planGroupError.userMessage]);
+              toast.showError(errorMessage);
+              setValidationErrors([errorMessage]);
             });
           return;
         }

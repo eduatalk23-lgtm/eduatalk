@@ -403,12 +403,77 @@ export function normalizeError(error: unknown): AppError {
 }
 
 /**
+ * 직렬화 가능한 에러 타입
+ *
+ * Next.js Server Action에서 클라이언트로 전달할 때 직렬화 가능한 형태로 에러 정보를 담습니다.
+ * Error 객체는 직렬화 시 속성이 손실되므로, 이 타입을 사용하여 에러 정보를 보존합니다.
+ */
+export type SerializableError = {
+  code: ErrorCode;
+  message: string;
+  statusCode: number;
+  isUserFacing: boolean;
+};
+
+/**
+ * Server Action 결과 타입
+ *
+ * 에러 발생 시 throw 대신 직렬화 가능한 에러 객체를 반환합니다.
+ */
+export type ActionResult<T> = T | { success: false; error: SerializableError };
+
+/**
+ * Next.js redirect/notFound 에러인지 확인
+ */
+function isNextJsRedirect(error: unknown): boolean {
+  if (
+    error &&
+    typeof error === "object" &&
+    "digest" in error &&
+    typeof (error as { digest: string }).digest === "string"
+  ) {
+    const digest = (error as { digest: string }).digest;
+    return (
+      digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_NOT_FOUND")
+    );
+  }
+  return false;
+}
+
+/**
+ * 에러 결과인지 확인하는 타입 가드
+ *
+ * Server Action에서 반환된 결과가 에러인지 확인합니다.
+ *
+ * @example
+ * ```typescript
+ * const result = await myServerAction(data);
+ * if (isErrorResult(result)) {
+ *   toast.error(result.error.message);
+ *   return;
+ * }
+ * // result는 정상 반환 타입으로 추론됨
+ * ```
+ */
+export function isErrorResult<T>(
+  result: T | { success: false; error: SerializableError }
+): result is { success: false; error: SerializableError } {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "success" in result &&
+    result.success === false &&
+    "error" in result
+  );
+}
+
+/**
  * 서버 액션용 에러 핸들러 래퍼
  *
  * 비동기 함수를 래핑하여 에러를 자동으로 처리합니다.
  * - 에러 정규화 및 로깅
  * - Next.js redirect()/notFound() 에러 전파
- * - 사용자 친화적 에러 메시지 변환
+ * - 기본적으로 에러를 throw하고, returnErrorObject 옵션으로 에러 객체 반환 가능
  *
  * @typeParam TArgs - 함수 인자 타입 배열
  * @typeParam TReturn - 함수 반환 타입
@@ -417,8 +482,58 @@ export function normalizeError(error: unknown): AppError {
  *
  * @example
  * ```typescript
+ * // 기본 사용 (에러 throw)
+ * export const myAction = withErrorHandling(async (data: FormData) => {
+ *   // ...
+ * });
+ *
+ * // 에러 객체 반환 모드 (클라이언트에서 안전한 처리 필요 시)
+ * export const myActionSafe = withErrorHandlingSafe(async (data: FormData) => {
+ *   // ...
+ * });
+ *
+ * // 클라이언트에서 사용
+ * const result = await myActionSafe(formData);
+ * if (isErrorResult(result)) {
+ *   toast.error(result.error.message);
+ *   return;
+ * }
+ * ```
+ */
+export function withErrorHandling<TArgs extends readonly unknown[], TReturn>(
+  fn: (...args: TArgs) => Promise<TReturn>
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args: TArgs): Promise<TReturn> => {
+    try {
+      return await fn(...args);
+    } catch (error) {
+      // Next.js 15의 redirect()와 notFound()는 특별한 에러를 throw하므로 재throw
+      if (isNextJsRedirect(error)) {
+        throw error;
+      }
+
+      const normalizedError = normalizeError(error);
+      logError(normalizedError, { function: fn.name, args });
+      throw normalizedError;
+    }
+  };
+}
+
+/**
+ * 서버 액션용 안전한 에러 핸들러 래퍼
+ *
+ * withErrorHandling과 동일하지만, 에러 발생 시 throw 대신 직렬화 가능한 에러 객체를 반환합니다.
+ * Next.js Server Action에서 에러가 직렬화될 때 속성이 손실되는 문제를 방지합니다.
+ *
+ * @typeParam TArgs - 함수 인자 타입 배열
+ * @typeParam TReturn - 함수 반환 타입
+ * @param fn - 래핑할 비동기 함수
+ * @returns 에러 처리가 적용된 함수 (에러 시 에러 객체 반환)
+ *
+ * @example
+ * ```typescript
  * // Server Action 정의
- * export const createPlanGroup = withErrorHandling(
+ * export const createPlanGroup = withErrorHandlingSafe(
  *   async (data: PlanGroupData) => {
  *     const result = await planService.create(data);
  *     if (!result.success) {
@@ -430,72 +545,47 @@ export function normalizeError(error: unknown): AppError {
  * );
  *
  * // 클라이언트에서 사용
- * const handleSubmit = async () => {
- *   try {
- *     await createPlanGroup(formData);
- *     toast.success('플랜이 생성되었습니다.');
- *   } catch (error) {
- *     toast.error(getUserFacingMessage(error));
- *   }
- * };
+ * const result = await createPlanGroup(formData);
+ * if (isErrorResult(result)) {
+ *   toast.error(result.error.message);
+ *   return;
+ * }
+ * toast.success('플랜이 생성되었습니다.');
  * ```
  */
-export function withErrorHandling<
-  TArgs extends readonly unknown[],
-  TReturn
->(
+export function withErrorHandlingSafe<TArgs extends readonly unknown[], TReturn>(
   fn: (...args: TArgs) => Promise<TReturn>
-): (...args: TArgs) => Promise<TReturn> {
-  return async (...args: TArgs): Promise<TReturn> => {
+): (...args: TArgs) => Promise<TReturn | { success: false; error: SerializableError }> {
+  return async (
+    ...args: TArgs
+  ): Promise<TReturn | { success: false; error: SerializableError }> => {
     try {
       return await fn(...args);
     } catch (error) {
       // Next.js 15의 redirect()와 notFound()는 특별한 에러를 throw하므로 재throw
-      // Next.js는 digest 속성에 "NEXT_REDIRECT" 또는 "NEXT_NOT_FOUND"를 포함합니다
-      if (
-        error &&
-        typeof error === "object" &&
-        "digest" in error &&
-        typeof (error as { digest: string }).digest === "string"
-      ) {
-        const digest = (error as { digest: string }).digest;
-        if (
-          digest.startsWith("NEXT_REDIRECT") ||
-          digest.startsWith("NEXT_NOT_FOUND")
-        ) {
-          throw error;
-        }
+      if (isNextJsRedirect(error)) {
+        throw error;
       }
-      
+
       const normalizedError = normalizeError(error);
-      
+
       // 200 상태 코드는 정보성 메시지로 처리 (부분 성공 등)
       if (normalizedError.statusCode === 200) {
-        // 로그는 남기지 않고 그대로 전달 (정보성 메시지)
         throw normalizedError;
       }
-      
+
       logError(normalizedError, { function: fn.name, args });
-      
-      // 사용자에게 보여줄 수 있는 에러는 그대로 throw
-      if (normalizedError.isUserFacing) {
-        throw normalizedError;
-      }
-      
-      // isUserFacing이 false인 경우 (Error가 아닌 값이 catch된 경우 등)
-      // 개발 환경에서는 원본 에러 정보를 포함한 메시지 제공
-      // 프로덕션에서는 일반적인 메시지만 제공
-      const errorMessage = process.env.NODE_ENV === "development"
-        ? `작업을 완료하는 중 오류가 발생했습니다: ${normalizedError.message}`
-        : "작업을 완료하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
-      
-      // 사용자에게 보여줄 수 있는 형태로 변환하여 throw
-      throw new AppError(
-        errorMessage,
-        ErrorCode.INTERNAL_ERROR,
-        500,
-        true
-      );
+
+      // 직렬화 가능한 에러 객체 반환 (throw 대신)
+      return {
+        success: false as const,
+        error: {
+          code: normalizedError.code,
+          message: normalizedError.message,
+          statusCode: normalizedError.statusCode,
+          isUserFacing: normalizedError.isUserFacing,
+        },
+      };
     }
   };
 }

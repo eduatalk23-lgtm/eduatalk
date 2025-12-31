@@ -12,6 +12,7 @@ import {
   PlanGroupError,
   PlanGroupErrorCodes,
 } from "@/lib/errors/planGroupErrors";
+import { isErrorResult } from "@/lib/errors";
 import {
   savePlanGroupDraftAction,
   updatePlanGroupDraftAction,
@@ -132,7 +133,18 @@ export function usePlanDraft({
         }
 
         if (draftGroupId) {
-          await updatePlanGroupDraftAction(draftGroupId, creationData);
+          const updateResult = await updatePlanGroupDraftAction(draftGroupId, creationData);
+
+          // 에러 결과 체크 (Server Action이 throw 대신 에러 객체 반환)
+          if (isErrorResult(updateResult)) {
+            throw new PlanGroupError(
+              updateResult.error.message,
+              PlanGroupErrorCodes.DRAFT_SAVE_FAILED,
+              updateResult.error.message,
+              true
+            );
+          }
+
           if (!silent) toast.showSuccess("저장되었습니다.");
           // 저장 성공 시 콜백 호출 (dirty 상태 리셋)
           onSaveSuccess?.();
@@ -151,6 +163,17 @@ export function usePlanDraft({
             : undefined;
 
           const result = await savePlanGroupDraftAction(creationData, options);
+
+          // 에러 결과 체크 (Server Action이 throw 대신 에러 객체 반환)
+          if (isErrorResult(result)) {
+            throw new PlanGroupError(
+              result.error.message,
+              PlanGroupErrorCodes.DRAFT_SAVE_FAILED,
+              result.error.message,
+              true
+            );
+          }
+
           if (result?.groupId) {
             setDraftGroupId(result.groupId);
             if (!silent) toast.showSuccess("저장되었습니다.");
