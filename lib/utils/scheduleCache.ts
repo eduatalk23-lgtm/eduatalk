@@ -25,8 +25,19 @@ export type ScheduleCalculationParams = {
     travel_time?: number;
   }>;
   schedulerType: "1730_timetable";
-  schedulerOptions?: any;
-  timeSettings?: any;
+  schedulerOptions?: {
+    study_days?: number;
+    review_days?: number;
+  };
+  timeSettings?: {
+    lunch_time?: { start: string; end: string };
+    camp_study_hours?: { start: string; end: string };
+    camp_self_study_hours?: { start: string; end: string };
+    designated_holiday_hours?: { start: string; end: string };
+    use_self_study_with_blocks?: boolean;
+    enable_self_study_for_holidays?: boolean;
+    enable_self_study_for_study_days?: boolean;
+  };
 };
 
 /**

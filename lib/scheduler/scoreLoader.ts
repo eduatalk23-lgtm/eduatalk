@@ -60,7 +60,7 @@ export async function getSchoolScoreSummary(
       // 에러 객체의 모든 속성을 안전하게 추출
       let errorMessage: string | undefined;
       let errorCode: string | undefined;
-      let errorDetails: any;
+      let errorDetails: unknown;
       let errorHint: string | undefined;
       
       if (error instanceof Error) {

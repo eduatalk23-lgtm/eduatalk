@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Json } from '@/lib/supabase/database.types';
 
 // ============================================
 // 타입 정의
@@ -48,7 +49,7 @@ export interface CreatePlanInput {
   is_active?: boolean;
   version_group_id?: string | null;
   version?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -57,7 +58,7 @@ export interface CreatePlanInput {
 export interface CreateHistoryInput {
   plan_id: string;
   plan_group_id: string;
-  plan_data: any;
+  plan_data: Json;
   content_id?: string | null;
   adjustment_type?: 'range' | 'replace' | 'full' | null;
   reschedule_log_id?: string | null;

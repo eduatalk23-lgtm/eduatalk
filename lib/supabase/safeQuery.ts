@@ -32,7 +32,9 @@ export type SafeQueryOptions = {
   
   /**
    * 에러 발생 시 기본값
+   * Note: 제네릭 함수에서 반환 타입과 호환되어야 하므로 any 사용
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue?: any;
 };
 

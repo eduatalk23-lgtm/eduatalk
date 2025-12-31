@@ -152,7 +152,7 @@ export async function verifyQRCode(
           tenantId: qrCodeRecord.tenant_id,
           qrCodeId: qrCodeRecord.id,
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         // AppError인 경우 에러 메시지 반환
         if (error instanceof Error) {
           return {
@@ -205,7 +205,7 @@ export async function verifyQRCode(
         tenantId: qrCodeRecord.tenant_id,
         qrCodeId: qrCodeRecord.id,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // AppError인 경우 에러 메시지 반환
       if (error instanceof Error) {
         return {
