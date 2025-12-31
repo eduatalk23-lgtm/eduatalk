@@ -8,6 +8,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 
 /**
  * 학생 계정 비활성화/활성화
@@ -39,7 +40,11 @@ export async function toggleStudentStatus(
     .select();
 
   if (error) {
-    console.error("[admin/studentManagement] 학생 상태 변경 실패", error);
+    logActionError(
+      { domain: "student", action: "toggleStudentStatus" },
+      error,
+      { studentId, isActive }
+    );
     return {
       success: false,
       error: error.message || "상태 변경에 실패했습니다.",
@@ -90,9 +95,10 @@ export async function deleteStudent(
       .eq("student_id", studentId);
 
     if (cacheError) {
-      console.error(
-        "[admin/studentManagement] 성적 분석 캐시 삭제 실패",
-        cacheError
+      logActionWarn(
+        { domain: "student", action: "deleteStudent" },
+        "성적 분석 캐시 삭제 실패",
+        { studentId, error: cacheError.message }
       );
       // 경고만 하고 계속 진행
     }
@@ -104,9 +110,10 @@ export async function deleteStudent(
       .eq("student_id", studentId);
 
     if (eventsError) {
-      console.error(
-        "[admin/studentManagement] 성적 이벤트 삭제 실패",
-        eventsError
+      logActionWarn(
+        { domain: "student", action: "deleteStudent" },
+        "성적 이벤트 삭제 실패",
+        { studentId, error: eventsError.message }
       );
       // 경고만 하고 계속 진행
     }
@@ -118,9 +125,10 @@ export async function deleteStudent(
       .eq("student_id", studentId);
 
     if (internalScoresError) {
-      console.error(
-        "[admin/studentManagement] 내신 성적 삭제 실패",
-        internalScoresError
+      logActionError(
+        { domain: "student", action: "deleteStudent" },
+        internalScoresError,
+        { studentId, step: "student_internal_scores" }
       );
       return {
         success: false,
@@ -135,9 +143,10 @@ export async function deleteStudent(
       .eq("student_id", studentId);
 
     if (mockScoresError) {
-      console.error(
-        "[admin/studentManagement] 모의고사 성적 삭제 실패",
-        mockScoresError
+      logActionError(
+        { domain: "student", action: "deleteStudent" },
+        mockScoresError,
+        { studentId, step: "student_mock_scores" }
       );
       return {
         success: false,
@@ -152,9 +161,10 @@ export async function deleteStudent(
       .eq("student_id", studentId);
 
     if (termsError) {
-      console.error(
-        "[admin/studentManagement] 학기 정보 삭제 실패",
-        termsError
+      logActionError(
+        { domain: "student", action: "deleteStudent" },
+        termsError,
+        { studentId, step: "student_terms" }
       );
       return {
         success: false,
@@ -168,9 +178,10 @@ export async function deleteStudent(
     );
 
     if (authDeleteError) {
-      console.error(
-        "[admin/studentManagement] 인증 사용자 삭제 실패",
-        authDeleteError
+      logActionError(
+        { domain: "student", action: "deleteStudent" },
+        authDeleteError,
+        { studentId, step: "auth.admin.deleteUser" }
       );
       return {
         success: false,
@@ -187,9 +198,10 @@ export async function deleteStudent(
       .select();
 
     if (deleteError) {
-      console.error(
-        "[admin/studentManagement] 학생 삭제 실패",
-        deleteError
+      logActionError(
+        { domain: "student", action: "deleteStudent" },
+        deleteError,
+        { studentId, step: "students" }
       );
       return {
         success: false,
@@ -209,7 +221,11 @@ export async function deleteStudent(
 
     return { success: true };
   } catch (error) {
-    console.error("[admin/studentManagement] 학생 삭제 중 오류", error);
+    logActionError(
+      { domain: "student", action: "deleteStudent" },
+      error,
+      { studentId }
+    );
     return {
       success: false,
       error:
@@ -254,7 +270,11 @@ export async function bulkToggleStudentStatus(
     .select("id");
 
   if (error) {
-    console.error("[admin/studentManagement] 학생 상태 일괄 변경 실패", error);
+    logActionError(
+      { domain: "student", action: "bulkToggleStudentStatus" },
+      error,
+      { studentIds, isActive }
+    );
     return {
       success: false,
       error: error.message || "상태 변경에 실패했습니다.",
@@ -341,7 +361,11 @@ export async function bulkDeleteStudents(
     .filter(Boolean);
 
   if (batchErrors.length > 0) {
-    console.warn("[admin/studentManagement] 배치 삭제 경고:", batchErrors);
+    logActionWarn(
+      { domain: "student", action: "bulkDeleteStudents" },
+      "배치 삭제 경고",
+      { studentIds, batchErrors }
+    );
   }
 
   // 1단계: auth.users에서 사용자 삭제 (Supabase API 제한으로 개별 처리 필요)
@@ -360,13 +384,14 @@ export async function bulkDeleteStudents(
       }
 
       authDeletedIds.push(studentId);
-    } catch (error) {
+    } catch (err) {
       const errorMessage =
-        error instanceof Error ? error.message : "알 수 없는 오류";
+        err instanceof Error ? err.message : "알 수 없는 오류";
       errors.push(`${studentId}: ${errorMessage}`);
-      console.error(
-        `[admin/studentManagement] Auth 삭제 중 오류 (${studentId}):`,
-        error
+      logActionError(
+        { domain: "student", action: "bulkDeleteStudents" },
+        err,
+        { studentId, step: "auth.admin.deleteUser" }
       );
     }
   }
@@ -443,7 +468,11 @@ export async function updateStudentClass(
     .select();
 
   if (error) {
-    console.error("[admin/studentManagement] 학생 반 정보 변경 실패", error);
+    logActionError(
+      { domain: "student", action: "updateStudentClass" },
+      error,
+      { studentId, classValue }
+    );
     return {
       success: false,
       error: error.message || "반 정보 변경에 실패했습니다.",
@@ -583,7 +612,11 @@ export async function updateStudentInfo(
         .eq("id", studentId);
 
       if (updateError) {
-        console.error("[admin/studentManagement] 학생 추가 정보 업데이트 실패", updateError);
+        logActionError(
+          { domain: "student", action: "updateStudentInfo" },
+          updateError,
+          { studentId, step: "memo/is_active" }
+        );
         return {
           success: false,
           error: updateError.message || "학생 정보 업데이트에 실패했습니다.",
@@ -765,7 +798,11 @@ async function generateUniqueConnectionCode(
     
     if (error && error.code !== "PGRST116") {
       // PGRST116은 "no rows returned" 에러이므로 정상
-      console.error("[admin/studentManagement] 연결 코드 중복 체크 실패", error);
+      logActionError(
+        { domain: "student", action: "generateUniqueConnectionCode" },
+        error,
+        { code, attempt }
+      );
       throw new Error("연결 코드 생성 중 오류가 발생했습니다.");
     }
     
@@ -775,7 +812,11 @@ async function generateUniqueConnectionCode(
     }
     
     // 중복이 있으면 재시도
-    console.warn(`[admin/studentManagement] 연결 코드 중복 감지, 재시도 ${attempt + 1}/${maxRetries}: ${code}`);
+    logActionWarn(
+      { domain: "student", action: "generateUniqueConnectionCode" },
+      `연결 코드 중복 감지, 재시도 ${attempt + 1}/${maxRetries}`,
+      { code, attempt }
+    );
   }
   
   // 최대 재시도 횟수 초과
@@ -892,7 +933,11 @@ export async function createStudent(
 
       if (!profileResult.success) {
         // 프로필 저장 실패는 치명적이지 않으므로 경고만
-        console.warn("[admin/studentManagement] 프로필 저장 실패:", profileResult.error);
+        logActionWarn(
+          { domain: "student", action: "createStudent" },
+          "프로필 저장 실패",
+          { studentId, error: profileResult.error }
+        );
       }
     }
 
@@ -915,7 +960,11 @@ export async function createStudent(
 
       if (!careerResult.success) {
         // 진로 정보 저장 실패는 치명적이지 않으므로 경고만
-        console.warn("[admin/studentManagement] 진로 정보 저장 실패:", careerResult.error);
+        logActionWarn(
+          { domain: "student", action: "createStudent" },
+          "진로 정보 저장 실패",
+          { studentId, error: careerResult.error }
+        );
       }
     }
 
@@ -934,7 +983,11 @@ export async function createStudent(
       });
 
     if (codeError) {
-      console.error("[admin/studentManagement] 연결 코드 저장 실패", codeError);
+      logActionError(
+        { domain: "student", action: "createStudent" },
+        codeError,
+        { studentId, step: "student_connection_codes" }
+      );
       return {
         success: false,
         error: `연결 코드 저장에 실패했습니다: ${codeError.message}`,
@@ -949,7 +1002,10 @@ export async function createStudent(
       connectionCode,
     };
   } catch (error) {
-    console.error("[admin/studentManagement] 학생 등록 중 오류", error);
+    logActionError(
+      { domain: "student", action: "createStudent" },
+      error
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "학생 등록 중 알 수 없는 오류가 발생했습니다.",
@@ -1007,7 +1063,11 @@ export async function regenerateConnectionCode(
     });
 
   if (codeError) {
-    console.error("[admin/studentManagement] 연결 코드 재발급 실패", codeError);
+    logActionError(
+      { domain: "student", action: "regenerateConnectionCode" },
+      codeError,
+      { studentId }
+    );
     return {
       success: false,
       error: `연결 코드 재발급에 실패했습니다: ${codeError.message}`,
@@ -1057,7 +1117,11 @@ export async function getStudentConnectionCode(
     .maybeSingle();
 
   if (error) {
-    console.error("[admin/studentManagement] 연결 코드 조회 실패", error);
+    logActionError(
+      { domain: "student", action: "getStudentConnectionCode" },
+      error,
+      { studentId }
+    );
     return { success: false, error: error.message || "연결 코드를 조회할 수 없습니다." };
   }
 
