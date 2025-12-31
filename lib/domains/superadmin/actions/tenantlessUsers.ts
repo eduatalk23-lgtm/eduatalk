@@ -11,6 +11,7 @@ import {
 import { getAuthUserMetadata } from "@/lib/utils/authUserMetadata";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { TenantlessUser, Tenant } from "../types";
 
 /**
@@ -53,7 +54,11 @@ async function _getTenantlessUsers(
       .is("tenant_id", null);
 
     if (studentsError) {
-      console.error("[tenantless-users] 학생 조회 실패", studentsError);
+      logActionError(
+        { domain: "superadmin", action: "getTenantlessUsers" },
+        studentsError,
+        { context: "학생 조회 실패" }
+      );
     } else if (students) {
       for (const student of students) {
         userIdsToFetch.push(student.id);
@@ -77,7 +82,11 @@ async function _getTenantlessUsers(
       .is("tenant_id", null);
 
     if (parentsError) {
-      console.error("[tenantless-users] 학부모 조회 실패", parentsError);
+      logActionError(
+        { domain: "superadmin", action: "getTenantlessUsers" },
+        parentsError,
+        { context: "학부모 조회 실패" }
+      );
     } else if (parents) {
       for (const parent of parents) {
         userIdsToFetch.push(parent.id);
@@ -102,7 +111,11 @@ async function _getTenantlessUsers(
       .neq("role", "superadmin");
 
     if (adminsError) {
-      console.error("[tenantless-users] 관리자 조회 실패", adminsError);
+      logActionError(
+        { domain: "superadmin", action: "getTenantlessUsers" },
+        adminsError,
+        { context: "관리자 조회 실패" }
+      );
     } else if (admins) {
       for (const admin of admins) {
         userIdsToFetch.push(admin.id);
@@ -280,7 +293,11 @@ async function _getActiveTenants(): Promise<Tenant[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[tenantless-users] 테넌트 목록 조회 실패", error);
+    logActionError(
+      { domain: "superadmin", action: "getActiveTenants" },
+      error,
+      { context: "테넌트 목록 조회 실패" }
+    );
     throw new AppError(
       error.message || "테넌트 목록 조회에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,

@@ -22,6 +22,7 @@ import {
   deletePublisher,
 } from "@/lib/data/contentMetadata";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 // 개정교육과정
 export const getCurriculumRevisionsAction = withErrorHandling(async () => {
@@ -96,7 +97,8 @@ export const createSubjectCategoryAction = withErrorHandling(
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
-    console.warn(
+    logActionWarn(
+      { domain: "content-metadata", action: "createSubjectCategoryAction" },
       "[DEPRECATED] createSubjectCategoryAction is deprecated. Use createSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
     );
     return await createSubjectCategory(revision_id, name, display_order);
@@ -115,7 +117,8 @@ export const updateSubjectCategoryAction = withErrorHandling(
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
-    console.warn(
+    logActionWarn(
+      { domain: "content-metadata", action: "updateSubjectCategoryAction" },
       "[DEPRECATED] updateSubjectCategoryAction is deprecated. Use updateSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
     );
     return await updateSubjectCategory(id, updates);
@@ -130,7 +133,8 @@ export const deleteSubjectCategoryAction = withErrorHandling(async (id: string) 
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
-  console.warn(
+  logActionWarn(
+    { domain: "content-metadata", action: "deleteSubjectCategoryAction" },
     "[DEPRECATED] deleteSubjectCategoryAction is deprecated. Use deleteSubjectGroup from @app/(admin)/actions/subjectActions.ts instead."
   );
   return await deleteSubjectCategory(id);
@@ -160,7 +164,8 @@ export const createSubjectAction = withErrorHandling(
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
-    console.warn(
+    logActionWarn(
+      { domain: "content-metadata", action: "createSubjectAction" },
       "[DEPRECATED] createSubjectAction with subject_category_id is deprecated. Use createSubject from @app/(admin)/actions/subjectActions.ts with subject_group_id instead."
     );
     return await createSubject(subject_category_id, name, display_order);
@@ -176,7 +181,8 @@ export const updateSubjectAction = withErrorHandling(
     if (!user || user.role !== "admin") {
       throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
     }
-    console.warn(
+    logActionWarn(
+      { domain: "content-metadata", action: "updateSubjectAction" },
       "[DEPRECATED] updateSubjectAction is deprecated. Use updateSubject from @app/(admin)/actions/subjectActions.ts instead."
     );
     return await updateSubject(id, updates);
@@ -191,7 +197,8 @@ export const deleteSubjectAction = withErrorHandling(async (id: string) => {
   if (!user || user.role !== "admin") {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 401, true);
   }
-  console.warn(
+  logActionWarn(
+    { domain: "content-metadata", action: "deleteSubjectAction" },
     "[DEPRECATED] deleteSubjectAction is deprecated. Use deleteSubject from @app/(admin)/actions/subjectActions.ts instead."
   );
   return await deleteSubject(id);

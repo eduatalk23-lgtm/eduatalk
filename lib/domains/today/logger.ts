@@ -7,6 +7,12 @@
  * @module lib/domains/today/logger
  */
 
+import {
+  logActionError,
+  logActionWarn,
+  logActionDebug,
+} from "@/lib/logging/actionLogger";
+
 // ============================================
 // 로그 레벨
 // ============================================
@@ -54,39 +60,27 @@ interface LogContext {
 // ============================================
 
 /**
- * 로그 메시지 포맷팅
- */
-function formatLogMessage(
-  level: LogLevel,
-  message: string,
-  context: LogContext
-): string {
-  const timestamp = new Date().toISOString();
-  const prefix = `[${timestamp}] [${level.toUpperCase()}] [today/${context.module}]`;
-
-  let formatted = `${prefix} ${message}`;
-
-  if (context.action) {
-    formatted += ` action=${context.action}`;
-  }
-  if (context.id) {
-    formatted += ` id=${context.id}`;
-  }
-  if (context.userId) {
-    formatted += ` userId=${context.userId}`;
-  }
-  if (context.duration !== undefined) {
-    formatted += ` duration=${context.duration}ms`;
-  }
-
-  return formatted;
-}
-
-/**
  * 로그 레벨 체크
  */
 function shouldLog(level: LogLevel): boolean {
   return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[CURRENT_LOG_LEVEL];
+}
+
+/**
+ * LogContext를 metadata 객체로 변환
+ */
+function contextToMetadata(
+  context: Omit<LogContext, "module"> & { module?: string }
+): Record<string, unknown> {
+  const metadata: Record<string, unknown> = {};
+
+  if (context.module) metadata.module = context.module;
+  if (context.action) metadata.actionDetail = context.action;
+  if (context.id) metadata.id = context.id;
+  if (context.duration !== undefined) metadata.duration = context.duration;
+  if (context.data) metadata.data = context.data;
+
+  return metadata;
 }
 
 /**
@@ -101,12 +95,13 @@ export const todayLogger = {
     context: Omit<LogContext, "module"> & { module?: string } = {}
   ) {
     if (!shouldLog("debug")) return;
-    console.debug(
-      formatLogMessage("debug", message, { module: "general", ...context })
+
+    const actionName = context.action ?? context.module ?? "general";
+    logActionDebug(
+      { domain: "today", action: actionName, userId: context.userId },
+      message,
+      contextToMetadata(context)
     );
-    if (context.data) {
-      console.debug("  Data:", JSON.stringify(context.data, null, 2));
-    }
   },
 
   /**
@@ -117,12 +112,13 @@ export const todayLogger = {
     context: Omit<LogContext, "module"> & { module?: string } = {}
   ) {
     if (!shouldLog("info")) return;
-    console.log(
-      formatLogMessage("info", message, { module: "general", ...context })
+
+    const actionName = context.action ?? context.module ?? "general";
+    logActionDebug(
+      { domain: "today", action: actionName, userId: context.userId },
+      message,
+      contextToMetadata(context)
     );
-    if (context.data) {
-      console.log("  Data:", JSON.stringify(context.data, null, 2));
-    }
   },
 
   /**
@@ -133,12 +129,13 @@ export const todayLogger = {
     context: Omit<LogContext, "module"> & { module?: string } = {}
   ) {
     if (!shouldLog("warn")) return;
-    console.warn(
-      formatLogMessage("warn", message, { module: "general", ...context })
+
+    const actionName = context.action ?? context.module ?? "general";
+    logActionWarn(
+      { domain: "today", action: actionName, userId: context.userId },
+      message,
+      contextToMetadata(context)
     );
-    if (context.data) {
-      console.warn("  Data:", JSON.stringify(context.data, null, 2));
-    }
   },
 
   /**
@@ -149,16 +146,13 @@ export const todayLogger = {
     context: Omit<LogContext, "module"> & { module?: string } = {}
   ) {
     if (!shouldLog("error")) return;
-    console.error(
-      formatLogMessage("error", message, { module: "general", ...context })
+
+    const actionName = context.action ?? context.module ?? "general";
+    logActionError(
+      { domain: "today", action: actionName, userId: context.userId },
+      context.error ?? new Error(message),
+      contextToMetadata(context)
     );
-    if (context.error) {
-      console.error("  Error:", context.error.message);
-      console.error("  Stack:", context.error.stack);
-    }
-    if (context.data) {
-      console.error("  Data:", JSON.stringify(context.data, null, 2));
-    }
   },
 
   /**

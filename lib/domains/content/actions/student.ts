@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { logActionError } from "@/lib/logging/actionLogger";
 import {
   createBook as createBookData,
   updateBook as updateBookData,
@@ -95,11 +96,19 @@ export async function addBook(formData: FormData) {
         .insert(studentDetails);
 
       if (detailsError) {
-        console.error("교재 상세 정보 추가 실패:", detailsError);
+        logActionError(
+          { domain: "content", action: "addBook" },
+          detailsError,
+          { bookId: result.bookId, message: "교재 상세 정보 추가 실패" }
+        );
         // 상세 정보 추가 실패해도 교재는 생성됨
       }
     } catch (error) {
-      console.error("교재 상세 정보 파싱 실패:", error);
+      logActionError(
+        { domain: "content", action: "addBook" },
+        error,
+        { bookId: result.bookId, message: "교재 상세 정보 파싱 실패" }
+      );
       // 상세 정보 파싱 실패해도 교재는 생성됨
     }
   }
@@ -192,11 +201,19 @@ export async function createBookWithoutRedirect(formData: FormData) {
         .insert(studentDetails);
 
       if (detailsError) {
-        console.error("교재 상세 정보 추가 실패:", detailsError);
+        logActionError(
+          { domain: "content", action: "createBookWithoutRedirect" },
+          detailsError,
+          { bookId: result.bookId, message: "교재 상세 정보 추가 실패" }
+        );
         // 상세 정보 추가 실패해도 교재는 생성됨
       }
     } catch (error) {
-      console.error("교재 상세 정보 파싱 실패:", error);
+      logActionError(
+        { domain: "content", action: "createBookWithoutRedirect" },
+        error,
+        { bookId: result.bookId, message: "교재 상세 정보 파싱 실패" }
+      );
       // 상세 정보 파싱 실패해도 교재는 생성됨
     }
   }
@@ -356,11 +373,19 @@ export async function addLecture(formData: FormData) {
         .insert(studentEpisodes);
 
       if (episodesError) {
-        console.error("강의 episode 정보 추가 실패:", episodesError);
+        logActionError(
+          { domain: "content", action: "addLecture" },
+          episodesError,
+          { lectureId: result.lectureId, message: "강의 episode 정보 추가 실패" }
+        );
         // episode 추가 실패해도 강의는 생성됨
       }
     } catch (error) {
-      console.error("강의 episode 정보 파싱 실패:", error);
+      logActionError(
+        { domain: "content", action: "addLecture" },
+        error,
+        { lectureId: result.lectureId, message: "강의 episode 정보 파싱 실패" }
+      );
       // episode 파싱 실패해도 강의는 생성됨
     }
   }

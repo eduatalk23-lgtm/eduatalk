@@ -20,6 +20,7 @@ import type {
   SchoolType,
   SchoolTypeKor,
 } from "@/lib/domains/school/types";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 
 // 상수
 const SCHOOL_TYPE_REVERSE_MAP: Record<SchoolTypeKor, SchoolType> = {
@@ -61,7 +62,7 @@ export async function getSchoolById(schoolId: string): Promise<School | null> {
       region: school.region,
     };
   } catch (error) {
-    console.error("[schoolActions] ID 조회 오류:", error);
+    logActionError({ domain: "school", action: "getSchoolById" }, error, { schoolId });
     return null;
   }
 }
@@ -98,7 +99,7 @@ export async function getSchoolByName(
       region: school.region,
     };
   } catch (error) {
-    console.error("[schoolActions] 이름 조회 오류:", error);
+    logActionError({ domain: "school", action: "getSchoolByName" }, error, { schoolName, type });
     return null;
   }
 }
@@ -129,7 +130,7 @@ export async function searchSchools(
       region: school.region,
     }));
   } catch (error) {
-    console.error("[schoolActions] 검색 오류:", error);
+    logActionError({ domain: "school", action: "searchSchools" }, error, { query, type });
     return [];
   }
 }
@@ -143,7 +144,7 @@ export async function autoRegisterSchool(
   type: SchoolTypeKor,
   region?: string | null
 ): Promise<School | null> {
-  console.warn("[schoolActions] autoRegisterSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "autoRegisterSchool" }, "autoRegisterSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.", { name, type, region });
 
   // 기존 학교 검색만 수행
   const existing = await getSchoolByName(name, type);

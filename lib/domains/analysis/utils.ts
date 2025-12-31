@@ -7,6 +7,7 @@
 import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
 import { getSubjectById } from "@/lib/data/subjects";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   ScoreRow,
   ProgressRow,
@@ -104,7 +105,11 @@ export async function fetchAllScores(
 
     return allScores;
   } catch (error) {
-    console.error("[analysis] 성적 조회 실패", error);
+    logActionError(
+      { domain: "analysis", action: "fetchAllScores" },
+      error,
+      { studentId, tenantId }
+    );
     return [];
   }
 }
@@ -137,7 +142,11 @@ export async function fetchProgressMap(
       return acc;
     }, {});
   } catch (error) {
-    console.error("[analysis] 진행률 조회 실패", error);
+    logActionError(
+      { domain: "analysis", action: "fetchProgressMap" },
+      error,
+      { studentId }
+    );
     return {};
   }
 }
@@ -261,7 +270,11 @@ export async function fetchPlansForSubject(
 
     return allPlans;
   } catch (error) {
-    console.error("[analysis] 플랜 조회 실패", error);
+    logActionError(
+      { domain: "analysis", action: "fetchPlansForSubject" },
+      error,
+      { studentId, subject }
+    );
     return [];
   }
 }
@@ -485,7 +498,11 @@ export async function saveRiskAnalysis(
       .single();
 
     if (!student || !student.tenant_id) {
-      console.error("[analysis] 학생 정보를 찾을 수 없습니다.");
+      logActionError(
+        { domain: "analysis", action: "saveRiskAnalysis" },
+        new Error("Student not found or missing tenant_id"),
+        { studentId }
+      );
       return;
     }
 
@@ -519,7 +536,11 @@ export async function saveRiskAnalysis(
 
     if (insertError) throw insertError;
   } catch (error) {
-    console.error("[analysis] Risk Analysis 저장 실패", error);
+    logActionError(
+      { domain: "analysis", action: "saveRiskAnalysis" },
+      error,
+      { studentId, analysisCount: analyses.length }
+    );
     // 저장 실패해도 계속 진행 (테이블이 없을 수 있음)
   }
 }

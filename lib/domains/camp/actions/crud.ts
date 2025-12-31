@@ -12,8 +12,12 @@ import {
   AppError,
   ErrorCode,
   withErrorHandling,
-  logError,
 } from "@/lib/errors";
+import {
+  logActionError,
+  logActionWarn,
+  logActionDebug,
+} from "@/lib/logging/actionLogger";
 import type { CampTemplateUpdate } from "@/lib/domains/camp/types";
 import {
   requireCampAdminAuth,
@@ -104,12 +108,11 @@ export const getCampTemplateById = withErrorHandling(
     if (templateError) {
       // PGRST116은 결과가 0개일 때 발생하는 정상적인 에러
       if (templateError.code !== "PGRST116") {
-        logError(templateError, {
-          function: "getCampTemplateById",
-          templateId,
-          tenantId,
-          errorCode: templateError.code,
-        });
+        logActionError(
+          { domain: "camp", action: "getCampTemplateById" },
+          templateError,
+          { templateId, tenantId, errorCode: templateError.code }
+        );
         throw new AppError(
           "템플릿 조회 중 오류가 발생했습니다.",
           ErrorCode.DATABASE_ERROR,
@@ -412,12 +415,11 @@ export const createCampTemplateAction = withErrorHandling(
       try {
         await linkBlockSetToTemplate(result.templateId, blockSetId);
       } catch (linkError) {
-        logError(linkError, {
-          function: "createCampTemplateAction",
-          templateId: result.templateId,
-          blockSetId,
-          action: "linkBlockSetToTemplate",
-        });
+        logActionError(
+          { domain: "camp", action: "createCampTemplateAction" },
+          linkError,
+          { templateId: result.templateId, blockSetId, step: "linkBlockSetToTemplate" }
+        );
         // 연결 실패해도 템플릿 생성은 성공으로 처리 (나중에 수동으로 연결 가능)
       }
     }
@@ -637,12 +639,11 @@ export const updateCampTemplateAction = withErrorHandling(
       try {
         await linkBlockSetToTemplate(templateId, blockSetId);
       } catch (linkError) {
-        logError(linkError, {
-          function: "updateCampTemplateAction",
-          templateId,
-          blockSetId,
-          action: "linkBlockSetToTemplate",
-        });
+        logActionError(
+          { domain: "camp", action: "updateCampTemplateAction" },
+          linkError,
+          { templateId, blockSetId, step: "linkBlockSetToTemplate" }
+        );
         // 연결 실패해도 템플릿 수정은 성공으로 처리
       }
     } else {
@@ -650,11 +651,11 @@ export const updateCampTemplateAction = withErrorHandling(
       try {
         await unlinkBlockSetFromTemplate(templateId);
       } catch (unlinkError) {
-        logError(unlinkError, {
-          function: "updateCampTemplateAction",
-          templateId,
-          action: "unlinkBlockSetFromTemplate",
-        });
+        logActionError(
+          { domain: "camp", action: "updateCampTemplateAction" },
+          unlinkError,
+          { templateId, step: "unlinkBlockSetFromTemplate" }
+        );
         // 연결 해제 실패해도 템플릿 수정은 성공으로 처리
       }
     }
@@ -746,17 +747,18 @@ export const deleteCampTemplateAction = withErrorHandling(
     const planGroupResult = await deletePlanGroupsByTemplateId(templateId);
 
     if (!planGroupResult.success) {
-      logError(new Error(planGroupResult.error || "플랜 그룹 삭제 실패"), {
-        function: "deleteCampTemplateAction",
-        templateId,
-        tenantId,
-        action: "deletePlanGroupsByTemplateId",
-      });
+      logActionError(
+        { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+        new Error(planGroupResult.error || "플랜 그룹 삭제 실패"),
+        { templateId, step: "deletePlanGroupsByTemplateId" }
+      );
       // 플랜 그룹 삭제 실패해도 템플릿 삭제는 계속 진행
       // (데이터 정합성 문제가 있을 수 있지만, 템플릿 삭제 자체는 완료)
     } else if (planGroupResult.deletedGroupIds && planGroupResult.deletedGroupIds.length > 0) {
-      console.log(
-        `[campTemplateActions] 템플릿 삭제 전 ${planGroupResult.deletedGroupIds.length}개의 플랜 그룹 삭제 완료`
+      logActionDebug(
+        { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+        `템플릿 삭제 전 ${planGroupResult.deletedGroupIds.length}개의 플랜 그룹 삭제 완료`,
+        { templateId, deletedGroupCount: planGroupResult.deletedGroupIds.length }
       );
     }
 
@@ -772,20 +774,26 @@ export const deleteCampTemplateAction = withErrorHandling(
     let deletedSuccessfully = false;
 
     if (error) {
-      console.warn("[deleteCampTemplateAction] 일반 클라이언트 삭제 실패, Admin Client로 재시도:", error);
+      logActionWarn(
+        { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+        "일반 클라이언트 삭제 실패, Admin Client로 재시도",
+        { templateId, error: error.message }
+      );
     } else if (deletedRows && deletedRows.length > 0) {
       // 일반 클라이언트로 삭제 성공
       deletedSuccessfully = true;
-      console.log("[deleteCampTemplateAction] 일반 클라이언트로 템플릿 삭제 성공:", {
-        templateId,
-        deletedCount: deletedRows.length,
-      });
+      logActionDebug(
+        { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+        "일반 클라이언트로 템플릿 삭제 성공",
+        { templateId, deletedCount: deletedRows.length }
+      );
     } else {
       // 삭제된 행이 없음 (RLS 정책으로 차단되었을 가능성)
-      console.warn("[deleteCampTemplateAction] 삭제된 행이 없음, Admin Client로 재시도:", {
-        templateId,
-        tenantId,
-      });
+      logActionWarn(
+        { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+        "삭제된 행이 없음, Admin Client로 재시도",
+        { templateId }
+      );
     }
 
     // 일반 클라이언트로 삭제 실패한 경우 Admin Client 사용
@@ -808,12 +816,11 @@ export const deleteCampTemplateAction = withErrorHandling(
           .select();
 
         if (adminError) {
-          logError(adminError, {
-            function: "deleteCampTemplateAction",
-            templateId,
-            tenantId,
-            action: "adminClientDelete",
-          });
+          logActionError(
+            { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+            adminError,
+            { templateId, step: "adminClientDelete" }
+          );
           throw new AppError(
             "템플릿 삭제에 실패했습니다.",
             ErrorCode.DATABASE_ERROR,
@@ -825,26 +832,27 @@ export const deleteCampTemplateAction = withErrorHandling(
 
         if (!adminDeletedRows || adminDeletedRows.length === 0) {
           // Admin Client로도 삭제 실패 (템플릿이 이미 삭제되었거나 존재하지 않음)
-          console.warn("[deleteCampTemplateAction] Admin Client로도 삭제된 행이 없음:", {
-            templateId,
-            tenantId,
-          });
+          logActionWarn(
+            { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+            "Admin Client로도 삭제된 행이 없음",
+            { templateId }
+          );
           // 이미 삭제되었을 가능성이 높으므로 성공으로 처리
           deletedSuccessfully = true;
         } else {
           deletedSuccessfully = true;
-          console.log("[deleteCampTemplateAction] Admin Client로 템플릿 삭제 성공:", {
-            templateId,
-            deletedCount: adminDeletedRows.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+            "Admin Client로 템플릿 삭제 성공",
+            { templateId, deletedCount: adminDeletedRows.length }
+          );
         }
       } catch (adminError) {
-        logError(adminError, {
-          function: "deleteCampTemplateAction",
-          templateId,
-          tenantId,
-          action: "adminClientDelete",
-        });
+        logActionError(
+          { domain: "camp", action: "deleteCampTemplateAction", tenantId },
+          adminError,
+          { templateId, step: "adminClientDelete" }
+        );
         throw new AppError(
           "템플릿 삭제에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,

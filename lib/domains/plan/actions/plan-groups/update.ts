@@ -26,6 +26,7 @@ import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { normalizePlanPurpose } from "./utils";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
+import { logActionError, logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 플랜 그룹 임시저장 업데이트 (기존 draft 플랜 수정)
@@ -157,9 +158,11 @@ async function _updatePlanGroupDraft(
     
     // template_block_set_id가 덮어씌워졌는지 확인하고 복원
     if (templateBlockSetId && !("template_block_set_id" in mergedSchedulerOptions)) {
-      console.warn("[_updatePlanGroupDraft] template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원:", {
-        template_block_set_id: templateBlockSetId,
-      });
+      logActionWarn(
+        { domain: "plan", action: "_updatePlanGroupDraft" },
+        "template_block_set_id가 time_settings 병합 시 덮어씌워짐, 복원",
+        { groupId, template_block_set_id: templateBlockSetId }
+      );
       mergedSchedulerOptions = {
         ...mergedSchedulerOptions,
         template_block_set_id: templateBlockSetId,
@@ -177,11 +180,11 @@ async function _updatePlanGroupDraft(
           ...mergedSchedulerOptions,
           subject_allocations: generatedAllocations,
         } as SchedulerOptions;
-        console.log("[_updatePlanGroupDraft] Dual Write: content_slots에서 subject_allocations 자동 생성", {
-          groupId,
-          slotCount: data.content_slots.length,
-          allocationCount: generatedAllocations.length,
-        });
+        logActionDebug(
+          { domain: "plan", action: "_updatePlanGroupDraft" },
+          "Dual Write: content_slots에서 subject_allocations 자동 생성",
+          { groupId, slotCount: data.content_slots.length, allocationCount: generatedAllocations.length }
+        );
       }
     }
   }
@@ -192,12 +195,11 @@ async function _updatePlanGroupDraft(
   if (subjectAllocations || contentAllocations) {
     const validation = validateAllocations(contentAllocations, subjectAllocations);
     if (!validation.valid) {
-      console.warn("[_updatePlanGroupDraft] 전략과목/취약과목 설정 검증 실패:", {
-        groupId,
-        errors: validation.errors,
-        subjectAllocations,
-        contentAllocations,
-      });
+      logActionWarn(
+        { domain: "plan", action: "_updatePlanGroupDraft" },
+        "전략과목/취약과목 설정 검증 실패",
+        { groupId, errors: validation.errors, subjectAllocations, contentAllocations }
+      );
       // 검증 실패 시에도 계속 진행하되, 경고만 출력
     }
   }
@@ -303,7 +305,11 @@ async function _updatePlanGroupDraft(
     const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
-      console.error("[planGroupActions] 기존 제외일 삭제 실패", deleteError);
+      logActionError(
+        { domain: "plan", action: "_updatePlanGroupDraft" },
+        deleteError,
+        { groupId, operation: "기존 제외일 삭제 실패" }
+      );
       // 삭제 실패해도 계속 진행 (경고만)
     }
 
@@ -350,7 +356,11 @@ async function _updatePlanGroupDraft(
     const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
-      console.error("[planGroupActions] 기존 학원 일정 삭제 실패", deleteError);
+      logActionError(
+        { domain: "plan", action: "_updatePlanGroupDraft" },
+        deleteError,
+        { groupId, operation: "기존 학원 일정 삭제 실패" }
+      );
       // 삭제 실패해도 계속 진행 (경고만)
     }
 

@@ -25,6 +25,7 @@ import type {
   SchoolActionResult,
 } from "../types";
 import { toLegacySchool, toSchoolSimple } from "../types";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 조회 Actions (모든 사용자 접근 가능)
@@ -151,7 +152,7 @@ export async function createSchoolAction(
   }
 
   // 읽기 전용 테이블이므로 생성 불가
-  console.warn("[school/actions] createSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "createSchoolAction" }, "createSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -199,7 +200,7 @@ export async function updateSchoolAction(
   }
 
   // 읽기 전용 테이블이므로 수정 불가
-  console.warn("[school/actions] updateSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "updateSchoolAction" }, "updateSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -219,7 +220,7 @@ export async function deleteSchoolAction(
   }
 
   // 읽기 전용 테이블이므로 삭제 불가
-  console.warn("[school/actions] deleteSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "deleteSchoolAction" }, "deleteSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.", { schoolId });
   return {
     success: false,
     error: "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -239,7 +240,7 @@ export async function autoRegisterSchoolAction(
   region?: string | null
 ): Promise<SchoolSimple | null> {
   // 읽기 전용 테이블이므로 자동 등록 불가
-  console.warn("[school/actions] autoRegisterSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.");
+  logActionWarn({ domain: "school", action: "autoRegisterSchoolAction" }, "autoRegisterSchoolAction은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.", { name, type, region });
   
   // 기존 학교 검색만 수행 (하위 호환성)
   const existing = await service.getSchoolByName(name, type);

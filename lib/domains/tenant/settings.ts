@@ -4,6 +4,7 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type ParentRelation = "father" | "mother" | "guardian" | "other";
 
@@ -48,9 +49,10 @@ export async function getAutoApproveSettings(
       .maybeSingle();
 
     if (error) {
-      console.error(
-        "[tenantSettings] 자동 승인 설정 조회 실패",
-        error
+      logActionError(
+        { domain: "tenant", action: "getAutoApproveSettings", tenantId: targetTenantId },
+        error,
+        { message: "자동 승인 설정 조회 실패" }
       );
       return {
         success: false,
@@ -82,7 +84,11 @@ export async function getAutoApproveSettings(
       data: autoApprove || defaultSettings,
     };
   } catch (error) {
-    console.error("[tenantSettings] 자동 승인 설정 조회 중 오류", error);
+    logActionError(
+      { domain: "tenant", action: "getAutoApproveSettings", tenantId: targetTenantId },
+      error,
+      { message: "자동 승인 설정 조회 중 오류" }
+    );
     return {
       success: false,
       error: "설정 조회 중 오류가 발생했습니다.",
@@ -147,9 +153,10 @@ export async function updateAutoApproveSettings(
       .maybeSingle();
 
     if (fetchError) {
-      console.error(
-        "[tenantSettings] 테넌트 조회 실패",
-        fetchError
+      logActionError(
+        { domain: "tenant", action: "updateAutoApproveSettings", tenantId: targetTenantId },
+        fetchError,
+        { message: "테넌트 조회 실패" }
       );
       return {
         success: false,
@@ -176,9 +183,10 @@ export async function updateAutoApproveSettings(
       .eq("id", targetTenantId);
 
     if (error) {
-      console.error(
-        "[tenantSettings] 자동 승인 설정 업데이트 실패",
-        error
+      logActionError(
+        { domain: "tenant", action: "updateAutoApproveSettings", tenantId: targetTenantId },
+        error,
+        { message: "자동 승인 설정 업데이트 실패" }
       );
       return {
         success: false,
@@ -190,7 +198,11 @@ export async function updateAutoApproveSettings(
 
     return { success: true };
   } catch (error) {
-    console.error("[tenantSettings] 자동 승인 설정 업데이트 중 오류", error);
+    logActionError(
+      { domain: "tenant", action: "updateAutoApproveSettings", tenantId: targetTenantId },
+      error,
+      { message: "자동 승인 설정 업데이트 중 오류" }
+    );
     return {
       success: false,
       error: "설정 업데이트 중 오류가 발생했습니다.",

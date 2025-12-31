@@ -19,6 +19,7 @@ import {
 } from "@/lib/plan/slotRecommendationService";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // Re-export types for client use
 export type {
@@ -45,7 +46,10 @@ export async function recommendSlotsAction(
     const result = recommendSlots(profile, options);
     return { success: true, result };
   } catch (error) {
-    console.error("[slotRecommendation] 추천 실패:", error);
+    logActionError(
+      { domain: "plan", action: "recommendSlotsAction" },
+      error
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천에 실패했습니다.",
@@ -74,7 +78,11 @@ export async function recommendSlotsFromPresetAction(
     }
     return { success: true, result };
   } catch (error) {
-    console.error("[slotRecommendation] 프리셋 추천 실패:", error);
+    logActionError(
+      { domain: "plan", action: "recommendSlotsFromPresetAction" },
+      error,
+      { presetKey }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천에 실패했습니다.",
@@ -94,7 +102,10 @@ export async function getAvailablePresetsAction(): Promise<{
     const presets = getAvailablePresets();
     return { success: true, presets };
   } catch (error) {
-    console.error("[slotRecommendation] 프리셋 목록 조회 실패:", error);
+    logActionError(
+      { domain: "plan", action: "getAvailablePresetsAction" },
+      error
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "프리셋 조회에 실패했습니다.",
@@ -128,7 +139,11 @@ export async function recommendSlotsForCurrentStudentAction(
       .maybeSingle();
 
     if (studentError) {
-      console.error("[slotRecommendation] 학생 정보 조회 실패:", studentError);
+      logActionError(
+        { domain: "plan", action: "recommendSlotsForCurrentStudentAction", userId: user.userId },
+        studentError,
+        { step: "fetchStudent" }
+      );
     }
 
     // 학년 정보를 GradeLevel로 변환
@@ -143,7 +158,11 @@ export async function recommendSlotsForCurrentStudentAction(
     const result = recommendSlots(profile, options);
     return { success: true, result };
   } catch (error) {
-    console.error("[slotRecommendation] 학생 추천 실패:", error);
+    logActionError(
+      { domain: "plan", action: "recommendSlotsForCurrentStudentAction" },
+      error,
+      { planPurpose }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천에 실패했습니다.",

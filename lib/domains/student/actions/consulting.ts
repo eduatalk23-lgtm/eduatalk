@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export async function addConsultingNote(
   studentId: string,
@@ -57,14 +58,14 @@ export async function addConsultingNote(
     });
 
     if (error) {
-      console.error("[consultingNotes] 상담노트 저장 실패", error);
+      logActionError({ domain: "student", action: "addConsultingNote" }, error, { studentId, consultantId });
       return { success: false, error: error.message };
     }
 
     revalidatePath(`/admin/students/${studentId}`);
     return { success: true };
   } catch (error) {
-    console.error("[consultingNotes] 상담노트 저장 실패", error);
+    logActionError({ domain: "student", action: "addConsultingNote" }, error, { studentId, consultantId });
     return { success: false, error: "상담노트 저장에 실패했습니다." };
   }
 }
@@ -134,7 +135,7 @@ export async function deleteConsultingNote(
       .select();
 
     if (error) {
-      console.error("[consultingNotes] 상담노트 삭제 실패", error);
+      logActionError({ domain: "student", action: "deleteConsultingNote" }, error, { noteId, studentId });
       return { success: false, error: error.message };
     }
 
@@ -145,7 +146,7 @@ export async function deleteConsultingNote(
     revalidatePath(`/admin/students/${studentId}`);
     return { success: true };
   } catch (error) {
-    console.error("[consultingNotes] 상담노트 삭제 실패", error);
+    logActionError({ domain: "student", action: "deleteConsultingNote" }, error, { noteId, studentId });
     return { success: false, error: "상담노트 삭제에 실패했습니다." };
   }
 }

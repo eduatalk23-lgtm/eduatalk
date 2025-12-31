@@ -33,6 +33,7 @@ import type {
   PlanContent,
   PlanPurpose,
 } from "@/lib/types/plan";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // Context Helper
@@ -434,7 +435,11 @@ export async function updateProgress(formData: FormData): Promise<void> {
     revalidatePath("/today");
     redirect("/today");
   } catch (error) {
-    console.error("[progress] 진행률 업데이트 실패", error);
+    logActionError(
+      { domain: "plan", action: "updateProgress" },
+      error,
+      { planId: planIdInput }
+    );
     if (error instanceof Error) throw error;
     throw new Error("진행률 업데이트 중 오류가 발생했습니다.");
   }
@@ -522,7 +527,11 @@ export async function updatePlanProgress(formData: FormData): Promise<void> {
 
     revalidatePath("/plan");
   } catch (error) {
-    console.error("[progress] 플랜 진행률 업데이트 실패", error);
+    logActionError(
+      { domain: "plan", action: "updatePlanProgress" },
+      error,
+      { planId: planIdInput }
+    );
     if (error instanceof Error) throw error;
     throw new Error("진행률 업데이트 중 오류가 발생했습니다.");
   }
@@ -561,7 +570,11 @@ async function fetchPlan(
     .maybeSingle();
 
   if (error) {
-    console.error("[progress] 플랜 조회 실패", error);
+    logActionError(
+      { domain: "plan", action: "fetchPlan" },
+      error,
+      { planId, studentId }
+    );
     return null;
   }
   return data;
@@ -582,7 +595,11 @@ async function fetchContentProgress(
     .maybeSingle();
 
   if (error && error.code !== "PGRST116") {
-    console.error("[progress] 진행률 조회 실패", error);
+    logActionError(
+      { domain: "plan", action: "fetchContentProgress" },
+      error,
+      { contentType, contentId, studentId }
+    );
   }
   return data;
 }
@@ -651,7 +668,11 @@ async function fetchPlanProgressRecord(
     .maybeSingle();
 
   if (error && error.code !== "PGRST116") {
-    console.error("[progress] 진행률 조회 실패", error);
+    logActionError(
+      { domain: "plan", action: "fetchPlanProgressRecord" },
+      error,
+      { planId, studentId }
+    );
   }
   return data;
 }

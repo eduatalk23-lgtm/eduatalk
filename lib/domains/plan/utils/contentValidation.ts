@@ -5,6 +5,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type ContentType = "book" | "lecture" | "custom";
 
@@ -45,7 +46,11 @@ export async function checkContentExists(
     });
 
     if (error) {
-      console.error("[checkContentExists] RPC 에러:", error);
+      logActionError(
+        { domain: "plan", action: "checkContentExists" },
+        error,
+        { contentId, contentType, studentId, note: "RPC 에러, 직접 조회로 폴백" }
+      );
       // RPC 에러 시 직접 조회로 폴백
       return await checkContentExistsDirect(supabase, contentId, contentType, studentId);
     }
@@ -57,7 +62,11 @@ export async function checkContentExists(
       error: result.error,
     };
   } catch (error) {
-    console.error("[checkContentExists] 예외 발생:", error);
+    logActionError(
+      { domain: "plan", action: "checkContentExists" },
+      error,
+      { contentId, contentType, studentId }
+    );
     return {
       exists: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",
@@ -103,7 +112,11 @@ async function checkContentExistsDirect(
     const { data: studentContent, error: studentError } = await query.maybeSingle();
 
     if (studentError && studentError.code !== "PGRST116") {
-      console.error(`[checkContentExistsDirect] ${tableName} 조회 실패:`, studentError);
+      logActionError(
+        { domain: "plan", action: "checkContentExistsDirect" },
+        studentError,
+        { contentId, contentType, studentId, tableName }
+      );
     }
 
     if (studentContent) {
@@ -119,7 +132,11 @@ async function checkContentExistsDirect(
         .maybeSingle();
 
       if (masterError && masterError.code !== "PGRST116") {
-        console.error(`[checkContentExistsDirect] ${masterTableName} 조회 실패:`, masterError);
+        logActionError(
+          { domain: "plan", action: "checkContentExistsDirect" },
+          masterError,
+          { contentId, contentType, studentId, masterTableName }
+        );
       }
 
       if (masterContent) {
@@ -129,7 +146,11 @@ async function checkContentExistsDirect(
 
     return { exists: false };
   } catch (error) {
-    console.error("[checkContentExistsDirect] 예외 발생:", error);
+    logActionError(
+      { domain: "plan", action: "checkContentExistsDirect" },
+      error,
+      { contentId, contentType, studentId }
+    );
     return {
       exists: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",

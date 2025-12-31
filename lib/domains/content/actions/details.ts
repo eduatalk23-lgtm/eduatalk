@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 
 /**
  * 교재 세부정보 저장
@@ -49,7 +50,7 @@ async function _saveBookDetails(
     .eq("book_id", bookId);
 
   if (deleteError) {
-    console.error("[contentDetails] 기존 세부정보 삭제 실패", deleteError);
+    logActionError({ domain: "content", action: "saveBookDetails" }, deleteError, { bookId });
     throw new AppError("세부정보 저장에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
   }
 
@@ -68,7 +69,7 @@ async function _saveBookDetails(
       .insert(detailsToInsert);
 
     if (insertError) {
-      console.error("[contentDetails] 세부정보 삽입 실패", insertError);
+      logActionError({ domain: "content", action: "saveBookDetails" }, insertError, { bookId, detailsCount: details.length });
       throw new AppError("세부정보 저장에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
     }
   }
@@ -117,7 +118,7 @@ async function _saveLectureEpisodes(
     .eq("lecture_id", lectureId);
 
   if (deleteError) {
-    console.error("[contentDetails] 기존 회차 정보 삭제 실패", deleteError);
+    logActionError({ domain: "content", action: "saveLectureEpisodes" }, deleteError, { lectureId });
     throw new AppError("회차 정보 저장에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
   }
 
@@ -143,7 +144,7 @@ async function _saveLectureEpisodes(
       .insert(episodesToInsert);
 
     if (insertError) {
-      console.error("[contentDetails] 회차 정보 삽입 실패", insertError);
+      logActionError({ domain: "content", action: "saveLectureEpisodes" }, insertError, { lectureId, episodesCount: episodes.length });
       throw new AppError("회차 정보 저장에 실패했습니다.", ErrorCode.DATABASE_ERROR, 500, true);
     }
 
@@ -155,7 +156,7 @@ async function _saveLectureEpisodes(
         .eq("id", lectureId);
 
       if (updateError) {
-        console.error("[contentDetails] 총 회차 업데이트 실패", updateError);
+        logActionWarn({ domain: "content", action: "saveLectureEpisodes" }, "총 회차 업데이트 실패", { lectureId, maxEpisodeNumber });
         // 에러를 던지지 않고 로그만 남김 (회차 정보는 저장되었으므로)
       }
     }
@@ -167,7 +168,7 @@ async function _saveLectureEpisodes(
       .eq("id", lectureId);
 
     if (updateError) {
-      console.error("[contentDetails] 총 회차 초기화 실패", updateError);
+      logActionWarn({ domain: "content", action: "saveLectureEpisodes" }, "총 회차 초기화 실패", { lectureId });
     }
   }
 

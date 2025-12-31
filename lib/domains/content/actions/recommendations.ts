@@ -9,6 +9,7 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRecommendedMasterContents, RecommendedMasterContent } from "@/lib/recommendations/masterContentRecommendation";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 추천 마스터 콘텐츠 조회 액션
@@ -35,12 +36,11 @@ export async function getRecommendedMasterContentsAction(
       targetStudentId = user.userId;
     }
 
-    console.log("[getRecommendedMasterContentsAction] 호출:", {
-      studentId,
-      targetStudentId,
-      subjects,
-      counts,
-    });
+    logActionDebug(
+      { domain: "content", action: "getRecommendedMasterContentsAction" },
+      "호출",
+      { studentId, targetStudentId, subjects, counts }
+    );
 
     // Supabase 클라이언트 생성
     const supabase = await createSupabaseServerClient();
@@ -53,7 +53,11 @@ export async function getRecommendedMasterContentsAction(
       .maybeSingle();
 
     if (studentError) {
-      console.error("[getRecommendedMasterContentsAction] 학생 조회 실패:", studentError);
+      logActionError(
+        { domain: "content", action: "getRecommendedMasterContentsAction" },
+        studentError,
+        { message: "학생 조회 실패", targetStudentId }
+      );
       return {
         success: false,
         error: "학생 정보를 조회할 수 없습니다.",
@@ -82,15 +86,19 @@ export async function getRecommendedMasterContentsAction(
       subjectCounts.size > 0 ? subjectCounts : undefined
     );
 
-    console.log("[getRecommendedMasterContentsAction] 성공:", {
-      recommendationsCount: recommendations.length,
-      firstItem: recommendations[0] ? {
-        id: recommendations[0].id,
-        title: recommendations[0].title,
-        contentType: recommendations[0].contentType,
-        hasContentType: !!recommendations[0].contentType,
-      } : null,
-    });
+    logActionDebug(
+      { domain: "content", action: "getRecommendedMasterContentsAction" },
+      "성공",
+      {
+        recommendationsCount: recommendations.length,
+        firstItem: recommendations[0] ? {
+          id: recommendations[0].id,
+          title: recommendations[0].title,
+          contentType: recommendations[0].contentType,
+          hasContentType: !!recommendations[0].contentType,
+        } : null,
+      }
+    );
 
     // RecommendedMasterContent를 그대로 반환 (contentType 포함)
     // Step3ContentSelection에서 RecommendedContent로 변환
@@ -101,7 +109,11 @@ export async function getRecommendedMasterContentsAction(
       },
     };
   } catch (error) {
-    console.error("[getRecommendedMasterContentsAction] 예외 발생:", error);
+    logActionError(
+      { domain: "content", action: "getRecommendedMasterContentsAction" },
+      error,
+      { message: "예외 발생" }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천 콘텐츠를 불러오는 데 실패했습니다.",
@@ -382,7 +394,11 @@ export async function getSmartRecommendations(): Promise<{
       },
     };
   } catch (error) {
-    console.error("[getSmartRecommendations] 예외:", error);
+    logActionError(
+      { domain: "content", action: "getSmartRecommendations" },
+      error,
+      { message: "예외" }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천을 불러오는 데 실패했습니다.",
@@ -485,7 +501,11 @@ export async function getPopularContentRecommendations(
 
     return { success: true, data: { contents: sortedContents } };
   } catch (error) {
-    console.error("[getPopularContentRecommendations] 예외:", error);
+    logActionError(
+      { domain: "content", action: "getPopularContentRecommendations" },
+      error,
+      { message: "예외" }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "인기 콘텐츠를 불러오는 데 실패했습니다.",

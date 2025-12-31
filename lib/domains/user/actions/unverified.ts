@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
@@ -29,14 +30,14 @@ export async function deleteUnverifiedUser(
     const { error } = await adminClient.auth.admin.deleteUser(userId);
 
     if (error) {
-      console.error("[admin/unverified-users] 사용자 삭제 실패", error);
+      logActionError({ domain: "user", action: "deleteUnverifiedUser" }, error, { userId });
       return { success: false, error: error.message || "사용자 삭제에 실패했습니다." };
     }
 
     revalidatePath("/admin/unverified-users");
     return { success: true };
   } catch (error) {
-    console.error("[admin/unverified-users] 사용자 삭제 중 오류", error);
+    logActionError({ domain: "user", action: "deleteUnverifiedUser" }, error, { userId });
     return {
       success: false,
       error: error instanceof Error ? error.message : "사용자 삭제에 실패했습니다.",
@@ -85,7 +86,7 @@ export async function resendVerificationEmail(
     });
 
     if (linkError) {
-      console.error("[admin/unverified-users] 인증 링크 생성 실패", linkError);
+      logActionError({ domain: "user", action: "resendVerificationEmail" }, linkError, { email });
       return { success: false, error: linkError.message || "인증 메일 재발송에 실패했습니다." };
     }
 
@@ -98,7 +99,7 @@ export async function resendVerificationEmail(
       message: "인증 링크가 생성되었습니다. (이메일 발송은 Supabase 설정에 따라 자동으로 처리됩니다.)",
     };
   } catch (error) {
-    console.error("[admin/unverified-users] 인증 메일 재발송 중 오류", error);
+    logActionError({ domain: "user", action: "resendVerificationEmail" }, error, { email });
     return {
       success: false,
       error: error instanceof Error ? error.message : "인증 메일 재발송에 실패했습니다.",
@@ -141,13 +142,17 @@ export async function deleteMultipleUnverifiedUsers(
     }
 
     if (errors.length > 0) {
-      console.error("[admin/unverified-users] 일부 사용자 삭제 실패", errors);
+      logActionError(
+        { domain: "user", action: "deleteMultipleUnverifiedUsers" },
+        new Error("일부 사용자 삭제 실패"),
+        { errors, userIds }
+      );
     }
 
     revalidatePath("/admin/unverified-users");
     return { success: true, deletedCount };
   } catch (error) {
-    console.error("[admin/unverified-users] 일괄 삭제 중 오류", error);
+    logActionError({ domain: "user", action: "deleteMultipleUnverifiedUsers" }, error, { userIds });
     return {
       success: false,
       error: error instanceof Error ? error.message : "일괄 삭제에 실패했습니다.",

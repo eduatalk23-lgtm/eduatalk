@@ -5,6 +5,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type {
   AttendanceRecord,
   CreateAttendanceRecordInput,
@@ -90,14 +91,16 @@ export async function insertAttendanceRecord(
 
   if (error) {
     // 에러 상세 정보 로깅 추가
-    console.error("[attendance/repository] 출석 기록 생성 실패", {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-      tenantId,
-      input,
-    });
+    logActionError(
+      { domain: "attendance", action: "insertAttendanceRecord", tenantId },
+      error,
+      {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        input,
+      }
+    );
     throw error;
   }
 
@@ -152,14 +155,17 @@ export async function updateAttendanceRecord(
 
   if (error) {
     // 에러 상세 정보 로깅 추가
-    console.error("[attendance/repository] 출석 기록 수정 실패", {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-      recordId,
-      input,
-    });
+    logActionError(
+      { domain: "attendance", action: "updateAttendanceRecord" },
+      error,
+      {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        recordId,
+        input,
+      }
+    );
     throw error;
   }
 
@@ -231,12 +237,15 @@ export async function findAttendanceRecordsByDateRange(
 
   if (error) {
     // 에러 상세 정보 로깅
-    console.error("[attendance/repository] 출석 기록 조회 실패", {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
+    logActionError(
+      { domain: "attendance", action: "findAttendanceRecordsByDateRange" },
+      error,
+      {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      }
+    );
     throw error;
   }
 
@@ -344,12 +353,15 @@ export async function findAttendanceRecordsWithPagination(
   const { data, error, count } = await query;
 
   if (error) {
-    console.error("[attendance/repository] 출석 기록 조회 실패", {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
+    logActionError(
+      { domain: "attendance", action: "findAttendanceRecordsWithPagination" },
+      error,
+      {
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      }
+    );
     throw error;
   }
 
@@ -366,10 +378,14 @@ export async function findAttendanceRecordsWithPagination(
       .in("id", studentIds);
 
     if (studentsError) {
-      console.error("[attendance/repository] 학생 정보 조회 실패", {
-        message: studentsError.message,
-        code: studentsError.code,
-      });
+      logActionError(
+        { domain: "attendance", action: "findAttendanceRecordsWithPagination" },
+        studentsError,
+        {
+          code: studentsError.code,
+          context: "학생 정보 조회",
+        }
+      );
     } else {
       studentMap = new Map(
         (students ?? []).map((s) => [s.id, s.name ?? null])
@@ -453,10 +469,13 @@ export async function countAttendanceRecords(
   const { count, error } = await query;
 
   if (error) {
-    console.error("[attendance/repository] 출석 기록 개수 조회 실패", {
-      message: error.message,
-      code: error.code,
-    });
+    logActionError(
+      { domain: "attendance", action: "countAttendanceRecords" },
+      error,
+      {
+        code: error.code,
+      }
+    );
     throw error;
   }
 

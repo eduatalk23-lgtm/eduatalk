@@ -11,6 +11,7 @@ import { fetchContentMetadata, fetchContentMetadataBatch } from "@/lib/data/cont
 import { toPlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getSubjectsByGroupName } from "@/lib/data/subjects";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 단일 콘텐츠 메타데이터 조회
@@ -110,7 +111,7 @@ export async function fetchContentDetailsForValidation(
         .in("id", books.map(b => b.content_id));
 
       if (bookError) {
-        console.error("Error fetching book details:", bookError);
+        logActionError({ domain: "content", action: "fetchContentDetailsForValidation" }, bookError, { context: "fetching book details" });
       } else if (bookDetails) {
         results.push(
           ...bookDetails.map(b => ({
@@ -131,7 +132,7 @@ export async function fetchContentDetailsForValidation(
         .in("id", lectures.map(l => l.content_id));
 
       if (lectureError) {
-        console.error("Error fetching lecture details:", lectureError);
+        logActionError({ domain: "content", action: "fetchContentDetailsForValidation" }, lectureError, { context: "fetching lecture details" });
       } else if (lectureDetails) {
         results.push(
           ...lectureDetails.map(l => ({
@@ -146,7 +147,7 @@ export async function fetchContentDetailsForValidation(
 
     return results;
   } catch (error) {
-    console.error("Error in fetchContentDetailsForValidation:", error);
+    logActionError({ domain: "content", action: "fetchContentDetailsForValidation" }, error);
     return [];
   }
 }
@@ -184,7 +185,7 @@ export async function fetchDetailSubjects(
       .not("subject", "is", null);
 
     if (bookError) {
-      console.error("Error fetching book subjects:", bookError);
+      logActionError({ domain: "content", action: "fetchDetailSubjects" }, bookError, { context: "fetching book subjects", subjectCategory });
     }
 
     // master_lectures에서 조회
@@ -195,7 +196,7 @@ export async function fetchDetailSubjects(
       .not("subject", "is", null);
 
     if (lectureError) {
-      console.error("Error fetching lecture subjects:", lectureError);
+      logActionError({ domain: "content", action: "fetchDetailSubjects" }, lectureError, { context: "fetching lecture subjects", subjectCategory });
     }
 
     // 중복 제거 및 정렬
@@ -215,7 +216,7 @@ export async function fetchDetailSubjects(
 
     return Array.from(allSubjects).sort();
   } catch (error) {
-    console.error("Error in fetchDetailSubjects:", error);
+    logActionError({ domain: "content", action: "fetchDetailSubjects" }, error, { subjectCategory, curriculumRevisionId });
     return [];
   }
 }
