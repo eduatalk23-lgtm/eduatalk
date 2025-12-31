@@ -252,154 +252,127 @@ export async function getCampDatePlans(
     }
   });
 
-  // 배치 조회 (학생 콘텐츠)
-  if (bookIds.length > 0) {
-    const { data: books } = await supabase
-      .from("books")
-      .select("id, title, subject, master_content_id")
-      .in("id", bookIds);
-    books?.forEach((book) => {
-      contentMap.set(`book:${book.id}`, {
-        title: book.title || null,
-        subject: book.subject || null,
-      });
-    });
-    
-    // 마스터 콘텐츠 조회 (학생 콘텐츠에 마스터 참조가 있고, 학생 콘텐츠 정보가 없는 경우)
-    const booksWithoutTitle = books?.filter((b) => !b.title && b.master_content_id) || [];
-    if (booksWithoutTitle.length > 0) {
-      const masterBookIds = booksWithoutTitle
-        .map((b) => b.master_content_id)
-        .filter((id): id is string => !!id);
-      
-      if (masterBookIds.length > 0) {
-        const { data: masterBooks } = await supabase
-          .from("master_books")
-          .select("id, title, subject")
-          .in("id", masterBookIds);
-        
-        // 마스터 콘텐츠 정보로 보완
-        masterBooks?.forEach((masterBook) => {
-          booksWithoutTitle.forEach((book) => {
-            if (book.master_content_id === masterBook.id) {
-              contentMap.set(`book:${book.id}`, {
-                title: masterBook.title || null,
-                subject: masterBook.subject || null,
-              });
-            }
-          });
-        });
-      }
-    }
-  }
+  // ===== 병렬화된 배치 조회 (성능 최적화) =====
+  // Phase 1: 초기 콘텐츠 조회 (books, lectures, customs 병렬 실행)
+  const [booksResult, lecturesResult, customsResult] = await Promise.all([
+    bookIds.length > 0
+      ? supabase.from("books").select("id, title, subject, master_content_id").in("id", bookIds)
+      : Promise.resolve({ data: null }),
+    lectureIds.length > 0
+      ? supabase.from("lectures").select("id, title, subject, master_content_id, master_lecture_id").in("id", lectureIds)
+      : Promise.resolve({ data: null }),
+    customIds.length > 0
+      ? supabase.from("student_custom_contents").select("id, title, subject").in("id", customIds)
+      : Promise.resolve({ data: null }),
+  ]);
 
-  // content_id가 마스터 콘텐츠 ID일 수 있으므로 변환 맵 생성
+  const books = booksResult.data;
+  const lectures = lecturesResult.data;
+  const customs = customsResult.data;
+
+  // Books 매핑
+  books?.forEach((book) => {
+    contentMap.set(`book:${book.id}`, {
+      title: book.title || null,
+      subject: book.subject || null,
+    });
+  });
+
+  // Lectures 매핑
   const contentIdMap = new Map<string, string>(); // originalContentId -> studentContentId
-  
-  if (lectureIds.length > 0) {
-    // 1차: student_plan의 content_id로 직접 조회 (학생 콘텐츠 ID인 경우)
-    const { data: lectures } = await supabase
-      .from("lectures")
-      .select("id, title, subject, master_content_id, master_lecture_id")
-      .in("id", lectureIds);
-    
-    // 조회된 학생 강의들 매핑
-    lectures?.forEach((lecture) => {
-      contentMap.set(`lecture:${lecture.id}`, {
-        title: lecture.title || null,
-        subject: lecture.subject || null,
-      });
-      contentIdMap.set(lecture.id, lecture.id); // 자기 자신으로 매핑
+  lectures?.forEach((lecture) => {
+    contentMap.set(`lecture:${lecture.id}`, {
+      title: lecture.title || null,
+      subject: lecture.subject || null,
     });
-    
-    // 2차: 조회되지 않은 content_id들은 마스터 콘텐츠 ID일 수 있음
-    const foundLectureIds = new Set(lectures?.map((l) => l.id) || []);
-    const notFoundLectureIds = lectureIds.filter((id) => !foundLectureIds.has(id));
-    
-    if (notFoundLectureIds.length > 0) {
-      // 마스터 강의인지 확인
-      const { data: masterLectures } = await supabase
-        .from("master_lectures")
-        .select("id, title, subject")
-        .in("id", notFoundLectureIds);
-      
-      if (masterLectures && masterLectures.length > 0) {
-        // 마스터 강의 정보로 contentMap 보완
-        masterLectures.forEach((masterLecture) => {
-          contentMap.set(`lecture:${masterLecture.id}`, {
-            title: masterLecture.title || null,
-            subject: masterLecture.subject || null,
-          });
+    contentIdMap.set(lecture.id, lecture.id);
+  });
+
+  // Customs 매핑
+  customs?.forEach((custom) => {
+    contentMap.set(`custom:${custom.id}`, {
+      title: custom.title || null,
+      subject: custom.subject || null,
+    });
+  });
+
+  // Phase 2: 마스터 콘텐츠 fallback 조회 (병렬 실행)
+  const booksWithoutTitle = books?.filter((b) => !b.title && b.master_content_id) || [];
+  const masterBookIds = booksWithoutTitle.map((b) => b.master_content_id).filter((id): id is string => !!id);
+
+  const foundLectureIds = new Set(lectures?.map((l) => l.id) || []);
+  const notFoundLectureIds = lectureIds.filter((id) => !foundLectureIds.has(id));
+
+  const lecturesWithoutTitle = lectures?.filter((l) => !l.title && l.master_content_id) || [];
+  const masterLectureIdsForTitle = lecturesWithoutTitle.map((l) => l.master_content_id).filter((id): id is string => !!id);
+
+  // 모든 fallback 쿼리를 병렬 실행
+  const [masterBooksResult, masterLecturesResult, masterLecturesForTitleResult] = await Promise.all([
+    masterBookIds.length > 0
+      ? supabase.from("master_books").select("id, title, subject").in("id", masterBookIds)
+      : Promise.resolve({ data: null }),
+    notFoundLectureIds.length > 0
+      ? supabase.from("master_lectures").select("id, title, subject").in("id", notFoundLectureIds)
+      : Promise.resolve({ data: null }),
+    masterLectureIdsForTitle.length > 0
+      ? supabase.from("master_lectures").select("id, title, subject").in("id", masterLectureIdsForTitle)
+      : Promise.resolve({ data: null }),
+  ]);
+
+  // Master Books fallback 처리
+  masterBooksResult.data?.forEach((masterBook) => {
+    booksWithoutTitle.forEach((book) => {
+      if (book.master_content_id === masterBook.id) {
+        contentMap.set(`book:${book.id}`, {
+          title: masterBook.title || null,
+          subject: masterBook.subject || null,
         });
-        
-        // 각 학생별로 마스터 강의 ID에 해당하는 학생 강의 찾기
-        for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
-          const masterIdsInStudent = studentLectureIds.filter((id) =>
-            notFoundLectureIds.includes(id)
-          );
-          
-          if (masterIdsInStudent.length > 0) {
-            // 해당 학생의 강의 중 master_content_id 또는 master_lecture_id가 일치하는 것 찾기
-            const { data: studentLecturesByMaster } = await supabase
-              .from("lectures")
-              .select("id, master_content_id, master_lecture_id")
-              .eq("student_id", studentId)
-              .or(
-                `master_content_id.in.(${masterIdsInStudent.join(",")}),master_lecture_id.in.(${masterIdsInStudent.join(",")})`
-              );
-            
-            // ContentResolverService를 사용하여 마스터 ID -> 학생 ID 매핑 생성
-            studentLecturesByMaster?.forEach((studentLecture) => {
-              const masterId = getMasterContentId(studentLecture, "lecture");
-              if (masterId && masterIdsInStudent.includes(masterId)) {
-                contentIdMap.set(masterId, studentLecture.id);
-              }
-            });
-          }
+      }
+    });
+  });
+
+  // Master Lectures (not found) fallback 처리
+  const masterLectures = masterLecturesResult.data;
+  if (masterLectures && masterLectures.length > 0) {
+    masterLectures.forEach((masterLecture) => {
+      contentMap.set(`lecture:${masterLecture.id}`, {
+        title: masterLecture.title || null,
+        subject: masterLecture.subject || null,
+      });
+    });
+
+    // 배치 쿼리: 모든 학생의 강의를 한번에 조회 (N+1 → 1)
+    const allStudentIds = Array.from(studentLectureMap.keys());
+    if (allStudentIds.length > 0 && notFoundLectureIds.length > 0) {
+      const { data: allStudentLecturesByMaster } = await supabase
+        .from("lectures")
+        .select("id, student_id, master_content_id, master_lecture_id")
+        .in("student_id", allStudentIds)
+        .or(
+          `master_content_id.in.(${notFoundLectureIds.join(",")}),master_lecture_id.in.(${notFoundLectureIds.join(",")})`
+        );
+
+      allStudentLecturesByMaster?.forEach((studentLecture) => {
+        const masterId = getMasterContentId(studentLecture, "lecture");
+        const studentMasterIds = studentLectureMap.get(studentLecture.student_id) || [];
+        if (masterId && studentMasterIds.some(id => notFoundLectureIds.includes(id))) {
+          contentIdMap.set(masterId, studentLecture.id);
         }
-      }
-    }
-    
-    // 마스터 콘텐츠 조회 (학생 콘텐츠에 마스터 참조가 있고, 학생 콘텐츠 정보가 없는 경우)
-    const lecturesWithoutTitle = lectures?.filter((l) => !l.title && l.master_content_id) || [];
-    if (lecturesWithoutTitle.length > 0) {
-      const masterLectureIds = lecturesWithoutTitle
-        .map((l) => l.master_content_id)
-        .filter((id): id is string => !!id);
-      
-      if (masterLectureIds.length > 0) {
-        const { data: masterLecturesForTitle } = await supabase
-          .from("master_lectures")
-          .select("id, title, subject")
-          .in("id", masterLectureIds);
-        
-        // 마스터 콘텐츠 정보로 보완
-        masterLecturesForTitle?.forEach((masterLecture) => {
-          lecturesWithoutTitle.forEach((lecture) => {
-            if (lecture.master_content_id === masterLecture.id) {
-              contentMap.set(`lecture:${lecture.id}`, {
-                title: masterLecture.title || null,
-                subject: masterLecture.subject || null,
-              });
-            }
-          });
-        });
-      }
+      });
     }
   }
 
-  if (customIds.length > 0) {
-    const { data: customs } = await supabase
-      .from("student_custom_contents")
-      .select("id, title, subject")
-      .in("id", customIds);
-    customs?.forEach((custom) => {
-      contentMap.set(`custom:${custom.id}`, {
-        title: custom.title || null,
-        subject: custom.subject || null,
-      });
+  // Master Lectures (for title) fallback 처리
+  masterLecturesForTitleResult.data?.forEach((masterLecture) => {
+    lecturesWithoutTitle.forEach((lecture) => {
+      if (lecture.master_content_id === masterLecture.id) {
+        contentMap.set(`lecture:${lecture.id}`, {
+          title: masterLecture.title || null,
+          subject: masterLecture.subject || null,
+        });
+      }
     });
-  }
+  });
 
   // 학생별 콘텐츠 상세 정보 조회 (교재 목차, 강의 회차)
   const { getStudentBookDetailsBatch, getStudentLectureEpisodesBatch } = await import("@/lib/data/contentMasters");
@@ -417,38 +390,77 @@ export async function getCampDatePlans(
     duration: number | null;
   }>>>();
   
-  // 학생별로 배치 조회
-  for (const [studentId, studentBookIds] of studentBookMap.entries()) {
-    if (studentBookIds.length > 0) {
-      const details = await getStudentBookDetailsBatch(studentBookIds, studentId);
-      bookDetailsMap.set(studentId, details);
-    }
+  // 배치 조회 최적화: 모든 bookId/lectureId를 한번에 조회 (N+1 → 1)
+
+  // 1. 모든 bookId 수집 및 단일 배치 조회
+  const allBookIds = [...new Set(Array.from(studentBookMap.values()).flat())];
+  let allBookDetails = new Map<string, Array<{
+    id: string;
+    page_number: number;
+    major_unit: string | null;
+    minor_unit: string | null;
+  }>>();
+
+  if (allBookIds.length > 0) {
+    allBookDetails = await getStudentBookDetailsBatch(allBookIds, "");
   }
-  
+
+  // 학생별로 필요한 bookId만 매핑
+  for (const [studentId, studentBookIds] of studentBookMap.entries()) {
+    const studentDetails = new Map<string, Array<{
+      id: string;
+      page_number: number;
+      major_unit: string | null;
+      minor_unit: string | null;
+    }>>();
+    studentBookIds.forEach(bookId => {
+      studentDetails.set(bookId, allBookDetails.get(bookId) || []);
+    });
+    bookDetailsMap.set(studentId, studentDetails);
+  }
+
+  // 2. 모든 lectureId 수집 및 단일 배치 조회
+  const allResolvedLectureIds = new Set<string>();
+  const studentResolvedMap = new Map<string, string[]>(); // studentId -> resolvedIds
+
   for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
-    if (studentLectureIds.length > 0) {
-      // content_id가 마스터 콘텐츠 ID인 경우 학생 콘텐츠 ID로 변환
-      const resolvedLectureIds = studentLectureIds.map(
-        (id) => contentIdMap.get(id) || id
-      );
-      const episodes = await getStudentLectureEpisodesBatch(resolvedLectureIds, studentId);
-      
-      // 원본 content_id로 매핑하여 저장 (formatLectureRange에서 원본 content_id 사용)
-      const episodesWithOriginalId = new Map<string, Array<{
-        id: string;
-        episode_number: number;
-        episode_title: string | null;
-        duration: number | null;
-      }>>();
-      
-      studentLectureIds.forEach((originalId, index) => {
-        const resolvedId = resolvedLectureIds[index];
-        const episodesForResolvedId = episodes.get(resolvedId) || [];
-        episodesWithOriginalId.set(originalId, episodesForResolvedId);
-      });
-      
-      lectureEpisodesMap.set(studentId, episodesWithOriginalId);
-    }
+    const resolvedIds = studentLectureIds.map(id => contentIdMap.get(id) || id);
+    studentResolvedMap.set(studentId, resolvedIds);
+    resolvedIds.forEach(id => allResolvedLectureIds.add(id));
+  }
+
+  let allLectureEpisodes = new Map<string, Array<{
+    id: string;
+    episode_number: number;
+    episode_title: string | null;
+    duration: number | null;
+  }>>();
+
+  if (allResolvedLectureIds.size > 0) {
+    // 첫 번째 학생 ID를 fallback용으로 사용 (student_lecture_episodes 조회 시)
+    const firstStudentId = Array.from(studentLectureMap.keys())[0] || "";
+    allLectureEpisodes = await getStudentLectureEpisodesBatch(
+      [...allResolvedLectureIds],
+      firstStudentId
+    );
+  }
+
+  // 학생별로 필요한 lectureId만 매핑
+  for (const [studentId, studentLectureIds] of studentLectureMap.entries()) {
+    const resolvedIds = studentResolvedMap.get(studentId) || [];
+    const episodesWithOriginalId = new Map<string, Array<{
+      id: string;
+      episode_number: number;
+      episode_title: string | null;
+      duration: number | null;
+    }>>();
+
+    studentLectureIds.forEach((originalId, index) => {
+      const resolvedId = resolvedIds[index];
+      episodesWithOriginalId.set(originalId, allLectureEpisodes.get(resolvedId) || []);
+    });
+
+    lectureEpisodesMap.set(studentId, episodesWithOriginalId);
   }
   
   // 계획 범위 포맷팅 헬퍼 함수

@@ -9,6 +9,47 @@ import { revalidatePath } from "next/cache";
 // Types
 // ============================================
 
+// Supabase 쿼리 결과 타입 (relations 포함)
+type PlanContentWithRelation = {
+  id: string;
+  content_id: string;
+  content_title?: string | null;
+  is_paused?: boolean | null;
+  custom_study_days?: number[] | null;
+  contents: {
+    name?: string | null;
+    type?: "book" | "lecture" | "custom" | null;
+    subject?: string | null;
+  } | null;
+};
+
+type PlanGroupWithContents = {
+  id: string;
+  student_id: string;
+  weekdays?: number[] | null;
+  scheduler_options?: Record<string, unknown> | null;
+  plan_contents: PlanContentWithRelation[];
+};
+
+type PlanWithPlanGroups = {
+  id: string;
+  plan_date?: string | null;
+  content_id?: string | null;
+  plan_group_id?: string | null;
+  status?: string | null;
+  plan_groups: {
+    student_id: string;
+  };
+};
+
+type PlanContentWithPlanGroups = {
+  id: string;
+  content_id: string;
+  plan_groups: {
+    student_id: string;
+  };
+};
+
 export type DashboardPlan = {
   id: string;
   planDate: string;
@@ -162,26 +203,26 @@ export async function getDashboardData(
 
     // 콘텐츠 정보 정리
     const contentMap = new Map<string, DashboardContent>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const planContents = (planGroup as any).plan_contents || [];
+    const typedPlanGroup = planGroup as unknown as PlanGroupWithContents;
+    const planContents = typedPlanGroup.plan_contents || [];
 
-    planContents.forEach((pc: Record<string, unknown>, index: number) => {
-      const content = pc.contents as Record<string, unknown> | null;
-      const contentId = pc.content_id as string;
+    planContents.forEach((pc, index: number) => {
+      const content = pc.contents;
+      const contentId = pc.content_id;
 
       contentMap.set(contentId, {
-        id: pc.id as string,
+        id: pc.id,
         contentId,
-        contentTitle: (content?.name as string) || (pc.content_title as string) || "Unknown",
-        contentType: (content?.type as "book" | "lecture" | "custom") || "book",
-        subject: (content?.subject as string) || null,
+        contentTitle: content?.name || pc.content_title || "Unknown",
+        contentType: content?.type || "book",
+        subject: content?.subject || null,
         totalPlans: 0,
         completedPlans: 0,
         progressPercent: 0,
-        isPaused: (pc.is_paused as boolean) || false,
+        isPaused: pc.is_paused || false,
         color: CONTENT_COLORS[index % CONTENT_COLORS.length],
         planGroupId,
-        weekdays: (pc.custom_study_days as number[]) || planGroup.weekdays || [1, 2, 3, 4, 5],
+        weekdays: pc.custom_study_days || typedPlanGroup.weekdays || [1, 2, 3, 4, 5],
       });
     });
 
@@ -326,8 +367,8 @@ export async function movePlanToDate(
     }
 
     // 권한 확인
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((plan as any).plan_groups?.student_id !== user.userId) {
+    const typedPlan = plan as unknown as PlanWithPlanGroups;
+    if (typedPlan.plan_groups?.student_id !== user.userId) {
       return { success: false, error: "Unauthorized" };
     }
 
@@ -383,8 +424,8 @@ export async function swapPlans(
     }
 
     // 권한 확인
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allOwned = plans.every((p: any) => p.plan_groups?.student_id === user.userId);
+    const typedPlans = plans as unknown as PlanWithPlanGroups[];
+    const allOwned = typedPlans.every((p) => p.plan_groups?.student_id === user.userId);
     if (!allOwned) {
       return { success: false, error: "Unauthorized" };
     }
@@ -606,8 +647,8 @@ export async function toggleContentPause(
       return { success: false, error: "Plan content not found" };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((planContent as any).plan_groups?.student_id !== user.userId) {
+    const typedPlanContent = planContent as unknown as PlanContentWithPlanGroups;
+    if (typedPlanContent.plan_groups?.student_id !== user.userId) {
       return { success: false, error: "Unauthorized" };
     }
 
@@ -673,9 +714,9 @@ export async function moveMultiplePlansToDate(
     }
 
     // 권한 확인 및 이동 가능 여부 체크
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const validPlanIds = plans
-      .filter((p: any) =>
+    const typedPlans = plans as unknown as PlanWithPlanGroups[];
+    const validPlanIds = typedPlans
+      .filter((p) =>
         p.plan_groups?.student_id === user.userId &&
         p.status === "pending"
       )
@@ -740,9 +781,9 @@ export async function deleteMultiplePlans(
     }
 
     // 권한 확인 및 삭제 가능 여부 체크 (완료된 플랜 제외)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const validPlanIds = plans
-      .filter((p: any) =>
+    const typedPlans = plans as unknown as PlanWithPlanGroups[];
+    const validPlanIds = typedPlans
+      .filter((p) =>
         p.plan_groups?.student_id === user.userId &&
         p.status !== "completed"
       )
@@ -803,8 +844,8 @@ export async function deletePlan(
       return { success: false, error: "Plan not found" };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((plan as any).plan_groups?.student_id !== user.userId) {
+    const typedPlan = plan as unknown as PlanWithPlanGroups;
+    if (typedPlan.plan_groups?.student_id !== user.userId) {
       return { success: false, error: "Unauthorized" };
     }
 

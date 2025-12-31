@@ -14,13 +14,24 @@ export type FilterConfig<T> = {
 };
 
 /**
+ * Supabase PostgrestFilterBuilder 인터페이스 (필요한 메서드만 정의)
+ */
+interface PostgrestFilterBuilderLike<Q> {
+  eq(column: string, value: unknown): Q;
+  ilike(column: string, pattern: string): Q;
+  in(column: string, values: unknown[]): Q;
+  gte(column: string, value: unknown): Q;
+  lte(column: string, value: unknown): Q;
+}
+
+/**
  * Supabase 쿼리에 필터 적용
  */
-export function applyFilters<T extends Record<string, unknown>>(
-  query: any,
+export function applyFilters<T extends Record<string, unknown>, Q extends PostgrestFilterBuilderLike<Q>>(
+  query: Q,
   filters: Partial<T>,
   config: FilterConfig<T>
-) {
+): Q {
   let resultQuery = query;
 
   Object.entries(filters).forEach(([key, value]) => {
