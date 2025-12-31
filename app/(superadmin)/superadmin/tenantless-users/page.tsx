@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { getTenantlessUsers } from "@/app/(superadmin)/actions/tenantlessUserActions";
+import { getTenantlessUsers } from "@/lib/domains/superadmin";
 import { TenantlessUsersList } from "./_components/TenantlessUsersList";
 import Link from "next/link";
 import { isErrorResponse } from "@/lib/types/actionResponse";

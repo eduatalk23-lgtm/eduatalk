@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTermsContentById } from "@/app/(superadmin)/actions/termsContents";
+import { getTermsContentById } from "@/lib/domains/superadmin";
 import type { TermsContent } from "@/lib/types/terms";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";

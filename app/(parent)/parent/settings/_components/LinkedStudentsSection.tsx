@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StudentSearchModal } from "./StudentSearchModal";
 import { LinkRequestList } from "./LinkRequestList";
-import { getLinkRequests, type LinkRequest } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { getLinkRequests, type LinkRequest } from "@/lib/domains/parent";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import type { LinkedStudent } from "../../../_utils";
 

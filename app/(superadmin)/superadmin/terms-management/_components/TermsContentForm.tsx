@@ -7,7 +7,7 @@ import {
   updateTermsContent,
   activateTermsContent,
   getTermsContentById,
-} from "@/app/(superadmin)/actions/termsContents";
+} from "@/lib/domains/superadmin";
 import type { TermsContentType, TermsContentInput } from "@/lib/types/terms";
 import FormInput from "@/components/ui/FormInput";
 import FormMessage from "@/components/ui/FormMessage";

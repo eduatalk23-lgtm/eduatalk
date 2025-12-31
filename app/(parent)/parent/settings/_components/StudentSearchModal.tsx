@@ -8,7 +8,7 @@ import {
   createLinkRequest,
   type SearchableStudent,
   type ParentRelation,
-} from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+} from "@/lib/domains/parent";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 

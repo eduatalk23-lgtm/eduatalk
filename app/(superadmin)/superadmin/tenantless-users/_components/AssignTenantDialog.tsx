@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { assignTenantToUser, assignTenantToMultipleUsers, getActiveTenants, type TenantlessUser } from "@/app/(superadmin)/actions/tenantlessUserActions";
+import { assignTenantToUser, assignTenantToMultipleUsers, getActiveTenants, type TenantlessUser } from "@/lib/domains/superadmin";
 import { Dialog } from "@/components/ui/Dialog";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { isErrorResponse } from "@/lib/types/actionResponse";

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { assignTenantToUser, assignTenantToMultipleUsers, type TenantlessUser } from "@/app/(superadmin)/actions/tenantlessUserActions";
+import { assignTenantToUser, assignTenantToMultipleUsers, type TenantlessUser } from "@/lib/domains/superadmin";
 import { AssignTenantDialog } from "./AssignTenantDialog";
 
 type TenantlessUsersListProps = {

@@ -5,7 +5,7 @@ import {
   getCurriculumSettings,
   updateCurriculumSettings,
   type CurriculumSettingsData,
-} from "@/app/(superadmin)/actions/curriculumSettingsActions";
+} from "@/lib/domains/superadmin";
 import { isSuccessResponse, isErrorResponse } from "@/lib/types/actionResponse";
 
 export function CurriculumSettingsForm() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useToast } from "@/components/ui/ToastProvider";
-import { cancelLinkRequest, type LinkRequest } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { cancelLinkRequest, type LinkRequest } from "@/lib/domains/parent";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type LinkRequestListProps = {

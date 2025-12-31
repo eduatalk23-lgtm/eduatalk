@@ -12,7 +12,7 @@ import {
   resumePlan,
   preparePlanCompletion,
   postponePlan,
-} from "@/app/(student)/today/actions/todayActions";
+} from "@/lib/domains/today";
 import type { PlanGroup } from "@/app/(student)/today/_utils/planGroupUtils";
 import type { PendingAction } from "@/lib/domains/today/types";
 

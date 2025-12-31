@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Clock, Pause, Play, Square, CheckCircle2 } from "lucide-react";
-import { pausePlan, resumePlan } from "@/app/(student)/today/actions/todayActions";
+import { pausePlan, resumePlan } from "@/lib/domains/today";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";

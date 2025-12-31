@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Plan } from "@/lib/data/studentPlans";
 import { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { StudySession } from "@/lib/data/studentSessions";
-import { startPlan, completePlan, postponePlan, preparePlanCompletion } from "@/app/(student)/today/actions/todayActions";
+import { startPlan, completePlan, postponePlan, preparePlanCompletion } from "@/lib/domains/today";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";

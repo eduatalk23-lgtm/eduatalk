@@ -6,9 +6,9 @@ import { getLinkedStudents } from "../../_utils";
 import Link from "next/link";
 import { RoleChangeSection } from "./_components/RoleChangeSection";
 import { StudentAttendanceNotificationSettings } from "./_components/StudentAttendanceNotificationSettings";
-import { getStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
+import { getStudentAttendanceNotificationSettings } from "@/lib/domains/parent";
 import { LinkedStudentsSection } from "./_components/LinkedStudentsSection";
-import { getLinkRequests } from "@/app/(parent)/actions/parentStudentLinkRequestActions";
+import { getLinkRequests } from "@/lib/domains/parent";
 import { isSuccessResponse } from "@/lib/types/actionResponse";
 
 export default async function ParentSettingsPage() {

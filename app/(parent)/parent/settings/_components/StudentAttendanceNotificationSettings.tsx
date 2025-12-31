@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { updateStudentAttendanceNotificationSettings } from "@/app/(parent)/actions/parentSettingsActions";
+import { updateStudentAttendanceNotificationSettings } from "@/lib/domains/parent";
 import { cn } from "@/lib/cn";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 

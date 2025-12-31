@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getTermsContents } from "@/app/(superadmin)/actions/termsContents";
+import { getTermsContents } from "@/lib/domains/superadmin";
 import type { TermsContent, TermsContentType } from "@/lib/types/terms";
 import Button from "@/components/atoms/Button";
 import { Plus, Eye, Edit, CheckCircle, XCircle } from "lucide-react";
