@@ -6,6 +6,7 @@
  * Student-facing Server Actions for camp invitation management.
  */
 
+import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import {
@@ -225,7 +226,11 @@ export const submitCampParticipation = withErrorHandling(
       .maybeSingle();
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.error("[campActions] 기존 플랜 그룹 확인 중 에러:", checkError);
+      logActionError(
+        { domain: "camp", action: "submitCampParticipation" },
+        checkError,
+        { invitationId }
+      );
       throw new AppError(
         "기존 플랜 그룹 확인 중 오류가 발생했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -236,11 +241,11 @@ export const submitCampParticipation = withErrorHandling(
 
     if (existingGroup) {
       if (existingGroup.status === "saved") {
-        console.warn("[campActions] 이미 제출 완료된 플랜 그룹이 존재함:", {
-          invitationId,
-          groupId: existingGroup.id,
-          status: existingGroup.status,
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "이미 제출 완료된 플랜 그룹 존재",
+          { invitationId, groupId: existingGroup.id, status: existingGroup.status }
+        );
         throw new AppError(
           "이미 제출된 캠프 참여 정보가 있습니다.",
           ErrorCode.DUPLICATE_ENTRY,
@@ -249,11 +254,11 @@ export const submitCampParticipation = withErrorHandling(
         );
       }
       if (existingGroup.status === "draft") {
-        console.log("[campActions] 기존 draft 플랜 그룹 발견, 업데이트 진행:", {
-          invitationId,
-          groupId: existingGroup.id,
-          status: existingGroup.status,
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "기존 draft 플랜 그룹 발견, 업데이트 진행",
+          { invitationId, groupId: existingGroup.id, status: existingGroup.status }
+        );
       }
     }
 
@@ -284,12 +289,11 @@ export const submitCampParticipation = withErrorHandling(
       if (templateValidation.success) {
         templateData = templateValidation.data;
       } else {
-        console.warn("[campActions] 템플릿 데이터 검증 실패, 원본 데이터 사용:", {
-          errors: templateValidation.error.errors.map((err) => ({
-            path: err.path.join("."),
-            message: err.message,
-          })),
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "템플릿 데이터 검증 실패, 원본 데이터 사용",
+          { errors: templateValidation.error.errors.map((err) => ({ path: err.path.join("."), message: err.message })) }
+        );
         templateData = templateDataRaw as Partial<WizardData>;
       }
     }
@@ -323,14 +327,11 @@ export const submitCampParticipation = withErrorHandling(
       })
     );
 
-    console.log("[campActions] 템플릿 학원 일정:", {
-      templateId: invitation.camp_template_id,
-      templateAcademySchedulesCount: templateAcademySchedules.length,
-      templateAcademySchedules: templateAcademySchedules,
-      wizardDataAcademySchedulesCount:
-        wizardData.academy_schedules?.length || 0,
-      wizardDataAcademySchedules: wizardData.academy_schedules,
-    });
+    logActionDebug(
+      { domain: "camp", action: "submitCampParticipation" },
+      "템플릿 학원 일정 처리",
+      { templateId: invitation.camp_template_id, templateCount: templateAcademySchedules.length, wizardCount: wizardData.academy_schedules?.length || 0 }
+    );
 
     const mergedData: Partial<WizardData> = {
       ...templateData,
@@ -405,12 +406,11 @@ export const submitCampParticipation = withErrorHandling(
     };
 
     const blockSetId = mergedData.block_set_id || templateBlockSetId;
-    console.log("[campActions] template_block_set_id 저장 준비:", {
-      blockSetId,
-      mergedData_block_set_id: mergedData.block_set_id,
-      templateBlockSetId,
-      mergedData_scheduler_options_before: mergedData.scheduler_options,
-    });
+    logActionDebug(
+      { domain: "camp", action: "submitCampParticipation" },
+      "template_block_set_id 저장 준비",
+      { blockSetId, mergedBlockSetId: mergedData.block_set_id, templateBlockSetId }
+    );
 
     if (blockSetId) {
       if (!mergedData.scheduler_options) {
@@ -419,12 +419,10 @@ export const submitCampParticipation = withErrorHandling(
       if (typeof mergedData.scheduler_options === "object" && mergedData.scheduler_options !== null) {
         (mergedData.scheduler_options as Record<string, unknown>).template_block_set_id = blockSetId;
       }
-      console.log(
-        "[campActions] mergedData.scheduler_options에 template_block_set_id 추가:",
-        {
-          template_block_set_id: blockSetId,
-          scheduler_options: mergedData.scheduler_options,
-        }
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation" },
+        "scheduler_options에 template_block_set_id 추가",
+        { blockSetId }
       );
     }
 
@@ -463,23 +461,11 @@ export const submitCampParticipation = withErrorHandling(
     );
     const creationData = syncWizardDataToCreationData(fullWizardData);
 
-    console.log("[campActions] syncWizardDataToCreationData 호출 후:", {
-      creationData_scheduler_options: creationData.scheduler_options,
-      has_template_block_set_id: !!(creationData.scheduler_options && typeof creationData.scheduler_options === "object"
-        ? (creationData.scheduler_options as Record<string, unknown>).template_block_set_id
-        : false),
-    });
-
-    console.log("[campActions] 병합된 학원 일정:", {
-      mergedAcademySchedulesCount: mergedData.academy_schedules?.length || 0,
-      mergedAcademySchedules: mergedData.academy_schedules,
-    });
-
-    console.log("[campActions] 변환된 학원 일정 (creationData):", {
-      creationDataAcademySchedulesCount:
-        creationData.academy_schedules?.length || 0,
-      creationDataAcademySchedules: creationData.academy_schedules,
-    });
+    logActionDebug(
+      { domain: "camp", action: "submitCampParticipation" },
+      "syncWizardDataToCreationData 완료",
+      { hasTemplateBlockSetId: !!(creationData.scheduler_options && typeof creationData.scheduler_options === "object" ? (creationData.scheduler_options as Record<string, unknown>).template_block_set_id : false), mergedSchedulesCount: mergedData.academy_schedules?.length || 0, creationSchedulesCount: creationData.academy_schedules?.length || 0 }
+    );
 
     const masterContentIdMap = new Map<string, string | null>();
     const studentContentIds = (wizardData.student_contents || []).filter(
@@ -492,14 +478,11 @@ export const submitCampParticipation = withErrorHandling(
       .filter((c) => c.content_type === "lecture")
       .map((c) => c.content_id);
 
-    console.log("[campActions] 학생 콘텐츠 master_content_id 조회 시작:", {
-      invitationId,
-      studentId: user.userId,
-      bookIdsCount: bookIds.length,
-      lectureIdsCount: lectureIds.length,
-      bookIds,
-      lectureIds,
-    });
+    logActionDebug(
+      { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+      "학생 콘텐츠 master_content_id 조회 시작",
+      { invitationId, bookCount: bookIds.length, lectureCount: lectureIds.length }
+    );
 
     if (bookIds.length > 0) {
       const { data: books, error: booksError } = await supabase
@@ -509,23 +492,20 @@ export const submitCampParticipation = withErrorHandling(
         .eq("student_id", user.userId);
 
       if (booksError) {
-        console.error("[campActions] 교재 master_content_id 조회 실패:", {
-          error: booksError.message,
-          code: booksError.code,
-          bookIds,
-        });
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation" },
+          booksError,
+          { context: "교재 master_content_id 조회" }
+        );
       } else {
         books?.forEach((book) => {
           masterContentIdMap.set(book.id, book.master_content_id || null);
         });
-        console.log("[campActions] 교재 master_content_id 조회 완료:", {
-          foundCount: books?.length || 0,
-          masterContentIds:
-            books?.map((b) => ({
-              id: b.id,
-              master_content_id: b.master_content_id,
-            })) || [],
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "교재 master_content_id 조회 완료",
+          { foundCount: books?.length || 0 }
+        );
       }
     }
 
@@ -537,23 +517,20 @@ export const submitCampParticipation = withErrorHandling(
         .eq("student_id", user.userId);
 
       if (lecturesError) {
-        console.error("[campActions] 강의 master_content_id 조회 실패:", {
-          error: lecturesError.message,
-          code: lecturesError.code,
-          lectureIds,
-        });
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation" },
+          lecturesError,
+          { context: "강의 master_content_id 조회" }
+        );
       } else {
         lectures?.forEach((lecture) => {
           masterContentIdMap.set(lecture.id, lecture.master_content_id || null);
         });
-        console.log("[campActions] 강의 master_content_id 조회 완료:", {
-          foundCount: lectures?.length || 0,
-          masterContentIds:
-            lectures?.map((l) => ({
-              id: l.id,
-              master_content_id: l.master_content_id,
-            })) || [],
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "강의 master_content_id 조회 완료",
+          { foundCount: lectures?.length || 0 }
+        );
       }
     }
 
@@ -564,37 +541,7 @@ export const submitCampParticipation = withErrorHandling(
       const startDetailId = "start_detail_id" in c ? (c.start_detail_id ?? null) : null;
       const endDetailId = "end_detail_id" in c ? (c.end_detail_id ?? null) : null;
 
-      if (
-        wizardData.student_contents?.some(
-          (sc) => sc.content_id === c.content_id
-        )
-      ) {
-        console.log("[campActions] 학생 추가 콘텐츠 정보:", {
-          content_id: c.content_id,
-          content_type: c.content_type,
-          master_content_id: masterContentId,
-          start_range: c.start_range,
-          end_range: c.end_range,
-          start_detail_id: startDetailId,
-          end_detail_id: endDetailId,
-        });
-      }
-
-      if (
-        wizardData.recommended_contents?.some(
-          (rc) => rc.content_id === c.content_id
-        )
-      ) {
-        console.log("[campActions] 학생 선택 추천 콘텐츠 정보:", {
-          content_id: c.content_id,
-          content_type: c.content_type,
-          master_content_id: masterContentId,
-          start_range: c.start_range,
-          end_range: c.end_range,
-          start_detail_id: startDetailId,
-          end_detail_id: endDetailId,
-        });
-      }
+      // Debug logging removed - content mapping handled silently
 
       return {
         ...c,
@@ -604,19 +551,11 @@ export const submitCampParticipation = withErrorHandling(
       };
     });
 
-    console.log("[campActions] 콘텐츠 master_content_id 매핑 완료:", {
-      contentsBeforeMapping,
-      contentsAfterMapping: creationData.contents.length,
-      contentsWithMasterId: creationData.contents.filter(
-        (c) => c.master_content_id
-      ).length,
-      contentsWithoutMasterId: creationData.contents.filter(
-        (c) => !c.master_content_id
-      ).length,
-      contentsWithDetailIds: creationData.contents.filter(
-        (c) => ("start_detail_id" in c && c.start_detail_id) || ("end_detail_id" in c && c.end_detail_id)
-      ).length,
-    });
+    logActionDebug(
+      { domain: "camp", action: "submitCampParticipation" },
+      "콘텐츠 master_content_id 매핑 완료",
+      { before: contentsBeforeMapping, after: creationData.contents.length, withMasterId: creationData.contents.filter((c) => c.master_content_id).length }
+    );
 
     creationData.block_set_id = null;
 
@@ -626,31 +565,16 @@ export const submitCampParticipation = withErrorHandling(
 
     const schedulerOptions = creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
     if (!schedulerOptions?.template_block_set_id && blockSetId) {
-      console.warn(
-        "[campActions] creationData.scheduler_options에 template_block_set_id가 없어 추가:",
-        {
-          blockSetId,
-          creationData_scheduler_options: creationData.scheduler_options,
-        }
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation" },
+        "scheduler_options에 template_block_set_id 추가",
+        { blockSetId }
       );
       if (!creationData.scheduler_options) {
         creationData.scheduler_options = {};
       }
       (creationData.scheduler_options as SchedulerOptionsWithTemplateBlockSet).template_block_set_id =
         blockSetId;
-      console.log(
-        "[campActions] creationData.scheduler_options에 template_block_set_id 추가 완료:",
-        {
-          scheduler_options: creationData.scheduler_options,
-        }
-      );
-    } else {
-      console.log(
-        "[campActions] creationData.scheduler_options에 template_block_set_id 확인됨:",
-        {
-          template_block_set_id: schedulerOptions?.template_block_set_id,
-        }
-      );
     }
 
     if (
@@ -681,14 +605,11 @@ export const submitCampParticipation = withErrorHandling(
         return !existingKeys.has(key);
       });
 
-      console.log("[campActions] 학원 일정 업데이트:", {
-        studentId: user.userId,
-        totalSchedules: creationData.academy_schedules.length,
-        existingSchedulesCount: existingSchedules.length,
-        newSchedulesCount: newSchedules.length,
-        skippedCount:
-          creationData.academy_schedules.length - newSchedules.length,
-      });
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+        "학원 일정 업데이트",
+        { total: creationData.academy_schedules.length, existing: existingSchedules.length, new: newSchedules.length }
+      );
 
       const deleteQuery = supabase
         .from("academy_schedules")
@@ -702,12 +623,11 @@ export const submitCampParticipation = withErrorHandling(
       const { error: deleteError } = await deleteQuery;
 
       if (deleteError) {
-        console.warn(
-          "[campActions] 기존 학원 일정 삭제 실패 (무시하고 계속 진행):",
-          deleteError
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "기존 학원 일정 삭제 실패 (무시하고 계속 진행)",
+          { error: deleteError }
         );
-      } else {
-        console.log("[campActions] 기존 학원 일정 삭제 완료");
       }
 
       if (newSchedules.length > 0) {
@@ -727,17 +647,18 @@ export const submitCampParticipation = withErrorHandling(
         );
 
         if (!schedulesResult.success) {
-          console.warn(
-            "[campActions] 학원 일정 추가 실패 (무시하고 계속 진행):",
-            schedulesResult.error
+          logActionDebug(
+            { domain: "camp", action: "submitCampParticipation" },
+            "학원 일정 추가 실패 (무시하고 계속 진행)",
+            { error: schedulesResult.error }
           );
         } else {
-          console.log("[campActions] 학원 일정 추가 완료:", {
-            addedCount: newSchedules.length,
-          });
+          logActionDebug(
+            { domain: "camp", action: "submitCampParticipation" },
+            "학원 일정 추가 완료",
+            { addedCount: newSchedules.length }
+          );
         }
-      } else if (creationData.academy_schedules.length > 0) {
-        console.log("[campActions] 모든 학원 일정이 이미 존재합니다.");
       }
     }
 
@@ -753,10 +674,11 @@ export const submitCampParticipation = withErrorHandling(
         contentSlotsForDraft = convertSlotTemplatesToContentSlots(
           templateSlotTemplatesForDraft as SlotTemplate[]
         );
-        console.log("[campActions] (draft) 슬롯 템플릿을 content_slots로 변환:", {
-          templateSlotTemplatesCount: templateSlotTemplatesForDraft.length,
-          contentSlotsCount: contentSlotsForDraft.length,
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "(draft) 슬롯 템플릿을 content_slots로 변환",
+          { templateCount: templateSlotTemplatesForDraft.length, slotsCount: contentSlotsForDraft.length }
+        );
       }
 
       const updateData = {
@@ -773,11 +695,11 @@ export const submitCampParticipation = withErrorHandling(
       };
 
       const updateSchedulerOptions = updateData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
-      console.log("[campActions] 플랜 그룹 업데이트 전 최종 데이터 확인:", {
-        scheduler_options: updateData.scheduler_options,
-        has_template_block_set_id: !!updateSchedulerOptions?.template_block_set_id,
-        template_block_set_id: updateSchedulerOptions?.template_block_set_id,
-      });
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation" },
+        "플랜 그룹 업데이트 전 최종 데이터 확인",
+        { hasTemplateBlockSetId: !!updateSchedulerOptions?.template_block_set_id }
+      );
 
       await updatePlanGroupDraftAction(existingGroup.id, updateData);
       groupId = existingGroup.id;
@@ -794,16 +716,19 @@ export const submitCampParticipation = withErrorHandling(
         .maybeSingle();
 
       if (checkExistingError && checkExistingError.code !== "PGRST116") {
-        console.warn("[campActions] 기존 플랜 그룹 확인 중 에러 (무시하고 계속 진행):", checkExistingError);
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "기존 플랜 그룹 확인 중 에러 (무시하고 계속 진행)",
+          { error: checkExistingError }
+        );
       }
 
       if (existingGroupByTemplate && existingGroupByTemplate.camp_invitation_id !== invitationId) {
-        console.log("[campActions] 재 초대 시 이전 플랜 그룹 발견, 삭제 진행:", {
-          existingGroupId: existingGroupByTemplate.id,
-          existingInvitationId: existingGroupByTemplate.camp_invitation_id,
-          currentInvitationId: invitationId,
-          status: existingGroupByTemplate.status,
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "재 초대 시 이전 플랜 그룹 발견, 삭제 진행",
+          { existingGroupId: existingGroupByTemplate.id, currentInvitationId: invitationId }
+        );
 
         const { error: deleteExistingError } = await supabase
           .from("student_plan")
@@ -811,7 +736,11 @@ export const submitCampParticipation = withErrorHandling(
           .eq("plan_group_id", existingGroupByTemplate.id);
 
         if (deleteExistingError) {
-          console.warn("[campActions] 이전 플랜 삭제 실패 (무시하고 계속 진행):", deleteExistingError);
+          logActionDebug(
+            { domain: "camp", action: "submitCampParticipation" },
+            "이전 플랜 삭제 실패 (무시하고 계속 진행)",
+            { error: deleteExistingError }
+          );
         } else {
           await supabase.from("plan_contents").delete().eq("plan_group_id", existingGroupByTemplate.id);
           await supabase.from("plan_exclusions").delete().eq("plan_group_id", existingGroupByTemplate.id);
@@ -822,9 +751,17 @@ export const submitCampParticipation = withErrorHandling(
             .eq("id", existingGroupByTemplate.id);
 
           if (deleteGroupError) {
-            console.warn("[campActions] 이전 플랜 그룹 삭제 실패 (무시하고 계속 진행):", deleteGroupError);
+            logActionDebug(
+              { domain: "camp", action: "submitCampParticipation" },
+              "이전 플랜 그룹 삭제 실패 (무시하고 계속 진행)",
+              { error: deleteGroupError }
+            );
           } else {
-            console.log("[campActions] 이전 플랜 그룹 삭제 완료:", existingGroupByTemplate.id);
+            logActionDebug(
+              { domain: "camp", action: "submitCampParticipation" },
+              "이전 플랜 그룹 삭제 완료",
+              { groupId: existingGroupByTemplate.id }
+            );
           }
         }
       }
@@ -836,10 +773,11 @@ export const submitCampParticipation = withErrorHandling(
         contentSlots = convertSlotTemplatesToContentSlots(
           templateSlotTemplates as SlotTemplate[]
         );
-        console.log("[campActions] 슬롯 템플릿을 content_slots로 변환:", {
-          templateSlotTemplatesCount: templateSlotTemplates.length,
-          contentSlotsCount: contentSlots.length,
-        });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "슬롯 템플릿을 content_slots로 변환",
+          { templateCount: templateSlotTemplates.length, slotsCount: contentSlots.length }
+        );
       }
 
       const planGroupData = {
@@ -856,11 +794,11 @@ export const submitCampParticipation = withErrorHandling(
       };
 
       const planGroupSchedulerOptions = planGroupData.scheduler_options as SchedulerOptionsWithTemplateBlockSet | null | undefined;
-      console.log("[campActions] 플랜 그룹 생성 전 최종 데이터 확인:", {
-        scheduler_options: planGroupData.scheduler_options,
-        has_template_block_set_id: !!planGroupSchedulerOptions?.template_block_set_id,
-        template_block_set_id: planGroupSchedulerOptions?.template_block_set_id,
-      });
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation" },
+        "플랜 그룹 생성 전 최종 데이터 확인",
+        { hasTemplateBlockSetId: !!planGroupSchedulerOptions?.template_block_set_id }
+      );
 
       let result;
       try {
@@ -871,11 +809,11 @@ export const submitCampParticipation = withErrorHandling(
         // 동시 수락으로 인한 UNIQUE 제약 위반 감지 (PostgreSQL error code 23505)
         const errorMessage = createError instanceof Error ? createError.message : String(createError);
         if (errorMessage.includes("23505") || errorMessage.includes("unique") || errorMessage.includes("duplicate")) {
-          console.warn("[campActions] 동시 수락 감지 - 이미 플랜 그룹이 생성됨:", {
-            invitationId,
-            studentId: user.userId,
-            error: errorMessage,
-          });
+          logActionDebug(
+            { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+            "동시 수락 감지 - 이미 플랜 그룹이 생성됨",
+            { invitationId, error: errorMessage }
+          );
           throw new AppError(
             "이미 다른 요청에서 캠프 참여가 처리되었습니다. 페이지를 새로고침해주세요.",
             ErrorCode.DUPLICATE_ENTRY,
@@ -887,11 +825,11 @@ export const submitCampParticipation = withErrorHandling(
       }
 
       if (!result.groupId) {
-        console.error("[campActions] 플랜 그룹 생성 실패:", {
-          invitationId,
-          studentId: user.userId,
-          templateId: invitation.camp_template_id,
-        });
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+          "플랜 그룹 생성 실패",
+          { invitationId, templateId: invitation.camp_template_id }
+        );
         throw new AppError(
           "플랜 그룹 생성에 실패했습니다.",
           ErrorCode.DATABASE_ERROR,
@@ -908,12 +846,10 @@ export const submitCampParticipation = withErrorHandling(
       .eq("id", groupId);
 
     if (statusUpdateError) {
-      console.error(
-        "[campActions] 플랜 그룹 상태 업데이트 실패:",
-        statusUpdateError
-      );
-      console.warn(
-        "[campActions] 플랜 그룹 상태를 saved로 변경하지 못했습니다. 관리자에게 문의해주세요."
+      logActionError(
+        { domain: "camp", action: "submitCampParticipation" },
+        statusUpdateError,
+        { context: "플랜 그룹 상태 업데이트 실패", groupId }
       );
     }
 
@@ -925,7 +861,11 @@ export const submitCampParticipation = withErrorHandling(
       .single();
 
     if (verifyError || !createdGroup) {
-      console.error("[campActions] 생성된 플랜 그룹 확인 실패:", verifyError);
+      logActionError(
+        { domain: "camp", action: "submitCampParticipation" },
+        verifyError,
+        { context: "생성된 플랜 그룹 확인 실패", groupId }
+      );
       throw new AppError(
         "플랜 그룹이 생성되었지만 확인할 수 없습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -935,13 +875,10 @@ export const submitCampParticipation = withErrorHandling(
     }
 
     if (createdGroup.camp_invitation_id !== invitationId) {
-      console.warn(
-        "[campActions] camp_invitation_id가 일치하지 않음, 업데이트 시도:",
-        {
-          expected: invitationId,
-          actual: createdGroup.camp_invitation_id,
-          groupId: groupId,
-        }
+      logActionDebug(
+        { domain: "camp", action: "submitCampParticipation" },
+        "camp_invitation_id가 일치하지 않음, 업데이트 시도",
+        { expected: invitationId, actual: createdGroup.camp_invitation_id, groupId }
       );
 
       const { error: updateError } = await supabase
@@ -950,12 +887,17 @@ export const submitCampParticipation = withErrorHandling(
         .eq("id", groupId);
 
       if (updateError) {
-        console.error(
-          "[campActions] camp_invitation_id 업데이트 실패:",
-          updateError
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation" },
+          updateError,
+          { context: "camp_invitation_id 업데이트 실패" }
         );
       } else {
-        console.log("[campActions] camp_invitation_id 업데이트 성공");
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "camp_invitation_id 업데이트 성공",
+          { groupId }
+        );
       }
     }
 
@@ -965,14 +907,10 @@ export const submitCampParticipation = withErrorHandling(
     );
     if (!updateResult.success) {
       // 트랜잭션 롤백: 초대 상태 업데이트 실패 시 생성된 플랜 그룹 삭제
-      console.error(
-        "[campActions] 초대 상태 업데이트 실패 - 롤백 시작:",
-        {
-          invitationId,
-          groupId,
-          studentId: user.userId,
-          error: updateResult.error,
-        }
+      logActionError(
+        { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+        updateResult.error,
+        { context: "초대 상태 업데이트 실패 - 롤백 시작", invitationId, groupId }
       );
 
       try {
@@ -1000,12 +938,17 @@ export const submitCampParticipation = withErrorHandling(
           .delete()
           .eq("id", groupId);
 
-        console.log("[campActions] 롤백 완료 - 플랜 그룹 삭제됨:", { groupId });
+        logActionDebug(
+          { domain: "camp", action: "submitCampParticipation" },
+          "롤백 완료 - 플랜 그룹 삭제됨",
+          { groupId }
+        );
       } catch (rollbackError) {
-        console.error("[campActions] 롤백 실패:", {
-          groupId,
-          error: rollbackError,
-        });
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation" },
+          rollbackError,
+          { context: "롤백 실패", groupId }
+        );
       }
 
       throw new AppError(
@@ -1015,11 +958,10 @@ export const submitCampParticipation = withErrorHandling(
         true
       );
     } else {
-      console.log("[campActions] 초대 상태 업데이트 성공:", {
-        invitationId,
-        groupId,
-        studentId: user.userId,
-      });
+      logActionSuccess(
+        { domain: "camp", action: "submitCampParticipation", userId: user.userId },
+        { invitationId, groupId }
+      );
 
       // 관리자에게 캠프 참여 수락 알림 발송
       try {
@@ -1042,7 +984,11 @@ export const submitCampParticipation = withErrorHandling(
         });
       } catch (notificationError) {
         // 알림 발송 실패는 로그만 남기고 계속 진행
-        console.error("[campActions] 관리자 알림 발송 실패:", notificationError);
+        logActionError(
+          { domain: "camp", action: "submitCampParticipation" },
+          notificationError,
+          { context: "관리자 알림 발송 실패" }
+        );
       }
     }
 
@@ -1133,7 +1079,11 @@ export const declineCampInvitation = withErrorHandling(
       .eq("id", invitationId);
 
     if (updateError) {
-      console.error("[declineCampInvitation] 초대 상태 업데이트 실패:", updateError);
+      logActionError(
+        { domain: "camp", action: "declineCampInvitation" },
+        updateError,
+        { invitationId }
+      );
       throw new AppError(
         "초대 거절 처리에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -1238,7 +1188,11 @@ export const cancelCampParticipation = withErrorHandling(
       .eq("id", invitationId);
 
     if (updateError) {
-      console.error("[cancelCampParticipation] 초대 상태 업데이트 실패:", updateError);
+      logActionError(
+        { domain: "camp", action: "cancelCampParticipation" },
+        updateError,
+        { invitationId }
+      );
       throw new AppError(
         "참여 취소 처리에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -1344,7 +1298,11 @@ export const editCampParticipation = withErrorHandling(
       .eq("id", planGroup.id);
 
     if (groupUpdateError) {
-      console.error("[editCampParticipation] 플랜 그룹 상태 업데이트 실패:", groupUpdateError);
+      logActionError(
+        { domain: "camp", action: "editCampParticipation" },
+        groupUpdateError,
+        { context: "플랜 그룹 상태 업데이트 실패", planGroupId: planGroup.id }
+      );
       throw new AppError(
         "수정 모드 전환에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -1359,7 +1317,11 @@ export const editCampParticipation = withErrorHandling(
       .eq("id", invitationId);
 
     if (invitationUpdateError) {
-      console.error("[editCampParticipation] 초대 상태 업데이트 실패:", invitationUpdateError);
+      logActionError(
+        { domain: "camp", action: "editCampParticipation" },
+        invitationUpdateError,
+        { context: "초대 상태 업데이트 실패", invitationId }
+      );
       // 롤백
       await supabase
         .from("plan_groups")
