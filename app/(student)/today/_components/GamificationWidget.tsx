@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Trophy, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
@@ -27,6 +27,32 @@ interface GamificationWidgetProps {
   className?: string;
 }
 
+// 세션 스토리지 키 - 이미 표시한 업적 추적
+const SHOWN_ACHIEVEMENTS_KEY = "gamification_shown_achievements";
+
+// 세션 스토리지에서 이미 표시한 업적 ID 조회
+function getShownAchievements(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const stored = sessionStorage.getItem(SHOWN_ACHIEVEMENTS_KEY);
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+// 세션 스토리지에 표시한 업적 ID 추가
+function addShownAchievements(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const current = getShownAchievements();
+    ids.forEach((id) => current.add(id));
+    sessionStorage.setItem(SHOWN_ACHIEVEMENTS_KEY, JSON.stringify([...current]));
+  } catch {
+    // 스토리지 오류 무시
+  }
+}
+
 export function GamificationWidget({
   studentId,
   tenantId,
@@ -37,6 +63,10 @@ export function GamificationWidget({
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unnotifiedAchievements, setUnnotifiedAchievements] = useState<AchievementWithDefinition[]>([]);
 
+  // 모달 라이프사이클 보호용 refs
+  const modalShownRef = useRef(false);
+  const acknowledgeInProgressRef = useRef(false);
+
   useEffect(() => {
     async function loadDashboard() {
       try {
@@ -44,10 +74,24 @@ export function GamificationWidget({
         if (result.success && result.data) {
           setDashboard(result.data);
 
-          // 알림 안 된 업적이 있으면 모달 표시
-          if (result.data.unnotifiedAchievements.length > 0) {
-            setUnnotifiedAchievements(result.data.unnotifiedAchievements);
+          // 이미 표시한 업적 필터링 (세션 레벨 중복 방지)
+          const shownIds = getShownAchievements();
+          const newUnnotified = result.data.unnotifiedAchievements.filter(
+            (a) => !shownIds.has(a.id)
+          );
+
+          // 모달 표시 조건:
+          // 1. 새로운 알림 안 된 업적이 있음
+          // 2. 이 컴포넌트 라이프사이클에서 모달이 아직 표시되지 않음
+          // 3. acknowledge 처리 중이 아님
+          if (
+            newUnnotified.length > 0 &&
+            !modalShownRef.current &&
+            !acknowledgeInProgressRef.current
+          ) {
+            setUnnotifiedAchievements(newUnnotified);
             setShowUnlockModal(true);
+            modalShownRef.current = true;
           }
         }
       } catch (error) {
@@ -60,13 +104,29 @@ export function GamificationWidget({
     loadDashboard();
   }, [studentId, tenantId]);
 
-  const handleAcknowledgeAchievements = async (achievementIds: string[]) => {
-    try {
-      await markAchievementsNotified(studentId, achievementIds);
-    } catch (error) {
-      console.error("Failed to mark achievements as notified:", error);
-    }
-  };
+  const handleAcknowledgeAchievements = useCallback(
+    async (achievementIds: string[]) => {
+      if (acknowledgeInProgressRef.current) return;
+
+      acknowledgeInProgressRef.current = true;
+
+      // Optimistic update: 세션 스토리지에 즉시 추가
+      addShownAchievements(achievementIds);
+
+      // Optimistic update: 로컬 상태도 즉시 클리어
+      setUnnotifiedAchievements([]);
+
+      try {
+        await markAchievementsNotified(studentId, achievementIds);
+      } catch (error) {
+        console.error("Failed to mark achievements as notified:", error);
+        // 롤백하지 않음 - 이 세션에서는 다시 표시되지 않아야 함
+      } finally {
+        acknowledgeInProgressRef.current = false;
+      }
+    },
+    [studentId]
+  );
 
   if (isLoading) {
     return (

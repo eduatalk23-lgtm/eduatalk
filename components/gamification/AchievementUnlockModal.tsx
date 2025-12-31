@@ -9,7 +9,7 @@ import { AchievementWithDefinition, TIER_LABELS } from "@/lib/domains/gamificati
 interface AchievementUnlockModalProps {
   achievements: AchievementWithDefinition[];
   onClose: () => void;
-  onAcknowledge?: (achievementIds: string[]) => void;
+  onAcknowledge?: (achievementIds: string[]) => Promise<void> | void;
 }
 
 export function AchievementUnlockModal({
@@ -44,9 +44,15 @@ export function AchievementUnlockModal({
     }
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     setIsVisible(false);
-    onAcknowledge?.(achievements.map((a) => a.id));
+
+    // acknowledge 완료 대기 - 중복 모달 방지를 위해 DB 업데이트 보장
+    if (onAcknowledge) {
+      await onAcknowledge(achievements.map((a) => a.id));
+    }
+
+    // 애니메이션 완료 후 모달 닫기
     setTimeout(onClose, 300);
   };
 

@@ -273,8 +273,8 @@ export async function updateGamificationOnPlanComplete(
       currentLevel: newLevel.level,
     });
 
-    revalidatePath("/today");
-    revalidatePath("/dashboard");
+    // Note: revalidatePath는 호출자(timer.ts의 completePlan)에서 처리하므로
+    // 여기서는 제거하여 중복 revalidation으로 인한 모달 중복 노출 방지
 
     return {
       success: true,
