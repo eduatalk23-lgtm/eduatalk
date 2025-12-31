@@ -8,7 +8,6 @@ import {
 } from "@/lib/data/planGroups";
 import { getPlansForStudent } from "@/lib/data/studentPlans";
 import { PlanCalendarView } from "@/app/(student)/plan/calendar/_components/PlanCalendarView";
-import type { PlanExclusion, AcademySchedule } from "@/lib/types/plan";
 import { getCampTemplate } from "@/lib/data/campTemplates";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { getContainerClass } from "@/lib/constants/layout";

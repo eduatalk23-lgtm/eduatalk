@@ -10,7 +10,6 @@ import { useToast } from '@/components/ui/ToastProvider';
 import {
   type CustomContentTemplate,
   type CustomContent,
-  getRangeTypeDefaultUnit,
   getDifficultyLabel,
 } from '@/lib/domains/content/types';
 import { listTemplates, createFromTemplate } from '@/lib/domains/content';

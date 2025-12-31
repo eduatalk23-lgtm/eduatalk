@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
-import { QrCode, MapPin, Hand, MessageSquare, CheckCircle2, XCircle, Clock } from "lucide-react";
-import Badge from "@/components/atoms/Badge";
+import { QrCode, MapPin, Hand, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { getTodayAttendanceSMSStatus } from "@/app/(student)/actions/attendanceActions";
 
 type AttendanceRecord = {

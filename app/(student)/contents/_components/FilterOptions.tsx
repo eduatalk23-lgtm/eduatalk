@@ -5,7 +5,6 @@ import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SuspenseFallback } from "@/components/ui/LoadingSkeleton";
-import { FilterBar } from "./FilterBar";
 import { FilterDrawer } from "./FilterDrawer";
 
 type TabKey = "books" | "lectures";

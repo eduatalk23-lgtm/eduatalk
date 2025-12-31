@@ -1,18 +1,13 @@
 "use client";
 
 import Button from "@/components/atoms/Button";
-import { Link } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function ContentActionButtons({ 
-  contentId, 
-  type,
+export function ContentActionButtons({
   editHref,
   deleteAction,
   listHref
-}: { 
-  contentId?: string;
-  type?: "book" | "lecture" | "custom";
+}: {
   editHref?: string;
   deleteAction?: () => Promise<void>;
   listHref?: string;

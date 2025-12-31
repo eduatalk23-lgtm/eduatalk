@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ContentCard } from "./ContentCard";
 import { Pagination } from "./Pagination";
 import {
   deleteBook,

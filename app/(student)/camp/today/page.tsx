@@ -5,7 +5,6 @@ import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
-import { TodayHeader } from "@/app/(student)/today/_components/TodayHeader";
 import { TodayPlansSection } from "@/app/(student)/today/_components/TodayPlansSection";
 import { TodayPageContextProvider } from "@/app/(student)/today/_components/TodayPageContext";
 import { CurrentLearningSection } from "@/app/(student)/today/_components/CurrentLearningSection";

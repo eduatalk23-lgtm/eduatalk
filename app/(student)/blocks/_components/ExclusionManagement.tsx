@@ -7,7 +7,7 @@ import type { PlanExclusion } from "@/lib/types/plan";
 import { Trash2, X } from "lucide-react";
 import { EmptyState } from "@/components/molecules/EmptyState";
 import { DateInput } from "@/app/(student)/plan/new-group/_components/common/DateInput";
-import { generateDateRange, formatDateFromDate, parseDateString } from "@/lib/utils/date";
+import { generateDateRange, formatDateFromDate } from "@/lib/utils/date";
 import { MultiSelectCalendar } from "./MultiSelectCalendar";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { addBlocksToMultipleDays } from "@/lib/domains/block/actions";
 import { useServerForm } from "@/lib/hooks/useServerForm";
 

@@ -1,14 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ContentCard } from "./ContentCard";
-import { Pagination } from "./Pagination";
 import { useSelection } from "./SelectionContext";
-import {
-  deleteBook,
-  deleteLecture,
-  deleteCustomContent,
-} from "@/lib/domains/content";
 import type { ContentListItem } from "./ContentsList";
 
 type TabKey = "books" | "lectures" | "custom";

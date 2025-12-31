@@ -9,10 +9,7 @@ import {
   editCampParticipation,
 } from "@/lib/domains/camp";
 import { useToast } from "@/components/ui/ToastProvider";
-import {
-  handleCampError,
-  isNetworkError,
-} from "@/lib/domains/camp/errors";
+import { handleCampError } from "@/lib/domains/camp/errors";
 
 type CampActionDialogsProps = {
   invitationId: string;

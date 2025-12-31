@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import BlockStatistics from "../../_components/BlockStatistics";
 import BlockTimeline from "../../_components/BlockTimeline";

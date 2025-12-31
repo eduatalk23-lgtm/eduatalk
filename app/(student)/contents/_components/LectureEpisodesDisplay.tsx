@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { Video } from "lucide-react";
 import { LectureEpisode } from "@/lib/types/plan";
 import { secondsToMinutes } from "@/lib/utils/duration";
-import { cn } from "@/lib/cn";
 
 type LectureEpisodesDisplayProps = {
   episodes: LectureEpisode[];

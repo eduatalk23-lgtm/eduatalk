@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, BookOpen } from "lucide-react";
 import { BookDetail } from "@/lib/types/plan";
-import { cn } from "@/lib/cn";
 
 type BookDetailsDisplayProps = {
   details: BookDetail[];
