@@ -131,6 +131,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             <AddPlanButton
               studentId={userId}
               tenantId={tenantContext?.tenantId || null}
+              planGroupId={null}
               defaultDate={targetProgressDate}
             />
           </div>
@@ -207,6 +208,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               <AddPlanButton
                 studentId={userId}
                 tenantId={tenantContext?.tenantId || null}
+                planGroupId={activePlanGroups[0]?.id || null}
                 defaultDate={targetProgressDate}
               />
             </div>

@@ -25,6 +25,7 @@ interface AdminPlanManagementProps {
   studentName: string;
   tenantId: string;
   initialDate: string;
+  activePlanGroupId: string | null;
 }
 
 export function AdminPlanManagement({
@@ -32,6 +33,7 @@ export function AdminPlanManagement({
   studentName,
   tenantId,
   initialDate,
+  activePlanGroupId,
 }: AdminPlanManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -248,10 +250,11 @@ export function AdminPlanManagement({
           />
         )}
 
-        {showAddAdHocModal && (
+        {showAddAdHocModal && activePlanGroupId && (
           <AddAdHocModal
             studentId={studentId}
             tenantId={tenantId}
+            planGroupId={activePlanGroupId}
             targetDate={selectedDate}
             onClose={() => setShowAddAdHocModal(false)}
             onSuccess={() => {

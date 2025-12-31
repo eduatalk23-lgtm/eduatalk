@@ -222,8 +222,8 @@ export interface AdHocPlanInsert {
   tags?: string[] | null;
   color?: string | null;
   icon?: string | null;
-  // 캘린더 연결
-  plan_group_id?: string | null;
+  // 캘린더 연결 (필수)
+  plan_group_id: string;
 }
 
 export interface AdHocPlanUpdate {

@@ -744,10 +744,11 @@ export type AdHocPlan = {
   tenant_id: string | null;
   student_id: string;
   plan_date: string;
+  plan_group_id: string; // 연결된 플랜 그룹 ID (캘린더 아키텍처 필수)
   title: string;
   description: string | null;
   content_type: string | null;
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "in_progress" | "paused" | "completed" | "cancelled";
   started_at: string | null;
   completed_at: string | null;
   estimated_minutes: number | null;
@@ -757,6 +758,10 @@ export type AdHocPlan = {
   container_type: string | null;
   created_at: string;
   updated_at: string;
+  // 일시정지 관련 필드
+  paused_at: string | null;
+  paused_duration_seconds: number | null;
+  pause_count: number | null;
 };
 
 /**

@@ -166,6 +166,14 @@ export async function createAdHocPlan(
     const supabase = await createSupabaseServerClient();
     const resolvedActorId = actorId ?? userId;
 
+    // plan_group_id 필수 검증 (캘린더 아키텍처)
+    if (!input.plan_group_id) {
+      return {
+        success: false,
+        error: 'plan_group_id는 필수입니다. 캘린더 기반 플랜 생성이 필요합니다.',
+      };
+    }
+
     // FK 검증: flexible_content_id가 있는 경우 콘텐츠 존재 여부 확인
     if (input.flexible_content_id) {
       const contentCheck = await checkFlexibleContentExists(
@@ -453,6 +461,7 @@ export async function carryoverAdHocPlans(
 export interface EnhancedAdHocPlanInput {
   studentId: string;
   tenantId: string;
+  planGroupId: string; // 캘린더 아키텍처 필수
   title: string;
   description?: string;
   planDate: string;
@@ -504,6 +513,7 @@ export async function createEnhancedAdHocPlan(
     const insertData: AdHocPlanInsert = {
       tenant_id: input.tenantId,
       student_id: input.studentId,
+      plan_group_id: input.planGroupId, // 캘린더 아키텍처 필수
       title: input.title,
       description: input.description || null,
       plan_date: input.planDate,
@@ -655,6 +665,7 @@ export async function expandAdHocRecurrence(
     const instances = newDates.map((date) => ({
       tenant_id: template.tenant_id,
       student_id: template.student_id,
+      plan_group_id: template.plan_group_id, // 캘린더 아키텍처 필수
       plan_date: date,
       title: template.title,
       description: template.description,
@@ -1060,8 +1071,8 @@ export interface StudentAdHocPlanInput {
   tags?: string[] | null;
   color?: string | null;
   icon?: string | null;
-  // 캘린더 연결
-  plan_group_id?: string | null;
+  // 캘린더 연결 (필수)
+  plan_group_id: string;
 }
 
 /**
@@ -1080,6 +1091,14 @@ export async function createStudentAdHocPlan(
     // 자신의 플랜만 생성 가능
     if (input.student_id !== user.userId) {
       return { success: false, error: '권한이 없습니다.' };
+    }
+
+    // plan_group_id 필수 검증 (캘린더 아키텍처)
+    if (!input.plan_group_id) {
+      return {
+        success: false,
+        error: 'plan_group_id는 필수입니다. 캘린더 기반 플랜 생성이 필요합니다.',
+      };
     }
 
     const supabase = await createSupabaseServerClient();
@@ -1125,8 +1144,8 @@ export async function createStudentAdHocPlan(
       tags: input.tags || null,
       color: input.color || null,
       icon: input.icon || null,
-      // 캘린더 연결
-      plan_group_id: input.plan_group_id || null,
+      // 캘린더 연결 (필수 - 위에서 검증됨)
+      plan_group_id: input.plan_group_id,
     };
 
     const { data, error } = await supabase

@@ -8,12 +8,14 @@ import { useQueryClient } from "@tanstack/react-query";
 type AddPlanButtonProps = {
   studentId: string;
   tenantId: string | null;
+  planGroupId: string | null; // 캘린더 아키텍처 필수
   defaultDate?: string;
 };
 
 export function AddPlanButton({
   studentId,
   tenantId,
+  planGroupId,
   defaultDate,
 }: AddPlanButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,7 +28,8 @@ export function AddPlanButton({
     queryClient.invalidateQueries({ queryKey: ["containerPlans"] });
   };
 
-  if (!tenantId) {
+  // tenantId와 planGroupId가 모두 있어야 플랜 추가 가능
+  if (!tenantId || !planGroupId) {
     return null;
   }
 
@@ -45,6 +48,7 @@ export function AddPlanButton({
         <EnhancedAddPlanModal
           studentId={studentId}
           tenantId={tenantId}
+          planGroupId={planGroupId}
           defaultDate={defaultDate}
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleSuccess}

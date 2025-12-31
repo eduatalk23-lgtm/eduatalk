@@ -12,6 +12,7 @@ type RepeatType = "none" | "daily" | "weekly" | "custom";
 interface AddPlanModalProps {
   studentId: string;
   tenantId: string;
+  planGroupId: string; // 캘린더 아키텍처 필수
   defaultDate?: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -22,6 +23,7 @@ const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 export function AddPlanModal({
   studentId,
   tenantId,
+  planGroupId,
   defaultDate,
   onClose,
   onSuccess,
@@ -82,6 +84,7 @@ export function AddPlanModal({
       const result = await createAdHocPlan({
         tenant_id: tenantId,
         student_id: studentId,
+        plan_group_id: planGroupId,
         plan_date: planDate,
         title: title.trim(),
         description: description.trim() || null,

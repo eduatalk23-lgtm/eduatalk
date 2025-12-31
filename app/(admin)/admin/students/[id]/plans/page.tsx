@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { AdminPlanManagement } from './_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from './_components/AdminPlanManagementSkeleton';
+import { getPlanGroupsForStudent } from '@/lib/data/planGroups';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -37,6 +38,13 @@ export default async function StudentPlansPage({ params, searchParams }: Props) 
 
   const targetDate = date ?? new Date().toISOString().split('T')[0];
 
+  // 활성 플랜 그룹 조회
+  const activePlanGroups = await getPlanGroupsForStudent({
+    studentId: id,
+    status: 'active',
+  });
+  const activePlanGroupId = activePlanGroups[0]?.id ?? null;
+
   return (
     <div className="container mx-auto py-6 px-4">
       {/* 헤더 */}
@@ -56,6 +64,7 @@ export default async function StudentPlansPage({ params, searchParams }: Props) 
           studentName={student.name}
           tenantId={student.tenant_id}
           initialDate={targetDate}
+          activePlanGroupId={activePlanGroupId}
         />
       </Suspense>
     </div>

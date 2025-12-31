@@ -204,6 +204,12 @@ export function QuickAddPlanModal({
       return;
     }
 
+    // planGroupId가 없으면 에러 처리 (캘린더 아키텍처 필수)
+    if (!selectedPlanGroupId) {
+      showToast("캘린더를 선택해주세요.", "error");
+      return;
+    }
+
     startTransition(async () => {
       try {
         // 자연어 파싱 결과 적용

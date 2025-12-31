@@ -8,6 +8,7 @@ import { usePlanToast } from './PlanToast';
 interface AddAdHocModalProps {
   studentId: string;
   tenantId: string;
+  planGroupId: string; // 캘린더 아키텍처 필수
   targetDate: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -16,6 +17,7 @@ interface AddAdHocModalProps {
 export function AddAdHocModal({
   studentId,
   tenantId,
+  planGroupId,
   targetDate,
   onClose,
   onSuccess,
@@ -43,6 +45,7 @@ export function AddAdHocModal({
       const result = await createAdHocPlan({
         tenant_id: tenantId,
         student_id: studentId,
+        plan_group_id: planGroupId,
         plan_date: planDate,
         title: title.trim(),
         description: description.trim() || null,

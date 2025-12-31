@@ -1,4 +1,4 @@
-import { getPlansForStudent, type Plan, buildPlanQuery } from "@/lib/data/studentPlans";
+import { getPlansForStudent, type Plan, buildPlanQuery, type AdHocPlan } from "@/lib/data/studentPlans";
 import type { Book, Lecture, CustomContent } from "@/lib/data/studentContents";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PlanWithContent } from "@/app/(student)/today/_utils/planGroupUtils";
@@ -26,6 +26,45 @@ import type { SupabaseServerClient } from "@/lib/data/core/types";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 특정 날짜의 ad_hoc_plans 조회
+ */
+async function getAdHocPlansForDate(options: {
+  studentId: string;
+  tenantId: string | null;
+  planDate: string;
+  supabase: SupabaseServerClient;
+}): Promise<AdHocPlan[]> {
+  const { studentId, tenantId, planDate, supabase } = options;
+
+  // ad_hoc_plans 테이블에서 해당 날짜의 플랜 조회
+  // plan_date가 해당 날짜인 플랜들을 가져옴
+  let query = supabase
+    .from("ad_hoc_plans")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("plan_date", planDate)
+    .order("created_at", { ascending: false });
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  } else {
+    query = query.is("tenant_id", null);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    handleQueryError(error, {
+      context: "[data/todayPlans] getAdHocPlansForDate",
+      logError: false,
+    });
+    return [];
+  }
+
+  return (data ?? []) as AdHocPlan[];
+}
 
 function normalizeIsoDate(value: string | null): string | null {
   if (!value || !ISO_DATE_REGEX.test(value)) {
@@ -314,6 +353,11 @@ export type TodayPlansResponse = {
    * Can be null if calculation fails (non-blocking).
    */
   todayProgress?: TodayProgress | null;
+  /**
+   * Ad-hoc plans for the given date.
+   * These are simple plans not tied to a plan group.
+   */
+  adHocPlans?: AdHocPlan[];
 };
 
 export type GetTodayPlansOptions = {
@@ -449,12 +493,30 @@ export async function getTodayPlans(
 
   // 선택한 날짜 플랜 조회 (View 사용으로 최적화)
   // today_plan_view를 통해 콘텐츠 정보가 이미 조인되어 있음
-  let plans = await getPlansFromView({
-    studentId,
-    tenantId,
-    planDate: targetDate,
-    planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
-  });
+  // ad_hoc_plans도 함께 조회
+  const [plansResult, adHocPlansResult] = await Promise.all([
+    getPlansFromView({
+      studentId,
+      tenantId,
+      planDate: targetDate,
+      planGroupIds: planGroupIds.length > 0 ? planGroupIds : undefined,
+    }),
+    // Ad-hoc plans 조회 (캠프 모드가 아닐 때만)
+    camp
+      ? Promise.resolve([])
+      : getAdHocPlansForDate({
+          studentId,
+          tenantId,
+          planDate: targetDate,
+          supabase,
+        }),
+  ]);
+
+  // 재할당 가능하도록 let으로 선언
+  let plans = plansResult;
+
+  // ad_hoc_plans 결과
+  let adHocPlans: AdHocPlan[] = adHocPlansResult;
 
   let displayDate = targetDate;
   // isToday는 이미 위에서 계산됨
@@ -553,6 +615,7 @@ export async function getTodayPlans(
       isToday,
       serverNow: Date.now(),
       todayProgress: todayProgress ?? undefined,
+      adHocPlans: adHocPlans.length > 0 ? adHocPlans : undefined,
     };
   }
 
@@ -889,6 +952,7 @@ export async function getTodayPlans(
     isToday,
     serverNow: Date.now(),
     todayProgress: todayProgress ?? undefined,
+    adHocPlans: adHocPlans.length > 0 ? adHocPlans : undefined,
   };
 
   // Cache store (if enabled and result is valid) - 디버그 모드에서만

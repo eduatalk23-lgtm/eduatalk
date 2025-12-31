@@ -28,6 +28,7 @@ type TabType = "quick" | "content";
 interface EnhancedAddPlanModalProps {
   studentId: string;
   tenantId: string;
+  planGroupId: string; // 캘린더 아키텍처 필수
   defaultDate?: string;
   defaultTab?: TabType;
   preselectedContent?: {
@@ -45,6 +46,7 @@ const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 export function EnhancedAddPlanModal({
   studentId,
   tenantId,
+  planGroupId,
   defaultDate,
   defaultTab = "quick",
   preselectedContent,
@@ -129,6 +131,7 @@ export function EnhancedAddPlanModal({
       const result = await createStudentAdHocPlan({
         tenant_id: tenantId,
         student_id: studentId,
+        plan_group_id: planGroupId,
         plan_date: planDate,
         title: title.trim(),
         description: description.trim() || null,
@@ -175,6 +178,7 @@ export function EnhancedAddPlanModal({
       const result = await createStudentAdHocPlan({
         tenant_id: tenantId,
         student_id: studentId,
+        plan_group_id: planGroupId,
         plan_date: planDate,
         title: planTitle,
         description: description.trim() || null,
