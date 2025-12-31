@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
-import { deletePlanGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { deletePlanGroupAction } from "@/lib/domains/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { PlanStatus } from "@/lib/types/plan";

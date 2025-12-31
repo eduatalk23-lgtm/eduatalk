@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { checkOutWithLocation } from "@/app/(student)/actions/attendanceActions";
+import { checkOutWithLocation } from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 
 type LocationCheckOutProps = {

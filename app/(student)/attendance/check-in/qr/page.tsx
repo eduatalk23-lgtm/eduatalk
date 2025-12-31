@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
-import { checkInWithQRCode } from "@/app/(student)/actions/attendanceActions";
+import { checkInWithQRCode } from "@/lib/domains/attendance";
 import { service } from "@/lib/domains/qrCode";
 
 

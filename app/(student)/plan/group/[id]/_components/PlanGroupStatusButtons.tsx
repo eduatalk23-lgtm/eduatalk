@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updatePlanGroupStatus, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, checkPlansExistAction } from "@/lib/domains/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { cn } from "@/lib/cn";

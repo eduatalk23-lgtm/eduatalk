@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SettingsContext } from "./SettingsContext";
 import type { SettingsContextType } from "./SettingsContext";
 import type { StudentData } from "../types";
-import { updateStudentProfile } from "@/app/(student)/actions/studentActions";
+import { updateStudentProfile } from "@/lib/domains/student";
 import { transformStudentToFormData } from "../_utils/dataTransform";
 import { useSettingsForm } from "../_hooks/useSettingsForm";
 import { useAutoCalculation } from "../_hooks/useAutoCalculation";
@@ -22,7 +22,7 @@ import ContactInfoSection from "./sections/ContactInfoSection";
 import ExamInfoSection from "./sections/ExamInfoSection";
 import CareerInfoSection from "./sections/CareerInfoSection";
 import type { StudentFormData } from "../types";
-import { getSchoolById } from "@/app/(student)/actions/schoolActions";
+import { getSchoolById } from "@/lib/domains/school";
 import { useAuth } from "@/lib/contexts/AuthContext";
 
 type SettingsPageClientProps = {

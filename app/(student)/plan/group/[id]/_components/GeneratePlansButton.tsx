@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { getPlansByGroupIdAction } from "@/app/(student)/actions/planGroupActions";
+import { getPlansByGroupIdAction } from "@/lib/domains/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { LoadingSkeleton } from "@/components/ui/LoadingSkeleton";
 

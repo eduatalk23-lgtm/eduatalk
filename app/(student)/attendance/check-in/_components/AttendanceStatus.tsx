@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { QrCode, MapPin, Hand, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { getTodayAttendanceSMSStatus } from "@/app/(student)/actions/attendanceActions";
+import { getTodayAttendanceSMSStatus } from "@/lib/domains/attendance";
 
 type AttendanceRecord = {
   id: string;

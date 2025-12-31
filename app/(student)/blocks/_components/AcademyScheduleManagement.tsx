@@ -9,7 +9,7 @@ import {
   addAcademySchedule, 
   updateAcademySchedule, 
   deleteAcademySchedule 
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import type { AcademySchedule, Academy } from "@/lib/types/plan";
 import { Trash2, Pencil, Plus } from "lucide-react";
 import { EmptyState } from "@/components/molecules/EmptyState";

@@ -7,7 +7,7 @@ import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
 import { MockScoreCardGrid } from "./MockScoreCardGrid";
 import { MockScoreFormModal } from "./MockScoreFormModal";
 import { Dialog } from "@/components/ui/Dialog";
-import { deleteMockScoreAction } from "@/app/(student)/actions/scoreActions";
+import { deleteMockScoreFormAction as deleteMockScoreAction } from "@/lib/domains/score";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Pencil, Copy, Trash2, RefreshCw, Plus } from "lucide-react";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
-import { deletePlanGroupAction, copyPlanGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { deletePlanGroupAction, copyPlanGroupAction } from "@/lib/domains/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanGroupDeleteDialog } from "@/app/(student)/plan/_components/PlanGroupDeleteDialog";
 

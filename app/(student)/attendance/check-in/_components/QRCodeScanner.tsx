@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   checkInWithQRCode,
   checkOutWithQRCode,
-} from "@/app/(student)/actions/attendanceActions";
+} from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 
 // html5-qrcode is dynamically imported to reduce initial bundle size (~379KB)

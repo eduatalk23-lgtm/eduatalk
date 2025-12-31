@@ -4,7 +4,7 @@ import { useImperativeHandle, forwardRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle } from "lucide-react";
-import { getScheduleResultDataAction } from "@/app/(student)/actions/planGroupActions";
+import { getScheduleResultDataAction } from "@/lib/domains/plan";
 import {
   CACHE_STALE_TIME_STABLE,
   CACHE_GC_TIME_STABLE

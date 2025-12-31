@@ -18,10 +18,10 @@ import {
   createPlanGroupAction,
   updatePlanGroupDraftAction,
   updatePlanGroupStatus,
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan";
 import { continueCampStepsForAdmin } from "@/lib/domains/camp/actions";
-import { submitCampParticipation } from "@/app/(student)/actions/campActions";
+import { submitCampParticipation } from "@/lib/domains/camp";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
 

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { X } from "lucide-react";
-import { previewPlansFromGroupAction, generatePlansFromGroupAction, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
+import { previewPlansFromGroupAction, generatePlansFromGroupAction, checkPlansExistAction } from "@/lib/domains/plan";
 
 type PlanPreview = {
   plan_date: string;

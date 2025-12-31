@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { cn } from "@/lib/cn";
 import { useSchoolMultiSelectLogic } from "./hooks/useSchoolMultiSelectLogic";
-import type { School } from "@/app/(student)/actions/schoolActions";
+import type { School } from "@/lib/domains/school";
 
 type SchoolMultiSelectProps = {
   value?: string[]; // 선택된 학교 ID 배열

@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
+import { getActivePlanGroups } from "@/lib/domains/plan";
 import { PlanGroupActivationDialog } from "./PlanGroupActivationDialog";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanWizardProvider, usePlanWizard } from "./_context/PlanWizardContext";
@@ -15,7 +15,7 @@ import {
   generatePlansFromGroupAction,
   updatePlanGroupStatus,
   checkPlansExistAction,
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import { updateCampTemplateAction } from "@/lib/domains/camp/actions";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { WizardValidator } from "@/lib/validation/wizardValidator";

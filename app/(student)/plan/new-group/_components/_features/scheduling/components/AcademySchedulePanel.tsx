@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
-import { syncTimeManagementAcademySchedulesAction } from "@/app/(student)/actions/planGroupActions";
+import { syncTimeManagementAcademySchedulesAction } from "@/lib/domains/plan";
 import { AcademyScheduleImportModal } from "../modals/AcademyScheduleImportModal";
 import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
 

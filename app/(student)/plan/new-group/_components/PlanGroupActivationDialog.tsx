@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
-import { updatePlanGroupStatus, checkPlansExistAction } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, checkPlansExistAction } from "@/lib/domains/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type PlanGroupActivationDialogProps = {

@@ -7,7 +7,7 @@ import { Trash2, Eye, Power, PowerOff, CheckSquare, Square } from "lucide-react"
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
-import { updatePlanGroupStatus } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus } from "@/lib/domains/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanGroupCard } from "../_shared/PlanCard";
 import { StatusBadge } from "../_shared/StatusBadge";

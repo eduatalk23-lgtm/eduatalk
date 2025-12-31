@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updatePassword } from "@/app/(student)/actions/accountActions";
+import { changePassword as updatePassword } from "@/lib/domains/auth";
 import { handleSupabaseError } from "@/lib/utils/errorHandling";
 import { useToast } from "@/components/ui/ToastProvider";
 import PageContainer from "@/components/layout/PageContainer";

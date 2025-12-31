@@ -15,7 +15,7 @@ import {
 import {
   savePlanGroupDraftAction,
   updatePlanGroupDraftAction,
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
 

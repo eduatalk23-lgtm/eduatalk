@@ -8,7 +8,7 @@ import { Trash2, CheckSquare, Square, Eye, Plus, AlertCircle, BookOpen, Video, F
 import { PlanGroup } from "@/lib/types/plan";
 import { PlanStatus } from "@/lib/types/plan";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
-import { updatePlanGroupStatus, getActivePlanGroups } from "@/app/(student)/actions/planGroupActions";
+import { updatePlanGroupStatus, getActivePlanGroups } from "@/lib/domains/plan";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PlanGroupDeleteDialog } from "./PlanGroupDeleteDialog";
 import { PlanGroupActiveToggleDialog } from "./PlanGroupActiveToggleDialog";

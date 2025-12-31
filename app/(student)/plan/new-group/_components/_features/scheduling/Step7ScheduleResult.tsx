@@ -6,7 +6,7 @@ import {
   generatePlansFromGroupAction,
   checkPlansExistAction,
   updatePlanGroupStatus,
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import { getContentScheduleOverview } from "@/lib/domains/plan/actions/contentSchedule";
 import {
   CACHE_STALE_TIME_DYNAMIC

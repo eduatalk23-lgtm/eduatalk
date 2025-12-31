@@ -15,7 +15,7 @@ import {
   getSchoolByName,
   searchSchools,
   type School,
-} from "@/app/(student)/actions/schoolActions";
+} from "@/lib/domains/school";
 
 type SchoolSelectProps = {
   value?: string;

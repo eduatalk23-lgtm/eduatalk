@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deletePlanGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { deletePlanGroupAction } from "@/lib/domains/plan";
 
 type PlanGroupDeleteButtonProps = {
   groupId: string;

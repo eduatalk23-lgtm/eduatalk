@@ -5,7 +5,7 @@ import {
   getSchoolById,
   searchSchools,
   type School,
-} from "@/app/(student)/actions/schoolActions";
+} from "@/lib/domains/school";
 
 type UseSchoolMultiSelectLogicProps = {
   value?: string[];

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
-import { copyPlanGroupAction } from "@/app/(student)/actions/planGroupActions";
+import { copyPlanGroupAction } from "@/lib/domains/plan";
 
 type PlanGroupCopyButtonProps = {
   groupId: string;

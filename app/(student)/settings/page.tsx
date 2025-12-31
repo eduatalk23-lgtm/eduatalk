@@ -1,7 +1,7 @@
 
 import { redirect } from "next/navigation";
-import { getCurrentStudent } from "@/app/(student)/actions/studentActions";
-import { getSchoolById } from "@/app/(student)/actions/schoolActions";
+import { getCurrentStudent } from "@/lib/domains/student";
+import { getSchoolById } from "@/lib/domains/school";
 import SettingsPageClient from "./_components/SettingsPageClient";
 import type { StudentData } from "./types";
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Info, RefreshCw, Lock, Clock, User } from "lucide-react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
-import { syncTimeManagementExclusionsAction } from "@/app/(student)/actions/planGroupActions";
+import { syncTimeManagementExclusionsAction } from "@/lib/domains/plan";
 import { ExclusionImportModal } from "../modals/ExclusionImportModal";
 import { formatDateFromDate, parseDateString, generateDateRange } from "@/lib/utils/date";
 import { DateInput } from "../../../common/DateInput";

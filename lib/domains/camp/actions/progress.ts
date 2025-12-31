@@ -1255,7 +1255,7 @@ export const continueCampStepsForAdmin = withErrorHandling(
         // generatePlansFromGroupAction은 verifyPlanGroupAccess를 사용하여
         // Admin/Consultant 권한도 지원합니다 (planGroupAuth.ts 참조)
         const { generatePlansFromGroupAction } = await import(
-          "@/app/(student)/actions/planGroupActions"
+          "@/lib/domains/plan"
         );
 
         try {
@@ -2986,7 +2986,7 @@ export const bulkPreviewPlans = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
     const { previewPlansFromGroupAction } = await import(
-      "@/app/(student)/actions/planGroupActions"
+      "@/lib/domains/plan"
     );
 
     const previews: Array<{
@@ -3092,7 +3092,7 @@ export const bulkGeneratePlans = withErrorHandling(
 
     const supabase = await createSupabaseServerClient();
     const { generatePlansFromGroupAction } = await import(
-      "@/app/(student)/actions/planGroupActions"
+      "@/lib/domains/plan"
     );
 
     const errors: Array<{ groupId: string; error: string }> = [];

@@ -13,7 +13,7 @@ import {
   getActivePlanGroups,
   updatePlanGroupStatus,
   checkPlansExistAction,
-} from "@/app/(student)/actions/planGroupActions";
+} from "@/lib/domains/plan";
 import {
   toPlanGroupError,
   PlanGroupErrorCodes,

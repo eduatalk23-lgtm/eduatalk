@@ -11,7 +11,7 @@ import {
   getSchoolById,
   getSchoolByName,
   type School,
-} from "@/app/(student)/actions/schoolActions";
+} from "@/lib/domains/school";
 
 export type SchoolType = "중학교" | "고등학교" | "대학교";
 

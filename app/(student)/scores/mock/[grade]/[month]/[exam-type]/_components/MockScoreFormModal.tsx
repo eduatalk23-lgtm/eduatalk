@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { Dialog, DialogFooter } from "@/components/ui/Dialog";
 import { MockScore } from "@/lib/data/studentScores";
 import type { SubjectGroup, Subject, SubjectType } from "@/lib/data/subjects";
-import { addMockScore, updateMockScoreAction } from "@/app/(student)/actions/scoreActions";
+import { addMockScore, updateMockScoreFormAction as updateMockScoreAction } from "@/lib/domains/score";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type MockScoreFormModalProps = {

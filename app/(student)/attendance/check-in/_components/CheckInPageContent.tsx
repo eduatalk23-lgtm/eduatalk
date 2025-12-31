@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getTodayAttendance } from "@/app/(student)/actions/attendanceActions";
+import { getTodayAttendance } from "@/lib/domains/attendance";
 import { AttendanceStatus } from "./AttendanceStatus";
 import { QRCodeScanner } from "./QRCodeScanner";
 import { LocationCheckIn } from "./LocationCheckIn";
 import { LocationCheckOut } from "./LocationCheckOut";
-import { checkOut } from "@/app/(student)/actions/attendanceActions";
+import { checkOut } from "@/lib/domains/attendance";
 import Button from "@/components/atoms/Button";
 import { Card, CardContent, CardHeader } from "@/components/molecules/Card";
 import { useToast } from "@/components/ui/ToastProvider";

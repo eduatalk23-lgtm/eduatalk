@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { addPlanExclusion, deletePlanExclusion } from "@/app/(student)/actions/planGroupActions";
+import { addPlanExclusion, deletePlanExclusion } from "@/lib/domains/plan";
 import type { PlanExclusion } from "@/lib/types/plan";
 import { Trash2, X } from "lucide-react";
 import { EmptyState } from "@/components/molecules/EmptyState";

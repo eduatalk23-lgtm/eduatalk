@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { WizardData } from "../../../PlanGroupWizard";
-import { calculateScheduleAvailability } from "@/app/(student)/actions/calculateScheduleAvailability";
+import { calculateScheduleAvailability } from "@/lib/domains/plan/actions/calculateScheduleAvailability";
 import {
   scheduleCache,
   type ScheduleCalculationParams,
