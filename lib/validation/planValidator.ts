@@ -269,6 +269,37 @@ export class PlanValidator {
       }
     });
 
+    // 같은 요일 시간대 중복 검증
+    const validSchedules = schedules.filter(
+      (s) => s.start_time && s.end_time
+    );
+
+    for (let i = 0; i < validSchedules.length; i++) {
+      for (let j = i + 1; j < validSchedules.length; j++) {
+        const scheduleA = validSchedules[i];
+        const scheduleB = validSchedules[j];
+
+        // 같은 요일인지 확인
+        if (scheduleA.day_of_week !== scheduleB.day_of_week) continue;
+
+        const startA = this.parseTime(scheduleA.start_time!);
+        const endA = this.parseTime(scheduleA.end_time!);
+        const startB = this.parseTime(scheduleB.start_time!);
+        const endB = this.parseTime(scheduleB.end_time!);
+
+        if (startA === null || endA === null || startB === null || endB === null) continue;
+
+        // 시간 겹침 체크: A.start < B.end && B.start < A.end
+        if (startA < endB && startB < endA) {
+          const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+          const dayName = dayNames[scheduleA.day_of_week];
+          errors.push(
+            `${dayName}요일에 시간이 겹치는 학원 일정이 있습니다. (${scheduleA.start_time}~${scheduleA.end_time}과 ${scheduleB.start_time}~${scheduleB.end_time})`
+          );
+        }
+      }
+    }
+
     return { valid: errors.length === 0, errors, warnings };
   }
 
