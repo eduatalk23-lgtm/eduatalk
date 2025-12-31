@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";

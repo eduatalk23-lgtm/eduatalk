@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { sendSMS, sendBulkSMS } from "@/lib/services/smsService";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

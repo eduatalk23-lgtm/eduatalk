@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";

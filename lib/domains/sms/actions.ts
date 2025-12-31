@@ -10,7 +10,7 @@ import {
   formatSMSTemplate,
   type SMSTemplateType,
 } from "@/lib/services/smsTemplates";
-import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode } from "@/lib/errors";

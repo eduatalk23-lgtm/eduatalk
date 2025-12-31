@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdminAuth } from "@/lib/auth/requireAdminAuth";
+import { requireAdmin as requireAdminAuth } from "@/lib/auth/guards";
 import { generateAttendanceQRCode } from "@/lib/services/qrCodeService";
 import { normalizeError, getUserFacingMessage, logError } from "@/lib/errors";
 import { service } from "@/lib/domains/qrCode";
