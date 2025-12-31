@@ -2,6 +2,8 @@
  * 학생 프로필 관련 유틸리티 함수
  */
 
+import { logActionDebug } from "@/lib/logging/actionLogger";
+
 /**
  * 학년 문자열에서 숫자 추출
  * 예: "중3" -> 3, "고2" -> 2
@@ -123,10 +125,10 @@ export function calculateCurriculumRevision(
     // 차이가 2년 이상이면 경고 (개인 사정 가능성)
     const diff = Math.abs(schoolStartYear - expectedSchoolStartYear);
     if (diff >= 2) {
-      console.warn(
-        `[calculateCurriculumRevision] 학년과 생년월일이 크게 다릅니다. ` +
-        `학년 기준: ${schoolStartYear}년, 생년월일 기준: ${expectedSchoolStartYear}년 ` +
-        `(차이: ${diff}년). 학년 정보를 우선 사용합니다.`
+      logActionDebug(
+        { domain: "utils", action: "calculateCurriculumRevision" },
+        "학년과 생년월일이 크게 다릅니다. 학년 정보를 우선 사용합니다.",
+        { gradeYear: schoolStartYear, birthYear: expectedSchoolStartYear, diff }
       );
     }
   }

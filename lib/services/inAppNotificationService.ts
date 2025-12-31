@@ -7,6 +7,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type NotificationType =
   | "camp_invitation"
@@ -94,7 +95,11 @@ export async function sendInAppNotification(
       .single();
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 저장 실패:", error);
+      logActionError(
+        { domain: "service", action: "sendInAppNotification" },
+        error,
+        { userId, type }
+      );
       return {
         success: false,
         error: error.message,
@@ -105,7 +110,11 @@ export async function sendInAppNotification(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error("[inAppNotificationService] 알림 발송 실패:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendInAppNotification" },
+      error,
+      { userId, type }
+    );
     return {
       success: false,
       error: errorMessage,
@@ -154,7 +163,11 @@ export async function sendBulkInAppNotification(
       .insert(notifications);
 
     if (error) {
-      console.error("[inAppNotificationService] 일괄 알림 저장 실패:", error);
+      logActionError(
+        { domain: "service", action: "sendBulkInAppNotification" },
+        error,
+        { userCount: userIds.length, type }
+      );
       return {
         success: false,
         sentCount: 0,
@@ -166,7 +179,11 @@ export async function sendBulkInAppNotification(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error("[inAppNotificationService] 일괄 알림 발송 실패:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendBulkInAppNotification" },
+      error,
+      { userCount: userIds.length, type }
+    );
     return {
       success: false,
       sentCount: 0,
@@ -193,13 +210,21 @@ export async function getUnreadNotifications(
       .limit(50);
 
     if (error) {
-      console.error("[inAppNotificationService] 미읽은 알림 조회 실패:", error);
+      logActionError(
+        { domain: "service", action: "getUnreadNotifications" },
+        error,
+        { userId }
+      );
       return [];
     }
 
     return (data ?? []).map(mapDbRecordToNotification);
   } catch (error) {
-    console.error("[inAppNotificationService] 미읽은 알림 조회 오류:", error);
+    logActionError(
+      { domain: "service", action: "getUnreadNotifications" },
+      error,
+      { userId }
+    );
     return [];
   }
 }
@@ -222,13 +247,21 @@ export async function getAllNotifications(
       .limit(limit);
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 조회 실패:", error);
+      logActionError(
+        { domain: "service", action: "getAllNotifications" },
+        error,
+        { userId, limit }
+      );
       return [];
     }
 
     return (data ?? []).map(mapDbRecordToNotification);
   } catch (error) {
-    console.error("[inAppNotificationService] 알림 조회 오류:", error);
+    logActionError(
+      { domain: "service", action: "getAllNotifications" },
+      error,
+      { userId, limit }
+    );
     return [];
   }
 }
@@ -249,13 +282,21 @@ export async function getUnreadNotificationCount(
       .eq("is_read", false);
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 개수 조회 실패:", error);
+      logActionError(
+        { domain: "service", action: "getUnreadNotificationCount" },
+        error,
+        { userId }
+      );
       return 0;
     }
 
     return count ?? 0;
   } catch (error) {
-    console.error("[inAppNotificationService] 알림 개수 조회 오류:", error);
+    logActionError(
+      { domain: "service", action: "getUnreadNotificationCount" },
+      error,
+      { userId }
+    );
     return 0;
   }
 }
@@ -280,7 +321,11 @@ export async function markNotificationAsRead(
       .eq("user_id", userId);
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 읽음 처리 실패:", error);
+      logActionError(
+        { domain: "service", action: "markNotificationAsRead" },
+        error,
+        { userId, notificationId }
+      );
       return {
         success: false,
         error: error.message,
@@ -291,7 +336,11 @@ export async function markNotificationAsRead(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error("[inAppNotificationService] 알림 읽음 처리 오류:", errorMessage);
+    logActionError(
+      { domain: "service", action: "markNotificationAsRead" },
+      error,
+      { userId, notificationId }
+    );
     return {
       success: false,
       error: errorMessage,
@@ -318,7 +367,11 @@ export async function markAllNotificationsAsRead(
       .eq("is_read", false);
 
     if (error) {
-      console.error("[inAppNotificationService] 전체 알림 읽음 처리 실패:", error);
+      logActionError(
+        { domain: "service", action: "markAllNotificationsAsRead" },
+        error,
+        { userId }
+      );
       return {
         success: false,
         error: error.message,
@@ -329,9 +382,10 @@ export async function markAllNotificationsAsRead(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[inAppNotificationService] 전체 알림 읽음 처리 오류:",
-      errorMessage
+    logActionError(
+      { domain: "service", action: "markAllNotificationsAsRead" },
+      error,
+      { userId }
     );
     return {
       success: false,
@@ -357,7 +411,11 @@ export async function deleteNotification(
       .eq("user_id", userId);
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 삭제 실패:", error);
+      logActionError(
+        { domain: "service", action: "deleteNotification" },
+        error,
+        { userId, notificationId }
+      );
       return {
         success: false,
         error: error.message,
@@ -368,7 +426,11 @@ export async function deleteNotification(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error("[inAppNotificationService] 알림 삭제 오류:", errorMessage);
+    logActionError(
+      { domain: "service", action: "deleteNotification" },
+      error,
+      { userId, notificationId }
+    );
     return {
       success: false,
       error: errorMessage,
@@ -404,7 +466,11 @@ export async function cleanupOldNotifications(
       .select("id");
 
     if (error) {
-      console.error("[inAppNotificationService] 알림 정리 실패:", error);
+      logActionError(
+        { domain: "service", action: "cleanupOldNotifications" },
+        error,
+        { daysOld }
+      );
       return {
         success: false,
         error: error.message,
@@ -415,7 +481,11 @@ export async function cleanupOldNotifications(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error("[inAppNotificationService] 알림 정리 오류:", errorMessage);
+    logActionError(
+      { domain: "service", action: "cleanupOldNotifications" },
+      error,
+      { daysOld }
+    );
     return {
       success: false,
       error: errorMessage,

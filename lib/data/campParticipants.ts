@@ -4,6 +4,7 @@
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { CampInvitation } from "@/lib/domains/camp/types";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 export type Participant = {
   invitation_id: string;
@@ -65,12 +66,15 @@ export async function loadCampParticipants(
     .order("invited_at", { ascending: false });
 
   if (invitationsError) {
-    console.error("[data/campParticipants] 초대 조회 실패:", {
-      templateId,
-      error: invitationsError.message,
-      errorCode: invitationsError.code,
-      errorDetails: invitationsError.details,
-    });
+    logActionError(
+      { domain: "data", action: "loadCampParticipants" },
+      invitationsError,
+      {
+        templateId,
+        errorCode: invitationsError.code,
+        errorDetails: invitationsError.details,
+      }
+    );
     throw invitationsError;
   }
 
@@ -128,12 +132,13 @@ async function loadPlanGroupsForTemplate(
     .is("deleted_at", null);
 
   if (method1Error) {
-    console.error(
-      "[data/campParticipants] 플랜 그룹 조회 실패 (방법 1):",
+    logActionError(
+      { domain: "data", action: "loadPlanGroupsForTemplate" },
+      method1Error,
       {
+        method: 1,
         templateId,
         invitationIdsCount: invitationIds.length,
-        error: method1Error.message,
         errorCode: method1Error.code,
         errorDetails: method1Error.details,
       }
@@ -164,12 +169,13 @@ async function loadPlanGroupsForTemplate(
       .is("deleted_at", null);
 
     if (method2Error) {
-      console.error(
-        "[data/campParticipants] 플랜 그룹 조회 실패 (방법 2):",
+      logActionError(
+        { domain: "data", action: "loadPlanGroupsForTemplate" },
+        method2Error,
         {
+          method: 2,
           templateId,
           studentIdsCount: studentIds.length,
-          error: method2Error.message,
           errorCode: method2Error.code,
           errorDetails: method2Error.details,
         }
@@ -274,25 +280,22 @@ async function updateMissingInvitationIds(
             .eq("id", groupId);
 
           if (updateError) {
-            console.error(
-              "[data/campParticipants] camp_invitation_id 업데이트 실패:",
+            logActionError(
+              { domain: "data", action: "updateMissingInvitationIds" },
+              updateError,
               {
                 groupId,
                 invitationId,
-                error: updateError.message || updateError.toString(),
                 errorCode: updateError.code,
                 errorDetails: updateError.details,
               }
             );
           }
         } catch (error) {
-          console.error(
-            "[data/campParticipants] camp_invitation_id 업데이트 중 예외:",
-            {
-              groupId,
-              invitationId,
-              error: error instanceof Error ? error.message : String(error),
-            }
+          logActionError(
+            { domain: "data", action: "updateMissingInvitationIds" },
+            error,
+            { groupId, invitationId }
           );
         }
       })
@@ -320,17 +323,17 @@ async function loadPlansForPlanGroups(
     .limit(1000);
 
   if (plansError) {
-    console.error("[data/campParticipants] 플랜 조회 실패:", plansError);
+    logActionError(
+      { domain: "data", action: "loadPlansForPlanGroups" },
+      plansError,
+      { planGroupIdsCount: planGroupIds.length }
+    );
     // 에러 발생 시 빈 맵 사용 (플랜이 없다고 간주)
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[data/campParticipants] 플랜 조회 실패로 인해 hasPlans가 모두 false로 설정됩니다.",
-        {
-          planGroupIdsCount: planGroupIds.length,
-          error: plansError.message,
-        }
-      );
-    }
+    logActionDebug(
+      { domain: "data", action: "loadPlansForPlanGroups" },
+      "플랜 조회 실패로 인해 hasPlans가 모두 false로 설정됩니다.",
+      { planGroupIdsCount: planGroupIds.length }
+    );
     return plansMap;
   }
 
@@ -473,25 +476,22 @@ async function updateInvitationIdForPlanGroup(
       .eq("id", planGroupId);
 
     if (updateError) {
-      console.error(
-        "[data/campParticipants] camp_invitation_id 업데이트 실패:",
+      logActionError(
+        { domain: "data", action: "updateInvitationIdForPlanGroup" },
+        updateError,
         {
           planGroupId,
           invitationId,
-          error: updateError.message || updateError.toString(),
           errorCode: updateError.code,
           errorDetails: updateError.details,
         }
       );
     }
   } catch (error) {
-    console.error(
-      "[data/campParticipants] camp_invitation_id 업데이트 중 예외:",
-      {
-        planGroupId,
-        invitationId,
-        error: error instanceof Error ? error.message : String(error),
-      }
+    logActionError(
+      { domain: "data", action: "updateInvitationIdForPlanGroup" },
+      error,
+      { planGroupId, invitationId }
     );
   }
 }

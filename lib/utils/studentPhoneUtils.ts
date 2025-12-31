@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type StudentPhoneData = {
   id: string;
@@ -94,7 +95,11 @@ export async function getStudentPhonesBatch(
     .in("id", studentIds);
 
   if (studentsError || !students) {
-    console.error("[studentPhoneUtils] students 조회 실패", studentsError);
+    logActionError(
+      { domain: "utils", action: "getStudentPhonesBatch" },
+      studentsError,
+      { context: "students 조회", studentIdsCount: studentIds.length }
+    );
     return [];
   }
 
@@ -116,7 +121,11 @@ export async function getStudentPhonesBatch(
     .in("id", studentIds);
 
   if (profilesError) {
-    console.error("[studentPhoneUtils] student_profiles 조회 실패", profilesError);
+    logActionError(
+      { domain: "utils", action: "getStudentPhonesBatch" },
+      profilesError,
+      { context: "student_profiles 조회" }
+    );
     // 에러가 있어도 계속 진행 (학부모 연결 정보로 보완 가능)
   } else if (profilesData) {
     profiles = profilesData;
@@ -139,7 +148,11 @@ export async function getStudentPhonesBatch(
       .in("student_id", studentIds);
 
     if (linksError) {
-      console.error("[studentPhoneUtils] parent_student_links 조회 실패", linksError);
+      logActionError(
+        { domain: "utils", action: "getStudentPhonesBatch" },
+        linksError,
+        { context: "parent_student_links 조회" }
+      );
     } else if (links && links.length > 0) {
       // 연결된 학부모 ID 수집
       const parentIds = Array.from(new Set((links as ParentStudentLink[]).map((link) => link.parent_id)));
@@ -161,7 +174,11 @@ export async function getStudentPhonesBatch(
             });
           }
         } catch (error) {
-          console.error("[studentPhoneUtils] auth.users phone 조회 실패", error);
+          logActionError(
+            { domain: "utils", action: "getStudentPhonesBatch" },
+            error,
+            { context: "auth.users phone 조회" }
+          );
           // 에러가 있어도 계속 진행 (student_profiles 정보로 보완 가능)
         }
       }
@@ -189,7 +206,11 @@ export async function getStudentPhonesBatch(
       });
     }
   } catch (error) {
-    console.error("[studentPhoneUtils] parent_student_links 처리 중 오류", error);
+    logActionError(
+      { domain: "utils", action: "getStudentPhonesBatch" },
+      error,
+      { context: "parent_student_links 처리" }
+    );
     // 에러가 있어도 계속 진행 (student_profiles 정보로 보완 가능)
   }
 

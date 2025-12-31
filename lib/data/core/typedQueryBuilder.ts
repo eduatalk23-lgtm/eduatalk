@@ -8,6 +8,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { executeQuery, executeSingleQuery, type QueryOptions } from "./queryBuilder";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 타입 안전한 쿼리 결과
@@ -66,18 +67,20 @@ export async function createTypedQuery<T>(
 
     // 타입 가드가 제공된 경우 런타임 검증
     if (result !== null && typeGuard && !typeGuard(result)) {
-      console.warn(
-        `${options.context || "[typedQuery]"} 타입 검증 실패`,
-        { result, type: typeof result }
+      logActionDebug(
+        { domain: "data", action: "createTypedQuery" },
+        "타입 검증 실패",
+        { context: options.context, resultType: typeof result }
       );
       return options.defaultValue as T | null ?? null;
     }
 
     return result;
   } catch (error) {
-    console.error(
-      `${options.context || "[typedQuery]"} 쿼리 실행 중 예외 발생`,
-      error
+    logActionError(
+      { domain: "data", action: "createTypedQuery" },
+      error,
+      { context: options.context }
     );
     return options.defaultValue as T | null ?? null;
   }
@@ -110,18 +113,20 @@ export async function createTypedSingleQuery<T>(
 
     // 타입 가드가 제공된 경우 런타임 검증
     if (result !== null && typeGuard && !typeGuard(result)) {
-      console.warn(
-        `${options.context || "[typedQuery]"} 타입 검증 실패`,
-        { result, type: typeof result }
+      logActionDebug(
+        { domain: "data", action: "createTypedSingleQuery" },
+        "타입 검증 실패",
+        { context: options.context, resultType: typeof result }
       );
       return options.defaultValue as T | null ?? null;
     }
 
     return result;
   } catch (error) {
-    console.error(
-      `${options.context || "[typedQuery]"} 쿼리 실행 중 예외 발생`,
-      error
+    logActionError(
+      { domain: "data", action: "createTypedSingleQuery" },
+      error,
+      { context: options.context }
     );
     return options.defaultValue as T | null ?? null;
   }
@@ -174,9 +179,10 @@ export async function createTypedBatchQuery<T>(
     if (typeGuard) {
       const validItems = result.filter((item): item is T => typeGuard(item));
       if (validItems.length !== result.length) {
-        console.warn(
-          `${options.context || "[typedQuery]"} 일부 항목이 타입 검증 실패`,
-          { total: result.length, valid: validItems.length }
+        logActionDebug(
+          { domain: "data", action: "createTypedBatchQuery" },
+          "일부 항목이 타입 검증 실패",
+          { context: options.context, total: result.length, valid: validItems.length }
         );
       }
       return validItems;
@@ -184,9 +190,10 @@ export async function createTypedBatchQuery<T>(
 
     return result;
   } catch (error) {
-    console.error(
-      `${options.context || "[typedQuery]"} 배치 쿼리 실행 중 예외 발생`,
-      error
+    logActionError(
+      { domain: "data", action: "createTypedBatchQuery" },
+      error,
+      { context: options.context }
     );
     return options.defaultValue as T[] ?? [];
   }
@@ -249,9 +256,10 @@ export async function createTypedJoinQuery<T, J = unknown>(
 
     return result as Array<T & { joined?: J }>;
   } catch (error) {
-    console.error(
-      `${options.context || "[typedQuery]"} JOIN 쿼리 실행 중 예외 발생`,
-      error
+    logActionError(
+      { domain: "data", action: "createTypedJoinQuery" },
+      error,
+      { context: options.context }
     );
     return [];
   }
@@ -295,9 +303,10 @@ export async function createTypedConditionalQuery<T>(
     // 에러가 있고 fallback 조건을 만족하는 경우
     if (result.error && shouldFallback && shouldFallback(result.error)) {
       if (fallbackQuery) {
-        console.info(
-          `${options.context || "[typedQuery]"} Fallback 쿼리 실행`,
-          { errorCode: result.error.code }
+        logActionDebug(
+          { domain: "data", action: "createTypedConditionalQuery" },
+          "Fallback 쿼리 실행",
+          { context: options.context, errorCode: result.error.code }
         );
         return await createTypedQuery(fallbackQuery, queryOptions);
       }
@@ -318,9 +327,10 @@ export async function createTypedConditionalQuery<T>(
 
     return result.data;
   } catch (error) {
-    console.error(
-      `${options.context || "[typedQuery]"} 조건부 쿼리 실행 중 예외 발생`,
-      error
+    logActionError(
+      { domain: "data", action: "createTypedConditionalQuery" },
+      error,
+      { context: options.context }
     );
     return options.defaultValue as T | null ?? null;
   }

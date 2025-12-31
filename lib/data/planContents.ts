@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { PlanContent } from "@/lib/types/plan";
 import { fetchSubjectGroupNamesBatch } from "@/lib/data/contentMetadata";
 import { getMasterContentId, extractMasterIds } from "@/lib/plan/content";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -56,7 +57,7 @@ async function fetchCurriculumRevisionNamesBatch(
       .in("id", curriculumRevisionIds);
 
     if (error || !revisions) {
-      console.warn(`[fetchCurriculumRevisionNamesBatch] 개정교육과정 배치 조회 실패:`, error);
+      logActionDebug({ domain: "data", action: "fetchCurriculumRevisionNamesBatch" }, "개정교육과정 배치 조회 실패", { curriculumRevisionIds, error });
       return result;
     }
 
@@ -66,7 +67,7 @@ async function fetchCurriculumRevisionNamesBatch(
       }
     });
   } catch (error) {
-    console.warn(`[fetchCurriculumRevisionNamesBatch] 개정교육과정명 배치 조회 실패:`, error);
+    logActionDebug({ domain: "data", action: "fetchCurriculumRevisionNamesBatch" }, "개정교육과정명 배치 조회 실패", { error });
   }
 
   return result;
@@ -236,11 +237,7 @@ export async function fetchStudentBooks(
       };
     });
   } catch (err) {
-    console.error("[data/planContents] 책 목록 조회 실패", {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-      studentId,
-    });
+    logActionError({ domain: "data", action: "fetchStudentBooks" }, err, { studentId });
     return [];
   }
 }
@@ -361,11 +358,7 @@ export async function fetchStudentLectures(
       };
     });
   } catch (err) {
-    console.error("[data/planContents] 강의 목록 조회 실패", {
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : undefined,
-      studentId,
-    });
+    logActionError({ domain: "data", action: "fetchStudentLectures" }, err, { studentId });
     return [];
   }
 }
@@ -415,7 +408,7 @@ export async function fetchStudentCustomContents(
         }, {} as Record<string, string>);
       }
       
-      console.error("[data/planContents] Supabase 쿼리 에러:", errorInfo);
+      logActionError({ domain: "data", action: "fetchStudentCustomContents" }, error, errorInfo);
       throw error;
     }
 
@@ -500,21 +493,9 @@ export async function fetchStudentCustomContents(
       errorDetails.errorType = typeof err;
     }
 
-    // 최종 로깅 (JSON.stringify로 안전하게 직렬화)
-    try {
-      console.error(
-        "[data/planContents] 커스텀 콘텐츠 목록 조회 실패",
-        JSON.parse(JSON.stringify(errorDetails, null, 2))
-      );
-    } catch {
-      // JSON 직렬화 실패 시 직접 로깅
-      console.error("[data/planContents] 커스텀 콘텐츠 목록 조회 실패", {
-        studentId: errorDetails.studentId,
-        error: String(err),
-        errorType: typeof err,
-      });
-    }
-    
+    // 최종 로깅
+    logActionError({ domain: "data", action: "fetchStudentCustomContents" }, err, errorDetails);
+
     return [];
   }
 }
@@ -585,7 +566,7 @@ export async function classifyPlanContents(
   if (isOtherStudent) {
     const adminClient = createSupabaseAdminClient();
     if (!adminClient) {
-      console.warn("[classifyPlanContents] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용", {
+      logActionDebug({ domain: "data", action: "classifyPlanContents" }, "Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용", {
         studentId,
         currentUserId: options?.currentUserId,
         currentUserRole: options?.currentUserRole,
@@ -596,7 +577,7 @@ export async function classifyPlanContents(
       supabase = adminClient as SupabaseServerClient;
       isUsingAdminClient = true;
       if (process.env.NODE_ENV === "development") {
-        console.log("[classifyPlanContents] Admin 클라이언트 사용 (RLS 우회)", {
+        logActionDebug({ domain: "data", action: "classifyPlanContents" }, "Admin 클라이언트 사용 (RLS 우회)", {
           studentId,
           currentUserId: options?.currentUserId,
           currentUserRole: options?.currentUserRole,
@@ -609,7 +590,7 @@ export async function classifyPlanContents(
 
   // 디버깅: 입력 데이터 로그
   if (process.env.NODE_ENV === "development") {
-    console.log("[classifyPlanContents] 입력 데이터:", {
+    logActionDebug({ domain: "data", action: "classifyPlanContents" }, "입력 데이터", {
       contentsCount: contents.length,
       studentId,
       contents: contents.map((c) => ({
@@ -636,7 +617,7 @@ export async function classifyPlanContents(
     // content_id가 없거나 UUID 형식이 아닌 경우 스킵
     if (!content.content_id || !uuidRegex.test(content.content_id)) {
       if (process.env.NODE_ENV === "development") {
-        console.warn("[classifyPlanContents] 유효하지 않은 content_id 스킵:", content.content_id);
+        logActionDebug({ domain: "data", action: "classifyPlanContents" }, "유효하지 않은 content_id 스킵", { contentId: content.content_id });
       }
       return;
     }
@@ -675,7 +656,7 @@ export async function classifyPlanContents(
   const uniqueMasterCustomContentIds = [...new Set(masterCustomContentIds)];
 
   if (process.env.NODE_ENV === "development") {
-    console.log("[classifyPlanContents] 콘텐츠 ID 분류:", {
+    logActionDebug({ domain: "data", action: "classifyPlanContents" }, "콘텐츠 ID 분류", {
       bookCount: bookContentIds.length,
       lectureCount: lectureContentIds.length,
       customCount: customContentIds.length,
@@ -742,8 +723,10 @@ export async function classifyPlanContents(
   ]);
 
   // 디버깅: 조회 결과 로그
-  if (process.env.NODE_ENV === "development") {
-    console.log("[classifyPlanContents] 조회 결과:", {
+  logActionDebug(
+    { domain: "data", action: "classifyPlanContents" },
+    "조회 결과",
+    {
       isUsingAdminClient,
       isAdminOrConsultant,
       isOtherStudent,
@@ -779,8 +762,8 @@ export async function classifyPlanContents(
         ids: customContentsResult.data?.map((c) => c.id) || [],
         error: customContentsResult.error?.message || null,
       },
-    });
-  }
+    }
+  );
 
   // 관리자 모드에서 조회 실패 시 경고 로그
   if (isAdminOrConsultant && isOtherStudent) {
@@ -790,26 +773,30 @@ export async function classifyPlanContents(
       customContentsResult.error;
     
     if (hasErrors) {
-      console.warn("[classifyPlanContents] 관리자 모드에서 콘텐츠 조회 중 에러 발생:", {
-        studentId,
-        currentUserId: options?.currentUserId,
-        currentUserRole: options?.currentUserRole,
-        isUsingAdminClient,
-        errors: {
-          studentBooks: studentBooksResult.error ? {
-            message: studentBooksResult.error.message,
-            code: studentBooksResult.error.code,
-          } : null,
-          studentLectures: studentLecturesResult.error ? {
-            message: studentLecturesResult.error.message,
-            code: studentLecturesResult.error.code,
-          } : null,
-          customContents: customContentsResult.error ? {
-            message: customContentsResult.error.message,
-            code: customContentsResult.error.code,
-          } : null,
-        },
-      });
+      logActionDebug(
+        { domain: "data", action: "classifyPlanContents" },
+        "관리자 모드에서 콘텐츠 조회 중 에러 발생",
+        {
+          studentId,
+          currentUserId: options?.currentUserId,
+          currentUserRole: options?.currentUserRole,
+          isUsingAdminClient,
+          errors: {
+            studentBooks: studentBooksResult.error ? {
+              message: studentBooksResult.error.message,
+              code: studentBooksResult.error.code,
+            } : null,
+            studentLectures: studentLecturesResult.error ? {
+              message: studentLecturesResult.error.message,
+              code: studentLecturesResult.error.code,
+            } : null,
+            customContents: customContentsResult.error ? {
+              message: customContentsResult.error.message,
+              code: customContentsResult.error.code,
+            } : null,
+          },
+        }
+      );
     }
 
     // 조회된 콘텐츠 개수가 예상보다 적을 때 경고
@@ -825,19 +812,23 @@ export async function classifyPlanContents(
       (expectedLectureCount > 0 && actualLectureCount < expectedLectureCount) ||
       (expectedCustomCount > 0 && actualCustomCount < expectedCustomCount)
     ) {
-      console.warn("[classifyPlanContents] 관리자 모드에서 일부 콘텐츠를 찾을 수 없음:", {
-        studentId,
-        isUsingAdminClient,
-        books: { expected: expectedBookCount, actual: actualBookCount },
-        lectures: { expected: expectedLectureCount, actual: actualLectureCount },
-        custom: { expected: expectedCustomCount, actual: actualCustomCount },
-        searchedBookIds: bookContentIds,
-        foundBookIds: studentBooksResult.data?.map((b) => b.id) || [],
-        searchedLectureIds: lectureContentIds,
-        foundLectureIds: studentLecturesResult.data?.map((l) => l.id) || [],
-        searchedCustomIds: customContentIds,
-        foundCustomIds: customContentsResult.data?.map((c) => c.id) || [],
-      });
+      logActionDebug(
+        { domain: "data", action: "classifyPlanContents" },
+        "관리자 모드에서 일부 콘텐츠를 찾을 수 없음",
+        {
+          studentId,
+          isUsingAdminClient,
+          books: { expected: expectedBookCount, actual: actualBookCount },
+          lectures: { expected: expectedLectureCount, actual: actualLectureCount },
+          custom: { expected: expectedCustomCount, actual: actualCustomCount },
+          searchedBookIds: bookContentIds,
+          foundBookIds: studentBooksResult.data?.map((b) => b.id) || [],
+          searchedLectureIds: lectureContentIds,
+          foundLectureIds: studentLecturesResult.data?.map((l) => l.id) || [],
+          searchedCustomIds: customContentIds,
+          foundCustomIds: customContentsResult.data?.map((c) => c.id) || [],
+        }
+      );
     }
   }
 
@@ -903,15 +894,17 @@ export async function classifyPlanContents(
   });
 
   // 디버깅: Map 내용 로그
-  if (process.env.NODE_ENV === "development") {
-    console.log("[classifyPlanContents] Map 변환 결과:", {
+  logActionDebug(
+    { domain: "data", action: "classifyPlanContents" },
+    "Map 변환 결과",
+    {
       masterBooksMapSize: masterBooksMap.size,
       masterLecturesMapSize: masterLecturesMap.size,
       studentBooksMapSize: studentBooksMap.size,
       studentLecturesMapSize: studentLecturesMap.size,
       customContentsMapSize: customContentsMap.size,
-    });
-  }
+    }
+  );
 
   // 4. 마스터 콘텐츠 Map은 이미 위에서 조회 완료 (plan_contents.master_content_id + 학생 콘텐츠의 master_content_id)
 
@@ -1228,23 +1221,29 @@ export async function classifyPlanContents(
       }
     } else {
       // contentDetail이 null인 경우 로그
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[classifyPlanContents] contentDetail이 null:", {
+      logActionDebug(
+        { domain: "data", action: "classifyPlanContents" },
+        "contentDetail이 null",
+        {
           content_type: content.content_type,
           content_id: content.content_id,
           studentId,
-        });
-      }
+        }
+      );
     }
   }
 
   // 디버깅: 누락된 콘텐츠 로그
   if (missingContents.length > 0) {
-    console.warn("[classifyPlanContents] 누락된 콘텐츠:", {
-      count: missingContents.length,
-      missingContents,
-      studentId,
-    });
+    logActionDebug(
+      { domain: "data", action: "classifyPlanContents" },
+      "누락된 콘텐츠",
+      {
+        count: missingContents.length,
+        missingContents,
+        studentId,
+      }
+    );
   }
 
   // 최종 검증: custom 타입이 recommended에 포함된 경우 확인
@@ -1254,26 +1253,29 @@ export async function classifyPlanContents(
   );
 
   if (recommendedCustomContents.length > 0) {
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "[classifyPlanContents] 마스터 커스텀 콘텐츠가 추천 콘텐츠로 분류됨:",
-        recommendedCustomContents.map((c) => ({
+    logActionDebug(
+      { domain: "data", action: "classifyPlanContents" },
+      "마스터 커스텀 콘텐츠가 추천 콘텐츠로 분류됨",
+      {
+        contents: recommendedCustomContents.map((c) => ({
           content_id: c.content_id,
           masterContentId: c.masterContentId,
-        }))
-      );
-    }
+        })),
+      }
+    );
   }
 
   // 디버깅: 최종 결과 로그
-  if (process.env.NODE_ENV === "development") {
-    console.log("[classifyPlanContents] 최종 결과:", {
+  logActionDebug(
+    { domain: "data", action: "classifyPlanContents" },
+    "최종 결과",
+    {
       studentContentsCount: studentContents.length,
       recommendedContentsCount: recommendedContents.length,
       missingContentsCount: missingContents.length,
       totalInputCount: contents.length,
-    });
-  }
+    }
+  );
 
   return { studentContents, recommendedContents };
 }
@@ -1324,11 +1326,15 @@ export async function getPlansByPlanContent(
     .single();
 
   if (contentError || !contentData) {
-    console.warn("[getPlansByPlanContent] 콘텐츠를 찾을 수 없음:", {
-      planGroupId,
-      contentId,
-      error: contentError?.message,
-    });
+    logActionDebug(
+      { domain: "data", action: "getPlansByPlanContent" },
+      "콘텐츠를 찾을 수 없음",
+      {
+        planGroupId,
+        contentId,
+        error: contentError?.message,
+      }
+    );
     return {
       content: null,
       plans: [],
@@ -1366,7 +1372,11 @@ export async function getPlansByPlanContent(
     .order("block_index", { ascending: true });
 
   if (plansError) {
-    console.error("[getPlansByPlanContent] 플랜 조회 실패:", plansError);
+    logActionError(
+      { domain: "data", action: "getPlansByPlanContent" },
+      plansError,
+      { planGroupId, contentId }
+    );
     return {
       content: contentData as PlanContent,
       plans: [],
@@ -1477,7 +1487,11 @@ export async function getPlanContentsList(
     .in("content_id", contentIds);
 
   if (plansError) {
-    console.error("[getPlanContentsList] 플랜 통계 조회 실패:", plansError);
+    logActionError(
+      { domain: "data", action: "getPlanContentsList" },
+      plansError,
+      { planGroupId }
+    );
   }
 
   // 3. 콘텐츠별 통계 집계

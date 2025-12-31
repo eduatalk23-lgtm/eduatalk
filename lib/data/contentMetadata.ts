@@ -8,6 +8,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 // Supabase JOIN 결과 타입
 type SubjectWithGroup = {
@@ -35,7 +36,7 @@ async function fetchSubjectGroupName(
       .maybeSingle();
 
     if (error || !subject) {
-      console.warn(`[fetchSubjectGroupName] 과목 조회 실패: ${subjectId}`, error);
+      logActionDebug({ domain: "data", action: "fetchSubjectGroupName" }, "과목 조회 실패", { subjectId, error });
       return null;
     }
 
@@ -43,7 +44,7 @@ async function fetchSubjectGroupName(
     const subjectGroup = (subject as any).subject_groups;
     return subjectGroup?.name || null;
   } catch (error) {
-    console.warn(`[fetchSubjectGroupName] 교과명 조회 실패: ${subjectId}`, error);
+    logActionDebug({ domain: "data", action: "fetchSubjectGroupName" }, "교과명 조회 실패", { subjectId, error });
     return null;
   }
 }
@@ -68,7 +69,7 @@ export async function fetchSubjectGroupNamesBatch(
       .in("id", subjectIds);
 
     if (error || !subjects) {
-      console.warn(`[fetchSubjectGroupNamesBatch] 과목 배치 조회 실패:`, error);
+      logActionDebug({ domain: "data", action: "fetchSubjectGroupNamesBatch" }, "과목 배치 조회 실패", { subjectIds, error });
       return result;
     }
 
@@ -83,7 +84,7 @@ export async function fetchSubjectGroupNamesBatch(
       }
     });
   } catch (error) {
-    console.warn(`[fetchSubjectGroupNamesBatch] 교과명 배치 조회 실패:`, error);
+    logActionDebug({ domain: "data", action: "fetchSubjectGroupNamesBatch" }, "교과명 배치 조회 실패", { error });
   }
 
   return result;
@@ -381,7 +382,7 @@ export async function fetchContentMetadataBatch(
   contents.forEach((content) => {
     // UUID 형식이 아닌 content_id는 스킵
     if (!content.content_id || !uuidRegex.test(content.content_id)) {
-      console.warn("[fetchContentMetadataBatch] 유효하지 않은 content_id 스킵:", content.content_id);
+      logActionDebug({ domain: "data", action: "fetchContentMetadataBatch" }, "유효하지 않은 content_id 스킵", { contentId: content.content_id });
       return;
     }
     contentMap.set(content.content_id, content);
@@ -598,7 +599,7 @@ export async function fetchContentMetadataBatch(
       });
     });
   } catch (error) {
-    console.error("[fetchContentMetadataBatch] 배치 조회 실패:", error);
+    logActionError({ domain: "data", action: "fetchContentMetadataBatch" }, error);
     // 에러 발생 시 빈 Map 반환 (기존 동작 유지)
   }
 
@@ -675,16 +676,12 @@ export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
       .order("name", { ascending: true });
 
     if (error) {
-      // 에러 객체의 모든 속성을 상세히 로깅
-      console.error("[contentMetadata] 개정교육과정 조회 실패", {
-        error,
-        errorMessage: error.message,
+      logActionError({ domain: "data", action: "getCurriculumRevisions" }, error, {
         errorCode: error.code,
         errorDetails: error.details,
         errorHint: error.hint,
-        errorStringified: JSON.stringify(error, null, 2),
       });
-      
+
       // 에러 메시지가 없을 경우를 대비한 처리
       const errorMessage = error.message || error.details || error.hint || "알 수 없는 오류";
       throw new Error(`개정교육과정 조회 실패: ${errorMessage}`);
@@ -692,20 +689,12 @@ export async function getCurriculumRevisions(): Promise<CurriculumRevision[]> {
 
     return (data as CurriculumRevision[]) ?? [];
   } catch (error) {
-    // 예상치 못한 에러 처리
-    console.error("[contentMetadata] getCurriculumRevisions 예외 발생", {
-      error,
-      errorType: typeof error,
-      errorConstructor: error?.constructor?.name,
-      errorStringified: error instanceof Error 
-        ? JSON.stringify({ message: error.message, stack: error.stack }, null, 2)
-        : JSON.stringify(error, null, 2),
-    });
-    
+    logActionError({ domain: "data", action: "getCurriculumRevisions" }, error, { step: "unexpectedException" });
+
     if (error instanceof Error) {
       throw error;
     }
-    
+
     throw new Error(`개정교육과정 조회 실패: ${String(error)}`);
   }
 }
@@ -724,7 +713,7 @@ export async function createCurriculumRevision(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 개정교육과정 생성 실패", error);
+    logActionError({ domain: "data", action: "createCurriculumRevision" }, error, { name });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -755,7 +744,7 @@ export async function updateCurriculumRevision(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 개정교육과정 수정 실패", error);
+    logActionError({ domain: "data", action: "updateCurriculumRevision" }, error, { id, updates });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -781,7 +770,7 @@ export async function deleteCurriculumRevision(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) {
-    console.error("[contentMetadata] 개정교육과정 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteCurriculumRevision" }, error, { id });
     throw new Error(`개정교육과정 삭제 실패: ${error.message}`);
   }
 }
@@ -806,7 +795,7 @@ export async function getSubjectCategories(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[contentMetadata] 교과 조회 실패", error);
+    logActionError({ domain: "data", action: "getSubjectCategories" }, error);
     throw new Error(`교과 조회 실패: ${error.message}`);
   }
 
@@ -826,7 +815,7 @@ export async function createSubjectCategory(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 교과 생성 실패", error);
+    logActionError({ domain: "data", action: "createSubjectCategory" }, error, { name });
     throw new Error(`교과 생성 실패: ${error.message}`);
   }
 
@@ -850,7 +839,7 @@ export async function updateSubjectCategory(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 교과 수정 실패", error);
+    logActionError({ domain: "data", action: "updateSubjectCategory" }, error, { id, updates });
     throw new Error(`교과 수정 실패: ${error.message}`);
   }
 
@@ -865,7 +854,7 @@ export async function deleteSubjectCategory(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) {
-    console.error("[contentMetadata] 교과 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteSubjectCategory" }, error, { id });
     throw new Error(`교과 삭제 실패: ${error.message}`);
   }
 }
@@ -890,7 +879,7 @@ export async function getSubjects(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[contentMetadata] 과목 조회 실패", error);
+    logActionError({ domain: "data", action: "getSubjects" }, error, { subjectCategoryId });
     throw new Error(`과목 조회 실패: ${error.message}`);
   }
 
@@ -910,7 +899,7 @@ export async function createSubject(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 과목 생성 실패", error);
+    logActionError({ domain: "data", action: "createSubject" }, error, { subject_category_id, name });
     throw new Error(`과목 생성 실패: ${error.message}`);
   }
 
@@ -933,7 +922,7 @@ export async function updateSubject(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 과목 수정 실패", error);
+    logActionError({ domain: "data", action: "updateSubject" }, error, { id, updates });
     throw new Error(`과목 수정 실패: ${error.message}`);
   }
 
@@ -945,7 +934,7 @@ export async function deleteSubject(id: string): Promise<void> {
   const { error } = await supabase.from("subjects").delete().eq("id", id);
 
   if (error) {
-    console.error("[contentMetadata] 과목 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteSubject" }, error, { id });
     throw new Error(`과목 삭제 실패: ${error.message}`);
   }
 }
@@ -965,7 +954,7 @@ export async function getPlatforms(): Promise<Platform[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[contentMetadata] 플랫폼 조회 실패", error);
+    logActionError({ domain: "data", action: "getPlatforms" }, error);
     throw new Error(`플랫폼 조회 실패: ${error.message}`);
   }
 
@@ -986,7 +975,7 @@ export async function createPlatform(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 플랫폼 생성 실패", error);
+    logActionError({ domain: "data", action: "createPlatform" }, error, { name });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -1017,7 +1006,7 @@ export async function updatePlatform(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 플랫폼 수정 실패", error);
+    logActionError({ domain: "data", action: "updatePlatform" }, error, { id, updates });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -1040,7 +1029,7 @@ export async function deletePlatform(id: string): Promise<void> {
   const { error } = await supabase.from("platforms").delete().eq("id", id);
 
   if (error) {
-    console.error("[contentMetadata] 플랫폼 삭제 실패", error);
+    logActionError({ domain: "data", action: "deletePlatform" }, error, { id });
     throw new Error(`플랫폼 삭제 실패: ${error.message}`);
   }
 }
@@ -1060,7 +1049,7 @@ export async function getPublishers(): Promise<Publisher[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[contentMetadata] 출판사 조회 실패", error);
+    logActionError({ domain: "data", action: "getPublishers" }, error);
     throw new Error(`출판사 조회 실패: ${error.message}`);
   }
 
@@ -1081,7 +1070,7 @@ export async function createPublisher(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 출판사 생성 실패", error);
+    logActionError({ domain: "data", action: "createPublisher" }, error, { name });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -1112,7 +1101,7 @@ export async function updatePublisher(
     .single();
 
   if (error) {
-    console.error("[contentMetadata] 출판사 수정 실패", error);
+    logActionError({ domain: "data", action: "updatePublisher" }, error, { id, updates });
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -1135,7 +1124,7 @@ export async function deletePublisher(id: string): Promise<void> {
   const { error } = await supabase.from("publishers").delete().eq("id", id);
 
   if (error) {
-    console.error("[contentMetadata] 출판사 삭제 실패", error);
+    logActionError({ domain: "data", action: "deletePublisher" }, error, { id });
     throw new Error(`출판사 삭제 실패: ${error.message}`);
   }
 }

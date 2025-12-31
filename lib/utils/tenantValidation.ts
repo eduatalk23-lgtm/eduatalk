@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TenantValidationResult } from "@/lib/types/tenantUser";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 // ============================================
 // P2 개선: 테넌트 격리 유틸리티
@@ -19,8 +20,10 @@ export function assertTenantId(
   context: string
 ): asserts tenantId is string {
   if (!tenantId) {
-    console.warn(
-      `[TenantValidation] tenant_id 누락 - ${context}. 테넌트 격리가 적용되지 않습니다.`
+    logActionDebug(
+      { domain: "utils", action: "assertTenantId" },
+      `tenant_id 누락 - ${context}. 테넌트 격리가 적용되지 않습니다.`,
+      { context }
     );
     throw new Error(`tenant_id is required for ${context}`);
   }
@@ -35,8 +38,10 @@ export function warnIfMissingTenantId(
   context: string
 ): void {
   if (!tenantId) {
-    console.warn(
-      `[TenantValidation] tenant_id 미제공 - ${context}. 보안을 위해 tenant_id 필터를 적용하는 것이 권장됩니다.`
+    logActionDebug(
+      { domain: "utils", action: "warnIfMissingTenantId" },
+      `tenant_id 미제공 - ${context}. 보안을 위해 tenant_id 필터를 적용하는 것이 권장됩니다.`,
+      { context }
     );
   }
 }
@@ -85,7 +90,11 @@ export async function validateTenantExists(
       .maybeSingle();
 
     if (error) {
-      console.error("[tenantValidation] 테넌트 조회 실패:", error);
+      logActionError(
+        { domain: "utils", action: "validateTenantExists" },
+        error,
+        { tenantId }
+      );
       return {
         exists: false,
         error: error.message || "테넌트 조회에 실패했습니다.",
@@ -101,7 +110,11 @@ export async function validateTenantExists(
 
     return { exists: true };
   } catch (error) {
-    console.error("[tenantValidation] 테넌트 확인 중 오류:", error);
+    logActionError(
+      { domain: "utils", action: "validateTenantExists" },
+      error,
+      { tenantId }
+    );
     return {
       exists: false,
       error:

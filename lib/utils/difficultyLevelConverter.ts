@@ -1,10 +1,11 @@
 /**
  * difficulty_level 문자열을 difficulty_level_id로 변환하는 유틸리티
- * 
+ *
  * Phase 3: difficulty_level → difficulty_level_id 마이그레이션
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * difficulty_level 문자열을 difficulty_level_id로 변환
@@ -33,13 +34,21 @@ export async function convertDifficultyLevelToId(
       .maybeSingle();
 
     if (error) {
-      console.error("[difficultyLevelConverter] 난이도 조회 실패:", error);
+      logActionError(
+        { domain: "utils", action: "convertDifficultyLevelToId" },
+        error,
+        { difficultyLevel, contentType }
+      );
       return null;
     }
 
     return data?.id ?? null;
   } catch (error) {
-    console.error("[difficultyLevelConverter] 난이도 변환 실패:", error);
+    logActionError(
+      { domain: "utils", action: "convertDifficultyLevelToId" },
+      error,
+      { difficultyLevel, contentType }
+    );
     return null;
   }
 }
@@ -85,7 +94,11 @@ export async function convertDifficultyLevelsToIds(
         .in("name", Array.from(levels));
 
       if (error) {
-        console.error(`[difficultyLevelConverter] ${contentType} 난이도 배치 조회 실패:`, error);
+        logActionError(
+          { domain: "utils", action: "convertDifficultyLevelsToIds" },
+          error,
+          { contentType, context: "배치 조회" }
+        );
         continue;
       }
 
@@ -93,7 +106,11 @@ export async function convertDifficultyLevelsToIds(
         result.set(level.name, level.id);
       });
     } catch (error) {
-      console.error(`[difficultyLevelConverter] ${contentType} 난이도 변환 실패:`, error);
+      logActionError(
+        { domain: "utils", action: "convertDifficultyLevelsToIds" },
+        error,
+        { contentType, context: "변환" }
+      );
     }
   }
 

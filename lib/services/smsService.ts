@@ -7,6 +7,7 @@
 import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 export interface SendSMSOptions {
   recipientPhone: string;
@@ -282,7 +283,11 @@ export async function sendSMS(
       .single();
 
     if (logError || !logData) {
-      console.error("[SMS] 로그 생성 실패:", logError);
+      logActionError(
+        { domain: "service", action: "sendSMS" },
+        logError,
+        { context: "로그 생성", recipientPhone: normalizedPhone }
+      );
       return {
         success: false,
         error: "SMS 로그 생성에 실패했습니다.",
@@ -346,9 +351,11 @@ export async function sendSMS(
     };
 
     // 디버깅: 요청 본문 로깅 (개발 환경에서만)
-    if (process.env.NODE_ENV === "development") {
-      console.log("[SMS] 요청 본문:", JSON.stringify(requestBody, null, 2));
-    }
+    logActionDebug(
+      { domain: "service", action: "sendSMS" },
+      "요청 본문",
+      { requestBody }
+    );
 
     const response = await fetch(messageEndpoint, {
       method: "POST",
@@ -363,14 +370,18 @@ export async function sendSMS(
     clearTimeout(timeoutId);
 
     const responseText = await response.text();
-    
-    // 디버깅: 응답 로깅 (항상 로깅하여 실제 응답 확인)
-    console.log("[SMS] API 응답:", {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      body: responseText,
-    });
+
+    // 디버깅: 응답 로깅
+    logActionDebug(
+      { domain: "service", action: "sendSMS" },
+      "API 응답",
+      {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        body: responseText,
+      }
+    );
 
     // 응답 파싱
     let result: MessageResponse | ErrorResponse;
@@ -451,12 +462,16 @@ export async function sendSMS(
         })
         .eq("id", smsLog.id);
 
-      console.log("[SMS] 발송 성공:", {
-        phone: normalizedPhone,
-        messageKey,
-        code: messageResponse.code,
-        description: messageResponse.description,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendSMS" },
+        "발송 성공",
+        {
+          phone: normalizedPhone,
+          messageKey,
+          code: messageResponse.code,
+          description: messageResponse.description,
+        }
+      );
 
       return {
         success: true,
@@ -470,13 +485,16 @@ export async function sendSMS(
     const errorMessage = messageResponse.description || "SMS 발송에 실패했습니다.";
     const errorCode = responseCode;
 
-    console.warn("[SMS] 발송 실패 (HTTP 200이지만 에러 코드):", {
-      phone: normalizedPhone,
-      code: errorCode,
-      originalCode: messageResponse.code,
-      description: errorMessage,
-      response: messageResponse,
-    });
+    logActionDebug(
+      { domain: "service", action: "sendSMS" },
+      "발송 실패 (HTTP 200이지만 에러 코드)",
+      {
+        phone: normalizedPhone,
+        code: errorCode,
+        originalCode: messageResponse.code,
+        description: errorMessage,
+      }
+    );
 
     await logClient
       .from("sms_logs")
@@ -494,8 +512,10 @@ export async function sendSMS(
       const delay = Math.pow(2, retryCount) * 1000;
       await new Promise((resolve) => setTimeout(resolve, delay));
 
-      console.log(
-        `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone} (에러 코드: ${errorCode})`
+      logActionDebug(
+        { domain: "service", action: "sendSMS" },
+        `재시도 ${retryCount + 1}/${maxRetries}`,
+        { phone: normalizedPhone, errorCode }
       );
       return sendSMS(options, retryCount + 1, maxRetries);
     }
@@ -590,14 +610,17 @@ export async function sendSMS(
       return undefined;
     };
 
-    console.error("[SMS] 발송 실패:", {
-      phone: normalizedPhone,
-      error: error instanceof Error ? error.message : String(error),
-      retryCount,
-      endpoint: messageEndpoint,
-      details: errorDetails,
-      hint: getHint(),
-    });
+    logActionError(
+      { domain: "service", action: "sendSMS" },
+      error,
+      {
+        phone: normalizedPhone,
+        retryCount,
+        endpoint: messageEndpoint,
+        details: errorDetails,
+        hint: getHint(),
+      }
+    );
 
     // 재시도 가능한 에러인지 확인
     const errorWithCode = error as Error & { code?: number; isRetryable?: boolean };
@@ -643,8 +666,10 @@ export async function sendSMS(
       const delay = Math.pow(2, retryCount) * 1000;
       await new Promise((resolve) => setTimeout(resolve, delay));
 
-      console.log(
-        `[SMS] 재시도 ${retryCount + 1}/${maxRetries} - ${normalizedPhone} (에러: ${error.message})`
+      logActionDebug(
+        { domain: "service", action: "sendSMS" },
+        `재시도 ${retryCount + 1}/${maxRetries}`,
+        { phone: normalizedPhone, errorMessage: error.message }
       );
       return sendSMS(options, retryCount + 1, maxRetries);
     }
@@ -775,7 +800,11 @@ export async function cancelScheduledMessage(
       error instanceof Error
         ? error.message
         : "예약 취소 중 오류가 발생했습니다.";
-    console.error("[SMS] 예약 취소 실패:", errorMessage);
+    logActionError(
+      { domain: "service", action: "cancelScheduledMessage" },
+      error,
+      { messageKey }
+    );
     return {
       success: false,
       error: errorMessage,

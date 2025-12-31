@@ -1,10 +1,11 @@
 /**
  * 연결 코드 관련 유틸리티 함수
- * 
+ *
  * 연결 코드 검증 및 생성 관련 공통 함수
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 연결 코드 검증 (회원가입 시 사용)
@@ -34,7 +35,11 @@ export async function validateConnectionCode(
     .maybeSingle();
 
   if (error) {
-    console.error("[connectionCodeUtils] 연결 코드 조회 실패", error);
+    logActionError(
+      { domain: "utils", action: "validateConnectionCode" },
+      error,
+      { connectionCode }
+    );
     return { success: false, error: "연결 코드를 확인할 수 없습니다." };
   }
 

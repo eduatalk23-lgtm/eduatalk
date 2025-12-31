@@ -1,14 +1,15 @@
 /**
  * 플랜 그룹 단위 Advisory Lock 유틸리티
- * 
+ *
  * 재조정 기능에서 동시성 제어를 위해 사용됩니다.
  * Postgres Advisory Lock을 사용하여 동일 플랜 그룹에 대한
  * 동시 재조정 요청을 방지합니다.
- * 
+ *
  * @module lib/utils/planGroupLock
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // Lock 키 생성
@@ -79,7 +80,11 @@ export async function acquirePlanGroupLock(
     // 실제 락은 트랜잭션 래퍼에서 처리
     return true;
   } catch (error) {
-    console.error('[planGroupLock] Lock 획득 실패:', error);
+    logActionError(
+      { domain: "utils", action: "acquirePlanGroupLock" },
+      error,
+      { groupId }
+    );
     return false;
   }
 }

@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserType, TenantAssignmentResult } from "@/lib/types/tenantUser";
 import { validateTenantExists } from "./tenantValidation";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 사용자 타입별 테넌트 업데이트 공통 로직
@@ -65,9 +66,10 @@ export async function updateUserTenant(
     }
 
     if (updateError) {
-      console.error(
-        `[tenantAssignment] ${userType} 테넌트 할당 실패:`,
-        updateError
+      logActionError(
+        { domain: "utils", action: "updateUserTenant" },
+        updateError,
+        { userId, tenantId, userType }
       );
       return {
         success: false,
@@ -78,7 +80,11 @@ export async function updateUserTenant(
 
     return { success: true };
   } catch (error) {
-    console.error("[tenantAssignment] 테넌트 할당 중 오류:", error);
+    logActionError(
+      { domain: "utils", action: "updateUserTenant" },
+      error,
+      { userId, tenantId, userType }
+    );
     return {
       success: false,
       error:
@@ -120,7 +126,11 @@ export async function updateMultipleUserTenants(
     }
 
     if (errors.length > 0) {
-      console.error("[tenantAssignment] 일부 사용자 테넌트 할당 실패:", errors);
+      logActionError(
+        { domain: "utils", action: "updateMultipleUserTenants" },
+        new Error("일부 사용자 테넌트 할당 실패"),
+        { failedCount: errors.length, errors }
+      );
     }
 
     return {
@@ -131,7 +141,11 @@ export async function updateMultipleUserTenants(
       }),
     };
   } catch (error) {
-    console.error("[tenantAssignment] 일괄 테넌트 할당 중 오류:", error);
+    logActionError(
+      { domain: "utils", action: "updateMultipleUserTenants" },
+      error,
+      { tenantId, userCount: userIds.length }
+    );
     return {
       success: false,
       error:

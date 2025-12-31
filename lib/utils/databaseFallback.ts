@@ -10,6 +10,7 @@ import {
   ErrorCodeCheckers,
   POSTGREST_ERROR_CODES,
 } from "@/lib/constants/errorCodes";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 // Deprecated 함수들은 제거되었습니다.
 // 새로운 코드에서는 ErrorCodeCheckers를 사용하세요:
@@ -80,14 +81,11 @@ export async function withErrorFallback<T, E = PostgrestError>(
   const result = await operation();
 
   if (result.error && shouldFallback(result.error)) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "[withErrorFallback] Primary query failed, attempting fallback.",
-        {
-          error: result.error,
-        }
-      );
-    }
+    logActionDebug(
+      { domain: "utils", action: "withErrorFallback" },
+      "Primary query failed, attempting fallback.",
+      { error: result.error }
+    );
     return await fallbackOperation();
   }
 

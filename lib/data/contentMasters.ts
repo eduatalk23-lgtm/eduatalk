@@ -27,6 +27,7 @@ import {
   type Subject,
 } from "@/lib/data/subjects";
 import { normalizeError } from "@/lib/errors";
+import { logActionError, logActionDebug, logActionSuccess } from "@/lib/logging/actionLogger";
 import {
   createMasterToStudentMap,
   extractMasterIds,
@@ -101,24 +102,27 @@ export async function searchMasterBooks(
     } as MasterBook;
   });
 
-  // 로그: 서비스 마스터 교재 조회 결과 (기존 로그 형식 유지)
-  console.log("[data/contentMasters] 서비스 마스터 교재 조회:", {
-    filters: {
-      curriculum_revision_id: filters.curriculum_revision_id,
-      subject_group_id: filters.subject_group_id,
-      subject_id: filters.subject_id,
-      publisher_id: filters.publisher_id,
-      difficulty: filters.difficulty,
-      sort: filters.sort,
-      tenantId: filters.tenantId,
-      limit: filters.limit,
-    },
-    result: {
-      count: enrichedData.length,
-      total: result.total,
-      titles: enrichedData.slice(0, 3).map((b) => b.title), // 처음 3개만
-    },
-  });
+  logActionDebug(
+    { domain: "data", action: "searchMasterBooks" },
+    "마스터 교재 조회 완료",
+    {
+      filters: {
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        publisher_id: filters.publisher_id,
+        difficulty: filters.difficulty,
+        sort: filters.sort,
+        tenantId: filters.tenantId,
+        limit: filters.limit,
+      },
+      result: {
+        count: enrichedData.length,
+        total: result.total,
+        titles: enrichedData.slice(0, 3).map((b) => b.title),
+      },
+    }
+  );
 
   return {
     data: enrichedData,
@@ -351,9 +355,10 @@ export async function getMasterBookById(
     bookData.difficulty_levels
   );
 
-  // 디버깅: JOIN 결과 확인
-  if (process.env.NODE_ENV === "development") {
-    console.log("[getMasterBookById] JOIN 결과:", {
+  logActionDebug(
+    { domain: "data", action: "getMasterBookById" },
+    "JOIN 결과",
+    {
       bookId,
       subject_id: bookData.subject_id,
       subject_group_id: bookData.subject_group_id,
@@ -364,14 +369,13 @@ export async function getMasterBookById(
       hasSubjectGroup: !!subjectGroup,
       hasPublisher: !!publisher,
       hasDifficultyLevel: !!difficultyLevel,
-      // denormalized 값 확인
       denormalizedSubjectCategory: bookData.subject_category,
       denormalizedSubject: bookData.subject,
       subjectData: subject,
       subjectGroupData: subjectGroup,
       difficultyLevelData: difficultyLevel,
-    });
-  }
+    }
+  );
 
   const book = {
     ...bookData,
@@ -435,24 +439,27 @@ export async function searchMasterLectures(
     } as MasterLecture;
   });
 
-  // 로그: 서비스 마스터 강의 조회 결과 (기존 로그 형식 유지)
-  console.log("[data/contentMasters] 서비스 마스터 강의 조회:", {
-    filters: {
-      curriculum_revision_id: filters.curriculum_revision_id,
-      subject_group_id: filters.subject_group_id,
-      subject_id: filters.subject_id,
-      platform_id: filters.platform_id,
-      difficulty: filters.difficulty,
-      sort: filters.sort,
-      tenantId: filters.tenantId,
-      limit: filters.limit,
-    },
-    result: {
-      count: enrichedData.length,
-      total: result.total,
-      titles: enrichedData.slice(0, 3).map((l) => l.title), // 처음 3개만
-    },
-  });
+  logActionDebug(
+    { domain: "data", action: "searchMasterLectures" },
+    "마스터 강의 조회 완료",
+    {
+      filters: {
+        curriculum_revision_id: filters.curriculum_revision_id,
+        subject_group_id: filters.subject_group_id,
+        subject_id: filters.subject_id,
+        platform_id: filters.platform_id,
+        difficulty: filters.difficulty,
+        sort: filters.sort,
+        tenantId: filters.tenantId,
+        limit: filters.limit,
+      },
+      result: {
+        count: enrichedData.length,
+        total: result.total,
+        titles: enrichedData.slice(0, 3).map((l) => l.title),
+      },
+    }
+  );
 
   return {
     data: enrichedData,
@@ -761,15 +768,11 @@ export async function copyMasterBookToStudent(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 복사 실패", {
-      bookId,
-      studentId,
-      tenantId,
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
+    logActionError(
+      { domain: "data", action: "copyMasterBookToStudent" },
+      error,
+      { bookId, studentId, tenantId, code: error.code, hint: error.hint }
+    );
     throw new Error(
       error.code === "42501"
         ? "RLS 정책 위반: 교재 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
@@ -803,11 +806,11 @@ export async function copyMasterBookToStudent(
       .select("id, display_order");
 
     if (detailsError) {
-      console.error("[data/contentMasters] 교재 상세 정보 복사 실패", {
-        bookId: studentBook.id,
-        error: detailsError.message,
-        code: detailsError.code,
-      });
+      logActionError(
+        { domain: "data", action: "copyMasterBookToStudent" },
+        detailsError,
+        { bookId: studentBook.id, code: detailsError.code, step: "book_details" }
+      );
       // 상세 정보 복사 실패해도 교재는 복사됨
     } else if (insertedDetails && insertedDetails.length > 0) {
       // master detail id -> student detail id 매핑 생성
@@ -914,15 +917,11 @@ export async function copyMasterLectureToStudent(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 복사 실패", {
-      lectureId,
-      studentId,
-      tenantId,
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
+    logActionError(
+      { domain: "data", action: "copyMasterLectureToStudent" },
+      error,
+      { lectureId, studentId, tenantId, code: error.code, hint: error.hint }
+    );
     throw new Error(
       error.code === "42501"
         ? "RLS 정책 위반: 강의 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
@@ -954,11 +953,11 @@ export async function copyMasterLectureToStudent(
       .select("id, episode_number");
 
     if (episodesError) {
-      console.error("[data/contentMasters] 강의 episode 복사 실패", {
-        lectureId: studentLecture.id,
-        error: episodesError.message,
-        code: episodesError.code,
-      });
+      logActionError(
+        { domain: "data", action: "copyMasterLectureToStudent" },
+        episodesError,
+        { lectureId: studentLecture.id, code: episodesError.code, step: "episodes" }
+      );
       // episode 복사 실패해도 강의는 복사됨
     } else if (insertedEpisodes && insertedEpisodes.length > 0) {
       // master episode id -> student episode id 매핑 생성
@@ -991,20 +990,19 @@ export async function copyMasterLectureToStudent(
         .eq("id", studentLecture.id);
 
       if (updateError) {
-        console.error("[data/contentMasters] 강의 교재 연결 실패", {
-          lectureId: studentLecture.id,
-          bookId: studentBookId,
-          error: updateError.message,
-          code: updateError.code,
-        });
+        logActionError(
+          { domain: "data", action: "copyMasterLectureToStudent" },
+          updateError,
+          { lectureId: studentLecture.id, bookId: studentBookId, step: "link_book" }
+        );
         // 교재 연결 실패해도 강의는 복사됨
       }
     } catch (error) {
-      console.error("[data/contentMasters] 마스터 교재 복사 및 연결 실패", {
-        masterBookId: lecture.linked_book_id,
-        lectureId: studentLecture.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      logActionError(
+        { domain: "data", action: "copyMasterLectureToStudent" },
+        error,
+        { masterBookId: lecture.linked_book_id, lectureId: studentLecture.id, step: "copy_linked_book" }
+      );
       // 교재 복사 실패해도 강의는 복사됨
     }
   }
@@ -1120,10 +1118,11 @@ export async function createMasterCustomContent(
 
   if (error) {
     const normalizedError = normalizeError(error);
-    console.error("[data/contentMasters] 커스텀 콘텐츠 생성 실패", {
-      error: normalizedError,
-      data: { ...data, notes: data.notes ? "[REDACTED]" : null }, // 민감 정보 제외
-    });
+    logActionError(
+      { domain: "data", action: "createMasterCustomContent" },
+      normalizedError,
+      { data: { ...data, notes: data.notes ? "[REDACTED]" : null } }
+    );
     throw normalizedError;
   }
 
@@ -1150,11 +1149,11 @@ export async function updateMasterCustomContent(
 
   if (error) {
     const normalizedError = normalizeError(error);
-    console.error("[data/contentMasters] 커스텀 콘텐츠 수정 실패", {
-      error: normalizedError,
-      contentId,
-      updates: { ...updates, notes: updates.notes ? "[REDACTED]" : null }, // 민감 정보 제외
-    });
+    logActionError(
+      { domain: "data", action: "updateMasterCustomContent" },
+      normalizedError,
+      { contentId, updates: { ...updates, notes: updates.notes ? "[REDACTED]" : null } }
+    );
     throw normalizedError;
   }
 
@@ -1176,10 +1175,11 @@ export async function deleteMasterCustomContent(
 
   if (error) {
     const normalizedError = normalizeError(error);
-    console.error("[data/contentMasters] 커스텀 콘텐츠 삭제 실패", {
-      error: normalizedError,
-      contentId,
-    });
+    logActionError(
+      { domain: "data", action: "deleteMasterCustomContent" },
+      normalizedError,
+      { contentId }
+    );
     throw normalizedError;
   }
 }
@@ -1233,15 +1233,11 @@ export async function copyMasterCustomContentToStudent(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 커스텀 콘텐츠 복사 실패", {
-      contentId,
-      studentId,
-      tenantId,
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-    });
+    logActionError(
+      { domain: "data", action: "copyMasterCustomContentToStudent" },
+      error,
+      { contentId, studentId, tenantId, code: error.code, hint: error.hint }
+    );
     throw new Error(
       error.code === "42501"
         ? "RLS 정책 위반: 커스텀 콘텐츠 복사 권한이 없습니다. Admin 클라이언트를 확인해주세요."
@@ -1365,7 +1361,7 @@ export async function getSubjectsForFilter(
       .limit(500); // 최대 500개 제한
 
     if (error) {
-      console.error("[data/contentMasters] 과목 목록 조회 실패", error);
+      logActionError({ domain: "data", action: "getSubjectsForFilter" }, error);
       return [];
     }
 
@@ -1391,7 +1387,7 @@ export async function getBookSubjectList(): Promise<string[]> {
     .not("subject", "is", null);
 
   if (error) {
-    console.error("[data/contentMasters] 교재 과목 목록 조회 실패", error);
+    logActionError({ domain: "data", action: "getBookSubjectList" }, error);
     return [];
   }
 
@@ -1414,7 +1410,7 @@ export async function getLectureSubjectList(): Promise<string[]> {
     .not("subject", "is", null);
 
   if (error) {
-    console.error("[data/contentMasters] 강의 과목 목록 조회 실패", error);
+    logActionError({ domain: "data", action: "getLectureSubjectList" }, error);
     return [];
   }
 
@@ -1508,7 +1504,7 @@ export async function getPublishersForFilter(
   const { data: booksData, error: booksError } = await publisherQuery;
 
   if (booksError) {
-    console.error("[data/contentMasters] 출판사 ID 조회 실패", booksError);
+    logActionError({ domain: "data", action: "getPublishersForFilter" }, booksError, { step: "getPublisherIds" });
     return [];
   }
 
@@ -1534,7 +1530,7 @@ export async function getPublishersForFilter(
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMasters] 출판사 목록 조회 실패", error);
+    logActionError({ domain: "data", action: "getPublishersForFilter" }, error, { step: "getPublisherDetails" });
     return [];
   }
 
@@ -1571,7 +1567,7 @@ export async function getPlatformsForFilter(
   const { data: lecturesData, error: lecturesError } = await platformQuery;
 
   if (lecturesError) {
-    console.error("[data/contentMasters] 플랫폼 ID 조회 실패", lecturesError);
+    logActionError({ domain: "data", action: "getPlatformsForFilter" }, lecturesError, { step: "getPlatformIds" });
     return [];
   }
 
@@ -1597,7 +1593,7 @@ export async function getPlatformsForFilter(
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMasters] 플랫폼 목록 조회 실패", error);
+    logActionError({ domain: "data", action: "getPlatformsForFilter" }, error, { step: "getPlatformDetails" });
     return [];
   }
 
@@ -1628,10 +1624,7 @@ export async function getDifficultiesForMasterBooks(
   const { data, error } = await query;
 
   if (error) {
-    console.error(
-      "[data/contentMasters] 마스터 교재 난이도 목록 조회 실패",
-      error
-    );
+    logActionError({ domain: "data", action: "getDifficultiesForMasterBooks" }, error);
     return [];
   }
 
@@ -1669,10 +1662,7 @@ export async function getDifficultiesForMasterLectures(
   const { data, error } = await query;
 
   if (error) {
-    console.error(
-      "[data/contentMasters] 마스터 강의 난이도 목록 조회 실패",
-      error
-    );
+    logActionError({ domain: "data", action: "getDifficultiesForMasterLectures" }, error);
     return [];
   }
 
@@ -1746,7 +1736,7 @@ export async function createMasterBook(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 생성 실패", error);
+    logActionError({ domain: "data", action: "createMasterBook" }, error);
     throw new Error(error.message || "교재 생성에 실패했습니다.");
   }
 
@@ -1833,7 +1823,7 @@ export async function updateMasterBook(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 수정 실패", error);
+    logActionError({ domain: "data", action: "updateMasterBook" }, error, { bookId });
     throw new Error(error.message || "교재 수정에 실패했습니다.");
   }
 
@@ -1852,7 +1842,7 @@ export async function deleteMasterBook(bookId: string): Promise<void> {
     .eq("id", bookId);
 
   if (error) {
-    console.error("[data/contentMasters] 교재 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteMasterBook" }, error, { bookId });
     throw new Error(error.message || "교재 삭제에 실패했습니다.");
   }
 }
@@ -1892,7 +1882,7 @@ export async function createMasterLecture(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 생성 실패", error);
+    logActionError({ domain: "data", action: "createMasterLecture" }, error);
     throw new Error(error.message || "강의 생성에 실패했습니다.");
   }
 
@@ -1972,7 +1962,7 @@ export async function updateMasterLecture(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 수정 실패", error);
+    logActionError({ domain: "data", action: "updateMasterLecture" }, error, { lectureId });
     throw new Error(error.message || "강의 수정에 실패했습니다.");
   }
 
@@ -1991,7 +1981,7 @@ export async function deleteMasterLecture(lectureId: string): Promise<void> {
     .eq("id", lectureId);
 
   if (error) {
-    console.error("[data/contentMasters] 강의 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteMasterLecture" }, error, { lectureId });
     throw new Error(error.message || "강의 삭제에 실패했습니다.");
   }
 }
@@ -2021,7 +2011,7 @@ export async function createBookDetail(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 상세 정보 추가 실패", error);
+    logActionError({ domain: "data", action: "createBookDetail" }, error, { bookId: data.book_id });
     throw new Error(error.message || "교재 상세 정보 추가에 실패했습니다.");
   }
 
@@ -2050,7 +2040,7 @@ export async function updateBookDetail(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 교재 상세 정보 수정 실패", error);
+    logActionError({ domain: "data", action: "updateBookDetail" }, error, { detailId });
     throw new Error(error.message || "교재 상세 정보 수정에 실패했습니다.");
   }
 
@@ -2069,7 +2059,7 @@ export async function deleteBookDetail(detailId: string): Promise<void> {
     .eq("id", detailId);
 
   if (error) {
-    console.error("[data/contentMasters] 교재 상세 정보 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteBookDetail" }, error, { detailId });
     throw new Error(error.message || "교재 상세 정보 삭제에 실패했습니다.");
   }
 }
@@ -2086,7 +2076,7 @@ export async function deleteAllBookDetails(bookId: string): Promise<void> {
     .eq("book_id", bookId);
 
   if (error) {
-    console.error("[data/contentMasters] 교재 상세 정보 일괄 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteAllBookDetails" }, error, { bookId });
     throw new Error(
       error.message || "교재 상세 정보 일괄 삭제에 실패했습니다."
     );
@@ -2118,7 +2108,7 @@ export async function createLectureEpisode(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 episode 추가 실패", error);
+    logActionError({ domain: "data", action: "createLectureEpisode" }, error, { lectureId: data.lecture_id });
     throw new Error(error.message || "강의 episode 추가에 실패했습니다.");
   }
 
@@ -2151,7 +2141,7 @@ export async function updateLectureEpisode(
     .single();
 
   if (error) {
-    console.error("[data/contentMasters] 강의 episode 수정 실패", error);
+    logActionError({ domain: "data", action: "updateLectureEpisode" }, error, { episodeId });
     throw new Error(error.message || "강의 episode 수정에 실패했습니다.");
   }
 
@@ -2170,7 +2160,7 @@ export async function deleteLectureEpisode(episodeId: string): Promise<void> {
     .eq("id", episodeId);
 
   if (error) {
-    console.error("[data/contentMasters] 강의 episode 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteLectureEpisode" }, error, { episodeId });
     throw new Error(error.message || "강의 episode 삭제에 실패했습니다.");
   }
 }
@@ -2189,7 +2179,7 @@ export async function deleteAllLectureEpisodes(
     .eq("lecture_id", lectureId);
 
   if (error) {
-    console.error("[data/contentMasters] 강의 episode 일괄 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteAllLectureEpisodes" }, error, { lectureId });
     throw new Error(error.message || "강의 episode 일괄 삭제에 실패했습니다.");
   }
 }
@@ -2225,7 +2215,7 @@ export async function getStudentBookDetails(
     .order("page_number", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMasters] 학생 교재 상세 정보 조회 실패", error);
+    logActionError({ domain: "data", action: "getStudentBookDetails" }, error, { bookId, studentId });
     return [];
   }
 
@@ -2262,12 +2252,7 @@ export async function getStudentLectureEpisodes(
     .order("episode_number", { ascending: true });
 
   if (error) {
-    console.error("[data/contentMasters] 학생 강의 episode 조회 실패", {
-      lectureId,
-      studentId,
-      error: error.message,
-      code: error.code,
-    });
+    logActionError({ domain: "data", action: "getStudentLectureEpisodes" }, error, { lectureId, studentId });
     return [];
   }
 
@@ -2308,7 +2293,7 @@ export async function getStudentBookDetailsBatch(
   // (admin이 학생 플랜을 볼 때 auth.uid()가 admin ID이므로 RLS가 차단됨)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    console.error("[getStudentBookDetailsBatch] admin 클라이언트 생성 실패");
+    logActionError({ domain: "data", action: "getStudentBookDetailsBatch" }, new Error("admin 클라이언트 생성 실패"));
     return new Map();
   }
 
@@ -2325,10 +2310,7 @@ export async function getStudentBookDetailsBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error(
-      "[data/contentMasters] 학생 교재 상세 정보 배치 조회 실패",
-      error
-    );
+    logActionError({ domain: "data", action: "getStudentBookDetailsBatch" }, error);
     return new Map();
   }
 
@@ -2377,7 +2359,7 @@ export async function getStudentBookDetailsBatch(
       (bookId) => !resultMap.has(bookId) || resultMap.get(bookId)!.length === 0
     );
 
-    console.log("[getStudentBookDetailsBatch] 쿼리 성능:", {
+    logActionDebug({ domain: "data", action: "getStudentBookDetailsBatch" }, "쿼리 성능", {
       bookCount: bookIds.length,
       resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
@@ -2391,7 +2373,7 @@ export async function getStudentBookDetailsBatch(
 
     // 목차가 없는 교재가 있는 경우 추가 로깅
     if (emptyBookIds.length > 0) {
-      console.debug("[getStudentBookDetailsBatch] 목차가 없는 교재:", {
+      logActionDebug({ domain: "data", action: "getStudentBookDetailsBatch" }, "목차가 없는 교재", {
         count: emptyBookIds.length,
         bookIds: emptyBookIds,
         reason:
@@ -2431,7 +2413,7 @@ export async function getStudentLectureEpisodesBatch(
   // (admin이 학생 플랜을 볼 때 auth.uid()가 admin ID이므로 RLS가 차단됨)
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    console.error("[getStudentLectureEpisodesBatch] admin 클라이언트 생성 실패");
+    logActionError({ domain: "data", action: "getStudentLectureEpisodesBatch" }, new Error("admin 클라이언트 생성 실패"));
     return new Map();
   }
 
@@ -2448,12 +2430,7 @@ export async function getStudentLectureEpisodesBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error("[data/contentMasters] 학생 강의 episode 배치 조회 실패", {
-      lectureIds,
-      studentId,
-      error: error.message,
-      code: error.code,
-    });
+    logActionError({ domain: "data", action: "getStudentLectureEpisodesBatch" }, error, { lectureIds, studentId });
     return new Map();
   }
 
@@ -2516,14 +2493,7 @@ export async function getStudentLectureEpisodesBatch(
         .order("episode_number", { ascending: true });
 
       if (masterError) {
-        console.error(
-          "[data/contentMasters] 마스터 강의 episode fallback 조회 실패",
-          {
-            masterLectureIds,
-            error: masterError.message,
-            code: masterError.code,
-          }
-        );
+        logActionError({ domain: "data", action: "getStudentLectureEpisodesBatch" }, masterError, { step: "masterFallback", masterLectureIds });
       } else if (masterEpisodesData && masterEpisodesData.length > 0) {
         // ContentResolverService를 사용하여 마스터 → 학생 ID 매핑 생성
         const masterToStudentMap = createMasterToStudentMap(
@@ -2568,14 +2538,7 @@ export async function getStudentLectureEpisodesBatch(
           .order("episode_number", { ascending: true });
 
       if (directMasterError) {
-        console.error(
-          "[data/contentMasters] 캠프 모드 마스터 강의 직접 조회 실패",
-          {
-            stillEmptyLectureIds,
-            error: directMasterError.message,
-            code: directMasterError.code,
-          }
-        );
+        logActionError({ domain: "data", action: "getStudentLectureEpisodesBatch" }, directMasterError, { step: "campModeFallback", stillEmptyLectureIds });
       } else if (directMasterData && directMasterData.length > 0) {
         // 마스터 강의 ID를 그대로 키로 사용하여 resultMap에 추가
         directMasterData.forEach((ep) => {
@@ -2591,13 +2554,10 @@ export async function getStudentLectureEpisodesBatch(
         });
 
         if (process.env.NODE_ENV === "development") {
-          console.log(
-            "[getStudentLectureEpisodesBatch] 캠프 모드 직접 마스터 fallback 성공:",
-            {
-              requestedIds: stillEmptyLectureIds,
-              foundCount: directMasterData.length,
-            }
-          );
+          logActionDebug({ domain: "data", action: "getStudentLectureEpisodesBatch" }, "캠프 모드 직접 마스터 fallback 성공", {
+            requestedIds: stillEmptyLectureIds,
+            foundCount: directMasterData.length,
+          });
         }
       }
     }
@@ -2618,7 +2578,7 @@ export async function getStudentLectureEpisodesBatch(
         !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
     );
 
-    console.log("[getStudentLectureEpisodesBatch] 쿼리 성능:", {
+    logActionDebug({ domain: "data", action: "getStudentLectureEpisodesBatch" }, "쿼리 성능", {
       lectureCount: lectureIds.length,
       resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
@@ -2634,7 +2594,7 @@ export async function getStudentLectureEpisodesBatch(
 
     // 회차가 없는 강의가 있는 경우 추가 로깅
     if (finalEmptyLectureIds.length > 0) {
-      console.debug("[getStudentLectureEpisodesBatch] 회차가 없는 강의:", {
+      logActionDebug({ domain: "data", action: "getStudentLectureEpisodesBatch" }, "회차가 없는 강의", {
         count: finalEmptyLectureIds.length,
         lectureIds: finalEmptyLectureIds,
         reason:
@@ -2683,11 +2643,7 @@ export async function getMasterLectureEpisodesBatch(
   const queryTime = performance.now() - queryStart;
 
   if (error) {
-    console.error("[data/contentMasters] 마스터 강의 episode 배치 조회 실패", {
-      masterLectureIds,
-      error: error.message,
-      code: error.code,
-    });
+    logActionError({ domain: "data", action: "getMasterLectureEpisodesBatch" }, error, { masterLectureIds });
     return new Map();
   }
 
@@ -2737,7 +2693,7 @@ export async function getMasterLectureEpisodesBatch(
         !resultMap.has(lectureId) || resultMap.get(lectureId)!.length === 0
     );
 
-    console.log("[getMasterLectureEpisodesBatch] 쿼리 성능:", {
+    logActionDebug({ domain: "data", action: "getMasterLectureEpisodesBatch" }, "쿼리 성능", {
       lectureCount: masterLectureIds.length,
       resultCount,
       queryTime: `${queryTime.toFixed(2)}ms`,
@@ -2790,12 +2746,7 @@ export async function getLectureEpisodesWithFallback(
     .order("episode_number", { ascending: true });
 
   if (studentError) {
-    console.error("[data/contentMasters] 학생 강의 episode 조회 실패", {
-      lectureId,
-      masterLectureId,
-      error: studentError.message,
-      code: studentError.code,
-    });
+    logActionError({ domain: "data", action: "getLectureEpisodesWithFallback" }, studentError, { lectureId, masterLectureId, step: "studentEpisodes" });
   }
 
   // 학생 강의 episode가 있으면 반환
@@ -2825,14 +2776,7 @@ export async function getLectureEpisodesWithFallback(
         created_at: e.created_at || "",
       }));
     } catch (err) {
-      console.error(
-        "[data/contentMasters] 마스터 강의 episode 정보 조회 실패",
-        {
-          lectureId,
-          masterLectureId,
-          error: err instanceof Error ? err.message : String(err),
-        }
-      );
+      logActionError({ domain: "data", action: "getLectureEpisodesWithFallback" }, err, { lectureId, masterLectureId, step: "masterFallback" });
     }
   }
 

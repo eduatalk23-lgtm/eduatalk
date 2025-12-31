@@ -3,6 +3,8 @@
  * JOIN 결과 처리 및 기타 유틸리티 함수 제공
  */
 
+import { logActionDebug } from "@/lib/logging/actionLogger";
+
 /**
  * Supabase JOIN 결과에서 첫 번째 항목 추출
  * 배열 또는 단일 객체 모두 처리
@@ -35,7 +37,11 @@ export function extractJoinedData<T>(
     return raw;
   } catch (error) {
     // 예상치 못한 타입의 경우 null 반환
-    console.warn("[extractJoinedData] Unexpected data type:", error);
+    logActionDebug(
+      { domain: "utils", action: "extractJoinedData" },
+      "Unexpected data type",
+      { error }
+    );
     return null;
   }
 }

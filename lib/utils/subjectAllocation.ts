@@ -1,8 +1,10 @@
 /**
  * 전략과목/취약과목 할당 관련 유틸리티 함수
- * 
+ *
  * UI와 서버 로직에서 공통으로 사용하는 함수들을 제공합니다.
  */
+
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 콘텐츠별 할당 타입
@@ -162,7 +164,11 @@ export function getEffectiveAllocation(
 ): AllocationResult {
   const log = (message: string, data?: unknown) => {
     if (enableLogging) {
-      console.log(`[getEffectiveAllocation] ${message}`, data || "");
+      logActionDebug(
+        { domain: "utils", action: "getEffectiveAllocation" },
+        message,
+        data ? { data } : undefined
+      );
     }
   };
 

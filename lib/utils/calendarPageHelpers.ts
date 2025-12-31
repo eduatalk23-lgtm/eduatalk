@@ -1,6 +1,7 @@
 import type { Plan } from "@/lib/data/studentPlans";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enrichPlansWithContentDetails } from "./planContentEnrichment";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 콘텐츠 정보가 추가된 플랜 타입
@@ -93,7 +94,11 @@ export async function enrichPlansWithContentInfo(
         });
       }
     } catch (error) {
-      console.error(`${logPrefix} ${contentType} 교과 정보 조회 실패`, error);
+      logActionError(
+        { domain: "utils", action: "enrichPlansWithContentInfo" },
+        error,
+        { contentType, logPrefix }
+      );
     }
   }
 

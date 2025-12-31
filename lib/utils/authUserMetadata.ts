@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { extractDisplayName } from "@/lib/types/auth";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 특정 사용자 ID 목록의 메타데이터만 조회 (전체 조회 대신)
@@ -28,7 +29,11 @@ export async function getAuthUserMetadata(
     const { data: authData, error: authError } = await adminClient.auth.admin.listUsers();
 
     if (authError) {
-      console.error("[authUserMetadata] Auth 사용자 조회 실패:", authError);
+      logActionError(
+        { domain: "utils", action: "getAuthUserMetadata" },
+        authError,
+        { userIdsCount: userIds.length }
+      );
       return metadataMap;
     }
 
@@ -47,7 +52,11 @@ export async function getAuthUserMetadata(
       }
     });
   } catch (error) {
-    console.error("[authUserMetadata] 사용자 메타데이터 조회 중 오류:", error);
+    logActionError(
+      { domain: "utils", action: "getAuthUserMetadata" },
+      error,
+      { context: "메타데이터 조회" }
+    );
   }
 
   return metadataMap;
@@ -72,7 +81,10 @@ export async function getAllAuthUserMetadata(
     const { data: authData, error: authError } = await adminClient.auth.admin.listUsers();
 
     if (authError) {
-      console.error("[authUserMetadata] Auth 사용자 조회 실패:", authError);
+      logActionError(
+        { domain: "utils", action: "getAllAuthUserMetadata" },
+        authError
+      );
       return metadataMap;
     }
 
@@ -87,7 +99,11 @@ export async function getAllAuthUserMetadata(
       });
     });
   } catch (error) {
-    console.error("[authUserMetadata] 전체 사용자 메타데이터 조회 중 오류:", error);
+    logActionError(
+      { domain: "utils", action: "getAllAuthUserMetadata" },
+      error,
+      { context: "전체 메타데이터 조회" }
+    );
   }
 
   return metadataMap;

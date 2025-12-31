@@ -3,17 +3,26 @@
  */
 
 import type { Result } from "@/lib/types/camp";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 에러를 문자열로 변환
  */
 export function handleCampError(error: unknown, context: string): string {
   if (error instanceof Error) {
-    console.error(`[${context}]`, error);
+    logActionError(
+      { domain: "utils", action: "handleCampError" },
+      error,
+      { context }
+    );
     return error.message;
   }
   const errorMessage = String(error);
-  console.error(`[${context}]`, errorMessage);
+  logActionError(
+    { domain: "utils", action: "handleCampError" },
+    new Error(errorMessage),
+    { context }
+  );
   return errorMessage;
 }
 

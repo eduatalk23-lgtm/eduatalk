@@ -1,13 +1,14 @@
 /**
  * 플랜 버전 관리 유틸리티 함수
- * 
+ *
  * 재조정 기능에서 플랜 버전을 관리하는 데 사용됩니다.
- * 
+ *
  * @module lib/utils/planVersionUtils
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StudentPlanRow } from '@/lib/types/plan';
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 타입 정의
@@ -59,7 +60,11 @@ export async function getLatestVersionPlan(
     .maybeSingle();
 
   if (error) {
-    console.error('[planVersionUtils] 최신 버전 조회 실패:', error);
+    logActionError(
+      { domain: "utils", action: "getLatestVersionPlan" },
+      error,
+      { versionGroupId }
+    );
     return null;
   }
 
@@ -87,7 +92,11 @@ export async function getActiveVersionPlan(
     .maybeSingle();
 
   if (error) {
-    console.error('[planVersionUtils] 활성 버전 조회 실패:', error);
+    logActionError(
+      { domain: "utils", action: "getActiveVersionPlan" },
+      error,
+      { versionGroupId }
+    );
     return null;
   }
 
@@ -146,7 +155,11 @@ export async function getVersionHistory(
     .order('version', { ascending: false });
 
   if (error) {
-    console.error('[planVersionUtils] 버전 히스토리 조회 실패:', error);
+    logActionError(
+      { domain: "utils", action: "getVersionHistory" },
+      error,
+      { versionGroupId }
+    );
     return [];
   }
 
@@ -200,7 +213,11 @@ export async function initializeVersionGroup(
     .single();
 
   if (error || !plan) {
-    console.error('[planVersionUtils] 플랜 조회 실패:', error);
+    logActionError(
+      { domain: "utils", action: "initializeVersionGroup" },
+      error,
+      { planId }
+    );
     return null;
   }
 
@@ -219,7 +236,11 @@ export async function initializeVersionGroup(
     .eq('id', planId);
 
   if (updateError) {
-    console.error('[planVersionUtils] version_group_id 초기화 실패:', updateError);
+    logActionError(
+      { domain: "utils", action: "initializeVersionGroup" },
+      updateError,
+      { planId, context: "version_group_id 초기화" }
+    );
     return null;
   }
 

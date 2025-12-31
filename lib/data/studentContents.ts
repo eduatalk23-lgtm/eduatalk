@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { convertDifficultyLevelToId } from "@/lib/utils/difficultyLevelConverter";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -107,7 +108,7 @@ export async function getBooks(
   }
 
   if (error) {
-    console.error("[data/studentContents] 책 조회 실패", error);
+    logActionError({ domain: "data", action: "getBooks" }, error, { studentId });
     return [];
   }
 
@@ -156,7 +157,7 @@ export async function getLectures(
   }
 
   if (error) {
-    console.error("[data/studentContents] 강의 조회 실패", error);
+    logActionError({ domain: "data", action: "getLectures" }, error, { studentId });
     return [];
   }
 
@@ -205,7 +206,7 @@ export async function getCustomContents(
   }
 
   if (error) {
-    console.error("[data/studentContents] 커스텀 콘텐츠 조회 실패", error);
+    logActionError({ domain: "data", action: "getCustomContents" }, error, { studentId });
     return [];
   }
 
@@ -273,7 +274,7 @@ export async function createBook(
   }
 
   if (error) {
-    console.error("[data/studentContents] 책 생성 실패", error);
+    logActionError({ domain: "data", action: "createBook" }, error, { studentId: book.student_id });
     return { success: false, error: error.message };
   }
 
@@ -341,7 +342,7 @@ export async function createLecture(
   }
 
   if (error) {
-    console.error("[data/studentContents] 강의 생성 실패", error);
+    logActionError({ domain: "data", action: "createLecture" }, error, { studentId: lecture.student_id });
     return { success: false, error: error.message };
   }
 
@@ -389,7 +390,7 @@ export async function createCustomContent(
   }
 
   if (error) {
-    console.error("[data/studentContents] 커스텀 콘텐츠 생성 실패", error);
+    logActionError({ domain: "data", action: "createCustomContent" }, error, { studentId: content.student_id });
     return { success: false, error: error.message };
   }
 
@@ -440,7 +441,7 @@ export async function updateBook(
   }
 
   if (error) {
-    console.error("[data/studentContents] 책 업데이트 실패", error);
+    logActionError({ domain: "data", action: "updateBook" }, error, { bookId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -492,7 +493,7 @@ export async function updateLecture(
   }
 
   if (error) {
-    console.error("[data/studentContents] 강의 업데이트 실패", error);
+    logActionError({ domain: "data", action: "updateLecture" }, error, { lectureId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -529,7 +530,7 @@ export async function updateCustomContent(
   }
 
   if (error) {
-    console.error("[data/studentContents] 커스텀 콘텐츠 업데이트 실패", error);
+    logActionError({ domain: "data", action: "updateCustomContent" }, error, { contentId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -557,7 +558,7 @@ export async function deleteBook(
   }
 
   if (error) {
-    console.error("[data/studentContents] 책 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteBook" }, error, { bookId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -585,7 +586,7 @@ export async function softDeleteBook(
     .eq("student_id", studentId);
 
   if (error) {
-    console.error("[data/studentContents] 책 Soft Delete 실패", error);
+    logActionError({ domain: "data", action: "softDeleteBook" }, error, { bookId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -612,7 +613,7 @@ export async function deleteLecture(
   }
 
   if (error) {
-    console.error("[data/studentContents] 강의 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteLecture" }, error, { lectureId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -642,7 +643,7 @@ export async function deleteCustomContent(
   }
 
   if (error) {
-    console.error("[data/studentContents] 커스텀 콘텐츠 삭제 실패", error);
+    logActionError({ domain: "data", action: "deleteCustomContent" }, error, { contentId, studentId });
     return { success: false, error: error.message };
   }
 
@@ -678,13 +679,13 @@ export async function getContentsByIds(
   const safeCustomIds = customIds.slice(0, MAX_IN_CLAUSE_SIZE);
 
   if (bookIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/studentContents] bookIds truncated from ${bookIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    logActionDebug({ domain: "data", action: "getContentsByIds" }, `bookIds truncated from ${bookIds.length} to ${MAX_IN_CLAUSE_SIZE}`, { studentId });
   }
   if (lectureIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/studentContents] lectureIds truncated from ${lectureIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    logActionDebug({ domain: "data", action: "getContentsByIds" }, `lectureIds truncated from ${lectureIds.length} to ${MAX_IN_CLAUSE_SIZE}`, { studentId });
   }
   if (customIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/studentContents] customIds truncated from ${customIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    logActionDebug({ domain: "data", action: "getContentsByIds" }, `customIds truncated from ${customIds.length} to ${MAX_IN_CLAUSE_SIZE}`, { studentId });
   }
 
   // 병렬 조회
@@ -704,12 +705,12 @@ export async function getContentsByIds(
             
             const { data, error } = await query;
             if (error) {
-              console.error("[data/studentContents] 책 조회 실패", error);
+              logActionError({ domain: "data", action: "getContentsByIds" }, error, { type: "books", studentId });
               return [];
             }
             return (data as Book[]) ?? [];
           } catch (err) {
-            console.error("[data/studentContents] 책 조회 예외", err);
+            logActionError({ domain: "data", action: "getContentsByIds" }, err, { type: "books", studentId });
             return [];
           }
         })()
@@ -722,19 +723,19 @@ export async function getContentsByIds(
               .select("id,tenant_id,student_id,title,revision,semester,subject_category,subject,platform,difficulty_level,duration,notes,created_at,updated_at")
               .eq("student_id", studentId)
               .in("id", safeLectureIds);
-            
+
             if (tenantId) {
               query = query.eq("tenant_id", tenantId);
             }
-            
+
             const { data, error } = await query;
             if (error) {
-              console.error("[data/studentContents] 강의 조회 실패", error);
+              logActionError({ domain: "data", action: "getContentsByIds" }, error, { type: "lectures", studentId });
               return [];
             }
             return (data as Lecture[]) ?? [];
           } catch (err) {
-            console.error("[data/studentContents] 강의 조회 예외", err);
+            logActionError({ domain: "data", action: "getContentsByIds" }, err, { type: "lectures", studentId });
             return [];
           }
         })()
@@ -747,19 +748,19 @@ export async function getContentsByIds(
               .select("id,tenant_id,student_id,title,content_type,total_page_or_time,subject,created_at,updated_at")
               .eq("student_id", studentId)
               .in("id", safeCustomIds);
-            
+
             if (tenantId) {
               query = query.eq("tenant_id", tenantId);
             }
-            
+
             const { data, error } = await query;
             if (error) {
-              console.error("[data/studentContents] 커스텀 콘텐츠 조회 실패", error);
+              logActionError({ domain: "data", action: "getContentsByIds" }, error, { type: "customContents", studentId });
               return [];
             }
             return (data as CustomContent[]) ?? [];
           } catch (err) {
-            console.error("[data/studentContents] 커스텀 콘텐츠 조회 예외", err);
+            logActionError({ domain: "data", action: "getContentsByIds" }, err, { type: "customContents", studentId });
             return [];
           }
         })()

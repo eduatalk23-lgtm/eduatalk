@@ -8,6 +8,7 @@ import { getCampInvitation, getCampTemplate } from "@/lib/data/campTemplates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 import { sendInAppNotification } from "./inAppNotificationService";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * 캠프 초대 알림 발송
@@ -43,9 +44,10 @@ export async function sendCampInvitationNotification(
       .maybeSingle();
 
     if (studentError || !student) {
-      console.error(
-        "[campNotificationService] 학생 정보 조회 실패:",
-        studentError
+      logActionError(
+        { domain: "service", action: "sendCampInvitationNotification" },
+        studentError,
+        { invitationId }
       );
       return {
         success: false,
@@ -69,9 +71,10 @@ export async function sendCampInvitationNotification(
       await adminClient.auth.admin.getUserById(invitation.student_id);
 
     if (authError || !authUser?.user?.email) {
-      console.error(
-        "[campNotificationService] 사용자 이메일 조회 실패:",
-        authError
+      logActionError(
+        { domain: "service", action: "sendCampInvitationNotification" },
+        authError,
+        { invitationId, studentId: invitation.student_id }
       );
       return {
         success: false,
@@ -114,9 +117,10 @@ export async function sendCampInvitationNotification(
     });
 
     if (!result.success) {
-      console.error(
-        "[campNotificationService] 이메일 발송 실패:",
-        result.error
+      logActionError(
+        { domain: "service", action: "sendCampInvitationNotification" },
+        result.error,
+        { invitationId, studentEmail }
       );
     }
 
@@ -132,9 +136,10 @@ export async function sendCampInvitationNotification(
         invitationUrl,
       }
     ).catch((err) => {
-      console.error(
-        "[campNotificationService] 인앱 알림 발송 실패:",
-        err
+      logActionError(
+        { domain: "service", action: "sendCampInvitationNotification" },
+        err,
+        { context: "인앱 알림", invitationId }
       );
     });
 
@@ -142,9 +147,10 @@ export async function sendCampInvitationNotification(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[campNotificationService] 알림 발송 중 예외 발생:",
-      errorMessage
+    logActionError(
+      { domain: "service", action: "sendCampInvitationNotification" },
+      error,
+      { invitationId }
     );
     return {
       success: false,
@@ -249,9 +255,10 @@ export async function sendCampReminderNotification(
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[campNotificationService] 리마인더 발송 중 예외 발생:",
-      errorMessage
+    logActionError(
+      { domain: "service", action: "sendCampReminderNotification" },
+      error,
+      { invitationId }
     );
     return {
       success: false,
@@ -269,10 +276,10 @@ export async function sendCampStatusChangeNotification(
 ): Promise<{ success: boolean; error?: string }> {
   // 상태 변경 알림은 향후 구현
   // 현재는 로깅만 수행
-  console.log(
-    "[campNotificationService] 상태 변경 알림:",
-    invitationId,
-    newStatus
+  logActionDebug(
+    { domain: "service", action: "sendCampStatusChangeNotification" },
+    "상태 변경 알림",
+    { invitationId, newStatus }
   );
   return { success: true };
 }
@@ -295,7 +302,11 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
     const adminClient = createSupabaseAdminClient();
 
     if (!adminClient) {
-      console.error("[campNotificationService] Admin 클라이언트 초기화 실패");
+      logActionError(
+        { domain: "service", action: "sendCampAcceptanceNotificationToAdmins" },
+        "Admin 클라이언트 초기화 실패",
+        { tenantId }
+      );
       return {
         success: false,
         sentCount: 0,
@@ -311,7 +322,11 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
       .eq("role", "admin");
 
     if (adminError) {
-      console.error("[campNotificationService] 관리자 목록 조회 실패:", adminError);
+      logActionError(
+        { domain: "service", action: "sendCampAcceptanceNotificationToAdmins" },
+        adminError,
+        { tenantId }
+      );
       return {
         success: false,
         sentCount: 0,
@@ -320,7 +335,11 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
     }
 
     if (!adminUsers || adminUsers.length === 0) {
-      console.warn("[campNotificationService] 해당 테넌트에 관리자가 없습니다:", tenantId);
+      logActionDebug(
+        { domain: "service", action: "sendCampAcceptanceNotificationToAdmins" },
+        "해당 테넌트에 관리자가 없습니다",
+        { tenantId }
+      );
       return {
         success: true,
         sentCount: 0,
@@ -347,20 +366,28 @@ export async function sendCampAcceptanceNotificationToAdmins(params: {
     );
 
     if (result.success) {
-      console.log("[campNotificationService] 관리자 알림 발송 완료:", {
-        templateId,
-        templateName,
-        studentId,
-        studentName,
-        adminCount: adminUserIds.length,
-        sentCount: result.sentCount,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendCampAcceptanceNotificationToAdmins" },
+        "관리자 알림 발송 완료",
+        {
+          templateId,
+          templateName,
+          studentId,
+          studentName,
+          adminCount: adminUserIds.length,
+          sentCount: result.sentCount,
+        }
+      );
     }
 
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[campNotificationService] 관리자 알림 발송 중 예외:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendCampAcceptanceNotificationToAdmins" },
+      error,
+      { templateId, studentId, tenantId }
+    );
     return {
       success: false,
       sentCount: 0,
@@ -397,13 +424,11 @@ export async function sendPlanCreatedNotificationToStudent(params: {
     );
 
     if (result.success) {
-      console.log("[campNotificationService] 학생 플랜 생성 알림 발송 완료:", {
-        studentId,
-        studentName,
-        templateId,
-        templateName,
-        groupId,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendPlanCreatedNotificationToStudent" },
+        "학생 플랜 생성 알림 발송 완료",
+        { studentId, studentName, templateId, templateName, groupId }
+      );
     }
 
     return {
@@ -412,7 +437,11 @@ export async function sendPlanCreatedNotificationToStudent(params: {
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[campNotificationService] 학생 알림 발송 중 예외:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendPlanCreatedNotificationToStudent" },
+      error,
+      { studentId, templateId, groupId }
+    );
     return {
       success: false,
       error: errorMessage,
@@ -429,7 +458,11 @@ async function getLinkedParentIds(studentId: string): Promise<string[]> {
     const adminClient = createSupabaseAdminClient();
 
     if (!adminClient) {
-      console.error("[campNotificationService] Admin 클라이언트 초기화 실패");
+      logActionError(
+        { domain: "service", action: "getLinkedParentIds" },
+        "Admin 클라이언트 초기화 실패",
+        { studentId }
+      );
       return [];
     }
 
@@ -440,13 +473,21 @@ async function getLinkedParentIds(studentId: string): Promise<string[]> {
       .eq("is_approved", true);
 
     if (error) {
-      console.error("[campNotificationService] 학부모 조회 실패:", error);
+      logActionError(
+        { domain: "service", action: "getLinkedParentIds" },
+        error,
+        { studentId }
+      );
       return [];
     }
 
     return (data ?? []).map((link) => link.parent_id);
   } catch (error) {
-    console.error("[campNotificationService] 학부모 조회 중 예외:", error);
+    logActionError(
+      { domain: "service", action: "getLinkedParentIds" },
+      error,
+      { studentId }
+    );
     return [];
   }
 }
@@ -467,7 +508,11 @@ export async function sendCampInvitationNotificationToParents(params: {
     const parentIds = await getLinkedParentIds(studentId);
 
     if (parentIds.length === 0) {
-      console.log("[campNotificationService] 연결된 학부모 없음:", studentId);
+      logActionDebug(
+        { domain: "service", action: "sendCampInvitationNotificationToParents" },
+        "연결된 학부모 없음",
+        { studentId }
+      );
       return { success: true, sentCount: 0 };
     }
 
@@ -487,19 +532,27 @@ export async function sendCampInvitationNotificationToParents(params: {
     );
 
     if (result.success) {
-      console.log("[campNotificationService] 학부모 캠프 초대 알림 발송 완료:", {
-        studentId,
-        studentName,
-        templateName,
-        parentCount: parentIds.length,
-        sentCount: result.sentCount,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendCampInvitationNotificationToParents" },
+        "학부모 캠프 초대 알림 발송 완료",
+        {
+          studentId,
+          studentName,
+          templateName,
+          parentCount: parentIds.length,
+          sentCount: result.sentCount,
+        }
+      );
     }
 
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[campNotificationService] 학부모 알림 발송 중 예외:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendCampInvitationNotificationToParents" },
+      error,
+      { studentId, templateId }
+    );
     return {
       success: false,
       sentCount: 0,
@@ -525,7 +578,11 @@ export async function sendPlanCreatedNotificationToParents(params: {
     const parentIds = await getLinkedParentIds(studentId);
 
     if (parentIds.length === 0) {
-      console.log("[campNotificationService] 연결된 학부모 없음:", studentId);
+      logActionDebug(
+        { domain: "service", action: "sendPlanCreatedNotificationToParents" },
+        "연결된 학부모 없음",
+        { studentId }
+      );
       return { success: true, sentCount: 0 };
     }
 
@@ -546,20 +603,28 @@ export async function sendPlanCreatedNotificationToParents(params: {
     );
 
     if (result.success) {
-      console.log("[campNotificationService] 학부모 플랜 생성 알림 발송 완료:", {
-        studentId,
-        studentName,
-        templateName,
-        groupId,
-        parentCount: parentIds.length,
-        sentCount: result.sentCount,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendPlanCreatedNotificationToParents" },
+        "학부모 플랜 생성 알림 발송 완료",
+        {
+          studentId,
+          studentName,
+          templateName,
+          groupId,
+          parentCount: parentIds.length,
+          sentCount: result.sentCount,
+        }
+      );
     }
 
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[campNotificationService] 학부모 플랜 알림 발송 중 예외:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendPlanCreatedNotificationToParents" },
+      error,
+      { studentId, templateId, groupId }
+    );
     return {
       success: false,
       sentCount: 0,
@@ -618,20 +683,28 @@ export async function sendCampProgressNotificationToParents(params: {
     );
 
     if (result.success) {
-      console.log("[campNotificationService] 학부모 진행 알림 발송 완료:", {
-        studentId,
-        studentName,
-        templateName,
-        completionRate,
-        parentCount: parentIds.length,
-        sentCount: result.sentCount,
-      });
+      logActionDebug(
+        { domain: "service", action: "sendCampProgressNotificationToParents" },
+        "학부모 진행 알림 발송 완료",
+        {
+          studentId,
+          studentName,
+          templateName,
+          completionRate,
+          parentCount: parentIds.length,
+          sentCount: result.sentCount,
+        }
+      );
     }
 
     return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[campNotificationService] 학부모 진행 알림 발송 중 예외:", errorMessage);
+    logActionError(
+      { domain: "service", action: "sendCampProgressNotificationToParents" },
+      error,
+      { studentId, templateName, completionRate }
+    );
     return {
       success: false,
       sentCount: 0,

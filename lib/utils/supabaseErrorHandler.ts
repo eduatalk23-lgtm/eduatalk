@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * Supabase 쿼리 에러 처리 유틸리티
@@ -19,19 +20,20 @@ export async function handleSupabaseQuery<T>(
     }
 
     if (error) {
-      console.error("[Supabase Query Error]", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
+      logActionError(
+        { domain: "utils", action: "handleSupabaseQuery" },
         error,
-      });
+        { code: error.code, hint: error.hint }
+      );
       return fallback;
     }
 
     return data ?? fallback;
   } catch (error) {
-    console.error("[Supabase Query Exception]", error);
+    logActionError(
+      { domain: "utils", action: "handleSupabaseQuery" },
+      error
+    );
     return fallback;
   }
 }
@@ -53,24 +55,20 @@ export async function handleSupabaseQueryArray<T>(
     }
 
     if (error) {
-      // 에러 객체가 비어있는 경우를 대비한 안전한 로깅
-      const errorInfo = {
-        code: error?.code || "UNKNOWN",
-        message: error?.message || "Unknown error",
-        details: error?.details || null,
-        hint: error?.hint || null,
-        error: error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : "Empty error object",
-      };
-      console.error("[Supabase Query Error]", errorInfo);
+      logActionError(
+        { domain: "utils", action: "handleSupabaseQueryArray" },
+        error,
+        { code: error?.code, hint: error?.hint }
+      );
       return fallback;
     }
 
     return data ?? fallback;
   } catch (error) {
-    console.error("[Supabase Query Exception]", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    logActionError(
+      { domain: "utils", action: "handleSupabaseQueryArray" },
+      error
+    );
     return fallback;
   }
 }
@@ -92,21 +90,20 @@ export async function handleSupabaseQuerySingle<T>(
     }
 
     if (error) {
-      // 에러 객체가 비어있는 경우를 대비한 안전한 로깅
-      const errorInfo = {
-        code: error?.code || "UNKNOWN",
-        message: error?.message || "Unknown error",
-        details: error?.details || null,
-        hint: error?.hint || null,
-        error: error || null,
-      };
-      console.error("[Supabase Query Error]", errorInfo);
+      logActionError(
+        { domain: "utils", action: "handleSupabaseQuerySingle" },
+        error,
+        { code: error?.code, hint: error?.hint }
+      );
       return fallback;
     }
 
     return data ?? fallback;
   } catch (error) {
-    console.error("[Supabase Query Exception]", error);
+    logActionError(
+      { domain: "utils", action: "handleSupabaseQuerySingle" },
+      error
+    );
     return fallback;
   }
 }

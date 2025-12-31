@@ -14,6 +14,7 @@ import type {
 import { PlanGroupError, PlanGroupErrorCodes } from "@/lib/errors/planGroupErrors";
 import { mergeTimeSettingsSafely } from "@/lib/utils/schedulerOptionsMerge";
 import { validateWizardDataSafe, validatePartialWizardDataSafe } from "@/lib/schemas/planWizardSchema";
+import { logActionDebug } from "@/lib/logging/actionLogger";
 
 /**
  * WizardData를 PlanGroupCreationData로 변환
@@ -493,12 +494,16 @@ export function syncCreationDataToWizardData(data: {
     const outputValidation = validatePartialWizardDataSafe(wizardData);
     if (!outputValidation.success) {
       // 검증 실패는 경고만 출력하고 데이터는 반환 (하위 호환성)
-      console.warn("[syncCreationDataToWizardData] 출력 데이터 검증 실패:", {
-        errors: outputValidation.error.errors.map((err) => ({
-          path: err.path.join("."),
-          message: err.message,
-        })),
-      });
+      logActionDebug(
+        { domain: "utils", action: "syncCreationDataToWizardData" },
+        "출력 데이터 검증 실패",
+        {
+          errors: outputValidation.error.errors.map((err) => ({
+            path: err.path.join("."),
+            message: err.message,
+          })),
+        }
+      );
     }
 
     return wizardData;
