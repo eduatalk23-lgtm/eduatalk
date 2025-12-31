@@ -22,6 +22,31 @@ export interface DragDropResult {
 }
 
 /**
+ * 특정 날짜가 제외일인지 확인
+ */
+async function checkExclusionDate(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  planGroupId: string,
+  date: string
+): Promise<{ isExclusion: boolean; reason?: string }> {
+  const { data: exclusion } = await supabase
+    .from("plan_exclusions")
+    .select("exclusion_type, reason")
+    .eq("plan_group_id", planGroupId)
+    .eq("exclusion_date", date)
+    .single();
+
+  if (exclusion) {
+    return {
+      isExclusion: true,
+      reason: exclusion.reason || undefined,
+    };
+  }
+
+  return { isExclusion: false };
+}
+
+/**
  * 시간대 겹침 여부 확인
  */
 function checkTimeOverlap(
@@ -63,10 +88,10 @@ export async function rescheduleOnDrop(
     const supabase = await createSupabaseServerClient();
 
     if (planType === "student_plan") {
-      // 기존 플랜 조회
+      // 기존 플랜 조회 (plan_group_id 포함)
       const { data: existingPlan, error: fetchError } = await supabase
         .from("student_plan")
-        .select("id, plan_date, start_time, end_time, student_id, content_title, plan_groups!inner(student_id)")
+        .select("id, plan_date, start_time, end_time, student_id, content_title, plan_group_id, plan_groups!inner(student_id)")
         .eq("id", planId)
         .single();
 
@@ -80,6 +105,22 @@ export async function rescheduleOnDrop(
       const isOwner = (existingPlan as any).plan_groups?.student_id === user.userId;
       if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
+      }
+
+      // 제외일 검증
+      if (existingPlan.plan_group_id && newDate !== existingPlan.plan_date) {
+        const exclusionCheck = await checkExclusionDate(
+          supabase,
+          existingPlan.plan_group_id,
+          newDate
+        );
+        if (exclusionCheck.isExclusion) {
+          const reason = exclusionCheck.reason ? ` (${exclusionCheck.reason})` : "";
+          return {
+            success: false,
+            error: `해당 날짜는 제외일입니다${reason}`,
+          };
+        }
       }
 
       // 이동할 시간 계산
@@ -195,10 +236,10 @@ export async function rescheduleOnDrop(
         return { success: false, error: updateError.message };
       }
     } else if (planType === "ad_hoc_plan") {
-      // ad_hoc_plan 조회
+      // ad_hoc_plan 조회 (plan_group_id 포함)
       const { data: existingPlan, error: fetchError } = await supabase
         .from("ad_hoc_plans")
-        .select("id, plan_date, start_time, end_time, student_id")
+        .select("id, plan_date, start_time, end_time, student_id, plan_group_id")
         .eq("id", planId)
         .single();
 
@@ -209,6 +250,22 @@ export async function rescheduleOnDrop(
       // 권한 확인 (자기 자신의 플랜만 수정 가능)
       if (existingPlan.student_id !== user.userId) {
         return { success: false, error: "권한이 없습니다." };
+      }
+
+      // 제외일 검증
+      if (existingPlan.plan_group_id && newDate !== existingPlan.plan_date) {
+        const exclusionCheck = await checkExclusionDate(
+          supabase,
+          existingPlan.plan_group_id,
+          newDate
+        );
+        if (exclusionCheck.isExclusion) {
+          const reason = exclusionCheck.reason ? ` (${exclusionCheck.reason})` : "";
+          return {
+            success: false,
+            error: `해당 날짜는 제외일입니다${reason}`,
+          };
+        }
       }
 
       // 업데이트 데이터 구성
@@ -349,39 +406,71 @@ export async function resizePlanDuration(
     }
 
     const supabase = await createSupabaseServerClient();
-    const tableName = planType === "student_plan" ? "student_plan" : "ad_hoc_plans";
+    const isAdmin = user.role === "admin" || user.role === "superadmin";
 
-    // 플랜 조회
-    const { data: existingPlan, error: fetchError } = await supabase
-      .from(tableName)
-      .select("id, student_id")
-      .eq("id", planId)
-      .single();
+    if (planType === "student_plan") {
+      // student_plan: plan_groups.student_id로 소유자 확인
+      const { data: existingPlan, error: fetchError } = await supabase
+        .from("student_plan")
+        .select("id, plan_groups!inner(student_id)")
+        .eq("id", planId)
+        .single();
 
-    if (fetchError || !existingPlan) {
-      return { success: false, error: "플랜을 찾을 수 없습니다." };
-    }
+      if (fetchError || !existingPlan) {
+        return { success: false, error: "플랜을 찾을 수 없습니다." };
+      }
 
-    // 권한 확인
-    if (existingPlan.student_id !== user.userId) {
-      const isAdmin = user.role === "admin" || user.role === "superadmin";
-      if (!isAdmin) {
+      // 권한 확인
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const isOwner = (existingPlan as any).plan_groups?.student_id === user.userId;
+      if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
       }
-    }
 
-    // 업데이트
-    const { error: updateError } = await supabase
-      .from(tableName)
-      .update({
-        start_time: newStartTime,
-        end_time: newEndTime,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", planId);
+      // 업데이트
+      const { error: updateError } = await supabase
+        .from("student_plan")
+        .update({
+          start_time: newStartTime,
+          end_time: newEndTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", planId);
 
-    if (updateError) {
-      return { success: false, error: updateError.message };
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
+    } else {
+      // ad_hoc_plans: student_id로 직접 확인
+      const { data: existingPlan, error: fetchError } = await supabase
+        .from("ad_hoc_plans")
+        .select("id, student_id")
+        .eq("id", planId)
+        .single();
+
+      if (fetchError || !existingPlan) {
+        return { success: false, error: "플랜을 찾을 수 없습니다." };
+      }
+
+      // 권한 확인
+      const isOwner = existingPlan.student_id === user.userId;
+      if (!isAdmin && !isOwner) {
+        return { success: false, error: "권한이 없습니다." };
+      }
+
+      // 업데이트
+      const { error: updateError } = await supabase
+        .from("ad_hoc_plans")
+        .update({
+          start_time: newStartTime,
+          end_time: newEndTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", planId);
+
+      if (updateError) {
+        return { success: false, error: updateError.message };
+      }
     }
 
     revalidatePath("/plan/calendar");
