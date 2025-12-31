@@ -10,7 +10,6 @@ import {
   Users,
   CheckCircle,
   Smartphone,
-  MapPin,
   UsersRound,
   FileText,
   MessageSquare,

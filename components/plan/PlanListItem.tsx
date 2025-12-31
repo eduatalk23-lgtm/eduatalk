@@ -9,7 +9,7 @@
 
 import { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { textPrimary, textSecondary, textMuted, bgSurface } from "@/lib/utils/darkMode";
+import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
 
 export type PlanStatus = "pending" | "in_progress" | "completed" | "overdue";
 export type PlanType = "student_plan" | "ad_hoc_plan";

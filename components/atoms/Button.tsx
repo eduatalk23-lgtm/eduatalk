@@ -8,7 +8,6 @@ import {
   textSecondaryVar,
   borderDefaultVar,
   bgHoverVar,
-  bgHoverStrongVar,
 } from "@/lib/utils/darkMode";
 
 export type ButtonVariant =

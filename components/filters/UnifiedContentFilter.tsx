@@ -5,7 +5,6 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { UnifiedContentFilterProps, UnifiedFilterValues } from "./types";
 import { useSubjectHierarchy } from "@/lib/contexts/SubjectHierarchyContext";
 import { updateFilterParams, updateMultipleFilterParams, clearFilterParams } from "@/lib/utils/shallowRouting";
-import type { SubjectGroup, Subject } from "@/lib/data/subjects";
 
 // 기본 정렬 옵션
 const DEFAULT_SORT_OPTIONS = [

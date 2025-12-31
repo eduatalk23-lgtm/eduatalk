@@ -4,7 +4,7 @@ import { memo, forwardRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
-import Button, { type ButtonProps, type ButtonVariant, type ButtonSize } from "@/components/atoms/Button";
+import Button, { type ButtonProps, type ButtonVariant } from "@/components/atoms/Button";
 
 export type SubmitButtonProps = Omit<ButtonProps, "type" | "isLoading"> & {
   /** 기본 버튼 텍스트 */

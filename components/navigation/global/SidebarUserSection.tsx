@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { layoutStyles, sidebarStyles } from "@/components/navigation/global/navStyles";
+import { layoutStyles } from "@/components/navigation/global/navStyles";
 import { User, Building2 } from "lucide-react";
 import { SignOutButton } from "@/app/_components/SignOutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";

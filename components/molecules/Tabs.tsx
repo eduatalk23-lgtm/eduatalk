@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, ReactNode } from "react";
+import { memo, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 // ============================================
