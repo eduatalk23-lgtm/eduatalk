@@ -33,6 +33,7 @@ import {
   parseMasterLectureFormData,
   parseMasterLectureUpdateFormData,
 } from "@/lib/utils/masterContentFormHelpers";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 마스터 교재 목록 조회 (Server Action)
@@ -120,7 +121,7 @@ export const addMasterBook = withErrorHandling(async (formData: FormData) => {
         });
       }
     } catch (error) {
-      console.error("상세 정보 추가 실패:", error);
+      logActionError({ domain: "content", action: "addMasterBook" }, error, { bookId: book.id });
       throw new AppError(
         `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
           error instanceof Error ? error.message : "알 수 없는 오류"
@@ -185,14 +186,14 @@ export const createMasterBookWithoutRedirect = withErrorHandling(
             });
           }
         } catch (error) {
-          console.error("상세 정보 추가 실패:", error);
+          logActionError({ domain: "content", action: "createMasterBookWithoutRedirect" }, error, { bookId: book.id });
           // 상세 정보 추가 실패해도 교재는 생성됨
         }
       }
 
       return { success: true, bookId: book.id };
     } catch (error) {
-      console.error("교재 생성 실패:", error);
+      logActionError({ domain: "content", action: "createMasterBookWithoutRedirect" }, error);
       return {
         success: false,
         error:
@@ -242,7 +243,7 @@ export const updateMasterBookAction = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error("상세 정보 업데이트 실패:", error);
+        logActionError({ domain: "content", action: "updateMasterBookAction" }, error, { bookId });
         throw new AppError(
           `교재는 수정되었지만 상세 정보 저장에 실패했습니다: ${
             error instanceof Error ? error.message : "알 수 없는 오류"
@@ -348,7 +349,7 @@ export const addMasterLecture = withErrorHandling(
               });
             }
           } catch (error) {
-            console.error("교재 상세 정보 추가 실패:", error);
+            logActionError({ domain: "content", action: "addMasterLecture" }, error, { bookId: book.id });
             throw new AppError(
               `교재는 생성되었지만 상세 정보 저장에 실패했습니다: ${
                 error instanceof Error ? error.message : "알 수 없는 오류"
@@ -367,7 +368,7 @@ export const addMasterLecture = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error("교재 생성 실패:", error);
+        logActionError({ domain: "content", action: "addMasterLecture" }, error, { lectureId: lecture.id });
         // 교재 생성 실패해도 강의는 생성됨
       }
     }
@@ -395,7 +396,7 @@ export const addMasterLecture = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error("episode 정보 추가 실패:", error);
+        logActionError({ domain: "content", action: "addMasterLecture" }, error, { lectureId: lecture.id });
         throw new AppError(
           `강의는 생성되었지만 회차 정보 저장에 실패했습니다: ${
             error instanceof Error ? error.message : "알 수 없는 오류"
@@ -449,7 +450,7 @@ export const updateMasterLectureAction = withErrorHandling(
           });
         }
       } catch (error) {
-        console.error("episode 정보 업데이트 실패:", error);
+        logActionError({ domain: "content", action: "updateMasterLectureAction" }, error, { lectureId });
         throw new AppError(
           `강의는 수정되었지만 회차 정보 저장에 실패했습니다: ${
             error instanceof Error ? error.message : "알 수 없는 오류"

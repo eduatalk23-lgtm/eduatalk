@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { timeToMinutes } from "./utils";
+import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -51,7 +52,7 @@ async function _getPlansByGroupId(groupId: string): Promise<{
     .order("block_index", { ascending: true });
 
   if (error) {
-    console.error("[planGroupActions] 플랜 조회 실패", error);
+    logActionError({ domain: "plan", action: "_getPlansByGroupId" }, error, { groupId });
     throw new AppError(
       error.message || "플랜 조회에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -172,7 +173,7 @@ async function _checkPlansExist(groupId: string): Promise<{
     .eq("student_id", studentId);
 
   if (error) {
-    console.error("[planGroupActions] 플랜 개수 확인 실패", error);
+    logActionError({ domain: "plan", action: "_checkPlansExist" }, error, { groupId });
     throw new AppError(
       error.message || "플랜 개수 확인에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -318,7 +319,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   const { data: group, error: groupError } = await groupQuery.maybeSingle();
 
   if (groupError) {
-    console.error("[planGroupActions] 플랜 그룹 조회 오류:", groupError);
+    logActionError({ domain: "plan", action: "_getScheduleResultData" }, groupError, { groupId });
     throw new AppError(
       `플랜 그룹 정보를 조회할 수 없습니다: ${groupError.message}`,
       ErrorCode.DATABASE_ERROR,
@@ -329,7 +330,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
   }
 
   if (!group) {
-    console.error("[planGroupActions] 플랜 그룹을 찾을 수 없음:", {
+    logActionError({ domain: "plan", action: "_getScheduleResultData" }, new Error("플랜 그룹을 찾을 수 없음"), {
       groupId,
       userId: userRole.userId,
     });
@@ -411,7 +412,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   // 블록 에러는 로깅만 하고 계속 진행 (블록이 없어도 플랜 조회는 가능)
   if (blocksError) {
-    console.error("[planGroupActions] 블록 조회 실패:", blocksError);
+    logActionError({ domain: "plan", action: "_getScheduleResultData" }, blocksError, { groupId, blockSetId: group.block_set_id });
   }
 
   // 3. 콘텐츠 데이터 조회 (총량/duration 정보 포함) - 병렬 최적화
@@ -860,10 +861,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
       exclusions = result.exclusions || [];
       academySchedules = result.academySchedules || [];
     } catch (error) {
-      console.error(
-        "[planGroupActions] 제외일/학원일정 조회 실패, 폴백 로직 사용:",
-        error
-      );
+      logActionWarn({ domain: "plan", action: "_getScheduleResultData" }, "제외일/학원일정 조회 실패, 폴백 로직 사용", {
+        groupId,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
       // 폴백: 저장된 daily_schedule에서 exclusion 정보 추출
       if (group.daily_schedule && Array.isArray(group.daily_schedule)) {
@@ -897,10 +898,10 @@ async function _getScheduleResultData(groupId: string): Promise<{
           }));
         }
       } catch (academyError) {
-        console.error(
-          "[planGroupActions] 학원 일정 조회 실패 (무시됨):",
-          academyError
-        );
+        logActionWarn({ domain: "plan", action: "_getScheduleResultData" }, "학원 일정 조회 실패 (무시됨)", {
+          groupId,
+          error: academyError instanceof Error ? academyError.message : String(academyError),
+        });
       }
     }
 
@@ -1001,14 +1002,17 @@ async function _getScheduleResultData(groupId: string): Promise<{
           .eq("student_id", targetStudentId);
 
         if (updateScheduleError) {
-          console.error(
-            "[planGroupActions] dailySchedule 저장 실패",
-            updateScheduleError
-          );
+          logActionWarn({ domain: "plan", action: "_getScheduleResultData" }, "dailySchedule 저장 실패", {
+            groupId,
+            error: updateScheduleError.message,
+          });
           // 저장 실패해도 계속 진행
         }
       } catch (error) {
-        console.error("[planGroupActions] daily_schedule 조회 실패", error);
+        logActionWarn({ domain: "plan", action: "_getScheduleResultData" }, "daily_schedule 조회 실패", {
+          groupId,
+          error: error instanceof Error ? error.message : String(error),
+        });
         // daily_schedule 조회 실패해도 계속 진행
       }
     }

@@ -20,6 +20,11 @@ import {
   logError,
   withErrorHandling,
 } from "@/lib/errors";
+import {
+  logActionError,
+  logActionDebug,
+  logActionWarn,
+} from "@/lib/logging/actionLogger";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { sendAttendanceSMSIfEnabled } from "@/lib/services/attendanceSMSService";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -230,8 +235,9 @@ export async function checkInWithQRCode(
           };
 
           if (smsResult.skipped) {
-            console.info(
-              `[AttendanceSMS] 입실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            logActionDebug(
+              { domain: "attendance", action: "checkInWithQRCode" },
+              `입실 SMS 발송 건너뛰기: ${smsResult.error}`,
               {
                 studentId: user.userId,
                 details: smsResult.details,
@@ -269,9 +275,10 @@ export async function checkInWithQRCode(
                 stepContext.smsFailureMessage = smsResult.error;
               }
             } catch (configError) {
-              console.error(
-                "[checkInWithQRCode] SMS 설정 확인 실패:",
-                configError
+              logActionError(
+                { domain: "attendance", action: "checkInWithQRCode" },
+                configError,
+                { step: "sms_config_check" }
               );
             }
           } else {
@@ -396,13 +403,15 @@ export async function checkInWithLocation(
         );
 
         if (smsResult.skipped) {
-          console.info(
-            `[AttendanceSMS] 입실 SMS 발송 건너뛰기: ${smsResult.error}`,
+          logActionDebug(
+            { domain: "attendance", action: "checkInWithLocation" },
+            `입실 SMS 발송 건너뛰기: ${smsResult.error}`,
             { studentId: user.userId, details: smsResult.details }
           );
         } else if (smsResult.error) {
-          console.error(
-            `[AttendanceSMS] 입실 SMS 발송 실패: ${smsResult.error}`,
+          logActionError(
+            { domain: "attendance", action: "checkInWithLocation" },
+            new Error(smsResult.error),
             {
               studentId: user.userId,
               errorType: smsResult.errorType,
@@ -412,7 +421,11 @@ export async function checkInWithLocation(
         }
       }
     } catch (error) {
-      console.error("[Attendance] 입실 SMS 발송 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "checkInWithLocation" },
+        error,
+        { step: "sms_notification" }
+      );
     }
 
     revalidatePath("/attendance/check-in");
@@ -631,8 +644,9 @@ export async function checkOutWithQRCode(
           };
 
           if (smsResult.skipped) {
-            console.info(
-              `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+            logActionDebug(
+              { domain: "attendance", action: "checkOutWithQRCode" },
+              `퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
               {
                 studentId: user.userId,
                 details: smsResult.details,
@@ -670,9 +684,10 @@ export async function checkOutWithQRCode(
                 stepContext.smsFailureMessage = smsResult.error;
               }
             } catch (configError) {
-              console.error(
-                "[checkOutWithQRCode] SMS 설정 확인 실패:",
-                configError
+              logActionError(
+                { domain: "attendance", action: "checkOutWithQRCode" },
+                configError,
+                { step: "sms_config_check" }
               );
             }
           } else {
@@ -814,13 +829,15 @@ export async function checkOutWithLocation(
         );
 
         if (smsResult.skipped) {
-          console.info(
-            `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+          logActionDebug(
+            { domain: "attendance", action: "checkOutWithLocation" },
+            `퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
             { studentId: user.userId, details: smsResult.details }
           );
         } else if (smsResult.error) {
-          console.error(
-            `[AttendanceSMS] 퇴실 SMS 발송 실패: ${smsResult.error}`,
+          logActionError(
+            { domain: "attendance", action: "checkOutWithLocation" },
+            new Error(smsResult.error),
             {
               studentId: user.userId,
               errorType: smsResult.errorType,
@@ -830,7 +847,11 @@ export async function checkOutWithLocation(
         }
       }
     } catch (error) {
-      console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "checkOutWithLocation" },
+        error,
+        { step: "sms_notification" }
+      );
     }
 
     revalidatePath("/attendance/check-in");
@@ -917,13 +938,15 @@ export async function checkOut(): Promise<{
         );
 
         if (smsResult.skipped) {
-          console.info(
-            `[AttendanceSMS] 퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
+          logActionDebug(
+            { domain: "attendance", action: "checkOut" },
+            `퇴실 SMS 발송 건너뛰기: ${smsResult.error}`,
             { studentId: user.userId, details: smsResult.details }
           );
         } else if (smsResult.error) {
-          console.error(
-            `[AttendanceSMS] 퇴실 SMS 발송 실패: ${smsResult.error}`,
+          logActionError(
+            { domain: "attendance", action: "checkOut" },
+            new Error(smsResult.error),
             {
               studentId: user.userId,
               errorType: smsResult.errorType,
@@ -933,7 +956,11 @@ export async function checkOut(): Promise<{
         }
       }
     } catch (error) {
-      console.error("[Attendance] 퇴실 SMS 발송 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "checkOut" },
+        error,
+        { step: "sms_notification" }
+      );
     }
 
     revalidatePath("/attendance/check-in");
@@ -1028,7 +1055,11 @@ export async function getTodayAttendanceSMSStatus(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[getTodayAttendanceSMSStatus] SMS 로그 조회 실패:", error);
+      logActionError(
+        { domain: "attendance", action: "getTodayAttendanceSMSStatus" },
+        error,
+        { step: "sms_log_query" }
+      );
       return {
         success: true,
         data: null,

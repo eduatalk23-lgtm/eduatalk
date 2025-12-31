@@ -7,6 +7,7 @@
  * - Repository 호출 및 에러 처리
  */
 
+import { logActionError } from "@/lib/logging/actionLogger";
 import * as repository from "./repository";
 import type {
   InternalScore,
@@ -38,7 +39,7 @@ export async function getMockScores(
   try {
     return await repository.findMockScores(studentId, tenantId, filters);
   } catch (error) {
-    console.error("[score/service] 모의고사 성적 조회 실패:", error);
+    logActionError({ domain: "score", action: "getMockScores" }, error, { studentId, tenantId, filters });
     return [];
   }
 }
@@ -53,7 +54,7 @@ export async function getMockScoreById(
   try {
     return await repository.findMockScoreById(scoreId, studentId);
   } catch (error) {
-    console.error("[score/service] 모의고사 성적 조회 실패:", error);
+    logActionError({ domain: "score", action: "getMockScoreById" }, error, { scoreId, studentId });
     return null;
   }
 }
@@ -99,7 +100,7 @@ export async function createMockScore(
     const scoreId = await repository.insertMockScore(input);
     return { success: true, scoreId };
   } catch (error) {
-    console.error("[score/service] 모의고사 성적 생성 실패:", error);
+    logActionError({ domain: "score", action: "createMockScore" }, error, { input });
     return {
       success: false,
       error:
@@ -144,7 +145,7 @@ export async function updateMockScore(
     await repository.updateMockScoreById(scoreId, studentId, updates);
     return { success: true, scoreId };
   } catch (error) {
-    console.error("[score/service] 모의고사 성적 수정 실패:", error);
+    logActionError({ domain: "score", action: "updateMockScore" }, error, { scoreId, studentId, updates });
     return {
       success: false,
       error:
@@ -170,7 +171,7 @@ export async function deleteMockScore(
     await repository.deleteMockScoreById(scoreId, studentId);
     return { success: true };
   } catch (error) {
-    console.error("[score/service] 모의고사 성적 삭제 실패:", error);
+    logActionError({ domain: "score", action: "deleteMockScore" }, error, { scoreId, studentId });
     return {
       success: false,
       error:
@@ -220,7 +221,7 @@ export async function calculateAverageGrade(
 
     return { schoolAvg, mockAvg };
   } catch (error) {
-    console.error("[score/service] 평균 등급 계산 실패:", error);
+    logActionError({ domain: "score", action: "calculateAverageGrade" }, error, { studentId, tenantId });
     return { schoolAvg: null, mockAvg: null };
   }
 }
@@ -251,7 +252,7 @@ export async function getScoreTrendBySubject(
       mock: mockScores,
     };
   } catch (error) {
-    console.error("[score/service] 성적 추이 조회 실패:", error);
+    logActionError({ domain: "score", action: "getScoreTrendBySubject" }, error, { studentId, subjectGroupId, tenantId });
     return { school: [], mock: [] };
   }
 }

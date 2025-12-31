@@ -8,6 +8,7 @@ import type {
   TermsContent,
 } from "@/lib/types/terms";
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 /**
@@ -57,10 +58,8 @@ async function _createTermsContent(
         true
       );
     }
-    console.error("[termsContents] 약관 생성 실패:", {
+    logActionError({ domain: "superadmin", action: "createTermsContent" }, error, {
       input,
-      error: error.message,
-      code: error.code,
     });
     throw new AppError(
       error.message || "약관 생성에 실패했습니다.",
@@ -152,11 +151,9 @@ async function _updateTermsContent(
         true
       );
     }
-    console.error("[termsContents] 약관 수정 실패:", {
+    logActionError({ domain: "superadmin", action: "updateTermsContent" }, error, {
       id,
       input,
-      error: error.message,
-      code: error.code,
     });
     throw new AppError(
       error.message || "약관 수정에 실패했습니다.",
@@ -231,10 +228,8 @@ async function _activateTermsContent(id: string): Promise<void> {
         true
       );
     }
-    console.error("[termsContents] 약관 비활성화 실패:", {
+    logActionError({ domain: "superadmin", action: "deactivateTermsContent" }, deactivateError, {
       contentType: target.content_type,
-      error: deactivateError.message,
-      code: deactivateError.code,
     });
     throw new AppError(
       deactivateError.message || "약관 비활성화에 실패했습니다.",
@@ -260,10 +255,8 @@ async function _activateTermsContent(id: string): Promise<void> {
         true
       );
     }
-    console.error("[termsContents] 약관 활성화 실패:", {
+    logActionError({ domain: "superadmin", action: "activateTermsContent" }, activateError, {
       id,
-      error: activateError.message,
-      code: activateError.code,
     });
     throw new AppError(
       activateError.message || "약관 활성화에 실패했습니다.",
@@ -304,10 +297,8 @@ async function _getTermsContents(
         true
       );
     }
-    console.error("[termsContents] 약관 목록 조회 실패:", {
+    logActionError({ domain: "superadmin", action: "getTermsContents" }, error, {
       contentType,
-      error: error.message,
-      code: error.code,
     });
     throw new AppError(
       error.message || "약관 목록 조회에 실패했습니다.",
@@ -355,10 +346,8 @@ async function _getActiveTermsContent(
         true
       );
     }
-    console.error("[termsContents] 활성 약관 조회 실패:", {
+    logActionError({ domain: "superadmin", action: "getActiveTerms" }, error, {
       contentType,
-      error: error.message,
-      code: error.code,
     });
     throw new AppError(
       error.message || "활성 약관 조회에 실패했습니다.",
@@ -403,10 +392,8 @@ async function _getTermsContentById(id: string): Promise<TermsContent | null> {
         true
       );
     }
-    console.error("[termsContents] 약관 조회 실패:", {
+    logActionError({ domain: "superadmin", action: "getTermsContent" }, error, {
       id,
-      error: error.message,
-      code: error.code,
     });
     throw new AppError(
       error.message || "약관 조회에 실패했습니다.",

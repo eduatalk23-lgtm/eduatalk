@@ -8,6 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import type {
   PlanExecutionEventType,
   CreatePlanExecutionLogInput,
@@ -90,13 +91,13 @@ export async function logPlanExecutionEvent(
       .single();
 
     if (insertError) {
-      console.error("[logPlanExecutionEvent] Insert error:", insertError);
+      logActionError({ domain: "today", action: "logPlanExecutionEvent" }, insertError);
       return { success: false, error: "로그 저장에 실패했습니다." };
     }
 
     return { success: true, logId: log?.id };
   } catch (error) {
-    console.error("[logPlanExecutionEvent] Unexpected error:", error);
+    logActionError({ domain: "today", action: "logPlanExecutionEvent" }, error);
     return { success: false, error: "예상치 못한 오류가 발생했습니다." };
   }
 }
@@ -131,7 +132,7 @@ export async function getPlanExecutionLogs(
       .limit(limit);
 
     if (error) {
-      console.error("[getPlanExecutionLogs] Query error:", error);
+      logActionError({ domain: "today", action: "getPlanExecutionLogs" }, error);
       return { success: false, error: "로그 조회에 실패했습니다." };
     }
 
@@ -140,7 +141,7 @@ export async function getPlanExecutionLogs(
       logs: logs as GetExecutionLogsResult["logs"],
     };
   } catch (error) {
-    console.error("[getPlanExecutionLogs] Unexpected error:", error);
+    logActionError({ domain: "today", action: "getPlanExecutionLogs" }, error);
     return { success: false, error: "예상치 못한 오류가 발생했습니다." };
   }
 }
@@ -186,7 +187,7 @@ export async function getTodayExecutionSummary(): Promise<{
       .eq("log_date", today);
 
     if (error) {
-      console.error("[getTodayExecutionSummary] Query error:", error);
+      logActionError({ domain: "today", action: "getTodayExecutionSummary" }, error);
       return { success: false, error: "통계 조회에 실패했습니다." };
     }
 
@@ -223,7 +224,7 @@ export async function getTodayExecutionSummary(): Promise<{
       },
     };
   } catch (error) {
-    console.error("[getTodayExecutionSummary] Unexpected error:", error);
+    logActionError({ domain: "today", action: "getTodayExecutionSummary" }, error);
     return { success: false, error: "예상치 못한 오류가 발생했습니다." };
   }
 }
@@ -258,6 +259,6 @@ export async function logTimerEvent(
     });
   } catch (error) {
     // 로깅 실패는 무시 (주요 기능에 영향 없도록)
-    console.warn("[logTimerEvent] Failed to log event:", error);
+    logActionWarn({ domain: "today", action: "logTimerEvent" }, "Failed to log event", { error: error instanceof Error ? error.message : String(error) });
   }
 }
