@@ -1,5 +1,5 @@
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { WizardData } from "../../PlanGroupWizard";
 import {
@@ -16,8 +16,9 @@ import { ContentAllocationUI } from "./Step6FinalReview/ContentAllocationUI";
 import { ContentList } from "./Step6FinalReview/ContentList";
 import { ComparisonTable } from "./Step6FinalReview/ComparisonTable";
 import { usePlanWizard } from "../../_context/PlanWizardContext";
+import { areStep6PropsEqual } from "../../utils/stepMemoComparison";
 
-export function Step6FinalReview({
+function Step6FinalReviewComponent({
   data: dataProp,
   onUpdate: onUpdateProp,
   contents,
@@ -650,3 +651,9 @@ export function Step6FinalReview({
     </div>
   );
 }
+
+// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step6FinalReview = memo(
+  Step6FinalReviewComponent,
+  areStep6PropsEqual
+);

@@ -1,6 +1,6 @@
 /**
  * planValidation.ts - 위저드 단계별 유효성 검사 로직 중앙화
- * 
+ *
  * Zod 스키마를 활용하여 타입 안전성과 유효성 검사를 동시에 관리합니다.
  * 각 Step별 검증 함수를 순수 함수로 제공하여 재사용성을 높입니다.
  */
@@ -19,6 +19,11 @@ import { WizardValidator } from "@/lib/validation/wizardValidator";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import type { WizardStep } from "../PlanGroupWizard";
 import { z } from "zod";
+import {
+  STEP1_MESSAGES,
+  STEP4_MESSAGES,
+  translateZodError,
+} from "@/lib/validation/wizardErrorMessages";
 
 /**
  * 검증 결과 타입
@@ -69,8 +74,9 @@ export function validateStep1(
       const step1Fields = ["name", "plan_purpose", "scheduler_type", "period_start", "period_end", "block_set_id"];
       if (step1Fields.some((field) => path.startsWith(field))) {
         const fieldName = path === "name" ? "plan_name" : path;
-        errors.push(err.message);
-        fieldErrors.set(fieldName, err.message);
+        const friendlyMessage = translateZodError(path, err.message);
+        errors.push(friendlyMessage);
+        fieldErrors.set(fieldName, friendlyMessage);
       }
     });
   }
@@ -85,26 +91,23 @@ export function validateStep1(
   // 템플릿 모드가 아닐 때만 이름 검증
   if (!isTemplateMode) {
     if (!wizardData.name || wizardData.name.trim() === "") {
-      const errorMsg = "플랜 이름을 입력해주세요.";
-      errors.push(errorMsg);
-      fieldErrors.set("plan_name", errorMsg);
+      errors.push(STEP1_MESSAGES.NAME_REQUIRED);
+      fieldErrors.set("plan_name", STEP1_MESSAGES.NAME_REQUIRED);
     }
   }
 
   // 캠프 모드가 아닐 때만 기간 검증
   if (!isCampMode) {
     if (!wizardData.period_start || !wizardData.period_end) {
-      const errorMsg = "학습 기간을 입력해주세요.";
-      errors.push(errorMsg);
-      fieldErrors.set("period_start", errorMsg);
+      errors.push(STEP1_MESSAGES.PERIOD_REQUIRED);
+      fieldErrors.set("period_start", STEP1_MESSAGES.PERIOD_REQUIRED);
     } else {
       // 날짜 순서 검증
       const start = new Date(wizardData.period_start);
       const end = new Date(wizardData.period_end);
       if (start > end) {
-        const errorMsg = "시작일은 종료일보다 이전이거나 같아야 합니다.";
-        errors.push(errorMsg);
-        fieldErrors.set("period_end", errorMsg);
+        errors.push(STEP1_MESSAGES.PERIOD_INVALID);
+        fieldErrors.set("period_end", STEP1_MESSAGES.PERIOD_INVALID);
       }
     }
   }
@@ -140,8 +143,9 @@ export function validateStep2(
       // Step 2 관련 필드만 처리
       const step2Fields = ["exclusions", "academy_schedules", "time_settings"];
       if (step2Fields.some((field) => path.startsWith(field))) {
-        errors.push(err.message);
-        fieldErrors.set(path, err.message);
+        const friendlyMessage = translateZodError(path, err.message);
+        errors.push(friendlyMessage);
+        fieldErrors.set(path, friendlyMessage);
       }
     });
   }
@@ -210,8 +214,9 @@ export function validateStep4(
       // Step 4 관련 필드만 처리
       const step4Fields = ["student_contents", "recommended_contents"];
       if (step4Fields.some((field) => path.startsWith(field))) {
-        errors.push(err.message);
-        fieldErrors.set(path, err.message);
+        const friendlyMessage = translateZodError(path, err.message);
+        errors.push(friendlyMessage);
+        fieldErrors.set(path, friendlyMessage);
       }
     });
   }
@@ -229,16 +234,14 @@ export function validateStep4(
     (wizardData.recommended_contents?.length || 0);
 
   if (totalContents === 0) {
-    const errorMsg = "최소 1개 이상의 콘텐츠를 선택해주세요.";
-    errors.push(errorMsg);
-    fieldErrors.set("content_selection", errorMsg);
+    errors.push(STEP4_MESSAGES.CONTENT_REQUIRED);
+    fieldErrors.set("content_selection", STEP4_MESSAGES.CONTENT_REQUIRED);
   }
 
   // 최대 9개 제한
   if (totalContents > 9) {
-    const errorMsg = "콘텐츠는 최대 9개까지 선택할 수 있습니다.";
-    errors.push(errorMsg);
-    fieldErrors.set("content_selection", errorMsg);
+    errors.push(STEP4_MESSAGES.CONTENT_LIMIT_EXCEEDED);
+    fieldErrors.set("content_selection", STEP4_MESSAGES.CONTENT_LIMIT_EXCEEDED);
   }
 
   return {

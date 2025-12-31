@@ -4,6 +4,7 @@ import React, { useContext, memo } from "react";
 import { WizardData, WizardStep } from "../../PlanGroupWizard";
 import { TimeSettingsPanel } from "./components/TimeSettingsPanel";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
+import { areStep2PropsEqual } from "../../utils/stepMemoComparison";
 
 type Step2TimeSettingsProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -96,6 +97,9 @@ function Step2TimeSettingsComponent({
   );
 }
 
-// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
-export const Step2TimeSettings = memo(Step2TimeSettingsComponent);
+/// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step2TimeSettings = memo(
+  Step2TimeSettingsComponent,
+  areStep2PropsEqual
+);
 

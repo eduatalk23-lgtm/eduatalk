@@ -7,11 +7,17 @@
  * - 저장 상태 표시 (idle, saving, saved, error)
  * - 네트워크 오류 처리
  * - 언마운트 시 저장 취소
+ *
+ * 성능 최적화:
+ * - useMemo로 해시 계산 메모이제이션
+ * - JSON.stringify 제거 → 문자열 연결 방식
+ * - initialHash 캐싱으로 재계산 방지
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import type { WizardData } from "../PlanGroupWizard";
+import { autoSaveLogger } from "../utils/wizardLogger";
 
 /** 오토세이브 상태 */
 export type AutoSaveStatus = "idle" | "saving" | "saved" | "error";
@@ -52,25 +58,49 @@ type UseAutoSaveReturn = {
   isSaving: boolean;
 };
 
+// ============================================================================
+// 경량 해시 생성 (JSON.stringify 없음)
+// ============================================================================
+
 /**
- * 데이터 변경 감지를 위한 해시 생성
- * (JSON.stringify 대신 간단한 해시 사용)
+ * 데이터 변경 감지를 위한 경량 해시 생성
+ *
+ * JSON.stringify 대신 문자열 연결을 사용하여 성능 향상
+ * - JSON.stringify: O(n) + 메모리 할당 오버헤드
+ * - 문자열 연결: O(n) 단순 연결만
  */
 function createDataHash(data: WizardData): string {
-  // 성능을 위해 핵심 필드만 비교
-  return JSON.stringify({
-    name: data.name,
-    plan_purpose: data.plan_purpose,
-    period_start: data.period_start,
-    period_end: data.period_end,
-    scheduler_type: data.scheduler_type,
-    block_set_id: data.block_set_id,
-    student_contents_length: data.student_contents.length,
-    recommended_contents_length: data.recommended_contents.length,
-    // 콘텐츠 ID 목록 (순서도 중요)
-    student_content_ids: data.student_contents.map((c) => c.content_id).join(","),
-    recommended_content_ids: data.recommended_contents.map((c) => c.content_id).join(","),
-  });
+  // 핵심 스칼라 필드 (변경이 잦은 필드 우선)
+  const scalarPart = [
+    data.name ?? "",
+    data.plan_purpose ?? "",
+    data.period_start ?? "",
+    data.period_end ?? "",
+    data.scheduler_type ?? "",
+    data.block_set_id ?? "",
+  ].join("|");
+
+  // 배열 길이 (빠른 변경 감지)
+  const lengthPart = [
+    data.student_contents?.length ?? 0,
+    data.recommended_contents?.length ?? 0,
+    data.exclusions?.length ?? 0,
+    data.academy_schedules?.length ?? 0,
+  ].join(",");
+
+  // 콘텐츠 ID (Set 사용으로 순서 무관 비교)
+  // 정렬된 ID 목록으로 순서에 관계없이 동일 콘텐츠면 같은 해시
+  const studentContentIds = data.student_contents
+    ?.map((c) => `${c.content_id}:${c.start_range ?? 0}-${c.end_range ?? 0}`)
+    .sort()
+    .join(",") ?? "";
+
+  const recommendedContentIds = data.recommended_contents
+    ?.map((c) => `${c.content_id}:${c.start_range ?? 0}-${c.end_range ?? 0}`)
+    .sort()
+    .join(",") ?? "";
+
+  return `${scalarPart}#${lengthPart}#${studentContentIds}#${recommendedContentIds}`;
 }
 
 /**
@@ -100,9 +130,31 @@ export function useAutoSave({
   const isMountedRef = useRef(true);
   // 저장 중 여부
   const isSavingRef = useRef(false);
+  // initialData 해시 캐싱 (한 번만 계산)
+  const initialHashRef = useRef<string | null>(null);
 
-  // 현재 데이터 해시
-  const currentHash = createDataHash(data);
+  // initialData 해시 캐싱 (첫 렌더링 시에만 계산)
+  if (initialData && initialHashRef.current === null) {
+    initialHashRef.current = createDataHash(initialData);
+  }
+
+  // 현재 데이터 해시 (useMemo로 메모이제이션)
+  // 의존성: 핵심 필드만 추적하여 불필요한 재계산 방지
+  const currentHash = useMemo(
+    () => createDataHash(data),
+    [
+      data.name,
+      data.plan_purpose,
+      data.period_start,
+      data.period_end,
+      data.scheduler_type,
+      data.block_set_id,
+      data.student_contents,
+      data.recommended_contents,
+      data.exclusions,
+      data.academy_schedules,
+    ]
+  );
 
   // 디바운스된 해시
   const debouncedHash = useDebounce(currentHash, debounceMs);
@@ -138,7 +190,7 @@ export function useAutoSave({
         }, savedStatusDurationMs);
       }
     } catch (error) {
-      console.error("[useAutoSave] 오토세이브 실패:", error);
+      autoSaveLogger.error("오토세이브 실패", error, { hook: "useAutoSave" });
       if (isMountedRef.current) {
         setStatus("error");
 
@@ -168,11 +220,9 @@ export function useAutoSave({
     }
 
     // 초기 데이터와 동일하면 스킵 (첫 로드 시)
-    if (initialData) {
-      const initialHash = createDataHash(initialData);
-      if (debouncedHash === initialHash) {
-        return;
-      }
+    // 캐싱된 initialHash 사용 (재계산 방지)
+    if (initialHashRef.current && debouncedHash === initialHashRef.current) {
+      return;
     }
 
     // 마지막 저장과 동일하면 스킵
@@ -181,7 +231,7 @@ export function useAutoSave({
     }
 
     performSave();
-  }, [debouncedHash, enabled, draftGroupId, initialData, performSave]);
+  }, [debouncedHash, enabled, draftGroupId, performSave]);
 
   // Cleanup
   useEffect(() => {

@@ -22,6 +22,7 @@ import {
 } from "@/lib/errors/planGroupErrors";
 import type { SubmissionPhase } from "../_ui/SubmissionProgress";
 import { WIZARD_STEPS, TIMING } from "../constants/wizardConstants";
+import { planSubmissionLogger } from "../utils/wizardLogger";
 
 /**
  * usePlanSubmission Props
@@ -200,7 +201,7 @@ export function usePlanSubmission({
               setDraftGroupId(finalGroupId);
             })
             .catch((error) => {
-              console.error("[usePlanSubmission] Background save failed", error);
+              planSubmissionLogger.error("Background save failed", error, { hook: "usePlanSubmission" });
               const planGroupError = toPlanGroupError(
                 error,
                 PlanGroupErrorCodes.UNKNOWN_ERROR
@@ -245,7 +246,7 @@ export function usePlanSubmission({
           goNext();
         }
       } catch (error) {
-        console.error("[usePlanSubmission] Submit failed", error);
+        planSubmissionLogger.error("Submit failed", error, { hook: "usePlanSubmission" });
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.UNKNOWN_ERROR

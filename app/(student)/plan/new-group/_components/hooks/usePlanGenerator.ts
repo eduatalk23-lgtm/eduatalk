@@ -24,6 +24,7 @@ import { continueCampStepsForAdmin } from "@/lib/domains/camp/actions";
 import { submitCampParticipation } from "@/lib/domains/camp";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
+import { planGeneratorLogger } from "../utils/wizardLogger";
 
 type UsePlanGeneratorProps = {
   wizardData: WizardData;
@@ -98,7 +99,7 @@ export function usePlanGenerator({
     try {
       creationData = buildPayload();
     } catch (err: unknown) {
-      console.error("Payload Build Error (Submit)", err);
+      planGeneratorLogger.error("Payload 빌드 실패", err, { hook: "usePlanGenerator" });
       const msg =
         err instanceof PlanGroupError
           ? err.userMessage
@@ -223,7 +224,7 @@ export function usePlanGenerator({
           // Step 7에서 완료 버튼을 눌렀을 때만 상세보기 페이지로 이동
         }
       } catch (error) {
-        console.error("[usePlanGenerator] 플랜 생성 실패:", error);
+        planGeneratorLogger.error("플랜 생성 실패", error, { hook: "usePlanGenerator" });
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.PLAN_GENERATION_FAILED

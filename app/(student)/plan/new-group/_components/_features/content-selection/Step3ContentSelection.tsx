@@ -46,6 +46,7 @@ import { useRequiredSubjects } from "./hooks/useRequiredSubjects";
 import { RequiredSubjectsSection } from "./components/RequiredSubjectsSection";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
+import { areStep3PropsEqual } from "../../utils/stepMemoComparison";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -610,5 +611,8 @@ function Step3ContentSelectionComponent({
   );
 }
 
-// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
-export const Step3ContentSelection = memo(Step3ContentSelectionComponent);
+/// React.memo로 최적화: props가 변경되지 않으면 리렌더링 방지
+export const Step3ContentSelection = memo(
+  Step3ContentSelectionComponent,
+  areStep3PropsEqual
+);

@@ -9,11 +9,16 @@ import { useBlockSetManagement } from "./hooks/useBlockSetManagement";
 import { useToast } from "@/components/ui/ToastProvider";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
 import { FieldErrors } from "../../hooks/useWizardValidation";
-import { isFieldLocked, toggleFieldControl as toggleFieldControlUtil, updateFieldLock } from "../../utils/fieldLockUtils";
+import {
+  isFieldLocked,
+  toggleFieldControl as toggleFieldControlUtil,
+  updateFieldLock,
+} from "../../utils/fieldLockUtils";
 import type { TemplateLockedFields } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
 import { useFieldPermission } from "../../hooks/useFieldPermission";
 import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
+import { areStep1PropsEqual } from "../../utils/stepMemoComparison";
 
 type Step1BasicInfoProps = {
   data?: WizardData;
@@ -239,4 +244,7 @@ function Step1BasicInfoComponent({
 }
 
 // React.memo로 최적화
-export const Step1BasicInfo = memo(Step1BasicInfoComponent);
+export const Step1BasicInfo = memo(
+  Step1BasicInfoComponent,
+  areStep1PropsEqual
+);

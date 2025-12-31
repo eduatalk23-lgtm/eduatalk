@@ -20,6 +20,7 @@ import {
   getErrorInfo,
   type PlanGroupError,
 } from "@/lib/errors/planGroupErrors";
+import { wizardLogger } from "../utils/wizardLogger";
 
 type UseStep7CompletionProps = {
   /** 플랜 그룹 ID */
@@ -83,7 +84,7 @@ export function useStep7Completion({
         try {
           await updatePlanGroupStatus(draftGroupId, "saved");
         } catch (statusError) {
-          console.warn("[useStep7Completion] 상태 업데이트 실패 (무시):", statusError);
+          wizardLogger.warn("상태 업데이트 실패 (무시)", { hook: "useStep7Completion", data: { error: statusError } });
         }
 
         toast.showSuccess("플랜 생성이 완료되었습니다.");
@@ -91,7 +92,7 @@ export function useStep7Completion({
         // 플랜 그룹 상세 보기 페이지로 이동 (완전한 페이지 리로드)
         window.location.href = `/admin/plan-groups/${draftGroupId}`;
       } catch (error) {
-        console.error("[useStep7Completion] 관리자 캠프 완료 처리 실패:", error);
+        wizardLogger.error("관리자 캠프 완료 처리 실패", error, { hook: "useStep7Completion" });
         const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
         const errorInfo = getErrorInfo(planGroupError.code as keyof typeof PlanGroupErrorCodes);
         setErrors([planGroupError.userMessage, ...errorInfo.guide.actions]);
@@ -114,7 +115,7 @@ export function useStep7Completion({
     } catch (error) {
       // 플랜 확인 실패는 경고만 표시하고 계속 진행 (네트워크 문제일 수 있음)
       const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
-      console.warn("[useStep7Completion] 플랜 확인 실패:", planGroupError.userMessage);
+      wizardLogger.warn("플랜 확인 실패", { hook: "useStep7Completion", data: { message: planGroupError.userMessage } });
     }
 
     // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
@@ -132,7 +133,7 @@ export function useStep7Completion({
     } catch (error) {
       // 활성 그룹 확인 실패는 경고만 (필수가 아니므로)
       const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
-      console.warn("[useStep7Completion] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
+      wizardLogger.warn("플랜 그룹 활성 그룹 확인 실패", { hook: "useStep7Completion", data: { error: planGroupError } });
     }
 
     // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
@@ -147,7 +148,7 @@ export function useStep7Completion({
           await updatePlanGroupStatus(draftGroupId, "saved");
         } catch (savedError) {
           // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
-          console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
+          wizardLogger.warn("플랜 그룹 saved 상태 변경 실패 (무시)", { hook: "useStep7Completion", data: { error: savedError } });
         }
         // saved 상태에서 active로 전이
         await updatePlanGroupStatus(draftGroupId, "active");
@@ -162,10 +163,13 @@ export function useStep7Completion({
       } catch (statusError) {
         // 활성화 실패 시 구체적인 에러 로깅 후 리다이렉트
         const planGroupError = toPlanGroupError(statusError, PlanGroupErrorCodes.PLAN_GROUP_UPDATE_FAILED);
-        console.warn("[useStep7Completion] 플랜 그룹 활성화 실패:", {
-          code: planGroupError.code,
-          message: planGroupError.userMessage,
-          context: planGroupError.context,
+        wizardLogger.warn("플랜 그룹 활성화 실패", {
+          hook: "useStep7Completion",
+          data: {
+            code: planGroupError.code,
+            message: planGroupError.userMessage,
+            context: planGroupError.context,
+          },
         });
         // 플랜은 생성되었으므로 저장된 상태로 이동 (활성화만 실패한 경우)
         toast.showInfo("플랜이 저장되었습니다. 활성화는 상세 페이지에서 진행해주세요.");

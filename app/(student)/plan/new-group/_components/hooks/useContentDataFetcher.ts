@@ -20,6 +20,7 @@ import {
   contentDetailsLRUCache,
   contentMetadataLRUCache,
 } from "../utils/lruCache";
+import { contentSelectionLogger } from "../utils/wizardLogger";
 
 /**
  * 콘텐츠 상세 정보 데이터 타입
@@ -258,7 +259,7 @@ export function useContentDataFetcher({
           error,
           PlanGroupErrorCodes.CONTENT_METADATA_FETCH_FAILED
         );
-        console.error(`[useContentDataFetcher] 메타데이터 조회 실패 (${contentId}):`, planGroupError);
+        contentSelectionLogger.error(`메타데이터 조회 실패 (${contentId})`, planGroupError, { hook: "useContentDataFetcher" });
       }
       return null;
     },
@@ -492,7 +493,7 @@ export function useContentDataFetcher({
         setError(errorObj);
         setLoading(false);
         setLoadingDetails(new Set());
-        console.error("[useContentDataFetcher] Error:", error);
+        contentSelectionLogger.error("콘텐츠 데이터 조회 실패", error, { hook: "useContentDataFetcher" });
       } finally {
         isFetchingRef.current = false;
       }

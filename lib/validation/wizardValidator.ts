@@ -1,7 +1,7 @@
 /**
  * 플랜 그룹 위저드 단계별 검증 로직 통합
  * PlanValidator를 확장하여 위저드 특화 검증 제공
- * 
+ *
  * 검증 전략:
  * 1. Zod 스키마로 기본 타입 및 형식 검증
  * 2. WizardValidator로 비즈니스 로직 검증
@@ -22,6 +22,15 @@ import {
   validatePartialWizardDataSafe,
 } from "@/lib/schemas/planWizardSchema";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
+import {
+  STEP1_MESSAGES,
+  STEP3_MESSAGES,
+  STEP4_MESSAGES,
+  STEP5_MESSAGES,
+  STEP6_MESSAGES,
+  getContentRangeError,
+  translateZodError,
+} from "./wizardErrorMessages";
 
 type WizardStep = 1 | 2 | 2.5 | 3 | 4 | 5 | 6 | 7;
 
@@ -138,7 +147,8 @@ export class WizardValidator {
         // 해당 단계의 필드인지 확인
         const stepFields = Object.keys(schema.shape);
         if (stepFields.some((field) => path.startsWith(field))) {
-          errors.push(`${path}: ${message}`);
+          const friendlyMessage = translateZodError(path, message);
+          errors.push(friendlyMessage);
         }
       });
     }
@@ -159,21 +169,23 @@ export class WizardValidator {
 
     // 필수 필드 검증
     if (!wizardData.name || wizardData.name.trim() === "") {
-      errors.push("플랜 이름을 입력해주세요.");
+      errors.push(STEP1_MESSAGES.NAME_REQUIRED);
     }
 
     // 플랜 목적: 템플릿 모드에서 학생 입력 허용이 체크되어 있으면 필수 아님
-    const isStudentInputAllowed = wizardData.templateLockedFields?.step1?.allow_student_plan_purpose === true;
+    const isStudentInputAllowed =
+      wizardData.templateLockedFields?.step1?.allow_student_plan_purpose ===
+      true;
     if (!isStudentInputAllowed && !wizardData.plan_purpose) {
-      errors.push("플랜 목적을 선택해주세요.");
+      errors.push(STEP1_MESSAGES.PURPOSE_REQUIRED);
     }
 
     if (!wizardData.scheduler_type) {
-      errors.push("스케줄러 유형을 선택해주세요.");
+      errors.push(STEP1_MESSAGES.SCHEDULER_REQUIRED);
     }
 
     if (!wizardData.period_start || !wizardData.period_end) {
-      errors.push("학습 기간을 설정해주세요.");
+      errors.push(STEP1_MESSAGES.PERIOD_REQUIRED);
     } else {
       const periodValidation = PlanValidator.validatePeriod(
         wizardData.period_start,
@@ -229,12 +241,12 @@ export class WizardValidator {
 
     // daily_schedule이 있는지 확인
     if (!wizardData.daily_schedule || wizardData.daily_schedule.length === 0) {
-      warnings.push("스케줄 정보가 없습니다. 이전 단계로 돌아가 스케줄을 확인해주세요.");
+      warnings.push(STEP3_MESSAGES.NO_SCHEDULE_DATA);
     }
 
     // schedule_summary가 있는지 확인
     if (!wizardData.schedule_summary) {
-      warnings.push("스케줄 요약 정보가 없습니다.");
+      warnings.push(STEP3_MESSAGES.SCHEDULE_SUMMARY_MISSING);
     }
 
     return { valid: errors.length === 0, errors, warnings };
@@ -250,13 +262,11 @@ export class WizardValidator {
     // 학생 콘텐츠는 선택사항이지만, 범위 검증은 수행
     wizardData.student_contents.forEach((content, index) => {
       if (content.start_range >= content.end_range) {
-        errors.push(
-          `학생 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
-        );
+        errors.push(getContentRangeError(index, "student", "invalid"));
       }
 
       if (content.start_range < 0 || content.end_range < 0) {
-        errors.push(`학생 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
+        errors.push(getContentRangeError(index, "student", "negative"));
       }
     });
 
@@ -299,7 +309,7 @@ export class WizardValidator {
         wizardData.subject_allocations.length > 0;
 
       if (!hasContentAllocations && !hasSubjectAllocations) {
-        errors.push("전략과목/취약과목 정보를 설정해주세요.");
+        errors.push(STEP5_MESSAGES.SUBJECT_ALLOCATION_REQUIRED);
       } else if (hasSubjectAllocations) {
         // subject_allocations가 있을 때만 교과 일치 검증 수행
         // subject_allocations의 모든 교과가 콘텐츠에 포함되어 있는지 검증
@@ -363,9 +373,7 @@ export class WizardValidator {
         });
 
         if (missingSubjects.length > 0) {
-          errors.push(
-            `다음 교과의 콘텐츠를 선택해주세요: ${missingSubjects.join(", ")}`
-          );
+          errors.push(STEP5_MESSAGES.MISSING_SUBJECT_CONTENT(missingSubjects));
         }
       }
 
@@ -380,13 +388,13 @@ export class WizardValidator {
         1;
 
       if (studyDays < 1 || studyDays > 7) {
-        errors.push("학습일 수는 1일 이상 7일 이하여야 합니다.");
+        errors.push(STEP5_MESSAGES.STUDY_DAYS_RANGE);
       }
       if (reviewDays < 1 || reviewDays > 7) {
-        errors.push("복습일 수는 1일 이상 7일 이하여야 합니다.");
+        errors.push(STEP5_MESSAGES.REVIEW_DAYS_RANGE);
       }
       if (studyDays + reviewDays > 7) {
-        errors.push("학습일 수와 복습일 수의 합은 7일 이하여야 합니다.");
+        errors.push(STEP5_MESSAGES.TOTAL_DAYS_EXCEEDED);
       }
     }
 
@@ -463,31 +471,27 @@ export class WizardValidator {
       wizardData.student_contents.length +
       wizardData.recommended_contents.length;
     if (totalContents === 0) {
-      errors.push("최소 1개 이상의 콘텐츠를 선택해주세요.");
+      errors.push(STEP4_MESSAGES.CONTENT_REQUIRED);
     }
 
     // 학습 분량 범위 검증
     wizardData.student_contents.forEach((content, index) => {
       if (content.start_range >= content.end_range) {
-        errors.push(
-          `학생 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
-        );
+        errors.push(getContentRangeError(index, "student", "invalid"));
       }
 
       if (content.start_range < 0 || content.end_range < 0) {
-        errors.push(`학생 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
+        errors.push(getContentRangeError(index, "student", "negative"));
       }
     });
 
     wizardData.recommended_contents.forEach((content, index) => {
       if (content.start_range >= content.end_range) {
-        errors.push(
-          `추천 콘텐츠 ${index + 1}: 시작 범위는 종료 범위보다 작아야 합니다.`
-        );
+        errors.push(getContentRangeError(index, "recommended", "invalid"));
       }
 
       if (content.start_range < 0 || content.end_range < 0) {
-        errors.push(`추천 콘텐츠 ${index + 1}: 범위는 0 이상이어야 합니다.`);
+        errors.push(getContentRangeError(index, "recommended", "negative"));
       }
     });
 
@@ -527,21 +531,25 @@ export class WizardValidator {
       // 예상 소요 일수가 총 학습일 수를 초과하는 경우 경고
       if (estimatedDays > total_study_days && total_study_days > 0) {
         warnings.push(
-          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)를 초과합니다. 학습 분량을 조정하는 것을 권장합니다.`
+          STEP6_MESSAGES.WORKLOAD_TOO_HEAVY(estimatedDays, total_study_days)
         );
       }
-      
+
       // 학습 분량이 과도하게 적은 경우 경고 (예상 소요 일수가 총 학습일 수의 50% 미만)
-      if (estimatedDays > 0 && total_study_days > 0 && estimatedDays < total_study_days * 0.5) {
+      if (
+        estimatedDays > 0 &&
+        total_study_days > 0 &&
+        estimatedDays < total_study_days * 0.5
+      ) {
         warnings.push(
-          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)의 50% 미만입니다. 학습 분량을 늘리는 것을 고려해보세요.`
+          STEP6_MESSAGES.WORKLOAD_TOO_LIGHT(estimatedDays, total_study_days)
         );
       }
-      
+
       // 학습 분량이 과도하게 많은 경우 경고 (예상 소요 일수가 총 학습일 수의 150% 초과)
       if (estimatedDays > total_study_days * 1.5 && total_study_days > 0) {
         warnings.push(
-          `예상 소요 일수(${estimatedDays}일)가 총 학습일 수(${total_study_days}일)의 150%를 초과합니다. 학습 분량이 과도할 수 있습니다.`
+          STEP6_MESSAGES.WORKLOAD_EXCESSIVE(estimatedDays, total_study_days)
         );
       }
     }

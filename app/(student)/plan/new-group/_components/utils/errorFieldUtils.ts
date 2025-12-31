@@ -49,7 +49,67 @@ export function getFieldDataAttribute(fieldId: string): Record<string, string> {
 }
 
 /**
+ * 스크롤 완료 후 요소에 포커스 설정
+ *
+ * IntersectionObserver를 사용하여 스크롤 완료를 정확히 감지합니다.
+ * setTimeout 대비 장점:
+ * - 정확한 스크롤 완료 시점 감지
+ * - 디바이스/브라우저 성능과 무관하게 동작
+ * - 불필요한 지연 제거
+ *
+ * @param element - 포커스할 요소
+ * @param targetElement - 스크롤 타겟 요소 (교차 관찰용)
+ */
+function focusAfterScrollComplete(
+  element: HTMLElement,
+  targetElement: Element
+): void {
+  // IntersectionObserver 지원 확인 (SSR 호환)
+  if (typeof IntersectionObserver === "undefined") {
+    // Fallback: 300ms 후 포커스
+    setTimeout(() => element.focus(), 300);
+    return;
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+      // 요소가 화면에 보이면 (threshold 충족)
+      if (entry.isIntersecting) {
+        // 관찰 중단
+        observer.disconnect();
+        // requestAnimationFrame으로 다음 페인트 후 포커스
+        requestAnimationFrame(() => {
+          element.focus();
+        });
+      }
+    },
+    {
+      // 요소의 50% 이상이 보이면 트리거
+      threshold: 0.5,
+      // 루트를 null로 설정하면 viewport 기준
+      root: null,
+    }
+  );
+
+  observer.observe(targetElement);
+
+  // 안전장치: 1초 후에도 교차하지 않으면 강제 포커스 및 정리
+  setTimeout(() => {
+    observer.disconnect();
+    // 요소가 아직 포커스되지 않았다면 포커스
+    if (document.activeElement !== element) {
+      element.focus();
+    }
+  }, 1000);
+}
+
+/**
  * 첫 번째 에러 필드로 자동 스크롤
+ *
+ * 성능 최적화:
+ * - IntersectionObserver 기반 스크롤 완료 감지
+ * - 300ms 고정 지연 제거
  *
  * @param fieldErrors - 필드 에러 맵
  * @param options - 스크롤 옵션
@@ -77,9 +137,9 @@ export function scrollToFirstErrorField(
         'input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
       if (focusableChild) {
-        setTimeout(() => focusableChild.focus(), 300);
+        focusAfterScrollComplete(focusableChild, element);
       } else if (element.tabIndex !== -1) {
-        setTimeout(() => element.focus(), 300);
+        focusAfterScrollComplete(element, element);
       }
     }
   }

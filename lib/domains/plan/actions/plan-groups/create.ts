@@ -28,13 +28,14 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
-import { mergeTimeSettingsSafely, mergeStudyReviewCycle } from "@/lib/utils/schedulerOptionsMerge";
+import { buildSchedulerOptions, toDbSchedulerOptions } from "@/lib/domains/plan/utils/schedulerOptionsBuilder";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
 import {
-  getHigherPriorityExclusionType,
-} from "@/lib/utils/exclusionHierarchy";
+  deduplicateExclusions,
+  formatExclusionsForDb,
+} from "@/lib/domains/plan/utils/exclusionProcessor";
 import { DAYS_PER_WEEK, MILLISECONDS_PER_DAY } from "@/lib/utils/time";
 
 /**
@@ -302,17 +303,12 @@ async function _createPlanGroup(
   }
 
   // 플랜 그룹 생성
-  // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
-  let mergedSchedulerOptions = mergeTimeSettingsSafely(
-    data.scheduler_options || {},
-    data.time_settings
-  );
-
-  // study_review_cycle을 scheduler_options에 병합
-  mergedSchedulerOptions = mergeStudyReviewCycle(
-    mergedSchedulerOptions,
-    data.study_review_cycle
-  );
+  // scheduler_options 통합 빌드 (time_settings, study_review_cycle 병합)
+  let mergedSchedulerOptions = buildSchedulerOptions({
+    scheduler_options: data.scheduler_options,
+    time_settings: data.time_settings,
+    study_review_cycle: data.study_review_cycle,
+  });
 
   // Dual Write: 슬롯 모드일 때 content_slots에서 subject_allocations 자동 생성
   if (data.use_slot_mode && data.content_slots && data.content_slots.length > 0) {
@@ -487,37 +483,13 @@ async function _createPlanGroup(
   }));
 
   // 제외일 위계 기반 중복 제거 (캠프 모드)
-  let processedExclusions = data.exclusions;
   const isCampMode = data.plan_type === "camp";
-
-  if (isCampMode && data.exclusions && data.exclusions.length > 0) {
-    const exclusionMap = new Map<string, typeof data.exclusions[0]>();
-
-    for (const exclusion of data.exclusions) {
-      const existing = exclusionMap.get(exclusion.exclusion_date);
-
-      if (existing) {
-        const higherType = getHigherPriorityExclusionType(
-          exclusion.exclusion_type,
-          existing.exclusion_type
-        );
-        if (higherType === exclusion.exclusion_type) {
-          exclusionMap.set(exclusion.exclusion_date, exclusion);
-        }
-      } else {
-        exclusionMap.set(exclusion.exclusion_date, exclusion);
-      }
-    }
-
-    processedExclusions = Array.from(exclusionMap.values());
-  }
+  const processedExclusions = deduplicateExclusions(data.exclusions, {
+    applyHierarchy: isCampMode,
+  });
 
   // 제외일 및 학원 일정 데이터 준비
-  const exclusionsData = processedExclusions.map((e) => ({
-    exclusion_date: e.exclusion_date,
-    exclusion_type: e.exclusion_type,
-    reason: e.reason || null,
-  }));
+  const exclusionsData = formatExclusionsForDb(processedExclusions);
 
   const schedulesData = data.academy_schedules.map((s) => ({
     day_of_week: s.day_of_week,
@@ -732,17 +704,12 @@ async function _savePlanGroupDraft(
   }
 
   // 플랜 그룹 생성 (draft 상태)
-  // time_settings를 scheduler_options에 안전하게 병합 (보호 필드 자동 보호)
-  let mergedSchedulerOptions = mergeTimeSettingsSafely(
-    data.scheduler_options || {},
-    data.time_settings
-  );
-
-  // study_review_cycle을 scheduler_options에 병합
-  mergedSchedulerOptions = mergeStudyReviewCycle(
-    mergedSchedulerOptions,
-    data.study_review_cycle
-  );
+  // scheduler_options 통합 빌드 (time_settings, study_review_cycle 병합)
+  const mergedSchedulerOptions = buildSchedulerOptions({
+    scheduler_options: data.scheduler_options,
+    time_settings: data.time_settings,
+    study_review_cycle: data.study_review_cycle,
+  });
 
   const groupResult = await createPlanGroup({
     tenant_id: tenantContext.tenantId,
@@ -819,42 +786,15 @@ async function _savePlanGroupDraft(
   // 제외일은 플랜 그룹별 관리
   // 캠프 모드: 위계 기반 중복 제거
   if (data.exclusions && data.exclusions.length > 0) {
-    let processedExclusions = data.exclusions;
     const isCampMode = data.plan_type === "camp";
-    
-    if (isCampMode) {
-      const exclusionMap = new Map<string, typeof data.exclusions[0]>();
-      
-      for (const exclusion of data.exclusions) {
-        const existing = exclusionMap.get(exclusion.exclusion_date);
-        
-        if (existing) {
-          // 같은 날짜에 이미 제외일이 있으면 위계 비교
-          const higherType = getHigherPriorityExclusionType(
-            exclusion.exclusion_type,
-            existing.exclusion_type
-          );
-          
-          // 더 높은 위계의 제외일로 교체
-          if (higherType === exclusion.exclusion_type) {
-            exclusionMap.set(exclusion.exclusion_date, exclusion);
-          }
-        } else {
-          exclusionMap.set(exclusion.exclusion_date, exclusion);
-        }
-      }
-      
-      processedExclusions = Array.from(exclusionMap.values());
-    }
+    const processedExclusions = deduplicateExclusions(data.exclusions, {
+      applyHierarchy: isCampMode,
+    });
 
     const exclusionsResult = await createPlanExclusions(
       groupId,
       tenantContext.tenantId,
-      processedExclusions.map((e) => ({
-        exclusion_date: e.exclusion_date,
-        exclusion_type: e.exclusion_type,
-        reason: e.reason || null,
-      }))
+      formatExclusionsForDb(processedExclusions)
     );
 
     if (!exclusionsResult.success) {
@@ -1065,17 +1005,12 @@ async function _saveCalendarOnlyPlanGroup(
     );
   }
 
-  // time_settings를 scheduler_options에 안전하게 병합
-  let mergedSchedulerOptions = mergeTimeSettingsSafely(
-    data.scheduler_options || {},
-    data.time_settings
-  );
-
-  // study_review_cycle을 scheduler_options에 병합
-  mergedSchedulerOptions = mergeStudyReviewCycle(
-    mergedSchedulerOptions,
-    data.study_review_cycle
-  );
+  // scheduler_options 통합 빌드 (time_settings, study_review_cycle 병합)
+  const mergedSchedulerOptions = buildSchedulerOptions({
+    scheduler_options: data.scheduler_options,
+    time_settings: data.time_settings,
+    study_review_cycle: data.study_review_cycle,
+  });
 
   // 플랜 그룹 생성 (active 상태, 캘린더 전용)
   const groupResult = await createPlanGroup({

@@ -18,6 +18,7 @@ import {
 } from "@/lib/domains/plan";
 import { usePlanPayloadBuilder } from "./usePlanPayloadBuilder";
 import { validatePeriod } from "../utils/validationUtils";
+import { planDraftLogger } from "../utils/wizardLogger";
 
 /**
  * 초기 데이터 타입 (템플릿 또는 기존 그룹에서 로드된 데이터)
@@ -110,7 +111,7 @@ export function usePlanDraft({
         try {
           creationData = buildPayload();
         } catch (err: unknown) {
-          console.error("Payload Build Error", err);
+          planDraftLogger.error("Payload 빌드 실패", err, { hook: "usePlanDraft" });
           const msg =
             err instanceof PlanGroupError
               ? err.userMessage
@@ -165,7 +166,7 @@ export function usePlanDraft({
           }
         }
       } catch (error) {
-        console.error("[usePlanDraft] 임시 저장 실패:", error);
+        planDraftLogger.error("임시 저장 실패", error, { hook: "usePlanDraft" });
         const planGroupError = toPlanGroupError(
           error,
           PlanGroupErrorCodes.DRAFT_SAVE_FAILED

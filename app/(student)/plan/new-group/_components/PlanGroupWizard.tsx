@@ -34,6 +34,7 @@ import { useStudentContents } from "@/lib/hooks/useStudentContents";
 import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
 import { planGroupsQueryOptions } from "@/lib/query-options/planGroups";
 import { WIZARD_STEPS, STEP_WEIGHTS, isTemplateExcludedStep } from "./constants/wizardConstants";
+import { wizardLogger } from "./utils/wizardLogger";
 
 // WizardData 타입을 스키마에서 import (타입 정의 통합)
 import type { WizardData, TemplateLockedFields } from "@/lib/schemas/planWizardSchema";
@@ -500,7 +501,7 @@ function PlanGroupWizardInner({
           // 저장 성공 시 dirty 상태 리셋
           resetDirtyState();
         } catch (error) {
-          console.error("[PlanGroupWizard] Template save failed:", error);
+          wizardLogger.error("Template save failed", error, { component: "PlanGroupWizard" });
           if (!silent) {
             toast.showError(
               error instanceof Error
@@ -662,7 +663,7 @@ function PlanGroupWizardInner({
         try {
           await updatePlanGroupStatus(draftGroupId, "saved");
         } catch (statusError) {
-          console.warn("[PlanGroupWizard] 상태 업데이트 실패 (무시):", statusError);
+          wizardLogger.warn("상태 업데이트 실패 (무시)", { component: "PlanGroupWizard", data: { error: statusError } });
         }
 
         toast.showSuccess("플랜 생성이 완료되었습니다.");
@@ -670,7 +671,7 @@ function PlanGroupWizardInner({
         // 플랜 그룹 상세 보기 페이지로 이동 (완전한 페이지 리로드)
         window.location.href = `/admin/plan-groups/${draftGroupId}`;
       } catch (error) {
-        console.error("[PlanGroupWizard] 관리자 캠프 완료 처리 실패:", error);
+        wizardLogger.error("관리자 캠프 완료 처리 실패", error, { component: "PlanGroupWizard" });
         const errorMessage = error instanceof Error ? error.message : "완료 처리에 실패했습니다.";
         setErrors([errorMessage]);
         toast.showError(errorMessage);
@@ -689,7 +690,7 @@ function PlanGroupWizardInner({
       }
     } catch (error) {
       // 플랜 확인 실패는 경고만 표시하고 계속 진행
-      console.warn("[PlanGroupWizard] 플랜 확인 실패:", error);
+      wizardLogger.warn("플랜 확인 실패", { component: "PlanGroupWizard", data: { error } });
     }
 
     // 완료 버튼 클릭 시 활성화 다이얼로그 표시를 위해 다른 활성 플랜 그룹 확인
@@ -708,7 +709,7 @@ function PlanGroupWizardInner({
         error,
         PlanGroupErrorCodes.UNKNOWN_ERROR
       );
-      console.warn("[PlanGroupWizard] 플랜 그룹 활성 그룹 확인 실패:", planGroupError);
+      wizardLogger.warn("플랜 그룹 활성 그룹 확인 실패", { component: "PlanGroupWizard", data: { error: planGroupError } });
     }
 
     // 완료 버튼을 눌렀을 때만 활성화 및 리다이렉트
@@ -723,7 +724,7 @@ function PlanGroupWizardInner({
           await updatePlanGroupStatus(draftGroupId, "saved");
         } catch (savedError) {
           // saved 상태 변경 실패는 무시 (이미 saved 상태일 수 있음)
-          console.warn("플랜 그룹 saved 상태 변경 실패 (무시):", savedError);
+          wizardLogger.warn("플랜 그룹 saved 상태 변경 실패 (무시)", { component: "PlanGroupWizard", data: { error: savedError } });
         }
         // saved 상태에서 active로 전이
         await updatePlanGroupStatus(draftGroupId, "active");
@@ -737,7 +738,7 @@ function PlanGroupWizardInner({
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       } catch (statusError) {
         // 활성화 실패 시에도 리다이렉트 (경고만)
-        console.warn("플랜 그룹 활성화 실패:", statusError);
+        wizardLogger.warn("플랜 그룹 활성화 실패", { component: "PlanGroupWizard", data: { error: statusError } });
         router.refresh(); // 캐시 갱신
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       }
