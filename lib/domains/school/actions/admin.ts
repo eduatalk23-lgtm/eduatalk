@@ -209,6 +209,7 @@ export async function searchSchoolsAction(
 // ============================================
 
 import { AppError, ErrorCode } from "@/lib/errors";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
 
 /**
@@ -216,8 +217,9 @@ import { withActionResponse } from "@/lib/utils/serverActionHandler";
  * 학교 생성은 더 이상 지원되지 않습니다.
  */
 async function _createSchool(formData: FormData): Promise<void> {
-  console.warn(
-    "[actions/schoolActions] createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+  logActionWarn(
+    { domain: "school", action: "createSchool" },
+    "createSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
   );
   throw new AppError(
     "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다. 학교 추가가 필요하면 관리자에게 문의하세요.",
@@ -234,8 +236,9 @@ export const createSchool = withActionResponse(_createSchool);
  * 학교 수정은 더 이상 지원되지 않습니다.
  */
 async function _updateSchool(formData: FormData): Promise<void> {
-  console.warn(
-    "[actions/schoolActions] updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+  logActionWarn(
+    { domain: "school", action: "updateSchool" },
+    "updateSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
   );
   throw new AppError(
     "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",
@@ -252,8 +255,10 @@ export const updateSchool = withActionResponse(_updateSchool);
  * 학교 삭제는 더 이상 지원되지 않습니다.
  */
 async function _deleteSchool(schoolId: string): Promise<void> {
-  console.warn(
-    "[actions/schoolActions] deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다."
+  logActionWarn(
+    { domain: "school", action: "deleteSchool" },
+    "deleteSchool은 더 이상 지원되지 않습니다. 새 테이블은 읽기 전용입니다.",
+    { schoolId }
   );
   throw new AppError(
     "학교 데이터는 외부 데이터(나이스 등) 기반으로 읽기 전용입니다.",

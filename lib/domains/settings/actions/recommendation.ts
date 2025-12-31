@@ -9,6 +9,7 @@ import {
 } from "@/lib/recommendations/config/configManager";
 import type { RangeRecommendationConfig } from "@/lib/recommendations/config/types";
 import { revalidatePath } from "next/cache";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 범위 추천 설정 조회
@@ -26,8 +27,9 @@ export async function getRangeRecommendationSettingsAction(): Promise<{
     };
   }
 
+  const tenantContext = await getTenantContext();
+
   try {
-    const tenantContext = await getTenantContext();
     const config = await getRangeRecommendationConfig(tenantContext?.tenantId || null);
 
     return {
@@ -35,7 +37,11 @@ export async function getRangeRecommendationSettingsAction(): Promise<{
       config,
     };
   } catch (error) {
-    console.error("[recommendationSettings] 설정 조회 실패:", error);
+    logActionError(
+      { domain: "settings", action: "getRangeRecommendationSettingsAction" },
+      error,
+      { tenantId: tenantContext?.tenantId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "설정 조회에 실패했습니다.",
@@ -57,8 +63,9 @@ export async function updateRangeRecommendationSettingsAction(
     };
   }
 
+  const tenantContext = await getTenantContext();
+
   try {
-    const tenantContext = await getTenantContext();
     const result = await updateRangeRecommendationConfig(
       config,
       tenantContext?.tenantId || null
@@ -70,7 +77,11 @@ export async function updateRangeRecommendationSettingsAction(
 
     return result;
   } catch (error) {
-    console.error("[recommendationSettings] 설정 업데이트 실패:", error);
+    logActionError(
+      { domain: "settings", action: "updateRangeRecommendationSettingsAction" },
+      error,
+      { tenantId: tenantContext?.tenantId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "설정 업데이트에 실패했습니다.",
@@ -93,8 +104,9 @@ export async function resetRangeRecommendationSettingsAction(): Promise<{
     };
   }
 
+  const tenantContext = await getTenantContext();
+
   try {
-    const tenantContext = await getTenantContext();
     const result = await resetRangeRecommendationConfig(
       tenantContext?.tenantId || null
     );
@@ -105,7 +117,11 @@ export async function resetRangeRecommendationSettingsAction(): Promise<{
 
     return result;
   } catch (error) {
-    console.error("[recommendationSettings] 설정 재설정 실패:", error);
+    logActionError(
+      { domain: "settings", action: "resetRangeRecommendationSettingsAction" },
+      error,
+      { tenantId: tenantContext?.tenantId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "설정 재설정에 실패했습니다.",

@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getServiceContext } from "./core";
+import { logActionDebug, logActionError } from "@/lib/logging/actionLogger";
 import type {
   Timezone,
   TimezoneWithContents,
@@ -257,7 +258,11 @@ export async function getTimezoneCalendarData(
     const ctx = await getServiceContext();
     const supabase = await createSupabaseServerClient();
 
-    console.log("[getTimezoneCalendarData] timezoneId:", timezoneId, "studentId:", ctx.studentId);
+    logActionDebug(
+      { domain: "plan", action: "getTimezoneCalendarData" },
+      "Fetching timezone calendar data",
+      { timezoneId, studentId: ctx.studentId }
+    );
 
     // 타임존 + 콘텐츠 + 플랜 조회
     const { data: timezoneData, error: tzError } = await supabase
@@ -296,10 +301,18 @@ export async function getTimezoneCalendarData(
       .single();
 
     if (tzError) {
-      console.log("[getTimezoneCalendarData] tzError:", tzError);
+      logActionError(
+        { domain: "plan", action: "getTimezoneCalendarData" },
+        tzError,
+        { timezoneId }
+      );
       throw tzError;
     }
-    console.log("[getTimezoneCalendarData] timezoneData:", timezoneData?.id);
+    logActionDebug(
+      { domain: "plan", action: "getTimezoneCalendarData" },
+      "Timezone data fetched successfully",
+      { timezoneId: timezoneData?.id }
+    );
 
     // 플랜 조회
     const { data: plansData, error: planError } = await supabase
@@ -374,7 +387,11 @@ export async function getTimezoneCalendarData(
       },
     };
   } catch (error) {
-    console.log("[getTimezoneCalendarData] catch error:", error);
+    logActionError(
+      { domain: "plan", action: "getTimezoneCalendarData" },
+      error,
+      { timezoneId }
+    );
     return {
       success: false,
       error:

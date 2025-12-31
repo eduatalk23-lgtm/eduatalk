@@ -6,6 +6,7 @@ import { canAccessStudent } from "../utils";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { StudentAttendanceNotificationSettings } from "../types";
 
 /**
@@ -39,7 +40,11 @@ async function _getStudentAttendanceNotificationSettings(
     .maybeSingle();
 
   if (error) {
-    console.error("[parentSettings] 출석 알림 설정 조회 실패:", error);
+    logActionError(
+      { domain: "parent", action: "getStudentAttendanceNotificationSettings" },
+      error,
+      { studentId }
+    );
     throw new AppError(
       "설정 조회에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -105,7 +110,11 @@ async function _updateStudentAttendanceNotificationSettings(
       .eq("student_id", studentId);
 
     if (error) {
-      console.error("[parentSettings] 출석 알림 설정 업데이트 실패:", error);
+      logActionError(
+        { domain: "parent", action: "updateStudentAttendanceNotificationSettings" },
+        error,
+        { studentId, operation: "update" }
+      );
       throw new AppError(
         "설정 저장에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
@@ -137,7 +146,11 @@ async function _updateStudentAttendanceNotificationSettings(
       });
 
     if (error) {
-      console.error("[parentSettings] 출석 알림 설정 생성 실패:", error);
+      logActionError(
+        { domain: "parent", action: "updateStudentAttendanceNotificationSettings" },
+        error,
+        { studentId, operation: "insert" }
+      );
       throw new AppError(
         "설정 저장에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,

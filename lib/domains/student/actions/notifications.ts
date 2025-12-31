@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type NotificationSettings = {
   plan_start_enabled: boolean;
@@ -51,7 +52,11 @@ export async function updateNotificationSettings(
         .eq("student_id", user.id);
 
       if (error) {
-        console.error("[notifications] 업데이트 실패:", error);
+        logActionError(
+          { domain: "student", action: "updateNotificationSettings", userId: user.id },
+          error,
+          { operation: "update" }
+        );
         return { success: false, error: "설정 저장에 실패했습니다." };
       }
     } else {
@@ -64,14 +69,21 @@ export async function updateNotificationSettings(
         });
 
       if (error) {
-        console.error("[notifications] 생성 실패:", error);
+        logActionError(
+          { domain: "student", action: "updateNotificationSettings", userId: user.id },
+          error,
+          { operation: "insert" }
+        );
         return { success: false, error: "설정 저장에 실패했습니다." };
       }
     }
 
     return { success: true };
   } catch (error: unknown) {
-    console.error("[notifications] 오류:", error);
+    logActionError(
+      { domain: "student", action: "updateNotificationSettings" },
+      error
+    );
     return {
       success: false,
       error:

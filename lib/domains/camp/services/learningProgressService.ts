@@ -4,6 +4,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { getCampTemplate, getCampInvitationsForTemplate } from "@/lib/data/campTemplates";
 import {
   buildPlanStudyTimeMap,
@@ -53,10 +54,11 @@ async function fetchCampPlanGroups(
     .is("deleted_at", null);
 
   if (error) {
-    console.error("[learningProgressService] 플랜 그룹 조회 실패", {
-      templateId,
-      error: error.message,
-    });
+    logActionError(
+      { domain: "camp", action: "fetchCampPlanGroups" },
+      error,
+      { templateId }
+    );
     return [];
   }
 
@@ -81,11 +83,11 @@ async function fetchStudentCampPlanGroup(
     .maybeSingle();
 
   if (error) {
-    console.error("[learningProgressService] 학생 플랜 그룹 조회 실패", {
-      templateId,
-      studentId,
-      error: error.message,
-    });
+    logActionError(
+      { domain: "camp", action: "fetchStudentCampPlanGroup" },
+      error,
+      { templateId, studentId }
+    );
     return null;
   }
 
@@ -111,9 +113,11 @@ async function fetchPlans(
     .lte("plan_date", endDate);
 
   if (error) {
-    console.error("[learningProgressService] 플랜 조회 실패", {
-      error: error.message,
-    });
+    logActionError(
+      { domain: "camp", action: "fetchPlans" },
+      error,
+      { planGroupIds, startDate, endDate }
+    );
     return [];
   }
 
@@ -133,9 +137,11 @@ async function fetchStudySessions(planIds: string[]): Promise<StudySession[]> {
     .in("plan_id", planIds);
 
   if (error) {
-    console.error("[learningProgressService] 학습 세션 조회 실패", {
-      error: error.message,
-    });
+    logActionError(
+      { domain: "camp", action: "fetchStudySessions" },
+      error,
+      { planIds }
+    );
     return [];
   }
 

@@ -5,6 +5,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { LinkedStudent } from "./types";
 
 type SupabaseServerClient = Awaited<
@@ -57,7 +58,11 @@ export async function getLinkedStudents(
     }
 
     if (error) {
-      console.error("[parent] 연결된 학생 조회 실패", error);
+      logActionError(
+        { domain: "parent", action: "getLinkedStudents" },
+        error,
+        { parentId }
+      );
       return [];
     }
 
@@ -77,7 +82,11 @@ export async function getLinkedStudents(
       })
       .filter((s): s is LinkedStudent => s !== null);
   } catch (error) {
-    console.error("[parent] 연결된 학생 조회 실패", error);
+    logActionError(
+      { domain: "parent", action: "getLinkedStudents" },
+      error,
+      { parentId }
+    );
     return [];
   }
 }
@@ -107,13 +116,21 @@ export async function canAccessStudent(
     }
 
     if (error && error.code !== "PGRST116") {
-      console.error("[parent] 학생 접근 권한 확인 실패", error);
+      logActionError(
+        { domain: "parent", action: "canAccessStudent" },
+        error,
+        { parentId, studentId }
+      );
       return false;
     }
 
     return link !== null;
   } catch (error) {
-    console.error("[parent] 학생 접근 권한 확인 실패", error);
+    logActionError(
+      { domain: "parent", action: "canAccessStudent" },
+      error,
+      { parentId, studentId }
+    );
     return false;
   }
 }

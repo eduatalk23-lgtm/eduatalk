@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { endStudySession } from "@/lib/domains/student";
 import { revalidateTimerPaths } from "@/lib/utils/revalidatePathOptimized";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { logActionWarn } from "@/lib/logging/actionLogger";
 import type { ActionResult } from "../types";
 
 /**
@@ -88,9 +89,10 @@ export async function resetPlanTimer(
 
     if (deleteSessionsError) {
       // 세션 삭제 실패는 치명적이지 않으므로 경고만 로그하고 계속 진행
-      console.warn(
-        "[today/reset] 세션 삭제 실패:",
-        deleteSessionsError.message
+      logActionWarn(
+        { domain: "today", action: "resetPlanTimer" },
+        "세션 삭제 실패",
+        { error: deleteSessionsError.message, planIds }
       );
     }
 
@@ -129,9 +131,10 @@ export async function resetPlanTimer(
 
     if (deleteProgressError) {
       // 진행률 삭제 실패는 치명적이지 않으므로 경고만 로그하고 계속 진행
-      console.warn(
-        "[today/reset] 진행률 삭제 실패:",
-        deleteProgressError.message
+      logActionWarn(
+        { domain: "today", action: "resetPlanTimer" },
+        "진행률 삭제 실패",
+        { error: deleteProgressError.message, planIds }
       );
     }
 

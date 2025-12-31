@@ -11,6 +11,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import {
+  logActionError,
+  logActionWarn,
+} from "@/lib/logging/actionLogger";
 
 export async function getStudentContentMasterIdsAction(
   contents: Array<{
@@ -54,7 +58,10 @@ export async function getStudentContentMasterIdsAction(
     if (isAdminOrConsultant && studentIdParam) {
       const adminClient = createSupabaseAdminClient();
       if (!adminClient) {
-        console.warn("[getStudentContentMasterIds] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
+        logActionWarn(
+          { domain: "content", action: "getStudentContentMasterIdsAction" },
+          "Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"
+        );
         supabase = await createSupabaseServerClient();
       } else {
         supabase = adminClient;
@@ -81,7 +88,11 @@ export async function getStudentContentMasterIdsAction(
         .eq("student_id", studentId);
 
       if (booksError) {
-        console.error("[getStudentContentMasterIds] 교재 조회 실패:", booksError);
+        logActionError(
+          { domain: "content", action: "getStudentContentMasterIdsAction" },
+          booksError,
+          { studentId, bookIds }
+        );
       } else {
         (studentBooks || []).forEach((book) => {
           masterIdMap.set(book.id, book.master_content_id || null);
@@ -99,7 +110,11 @@ export async function getStudentContentMasterIdsAction(
         .eq("student_id", studentId);
 
       if (lecturesError) {
-        console.error("[getStudentContentMasterIds] 강의 조회 실패:", lecturesError);
+        logActionError(
+          { domain: "content", action: "getStudentContentMasterIdsAction" },
+          lecturesError,
+          { studentId, lectureIds }
+        );
       } else {
         (studentLectures || []).forEach((lecture) => {
           masterIdMap.set(lecture.id, lecture.master_content_id || null);
@@ -119,7 +134,10 @@ export async function getStudentContentMasterIdsAction(
       data: masterIdMap,
     };
   } catch (error) {
-    console.error("[getStudentContentMasterIds] 에러:", error);
+    logActionError(
+      { domain: "content", action: "getStudentContentMasterIdsAction" },
+      error
+    );
     return {
       success: false,
       error:

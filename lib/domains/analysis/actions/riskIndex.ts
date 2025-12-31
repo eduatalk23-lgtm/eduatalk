@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { calculateAllRiskIndices, saveRiskAnalysis } from "../utils";
 import type { SubjectRiskAnalysis } from "../types";
 
@@ -44,7 +45,11 @@ export async function recalculateRiskIndex(): Promise<{
     revalidatePath("/analysis");
     return { success: true, analyses };
   } catch (error) {
-    console.error("[analysis] Risk Index 계산 실패", error);
+    logActionError(
+      { domain: "analysis", action: "recalculateRiskIndex", userId: user.id, tenantId: student.tenant_id },
+      error,
+      { message: "Risk Index 계산 실패" }
+    );
     return {
       success: false,
       error:

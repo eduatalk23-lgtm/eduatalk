@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import { pausePlan } from "./timer";
 import type { PlanRange, ActionResult } from "../types";
 
@@ -74,7 +75,11 @@ export async function adjustPlanRanges(
     revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
-    console.error("[planRangeActions] 범위 조정 실패", error);
+    logActionError(
+      { domain: "today", action: "adjustPlanRanges" },
+      error,
+      { planIds, rangeCount: ranges.length }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "범위 조정에 실패했습니다.",

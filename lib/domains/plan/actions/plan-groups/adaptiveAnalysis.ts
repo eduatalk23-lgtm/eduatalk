@@ -16,6 +16,7 @@ import {
   type AdaptiveScheduleAnalysis,
   type WeakSubjectReinforcementPlan,
 } from "@/lib/domains/plan/services/adaptiveScheduler";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 학생의 적응형 스케줄 분석 결과
@@ -46,7 +47,11 @@ export async function getAdaptiveScheduleAnalysis(
       data: analysis,
     };
   } catch (error) {
-    console.error("[getAdaptiveScheduleAnalysis] 분석 실패:", error);
+    logActionError(
+      { domain: "plan", action: "getAdaptiveScheduleAnalysis" },
+      error,
+      { studentId, daysBack }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "분석에 실패했습니다.",
@@ -72,7 +77,11 @@ export async function getGroupScheduleAnalysis(
       data: analysis,
     };
   } catch (error) {
-    console.error("[getGroupScheduleAnalysis] 분석 실패:", error);
+    logActionError(
+      { domain: "plan", action: "getGroupScheduleAnalysis" },
+      error,
+      { planGroupId }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "분석에 실패했습니다.",
@@ -116,7 +125,11 @@ export async function getWeakSubjectReinforcement(
       data: plan,
     };
   } catch (error) {
-    console.error("[getWeakSubjectReinforcement] 강화 스케줄 생성 실패:", error);
+    logActionError(
+      { domain: "plan", action: "getWeakSubjectReinforcement" },
+      error,
+      { studentId, daysBack, targetCompletionRate }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : "강화 스케줄 생성에 실패했습니다.",

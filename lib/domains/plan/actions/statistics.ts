@@ -9,6 +9,7 @@
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // Types
@@ -113,7 +114,7 @@ export async function getLearningStatistics(
 
     return { success: true, data: stats };
   } catch (error) {
-    console.error("[getLearningStatistics] 예외:", error);
+    logActionError({ domain: "plan", action: "getLearningStatistics" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "통계를 불러오는 데 실패했습니다.",
@@ -529,7 +530,7 @@ export async function getSubjectDetailStats(
       },
     };
   } catch (error) {
-    console.error("[getSubjectDetailStats] 예외:", error);
+    logActionError({ domain: "plan", action: "getSubjectDetailStats" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "통계를 불러오는 데 실패했습니다.",
@@ -656,7 +657,7 @@ export async function getGoalProgress(): Promise<{
       },
     };
   } catch (error) {
-    console.error("[getGoalProgress] 예외:", error);
+    logActionError({ domain: "plan", action: "getGoalProgress" }, error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "진행률을 불러오는 데 실패했습니다.",

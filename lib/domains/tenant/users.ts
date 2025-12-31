@@ -6,6 +6,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { updateUserTenant } from "@/lib/utils/tenantAssignment";
 import { getAuthUserMetadata } from "@/lib/utils/authUserMetadata";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type TenantUser = {
   id: string;
@@ -56,14 +57,22 @@ export async function getTenantUsersAction(
   const { data: students, error: studentsError } = await studentsQuery;
 
   if (studentsError) {
-    console.error("[tenantUsers] 학생 목록 조회 실패:", studentsError);
+    logActionError(
+      { domain: "tenant", action: "getTenantUsersAction" },
+      studentsError,
+      { context: "학생 목록 조회 실패" }
+    );
   }
 
   // 학부모 목록 조회
   const { data: parents, error: parentsError } = await parentsQuery;
 
   if (parentsError) {
-    console.error("[tenantUsers] 학부모 목록 조회 실패:", parentsError);
+    logActionError(
+      { domain: "tenant", action: "getTenantUsersAction" },
+      parentsError,
+      { context: "학부모 목록 조회 실패" }
+    );
   }
 
   // 사용자 기본 정보 조회 (이메일, 이름)
@@ -140,7 +149,11 @@ export async function assignUserToTenantAction(
 
     return result;
   } catch (error) {
-    console.error("[tenantUsers] 사용자 기관 할당 중 오류:", error);
+    logActionError(
+      { domain: "tenant", action: "assignUserToTenantAction" },
+      error,
+      { userId, tenantId, userType }
+    );
     return {
       success: false,
       error:

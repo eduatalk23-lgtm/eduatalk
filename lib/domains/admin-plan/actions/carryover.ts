@@ -3,6 +3,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { createTransactionContext } from '@/lib/supabase/transaction';
+import { logActionError } from '@/lib/logging/actionLogger';
 import { logPlanCarryover, generateCorrelationId } from './planEvent';
 import type { AdminPlanResponse } from '../types';
 
@@ -133,12 +134,16 @@ export async function runCarryoverForStudent(
 
     if (!txResult.success) {
       // 부분 실패 시 롤백 정보와 함께 에러 반환
-      console.error('Carryover transaction failed:', {
-        error: txResult.error,
-        completedCount: txResult.completedCount,
-        totalCount: txResult.totalCount,
-        rollbackIds: txResult.rollbackIds,
-      });
+      logActionError(
+        { domain: 'admin-plan', action: 'runCarryoverForStudent', tenantId: input.tenantId },
+        txResult.error,
+        {
+          studentId: input.studentId,
+          completedCount: txResult.completedCount,
+          totalCount: txResult.totalCount,
+          rollbackIds: txResult.rollbackIds,
+        }
+      );
 
       return {
         success: false,
@@ -173,7 +178,11 @@ export async function runCarryoverForStudent(
       },
     };
   } catch (error) {
-    console.error('Failed to run carryover:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'runCarryoverForStudent', tenantId: input.tenantId },
+      error,
+      { studentId: input.studentId, cutoffDate: input.cutoffDate }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -249,7 +258,11 @@ export async function runBulkCarryover(
       },
     };
   } catch (error) {
-    console.error('Failed to run bulk carryover:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'runBulkCarryover', tenantId: input.tenantId },
+      error,
+      { studentIds: input.studentIds, cutoffDate: input.cutoffDate }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -338,7 +351,11 @@ export async function getCarryoverPreview(
       },
     };
   } catch (error) {
-    console.error('Failed to get carryover preview:', error);
+    logActionError(
+      { domain: 'admin-plan', action: 'getCarryoverPreview', tenantId: input.tenantId },
+      error,
+      { studentId: input.studentId, cutoffDate: input.cutoffDate }
+    );
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

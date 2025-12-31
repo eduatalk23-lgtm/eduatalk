@@ -1,6 +1,7 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { PlanOrderUpdate, ActionResult } from "../types";
 
 export async function updatePlanOrder(
@@ -32,7 +33,11 @@ export async function updatePlanOrder(
     // 에러 확인
     for (const result of results) {
       if (result.error) {
-        console.error("[planOrder] 업데이트 실패:", result.error);
+        logActionError(
+          { domain: "today", action: "updatePlanOrder" },
+          result.error,
+          { planDate, updateCount: updates.length }
+        );
         return {
           success: false,
           error: "플랜 순서 업데이트에 실패했습니다.",
@@ -42,7 +47,11 @@ export async function updatePlanOrder(
 
     return { success: true };
   } catch (error: unknown) {
-    console.error("[planOrder] 오류:", error);
+    logActionError(
+      { domain: "today", action: "updatePlanOrder" },
+      error,
+      { planDate, updateCount: updates.length }
+    );
     return {
       success: false,
       error:

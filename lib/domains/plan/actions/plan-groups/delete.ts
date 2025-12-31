@@ -8,6 +8,7 @@ import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { PlanStatusManager } from "@/lib/plan/statusManager";
 import { getSchedulerOptionsWithTimeSettings } from "@/lib/utils/schedulerOptions";
 import type { PlanStatus } from "@/lib/types/plan";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 플랜 그룹 삭제
@@ -150,7 +151,11 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
     */
 
   } catch (backupError) {
-    console.error("[planGroupActions] 백업 정보 수집 실패", backupError);
+    logActionError(
+      { domain: "plan", action: "deletePlanGroup" },
+      backupError,
+      { groupId, step: "backupCollection" }
+    );
     // 백업 실패해도 삭제는 진행
   }
 
@@ -177,7 +182,11 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
     .eq("student_id", user.userId);
 
   if (deletePlansError) {
-    console.error("[planGroupActions] 플랜 삭제 실패", deletePlansError);
+    logActionError(
+      { domain: "plan", action: "deletePlanGroup" },
+      deletePlansError,
+      { groupId, step: "deletePlans" }
+    );
     // 플랜 삭제 실패해도 플랜 그룹 삭제는 완료됨 (경고만)
   }
 

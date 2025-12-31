@@ -9,6 +9,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureAdminClient } from "@/lib/supabase/clientSelector";
 import type { Json } from "@/lib/supabase/database.types";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 /**
  * 플랜 그룹 생성 데이터 타입
@@ -153,7 +154,11 @@ export async function createPlanGroupAtomic(
   });
 
   if (error) {
-    console.error("[createPlanGroupAtomic] RPC 호출 실패:", error);
+    logActionError(
+      { domain: "plan", action: "createPlanGroupAtomic" },
+      error,
+      { tenantId: groupData.tenant_id, studentId: groupData.student_id }
+    );
     return {
       success: false,
       error: error.message,
@@ -170,7 +175,15 @@ export async function createPlanGroupAtomic(
   };
 
   if (!result.success) {
-    console.error("[createPlanGroupAtomic] 트랜잭션 실패:", result);
+    logActionError(
+      { domain: "plan", action: "createPlanGroupAtomic" },
+      new Error(result.error || "트랜잭션 실패"),
+      {
+        tenantId: groupData.tenant_id,
+        studentId: groupData.student_id,
+        errorCode: result.error_code,
+      }
+    );
     return {
       success: false,
       error: result.error || "알 수 없는 오류가 발생했습니다.",
@@ -268,7 +281,11 @@ export async function generatePlansAtomic(
   });
 
   if (error) {
-    console.error("[generatePlansAtomic] RPC 호출 실패:", error);
+    logActionError(
+      { domain: "plan", action: "generatePlansAtomic" },
+      error,
+      { groupId, plansCount: plans.length }
+    );
     return {
       success: false,
       error: error.message,
@@ -286,7 +303,11 @@ export async function generatePlansAtomic(
   };
 
   if (!result.success) {
-    console.error("[generatePlansAtomic] 트랜잭션 실패:", result);
+    logActionError(
+      { domain: "plan", action: "generatePlansAtomic" },
+      new Error(result.error || "트랜잭션 실패"),
+      { groupId, plansCount: plans.length, errorCode: result.error_code }
+    );
     return {
       success: false,
       error: result.error || "알 수 없는 오류가 발생했습니다.",

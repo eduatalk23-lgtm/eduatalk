@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { AppError, ErrorCode } from "@/lib/errors";
 import { withActionResponse } from "@/lib/utils/serverActionHandler";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { CurriculumSettingsData } from "../types";
 
 /**
@@ -35,7 +36,11 @@ async function _getCurriculumSettings(): Promise<CurriculumSettingsData> {
     ]);
 
   if (error) {
-    console.error("[curriculum-settings] 설정 조회 실패", error);
+    logActionError(
+      { domain: "superadmin", action: "getCurriculumSettings" },
+      error,
+      { message: "설정 조회 실패" }
+    );
     throw new AppError(
       error.message || "설정 조회에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
@@ -163,7 +168,11 @@ async function _updateCurriculumSettings(formData: FormData): Promise<void> {
     );
 
     if (error) {
-      console.error(`[curriculum-settings] ${update.key} 업데이트 실패`, error);
+      logActionError(
+        { domain: "superadmin", action: "updateCurriculumSettings" },
+        error,
+        { message: `${update.key} 업데이트 실패`, settingKey: update.key }
+      );
       throw new AppError(
         error.message || "설정 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,

@@ -13,6 +13,7 @@ import {
   getStudentById,
   type Student,
 } from "@/lib/data/students";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import {
   upsertStudentProfile,
   getStudentProfileById,
@@ -57,8 +58,11 @@ export async function saveStudentInfo(formData: FormData): Promise<void> {
       data: { display_name: name },
     });
     if (updateError) {
-      console.error("이름 업데이트 실패:", updateError);
-      // 이름 업데이트 실패는 치명적이지 않으므로 계속 진행
+      logActionWarn(
+        { domain: "student", action: "saveStudentInfo" },
+        "이름 업데이트 실패 (계속 진행)",
+        { error: updateError.message }
+      );
     }
   }
 
@@ -158,11 +162,11 @@ export async function updateStudentProfile(
     }
 
     if (!existingStudent) {
-      console.error("[studentActions] 학생 정보 생성 후 조회 실패", {
-        userId: user.id,
-        retryCount,
-        createResult,
-      });
+      logActionError(
+        { domain: "student", action: "updateStudentProfile", userId: user.id },
+        new Error("학생 정보 생성 후 조회 실패"),
+        { retryCount, createResult }
+      );
       return {
         success: false,
         error:
@@ -178,8 +182,11 @@ export async function updateStudentProfile(
       data: { display_name: name },
     });
     if (updateError) {
-      console.error("이름 업데이트 실패:", updateError);
-      // 이름 업데이트 실패는 치명적이지 않으므로 계속 진행
+      logActionWarn(
+        { domain: "student", action: "updateStudentProfile", userId: user.id },
+        "이름 업데이트 실패 (계속 진행)",
+        { error: updateError.message }
+      );
     }
   }
 

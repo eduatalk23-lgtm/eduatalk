@@ -1,6 +1,7 @@
 'use server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { logActionError } from '@/lib/logging/actionLogger';
 import type {
   PlanEvent,
   PlanEventInsert,
@@ -35,13 +36,13 @@ export async function createPlanEvent(
       .single();
 
     if (error) {
-      console.error('Failed to create plan event:', error);
+      logActionError({ domain: 'admin-plan', action: 'createPlanEvent' }, error, { input });
       return { success: false, error: error.message };
     }
 
     return { success: true, data: data as PlanEvent };
   } catch (error) {
-    console.error('Failed to create plan event:', error);
+    logActionError({ domain: 'admin-plan', action: 'createPlanEvent' }, error, { input });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -81,13 +82,13 @@ export async function createPlanEvents(
       .select();
 
     if (error) {
-      console.error('Failed to create plan events:', error);
+      logActionError({ domain: 'admin-plan', action: 'createPlanEvents' }, error, { eventCount: events.length, correlationId });
       return { success: false, error: error.message };
     }
 
     return { success: true, data: data as PlanEvent[] };
   } catch (error) {
-    console.error('Failed to create plan events:', error);
+    logActionError({ domain: 'admin-plan', action: 'createPlanEvents' }, error, { eventCount: events.length, correlationId });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

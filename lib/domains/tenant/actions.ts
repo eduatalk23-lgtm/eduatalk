@@ -7,6 +7,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { ActionResponse } from "@/lib/types/actionResponse";
 import { createSuccessResponse, createErrorResponse } from "@/lib/types/actionResponse";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 export type TenantOption = {
   id: string;
@@ -23,7 +24,10 @@ export async function getTenantOptionsForSignup(): Promise<ActionResponse<Tenant
   const adminClient = createSupabaseAdminClient();
 
   if (!adminClient) {
-    console.error("[tenant/actions] Admin 클라이언트 생성 실패: SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
+    logActionError(
+      { domain: "tenant", action: "getTenantOptionsForSignup" },
+      new Error("Admin 클라이언트 생성 실패: SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.")
+    );
     return createErrorResponse("서버 설정 오류입니다. 관리자에게 문의하세요.");
   }
 
@@ -55,7 +59,11 @@ export async function getTenantOptionsForSignup(): Promise<ActionResponse<Tenant
   const { data, error } = await query;
 
   if (error) {
-    console.error("[tenant/actions] 기관 목록 조회 실패:", error);
+    logActionError(
+      { domain: "tenant", action: "getTenantOptionsForSignup" },
+      error,
+      { context: "기관 목록 조회 실패" }
+    );
     return createErrorResponse("기관 목록을 불러오는데 실패했습니다.");
   }
 

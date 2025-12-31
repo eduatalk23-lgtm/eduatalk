@@ -3,6 +3,7 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/logging/actionLogger";
 import type { TimeEvent } from "../types";
 
 /**
@@ -31,7 +32,7 @@ export async function getTimeEventsByPlanNumber(
       .eq("student_id", user.userId);
 
     if (plansError) {
-      console.error("[sessionTimeActions] 플랜 조회 실패:", plansError);
+      logActionError({ domain: "today", action: "getTimeEventsByPlanNumber" }, plansError, { planNumber, planDate });
       return { success: false, error: plansError.message };
     }
 
@@ -50,7 +51,7 @@ export async function getTimeEventsByPlanNumber(
       .order("started_at", { ascending: false });
 
     if (sessionsError) {
-      console.error("[sessionTimeActions] 세션 조회 실패:", sessionsError);
+      logActionError({ domain: "today", action: "getTimeEventsByPlanNumber" }, sessionsError, { planNumber, planDate, context: "세션 조회" });
       // 세션 조회 실패해도 플랜 데이터로 시간 정보는 표시 가능
     }
 
@@ -142,7 +143,7 @@ export async function getTimeEventsByPlanNumber(
 
     return { success: true, events };
   } catch (error) {
-    console.error("[sessionTimeActions] 시간 이벤트 조회 실패:", error);
+    logActionError({ domain: "today", action: "getTimeEventsByPlanNumber" }, error, { planNumber, planDate });
     return {
       success: false,
       error: error instanceof Error ? error.message : "시간 이벤트 조회에 실패했습니다.",

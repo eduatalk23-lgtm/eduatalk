@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { logActionError } from '@/lib/logging/actionLogger';
 import type { ContainerType, AdHocPlan } from '@/lib/domains/admin-plan/types';
 
 // ============================================
@@ -127,7 +128,7 @@ export async function getTodayContainerPlans(
       .order('sequence', { ascending: true });
 
     if (plansError) {
-      console.error('Failed to fetch container plans:', plansError);
+      logActionError({ domain: 'today', action: 'getTodayContainerPlans' }, plansError, { targetDate: today });
       return { success: false, error: plansError.message };
     }
 
@@ -140,7 +141,7 @@ export async function getTodayContainerPlans(
       .order('created_at', { ascending: true });
 
     if (adHocError) {
-      console.error('Failed to fetch ad-hoc plans:', adHocError);
+      logActionError({ domain: 'today', action: 'getTodayContainerPlans' }, adHocError, { targetDate: today, context: 'ad-hoc plans' });
       // ad-hoc 실패해도 계속 진행
     }
 
@@ -205,7 +206,7 @@ export async function getTodayContainerPlans(
       date: today,
     };
   } catch (error) {
-    console.error('Failed to get container plans:', error);
+    logActionError({ domain: 'today', action: 'getTodayContainerPlans' }, error, { targetDate });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

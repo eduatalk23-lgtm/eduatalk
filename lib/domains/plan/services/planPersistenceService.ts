@@ -13,6 +13,10 @@ import type {
   PlanInsertError,
   BatchInsertOptions,
 } from "./types";
+import {
+  logActionError,
+  logActionDebug,
+} from "@/lib/logging/actionLogger";
 
 // ============================================
 // PlanPersistenceService 클래스
@@ -146,17 +150,20 @@ export class PlanPersistenceService {
       .in("id", insertedIds);
 
     if (error) {
-      console.error(
-        "[PlanPersistenceService] 플랜 롤백 실패 - 데이터 불일치 가능:",
+      logActionError(
+        { domain: "plan", action: "rollback" },
+        error,
         {
           groupId: this.ctx.groupId,
           insertedIds,
-          error: error.message,
+          errorMessage: error.message,
         }
       );
     } else {
-      console.log(
-        `[PlanPersistenceService] 플랜 롤백 완료: ${insertedIds.length}개 플랜 삭제됨`
+      logActionDebug(
+        { domain: "plan", action: "rollback" },
+        `플랜 롤백 완료: ${insertedIds.length}개 플랜 삭제됨`,
+        { groupId: this.ctx.groupId, insertedCount: insertedIds.length }
       );
     }
   }
@@ -174,9 +181,10 @@ export class PlanPersistenceService {
       .eq("id", this.ctx.groupId);
 
     if (error) {
-      console.error(
-        "[PlanPersistenceService] 플랜 그룹 상태 변경 실패, 롤백 시도:",
-        error
+      logActionError(
+        { domain: "plan", action: "updatePlanGroupStatus" },
+        error,
+        { groupId: this.ctx.groupId, targetStatus: status }
       );
 
       // 삽입된 플랜 롤백

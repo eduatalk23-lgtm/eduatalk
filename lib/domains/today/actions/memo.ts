@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError, logActionWarn } from "@/lib/logging/actionLogger";
 import type { ActionResult } from "../types";
 
 /**
@@ -54,7 +55,7 @@ export async function getPlanMemo(
 
     return { success: true, memo: plan.memo ?? null };
   } catch (error) {
-    console.error("[planMemoActions] 메모 조회 실패", error);
+    logActionError({ domain: "today", action: "getPlanMemo" }, error, { planNumber, planDate });
     return {
       success: false,
       error: error instanceof Error ? error.message : "메모 조회에 실패했습니다.",
@@ -103,7 +104,7 @@ export async function savePlanMemo(
     if (error) {
       // memo 컬럼이 없는 경우를 대비한 폴백
       if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        console.warn("[planMemoActions] memo 컬럼이 없습니다. 테이블 스키마를 확인해주세요.");
+        logActionWarn({ domain: "today", action: "savePlanMemo" }, "memo 컬럼이 없습니다. 테이블 스키마를 확인해주세요.", { planNumber, planDate });
         return {
           success: false,
           error: "메모 기능을 사용할 수 없습니다. 데이터베이스 스키마를 확인해주세요.",
@@ -116,7 +117,7 @@ export async function savePlanMemo(
     revalidatePath("/camp/today");
     return { success: true };
   } catch (error) {
-    console.error("[planMemoActions] 메모 저장 실패", error);
+    logActionError({ domain: "today", action: "savePlanMemo" }, error, { planNumber, planDate });
     return {
       success: false,
       error: error instanceof Error ? error.message : "메모 저장에 실패했습니다.",

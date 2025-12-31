@@ -14,6 +14,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
 import { validateRollback } from "@/lib/reschedule/rollbackValidator";
 import { executeRescheduleTransaction } from "@/lib/reschedule/transaction";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // ============================================
 // 타입 정의
@@ -185,9 +186,10 @@ async function _rollbackReschedule(
             .eq("id", planData.id);
 
           if (restoreError) {
-            console.error(
-              `[rollback] 플랜 복원 실패 (${planData.id}):`,
-              restoreError
+            logActionError(
+              { domain: "plan", action: "rollbackReschedule" },
+              restoreError,
+              { planId: planData.id, step: "restore" }
             );
             continue; // 개별 실패는 로그만 남기고 계속 진행
           }
@@ -205,9 +207,10 @@ async function _rollbackReschedule(
             });
 
           if (insertError) {
-            console.error(
-              `[rollback] 플랜 재생성 실패 (${planData.id}):`,
-              insertError
+            logActionError(
+              { domain: "plan", action: "rollbackReschedule" },
+              insertError,
+              { planId: planData.id, step: "recreate" }
             );
             continue;
           }
@@ -226,7 +229,11 @@ async function _rollbackReschedule(
         .eq("id", rescheduleLogId);
 
       if (updateLogError) {
-        console.error("[rollback] 로그 상태 업데이트 실패:", updateLogError);
+        logActionError(
+          { domain: "plan", action: "rollbackReschedule" },
+          updateLogError,
+          { rescheduleLogId, step: "updateLogStatus" }
+        );
         // 로그 업데이트 실패는 치명적이지 않으므로 계속 진행
       }
 
