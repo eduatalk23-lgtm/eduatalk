@@ -71,3 +71,14 @@ next-env.d.ts
 repomix-output.xml
 repomix-phase*.xml
 .aider*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+python/.venv/
+python/*.egg-info/
+.pytest_cache/
+.mypy_cache/
