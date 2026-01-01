@@ -5,11 +5,16 @@
  *
  * 캘린더와 오늘 학습에서 공통으로 사용하는 플랜 아이템입니다.
  * 다양한 모드(display, interactive)를 지원합니다.
+ *
+ * 완료 모드:
+ * - timer: 타이머 기반 완료 (기존)
+ * - simple: 체크박스 기반 간단 완료 (신규)
  */
 
 import { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
+import { SimpleCompleteCheckbox } from "./SimpleCompleteCheckbox";
 
 export type PlanStatus = "pending" | "in_progress" | "completed" | "overdue";
 export type PlanType = "student_plan" | "ad_hoc_plan";
@@ -49,6 +54,12 @@ export interface PlanListItemProps {
   className?: string;
   /** 테두리 색상 클래스 */
   borderClass?: string;
+  /** 간단 완료 모드 활성화 */
+  enableSimpleComplete?: boolean;
+  /** 간단 완료 후 콜백 */
+  onSimpleComplete?: (completedAt: string) => void;
+  /** 간단 완료 에러 시 콜백 */
+  onSimpleCompleteError?: (error: string) => void;
 }
 
 const statusConfig = {
@@ -104,6 +115,9 @@ export function PlanListItem({
   compact = false,
   className,
   borderClass,
+  enableSimpleComplete = false,
+  onSimpleComplete,
+  onSimpleCompleteError,
 }: PlanListItemProps) {
   const statusCfg = statusConfig[status];
   const isCompleted = status === "completed";
@@ -151,10 +165,25 @@ export function PlanListItem({
 
         {/* 왼쪽: 상태 아이콘 + 정보 */}
         <div className="flex items-start gap-2 flex-1 min-w-0">
-          {/* 상태 아이콘 또는 커스텀 아이콘 */}
-          <span className={cn("mt-0.5 flex-shrink-0", !icon && statusCfg.iconClass)}>
-            {icon || statusCfg.icon}
-          </span>
+          {/* 간단 완료 체크박스 또는 상태 아이콘 */}
+          {enableSimpleComplete ? (
+            <div className="mt-0.5 flex-shrink-0">
+              <SimpleCompleteCheckbox
+                planId={id}
+                planType={planType}
+                isCompleted={isCompleted}
+                disabled={isInProgress}
+                onComplete={onSimpleComplete}
+                onError={onSimpleCompleteError}
+                size={compact ? "sm" : "md"}
+                label={`${title} 완료하기`}
+              />
+            </div>
+          ) : (
+            <span className={cn("mt-0.5 flex-shrink-0", !icon && statusCfg.iconClass)}>
+              {icon || statusCfg.icon}
+            </span>
+          )}
 
           {/* 콘텐츠 정보 */}
           <div className="flex-1 min-w-0">
@@ -287,6 +316,12 @@ export interface AdHocPlanListItemProps {
   onClick?: () => void;
   className?: string;
   borderClass?: string;
+  /** 간단 완료 모드 활성화 */
+  enableSimpleComplete?: boolean;
+  /** 간단 완료 후 콜백 */
+  onSimpleComplete?: (completedAt: string) => void;
+  /** 간단 완료 에러 시 콜백 */
+  onSimpleCompleteError?: (error: string) => void;
 }
 
 export function AdHocPlanListItem({
@@ -299,6 +334,9 @@ export function AdHocPlanListItem({
   onClick,
   className,
   borderClass,
+  enableSimpleComplete = false,
+  onSimpleComplete,
+  onSimpleCompleteError,
 }: AdHocPlanListItemProps) {
   const isCompleted = status === "completed";
   const isInProgress = status === "in_progress";
@@ -326,7 +364,21 @@ export function AdHocPlanListItem({
         className
       )}
     >
-      <span className="text-lg">{icon}</span>
+      {/* 간단 완료 체크박스 또는 아이콘 */}
+      {enableSimpleComplete ? (
+        <SimpleCompleteCheckbox
+          planId={id}
+          planType="ad_hoc_plan"
+          isCompleted={isCompleted}
+          disabled={isInProgress}
+          onComplete={onSimpleComplete}
+          onError={onSimpleCompleteError}
+          size="md"
+          label={`${title} 완료하기`}
+        />
+      ) : (
+        <span className="text-lg">{icon}</span>
+      )}
       <span
         className={cn(
           "font-medium flex-1",
@@ -339,7 +391,7 @@ export function AdHocPlanListItem({
       {estimatedMinutes && (
         <span className={cn("text-sm", textMuted)}>~{estimatedMinutes}분</span>
       )}
-      {isCompleted && (
+      {isCompleted && !enableSimpleComplete && (
         <span className="text-xs text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded">
           완료
         </span>

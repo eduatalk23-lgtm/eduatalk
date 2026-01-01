@@ -202,11 +202,16 @@ export type Database = {
           order_index: number | null
           page_range_end: number | null
           page_range_start: number | null
+          pause_count: number | null
+          paused_at: string | null
+          paused_duration_seconds: number | null
           plan_date: string
-          plan_group_id: string | null
+          plan_group_id: string
           priority: number | null
           recurrence_parent_id: string | null
           recurrence_rule: Json | null
+          simple_completed_at: string | null
+          simple_completion: boolean | null
           start_time: string | null
           started_at: string | null
           status: string
@@ -234,11 +239,16 @@ export type Database = {
           order_index?: number | null
           page_range_end?: number | null
           page_range_start?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
           plan_date: string
-          plan_group_id?: string | null
+          plan_group_id: string
           priority?: number | null
           recurrence_parent_id?: string | null
           recurrence_rule?: Json | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
           start_time?: string | null
           started_at?: string | null
           status?: string
@@ -266,11 +276,16 @@ export type Database = {
           order_index?: number | null
           page_range_end?: number | null
           page_range_start?: number | null
+          pause_count?: number | null
+          paused_at?: string | null
+          paused_duration_seconds?: number | null
           plan_date?: string
-          plan_group_id?: string | null
+          plan_group_id?: string
           priority?: number | null
           recurrence_parent_id?: string | null
           recurrence_rule?: Json | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
           start_time?: string | null
           started_at?: string | null
           status?: string
@@ -296,6 +311,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ad_hoc_plans_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ad_hoc_plans_recurrence_parent_id_fkey"
             columns: ["recurrence_parent_id"]
             isOneToOne: false
@@ -314,13 +336,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ad_hoc_plans_plan_group_id_fkey"
-            columns: ["plan_group_id"]
-            isOneToOne: false
-            referencedRelation: "plan_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -2978,6 +2993,7 @@ export type Database = {
           status: string | null
           strategy_days_per_week: number | null
           student_id: string
+          student_permissions: Json | null
           study_type: string | null
           subject_constraints: Json | null
           target_date: string | null
@@ -3027,6 +3043,7 @@ export type Database = {
           status?: string | null
           strategy_days_per_week?: number | null
           student_id: string
+          student_permissions?: Json | null
           study_type?: string | null
           subject_constraints?: Json | null
           target_date?: string | null
@@ -3076,6 +3093,7 @@ export type Database = {
           status?: string | null
           strategy_days_per_week?: number | null
           student_id?: string
+          student_permissions?: Json | null
           study_type?: string | null
           subject_constraints?: Json | null
           target_date?: string | null
@@ -3279,6 +3297,57 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_timer_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_views: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          settings: Json | null
+          student_id: string
+          tenant_id: string
+          updated_at: string | null
+          view_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          settings?: Json | null
+          student_id: string
+          tenant_id: string
+          updated_at?: string | null
+          view_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          settings?: Json | null
+          student_id?: string
+          tenant_id?: string
+          updated_at?: string | null
+          view_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_views_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_views_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -5002,6 +5071,8 @@ export type Database = {
           review_group_id: string | null
           review_source_content_ids: string[] | null
           sequence: number | null
+          simple_completed_at: string | null
+          simple_completion: boolean | null
           slot_index: number | null
           start_time: string | null
           status: string | null
@@ -5061,6 +5132,8 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           status?: string | null
@@ -5120,6 +5193,8 @@ export type Database = {
           review_group_id?: string | null
           review_source_content_ids?: string[] | null
           sequence?: number | null
+          simple_completed_at?: string | null
+          simple_completion?: boolean | null
           slot_index?: number | null
           start_time?: string | null
           status?: string | null
@@ -5939,6 +6014,59 @@ export type Database = {
         }
         Relationships: []
       }
+      time_slots: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          slot_order: number
+          slot_type: string
+          start_time: string
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          slot_order: number
+          slot_type?: string
+          start_time: string
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          slot_order?: number
+          slot_type?: string
+          start_time?: string
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_slots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       today_plans_cache: {
         Row: {
           computed_at: string
@@ -6312,6 +6440,10 @@ export type Database = {
         Args: { user_email: string; user_role?: string }
         Returns: string
       }
+      create_default_time_slots: {
+        Args: { p_tenant_id: string }
+        Returns: undefined
+      }
       create_plan_group_atomic: {
         Args: {
           p_contents?: Json
@@ -6491,4 +6623,3 @@ export const Constants = {
     },
   },
 } as const
-

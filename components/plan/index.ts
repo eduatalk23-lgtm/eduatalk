@@ -18,3 +18,25 @@ export {
   type PlanStatus,
   type PlanType,
 } from "./PlanListItem";
+
+export {
+  SimpleCompleteCheckbox,
+  SimpleCompleteWithNote,
+  type SimpleCompleteCheckboxProps,
+  type SimpleCompleteWithNoteProps,
+  type CheckboxSize,
+  type PlanType as SimplePlanType,
+} from "./SimpleCompleteCheckbox";
+
+export {
+  ViewSwitcher,
+  ViewTabs,
+  type ViewSwitcherProps,
+  type ViewTabsProps,
+} from "./ViewSwitcher";
+
+export {
+  MatrixView,
+  MatrixViewSkeleton,
+  type MatrixViewProps,
+} from "./MatrixView";

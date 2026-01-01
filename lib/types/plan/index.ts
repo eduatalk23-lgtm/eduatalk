@@ -147,6 +147,24 @@ export type {
   StudentPlanSummary,
 } from "./timezone";
 
+// Completion 타입 (간단 완료 모드)
+export type {
+  CompletionMode,
+  SimpleCompletionData,
+  TimerCompletionData,
+  CompletionInfo,
+  StudentPlanPermissions,
+} from "./completion";
+export {
+  DEFAULT_STUDENT_PERMISSIONS,
+  getCompletionInfo,
+  getAdHocCompletionInfo,
+  isCompleted,
+  isAdHocCompleted,
+  getCompletedAt,
+  parseStudentPermissions,
+} from "./completion";
+
 // Content-based PlanGroup 타입 (4단계 간소화 플로우)
 export type {
   // 기본 타입
@@ -171,3 +189,27 @@ export type {
   GetTemplateSettingsParams,
   PreviewContentPlanGroupParams,
 } from "./contentPlanGroup";
+
+// View 타입 (다중 뷰 시스템)
+export type {
+  ViewType,
+  SlotType,
+  MatrixTimeSlot,
+  TimeSlotRow,
+  PlanView,
+  PlanViewRow,
+  ViewSettings,
+  DayOfWeek,
+  MatrixCell,
+  MatrixPlanItem,
+  MatrixViewData,
+  ViewContextState,
+  ViewContextActions,
+  ViewContextValue,
+} from "./views";
+export {
+  VIEW_TYPE_CONFIG,
+  DEFAULT_VIEW_SETTINGS,
+  toMatrixTimeSlot,
+  toPlanView,
+} from "./views";

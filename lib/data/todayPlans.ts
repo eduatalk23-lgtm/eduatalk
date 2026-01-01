@@ -204,6 +204,9 @@ async function getPlansFromView(options: {
     custom_range_display?: string | null;
     review_group_id?: string | null;
     review_source_content_ids?: string[] | null;
+    // Simple completion fields
+    simple_completion?: boolean | null;
+    simple_completed_at?: string | null;
   };
 
   // View에서 필요한 필드만 조회 (view_* 필드 포함)
@@ -326,6 +329,9 @@ async function getPlansFromView(options: {
       custom_range_display: row.custom_range_display ?? null,
       review_group_id: row.review_group_id ?? null,
       review_source_content_ids: row.review_source_content_ids ?? null,
+      // Simple completion fields
+      simple_completion: row.simple_completion ?? null,
+      simple_completed_at: row.simple_completed_at ?? null,
     };
   });
 
