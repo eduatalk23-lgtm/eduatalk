@@ -34,7 +34,7 @@ const MasterContentsPanel = dynamic(
   { loading: () => <PanelLoadingSkeleton />, ssr: false }
 );
 import { ContentSelectionProgress } from "../../common/ContentSelectionProgress";
-import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight } from "lucide-react";
+import { BookOpen, Sparkles, Package, ToggleLeft, ToggleRight, Wand2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { FieldErrors } from "../../hooks/useWizardValidation";
 import { FieldError } from "../../common/FieldError";
@@ -47,6 +47,8 @@ import { RequiredSubjectsSection } from "./components/RequiredSubjectsSection";
 import type { WizardData } from "@/lib/schemas/planWizardSchema";
 import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 import { areStep3PropsEqual } from "../../utils/stepMemoComparison";
+import { AIModeButton, AIPlanGeneratorPanel, useAIPlanGeneration } from "../ai-mode";
+import type { LLMPlanGenerationResponse } from "@/lib/domains/plan/llm";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -99,6 +101,18 @@ function Step3ContentSelectionComponent({
     isAdminContinueMode,
     isEditMode,
   }), [isCampMode, isTemplateMode, isAdminContinueMode, isEditMode]);
+
+  // AI 플랜 생성 훅
+  const {
+    showAIPanel,
+    aiGenerationResult,
+    activateAIMode,
+    closeAIPanel,
+    applyAIResult,
+    generationStats,
+  } = useAIPlanGeneration({
+    onUpdateWizardData: onUpdate as (updates: Record<string, unknown>) => void,
+  });
 
   // 슬롯 모드 상태 (WizardData에서 초기화)
   const useSlotMode = data.use_slot_mode ?? false;
@@ -434,36 +448,96 @@ function Step3ContentSelectionComponent({
         warningMessage={warningMessage}
       />
 
-      {/* 슬롯 모드 토글 - 일반 모드에서만 표시 (캠프/템플릿 모드 제외) */}
+      {/* 슬롯 모드 토글 및 AI 모드 - 일반 모드에서만 표시 (캠프/템플릿 모드 제외) */}
       {!isCampMode && !isTemplateMode && editable && (
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div>
-            <div className="text-sm font-medium text-gray-700">
-              콘텐츠 선택 방식
+        <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-gray-700">
+                콘텐츠 선택 방식
+              </div>
+              <div className="text-xs text-gray-500">
+                {useSlotMode
+                  ? "슬롯 방식: 교과-과목별로 계획적으로 구성"
+                  : "기존 방식: 직접 콘텐츠 선택"}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">
-              {useSlotMode
-                ? "슬롯 방식: 교과-과목별로 계획적으로 구성"
-                : "기존 방식: 직접 콘텐츠 선택"}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSlotModeChange(!useSlotMode)}
+                className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100"
+              >
+                {useSlotMode ? (
+                  <>
+                    <ToggleRight className="h-5 w-5 text-blue-600" />
+                    <span>슬롯 모드</span>
+                  </>
+                ) : (
+                  <>
+                    <ToggleLeft className="h-5 w-5 text-gray-400" />
+                    <span>기존 모드</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => handleSlotModeChange(!useSlotMode)}
-            className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-gray-100"
-          >
-            {useSlotMode ? (
-              <>
-                <ToggleRight className="h-5 w-5 text-blue-600" />
-                <span>슬롯 모드</span>
-              </>
-            ) : (
-              <>
-                <ToggleLeft className="h-5 w-5 text-gray-400" />
-                <span>기존 모드</span>
-              </>
-            )}
-          </button>
+
+          {/* AI 플랜 생성 버튼 */}
+          <div className="flex items-center justify-between border-t border-gray-200 pt-3">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <Wand2 className="h-4 w-4 text-purple-500" />
+                AI 자동 플랜 생성
+              </div>
+              <div className="text-xs text-gray-500">
+                AI가 학습 패턴과 성적을 분석하여 최적의 플랜을 생성합니다
+              </div>
+            </div>
+            <AIModeButton
+              onClick={activateAIMode}
+              disabled={currentTotal === 0}
+              isActive={!!aiGenerationResult}
+              size="md"
+              variant="primary"
+            />
+          </div>
+
+          {/* AI 생성 결과 요약 */}
+          {generationStats && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                <Sparkles className="h-4 w-4" />
+                AI 플랜 생성 완료
+              </div>
+              <div className="mt-1 text-xs text-purple-600">
+                {generationStats.totalPlans}개 플랜 · {generationStats.totalWeeks}주 ·
+                신뢰도 {Math.round(generationStats.confidence * 100)}%
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* AI 플랜 생성 패널 모달 */}
+      {showAIPanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto">
+            <AIPlanGeneratorPanel
+              contentIds={[
+                ...data.student_contents.map((c) => c.content_id),
+                ...data.recommended_contents.map((c) => c.content_id),
+              ]}
+              startDate={contextData?.period_start || ""}
+              endDate={contextData?.period_end || ""}
+              dailyStudyMinutes={180}
+              excludeDays={contextData?.exclusions
+                ?.filter((e) => e.exclusion_type === "휴일지정")
+                ?.map((e) => new Date(e.exclusion_date).getDay()) || []}
+              onGenerated={applyAIResult}
+              onCancel={closeAIPanel}
+            />
+          </div>
         </div>
       )}
 
