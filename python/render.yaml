@@ -1,0 +1,19 @@
+# Render Blueprint for TimeLevelUp ML API
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: timelevelup-ml-api
+    runtime: docker
+    dockerfilePath: ./python/Dockerfile
+    dockerContext: ./python
+    region: singapore  # 한국에서 가장 가까운 리전
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false  # Render 대시보드에서 설정
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Render 대시보드에서 설정
