@@ -14,6 +14,9 @@ export type { AIModeButtonProps } from "./AIModeButton";
 export { StreamingProgress } from "./StreamingProgress";
 export type { StreamingProgressProps } from "./StreamingProgress";
 
+export { PartialRegenerateModal } from "./PartialRegenerateModal";
+export type { PartialRegenerateModalProps } from "./PartialRegenerateModal";
+
 // 훅
 export { useAIPlanGeneration } from "./hooks/useAIPlanGeneration";
 export type {

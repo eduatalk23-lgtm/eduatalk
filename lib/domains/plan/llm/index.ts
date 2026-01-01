@@ -78,3 +78,23 @@ export {
   type StreamEvent as StreamPlanEvent,
   type StreamEventType as StreamPlanEventType,
 } from "./actions/streamPlan";
+
+// 부분 재생성 액션
+export {
+  regeneratePartialPlan,
+  regenerateDatePlans,
+  regenerateSubjectPlans,
+  regenerateContentPlans,
+  regenerateDateRangePlans,
+  type PartialRegenerateInput,
+  type PartialRegenerateResult,
+} from "./actions/regeneratePartial";
+
+// 부분 재생성 프롬프트
+export {
+  PARTIAL_REGENERATION_SYSTEM_PROMPT,
+  buildPartialRegenerationPrompt,
+  estimatePartialPromptTokens,
+  type RegenerateScope,
+  type PartialRegenerationPromptInput,
+} from "./prompts/partialRegeneration";
