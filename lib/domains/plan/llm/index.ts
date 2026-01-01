@@ -69,3 +69,12 @@ export {
   type GeneratePlanResult,
   type PreviewPlanResult,
 } from "./actions/generatePlan";
+
+// 스트리밍 액션
+export {
+  streamPlanGeneration,
+  generatePlanStream,
+  type StreamPlanInput,
+  type StreamEvent as StreamPlanEvent,
+  type StreamEventType as StreamPlanEventType,
+} from "./actions/streamPlan";

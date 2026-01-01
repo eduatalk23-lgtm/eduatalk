@@ -14,6 +14,8 @@ import { cn } from "@/lib/cn";
 import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
 import { previewPlanWithAI, type PreviewPlanResult } from "@/lib/domains/plan/llm";
 import type { LLMPlanGenerationResponse, ModelTier } from "@/lib/domains/plan/llm";
+import { StreamingProgress } from "./StreamingProgress";
+import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
 
 // ============================================
 // 타입 정의
@@ -260,6 +262,34 @@ export function AIPlanGeneratorPanel({
   const [phase, setPhase] = useState<GenerationPhase>("config");
   const [result, setResult] = useState<PreviewPlanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [useStreaming, setUseStreaming] = useState(true); // 스트리밍 모드 토글
+
+  // 스트리밍 생성 훅
+  const {
+    startGeneration: startStreamingGeneration,
+    cancelGeneration,
+    progress: streamingProgress,
+    isGenerating: isStreamingGenerating,
+    result: streamingResult,
+    error: streamingError,
+    cost: streamingCost,
+    reset: resetStreaming,
+  } = useStreamingGeneration({
+    onComplete: (response) => {
+      setResult({
+        success: true,
+        data: {
+          response,
+          cost: streamingCost || { inputTokens: 0, outputTokens: 0, estimatedUSD: 0 },
+        },
+      });
+      setPhase("preview");
+    },
+    onError: (err) => {
+      setError(err);
+      setPhase("error");
+    },
+  });
 
   // 제외 요일 토글
   const toggleExcludeDay = useCallback((day: number) => {
@@ -279,6 +309,25 @@ export function AIPlanGeneratorPanel({
     setPhase("generating");
     setError(null);
 
+    // 스트리밍 모드 사용
+    if (useStreaming) {
+      await startStreamingGeneration({
+        contentIds,
+        startDate,
+        endDate,
+        dailyStudyMinutes: dailyMinutes,
+        excludeDays,
+        prioritizeWeakSubjects: prioritizeWeak,
+        balanceSubjects: true,
+        includeReview,
+        reviewRatio: includeReview ? reviewRatio : undefined,
+        additionalInstructions: additionalInstructions || undefined,
+        modelTier,
+      });
+      return;
+    }
+
+    // 기존 비스트리밍 모드
     try {
       const response = await previewPlanWithAI({
         contentIds,
@@ -377,16 +426,48 @@ export function AIPlanGeneratorPanel({
 
         {/* 생성 중 */}
         {phase === "generating" && (
-          <div className="py-16 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-4">
-              <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-            <h4 className={cn("text-lg font-medium mb-2", textPrimary)}>
-              AI가 플랜을 생성하고 있습니다
-            </h4>
-            <p className={cn("text-sm", textMuted)}>
-              학습 패턴과 성적을 분석하여 최적의 플랜을 만들고 있어요...
-            </p>
+          <div className="py-8">
+            {useStreaming ? (
+              <StreamingProgress
+                phase={streamingProgress.phase}
+                progress={streamingProgress.progress}
+                message={streamingProgress.message}
+                streamedText={streamingProgress.streamedText}
+              />
+            ) : (
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-4">
+                  <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+                <h4 className={cn("text-lg font-medium mb-2", textPrimary)}>
+                  AI가 플랜을 생성하고 있습니다
+                </h4>
+                <p className={cn("text-sm", textMuted)}>
+                  학습 패턴과 성적을 분석하여 최적의 플랜을 만들고 있어요...
+                </p>
+              </div>
+            )}
+
+            {/* 취소 버튼 */}
+            {isStreamingGenerating && (
+              <div className="mt-6 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    cancelGeneration();
+                    setPhase("config");
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "border border-gray-300 dark:border-gray-600",
+                    textSecondary,
+                    "hover:bg-gray-100 dark:hover:bg-gray-700"
+                  )}
+                >
+                  생성 취소
+                </button>
+              </div>
+            )}
           </div>
         )}
 

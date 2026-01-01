@@ -42,7 +42,7 @@ export interface ContentInfo {
   title: string;
   subject: string;
   subjectCategory?: string;
-  contentType: "book" | "lecture" | "custom";
+  contentType: "book" | "lecture" | "video" | "custom";
   totalPages?: number;
   totalLectures?: number;
   estimatedHoursTotal?: number;

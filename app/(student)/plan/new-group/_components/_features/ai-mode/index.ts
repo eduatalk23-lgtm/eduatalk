@@ -11,9 +11,20 @@ export type { AIPlanGeneratorPanelProps } from "./AIPlanGeneratorPanel";
 export { AIModeButton } from "./AIModeButton";
 export type { AIModeButtonProps } from "./AIModeButton";
 
+export { StreamingProgress } from "./StreamingProgress";
+export type { StreamingProgressProps } from "./StreamingProgress";
+
 // 훅
 export { useAIPlanGeneration } from "./hooks/useAIPlanGeneration";
 export type {
   UseAIPlanGenerationOptions,
   UseAIPlanGenerationReturn,
 } from "./hooks/useAIPlanGeneration";
+
+export { useStreamingGeneration } from "./hooks/useStreamingGeneration";
+export type {
+  GenerationPhase,
+  GenerationProgress,
+  UseStreamingGenerationOptions,
+  UseStreamingGenerationReturn,
+} from "./hooks/useStreamingGeneration";
