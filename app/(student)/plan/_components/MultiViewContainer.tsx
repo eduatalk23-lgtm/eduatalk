@@ -12,12 +12,21 @@
 
 import { useCallback, useMemo } from "react";
 import { ViewProvider, useView } from "@/lib/domains/plan/views";
-import { ViewSwitcher, MatrixView } from "@/components/plan";
+import {
+  ViewSwitcher,
+  MatrixView,
+  TimelineView,
+  TableView,
+  ListView,
+} from "@/components/plan";
 import type {
   ViewType,
   MatrixTimeSlot,
   MatrixPlanItem,
 } from "@/lib/types/plan/views";
+import type { TimelinePlanItem } from "@/components/plan/TimelineView";
+import type { TablePlanItem } from "@/components/plan/TableView";
+import type { ListPlanItem, GroupBy } from "@/components/plan/ListView";
 
 // ============================================
 // 타입 정의
@@ -129,6 +138,36 @@ function toMatrixPlanItem(plan: PlanData): MatrixPlanItem {
   };
 }
 
+/**
+ * 플랜을 TimelinePlanItem으로 변환
+ */
+function toTimelinePlanItem(plan: PlanData): TimelinePlanItem {
+  return {
+    ...toMatrixPlanItem(plan),
+    date: plan.plan_date || new Date().toISOString().split("T")[0],
+  };
+}
+
+/**
+ * 플랜을 TablePlanItem으로 변환
+ */
+function toTablePlanItem(plan: PlanData): TablePlanItem {
+  return {
+    ...toMatrixPlanItem(plan),
+    date: plan.plan_date || new Date().toISOString().split("T")[0],
+  };
+}
+
+/**
+ * 플랜을 ListPlanItem으로 변환
+ */
+function toListPlanItem(plan: PlanData): ListPlanItem {
+  return {
+    ...toMatrixPlanItem(plan),
+    date: plan.plan_date || new Date().toISOString().split("T")[0],
+  };
+}
+
 // ============================================
 // 뷰 스위처 래퍼
 // ============================================
@@ -194,14 +233,14 @@ function ViewRenderer({
 }: ViewRendererProps) {
   const { currentView, settings } = useView();
 
-  // 모든 플랜을 MatrixPlanItem으로 변환
-  const matrixPlans = useMemo(() => {
-    const allPlans = [
-      ...plans.map((p) => ({ ...p, plan_type: "student_plan" as const })),
-      ...adHocPlans.map((p) => ({ ...p, plan_type: "ad_hoc_plan" as const })),
-    ];
-    return allPlans.map(toMatrixPlanItem);
-  }, [plans, adHocPlans]);
+  // 모든 플랜 합치기 (plan_type 추가)
+  const allPlans = useMemo(() => [
+    ...plans.map((p) => ({ ...p, plan_type: "student_plan" as const })),
+    ...adHocPlans.map((p) => ({ ...p, plan_type: "ad_hoc_plan" as const })),
+  ], [plans, adHocPlans]);
+
+  // 매트릭스 뷰용 플랜 변환
+  const matrixPlans = useMemo(() => allPlans.map(toMatrixPlanItem), [allPlans]);
 
   // 현재 주 시작 날짜
   const weekStart = useMemo(() => getWeekStart(new Date()), []);
@@ -266,27 +305,58 @@ function ViewRenderer({
       );
 
     case "timeline":
-      // TODO: 타임라인 뷰 구현
       return (
-        <div className="p-8 text-center text-gray-500">
-          타임라인 뷰는 준비 중입니다.
-        </div>
+        <TimelineView
+          plans={allPlans.map(toTimelinePlanItem)}
+          onPlanClick={(plan) => {
+            const originalPlan = [...plans, ...adHocPlans].find((p) => p.id === plan.id);
+            if (originalPlan && onPlanClick) {
+              onPlanClick(originalPlan);
+            }
+          }}
+          enableSimpleComplete={true}
+          onSimpleComplete={onSimpleComplete}
+          showCompleted={settings.display?.showCompleted ?? true}
+          showEmptyDays={settings.display?.showEmptySlots ?? false}
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+        />
       );
 
     case "table":
-      // TODO: 테이블 뷰 구현
       return (
-        <div className="p-8 text-center text-gray-500">
-          테이블 뷰는 준비 중입니다.
-        </div>
+        <TableView
+          plans={allPlans.map(toTablePlanItem)}
+          onPlanClick={(plan) => {
+            const originalPlan = [...plans, ...adHocPlans].find((p) => p.id === plan.id);
+            if (originalPlan && onPlanClick) {
+              onPlanClick(originalPlan);
+            }
+          }}
+          enableSimpleComplete={true}
+          onSimpleComplete={onSimpleComplete}
+          initialSortField={settings.sort?.field === "start_time" ? "startTime" : settings.sort?.field as "date" | "startTime" | "title" | "subject" | "status" | "progress" | undefined}
+          initialSortDirection={settings.sort?.direction}
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden"
+        />
       );
 
     case "list":
-      // TODO: 리스트 뷰 구현
       return (
-        <div className="p-8 text-center text-gray-500">
-          리스트 뷰는 준비 중입니다.
-        </div>
+        <ListView
+          plans={allPlans.map(toListPlanItem)}
+          onPlanClick={(plan) => {
+            const originalPlan = [...plans, ...adHocPlans].find((p) => p.id === plan.id);
+            if (originalPlan && onPlanClick) {
+              onPlanClick(originalPlan);
+            }
+          }}
+          enableSimpleComplete={true}
+          onSimpleComplete={onSimpleComplete}
+          groupBy={(settings.groupBy || "date") as GroupBy}
+          showCompleted={settings.display?.showCompleted ?? true}
+          compact={settings.display?.compactMode ?? false}
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+        />
       );
 
     default:
