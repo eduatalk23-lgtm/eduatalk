@@ -36,7 +36,7 @@ def analyze_learning_patterns(
         plans_df["day_of_week"] = pd.to_datetime(plans_df["scheduled_date"]).dt.dayofweek
         daily_counts = plans_df.groupby("day_of_week").size()
         analysis["daily_distribution"] = {
-            "counts": daily_counts.to_dict(),
+            "counts": {int(k): int(v) for k, v in daily_counts.to_dict().items()},
             "most_active_day": int(daily_counts.idxmax()),
             "least_active_day": int(daily_counts.idxmin()),
         }
@@ -49,16 +49,16 @@ def analyze_learning_patterns(
         hourly_counts = plans_df.dropna(subset=["hour"]).groupby("hour").size()
         if not hourly_counts.empty:
             analysis["hourly_distribution"] = {
-                "peak_hours": hourly_counts.nlargest(3).index.tolist(),
-                "low_hours": hourly_counts.nsmallest(3).index.tolist(),
+                "peak_hours": [int(h) for h in hourly_counts.nlargest(3).index.tolist()],
+                "low_hours": [int(h) for h in hourly_counts.nsmallest(3).index.tolist()],
             }
 
     # 3. 과목별 분석
     if "subject" in plans_df.columns:
         subject_counts = plans_df["subject"].value_counts()
         analysis["subject_distribution"] = {
-            "counts": subject_counts.to_dict(),
-            "most_studied": subject_counts.index[0] if len(subject_counts) > 0 else None,
+            "counts": {str(k): int(v) for k, v in subject_counts.to_dict().items()},
+            "most_studied": str(subject_counts.index[0]) if len(subject_counts) > 0 else None,
         }
 
     # 4. 완료율 분석
@@ -79,6 +79,21 @@ def analyze_learning_patterns(
         }
 
     return analysis
+
+
+def _convert_numpy_types(obj: Any) -> Any:
+    """numpy 타입을 Python 네이티브 타입으로 변환"""
+    if isinstance(obj, dict):
+        return {k: _convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_numpy_types(v) for v in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    return obj
 
 
 def analyze_score_trends(
@@ -103,7 +118,7 @@ def analyze_score_trends(
     # 1. 과목별 평균 성적
     if "subject" in scores_df.columns and "score" in scores_df.columns:
         subject_avg = scores_df.groupby("subject")["score"].agg(["mean", "std", "count"])
-        analysis["subject_averages"] = subject_avg.to_dict("index")
+        analysis["subject_averages"] = _convert_numpy_types(subject_avg.to_dict("index"))
 
     # 2. 전체 성적 추이
     if "created_at" in scores_df.columns and "score" in scores_df.columns:
@@ -111,8 +126,8 @@ def analyze_score_trends(
         scores_df["score_ma"] = scores_df["score"].rolling(window=window).mean()
 
         if len(scores_df) >= 2:
-            first_score = scores_df["score"].iloc[0]
-            last_score = scores_df["score"].iloc[-1]
+            first_score = float(scores_df["score"].iloc[0])
+            last_score = float(scores_df["score"].iloc[-1])
             trend = "improving" if last_score > first_score else "declining"
             analysis["overall_trend"] = {
                 "direction": trend,
@@ -124,7 +139,7 @@ def analyze_score_trends(
     # 3. 등급별 분포
     if "grade" in scores_df.columns:
         grade_dist = scores_df["grade"].value_counts().sort_index()
-        analysis["grade_distribution"] = grade_dist.to_dict()
+        analysis["grade_distribution"] = _convert_numpy_types(grade_dist.to_dict())
 
     # 4. 취약 과목 분석 (상위 3개)
     if "subject" in scores_df.columns and "score" in scores_df.columns:
@@ -133,7 +148,7 @@ def analyze_score_trends(
             .mean()
             .nsmallest(3)
         )
-        analysis["weak_subjects"] = weak_subjects.to_dict()
+        analysis["weak_subjects"] = _convert_numpy_types(weak_subjects.to_dict())
 
     return analysis
 
