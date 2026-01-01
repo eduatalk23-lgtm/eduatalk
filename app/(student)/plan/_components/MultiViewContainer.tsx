@@ -56,6 +56,16 @@ interface MultiViewContainerProps {
   onSimpleComplete?: (planId: string, planType: string) => void;
   /** 빈 셀 클릭 핸들러 */
   onCellClick?: (slotId: string, date: string) => void;
+  /** 플랜 이동 핸들러 */
+  onPlanMove?: (
+    planId: string,
+    planType: string,
+    targetDate: string,
+    targetStartTime: string,
+    targetEndTime: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  /** 드래그앤드롭 활성화 */
+  enableDragDrop?: boolean;
   /** 학생 ID */
   studentId?: string;
   /** 테넌트 ID */
@@ -161,6 +171,14 @@ interface ViewRendererProps {
   onPlanClick?: (plan: PlanData) => void;
   onSimpleComplete?: (planId: string, planType: string) => void;
   onCellClick?: (slotId: string, date: string) => void;
+  onPlanMove?: (
+    planId: string,
+    planType: string,
+    targetDate: string,
+    targetStartTime: string,
+    targetEndTime: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  enableDragDrop?: boolean;
 }
 
 function ViewRenderer({
@@ -171,6 +189,8 @@ function ViewRenderer({
   onPlanClick,
   onSimpleComplete,
   onCellClick,
+  onPlanMove,
+  enableDragDrop = false,
 }: ViewRendererProps) {
   const { currentView, settings } = useView();
 
@@ -197,6 +217,24 @@ function ViewRenderer({
     [plans, adHocPlans, onPlanClick]
   );
 
+  // 플랜 이동 핸들러
+  const handlePlanMove = useCallback(
+    async (
+      planId: string,
+      planType: string,
+      _targetSlotId: string,
+      targetDate: string,
+      targetStartTime: string,
+      targetEndTime: string
+    ) => {
+      if (!onPlanMove) {
+        return { success: false, error: "이동 핸들러가 없습니다." };
+      }
+      return onPlanMove(planId, planType, targetDate, targetStartTime, targetEndTime);
+    },
+    [onPlanMove]
+  );
+
   // 뷰 타입별 렌더링
   switch (currentView) {
     case "calendar":
@@ -221,6 +259,8 @@ function ViewRenderer({
           onCellClick={onCellClick}
           enableSimpleComplete={true}
           onSimpleComplete={onSimpleComplete}
+          enableDragDrop={enableDragDrop}
+          onPlanMove={handlePlanMove}
           className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
         />
       );
@@ -266,6 +306,8 @@ export function MultiViewContainer({
   onPlanClick,
   onSimpleComplete,
   onCellClick,
+  onPlanMove,
+  enableDragDrop = false,
   className,
 }: MultiViewContainerProps) {
   // 시간 슬롯 (제공되지 않으면 기본값 사용)
@@ -291,6 +333,8 @@ export function MultiViewContainer({
           onPlanClick={onPlanClick}
           onSimpleComplete={onSimpleComplete}
           onCellClick={onCellClick}
+          onPlanMove={onPlanMove}
+          enableDragDrop={enableDragDrop}
         />
       </div>
     </ViewProvider>

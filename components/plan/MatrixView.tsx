@@ -6,12 +6,26 @@
  * Notion 스타일의 시간표 형태로 플랜을 표시합니다.
  * 행: 시간 슬롯 (1교시, 2교시, ...)
  * 열: 요일 (월, 화, 수, ...)
+ *
+ * 드래그앤드롭으로 플랜을 다른 셀로 이동할 수 있습니다.
  */
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  DragStartEvent,
+  DragEndEvent,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import { cn } from "@/lib/cn";
-import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
-import { Check, Clock, MoreHorizontal } from "lucide-react";
+import { textPrimary, textMuted } from "@/lib/utils/darkMode";
+import { Check, Clock, GripVertical } from "lucide-react";
 import type {
   MatrixTimeSlot,
   MatrixPlanItem,
@@ -41,8 +55,32 @@ export interface MatrixViewProps {
   enableSimpleComplete?: boolean;
   /** 간단 완료 핸들러 */
   onSimpleComplete?: (planId: string, planType: string) => void;
+  /** 드래그앤드롭 활성화 */
+  enableDragDrop?: boolean;
+  /** 플랜 이동 핸들러 */
+  onPlanMove?: (
+    planId: string,
+    planType: string,
+    targetSlotId: string,
+    targetDate: string,
+    targetStartTime: string,
+    targetEndTime: string
+  ) => Promise<{ success: boolean; error?: string }>;
   /** 추가 클래스 */
   className?: string;
+}
+
+interface DragData {
+  plan: MatrixPlanItem;
+  sourceSlotId: string;
+  sourceDate: string;
+}
+
+interface DropData {
+  slotId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
 }
 
 // ============================================
@@ -110,8 +148,231 @@ function isToday(date: Date): boolean {
   );
 }
 
+function isPastDate(date: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const compareDate = new Date(date);
+  compareDate.setHours(0, 0, 0, 0);
+  return compareDate < today;
+}
+
 // ============================================
-// 컴포넌트
+// 드래그 가능한 플랜 카드
+// ============================================
+
+interface DraggablePlanCardProps {
+  plan: MatrixPlanItem;
+  slotId: string;
+  date: string;
+  onClick: (e: React.MouseEvent) => void;
+  enableSimpleComplete?: boolean;
+  onSimpleComplete?: (e: React.MouseEvent) => void;
+  enableDrag?: boolean;
+}
+
+function DraggablePlanCard({
+  plan,
+  slotId,
+  date,
+  onClick,
+  enableSimpleComplete,
+  onSimpleComplete,
+  enableDrag = false,
+}: DraggablePlanCardProps) {
+  const isCompleted = plan.status === "completed";
+  const isInProgress = plan.status === "in_progress";
+  const canDrag = enableDrag && !isCompleted && !isInProgress;
+
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `plan-${plan.id}`,
+    data: {
+      plan,
+      sourceSlotId: slotId,
+      sourceDate: date,
+    } as DragData,
+    disabled: !canDrag,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onClick}
+      className={cn(
+        "group relative p-1.5 rounded text-xs cursor-pointer transition-all",
+        "bg-white dark:bg-gray-800 shadow-sm hover:shadow",
+        STATUS_STYLES[plan.status],
+        isCompleted && "opacity-60",
+        isDragging && "opacity-50 ring-2 ring-blue-500"
+      )}
+    >
+      {/* 드래그 핸들 */}
+      {canDrag && (
+        <div
+          {...attributes}
+          {...listeners}
+          className={cn(
+            "absolute -left-1 top-1/2 -translate-y-1/2 w-4 h-6 flex items-center justify-center",
+            "cursor-grab active:cursor-grabbing",
+            "opacity-0 group-hover:opacity-100 transition-opacity"
+          )}
+        >
+          <GripVertical className="w-3 h-3 text-gray-400" />
+        </div>
+      )}
+
+      {/* 간단 완료 체크박스 */}
+      {enableSimpleComplete && !isCompleted && (
+        <button
+          onClick={onSimpleComplete}
+          className={cn(
+            "absolute -right-1 -top-1 w-4 h-4 rounded border-2",
+            "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600",
+            "hover:border-green-500 transition-colors",
+            "opacity-0 group-hover:opacity-100"
+          )}
+        >
+          {isCompleted && <Check className="w-3 h-3 text-green-500" />}
+        </button>
+      )}
+
+      {/* 제목 */}
+      <div
+        className={cn(
+          "font-medium truncate",
+          textPrimary,
+          isCompleted && "line-through",
+          canDrag && "pl-3"
+        )}
+        style={{ color: plan.color }}
+      >
+        {plan.title}
+      </div>
+
+      {/* 과목 */}
+      {plan.subject && (
+        <div className={cn("truncate mt-0.5", textMuted, canDrag && "pl-3")}>
+          {plan.subject}
+        </div>
+      )}
+
+      {/* 진행률 바 */}
+      {plan.progress !== undefined && plan.progress > 0 && plan.progress < 100 && (
+        <div className="mt-1 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-500 rounded-full"
+            style={{ width: `${plan.progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* 상태 아이콘 */}
+      {isInProgress && (
+        <Clock className="absolute top-1 right-1 w-3 h-3 text-blue-500 animate-pulse" />
+      )}
+      {isCompleted && (
+        <Check className="absolute top-1 right-1 w-3 h-3 text-green-500" />
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// 드롭 가능한 셀
+// ============================================
+
+interface DroppableCellProps {
+  slotId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isStudySlot: boolean;
+  isCurrentDay: boolean;
+  isPast: boolean;
+  slotType: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  enableDrop?: boolean;
+}
+
+function DroppableCell({
+  slotId,
+  date,
+  startTime,
+  endTime,
+  isStudySlot,
+  isCurrentDay,
+  isPast,
+  slotType,
+  children,
+  onClick,
+  enableDrop = false,
+}: DroppableCellProps) {
+  const canDrop = enableDrop && isStudySlot && !isPast;
+
+  const { isOver, setNodeRef } = useDroppable({
+    id: `cell-${slotId}-${date}`,
+    data: {
+      slotId,
+      date,
+      startTime,
+      endTime,
+    } as DropData,
+    disabled: !canDrop,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={onClick}
+      className={cn(
+        "flex-1 min-h-[60px] p-1 border-r border-gray-200 dark:border-gray-700 last:border-r-0",
+        "transition-colors",
+        isCurrentDay && "bg-blue-50/30 dark:bg-blue-900/10",
+        isStudySlot && onClick && "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50",
+        !isStudySlot && SLOT_TYPE_COLORS[slotType],
+        isPast && "opacity-60",
+        isOver && canDrop && "bg-blue-100 dark:bg-blue-900/40 ring-2 ring-blue-500 ring-inset"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ============================================
+// 드래그 오버레이 카드
+// ============================================
+
+interface DragOverlayCardProps {
+  plan: MatrixPlanItem;
+}
+
+function DragOverlayCard({ plan }: DragOverlayCardProps) {
+  return (
+    <div
+      className={cn(
+        "p-1.5 rounded text-xs",
+        "bg-white dark:bg-gray-800 shadow-lg",
+        STATUS_STYLES[plan.status],
+        "ring-2 ring-blue-500 opacity-90",
+        "min-w-[100px]"
+      )}
+    >
+      <div
+        className={cn("font-medium truncate", textPrimary)}
+        style={{ color: plan.color }}
+      >
+        {plan.title}
+      </div>
+      {plan.subject && (
+        <div className={cn("truncate mt-0.5", textMuted)}>{plan.subject}</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// 메인 컴포넌트
 // ============================================
 
 export function MatrixView({
@@ -124,8 +385,22 @@ export function MatrixView({
   onCellClick,
   enableSimpleComplete = false,
   onSimpleComplete,
+  enableDragDrop = false,
+  onPlanMove,
   className,
 }: MatrixViewProps) {
+  const [activeDragPlan, setActiveDragPlan] = useState<MatrixPlanItem | null>(null);
+  const [isMoving, setIsMoving] = useState(false);
+
+  // 센서 설정 (드래그 시작을 위한 최소 이동 거리)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
   // 주간 날짜 계산
   const weekDates = useMemo(
     () => getWeekDates(weekStart, showWeekends),
@@ -183,199 +458,184 @@ export function MatrixView({
     [onSimpleComplete]
   );
 
+  // 드래그 시작 핸들러
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const dragData = event.active.data.current as DragData;
+    setActiveDragPlan(dragData.plan);
+  }, []);
+
+  // 드래그 종료 핸들러
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveDragPlan(null);
+
+      if (!over || !onPlanMove) return;
+
+      const dragData = active.data.current as DragData;
+      const dropData = over.data.current as DropData;
+
+      if (!dragData || !dropData) return;
+
+      // 같은 셀로 이동하면 무시
+      if (
+        dragData.sourceSlotId === dropData.slotId &&
+        dragData.sourceDate === dropData.date
+      ) {
+        return;
+      }
+
+      setIsMoving(true);
+      try {
+        const result = await onPlanMove(
+          dragData.plan.id,
+          dragData.plan.planType,
+          dropData.slotId,
+          dropData.date,
+          dropData.startTime,
+          dropData.endTime
+        );
+
+        if (!result.success && result.error) {
+          // TODO: 토스트 메시지로 에러 표시
+          console.error("Plan move failed:", result.error);
+        }
+      } finally {
+        setIsMoving(false);
+      }
+    },
+    [onPlanMove]
+  );
+
   // 학습 슬롯만 필터링 (옵션)
   const displaySlots = showEmptySlots
     ? slots
     : slots.filter((slot) => slot.type === "study");
 
   return (
-    <div className={cn("overflow-x-auto", className)}>
-      <div className="min-w-[800px]">
-        {/* 헤더: 요일 */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
-          {/* 시간 슬롯 헤더 */}
-          <div className="w-24 flex-shrink-0 p-2 border-r border-gray-200 dark:border-gray-700">
-            <span className={cn("text-xs font-medium", textMuted)}>시간</span>
-          </div>
-
-          {/* 요일 헤더 */}
-          {weekDates.map((date) => {
-            const dayOfWeek = date.getDay() as DayOfWeek;
-            const isCurrentDay = isToday(date);
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-            return (
-              <div
-                key={formatDate(date)}
-                className={cn(
-                  "flex-1 p-2 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0",
-                  isCurrentDay && "bg-blue-50 dark:bg-blue-900/20",
-                  isWeekend && "bg-gray-50 dark:bg-gray-800/50"
-                )}
-              >
-                <div
-                  className={cn(
-                    "text-xs font-medium",
-                    isCurrentDay ? "text-blue-600 dark:text-blue-400" : textMuted
-                  )}
-                >
-                  {DAY_LABELS[dayOfWeek]}
-                </div>
-                <div
-                  className={cn(
-                    "text-sm font-semibold mt-0.5",
-                    isCurrentDay ? "text-blue-600 dark:text-blue-400" : textPrimary
-                  )}
-                >
-                  {date.getDate()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 바디: 시간 슬롯 × 요일 */}
-        {displaySlots.map((slot) => (
-          <div
-            key={slot.id}
-            className="flex border-b border-gray-200 dark:border-gray-700 last:border-b-0"
-          >
-            {/* 시간 슬롯 라벨 */}
-            <div
-              className={cn(
-                "w-24 flex-shrink-0 p-2 border-r border-gray-200 dark:border-gray-700",
-                SLOT_TYPE_COLORS[slot.type]
-              )}
-            >
-              <div className={cn("text-xs font-medium", textPrimary)}>
-                {slot.name}
-              </div>
-              <div className={cn("text-xs mt-0.5", textMuted)}>
-                {slot.startTime.substring(0, 5)} - {slot.endTime.substring(0, 5)}
-              </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className={cn("overflow-x-auto", isMoving && "opacity-70 pointer-events-none", className)}>
+        <div className="min-w-[800px]">
+          {/* 헤더: 요일 */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
+            {/* 시간 슬롯 헤더 */}
+            <div className="w-24 flex-shrink-0 p-2 border-r border-gray-200 dark:border-gray-700">
+              <span className={cn("text-xs font-medium", textMuted)}>시간</span>
             </div>
 
-            {/* 각 요일의 셀 */}
+            {/* 요일 헤더 */}
             {weekDates.map((date) => {
-              const dateStr = formatDate(date);
-              const cellKey = `${slot.id}-${dateStr}`;
-              const cellPlans = plansByCell.get(cellKey) || [];
+              const dayOfWeek = date.getDay() as DayOfWeek;
               const isCurrentDay = isToday(date);
-              const isStudySlot = slot.type === "study";
+              const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
               return (
                 <div
-                  key={cellKey}
-                  onClick={() => isStudySlot && handleCellClick(slot.id, dateStr)}
+                  key={formatDate(date)}
                   className={cn(
-                    "flex-1 min-h-[60px] p-1 border-r border-gray-200 dark:border-gray-700 last:border-r-0",
-                    isCurrentDay && "bg-blue-50/30 dark:bg-blue-900/10",
-                    isStudySlot && onCellClick && "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50",
-                    !isStudySlot && SLOT_TYPE_COLORS[slot.type]
+                    "flex-1 p-2 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0",
+                    isCurrentDay && "bg-blue-50 dark:bg-blue-900/20",
+                    isWeekend && "bg-gray-50 dark:bg-gray-800/50"
                   )}
                 >
-                  {/* 셀 내 플랜 목록 */}
-                  <div className="space-y-1">
-                    {cellPlans.map((plan) => (
-                      <MatrixPlanCard
-                        key={plan.id}
-                        plan={plan}
-                        onClick={(e) => handlePlanClick(plan, e)}
-                        enableSimpleComplete={enableSimpleComplete}
-                        onSimpleComplete={(e) => handleSimpleComplete(plan, e)}
-                      />
-                    ))}
+                  <div
+                    className={cn(
+                      "text-xs font-medium",
+                      isCurrentDay ? "text-blue-600 dark:text-blue-400" : textMuted
+                    )}
+                  >
+                    {DAY_LABELS[dayOfWeek]}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-sm font-semibold mt-0.5",
+                      isCurrentDay ? "text-blue-600 dark:text-blue-400" : textPrimary
+                    )}
+                  >
+                    {date.getDate()}
                   </div>
                 </div>
               );
             })}
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-// ============================================
-// 매트릭스 플랜 카드
-// ============================================
+          {/* 바디: 시간 슬롯 × 요일 */}
+          {displaySlots.map((slot) => (
+            <div
+              key={slot.id}
+              className="flex border-b border-gray-200 dark:border-gray-700 last:border-b-0"
+            >
+              {/* 시간 슬롯 라벨 */}
+              <div
+                className={cn(
+                  "w-24 flex-shrink-0 p-2 border-r border-gray-200 dark:border-gray-700",
+                  SLOT_TYPE_COLORS[slot.type]
+                )}
+              >
+                <div className={cn("text-xs font-medium", textPrimary)}>
+                  {slot.name}
+                </div>
+                <div className={cn("text-xs mt-0.5", textMuted)}>
+                  {slot.startTime.substring(0, 5)} - {slot.endTime.substring(0, 5)}
+                </div>
+              </div>
 
-interface MatrixPlanCardProps {
-  plan: MatrixPlanItem;
-  onClick: (e: React.MouseEvent) => void;
-  enableSimpleComplete?: boolean;
-  onSimpleComplete?: (e: React.MouseEvent) => void;
-}
+              {/* 각 요일의 셀 */}
+              {weekDates.map((date) => {
+                const dateStr = formatDate(date);
+                const cellKey = `${slot.id}-${dateStr}`;
+                const cellPlans = plansByCell.get(cellKey) || [];
+                const isCurrentDay = isToday(date);
+                const isStudySlot = slot.type === "study";
+                const past = isPastDate(date);
 
-function MatrixPlanCard({
-  plan,
-  onClick,
-  enableSimpleComplete,
-  onSimpleComplete,
-}: MatrixPlanCardProps) {
-  const isCompleted = plan.status === "completed";
-  const isInProgress = plan.status === "in_progress";
-
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "group relative p-1.5 rounded text-xs cursor-pointer transition-all",
-        "bg-white dark:bg-gray-800 shadow-sm hover:shadow",
-        STATUS_STYLES[plan.status],
-        isCompleted && "opacity-60"
-      )}
-    >
-      {/* 간단 완료 체크박스 */}
-      {enableSimpleComplete && !isCompleted && (
-        <button
-          onClick={onSimpleComplete}
-          className={cn(
-            "absolute -left-1 -top-1 w-4 h-4 rounded border-2",
-            "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600",
-            "hover:border-green-500 transition-colors",
-            "opacity-0 group-hover:opacity-100"
-          )}
-        >
-          {isCompleted && <Check className="w-3 h-3 text-green-500" />}
-        </button>
-      )}
-
-      {/* 제목 */}
-      <div
-        className={cn(
-          "font-medium truncate",
-          textPrimary,
-          isCompleted && "line-through"
-        )}
-        style={{ color: plan.color }}
-      >
-        {plan.title}
-      </div>
-
-      {/* 과목 */}
-      {plan.subject && (
-        <div className={cn("truncate mt-0.5", textMuted)}>{plan.subject}</div>
-      )}
-
-      {/* 진행률 바 */}
-      {plan.progress !== undefined && plan.progress > 0 && plan.progress < 100 && (
-        <div className="mt-1 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-500 rounded-full"
-            style={{ width: `${plan.progress}%` }}
-          />
+                return (
+                  <DroppableCell
+                    key={cellKey}
+                    slotId={slot.id}
+                    date={dateStr}
+                    startTime={slot.startTime}
+                    endTime={slot.endTime}
+                    isStudySlot={isStudySlot}
+                    isCurrentDay={isCurrentDay}
+                    isPast={past}
+                    slotType={slot.type}
+                    onClick={isStudySlot && onCellClick ? () => handleCellClick(slot.id, dateStr) : undefined}
+                    enableDrop={enableDragDrop}
+                  >
+                    {/* 셀 내 플랜 목록 */}
+                    <div className="space-y-1">
+                      {cellPlans.map((plan) => (
+                        <DraggablePlanCard
+                          key={plan.id}
+                          plan={plan}
+                          slotId={slot.id}
+                          date={dateStr}
+                          onClick={(e) => handlePlanClick(plan, e)}
+                          enableSimpleComplete={enableSimpleComplete}
+                          onSimpleComplete={(e) => handleSimpleComplete(plan, e)}
+                          enableDrag={enableDragDrop}
+                        />
+                      ))}
+                    </div>
+                  </DroppableCell>
+                );
+              })}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* 상태 아이콘 */}
-      {isInProgress && (
-        <Clock className="absolute top-1 right-1 w-3 h-3 text-blue-500 animate-pulse" />
-      )}
-      {isCompleted && (
-        <Check className="absolute top-1 right-1 w-3 h-3 text-green-500" />
-      )}
-    </div>
+      {/* 드래그 오버레이 */}
+      <DragOverlay>
+        {activeDragPlan && <DragOverlayCard plan={activeDragPlan} />}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
