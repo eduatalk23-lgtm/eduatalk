@@ -1,0 +1,535 @@
+"use server";
+
+/**
+ * AI 플랜 생성 서버 액션
+ *
+ * Claude API를 사용하여 학습 플랜을 자동 생성합니다.
+ */
+
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { revalidatePath } from "next/cache";
+
+import { createMessage, getModelConfig, estimateCost } from "../client";
+import { SYSTEM_PROMPT, buildUserPrompt, estimatePromptTokens } from "../prompts/planGeneration";
+import { buildLLMRequest, validateRequest } from "../transformers/requestBuilder";
+import { parseLLMResponse, toDBPlanDataList } from "../transformers/responseParser";
+
+import type {
+  LLMPlanGenerationRequest,
+  LLMPlanGenerationResponse,
+  ModelTier,
+  GeneratedPlanItem,
+} from "../types";
+
+// ============================================
+// 타입 정의
+// ============================================
+
+export interface GeneratePlanInput {
+  /** 콘텐츠 ID 목록 */
+  contentIds: string[];
+  /** 시작 날짜 */
+  startDate: string;
+  /** 종료 날짜 */
+  endDate: string;
+  /** 일일 학습 시간 (분) */
+  dailyStudyMinutes: number;
+  /** 제외 요일 (0-6) */
+  excludeDays?: number[];
+  /** 취약 과목 우선 */
+  prioritizeWeakSubjects?: boolean;
+  /** 과목 균형 */
+  balanceSubjects?: boolean;
+  /** 복습 포함 */
+  includeReview?: boolean;
+  /** 복습 비율 (0-1) */
+  reviewRatio?: number;
+  /** 추가 지시사항 */
+  additionalInstructions?: string;
+  /** 모델 티어 */
+  modelTier?: ModelTier;
+  /** 플랜 그룹 ID (기존 그룹에 추가할 경우) */
+  planGroupId?: string;
+  /** 새 플랜 그룹 이름 (새로 생성할 경우) */
+  planGroupName?: string;
+}
+
+export interface GeneratePlanResult {
+  success: boolean;
+  data?: {
+    planGroupId: string;
+    totalPlans: number;
+    response: LLMPlanGenerationResponse;
+    cost: {
+      inputTokens: number;
+      outputTokens: number;
+      estimatedUSD: number;
+    };
+  };
+  error?: string;
+}
+
+// ============================================
+// 데이터 로드
+// ============================================
+
+async function loadStudentData(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, userId: string) {
+  const { data: student } = await supabase
+    .from("students")
+    .select("id, name, grade, school_name, target_university, target_major, tenant_id")
+    .eq("id", userId)
+    .single();
+
+  return student;
+}
+
+async function loadScores(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, studentId: string) {
+  const { data: scores } = await supabase
+    .from("scores")
+    .select("subject, subject_category, score, grade, percentile, standard_score")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  return scores || [];
+}
+
+async function loadContents(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, contentIds: string[]) {
+  const { data: contents } = await supabase
+    .from("content_masters")
+    .select(`
+      id,
+      title,
+      subject,
+      subject_category,
+      content_type,
+      total_pages,
+      total_lectures,
+      estimated_hours
+    `)
+    .in("id", contentIds);
+
+  return contents || [];
+}
+
+async function loadTimeSlots(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, tenantId: string) {
+  const { data: slots } = await supabase
+    .from("time_slots")
+    .select("id, name, start_time, end_time, slot_type")
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true)
+    .order("slot_order", { ascending: true });
+
+  return slots || [];
+}
+
+async function loadLearningStats(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, studentId: string) {
+  // 최근 30일 학습 통계 계산
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data: plans } = await supabase
+    .from("student_plan")
+    .select("status, progress, estimated_minutes")
+    .eq("student_id", studentId)
+    .gte("plan_date", thirtyDaysAgo.toISOString().split("T")[0]);
+
+  if (!plans || plans.length === 0) {
+    return {
+      total_plans_completed: 0,
+      average_completion_rate: 0,
+      average_daily_minutes: 0,
+    };
+  }
+
+  const completed = plans.filter((p) => p.status === "completed").length;
+  const avgProgress =
+    plans.reduce((sum, p) => sum + (p.progress || 0), 0) / plans.length;
+  const avgMinutes =
+    plans.reduce((sum, p) => sum + (p.estimated_minutes || 0), 0) / 30;
+
+  return {
+    total_plans_completed: completed,
+    average_completion_rate: Math.round(avgProgress),
+    average_daily_minutes: Math.round(avgMinutes),
+  };
+}
+
+// ============================================
+// 플랜 저장
+// ============================================
+
+async function createPlanGroup(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  tenantId: string,
+  name: string,
+  startDate: string,
+  endDate: string
+) {
+  const { data, error } = await supabase
+    .from("plan_groups")
+    .insert({
+      student_id: studentId,
+      tenant_id: tenantId,
+      name,
+      start_date: startDate,
+      end_date: endDate,
+      status: "active",
+      generation_mode: "ai",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+async function savePlans(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  tenantId: string,
+  planGroupId: string,
+  plans: GeneratedPlanItem[]
+) {
+  const planData = plans.map((plan) => ({
+    student_id: studentId,
+    tenant_id: tenantId,
+    plan_group_id: planGroupId,
+    plan_date: plan.date,
+    start_time: plan.startTime,
+    end_time: plan.endTime,
+    content_id: plan.contentId,
+    title: plan.contentTitle,
+    subject: plan.subject,
+    subject_category: plan.subjectCategory,
+    range_start: plan.rangeStart,
+    range_end: plan.rangeEnd,
+    range_display: plan.rangeDisplay,
+    estimated_minutes: plan.estimatedMinutes,
+    is_review: plan.isReview || false,
+    notes: plan.notes,
+    priority: plan.priority || "medium",
+    status: "pending",
+    progress: 0,
+  }));
+
+  const { error } = await supabase.from("student_plan").insert(planData);
+
+  if (error) throw error;
+}
+
+// ============================================
+// 메인 액션
+// ============================================
+
+/**
+ * AI 플랜 생성
+ */
+export async function generatePlanWithAI(
+  input: GeneratePlanInput
+): Promise<GeneratePlanResult> {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    // 1. 학생 데이터 로드
+    const student = await loadStudentData(supabase, user.userId);
+    if (!student) {
+      return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+    }
+
+    // 2. 관련 데이터 로드
+    const [scores, contents, timeSlots, learningStats] = await Promise.all([
+      loadScores(supabase, student.id),
+      loadContents(supabase, input.contentIds),
+      loadTimeSlots(supabase, student.tenant_id),
+      loadLearningStats(supabase, student.id),
+    ]);
+
+    if (contents.length === 0) {
+      return { success: false, error: "선택된 콘텐츠가 없습니다." };
+    }
+
+    // 3. LLM 요청 빌드
+    const llmRequest = buildLLMRequest({
+      student: {
+        id: student.id,
+        name: student.name,
+        grade: student.grade,
+        school_name: student.school_name,
+        target_university: student.target_university,
+        target_major: student.target_major,
+      },
+      scores,
+      contents: contents.slice(0, 20).map((c) => ({
+        id: c.id,
+        title: c.title,
+        subject: c.subject,
+        subject_category: c.subject_category,
+        content_type: c.content_type,
+        total_pages: c.total_pages,
+        total_lectures: c.total_lectures,
+        estimated_hours: c.estimated_hours,
+      })),
+      timeSlots: timeSlots.map((s) => ({
+        id: s.id,
+        name: s.name,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        slot_type: s.slot_type,
+      })),
+      learningStats,
+      settings: {
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dailyStudyMinutes: input.dailyStudyMinutes,
+        excludeDays: input.excludeDays,
+        prioritizeWeakSubjects: input.prioritizeWeakSubjects,
+        balanceSubjects: input.balanceSubjects,
+        includeReview: input.includeReview,
+        reviewRatio: input.reviewRatio,
+      },
+      additionalInstructions: input.additionalInstructions,
+    });
+
+    // 4. 요청 유효성 검사
+    const validation = validateRequest(llmRequest);
+    if (!validation.valid) {
+      return { success: false, error: validation.errors.join(", ") };
+    }
+
+    // 5. 토큰 추정 및 비용 확인
+    const tokenEstimate = estimatePromptTokens(llmRequest);
+    console.log(`[AI Plan] 예상 입력 토큰: ${tokenEstimate.totalTokens}`);
+
+    // 6. LLM 호출
+    const modelTier = input.modelTier || "standard";
+    const userPrompt = buildUserPrompt(llmRequest);
+
+    const result = await createMessage({
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier,
+    });
+
+    // 7. 응답 파싱
+    const parsed = parseLLMResponse(result.content, result.modelId, result.usage);
+
+    if (!parsed.success || !parsed.response) {
+      return { success: false, error: parsed.error || "플랜 생성에 실패했습니다." };
+    }
+
+    // 8. 플랜 그룹 생성 또는 사용
+    const tenantId = student.tenant_id;
+    if (!tenantId) {
+      return { success: false, error: "테넌트 정보를 찾을 수 없습니다." };
+    }
+
+    let finalPlanGroupId: string;
+
+    if (input.planGroupId) {
+      finalPlanGroupId = input.planGroupId;
+    } else {
+      const groupName =
+        input.planGroupName ||
+        `AI 학습 계획 (${input.startDate} ~ ${input.endDate})`;
+
+      finalPlanGroupId = await createPlanGroup(
+        supabase,
+        student.id,
+        tenantId,
+        groupName,
+        input.startDate,
+        input.endDate
+      );
+    }
+
+    // 9. 플랜 저장
+    const allPlans: GeneratedPlanItem[] = [];
+    for (const matrix of parsed.response.weeklyMatrices) {
+      for (const day of matrix.days) {
+        allPlans.push(...day.plans);
+      }
+    }
+
+    await savePlans(supabase, student.id, tenantId, finalPlanGroupId, allPlans);
+
+    // 10. 캐시 무효화
+    revalidatePath("/plan");
+    revalidatePath("/plan/calendar");
+    revalidatePath("/today");
+
+    // 11. 비용 계산
+    const estimatedCost = estimateCost(
+      result.usage.inputTokens,
+      result.usage.outputTokens,
+      modelTier
+    );
+
+    return {
+      success: true,
+      data: {
+        planGroupId: finalPlanGroupId,
+        totalPlans: allPlans.length,
+        response: parsed.response,
+        cost: {
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          estimatedUSD: estimatedCost,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("[AI Plan] 생성 오류:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "플랜 생성 중 오류가 발생했습니다.",
+    };
+  }
+}
+
+// ============================================
+// 미리보기 (저장하지 않음)
+// ============================================
+
+export interface PreviewPlanResult {
+  success: boolean;
+  data?: {
+    response: LLMPlanGenerationResponse;
+    cost: {
+      inputTokens: number;
+      outputTokens: number;
+      estimatedUSD: number;
+    };
+  };
+  error?: string;
+}
+
+/**
+ * AI 플랜 미리보기 (저장하지 않음)
+ */
+export async function previewPlanWithAI(
+  input: Omit<GeneratePlanInput, "planGroupId" | "planGroupName">
+): Promise<PreviewPlanResult> {
+  const supabase = await createSupabaseServerClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    // 데이터 로드 (동일)
+    const student = await loadStudentData(supabase, user.userId);
+    if (!student) {
+      return { success: false, error: "학생 정보를 찾을 수 없습니다." };
+    }
+
+    const [scores, contents, timeSlots, learningStats] = await Promise.all([
+      loadScores(supabase, student.id),
+      loadContents(supabase, input.contentIds),
+      loadTimeSlots(supabase, student.tenant_id),
+      loadLearningStats(supabase, student.id),
+    ]);
+
+    if (contents.length === 0) {
+      return { success: false, error: "선택된 콘텐츠가 없습니다." };
+    }
+
+    // LLM 요청 빌드
+    const llmRequest = buildLLMRequest({
+      student: {
+        id: student.id,
+        name: student.name,
+        grade: student.grade,
+        school_name: student.school_name,
+        target_university: student.target_university,
+        target_major: student.target_major,
+      },
+      scores,
+      contents: contents.slice(0, 20).map((c) => ({
+        id: c.id,
+        title: c.title,
+        subject: c.subject,
+        subject_category: c.subject_category,
+        content_type: c.content_type,
+        total_pages: c.total_pages,
+        total_lectures: c.total_lectures,
+        estimated_hours: c.estimated_hours,
+      })),
+      timeSlots: timeSlots.map((s) => ({
+        id: s.id,
+        name: s.name,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        slot_type: s.slot_type,
+      })),
+      learningStats,
+      settings: {
+        startDate: input.startDate,
+        endDate: input.endDate,
+        dailyStudyMinutes: input.dailyStudyMinutes,
+        excludeDays: input.excludeDays,
+        prioritizeWeakSubjects: input.prioritizeWeakSubjects,
+        balanceSubjects: input.balanceSubjects,
+        includeReview: input.includeReview,
+        reviewRatio: input.reviewRatio,
+      },
+      additionalInstructions: input.additionalInstructions,
+    });
+
+    // 요청 유효성 검사
+    const validation = validateRequest(llmRequest);
+    if (!validation.valid) {
+      return { success: false, error: validation.errors.join(", ") };
+    }
+
+    // LLM 호출 (fast 모델 사용으로 비용 절감)
+    const modelTier = input.modelTier || "fast";
+    const userPrompt = buildUserPrompt(llmRequest);
+
+    const result = await createMessage({
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userPrompt }],
+      modelTier,
+    });
+
+    // 응답 파싱
+    const parsed = parseLLMResponse(result.content, result.modelId, result.usage);
+
+    if (!parsed.success || !parsed.response) {
+      return { success: false, error: parsed.error || "플랜 생성에 실패했습니다." };
+    }
+
+    // 비용 계산
+    const estimatedCost = estimateCost(
+      result.usage.inputTokens,
+      result.usage.outputTokens,
+      modelTier
+    );
+
+    return {
+      success: true,
+      data: {
+        response: parsed.response,
+        cost: {
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          estimatedUSD: estimatedCost,
+        },
+      },
+    };
+  } catch (error) {
+    console.error("[AI Plan Preview] 오류:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "미리보기 생성 중 오류가 발생했습니다.",
+    };
+  }
+}
