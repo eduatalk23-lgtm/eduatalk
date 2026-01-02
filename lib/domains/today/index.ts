@@ -25,10 +25,37 @@ export type {
   PendingAction,
   DeviceConflictInfo,
   TimerActionWithConflict,
+  // State Machine Types (TODAY-005)
+  TimerStatus,
+  TimerAction,
+  TransitionResult,
+} from "./types";
+
+// State Machine Functions (TODAY-005)
+export {
+  TimerStatusSchema,
+  TimerActionSchema,
+  validateTimerTransition,
+  canPerformAction,
+  getAllowedActions,
+  isTerminalStatus,
+  isActiveStatus,
+  determineTimerStatus,
+  validateTimerAction,
+  validateAdHocTimerAction,
+  isSessionPaused,
+  isSessionActivelyRunning,
+  isSessionEnded,
 } from "./types";
 
 // Error constants and types
-export { TIMER_ERRORS, type TimerErrorKey } from "./errors";
+export {
+  TIMER_ERRORS,
+  STATE_TRANSITION_ERRORS,
+  getStateTransitionError,
+  type TimerErrorKey,
+  type StateTransitionErrorKey,
+} from "./errors";
 
 // Logger utilities
 export {

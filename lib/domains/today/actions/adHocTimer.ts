@@ -16,6 +16,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { logActionError } from "@/lib/logging/actionLogger";
 import { TIMER_ERRORS } from "../errors";
+import { checkForConflictingTimers } from "../services/timerCore";
 import {
   validateAdHocTimerAction,
   type AdHocPlanStatus,
@@ -75,38 +76,16 @@ export async function startAdHocPlan(
       return { success: false, error: validationError };
     }
 
-    // 3. 다른 활성 세션 확인 (student_plan 기반)
-    const { data: activeSessions } = await supabase
-      .from("student_study_sessions")
-      .select("plan_id, paused_at")
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .not("plan_id", "is", null);
+    // 3. 다른 플랜 또는 Ad-hoc 플랜이 활성화되어 있는지 확인
+    // TODAY-004: 공통 모듈 사용으로 코드 중복 제거
+    const conflictCheck = await checkForConflictingTimers(user.userId, {
+      excludeAdHocPlanId: adHocPlanId,
+    });
 
-    // 일시정지되지 않은 실제 활성 세션만 필터링
-    const trulyActiveSessions = activeSessions?.filter(
-      (s) => !s.paused_at
-    ) ?? [];
-
-    if (trulyActiveSessions.length > 0) {
+    if (conflictCheck.hasConflict) {
       return {
         success: false,
-        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
-      };
-    }
-
-    // 5. 다른 활성 ad_hoc_plan 확인
-    const { data: activeAdHocPlans } = await supabase
-      .from("ad_hoc_plans")
-      .select("id")
-      .eq("student_id", user.userId)
-      .eq("status", "in_progress")
-      .neq("id", adHocPlanId);
-
-    if (activeAdHocPlans && activeAdHocPlans.length > 0) {
-      return {
-        success: false,
-        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+        error: conflictCheck.error || TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
       };
     }
 

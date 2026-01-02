@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { getStateTransitionError } from "@/lib/domains/today/errors";
 
 // ============================================================================
 // Timer State Machine
@@ -238,21 +239,8 @@ export function validateAdHocTimerAction(
   const result = validateTimerTransition(timerStatus, action);
 
   if (!result.valid) {
-    // 사용자 친화적 에러 메시지 반환
-    const errorMessages: Record<string, string> = {
-      "COMPLETED→START": "이미 완료된 플랜입니다.",
-      "COMPLETED→PAUSE": "이미 완료된 플랜입니다.",
-      "COMPLETED→RESUME": "이미 완료된 플랜입니다.",
-      "NOT_STARTED→PAUSE": "시작되지 않은 플랜은 일시정지할 수 없습니다.",
-      "NOT_STARTED→RESUME": "시작되지 않은 플랜은 재개할 수 없습니다.",
-      "RUNNING→START": "이미 실행 중인 플랜입니다.",
-      "RUNNING→RESUME": "이미 실행 중인 플랜입니다.",
-      "PAUSED→START": "일시정지된 플랜은 재개를 사용해주세요.",
-      "PAUSED→PAUSE": "이미 일시정지 상태입니다.",
-    };
-
-    const key = `${timerStatus}→${action}`;
-    return errorMessages[key] || result.error;
+    // TODAY-005: 중앙화된 에러 메시지 사용
+    return getStateTransitionError(timerStatus, action);
   }
 
   return null;

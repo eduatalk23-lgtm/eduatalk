@@ -116,9 +116,12 @@ export function PreviewStep({
             }
           : undefined,
       });
-      setPreview(result);
-    } catch {
-      setError("미리보기 생성에 실패했습니다.");
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "미리보기 생성에 실패했습니다.");
+      }
+      setPreview(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "미리보기 생성에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }

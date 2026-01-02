@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { TIMER_ERRORS } from "@/lib/domains/today/errors";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -263,17 +264,17 @@ export async function createSession(
 
     if (error) {
       // PostgreSQL 에러 코드 23505: unique_violation
-      // 두 가지 유니크 제약:
+      // 두 가지 유니크 제약 (애플리케이션 레벨 검사의 백업 방어선):
       // 1. idx_unique_active_session_per_plan: 동일 학생+플랜에 중복 활성 세션 방지
       // 2. idx_unique_active_session_per_student: 학생당 하나의 활성 세션만 허용 (Race Condition 방지)
       if (error.code === "23505") {
         // 제약 이름으로 구분하여 적절한 에러 메시지 반환
         const isStudentConstraint = error.message?.includes("idx_unique_active_session_per_student");
         const errorMessage = isStudentConstraint
-          ? "다른 플랜의 타이머가 이미 실행 중입니다."
-          : "이미 해당 플랜의 타이머가 실행 중입니다.";
+          ? TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN
+          : TIMER_ERRORS.TIMER_ALREADY_RUNNING_SAME_PLAN;
 
-        console.warn("[data/studentSessions] 중복 활성 세션 시도:", {
+        console.warn("[data/studentSessions] 중복 활성 세션 시도 (DB 제약 발동):", {
           studentId: session.student_id,
           planId: session.plan_id,
           constraint: isStudentConstraint ? "per_student" : "per_plan",
@@ -297,7 +298,7 @@ export async function createSession(
 
         if (fallbackResult.error) {
           console.error("[data/studentSessions] 세션 생성 fallback 실패:", fallbackResult.error);
-          return { success: false, error: "세션 생성 실패" };
+          return { success: false, error: TIMER_ERRORS.SESSION_CREATE_FAILED };
         }
 
         return { success: true, sessionId: fallbackResult.data.id };
@@ -307,7 +308,7 @@ export async function createSession(
         code: error.code,
         message: error.message,
       });
-      return { success: false, error: "세션 생성 실패" };
+      return { success: false, error: TIMER_ERRORS.SESSION_CREATE_FAILED };
     }
 
     return { success: true, sessionId: data.id };
@@ -315,7 +316,7 @@ export async function createSession(
     console.error("[data/studentSessions] 세션 생성 예외:", err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "세션 생성 실패",
+      error: err instanceof Error ? err.message : TIMER_ERRORS.SESSION_CREATE_FAILED,
     };
   }
 }

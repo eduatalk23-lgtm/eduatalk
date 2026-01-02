@@ -16,6 +16,8 @@ export const TIMER_ERRORS = {
   PLAN_NOT_RESCHEDULABLE: "이 플랜은 재조정할 수 없습니다.",
   PLAN_QUERY_ERROR: "플랜 정보 조회 중 오류가 발생했습니다.",
   PLAN_UPDATE_FAILED: "플랜 업데이트에 실패했습니다.",
+  PLAN_NOT_STARTED: "시작되지 않은 플랜입니다.",
+  PLAN_ALREADY_RUNNING: "이미 실행 중인 플랜입니다.",
 
   // 세션 관련
   SESSION_NOT_FOUND: "세션을 찾을 수 없습니다.",
@@ -47,3 +49,52 @@ export const TIMER_ERRORS = {
 } as const;
 
 export type TimerErrorKey = keyof typeof TIMER_ERRORS;
+
+/**
+ * 상태 전이 에러 메시지
+ * TODAY-005: 상태 머신 규칙 중앙화
+ *
+ * 상태 머신:
+ * - NOT_STARTED → START → RUNNING
+ * - RUNNING → PAUSE → PAUSED
+ * - RUNNING → COMPLETE → COMPLETED
+ * - PAUSED → RESUME → RUNNING
+ * - PAUSED → COMPLETE → COMPLETED
+ * - COMPLETED → (종료 상태, 전환 불가)
+ */
+export const STATE_TRANSITION_ERRORS = {
+  // 완료 상태에서의 잘못된 전이
+  "COMPLETED→START": "이미 완료된 플랜입니다.",
+  "COMPLETED→PAUSE": "이미 완료된 플랜입니다.",
+  "COMPLETED→RESUME": "이미 완료된 플랜입니다.",
+  "COMPLETED→COMPLETE": "이미 완료된 플랜입니다.",
+
+  // 시작되지 않은 상태에서의 잘못된 전이
+  "NOT_STARTED→PAUSE": "시작되지 않은 플랜은 일시정지할 수 없습니다.",
+  "NOT_STARTED→RESUME": "시작되지 않은 플랜은 재개할 수 없습니다.",
+  "NOT_STARTED→COMPLETE": "시작되지 않은 플랜은 완료할 수 없습니다.",
+
+  // 실행 중 상태에서의 잘못된 전이
+  "RUNNING→START": "이미 실행 중인 플랜입니다.",
+  "RUNNING→RESUME": "이미 실행 중인 플랜입니다.",
+
+  // 일시정지 상태에서의 잘못된 전이
+  "PAUSED→START": "일시정지된 플랜은 재개를 사용해주세요.",
+  "PAUSED→PAUSE": "이미 일시정지 상태입니다.",
+} as const;
+
+export type StateTransitionErrorKey = keyof typeof STATE_TRANSITION_ERRORS;
+
+/**
+ * 상태 전이 에러 메시지 조회 헬퍼
+ * @param currentStatus 현재 상태
+ * @param action 시도한 액션
+ * @returns 에러 메시지 또는 기본 메시지
+ */
+export function getStateTransitionError(
+  currentStatus: string,
+  action: string
+): string {
+  const key = `${currentStatus}→${action}` as StateTransitionErrorKey;
+  return STATE_TRANSITION_ERRORS[key] || `잘못된 상태 전이입니다: ${currentStatus} → ${action}`;
+}

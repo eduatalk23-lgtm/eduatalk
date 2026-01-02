@@ -4,7 +4,40 @@
  * 오늘 학습 관련 타입 정의
  */
 
+// ============================================================================
+// Timer State Machine Types (re-exported from timerUtils)
+// TODAY-005: 상태 머신 규칙 중앙화
+// ============================================================================
+
+export {
+  TimerStatusSchema,
+  TimerActionSchema,
+  type TimerAction,
+  type TransitionResult,
+  // State machine functions
+  validateTimerTransition,
+  canPerformAction,
+  getAllowedActions,
+  isTerminalStatus,
+  isActiveStatus,
+  determineTimerStatus,
+  validateTimerAction,
+  validateAdHocTimerAction,
+  // Session state helpers
+  isSessionPaused,
+  isSessionActivelyRunning,
+  isSessionEnded,
+} from "@/lib/utils/timerUtils";
+
+// Derive TimerStatus type from schema
+import type { z } from "zod";
+import type { TimerStatusSchema as TimerStatusSchemaType } from "@/lib/utils/timerUtils";
+export type TimerStatus = z.infer<typeof TimerStatusSchemaType>;
+
+// ============================================================================
 // Timer/Plan action types
+// ============================================================================
+
 export type PlanRecordPayload = {
   startPageOrTime: number;
   endPageOrTime: number;

@@ -8,7 +8,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { AppError, ErrorCode } from "@/lib/errors";
+// PLAN-004: AppError/ErrorCode/withErrorHandling 불필요 - { success, error } 패턴으로 통일
 import { logActionError, logActionSuccess, logActionWarn } from "@/lib/logging/actionLogger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
@@ -140,12 +140,12 @@ async function ensureStudentContent(
 /**
  * 콘텐츠 기반 플랜그룹 미리보기 생성
  */
-export async function previewContentPlanGroup(
+async function _previewContentPlanGroup(
   params: PreviewContentPlanGroupParams
-): Promise<ContentPlanGroupPreview> {
+): Promise<{ success: boolean; data?: ContentPlanGroupPreview; error?: string }> {
   const user = await getCurrentUser();
   if (!user) {
-    throw new AppError("로그인이 필요합니다.", ErrorCode.UNAUTHORIZED, 401, true);
+    return { success: false, error: "로그인이 필요합니다." };
   }
 
   // 템플릿 설정 조회
@@ -156,12 +156,7 @@ export async function previewContentPlanGroup(
   });
 
   if (!templateSettings) {
-    throw new AppError(
-      "템플릿을 찾을 수 없습니다.",
-      ErrorCode.NOT_FOUND,
-      404,
-      true
-    );
+    return { success: false, error: "템플릿을 찾을 수 없습니다." };
   }
 
   // 오버라이드 적용
@@ -285,18 +280,29 @@ export async function previewContentPlanGroup(
     : planPreviews;
 
   return {
-    inheritedSettings: templateSettings,
-    distribution: {
-      totalDays: studyDays + reviewDays,
-      studyDays,
-      reviewDays,
-      dailyAmount: Math.ceil(totalAmount / studyDays) || 0,
+    success: true,
+    data: {
+      inheritedSettings: templateSettings,
+      distribution: {
+        totalDays: studyDays + reviewDays,
+        studyDays,
+        reviewDays,
+        dailyAmount: Math.ceil(totalAmount / studyDays) || 0,
+      },
+      planPreviews: limitedPreviews,
+      warnings,
+      info,
     },
-    planPreviews: limitedPreviews,
-    warnings,
-    info,
   };
 }
+
+/**
+ * 콘텐츠 플랜 그룹 미리보기 (서버 액션)
+ *
+ * 템플릿 설정을 기반으로 플랜 분배 미리보기를 생성합니다.
+ * PLAN-004: 에러 처리 패턴 일관성을 위해 { success, data, error } 패턴 적용
+ */
+export const previewContentPlanGroup = _previewContentPlanGroup;
 
 // ============================================
 // Create Functions

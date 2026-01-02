@@ -1,5 +1,28 @@
 "use server";
 
+/**
+ * @deprecated 이 모듈은 레거시 구현입니다. 외부에서 직접 사용하지 마세요.
+ *
+ * PLAN-003: 콘텐츠 복사/플랜 생성 분리
+ * PLAN-005: 이중 유지 해결 - 외부 export 제거됨
+ *
+ * 이 파일은 1700+ 줄의 모놀리식 구현으로, 콘텐츠 복사와 플랜 생성이 분리되지 않아
+ * 단일 책임 원칙(SRP)을 위반합니다.
+ *
+ * 새 서비스 기반 구현 (lib/plan/services/generatePlansWithServices.ts)이 기본으로 사용됩니다:
+ * - ContentResolutionService: 콘텐츠 해석 및 마스터 콘텐츠 복사
+ * - PlanPayloadBuilder: 플랜 페이로드 생성
+ * - PlanValidationService: 플랜 검증
+ * - PlanPersistenceService: 플랜 저장
+ *
+ * 서비스 기반 구현은 74% 코드 감소를 달성했습니다.
+ *
+ * @internal 이 모듈은 피처 플래그 롤백 시에만 내부적으로 사용됩니다.
+ * 롤백이 필요한 경우: ENABLE_NEW_PLAN_SERVICES=false 환경 변수 설정
+ *
+ * 향후 이 파일은 삭제될 예정입니다.
+ */
+
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

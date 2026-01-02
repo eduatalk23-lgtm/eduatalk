@@ -35,23 +35,13 @@ export { deletePlanGroupAction } from "./delete";
 // Status
 export { updatePlanGroupStatus } from "./status";
 
-// Plans
+// Plans - 메인 엔트리포인트 (서비스 기반 구현 사용)
+// PLAN-005: 이중 유지 해결 - 레거시 exports 제거
+// 레거시 구현은 ENABLE_NEW_PLAN_SERVICES=false 환경변수로 롤백 시에만 내부적으로 사용됨
 export {
   generatePlansFromGroupAction,
   previewPlansFromGroupAction,
-  generatePlansFromGroupRefactoredActionDirect,
 } from "./plans";
-
-// Preview/Generate (Refactored)
-export {
-  previewPlansFromGroupRefactoredAction,
-  _previewPlansFromGroupRefactored,
-} from "./previewPlansRefactored";
-
-export {
-  generatePlansFromGroupRefactoredAction,
-  _generatePlansFromGroupRefactored,
-} from "./generatePlansRefactored";
 
 // Items (Logical Plans)
 export {

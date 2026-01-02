@@ -16,17 +16,17 @@ import {
 } from "@/lib/plan/services";
 import { logActionError } from "@/lib/logging/actionLogger";
 
-// --- 리팩토링된 함수 import 및 re-export ---
-// 원본 함수는 previewPlansRefactored.ts와 generatePlansRefactored.ts로 이동됨
-import { generatePlansFromGroupRefactoredAction, _generatePlansFromGroupRefactored } from "./generatePlansRefactored";
-import { previewPlansFromGroupRefactoredAction, _previewPlansFromGroupRefactored } from "./previewPlansRefactored";
+// --- 레거시 함수 import (피처 플래그 롤백용) ---
+// PLAN-005: 외부 export 제거, 내부 롤백용으로만 사용
+import { _generatePlansFromGroupRefactored } from "./generatePlansRefactored";
+import { _previewPlansFromGroupRefactored } from "./previewPlansRefactored";
 
 /**
  * 피처 플래그 기반 플랜 생성 액션
  *
  * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
- * - true: 새로운 서비스 레이어 기반 구현 사용
- * - false (기본): 기존 generatePlansRefactored 구현 사용
+ * - true (기본): 새로운 서비스 레이어 기반 구현 사용 (PLAN-003 해결)
+ * - false: 레거시 generatePlansRefactored 구현 사용 (롤백용)
  */
 async function _generatePlansFromGroupWithFeatureFlag(
   groupId: string
@@ -104,8 +104,8 @@ export const generatePlansFromGroupAction = withErrorHandling(
  * 피처 플래그 기반 플랜 미리보기 액션
  *
  * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
- * - true: 새로운 서비스 레이어 기반 구현 사용
- * - false (기본): 기존 previewPlansRefactored 구현 사용
+ * - true (기본): 새로운 서비스 레이어 기반 구현 사용 (PLAN-003 해결)
+ * - false: 레거시 previewPlansRefactored 구현 사용 (롤백용)
  */
 async function _previewPlansFromGroupWithFeatureFlag(
   groupId: string
@@ -201,8 +201,8 @@ export const previewPlansFromGroupAction = withErrorHandling(
   _previewPlansFromGroupWithFeatureFlag
 );
 
-// 기존 구현 직접 접근이 필요한 경우를 위해 유지
-export { generatePlansFromGroupRefactoredAction as generatePlansFromGroupRefactoredActionDirect };
+// PLAN-005: 레거시 직접 접근 export 제거
+// 레거시 구현은 피처 플래그(ENABLE_NEW_PLAN_SERVICES=false)로만 활성화됨
 
 // --- 나머지 유틸리티 함수들 ---
 

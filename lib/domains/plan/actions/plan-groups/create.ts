@@ -8,27 +8,13 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { formatDateString } from "@/lib/date/calendarUtils";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  createPlanGroup,
-  deletePlanGroup,
-  getPlanGroupWithDetails,
-  createPlanContents,
-  createPlanExclusions,
-  createPlanAcademySchedules,
-} from "@/lib/data/planGroups";
-import {
-  deletePlanContentsByGroupId,
-  deleteExclusionsByGroupId,
-  deleteAcademySchedulesByGroupId,
-  deleteStudentPlansByGroupId,
-  deletePlanGroupItemsByGroupId,
-  checkPlanPeriodOverlap,
-} from "@/lib/domains/plan/repository";
+import { getPlanGroupWithDetails } from "@/lib/data/planGroups";
+import { checkPlanPeriodOverlap } from "@/lib/domains/plan/repository";
 import { AppError, ErrorCode, withErrorHandling, withErrorHandlingSafe } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
-import { buildSchedulerOptions, toDbSchedulerOptions } from "@/lib/domains/plan/utils/schedulerOptionsBuilder";
+import { buildSchedulerOptions } from "@/lib/domains/plan/utils/schedulerOptionsBuilder";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
@@ -37,60 +23,6 @@ import {
   formatExclusionsForDb,
 } from "@/lib/domains/plan/utils/exclusionProcessor";
 import { DAYS_PER_WEEK, MILLISECONDS_PER_DAY } from "@/lib/utils/time";
-
-/**
- * 플랜 그룹 생성 실패 시 관련 데이터를 모두 롤백합니다.
- * 삭제 순서 (자식 → 부모): student_plan → plan_group_items → contents → exclusions → academy_schedules → plan_group
- *
- * CASCADE DELETE가 설정되어 있지만, soft delete 시에는 수동 정리가 필요합니다.
- */
-async function rollbackPlanGroupCreation(
-  groupId: string,
-  studentId: string
-): Promise<void> {
-  logActionDebug(
-    { domain: "plan", action: "rollbackPlanGroupCreation" },
-    "플랜 그룹 롤백 시작",
-    { groupId, studentId }
-  );
-
-  try {
-    // 1. 모든 자식 테이블 데이터 삭제 (병렬 처리, 개별 에러 처리)
-    const deleteResults = await Promise.allSettled([
-      deleteStudentPlansByGroupId(groupId, studentId),
-      deletePlanGroupItemsByGroupId(groupId),
-      deletePlanContentsByGroupId(groupId),
-      deleteExclusionsByGroupId(groupId),
-      deleteAcademySchedulesByGroupId(groupId),
-    ]);
-
-    // 삭제 결과 로깅
-    const tableNames = ["student_plan", "plan_group_items", "plan_contents", "plan_exclusions", "academy_schedules"];
-    deleteResults.forEach((result, index) => {
-      if (result.status === "rejected") {
-        logActionError(
-          { domain: "plan", action: "rollbackPlanGroupCreation" },
-          result.reason,
-          { table: tableNames[index], groupId }
-        );
-      }
-    });
-
-    // 2. plan_group 삭제 (soft delete)
-    await deletePlanGroup(groupId, studentId);
-    logActionSuccess(
-      { domain: "plan", action: "rollbackPlanGroupCreation" },
-      { groupId }
-    );
-  } catch (error) {
-    logActionError(
-      { domain: "plan", action: "rollbackPlanGroupCreation" },
-      error,
-      { groupId, studentId }
-    );
-    // 롤백 실패는 무시하고 원래 에러를 전파
-  }
-}
 
 /**
  * 원자적 플랜 그룹 생성을 위한 RPC 호출 헬퍼
@@ -262,15 +194,13 @@ async function _createPlanGroup(
   }
 
   let studentId: string;
-  let userId: string;
 
   // 관리자/컨설턴트 권한 확인
   const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
-  
+
   if (isAdmin) {
     // 관리자 모드: student_id를 옵션에서 가져오거나 에러
     await requireAdminOrConsultant();
-    userId = currentUser.userId;
 
     if (options?.studentId) {
       studentId = options.studentId;
@@ -286,7 +216,6 @@ async function _createPlanGroup(
     // 학생 모드: 현재 사용자가 학생
     const studentAuth = await requireStudentAuth();
     studentId = studentAuth.userId;
-    userId = studentAuth.userId;
   }
 
   const tenantContext = await requireTenantContext();
@@ -631,7 +560,6 @@ async function _savePlanGroupDraft(
   }
 
   let studentId: string;
-  let userId: string;
 
   // 관리자/컨설턴트 권한 확인
   const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
@@ -639,7 +567,6 @@ async function _savePlanGroupDraft(
   if (isAdmin) {
     // 관리자 모드: student_id를 옵션에서 가져오거나 기존 그룹에서 조회
     await requireAdminOrConsultant();
-    userId = currentUser.userId;
 
     if (options?.studentId) {
       studentId = options.studentId;
@@ -673,7 +600,6 @@ async function _savePlanGroupDraft(
     // 학생 모드: 현재 사용자가 학생
     const studentAuth = await requireStudentAuth();
     studentId = studentAuth.userId;
-    userId = studentAuth.userId;
   }
 
   const tenantContext = await requireTenantContext();
@@ -689,11 +615,10 @@ async function _savePlanGroupDraft(
   }
 
   // 기존 draft 확인 (중복 생성 방지)
-  // camp_invitation_id가 있든 없든 동일한 이름의 draft가 있으면 업데이트
   const supabase = await createSupabaseServerClient();
   const existingGroup = await findExistingDraftPlanGroup(
     supabase,
-    studentId, // student_id로 조회
+    studentId,
     data.name,
     data.camp_invitation_id || null
   );
@@ -705,7 +630,6 @@ async function _savePlanGroupDraft(
     return { groupId: existingGroup.id };
   }
 
-  // 플랜 그룹 생성 (draft 상태)
   // scheduler_options 통합 빌드 (time_settings, study_review_cycle 병합)
   const mergedSchedulerOptions = buildSchedulerOptions({
     scheduler_options: data.scheduler_options,
@@ -713,9 +637,8 @@ async function _savePlanGroupDraft(
     study_review_cycle: data.study_review_cycle,
   });
 
-  const groupResult = await createPlanGroup({
-    tenant_id: tenantContext.tenantId,
-    student_id: studentId, // 관리자 모드에서는 지정된 student_id 사용
+  // 플랜 그룹 데이터 준비 (RPC용)
+  const planGroupData: PlanGroupAtomicInput = {
     name: data.name || null,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type || null,
@@ -734,19 +657,55 @@ async function _savePlanGroupDraft(
     additional_period_reallocation: data.additional_period_reallocation || null,
     non_study_time_blocks: data.non_study_time_blocks || null,
     daily_schedule: data.daily_schedule || null,
-    // 캠프 관련 필드
     plan_type: data.plan_type || null,
     camp_template_id: data.camp_template_id || null,
     camp_invitation_id: data.camp_invitation_id || null,
-    // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: data.content_slots || null,
-  });
+  };
 
-  if (!groupResult.success || !groupResult.groupId) {
+  // 콘텐츠 데이터 준비
+  const processedContents: ContentInput[] = data.contents?.map((c) => ({
+    content_type: c.content_type,
+    content_id: c.content_id,
+    master_content_id: c.master_content_id ?? null,
+    start_range: c.start_range ?? null,
+    end_range: c.end_range ?? null,
+    display_order: c.display_order ?? 0,
+  })) ?? [];
+
+  // 제외일 데이터 준비
+  const isCampMode = data.plan_type === "camp";
+  const processedExclusions = data.exclusions
+    ? deduplicateExclusions(data.exclusions, { applyHierarchy: isCampMode })
+    : [];
+  const exclusionsData: ExclusionInput[] = formatExclusionsForDb(processedExclusions);
+
+  // 학원 일정 데이터 준비
+  const schedulesData: ScheduleInput[] = data.academy_schedules?.map((s) => ({
+    day_of_week: s.day_of_week,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    academy_name: s.academy_name || null,
+    subject: s.subject || null,
+    travel_time: s.travel_time ?? 0,
+    source: s.source ?? "student",
+    is_locked: s.is_locked ?? false,
+  })) ?? [];
+
+  // 원자적 플랜 그룹 생성 (트랜잭션 보장)
+  const atomicResult = await createPlanGroupAtomic(
+    tenantContext.tenantId,
+    studentId,
+    planGroupData,
+    processedContents,
+    exclusionsData,
+    schedulesData
+  );
+
+  if (!atomicResult.success || !atomicResult.groupId) {
     // Unique violation (23505): 동시 요청으로 인한 중복 생성 시도
-    // 기존 draft를 찾아서 업데이트
-    if (groupResult.errorCode === "23505") {
+    if (atomicResult.errorCode === "23505") {
       const retryExistingGroup = await findExistingDraftPlanGroup(
         supabase,
         studentId,
@@ -761,72 +720,15 @@ async function _savePlanGroupDraft(
     }
 
     throw new AppError(
-      groupResult.error || "플랜 그룹 임시저장에 실패했습니다.",
+      atomicResult.error || "플랜 그룹 임시저장에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
     );
   }
 
-  const groupId = groupResult.groupId;
-
-  // 관련 데이터 생성 (있을 경우만)
-  if (data.contents && data.contents.length > 0) {
-    await createPlanContents(
-      groupId,
-      tenantContext.tenantId,
-      data.contents.map((c) => ({
-        content_type: c.content_type,
-        content_id: c.content_id,
-        start_range: c.start_range,
-        end_range: c.end_range,
-        display_order: c.display_order ?? 0,
-      }))
-    );
-  }
-
-  // 제외일은 플랜 그룹별 관리
-  // 캠프 모드: 위계 기반 중복 제거
-  if (data.exclusions && data.exclusions.length > 0) {
-    const isCampMode = data.plan_type === "camp";
-    const processedExclusions = deduplicateExclusions(data.exclusions, {
-      applyHierarchy: isCampMode,
-    });
-
-    const exclusionsResult = await createPlanExclusions(
-      groupId,
-      tenantContext.tenantId,
-      formatExclusionsForDb(processedExclusions)
-    );
-
-    if (!exclusionsResult.success) {
-      // 중복 에러인 경우 VALIDATION_ERROR로 처리
-      const isDuplicateError = exclusionsResult.error?.includes("이미 등록된 제외일");
-      throw new AppError(
-        exclusionsResult.error || "제외일 저장에 실패했습니다.",
-        isDuplicateError ? ErrorCode.VALIDATION_ERROR : ErrorCode.DATABASE_ERROR,
-        isDuplicateError ? 400 : 500,
-        true
-      );
-    }
-  }
-
-  if (data.academy_schedules && data.academy_schedules.length > 0) {
-    await createPlanAcademySchedules(
-      groupId,
-      tenantContext.tenantId,
-      data.academy_schedules.map((s) => ({
-        day_of_week: s.day_of_week,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        academy_name: s.academy_name || null,
-        subject: s.subject || null,
-      }))
-    );
-  }
-
   revalidatePath("/plan");
-  return { groupId };
+  return { groupId: atomicResult.groupId };
 }
 
 // withErrorHandlingSafe: 에러 발생 시 throw 대신 직렬화 가능한 에러 객체 반환
@@ -851,7 +753,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
   const tenantContext = await requireTenantContext();
 
   // 원본 플랜 그룹 조회
-  const { group, contents, exclusions, academySchedules } =
+  const { group, contents, exclusions } =
     await getPlanGroupWithDetails(groupId, user.userId);
 
   if (!group) {
@@ -863,10 +765,8 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     );
   }
 
-  // 새 플랜 그룹 생성 (이름에 "복사본" 추가)
-  const newGroupResult = await createPlanGroup({
-    tenant_id: tenantContext.tenantId,
-    student_id: user.userId,
+  // 플랜 그룹 데이터 준비 (RPC용)
+  const planGroupData: PlanGroupAtomicInput = {
     name: `${group.name || "플랜 그룹"} (복사본)`,
     plan_purpose: group.plan_purpose,
     scheduler_type: group.scheduler_type,
@@ -879,60 +779,62 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     subject_constraints: group.subject_constraints ?? null,
     additional_period_reallocation: group.additional_period_reallocation ?? null,
     non_study_time_blocks: group.non_study_time_blocks ?? null,
+    daily_schedule: group.daily_schedule ?? null,
+    plan_type: group.plan_type ?? null,
+    camp_template_id: group.camp_template_id ?? null,
+    camp_invitation_id: null, // 복사본은 새 캠프 초대가 아님
+    use_slot_mode: group.use_slot_mode ?? false,
+    content_slots: (group.content_slots as Record<string, unknown>[] | null) ?? null,
+  };
+
+  // 콘텐츠 데이터 준비
+  const processedContents: ContentInput[] = contents?.map((c) => ({
+    content_type: c.content_type,
+    content_id: c.content_id,
+    master_content_id: c.master_content_id ?? null,
+    start_range: c.start_range ?? null,
+    end_range: c.end_range ?? null,
+    display_order: c.display_order ?? 0,
+  })) ?? [];
+
+  // 제외일 복사 (원본 플랜 그룹의 기간에 해당하는 제외일만)
+  const periodStart = new Date(group.period_start);
+  const periodEnd = new Date(group.period_end);
+
+  const filteredExclusions = (exclusions ?? []).filter((e) => {
+    const exclusionDate = new Date(e.exclusion_date);
+    return exclusionDate >= periodStart && exclusionDate <= periodEnd;
   });
 
-  if (!newGroupResult.success || !newGroupResult.groupId) {
+  const exclusionsData: ExclusionInput[] = filteredExclusions.map((e) => ({
+    exclusion_date: e.exclusion_date,
+    exclusion_type: e.exclusion_type,
+    reason: e.reason ?? null,
+  }));
+
+  // 학원 일정은 복사하지 않음 (학생별 전역 관리)
+  const schedulesData: ScheduleInput[] = [];
+
+  // 원자적 플랜 그룹 생성 (트랜잭션 보장)
+  const atomicResult = await createPlanGroupAtomic(
+    tenantContext.tenantId,
+    user.userId,
+    planGroupData,
+    processedContents,
+    exclusionsData,
+    schedulesData
+  );
+
+  if (!atomicResult.success || !atomicResult.groupId) {
     throw new AppError(
-      newGroupResult.error || "플랜 그룹 복사에 실패했습니다.",
+      atomicResult.error || "플랜 그룹 복사에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
     );
   }
 
-  const newGroupId = newGroupResult.groupId;
-
-  // 콘텐츠 복사
-  if (contents && contents.length > 0) {
-    await createPlanContents(
-      newGroupId,
-      tenantContext.tenantId,
-      contents.map((c) => ({
-        content_type: c.content_type,
-        content_id: c.content_id,
-        start_range: c.start_range,
-        end_range: c.end_range,
-        display_order: c.display_order,
-      }))
-    );
-  }
-
-  // 제외일 복사 (학생별 전역 관리)
-  // 원본 플랜 그룹의 기간에 해당하는 제외일만 복사
-  if (exclusions && exclusions.length > 0) {
-    const periodStart = new Date(group.period_start);
-    const periodEnd = new Date(group.period_end);
-
-    const filteredExclusions = exclusions.filter((e) => {
-      const exclusionDate = new Date(e.exclusion_date);
-      return exclusionDate >= periodStart && exclusionDate <= periodEnd;
-    });
-
-    if (filteredExclusions.length > 0) {
-      await createPlanExclusions(
-        newGroupId,
-        tenantContext.tenantId,
-        filteredExclusions.map((e) => ({
-          exclusion_date: e.exclusion_date,
-          exclusion_type: e.exclusion_type,
-          reason: e.reason,
-        }))
-      );
-    }
-  }
-
-  // 학원 일정 복사는 하지 않음 (학생별 전역 관리이므로 복사할 필요 없음)
-  // 대신 편집 페이지에서 시간 관리 데이터를 반영할 수 있는 버튼 제공
+  const newGroupId = atomicResult.groupId;
 
   revalidatePath("/plan");
   revalidatePath(`/plan/group/${newGroupId}`);
@@ -1016,10 +918,8 @@ async function _saveCalendarOnlyPlanGroup(
     study_review_cycle: data.study_review_cycle,
   });
 
-  // 플랜 그룹 생성 (active 상태, 캘린더 전용)
-  const groupResult = await createPlanGroup({
-    tenant_id: tenantContext.tenantId,
-    student_id: studentAuth.userId,
+  // 플랜 그룹 데이터 준비 (RPC용)
+  const planGroupData: PlanGroupAtomicInput = {
     name: data.name,
     plan_purpose: normalizePlanPurpose(data.plan_purpose),
     scheduler_type: data.scheduler_type || null,
@@ -1031,7 +931,7 @@ async function _saveCalendarOnlyPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
-    status: "draft", // 캘린더 전용은 draft로 생성, 콘텐츠 추가 후 active로 변경
+    status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
     non_study_time_blocks: data.non_study_time_blocks || null,
@@ -1041,59 +941,61 @@ async function _saveCalendarOnlyPlanGroup(
     camp_invitation_id: data.camp_invitation_id || null,
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: null, // 캘린더 전용이므로 콘텐츠 슬롯 없음
-    // 캘린더 전용 설정
-    is_calendar_only: true,
-    content_status: "pending",
-    schedule_generated_at: new Date().toISOString(),
-  });
+  };
 
-  if (!groupResult.success || !groupResult.groupId) {
+  // 콘텐츠 없음 (캘린더 전용)
+  const processedContents: ContentInput[] = [];
+
+  // 제외일 데이터 준비
+  const exclusionsData: ExclusionInput[] = data.exclusions?.map((e) => ({
+    exclusion_date: e.exclusion_date,
+    exclusion_type: e.exclusion_type,
+    reason: e.reason || null,
+  })) ?? [];
+
+  // 학원 일정 데이터 준비
+  const schedulesData: ScheduleInput[] = data.academy_schedules?.map((s) => ({
+    day_of_week: s.day_of_week,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    academy_name: s.academy_name || null,
+    subject: s.subject || null,
+    travel_time: s.travel_time ?? 0,
+    source: s.source ?? "student",
+    is_locked: s.is_locked ?? false,
+  })) ?? [];
+
+  // 원자적 플랜 그룹 생성 (트랜잭션 보장)
+  const atomicResult = await createPlanGroupAtomic(
+    tenantContext.tenantId,
+    studentAuth.userId,
+    planGroupData,
+    processedContents,
+    exclusionsData,
+    schedulesData
+  );
+
+  if (!atomicResult.success || !atomicResult.groupId) {
     throw new AppError(
-      groupResult.error || "캘린더 저장에 실패했습니다.",
+      atomicResult.error || "캘린더 저장에 실패했습니다.",
       ErrorCode.DATABASE_ERROR,
       500,
       true
     );
   }
 
-  const groupId = groupResult.groupId;
+  const groupId = atomicResult.groupId;
 
-  // 제외일 저장 (있을 경우만)
-  if (data.exclusions && data.exclusions.length > 0) {
-    const exclusionsResult = await createPlanExclusions(
-      groupId,
-      tenantContext.tenantId,
-      data.exclusions.map((e) => ({
-        exclusion_date: e.exclusion_date,
-        exclusion_type: e.exclusion_type,
-        reason: e.reason || null,
-      }))
-    );
-
-    if (!exclusionsResult.success) {
-      // 실패해도 그룹은 생성되었으므로 경고만 로깅
-      logActionDebug(
-        { domain: "plan", action: "saveCalendarOnlyPlanGroup" },
-        "제외일 저장 실패",
-        { error: exclusionsResult.error }
-      );
-    }
-  }
-
-  // 학원 일정 저장 (있을 경우만)
-  if (data.academy_schedules && data.academy_schedules.length > 0) {
-    await createPlanAcademySchedules(
-      groupId,
-      tenantContext.tenantId,
-      data.academy_schedules.map((s) => ({
-        day_of_week: s.day_of_week,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        academy_name: s.academy_name || null,
-        subject: s.subject || null,
-      }))
-    );
-  }
+  // 캘린더 전용 필드 업데이트 (RPC에서 지원하지 않는 필드)
+  const supabase = await createSupabaseServerClient();
+  await supabase
+    .from("plan_groups")
+    .update({
+      is_calendar_only: true,
+      content_status: "pending",
+      schedule_generated_at: new Date().toISOString(),
+    })
+    .eq("id", groupId);
 
   revalidatePath("/plan");
   revalidatePath(`/plan/group/${groupId}`);

@@ -1,5 +1,18 @@
 "use server";
 
+/**
+ * @deprecated 이 모듈은 레거시 구현입니다. 외부에서 직접 사용하지 마세요.
+ *
+ * PLAN-005: 이중 유지 해결 - 외부 export 제거됨
+ *
+ * 새 서비스 기반 구현 (lib/plan/services/previewPlansWithServices.ts)이 기본으로 사용됩니다.
+ *
+ * @internal 이 모듈은 피처 플래그 롤백 시에만 내부적으로 사용됩니다.
+ * 롤백이 필요한 경우: ENABLE_NEW_PLAN_SERVICES=false 환경 변수 설정
+ *
+ * 향후 이 파일은 삭제될 예정입니다.
+ */
+
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";

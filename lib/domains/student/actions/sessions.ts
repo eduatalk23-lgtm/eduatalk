@@ -28,7 +28,7 @@ import { sessionLogger } from "@/lib/domains/today/logger";
  */
 export async function startStudySession(
   planId?: string
-): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+): Promise<{ success: boolean; sessionId?: string; error?: string; isDuplicate?: boolean }> {
   // planId가 없으면 세션 생성 불가 (고아 세션 방지)
   if (!planId) {
     sessionLogger.warn("planId 없이 startStudySession 호출됨 - 거부", {
@@ -105,7 +105,8 @@ export async function startStudySession(
     });
 
     if (!result.success) {
-      return { success: false, error: result.error };
+      // isDuplicate: DB 유니크 제약 위반 시 true (Race Condition 발생)
+      return { success: false, error: result.error, isDuplicate: result.isDuplicate };
     }
 
     // revalidatePath는 호출하는 쪽(startPlan 등)에서 처리하므로 여기서는 제거

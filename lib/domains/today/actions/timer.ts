@@ -15,7 +15,11 @@ import {
   determineTimerStatus,
   type TimerAction,
 } from "@/lib/utils/timerUtils";
-import { fetchContentTotal, type ContentType } from "@/lib/data/contentTotal";
+import {
+  validateAndFetchContentTotal,
+  processProgressUpdates,
+  type ProgressCalculationInput,
+} from "../services/progressService";
 import type {
   PlanRecordPayload,
   StartPlanResult,
@@ -27,6 +31,8 @@ import type {
 } from "../types";
 import { TIMER_ERRORS } from "../errors";
 import { timerLogger } from "../logger";
+import { completePlanAtomic } from "../transactions";
+import { checkForConflictingTimers } from "../services/timerCore";
 import { updateGamificationOnPlanComplete } from "@/lib/domains/gamification";
 import {
   startAdHocPlan,
@@ -121,64 +127,38 @@ export async function startPlan(
     }
 
     // [경합 방지 규칙 1] 동시 실행 금지
-    // 다른 플랜이 활성화되어 있는지 확인 (현재 플랜 제외, 일시정지된 세션 제외)
-    // 일시정지된 세션은 paused_at이 있고 resumed_at이 없는 상태
-    const { data: activeSessions, error: sessionError } = await supabase
-      .from("student_study_sessions")
-      .select("plan_id, paused_at, resumed_at")
-      .eq("student_id", user.userId)
-      .is("ended_at", null)
-      .not("plan_id", "is", null) // plan_id가 null인 고아 세션 제외
-      .neq("plan_id", planId);
+    // 다른 플랜 또는 Ad-hoc 플랜이 활성화되어 있는지 확인
+    // TODAY-004: 공통 모듈 사용으로 코드 중복 제거
+    const conflictCheck = await checkForConflictingTimers(user.userId, {
+      excludePlanId: planId,
+    });
 
-    if (sessionError) {
-      timerLogger.error("활성 세션 조회 오류", {
+    if (conflictCheck.hasConflict) {
+      timerLogger.warn("타이머 충돌 감지", {
         action: "startPlan",
         id: planId,
-        error: sessionError instanceof Error ? sessionError : new Error(String(sessionError)),
+        data: { conflictType: conflictCheck.conflictType },
       });
-      return { success: false, error: TIMER_ERRORS.SESSION_QUERY_ERROR };
-    }
-
-    // 일시정지되지 않은 실제 활성 세션만 필터링
-    const trulyActiveSessions = filterActivelyRunningSessions(activeSessions);
-
-    // 다른 플랜이 활성화되어 있으면 에러 반환
-    if (trulyActiveSessions.length > 0) {
       return {
         success: false,
-        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
+        error: conflictCheck.error || TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
       };
     }
 
-    // [경합 방지 규칙 1-b] Ad-hoc 플랜 동시 실행 금지
-    // Ad-hoc 플랜이 진행 중인지 확인
-    const { data: activeAdHocPlans, error: adHocError } = await supabase
-      .from("ad_hoc_plans")
-      .select("id")
-      .eq("student_id", user.userId)
-      .eq("status", "in_progress");
-
-    if (adHocError) {
-      timerLogger.error("Ad-hoc 플랜 조회 오류", {
-        action: "startPlan",
-        id: planId,
-        error: adHocError instanceof Error ? adHocError : new Error(String(adHocError)),
-      });
-      return { success: false, error: TIMER_ERRORS.SESSION_QUERY_ERROR };
-    }
-
-    if (activeAdHocPlans && activeAdHocPlans.length > 0) {
-      return {
-        success: false,
-        error: TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN,
-      };
-    }
-
-    // 학습 세션 시작 (내부에서 플랜 조회 및 검증 수행)
-    // Race Condition은 DB 레벨 유니크 제약(idx_unique_active_session_per_student)으로 방지
+    // 학습 세션 시작
+    // Race Condition 방지 전략:
+    // 1. 애플리케이션 레벨: 위에서 activeSessions, activeAdHocPlans 검사 (1차 방어선)
+    // 2. DB 레벨: idx_unique_active_session_per_student 유니크 제약 (2차 백업 방어선)
+    // 동시 요청 시 1차 방어선을 통과해도 2차에서 차단되며, 친화적 에러 메시지 반환
     const result = await startStudySession(planId);
     if (!result.success) {
+      // isDuplicate: DB 유니크 제약 위반 시 true (Race Condition 발생)
+      if ("isDuplicate" in result && result.isDuplicate) {
+        timerLogger.warn("Race Condition 감지: DB 제약에 의해 차단됨", {
+          action: "startPlan",
+          id: planId,
+        });
+      }
       return { success: false, error: result.error };
     }
 
@@ -299,93 +279,11 @@ export async function completePlan(
       samePlanNumberPlans = [{ id: planId }];
     }
 
-    // 콘텐츠 총량 조회 (공통 함수 사용, student_id 필터 포함)
-    let totalAmount: number | null = null;
-    try {
-      totalAmount = await fetchContentTotal(
-        supabase,
-        user.userId,
-        plan.content_type as ContentType,
-        plan.content_id
-      );
-    } catch (error) {
-      timerLogger.error("콘텐츠 총량 조회 중 예외 발생", {
-        action: "completePlan",
-        id: planId,
-        userId: user.userId,
-        data: {
-          contentType: plan.content_type,
-          contentId: plan.content_id,
-        },
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      return {
-        success: false,
-        error: `콘텐츠 정보를 조회하는 중 오류가 발생했습니다. ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
-      };
-    }
-
-    // 상세한 에러 메시지 제공
-    if (totalAmount === null) {
-      timerLogger.error("콘텐츠 총량이 null", {
-        action: "completePlan",
-        id: planId,
-        userId: user.userId,
-        data: {
-          contentType: plan.content_type,
-          contentId: plan.content_id,
-        },
-      });
-      return {
-        success: false,
-        error: `콘텐츠를 찾을 수 없거나 총량 정보가 설정되지 않았습니다. (${plan.content_type}: ${plan.content_id})`,
-      };
-    }
-
-    if (totalAmount <= 0) {
-      timerLogger.error("콘텐츠 총량이 0 이하", {
-        action: "completePlan",
-        id: planId,
-        userId: user.userId,
-        data: {
-          contentType: plan.content_type,
-          contentId: plan.content_id,
-          totalAmount,
-        },
-      });
-      return {
-        success: false,
-        error: `콘텐츠 총량이 0 이하입니다. 콘텐츠 설정에서 총량을 확인해주세요. (현재 총량: ${totalAmount})`,
-      };
-    }
-
-    // 진행률 계산
-    const completedAmount = payload.endPageOrTime - payload.startPageOrTime;
-    const progress = Math.min(
-      Math.round((completedAmount / totalAmount) * 100),
-      100
-    );
-
-    // 같은 plan_number를 가진 모든 플랜의 진행률 배치 업데이트 (N+1 → 1 쿼리)
+    // TODAY-001: 진행률 관련 로직 progressService로 분리
+    // 1. planIds 추출
     const planIds = samePlanNumberPlans.map((p) => p.id);
-    const { error: batchUpdateError } = await supabase
-      .from("student_plan")
-      .update({
-        completed_amount: completedAmount,
-        progress: progress,
-      })
-      .in("id", planIds)
-      .eq("student_id", user.userId);
 
-    if (batchUpdateError) {
-      timerLogger.error("플랜 진행률 배치 업데이트 오류", {
-        action: "completePlan",
-        id: planId,
-        error: batchUpdateError instanceof Error ? batchUpdateError : new Error(String(batchUpdateError)),
-      });
-    }
-
-    // student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
+    // 2. student의 tenant_id 조회 (tenant_id가 없어도 진행 가능하도록)
     const { data: student } = await supabase
       .from("students")
       .select("tenant_id")
@@ -394,80 +292,38 @@ export async function completePlan(
 
     const tenantId = student?.tenant_id || tenantContext?.tenantId || null;
 
-    // 같은 plan_number를 가진 모든 플랜의 student_content_progress에 기록 (N+1 → upsert 배치)
-    const progressTimestamp = new Date().toISOString();
-    // Calendar-First: content_id가 빈 문자열이면 null로 변환 (UUID 타입 호환성)
-    const normalizedContentId = plan.content_id && plan.content_id.trim() !== "" ? plan.content_id : null;
-    const progressPayloads = planIds.map((planIdForProgress) => ({
-      student_id: user.userId,
-      tenant_id: tenantId,
-      plan_id: planIdForProgress,
-      content_type: plan.content_type,
-      content_id: normalizedContentId,
-      progress: progress,
-      start_page_or_time: payload.startPageOrTime,
-      end_page_or_time: payload.endPageOrTime,
-      completed_amount: completedAmount,
-      last_updated: progressTimestamp,
-    }));
+    // 3. 콘텐츠 총량 조회 및 검증
+    const contentValidation = await validateAndFetchContentTotal(
+      supabase,
+      user.userId,
+      plan.content_type,
+      plan.content_id,
+      planId
+    );
 
-    const { error: progressUpsertError } = await supabase
-      .from("student_content_progress")
-      .upsert(progressPayloads, {
-        onConflict: "student_id,plan_id",
-        ignoreDuplicates: false,
-      });
-
-    if (progressUpsertError) {
-      timerLogger.error("플랜별 진행률 upsert 오류", {
-        action: "completePlan",
-        id: planId,
-        error: progressUpsertError instanceof Error ? progressUpsertError : new Error(String(progressUpsertError)),
-      });
+    if (!contentValidation.success) {
+      return { success: false, error: contentValidation.error };
     }
 
-    // content_type + content_id로도 진행률 업데이트 (전체 진행률)
-    // Calendar-First: content_id가 null이거나 빈 문자열인 경우 (자유 학습) 전체 진행률 업데이트 스킵
-    if (normalizedContentId) {
-      const { data: existingContentProgress } = await supabase
-        .from("student_content_progress")
-        .select("id,completed_amount")
-        .eq("student_id", user.userId)
-        .eq("content_type", plan.content_type)
-        .eq("content_id", normalizedContentId)
-        .is("plan_id", null)
-        .maybeSingle();
+    const totalAmount = contentValidation.totalAmount!;
 
-      if (existingContentProgress) {
-        // 기존 완료량에 추가
-        const newCompletedAmount =
-          (existingContentProgress.completed_amount || 0) + completedAmount;
-        const newProgress = Math.min(
-          Math.round((newCompletedAmount / totalAmount) * 100),
-          100
-        );
+    // 4. 진행률 계산 및 모든 업데이트 일괄 처리
+    const progressInput: ProgressCalculationInput = {
+      planId,
+      studentId: user.userId,
+      tenantId,
+      contentType: plan.content_type,
+      contentId: plan.content_id,
+      startPageOrTime: payload.startPageOrTime,
+      endPageOrTime: payload.endPageOrTime,
+      planIds,
+    };
 
-        await supabase
-          .from("student_content_progress")
-          .update({
-            completed_amount: newCompletedAmount,
-            progress: newProgress,
-            last_updated: new Date().toISOString(),
-          })
-          .eq("id", existingContentProgress.id);
-      } else {
-        // 새로 생성
-        await supabase.from("student_content_progress").insert({
-          student_id: user.userId,
-          tenant_id: tenantId,
-          content_type: plan.content_type,
-          content_id: normalizedContentId,
-          completed_amount: completedAmount,
-          progress: progress,
-          last_updated: new Date().toISOString(),
-        });
-      }
-    }
+    const { completedAmount, progress } = await processProgressUpdates(
+      supabase,
+      progressInput,
+      totalAmount
+    );
 
     // 플랜의 actual_end_time 및 시간 정보 업데이트
     // 항상 현재 시간을 사용하여 정확한 종료 시간 기록
@@ -531,7 +387,7 @@ export async function completePlan(
       .eq("student_id", user.userId)
       .is("ended_at", null);
 
-    // 3. plan_id별로 세션 그룹화
+    // 3. plan_id별로 세션 그룹화 (일시정지 시간 계산용)
     const sessionsByPlanId = new Map<string, typeof allActiveSessions>();
     if (allActiveSessions) {
       for (const session of allActiveSessions) {
@@ -541,47 +397,14 @@ export async function completePlan(
       }
     }
 
-    // 4. 모든 활성 세션 종료 (병렬 처리, 부분 실패 허용)
-    if (allActiveSessions && allActiveSessions.length > 0) {
-      const sessionEndResults = await Promise.allSettled(
-        allActiveSessions.map((session) => endStudySession(session.id))
-      );
-
-      // 실패한 세션 종료 로깅
-      const failedSessions = sessionEndResults
-        .map((result, idx) => ({ result, sessionId: allActiveSessions[idx].id }))
-        .filter((item) => item.result.status === "rejected");
-
-      if (failedSessions.length > 0) {
-        timerLogger.error("일부 세션 종료 실패", {
-          action: "completePlan",
-          id: planId,
-          data: {
-            failedCount: failedSessions.length,
-            totalCount: allActiveSessions.length,
-            failedSessionIds: failedSessions.map((f) => f.sessionId),
-          },
-        });
-      }
-    }
-
-    // 5. 각 플랜의 업데이트 데이터 계산 및 배치 업데이트
+    // 4. 각 플랜의 업데이트 데이터 계산
     const planDataMap = new Map(
       (allPlanData || []).map((p) => [p.id, p])
     );
     const nowTime = new Date();
 
-    const updatePromises = planIds.map((samePlanId) => {
+    const planUpdates = planIds.map((samePlanId) => {
       const samePlanData = planDataMap.get(samePlanId);
-
-      let samePlanTotalDurationSeconds: number | null = null;
-      if (samePlanData?.actual_start_time) {
-        const startTime = new Date(samePlanData.actual_start_time);
-        const endTime = new Date(actualEndTime);
-        samePlanTotalDurationSeconds = Math.floor(
-          (endTime.getTime() - startTime.getTime()) / 1000
-        );
-      }
 
       // 플랜의 paused_duration_seconds만 사용 (단일 소스 원칙 - 이중 계산 방지)
       let samePlanTotalPausedDuration = samePlanData?.paused_duration_seconds || 0;
@@ -601,49 +424,35 @@ export async function completePlan(
       }
 
       return {
-        planId: samePlanId,
-        promise: supabase
-          .from("student_plan")
-          .update({
-            actual_end_time: actualEndTime,
-            total_duration_seconds: samePlanTotalDurationSeconds,
-            paused_duration_seconds: samePlanTotalPausedDuration,
-            pause_count: samePlanPauseCount,
-          })
-          .eq("id", samePlanId)
-          .eq("student_id", user.userId),
+        id: samePlanId,
+        paused_duration_seconds: samePlanTotalPausedDuration,
+        pause_count: samePlanPauseCount,
       };
     });
 
-    // 플랜 업데이트 실행 (부분 실패 허용)
-    const planUpdateResults = await Promise.allSettled(
-      updatePromises.map((item) => item.promise)
-    );
+    // 5. 세션 종료 + 플랜 업데이트를 원자적 트랜잭션으로 실행
+    // TODAY-003: 트랜잭션으로 데이터 정합성 보장 (실패 시 자동 롤백)
+    const atomicResult = await completePlanAtomic({
+      planId,
+      studentId: user.userId,
+      planIds,
+      actualEndTime,
+      planUpdates,
+    });
 
-    // 실패한 플랜 업데이트 확인
-    const failedPlanUpdates = planUpdateResults
-      .map((result, idx) => ({ result, planId: updatePromises[idx].planId }))
-      .filter((item) => item.result.status === "rejected");
-
-    if (failedPlanUpdates.length > 0) {
-      timerLogger.error("일부 플랜 업데이트 실패", {
+    if (!atomicResult.success) {
+      timerLogger.error("플랜 완료 트랜잭션 실패", {
         action: "completePlan",
         id: planId,
         data: {
-          failedCount: failedPlanUpdates.length,
-          totalCount: planIds.length,
-          failedPlanIds: failedPlanUpdates.map((f) => f.planId),
+          error: atomicResult.error,
+          errorCode: atomicResult.errorCode,
         },
       });
-
-      // 메인 플랜 업데이트 실패 시 에러 반환
-      const mainPlanFailed = failedPlanUpdates.some((f) => f.planId === planId);
-      if (mainPlanFailed) {
-        return {
-          success: false,
-          error: "플랜 완료 저장에 실패했습니다. 다시 시도해주세요.",
-        };
-      }
+      return {
+        success: false,
+        error: atomicResult.error || "플랜 완료 저장에 실패했습니다. 다시 시도해주세요.",
+      };
     }
 
     // 완료 시점의 순수 학습 시간 계산 (일시정지 시간 제외)
