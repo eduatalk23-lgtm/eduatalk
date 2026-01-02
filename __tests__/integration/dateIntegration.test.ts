@@ -249,7 +249,11 @@ describe("date + planUtils 조합 시나리오", () => {
     });
 
     it("미래 날짜 기반 완료율 계산", () => {
-      const futureDate = "2025-12-31";
+      // 동적으로 1년 후 날짜 생성 (항상 미래 날짜가 되도록)
+      const today = new Date();
+      const futureYear = today.getFullYear() + 1;
+      const futureDate = `${futureYear}-12-31`;
+
       const plans: (PlanCompletionFields & { content_id?: string | null })[] =
         [
           { actual_end_time: null, progress: 100 },
