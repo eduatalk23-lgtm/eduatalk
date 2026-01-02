@@ -92,9 +92,9 @@ describe("Plan Generation Service Layer", () => {
       process.env = originalEnv;
     });
 
-    it("환경변수가 설정되지 않으면 false를 반환해야 함", () => {
+    it("환경변수가 설정되지 않으면 true를 반환해야 함 (opt-out 방식)", () => {
       delete process.env.ENABLE_NEW_PLAN_SERVICES;
-      expect(canUseServiceBasedGeneration()).toBe(false);
+      expect(canUseServiceBasedGeneration()).toBe(true);
     });
 
     it("환경변수가 'true'이면 true를 반환해야 함", () => {
@@ -107,12 +107,12 @@ describe("Plan Generation Service Layer", () => {
       expect(canUseServiceBasedGeneration()).toBe(false);
     });
 
-    it("환경변수가 다른 값이면 false를 반환해야 함", () => {
+    it("환경변수가 'false' 외의 값이면 true를 반환해야 함 (opt-out 방식)", () => {
       process.env.ENABLE_NEW_PLAN_SERVICES = "yes";
-      expect(canUseServiceBasedGeneration()).toBe(false);
+      expect(canUseServiceBasedGeneration()).toBe(true);
 
       process.env.ENABLE_NEW_PLAN_SERVICES = "1";
-      expect(canUseServiceBasedGeneration()).toBe(false);
+      expect(canUseServiceBasedGeneration()).toBe(true);
     });
   });
 });
