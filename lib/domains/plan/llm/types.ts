@@ -64,6 +64,33 @@ export interface LearningHistory {
 }
 
 /**
+ * 학습 스타일
+ */
+export type LearningStyleType = "visual" | "auditory" | "kinesthetic" | "reading";
+
+export interface LearningStyle {
+  primary: LearningStyleType; // 주요 학습 스타일
+  secondary?: LearningStyleType; // 보조 학습 스타일
+  preferences?: {
+    preferVideo?: boolean; // 영상 강의 선호
+    preferProblemSolving?: boolean; // 문제 풀이 선호
+    preferSummary?: boolean; // 요약 정리 선호
+    preferRepetition?: boolean; // 반복 학습 선호
+  };
+}
+
+/**
+ * 시험 일정
+ */
+export interface ExamSchedule {
+  examDate: string; // YYYY-MM-DD
+  examName: string; // 시험 이름 (예: "1학기 중간고사", "6월 모의고사")
+  examType: "midterm" | "final" | "mock" | "suneung" | "other";
+  subjects?: string[]; // 해당 시험 과목 (없으면 전체)
+  importance?: "high" | "medium" | "low"; // 중요도
+}
+
+/**
  * 플랜 생성 설정
  */
 export interface PlanGenerationSettings {
@@ -100,6 +127,8 @@ export interface LLMPlanGenerationRequest {
   scores?: SubjectScore[];
   contents: ContentInfo[];
   learningHistory?: LearningHistory;
+  learningStyle?: LearningStyle;
+  examSchedules?: ExamSchedule[];
   settings: PlanGenerationSettings;
   timeSlots?: TimeSlotInfo[];
   additionalInstructions?: string;

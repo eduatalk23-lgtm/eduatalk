@@ -10,6 +10,9 @@ export type {
   SubjectScore,
   ContentInfo,
   LearningHistory,
+  LearningStyle,
+  LearningStyleType,
+  ExamSchedule,
   PlanGenerationSettings,
   TimeSlotInfo,
   LLMPlanGenerationRequest,
@@ -59,6 +62,11 @@ export {
   parseLLMResponse,
   toDBPlanData,
   toDBPlanDataList,
+  validateQualityMetrics,
+  type SkippedPlanInfo,
+  type ParseResult,
+  type QualityWarning,
+  type QualityMetricsResult,
 } from "./transformers/responseParser";
 
 // 액션

@@ -225,7 +225,38 @@ async function savePlans(
 // ============================================
 
 /**
- * AI 플랜 생성
+ * Claude API를 사용하여 학습 플랜을 자동 생성하고 저장합니다
+ *
+ * 처리 과정:
+ * 1. 학생 데이터 및 관련 정보 로드 (성적, 콘텐츠, 시간 슬롯, 학습 통계)
+ * 2. LLM 요청 빌드 및 유효성 검사
+ * 3. Claude API 호출
+ * 4. 응답 파싱 및 검증
+ * 5. 플랜 그룹 생성 또는 기존 그룹에 추가
+ * 6. 생성된 플랜 DB 저장
+ * 7. 관련 페이지 캐시 무효화
+ *
+ * @param {GeneratePlanInput} input - 플랜 생성 입력
+ * @returns {Promise<GeneratePlanResult>} 생성 결과 { success, data?, error? }
+ *
+ * @example
+ * ```typescript
+ * // 서버 컴포넌트 또는 액션에서 호출
+ * const result = await generatePlanWithAI({
+ *   contentIds: ['content-1', 'content-2'],
+ *   startDate: '2025-01-01',
+ *   endDate: '2025-01-31',
+ *   dailyStudyMinutes: 180,
+ *   prioritizeWeakSubjects: true,
+ *   includeReview: true,
+ *   reviewRatio: 0.2,
+ * });
+ *
+ * if (result.success) {
+ *   console.log('생성된 플랜 수:', result.data.totalPlans);
+ *   console.log('비용:', `$${result.data.cost.estimatedUSD.toFixed(4)}`);
+ * }
+ * ```
  */
 export async function generatePlanWithAI(
   input: GeneratePlanInput
@@ -412,7 +443,36 @@ export interface PreviewPlanResult {
 }
 
 /**
- * AI 플랜 미리보기 (저장하지 않음)
+ * Claude API를 사용하여 학습 플랜을 미리보기로 생성합니다 (저장하지 않음)
+ *
+ * `generatePlanWithAI`와 동일한 로직으로 플랜을 생성하지만,
+ * DB에 저장하지 않고 결과만 반환합니다.
+ *
+ * 기본적으로 'fast' 모델(Haiku)을 사용하여 비용을 절감합니다.
+ *
+ * @param {Omit<GeneratePlanInput, 'planGroupId' | 'planGroupName'>} input - 플랜 생성 입력 (그룹 정보 제외)
+ * @returns {Promise<PreviewPlanResult>} 미리보기 결과 { success, data?, error? }
+ *
+ * @example
+ * ```typescript
+ * // 플랜 확인 후 저장 여부 결정
+ * const preview = await previewPlanWithAI({
+ *   contentIds: ['content-1'],
+ *   startDate: '2025-01-01',
+ *   endDate: '2025-01-07',
+ *   dailyStudyMinutes: 120,
+ * });
+ *
+ * if (preview.success) {
+ *   // UI에 미리보기 표시
+ *   showPreview(preview.data.response);
+ *
+ *   // 사용자 확인 후 실제 저장
+ *   if (userConfirmed) {
+ *     await generatePlanWithAI({ ...input, planGroupName: 'My Plan' });
+ *   }
+ * }
+ * ```
  */
 export async function previewPlanWithAI(
   input: Omit<GeneratePlanInput, "planGroupId" | "planGroupName">

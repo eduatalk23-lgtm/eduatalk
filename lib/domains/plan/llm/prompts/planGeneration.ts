@@ -10,6 +10,8 @@ import type {
   SubjectScore,
   ContentInfo,
   LearningHistory,
+  LearningStyle,
+  ExamSchedule,
   PlanGenerationSettings,
   TimeSlotInfo,
 } from "../types";
@@ -90,6 +92,158 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 }
 \`\`\`
 
+## 시간 슬롯 활용 규칙
+
+- 제공된 시간 슬롯(timeSlots)이 있으면 **반드시** 해당 슬롯에 맞춰 플랜 배치
+- slotId를 응답에 포함하여 어떤 슬롯에 배치했는지 명시
+- 슬롯의 type이 "study"인 것만 학습 플랜 배치 가능
+- 슬롯이 없으면 dailyStudyMinutes를 기준으로 자유 배치
+
+## 취약 과목 우선 배치 전략
+
+**prioritizeWeakSubjects=true인 경우 반드시 적용:**
+- 집중력이 높은 아침/오전 시간(08:00-12:00)에 취약 과목(⚠️ 표시) 우선 배치
+- 취약 과목에 30-50% 더 많은 시간 할당
+- 하루에 최소 1개 이상의 취약 과목 플랜 포함
+- 취약 과목 플랜의 priority는 "high"로 설정
+
+## 복습 비율 적용
+
+**includeReview=true인 경우:**
+- reviewRatio 값에 따라 전체 플랜 중 복습 플랜 비율 조절 (예: 0.2 = 전체의 20%)
+- 에빙하우스 망각곡선 기반 복습 시점: 1일, 3일, 7일 후
+- 복습 플랜은 isReview=true로 표시
+- 복습 시 이전에 학습한 범위를 notes에 명시
+
+## 콘텐츠 진도 분배
+
+- **책**: 총 페이지를 학습 일수로 나누어 균등 분배, rangeStart/rangeEnd가 연속되도록 배치
+- **강의**: 1강당 평균 30-50분 소요 가정, 하루 1-2강 권장
+- 난이도가 "hard"(🔴)인 콘텐츠는 더 많은 시간 할당
+- 각 콘텐츠의 rangeStart는 이전 플랜의 rangeEnd+1부터 시작
+
+## 제외 규칙
+
+- excludeDays에 명시된 요일에는 플랜 생성 금지
+- excludeDates에 명시된 날짜에는 플랜 생성 금지
+
+## 학습 스타일 반영
+
+**learningStyle이 제공된 경우 다음을 적용:**
+
+| 스타일 | 설명 | 권장 배치 |
+|--------|------|----------|
+| visual (시각형) | 그림, 도표, 영상 선호 | 영상 강의 우선, 아침에 배치 |
+| auditory (청각형) | 듣기, 설명 선호 | 오디오 강의 우선, 오후에 배치 |
+| kinesthetic (체험형) | 실습, 문제풀이 선호 | 문제집 우선, 집중 시간에 배치 |
+| reading (독서형) | 읽기, 텍스트 선호 | 교재 우선, 조용한 시간에 배치 |
+
+- primary 스타일에 맞는 콘텐츠를 60% 이상 배치
+- secondary 스타일 콘텐츠를 25% 정도 배치
+- preferences가 있으면 해당 선호도 반영
+
+## 시험 일정 고려
+
+**examSchedules가 제공된 경우 다음을 적용:**
+
+### D-day 기반 학습 강도 조절
+- **D-30 이상**: 기초 개념 학습, 신규 콘텐츠 진도
+- **D-14 ~ D-30**: 심화 학습, 취약 부분 보강
+- **D-7 ~ D-14**: 문제 풀이 집중, 오답 정리
+- **D-3 ~ D-7**: 핵심 정리, 빈출 유형 반복
+- **D-1 ~ D-3**: 최종 점검, 가벼운 복습만
+
+### 시험 유형별 전략
+- **midterm/final (내신)**: 학교 교재 위주, 세부 내용 암기
+- **mock (모의고사)**: 실전 문제 풀이, 시간 관리 연습
+- **suneung (수능)**: EBS 연계, 기출 분석, 컨디션 관리
+
+### 중요도별 시간 배분
+- **high**: 해당 과목에 40% 추가 시간
+- **medium**: 기본 배분
+- **low**: 20% 감소, 다른 과목에 재배분
+
+## Few-shot 예시
+
+### 예시 1: 취약 과목 집중 (1주일, 수학 취약)
+입력: 기간 7일, 일일 180분, 수학(취약), 영어, 국어
+\`\`\`json
+{
+  "weeklyMatrices": [{
+    "weekNumber": 1,
+    "weekStart": "2026-01-06",
+    "weekEnd": "2026-01-12",
+    "days": [{
+      "date": "2026-01-06",
+      "dayOfWeek": 1,
+      "totalMinutes": 180,
+      "plans": [
+        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "math-1", "priority": "high", "notes": "오전 집중력 높을 때 취약 과목"},
+        {"startTime": "09:10", "endTime": "09:50", "subject": "수학", "contentId": "math-1", "priority": "high", "isReview": false},
+        {"startTime": "14:00", "endTime": "14:50", "subject": "영어", "contentId": "eng-1", "priority": "medium"},
+        {"startTime": "15:00", "endTime": "15:40", "subject": "국어", "contentId": "kor-1", "priority": "medium"}
+      ],
+      "dailySummary": "수학 2시간(취약 집중) + 영어/국어 각 50분"
+    }],
+    "weeklySummary": "수학 집중 강화 주간: 일일 수학 100분 이상 배치"
+  }],
+  "totalPlans": 28,
+  "recommendations": {
+    "studyTips": ["수학은 오전에 집중 배치됨", "50분 학습 후 10분 휴식 권장"],
+    "warnings": [],
+    "focusAreas": ["수학 기초 개념 정립"]
+  }
+}
+\`\`\`
+
+### 예시 2: 시험 D-7 (중간고사 일주일 전)
+입력: 시험 D-7, 중간고사, 전 과목
+\`\`\`json
+{
+  "weeklyMatrices": [{
+    "weekNumber": 1,
+    "days": [{
+      "date": "2026-01-06",
+      "totalMinutes": 240,
+      "plans": [
+        {"startTime": "08:00", "endTime": "09:30", "subject": "수학", "notes": "핵심 공식 정리 및 빈출 유형", "isReview": true, "priority": "high"},
+        {"startTime": "10:00", "endTime": "11:00", "subject": "영어", "notes": "단어 암기 및 독해 실전", "isReview": true, "priority": "high"},
+        {"startTime": "14:00", "endTime": "15:00", "subject": "국어", "notes": "문학 작품 핵심 정리", "isReview": true, "priority": "high"},
+        {"startTime": "19:00", "endTime": "20:00", "subject": "수학", "notes": "오답 노트 복습", "isReview": true, "priority": "high"}
+      ],
+      "dailySummary": "D-7: 전 과목 핵심 정리 및 빈출 유형 집중"
+    }]
+  }],
+  "recommendations": {
+    "studyTips": ["새로운 내용보다 복습에 집중", "컨디션 관리 중요"],
+    "warnings": ["시험 직전이므로 무리하지 마세요"],
+    "focusAreas": ["오답 정리", "핵심 공식 암기"]
+  }
+}
+\`\`\`
+
+### 예시 3: 시각형 학습자 (영상 강의 선호)
+입력: 시각형(visual), 강의 콘텐츠 3개, 교재 2개
+\`\`\`json
+{
+  "weeklyMatrices": [{
+    "days": [{
+      "date": "2026-01-06",
+      "plans": [
+        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "video-math", "contentTitle": "수학 개념 영상", "notes": "시각형 학습자: 영상으로 개념 이해"},
+        {"startTime": "09:10", "endTime": "10:00", "subject": "수학", "contentId": "book-math", "contentTitle": "수학 문제집", "notes": "영상 학습 후 문제로 확인"},
+        {"startTime": "14:00", "endTime": "15:00", "subject": "영어", "contentId": "video-eng", "contentTitle": "영어 강의", "notes": "시각형 학습자: 자막 있는 영상 선호"}
+      ],
+      "dailySummary": "영상 강의 70% + 교재 30% 배치 (시각형 학습자)"
+    }]
+  }],
+  "recommendations": {
+    "studyTips": ["영상 강의는 1.25배속 권장", "노트 필기와 병행하면 효과 UP"],
+    "focusAreas": ["시각 자료 활용 극대화"]
+  }
+}
+\`\`\`
+
 ## 주의사항
 
 - 모든 시간은 24시간 형식 (HH:mm)
@@ -99,6 +253,9 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 - estimatedMinutes: 해당 범위를 학습하는 데 필요한 예상 시간
 - isReview: 복습인 경우 true
 - priority: "high" | "medium" | "low"
+- **contentId는 반드시 제공된 콘텐츠 목록의 ID만 사용**
+- **시험 일정이 있으면 D-day 기반 강도 조절 필수**
+- **학습 스타일이 있으면 해당 스타일 콘텐츠 우선 배치**
 `;
 
 // ============================================
@@ -231,6 +388,9 @@ function formatSettings(settings: PlanGenerationSettings): string {
       : "";
     parts.push(`- 🔄 복습 포함 ${ratio}`);
   }
+  if (settings.excludeDates?.length) {
+    parts.push(`- 🚫 제외 날짜: ${settings.excludeDates.join(", ")}`);
+  }
 
   return `
 ## 플랜 설정
@@ -257,6 +417,104 @@ ${slotLines.join("\n")}
 `.trim();
 }
 
+function formatLearningStyle(style: LearningStyle): string {
+  const styleLabels: Record<string, string> = {
+    visual: "시각형 (영상, 도표, 그림 선호)",
+    auditory: "청각형 (듣기, 설명 선호)",
+    kinesthetic: "체험형 (실습, 문제풀이 선호)",
+    reading: "독서형 (읽기, 텍스트 선호)",
+  };
+
+  const parts = [`- 주요 스타일: 🎯 ${styleLabels[style.primary] || style.primary}`];
+
+  if (style.secondary) {
+    parts.push(`- 보조 스타일: ${styleLabels[style.secondary] || style.secondary}`);
+  }
+
+  if (style.preferences) {
+    const prefs: string[] = [];
+    if (style.preferences.preferVideo) prefs.push("📹 영상 강의");
+    if (style.preferences.preferProblemSolving) prefs.push("✏️ 문제 풀이");
+    if (style.preferences.preferSummary) prefs.push("📝 요약 정리");
+    if (style.preferences.preferRepetition) prefs.push("🔁 반복 학습");
+    if (prefs.length > 0) {
+      parts.push(`- 선호 학습법: ${prefs.join(", ")}`);
+    }
+  }
+
+  return `
+## 학습 스타일
+${parts.join("\n")}
+`.trim();
+}
+
+function formatExamSchedules(exams: ExamSchedule[], startDate: string): string {
+  if (exams.length === 0) return "";
+
+  const start = new Date(startDate);
+
+  const examLines = exams.map((exam) => {
+    const examDate = new Date(exam.examDate);
+    const diffTime = examDate.getTime() - start.getTime();
+    const dDay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const typeLabels: Record<string, string> = {
+      midterm: "중간고사",
+      final: "기말고사",
+      mock: "모의고사",
+      suneung: "수능",
+      other: "기타 시험",
+    };
+
+    const importanceEmoji: Record<string, string> = {
+      high: "🔴",
+      medium: "🟡",
+      low: "🟢",
+    };
+
+    const parts = [
+      `- ${importanceEmoji[exam.importance || "medium"]} **${exam.examName}** (${typeLabels[exam.examType] || exam.examType})`,
+      `  - 📅 시험일: ${exam.examDate} (D-${dDay > 0 ? dDay : "Day"})`,
+    ];
+
+    if (exam.subjects?.length) {
+      parts.push(`  - 📚 과목: ${exam.subjects.join(", ")}`);
+    }
+
+    return parts.join("\n");
+  });
+
+  // D-day 기반 현재 상태 안내
+  const nearestExam = exams.reduce((nearest, exam) => {
+    const examDate = new Date(exam.examDate);
+    const nearestDate = new Date(nearest.examDate);
+    return examDate < nearestDate ? exam : nearest;
+  });
+  const nearestDate = new Date(nearestExam.examDate);
+  const daysUntil = Math.ceil((nearestDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+
+  let phaseGuide = "";
+  if (daysUntil <= 3) {
+    phaseGuide = "⚡ **D-3 이내**: 최종 점검 모드 - 가벼운 복습만, 컨디션 관리 우선";
+  } else if (daysUntil <= 7) {
+    phaseGuide = "🎯 **D-7 이내**: 핵심 정리 모드 - 빈출 유형 반복, 오답 정리";
+  } else if (daysUntil <= 14) {
+    phaseGuide = "📝 **D-14 이내**: 문제 풀이 모드 - 실전 연습, 취약 보강";
+  } else if (daysUntil <= 30) {
+    phaseGuide = "📖 **D-30 이내**: 심화 학습 모드 - 개념 완성, 응용력 강화";
+  } else {
+    phaseGuide = "🌱 **D-30 이상**: 기초 학습 모드 - 신규 콘텐츠 진도, 기본기 다지기";
+  }
+
+  return `
+## 시험 일정
+${examLines.join("\n")}
+
+### 현재 학습 페이즈
+${phaseGuide}
+`.trim();
+}
+
 /**
  * 사용자 프롬프트 생성
  */
@@ -268,6 +526,12 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest): string {
     request.learningHistory
       ? formatLearningHistory(request.learningHistory)
       : "",
+    request.learningStyle
+      ? formatLearningStyle(request.learningStyle)
+      : "",
+    request.examSchedules?.length
+      ? formatExamSchedules(request.examSchedules, request.settings.startDate)
+      : "",
     formatSettings(request.settings),
     request.timeSlots?.length ? formatTimeSlots(request.timeSlots) : "",
   ].filter(Boolean);
@@ -278,11 +542,24 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest): string {
     prompt += `\n\n## 추가 지시사항\n${request.additionalInstructions}`;
   }
 
+  // 시험 일정이 있으면 강조
+  const hasExam = request.examSchedules && request.examSchedules.length > 0;
+  const hasStyle = !!request.learningStyle;
+
+  let contextNote = "";
+  if (hasExam && hasStyle) {
+    contextNote = "시험 일정과 학습 스타일을 모두 고려하여 ";
+  } else if (hasExam) {
+    contextNote = "시험 일정(D-day)을 고려하여 ";
+  } else if (hasStyle) {
+    contextNote = "학생의 학습 스타일을 고려하여 ";
+  }
+
   prompt += `
 
 ---
 
-위 정보를 바탕으로 ${request.settings.startDate}부터 ${request.settings.endDate}까지의 최적화된 학습 계획을 JSON 형식으로 생성해주세요.
+위 정보를 바탕으로 ${request.settings.startDate}부터 ${request.settings.endDate}까지의 ${contextNote}최적화된 학습 계획을 JSON 형식으로 생성해주세요.
 각 콘텐츠의 진도를 적절히 분배하고, 학생의 취약점과 선호도를 고려해주세요.
 `;
 

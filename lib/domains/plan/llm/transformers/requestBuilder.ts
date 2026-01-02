@@ -175,7 +175,35 @@ export interface BuildRequestOptions {
 }
 
 /**
- * LLM 요청 빌더
+ * 데이터베이스 데이터를 LLM 플랜 생성 요청 형식으로 변환합니다
+ *
+ * 각 DB 엔티티를 LLM이 이해할 수 있는 구조로 변환하고,
+ * 취약 과목 정보를 성적 데이터에 병합합니다.
+ *
+ * @param {BuildRequestOptions} options - 빌드 옵션
+ * @param {DBStudent} options.student - 학생 정보 (DB 형식)
+ * @param {DBScore[]} [options.scores] - 성적 목록
+ * @param {string[]} [options.weakSubjects] - 취약 과목 목록
+ * @param {DBContent[]} options.contents - 학습 콘텐츠 목록
+ * @param {DBTimeSlot[]} [options.timeSlots] - 시간 슬롯 목록
+ * @param {DBLearningStats} [options.learningStats] - 학습 통계
+ * @param {Object} options.settings - 플랜 생성 설정
+ * @returns {LLMPlanGenerationRequest} LLM 요청 객체
+ *
+ * @example
+ * ```typescript
+ * const request = buildLLMRequest({
+ *   student: dbStudent,
+ *   scores: dbScores,
+ *   weakSubjects: ['수학'],
+ *   contents: dbContents,
+ *   settings: {
+ *     startDate: '2025-01-01',
+ *     endDate: '2025-01-31',
+ *     dailyStudyMinutes: 180,
+ *   },
+ * });
+ * ```
  */
 export function buildLLMRequest(
   options: BuildRequestOptions
@@ -222,7 +250,21 @@ export function buildLLMRequest(
 // ============================================
 
 /**
- * 콘텐츠 수 제한 (토큰 절약)
+ * 콘텐츠 목록을 최대 개수로 제한합니다 (토큰 절약)
+ *
+ * 우선순위 기준:
+ * 1. priority가 'high'인 콘텐츠 우선
+ * 2. 기존 순서 유지
+ *
+ * @param {ContentInfo[]} contents - 원본 콘텐츠 목록
+ * @param {number} [maxCount=20] - 최대 콘텐츠 수
+ * @returns {ContentInfo[]} 제한된 콘텐츠 목록
+ *
+ * @example
+ * ```typescript
+ * const limited = limitContents(allContents, 15);
+ * console.log(limited.length); // <= 15
+ * ```
  */
 export function limitContents(
   contents: ContentInfo[],
@@ -249,7 +291,21 @@ export function limitContents(
 }
 
 /**
- * 기간 내 일수 계산
+ * 기간 내 실제 학습 일수를 계산합니다
+ *
+ * 제외 요일(예: 주말)을 고려하여 학습 가능한 날짜 수를 반환합니다.
+ *
+ * @param {string} startDate - 시작 날짜 (YYYY-MM-DD)
+ * @param {string} endDate - 종료 날짜 (YYYY-MM-DD)
+ * @param {number[]} [excludeDays] - 제외할 요일 (0=일요일, 6=토요일)
+ * @returns {number} 학습 가능 일수
+ *
+ * @example
+ * ```typescript
+ * // 주말 제외한 일수 계산
+ * const days = calculateDaysInRange('2025-01-01', '2025-01-07', [0, 6]);
+ * console.log(days); // 5 (월~금)
+ * ```
  */
 export function calculateDaysInRange(
   startDate: string,
@@ -273,7 +329,25 @@ export function calculateDaysInRange(
 }
 
 /**
- * 요청 유효성 검사
+ * LLM 플랜 생성 요청의 유효성을 검사합니다
+ *
+ * 검사 항목:
+ * - 시작/종료 날짜 순서
+ * - 기간 제한 (최대 90일)
+ * - 콘텐츠 최소 1개 이상
+ * - 일일 학습 시간 범위 (30분 ~ 12시간)
+ *
+ * @param {LLMPlanGenerationRequest} request - 검사할 요청 객체
+ * @returns {{ valid: boolean; errors: string[] }} 유효성 검사 결과
+ *
+ * @example
+ * ```typescript
+ * const { valid, errors } = validateRequest(request);
+ * if (!valid) {
+ *   console.error('검증 실패:', errors);
+ *   return;
+ * }
+ * ```
  */
 export function validateRequest(
   request: LLMPlanGenerationRequest
