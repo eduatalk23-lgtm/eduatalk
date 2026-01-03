@@ -1,14 +1,51 @@
 /**
  * LLM 클라이언트
  *
- * Anthropic Claude API를 사용한 플랜 생성 클라이언트입니다.
+ * LLM Provider 패턴을 기반으로 한 통합 클라이언트입니다.
+ * 기존 Anthropic 직접 호출 코드와의 하위 호환성을 유지합니다.
+ *
+ * @example
+ * ```typescript
+ * // 새로운 Provider 패턴 사용 (권장)
+ * import { getProvider } from './providers';
+ * const provider = getProvider('anthropic');
+ * const result = await provider.createMessage({...});
+ *
+ * // 기존 방식 (하위 호환)
+ * import { createMessage } from './client';
+ * const result = await createMessage({...});
+ * ```
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ModelTier, ModelConfig, MODEL_CONFIGS } from "./types";
+import type { ModelTier, ModelConfig } from "./types";
+import {
+  getProvider,
+  getDefaultProvider,
+  type LLMProvider,
+  type ProviderType,
+  type CreateMessageOptions as ProviderCreateMessageOptions,
+  type CreateMessageResult as ProviderCreateMessageResult,
+} from "./providers";
 
 // ============================================
-// 환경 변수 검증
+// Provider 관련 re-export
+// ============================================
+
+export {
+  getProvider,
+  getDefaultProvider,
+  getDefaultModelTier,
+  getImplementedProviders,
+  getAvailableProviders,
+  isProviderAvailable,
+  isDefaultProviderAvailable,
+} from "./providers";
+
+export type { LLMProvider, ProviderType } from "./providers";
+
+// ============================================
+// 환경 변수 검증 (하위 호환용)
 // ============================================
 
 function getApiKey(): string {
@@ -23,7 +60,7 @@ function getApiKey(): string {
 }
 
 // ============================================
-// 클라이언트 인스턴스
+// 클라이언트 인스턴스 (하위 호환용)
 // ============================================
 
 let clientInstance: Anthropic | null = null;
@@ -31,13 +68,19 @@ let clientInstance: Anthropic | null = null;
 /**
  * Anthropic 클라이언트 인스턴스를 가져옵니다 (싱글톤 패턴)
  *
+ * @deprecated Provider 패턴 사용을 권장합니다: getProvider('anthropic')
  * @returns {Anthropic} Anthropic SDK 클라이언트 인스턴스
  * @throws {Error} ANTHROPIC_API_KEY 환경 변수가 없을 경우
  *
  * @example
  * ```typescript
+ * // 권장하지 않음 (하위 호환용)
  * const client = getAnthropicClient();
  * const response = await client.messages.create({...});
+ *
+ * // 권장
+ * const provider = getProvider('anthropic');
+ * const result = await provider.createMessage({...});
  * ```
  */
 export function getAnthropicClient(): Anthropic {
@@ -91,7 +134,7 @@ export function getModelConfig(tier: ModelTier): ModelConfig {
 }
 
 // ============================================
-// 메시지 생성
+// 메시지 생성 (하위 호환 인터페이스)
 // ============================================
 
 export interface CreateMessageOptions {
@@ -116,7 +159,10 @@ export interface CreateMessageResult {
 }
 
 /**
- * Claude API를 호출하여 메시지를 생성합니다 (비스트리밍)
+ * LLM API를 호출하여 메시지를 생성합니다 (비스트리밍)
+ *
+ * 내부적으로 Provider 패턴을 사용하며, 환경 변수 LLM_PROVIDER에 따라
+ * 적절한 Provider가 선택됩니다 (기본값: anthropic).
  *
  * @param {CreateMessageOptions} options - 메시지 생성 옵션
  * @param {string} options.system - 시스템 프롬프트
@@ -140,29 +186,22 @@ export interface CreateMessageResult {
 export async function createMessage(
   options: CreateMessageOptions
 ): Promise<CreateMessageResult> {
-  const client = getAnthropicClient();
-  const config = getModelConfig(options.modelTier || "standard");
+  const provider = getProvider();
 
-  const response = await client.messages.create({
-    model: config.modelId,
-    max_tokens: options.maxTokens || config.maxTokens,
-    temperature: options.temperature ?? config.temperature,
+  const result = await provider.createMessage({
     system: options.system,
     messages: options.messages,
+    modelTier: options.modelTier,
+    maxTokens: options.maxTokens,
+    temperature: options.temperature,
   });
 
-  // 텍스트 블록 추출
-  const textContent = response.content.find((block) => block.type === "text");
-  const content = textContent?.type === "text" ? textContent.text : "";
-
+  // 하위 호환성을 위해 provider 필드 제거
   return {
-    content,
-    stopReason: response.stop_reason,
-    usage: {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-    modelId: config.modelId,
+    content: result.content,
+    stopReason: result.stopReason,
+    usage: result.usage,
+    modelId: result.modelId,
   };
 }
 
@@ -177,7 +216,7 @@ export interface StreamMessageOptions extends CreateMessageOptions {
 }
 
 /**
- * Claude API를 호출하여 메시지를 스트리밍으로 생성합니다
+ * LLM API를 호출하여 메시지를 스트리밍으로 생성합니다
  *
  * 실시간으로 생성되는 텍스트를 받아 UI에 표시하거나 프로그레스바를 업데이트할 때 사용합니다.
  *
@@ -201,58 +240,38 @@ export interface StreamMessageOptions extends CreateMessageOptions {
 export async function streamMessage(
   options: StreamMessageOptions
 ): Promise<CreateMessageResult> {
-  const client = getAnthropicClient();
-  const config = getModelConfig(options.modelTier || "standard");
+  const provider = getProvider();
 
-  let fullContent = "";
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let stopReason: string | null = null;
-
-  try {
-    const stream = await client.messages.stream({
-      model: config.modelId,
-      max_tokens: options.maxTokens || config.maxTokens,
-      temperature: options.temperature ?? config.temperature,
-      system: options.system,
-      messages: options.messages,
-    });
-
-    for await (const event of stream) {
-      if (event.type === "content_block_delta") {
-        const delta = event.delta;
-        if ("text" in delta) {
-          fullContent += delta.text;
-          options.onText?.(delta.text);
-        }
-      } else if (event.type === "message_delta") {
-        stopReason = event.delta.stop_reason || null;
-      } else if (event.type === "message_start") {
-        inputTokens = event.message.usage.input_tokens;
+  // onComplete 콜백 래핑 (provider 필드 제거)
+  const wrappedOnComplete = options.onComplete
+    ? (result: ProviderCreateMessageResult) => {
+        options.onComplete!({
+          content: result.content,
+          stopReason: result.stopReason,
+          usage: result.usage,
+          modelId: result.modelId,
+        });
       }
-    }
+    : undefined;
 
-    // 최종 메시지 가져오기
-    const finalMessage = await stream.finalMessage();
-    outputTokens = finalMessage.usage.output_tokens;
+  const result = await provider.streamMessage({
+    system: options.system,
+    messages: options.messages,
+    modelTier: options.modelTier,
+    maxTokens: options.maxTokens,
+    temperature: options.temperature,
+    onText: options.onText,
+    onComplete: wrappedOnComplete,
+    onError: options.onError,
+  });
 
-    const result: CreateMessageResult = {
-      content: fullContent,
-      stopReason,
-      usage: {
-        inputTokens,
-        outputTokens,
-      },
-      modelId: config.modelId,
-    };
-
-    options.onComplete?.(result);
-    return result;
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    options.onError?.(err);
-    throw err;
-  }
+  // 하위 호환성을 위해 provider 필드 제거
+  return {
+    content: result.content,
+    stopReason: result.stopReason,
+    usage: result.usage,
+    modelId: result.modelId,
+  };
 }
 
 // ============================================
@@ -330,19 +349,14 @@ export function extractJSON<T>(content: string): T | null {
  * ```
  */
 export function estimateTokens(text: string): number {
-  // 한글은 대략 문자당 1.5토큰, 영어는 4문자당 1토큰으로 추정
-  const koreanChars = (text.match(/[가-힣]/g) || []).length;
-  const otherChars = text.length - koreanChars;
-
-  return Math.ceil(koreanChars * 1.5 + otherChars / 4);
+  const provider = getProvider();
+  return provider.estimateTokens(text);
 }
 
 /**
  * API 호출 비용을 USD로 추정합니다
  *
- * 2024년 Claude API 가격 기준:
- * - Haiku: $0.25/1M 입력, $1.25/1M 출력
- * - Sonnet: $3.00/1M 입력, $15.00/1M 출력
+ * Provider별 가격 정보를 사용하여 계산합니다.
  *
  * @param {number} inputTokens - 입력 토큰 수
  * @param {number} outputTokens - 출력 토큰 수
@@ -360,13 +374,6 @@ export function estimateCost(
   outputTokens: number,
   tier: ModelTier
 ): number {
-  // Claude 3.5 Sonnet 기준 (2024년 가격)
-  const pricing: Record<ModelTier, { input: number; output: number }> = {
-    fast: { input: 0.25 / 1_000_000, output: 1.25 / 1_000_000 }, // Haiku
-    standard: { input: 3 / 1_000_000, output: 15 / 1_000_000 }, // Sonnet
-    advanced: { input: 3 / 1_000_000, output: 15 / 1_000_000 }, // Sonnet (same)
-  };
-
-  const price = pricing[tier];
-  return inputTokens * price.input + outputTokens * price.output;
+  const provider = getProvider();
+  return provider.estimateCost(inputTokens, outputTokens, tier);
 }
