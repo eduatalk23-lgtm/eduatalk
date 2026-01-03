@@ -137,12 +137,37 @@ export {
   type OwnedContentInfo,
 } from "./prompts/contentRecommendation";
 
+// 향상된 콘텐츠 추천 프롬프트 (Phase 6)
+export {
+  ENHANCED_CONTENT_RECOMMENDATION_SYSTEM_PROMPT,
+  buildEnhancedContentRecommendationPrompt,
+  estimateEnhancedRecommendationTokens,
+  validateEnhancedRecommendationResponse,
+  calculateDaysUntilExam,
+  estimateCompletionDays,
+  determineDifficultyLevel,
+  type EnhancedContentRecommendationRequest,
+  type EnhancedContentRecommendationResponse,
+  type EnhancedRecommendedContent,
+  type MatchScoreBreakdown,
+  type ExamInfo,
+  type LearningVelocity,
+  type ContentCompletionHistory,
+} from "./prompts/enhancedContentRecommendation";
+
 // 콘텐츠 추천 액션
 export {
   recommendContentWithAI,
   type RecommendContentInput,
   type RecommendContentResult,
 } from "./actions/recommendContent";
+
+// 향상된 콘텐츠 추천 액션 (Phase 6)
+export {
+  enhancedRecommendContentWithAI,
+  type EnhancedRecommendContentInput,
+  type EnhancedRecommendContentResult,
+} from "./actions/enhancedRecommendContent";
 
 // 플랜 최적화 프롬프트
 export {
@@ -183,6 +208,27 @@ export {
   type ValidationWarning,
   type ValidatePlansOptions,
 } from "./validators/planValidator";
+
+// 향상된 플랜 검증기 (Phase 6)
+export {
+  validatePlansEnhanced,
+  validateContentRanges,
+  validateRangeContinuity,
+  validateSubjectBalance,
+  validateConsecutiveSubjects,
+  validateLearningGaps,
+  validateContentDuplicates,
+  validateDailyLoad,
+  getQualityGrade,
+  getGradeDescription,
+  type QualityIssue,
+  type SubjectDistribution,
+  type QualityMetrics as EnhancedQualityMetrics,
+  type EnhancedValidationResult,
+  type ContentMetadata,
+  type EnhancedValidationOptions,
+  type QualityGrade,
+} from "./validators/enhancedPlanValidator";
 
 // AI Framework 타입 (Phase 4: 하이브리드 시스템)
 export type {
