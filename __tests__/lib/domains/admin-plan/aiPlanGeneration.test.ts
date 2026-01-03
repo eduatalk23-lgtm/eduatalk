@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { transformLLMResponseToPlans } from "@/lib/domains/admin-plan/actions/aiPlanGeneration";
+import { transformLLMResponseToPlans } from "@/lib/domains/admin-plan/transformers/llmResponseTransformer";
 import type { LLMPlanGenerationResponse } from "@/lib/domains/plan/llm";
 
 describe("transformLLMResponseToPlans", () => {
