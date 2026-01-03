@@ -183,3 +183,69 @@ export {
   type ValidationWarning,
   type ValidatePlansOptions,
 } from "./validators/planValidator";
+
+// AI Framework 타입 (Phase 4: 하이브리드 시스템)
+export type {
+  // 과목 분류
+  SubjectClassificationType,
+  SubjectClassification,
+  // 일별/주별 전략
+  DailyFocusType,
+  DailyStrategy,
+  WeeklyStrategy,
+  // 시간 힌트
+  PreferredTimeSlot,
+  TimeHint,
+  // 콘텐츠 우선순위
+  UrgencyLevel,
+  ContentPriority,
+  // 추천사항
+  AIRecommendations,
+  // 메인 프레임워크
+  AIFrameworkMeta,
+  AIFramework,
+  // 입력 타입
+  AIFrameworkStudentInfo,
+  AIFrameworkScoreInfo,
+  AIFrameworkContentInfo,
+  AIFrameworkLearningHistory,
+  AIFrameworkPeriod,
+  AIFrameworkInput,
+  // 변환 결과
+  FrameworkConversionResult,
+} from "./types/aiFramework";
+
+// AIFramework → SchedulerOptions 변환기 (Phase 4)
+export {
+  convertFrameworkToSchedulerOptions,
+  isCompatibleFrameworkVersion,
+  isHighConfidenceFramework,
+  calculateAverageConfidence,
+  extractWeaknessSubjects,
+  extractStrategySubjects,
+  getOptimalTimeSlot,
+  getRecommendedDuration,
+  type ConvertedSchedulerOptions,
+  type ContentMapping,
+  type ConversionOptions,
+} from "./converters/frameworkToSchedulerOptions";
+
+// AI Framework 생성 프롬프트 (Phase 4)
+export {
+  FRAMEWORK_SYSTEM_PROMPT,
+  buildFrameworkUserPrompt,
+  estimateFrameworkPromptTokens,
+  estimateFrameworkPromptTokensDetailed,
+  parseFrameworkResponse,
+  updateFrameworkMeta,
+} from "./prompts/frameworkGeneration";
+
+// 하이브리드 플랜 생성 액션 (Phase 4)
+export {
+  generateAIFrameworkAction,
+  extractSchedulerOptionsForDB,
+  extractRecommendationsForDB,
+  extractContentOrderingForDB,
+  type GenerateFrameworkInput,
+  type GenerateFrameworkResult,
+} from "./actions/generateHybridPlan";
