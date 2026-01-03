@@ -204,12 +204,12 @@ export async function generatePlansWithServices(
 /**
  * 서비스 레이어 기반 플랜 생성 가능 여부 확인
  *
- * 기본적으로 서비스 기반 구현을 사용합니다 (PLAN-003 해결).
- * 문제 발생 시 ENABLE_NEW_PLAN_SERVICES=false로 레거시 구현으로 롤백 가능합니다.
+ * 레거시 코드가 제거되어 항상 true를 반환합니다.
+ * 하위 호환성을 위해 유지됩니다.
  *
- * @returns 서비스 기반 구현 사용 여부 (기본값: true)
+ * @returns 항상 true
+ * @deprecated 레거시 코드 제거로 더 이상 분기가 필요없음
  */
 export function canUseServiceBasedGeneration(): boolean {
-  // 명시적으로 false로 설정된 경우에만 레거시 구현 사용
-  return process.env.ENABLE_NEW_PLAN_SERVICES !== "false";
+  return true;
 }

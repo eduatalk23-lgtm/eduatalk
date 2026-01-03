@@ -12,102 +12,85 @@ import {
 import {
   generatePlansWithServices,
   previewPlansWithServices,
-  canUseServiceBasedGeneration,
 } from "@/lib/plan/services";
 import { logActionError } from "@/lib/logging/actionLogger";
 
-// --- 레거시 함수 import (피처 플래그 롤백용) ---
-// PLAN-005: 외부 export 제거, 내부 롤백용으로만 사용
-import { _generatePlansFromGroupRefactored } from "./generatePlansRefactored";
-import { _previewPlansFromGroupRefactored } from "./previewPlansRefactored";
-
 /**
- * 피처 플래그 기반 플랜 생성 액션
+ * 플랜 생성 액션
  *
- * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
- * - true (기본): 새로운 서비스 레이어 기반 구현 사용 (PLAN-003 해결)
- * - false: 레거시 generatePlansRefactored 구현 사용 (롤백용)
+ * 서비스 레이어 기반 구현을 사용합니다.
  */
-async function _generatePlansFromGroupWithFeatureFlag(
+async function _generatePlansFromGroup(
   groupId: string
 ): Promise<{ count: number }> {
-  // 피처 플래그 확인
-  if (canUseServiceBasedGeneration()) {
-    // 새로운 서비스 레이어 기반 구현 사용
-    const access = await verifyPlanGroupAccess();
-    const tenantContext = await requireTenantContext();
+  const access = await verifyPlanGroupAccess();
+  const tenantContext = await requireTenantContext();
 
-    // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
-    const { group } = await getPlanGroupWithDetailsByRole(
-      groupId,
-      access.user.userId,
-      access.role,
-      tenantContext.tenantId
+  // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
+  const { group } = await getPlanGroupWithDetailsByRole(
+    groupId,
+    access.user.userId,
+    access.role,
+    tenantContext.tenantId
+  );
+
+  if (!group) {
+    throw new AppError(
+      "플랜 그룹을 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
     );
-
-    if (!group) {
-      throw new AppError(
-        "플랜 그룹을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
-    const studentId = getStudentIdForPlanGroup(
-      group,
-      access.user.userId,
-      access.role
-    );
-
-    // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
-    const isCampMode = !!group.camp_template_id;
-
-    const result = await generatePlansWithServices({
-      groupId,
-      context: {
-        studentId,
-        tenantId: tenantContext.tenantId,
-        userId: access.user.userId,
-        role: access.role,
-        isCampMode,
-      },
-      accessInfo: {
-        userId: access.user.userId,
-        role: access.role,
-      },
-    });
-
-    if (!result.success) {
-      throw new AppError(
-        result.error ?? "플랜 생성에 실패했습니다.",
-        ErrorCode.INTERNAL_ERROR,
-        500,
-        true,
-        { errorCode: result.errorCode }
-      );
-    }
-
-    return { count: result.count ?? 0 };
   }
 
-  // 기존 구현 사용
-  return _generatePlansFromGroupRefactored(groupId);
+  // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
+  const studentId = getStudentIdForPlanGroup(
+    group,
+    access.user.userId,
+    access.role
+  );
+
+  // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
+  const isCampMode = !!group.camp_template_id;
+
+  const result = await generatePlansWithServices({
+    groupId,
+    context: {
+      studentId,
+      tenantId: tenantContext.tenantId,
+      userId: access.user.userId,
+      role: access.role,
+      isCampMode,
+    },
+    accessInfo: {
+      userId: access.user.userId,
+      role: access.role,
+    },
+  });
+
+  if (!result.success) {
+    throw new AppError(
+      result.error ?? "플랜 생성에 실패했습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true,
+      { errorCode: result.errorCode }
+    );
+  }
+
+  return { count: result.count ?? 0 };
 }
 
 export const generatePlansFromGroupAction = withErrorHandling(
-  _generatePlansFromGroupWithFeatureFlag
+  _generatePlansFromGroup
 );
 
 /**
- * 피처 플래그 기반 플랜 미리보기 액션
+ * 플랜 미리보기 액션
  *
- * ENABLE_NEW_PLAN_SERVICES 환경변수에 따라:
- * - true (기본): 새로운 서비스 레이어 기반 구현 사용 (PLAN-003 해결)
- * - false: 레거시 previewPlansRefactored 구현 사용 (롤백용)
+ * 서비스 레이어 기반 구현을 사용합니다.
  */
-async function _previewPlansFromGroupWithFeatureFlag(
+async function _previewPlansFromGroup(
   groupId: string
 ): Promise<{ plans: Array<{
   plan_date: string;
@@ -130,79 +113,67 @@ async function _previewPlansFromGroupWithFeatureFlag(
   is_continued: boolean;
   plan_number: number | null;
 }> }> {
-  const useNewServices = canUseServiceBasedGeneration();
+  const access = await verifyPlanGroupAccess();
+  const tenantContext = await requireTenantContext();
 
-  // 피처 플래그 확인
-  if (useNewServices) {
-    // 새로운 서비스 레이어 기반 구현 사용
-    const access = await verifyPlanGroupAccess();
-    const tenantContext = await requireTenantContext();
+  // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
+  const { group } = await getPlanGroupWithDetailsByRole(
+    groupId,
+    access.user.userId,
+    access.role,
+    tenantContext.tenantId
+  );
 
-    // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
-    const { group } = await getPlanGroupWithDetailsByRole(
-      groupId,
-      access.user.userId,
-      access.role,
-      tenantContext.tenantId
+  if (!group) {
+    throw new AppError(
+      "플랜 그룹을 찾을 수 없습니다.",
+      ErrorCode.NOT_FOUND,
+      404,
+      true
     );
-
-    if (!group) {
-      throw new AppError(
-        "플랜 그룹을 찾을 수 없습니다.",
-        ErrorCode.NOT_FOUND,
-        404,
-        true
-      );
-    }
-
-    // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
-    const studentId = getStudentIdForPlanGroup(
-      group,
-      access.user.userId,
-      access.role
-    );
-
-    // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
-    const isCampMode = !!group.camp_template_id;
-
-    const result = await previewPlansWithServices({
-      groupId,
-      context: {
-        studentId,
-        tenantId: tenantContext.tenantId,
-        userId: access.user.userId,
-        role: access.role,
-        isCampMode,
-      },
-      accessInfo: {
-        userId: access.user.userId,
-        role: access.role,
-      },
-    });
-
-    if (!result.success) {
-      throw new AppError(
-        result.error ?? "플랜 미리보기에 실패했습니다.",
-        ErrorCode.INTERNAL_ERROR,
-        500,
-        true,
-        { errorCode: result.errorCode }
-      );
-    }
-
-    return { plans: result.plans ?? [] };
   }
 
-  // 기존 구현 사용
-  return _previewPlansFromGroupRefactored(groupId);
+  // admin/consultant인 경우 group.student_id 사용, 아니면 현재 사용자
+  const studentId = getStudentIdForPlanGroup(
+    group,
+    access.user.userId,
+    access.role
+  );
+
+  // 캠프 모드 여부: camp_template_id가 있으면 캠프 모드
+  const isCampMode = !!group.camp_template_id;
+
+  const result = await previewPlansWithServices({
+    groupId,
+    context: {
+      studentId,
+      tenantId: tenantContext.tenantId,
+      userId: access.user.userId,
+      role: access.role,
+      isCampMode,
+    },
+    accessInfo: {
+      userId: access.user.userId,
+      role: access.role,
+    },
+  });
+
+  if (!result.success) {
+    throw new AppError(
+      result.error ?? "플랜 미리보기에 실패했습니다.",
+      ErrorCode.INTERNAL_ERROR,
+      500,
+      true,
+      { errorCode: result.errorCode }
+    );
+  }
+
+  return { plans: result.plans ?? [] };
 }
 
 export const previewPlansFromGroupAction = withErrorHandling(
-  _previewPlansFromGroupWithFeatureFlag
+  _previewPlansFromGroup
 );
-
-// PLAN-005: 레거시 직접 접근 export 제거
-// 레거시 구현은 피처 플래그(ENABLE_NEW_PLAN_SERVICES=false)로만 활성화됨
 
 // --- 나머지 유틸리티 함수들 ---
 

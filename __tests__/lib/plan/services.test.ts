@@ -18,54 +18,15 @@ import {
 
 describe("Plan Generation Service Layer", () => {
   describe("getAdapterConfig", () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      vi.resetModules();
-      process.env = { ...originalEnv };
-    });
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
-    it("기본 설정에서 모든 서비스가 비활성화되어야 함", () => {
-      // Given: 환경변수가 설정되지 않은 상태
-      delete process.env.ENABLE_NEW_PLAN_SERVICES;
-
+    it("항상 활성화된 서비스 설정을 반환해야 함", () => {
       // When: 설정 가져오기
       const config = getAdapterConfig();
 
-      // Then: 모든 서비스 비활성화
-      expect(config.useContentResolutionService).toBe(false);
-      expect(config.useScheduleGenerationService).toBe(false);
-      expect(config.useTimeAllocationService).toBe(false);
-      expect(config.usePlanPersistenceService).toBe(false);
-    });
-
-    it("ENABLE_NEW_PLAN_SERVICES=true일 때 일부 서비스가 활성화되어야 함", () => {
-      // Given: 피처 플래그 활성화
-      process.env.ENABLE_NEW_PLAN_SERVICES = "true";
-
-      // When: 설정 가져오기
-      const config = getAdapterConfig();
-
-      // Then: ContentResolution과 PlanPersistence만 활성화
+      // Then: ContentResolution과 PlanPersistence가 활성화
       expect(config.useContentResolutionService).toBe(true);
       expect(config.useScheduleGenerationService).toBe(false); // 아직 완전 통합 안됨
       expect(config.useTimeAllocationService).toBe(false); // 아직 완전 통합 안됨
       expect(config.usePlanPersistenceService).toBe(true);
-    });
-
-    it("ENABLE_NEW_PLAN_SERVICES=false일 때 기본 설정이 반환되어야 함", () => {
-      // Given: 피처 플래그 비활성화
-      process.env.ENABLE_NEW_PLAN_SERVICES = "false";
-
-      // When: 설정 가져오기
-      const config = getAdapterConfig();
-
-      // Then: 기본 설정과 동일
-      expect(config).toEqual(DEFAULT_ADAPTER_CONFIG);
     });
   });
 
@@ -81,37 +42,7 @@ describe("Plan Generation Service Layer", () => {
   });
 
   describe("canUseServiceBasedGeneration", () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      vi.resetModules();
-      process.env = { ...originalEnv };
-    });
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
-    it("환경변수가 설정되지 않으면 true를 반환해야 함 (opt-out 방식)", () => {
-      delete process.env.ENABLE_NEW_PLAN_SERVICES;
-      expect(canUseServiceBasedGeneration()).toBe(true);
-    });
-
-    it("환경변수가 'true'이면 true를 반환해야 함", () => {
-      process.env.ENABLE_NEW_PLAN_SERVICES = "true";
-      expect(canUseServiceBasedGeneration()).toBe(true);
-    });
-
-    it("환경변수가 'false'이면 false를 반환해야 함", () => {
-      process.env.ENABLE_NEW_PLAN_SERVICES = "false";
-      expect(canUseServiceBasedGeneration()).toBe(false);
-    });
-
-    it("환경변수가 'false' 외의 값이면 true를 반환해야 함 (opt-out 방식)", () => {
-      process.env.ENABLE_NEW_PLAN_SERVICES = "yes";
-      expect(canUseServiceBasedGeneration()).toBe(true);
-
-      process.env.ENABLE_NEW_PLAN_SERVICES = "1";
+    it("레거시 코드 제거 후 항상 true를 반환해야 함", () => {
       expect(canUseServiceBasedGeneration()).toBe(true);
     });
   });

@@ -302,20 +302,15 @@ export const DEFAULT_ADAPTER_CONFIG: ServiceAdapterConfig = {
 };
 
 /**
- * 환경별 어댑터 설정 가져오기
+ * 어댑터 설정 가져오기
+ *
+ * 레거시 코드가 제거되어 항상 활성화된 설정을 반환합니다.
  */
 export function getAdapterConfig(): ServiceAdapterConfig {
-  // 환경 변수로 피처 플래그 제어 가능
-  const enableNewServices = process.env.ENABLE_NEW_PLAN_SERVICES === "true";
-
-  if (enableNewServices) {
-    return {
-      useContentResolutionService: true,
-      useScheduleGenerationService: false, // 아직 완전 통합 안됨
-      useTimeAllocationService: false, // 아직 완전 통합 안됨
-      usePlanPersistenceService: true,
-    };
-  }
-
-  return DEFAULT_ADAPTER_CONFIG;
+  return {
+    useContentResolutionService: true,
+    useScheduleGenerationService: false, // 아직 완전 통합 안됨
+    useTimeAllocationService: false, // 아직 완전 통합 안됨
+    usePlanPersistenceService: true,
+  };
 }

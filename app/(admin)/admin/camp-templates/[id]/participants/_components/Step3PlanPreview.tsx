@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition } from "react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { bulkPreviewPlans, bulkAdjustPlanRanges } from "@/lib/domains/camp/actions";
-import { Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, Wand2, Zap, Gauge, Sparkles } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 type Participant = {
   groupId: string;
@@ -65,6 +66,13 @@ export function Step3PlanPreview({
     previewData?: any[];
     error?: string;
   }>>(initialData?.previewResults || {});
+
+  // AI 모드 관련 상태
+  const [useAIMode, setUseAIMode] = useState(false);
+  const [aiDailyMinutes, setAIDailyMinutes] = useState(180);
+  const [aiModelTier, setAIModelTier] = useState<"fast" | "standard" | "advanced">("standard");
+  const [aiPrioritizeWeak, setAIPrioritizeWeak] = useState(true);
+  const [aiIncludeReview, setAIIncludeReview] = useState(true);
 
   // 범위 조절 저장 (플랜 미리보기 전에 저장)
   const saveRanges = async () => {
@@ -156,20 +164,128 @@ export function Step3PlanPreview({
         </p>
       </div>
 
+      {/* 플랜 생성 모드 선택 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">플랜 생성 방식</span>
+            <div className="flex rounded-lg border border-gray-200 p-1">
+              <button
+                type="button"
+                onClick={() => setUseAIMode(false)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition",
+                  !useAIMode
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                <Gauge className="h-4 w-4" />
+                표준
+              </button>
+              <button
+                type="button"
+                onClick={() => setUseAIMode(true)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition",
+                  useAIMode
+                    ? "bg-purple-100 text-purple-700"
+                    : "text-gray-500 hover:text-gray-700"
+                )}
+              >
+                <Wand2 className="h-4 w-4" />
+                AI 생성
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* AI 모드 설정 */}
+        {useAIMode && (
+          <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-2 text-sm text-purple-600">
+              <Sparkles className="h-4 w-4" />
+              <span>AI가 학생별 맞춤 플랜을 자동으로 생성합니다</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* 일일 학습 시간 */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">일일 학습 시간</label>
+                <select
+                  value={aiDailyMinutes}
+                  onChange={(e) => setAIDailyMinutes(Number(e.target.value))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value={60}>1시간</option>
+                  <option value={120}>2시간</option>
+                  <option value={180}>3시간</option>
+                  <option value={240}>4시간</option>
+                  <option value={300}>5시간</option>
+                </select>
+              </div>
+
+              {/* 모델 선택 */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-600">AI 모델</label>
+                <select
+                  value={aiModelTier}
+                  onChange={(e) => setAIModelTier(e.target.value as "fast" | "standard" | "advanced")}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="fast">빠른 생성</option>
+                  <option value="standard">표준 (권장)</option>
+                  <option value="advanced">정밀</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={aiPrioritizeWeak}
+                  onChange={(e) => setAIPrioritizeWeak(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                취약 과목 우선
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={aiIncludeReview}
+                  onChange={(e) => setAIIncludeReview(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                복습 포함
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <button
           type="button"
           onClick={handlePreview}
           disabled={loading}
-          className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(
+            "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50",
+            useAIMode
+              ? "bg-purple-600 hover:bg-purple-700"
+              : "bg-indigo-600 hover:bg-indigo-700"
+          )}
         >
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              미리보기 중...
+              {useAIMode ? "AI 미리보기 중..." : "미리보기 중..."}
             </>
           ) : (
-            "플랜 미리보기"
+            <>
+              {useAIMode && <Wand2 className="h-4 w-4" />}
+              {useAIMode ? "AI 플랜 미리보기" : "플랜 미리보기"}
+            </>
           )}
         </button>
       </div>
