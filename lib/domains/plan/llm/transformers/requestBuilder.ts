@@ -64,6 +64,42 @@ interface DBLearningStats {
   weak_subjects?: string[] | null;
 }
 
+/**
+ * 블록 정보 (시간표)
+ */
+interface DBBlock {
+  id: string;
+  block_index: number;
+  day_of_week: number; // 0-6 (일-토)
+  start_time: string; // HH:mm:ss
+  end_time: string; // HH:mm:ss
+  block_name?: string | null;
+}
+
+/**
+ * 학원 일정 정보
+ */
+interface DBAcademySchedule {
+  id: string;
+  day_of_week: number; // 0-6
+  start_time: string; // HH:mm:ss
+  end_time: string; // HH:mm:ss
+  academy_name?: string | null;
+  subject?: string | null;
+  travel_time?: number | null; // 분
+}
+
+/**
+ * 과목 할당 정보 (전략/취약 구분)
+ */
+interface DBSubjectAllocation {
+  content_id: string;
+  subject: string;
+  subject_category?: string | null;
+  subject_type: "strategy" | "weakness" | null;
+  weekly_days?: number | null;
+}
+
 // ============================================
 // 변환 함수
 // ============================================
@@ -148,6 +184,83 @@ export function transformLearningHistory(
 }
 
 // ============================================
+// 신규 변환 함수 (Phase 2)
+// ============================================
+
+/**
+ * 블록 정보 변환 (프롬프트용)
+ */
+export interface BlockInfoForPrompt {
+  id: string;
+  blockIndex: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  blockName?: string;
+}
+
+export function transformBlocks(dbBlocks: DBBlock[]): BlockInfoForPrompt[] {
+  return dbBlocks.map((b) => ({
+    id: b.id,
+    blockIndex: b.block_index,
+    dayOfWeek: b.day_of_week,
+    startTime: b.start_time.slice(0, 5), // HH:mm
+    endTime: b.end_time.slice(0, 5),
+    blockName: b.block_name || undefined,
+  }));
+}
+
+/**
+ * 학원 일정 변환 (프롬프트용)
+ */
+export interface AcademyScheduleForPrompt {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  academyName?: string;
+  subject?: string;
+  travelTime?: number;
+}
+
+export function transformAcademySchedules(
+  dbSchedules: DBAcademySchedule[]
+): AcademyScheduleForPrompt[] {
+  return dbSchedules.map((s) => ({
+    id: s.id,
+    dayOfWeek: s.day_of_week,
+    startTime: s.start_time.slice(0, 5),
+    endTime: s.end_time.slice(0, 5),
+    academyName: s.academy_name || undefined,
+    subject: s.subject || undefined,
+    travelTime: s.travel_time || undefined,
+  }));
+}
+
+/**
+ * 과목 할당 정보 변환 (프롬프트용)
+ */
+export interface SubjectAllocationForPrompt {
+  contentId: string;
+  subject: string;
+  subjectCategory?: string;
+  subjectType: "strategy" | "weakness" | null;
+  weeklyDays?: number;
+}
+
+export function transformSubjectAllocations(
+  dbAllocations: DBSubjectAllocation[]
+): SubjectAllocationForPrompt[] {
+  return dbAllocations.map((a) => ({
+    contentId: a.content_id,
+    subject: a.subject,
+    subjectCategory: a.subject_category || undefined,
+    subjectType: a.subject_type,
+    weeklyDays: a.weekly_days || undefined,
+  }));
+}
+
+// ============================================
 // 요청 빌더
 // ============================================
 
@@ -172,6 +285,22 @@ export interface BuildRequestOptions {
     reviewRatio?: number;
   };
   additionalInstructions?: string;
+  // Phase 2: 추가 컨텍스트 정보
+  blocks?: DBBlock[];
+  academySchedules?: DBAcademySchedule[];
+  subjectAllocations?: DBSubjectAllocation[];
+}
+
+/**
+ * 확장된 LLM 요청 (학원 일정, 블록 정보, 할당 정보 포함)
+ */
+export interface ExtendedLLMPlanGenerationRequest extends LLMPlanGenerationRequest {
+  /** 블록 정보 (시간대별 블록) */
+  blocks?: BlockInfoForPrompt[];
+  /** 학원 일정 (학습 불가 시간) */
+  academySchedules?: AcademyScheduleForPrompt[];
+  /** 과목 할당 정보 (전략/취약 구분) */
+  subjectAllocations?: SubjectAllocationForPrompt[];
 }
 
 /**
@@ -242,6 +371,35 @@ export function buildLLMRequest(
     settings,
     timeSlots,
     additionalInstructions: options.additionalInstructions,
+  };
+}
+
+/**
+ * 확장된 LLM 요청 빌더 (학원 일정, 블록 정보, 할당 정보 포함)
+ *
+ * Phase 2에서 추가된 기능으로, AI가 더 정확한 플랜을 생성할 수 있도록
+ * 추가 컨텍스트 정보를 포함합니다.
+ */
+export function buildExtendedLLMRequest(
+  options: BuildRequestOptions
+): ExtendedLLMPlanGenerationRequest {
+  const baseRequest = buildLLMRequest(options);
+
+  const blocks = options.blocks
+    ? transformBlocks(options.blocks)
+    : undefined;
+  const academySchedules = options.academySchedules
+    ? transformAcademySchedules(options.academySchedules)
+    : undefined;
+  const subjectAllocations = options.subjectAllocations
+    ? transformSubjectAllocations(options.subjectAllocations)
+    : undefined;
+
+  return {
+    ...baseRequest,
+    blocks,
+    academySchedules,
+    subjectAllocations,
   };
 }
 

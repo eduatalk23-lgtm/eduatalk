@@ -15,6 +15,12 @@ import type {
   PlanGenerationSettings,
   TimeSlotInfo,
 } from "../types";
+import type {
+  ExtendedLLMPlanGenerationRequest,
+  BlockInfoForPrompt,
+  AcademyScheduleForPrompt,
+  SubjectAllocationForPrompt,
+} from "../transformers/requestBuilder";
 
 // ============================================
 // 시스템 프롬프트
@@ -244,6 +250,27 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 }
 \`\`\`
 
+## 학원 일정 규칙 (CRITICAL)
+
+학원 일정이 제공된 경우 **반드시** 다음 규칙을 적용:
+- 학원 시간에는 **절대** 학습 플랜 배치 금지
+- 이동 시간(travelTime)도 학습 불가 시간으로 처리
+- 예: 학원 16:00-18:00, 이동시간 30분 → 15:30-18:00 학습 불가
+
+## 시간 블록 규칙
+
+블록 정보(blocks)가 제공된 경우:
+- 각 플랜은 블록 시간 범위 내에 배치
+- blockIndex를 응답에 포함하여 어떤 블록에 배치했는지 명시
+- 블록 경계를 넘는 플랜은 분할 권장
+
+## 과목 할당 규칙
+
+과목 할당 정보(subjectAllocations)가 제공된 경우:
+- **strategy (전략 과목)**: 오후/저녁에 배치, 유지/보강 목적
+- **weakness (취약 과목)**: 오전 집중력 높은 시간에 우선 배치
+- subjectType을 응답에 포함
+
 ## 주의사항
 
 - 모든 시간은 24시간 형식 (HH:mm)
@@ -256,7 +283,16 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 - **contentId는 반드시 제공된 콘텐츠 목록의 ID만 사용**
 - **시험 일정이 있으면 D-day 기반 강도 조절 필수**
 - **학습 스타일이 있으면 해당 스타일 콘텐츠 우선 배치**
+- **학원 일정이 있으면 해당 시간 학습 배치 금지**
+
+## 확장 출력 필드 (선택)
+
+플랜 아이템에 다음 필드를 포함하면 더 정확한 저장이 가능합니다:
+- contentType: "book" | "lecture" | "custom" (콘텐츠 유형)
+- blockIndex: 0, 1, 2... (해당 시간의 블록 인덱스)
+- subjectType: "strategy" | "weakness" | null (전략/취약 구분)
 `;
+
 
 // ============================================
 // 사용자 프롬프트 빌더
@@ -417,6 +453,104 @@ ${slotLines.join("\n")}
 `.trim();
 }
 
+// ============================================
+// Phase 2: 확장 포맷 함수
+// ============================================
+
+/**
+ * 학원 일정 포맷 (CRITICAL - 학습 불가 시간)
+ */
+function formatAcademySchedules(schedules: AcademyScheduleForPrompt[]): string {
+  if (schedules.length === 0) return "";
+
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+
+  const scheduleLines = schedules.map((s) => {
+    const dayName = dayNames[s.dayOfWeek];
+    const travelNote = s.travelTime ? ` (이동시간 ${s.travelTime}분)` : "";
+    const academyNote = s.academyName ? `${s.academyName}` : "학원";
+    const subjectNote = s.subject ? ` - ${s.subject}` : "";
+    return `- ${dayName}요일 ${s.startTime}-${s.endTime}: ${academyNote}${subjectNote}${travelNote}`;
+  });
+
+  return `
+## 🚨 학원 일정 (학습 불가 시간 - CRITICAL)
+**이 시간에는 절대로 학습 플랜을 배치하지 마세요!**
+${scheduleLines.join("\n")}
+`.trim();
+}
+
+/**
+ * 블록 정보 포맷
+ */
+function formatBlocks(blocks: BlockInfoForPrompt[]): string {
+  if (blocks.length === 0) return "";
+
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+
+  // 요일별로 그룹화
+  const blocksByDay = new Map<number, BlockInfoForPrompt[]>();
+  for (const block of blocks) {
+    const dayBlocks = blocksByDay.get(block.dayOfWeek) || [];
+    dayBlocks.push(block);
+    blocksByDay.set(block.dayOfWeek, dayBlocks);
+  }
+
+  const dayLines: string[] = [];
+  for (let day = 0; day < 7; day++) {
+    const dayBlocks = blocksByDay.get(day);
+    if (!dayBlocks || dayBlocks.length === 0) continue;
+
+    const sorted = dayBlocks.sort((a, b) => a.blockIndex - b.blockIndex);
+    const blockTexts = sorted.map((b) => {
+      const name = b.blockName ? ` (${b.blockName})` : "";
+      return `[${b.blockIndex}] ${b.startTime}-${b.endTime}${name}`;
+    });
+    dayLines.push(`- ${dayNames[day]}요일: ${blockTexts.join(", ")}`);
+  }
+
+  return `
+## 시간 블록
+플랜 배치 시 다음 블록 인덱스를 참고하세요:
+${dayLines.join("\n")}
+`.trim();
+}
+
+/**
+ * 과목 할당 정보 포맷
+ */
+function formatSubjectAllocations(allocations: SubjectAllocationForPrompt[]): string {
+  if (allocations.length === 0) return "";
+
+  const strategyItems = allocations.filter((a) => a.subjectType === "strategy");
+  const weaknessItems = allocations.filter((a) => a.subjectType === "weakness");
+
+  const lines: string[] = [];
+
+  if (strategyItems.length > 0) {
+    const strategyText = strategyItems
+      .map((a) => `${a.subject}${a.subjectCategory ? ` (${a.subjectCategory})` : ""}`)
+      .join(", ");
+    lines.push(`- 📈 **전략 과목**: ${strategyText}`);
+    lines.push(`  → 오후/저녁에 배치, 유지/보강 목적`);
+  }
+
+  if (weaknessItems.length > 0) {
+    const weaknessText = weaknessItems
+      .map((a) => `${a.subject}${a.subjectCategory ? ` (${a.subjectCategory})` : ""}`)
+      .join(", ");
+    lines.push(`- ⚠️ **취약 과목**: ${weaknessText}`);
+    lines.push(`  → 오전 집중력 높은 시간에 우선 배치`);
+  }
+
+  if (lines.length === 0) return "";
+
+  return `
+## 과목 할당 전략
+${lines.join("\n")}
+`.trim();
+}
+
 function formatLearningStyle(style: LearningStyle): string {
   const styleLabels: Record<string, string> = {
     visual: "시각형 (영상, 도표, 그림 선호)",
@@ -518,7 +652,13 @@ ${phaseGuide}
 /**
  * 사용자 프롬프트 생성
  */
-export function buildUserPrompt(request: LLMPlanGenerationRequest): string {
+export function buildUserPrompt(request: LLMPlanGenerationRequest | ExtendedLLMPlanGenerationRequest): string {
+  // Extended request인지 확인
+  const extRequest = request as ExtendedLLMPlanGenerationRequest;
+  const hasAcademySchedules = extRequest.academySchedules && extRequest.academySchedules.length > 0;
+  const hasBlocks = extRequest.blocks && extRequest.blocks.length > 0;
+  const hasAllocations = extRequest.subjectAllocations && extRequest.subjectAllocations.length > 0;
+
   const sections = [
     formatStudentInfo(request.student),
     request.scores?.length ? formatScores(request.scores) : "",
@@ -534,6 +674,10 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest): string {
       : "",
     formatSettings(request.settings),
     request.timeSlots?.length ? formatTimeSlots(request.timeSlots) : "",
+    // Phase 2: 확장 섹션
+    hasAcademySchedules ? formatAcademySchedules(extRequest.academySchedules!) : "",
+    hasBlocks ? formatBlocks(extRequest.blocks!) : "",
+    hasAllocations ? formatSubjectAllocations(extRequest.subjectAllocations!) : "",
   ].filter(Boolean);
 
   let prompt = sections.join("\n\n");
@@ -555,12 +699,18 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest): string {
     contextNote = "학생의 학습 스타일을 고려하여 ";
   }
 
+  // Phase 2: 학원 일정 강조
+  let academyNote = "";
+  if (hasAcademySchedules) {
+    academyNote = "\n**중요: 학원 일정 시간에는 절대로 학습 플랜을 배치하지 마세요!**";
+  }
+
   prompt += `
 
 ---
 
 위 정보를 바탕으로 ${request.settings.startDate}부터 ${request.settings.endDate}까지의 ${contextNote}최적화된 학습 계획을 JSON 형식으로 생성해주세요.
-각 콘텐츠의 진도를 적절히 분배하고, 학생의 취약점과 선호도를 고려해주세요.
+각 콘텐츠의 진도를 적절히 분배하고, 학생의 취약점과 선호도를 고려해주세요.${academyNote}
 `;
 
   return prompt;

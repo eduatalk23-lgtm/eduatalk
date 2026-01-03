@@ -267,6 +267,77 @@ export interface StreamEvent {
 }
 
 // ============================================
+// 변환 컨텍스트 (응답 변환 시 필요한 정보)
+// ============================================
+
+/**
+ * 블록 정보
+ */
+export interface BlockInfo {
+  id: string;
+  block_index: number;
+  day_of_week: number; // 0-6 (일-토)
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+}
+
+/**
+ * 과목/콘텐츠 할당 정보
+ */
+export interface SubjectAllocation {
+  contentId: string;
+  subject: string;
+  subjectCategory?: string;
+  subject_type: "strategy" | "weakness" | null;
+  weeklyDays?: number;
+}
+
+/**
+ * 학원 일정 정보 (프롬프트/검증용)
+ */
+export interface AcademyScheduleInfo {
+  id: string;
+  day_of_week: number; // 0-6
+  start_time: string; // HH:mm
+  end_time: string; // HH:mm
+  academy_name?: string;
+  subject?: string;
+  travel_time?: number; // 분
+}
+
+/**
+ * 콘텐츠 상세 시간 정보
+ */
+export interface ContentDuration {
+  contentId: string;
+  contentType: "book" | "lecture" | "custom";
+  totalPages?: number;
+  totalEpisodes?: number;
+  totalDurationMinutes?: number;
+  episodeDurations?: Map<number, number>; // 에피소드 번호 -> 분
+}
+
+/**
+ * LLM 응답 변환 컨텍스트
+ *
+ * AI 응답을 DB 저장 형식으로 변환할 때 필요한 정보들입니다.
+ */
+export interface TransformContext {
+  /** contentId -> ContentType 매핑 */
+  contentTypeMap: Map<string, "book" | "lecture" | "custom">;
+  /** 블록 세트 정보 (시간 -> 블록 인덱스 계산용) */
+  blockSets: BlockInfo[];
+  /** contentId -> SubjectAllocation 매핑 */
+  allocationMap: Map<string, SubjectAllocation>;
+  /** 학원 일정 (검증용) */
+  academySchedules?: AcademyScheduleInfo[];
+  /** 제외 요일 (0-6) */
+  excludeDays?: number[];
+  /** 제외 날짜 (YYYY-MM-DD) */
+  excludeDates?: string[];
+}
+
+// ============================================
 // 모델 설정
 // ============================================
 

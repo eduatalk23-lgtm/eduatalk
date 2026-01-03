@@ -27,6 +27,12 @@ export type {
   StreamEvent,
   ModelTier,
   ModelConfig,
+  // 변환 컨텍스트 타입
+  TransformContext,
+  BlockInfo,
+  SubjectAllocation,
+  AcademyScheduleInfo,
+  ContentDuration,
 } from "./types";
 
 // 상수
@@ -53,9 +59,18 @@ export {
 // 변환기
 export {
   buildLLMRequest,
+  buildExtendedLLMRequest,
   validateRequest,
   limitContents,
   calculateDaysInRange,
+  transformBlocks,
+  transformAcademySchedules,
+  transformSubjectAllocations,
+  type BuildRequestOptions,
+  type ExtendedLLMPlanGenerationRequest,
+  type BlockInfoForPrompt,
+  type AcademyScheduleForPrompt,
+  type SubjectAllocationForPrompt,
 } from "./transformers/requestBuilder";
 
 export {
@@ -106,3 +121,65 @@ export {
   type RegenerateScope,
   type PartialRegenerationPromptInput,
 } from "./prompts/partialRegeneration";
+
+// 콘텐츠 추천 프롬프트
+export {
+  CONTENT_RECOMMENDATION_SYSTEM_PROMPT,
+  buildContentRecommendationPrompt,
+  estimateContentRecommendationTokens,
+  type ContentRecommendationRequest,
+  type ContentRecommendationResponse,
+  type ContentCandidate,
+  type RecommendedContentResult,
+  type StudentProfile,
+  type SubjectScoreInfo,
+  type LearningPatternInfo,
+  type OwnedContentInfo,
+} from "./prompts/contentRecommendation";
+
+// 콘텐츠 추천 액션
+export {
+  recommendContentWithAI,
+  type RecommendContentInput,
+  type RecommendContentResult,
+} from "./actions/recommendContent";
+
+// 플랜 최적화 프롬프트
+export {
+  PLAN_OPTIMIZATION_SYSTEM_PROMPT,
+  buildPlanOptimizationPrompt,
+  estimatePlanOptimizationTokens,
+  type PlanOptimizationRequest,
+  type PlanOptimizationResponse,
+  type StudentBasicInfo as OptimizationStudentInfo,
+  type PlanExecutionStats,
+  type TimeSlotPerformance,
+  type DayOfWeekPerformance,
+  type SubjectPerformance,
+  type LearningPatternData,
+  type IncompletePattern,
+  type OptimizationSuggestion,
+  type StrengthAnalysis,
+  type WeaknessAnalysis,
+} from "./prompts/planOptimization";
+
+// 플랜 최적화 액션
+export {
+  analyzePlanEfficiency,
+  type OptimizePlanInput,
+  type OptimizePlanResult,
+} from "./actions/optimizePlan";
+
+// 플랜 검증기 (Phase 3)
+export {
+  validatePlans,
+  validateAcademyConflicts,
+  validateExcludedDates,
+  validateDailyStudyMinutes,
+  validateBlockCompatibility,
+  validateTimeFormats,
+  type ValidationResult,
+  type ValidationError,
+  type ValidationWarning,
+  type ValidatePlansOptions,
+} from "./validators/planValidator";

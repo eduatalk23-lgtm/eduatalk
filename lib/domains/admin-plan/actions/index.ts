@@ -70,3 +70,28 @@ export {
   type FilteredPlan,
   type FilterResult,
 } from './filter';
+
+// Student Contents and Plan Groups for Admin
+export {
+  getStudentContentsForAdmin,
+  getPlanGroupDetailsForAdminAction,
+  type StudentContentItem,
+} from './studentContents';
+
+// AI Plan Generation Actions
+export { saveAIGeneratedPlansAction } from './aiPlanGeneration';
+
+// LLM Response Transformers
+export { transformLLMResponseToPlans } from '../transformers/llmResponseTransformer';
+
+// Batch AI Plan Generation
+export {
+  generateBatchPlansWithAI,
+  estimateBatchPlanCost,
+  getStudentsContentsForBatch,
+  type BatchPlanSettings,
+  type BatchPlanGenerationInput,
+  type StudentPlanResult,
+  type BatchProgressEvent,
+  type BatchPlanGenerationResult,
+} from './batchAIPlanGeneration';
