@@ -28,6 +28,28 @@ import { ServiceErrorCodes } from "./errors";
 import type { ServiceLogger } from "./logging";
 
 /**
+ * AI 스케줄러 옵션 오버라이드 타입
+ * (AIFramework에서 변환된 옵션)
+ */
+export type AISchedulerOptionsOverride = {
+  weak_subject_focus?: "low" | "medium" | "high";
+  study_days?: number;
+  review_days?: number;
+  subject_allocations?: Array<{
+    subject_id: string;
+    subject_name: string;
+    subject_type: "strategy" | "weakness";
+    weekly_days: number;
+  }>;
+  content_allocations?: Array<{
+    content_id: string;
+    content_type: "book" | "lecture" | "custom";
+    subject_type: "strategy" | "weakness";
+    weekly_days: number;
+  }>;
+};
+
+/**
  * 플랜 생성 공통 입력 타입
  */
 export type PlanGenerationCommonInput = {
@@ -37,6 +59,11 @@ export type PlanGenerationCommonInput = {
     userId: string;
     role: "student" | "admin" | "consultant";
   };
+  /**
+   * AI Framework에서 생성된 스케줄러 옵션 오버라이드
+   * 제공 시 plan_group.scheduler_options보다 우선 적용됨
+   */
+  aiSchedulerOptionsOverride?: AISchedulerOptionsOverride;
 };
 
 /**
@@ -136,8 +163,17 @@ export async function preparePlanGenerationData(
   input: PlanGenerationCommonInput,
   logger: ServiceLogger
 ): Promise<PlanGenerationPreparedResult> {
-  const { groupId, context, accessInfo } = input;
+  const { groupId, context, accessInfo, aiSchedulerOptionsOverride } = input;
   const config = getAdapterConfig();
+
+  // AI 스케줄러 옵션 오버라이드 로깅
+  if (aiSchedulerOptionsOverride) {
+    logger.debug("preparePlanGenerationData", "AI 스케줄러 옵션 오버라이드 적용", {
+      hasWeakSubjectFocus: !!aiSchedulerOptionsOverride.weak_subject_focus,
+      hasSubjectAllocations: !!aiSchedulerOptionsOverride.subject_allocations?.length,
+      hasContentAllocations: !!aiSchedulerOptionsOverride.content_allocations?.length,
+    });
+  }
 
   // 1. 플랜 그룹 및 관련 데이터 조회
   logger.debug("preparePlanGenerationData", "플랜 그룹 조회 중");
@@ -213,20 +249,36 @@ export async function preparePlanGenerationData(
   });
 
   // 3. 병합된 스케줄러 설정
+  // AI 오버라이드가 있으면 그룹 옵션과 병합
+  const effectiveGroupOptions = aiSchedulerOptionsOverride
+    ? {
+        ...(group.scheduler_options as Record<string, unknown>),
+        ...aiSchedulerOptionsOverride,
+      }
+    : (group.scheduler_options as Record<string, unknown>);
+
   const mergedSettings = await getMergedSchedulerSettings(
     group.tenant_id,
     group.camp_template_id,
-    group.scheduler_options as Record<string, unknown>
+    effectiveGroupOptions
   );
 
   const schedulerOptions = {
-    study_days: mergedSettings.study_review_ratio.study_days,
-    review_days: mergedSettings.study_review_ratio.review_days,
-    weak_subject_focus: mergedSettings.weak_subject_focus,
+    // 기본 설정에서 가져오되, AI 오버라이드 우선 적용
+    study_days: aiSchedulerOptionsOverride?.study_days ?? mergedSettings.study_review_ratio.study_days,
+    review_days: aiSchedulerOptionsOverride?.review_days ?? mergedSettings.study_review_ratio.review_days,
+    weak_subject_focus: aiSchedulerOptionsOverride?.weak_subject_focus ?? mergedSettings.weak_subject_focus,
     review_scope: mergedSettings.review_scope,
     lunch_time: mergedSettings.lunch_time,
     camp_study_hours: mergedSettings.study_hours,
     self_study_hours: mergedSettings.self_study_hours,
+    // AI에서 생성된 과목/콘텐츠 할당 (있는 경우)
+    ...(aiSchedulerOptionsOverride?.subject_allocations && {
+      subject_allocations: aiSchedulerOptionsOverride.subject_allocations,
+    }),
+    ...(aiSchedulerOptionsOverride?.content_allocations && {
+      content_allocations: aiSchedulerOptionsOverride.content_allocations,
+    }),
   };
 
   const groupSchedulerOptions = getSchedulerOptionsWithTimeSettings(group);

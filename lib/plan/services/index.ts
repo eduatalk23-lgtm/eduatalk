@@ -96,6 +96,7 @@ export {
   type AllocatedPlanSegment,
   type DateMetadata,
   type DateAllocationResult,
+  type AISchedulerOptionsOverride,
 } from "./preparePlanGenerationData";
 
 // Phase 4: 에러 및 로깅 시스템

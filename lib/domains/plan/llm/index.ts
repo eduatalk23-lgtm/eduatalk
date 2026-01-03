@@ -247,6 +247,15 @@ export {
   type GenerateFrameworkResult,
 } from "./actions/generateHybridPlan";
 
+// 하이브리드 플랜 완전 생성 액션 (Phase 4 - 통합)
+export {
+  generateHybridPlanCompleteAction,
+  previewHybridPlanAction,
+  type GenerateHybridPlanCompleteInput,
+  type GenerateHybridPlanCompleteResult,
+  type PreviewHybridPlanResult,
+} from "./actions/generateHybridPlanComplete";
+
 // AI Framework 유틸리티 함수 (Phase 4)
 export {
   extractSchedulerOptionsForDB,

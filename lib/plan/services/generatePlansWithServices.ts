@@ -21,7 +21,10 @@ import type { ServiceContext } from "./types";
 import type { PlanPayloadBase } from "@/lib/types/plan-generation";
 import { ServiceErrorCodes, toServiceError } from "./errors";
 import { createServiceLogger, globalPerformanceTracker } from "./logging";
-import { preparePlanGenerationData } from "./preparePlanGenerationData";
+import {
+  preparePlanGenerationData,
+  type AISchedulerOptionsOverride,
+} from "./preparePlanGenerationData";
 
 /**
  * 서비스 기반 플랜 생성 입력
@@ -33,6 +36,11 @@ export type GeneratePlansWithServicesInput = {
     userId: string;
     role: "student" | "admin" | "consultant";
   };
+  /**
+   * AI Framework에서 생성된 스케줄러 옵션 오버라이드
+   * 제공 시 plan_group.scheduler_options보다 우선 적용됨
+   */
+  aiSchedulerOptionsOverride?: AISchedulerOptionsOverride;
 };
 
 /**
@@ -54,7 +62,7 @@ export type GeneratePlansWithServicesResult = {
 export async function generatePlansWithServices(
   input: GeneratePlansWithServicesInput
 ): Promise<GeneratePlansWithServicesResult> {
-  const { groupId, context, accessInfo } = input;
+  const { groupId, context, accessInfo, aiSchedulerOptionsOverride } = input;
 
   // 로거 및 성능 추적 설정
   const logger = createServiceLogger("ServiceAdapter", {
@@ -66,13 +74,14 @@ export async function generatePlansWithServices(
     "ServiceAdapter",
     "generatePlansWithServices",
     groupId,
-    { role: accessInfo.role }
+    { role: accessInfo.role, hasAIOverride: !!aiSchedulerOptionsOverride }
   );
 
   try {
     logger.info("generatePlansWithServices", "서비스 기반 플랜 생성 시작", {
       groupId,
       role: accessInfo.role,
+      hasAISchedulerOverride: !!aiSchedulerOptionsOverride,
     });
 
     // 1-7. 공통 데이터 준비 (플랜 그룹 조회 ~ 시간 할당)
