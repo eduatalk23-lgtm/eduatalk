@@ -49,6 +49,8 @@ import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 import { areStep3PropsEqual } from "../../utils/stepMemoComparison";
 import { AIModeButton, AIPlanGeneratorPanel, useAIPlanGeneration } from "../ai-mode";
 import type { LLMPlanGenerationResponse } from "@/lib/domains/plan/llm";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { isAdminRole } from "@/lib/auth/isAdminRole";
 
 /**
  * Step3ContentSelection - 콘텐츠 선택 통합 컴포넌트
@@ -92,6 +94,10 @@ function Step3ContentSelectionComponent({
   if (!data) {
     throw new Error("Step3ContentSelection: data is required. Provide data prop or use PlanWizardProvider.");
   }
+
+  // 사용자 역할 확인 (AI 기능은 관리자/컨설턴트 전용)
+  const { user } = useAuth();
+  const canUseAI = isAdminRole(user?.role ?? null);
 
   // 모드 통합 관리
   const mode = useMemo(() => createWizardMode({
@@ -483,28 +489,30 @@ function Step3ContentSelectionComponent({
             </div>
           </div>
 
-          {/* AI 플랜 생성 버튼 */}
-          <div className="flex items-center justify-between border-t border-gray-200 pt-3">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Wand2 className="h-4 w-4 text-purple-500" />
-                AI 자동 플랜 생성
+          {/* AI 플랜 생성 버튼 - 관리자/컨설턴트 전용 */}
+          {canUseAI && (
+            <div className="flex items-center justify-between border-t border-gray-200 pt-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Wand2 className="h-4 w-4 text-purple-500" />
+                  AI 자동 플랜 생성
+                </div>
+                <div className="text-xs text-gray-500">
+                  AI가 학습 패턴과 성적을 분석하여 최적의 플랜을 생성합니다
+                </div>
               </div>
-              <div className="text-xs text-gray-500">
-                AI가 학습 패턴과 성적을 분석하여 최적의 플랜을 생성합니다
-              </div>
+              <AIModeButton
+                onClick={activateAIMode}
+                disabled={currentTotal === 0}
+                isActive={!!aiGenerationResult}
+                size="md"
+                variant="primary"
+              />
             </div>
-            <AIModeButton
-              onClick={activateAIMode}
-              disabled={currentTotal === 0}
-              isActive={!!aiGenerationResult}
-              size="md"
-              variant="primary"
-            />
-          </div>
+          )}
 
-          {/* AI 생성 결과 요약 */}
-          {generationStats && (
+          {/* AI 생성 결과 요약 - 관리자/컨설턴트 전용 */}
+          {canUseAI && generationStats && (
             <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
               <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
                 <Sparkles className="h-4 w-4" />
@@ -519,8 +527,8 @@ function Step3ContentSelectionComponent({
         </div>
       )}
 
-      {/* AI 플랜 생성 패널 모달 */}
-      {showAIPanel && (
+      {/* AI 플랜 생성 패널 모달 - 관리자/컨설턴트 전용 */}
+      {canUseAI && showAIPanel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto">
             <AIPlanGeneratorPanel

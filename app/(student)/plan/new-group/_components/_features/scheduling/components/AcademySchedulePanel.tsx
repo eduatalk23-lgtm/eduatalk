@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { RefreshCw, Lock, Clock, User } from "lucide-react";
+import { RefreshCw, Lock, Clock, User, Calendar, List } from "lucide-react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
 import { syncTimeManagementAcademySchedulesAction } from "@/lib/domains/plan";
 import { AcademyScheduleImportModal } from "../modals/AcademyScheduleImportModal";
 import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
+import { AcademyTimeTableView, WeekdayPatternSelector } from "./AcademyTimeTableView";
+import { cn } from "@/lib/cn";
 
 type AcademySchedulePanelProps = {
   data: WizardData;
@@ -74,6 +76,9 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   const [newAcademyName, setNewAcademyName] = useState("");
   const [newAcademySubject, setNewAcademySubject] = useState("");
   const [newAcademyTravelTime, setNewAcademyTravelTime] = useState<number>(60);
+
+  // 뷰 모드: 'timetable' | 'list'
+  const [viewMode, setViewMode] = useState<"timetable" | "list">("timetable");
   
   // 모달 상태
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -91,11 +96,9 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
   const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [isLoadingCount, setIsLoadingCount] = useState(false);
 
-  const toggleWeekday = (day: number) => {
+  const handleWeekdayChange = (days: number[]) => {
     if (!editable) return;
-    setNewAcademyDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
+    setNewAcademyDays(days);
   };
 
   // 학원 일정을 고유하게 식별하기 위한 키 생성
@@ -308,32 +311,16 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
       {/* 학원 일정 추가 폼 */}
       {editable && (!campMode || canStudentInputAcademySchedules) && (
         <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
-          {/* 요일 선택 */}
+          {/* 요일 선택 - 개선된 패턴 선택기 */}
           <div className="flex flex-col gap-2">
             <label className="block text-xs font-medium text-gray-800">
               요일 선택 (다중 선택 가능) <span className="text-red-500">*</span>
             </label>
-            <div className="flex flex-wrap gap-2">
-              {weekdayLabels.map((label, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => toggleWeekday(index)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    newAcademyDays.includes(index)
-                      ? "bg-gray-900 text-white"
-                      : "bg-white text-gray-800 hover:bg-gray-100"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {newAcademyDays.length > 0 && (
-              <p className="text-xs text-gray-600">
-                {newAcademyDays.length}개 요일 선택됨
-              </p>
-            )}
+            <WeekdayPatternSelector
+              selectedDays={newAcademyDays}
+              onChange={handleWeekdayChange}
+              disabled={!editable}
+            />
           </div>
 
           {/* 시간 설정 */}
@@ -455,65 +442,111 @@ export const AcademySchedulePanel = React.memo(function AcademySchedulePanel({
         </div>
       )}
 
+      {/* 뷰 모드 토글 */}
+      {data.academy_schedules.length > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700">
+            학원 일정 ({data.academy_schedules.length}개)
+          </span>
+          <div className="flex items-center rounded-lg border bg-white p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode("timetable")}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                viewMode === "timetable"
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              )}
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              시간표
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                viewMode === "list"
+                  ? "bg-gray-900 text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              목록
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 학원 일정 목록 */}
       {data.academy_schedules.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {data.academy_schedules.map((schedule, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
-            >
-              <div className="flex flex-col gap-1 flex-1">
-                <div className="text-sm font-medium text-gray-900">
-                  {weekdayLabels[schedule.day_of_week]} {schedule.start_time} ~ {schedule.end_time}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
-                  {schedule.academy_name && <span>{schedule.academy_name}</span>}
-                  {schedule.subject && <span>· {schedule.subject}</span>}
-                  <span>· 이동시간: {schedule.travel_time || 60}분</span>
-                  {schedule.source === "template" && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                      <Lock className="h-3 w-3" />
-                      템플릿
-                    </span>
-                  )}
-                  {schedule.source === "time_management" && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
-                      <Clock className="h-3 w-3" />
-                      시간 관리
-                    </span>
-                  )}
-                  {schedule.source === "student" && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      <User className="h-3 w-3" />
-                      직접 입력
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => removeAcademySchedule(index)}
-                disabled={
-                  !editable ||
-                  (campMode && (schedule.is_locked || schedule.source === "template"))
-                }
-                className={`text-sm ${
-                  !editable || (campMode && (schedule.is_locked || schedule.source === "template"))
-                    ? "cursor-not-allowed text-gray-600"
-                    : "text-red-600 hover:text-red-800"
-                }`}
-                title={
-                  campMode && (schedule.is_locked || schedule.source === "template")
-                    ? "템플릿에서 지정된 학원 일정은 삭제할 수 없습니다."
-                    : "삭제"
-                }
+        viewMode === "timetable" ? (
+          <AcademyTimeTableView
+            schedules={data.academy_schedules}
+            onRemove={editable ? removeAcademySchedule : undefined}
+            editable={editable}
+            campMode={campMode}
+          />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {data.academy_schedules.map((schedule, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
               >
-                삭제
-              </button>
-            </div>
-          ))}
-        </div>
+                <div className="flex flex-col gap-1 flex-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    {weekdayLabels[schedule.day_of_week]} {schedule.start_time} ~ {schedule.end_time}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
+                    {schedule.academy_name && <span>{schedule.academy_name}</span>}
+                    {schedule.subject && <span>· {schedule.subject}</span>}
+                    <span>· 이동시간: {schedule.travel_time || 60}분</span>
+                    {schedule.source === "template" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        <Lock className="h-3 w-3" />
+                        템플릿
+                      </span>
+                    )}
+                    {schedule.source === "time_management" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                        <Clock className="h-3 w-3" />
+                        시간 관리
+                      </span>
+                    )}
+                    {schedule.source === "student" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        <User className="h-3 w-3" />
+                        직접 입력
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeAcademySchedule(index)}
+                  disabled={
+                    !editable ||
+                    (campMode && (schedule.is_locked || schedule.source === "template"))
+                  }
+                  className={`text-sm ${
+                    !editable || (campMode && (schedule.is_locked || schedule.source === "template"))
+                      ? "cursor-not-allowed text-gray-600"
+                      : "text-red-600 hover:text-red-800"
+                  }`}
+                  title={
+                    campMode && (schedule.is_locked || schedule.source === "template")
+                      ? "템플릿에서 지정된 학원 일정은 삭제할 수 없습니다."
+                      : "삭제"
+                  }
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+          </div>
+        )
       ) : (
         <p className="text-sm text-gray-600">등록된 학원 일정이 없습니다.</p>
       )}

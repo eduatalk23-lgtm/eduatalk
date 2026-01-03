@@ -5,6 +5,7 @@ import { PeriodSection } from "./components/PeriodSection";
 import { PlanNameSection } from "./components/PlanNameSection";
 import { PlanPurposeSection } from "./components/PlanPurposeSection";
 import { SchedulerTypeSection } from "./components/SchedulerTypeSection";
+import { ScoreIntegrationPanel } from "./components/ScoreIntegrationPanel";
 import { useBlockSetManagement } from "./hooks/useBlockSetManagement";
 import { useToast } from "@/components/ui/ToastProvider";
 import { usePeriodCalculation } from "./hooks/usePeriodCalculation";
@@ -192,6 +193,19 @@ function Step1BasicInfoComponent({
         lockedFields={lockedFields}
         fieldErrors={fieldErrors}
       />
+
+      {/* 성적 연동 (학생 모드에서만 표시) */}
+      {!isCampMode && !isTemplateMode && (
+        <ScoreIntegrationPanel
+          onWeakSubjectsChange={(subjects) => {
+            onUpdate({ weakSubjects: subjects });
+          }}
+          onTargetGradesChange={(grades) => {
+            onUpdate({ targetGrades: grades });
+          }}
+          collapsed={true}
+        />
+      )}
 
       {/* 학습 기간 */}
       <PeriodSection

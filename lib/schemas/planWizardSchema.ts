@@ -460,6 +460,16 @@ const planWizardSchemaObject = z.object({
 
   /** 콘텐츠 슬롯 배열 (최대 9개) */
   content_slots: z.array(contentSlotSchema).max(9).optional(),
+
+  // ========================================
+  // 성적 연동 정보 (Step 1)
+  // ========================================
+
+  /** 취약 과목 목록 (subject_id 배열) */
+  weakSubjects: z.array(z.string()).optional(),
+
+  /** 과목별 목표 등급 (subject_id -> 목표 등급) */
+  targetGrades: z.record(z.string(), z.number()).optional(),
 });
 
 /**
@@ -498,6 +508,8 @@ export const step1Schema = planWizardSchemaObject.pick({
   subject_allocations: true,
   study_review_cycle: true,
   templateLockedFields: true,
+  weakSubjects: true,
+  targetGrades: true,
 });
 
 export const step2Schema = planWizardSchemaObject.pick({

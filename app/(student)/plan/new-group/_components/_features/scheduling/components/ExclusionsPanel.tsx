@@ -1,13 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { Info, RefreshCw, Lock, Clock, User } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Info, RefreshCw, Lock, Clock, User, Repeat, ChevronDown, ChevronUp } from "lucide-react";
 import { WizardData } from "../../../PlanGroupWizard";
 import { useToast } from "@/components/ui/ToastProvider";
-import { syncTimeManagementExclusionsAction } from "@/lib/domains/plan";
+import {
+  syncTimeManagementExclusionsAction,
+  getRecurringExclusions,
+  deleteRecurringExclusion,
+  expandRecurringExclusions,
+  type RecurringExclusion,
+  type ExpandedExclusion,
+} from "@/lib/domains/plan";
 import { ExclusionImportModal } from "../modals/ExclusionImportModal";
 import { formatDateFromDate, parseDateString, generateDateRange } from "@/lib/utils/date";
 import { DateInput } from "../../../common/DateInput";
+import { RecurringExclusionForm, RecurringExclusionItem } from "./RecurringExclusionForm";
+import { cn } from "@/lib/cn";
 
 type ExclusionsPanelProps = {
   data: WizardData;
@@ -108,6 +117,13 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
   const [availableCount, setAvailableCount] = useState<number | null>(null);
   const [isLoadingCount, setIsLoadingCount] = useState(false);
 
+  // 반복 제외일 상태
+  const [recurringExclusions, setRecurringExclusions] = useState<RecurringExclusion[]>([]);
+  const [expandedRecurringExclusions, setExpandedRecurringExclusions] = useState<ExpandedExclusion[]>([]);
+  const [showRecurringForm, setShowRecurringForm] = useState(false);
+  const [isLoadingRecurring, setIsLoadingRecurring] = useState(false);
+  const [showRecurringSection, setShowRecurringSection] = useState(true);
+
   const toggleExclusionDate = (date: string) => {
     if (!editable) return;
     setNewExclusionDates((prev) =>
@@ -159,6 +175,82 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
       loadAvailableCount();
     }
   }, [periodStart, periodEnd, data.exclusions.length]);
+
+  // 반복 제외일 로드
+  const loadRecurringExclusions = useCallback(async () => {
+    if (!editable || isTemplateMode) return;
+
+    setIsLoadingRecurring(true);
+    try {
+      const result = await getRecurringExclusions();
+      if (result.success && result.data) {
+        setRecurringExclusions(result.data);
+
+        // 기간 내 확장된 제외일 로드
+        if (periodStart && periodEnd) {
+          const expandedResult = await expandRecurringExclusions(periodStart, periodEnd);
+          if (expandedResult.success && expandedResult.data) {
+            setExpandedRecurringExclusions(expandedResult.data);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("반복 제외일 로드 실패:", error);
+    } finally {
+      setIsLoadingRecurring(false);
+    }
+  }, [editable, isTemplateMode, periodStart, periodEnd]);
+
+  // 반복 제외일 초기 로드
+  useEffect(() => {
+    if (editable && !isTemplateMode && periodStart && periodEnd) {
+      loadRecurringExclusions();
+    }
+  }, [editable, isTemplateMode, periodStart, periodEnd, loadRecurringExclusions]);
+
+  // 반복 제외일 추가 성공 핸들러
+  const handleRecurringExclusionSuccess = useCallback(
+    async (exclusion: RecurringExclusion) => {
+      setRecurringExclusions((prev) => [exclusion, ...prev]);
+      setShowRecurringForm(false);
+
+      // 확장된 제외일 다시 로드
+      if (periodStart && periodEnd) {
+        const expandedResult = await expandRecurringExclusions(periodStart, periodEnd);
+        if (expandedResult.success && expandedResult.data) {
+          setExpandedRecurringExclusions(expandedResult.data);
+        }
+      }
+    },
+    [periodStart, periodEnd]
+  );
+
+  // 반복 제외일 삭제
+  const handleDeleteRecurringExclusion = useCallback(
+    async (exclusionId: string) => {
+      try {
+        const result = await deleteRecurringExclusion(exclusionId);
+        if (result.success) {
+          setRecurringExclusions((prev) => prev.filter((e) => e.id !== exclusionId));
+          toast.showSuccess("반복 제외일이 삭제되었습니다.");
+
+          // 확장된 제외일 다시 로드
+          if (periodStart && periodEnd) {
+            const expandedResult = await expandRecurringExclusions(periodStart, periodEnd);
+            if (expandedResult.success && expandedResult.data) {
+              setExpandedRecurringExclusions(expandedResult.data);
+            }
+          }
+        } else {
+          toast.showError(result.error || "반복 제외일 삭제에 실패했습니다.");
+        }
+      } catch (error) {
+        console.error("반복 제외일 삭제 실패:", error);
+        toast.showError("반복 제외일 삭제에 실패했습니다.");
+      }
+    },
+    [periodStart, periodEnd, toast]
+  );
 
   const addExclusion = () => {
     if (!editable) return;
@@ -662,6 +754,131 @@ export const ExclusionsPanel = React.memo(function ExclusionsPanel({
         </div>
       ) : (
         <p className="text-sm text-gray-600">등록된 제외일이 없습니다.</p>
+      )}
+
+      {/* 반복 제외일 섹션 */}
+      {editable && !isTemplateMode && !campMode && (
+        <div className="mt-6 border-t border-gray-200 pt-4">
+          {/* 섹션 헤더 */}
+          <button
+            type="button"
+            onClick={() => setShowRecurringSection(!showRecurringSection)}
+            className="mb-3 flex w-full items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-purple-600" />
+              <span className="text-sm font-semibold text-gray-900">반복 제외일</span>
+              {recurringExclusions.length > 0 && (
+                <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                  {recurringExclusions.length}개 패턴
+                </span>
+              )}
+              {expandedRecurringExclusions.length > 0 && (
+                <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-600">
+                  → {expandedRecurringExclusions.length}일 적용
+                </span>
+              )}
+            </div>
+            {showRecurringSection ? (
+              <ChevronUp className="h-4 w-4 text-gray-400" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            )}
+          </button>
+
+          {showRecurringSection && (
+            <div className="space-y-3">
+              {/* 안내 메시지 */}
+              <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600" />
+                  <div className="text-xs text-purple-700">
+                    <p className="font-medium">반복 제외일이란?</p>
+                    <p className="mt-0.5">
+                      매주/격주/매월 특정 요일이나 날짜에 반복되는 제외일을 설정합니다.
+                      학원 일정 등 정기적인 일정에 유용합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 반복 제외일 폼 토글 버튼 */}
+              {!showRecurringForm && (
+                <button
+                  type="button"
+                  onClick={() => setShowRecurringForm(true)}
+                  disabled={!editable}
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-purple-300 bg-purple-50 py-3 text-sm font-medium text-purple-700 transition-colors hover:border-purple-400 hover:bg-purple-100",
+                    !editable && "cursor-not-allowed opacity-50"
+                  )}
+                >
+                  <Repeat className="h-4 w-4" />
+                  반복 제외일 추가
+                </button>
+              )}
+
+              {/* 반복 제외일 추가 폼 */}
+              {showRecurringForm && (
+                <RecurringExclusionForm
+                  periodStart={periodStart}
+                  periodEnd={periodEnd}
+                  onSuccess={handleRecurringExclusionSuccess}
+                  onCancel={() => setShowRecurringForm(false)}
+                  disabled={!editable}
+                />
+              )}
+
+              {/* 반복 제외일 목록 */}
+              {isLoadingRecurring ? (
+                <div className="flex items-center justify-center py-4">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" />
+                </div>
+              ) : recurringExclusions.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-gray-600">등록된 반복 패턴</div>
+                  {recurringExclusions.map((exclusion) => (
+                    <RecurringExclusionItem
+                      key={exclusion.id}
+                      exclusion={exclusion}
+                      onDelete={handleDeleteRecurringExclusion}
+                      disabled={!editable}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-xs text-gray-500">
+                  등록된 반복 제외일이 없습니다.
+                </p>
+              )}
+
+              {/* 적용된 제외일 미리보기 */}
+              {expandedRecurringExclusions.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div className="mb-2 text-xs font-medium text-gray-600">
+                    플랜 기간 내 적용될 제외일 ({expandedRecurringExclusions.length}일)
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {expandedRecurringExclusions.slice(0, 10).map((e) => (
+                      <span
+                        key={e.exclusion_date}
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-gray-600 shadow-sm"
+                      >
+                        <Repeat className="h-2.5 w-2.5 text-purple-500" />
+                        {e.exclusion_date}
+                      </span>
+                    ))}
+                    {expandedRecurringExclusions.length > 10 && (
+                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
+                        +{expandedRecurringExclusions.length - 10}개 더
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </>
   );

@@ -59,6 +59,9 @@ export type WizardData = {
   period_end: string;
   target_date?: string;
   block_set_id: string;
+  // 성적 연동 정보
+  weakSubjects?: string[]; // 취약 과목 목록
+  targetGrades?: Record<string, number>; // 과목별 목표 등급
   // Step 2
   exclusions: Array<{
     exclusion_date: string;

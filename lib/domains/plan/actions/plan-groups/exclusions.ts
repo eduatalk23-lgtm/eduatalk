@@ -352,9 +352,344 @@ async function _deletePlanExclusion(formData: FormData): Promise<void> {
   revalidatePath("/plan");
 }
 
+// ============================================================================
+// 반복 제외일 관리
+// ============================================================================
+
+export interface RecurringExclusion {
+  id?: string;
+  pattern: "weekly" | "biweekly" | "monthly";
+  dayOfWeek?: number[]; // 0=일요일 ~ 6=토요일
+  dayOfMonth?: number; // 1-31
+  exclusionType: "휴가" | "개인사정" | "휴일지정" | "기타";
+  reason?: string;
+  startDate: string;
+  endDate?: string;
+}
+
+export interface ExpandedExclusion {
+  exclusion_date: string;
+  exclusion_type: "휴가" | "개인사정" | "휴일지정" | "기타";
+  reason?: string;
+  source: "recurring";
+  recurring_pattern: "weekly" | "biweekly" | "monthly";
+}
+
+/**
+ * 반복 패턴을 실제 날짜 목록으로 확장
+ */
+function expandRecurringPattern(
+  pattern: RecurringExclusion["pattern"],
+  dayOfWeek: number[] | undefined,
+  dayOfMonth: number | undefined,
+  exclusionType: RecurringExclusion["exclusionType"],
+  reason: string | undefined,
+  startDate: string,
+  endDate: string | undefined,
+  periodStart: string,
+  periodEnd: string
+): ExpandedExclusion[] {
+  const results: ExpandedExclusion[] = [];
+
+  // 유효 기간 계산 (반복 패턴의 유효 기간과 플랜 기간의 교집합)
+  const effectiveStart = new Date(
+    Math.max(new Date(startDate).getTime(), new Date(periodStart).getTime())
+  );
+  const effectiveEnd = new Date(
+    Math.min(
+      endDate ? new Date(endDate).getTime() : new Date(periodEnd).getTime() + 365 * 24 * 60 * 60 * 1000,
+      new Date(periodEnd).getTime()
+    )
+  );
+
+  if (effectiveStart > effectiveEnd) {
+    return results;
+  }
+
+  let currentDate = new Date(effectiveStart);
+  const patternStartDate = new Date(startDate);
+  let weekCounter = 0;
+  let lastWeekNumber = -1;
+
+  while (currentDate <= effectiveEnd) {
+    const dayOfWeekValue = currentDate.getDay();
+    const dayOfMonthValue = currentDate.getDate();
+    const weekNumber = Math.floor(
+      (currentDate.getTime() - patternStartDate.getTime()) / (7 * 24 * 60 * 60 * 1000)
+    );
+
+    let shouldAdd = false;
+
+    if (pattern === "weekly") {
+      // 매주 지정된 요일
+      if (dayOfWeek && dayOfWeek.includes(dayOfWeekValue)) {
+        shouldAdd = true;
+      }
+    } else if (pattern === "biweekly") {
+      // 격주 지정된 요일
+      if (weekNumber !== lastWeekNumber) {
+        weekCounter++;
+        lastWeekNumber = weekNumber;
+      }
+      if (weekCounter % 2 === 0 && dayOfWeek && dayOfWeek.includes(dayOfWeekValue)) {
+        shouldAdd = true;
+      }
+    } else if (pattern === "monthly") {
+      // 매월 지정된 날짜
+      if (dayOfMonth) {
+        if (dayOfMonthValue === dayOfMonth) {
+          shouldAdd = true;
+        }
+        // 해당 월에 그 날짜가 없는 경우 마지막 날 처리
+        const lastDayOfMonth = new Date(
+          currentDate.getFullYear(),
+          currentDate.getMonth() + 1,
+          0
+        ).getDate();
+        if (dayOfMonth > lastDayOfMonth && dayOfMonthValue === lastDayOfMonth) {
+          shouldAdd = true;
+        }
+      }
+    }
+
+    if (shouldAdd) {
+      results.push({
+        exclusion_date: currentDate.toISOString().split("T")[0],
+        exclusion_type: exclusionType,
+        reason,
+        source: "recurring",
+        recurring_pattern: pattern,
+      });
+    }
+
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return results;
+}
+
+/**
+ * 반복 제외일 목록 조회
+ */
+async function _getRecurringExclusions(
+  studentId?: string
+): Promise<{
+  success: boolean;
+  data?: RecurringExclusion[];
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const targetStudentId = isAdminOrConsultant && studentId ? studentId : userId;
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("recurring_exclusions")
+    .select("*")
+    .eq("student_id", targetStudentId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("반복 제외일 조회 실패:", error);
+    return { success: false, error: error.message };
+  }
+
+  return {
+    success: true,
+    data: (data || []).map((row) => ({
+      id: row.id,
+      pattern: row.pattern as RecurringExclusion["pattern"],
+      dayOfWeek: row.day_of_week || undefined,
+      dayOfMonth: row.day_of_month || undefined,
+      exclusionType: row.exclusion_type as RecurringExclusion["exclusionType"],
+      reason: row.reason || undefined,
+      startDate: row.start_date,
+      endDate: row.end_date || undefined,
+    })),
+  };
+}
+
+/**
+ * 반복 제외일 추가
+ */
+async function _createRecurringExclusion(
+  exclusion: Omit<RecurringExclusion, "id">,
+  studentId?: string
+): Promise<{
+  success: boolean;
+  data?: RecurringExclusion;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  const targetStudentId = isAdminOrConsultant && studentId ? studentId : userId;
+
+  // 검증
+  if (exclusion.pattern === "weekly" || exclusion.pattern === "biweekly") {
+    if (!exclusion.dayOfWeek || exclusion.dayOfWeek.length === 0) {
+      return { success: false, error: "요일을 선택해주세요." };
+    }
+  }
+
+  if (exclusion.pattern === "monthly") {
+    if (!exclusion.dayOfMonth) {
+      return { success: false, error: "날짜를 선택해주세요." };
+    }
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("recurring_exclusions")
+    .insert({
+      student_id: targetStudentId,
+      pattern: exclusion.pattern,
+      day_of_week: exclusion.dayOfWeek || [],
+      day_of_month: exclusion.dayOfMonth || null,
+      exclusion_type: exclusion.exclusionType,
+      reason: exclusion.reason || null,
+      start_date: exclusion.startDate,
+      end_date: exclusion.endDate || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("반복 제외일 추가 실패:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/blocks");
+  revalidatePath("/plan");
+
+  return {
+    success: true,
+    data: {
+      id: data.id,
+      pattern: data.pattern as RecurringExclusion["pattern"],
+      dayOfWeek: data.day_of_week || undefined,
+      dayOfMonth: data.day_of_month || undefined,
+      exclusionType: data.exclusion_type as RecurringExclusion["exclusionType"],
+      reason: data.reason || undefined,
+      startDate: data.start_date,
+      endDate: data.end_date || undefined,
+    },
+  };
+}
+
+/**
+ * 반복 제외일 삭제
+ */
+async function _deleteRecurringExclusion(
+  exclusionId: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { role, userId } = await getCurrentUserRole();
+
+  if (!userId) {
+    return { success: false, error: "로그인이 필요합니다." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // 소유권 확인
+  const { data: exclusion, error: fetchError } = await supabase
+    .from("recurring_exclusions")
+    .select("student_id")
+    .eq("id", exclusionId)
+    .single();
+
+  if (fetchError || !exclusion) {
+    return { success: false, error: "반복 제외일을 찾을 수 없습니다." };
+  }
+
+  const isAdminOrConsultant = role === "admin" || role === "consultant";
+  if (!isAdminOrConsultant && exclusion.student_id !== userId) {
+    return { success: false, error: "권한이 없습니다." };
+  }
+
+  const { error } = await supabase
+    .from("recurring_exclusions")
+    .delete()
+    .eq("id", exclusionId);
+
+  if (error) {
+    console.error("반복 제외일 삭제 실패:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/blocks");
+  revalidatePath("/plan");
+
+  return { success: true };
+}
+
+/**
+ * 반복 제외일을 실제 날짜 목록으로 확장
+ */
+async function _expandRecurringExclusions(
+  periodStart: string,
+  periodEnd: string,
+  studentId?: string
+): Promise<{
+  success: boolean;
+  data?: ExpandedExclusion[];
+  error?: string;
+}> {
+  const result = await _getRecurringExclusions(studentId);
+
+  if (!result.success || !result.data) {
+    return { success: false, error: result.error };
+  }
+
+  const allExclusions: ExpandedExclusion[] = [];
+
+  for (const recurring of result.data) {
+    const expanded = expandRecurringPattern(
+      recurring.pattern,
+      recurring.dayOfWeek,
+      recurring.dayOfMonth,
+      recurring.exclusionType,
+      recurring.reason,
+      recurring.startDate,
+      recurring.endDate,
+      periodStart,
+      periodEnd
+    );
+    allExclusions.push(...expanded);
+  }
+
+  // 중복 제거 (같은 날짜)
+  const uniqueExclusions = allExclusions.filter(
+    (e, i, arr) => arr.findIndex((x) => x.exclusion_date === e.exclusion_date) === i
+  );
+
+  return {
+    success: true,
+    data: uniqueExclusions.sort((a, b) => a.exclusion_date.localeCompare(b.exclusion_date)),
+  };
+}
+
 export const syncTimeManagementExclusionsAction = withErrorHandling(
   _syncTimeManagementExclusions
 );
 export const addPlanExclusion = withErrorHandling(_addPlanExclusion);
 export const deletePlanExclusion = withErrorHandling(_deletePlanExclusion);
+export const getRecurringExclusions = withErrorHandling(_getRecurringExclusions);
+export const createRecurringExclusion = withErrorHandling(_createRecurringExclusion);
+export const deleteRecurringExclusion = withErrorHandling(_deleteRecurringExclusion);
+export const expandRecurringExclusions = withErrorHandling(_expandRecurringExclusions);
 
