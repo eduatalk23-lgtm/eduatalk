@@ -164,9 +164,9 @@ export class ContentDifficultyService {
     const userPrompt = buildDifficultyAssessmentPrompt(request);
 
     const response = await createMessage({
-      model: model || "claude-sonnet-4-20250514",
+      modelTier: model === "claude-sonnet-4-20250514" ? "standard" : "fast",
       maxTokens: 1000,
-      systemPrompt: DIFFICULTY_ASSESSMENT_SYSTEM_PROMPT,
+      system: DIFFICULTY_ASSESSMENT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
     });
 
@@ -188,7 +188,7 @@ export class ContentDifficultyService {
     return {
       analysis: stored,
       fromCache: false,
-      tokensUsed: response.usage?.input_tokens + response.usage?.output_tokens,
+      tokensUsed: response.usage.inputTokens + response.usage.outputTokens,
       costUsd: this.estimateCost(response.usage),
     };
   }
@@ -578,11 +578,11 @@ export class ContentDifficultyService {
   /**
    * 비용 추정
    */
-  private estimateCost(usage?: { input_tokens?: number; output_tokens?: number }): number {
+  private estimateCost(usage?: { inputTokens: number; outputTokens: number }): number {
     if (!usage) return 0;
 
-    const inputCost = ((usage.input_tokens || 0) / 1_000_000) * 3; // $3/1M input
-    const outputCost = ((usage.output_tokens || 0) / 1_000_000) * 15; // $15/1M output
+    const inputCost = ((usage.inputTokens || 0) / 1_000_000) * 3; // $3/1M input
+    const outputCost = ((usage.outputTokens || 0) / 1_000_000) * 15; // $15/1M output
 
     return inputCost + outputCost;
   }
@@ -646,7 +646,7 @@ export async function getContentDifficulty(
 export async function analyzeWithCache(
   tenantId: string,
   request: DifficultyAssessmentRequest & { contentId: string }
-): Promise<DifficultyAssessmentResult> {
+): Promise<{ data: DifficultyAssessmentResult; fromCache: boolean }> {
   return withLLMCache<DifficultyAssessmentResult>(
     tenantId,
     "content_analysis",
@@ -656,16 +656,23 @@ export async function analyzeWithCache(
       const userPrompt = buildDifficultyAssessmentPrompt(request);
 
       const response = await createMessage({
-        model: "claude-sonnet-4-20250514",
+        modelTier: "standard",
         maxTokens: 1000,
-        systemPrompt: DIFFICULTY_ASSESSMENT_SYSTEM_PROMPT,
+        system: DIFFICULTY_ASSESSMENT_SYSTEM_PROMPT,
         messages: [{ role: "user", content: userPrompt }],
       });
 
       const result = parseDifficultyAssessmentResponse(response.content);
       result.overallScore = applySubjectWeight(result.overallScore, request.subject);
 
-      return result;
+      return {
+        data: result,
+        modelId: response.modelId,
+        tokenUsage: {
+          input: response.usage.inputTokens,
+          output: response.usage.outputTokens,
+        },
+      };
     }
   );
 }

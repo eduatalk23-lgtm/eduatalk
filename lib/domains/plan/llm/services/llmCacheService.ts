@@ -5,6 +5,9 @@
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createHash } from "crypto";
+import type { Database } from "@/lib/supabase/database.types";
+
+type LLMCacheInsert = Database["public"]["Tables"]["llm_response_cache"]["Insert"];
 
 // ============================================
 // Types
@@ -202,21 +205,23 @@ export class LLMCacheService {
       const ttlHours = TTL_HOURS[operation];
       const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
 
+      const insertData: LLMCacheInsert = {
+        tenant_id: this.tenantId,
+        cache_key: key,
+        operation_type: operation,
+        request_hash: requestHash,
+        response_data: data as Database["public"]["Tables"]["llm_response_cache"]["Row"]["response_data"],
+        model_id: options.modelId ?? null,
+        token_usage: options.tokenUsage as unknown as Database["public"]["Tables"]["llm_response_cache"]["Row"]["token_usage"],
+        cost_usd: options.costUsd ?? null,
+        created_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        hit_count: 0,
+        last_hit_at: null,
+      };
+
       const { error } = await supabase.from("llm_response_cache").upsert(
-        {
-          tenant_id: this.tenantId,
-          cache_key: key,
-          operation_type: operation,
-          request_hash: requestHash,
-          response_data: data,
-          model_id: options.modelId ?? null,
-          token_usage: options.tokenUsage ?? null,
-          cost_usd: options.costUsd ?? null,
-          created_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
-          hit_count: 0,
-          last_hit_at: null,
-        },
+        insertData,
         {
           onConflict: "tenant_id,cache_key,request_hash",
         }
@@ -327,16 +332,12 @@ export class LLMCacheService {
       return (data ?? []).map((row) => ({
         tenantId: row.tenant_id,
         operationType: row.operation_type as OperationType,
-        totalEntries: row.total_entries,
-        totalHits: row.total_hits,
-        activeEntries: row.active_entries,
-        totalCostSaved: parseFloat(row.total_cost_saved ?? "0"),
-        avgInputTokens: row.avg_input_tokens
-          ? parseFloat(row.avg_input_tokens)
-          : null,
-        avgOutputTokens: row.avg_output_tokens
-          ? parseFloat(row.avg_output_tokens)
-          : null,
+        totalEntries: row.total_entries ?? 0,
+        totalHits: row.total_hits ?? 0,
+        activeEntries: row.active_entries ?? 0,
+        totalCostSaved: row.total_cost_saved ?? 0,
+        avgInputTokens: row.avg_input_tokens,
+        avgOutputTokens: row.avg_output_tokens,
         lastCacheAt: row.last_cache_at,
       }));
     } catch (err) {

@@ -401,8 +401,8 @@ export {
   type DifficultyFit,
   type MatchFactor,
   type MatchScore,
-  type StudentProfile,
-  type ContentCandidate,
+  type StudentProfile as MatchingStudentProfile,
+  type ContentCandidate as MatchingContentCandidate,
   type MatchingOptions,
   type MatchingResult,
 } from "./services";

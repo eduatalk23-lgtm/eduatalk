@@ -825,7 +825,11 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
   // 재계산 필요 여부 판단
   const { shouldRecalculate, storedSchedule } =
-    shouldRecalculateDailySchedule(group);
+    shouldRecalculateDailySchedule({
+      daily_schedule: group.daily_schedule as DailyScheduleInfo[] | null,
+      period_start: group.period_start,
+      period_end: group.period_end,
+    });
 
   if (!shouldRecalculate && storedSchedule) {
     // 저장된 데이터 사용

@@ -1078,6 +1078,411 @@ export type Database = {
         }
         Relationships: []
       }
+      content_ai_extraction_logs: {
+        Row: {
+          confidence_scores: Json | null
+          content_id: string | null
+          content_type: string
+          cost_usd: number | null
+          created_at: string | null
+          created_by: string | null
+          extracted_metadata: Json
+          final_metadata: Json | null
+          id: string
+          input_publisher: string | null
+          input_title: string
+          model_id: string | null
+          tenant_id: string
+          tokens_used: number | null
+          user_modified: boolean | null
+        }
+        Insert: {
+          confidence_scores?: Json | null
+          content_id?: string | null
+          content_type: string
+          cost_usd?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_metadata?: Json
+          final_metadata?: Json | null
+          id?: string
+          input_publisher?: string | null
+          input_title: string
+          model_id?: string | null
+          tenant_id: string
+          tokens_used?: number | null
+          user_modified?: boolean | null
+        }
+        Update: {
+          confidence_scores?: Json | null
+          content_id?: string | null
+          content_type?: string
+          cost_usd?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          extracted_metadata?: Json
+          final_metadata?: Json | null
+          id?: string
+          input_publisher?: string | null
+          input_title?: string
+          model_id?: string | null
+          tenant_id?: string
+          tokens_used?: number | null
+          user_modified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_ai_extraction_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_analysis_queue: {
+        Row: {
+          completed_at: string | null
+          content_id: string
+          content_type: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          max_retries: number | null
+          priority: number | null
+          request_context: Json | null
+          retry_count: number | null
+          started_at: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          priority?: number | null
+          request_context?: Json | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          max_retries?: number | null
+          priority?: number | null
+          request_context?: Json | null
+          retry_count?: number | null
+          started_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_analysis_queue_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_concept_mappings: {
+        Row: {
+          concept_id: string | null
+          content_id: string
+          content_type: string
+          coverage_depth: number | null
+          created_at: string | null
+          episode_range: unknown
+          id: string
+          page_range: unknown
+        }
+        Insert: {
+          concept_id?: string | null
+          content_id: string
+          content_type: string
+          coverage_depth?: number | null
+          created_at?: string | null
+          episode_range?: unknown
+          id?: string
+          page_range?: unknown
+        }
+        Update: {
+          concept_id?: string | null
+          content_id?: string
+          content_type?: string
+          coverage_depth?: number | null
+          created_at?: string | null
+          episode_range?: unknown
+          id?: string
+          page_range?: unknown
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_concept_mappings_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "content_concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_concepts: {
+        Row: {
+          created_at: string | null
+          curriculum_revision: string | null
+          description: string | null
+          difficulty_level: number | null
+          grade_level: number[] | null
+          id: string
+          keywords: string[] | null
+          name: string
+          name_en: string | null
+          prerequisites: string[] | null
+          subject_category: string | null
+          subject_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          curriculum_revision?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          grade_level?: number[] | null
+          id?: string
+          keywords?: string[] | null
+          name: string
+          name_en?: string | null
+          prerequisites?: string[] | null
+          subject_category?: string | null
+          subject_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          curriculum_revision?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          grade_level?: number[] | null
+          id?: string
+          keywords?: string[] | null
+          name?: string
+          name_en?: string | null
+          prerequisites?: string[] | null
+          subject_category?: string | null
+          subject_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_concepts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_difficulty_analysis: {
+        Row: {
+          analysis_model: string | null
+          analysis_prompt_version: string | null
+          analysis_version: number | null
+          analyzed_at: string | null
+          analyzed_by: string | null
+          concept_density: number | null
+          content_id: string
+          content_type: string
+          created_at: string | null
+          difficulty_confidence: number | null
+          estimated_hours_per_unit: number | null
+          id: string
+          key_concepts_covered: Json | null
+          mathematical_complexity: number | null
+          overall_difficulty_score: number | null
+          prerequisite_concepts: Json | null
+          prerequisite_depth: number | null
+          reasoning: string | null
+          recommended_study_pace: Json | null
+          updated_at: string | null
+          vocabulary_complexity: number | null
+        }
+        Insert: {
+          analysis_model?: string | null
+          analysis_prompt_version?: string | null
+          analysis_version?: number | null
+          analyzed_at?: string | null
+          analyzed_by?: string | null
+          concept_density?: number | null
+          content_id: string
+          content_type: string
+          created_at?: string | null
+          difficulty_confidence?: number | null
+          estimated_hours_per_unit?: number | null
+          id?: string
+          key_concepts_covered?: Json | null
+          mathematical_complexity?: number | null
+          overall_difficulty_score?: number | null
+          prerequisite_concepts?: Json | null
+          prerequisite_depth?: number | null
+          reasoning?: string | null
+          recommended_study_pace?: Json | null
+          updated_at?: string | null
+          vocabulary_complexity?: number | null
+        }
+        Update: {
+          analysis_model?: string | null
+          analysis_prompt_version?: string | null
+          analysis_version?: number | null
+          analyzed_at?: string | null
+          analyzed_by?: string | null
+          concept_density?: number | null
+          content_id?: string
+          content_type?: string
+          created_at?: string | null
+          difficulty_confidence?: number | null
+          estimated_hours_per_unit?: number | null
+          id?: string
+          key_concepts_covered?: Json | null
+          mathematical_complexity?: number | null
+          overall_difficulty_score?: number | null
+          prerequisite_concepts?: Json | null
+          prerequisite_depth?: number | null
+          reasoning?: string | null
+          recommended_study_pace?: Json | null
+          updated_at?: string | null
+          vocabulary_complexity?: number | null
+        }
+        Relationships: []
+      }
+      content_partner_sync_logs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          error_log: Json | null
+          id: string
+          items_created: number | null
+          items_failed: number | null
+          items_processed: number | null
+          items_updated: number | null
+          partner_id: string | null
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_log?: Json | null
+          id?: string
+          items_created?: number | null
+          items_failed?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          partner_id?: string | null
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          error_log?: Json | null
+          id?: string
+          items_created?: number | null
+          items_failed?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          partner_id?: string | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_partner_sync_logs_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "content_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_partners: {
+        Row: {
+          api_config: Json | null
+          content_type: string
+          contract_end_date: string | null
+          contract_start_date: string | null
+          created_at: string | null
+          display_name: string
+          field_mapping: Json | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          name: string
+          partner_type: string
+          sync_status: string | null
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_config?: Json | null
+          content_type: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string | null
+          display_name: string
+          field_mapping?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name: string
+          partner_type: string
+          sync_status?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_config?: Json | null
+          content_type?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          created_at?: string | null
+          display_name?: string
+          field_mapping?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          name?: string
+          partner_type?: string
+          sync_status?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_partners_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_subjects: {
         Row: {
           created_at: string | null
@@ -1895,6 +2300,62 @@ export type Database = {
           },
         ]
       }
+      llm_response_cache: {
+        Row: {
+          cache_key: string
+          cost_usd: number | null
+          created_at: string | null
+          expires_at: string
+          hit_count: number | null
+          id: string
+          last_hit_at: string | null
+          model_id: string | null
+          operation_type: string
+          request_hash: string
+          response_data: Json
+          tenant_id: string | null
+          token_usage: Json | null
+        }
+        Insert: {
+          cache_key: string
+          cost_usd?: number | null
+          created_at?: string | null
+          expires_at: string
+          hit_count?: number | null
+          id?: string
+          last_hit_at?: string | null
+          model_id?: string | null
+          operation_type: string
+          request_hash: string
+          response_data: Json
+          tenant_id?: string | null
+          token_usage?: Json | null
+        }
+        Update: {
+          cache_key?: string
+          cost_usd?: number | null
+          created_at?: string | null
+          expires_at?: string
+          hit_count?: number | null
+          id?: string
+          last_hit_at?: string | null
+          model_id?: string | null
+          operation_type?: string
+          request_hash?: string
+          response_data?: Json
+          tenant_id?: string | null
+          token_usage?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_response_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       make_scenario_logs: {
         Row: {
           error_message: string | null
@@ -2002,6 +2463,7 @@ export type Database = {
           difficulty_level?: string | null
           difficulty_level_id?: string | null
           edition?: string | null
+          estimated_hours?: number | null
           grade_max?: number | null
           grade_min?: number | null
           id?: string
@@ -2046,6 +2508,7 @@ export type Database = {
           difficulty_level?: string | null
           difficulty_level_id?: string | null
           edition?: string | null
+          estimated_hours?: number | null
           grade_max?: number | null
           grade_min?: number | null
           id?: string
@@ -2261,6 +2724,7 @@ export type Database = {
           difficulty_level?: string | null
           difficulty_level_id?: string | null
           episode_analysis?: Json | null
+          estimated_hours?: number | null
           grade_level?: string | null
           id?: string
           instructor_name?: string | null
@@ -2292,6 +2756,7 @@ export type Database = {
           difficulty_level?: string | null
           difficulty_level_id?: string | null
           episode_analysis?: Json | null
+          estimated_hours?: number | null
           grade_level?: string | null
           id?: string
           instructor_name?: string | null
@@ -6314,6 +6779,28 @@ export type Database = {
         }
         Relationships: []
       }
+      llm_cache_stats: {
+        Row: {
+          active_entries: number | null
+          avg_input_tokens: number | null
+          avg_output_tokens: number | null
+          last_cache_at: string | null
+          operation_type: string | null
+          tenant_id: string | null
+          total_cost_saved: number | null
+          total_entries: number | null
+          total_hits: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llm_response_cache_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       today_plan_view: {
         Row: {
           actual_end_time: string | null
@@ -6406,6 +6893,16 @@ export type Database = {
         Args: { tenant_uuid: string }
         Returns: undefined
       }
+      add_to_analysis_queue: {
+        Args: {
+          p_content_id: string
+          p_content_type: string
+          p_context?: Json
+          p_priority?: number
+          p_tenant_id: string
+        }
+        Returns: string
+      }
       check_idempotency: {
         Args: {
           p_action: string
@@ -6416,9 +6913,18 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_idempotency_keys: { Args: never; Returns: number }
+      cleanup_expired_llm_cache: { Args: never; Returns: number }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       cleanup_korean_history_subjects: {
         Args: { tenant_uuid: string }
+        Returns: undefined
+      }
+      complete_analysis: {
+        Args: {
+          p_error_message?: string
+          p_queue_id: string
+          p_success: boolean
+        }
         Returns: undefined
       }
       complete_idempotency: {
@@ -6461,7 +6967,20 @@ export type Database = {
         Args: { p_group_id: string; p_plans: Json; p_update_status_to?: string }
         Returns: Json
       }
+      get_next_analysis_item: {
+        Args: never
+        Returns: {
+          content_id: string
+          content_type: string
+          queue_id: string
+          request_context: Json
+        }[]
+      }
       get_user_tenant_id: { Args: never; Returns: string }
+      increment_cache_hit_count: {
+        Args: { cache_id: string }
+        Returns: undefined
+      }
       increment_pause_count: {
         Args: { p_plan_id: string; p_student_id: string }
         Returns: number
@@ -6625,3 +7144,4 @@ export const Constants = {
     },
   },
 } as const
+
