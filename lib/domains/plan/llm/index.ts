@@ -262,3 +262,25 @@ export {
   extractRecommendationsForDB,
   extractContentOrderingForDB,
 } from "./utils/frameworkUtils";
+
+// 비교 메트릭스 (Phase 4 - 검증)
+export {
+  calculateTokenUsage,
+  calculateCost,
+  calculateTokenSavings,
+  calculateContentCoverage,
+  calculateSubjectBalance,
+  calculateTimeEfficiency,
+  calculateOverallQualityScore,
+  compareGenerationMethods,
+  estimateTokenSavings,
+  formatComparisonResult,
+  type TokenUsage,
+  type CostInfo,
+  type TimingInfo,
+  type QualityMetrics,
+  type GenerationMetrics,
+  type ComparisonResult,
+  type ComparisonSummary,
+  type TokenEstimateComparison,
+} from "./utils/comparisonMetrics";
