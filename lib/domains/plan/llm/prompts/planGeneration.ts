@@ -62,8 +62,11 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
               "endTime": "08:50",
               "contentId": "content-uuid",
               "contentTitle": "콘텐츠 제목",
+              "contentType": "book",
               "subject": "수학",
               "subjectCategory": "수학 가형",
+              "subjectType": "weakness",
+              "blockIndex": 0,
               "rangeStart": 1,
               "rangeEnd": 20,
               "rangeDisplay": "p.1-20",
@@ -184,10 +187,10 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
       "dayOfWeek": 1,
       "totalMinutes": 180,
       "plans": [
-        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "math-1", "priority": "high", "notes": "오전 집중력 높을 때 취약 과목"},
-        {"startTime": "09:10", "endTime": "09:50", "subject": "수학", "contentId": "math-1", "priority": "high", "isReview": false},
-        {"startTime": "14:00", "endTime": "14:50", "subject": "영어", "contentId": "eng-1", "priority": "medium"},
-        {"startTime": "15:00", "endTime": "15:40", "subject": "국어", "contentId": "kor-1", "priority": "medium"}
+        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 0, "priority": "high", "notes": "오전 집중력 높을 때 취약 과목"},
+        {"startTime": "09:10", "endTime": "09:50", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 1, "priority": "high", "isReview": false},
+        {"startTime": "14:00", "endTime": "14:50", "subject": "영어", "contentId": "eng-1", "contentType": "lecture", "subjectType": "strategy", "blockIndex": 2, "priority": "medium"},
+        {"startTime": "15:00", "endTime": "15:40", "subject": "국어", "contentId": "kor-1", "contentType": "book", "subjectType": null, "blockIndex": 3, "priority": "medium"}
       ],
       "dailySummary": "수학 2시간(취약 집중) + 영어/국어 각 50분"
     }],
@@ -212,10 +215,10 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
       "date": "2026-01-06",
       "totalMinutes": 240,
       "plans": [
-        {"startTime": "08:00", "endTime": "09:30", "subject": "수학", "notes": "핵심 공식 정리 및 빈출 유형", "isReview": true, "priority": "high"},
-        {"startTime": "10:00", "endTime": "11:00", "subject": "영어", "notes": "단어 암기 및 독해 실전", "isReview": true, "priority": "high"},
-        {"startTime": "14:00", "endTime": "15:00", "subject": "국어", "notes": "문학 작품 핵심 정리", "isReview": true, "priority": "high"},
-        {"startTime": "19:00", "endTime": "20:00", "subject": "수학", "notes": "오답 노트 복습", "isReview": true, "priority": "high"}
+        {"startTime": "08:00", "endTime": "09:30", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 0, "notes": "핵심 공식 정리 및 빈출 유형", "isReview": true, "priority": "high"},
+        {"startTime": "10:00", "endTime": "11:00", "subject": "영어", "contentId": "eng-1", "contentType": "book", "subjectType": "strategy", "blockIndex": 1, "notes": "단어 암기 및 독해 실전", "isReview": true, "priority": "high"},
+        {"startTime": "14:00", "endTime": "15:00", "subject": "국어", "contentId": "kor-1", "contentType": "book", "subjectType": null, "blockIndex": 2, "notes": "문학 작품 핵심 정리", "isReview": true, "priority": "high"},
+        {"startTime": "19:00", "endTime": "20:00", "subject": "수학", "contentId": "math-1", "contentType": "book", "subjectType": "weakness", "blockIndex": 3, "notes": "오답 노트 복습", "isReview": true, "priority": "high"}
       ],
       "dailySummary": "D-7: 전 과목 핵심 정리 및 빈출 유형 집중"
     }]
@@ -236,9 +239,9 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
     "days": [{
       "date": "2026-01-06",
       "plans": [
-        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "video-math", "contentTitle": "수학 개념 영상", "notes": "시각형 학습자: 영상으로 개념 이해"},
-        {"startTime": "09:10", "endTime": "10:00", "subject": "수학", "contentId": "book-math", "contentTitle": "수학 문제집", "notes": "영상 학습 후 문제로 확인"},
-        {"startTime": "14:00", "endTime": "15:00", "subject": "영어", "contentId": "video-eng", "contentTitle": "영어 강의", "notes": "시각형 학습자: 자막 있는 영상 선호"}
+        {"startTime": "08:00", "endTime": "09:00", "subject": "수학", "contentId": "video-math", "contentType": "lecture", "subjectType": "weakness", "blockIndex": 0, "contentTitle": "수학 개념 영상", "notes": "시각형 학습자: 영상으로 개념 이해"},
+        {"startTime": "09:10", "endTime": "10:00", "subject": "수학", "contentId": "book-math", "contentType": "book", "subjectType": "weakness", "blockIndex": 1, "contentTitle": "수학 문제집", "notes": "영상 학습 후 문제로 확인"},
+        {"startTime": "14:00", "endTime": "15:00", "subject": "영어", "contentId": "video-eng", "contentType": "lecture", "subjectType": "strategy", "blockIndex": 2, "contentTitle": "영어 강의", "notes": "시각형 학습자: 자막 있는 영상 선호"}
       ],
       "dailySummary": "영상 강의 70% + 교재 30% 배치 (시각형 학습자)"
     }]
@@ -285,12 +288,12 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 - **학습 스타일이 있으면 해당 스타일 콘텐츠 우선 배치**
 - **학원 일정이 있으면 해당 시간 학습 배치 금지**
 
-## 확장 출력 필드 (선택)
+## 필수 출력 필드 (REQUIRED)
 
-플랜 아이템에 다음 필드를 포함하면 더 정확한 저장이 가능합니다:
-- contentType: "book" | "lecture" | "custom" (콘텐츠 유형)
-- blockIndex: 0, 1, 2... (해당 시간의 블록 인덱스)
-- subjectType: "strategy" | "weakness" | null (전략/취약 구분)
+**반드시** 모든 플랜 아이템에 다음 필드를 포함하세요:
+- **contentType**: "book" | "lecture" | "custom" (콘텐츠 유형 - 콘텐츠 목록에서 확인)
+- **blockIndex**: 0, 1, 2... (해당 시간에 맞는 블록 인덱스 - 블록 정보 참조)
+- **subjectType**: "strategy" | "weakness" | null (과목 할당 정보 참조)
 `;
 
 

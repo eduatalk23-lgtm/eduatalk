@@ -22,6 +22,13 @@ import type {
   GeneratedPlanItem,
 } from "../types";
 
+import {
+  validatePlans,
+  type ValidationError,
+  type ValidationWarning,
+} from "../validators/planValidator";
+import type { AcademyScheduleForPrompt, BlockInfoForPrompt } from "../transformers/requestBuilder";
+
 // ============================================
 // 타입 정의
 // ============================================
@@ -65,6 +72,12 @@ export interface GeneratePlanResult {
       inputTokens: number;
       outputTokens: number;
       estimatedUSD: number;
+    };
+    /** 검증 결과 - 에러가 있으면 플랜이 저장되지 않음 */
+    validation?: {
+      valid: boolean;
+      errors: ValidationError[];
+      warnings: ValidationWarning[];
     };
   };
   error?: string;
@@ -122,6 +135,58 @@ async function loadTimeSlots(supabase: Awaited<ReturnType<typeof createSupabaseS
     .order("slot_order", { ascending: true });
 
   return slots || [];
+}
+
+async function loadAcademySchedules(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  tenantId: string
+): Promise<AcademyScheduleForPrompt[]> {
+  const { data: schedules } = await supabase
+    .from("academy_schedules")
+    .select("id, day_of_week, start_time, end_time, academy_name, travel_time")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (!schedules || schedules.length === 0) {
+    return [];
+  }
+
+  return schedules.map((s) => ({
+    id: s.id,
+    dayOfWeek: s.day_of_week,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    academyName: s.academy_name || undefined,
+    travelTime: s.travel_time ?? 60,
+  }));
+}
+
+async function loadBlockSets(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string
+): Promise<BlockInfoForPrompt[]> {
+  // 블록 세트와 블록 스케줄을 조인하여 조회
+  const { data: blocks } = await supabase
+    .from("student_block_schedule")
+    .select("id, day_of_week, start_time, end_time, block_set_id")
+    .eq("student_id", studentId)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (!blocks || blocks.length === 0) {
+    return [];
+  }
+
+  return blocks.map((b, index) => ({
+    id: b.id,
+    blockIndex: index,
+    dayOfWeek: b.day_of_week,
+    startTime: b.start_time,
+    endTime: b.end_time,
+  }));
 }
 
 async function loadLearningStats(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, studentId: string) {
@@ -275,12 +340,19 @@ export async function generatePlanWithAI(
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
     }
 
-    // 2. 관련 데이터 로드
-    const [scores, contents, timeSlots, learningStats] = await Promise.all([
+    // 2. 관련 데이터 로드 (검증용 학원 일정, 블록 세트 포함)
+    const tenantId = student.tenant_id;
+    if (!tenantId) {
+      return { success: false, error: "테넌트 정보를 찾을 수 없습니다." };
+    }
+
+    const [scores, contents, timeSlots, learningStats, academySchedules, blockSets] = await Promise.all([
       loadScores(supabase, student.id),
       loadContents(supabase, input.contentIds),
-      loadTimeSlots(supabase, student.tenant_id),
+      loadTimeSlots(supabase, tenantId),
       loadLearningStats(supabase, student.id),
+      loadAcademySchedules(supabase, student.id, tenantId),
+      loadBlockSets(supabase, student.id),
     ]);
 
     if (contents.length === 0) {
@@ -356,12 +428,34 @@ export async function generatePlanWithAI(
       return { success: false, error: parsed.error || "플랜 생성에 실패했습니다." };
     }
 
-    // 8. 플랜 그룹 생성 또는 사용
-    const tenantId = student.tenant_id;
-    if (!tenantId) {
-      return { success: false, error: "테넌트 정보를 찾을 수 없습니다." };
+    // 8. 플랜 추출 및 검증
+    const allPlans: GeneratedPlanItem[] = [];
+    for (const matrix of parsed.response.weeklyMatrices) {
+      for (const day of matrix.days) {
+        allPlans.push(...day.plans);
+      }
     }
 
+    // 9. 플랜 검증 (학원 충돌, 제외일, 일일 학습량, 블록 호환성)
+    const validationResult = validatePlans({
+      plans: allPlans,
+      academySchedules,
+      blockSets,
+      excludeDays: input.excludeDays,
+      excludeDates: [], // TODO: 제외 날짜 지원 시 추가
+      dailyStudyMinutes: input.dailyStudyMinutes,
+    });
+
+    // 검증 결과 로깅
+    if (validationResult.errors.length > 0) {
+      console.warn(`[AI Plan] 검증 에러 ${validationResult.errors.length}건:`,
+        validationResult.errors.slice(0, 5).map(e => e.message));
+    }
+    if (validationResult.warnings.length > 0) {
+      console.log(`[AI Plan] 검증 경고 ${validationResult.warnings.length}건`);
+    }
+
+    // 10. 플랜 그룹 생성 또는 사용
     let finalPlanGroupId: string;
 
     if (input.planGroupId) {
@@ -381,22 +475,15 @@ export async function generatePlanWithAI(
       );
     }
 
-    // 9. 플랜 저장
-    const allPlans: GeneratedPlanItem[] = [];
-    for (const matrix of parsed.response.weeklyMatrices) {
-      for (const day of matrix.days) {
-        allPlans.push(...day.plans);
-      }
-    }
-
+    // 11. 플랜 저장 (검증 에러가 있어도 저장, 경고와 함께 반환)
     await savePlans(supabase, student.id, tenantId, finalPlanGroupId, allPlans);
 
-    // 10. 캐시 무효화
+    // 12. 캐시 무효화
     revalidatePath("/plan");
     revalidatePath("/plan/calendar");
     revalidatePath("/today");
 
-    // 11. 비용 계산
+    // 13. 비용 계산
     const estimatedCost = estimateCost(
       result.usage.inputTokens,
       result.usage.outputTokens,
@@ -414,6 +501,7 @@ export async function generatePlanWithAI(
           outputTokens: result.usage.outputTokens,
           estimatedUSD: estimatedCost,
         },
+        validation: validationResult,
       },
     };
   } catch (error) {
@@ -437,6 +525,12 @@ export interface PreviewPlanResult {
       inputTokens: number;
       outputTokens: number;
       estimatedUSD: number;
+    };
+    /** 검증 결과 - 미리보기에서도 검증 수행 */
+    validation?: {
+      valid: boolean;
+      errors: ValidationError[];
+      warnings: ValidationWarning[];
     };
   };
   error?: string;
@@ -485,17 +579,24 @@ export async function previewPlanWithAI(
   }
 
   try {
-    // 데이터 로드 (동일)
+    // 데이터 로드 (검증용 학원 일정, 블록 세트 포함)
     const student = await loadStudentData(supabase, user.userId);
     if (!student) {
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
     }
 
-    const [scores, contents, timeSlots, learningStats] = await Promise.all([
+    const tenantId = student.tenant_id;
+    if (!tenantId) {
+      return { success: false, error: "테넌트 정보를 찾을 수 없습니다." };
+    }
+
+    const [scores, contents, timeSlots, learningStats, academySchedules, blockSets] = await Promise.all([
       loadScores(supabase, student.id),
       loadContents(supabase, input.contentIds),
-      loadTimeSlots(supabase, student.tenant_id),
+      loadTimeSlots(supabase, tenantId),
       loadLearningStats(supabase, student.id),
+      loadAcademySchedules(supabase, student.id, tenantId),
+      loadBlockSets(supabase, student.id),
     ]);
 
     if (contents.length === 0) {
@@ -545,9 +646,9 @@ export async function previewPlanWithAI(
     });
 
     // 요청 유효성 검사
-    const validation = validateRequest(llmRequest);
-    if (!validation.valid) {
-      return { success: false, error: validation.errors.join(", ") };
+    const requestValidation = validateRequest(llmRequest);
+    if (!requestValidation.valid) {
+      return { success: false, error: requestValidation.errors.join(", ") };
     }
 
     // LLM 호출 (fast 모델 사용으로 비용 절감)
@@ -567,6 +668,23 @@ export async function previewPlanWithAI(
       return { success: false, error: parsed.error || "플랜 생성에 실패했습니다." };
     }
 
+    // 플랜 추출 및 검증
+    const allPlans: GeneratedPlanItem[] = [];
+    for (const matrix of parsed.response.weeklyMatrices) {
+      for (const day of matrix.days) {
+        allPlans.push(...day.plans);
+      }
+    }
+
+    const validationResult = validatePlans({
+      plans: allPlans,
+      academySchedules,
+      blockSets,
+      excludeDays: input.excludeDays,
+      excludeDates: [],
+      dailyStudyMinutes: input.dailyStudyMinutes,
+    });
+
     // 비용 계산
     const estimatedCost = estimateCost(
       result.usage.inputTokens,
@@ -583,6 +701,7 @@ export async function previewPlanWithAI(
           outputTokens: result.usage.outputTokens,
           estimatedUSD: estimatedCost,
         },
+        validation: validationResult,
       },
     };
   } catch (error) {

@@ -163,14 +163,37 @@ function getNextBlockIndex(
  * LLM 응답을 PlanPayloadBase 배열로 변환
  *
  * @param response LLM 플랜 생성 응답
- * @param context 변환 컨텍스트 (선택적 - 없으면 기본값 사용)
+ * @param context 변환 컨텍스트 - 정확한 변환을 위해 반드시 제공 권장
  * @returns 변환된 플랜 페이로드 배열
+ *
+ * @note context가 없으면 fallback 값이 사용되어 정확도가 떨어질 수 있습니다:
+ * - contentTypeMap 없음 → 모든 콘텐츠가 "book"으로 처리됨
+ * - blockSets 없음 → block_index가 배열 순서로 할당됨
+ * - allocationMap 없음 → subject_type이 null로 설정됨
  */
 export function transformLLMResponseToPlans(
   response: LLMPlanGenerationResponse,
   context?: TransformContext
 ): TransformedPlanPayload[] {
   const plans: TransformedPlanPayload[] = [];
+
+  // context 누락 경고 로깅
+  if (!context) {
+    console.warn(
+      "[llmResponseTransformer] TransformContext가 제공되지 않았습니다. fallback 값이 사용됩니다."
+    );
+  } else {
+    if (context.contentTypeMap.size === 0) {
+      console.warn(
+        "[llmResponseTransformer] contentTypeMap이 비어 있습니다. 모든 콘텐츠가 'book'으로 처리됩니다."
+      );
+    }
+    if (context.blockSets.length === 0) {
+      console.warn(
+        "[llmResponseTransformer] blockSets가 비어 있습니다. block_index가 순차적으로 할당됩니다."
+      );
+    }
+  }
 
   // plan_number 계산을 위한 Map
   const planNumberMap = new Map<string, number>();
