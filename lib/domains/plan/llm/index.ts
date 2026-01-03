@@ -374,6 +374,22 @@ export {
   type AnalyzeResult,
   type QueueItem as AnalysisQueueItem,
   type BatchAnalyzeResult,
+  // Phase 3.2: 선수지식 매핑
+  PrerequisiteService,
+  getPrerequisiteGraph,
+  suggestLearningOrder,
+  identifyLearningGaps,
+  recommendGapFillers,
+  type StudentLevel,
+  type Concept,
+  type ConceptNode,
+  type PrerequisiteGraph,
+  type OrderedLearningPath,
+  type ConceptPathItem,
+  type LearningGap,
+  type PrerequisiteRecommendedContent,
+  type ContentConceptMapping,
+  type StudentConceptMastery,
 } from "./services";
 
 // 난이도 평가 프롬프트 (Phase 3.1)

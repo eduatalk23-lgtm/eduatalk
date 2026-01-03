@@ -57,3 +57,22 @@ export {
   type QueueItem,
   type BatchAnalyzeResult,
 } from "./contentDifficultyService";
+
+// Phase 3.2: 선수지식 매핑
+export {
+  PrerequisiteService,
+  getPrerequisiteGraph,
+  suggestLearningOrder,
+  identifyLearningGaps,
+  recommendGapFillers,
+  type StudentLevel,
+  type Concept,
+  type ConceptNode,
+  type PrerequisiteGraph,
+  type OrderedLearningPath,
+  type ConceptPathItem,
+  type LearningGap,
+  type RecommendedContent as PrerequisiteRecommendedContent,
+  type ContentConceptMapping,
+  type StudentConceptMastery,
+} from "./prerequisiteService";
