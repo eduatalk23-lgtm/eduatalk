@@ -16,6 +16,7 @@ import { PlanDndProvider, type ContainerType } from './dnd';
 import { PlanHistoryViewer } from './PlanHistoryViewer';
 import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
+import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { PlanToastProvider } from './PlanToast';
@@ -290,6 +291,14 @@ export function AdminPlanManagement({
           <SummaryDashboard studentId={studentId} />
           <PlanHistoryViewer studentId={studentId} />
         </div>
+
+        {/* 플랜 품질 대시보드 (Phase 4) */}
+        {activePlanGroupId && (
+          <PlanQualityDashboard
+            planGroupId={activePlanGroupId}
+            planGroupName="현재 플랜 그룹"
+          />
+        )}
 
         {/* 모달들 */}
         {showAddContentModal && (
