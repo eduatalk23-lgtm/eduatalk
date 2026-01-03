@@ -31,6 +31,17 @@ import type {
   GetMockScoresFilter,
   ScoreActionResult,
 } from "../types";
+import { recalculateRiskIndex } from "@/lib/domains/analysis/actions/riskIndex";
+
+/**
+ * 성적 변경 후 위험도 분석을 비동기적으로 트리거 (fire and forget)
+ * 실패해도 메인 작업에 영향을 주지 않음
+ */
+function triggerRiskAnalysis(studentId: string, tenantId?: string): void {
+  recalculateRiskIndex({ studentId, tenantId }).catch((error) => {
+    console.warn("[RiskAnalysis] 위험도 재계산 실패 (비동기):", error);
+  });
+}
 
 // ============================================
 // 내신 성적 Actions
@@ -103,6 +114,9 @@ async function _createInternalScore(formData: FormData) {
     );
   }
 
+  // 위험도 분석 비동기 트리거
+  triggerRiskAnalysis(student_id, tenant_id);
+
   revalidatePath("/scores");
   return { success: true, scoreId: result.scoreId };
 }
@@ -165,6 +179,9 @@ async function _updateInternalScore(scoreId: string, formData: FormData) {
     );
   }
 
+  // 위험도 분석 비동기 트리거
+  triggerRiskAnalysis(user.userId, tenant_id);
+
   revalidatePath("/scores");
   revalidatePath(`/scores/${scoreId}/edit`);
   return { success: true };
@@ -197,6 +214,9 @@ async function _deleteInternalScore(scoreId: string) {
       true
     );
   }
+
+  // 위험도 분석 비동기 트리거
+  triggerRiskAnalysis(user.userId, user.tenantId);
 
   revalidatePath("/scores");
   return { success: true };
@@ -305,6 +325,9 @@ async function _createInternalScoresBatch(formData: FormData) {
     );
   }
 
+  // 위험도 분석 비동기 트리거
+  triggerRiskAnalysis(student_id, tenant_id);
+
   revalidatePath("/scores");
   return { success: true, scores: result.scores };
 }
@@ -364,6 +387,9 @@ async function _createMockScoresBatch(formData: FormData) {
       true
     );
   }
+
+  // 위험도 분석 비동기 트리거
+  triggerRiskAnalysis(student_id, tenant_id);
 
   revalidatePath("/scores");
   return { success: true, scores: result.scores };
@@ -445,6 +471,8 @@ export async function createMockScoreAction(
   const result = await service.createMockScore(input);
 
   if (result.success) {
+    // 위험도 분석 비동기 트리거
+    triggerRiskAnalysis(input.student_id, input.tenant_id);
     revalidatePath("/scores");
     revalidatePath("/dashboard");
   }
@@ -488,6 +516,8 @@ export async function updateMockScoreAction(
   const result = await service.updateMockScore(scoreId, studentId, updates);
 
   if (result.success) {
+    // 위험도 분석 비동기 트리거
+    triggerRiskAnalysis(studentId, user.tenantId ?? undefined);
     revalidatePath("/scores");
     revalidatePath("/dashboard");
   }
@@ -511,6 +541,8 @@ export async function deleteMockScoreAction(
   const result = await service.deleteMockScore(scoreId, targetStudentId);
 
   if (result.success) {
+    // 위험도 분석 비동기 트리거
+    triggerRiskAnalysis(targetStudentId, user.tenantId ?? undefined);
     revalidatePath("/scores");
     revalidatePath("/dashboard");
   }
