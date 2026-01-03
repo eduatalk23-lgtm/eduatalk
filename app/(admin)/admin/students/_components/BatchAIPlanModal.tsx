@@ -11,7 +11,7 @@
  * @module BatchAIPlanModal
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
@@ -34,6 +34,11 @@ import {
   type StudentPlanResult,
   type BatchPlanGenerationResult,
 } from "@/lib/domains/admin-plan/actions/batchAIPlanGeneration";
+
+import {
+  parseSSEEvent,
+  type BatchStreamEvent,
+} from "@/lib/domains/admin-plan/types/streaming";
 
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import type { StudentListRow } from "./types";
@@ -740,6 +745,9 @@ export function BatchAIPlanModal({
   const [results, setResults] = useState<StudentPlanResult[]>([]);
   const [finalResult, setFinalResult] = useState<BatchPlanGenerationResult | null>(null);
 
+  // SSE 스트리밍 취소용 ref
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // 비용 추정 업데이트
   useEffect(() => {
     if (selectedStudents.length > 0 && settings.modelTier) {
@@ -749,9 +757,14 @@ export function BatchAIPlanModal({
     }
   }, [selectedStudents.length, settings.modelTier]);
 
-  // 모달 닫힐 때 상태 초기화
+  // 모달 닫힐 때 상태 초기화 및 스트리밍 취소
   useEffect(() => {
     if (!open) {
+      // 진행 중인 스트리밍 취소
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       setStep("settings");
       setProgress(0);
       setCurrentStudent("");
@@ -780,6 +793,10 @@ export function BatchAIPlanModal({
     setProgress(0);
     setResults([]);
 
+    // AbortController 생성
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       // 학생별 콘텐츠 조회
       const studentIds = selectedStudents.map((s) => s.id);
@@ -791,43 +808,102 @@ export function BatchAIPlanModal({
         contentIds: contentsMap.get(s.id)?.contentIds || [],
       }));
 
-      // 진행 상태 시뮬레이션 (실제로는 서버에서 스트리밍으로 받아야 함)
-      // 현재는 서버 액션이 전체 결과를 한번에 반환하므로 임시 처리
-      let completed = 0;
-      const updateInterval = setInterval(() => {
-        completed += 1;
-        setProgress(Math.min(completed, students.length));
-        if (completed < students.length) {
-          setCurrentStudent(selectedStudents[completed]?.name || "");
-        }
-      }, 1000);
-
-      // 배치 생성 실행
-      const result = await generateBatchPlansWithAI({
-        students,
-        settings,
-        planGroupNameTemplate: "AI 학습 계획 ({startDate} ~ {endDate})",
+      // SSE 스트리밍 요청
+      const response = await fetch("/api/admin/batch-plan/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          students,
+          settings,
+          planGroupNameTemplate: "AI 학습 계획 ({startDate} ~ {endDate})",
+        }),
+        signal: controller.signal,
       });
 
-      clearInterval(updateInterval);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "배치 플랜 생성 요청에 실패했습니다.");
+      }
 
-      if (result.success && result.results) {
-        setProgress(students.length);
-        setResults(result.results);
-        setFinalResult(result);
-        setStep("results");
-        showSuccess(
-          `${result.summary.succeeded}명의 학생에게 플랜이 생성되었습니다.`
-        );
-      } else {
-        const errorMessage =
-          typeof result.error === "string"
-            ? result.error
-            : result.error?.message || "배치 플랜 생성에 실패했습니다.";
-        showError(errorMessage);
-        setStep("settings");
+      // SSE 스트림 읽기
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("스트림을 읽을 수 없습니다.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const collectedResults: StudentPlanResult[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // 완전한 이벤트 라인 파싱
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || ""; // 마지막 불완전한 라인 유지
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const event = parseSSEEvent(line);
+          if (!event) continue;
+
+          // 이벤트 타입별 처리
+          switch (event.type) {
+            case "start":
+              setProgress(0);
+              break;
+
+            case "student_start":
+              setCurrentStudent(event.studentName);
+              break;
+
+            case "student_complete":
+              setProgress(event.progress);
+              collectedResults.push(event.result);
+              setResults([...collectedResults]);
+              break;
+
+            case "student_error":
+              setProgress(event.progress);
+              collectedResults.push({
+                studentId: event.studentId,
+                studentName: event.studentName,
+                status: "error",
+                error: event.error,
+              });
+              setResults([...collectedResults]);
+              break;
+
+            case "complete":
+              setProgress(event.total);
+              setResults(event.results);
+              setFinalResult({
+                success: true,
+                results: event.results,
+                summary: event.summary,
+              });
+              setStep("results");
+              showSuccess(
+                `${event.summary.succeeded}명의 학생에게 플랜이 생성되었습니다.`
+              );
+              break;
+
+            case "batch_error":
+              throw new Error(event.error);
+          }
+        }
       }
     } catch (error) {
+      // 취소된 경우 에러 메시지 표시 안함
+      if (error instanceof Error && error.name === "AbortError") {
+        setStep("settings");
+        return;
+      }
+
       console.error("Batch AI Plan Error:", error);
       showError(
         error instanceof Error ? error.message : "배치 플랜 생성 중 오류가 발생했습니다."
@@ -835,6 +911,7 @@ export function BatchAIPlanModal({
       setStep("settings");
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   }, [selectedStudents, settings, showSuccess, showError]);
 

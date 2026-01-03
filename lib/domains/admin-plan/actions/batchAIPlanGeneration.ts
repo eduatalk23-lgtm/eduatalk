@@ -295,7 +295,7 @@ async function savePlans(
 // 개별 학생 플랜 생성
 // ============================================
 
-async function generatePlanForStudent(
+export async function generatePlanForStudent(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   tenantId: string,
   studentId: string,
@@ -696,4 +696,222 @@ export async function getStudentsContentsForBatch(
   }
 
   return result;
+}
+
+// ============================================
+// 스트리밍 지원 배치 생성 (Phase 1)
+// ============================================
+
+import type {
+  BatchStreamEvent,
+  OnProgressCallback,
+  StreamingOptions,
+} from "../types/streaming";
+
+/**
+ * 스트리밍을 지원하는 배치 플랜 생성 입력
+ */
+export interface BatchPlanGenerationWithStreamingInput
+  extends BatchPlanGenerationInput {
+  /** 스트리밍 옵션 */
+  streamingOptions?: StreamingOptions;
+}
+
+/**
+ * 스트리밍을 지원하는 배치 AI 플랜 생성
+ *
+ * Server Action이 아닌 일반 함수로 export하여
+ * API 라우트에서 직접 호출할 수 있도록 합니다.
+ */
+export async function generateBatchPlansWithStreaming(
+  input: BatchPlanGenerationWithStreamingInput
+): Promise<BatchPlanGenerationResult> {
+  const { streamingOptions, ...batchInput } = input;
+  const onProgress = streamingOptions?.onProgress;
+  const signal = streamingOptions?.signal;
+
+  // 권한 확인
+  const user = await getCurrentUser();
+  if (!user || !["admin", "consultant"].includes(user.role)) {
+    throw new AppError(
+      "관리자 또는 컨설턴트 권한이 필요합니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
+
+  // 테넌트 컨텍스트
+  const tenantContext = await requireTenantContext();
+  const supabase = await createSupabaseServerClient();
+
+  const { students, settings, planGroupNameTemplate } = batchInput;
+
+  if (!students || students.length === 0) {
+    throw new AppError(
+      "처리할 학생이 없습니다.",
+      ErrorCode.INVALID_INPUT,
+      400,
+      true
+    );
+  }
+
+  // 날짜 유효성 검사
+  const startDate = new Date(settings.startDate);
+  const endDate = new Date(settings.endDate);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    throw new AppError(
+      "유효하지 않은 날짜 형식입니다.",
+      ErrorCode.INVALID_INPUT,
+      400,
+      true
+    );
+  }
+
+  if (startDate >= endDate) {
+    throw new AppError(
+      "종료일은 시작일 이후여야 합니다.",
+      ErrorCode.INVALID_INPUT,
+      400,
+      true
+    );
+  }
+
+  const results: StudentPlanResult[] = [];
+  const CONCURRENCY_LIMIT = 3;
+  const groupNameTemplate =
+    planGroupNameTemplate || "AI 학습 계획 ({startDate} ~ {endDate})";
+
+  // 시작 이벤트 발행
+  onProgress?.({
+    type: "start",
+    progress: 0,
+    total: students.length,
+    timestamp: Date.now(),
+    studentIds: students.map((s) => s.studentId),
+  });
+
+  // 학생 이름 미리 조회 (진행률 표시용)
+  const studentNamesMap = new Map<string, string>();
+  const { data: studentData } = await supabase
+    .from("students")
+    .select("id, name")
+    .in(
+      "id",
+      students.map((s) => s.studentId)
+    );
+
+  for (const s of studentData || []) {
+    studentNamesMap.set(s.id, s.name);
+  }
+
+  let processedCount = 0;
+
+  // 배치 처리 (동시에 최대 3명씩)
+  for (let i = 0; i < students.length; i += CONCURRENCY_LIMIT) {
+    // 취소 확인
+    if (signal?.aborted) {
+      throw new AppError("처리가 취소되었습니다.", ErrorCode.BUSINESS_LOGIC_ERROR, 499, true);
+    }
+
+    const batch = students.slice(i, i + CONCURRENCY_LIMIT);
+
+    // 시작 이벤트 발행 (배치 내 각 학생)
+    for (const s of batch) {
+      onProgress?.({
+        type: "student_start",
+        progress: processedCount + 1,
+        total: students.length,
+        timestamp: Date.now(),
+        studentId: s.studentId,
+        studentName: studentNamesMap.get(s.studentId) || "Unknown",
+      });
+    }
+
+    const batchResults = await Promise.all(
+      batch.map((s) =>
+        generatePlanForStudent(
+          supabase,
+          tenantContext.tenantId,
+          s.studentId,
+          s.contentIds,
+          settings,
+          groupNameTemplate
+        )
+      )
+    );
+
+    // 결과 이벤트 발행 (배치 내 각 학생)
+    for (const result of batchResults) {
+      processedCount++;
+
+      if (result.status === "error") {
+        onProgress?.({
+          type: "student_error",
+          progress: processedCount,
+          total: students.length,
+          timestamp: Date.now(),
+          studentId: result.studentId,
+          studentName: result.studentName,
+          error: result.error || "알 수 없는 오류",
+        });
+      } else {
+        onProgress?.({
+          type: "student_complete",
+          progress: processedCount,
+          total: students.length,
+          timestamp: Date.now(),
+          studentId: result.studentId,
+          studentName: result.studentName,
+          result,
+        });
+      }
+    }
+
+    results.push(...batchResults);
+
+    // 레이트 리밋 방지를 위한 짧은 대기 (배치 사이)
+    if (i + CONCURRENCY_LIMIT < students.length) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  // 결과 요약 계산
+  const succeeded = results.filter((r) => r.status === "success").length;
+  const failed = results.filter((r) => r.status === "error").length;
+  const skipped = results.filter((r) => r.status === "skipped").length;
+  const totalPlans = results.reduce((sum, r) => sum + (r.totalPlans || 0), 0);
+  const totalCost = results.reduce(
+    (sum, r) => sum + (r.cost?.estimatedUSD || 0),
+    0
+  );
+
+  const summary = {
+    total: students.length,
+    succeeded,
+    failed,
+    skipped,
+    totalPlans,
+    totalCost,
+  };
+
+  // 완료 이벤트 발행
+  onProgress?.({
+    type: "complete",
+    progress: students.length,
+    total: students.length,
+    timestamp: Date.now(),
+    summary,
+    results,
+  });
+
+  // 캐시 무효화
+  revalidatePath("/admin/students");
+
+  return {
+    success: true,
+    results,
+    summary,
+  };
 }
