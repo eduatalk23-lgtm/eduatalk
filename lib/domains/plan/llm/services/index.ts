@@ -2,6 +2,7 @@
  * LLM Services
  *
  * Phase 2: AI/LLM 비용 최적화
+ * Phase 3: 콘텐츠 분석 및 추천
  */
 
 // Phase 2.1: LLM 응답 캐시 레이어
@@ -41,3 +42,18 @@ export {
   type TokenBreakdown,
   type OptimizationResult,
 } from "./tokenOptimizationService";
+
+// Phase 3.1: 콘텐츠 난이도 분석
+export {
+  ContentDifficultyService,
+  analyzeContentDifficulty,
+  getContentDifficulty,
+  analyzeWithCache,
+  type ContentType,
+  type AnalysisStatus,
+  type StoredDifficultyAnalysis,
+  type AnalyzeOptions,
+  type AnalyzeResult,
+  type QueueItem,
+  type BatchAnalyzeResult,
+} from "./contentDifficultyService";

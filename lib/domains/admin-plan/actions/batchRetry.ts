@@ -23,9 +23,9 @@ import type { StreamingOptions } from "../types/streaming";
 /**
  * 결과에서 재시도 가능한 학생 추출
  */
-export function extractRetryableStudents(
+export async function extractRetryableStudents(
   results: StudentPlanResult[]
-): RetryStudent[] {
+): Promise<RetryStudent[]> {
   return results
     .filter((r) => r.status === "error" || r.status === "skipped")
     .map((r) => ({
@@ -38,7 +38,7 @@ export function extractRetryableStudents(
 /**
  * 재시도 가능 여부 확인
  */
-export function hasRetryableStudents(results: StudentPlanResult[]): boolean {
+export async function hasRetryableStudents(results: StudentPlanResult[]): Promise<boolean> {
   return results.some((r) => r.status === "error" || r.status === "skipped");
 }
 
@@ -114,10 +114,10 @@ export async function retryBatchPlansWithStreaming(
  * @param retryResults - 재시도 결과
  * @returns 병합된 결과
  */
-export function mergeRetryResults(
+export async function mergeRetryResults(
   originalResults: StudentPlanResult[],
   retryResults: StudentPlanResult[]
-): StudentPlanResult[] {
+): Promise<StudentPlanResult[]> {
   const retryMap = new Map(retryResults.map((r) => [r.studentId, r]));
 
   return originalResults.map((original) => {
@@ -130,9 +130,9 @@ export function mergeRetryResults(
 /**
  * 병합된 결과에서 요약 재계산
  */
-export function recalculateSummary(
+export async function recalculateSummary(
   results: StudentPlanResult[]
-): BatchRetryResult["summary"] {
+): Promise<BatchRetryResult["summary"]> {
   const succeeded = results.filter((r) => r.status === "success").length;
   const failed = results.filter((r) => r.status === "error").length;
   const totalPlans = results.reduce((sum, r) => sum + (r.totalPlans || 0), 0);

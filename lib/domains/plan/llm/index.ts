@@ -331,7 +331,7 @@ export {
   type TokenEstimateComparison,
 } from "./utils/comparisonMetrics";
 
-// 서비스 (Phase 2: 비용 최적화)
+// 서비스 (Phase 2: 비용 최적화, Phase 3: 콘텐츠 분석)
 export {
   // Phase 2.1: 캐시
   LLMCacheService,
@@ -362,4 +362,32 @@ export {
   type TokenOptimizationSuggestion,
   type TokenBreakdown,
   type OptimizationResult,
+  // Phase 3.1: 콘텐츠 난이도 분석
+  ContentDifficultyService,
+  analyzeContentDifficulty,
+  getContentDifficulty,
+  analyzeWithCache,
+  type ContentType as DifficultyContentType,
+  type AnalysisStatus,
+  type StoredDifficultyAnalysis,
+  type AnalyzeOptions,
+  type AnalyzeResult,
+  type QueueItem as AnalysisQueueItem,
+  type BatchAnalyzeResult,
 } from "./services";
+
+// 난이도 평가 프롬프트 (Phase 3.1)
+export {
+  DIFFICULTY_ASSESSMENT_SYSTEM_PROMPT,
+  buildDifficultyAssessmentPrompt,
+  parseDifficultyAssessmentResponse,
+  estimateDifficultyPromptTokens,
+  scoreToDifficultyLevel,
+  scoreToDifficultyLabel,
+  calculateDifficultyFit,
+  applySubjectWeight,
+  SUBJECT_DIFFICULTY_WEIGHTS,
+  type DifficultyAssessmentRequest,
+  type DifficultyAssessmentResult,
+  type LearningLevel,
+} from "./prompts/difficultyAssessment";

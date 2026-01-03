@@ -48,13 +48,16 @@ import type { BatchPreviewResult } from "@/lib/domains/admin-plan/types/preview"
 import { BatchPreviewStep } from "./BatchPreviewStep";
 
 import {
-  hasRetryableStudents,
   mergeRetryResults,
   recalculateSummary,
 } from "@/lib/domains/admin-plan/actions/batchRetry";
-
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import type { StudentListRow } from "./types";
+
+// 로컬 헬퍼: 재시도 가능 여부 확인 (동기)
+function hasRetryableStudentsLocal(results: StudentPlanResult[]): boolean {
+  return results.some((r) => r.status === "error" || r.status === "skipped");
+}
 
 // ============================================
 // 타입
@@ -1297,11 +1300,11 @@ export function BatchAIPlanModal({
             case "complete":
               setProgress(event.total);
               // 기존 결과와 재시도 결과 병합
-              const mergedResults = mergeRetryResults(
+              const mergedResults = await mergeRetryResults(
                 finalResult.results,
                 event.results
               );
-              const newSummary = recalculateSummary(mergedResults);
+              const newSummary = await recalculateSummary(mergedResults);
               setResults(mergedResults);
               setFinalResult({
                 success: true,
@@ -1342,7 +1345,7 @@ export function BatchAIPlanModal({
 
   // 재시도 가능 여부 확인
   const canRetry = finalResult
-    ? hasRetryableStudents(finalResult.results)
+    ? hasRetryableStudentsLocal(finalResult.results)
     : false;
 
   // 스텝별 타이틀

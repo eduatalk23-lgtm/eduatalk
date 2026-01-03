@@ -1957,6 +1957,7 @@ export type Database = {
           difficulty_level: string | null
           difficulty_level_id: string | null
           edition: string | null
+          estimated_hours: number | null
           grade_max: number | null
           grade_min: number | null
           id: string
@@ -2228,6 +2229,7 @@ export type Database = {
           difficulty_level: string | null
           difficulty_level_id: string | null
           episode_analysis: Json | null
+          estimated_hours: number | null
           grade_level: string | null
           id: string
           instructor_name: string | null
