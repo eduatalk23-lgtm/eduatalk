@@ -330,3 +330,36 @@ export {
   type ComparisonSummary,
   type TokenEstimateComparison,
 } from "./utils/comparisonMetrics";
+
+// 서비스 (Phase 2: 비용 최적화)
+export {
+  // Phase 2.1: 캐시
+  LLMCacheService,
+  withLLMCache,
+  type OperationType,
+  type CacheTokenUsage,
+  type CacheEntry,
+  type CacheSetOptions,
+  type CacheStats,
+  type CleanupResult,
+  // Phase 2.2: 프로바이더 선택
+  ProviderSelectionService,
+  extractComplexityFromPlanRequest,
+  type ComplexityInput,
+  type ComplexityResult,
+  type ComplexityBreakdown,
+  type ProviderSelectionResult,
+  // Phase 2.3: 토큰 최적화
+  TokenOptimizationService,
+  getTokenOptimizationService,
+  optimizeContents,
+  optimizeLearningHistory,
+  type ContentInfoFull,
+  type ContentInfoOptimized,
+  type LearningHistoryFull,
+  type LearningHistoryOptimized,
+  type TokenAnalysis,
+  type TokenOptimizationSuggestion,
+  type TokenBreakdown,
+  type OptimizationResult,
+} from "./services";
