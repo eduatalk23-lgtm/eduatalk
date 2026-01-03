@@ -15,19 +15,24 @@ import {
 import { cn } from "@/lib/cn";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
+import type { StudentListRow } from "./types";
 
 type StudentBulkActionsProps = {
   selectedIds: string[];
+  selectedStudents: StudentListRow[];
   isAdmin: boolean;
   onClearSelection: () => void;
+  onOpenBatchAIPlan: () => void;
 };
 
 type ConfirmAction = "activate" | "deactivate" | "delete" | null;
 
 export function StudentBulkActions({
   selectedIds,
+  selectedStudents,
   isAdmin,
   onClearSelection,
+  onOpenBatchAIPlan,
 }: StudentBulkActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -143,6 +148,17 @@ export function StudentBulkActions({
             )}
           >
             비활성화
+          </button>
+
+          <button
+            onClick={onOpenBatchAIPlan}
+            disabled={isPending || selectedCount === 0}
+            className={cn(
+              "rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+              "bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            AI 플랜 생성
           </button>
 
           {isAdmin && (

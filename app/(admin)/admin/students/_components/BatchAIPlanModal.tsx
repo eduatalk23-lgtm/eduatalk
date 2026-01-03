@@ -1,0 +1,929 @@
+"use client";
+
+/**
+ * 배치 AI 플랜 생성 모달
+ *
+ * 여러 학생에게 동시에 AI 플랜을 생성하는 3단계 모달입니다.
+ * 1. 설정: 기간, 학습 시간, 옵션 설정
+ * 2. 진행: 실시간 진행 상황 표시
+ * 3. 결과: 생성 결과 요약
+ *
+ * @module BatchAIPlanModal
+ */
+
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/cn";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
+import Button from "@/components/atoms/Button";
+import Badge from "@/components/atoms/Badge";
+import Select from "@/components/atoms/Select";
+import { useToast } from "@/components/ui/ToastProvider";
+import {
+  textPrimaryVar,
+  textSecondaryVar,
+  borderDefaultVar,
+  bgSurfaceVar,
+} from "@/lib/utils/darkMode";
+
+import {
+  generateBatchPlansWithAI,
+  estimateBatchPlanCost,
+  getStudentsContentsForBatch,
+  type BatchPlanSettings,
+  type StudentPlanResult,
+  type BatchPlanGenerationResult,
+} from "@/lib/domains/admin-plan/actions/batchAIPlanGeneration";
+
+import type { ModelTier } from "@/lib/domains/plan/llm/types";
+import type { StudentListRow } from "./types";
+
+// ============================================
+// 타입
+// ============================================
+
+type ModalStep = "settings" | "progress" | "results";
+
+interface BatchAIPlanModalProps {
+  open: boolean;
+  onClose: () => void;
+  selectedStudents: StudentListRow[];
+}
+
+// ============================================
+// 아이콘 컴포넌트
+// ============================================
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
+    </svg>
+  );
+}
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function SparklesIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+      />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function XCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function MinusCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+function LoaderIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn("animate-spin", className)} fill="none" viewBox="0 0 24 24">
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
+function UsersIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+      />
+    </svg>
+  );
+}
+
+function CoinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+// ============================================
+// 설정 스텝 컴포넌트
+// ============================================
+
+interface SettingsStepProps {
+  settings: BatchPlanSettings;
+  onSettingsChange: (settings: BatchPlanSettings) => void;
+  studentCount: number;
+  estimatedCost: { estimatedTotalCost: number; modelTier: ModelTier } | null;
+}
+
+function SettingsStep({
+  settings,
+  onSettingsChange,
+  studentCount,
+  estimatedCost,
+}: SettingsStepProps) {
+  const updateSetting = <K extends keyof BatchPlanSettings>(
+    key: K,
+    value: BatchPlanSettings[K]
+  ) => {
+    onSettingsChange({ ...settings, [key]: value });
+  };
+
+  // 기간 계산
+  const getDaysDiff = () => {
+    if (!settings.startDate || !settings.endDate) return 0;
+    const start = new Date(settings.startDate);
+    const end = new Date(settings.endDate);
+    const diff = Math.ceil(
+      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return diff > 0 ? diff : 0;
+  };
+
+  const daysDiff = getDaysDiff();
+  const isValidPeriod = daysDiff > 0 && daysDiff <= 365;
+
+  const modelOptions = [
+    { value: "fast", label: "Fast (Haiku) - 빠르고 저렴" },
+    { value: "standard", label: "Standard (Sonnet) - 균형" },
+    { value: "advanced", label: "Advanced (Sonnet+) - 고품질" },
+  ];
+
+  const dailyMinutesOptions = [
+    { value: "60", label: "1시간" },
+    { value: "90", label: "1시간 30분" },
+    { value: "120", label: "2시간" },
+    { value: "150", label: "2시간 30분" },
+    { value: "180", label: "3시간" },
+    { value: "240", label: "4시간" },
+    { value: "300", label: "5시간" },
+  ];
+
+  return (
+    <div className="space-y-6 overflow-y-auto max-h-[60vh] px-1">
+      {/* 대상 학생 수 */}
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-lg border p-4",
+          borderDefaultVar,
+          "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+        )}
+      >
+        <UsersIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <div>
+          <p className={cn("text-sm font-medium", textPrimaryVar)}>
+            선택된 학생 수
+          </p>
+          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            {studentCount}명
+          </p>
+        </div>
+      </div>
+
+      {/* 기간 설정 */}
+      <div className="space-y-3">
+        <label
+          className={cn(
+            "flex items-center gap-2 text-sm font-medium",
+            textPrimaryVar
+          )}
+        >
+          <CalendarIcon className="h-4 w-4" />
+          학습 기간 <span className="text-red-500">*</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={settings.startDate}
+            onChange={(e) => updateSetting("startDate", e.target.value)}
+            className={cn(
+              "flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
+              bgSurfaceVar,
+              textPrimaryVar,
+              isValidPeriod
+                ? "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-200"
+                : "border-red-300 focus:border-red-500 focus:ring-red-200"
+            )}
+          />
+          <span className={textSecondaryVar}>~</span>
+          <input
+            type="date"
+            value={settings.endDate}
+            onChange={(e) => updateSetting("endDate", e.target.value)}
+            min={settings.startDate}
+            className={cn(
+              "flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
+              bgSurfaceVar,
+              textPrimaryVar,
+              isValidPeriod
+                ? "border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-200"
+                : "border-red-300 focus:border-red-500 focus:ring-red-200"
+            )}
+          />
+        </div>
+        {daysDiff > 0 && (
+          <p
+            className={cn(
+              "text-sm",
+              isValidPeriod ? textSecondaryVar : "text-red-500"
+            )}
+          >
+            {daysDiff}일간의 학습 계획
+            {daysDiff > 365 && " (최대 365일까지 설정 가능)"}
+          </p>
+        )}
+      </div>
+
+      {/* 일일 학습 시간 */}
+      <div className="space-y-3">
+        <label
+          className={cn(
+            "flex items-center gap-2 text-sm font-medium",
+            textPrimaryVar
+          )}
+        >
+          <ClockIcon className="h-4 w-4" />
+          일일 학습 시간
+        </label>
+        <Select
+          value={settings.dailyStudyMinutes.toString()}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+            updateSetting("dailyStudyMinutes", parseInt(e.target.value))
+          }
+        >
+          {dailyMinutesOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {/* AI 모델 선택 */}
+      <div className="space-y-3">
+        <label
+          className={cn(
+            "flex items-center gap-2 text-sm font-medium",
+            textPrimaryVar
+          )}
+        >
+          <SparklesIcon className="h-4 w-4" />
+          AI 모델
+        </label>
+        <Select
+          value={settings.modelTier || "fast"}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+            updateSetting("modelTier", e.target.value as ModelTier)
+          }
+        >
+          {modelOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+        <p className={cn("text-xs", textSecondaryVar)}>
+          Fast 모델은 빠르고 저렴하며, 대부분의 플랜 생성에 충분합니다.
+        </p>
+      </div>
+
+      {/* 옵션 */}
+      <div className="space-y-3">
+        <label
+          className={cn("text-sm font-medium", textPrimaryVar)}
+        >
+          플랜 옵션
+        </label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.prioritizeWeakSubjects || false}
+              onChange={(e) =>
+                updateSetting("prioritizeWeakSubjects", e.target.checked)
+              }
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className={cn("text-sm", textPrimaryVar)}>
+              취약 과목 우선 배치
+            </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.balanceSubjects || false}
+              onChange={(e) =>
+                updateSetting("balanceSubjects", e.target.checked)
+              }
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className={cn("text-sm", textPrimaryVar)}>
+              과목간 균형 배치
+            </span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.includeReview || false}
+              onChange={(e) => updateSetting("includeReview", e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className={cn("text-sm", textPrimaryVar)}>
+              복습 플랜 포함
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* 예상 비용 */}
+      {estimatedCost && (
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-lg border p-4",
+            borderDefaultVar,
+            "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
+          )}
+        >
+          <CoinIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          <div>
+            <p className={cn("text-sm font-medium", textPrimaryVar)}>
+              예상 API 비용
+            </p>
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+              ${estimatedCost.estimatedTotalCost.toFixed(4)}
+            </p>
+            <p className={cn("text-xs", textSecondaryVar)}>
+              학생당 약 ${(estimatedCost.estimatedTotalCost / studentCount).toFixed(4)}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// 진행 스텝 컴포넌트
+// ============================================
+
+interface ProgressStepProps {
+  progress: number;
+  total: number;
+  currentStudent: string;
+  results: StudentPlanResult[];
+}
+
+function ProgressStep({
+  progress,
+  total,
+  currentStudent,
+  results,
+}: ProgressStepProps) {
+  const successCount = results.filter((r) => r.status === "success").length;
+  const errorCount = results.filter((r) => r.status === "error").length;
+  const skippedCount = results.filter((r) => r.status === "skipped").length;
+
+  const progressPercent = total > 0 ? Math.round((progress / total) * 100) : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* 진행 바 */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className={textSecondaryVar}>진행 중...</span>
+          <span className={textPrimaryVar}>
+            {progress} / {total} ({progressPercent}%)
+          </span>
+        </div>
+        <div className="h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+          <div
+            className="h-full bg-blue-600 transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 현재 처리 중인 학생 */}
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-lg border p-4",
+          borderDefaultVar,
+          bgSurfaceVar
+        )}
+      >
+        <LoaderIcon className="h-5 w-5 text-blue-600" />
+        <div>
+          <p className={cn("text-sm font-medium", textPrimaryVar)}>
+            현재 처리 중
+          </p>
+          <p className={textSecondaryVar}>{currentStudent || "준비 중..."}</p>
+        </div>
+      </div>
+
+      {/* 실시간 통계 */}
+      <div className="grid grid-cols-3 gap-3">
+        <div
+          className={cn(
+            "rounded-lg border p-3 text-center",
+            borderDefaultVar,
+            "bg-green-50 dark:bg-green-950/30"
+          )}
+        >
+          <CheckCircleIcon className="h-5 w-5 mx-auto text-green-600 mb-1" />
+          <p className="text-lg font-bold text-green-600">{successCount}</p>
+          <p className={cn("text-xs", textSecondaryVar)}>성공</p>
+        </div>
+        <div
+          className={cn(
+            "rounded-lg border p-3 text-center",
+            borderDefaultVar,
+            "bg-red-50 dark:bg-red-950/30"
+          )}
+        >
+          <XCircleIcon className="h-5 w-5 mx-auto text-red-600 mb-1" />
+          <p className="text-lg font-bold text-red-600">{errorCount}</p>
+          <p className={cn("text-xs", textSecondaryVar)}>실패</p>
+        </div>
+        <div
+          className={cn(
+            "rounded-lg border p-3 text-center",
+            borderDefaultVar,
+            "bg-gray-50 dark:bg-gray-800"
+          )}
+        >
+          <MinusCircleIcon className="h-5 w-5 mx-auto text-gray-500 mb-1" />
+          <p className="text-lg font-bold text-gray-500">{skippedCount}</p>
+          <p className={cn("text-xs", textSecondaryVar)}>건너뜀</p>
+        </div>
+      </div>
+
+      {/* 최근 결과 목록 */}
+      {results.length > 0 && (
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          <p className={cn("text-sm font-medium", textPrimaryVar)}>처리 결과</p>
+          {results.slice(-5).reverse().map((result, idx) => (
+            <div
+              key={`${result.studentId}-${idx}`}
+              className={cn(
+                "flex items-center gap-2 rounded px-3 py-2 text-sm",
+                result.status === "success" && "bg-green-50 dark:bg-green-950/30",
+                result.status === "error" && "bg-red-50 dark:bg-red-950/30",
+                result.status === "skipped" && "bg-gray-50 dark:bg-gray-800"
+              )}
+            >
+              {result.status === "success" && (
+                <CheckCircleIcon className="h-4 w-4 text-green-600" />
+              )}
+              {result.status === "error" && (
+                <XCircleIcon className="h-4 w-4 text-red-600" />
+              )}
+              {result.status === "skipped" && (
+                <MinusCircleIcon className="h-4 w-4 text-gray-500" />
+              )}
+              <span className={textPrimaryVar}>{result.studentName}</span>
+              {result.status === "success" && (
+                <span className={textSecondaryVar}>
+                  ({result.totalPlans}개 플랜 생성)
+                </span>
+              )}
+              {result.error && (
+                <span className="text-red-600 text-xs">- {result.error}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// 결과 스텝 컴포넌트
+// ============================================
+
+interface ResultsStepProps {
+  result: BatchPlanGenerationResult | null;
+}
+
+function ResultsStep({ result }: ResultsStepProps) {
+  if (!result) return null;
+
+  const { summary, results } = result;
+
+  return (
+    <div className="space-y-6">
+      {/* 요약 통계 */}
+      <div className="grid grid-cols-2 gap-4">
+        <div
+          className={cn(
+            "rounded-lg border p-4",
+            borderDefaultVar,
+            "bg-green-50 dark:bg-green-950/30"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircleIcon className="h-5 w-5 text-green-600" />
+            <span className={cn("font-medium", textPrimaryVar)}>성공</span>
+          </div>
+          <p className="text-2xl font-bold text-green-600">
+            {summary.succeeded}명
+          </p>
+          <p className={cn("text-sm", textSecondaryVar)}>
+            총 {summary.totalPlans}개 플랜 생성
+          </p>
+        </div>
+        <div
+          className={cn(
+            "rounded-lg border p-4",
+            borderDefaultVar,
+            "bg-red-50 dark:bg-red-950/30"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <XCircleIcon className="h-5 w-5 text-red-600" />
+            <span className={cn("font-medium", textPrimaryVar)}>실패/건너뜀</span>
+          </div>
+          <p className="text-2xl font-bold text-red-600">
+            {summary.failed + summary.skipped}명
+          </p>
+          <p className={cn("text-sm", textSecondaryVar)}>
+            실패 {summary.failed}명 / 건너뜀 {summary.skipped}명
+          </p>
+        </div>
+      </div>
+
+      {/* 비용 정보 */}
+      <div
+        className={cn(
+          "flex items-center gap-3 rounded-lg border p-4",
+          borderDefaultVar,
+          bgSurfaceVar
+        )}
+      >
+        <CoinIcon className="h-5 w-5 text-amber-600" />
+        <div>
+          <p className={cn("text-sm font-medium", textPrimaryVar)}>
+            총 API 비용
+          </p>
+          <p className="text-lg font-bold text-amber-600">
+            ${summary.totalCost.toFixed(4)}
+          </p>
+        </div>
+      </div>
+
+      {/* 상세 결과 목록 */}
+      <div className="space-y-2">
+        <p className={cn("text-sm font-medium", textPrimaryVar)}>상세 결과</p>
+        <div className="max-h-60 overflow-y-auto space-y-2">
+          {results.map((r, idx) => (
+            <div
+              key={`${r.studentId}-${idx}`}
+              className={cn(
+                "flex items-center justify-between rounded-lg border px-4 py-3",
+                borderDefaultVar,
+                bgSurfaceVar
+              )}
+            >
+              <div className="flex items-center gap-3">
+                {r.status === "success" && (
+                  <Badge variant="success" size="sm">성공</Badge>
+                )}
+                {r.status === "error" && (
+                  <Badge variant="error" size="sm">실패</Badge>
+                )}
+                {r.status === "skipped" && (
+                  <Badge variant="default" size="sm">건너뜀</Badge>
+                )}
+                <div>
+                  <p className={cn("font-medium", textPrimaryVar)}>
+                    {r.studentName}
+                  </p>
+                  {r.status === "success" && (
+                    <p className={cn("text-xs", textSecondaryVar)}>
+                      {r.totalPlans}개 플랜 생성
+                    </p>
+                  )}
+                  {r.error && (
+                    <p className="text-xs text-red-500">{r.error}</p>
+                  )}
+                </div>
+              </div>
+              {r.cost && (
+                <span className={cn("text-sm", textSecondaryVar)}>
+                  ${r.cost.estimatedUSD.toFixed(4)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// 메인 컴포넌트
+// ============================================
+
+export function BatchAIPlanModal({
+  open,
+  onClose,
+  selectedStudents,
+}: BatchAIPlanModalProps) {
+  const router = useRouter();
+  const { showSuccess, showError } = useToast();
+
+  // 상태
+  const [step, setStep] = useState<ModalStep>("settings");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 설정
+  const [settings, setSettings] = useState<BatchPlanSettings>(() => {
+    const today = new Date();
+    const thirtyDaysLater = new Date(today);
+    thirtyDaysLater.setDate(today.getDate() + 30);
+
+    return {
+      startDate: today.toISOString().split("T")[0],
+      endDate: thirtyDaysLater.toISOString().split("T")[0],
+      dailyStudyMinutes: 180,
+      prioritizeWeakSubjects: true,
+      balanceSubjects: true,
+      includeReview: false,
+      modelTier: "fast",
+    };
+  });
+
+  // 비용 추정
+  const [estimatedCost, setEstimatedCost] = useState<{
+    estimatedCostPerStudent: number;
+    estimatedTotalCost: number;
+    modelTier: ModelTier;
+  } | null>(null);
+
+  // 진행 상태
+  const [progress, setProgress] = useState(0);
+  const [currentStudent, setCurrentStudent] = useState("");
+  const [results, setResults] = useState<StudentPlanResult[]>([]);
+  const [finalResult, setFinalResult] = useState<BatchPlanGenerationResult | null>(null);
+
+  // 비용 추정 업데이트
+  useEffect(() => {
+    if (selectedStudents.length > 0 && settings.modelTier) {
+      estimateBatchPlanCost(selectedStudents.length, settings.modelTier)
+        .then(setEstimatedCost)
+        .catch(console.error);
+    }
+  }, [selectedStudents.length, settings.modelTier]);
+
+  // 모달 닫힐 때 상태 초기화
+  useEffect(() => {
+    if (!open) {
+      setStep("settings");
+      setProgress(0);
+      setCurrentStudent("");
+      setResults([]);
+      setFinalResult(null);
+    }
+  }, [open]);
+
+  // 생성 시작
+  const handleStart = useCallback(async () => {
+    if (selectedStudents.length === 0) {
+      showError("선택된 학생이 없습니다.");
+      return;
+    }
+
+    // 날짜 유효성 검사
+    const startDate = new Date(settings.startDate);
+    const endDate = new Date(settings.endDate);
+    if (startDate >= endDate) {
+      showError("종료일은 시작일 이후여야 합니다.");
+      return;
+    }
+
+    setIsLoading(true);
+    setStep("progress");
+    setProgress(0);
+    setResults([]);
+
+    try {
+      // 학생별 콘텐츠 조회
+      const studentIds = selectedStudents.map((s) => s.id);
+      const contentsMap = await getStudentsContentsForBatch(studentIds);
+
+      // 배치 생성 입력 준비
+      const students = selectedStudents.map((s) => ({
+        studentId: s.id,
+        contentIds: contentsMap.get(s.id)?.contentIds || [],
+      }));
+
+      // 진행 상태 시뮬레이션 (실제로는 서버에서 스트리밍으로 받아야 함)
+      // 현재는 서버 액션이 전체 결과를 한번에 반환하므로 임시 처리
+      let completed = 0;
+      const updateInterval = setInterval(() => {
+        completed += 1;
+        setProgress(Math.min(completed, students.length));
+        if (completed < students.length) {
+          setCurrentStudent(selectedStudents[completed]?.name || "");
+        }
+      }, 1000);
+
+      // 배치 생성 실행
+      const result = await generateBatchPlansWithAI({
+        students,
+        settings,
+        planGroupNameTemplate: "AI 학습 계획 ({startDate} ~ {endDate})",
+      });
+
+      clearInterval(updateInterval);
+
+      if (result.success && result.results) {
+        setProgress(students.length);
+        setResults(result.results);
+        setFinalResult(result);
+        setStep("results");
+        showSuccess(
+          `${result.summary.succeeded}명의 학생에게 플랜이 생성되었습니다.`
+        );
+      } else {
+        const errorMessage =
+          typeof result.error === "string"
+            ? result.error
+            : result.error?.message || "배치 플랜 생성에 실패했습니다.";
+        showError(errorMessage);
+        setStep("settings");
+      }
+    } catch (error) {
+      console.error("Batch AI Plan Error:", error);
+      showError(
+        error instanceof Error ? error.message : "배치 플랜 생성 중 오류가 발생했습니다."
+      );
+      setStep("settings");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedStudents, settings, showSuccess, showError]);
+
+  // 완료 후 처리
+  const handleComplete = useCallback(() => {
+    onClose();
+    router.refresh();
+  }, [onClose, router]);
+
+  // 스텝별 타이틀
+  const getTitle = () => {
+    switch (step) {
+      case "settings":
+        return "배치 AI 플랜 생성";
+      case "progress":
+        return "플랜 생성 중...";
+      case "results":
+        return "생성 완료";
+    }
+  };
+
+  // 스텝별 설명
+  const getDescription = () => {
+    switch (step) {
+      case "settings":
+        return `${selectedStudents.length}명의 학생에게 AI 플랜을 생성합니다.`;
+      case "progress":
+        return "학생별 플랜을 생성하고 있습니다. 잠시만 기다려주세요.";
+      case "results":
+        return "모든 학생의 플랜 생성이 완료되었습니다.";
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && !isLoading && onClose()}
+      title={getTitle()}
+      description={getDescription()}
+      size="lg"
+      showCloseButton={step !== "progress"}
+    >
+      <DialogContent>
+        {step === "settings" && (
+          <SettingsStep
+            settings={settings}
+            onSettingsChange={setSettings}
+            studentCount={selectedStudents.length}
+            estimatedCost={estimatedCost}
+          />
+        )}
+        {step === "progress" && (
+          <ProgressStep
+            progress={progress}
+            total={selectedStudents.length}
+            currentStudent={currentStudent}
+            results={results}
+          />
+        )}
+        {step === "results" && <ResultsStep result={finalResult} />}
+      </DialogContent>
+      <DialogFooter>
+        {step === "settings" && (
+          <>
+            <Button variant="outline" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleStart}
+              isLoading={isLoading}
+              disabled={selectedStudents.length === 0}
+            >
+              <SparklesIcon className="h-4 w-4 mr-2" />
+              플랜 생성 시작
+            </Button>
+          </>
+        )}
+        {step === "progress" && (
+          <Button variant="outline" disabled>
+            생성 중...
+          </Button>
+        )}
+        {step === "results" && (
+          <Button variant="primary" onClick={handleComplete}>
+            확인
+          </Button>
+        )}
+      </DialogFooter>
+    </Dialog>
+  );
+}

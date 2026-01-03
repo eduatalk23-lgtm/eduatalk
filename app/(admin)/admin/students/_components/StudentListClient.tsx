@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { StudentTable } from "./StudentTable";
 import { StudentBulkActions } from "./StudentBulkActions";
+import { BatchAIPlanModal } from "./BatchAIPlanModal";
 import type { StudentListRow } from "./types";
 
 type StudentListClientProps = {
@@ -15,6 +16,12 @@ export function StudentListClient({
   isAdmin,
 }: StudentListClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+
+  // 선택된 학생들
+  const selectedStudents = useMemo(() => {
+    return students.filter((s) => selectedIds.has(s.id));
+  }, [students, selectedIds]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -43,12 +50,22 @@ export function StudentListClient({
     setSelectedIds(new Set());
   }, []);
 
+  const handleOpenBatchAIPlan = useCallback(() => {
+    setIsBatchModalOpen(true);
+  }, []);
+
+  const handleCloseBatchAIPlan = useCallback(() => {
+    setIsBatchModalOpen(false);
+  }, []);
+
   return (
     <div className="flex flex-col gap-4">
       <StudentBulkActions
         selectedIds={Array.from(selectedIds)}
+        selectedStudents={selectedStudents}
         isAdmin={isAdmin}
         onClearSelection={handleClearSelection}
+        onOpenBatchAIPlan={handleOpenBatchAIPlan}
       />
 
       <StudentTable
@@ -57,6 +74,13 @@ export function StudentListClient({
         selectedIds={selectedIds}
         onToggleSelect={handleToggleSelect}
         onSelectAll={handleSelectAll}
+      />
+
+      {/* 배치 AI 플랜 생성 모달 */}
+      <BatchAIPlanModal
+        open={isBatchModalOpen}
+        onClose={handleCloseBatchAIPlan}
+        selectedStudents={selectedStudents}
       />
     </div>
   );

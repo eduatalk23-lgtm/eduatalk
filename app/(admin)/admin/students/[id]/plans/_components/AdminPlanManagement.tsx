@@ -19,6 +19,10 @@ import { SummaryDashboard } from './SummaryDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { PlanToastProvider } from './PlanToast';
+import { AdminAIPlanModal } from './AdminAIPlanModal';
+import { AdminPlanCreationWizard } from './admin-wizard';
+import PlanOptimizationPanel from './PlanOptimizationPanel';
+import { Wand2, Plus, LineChart } from 'lucide-react';
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -45,6 +49,10 @@ export function AdminPlanManagement({
   const [showRedistributeModal, setShowRedistributeModal] = useState(false);
   const [selectedPlanForRedistribute, setSelectedPlanForRedistribute] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const [showAIPlanModal, setShowAIPlanModal] = useState(false);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
+  const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
 
   // 날짜 변경 핸들러
   const handleDateChange = (date: string) => {
@@ -157,8 +165,29 @@ export function AdminPlanManagement({
           setShowAddAdHocModal(false);
           setShowRedistributeModal(false);
           setShowShortcutsHelp(false);
+          setShowAIPlanModal(false);
+          setShowCreateWizard(false);
+          setShowOptimizationPanel(false);
         },
         description: '모달 닫기',
+        category: 'modal',
+      },
+      {
+        key: 'i',
+        action: () => activePlanGroupId && setShowAIPlanModal(true),
+        description: 'AI 플랜 생성',
+        category: 'modal',
+      },
+      {
+        key: 'g',
+        action: () => setShowCreateWizard(true),
+        description: '플랜 그룹 생성',
+        category: 'modal',
+      },
+      {
+        key: 'o',
+        action: () => setShowOptimizationPanel(true),
+        description: 'AI 플랜 최적화',
         category: 'modal',
       },
     ],
@@ -174,6 +203,32 @@ export function AdminPlanManagement({
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateWizard(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              title="플랜 그룹 생성 (g)"
+            >
+              <Plus className="h-4 w-4" />
+              플랜 그룹
+            </button>
+            {activePlanGroupId && (
+              <button
+                onClick={() => setShowAIPlanModal(true)}
+                className="flex items-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100"
+                title="AI 플랜 생성 (i)"
+              >
+                <Wand2 className="h-4 w-4" />
+                AI 생성
+              </button>
+            )}
+            <button
+              onClick={() => setShowOptimizationPanel(true)}
+              className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+              title="AI 플랜 최적화 (o)"
+            >
+              <LineChart className="h-4 w-4" />
+              AI 분석
+            </button>
             <button
               onClick={() => setShowShortcutsHelp(true)}
               className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
@@ -287,6 +342,66 @@ export function AdminPlanManagement({
             onClose={() => setShowShortcutsHelp(false)}
           />
         )}
+
+        {showAIPlanModal && activePlanGroupId && (
+          <AdminAIPlanModal
+            studentId={studentId}
+            tenantId={tenantId}
+            planGroupId={activePlanGroupId}
+            onClose={() => setShowAIPlanModal(false)}
+            onSuccess={() => {
+              setShowAIPlanModal(false);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 플랜 그룹 생성 위자드 */}
+        {showCreateWizard && (
+          <AdminPlanCreationWizard
+            studentId={studentId}
+            tenantId={tenantId}
+            studentName={studentName}
+            onClose={() => setShowCreateWizard(false)}
+            onSuccess={(groupId, generateAI) => {
+              setShowCreateWizard(false);
+              handleRefresh();
+              // AI 생성 옵션이 선택된 경우, 새로 생성된 그룹으로 AI 모달 열기
+              if (generateAI) {
+                setNewGroupIdForAI(groupId);
+                setShowAIPlanModal(true);
+              }
+            }}
+          />
+        )}
+
+        {/* 새로 생성된 그룹에 대한 AI 플랜 모달 */}
+        {showAIPlanModal && newGroupIdForAI && !activePlanGroupId && (
+          <AdminAIPlanModal
+            studentId={studentId}
+            tenantId={tenantId}
+            planGroupId={newGroupIdForAI}
+            onClose={() => {
+              setShowAIPlanModal(false);
+              setNewGroupIdForAI(null);
+            }}
+            onSuccess={() => {
+              setShowAIPlanModal(false);
+              setNewGroupIdForAI(null);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* AI 플랜 최적화 패널 */}
+        <PlanOptimizationPanel
+          studentId={studentId}
+          studentName={studentName}
+          planGroupId={activePlanGroupId ?? undefined}
+          open={showOptimizationPanel}
+          onOpenChange={setShowOptimizationPanel}
+          hideTrigger
+        />
       </div>
     </PlanDndProvider>
   );
