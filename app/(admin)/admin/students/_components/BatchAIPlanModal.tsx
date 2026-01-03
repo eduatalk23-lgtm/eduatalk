@@ -47,6 +47,12 @@ import {
 import type { BatchPreviewResult } from "@/lib/domains/admin-plan/types/preview";
 import { BatchPreviewStep } from "./BatchPreviewStep";
 
+import {
+  hasRetryableStudents,
+  mergeRetryResults,
+  recalculateSummary,
+} from "@/lib/domains/admin-plan/actions/batchRetry";
+
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import type { StudentListRow } from "./types";
 
@@ -583,17 +589,68 @@ function ProgressStep({
 }
 
 // ============================================
+// 새로고침 아이콘
+// ============================================
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
+    </svg>
+  );
+}
+
+// ============================================
 // 결과 스텝 컴포넌트
 // ============================================
 
 interface ResultsStepProps {
   result: BatchPlanGenerationResult | null;
+  /** 재시도 모드 활성화 여부 */
+  retryMode?: boolean;
+  /** 재시도 선택된 학생 ID 목록 */
+  selectedRetryIds?: string[];
+  /** 재시도 선택 변경 핸들러 */
+  onRetrySelectionChange?: (ids: string[]) => void;
 }
 
-function ResultsStep({ result }: ResultsStepProps) {
+function ResultsStep({
+  result,
+  retryMode = false,
+  selectedRetryIds = [],
+  onRetrySelectionChange,
+}: ResultsStepProps) {
   if (!result) return null;
 
   const { summary, results } = result;
+  const retryableStudents = results.filter(
+    (r) => r.status === "error" || r.status === "skipped"
+  );
+  const hasRetryable = retryableStudents.length > 0;
+
+  const handleToggle = (studentId: string) => {
+    if (!onRetrySelectionChange) return;
+    if (selectedRetryIds.includes(studentId)) {
+      onRetrySelectionChange(selectedRetryIds.filter((id) => id !== studentId));
+    } else {
+      onRetrySelectionChange([...selectedRetryIds, studentId]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (!onRetrySelectionChange) return;
+    onRetrySelectionChange(retryableStudents.map((r) => r.studentId));
+  };
+
+  const handleDeselectAll = () => {
+    if (!onRetrySelectionChange) return;
+    onRetrySelectionChange([]);
+  };
 
   return (
     <div className="space-y-6">
@@ -658,50 +715,89 @@ function ResultsStep({ result }: ResultsStepProps) {
 
       {/* 상세 결과 목록 */}
       <div className="space-y-2">
-        <p className={cn("text-sm font-medium", textPrimaryVar)}>상세 결과</p>
-        <div className="max-h-60 overflow-y-auto space-y-2">
-          {results.map((r, idx) => (
-            <div
-              key={`${r.studentId}-${idx}`}
-              className={cn(
-                "flex items-center justify-between rounded-lg border px-4 py-3",
-                borderDefaultVar,
-                bgSurfaceVar
-              )}
-            >
-              <div className="flex items-center gap-3">
-                {r.status === "success" && (
-                  <Badge variant="success" size="sm">성공</Badge>
-                )}
-                {r.status === "error" && (
-                  <Badge variant="error" size="sm">실패</Badge>
-                )}
-                {r.status === "skipped" && (
-                  <Badge variant="default" size="sm">건너뜀</Badge>
-                )}
-                <div>
-                  <p className={cn("font-medium", textPrimaryVar)}>
-                    {r.studentName}
-                  </p>
-                  {r.status === "success" && (
-                    <p className={cn("text-xs", textSecondaryVar)}>
-                      {r.totalPlans}개 플랜 생성
-                    </p>
-                  )}
-                  {r.error && (
-                    <p className="text-xs text-red-500">{r.error}</p>
-                  )}
-                </div>
-              </div>
-              {r.cost && (
-                <span className={cn("text-sm", textSecondaryVar)}>
-                  ${r.cost.estimatedUSD.toFixed(4)}
-                </span>
-              )}
+        <div className="flex items-center justify-between">
+          <p className={cn("text-sm font-medium", textPrimaryVar)}>상세 결과</p>
+          {retryMode && hasRetryable && (
+            <div className="flex gap-2">
+              <button
+                onClick={handleSelectAll}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                실패 전체 선택
+              </button>
+              <button
+                onClick={handleDeselectAll}
+                className="text-xs text-gray-600 hover:underline"
+              >
+                전체 해제
+              </button>
             </div>
-          ))}
+          )}
+        </div>
+        <div className="max-h-60 overflow-y-auto space-y-2">
+          {results.map((r, idx) => {
+            const isRetryable = r.status === "error" || r.status === "skipped";
+            const isSelected = selectedRetryIds.includes(r.studentId);
+
+            return (
+              <div
+                key={`${r.studentId}-${idx}`}
+                className={cn(
+                  "flex items-center justify-between rounded-lg border px-4 py-3",
+                  borderDefaultVar,
+                  bgSurfaceVar,
+                  retryMode && isRetryable && isSelected && "ring-2 ring-blue-500"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  {retryMode && isRetryable && (
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggle(r.studentId)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  )}
+                  {r.status === "success" && (
+                    <Badge variant="success" size="sm">성공</Badge>
+                  )}
+                  {r.status === "error" && (
+                    <Badge variant="error" size="sm">실패</Badge>
+                  )}
+                  {r.status === "skipped" && (
+                    <Badge variant="default" size="sm">건너뜀</Badge>
+                  )}
+                  <div>
+                    <p className={cn("font-medium", textPrimaryVar)}>
+                      {r.studentName}
+                    </p>
+                    {r.status === "success" && (
+                      <p className={cn("text-xs", textSecondaryVar)}>
+                        {r.totalPlans}개 플랜 생성
+                      </p>
+                    )}
+                    {r.error && (
+                      <p className="text-xs text-red-500">{r.error}</p>
+                    )}
+                  </div>
+                </div>
+                {r.cost && (
+                  <span className={cn("text-sm", textSecondaryVar)}>
+                    ${r.cost.estimatedUSD.toFixed(4)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* 재시도 모드 안내 */}
+      {retryMode && hasRetryable && (
+        <div className="text-xs text-center" style={{ color: textSecondaryVar }}>
+          선택된 학생: {selectedRetryIds.length}명
+        </div>
+      )}
     </div>
   );
 }
@@ -760,6 +856,11 @@ export function BatchAIPlanModal({
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [previewStudents, setPreviewStudents] = useState<Array<{ studentId: string; contentIds: string[] }>>([]);
 
+  // 재시도 관련 상태 (Phase 2)
+  const [retryMode, setRetryMode] = useState(false);
+  const [selectedRetryIds, setSelectedRetryIds] = useState<string[]>([]);
+  const [originalContentsMap, setOriginalContentsMap] = useState<Map<string, string[]>>(new Map());
+
   // 비용 추정 업데이트
   useEffect(() => {
     if (selectedStudents.length > 0 && settings.modelTier) {
@@ -786,6 +887,10 @@ export function BatchAIPlanModal({
       setPreviewResult(null);
       setSelectedStudentIds([]);
       setPreviewStudents([]);
+      // 재시도 상태 초기화 (Phase 2)
+      setRetryMode(false);
+      setSelectedRetryIds([]);
+      setOriginalContentsMap(new Map());
     }
   }, [open]);
 
@@ -936,6 +1041,8 @@ export function BatchAIPlanModal({
     setStep("progress");
     setProgress(0);
     setResults([]);
+    setRetryMode(false);
+    setSelectedRetryIds([]);
 
     // AbortController 생성
     const controller = new AbortController();
@@ -945,6 +1052,13 @@ export function BatchAIPlanModal({
       // 학생별 콘텐츠 조회
       const studentIds = selectedStudents.map((s) => s.id);
       const contentsMap = await getStudentsContentsForBatch(studentIds);
+
+      // 재시도용 콘텐츠 맵 저장 (Phase 2)
+      const contentsMapForRetry = new Map<string, string[]>();
+      contentsMap.forEach((value, key) => {
+        contentsMapForRetry.set(key, value.contentIds);
+      });
+      setOriginalContentsMap(contentsMapForRetry);
 
       // 배치 생성 입력 준비
       const students = selectedStudents.map((s) => ({
@@ -1065,6 +1179,172 @@ export function BatchAIPlanModal({
     router.refresh();
   }, [onClose, router]);
 
+  // 재시도 모드 토글 (Phase 2)
+  const handleToggleRetryMode = useCallback(() => {
+    if (retryMode) {
+      // 재시도 모드 끄기
+      setRetryMode(false);
+      setSelectedRetryIds([]);
+    } else {
+      // 재시도 모드 켜기 - 실패한 학생 자동 선택
+      setRetryMode(true);
+      if (finalResult) {
+        const retryableIds = finalResult.results
+          .filter((r) => r.status === "error" || r.status === "skipped")
+          .map((r) => r.studentId);
+        setSelectedRetryIds(retryableIds);
+      }
+    }
+  }, [retryMode, finalResult]);
+
+  // 재시도 실행 (Phase 2)
+  const handleRetry = useCallback(async () => {
+    if (selectedRetryIds.length === 0) {
+      showError("재시도할 학생을 선택하세요.");
+      return;
+    }
+
+    if (!finalResult) {
+      showError("결과를 찾을 수 없습니다.");
+      return;
+    }
+
+    setIsLoading(true);
+    setStep("progress");
+    setProgress(0);
+    setRetryMode(false);
+
+    // AbortController 생성
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      // 재시도할 학생 정보 준비
+      const students = selectedRetryIds.map((studentId) => ({
+        studentId,
+        contentIds: originalContentsMap.get(studentId) || [],
+      }));
+
+      // SSE 스트리밍 요청
+      const response = await fetch("/api/admin/batch-plan/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          students,
+          settings,
+          planGroupNameTemplate: "AI 학습 계획 ({startDate} ~ {endDate})",
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "재시도 요청에 실패했습니다.");
+      }
+
+      // SSE 스트림 읽기
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("스트림을 읽을 수 없습니다.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const collectedResults: StudentPlanResult[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // 완전한 이벤트 라인 파싱
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const event = parseSSEEvent(line);
+          if (!event) continue;
+
+          switch (event.type) {
+            case "start":
+              setProgress(0);
+              break;
+
+            case "student_start":
+              setCurrentStudent(event.studentName);
+              break;
+
+            case "student_complete":
+              setProgress(event.progress);
+              collectedResults.push(event.result);
+              setResults([...collectedResults]);
+              break;
+
+            case "student_error":
+              setProgress(event.progress);
+              collectedResults.push({
+                studentId: event.studentId,
+                studentName: event.studentName,
+                status: "error",
+                error: event.error,
+              });
+              setResults([...collectedResults]);
+              break;
+
+            case "complete":
+              setProgress(event.total);
+              // 기존 결과와 재시도 결과 병합
+              const mergedResults = mergeRetryResults(
+                finalResult.results,
+                event.results
+              );
+              const newSummary = recalculateSummary(mergedResults);
+              setResults(mergedResults);
+              setFinalResult({
+                success: true,
+                results: mergedResults,
+                summary: {
+                  ...newSummary,
+                  skipped: mergedResults.filter((r) => r.status === "skipped").length,
+                },
+              });
+              setStep("results");
+              setSelectedRetryIds([]);
+              showSuccess(
+                `${event.summary.succeeded}명의 학생 재시도가 완료되었습니다.`
+              );
+              break;
+
+            case "batch_error":
+              throw new Error(event.error);
+          }
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        setStep("results");
+        return;
+      }
+
+      console.error("Retry Error:", error);
+      showError(
+        error instanceof Error ? error.message : "재시도 중 오류가 발생했습니다."
+      );
+      setStep("results");
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, [selectedRetryIds, finalResult, originalContentsMap, settings, showSuccess, showError]);
+
+  // 재시도 가능 여부 확인
+  const canRetry = finalResult
+    ? hasRetryableStudents(finalResult.results)
+    : false;
+
   // 스텝별 타이틀
   const getTitle = () => {
     switch (step) {
@@ -1135,7 +1415,14 @@ export function BatchAIPlanModal({
             results={results}
           />
         )}
-        {step === "results" && <ResultsStep result={finalResult} />}
+        {step === "results" && (
+          <ResultsStep
+            result={finalResult}
+            retryMode={retryMode}
+            selectedRetryIds={selectedRetryIds}
+            onRetrySelectionChange={setSelectedRetryIds}
+          />
+        )}
       </DialogContent>
       <DialogFooter>
         {step === "settings" && (
@@ -1180,9 +1467,41 @@ export function BatchAIPlanModal({
           </Button>
         )}
         {step === "results" && (
-          <Button variant="primary" onClick={handleComplete}>
-            확인
-          </Button>
+          <>
+            {canRetry && !retryMode && (
+              <Button
+                variant="outline"
+                onClick={handleToggleRetryMode}
+              >
+                <RefreshIcon className="h-4 w-4 mr-2" />
+                실패 학생 재시도
+              </Button>
+            )}
+            {retryMode && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleToggleRetryMode}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleRetry}
+                  isLoading={isLoading}
+                  disabled={selectedRetryIds.length === 0}
+                >
+                  <RefreshIcon className="h-4 w-4 mr-2" />
+                  {selectedRetryIds.length}명 재시도
+                </Button>
+              </>
+            )}
+            {!retryMode && (
+              <Button variant="primary" onClick={handleComplete}>
+                확인
+              </Button>
+            )}
+          </>
         )}
       </DialogFooter>
     </Dialog>
