@@ -40,6 +40,13 @@ import {
   type BatchStreamEvent,
 } from "@/lib/domains/admin-plan/types/streaming";
 
+import {
+  generateBatchPreview,
+  saveFromPreview,
+} from "@/lib/domains/admin-plan/actions/batchPreviewPlans";
+import type { BatchPreviewResult } from "@/lib/domains/admin-plan/types/preview";
+import { BatchPreviewStep } from "./BatchPreviewStep";
+
 import type { ModelTier } from "@/lib/domains/plan/llm/types";
 import type { StudentListRow } from "./types";
 
@@ -47,7 +54,7 @@ import type { StudentListRow } from "./types";
 // 타입
 // ============================================
 
-type ModalStep = "settings" | "progress" | "results";
+type ModalStep = "settings" | "preview" | "progress" | "results";
 
 interface BatchAIPlanModalProps {
   open: boolean;
@@ -748,6 +755,11 @@ export function BatchAIPlanModal({
   // SSE 스트리밍 취소용 ref
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 미리보기 관련 상태 (Phase 3)
+  const [previewResult, setPreviewResult] = useState<BatchPreviewResult | null>(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [previewStudents, setPreviewStudents] = useState<Array<{ studentId: string; contentIds: string[] }>>([]);
+
   // 비용 추정 업데이트
   useEffect(() => {
     if (selectedStudents.length > 0 && settings.modelTier) {
@@ -770,10 +782,142 @@ export function BatchAIPlanModal({
       setCurrentStudent("");
       setResults([]);
       setFinalResult(null);
+      // 미리보기 상태 초기화 (Phase 3)
+      setPreviewResult(null);
+      setSelectedStudentIds([]);
+      setPreviewStudents([]);
     }
   }, [open]);
 
-  // 생성 시작
+  // 미리보기 생성 (Phase 3)
+  const handlePreview = useCallback(async () => {
+    if (selectedStudents.length === 0) {
+      showError("선택된 학생이 없습니다.");
+      return;
+    }
+
+    // 날짜 유효성 검사
+    const startDate = new Date(settings.startDate);
+    const endDate = new Date(settings.endDate);
+    if (startDate >= endDate) {
+      showError("종료일은 시작일 이후여야 합니다.");
+      return;
+    }
+
+    setIsLoading(true);
+    setStep("preview");
+    setPreviewResult(null);
+
+    try {
+      // 학생별 콘텐츠 조회
+      const studentIds = selectedStudents.map((s) => s.id);
+      const contentsMap = await getStudentsContentsForBatch(studentIds);
+
+      // 배치 생성 입력 준비
+      const students = selectedStudents.map((s) => ({
+        studentId: s.id,
+        contentIds: contentsMap.get(s.id)?.contentIds || [],
+      }));
+
+      setPreviewStudents(students);
+
+      // 미리보기 생성 실행
+      const result = await generateBatchPreview({
+        students,
+        settings,
+      });
+
+      if (result.success && result.previews) {
+        setPreviewResult(result);
+        // 성공한 학생만 기본 선택
+        const successIds = result.previews
+          .filter((p) => p.status === "success")
+          .map((p) => p.studentId);
+        setSelectedStudentIds(successIds);
+      } else {
+        const errorMessage =
+          typeof result.error === "string"
+            ? result.error
+            : "미리보기 생성에 실패했습니다.";
+        showError(errorMessage);
+        setStep("settings");
+      }
+    } catch (error) {
+      console.error("Preview Error:", error);
+      showError(
+        error instanceof Error ? error.message : "미리보기 생성 중 오류가 발생했습니다."
+      );
+      setStep("settings");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedStudents, settings, showError]);
+
+  // 미리보기에서 저장 (Phase 3)
+  const handleSaveFromPreview = useCallback(async () => {
+    if (!previewResult || selectedStudentIds.length === 0) {
+      showError("저장할 학생을 선택하세요.");
+      return;
+    }
+
+    setIsLoading(true);
+    setStep("progress");
+    setProgress(0);
+
+    try {
+      const result = await saveFromPreview({
+        studentIds: selectedStudentIds,
+        previews: previewResult.previews,
+        planGroupNameTemplate: "AI 학습 계획 ({startDate} ~ {endDate})",
+      });
+
+      if (result.success) {
+        // 결과를 StudentPlanResult 형태로 변환
+        const convertedResults: StudentPlanResult[] = result.results.map((r) => ({
+          studentId: r.studentId,
+          studentName: r.studentName,
+          status: r.status,
+          planGroupId: r.planGroupId,
+          totalPlans: previewResult.previews.find((p) => p.studentId === r.studentId)?.summary?.totalPlans,
+          error: r.error,
+        }));
+
+        setProgress(result.results.length);
+        setResults(convertedResults);
+        setFinalResult({
+          success: true,
+          results: convertedResults,
+          summary: {
+            total: result.summary.total,
+            succeeded: result.summary.succeeded,
+            failed: result.summary.failed,
+            skipped: 0,
+            totalPlans: previewResult.previews
+              .filter((p) => selectedStudentIds.includes(p.studentId))
+              .reduce((sum, p) => sum + (p.summary?.totalPlans || 0), 0),
+            totalCost: previewResult.previews
+              .filter((p) => selectedStudentIds.includes(p.studentId))
+              .reduce((sum, p) => sum + (p.cost?.estimatedUSD || 0), 0),
+          },
+        });
+        setStep("results");
+        showSuccess(`${result.summary.succeeded}명의 학생에게 플랜이 저장되었습니다.`);
+      } else {
+        showError("저장에 실패했습니다.");
+        setStep("preview");
+      }
+    } catch (error) {
+      console.error("Save Error:", error);
+      showError(
+        error instanceof Error ? error.message : "저장 중 오류가 발생했습니다."
+      );
+      setStep("preview");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [previewResult, selectedStudentIds, showError, showSuccess]);
+
+  // 직접 생성 시작 (미리보기 없이)
   const handleStart = useCallback(async () => {
     if (selectedStudents.length === 0) {
       showError("선택된 학생이 없습니다.");
@@ -926,8 +1070,10 @@ export function BatchAIPlanModal({
     switch (step) {
       case "settings":
         return "배치 AI 플랜 생성";
+      case "preview":
+        return "플랜 미리보기";
       case "progress":
-        return "플랜 생성 중...";
+        return "플랜 저장 중...";
       case "results":
         return "생성 완료";
     }
@@ -938,8 +1084,10 @@ export function BatchAIPlanModal({
     switch (step) {
       case "settings":
         return `${selectedStudents.length}명의 학생에게 AI 플랜을 생성합니다.`;
+      case "preview":
+        return "생성된 플랜을 확인하고 저장할 학생을 선택하세요.";
       case "progress":
-        return "학생별 플랜을 생성하고 있습니다. 잠시만 기다려주세요.";
+        return "선택된 학생의 플랜을 저장하고 있습니다.";
       case "results":
         return "모든 학생의 플랜 생성이 완료되었습니다.";
     }
@@ -963,10 +1111,26 @@ export function BatchAIPlanModal({
             estimatedCost={estimatedCost}
           />
         )}
+        {step === "preview" && previewResult && (
+          <BatchPreviewStep
+            previewResult={previewResult}
+            selectedStudentIds={selectedStudentIds}
+            onSelectionChange={setSelectedStudentIds}
+            isLoading={isLoading}
+          />
+        )}
+        {step === "preview" && !previewResult && isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <LoaderIcon className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-3" style={{ color: textSecondaryVar }}>
+              미리보기 생성 중...
+            </span>
+          </div>
+        )}
         {step === "progress" && (
           <ProgressStep
             progress={progress}
-            total={selectedStudents.length}
+            total={selectedStudentIds.length || selectedStudents.length}
             currentStudent={currentStudent}
             results={results}
           />
@@ -981,18 +1145,38 @@ export function BatchAIPlanModal({
             </Button>
             <Button
               variant="primary"
-              onClick={handleStart}
+              onClick={handlePreview}
               isLoading={isLoading}
               disabled={selectedStudents.length === 0}
             >
               <SparklesIcon className="h-4 w-4 mr-2" />
-              플랜 생성 시작
+              미리보기 생성
+            </Button>
+          </>
+        )}
+        {step === "preview" && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => setStep("settings")}
+              disabled={isLoading}
+            >
+              이전
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveFromPreview}
+              isLoading={isLoading}
+              disabled={selectedStudentIds.length === 0}
+            >
+              <CheckCircleIcon className="h-4 w-4 mr-2" />
+              {selectedStudentIds.length}명 저장
             </Button>
           </>
         )}
         {step === "progress" && (
           <Button variant="outline" disabled>
-            생성 중...
+            저장 중...
           </Button>
         )}
         {step === "results" && (
