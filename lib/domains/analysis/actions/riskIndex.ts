@@ -9,44 +9,60 @@ import type { SubjectRiskAnalysis } from "../types";
 /**
  * Risk Index 재계산 및 저장
  */
-export async function recalculateRiskIndex(): Promise<{
+export async function recalculateRiskIndex(options?: {
+  studentId?: string;
+  tenantId?: string;
+}): Promise<{
   success: boolean;
   error?: string;
   analyses?: SubjectRiskAnalysis[];
 }> {
   const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  
+  let targetStudentId = options?.studentId;
+  let targetTenantId = options?.tenantId;
 
-  if (!user) {
-    return { success: false, error: "로그인이 필요합니다." };
+  // studentId가 없으면 현재 로그인 사용자 기준
+  if (!targetStudentId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: "로그인이 필요합니다." };
+    }
+    targetStudentId = user.id;
   }
 
-  // 학생 정보 조회 (tenant_id 포함)
-  const { data: student } = await supabase
-    .from("students")
-    .select("tenant_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  // tenantId가 없으면 학생 정보에서 조회
+  if (!targetTenantId) {
+    const { data: student } = await supabase
+      .from("students")
+      .select("tenant_id")
+      .eq("id", targetStudentId)
+      .maybeSingle();
 
-  if (!student || !student.tenant_id) {
-    return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    if (!student || !student.tenant_id) {
+      return { success: false, error: "기관 정보를 찾을 수 없습니다." };
+    }
+    targetTenantId = student.tenant_id;
   }
 
   try {
+    // TypeScript에게 targetTenantId가 이 시점에서 반드시 정의되어 있음을 알림
+    // (위에서 undefined인 경우 early return 함)
     const analyses = await calculateAllRiskIndices(
       supabase,
-      user.id,
-      student.tenant_id
+      targetStudentId,
+      targetTenantId!
     );
-    await saveRiskAnalysis(supabase, user.id, analyses);
+    await saveRiskAnalysis(supabase, targetStudentId, analyses);
 
     revalidatePath("/analysis");
     return { success: true, analyses };
   } catch (error) {
     logActionError(
-      { domain: "analysis", action: "recalculateRiskIndex", userId: user.id, tenantId: student.tenant_id },
+      { domain: "analysis", action: "recalculateRiskIndex", userId: targetStudentId, tenantId: targetTenantId },
       error,
       { message: "Risk Index 계산 실패" }
     );

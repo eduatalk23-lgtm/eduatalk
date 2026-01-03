@@ -25,3 +25,28 @@ export {
 
 // Actions
 export { recalculateRiskIndex } from "./actions";
+export {
+  getStudentScoreProfile,
+  type ScoreTrend,
+  type SubjectScoreInfo,
+  type StudentScoreProfile,
+} from "./actions";
+
+// Learning Pattern Analysis Service
+export {
+  calculatePreferredStudyTimes,
+  analyzeStrongWeakDays,
+  findFrequentlyIncompleteSubjects,
+  analyzeLearningPatterns,
+  saveLearningPatterns,
+  getTimeSlotLabel,
+  getDayLabel,
+} from "./services/learningPatternService";
+
+export type {
+  StudyTimeSlot,
+  StudyTimeAnalysis,
+  DayAnalysis,
+  SubjectCompletionAnalysis,
+  LearningPatternResult,
+} from "./services/learningPatternService";

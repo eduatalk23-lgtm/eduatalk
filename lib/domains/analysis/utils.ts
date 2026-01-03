@@ -473,23 +473,6 @@ export async function saveRiskAnalysis(
   analyses: SubjectRiskAnalysis[]
 ): Promise<void> {
   try {
-    // 기존 데이터 삭제
-    const deleteQuery = () =>
-      supabase.from("student_analysis").delete().eq("student_id", studentId);
-
-    const { error: deleteError } = await deleteQuery();
-
-    if (deleteError && deleteError.code === "42703") {
-      // student_id 컬럼이 없으면 전체 삭제 시도
-      const { error } = await supabase.from("student_analysis").delete();
-      if (error && error.code !== "PGRST116") {
-        // PGRST116은 "no rows found" 에러, 무시 가능
-        throw error;
-      }
-    } else if (deleteError && deleteError.code !== "PGRST116") {
-      throw deleteError;
-    }
-
     // student의 tenant_id 조회
     const { data: student } = await supabase
       .from("students")
@@ -506,6 +489,17 @@ export async function saveRiskAnalysis(
       return;
     }
 
+    // 기존 데이터 삭제 (새 테이블 사용)
+    const { error: deleteError } = await supabase
+      .from("student_risk_analysis")
+      .delete()
+      .eq("student_id", studentId);
+
+    if (deleteError && deleteError.code !== "PGRST116") {
+      // PGRST116은 "no rows found" 에러, 무시 가능
+      throw deleteError;
+    }
+
     // 새 데이터 삽입
     const insertData = analyses.map((analysis) => ({
       student_id: studentId,
@@ -515,24 +509,18 @@ export async function saveRiskAnalysis(
       recent_grade_trend: analysis.recent_grade_trend,
       consistency_score: analysis.consistency_score,
       mastery_estimate: analysis.mastery_estimate,
+      recent_3_avg_grade: analysis.recent3AvgGrade,
+      grade_change: analysis.gradeChange,
+      score_variance: analysis.scoreVariance,
+      improvement_rate: analysis.improvementRate,
+      calculated_at: new Date().toISOString(),
     }));
 
     if (insertData.length === 0) return;
 
-    const insertQuery = () =>
-      supabase.from("student_analysis").insert(insertData);
-
-    let { error: insertError } = await insertQuery();
-
-    if (insertError && insertError.code === "42703") {
-      // student_id 컬럼이 없으면 제거하고 재시도
-      const fallbackData = insertData.map(
-        ({ student_id: _studentId, ...rest }) => rest
-      );
-      ({ error: insertError } = await supabase
-        .from("student_analysis")
-        .insert(fallbackData));
-    }
+    const { error: insertError } = await supabase
+      .from("student_risk_analysis")
+      .insert(insertData);
 
     if (insertError) throw insertError;
   } catch (error) {
