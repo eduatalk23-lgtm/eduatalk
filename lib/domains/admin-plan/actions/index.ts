@@ -75,7 +75,13 @@ export {
 export {
   getStudentContentsForAdmin,
   getPlanGroupDetailsForAdminAction,
+  getStudentContentsForAIPlanAction,
   type StudentContentItem,
+  type AIPlanStudentData,
+  type AIPlanContentData,
+  type AIPlanScoreData,
+  type GetStudentContentsForAIPlanInput,
+  type GetStudentContentsForAIPlanResult,
 } from './studentContents';
 
 // AI Plan Generation Actions
