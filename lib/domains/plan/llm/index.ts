@@ -390,6 +390,21 @@ export {
   type PrerequisiteRecommendedContent,
   type ContentConceptMapping,
   type StudentConceptMastery,
+  // Phase 3.3: 맞춤형 콘텐츠 매칭
+  PersonalizedMatchingService,
+  findMatchingContent,
+  analyzeContentFit,
+  findWeaknessFillers,
+  findGapFillers,
+  getStudentProfile,
+  MATCH_FACTOR_WEIGHTS,
+  type DifficultyFit,
+  type MatchFactor,
+  type MatchScore,
+  type StudentProfile,
+  type ContentCandidate,
+  type MatchingOptions,
+  type MatchingResult,
 } from "./services";
 
 // 난이도 평가 프롬프트 (Phase 3.1)

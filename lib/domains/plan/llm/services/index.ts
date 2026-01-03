@@ -76,3 +76,21 @@ export {
   type ContentConceptMapping,
   type StudentConceptMastery,
 } from "./prerequisiteService";
+
+// Phase 3.3: 맞춤형 콘텐츠 매칭
+export {
+  PersonalizedMatchingService,
+  findMatchingContent,
+  analyzeContentFit,
+  findWeaknessFillers,
+  findGapFillers,
+  getStudentProfile,
+  MATCH_FACTOR_WEIGHTS,
+  type DifficultyFit,
+  type MatchFactor,
+  type MatchScore,
+  type StudentProfile,
+  type ContentCandidate,
+  type MatchingOptions,
+  type MatchingResult,
+} from "./personalizedMatchingService";
