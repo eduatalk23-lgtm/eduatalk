@@ -243,9 +243,13 @@ export {
 // 하이브리드 플랜 생성 액션 (Phase 4)
 export {
   generateAIFrameworkAction,
-  extractSchedulerOptionsForDB,
-  extractRecommendationsForDB,
-  extractContentOrderingForDB,
   type GenerateFrameworkInput,
   type GenerateFrameworkResult,
 } from "./actions/generateHybridPlan";
+
+// AI Framework 유틸리티 함수 (Phase 4)
+export {
+  extractSchedulerOptionsForDB,
+  extractRecommendationsForDB,
+  extractContentOrderingForDB,
+} from "./utils/frameworkUtils";
