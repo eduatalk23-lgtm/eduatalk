@@ -335,9 +335,9 @@ export class LLMCacheService {
         totalEntries: row.total_entries ?? 0,
         totalHits: row.total_hits ?? 0,
         activeEntries: row.active_entries ?? 0,
-        totalCostSaved: row.total_cost_saved ?? 0,
-        avgInputTokens: row.avg_input_tokens,
-        avgOutputTokens: row.avg_output_tokens,
+        totalCostSaved: parseFloat(row.total_cost_saved) || 0,
+        avgInputTokens: parseInt(row.avg_input_tokens, 10) || 0,
+        avgOutputTokens: parseInt(row.avg_output_tokens, 10) || 0,
         lastCacheAt: row.last_cache_at,
       }));
     } catch (err) {

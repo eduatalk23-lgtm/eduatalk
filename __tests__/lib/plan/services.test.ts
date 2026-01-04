@@ -51,7 +51,7 @@ describe("Plan Generation Service Layer", () => {
 describe("Service Singleton Instances", () => {
   it("getContentResolutionService가 싱글톤을 반환해야 함", async () => {
     const { getContentResolutionService } = await import(
-      "@/lib/plan/services/ContentResolutionService"
+      "@/lib/plan/shared"
     );
 
     const instance1 = getContentResolutionService();
@@ -84,7 +84,7 @@ describe("Service Singleton Instances", () => {
 
   it("getPlanPersistenceService가 싱글톤을 반환해야 함", async () => {
     const { getPlanPersistenceService } = await import(
-      "@/lib/plan/services/PlanPersistenceService"
+      "@/lib/plan/shared"
     );
 
     const instance1 = getPlanPersistenceService();

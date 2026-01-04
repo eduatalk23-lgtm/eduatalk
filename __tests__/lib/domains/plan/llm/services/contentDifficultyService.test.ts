@@ -58,7 +58,7 @@ vi.mock("@/lib/domains/plan/llm/client", () => ({
         keyConceptsCovered: ["판별식"],
         reasoning: "기본 개념서",
       }),
-      usage: { input_tokens: 1000, output_tokens: 500 },
+      usage: { inputTokens: 1000, outputTokens: 500 },
     })
   ),
   estimateTokens: vi.fn((text: string) => Math.ceil(text.length / 4)),
