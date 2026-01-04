@@ -1,5 +1,41 @@
 'use client';
 
+/**
+ * @deprecated 이 훅 대신 새로운 4-Layer Context 패턴을 사용하세요.
+ *
+ * 마이그레이션 가이드:
+ *
+ * 기존 사용법:
+ * ```tsx
+ * const { state, nextStep, updateName, ... } = useAdminWizardState();
+ * ```
+ *
+ * 새로운 사용법:
+ * ```tsx
+ * import { AdminWizardProvider, useAdminWizardData, useAdminWizardStep } from './_context';
+ *
+ * // Provider로 감싸기
+ * <AdminWizardProvider studentId={...} tenantId={...} studentName={...}>
+ *   <YourComponent />
+ * </AdminWizardProvider>
+ *
+ * // 데이터만 필요한 컴포넌트
+ * const { wizardData, updateData } = useAdminWizardData();
+ *
+ * // 네비게이션만 필요한 컴포넌트
+ * const { currentStep, nextStep, prevStep } = useAdminWizardStep();
+ *
+ * // 검증만 필요한 컴포넌트
+ * const { fieldErrors, setFieldError, hasErrors } = useAdminWizardValidation();
+ * ```
+ *
+ * 장점:
+ * - 불필요한 리렌더 방지 (Context 분리)
+ * - 자동 저장 기능 (useAdminAutoSave)
+ * - 에러 격리 (AdminStepErrorBoundary)
+ * - 7단계 확장 지원
+ */
+
 import { useReducer, useCallback } from 'react';
 import type {
   AdminWizardState,

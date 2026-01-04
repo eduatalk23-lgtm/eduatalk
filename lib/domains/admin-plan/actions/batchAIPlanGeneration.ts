@@ -31,6 +31,14 @@ import type {
   GeneratedPlanItem,
 } from "@/lib/domains/plan/llm/types";
 
+// 원자 트랜잭션 임포트
+import {
+  createPlanGroupAtomic,
+  generatePlansAtomic,
+  type AtomicPlanGroupInput,
+} from "@/lib/domains/plan/transactions";
+import { batchPlanItemsToAtomicPayloads } from "@/lib/domains/admin-plan/transformers/llmResponseTransformer";
+
 // ============================================
 // 타입 정의
 // ============================================
@@ -228,71 +236,7 @@ async function loadLearningStats(
 }
 
 // ============================================
-// 플랜 저장 함수
-// ============================================
-
-async function createPlanGroup(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string,
-  tenantId: string,
-  name: string,
-  startDate: string,
-  endDate: string
-) {
-  const { data, error } = await supabase
-    .from("plan_groups")
-    .insert({
-      student_id: studentId,
-      tenant_id: tenantId,
-      name,
-      start_date: startDate,
-      end_date: endDate,
-      status: "active",
-      generation_mode: "ai",
-    })
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data.id;
-}
-
-async function savePlans(
-  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string,
-  tenantId: string,
-  planGroupId: string,
-  plans: GeneratedPlanItem[]
-) {
-  const planData = plans.map((plan) => ({
-    student_id: studentId,
-    tenant_id: tenantId,
-    plan_group_id: planGroupId,
-    plan_date: plan.date,
-    start_time: plan.startTime,
-    end_time: plan.endTime,
-    content_id: plan.contentId,
-    title: plan.contentTitle,
-    subject: plan.subject,
-    subject_category: plan.subjectCategory,
-    range_start: plan.rangeStart,
-    range_end: plan.rangeEnd,
-    range_display: plan.rangeDisplay,
-    estimated_minutes: plan.estimatedMinutes,
-    is_review: plan.isReview || false,
-    notes: plan.notes,
-    priority: plan.priority || "medium",
-    status: "pending",
-    progress: 0,
-  }));
-
-  const { error } = await supabase.from("student_plan").insert(planData);
-
-  if (error) throw error;
-}
-
-// ============================================
-// 개별 학생 플랜 생성
+// 개별 학생 플랜 생성 (원자 트랜잭션 사용)
 // ============================================
 
 export async function generatePlanForStudent(
@@ -417,22 +361,55 @@ export async function generatePlanForStudent(
       };
     }
 
-    // 8. 플랜 그룹 생성
+    // 8. 플랜 그룹 원자적 생성
     const groupName = planGroupNameTemplate
       .replace("{startDate}", settings.startDate)
       .replace("{endDate}", settings.endDate)
       .replace("{studentName}", student.name);
 
-    const planGroupId = await createPlanGroup(
-      supabase,
-      studentId,
-      tenantId,
-      groupName,
-      settings.startDate,
-      settings.endDate
+    const groupInput: AtomicPlanGroupInput = {
+      tenant_id: tenantId,
+      student_id: studentId,
+      name: groupName,
+      plan_purpose: null,
+      scheduler_type: "ai_batch",
+      scheduler_options: null,
+      period_start: settings.startDate,
+      period_end: settings.endDate,
+      target_date: null,
+      block_set_id: null,
+      status: "active",
+      subject_constraints: null,
+      additional_period_reallocation: null,
+      non_study_time_blocks: null,
+      daily_schedule: null,
+      plan_type: "ai",
+      camp_template_id: null,
+      camp_invitation_id: null,
+      use_slot_mode: false,
+      content_slots: null,
+    };
+
+    const groupResult = await createPlanGroupAtomic(
+      groupInput,
+      [], // contents (콘텐츠는 플랜과 함께 저장)
+      [], // exclusions
+      [], // academySchedules
+      true // useAdmin
     );
 
-    // 9. 플랜 저장
+    if (!groupResult.success || !groupResult.group_id) {
+      return {
+        studentId,
+        studentName: student.name,
+        status: "error",
+        error: groupResult.error || "플랜 그룹 생성에 실패했습니다.",
+      };
+    }
+
+    const planGroupId = groupResult.group_id;
+
+    // 9. 플랜 원자적 저장
     const allPlans: GeneratedPlanItem[] = [];
     for (const matrix of parsed.response.weeklyMatrices) {
       for (const day of matrix.days) {
@@ -440,7 +417,31 @@ export async function generatePlanForStudent(
       }
     }
 
-    await savePlans(supabase, studentId, tenantId, planGroupId, allPlans);
+    // LLM 응답을 AtomicPlanPayload로 변환
+    const atomicPlans = batchPlanItemsToAtomicPayloads(
+      allPlans,
+      planGroupId,
+      studentId,
+      tenantId
+    );
+
+    const plansResult = await generatePlansAtomic(
+      planGroupId,
+      atomicPlans,
+      "active", // 플랜 상태를 active로 설정
+      true // useAdmin
+    );
+
+    if (!plansResult.success) {
+      // 플랜 저장 실패 시 생성된 그룹 삭제 시도
+      console.error(`[Batch AI Plan] 플랜 저장 실패, 그룹 롤백 시도: ${planGroupId}`);
+      return {
+        studentId,
+        studentName: student.name,
+        status: "error",
+        error: plansResult.error || "플랜 저장에 실패했습니다.",
+      };
+    }
 
     // 10. 비용 계산
     const cost = estimateCost(

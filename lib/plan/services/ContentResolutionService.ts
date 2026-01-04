@@ -7,6 +7,16 @@
  * Phase 4: 통합 에러/로깅 시스템 적용
  *
  * @module lib/plan/services/ContentResolutionService
+ *
+ * @deprecated 이 파일 대신 @/lib/plan/shared에서 import하세요.
+ * 이 파일은 하위 호환성을 위해 유지되며, 향후 제거될 예정입니다.
+ *
+ * @example
+ * // 기존 (deprecated):
+ * // import { getContentResolutionService } from "@/lib/plan/services/ContentResolutionService";
+ *
+ * // 신규 (권장):
+ * // import { getContentResolutionService } from "@/lib/plan/shared";
  */
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";

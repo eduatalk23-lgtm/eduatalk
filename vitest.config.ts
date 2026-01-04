@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['lib/**/*.test.ts', 'app/**/*.test.ts', '__tests__/**/*.test.ts'],
+    include: ['lib/**/*.test.{ts,tsx}', 'app/**/*.test.{ts,tsx}', '__tests__/**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '.next'],
     deps: {
       // 특정 모듈을 실제로 로드하지 않고 모킹만 사용

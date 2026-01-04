@@ -4,7 +4,7 @@ import { useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useAdminWizardState } from './useAdminWizardState';
-import { Step1BasicInfo } from './steps/Step1BasicInfo';
+import { Step1BasicInfoLegacy as Step1BasicInfo } from './steps/Step1BasicInfoLegacy';
 import { Step2ContentSelection } from './steps/Step2ContentSelection';
 import { Step3ReviewCreate } from './steps/Step3ReviewCreate';
 import type { AdminPlanCreationWizardProps, WizardStep } from './types';

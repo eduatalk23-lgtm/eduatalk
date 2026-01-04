@@ -11,7 +11,7 @@
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
-import { getPlanPersistenceService } from "@/lib/plan/services/PlanPersistenceService";
+import { getPlanPersistenceService } from "@/lib/plan/shared";
 import type {
   LLMPlanGenerationResponse,
   TransformContext,

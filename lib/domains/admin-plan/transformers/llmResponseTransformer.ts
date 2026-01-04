@@ -16,6 +16,7 @@ import type {
   DayType,
   ContentType,
 } from "@/lib/types/plan-generation";
+import { timeToMinutes } from "@/lib/utils/time";
 
 /**
  * 변환된 플랜 페이로드 타입
@@ -31,14 +32,6 @@ export type TransformedPlanPayload = PlanPayloadBase & {
 // ============================================
 // 헬퍼 함수
 // ============================================
-
-/**
- * 시간 문자열을 분으로 변환
- */
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 /**
  * 시간이 범위 내에 있는지 확인
@@ -329,4 +322,124 @@ export function buildAllocationMap(
     map.set(allocation.contentId, allocation);
   }
   return map;
+}
+
+// ============================================
+// Atomic Transaction 변환 함수
+// ============================================
+
+import type { AtomicPlanPayload } from "@/lib/domains/plan/transactions";
+
+/**
+ * TransformedPlanPayload를 AtomicPlanPayload로 변환
+ *
+ * RPC 원자 트랜잭션에서 사용할 수 있는 형식으로 변환합니다.
+ *
+ * @param plans 변환된 플랜 페이로드 배열
+ * @param groupId 플랜 그룹 ID
+ * @param studentId 학생 ID
+ * @param tenantId 테넌트 ID
+ * @returns AtomicPlanPayload 배열
+ */
+export function toAtomicPlanPayloads(
+  plans: TransformedPlanPayload[],
+  groupId: string,
+  studentId: string,
+  tenantId: string
+): AtomicPlanPayload[] {
+  return plans.map((plan, index) => ({
+    plan_group_id: groupId,
+    student_id: studentId,
+    tenant_id: tenantId,
+    plan_date: plan.plan_date,
+    block_index: plan.block_index,
+    status: "pending",
+    content_type: plan.content_type,
+    content_id: plan.content_id,
+    planned_start_page_or_time: plan.planned_start_page_or_time,
+    planned_end_page_or_time: plan.planned_end_page_or_time,
+    chapter: plan.chapter,
+    start_time: plan.start_time,
+    end_time: plan.end_time,
+    day_type: plan.day_type,
+    week: plan.week,
+    day: plan.day,
+    is_partial: plan.is_partial,
+    is_continued: plan.is_continued,
+    content_title: plan.content_title,
+    content_subject: plan.content_subject,
+    content_subject_category: plan.content_subject_category,
+    sequence: index,
+    is_virtual: false,
+    slot_index: null,
+    virtual_subject_category: null,
+    virtual_description: null,
+    subject_type: plan.subject_type,
+    review_group_id: null,
+    review_source_content_ids: null,
+    container_type: null,
+    is_active: true,
+  }));
+}
+
+/**
+ * 배치 생성용 간소화된 플랜 변환
+ *
+ * LLM 응답의 플랜 아이템을 AtomicPlanPayload로 직접 변환합니다.
+ * 배치 생성 시 중간 변환 단계를 생략하여 성능을 최적화합니다.
+ */
+export function batchPlanItemsToAtomicPayloads(
+  plans: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    contentId: string;
+    contentTitle: string;
+    subject: string;
+    subjectCategory?: string;
+    rangeStart?: number;
+    rangeEnd?: number;
+    rangeDisplay?: string;
+    estimatedMinutes: number;
+    isReview?: boolean;
+    notes?: string;
+    priority?: string;
+  }>,
+  groupId: string,
+  studentId: string,
+  tenantId: string
+): AtomicPlanPayload[] {
+  return plans.map((plan, index) => ({
+    plan_group_id: groupId,
+    student_id: studentId,
+    tenant_id: tenantId,
+    plan_date: plan.date,
+    block_index: index, // 배치에서는 순차 인덱스 사용
+    status: "pending",
+    content_type: "book" as const, // 기본값, 실제로는 콘텐츠 타입에 따라 결정
+    content_id: plan.contentId,
+    planned_start_page_or_time: plan.rangeStart ?? 0,
+    planned_end_page_or_time: plan.rangeEnd ?? 0,
+    chapter: null,
+    start_time: plan.startTime,
+    end_time: plan.endTime,
+    day_type: plan.isReview ? "복습일" : "학습일",
+    week: null,
+    day: new Date(plan.date).getDay(),
+    is_partial: false,
+    is_continued: false,
+    content_title: plan.contentTitle,
+    content_subject: plan.subject,
+    content_subject_category: plan.subjectCategory ?? null,
+    sequence: index,
+    is_virtual: false,
+    slot_index: null,
+    virtual_subject_category: null,
+    virtual_description: null,
+    subject_type: null,
+    review_group_id: null,
+    review_source_content_ids: null,
+    container_type: null,
+    is_active: true,
+  }));
 }

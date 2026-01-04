@@ -4,6 +4,16 @@
  * 플랜 레코드를 DB에 저장하고 트랜잭션 롤백을 관리합니다.
  *
  * @module lib/domains/plan/services/planPersistenceService
+ *
+ * @deprecated 이 파일 대신 @/lib/plan/shared에서 import하세요.
+ * PlanPersistenceServiceWithContext를 사용하여 Context 기반 패턴을 활용할 수 있습니다.
+ *
+ * @example
+ * // 기존 (deprecated):
+ * // import { PlanPersistenceService, createPlanPersistenceService } from "@/lib/domains/plan/services/planPersistenceService";
+ *
+ * // 신규 (권장):
+ * // import { PlanPersistenceServiceWithContext, createPlanPersistenceService } from "@/lib/plan/shared";
  */
 
 import type {

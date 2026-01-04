@@ -1,0 +1,462 @@
+"use client";
+
+/**
+ * AdminPlanCreationWizard7Step - 7단계 플랜 생성 위저드
+ *
+ * Phase 3: 7단계 위저드 확장
+ * - 4-Layer Context 패턴 사용
+ * - 7개 Step 컴포넌트 통합
+ * - 자동 저장 지원
+ * - 에러 바운더리 적용
+ *
+ * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step
+ */
+
+import { useEffect, useCallback, useMemo } from "react";
+import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { cn } from "@/lib/cn";
+import {
+  AdminWizardProvider,
+  useAdminWizardData,
+  useAdminWizardStep,
+  useAdminWizardValidation,
+} from "./_context";
+import type { AdminPlanCreationWizardProps, WizardStep } from "./_context/types";
+import { AdminStepErrorBoundary } from "./common/AdminStepErrorBoundary";
+import { AutoSaveIndicator } from "./common/AutoSaveIndicator";
+import { useAdminAutoSave } from "./hooks/useAdminAutoSave";
+
+// Step 컴포넌트 import
+import { Step1BasicInfo } from "./steps/Step1BasicInfo";
+import { Step2TimeSettings } from "./steps/Step2TimeSettings";
+import { Step3SchedulePreview } from "./steps/Step3SchedulePreview";
+import { Step4ContentSelection } from "./steps/Step4ContentSelection";
+import { Step5AllocationSettings } from "./steps/Step5AllocationSettings";
+import { Step6FinalReview } from "./steps/Step6FinalReview";
+import { Step7GenerateResult } from "./steps/Step7GenerateResult";
+
+// Server action import
+import { createPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups/create";
+import type { PlanGroupCreationData } from "@/lib/types/plan";
+
+// ============================================
+// 상수
+// ============================================
+
+const STEP_TITLES: Record<WizardStep, string> = {
+  1: "기본 정보",
+  2: "시간 설정",
+  3: "스케줄 미리보기",
+  4: "콘텐츠 선택",
+  5: "배분 설정",
+  6: "최종 검토",
+  7: "생성 및 결과",
+};
+
+const STEP_DESCRIPTIONS: Record<WizardStep, string> = {
+  1: "플랜 이름, 기간, 목적을 설정합니다",
+  2: "학원 스케줄과 제외 일정을 설정합니다",
+  3: "생성될 스케줄을 미리 확인합니다",
+  4: "학습할 콘텐츠를 선택합니다",
+  5: "콘텐츠 배분 방식을 설정합니다",
+  6: "최종 설정을 검토합니다",
+  7: "플랜을 생성합니다",
+};
+
+// ============================================
+// 내부 위저드 컴포넌트
+// ============================================
+
+interface WizardInnerProps {
+  studentId: string;
+  tenantId: string;
+  studentName: string;
+  onClose: () => void;
+  onSuccess: (groupId: string, generateAI: boolean) => void;
+}
+
+function WizardInner({
+  studentId,
+  tenantId,
+  studentName,
+  onClose,
+  onSuccess,
+}: WizardInnerProps) {
+  const {
+    wizardData,
+    isSubmitting,
+    error,
+    createdGroupId,
+    isDirty,
+    setSubmitting,
+    setError,
+    setCreatedGroupId,
+    resetDirtyState,
+  } = useAdminWizardData();
+
+  const { currentStep, totalSteps, nextStep, prevStep, canGoNext, canGoPrev } =
+    useAdminWizardStep();
+
+  const { hasErrors, validationErrors, clearValidation } = useAdminWizardValidation();
+
+  // ============================================
+  // 자동 저장
+  // ============================================
+
+  const handleAutoSave = useCallback(async () => {
+    // TODO: 임시 저장 API 호출
+    console.log("[AutoSave] 저장 중...", wizardData);
+    resetDirtyState();
+  }, [wizardData, resetDirtyState]);
+
+  const { status: autoSaveStatus, lastSavedAt } = useAdminAutoSave({
+    data: wizardData,
+    initialData: null,
+    draftGroupId: null,
+    saveFn: handleAutoSave,
+    options: { enabled: isDirty && !isSubmitting },
+  });
+
+  // ============================================
+  // ESC 키 핸들러
+  // ============================================
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, isSubmitting]);
+
+  // ============================================
+  // Step 유효성 검사
+  // ============================================
+
+  const isStepValid = useMemo(() => {
+    const { periodStart, periodEnd, selectedContents, skipContents } = wizardData;
+
+    switch (currentStep) {
+      case 1: {
+        // 기본 정보: 기간 필수
+        if (!periodStart || !periodEnd) return false;
+        const start = new Date(periodStart);
+        const end = new Date(periodEnd);
+        const diff = Math.ceil(
+          (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        return diff > 0 && diff <= 365;
+      }
+      case 2:
+        // 시간 설정: 항상 valid (선택사항)
+        return true;
+      case 3:
+        // 스케줄 미리보기: 항상 valid (확인용)
+        return true;
+      case 4:
+        // 콘텐츠 선택: skipContents이거나 콘텐츠 선택됨
+        return skipContents || selectedContents.length > 0;
+      case 5:
+        // 배분 설정: 항상 valid
+        return true;
+      case 6:
+        // 최종 검토: 항상 valid
+        return true;
+      case 7:
+        // 생성 단계: 별도 검증
+        return true;
+      default:
+        return true;
+    }
+  }, [currentStep, wizardData]);
+
+  // ============================================
+  // 다음 단계로 이동
+  // ============================================
+
+  const handleNext = useCallback(() => {
+    if (!isStepValid) {
+      setError("필수 정보를 확인해주세요.");
+      return;
+    }
+    clearValidation();
+    nextStep();
+  }, [isStepValid, setError, clearValidation, nextStep]);
+
+  // ============================================
+  // 제출 핸들러
+  // ============================================
+
+  const handleSubmit = useCallback(async () => {
+    if (hasErrors) {
+      setError("입력 값에 오류가 있습니다. 이전 단계를 확인해주세요.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const {
+        name,
+        planPurpose,
+        periodStart,
+        periodEnd,
+        selectedContents,
+        skipContents,
+        exclusions,
+        academySchedules,
+        schedulerType,
+        blockSetId,
+        schedulerOptions,
+      } = wizardData;
+
+      // PlanGroupCreationData 구성
+      const planGroupData: PlanGroupCreationData = {
+        name: name || null,
+        plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
+        scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
+        period_start: periodStart,
+        period_end: periodEnd,
+        block_set_id: blockSetId || null,
+        scheduler_options: schedulerOptions || undefined,
+        contents: skipContents
+          ? []
+          : selectedContents.map((c, index) => ({
+              content_type: c.contentType as "book" | "lecture",
+              content_id: c.contentId,
+              master_content_id: null,
+              start_range: c.startRange,
+              end_range: c.endRange,
+              start_detail_id: null,
+              end_detail_id: null,
+              display_order: index,
+            })),
+        exclusions: exclusions.map((e) => ({
+          exclusion_date: e.exclusion_date,
+          exclusion_type: e.exclusion_type === "holiday" ? "휴일지정"
+            : e.exclusion_type === "personal" ? "개인사정"
+            : "기타" as const,
+          reason: e.reason || undefined,
+        })),
+        academy_schedules: academySchedules.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          academy_name: s.academy_name || undefined,
+          subject: s.subject || undefined,
+        })),
+      };
+
+      const result = await createPlanGroupAction(planGroupData, {
+        skipContentValidation: true,
+        studentId: studentId,
+      });
+
+      // 에러 확인
+      if ("success" in result && result.success === false) {
+        setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 성공 시
+      const groupId = (result as { groupId: string }).groupId;
+      setCreatedGroupId(groupId);
+      setSubmitting(false);
+      onSuccess(groupId, wizardData.generateAIPlan);
+    } catch (err) {
+      console.error("[AdminWizard] 생성 실패:", err);
+      setError("플랜 그룹 생성 중 오류가 발생했습니다.");
+      setSubmitting(false);
+    }
+  }, [
+    hasErrors,
+    wizardData,
+    studentId,
+    setSubmitting,
+    setError,
+    setCreatedGroupId,
+    onSuccess,
+  ]);
+
+  // ============================================
+  // Step 컴포넌트 렌더링
+  // ============================================
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1BasicInfo studentId={studentId} error={error} />;
+      case 2:
+        return <Step2TimeSettings studentId={studentId} />;
+      case 3:
+        return <Step3SchedulePreview studentId={studentId} />;
+      case 4:
+        return <Step4ContentSelection studentId={studentId} tenantId={tenantId} />;
+      case 5:
+        return <Step5AllocationSettings studentId={studentId} />;
+      case 6:
+        return <Step6FinalReview studentName={studentName} />;
+      case 7:
+        return (
+          <Step7GenerateResult
+            studentId={studentId}
+            tenantId={tenantId}
+            studentName={studentName}
+            onSubmit={handleSubmit}
+            onSuccess={onSuccess}
+            onClose={onClose}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  // ============================================
+  // 렌더링
+  // ============================================
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              플랜 그룹 생성
+            </h2>
+            <p className="text-sm text-gray-500">{studentName}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <AutoSaveIndicator status={autoSaveStatus} lastSavedAt={lastSavedAt} />
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 스텝 인디케이터 */}
+        <div className="flex items-center justify-center gap-1 border-b border-gray-100 px-6 py-3">
+          {([1, 2, 3, 4, 5, 6, 7] as WizardStep[]).map((step) => (
+            <div key={step} className="flex items-center">
+              <div
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition",
+                  currentStep === step
+                    ? "bg-blue-600 text-white"
+                    : currentStep > step
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-400"
+                )}
+              >
+                {currentStep > step ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  step
+                )}
+              </div>
+              {step < 7 && (
+                <div
+                  className={cn(
+                    "mx-1 h-0.5 w-4 transition",
+                    currentStep > step ? "bg-blue-300" : "bg-gray-200"
+                  )}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* 스텝 제목 */}
+        <div className="px-6 py-2 text-center">
+          <span className="text-sm font-medium text-gray-700">
+            {STEP_TITLES[currentStep]}
+          </span>
+          <p className="text-xs text-gray-500">
+            {STEP_DESCRIPTIONS[currentStep]}
+          </p>
+        </div>
+
+        {/* 콘텐츠 */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <AdminStepErrorBoundary stepName={STEP_TITLES[currentStep]}>
+            {renderStep()}
+          </AdminStepErrorBoundary>
+        </div>
+
+        {/* 에러 메시지 (글로벌) */}
+        {error && currentStep !== 7 && (
+          <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        {/* 네비게이션 (Step 7 제외) */}
+        {currentStep < 7 && (
+          <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={!canGoPrev || isSubmitting}
+              className={cn(
+                "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+                !canGoPrev || isSubmitting
+                  ? "cursor-not-allowed text-gray-300"
+                  : "text-gray-600 hover:bg-gray-100"
+              )}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              이전
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!isStepValid || isSubmitting}
+              className={cn(
+                "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
+                !isStepValid || isSubmitting
+                  ? "cursor-not-allowed bg-gray-300 text-gray-500"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              )}
+            >
+              다음
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// 메인 컴포넌트 (Provider 래핑)
+// ============================================
+
+export function AdminPlanCreationWizard7Step({
+  studentId,
+  tenantId,
+  studentName,
+  onClose,
+  onSuccess,
+}: AdminPlanCreationWizardProps) {
+  return (
+    <AdminWizardProvider>
+      <WizardInner
+        studentId={studentId}
+        tenantId={tenantId}
+        studentName={studentName}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />
+    </AdminWizardProvider>
+  );
+}

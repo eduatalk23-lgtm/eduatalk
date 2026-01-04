@@ -11,6 +11,9 @@ import {
   createEmptyTransformContext,
   buildContentTypeMap,
   buildAllocationMap,
+  toAtomicPlanPayloads,
+  batchPlanItemsToAtomicPayloads,
+  type TransformedPlanPayload,
 } from "@/lib/domains/admin-plan/transformers/llmResponseTransformer";
 import type { LLMPlanGenerationResponse, TransformContext, BlockInfo } from "@/lib/domains/plan/llm";
 import type { ContentType } from "@/lib/types/plan-generation";
@@ -559,5 +562,275 @@ describe("buildAllocationMap", () => {
     const map = buildAllocationMap([]);
 
     expect(map.size).toBe(0);
+  });
+});
+
+// ============================================
+// Atomic Transaction Conversion Tests
+// ============================================
+
+describe("toAtomicPlanPayloads", () => {
+  const mockTransformedPlan: TransformedPlanPayload = {
+    plan_date: "2026-01-05",
+    block_index: 0,
+    content_type: "book",
+    content_id: "content-1",
+    planned_start_page_or_time: 1,
+    planned_end_page_or_time: 20,
+    chapter: null,
+    start_time: "09:00",
+    end_time: "10:00",
+    day_type: "학습일",
+    week: 1,
+    day: 1,
+    is_partial: false,
+    is_continued: false,
+    plan_number: 1,
+    subject_type: "strategy",
+    content_title: "수학의 정석",
+    content_subject: "수학",
+    content_subject_category: "수학",
+    content_category: null,
+  };
+
+  it("should convert TransformedPlanPayload to AtomicPlanPayload", () => {
+    const result = toAtomicPlanPayloads(
+      [mockTransformedPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].plan_group_id).toBe("group-123");
+    expect(result[0].student_id).toBe("student-456");
+    expect(result[0].tenant_id).toBe("tenant-789");
+  });
+
+  it("should map all required fields correctly", () => {
+    const result = toAtomicPlanPayloads(
+      [mockTransformedPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    const payload = result[0];
+    expect(payload.plan_date).toBe("2026-01-05");
+    expect(payload.block_index).toBe(0);
+    expect(payload.status).toBe("pending");
+    expect(payload.content_type).toBe("book");
+    expect(payload.content_id).toBe("content-1");
+    expect(payload.planned_start_page_or_time).toBe(1);
+    expect(payload.planned_end_page_or_time).toBe(20);
+    expect(payload.start_time).toBe("09:00");
+    expect(payload.end_time).toBe("10:00");
+    expect(payload.day_type).toBe("학습일");
+    expect(payload.week).toBe(1);
+    expect(payload.day).toBe(1);
+    expect(payload.subject_type).toBe("strategy");
+  });
+
+  it("should set sequence based on array index", () => {
+    const plans = [
+      { ...mockTransformedPlan, content_id: "content-1" },
+      { ...mockTransformedPlan, content_id: "content-2" },
+      { ...mockTransformedPlan, content_id: "content-3" },
+    ];
+
+    const result = toAtomicPlanPayloads(
+      plans,
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].sequence).toBe(0);
+    expect(result[1].sequence).toBe(1);
+    expect(result[2].sequence).toBe(2);
+  });
+
+  it("should set is_virtual to false and is_active to true", () => {
+    const result = toAtomicPlanPayloads(
+      [mockTransformedPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].is_virtual).toBe(false);
+    expect(result[0].is_active).toBe(true);
+  });
+
+  it("should handle empty plans array", () => {
+    const result = toAtomicPlanPayloads(
+      [],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result).toHaveLength(0);
+  });
+});
+
+describe("batchPlanItemsToAtomicPayloads", () => {
+  const mockPlanItem = {
+    date: "2026-01-05",
+    startTime: "09:00",
+    endTime: "10:00",
+    contentId: "content-1",
+    contentTitle: "수학의 정석",
+    subject: "수학",
+    subjectCategory: "수학",
+    rangeStart: 1,
+    rangeEnd: 20,
+    rangeDisplay: "p.1-20",
+    estimatedMinutes: 60,
+    isReview: false,
+    notes: undefined,
+    priority: "medium",
+  };
+
+  it("should convert batch plan items to AtomicPlanPayloads", () => {
+    const result = batchPlanItemsToAtomicPayloads(
+      [mockPlanItem],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].plan_group_id).toBe("group-123");
+    expect(result[0].student_id).toBe("student-456");
+    expect(result[0].tenant_id).toBe("tenant-789");
+  });
+
+  it("should map fields correctly from LLM plan item format", () => {
+    const result = batchPlanItemsToAtomicPayloads(
+      [mockPlanItem],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    const payload = result[0];
+    expect(payload.plan_date).toBe("2026-01-05");
+    expect(payload.start_time).toBe("09:00");
+    expect(payload.end_time).toBe("10:00");
+    expect(payload.content_id).toBe("content-1");
+    expect(payload.content_title).toBe("수학의 정석");
+    expect(payload.content_subject).toBe("수학");
+    expect(payload.content_subject_category).toBe("수학");
+    expect(payload.planned_start_page_or_time).toBe(1);
+    expect(payload.planned_end_page_or_time).toBe(20);
+  });
+
+  it("should set day_type based on isReview flag", () => {
+    const reviewPlan = { ...mockPlanItem, isReview: true };
+    const studyPlan = { ...mockPlanItem, isReview: false };
+
+    const reviewResult = batchPlanItemsToAtomicPayloads(
+      [reviewPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+    const studyResult = batchPlanItemsToAtomicPayloads(
+      [studyPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(reviewResult[0].day_type).toBe("복습일");
+    expect(studyResult[0].day_type).toBe("학습일");
+  });
+
+  it("should calculate day from date", () => {
+    // 2026-01-05 is a Monday (day = 1)
+    const result = batchPlanItemsToAtomicPayloads(
+      [mockPlanItem],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].day).toBe(1); // Monday
+  });
+
+  it("should use sequential block_index", () => {
+    const plans = [
+      { ...mockPlanItem, contentId: "content-1" },
+      { ...mockPlanItem, contentId: "content-2" },
+      { ...mockPlanItem, contentId: "content-3" },
+    ];
+
+    const result = batchPlanItemsToAtomicPayloads(
+      plans,
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].block_index).toBe(0);
+    expect(result[1].block_index).toBe(1);
+    expect(result[2].block_index).toBe(2);
+  });
+
+  it("should default content_type to book", () => {
+    const result = batchPlanItemsToAtomicPayloads(
+      [mockPlanItem],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].content_type).toBe("book");
+  });
+
+  it("should set status to pending", () => {
+    const result = batchPlanItemsToAtomicPayloads(
+      [mockPlanItem],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].status).toBe("pending");
+  });
+
+  it("should handle optional fields with defaults", () => {
+    const minimalPlan = {
+      date: "2026-01-05",
+      startTime: "09:00",
+      endTime: "10:00",
+      contentId: "content-1",
+      contentTitle: "테스트",
+      subject: "수학",
+      estimatedMinutes: 60,
+    };
+
+    const result = batchPlanItemsToAtomicPayloads(
+      [minimalPlan],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result[0].planned_start_page_or_time).toBe(0);
+    expect(result[0].planned_end_page_or_time).toBe(0);
+    expect(result[0].content_subject_category).toBeNull();
+  });
+
+  it("should handle empty plans array", () => {
+    const result = batchPlanItemsToAtomicPayloads(
+      [],
+      "group-123",
+      "student-456",
+      "tenant-789"
+    );
+
+    expect(result).toHaveLength(0);
   });
 });
