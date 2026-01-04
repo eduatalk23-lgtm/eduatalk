@@ -20,7 +20,10 @@ import {
   useAdminWizardValidation,
 } from "../_context";
 import type { PlanPurpose } from "../_context/types";
-import { fetchBlockSetsWithBlocks, type BlockSetWithBlocks } from "@/lib/data/blockSets";
+import {
+  getBlockSetsForStudent,
+  type BlockSetWithBlocks,
+} from "@/lib/domains/admin-plan/actions/blockSets";
 
 /**
  * Step1BasicInfo Props
@@ -52,14 +55,14 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
   const { periodStart, periodEnd, name, planPurpose, blockSetId } = wizardData;
 
-  // 블록셋 로드
+  // 블록셋 로드 (Server Action 사용)
   useEffect(() => {
     async function loadBlockSets() {
       if (!studentId) return;
 
       setIsLoadingBlockSets(true);
       try {
-        const data = await fetchBlockSetsWithBlocks(studentId);
+        const data = await getBlockSetsForStudent(studentId);
         setBlockSets(data);
       } catch (err) {
         console.error("[Step1] 블록셋 로드 실패:", err);
@@ -176,6 +179,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             type="date"
             value={periodStart}
             onChange={handleStartChange}
+            data-testid="period-start"
             className={cn(
               "flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
               fieldErrors.get("periodStart")
@@ -191,6 +195,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             value={periodEnd}
             onChange={handleEndChange}
             min={periodStart}
+            data-testid="period-end"
             className={cn(
               "flex-1 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2",
               fieldErrors.get("periodEnd")
@@ -218,10 +223,10 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           </p>
         )}
         {fieldErrors.get("periodStart") && (
-          <p className="text-sm text-red-500">{fieldErrors.get("periodStart")}</p>
+          <p className="text-sm text-red-500" data-testid="error-periodStart">{fieldErrors.get("periodStart")}</p>
         )}
         {fieldErrors.get("periodEnd") && (
-          <p className="text-sm text-red-500">{fieldErrors.get("periodEnd")}</p>
+          <p className="text-sm text-red-500" data-testid="error-periodEnd">{fieldErrors.get("periodEnd")}</p>
         )}
       </div>
 
@@ -236,6 +241,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           value={name}
           onChange={handleNameChange}
           placeholder="예: 겨울방학 학습 계획"
+          data-testid="plan-name-input"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
           maxLength={100}
         />
@@ -253,6 +259,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
               key={option.value || "none"}
               type="button"
               onClick={() => handlePurposeChange(option.value)}
+              data-testid={`plan-purpose-${option.value || "none"}`}
               className={cn(
                 "rounded-lg border px-3 py-2.5 text-sm font-medium transition",
                 planPurpose === option.value
@@ -277,6 +284,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             type="button"
             onClick={() => setShowBlockSetDropdown(!showBlockSetDropdown)}
             disabled={isLoadingBlockSets}
+            data-testid="block-set-select"
             className={cn(
               "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition",
               selectedBlockSet
@@ -377,7 +385,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
       {/* 에러 메시지 */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600" data-testid="error-general">
           {error}
         </div>
       )}

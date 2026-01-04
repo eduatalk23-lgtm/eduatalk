@@ -142,16 +142,16 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
       )}
 
       {/* 학생 정보 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="student-info-card">
         <p className="text-sm font-medium text-blue-800">
-          <span className="font-bold">{studentName}</span> 학생을 위한 플랜을 생성합니다.
+          <span className="font-bold" data-testid="student-name">{studentName}</span> 학생을 위한 플랜을 생성합니다.
         </p>
       </div>
 
       {/* 요약 카드들 */}
       <div className="space-y-4">
         {/* 기본 정보 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4" data-testid="basic-info-summary">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <Calendar className="h-4 w-4" />
@@ -160,6 +160,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
             <button
               type="button"
               onClick={() => goToStep(1)}
+              data-testid="edit-basic-info"
               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
             >
               <Edit3 className="h-3 w-3" />
@@ -196,7 +197,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
         </div>
 
         {/* 시간 설정 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4" data-testid="time-settings-summary">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <Clock className="h-4 w-4" />
@@ -205,6 +206,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
             <button
               type="button"
               onClick={() => goToStep(2)}
+              data-testid="edit-time-settings"
               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
             >
               <Edit3 className="h-3 w-3" />
@@ -239,7 +241,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
         </div>
 
         {/* 콘텐츠 */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4" data-testid="contents-summary">
           <div className="mb-3 flex items-center justify-between">
             <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
               <BookOpen className="h-4 w-4" />
@@ -251,6 +253,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
             <button
               type="button"
               onClick={() => goToStep(4)}
+              data-testid="edit-contents"
               className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
             >
               <Edit3 className="h-3 w-3" />
@@ -331,7 +334,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
 
         {/* 배분 설정 */}
         {!skipContents && selectedContents.length > 0 && (
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="rounded-lg border border-gray-200 bg-white p-4" data-testid="allocation-summary">
             <div className="mb-3 flex items-center justify-between">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <Sliders className="h-4 w-4" />
@@ -340,6 +343,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
               <button
                 type="button"
                 onClick={() => goToStep(5)}
+                data-testid="edit-allocation"
                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
               >
                 <Edit3 className="h-3 w-3" />
@@ -398,12 +402,14 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
               ? "border-purple-300 bg-purple-50"
               : "border-gray-200 bg-white"
           )}
+          data-testid="ai-generate-option"
         >
           <label className="flex cursor-pointer items-start gap-3">
             <input
               type="checkbox"
               checked={generateAIPlan}
               onChange={(e) => handleGenerateAIChange(e.target.checked)}
+              data-testid="ai-generate-checkbox"
               className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
             />
             <div className="flex-1">
@@ -422,13 +428,14 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
 
         {/* AI 모드 선택 (AI 생성 활성화 시) */}
         {generateAIPlan && (
-          <div className="ml-7 space-y-2">
+          <div className="ml-7 space-y-2" data-testid="ai-mode-options">
             <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 hover:border-gray-300">
               <input
                 type="radio"
                 name="aiMode"
                 checked={aiMode !== "ai-only"}
                 onChange={() => handleAIModeChange("hybrid")}
+                data-testid="ai-mode-hybrid"
                 className="h-4 w-4 border-gray-300 text-purple-600"
               />
               <div>
@@ -444,6 +451,7 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
                 name="aiMode"
                 checked={aiMode === "ai-only"}
                 onChange={() => handleAIModeChange("ai-only")}
+                data-testid="ai-mode-ai-only"
                 className="h-4 w-4 border-gray-300 text-purple-600"
               />
               <div>

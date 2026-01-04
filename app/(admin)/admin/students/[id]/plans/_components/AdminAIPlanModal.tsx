@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react';
 import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Zap, Lightbulb } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { AIPlanGeneratorPanel } from '@/app/(student)/plan/new-group/_components/_features/ai-mode';
-import type { LLMPlanGenerationResponse, AIRecommendations } from '@/lib/domains/plan/llm';
+// 직접 경로에서 타입 import (barrel export 회피 - 서버/클라이언트 분리)
+import type { LLMPlanGenerationResponse } from '@/lib/domains/plan/llm/types';
+import type { AIRecommendations } from '@/lib/domains/plan/llm/types/aiFramework';
 import {
   getPlanGroupDetailsForAdminAction,
   saveAIGeneratedPlansAction,
   getStudentContentsForAIPlanAction,
 } from '@/lib/domains/admin-plan/actions';
-import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm';
+// Server Action 직접 import (barrel export 회피)
+import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
 import { isErrorResult } from '@/lib/errors';
 
 interface AdminAIPlanModalProps {

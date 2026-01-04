@@ -199,6 +199,7 @@ export function Step4ContentSelection({
             type="checkbox"
             checked={skipContents}
             onChange={(e) => handleSkipToggle(e.target.checked)}
+            data-testid="skip-contents-checkbox"
             className="h-4 w-4 rounded border-gray-300 text-blue-600"
           />
           콘텐츠 선택 건너뛰기
@@ -237,6 +238,7 @@ export function Step4ContentSelection({
             type="checkbox"
             checked={skipContents}
             onChange={(e) => handleSkipToggle(e.target.checked)}
+            data-testid="skip-contents-checkbox"
             className="h-4 w-4 rounded border-gray-300 text-blue-600"
           />
           콘텐츠 선택 건너뛰기

@@ -187,6 +187,7 @@ export function Step7GenerateResult({
             type="button"
             onClick={handleGenerate}
             disabled={isSubmitting}
+            data-testid="submit-button"
             className={cn(
               "flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-white transition",
               isSubmitting
@@ -241,7 +242,7 @@ export function Step7GenerateResult({
 
       {/* 완료 상태 */}
       {phase === "completed" && (
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="success-message">
           <div className="rounded-lg border border-green-200 bg-green-50 p-6">
             <div className="flex flex-col items-center">
               <CheckCircle2 className="h-12 w-12 text-green-500" />

@@ -3,14 +3,36 @@
  *
  * 플랜 생성 관련 서비스들을 통합 export합니다.
  *
+ * NOTE: ContentResolutionService와 PlanPersistenceService는
+ * @/lib/plan/shared에서 re-export됩니다. 직접 import 시 shared를 권장합니다.
+ *
  * @module lib/domains/plan/services
  */
 
-// 서비스 클래스
+// ============================================
+// 핵심 서비스 (lib/plan/shared에서 re-export)
+// ============================================
+
 export {
   ContentResolutionService,
+  ContentResolutionServiceWithContext,
   createContentResolutionService,
-} from "./contentResolutionService";
+  getContentResolutionService,
+  ContentResolutionErrorCodes,
+} from "@/lib/plan/shared";
+
+export {
+  PlanPersistenceService,
+  PlanPersistenceServiceWithContext,
+  createPlanPersistenceService,
+  getPlanPersistenceService,
+  createPlanServiceContext,
+  PlanPersistenceErrorCodes,
+} from "@/lib/plan/shared";
+
+// ============================================
+// 로컬 전용 서비스 (이 모듈에서만 제공)
+// ============================================
 
 export {
   PlanPayloadBuilder,
@@ -21,11 +43,6 @@ export {
   PlanValidationService,
   createPlanValidationService,
 } from "./planValidationService";
-
-export {
-  PlanPersistenceService,
-  createPlanPersistenceService,
-} from "./planPersistenceService";
 
 // 슬롯 검증 서비스
 export {
@@ -116,37 +133,43 @@ export type {
   WeakSubjectReinforcementPlan,
 } from "./adaptiveScheduler";
 
-// 타입
+// ============================================
+// 타입 (lib/plan/shared에서 re-export)
+// ============================================
+
 export type {
   // 서비스 컨텍스트
   PlanServiceContext,
+  ServiceContext,
+  ServiceResult,
   SupabaseAnyClient,
 
   // ContentResolutionService 타입
   ContentResolutionInput,
+  ContentResolutionContextInput,
+  ContentResolutionOutput,
+  IContentResolutionService,
   ResolvedContent,
   ContentResolutionResult,
   ContentCopyFailure,
 
-  // PlanPayloadBuilder 타입
-  DailyScheduleItem,
-  PayloadBuildInput,
-  PayloadBuildResult,
-
-  // PlanValidationService 타입
-  ValidationError,
-  ValidationWarning,
-  ValidationResult,
-
   // PlanPersistenceService 타입
+  PlanPersistenceInput,
+  PlanPersistenceOutput,
+  IPlanPersistenceService,
   PlanInsertResult,
   PlanInsertError,
   BatchInsertOptions,
 
+  // 검증 타입
+  ValidationError,
+  ValidationWarning,
+  ValidationResult,
+
   // 최종 결과 타입
   GeneratePlansResult,
 
-  // 재export된 타입
+  // 공통 타입
   ContentIdMap,
   ContentMetadataMap,
   ContentDurationMap,
@@ -156,4 +179,15 @@ export type {
   DayType,
   PlanContent,
   ContentType,
+} from "@/lib/plan/shared";
+
+// ============================================
+// 로컬 전용 타입
+// ============================================
+
+export type {
+  // PlanPayloadBuilder 타입
+  DailyScheduleItem,
+  PayloadBuildInput,
+  PayloadBuildResult,
 } from "./types";

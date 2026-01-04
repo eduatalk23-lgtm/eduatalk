@@ -22,7 +22,7 @@ import {
 } from "@/lib/plan/contentResolver";
 import { generatePlansFromGroup as schedulerGeneratePlans } from "@/lib/plan/scheduler";
 import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
-import { getContentResolutionService } from "./ContentResolutionService";
+import { getContentResolutionService } from "@/lib/plan/shared";
 import type {
   ContentIdMap,
   ContentMetadataMap,

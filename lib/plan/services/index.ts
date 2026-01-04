@@ -3,6 +3,9 @@
  *
  * Phase 2 리팩토링에서 사용할 서비스 인터페이스 및 구현체를 제공합니다.
  *
+ * NOTE: ContentResolutionService와 PlanPersistenceService는
+ * @/lib/plan/shared에서 re-export됩니다. 직접 import 시 shared를 권장합니다.
+ *
  * @module lib/plan/services
  */
 
@@ -33,11 +36,23 @@ export type {
   IPlanGenerationOrchestrator,
 } from "./types";
 
-// 서비스 구현체 및 팩토리 함수
+// ============================================
+// 핵심 서비스 (lib/plan/shared에서 re-export)
+// ============================================
+
 export {
   ContentResolutionService,
   getContentResolutionService,
-} from "./ContentResolutionService";
+} from "@/lib/plan/shared";
+
+export {
+  PlanPersistenceService,
+  getPlanPersistenceService,
+} from "@/lib/plan/shared";
+
+// ============================================
+// 로컬 전용 서비스 (이 모듈에서만 제공)
+// ============================================
 
 export {
   ScheduleGenerationService,
@@ -48,11 +63,6 @@ export {
   TimeAllocationService,
   getTimeAllocationService,
 } from "./TimeAllocationService";
-
-export {
-  PlanPersistenceService,
-  getPlanPersistenceService,
-} from "./PlanPersistenceService";
 
 export {
   PlanGenerationOrchestrator,

@@ -166,6 +166,7 @@ export function Step3SchedulePreview({
         <button
           type="button"
           onClick={() => setStep(2)}
+          data-testid="edit-settings-button"
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -174,8 +175,8 @@ export function Step3SchedulePreview({
       </div>
 
       {/* 통계 카드 */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
+      <div className="grid grid-cols-4 gap-3" data-testid="schedule-stats">
+        <div className="rounded-lg border border-gray-200 bg-white p-3" data-testid="stat-total-days">
           <p className="text-xs text-gray-500">전체 기간</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">
             {stats.totalDays}일
@@ -207,6 +208,7 @@ export function Step3SchedulePreview({
           <button
             type="button"
             onClick={() => setViewMode("week")}
+            data-testid="view-mode-week"
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm font-medium",
               viewMode === "week"
@@ -219,6 +221,7 @@ export function Step3SchedulePreview({
           <button
             type="button"
             onClick={() => setViewMode("day")}
+            data-testid="view-mode-day"
             className={cn(
               "rounded-lg px-3 py-1.5 text-sm font-medium",
               viewMode === "day"
@@ -236,6 +239,7 @@ export function Step3SchedulePreview({
               type="button"
               onClick={() => setCurrentWeekIndex((prev) => Math.max(0, prev - 1))}
               disabled={currentWeekIndex === 0}
+              data-testid="prev-week-button"
               className="rounded p-1 hover:bg-gray-100 disabled:opacity-50"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -251,6 +255,7 @@ export function Step3SchedulePreview({
                 setCurrentWeekIndex((prev) => Math.min(weeks.length - 1, prev + 1))
               }
               disabled={currentWeekIndex === weeks.length - 1}
+              data-testid="next-week-button"
               className="rounded p-1 hover:bg-gray-100 disabled:opacity-50"
             >
               <ChevronRight className="h-5 w-5" />

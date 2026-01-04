@@ -69,3 +69,55 @@ export type {
 
 // Type Guards
 export { isDataAction, isStepAction, isValidationAction } from "./types";
+
+// ============================================
+// Batch Wizard Context (배치 AI 플랜 생성용)
+// ============================================
+
+export {
+  BatchWizardProvider,
+  useBatchData,
+  useBatchStep,
+  useBatchState,
+  useBatchValidation,
+  useBatchDispatch,
+  useBatchWizard,
+} from "./BatchWizardContext";
+
+// Batch 타입
+export type {
+  BatchModalStep,
+  CostEstimate,
+  StudentContentInfo,
+  BatchWizardData,
+  BatchWizardState,
+  BatchDataAction,
+  BatchStepAction,
+  BatchStateAction,
+  BatchValidationAction,
+  BatchWizardAction,
+  BatchDataContextValue,
+  BatchStepContextValue,
+  BatchStateContextValue,
+  BatchValidationContextValue,
+} from "./batchTypes";
+
+// Batch 헬퍼 및 Type Guards
+export {
+  createDefaultSettings,
+  createDefaultBatchData,
+  createInitialBatchState,
+  isDataAction as isBatchDataAction,
+  isStepAction as isBatchStepAction,
+  isStateAction as isBatchStateAction,
+  isValidationAction as isBatchValidationAction,
+} from "./batchTypes";
+
+// Batch 리듀서 유틸리티
+export {
+  batchReducer,
+  hasDataChanged as hasBatchDataChanged,
+  hasRetryableStudents,
+  getSuccessCount,
+  getFailureCount,
+} from "./batchReducer";

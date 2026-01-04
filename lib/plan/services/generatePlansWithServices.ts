@@ -16,7 +16,7 @@
  * @module lib/plan/services/generatePlansWithServices
  */
 
-import { getPlanPersistenceService } from "./PlanPersistenceService";
+import { getPlanPersistenceService } from "@/lib/plan/shared";
 import type { ServiceContext } from "./types";
 import type { PlanPayloadBase } from "@/lib/types/plan-generation";
 import { ServiceErrorCodes, toServiceError } from "./errors";

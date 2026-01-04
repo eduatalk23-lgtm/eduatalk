@@ -140,13 +140,13 @@ export function Step5AllocationSettings({
   return (
     <div className="space-y-6">
       {/* 선택된 콘텐츠 요약 */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4" data-testid="content-summary">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700">
           <BarChart3 className="h-4 w-4" />
           선택된 콘텐츠 요약
         </h3>
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg bg-white p-3 shadow-sm">
+          <div className="rounded-lg bg-white p-3 shadow-sm" data-testid="total-contents-stat">
             <p className="text-xs text-gray-500">전체 콘텐츠</p>
             <p className="mt-1 text-lg font-semibold text-gray-900">
               {contentStats.totalContents}개
@@ -185,6 +185,7 @@ export function Step5AllocationSettings({
               key={level.value}
               type="button"
               onClick={() => handleUpdateOptions({ student_level: level.value })}
+              data-testid={`student-level-${level.value}`}
               className={cn(
                 "flex flex-col items-start rounded-lg border p-3 text-left transition",
                 studentLevel === level.value
@@ -223,6 +224,7 @@ export function Step5AllocationSettings({
                 onClick={() =>
                   handleUpdateOptions({ weak_subject_focus: level.value })
                 }
+                data-testid={`weak-focus-${level.value}`}
                 className={cn(
                   "flex flex-col items-start rounded-lg border p-3 text-left transition",
                   weakSubjectFocus === level.value
@@ -267,9 +269,10 @@ export function Step5AllocationSettings({
                 onChange={(e) =>
                   handleUpdateOptions({ study_days: Number(e.target.value) })
                 }
+                data-testid="study-days-slider"
                 className="flex-1"
               />
-              <span className="w-12 text-center text-sm font-semibold text-gray-900">
+              <span className="w-12 text-center text-sm font-semibold text-gray-900" data-testid="study-days-value">
                 {studyDays}일
               </span>
             </div>
@@ -286,9 +289,10 @@ export function Step5AllocationSettings({
                 onChange={(e) =>
                   handleUpdateOptions({ review_days: Number(e.target.value) })
                 }
+                data-testid="review-days-slider"
                 className="flex-1"
               />
-              <span className="w-12 text-center text-sm font-semibold text-gray-900">
+              <span className="w-12 text-center text-sm font-semibold text-gray-900" data-testid="review-days-value">
                 {reviewDays}일
               </span>
             </div>

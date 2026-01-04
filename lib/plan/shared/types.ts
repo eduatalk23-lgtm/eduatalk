@@ -102,6 +102,9 @@ export interface ServiceResult<T> {
 
 /**
  * 플랜 페이로드 (DB 저장용)
+ *
+ * PlanPayloadBase와 호환되도록 chapter, start_time, end_time 등은
+ * required 필드로 정의합니다.
  */
 export interface GeneratePlanPayload {
   plan_group_id: string;
@@ -113,21 +116,22 @@ export interface GeneratePlanPayload {
   content_id: string;
   planned_start_page_or_time: number;
   planned_end_page_or_time: number;
-  chapter?: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
+  chapter: string | null;
+  start_time: string | null;
+  end_time: string | null;
   day_type: DayType;
-  week?: number | null;
-  day?: number | null;
-  is_partial?: boolean;
-  is_continued?: boolean;
-  plan_number?: number | null;
+  week: number | null;
+  day: number | null;
+  is_partial: boolean;
+  is_continued: boolean;
+  plan_number: number | null;
+  is_reschedulable: boolean;
   subject_type?: "strategy" | "weakness" | null;
-  content_title?: string | null;
-  content_subject?: string | null;
-  content_subject_category?: string | null;
-  content_category?: string | null;
-  sequence?: number | null;
+  content_title: string | null;
+  content_subject: string | null;
+  content_subject_category: string | null;
+  content_category: string | null;
+  sequence: number | null;
   // 가상 플랜 필드
   is_virtual?: boolean;
   slot_index?: number;

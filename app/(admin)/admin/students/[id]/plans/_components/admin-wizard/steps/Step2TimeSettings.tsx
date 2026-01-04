@@ -214,6 +214,7 @@ export function Step2TimeSettings({
                 )
               }
               disabled={!editable}
+              data-testid={`scheduler-type-${type.value}`}
               className={cn(
                 "flex flex-col items-start rounded-lg border p-4 text-left transition",
                 schedulerType === type.value
@@ -251,6 +252,7 @@ export function Step2TimeSettings({
             <button
               type="button"
               onClick={() => setShowAddAcademy(true)}
+              data-testid="add-academy-button"
               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
             >
               <Plus className="h-4 w-4" />
@@ -365,6 +367,7 @@ export function Step2TimeSettings({
               <button
                 type="button"
                 onClick={handleAddAcademy}
+                data-testid="confirm-add-academy"
                 className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
               >
                 추가
@@ -385,6 +388,7 @@ export function Step2TimeSettings({
             <button
               type="button"
               onClick={() => setShowAddExclusion(true)}
+              data-testid="add-exclusion-button"
               className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
             >
               <Plus className="h-4 w-4" />
@@ -500,6 +504,7 @@ export function Step2TimeSettings({
               <button
                 type="button"
                 onClick={handleAddExclusion}
+                data-testid="confirm-add-exclusion"
                 className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
               >
                 추가

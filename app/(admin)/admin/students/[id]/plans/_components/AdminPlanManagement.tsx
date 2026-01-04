@@ -21,7 +21,7 @@ import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcut
 import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { PlanToastProvider } from './PlanToast';
 import { AdminAIPlanModal } from './AdminAIPlanModal';
-import { AdminPlanCreationWizard } from './admin-wizard';
+import { AdminPlanCreationWizard7Step } from './admin-wizard';
 import PlanOptimizationPanel from './PlanOptimizationPanel';
 import { Wand2, Plus, LineChart } from 'lucide-react';
 
@@ -365,9 +365,9 @@ export function AdminPlanManagement({
           />
         )}
 
-        {/* 플랜 그룹 생성 위자드 */}
+        {/* 플랜 그룹 생성 위자드 (7단계) */}
         {showCreateWizard && (
-          <AdminPlanCreationWizard
+          <AdminPlanCreationWizard7Step
             studentId={studentId}
             tenantId={tenantId}
             studentName={studentName}

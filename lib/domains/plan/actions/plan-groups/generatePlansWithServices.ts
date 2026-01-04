@@ -41,13 +41,17 @@ import {
 } from "@/lib/plan/virtualSchedulePreview";
 import type { ContentSlot } from "@/lib/types/content-selection";
 
-// 서비스 임포트
+// 서비스 임포트 (lib/plan/shared로 통합됨)
 import {
-  ContentResolutionService,
+  ContentResolutionServiceWithContext as ContentResolutionService,
+  PlanPersistenceServiceWithContext as PlanPersistenceService,
+  type PlanServiceContext,
+} from "@/lib/plan/shared";
+// PlanPayloadBuilder, PlanValidationService, GeneratePlanPayload는
+// 동일 모듈에서 import하여 타입 호환성 유지
+import {
   PlanPayloadBuilder,
   PlanValidationService,
-  PlanPersistenceService,
-  type PlanServiceContext,
   type GeneratePlanPayload,
 } from "@/lib/domains/plan/services";
 

@@ -16,8 +16,8 @@
 import { getPlanGroupById, getPlanContents } from "@/lib/domains/plan/service";
 import {
   getContentResolutionService,
-  type ContentResolutionService,
-} from "./ContentResolutionService";
+  type IContentResolutionService as ContentResolutionService,
+} from "@/lib/plan/shared";
 import {
   getScheduleGenerationService,
   type ScheduleGenerationService,
@@ -28,8 +28,8 @@ import {
 } from "./TimeAllocationService";
 import {
   getPlanPersistenceService,
-  type PlanPersistenceService,
-} from "./PlanPersistenceService";
+  type IPlanPersistenceService as PlanPersistenceService,
+} from "@/lib/plan/shared";
 import type {
   ServiceResult,
   ServiceContext,

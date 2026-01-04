@@ -321,8 +321,8 @@ function WizardInner({
   // ============================================
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="admin-wizard">
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" data-testid="admin-wizard-modal">
         {/* 헤더 */}
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div>
@@ -336,6 +336,7 @@ function WizardInner({
             <button
               onClick={onClose}
               disabled={isSubmitting}
+              data-testid="cancel-button"
               className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
             >
               <X className="h-5 w-5" />
@@ -344,10 +345,12 @@ function WizardInner({
         </div>
 
         {/* 스텝 인디케이터 */}
-        <div className="flex items-center justify-center gap-1 border-b border-gray-100 px-6 py-3">
+        <div className="flex items-center justify-center gap-1 border-b border-gray-100 px-6 py-3" data-testid="step-indicator">
           {([1, 2, 3, 4, 5, 6, 7] as WizardStep[]).map((step) => (
             <div key={step} className="flex items-center">
               <div
+                data-step={step}
+                data-completed={currentStep > step}
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium transition",
                   currentStep === step
@@ -406,6 +409,7 @@ function WizardInner({
               type="button"
               onClick={prevStep}
               disabled={!canGoPrev || isSubmitting}
+              data-testid="prev-button"
               className={cn(
                 "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
                 !canGoPrev || isSubmitting
@@ -420,6 +424,7 @@ function WizardInner({
               type="button"
               onClick={handleNext}
               disabled={!isStepValid || isSubmitting}
+              data-testid="next-button"
               className={cn(
                 "flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition",
                 !isStepValid || isSubmitting
