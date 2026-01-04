@@ -9,7 +9,7 @@
  * @module lib/plan/services
  */
 
-// 서비스 타입 및 인터페이스
+// 서비스 타입 및 인터페이스 (lib/plan/shared에서 re-export)
 export type {
   // 공통
   ServiceResult,
@@ -34,7 +34,13 @@ export type {
   PlanGenerationOrchestratorInput,
   PlanGenerationOrchestratorOutput,
   IPlanGenerationOrchestrator,
-} from "./types";
+  // 추가 타입
+  ScheduledPlan,
+  ValidationError,
+  ValidationWarning,
+  ValidationResult,
+  GeneratePlansResult,
+} from "@/lib/plan/shared";
 
 // ============================================
 // 핵심 서비스 (lib/plan/shared에서 re-export)

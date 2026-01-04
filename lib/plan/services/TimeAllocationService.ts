@@ -25,7 +25,7 @@ import type {
   TimeAllocationOutput,
   ITimeAllocationService,
   ScheduledPlan,
-} from "./types";
+} from "@/lib/plan/shared";
 import {
   ServiceErrorCodes,
   toServiceError,

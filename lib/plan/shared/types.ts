@@ -491,6 +491,55 @@ export interface ITimeAllocationService {
 }
 
 // ============================================
+// 플랜 생성 오케스트레이터 타입
+// ============================================
+
+/**
+ * 플랜 생성 오케스트레이터 입력
+ */
+export interface PlanGenerationOrchestratorInput {
+  /** 플랜 그룹 ID */
+  planGroupId: string;
+  /** 서비스 컨텍스트 */
+  context: ServiceContext;
+  /** 생성 옵션 */
+  options?: {
+    /** 미리보기 모드 (저장하지 않음) */
+    previewOnly?: boolean;
+    /** 재생성 모드 (기존 플랜 삭제 후 생성) */
+    regenerate?: boolean;
+  };
+}
+
+/**
+ * 플랜 생성 오케스트레이터 출력
+ */
+export interface PlanGenerationOrchestratorOutput {
+  /** 성공 여부 */
+  success: boolean;
+  /** 미리보기 플랜 목록 (previewOnly 모드) */
+  previewPlans?: PlanPayloadBase[];
+  /** 저장된 플랜 수 (저장 모드) */
+  savedCount?: number;
+  /** 에러 목록 */
+  errors?: string[];
+  /** 경고 목록 */
+  warnings?: string[];
+}
+
+/**
+ * 플랜 생성 오케스트레이터 인터페이스
+ */
+export interface IPlanGenerationOrchestrator {
+  /**
+   * 플랜 생성 전체 프로세스 실행
+   */
+  generate(
+    input: PlanGenerationOrchestratorInput
+  ): Promise<ServiceResult<PlanGenerationOrchestratorOutput>>;
+}
+
+// ============================================
 // 플랜 생성 결과 타입
 // ============================================
 

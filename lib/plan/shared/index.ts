@@ -81,6 +81,11 @@ export type {
   ValidationWarning,
   ValidationResult,
 
+  // 플랜 생성 오케스트레이터 타입
+  PlanGenerationOrchestratorInput,
+  PlanGenerationOrchestratorOutput,
+  IPlanGenerationOrchestrator,
+
   // 플랜 생성 결과
   GeneratePlansResult,
 

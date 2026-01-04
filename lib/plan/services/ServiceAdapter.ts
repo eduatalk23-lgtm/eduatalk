@@ -36,7 +36,7 @@ import type {
   PlanExclusion,
   AcademySchedule,
 } from "@/lib/types/plan";
-import type { ServiceContext, ScheduledPlan } from "./types";
+import type { ServiceContext, ScheduledPlan } from "@/lib/plan/shared";
 
 /**
  * 콘텐츠 해석 어댑터

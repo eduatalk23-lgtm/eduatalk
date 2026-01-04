@@ -9,7 +9,7 @@
  * @module lib/plan/services/previewPlansWithServices
  */
 
-import type { ServiceContext } from "./types";
+import type { ServiceContext } from "@/lib/plan/shared";
 import { ServiceErrorCodes, toServiceError } from "./errors";
 import { createServiceLogger, globalPerformanceTracker } from "./logging";
 import { preparePlanGenerationData } from "./preparePlanGenerationData";

@@ -19,7 +19,7 @@ import {
   getAdapterConfig,
 } from "./ServiceAdapter";
 import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
-import type { ServiceContext } from "./types";
+import type { ServiceContext } from "@/lib/plan/shared";
 import type {
   ContentDurationMap,
   ContentMetadataMap,

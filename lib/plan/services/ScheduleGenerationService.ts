@@ -22,7 +22,7 @@ import type {
   ScheduleGenerationOutput,
   IScheduleGenerationService,
   ScheduledPlan,
-} from "./types";
+} from "@/lib/plan/shared";
 import {
   ServiceErrorCodes,
   toServiceError,
