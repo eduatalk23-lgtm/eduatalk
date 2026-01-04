@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
@@ -182,40 +183,21 @@ async function _createPlanGroup(
     studentId?: string | null; // 관리자 모드에서 직접 지정하는 student_id
   }
 ): Promise<{ groupId: string }> {
-  // 권한 확인: 학생 또는 관리자/컨설턴트
-  const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
+  // Strategy Pattern 기반 인증 해결
+  // - 학생: 자신의 studentId 사용
+  // - 관리자: options.studentId로 대상 학생 지정
+  const auth = await resolveAuthContext({
+    studentId: options?.studentId ?? undefined,
+  });
+  const studentId = auth.studentId;
+
+  // 관리자 모드 로깅 (감사 추적)
+  if (isAdminContext(auth)) {
+    logActionDebug(
+      { domain: "plan", action: "createPlanGroup", userId: auth.userId },
+      `Admin creating plan for student`,
+      { adminId: auth.userId, studentId, adminRole: auth.adminRole }
     );
-  }
-
-  let studentId: string;
-
-  // 관리자/컨설턴트 권한 확인
-  const isAdmin = currentUser.role === "admin" || currentUser.role === "consultant";
-
-  if (isAdmin) {
-    // 관리자 모드: student_id를 옵션에서 가져오거나 에러
-    await requireAdminOrConsultant();
-
-    if (options?.studentId) {
-      studentId = options.studentId;
-    } else {
-      throw new AppError(
-        "관리자 모드에서는 student_id가 필요합니다.",
-        ErrorCode.VALIDATION_ERROR,
-        400,
-        true
-      );
-    }
-  } else {
-    // 학생 모드: 현재 사용자가 학생
-    const studentAuth = await requireStudentAuth();
-    studentId = studentAuth.userId;
   }
 
   const tenantContext = await requireTenantContext();

@@ -125,3 +125,25 @@ export type ReviewSettings = {
   /** custom 모드일 때 복습 요일 (0-6, 일-토) */
   customDayOfWeek?: number;
 };
+
+// ============================================
+// Admin Quick Create Types
+// ============================================
+
+/**
+ * 관리자가 학생을 대신하여 빠른 플랜을 생성할 때 사용하는 입력 타입
+ */
+export type CreateQuickPlanForStudentInput = CreateQuickPlanInput & {
+  /** 대상 학생 ID (필수) */
+  studentId: string;
+  /** 테넌트 ID (옵션 - 없으면 관리자의 테넌트 사용) */
+  tenantId?: string;
+};
+
+/**
+ * 관리자 빠른 플랜 생성 결과
+ */
+export type CreateQuickPlanForStudentResult = CreateQuickPlanResult & {
+  /** 대상 학생 ID */
+  studentId?: string;
+};

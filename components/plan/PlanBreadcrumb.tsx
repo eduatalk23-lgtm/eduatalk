@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { ChevronRight, Calendar, BookOpen, Video, FileText } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -23,7 +24,10 @@ const iconMap = {
  * 플랜 계층 구조 브레드크럼 네비게이션
  * 캘린더 > 콘텐츠 > 플랜 구조를 표시
  */
-export function PlanBreadcrumb({ items, className }: PlanBreadcrumbProps) {
+export const PlanBreadcrumb = memo(function PlanBreadcrumb({
+  items,
+  className,
+}: PlanBreadcrumbProps) {
   if (items.length === 0) return null;
 
   return (
@@ -68,4 +72,4 @@ export function PlanBreadcrumb({ items, className }: PlanBreadcrumbProps) {
       })}
     </nav>
   );
-}
+});

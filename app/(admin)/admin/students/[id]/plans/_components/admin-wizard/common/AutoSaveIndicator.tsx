@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/cn";
 import type { AutoSaveStatus } from "../hooks/useAdminAutoSave";
 
@@ -38,7 +39,7 @@ function formatRelativeTime(date: Date): string {
  *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/common/AutoSaveIndicator
  */
-export function AutoSaveIndicator({
+export const AutoSaveIndicator = memo(function AutoSaveIndicator({
   status,
   lastSavedAt,
   className,
@@ -137,4 +138,4 @@ export function AutoSaveIndicator({
       )}
     </div>
   );
-}
+});

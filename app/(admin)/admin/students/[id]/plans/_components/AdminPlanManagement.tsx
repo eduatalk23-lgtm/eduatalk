@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/cn';
 import { movePlanToContainer } from '@/lib/domains/admin-plan/actions';
 import { PlanStatsCards } from './PlanStatsCards';
@@ -9,21 +10,45 @@ import { UnfinishedDock } from './UnfinishedDock';
 import { DailyDock } from './DailyDock';
 import { WeeklyDock } from './WeeklyDock';
 import { WeeklyCalendar } from './WeeklyCalendar';
-import { AddContentModal } from './AddContentModal';
-import { AddAdHocModal } from './AddAdHocModal';
-import { RedistributeModal } from './RedistributeModal';
 import { PlanDndProvider, type ContainerType } from './dnd';
 import { PlanHistoryViewer } from './PlanHistoryViewer';
 import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
-import { ShortcutsHelpModal } from './ShortcutsHelpModal';
 import { PlanToastProvider } from './PlanToast';
-import { AdminAIPlanModal } from './AdminAIPlanModal';
-import { AdminPlanCreationWizard7Step } from './admin-wizard';
-import PlanOptimizationPanel from './PlanOptimizationPanel';
-import { Wand2, Plus, LineChart } from 'lucide-react';
+import { Wand2, Plus, LineChart, Zap } from 'lucide-react';
+
+// 동적 import로 코드 스플리팅 (모달 컴포넌트)
+const AddContentModal = dynamic(
+  () => import('./AddContentModal').then(mod => ({ default: mod.AddContentModal })),
+  { ssr: false }
+);
+const AddAdHocModal = dynamic(
+  () => import('./AddAdHocModal').then(mod => ({ default: mod.AddAdHocModal })),
+  { ssr: false }
+);
+const RedistributeModal = dynamic(
+  () => import('./RedistributeModal').then(mod => ({ default: mod.RedistributeModal })),
+  { ssr: false }
+);
+const ShortcutsHelpModal = dynamic(
+  () => import('./ShortcutsHelpModal').then(mod => ({ default: mod.ShortcutsHelpModal })),
+  { ssr: false }
+);
+const AdminAIPlanModal = dynamic(
+  () => import('./AdminAIPlanModal').then(mod => ({ default: mod.AdminAIPlanModal })),
+  { ssr: false }
+);
+const AdminPlanCreationWizard7Step = dynamic(
+  () => import('./admin-wizard').then(mod => ({ default: mod.AdminPlanCreationWizard7Step })),
+  { ssr: false }
+);
+const AdminQuickPlanModal = dynamic(
+  () => import('./AdminQuickPlanModal').then(mod => ({ default: mod.AdminQuickPlanModal })),
+  { ssr: false }
+);
+const PlanOptimizationPanel = dynamic(() => import('./PlanOptimizationPanel'), { ssr: false });
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -53,6 +78,7 @@ export function AdminPlanManagement({
   const [showAIPlanModal, setShowAIPlanModal] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
+  const [showQuickPlanModal, setShowQuickPlanModal] = useState(false);
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
 
   // 날짜 변경 핸들러
@@ -169,8 +195,15 @@ export function AdminPlanManagement({
           setShowAIPlanModal(false);
           setShowCreateWizard(false);
           setShowOptimizationPanel(false);
+          setShowQuickPlanModal(false);
         },
         description: '모달 닫기',
+        category: 'modal',
+      },
+      {
+        key: 'q',
+        action: () => setShowQuickPlanModal(true),
+        description: '빠른 플랜 추가',
         category: 'modal',
       },
       {
@@ -204,6 +237,14 @@ export function AdminPlanManagement({
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowQuickPlanModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
+              title="빠른 플랜 추가 (q)"
+            >
+              <Zap className="h-4 w-4" />
+              빠른 추가
+            </button>
             <button
               onClick={() => setShowCreateWizard(true)}
               className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -397,6 +438,21 @@ export function AdminPlanManagement({
             onSuccess={() => {
               setShowAIPlanModal(false);
               setNewGroupIdForAI(null);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 빠른 플랜 추가 모달 */}
+        {showQuickPlanModal && (
+          <AdminQuickPlanModal
+            studentId={studentId}
+            tenantId={tenantId}
+            studentName={studentName}
+            targetDate={selectedDate}
+            onClose={() => setShowQuickPlanModal(false)}
+            onSuccess={() => {
+              setShowQuickPlanModal(false);
               handleRefresh();
             }}
           />

@@ -18,6 +18,7 @@ import type { DailyScheduleInfo } from "@/lib/types/plan";
 import { useTouchGestures } from "../_hooks/useTouchGestures";
 import { PlanFilters, filterPlans, type FilterState } from "./PlanFilters";
 import { CalendarExport } from "./CalendarExport";
+import { CalendarFloatingButton } from "./CalendarFloatingButton";
 
 // Ad-hoc 플랜 타입 (캘린더 표시용)
 export type AdHocPlanForCalendar = {
@@ -593,6 +594,19 @@ export function PlanCalendarView({
           router.refresh();
         }}
       />
+
+      {/* 플로팅 액션 버튼 (빠른 플랜 추가) */}
+      {studentId && (
+        <CalendarFloatingButton
+          studentId={studentId}
+          tenantId={tenantId ?? null}
+          selectedDate={formatDateString(currentDate)}
+          onSuccess={() => {
+            onPlansUpdated?.();
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

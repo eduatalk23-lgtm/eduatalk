@@ -293,6 +293,8 @@ export default async function PlanGroupDetailPage({
             canDelete={canDelete || isCompleted}
             isCalendarOnly={group.is_calendar_only ?? false}
             contentCount={contents.length}
+            studentId={user.id}
+            tenantId={tenantContext?.tenantId}
           />
         </div>
 

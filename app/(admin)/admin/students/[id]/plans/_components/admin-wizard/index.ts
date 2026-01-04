@@ -1,16 +1,13 @@
 /**
  * Admin Wizard 모듈
  *
- * Phase 3: 7단계 위저드 확장
+ * 7단계 플랜 생성 위저드
  *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard
  */
 
-// 새 7단계 위저드 (권장)
+// 7단계 위저드
 export { AdminPlanCreationWizard7Step } from './AdminPlanCreationWizard7Step';
-
-// 기존 3단계 위저드 (레거시 호환성)
-export { AdminPlanCreationWizard } from './AdminPlanCreationWizard';
 
 // Context 및 Hooks
 export {
