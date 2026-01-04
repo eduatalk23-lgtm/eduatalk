@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StudentAuthStrategy } from "@/lib/auth/strategies/studentAuthStrategy";
+import { AppError, ErrorCode } from "@/lib/errors";
 
 // Mock dependencies
 vi.mock("@/lib/auth/requireStudentAuth", () => ({
@@ -100,6 +101,28 @@ describe("StudentAuthStrategy", () => {
       vi.mocked(requireStudentAuth).mockRejectedValue(new Error("인증 실패"));
 
       await expect(strategy.authenticate()).rejects.toThrow("학생 인증에 실패했습니다.");
+    });
+
+    it("AppError는 그대로 전파", async () => {
+      const appError = new AppError(
+        "커스텀 에러 메시지",
+        ErrorCode.FORBIDDEN,
+        403
+      );
+      vi.mocked(requireStudentAuth).mockRejectedValue(appError);
+
+      await expect(strategy.authenticate()).rejects.toThrow("커스텀 에러 메시지");
+    });
+
+    it("requireTenant가 true이고 tenantId가 있으면 성공", async () => {
+      vi.mocked(requireStudentAuth).mockResolvedValue({
+        userId: "user-123",
+        tenantId: "tenant-456",
+      });
+
+      const result = await strategy.authenticate({ requireTenant: true });
+
+      expect(result.tenantId).toBe("tenant-456");
     });
   });
 
