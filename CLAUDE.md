@@ -30,7 +30,7 @@ pnpm analyze      # Bundle analysis (ANALYZE=true next build)
 - `components/` - Reusable UI components (atoms, molecules, organisms pattern)
 - `lib/` - Core utilities and business logic
   - `supabase/` - Supabase clients (client.ts, server.ts, admin.ts)
-  - `auth/` - Authentication utilities
+  - `auth/` - Authentication utilities and strategies (`strategies/` for role-based auth)
   - `domains/` - Domain-specific logic (plan, school, score, student, etc.)
   - `data/` - Data fetching functions
   - `hooks/` - Custom React hooks
@@ -50,6 +50,26 @@ pnpm analyze      # Bundle analysis (ANALYZE=true next build)
 **Authentication Flow:**
 - Role-based routing: student → `/dashboard`, admin → `/admin/dashboard`, parent → `/parent/dashboard`
 - Use `getCurrentUser()` and `getCurrentUserRole()` from `lib/auth/`
+
+**Auth Strategy Pattern (Server Actions):**
+Use `resolveAuthContext()` for role-based authentication in Server Actions:
+```typescript
+import { resolveAuthContext, isAdminContext } from '@/lib/auth/strategies';
+
+async function createPlan(data: FormData, options?: { studentId?: string }) {
+  // Auto-resolves to Student/Admin/Parent context based on role
+  const auth = await resolveAuthContext({ studentId: options?.studentId });
+
+  // studentId is always available (self or target student)
+  const studentId = auth.studentId;
+
+  // Role-specific logic when needed
+  if (isAdminContext(auth)) {
+    logAudit(`Admin ${auth.userId} for student ${auth.studentId}`);
+  }
+}
+```
+See `docs/auth-strategy-pattern.md` for full documentation.
 
 ### Next.js 15+ Specifics
 
