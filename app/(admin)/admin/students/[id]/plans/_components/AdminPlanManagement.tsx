@@ -16,7 +16,6 @@ import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
-import { PlanToastProvider } from './PlanToast';
 import { Wand2, Plus, LineChart, Zap } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
@@ -82,12 +81,12 @@ export function AdminPlanManagement({
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
 
   // 날짜 변경 핸들러
-  const handleDateChange = (date: string) => {
+  const handleDateChange = useCallback((date: string) => {
     setSelectedDate(date);
     startTransition(() => {
       router.push(`/admin/students/${studentId}/plans?date=${date}`);
     });
-  };
+  }, [router, studentId]);
 
   // 재분배 모달 열기
   const handleOpenRedistribute = (planId: string) => {
@@ -96,11 +95,11 @@ export function AdminPlanManagement({
   };
 
   // 새로고침
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     startTransition(() => {
       router.refresh();
     });
-  };
+  }, [router]);
 
   // DnD 이동 핸들러 (이벤트 로깅 포함)
   const handleMoveItem = useCallback(
@@ -126,7 +125,7 @@ export function AdminPlanManagement({
 
       handleRefresh();
     },
-    [studentId, tenantId, selectedDate]
+    [studentId, tenantId, selectedDate, handleRefresh]
   );
 
   // 날짜 이동 헬퍼
@@ -134,7 +133,7 @@ export function AdminPlanManagement({
     const current = new Date(selectedDate + 'T00:00:00');
     current.setDate(current.getDate() + days);
     handleDateChange(current.toISOString().split('T')[0]);
-  }, [selectedDate]);
+  }, [selectedDate, handleDateChange]);
 
   // 키보드 단축키 설정
   const shortcuts: ShortcutConfig[] = useMemo(
@@ -225,7 +224,7 @@ export function AdminPlanManagement({
         category: 'modal',
       },
     ],
-    [navigateDate, handleRefresh]
+    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId]
   );
 
   useKeyboardShortcuts({ shortcuts });
@@ -239,7 +238,7 @@ export function AdminPlanManagement({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowQuickPlanModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white hover:bg-amber-600"
+              className="flex items-center gap-2 rounded-lg bg-warning-500 px-3 py-2 text-sm font-medium text-white hover:bg-warning-600"
               title="빠른 플랜 추가 (q)"
             >
               <Zap className="h-4 w-4" />
@@ -247,7 +246,7 @@ export function AdminPlanManagement({
             </button>
             <button
               onClick={() => setShowCreateWizard(true)}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
               title="플랜 그룹 생성 (g)"
             >
               <Plus className="h-4 w-4" />
@@ -256,7 +255,7 @@ export function AdminPlanManagement({
             {activePlanGroupId && (
               <button
                 onClick={() => setShowAIPlanModal(true)}
-                className="flex items-center gap-2 rounded-lg bg-purple-50 px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-100"
+                className="flex items-center gap-2 rounded-lg bg-info-50 px-3 py-2 text-sm font-medium text-info-700 hover:bg-info-100"
                 title="AI 플랜 생성 (i)"
               >
                 <Wand2 className="h-4 w-4" />
@@ -265,7 +264,7 @@ export function AdminPlanManagement({
             )}
             <button
               onClick={() => setShowOptimizationPanel(true)}
-              className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+              className="flex items-center gap-2 rounded-lg bg-success-50 px-3 py-2 text-sm font-medium text-success-700 hover:bg-success-100"
               title="AI 플랜 최적화 (o)"
             >
               <LineChart className="h-4 w-4" />
@@ -273,7 +272,7 @@ export function AdminPlanManagement({
             </button>
             <button
               onClick={() => setShowShortcutsHelp(true)}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+              className="p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
               title="키보드 단축키 (Shift + ?)"
             >
               ⌨️
