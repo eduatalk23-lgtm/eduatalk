@@ -505,12 +505,16 @@ export type PlanGroupItem = {
 
 /**
  * 플랜 그룹 제외일 (학생별 전역 관리)
+ *
+ * 2026-01-05 전역 관리 전환:
+ * - 모든 제외일은 student_id로 관리되며, plan_group_id는 항상 NULL
+ * - 플랜 그룹 삭제 시에도 제외일은 유지됨
  */
 export type PlanExclusion = {
   id: string;
   tenant_id: string;
-  student_id: string; // students 참조 (플랜 그룹과 분리)
-  plan_group_id: string | null; // plan_groups 참조 (NULL이면 시간 관리 영역의 제외일)
+  student_id: string; // students 참조 (전역 관리 키)
+  plan_group_id: string | null; // @deprecated - 항상 NULL (하위 호환성을 위해 유지)
   exclusion_date: string; // date
   exclusion_type: ExclusionType;
   reason: string | null;

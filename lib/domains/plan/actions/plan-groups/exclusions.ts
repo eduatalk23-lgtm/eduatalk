@@ -278,10 +278,10 @@ async function _deletePlanExclusion(formData: FormData): Promise<void> {
 
   const supabase = await createSupabaseServerClient();
 
-  // 제외일 및 플랜 그룹 정보 조회
+  // 제외일 조회 (전역 관리: plan_group_id는 항상 NULL)
   const { data: exclusion, error: fetchError } = await supabase
     .from("plan_exclusions")
-    .select("id, student_id, plan_group_id, exclusion_date")
+    .select("id, student_id")
     .eq("id", exclusionId)
     .single();
 
@@ -297,40 +297,6 @@ async function _deletePlanExclusion(formData: FormData): Promise<void> {
   // 학생 소유권 확인
   if (exclusion.student_id !== user.userId) {
     throw new AppError("권한이 없습니다.", ErrorCode.UNAUTHORIZED, 403, true);
-  }
-
-  // 캠프 플랜인 경우 템플릿 제외일인지 확인
-  if (exclusion.plan_group_id) {
-    const { data: planGroup } = await supabase
-      .from("plan_groups")
-      .select("camp_template_id, plan_type")
-      .eq("id", exclusion.plan_group_id)
-      .maybeSingle();
-
-    if (planGroup?.plan_type === "camp" && planGroup.camp_template_id) {
-      // 템플릿 데이터 조회하여 제외일이 템플릿에서 온 것인지 확인
-      const { getCampTemplate } = await import("@/lib/data/campTemplates");
-      const template = await getCampTemplate(planGroup.camp_template_id);
-      const templateData = template?.template_data as Record<string, unknown> | null;
-
-      if (templateData?.exclusions && Array.isArray(templateData.exclusions)) {
-        const templateExclusions = templateData.exclusions as Array<{ exclusion_date: string }>;
-
-        // 템플릿 제외일 목록에 해당 제외일이 있는지 확인
-        const isTemplateExclusion = templateExclusions.some(
-          (te) => te.exclusion_date === exclusion.exclusion_date
-        );
-
-        if (isTemplateExclusion) {
-          throw new AppError(
-            "템플릿에서 지정된 제외일은 삭제할 수 없습니다.",
-            ErrorCode.VALIDATION_ERROR,
-            400,
-            true
-          );
-        }
-      }
-    }
   }
 
   const { error } = await supabase
