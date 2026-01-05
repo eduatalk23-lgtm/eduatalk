@@ -6,6 +6,8 @@ import { DraggablePlanItem } from '../dnd';
 import { QuickCompleteButton, InlineVolumeEditor, QuickProgressInput } from '../QuickActions';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput } from 'lucide-react';
 
 export type PlanItemType = 'plan' | 'adhoc';
 export type ContainerType = 'daily' | 'weekly' | 'unfinished';
@@ -50,6 +52,8 @@ interface PlanItemCardProps {
   onDelete?: (id: string, isAdHoc?: boolean) => void;
   onEditDate?: (id: string) => void;
   onEdit?: (id: string) => void;
+  onCopy?: (id: string) => void;
+  onMoveToGroup?: (id: string) => void;
   onRefresh?: () => void;
 }
 
@@ -86,6 +90,8 @@ export function PlanItemCard({
   onDelete,
   onEditDate,
   onEdit,
+  onCopy,
+  onMoveToGroup,
   onRefresh,
 }: PlanItemCardProps) {
   const [isPending, startTransition] = useTransition();
@@ -201,46 +207,72 @@ export function PlanItemCard({
 
           {/* Actions */}
           {showActions && !isCompleted && (
-            <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-              {container !== 'daily' && (
-                <button
-                  onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
-                  className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  →Daily
-                </button>
-              )}
-              {container !== 'weekly' && (
-                <button
-                  onClick={() => onMoveToWeekly?.(plan.id) ?? handleMoveContainer('weekly')}
-                  className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                >
-                  →W
-                </button>
-              )}
-              {!isAdHoc && onRedistribute && (
-                <button
-                  onClick={() => onRedistribute(plan.id)}
-                  className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                >
-                  볼륨
-                </button>
-              )}
-              {!isAdHoc && onEdit && (
-                <button
-                  onClick={() => onEdit(plan.id)}
-                  className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                  title="수정"
-                >
-                  수정
-                </button>
-              )}
-              <button
-                onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
-                className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-              >
-                삭제
-              </button>
+            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+              {/* 주요 액션 버튼 */}
+              <div className="flex items-center gap-1">
+                {container !== 'daily' && (
+                  <button
+                    onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
+                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                  >
+                    →Daily
+                  </button>
+                )}
+              </div>
+
+              {/* 드롭다운 메뉴 */}
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger className="p-1 rounded hover:bg-gray-100">
+                  <MoreVertical className="w-4 h-4 text-gray-500" />
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end" className="min-w-[160px]">
+                  {container !== 'weekly' && (
+                    <DropdownMenu.Item onClick={() => onMoveToWeekly?.(plan.id) ?? handleMoveContainer('weekly')}>
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Weekly로 이동
+                    </DropdownMenu.Item>
+                  )}
+                  {container !== 'daily' && container !== 'weekly' && (
+                    <DropdownMenu.Item onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}>
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Daily로 이동
+                    </DropdownMenu.Item>
+                  )}
+                  {!isAdHoc && onRedistribute && (
+                    <DropdownMenu.Item onClick={() => onRedistribute(plan.id)}>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      볼륨 재분배
+                    </DropdownMenu.Item>
+                  )}
+                  <DropdownMenu.Separator />
+                  {!isAdHoc && onEdit && (
+                    <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      수정
+                    </DropdownMenu.Item>
+                  )}
+                  {onCopy && (
+                    <DropdownMenu.Item onClick={() => onCopy(plan.id)}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      복사
+                    </DropdownMenu.Item>
+                  )}
+                  {!isAdHoc && onMoveToGroup && (
+                    <DropdownMenu.Item onClick={() => onMoveToGroup(plan.id)}>
+                      <FolderInput className="w-4 h-4 mr-2" />
+                      그룹 이동
+                    </DropdownMenu.Item>
+                  )}
+                  <DropdownMenu.Separator />
+                  <DropdownMenu.Item
+                    onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    삭제
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </div>
           )}
         </div>
@@ -364,7 +396,7 @@ export function PlanItemCard({
           </span>
         ) : showActions ? (
           <div className="flex items-center gap-1 shrink-0">
-            {/* Move buttons */}
+            {/* 주요 액션 버튼 (자주 사용하는 것만) */}
             {container !== 'daily' && (
               <button
                 onClick={() => onMoveToDaily?.(plan.id) ?? handleMoveContainer('daily')}
@@ -383,44 +415,53 @@ export function PlanItemCard({
                 →W
               </button>
             )}
-            {/* Redistribute */}
-            {!isAdHoc && onRedistribute && (
-              <button
-                onClick={() => onRedistribute(plan.id)}
-                className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                title="볼륨 재분배"
-              >
-                재분배
-              </button>
-            )}
-            {/* Edit */}
-            {!isAdHoc && onEdit && (
-              <button
-                onClick={() => onEdit(plan.id)}
-                className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                title="플랜 수정"
-              >
-                수정
-              </button>
-            )}
-            {/* Edit date */}
-            {onEditDate && (
-              <button
-                onClick={() => onEditDate(plan.id)}
-                className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                title="날짜 변경"
-              >
-                📅
-              </button>
-            )}
-            {/* Delete */}
-            <button
-              onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
-              className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-              title="삭제"
-            >
-              ✕
-            </button>
+
+            {/* 드롭다운 메뉴 (나머지 액션) */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger className="p-1.5 rounded hover:bg-gray-100" title="더보기">
+                <MoreVertical className="w-4 h-4 text-gray-500" />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end" className="min-w-[180px]">
+                {!isAdHoc && onRedistribute && (
+                  <DropdownMenu.Item onClick={() => onRedistribute(plan.id)}>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    볼륨 재분배
+                  </DropdownMenu.Item>
+                )}
+                {!isAdHoc && onEdit && (
+                  <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    수정
+                  </DropdownMenu.Item>
+                )}
+                {onEditDate && (
+                  <DropdownMenu.Item onClick={() => onEditDate(plan.id)}>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    날짜 변경
+                  </DropdownMenu.Item>
+                )}
+                {onCopy && (
+                  <DropdownMenu.Item onClick={() => onCopy(plan.id)}>
+                    <Copy className="w-4 h-4 mr-2" />
+                    복사
+                  </DropdownMenu.Item>
+                )}
+                {!isAdHoc && onMoveToGroup && (
+                  <DropdownMenu.Item onClick={() => onMoveToGroup(plan.id)}>
+                    <FolderInput className="w-4 h-4 mr-2" />
+                    그룹 이동
+                  </DropdownMenu.Item>
+                )}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  onClick={() => onDelete?.(plan.id, isAdHoc) ?? handleDelete()}
+                  className="text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  삭제
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
           </div>
         ) : null}
       </div>
