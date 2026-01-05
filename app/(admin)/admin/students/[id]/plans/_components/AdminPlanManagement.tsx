@@ -69,6 +69,10 @@ const MoveToGroupModal = dynamic(
   () => import('./modals/MoveToGroupModal').then(mod => ({ default: mod.MoveToGroupModal })),
   { ssr: false }
 );
+const CopyPlanModal = dynamic(
+  () => import('./modals/CopyPlanModal').then(mod => ({ default: mod.CopyPlanModal })),
+  { ssr: false }
+);
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -110,6 +114,8 @@ export function AdminPlanManagement({
   const [showMoveToGroupModal, setShowMoveToGroupModal] = useState(false);
   const [selectedPlansForMove, setSelectedPlansForMove] = useState<string[]>([]);
   const [currentGroupIdForMove, setCurrentGroupIdForMove] = useState<string | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedPlansForCopy, setSelectedPlansForCopy] = useState<string[]>([]);
 
   // 날짜 변경 핸들러
   const handleDateChange = useCallback((date: string) => {
@@ -148,6 +154,12 @@ export function AdminPlanManagement({
     setSelectedPlansForMove(planIds);
     setCurrentGroupIdForMove(currentGroupId ?? null);
     setShowMoveToGroupModal(true);
+  };
+
+  // 복사 모달 열기
+  const handleOpenCopy = (planIds: string[]) => {
+    setSelectedPlansForCopy(planIds);
+    setShowCopyModal(true);
   };
 
   // 새로고침
@@ -381,6 +393,7 @@ export function AdminPlanManagement({
           onEdit={handleOpenEdit}
           onReorder={() => handleOpenReorder('unfinished')}
           onMoveToGroup={handleOpenMoveToGroup}
+          onCopy={handleOpenCopy}
           onRefresh={handleRefresh}
         />
 
@@ -404,6 +417,7 @@ export function AdminPlanManagement({
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('daily')}
             onMoveToGroup={handleOpenMoveToGroup}
+            onCopy={handleOpenCopy}
             onRefresh={handleRefresh}
           />
 
@@ -416,6 +430,7 @@ export function AdminPlanManagement({
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('weekly')}
             onMoveToGroup={handleOpenMoveToGroup}
+            onCopy={handleOpenCopy}
             onRefresh={handleRefresh}
           />
         </div>
@@ -632,6 +647,22 @@ export function AdminPlanManagement({
               setShowMoveToGroupModal(false);
               setSelectedPlansForMove([]);
               setCurrentGroupIdForMove(null);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {showCopyModal && selectedPlansForCopy.length > 0 && (
+          <CopyPlanModal
+            planIds={selectedPlansForCopy}
+            studentId={studentId}
+            onClose={() => {
+              setShowCopyModal(false);
+              setSelectedPlansForCopy([]);
+            }}
+            onSuccess={() => {
+              setShowCopyModal(false);
+              setSelectedPlansForCopy([]);
               handleRefresh();
             }}
           />

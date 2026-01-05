@@ -14,6 +14,7 @@ interface WeeklyDockProps {
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
+  onCopy?: (planIds: string[]) => void;
   onRefresh: () => void;
 }
 
@@ -44,6 +45,7 @@ export function WeeklyDock({
   onEdit,
   onReorder,
   onMoveToGroup,
+  onCopy,
   onRefresh,
 }: WeeklyDockProps) {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
@@ -239,6 +241,14 @@ export function WeeklyDock({
                     className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
                   >
                     그룹 이동
+                  </button>
+                )}
+                {onCopy && (
+                  <button
+                    onClick={() => onCopy(Array.from(selectedPlans))}
+                    className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
+                  >
+                    복사
                   </button>
                 )}
               </>

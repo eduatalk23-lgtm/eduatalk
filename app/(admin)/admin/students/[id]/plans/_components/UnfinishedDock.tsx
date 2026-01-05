@@ -14,6 +14,7 @@ interface UnfinishedDockProps {
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
+  onCopy?: (planIds: string[]) => void;
   onRefresh: () => void;
 }
 
@@ -36,6 +37,7 @@ export function UnfinishedDock({
   onEdit,
   onReorder,
   onMoveToGroup,
+  onCopy,
   onRefresh,
 }: UnfinishedDockProps) {
   const [plans, setPlans] = useState<UnfinishedPlan[]>([]);
@@ -213,6 +215,14 @@ export function UnfinishedDock({
                     className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
                   >
                     그룹 이동
+                  </button>
+                )}
+                {onCopy && (
+                  <button
+                    onClick={() => onCopy(Array.from(selectedPlans))}
+                    className="px-3 py-1.5 text-sm bg-teal-500 text-white rounded-md hover:bg-teal-600"
+                  >
+                    복사
                   </button>
                 )}
               </>
