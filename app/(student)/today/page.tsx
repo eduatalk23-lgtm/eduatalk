@@ -23,6 +23,7 @@ import { ContainerView } from "./_components/containers/ContainerView";
 import { AddPlanButton } from "./_components/AddPlanButton";
 import { PromotionSuggestionCard } from "./_components/PromotionSuggestionCard";
 import { GamificationWidget } from "./_components/GamificationWidget";
+import { IncompleteReminderSection } from "./_components/IncompleteReminderSection";
 
 type TodayPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -136,6 +137,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             />
           </div>
           <TodayHeader />
+          <IncompleteReminderSection studentId={userId} />
           <EmptyState
             icon="📚"
             title="활성화된 플랜 그룹이 없습니다"
@@ -213,6 +215,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
               />
             </div>
             <TodayHeader selectedDate={requestedDate} />
+            <IncompleteReminderSection studentId={userId} />
             <CurrentLearningSection />
             <CompletionToast completedPlanId={completedPlanIdParam} planTitle={completedPlanTitle} />
             <PromotionSuggestionCard

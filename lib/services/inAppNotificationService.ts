@@ -15,7 +15,15 @@ export type NotificationType =
   | "camp_status_change"
   | "plan_created"
   | "plan_updated"
-  | "admin_notification";
+  | "admin_notification"
+  // Learning milestone notifications (Phase 2)
+  | "learning_milestone"
+  | "daily_goal_complete"
+  | "study_streak"
+  // Plan reminder notifications (Phase 3)
+  | "plan_incomplete_reminder"
+  | "plan_delayed_warning"
+  | "weekly_plan_summary";
 
 export type Notification = {
   id: string;

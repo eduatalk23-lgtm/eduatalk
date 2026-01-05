@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useCallback, useState, useRef, type ReactNode } from "react";
 import type { TodayProgress } from "@/lib/metrics/todayProgress";
+import { MilestoneProvider } from "./MilestoneContext";
+import { NetworkStatusBanner } from "./NetworkStatusIndicator";
 
 type ProgressResponse = {
   planDate: string;
@@ -107,7 +109,10 @@ export function TodayPageContextProvider({
         shouldSkipProgressFetch,
       }}
     >
-      {children}
+      <MilestoneProvider>
+        {children}
+      </MilestoneProvider>
+      <NetworkStatusBanner />
     </TodayPageContext.Provider>
   );
 }

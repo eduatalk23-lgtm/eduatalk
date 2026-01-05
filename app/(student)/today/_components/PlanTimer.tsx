@@ -4,6 +4,7 @@ import { memo } from "react";
 import { formatTime, TimeStats, formatTimestamp } from "../_utils/planGroupUtils";
 import { usePlanTimer } from "@/lib/hooks/usePlanTimer";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
+import type { AchievedMilestone } from "@/lib/domains/today/types/milestone";
 import { TimerDisplay } from "./timer/TimerDisplay";
 import { TimerControls } from "./timer/TimerControls";
 import { cn } from "@/lib/cn";
@@ -33,6 +34,12 @@ type PlanTimerProps = {
   serverNow: number;
   /** 가상 플랜 여부 (true이면 시작 버튼 비활성화) */
   isVirtual?: boolean;
+  /** 마일스톤 체크를 위한 학생 ID */
+  studentId?: string;
+  /** 마일스톤 달성 시 콜백 */
+  onMilestoneAchieved?: (milestones: AchievedMilestone[]) => void;
+  /** 마일스톤 체크 활성화 여부 (기본: true) */
+  enableMilestoneCheck?: boolean;
 };
 
 function PlanTimerComponent({
@@ -52,8 +59,11 @@ function PlanTimerComponent({
   startedAt,
   serverNow,
   isVirtual = false,
+  studentId,
+  onMilestoneAchieved,
+  enableMilestoneCheck = true,
 }: PlanTimerProps) {
-  // 새로운 스토어 기반 타이머 훅 사용
+  // 새로운 스토어 기반 타이머 훅 사용 (마일스톤 지원 포함)
   const { seconds, status: timerStatus } = usePlanTimer({
     planId,
     status,
@@ -61,6 +71,10 @@ function PlanTimerComponent({
     startedAt,
     serverNow,
     isCompleted: timeStats.isCompleted,
+    // 마일스톤 체크 옵션
+    studentId,
+    onMilestoneAchieved,
+    enableMilestoneCheck: enableMilestoneCheck && !!studentId,
   });
 
   const formattedStartTime = timeStats.firstStartTime
@@ -210,6 +224,10 @@ export const PlanTimer = memo(PlanTimerComponent, (prevProps, nextProps) => {
     prevProps.timeStats.isCompleted === nextProps.timeStats.isCompleted &&
     prevProps.timeStats.pauseCount === nextProps.timeStats.pauseCount &&
     prevProps.timeStats.pausedDuration === nextProps.timeStats.pausedDuration &&
+    // 마일스톤 관련 props
+    prevProps.studentId === nextProps.studentId &&
+    prevProps.enableMilestoneCheck === nextProps.enableMilestoneCheck &&
+    prevProps.onMilestoneAchieved === nextProps.onMilestoneAchieved &&
     // 함수 props는 참조 동일성으로 비교 (부모에서 useCallback 사용 필요)
     prevProps.onStart === nextProps.onStart &&
     prevProps.onPause === nextProps.onPause &&

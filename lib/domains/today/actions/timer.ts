@@ -39,6 +39,11 @@ import {
   completeAdHocPlan,
   cancelAdHocPlan,
 } from "./adHocTimer";
+import {
+  getNextPlanSuggestion,
+  getDailyProgress,
+  getCompletedPlanInfo,
+} from "../services/nextPlanService";
 
 /**
  * 서버 현재 시간 조회
@@ -492,12 +497,52 @@ export async function completePlan(
     // 현재 경로만 재검증 (성능 최적화)
     // 완료 시에는 대시보드도 업데이트 필요
     await revalidateTimerPaths(false, true);
+
+    // 다음 플랜 추천 및 일일 진행률 계산 (비동기 처리, 실패해도 플랜 완료에 영향 없음)
+    let nextPlanSuggestion;
+    let dailyProgress;
+    try {
+      // 완료된 플랜 정보 조회
+      const completedPlanInfo = await getCompletedPlanInfo(planId, user.userId);
+
+      // 다음 플랜 추천 계산
+      nextPlanSuggestion = await getNextPlanSuggestion({
+        studentId: user.userId,
+        completedPlanId: planId,
+        studyDurationMinutes,
+        completedPlanSubject: completedPlanInfo.subject || undefined,
+        completedPlanContentType: completedPlanInfo.contentType || undefined,
+      });
+
+      // 일일 진행률 조회
+      dailyProgress = await getDailyProgress(user.userId);
+
+      timerLogger.info("다음 플랜 추천 계산 완료", {
+        action: "completePlan",
+        id: planId,
+        data: {
+          suggestionType: nextPlanSuggestion.type,
+          completedCount: dailyProgress.completedCount,
+          totalCount: dailyProgress.totalCount,
+        },
+      });
+    } catch (suggestionError) {
+      // 추천 계산 오류는 플랜 완료에 영향을 주지 않음
+      timerLogger.warn("다음 플랜 추천 계산 실패", {
+        action: "completePlan",
+        id: planId,
+        error: suggestionError instanceof Error ? suggestionError : new Error(String(suggestionError)),
+      });
+    }
+
     return {
       success: true,
       serverNow,
       status: "COMPLETED" as const,
       accumulatedSeconds: finalDuration,
       startedAt: null,
+      nextPlanSuggestion,
+      dailyProgress,
     };
   } catch (error) {
     timerLogger.error("플랜 완료 실패", {

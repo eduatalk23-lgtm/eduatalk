@@ -17,11 +17,30 @@ import { TimerControls } from "@/app/(student)/today/_components/timer/TimerCont
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { CompletionFlow } from "@/app/(student)/today/_components/CompletionFlow";
 import type { PendingAction } from "@/lib/domains/today/types";
+import type { NextPlanSuggestion, DailyProgress } from "@/lib/domains/today/services/nextPlanService";
 
 type AdHocPlanExecutionFormProps = {
   plan: AdHocPlan;
 };
+
+/**
+ * 학습 시간 포맷팅 (초 → 분/시간)
+ */
+function formatStudyDuration(seconds?: number): string | undefined {
+  if (!seconds) return undefined;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}분`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) {
+    return `${hours}시간`;
+  }
+  return `${hours}시간 ${remainingMinutes}분`;
+}
 
 /**
  * ad_hoc_plans 상태를 TimerStatus로 변환
@@ -48,6 +67,14 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
   const [memo, setMemo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // CompletionFlow 관련 상태
+  const [showCompletionFlow, setShowCompletionFlow] = useState(false);
+  const [completionResult, setCompletionResult] = useState<{
+    nextPlanSuggestion?: NextPlanSuggestion;
+    dailyProgress?: DailyProgress;
+    studyDurationSeconds?: number;
+  } | null>(null);
 
   // 타이머 경과 시간 (초)
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -189,6 +216,19 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
         queryClient.invalidateQueries({ queryKey: ["todayContainerPlans"] });
         queryClient.invalidateQueries({ queryKey: ["todayPlans"] });
 
+        // 다음 플랜 제안이 있으면 CompletionFlow 표시
+        if (result.nextPlanSuggestion || result.dailyProgress) {
+          setCompletionResult({
+            nextPlanSuggestion: result.nextPlanSuggestion,
+            dailyProgress: result.dailyProgress,
+            studyDurationSeconds: result.accumulatedSeconds,
+          });
+          setShowCompletionFlow(true);
+          setIsCompleting(false);
+          return;
+        }
+
+        // 추천 정보가 없으면 바로 이동
         showToast("학습을 완료했습니다!", "success");
         router.push("/today");
       } else {
@@ -206,6 +246,20 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
       setPendingAction(undefined);
     }
   }, [plan.id, timerStore, queryClient, showToast, showError, router]);
+
+  // CompletionFlow 닫기 핸들러
+  const handleCloseCompletionFlow = useCallback(() => {
+    setShowCompletionFlow(false);
+    setCompletionResult(null);
+    router.push("/today");
+  }, [router]);
+
+  // 다음 플랜 시작 핸들러
+  const handleStartNextPlan = useCallback((nextPlanId: string) => {
+    setShowCompletionFlow(false);
+    setCompletionResult(null);
+    router.push(`/today/plan/${nextPlanId}`);
+  }, [router]);
 
   // 타이머 취소
   const handleCancel = useCallback(async () => {
@@ -329,6 +383,17 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
           onConfirm={handleCancel}
           variant="destructive"
         />
+
+        {/* CompletionFlow - 완료 후 다음 플랜 제안 */}
+        <CompletionFlow
+          show={showCompletionFlow}
+          planTitle={plan.title || "학습"}
+          studyDuration={formatStudyDuration(completionResult?.studyDurationSeconds)}
+          nextSuggestion={completionResult?.nextPlanSuggestion}
+          dailyProgress={completionResult?.dailyProgress}
+          onClose={handleCloseCompletionFlow}
+          onStartNextPlan={handleStartNextPlan}
+        />
       </div>
     );
   }
@@ -362,6 +427,17 @@ export function AdHocPlanExecutionForm({ plan }: AdHocPlanExecutionFormProps) {
         onPause={handlePause}
         onResume={handleResume}
         onComplete={handleComplete}
+      />
+
+      {/* CompletionFlow - 완료 후 다음 플랜 제안 */}
+      <CompletionFlow
+        show={showCompletionFlow}
+        planTitle={plan.title || "학습"}
+        studyDuration={formatStudyDuration(completionResult?.studyDurationSeconds)}
+        nextSuggestion={completionResult?.nextPlanSuggestion}
+        dailyProgress={completionResult?.dailyProgress}
+        onClose={handleCloseCompletionFlow}
+        onStartNextPlan={handleStartNextPlan}
       />
     </div>
   );

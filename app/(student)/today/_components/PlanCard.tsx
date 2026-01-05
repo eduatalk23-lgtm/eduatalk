@@ -7,8 +7,10 @@ import { getActivePlan, getTimeStats } from "../_utils/planGroupUtils";
 import { PlanTimer } from "./PlanTimer";
 import { PlanProgressBadge, PlanPriorityIndicator } from "./PlanProgressBadge";
 import { InlineContentLinkModal } from "./InlineContentLinkModal";
+import { useMilestoneContext } from "./MilestoneContext";
 import { Clock, Check, LinkIcon } from "lucide-react";
 import { usePlanCardActions } from "@/lib/hooks/usePlanCardActions";
+import type { AchievedMilestone } from "@/lib/domains/today/types/milestone";
 import {
   bgSurface,
   borderDefault,
@@ -34,8 +36,10 @@ type PlanCardProps = {
   onViewDetail?: (planId: string) => void;
   serverNow?: number;
   campMode?: boolean;
-  /** 학생 ID - 인라인 콘텐츠 연결 모달에 필요 */
+  /** 학생 ID - 인라인 콘텐츠 연결 모달 및 마일스톤 체크에 필요 */
   studentId?: string;
+  /** 마일스톤 달성 시 콜백 */
+  onMilestoneAchieved?: (milestones: AchievedMilestone[]) => void;
 };
 
 function PlanCardComponent({
@@ -47,8 +51,13 @@ function PlanCardComponent({
   serverNow = Date.now(),
   campMode = false,
   studentId,
+  onMilestoneAchieved: onMilestoneAchievedProp,
 }: PlanCardProps) {
   const router = useRouter();
+
+  // 마일스톤 컨텍스트에서 콜백 가져오기 (prop이 없을 때 fallback)
+  const milestoneContext = useMilestoneContext();
+  const onMilestoneAchieved = onMilestoneAchievedProp ?? milestoneContext?.onMilestoneAchieved;
 
   // 인라인 콘텐츠 연결 모달 상태
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
@@ -281,6 +290,8 @@ function PlanCardComponent({
             accumulatedSeconds={timerState.accumulatedSeconds}
             startedAt={timerState.startedAt}
             serverNow={serverNow}
+            studentId={studentId}
+            onMilestoneAchieved={onMilestoneAchieved}
           />
         )}
       </div>
@@ -452,6 +463,8 @@ function PlanCardComponent({
             accumulatedSeconds={timerState.accumulatedSeconds}
             startedAt={timerState.startedAt}
             serverNow={serverNow}
+            studentId={studentId}
+            onMilestoneAchieved={onMilestoneAchieved}
           />
         )}
       </div>
@@ -498,6 +511,7 @@ export const PlanCard = memo(PlanCardComponent, (prevProps, nextProps) => {
     prevProps.campMode === nextProps.campMode &&
     prevProps.serverNow === nextProps.serverNow &&
     prevProps.studentId === nextProps.studentId &&
+    prevProps.onMilestoneAchieved === nextProps.onMilestoneAchieved &&
     sessionsEqual
   );
 });

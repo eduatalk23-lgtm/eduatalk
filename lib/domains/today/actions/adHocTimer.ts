@@ -27,6 +27,10 @@ import type {
   ResumePlanResult,
   CompletePlanResult,
 } from "../types";
+import {
+  getNextPlanSuggestion,
+  getDailyProgress,
+} from "../services/nextPlanService";
 
 /**
  * Ad-hoc 플랜 타이머 시작
@@ -218,12 +222,37 @@ export async function completeAdHocPlan(
     // 누적 시간 계산 (초 단위)
     const accumulatedSeconds = (calculatedMinutes ?? 0) * 60;
 
+    // 다음 플랜 추천 및 일일 진행률 계산 (비동기 처리, 실패해도 완료에 영향 없음)
+    let nextPlanSuggestion;
+    let dailyProgress;
+    try {
+      const studyDurationMinutes = calculatedMinutes ?? 0;
+
+      // 다음 플랜 추천 계산
+      nextPlanSuggestion = await getNextPlanSuggestion({
+        studentId: user.userId,
+        completedPlanId: adHocPlanId,
+        studyDurationMinutes,
+        // Ad-hoc 플랜은 과목/콘텐츠 타입 정보가 없으므로 undefined
+        completedPlanSubject: undefined,
+        completedPlanContentType: undefined,
+      });
+
+      // 일일 진행률 조회
+      dailyProgress = await getDailyProgress(user.userId);
+    } catch (suggestionError) {
+      // 추천 계산 오류는 플랜 완료에 영향을 주지 않음
+      console.warn("[completeAdHocPlan] 다음 플랜 추천 계산 실패:", suggestionError);
+    }
+
     return {
       success: true,
       serverNow: Date.now(),
       status: "COMPLETED",
       accumulatedSeconds,
       startedAt: adHocPlan.started_at,
+      nextPlanSuggestion,
+      dailyProgress,
     };
   } catch (error) {
     logActionError({ domain: "today", action: "completeAdHocPlan" }, error, { adHocPlanId });

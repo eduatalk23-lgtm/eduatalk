@@ -14,16 +14,21 @@
  * 3. 서버-클라이언트 시간 차이가 큰 경우 동기화
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import type { TimerStatus } from "@/lib/store/planTimerStore";
 import { getServerTime, syncTimerProgress } from "@/lib/domains/today";
+import type { AchievedMilestone } from "@/lib/domains/today/types/milestone";
 
 // 주기적 동기화 간격 (5분)
 const PERIODIC_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 // 시간 차이 임계값 (2초 이상이면 동기화)
 const SYNC_THRESHOLD_SECONDS = 2;
+// 마일스톤 체크 간격 (1분)
+const MILESTONE_CHECK_INTERVAL_MS = 60 * 1000;
+// 마일스톤 체크 최소 학습 시간 (25분 - 첫 마일스톤 전에 시작)
+const MIN_SECONDS_FOR_MILESTONE_CHECK = 25 * 60;
 
 export type UsePlanTimerOptions = {
   /** 플랜 ID */
@@ -38,6 +43,12 @@ export type UsePlanTimerOptions = {
   serverNow: number;
   /** 타이머가 완료되었는지 여부 */
   isCompleted?: boolean;
+  /** 학생 ID (마일스톤 체크용) */
+  studentId?: string;
+  /** 마일스톤 달성 시 콜백 */
+  onMilestoneAchieved?: (milestones: AchievedMilestone[]) => void;
+  /** 마일스톤 체크 활성화 여부 (기본값: true) */
+  enableMilestoneCheck?: boolean;
 };
 
 /** 동기화 상태 */
@@ -71,6 +82,9 @@ export function usePlanTimer({
   startedAt,
   serverNow,
   isCompleted = false,
+  studentId,
+  onMilestoneAchieved,
+  enableMilestoneCheck = true,
 }: UsePlanTimerOptions): UsePlanTimerReturn {
   // Selector 패턴: 특정 planId의 타이머만 구독하여 불필요한 리렌더링 방지
   // Map 구조이므로 특정 키의 값만 추출하여 구독
@@ -108,6 +122,11 @@ export function usePlanTimer({
   // 주기적 동기화를 위한 ref
   const periodicSyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastPeriodicSyncRef = useRef<number>(Date.now());
+
+  // 마일스톤 체크를 위한 ref
+  const milestoneCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMilestoneCheckRef = useRef<number>(0);
+  const lastCheckedSecondsRef = useRef<number>(0);
 
   // 참조 카운팅: 컴포넌트 마운트 시 참조 증가
   useEffect(() => {
@@ -236,6 +255,88 @@ export function usePlanTimer({
       }
     };
   }, [planId, timer?.status, timer?.isRunning, syncNow]);
+
+  // 마일스톤 체크: RUNNING 상태에서 1분마다 마일스톤 달성 체크
+  useEffect(() => {
+    // 마일스톤 체크가 비활성화되어 있거나 studentId가 없으면 스킵
+    if (!enableMilestoneCheck || !studentId || !onMilestoneAchieved) {
+      if (milestoneCheckIntervalRef.current) {
+        clearInterval(milestoneCheckIntervalRef.current);
+        milestoneCheckIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // 현재 타이머가 RUNNING 상태인지 확인
+    const currentTimer = usePlanTimerStore.getState().timers.get(planId);
+    const isRunning = currentTimer?.status === "RUNNING" && currentTimer?.isRunning;
+
+    // RUNNING 상태가 아니면 interval 정리
+    if (!isRunning) {
+      if (milestoneCheckIntervalRef.current) {
+        clearInterval(milestoneCheckIntervalRef.current);
+        milestoneCheckIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // 이미 interval이 있으면 중복 생성 방지
+    if (milestoneCheckIntervalRef.current) {
+      return;
+    }
+
+    // 마일스톤 체크 설정
+    milestoneCheckIntervalRef.current = setInterval(async () => {
+      const timer = usePlanTimerStore.getState().timers.get(planId);
+      if (!timer || timer.status !== "RUNNING" || !timer.isRunning) {
+        // 더 이상 RUNNING 상태가 아니면 interval 정리
+        if (milestoneCheckIntervalRef.current) {
+          clearInterval(milestoneCheckIntervalRef.current);
+          milestoneCheckIntervalRef.current = null;
+        }
+        return;
+      }
+
+      const currentSeconds = timer.seconds;
+
+      // 최소 학습 시간 미달 시 스킵
+      if (currentSeconds < MIN_SECONDS_FOR_MILESTONE_CHECK) {
+        return;
+      }
+
+      // 마지막 체크 이후 최소 30초 이상 학습했는지 확인
+      const secondsSinceLastCheck = currentSeconds - lastCheckedSecondsRef.current;
+      if (secondsSinceLastCheck < 30) {
+        return;
+      }
+
+      try {
+        // 동적 import로 서버 액션 로드
+        const { checkMilestones } = await import(
+          "@/lib/domains/today/services/learningFeedbackService"
+        );
+
+        const result = await checkMilestones(studentId, currentSeconds, planId);
+
+        if (result.achieved.length > 0) {
+          onMilestoneAchieved(result.achieved);
+        }
+
+        lastMilestoneCheckRef.current = Date.now();
+        lastCheckedSecondsRef.current = currentSeconds;
+      } catch (error) {
+        console.warn("[usePlanTimer] 마일스톤 체크 실패:", error);
+      }
+    }, MILESTONE_CHECK_INTERVAL_MS);
+
+    // Cleanup
+    return () => {
+      if (milestoneCheckIntervalRef.current) {
+        clearInterval(milestoneCheckIntervalRef.current);
+        milestoneCheckIntervalRef.current = null;
+      }
+    };
+  }, [planId, timer?.status, timer?.isRunning, studentId, enableMilestoneCheck, onMilestoneAchieved]);
 
   // 초기화 또는 상태 동기화
   useEffect(() => {

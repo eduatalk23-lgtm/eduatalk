@@ -54,6 +54,12 @@ export type StartPlanResult = {
   accumulatedSeconds?: number;
 };
 
+// Import types for next plan suggestion
+import type {
+  NextPlanSuggestion,
+  DailyProgress,
+} from "./services/nextPlanService";
+
 export type CompletePlanResult = {
   success: boolean;
   error?: string;
@@ -61,6 +67,10 @@ export type CompletePlanResult = {
   status?: "COMPLETED";
   accumulatedSeconds?: number;
   startedAt?: string | null;
+  /** 다음 플랜 추천 정보 */
+  nextPlanSuggestion?: NextPlanSuggestion;
+  /** 일일 진행률 정보 */
+  dailyProgress?: DailyProgress;
 };
 
 export type PausePlanResult = {
