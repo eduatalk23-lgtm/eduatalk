@@ -10,6 +10,7 @@ import {
   applyPlanTemplate,
   deletePlanTemplate,
   type PlanTemplate,
+  type PlanTemplateItem,
 } from '@/lib/domains/admin-plan/actions/planTemplates';
 
 interface PlanTemplateModalProps {
@@ -44,6 +45,11 @@ export function PlanTemplateModal({
   // 적용할 템플릿
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [applyDate, setApplyDate] = useState(targetDate || new Date().toISOString().split('T')[0]);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // 선택된 템플릿 정보
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+  const templateItems = (selectedTemplate?.items ?? []) as PlanTemplateItem[];
 
   // 다중 학생 적용 관련 상태
   const [applyToOtherStudents, setApplyToOtherStudents] = useState(false);
@@ -294,6 +300,80 @@ export function PlanTemplateModal({
                   </div>
                 )}
               </div>
+
+              {/* 템플릿 상세 미리보기 */}
+              {selectedTemplateId && templateItems.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(!showPreview)}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 text-left"
+                  >
+                    <span className="text-sm font-medium text-gray-700">
+                      📋 플랜 상세 ({templateItems.length}개)
+                    </span>
+                    <span className="text-gray-400 text-sm">
+                      {showPreview ? '접기 ▲' : '펼치기 ▼'}
+                    </span>
+                  </button>
+                  {showPreview && (
+                    <div className="divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                      {templateItems.map((item, idx) => (
+                        <div key={idx} className="p-3 text-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">
+                                {item.custom_title || item.content_title || '제목 없음'}
+                              </div>
+                              {item.content_subject && (
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {item.content_subject}
+                                </div>
+                              )}
+                            </div>
+                            <div className="shrink-0 text-right text-xs text-gray-500">
+                              {item.planned_start_page_or_time != null && item.planned_end_page_or_time != null && (
+                                <div>
+                                  p.{item.planned_start_page_or_time}-{item.planned_end_page_or_time}
+                                </div>
+                              )}
+                              {item.estimated_minutes != null && (
+                                <div>{item.estimated_minutes}분</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {/* 요약 정보 */}
+                      <div className="p-3 bg-gray-50 text-xs text-gray-600">
+                        <div className="flex justify-between">
+                          <span>총 플랜 수</span>
+                          <span className="font-medium">{templateItems.length}개</span>
+                        </div>
+                        {(() => {
+                          const totalMinutes = templateItems.reduce(
+                            (sum, item) => sum + (item.estimated_minutes ?? 0),
+                            0
+                          );
+                          if (totalMinutes > 0) {
+                            const hours = Math.floor(totalMinutes / 60);
+                            const mins = totalMinutes % 60;
+                            return (
+                              <div className="flex justify-between mt-1">
+                                <span>총 예상 시간</span>
+                                <span className="font-medium">
+                                  {hours > 0 ? `${hours}시간 ` : ''}{mins > 0 ? `${mins}분` : ''}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 다른 학생에게 적용 옵션 */}
               <div className="pt-3 border-t">
