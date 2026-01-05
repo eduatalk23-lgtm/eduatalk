@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import {
   getPlanTemplates,
   createPlanTemplate,
@@ -44,6 +45,12 @@ export function PlanTemplateModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [applyDate, setApplyDate] = useState(targetDate || new Date().toISOString().split('T')[0]);
 
+  // 다중 학생 적용 관련 상태
+  const [applyToOtherStudents, setApplyToOtherStudents] = useState(false);
+  const [availableStudents, setAvailableStudents] = useState<{ id: string; name: string }[]>([]);
+  const [selectedTargetStudents, setSelectedTargetStudents] = useState<string[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+
   // 템플릿 목록 로드
   useEffect(() => {
     async function loadTemplates() {
@@ -55,6 +62,34 @@ export function PlanTemplateModal({
     }
     loadTemplates();
   }, []);
+
+  // 다른 학생에게 적용 선택 시 학생 목록 로드
+  useEffect(() => {
+    if (mode === 'apply' && applyToOtherStudents && availableStudents.length === 0 && !isLoadingStudents) {
+      setIsLoadingStudents(true);
+      const supabase = createSupabaseBrowserClient();
+      supabase
+        .from('students')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name')
+        .then(({ data }) => {
+          if (data) {
+            // 현재 학생 제외
+            setAvailableStudents(data.filter((s) => s.id !== studentId));
+          }
+          setIsLoadingStudents(false);
+        });
+    }
+  }, [mode, applyToOtherStudents, studentId, availableStudents.length, isLoadingStudents]);
+
+  const handleToggleTargetStudent = (targetStudentId: string) => {
+    setSelectedTargetStudents((prev) =>
+      prev.includes(targetStudentId)
+        ? prev.filter((id) => id !== targetStudentId)
+        : [...prev, targetStudentId]
+    );
+  };
 
   const handleCreateTemplate = () => {
     if (!templateName.trim()) {
@@ -89,16 +124,28 @@ export function PlanTemplateModal({
       return;
     }
 
+    // 다른 학생에게 적용 시 대상 학생 필수
+    if (applyToOtherStudents && selectedTargetStudents.length === 0) {
+      showError('적용할 학생을 선택해주세요.');
+      return;
+    }
+
     startTransition(async () => {
       const result = await applyPlanTemplate(
         selectedTemplateId,
         studentId,
         applyDate,
-        planGroupId
+        planGroupId,
+        applyToOtherStudents ? selectedTargetStudents : undefined
       );
 
       if (result.success) {
-        showSuccess(`${result.data?.createdCount}개 플랜이 생성되었습니다.`);
+        const { createdCount, appliedStudents } = result.data!;
+        if (appliedStudents > 1) {
+          showSuccess(`${appliedStudents}명 학생에게 총 ${createdCount}개 플랜이 생성되었습니다.`);
+        } else {
+          showSuccess(`${createdCount}개 플랜이 생성되었습니다.`);
+        }
         onSuccess();
       } else {
         showError(result.error ?? '템플릿 적용에 실패했습니다.');
@@ -247,6 +294,81 @@ export function PlanTemplateModal({
                   </div>
                 )}
               </div>
+
+              {/* 다른 학생에게 적용 옵션 */}
+              <div className="pt-3 border-t">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToOtherStudents}
+                    onChange={(e) => {
+                      setApplyToOtherStudents(e.target.checked);
+                      if (!e.target.checked) {
+                        setSelectedTargetStudents([]);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm font-medium">다른 학생에게도 적용</span>
+                </label>
+
+                {applyToOtherStudents && (
+                  <div className="mt-3 space-y-2">
+                    {isLoadingStudents ? (
+                      <div className="text-sm text-gray-500 py-2">학생 목록 로딩 중...</div>
+                    ) : availableStudents.length === 0 ? (
+                      <div className="text-sm text-gray-500 py-2">적용 가능한 다른 학생이 없습니다.</div>
+                    ) : (
+                      <>
+                        <div className="max-h-32 overflow-y-auto space-y-1 border rounded-md p-2">
+                          {availableStudents.map((student) => (
+                            <label
+                              key={student.id}
+                              className={cn(
+                                'flex items-center gap-2 p-1.5 rounded cursor-pointer text-sm hover:bg-purple-50',
+                                selectedTargetStudents.includes(student.id) && 'bg-purple-100'
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTargetStudents.includes(student.id)}
+                                onChange={() => handleToggleTargetStudent(student.id)}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-purple-600"
+                              />
+                              <span>{student.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {selectedTargetStudents.length > 0 && (
+                          <div className="text-xs text-purple-600">
+                            {selectedTargetStudents.length}명 학생 선택됨
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 적용 미리보기 */}
+              {selectedTemplateId && (
+                <div className="p-3 bg-purple-50 rounded-lg text-sm text-purple-800">
+                  {(() => {
+                    const template = templates.find((t) => t.id === selectedTemplateId);
+                    const planCount = (template?.items as unknown[])?.length ?? 0;
+                    const studentCount = applyToOtherStudents && selectedTargetStudents.length > 0
+                      ? selectedTargetStudents.length
+                      : 1;
+                    return (
+                      <>
+                        <strong>{planCount}</strong>개 플랜
+                        {studentCount > 1 && <> × <strong>{studentCount}</strong>명 학생</>}
+                        {' '}= <strong>{planCount * studentCount}</strong>개 플랜 생성 예정
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
@@ -336,10 +458,16 @@ export function PlanTemplateModal({
             {mode === 'apply' && (
               <button
                 onClick={handleApplyTemplate}
-                disabled={!selectedTemplateId || isPending}
+                disabled={
+                  !selectedTemplateId ||
+                  isPending ||
+                  (applyToOtherStudents && selectedTargetStudents.length === 0)
+                }
                 className="px-4 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50"
               >
-                {isPending ? '적용 중...' : '템플릿 적용'}
+                {isPending ? '적용 중...' : applyToOtherStudents && selectedTargetStudents.length > 0
+                  ? `${selectedTargetStudents.length}명에게 적용`
+                  : '템플릿 적용'}
               </button>
             )}
           </div>

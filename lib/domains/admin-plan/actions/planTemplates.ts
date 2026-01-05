@@ -175,13 +175,19 @@ export async function createPlanTemplate(
 
 /**
  * 템플릿을 학생에게 적용 (관리자용)
+ * @param templateId 적용할 템플릿 ID
+ * @param studentId 기본 대상 학생 ID
+ * @param targetDate 적용할 날짜
+ * @param planGroupId 플랜 그룹 ID (선택)
+ * @param targetStudentIds 다중 학생 적용 시 대상 학생 ID 목록 (미지정시 studentId만 적용)
  */
 export async function applyPlanTemplate(
   templateId: string,
   studentId: string,
   targetDate: string,
-  planGroupId?: string
-): Promise<AdminPlanResponse<{ createdCount: number }>> {
+  planGroupId?: string,
+  targetStudentIds?: string[]
+): Promise<AdminPlanResponse<{ createdCount: number; appliedStudents: number }>> {
   try {
     const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
@@ -203,48 +209,67 @@ export async function applyPlanTemplate(
       return { success: false, error: '템플릿에 플랜 항목이 없습니다.' };
     }
 
-    // 2. 플랜 생성
-    const now = new Date().toISOString();
-    const newPlans = items.map((item) => ({
-      student_id: studentId,
-      content_master_id: item.content_master_id,
-      content_detail_id: item.content_detail_id,
-      content_title: item.content_title,
-      content_subject: item.content_subject,
-      custom_title: item.custom_title,
-      planned_start_page_or_time: item.planned_start_page_or_time,
-      planned_end_page_or_time: item.planned_end_page_or_time,
-      estimated_minutes: item.estimated_minutes,
-      plan_date: targetDate,
-      container_type: item.container_type,
-      plan_group_id: planGroupId || null,
-      status: 'pending',
-      is_completed: false,
-      is_active: true,
-      sequence: item.sequence,
-      created_at: now,
-      updated_at: now,
-    }));
+    // 대상 학생 목록 (미지정시 기본 학생만)
+    const students = targetStudentIds?.length ? targetStudentIds : [studentId];
 
-    const { error: insertError } = await supabase.from('student_plan').insert(newPlans);
+    // 2. 각 학생에 대해 플랜 생성
+    const now = new Date().toISOString();
+    const allNewPlans: Array<Record<string, unknown>> = [];
+
+    for (const targetStudentId of students) {
+      // 다른 학생에게 적용 시 planGroupId는 null (그룹은 학생별이므로)
+      const groupId = targetStudentId === studentId ? (planGroupId || null) : null;
+
+      const studentPlans = items.map((item) => ({
+        student_id: targetStudentId,
+        content_master_id: item.content_master_id,
+        content_detail_id: item.content_detail_id,
+        content_title: item.content_title,
+        content_subject: item.content_subject,
+        custom_title: item.custom_title,
+        planned_start_page_or_time: item.planned_start_page_or_time,
+        planned_end_page_or_time: item.planned_end_page_or_time,
+        estimated_minutes: item.estimated_minutes,
+        plan_date: targetDate,
+        container_type: item.container_type,
+        plan_group_id: groupId,
+        status: 'pending',
+        is_completed: false,
+        is_active: true,
+        sequence: item.sequence,
+        created_at: now,
+        updated_at: now,
+      }));
+
+      allNewPlans.push(...studentPlans);
+    }
+
+    const { error: insertError } = await supabase.from('student_plan').insert(allNewPlans);
 
     if (insertError) {
       return { success: false, error: insertError.message };
     }
 
-    revalidatePath(`/admin/students/${studentId}/plans`);
+    // 각 학생의 경로 재검증
+    for (const targetStudentId of students) {
+      revalidatePath(`/admin/students/${targetStudentId}/plans`);
+    }
     revalidatePath('/today');
     revalidatePath('/plan');
 
     return {
       success: true,
-      data: { createdCount: items.length },
+      data: {
+        createdCount: allNewPlans.length,
+        appliedStudents: students.length,
+      },
     };
   } catch (error) {
     logActionError({ domain: 'admin-plan', action: 'applyPlanTemplate' }, error, {
       templateId,
       studentId,
       targetDate,
+      targetStudentIds,
     });
     return {
       success: false,
