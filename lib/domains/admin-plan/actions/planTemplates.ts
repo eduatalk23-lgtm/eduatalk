@@ -357,3 +357,65 @@ export async function deletePlanTemplate(
     };
   }
 }
+
+/**
+ * 템플릿 복제 (관리자용)
+ * @param templateId 복제할 원본 템플릿 ID
+ * @param newName 새 템플릿 이름 (미지정시 "원본이름 (복사본)")
+ */
+export async function duplicatePlanTemplate(
+  templateId: string,
+  newName?: string
+): Promise<AdminPlanResponse<{ templateId: string }>> {
+  try {
+    const { tenantId, userId } = await requireAdminOrConsultant({ requireTenant: true });
+    const supabase = await createSupabaseServerClient();
+
+    // 1. 원본 템플릿 조회
+    const { data: original, error: fetchError } = await supabase
+      .from('plan_templates')
+      .select('*')
+      .eq('id', templateId)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (fetchError || !original) {
+      return { success: false, error: '원본 템플릿을 찾을 수 없습니다.' };
+    }
+
+    // 2. 복제본 생성
+    const now = new Date().toISOString();
+    const duplicatedName = newName?.trim() || `${original.name} (복사본)`;
+
+    const { data: newTemplate, error: insertError } = await supabase
+      .from('plan_templates')
+      .insert({
+        name: duplicatedName,
+        description: original.description,
+        tenant_id: tenantId,
+        created_by: userId,
+        items: original.items,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      return { success: false, error: insertError.message };
+    }
+
+    revalidatePath('/admin/students');
+
+    return {
+      success: true,
+      data: { templateId: newTemplate.id },
+    };
+  } catch (error) {
+    logActionError({ domain: 'admin-plan', action: 'duplicatePlanTemplate' }, error, { templateId });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '템플릿 복제 중 오류가 발생했습니다.',
+    };
+  }
+}

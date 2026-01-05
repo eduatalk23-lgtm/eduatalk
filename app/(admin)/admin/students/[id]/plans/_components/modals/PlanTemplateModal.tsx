@@ -10,6 +10,7 @@ import {
   applyPlanTemplate,
   deletePlanTemplate,
   updatePlanTemplate,
+  duplicatePlanTemplate,
   type PlanTemplate,
   type PlanTemplateItem,
 } from '@/lib/domains/admin-plan/actions/planTemplates';
@@ -212,6 +213,22 @@ export function PlanTemplateModal({
         setTemplateDesc('');
       } else {
         showError(result.error ?? '템플릿 수정에 실패했습니다.');
+      }
+    });
+  };
+
+  const handleDuplicateTemplate = (template: PlanTemplate) => {
+    startTransition(async () => {
+      const result = await duplicatePlanTemplate(template.id);
+      if (result.success && result.data) {
+        showSuccess('템플릿이 복제되었습니다.');
+        // 템플릿 목록 새로고침
+        const refreshResult = await getPlanTemplates();
+        if (refreshResult.success && refreshResult.data) {
+          setTemplates(refreshResult.data);
+        }
+      } else {
+        showError(result.error ?? '템플릿 복제에 실패했습니다.');
       }
     });
   };
@@ -582,6 +599,12 @@ export function PlanTemplateModal({
                           </div>
                         </div>
                         <div className="flex gap-1">
+                          <button
+                            onClick={() => handleDuplicateTemplate(template)}
+                            className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            복제
+                          </button>
                           <button
                             onClick={() => handleEditTemplate(template)}
                             className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
