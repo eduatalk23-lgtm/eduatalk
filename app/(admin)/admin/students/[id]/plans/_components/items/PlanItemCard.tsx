@@ -174,6 +174,7 @@ export function PlanItemCard({
         title={plan.title}
         subject={plan.subject}
         range={rangeDisplay}
+        planDate={plan.planDate}
         disabled={isCompleted || isPending}
       >
         <div
@@ -289,6 +290,7 @@ export function PlanItemCard({
       title={plan.title}
       subject={plan.subject}
       range={rangeDisplay}
+      planDate={plan.planDate}
       disabled={isCompleted || isPending}
     >
       <div

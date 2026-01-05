@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
+import { DroppableDateCell } from './dnd';
 
 interface WeeklyCalendarProps {
   studentId: string;
@@ -121,62 +122,67 @@ export function WeeklyCalendar({
           const statusIcon = getStatusIcon(day);
 
           return (
-            <button
+            <DroppableDateCell
               key={day.date}
-              onClick={() => onDateSelect(day.date)}
-              className={cn(
-                'flex flex-col items-center p-2 rounded-lg border transition-all',
-                isSelected
-                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-                day.isToday && !isSelected && 'border-blue-300 bg-blue-50/50'
-              )}
+              date={day.date}
+              className="rounded-lg"
             >
-              {/* 요일 */}
-              <span
+              <button
+                onClick={() => onDateSelect(day.date)}
                 className={cn(
-                  'text-xs font-medium',
-                  index === 6 ? 'text-red-500' : index === 5 ? 'text-blue-500' : 'text-gray-600'
+                  'w-full flex flex-col items-center p-2 rounded-lg border transition-all',
+                  isSelected
+                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
+                  day.isToday && !isSelected && 'border-blue-300 bg-blue-50/50'
                 )}
               >
-                {getDayLabel(index)}
-              </span>
+                {/* 요일 */}
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    index === 6 ? 'text-red-500' : index === 5 ? 'text-blue-500' : 'text-gray-600'
+                  )}
+                >
+                  {getDayLabel(index)}
+                </span>
 
-              {/* 날짜 */}
-              <span
-                className={cn(
-                  'text-lg font-bold mt-1',
-                  isSelected ? 'text-blue-600' : 'text-gray-900'
+                {/* 날짜 */}
+                <span
+                  className={cn(
+                    'text-lg font-bold mt-1',
+                    isSelected ? 'text-blue-600' : 'text-gray-900'
+                  )}
+                >
+                  {new Date(day.date + 'T00:00:00').getDate()}
+                </span>
+
+                {/* 상태 아이콘 또는 플랜 수 */}
+                <div className="mt-1 h-5">
+                  {day.isReviewDay ? (
+                    <span className="text-xs text-purple-600 font-medium">R</span>
+                  ) : statusIcon ? (
+                    <span
+                      className={cn(
+                        'text-sm',
+                        statusIcon === '✓' ? 'text-green-500' : 'text-amber-500'
+                      )}
+                    >
+                      {statusIcon}
+                    </span>
+                  ) : day.totalPlans > 0 ? (
+                    <span className="text-xs text-gray-500">
+                      {day.completedPlans}/{day.totalPlans}
+                    </span>
+                  ) : null}
+                </div>
+
+                {/* 오늘 표시 */}
+                {day.isToday && (
+                  <span className="text-[10px] text-blue-500 font-medium">오늘</span>
                 )}
-              >
-                {new Date(day.date + 'T00:00:00').getDate()}
-              </span>
-
-              {/* 상태 아이콘 또는 플랜 수 */}
-              <div className="mt-1 h-5">
-                {day.isReviewDay ? (
-                  <span className="text-xs text-purple-600 font-medium">R</span>
-                ) : statusIcon ? (
-                  <span
-                    className={cn(
-                      'text-sm',
-                      statusIcon === '✓' ? 'text-green-500' : 'text-amber-500'
-                    )}
-                  >
-                    {statusIcon}
-                  </span>
-                ) : day.totalPlans > 0 ? (
-                  <span className="text-xs text-gray-500">
-                    {day.completedPlans}/{day.totalPlans}
-                  </span>
-                ) : null}
-              </div>
-
-              {/* 오늘 표시 */}
-              {day.isToday && (
-                <span className="text-[10px] text-blue-500 font-medium">오늘</span>
-              )}
-            </button>
+              </button>
+            </DroppableDateCell>
           );
         })}
       </div>

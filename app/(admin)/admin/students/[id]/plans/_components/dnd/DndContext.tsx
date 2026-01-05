@@ -13,7 +13,12 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 
-export type ContainerType = 'unfinished' | 'daily' | 'weekly';
+// 기본 컨테이너 타입
+export type BaseContainerType = 'unfinished' | 'daily' | 'weekly';
+
+// 확장 컨테이너 타입 (날짜 기반 드롭 지원)
+// 예: 'daily', 'daily-2025-01-05', 'weekly'
+export type ContainerType = BaseContainerType | `daily-${string}`;
 
 export interface DragItem {
   id: string;
@@ -22,6 +27,22 @@ export interface DragItem {
   title: string;
   subject?: string;
   range?: string;
+  planDate?: string; // 원본 플랜 날짜
+}
+
+// 컨테이너 ID에서 날짜 추출 (없으면 null)
+export function extractDateFromContainerId(containerId: string): string | null {
+  if (containerId.startsWith('daily-')) {
+    return containerId.slice(6); // 'daily-' 이후 부분
+  }
+  return null;
+}
+
+// 컨테이너의 기본 타입 추출
+export function getBaseContainerType(containerId: string): BaseContainerType {
+  if (containerId === 'unfinished') return 'unfinished';
+  if (containerId === 'weekly') return 'weekly';
+  return 'daily'; // 'daily' 또는 'daily-YYYY-MM-DD'
 }
 
 interface DndContextValue {
@@ -44,7 +65,8 @@ interface PlanDndProviderProps {
     itemId: string,
     itemType: 'plan' | 'adhoc',
     fromContainer: ContainerType,
-    toContainer: ContainerType
+    toContainer: ContainerType,
+    targetDate?: string // 날짜 기반 드롭 시 대상 날짜
   ) => Promise<void>;
 }
 
@@ -83,7 +105,7 @@ export function PlanDndProvider({ children, onMoveItem }: PlanDndProviderProps) 
         return;
       }
 
-      const toContainer = over.id as ContainerType;
+      const toContainer = over.id as string;
 
       // 같은 컨테이너면 무시
       if (activeItem.containerId === toContainer) {
@@ -93,17 +115,27 @@ export function PlanDndProvider({ children, onMoveItem }: PlanDndProviderProps) 
       }
 
       // 유효한 컨테이너인지 확인
-      if (!['unfinished', 'daily', 'weekly'].includes(toContainer)) {
+      const baseType = getBaseContainerType(toContainer);
+      const isValidContainer =
+        baseType === 'unfinished' ||
+        baseType === 'daily' ||
+        baseType === 'weekly';
+
+      if (!isValidContainer) {
         setActiveItem(null);
         setOverId(null);
         return;
       }
 
+      // 날짜 기반 드롭인 경우 날짜 추출
+      const targetDate = extractDateFromContainerId(toContainer);
+
       await onMoveItem(
         activeItem.id,
         activeItem.type,
         activeItem.containerId,
-        toContainer
+        toContainer as ContainerType,
+        targetDate ?? undefined
       );
 
       setActiveItem(null);

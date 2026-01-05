@@ -1,4 +1,9 @@
-export { PlanDndProvider, usePlanDnd } from './DndContext';
-export type { ContainerType, DragItem } from './DndContext';
+export {
+  PlanDndProvider,
+  usePlanDnd,
+  extractDateFromContainerId,
+  getBaseContainerType,
+} from './DndContext';
+export type { ContainerType, BaseContainerType, DragItem } from './DndContext';
 export { DraggablePlanItem } from './DraggablePlanItem';
-export { DroppableContainer } from './DroppableContainer';
+export { DroppableContainer, DroppableDateCell } from './DroppableContainer';

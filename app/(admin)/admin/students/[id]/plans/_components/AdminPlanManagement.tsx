@@ -10,7 +10,7 @@ import { UnfinishedDock } from './UnfinishedDock';
 import { DailyDock } from './DailyDock';
 import { WeeklyDock } from './WeeklyDock';
 import { WeeklyCalendar } from './WeeklyCalendar';
-import { PlanDndProvider, type ContainerType } from './dnd';
+import { PlanDndProvider, getBaseContainerType, type ContainerType } from './dnd';
 import { PlanHistoryViewer } from './PlanHistoryViewer';
 import { DeletedPlansView } from './DeletedPlansView';
 import { CarryoverButton } from './CarryoverButton';
@@ -170,30 +170,44 @@ export function AdminPlanManagement({
   }, [router]);
 
   // DnD 이동 핸들러 (이벤트 로깅 포함)
+  // targetDate: 날짜 기반 드롭 시 캘린더에서 드롭한 날짜
   const handleMoveItem = useCallback(
     async (
       itemId: string,
       itemType: 'plan' | 'adhoc',
       fromContainer: ContainerType,
-      toContainer: ContainerType
+      toContainer: ContainerType,
+      targetDate?: string
     ) => {
+      // 날짜 기반 드롭인 경우 해당 날짜 사용, 아니면 현재 선택된 날짜 사용
+      const effectiveTargetDate = targetDate ?? selectedDate;
+
+      // 확장된 컨테이너 타입을 기본 타입으로 변환 (movePlanToContainer용)
+      const fromBaseType = getBaseContainerType(fromContainer);
+      const toBaseType = getBaseContainerType(toContainer);
+
       const result = await movePlanToContainer({
         planId: itemId,
         planType: itemType,
-        fromContainer,
-        toContainer,
+        fromContainer: fromBaseType,
+        toContainer: toBaseType,
         studentId,
         tenantId,
-        targetDate: toContainer === 'daily' ? selectedDate : undefined,
+        targetDate: toBaseType === 'daily' ? effectiveTargetDate : undefined,
       });
 
       if (!result.success) {
         console.error('Failed to move plan:', result.error);
       }
 
-      handleRefresh();
+      // 날짜 기반 드롭이고 현재 선택 날짜와 다른 경우 해당 날짜로 이동
+      if (targetDate && targetDate !== selectedDate) {
+        handleDateChange(targetDate);
+      } else {
+        handleRefresh();
+      }
     },
-    [studentId, tenantId, selectedDate, handleRefresh]
+    [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
   );
 
   // 날짜 이동 헬퍼

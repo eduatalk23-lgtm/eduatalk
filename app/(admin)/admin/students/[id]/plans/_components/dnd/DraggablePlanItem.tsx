@@ -12,6 +12,7 @@ interface DraggablePlanItemProps {
   title: string;
   subject?: string;
   range?: string;
+  planDate?: string;
   disabled?: boolean;
   children: ReactNode;
 }
@@ -23,6 +24,7 @@ export function DraggablePlanItem({
   title,
   subject,
   range,
+  planDate,
   disabled = false,
   children,
 }: DraggablePlanItemProps) {
@@ -33,6 +35,7 @@ export function DraggablePlanItem({
     title,
     subject,
     range,
+    planDate,
   };
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
