@@ -261,6 +261,7 @@ export function UnfinishedDock({
                 onMoveToWeekly={handleMoveToWeekly}
                 onRedistribute={onRedistribute}
                 onEdit={onEdit}
+                onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
                 onStatusChange={onStatusChange}
                 onDelete={handleDelete}
                 onRefresh={onRefresh}

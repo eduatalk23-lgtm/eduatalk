@@ -304,6 +304,7 @@ export function WeeklyDock({
                     onMoveToDaily={(id) => handleMoveToDaily(id, selectedDate)}
                     onRedistribute={onRedistribute}
                     onEdit={onEdit}
+                    onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
                     onStatusChange={onStatusChange}
                     onDelete={handleDelete}
                     onRefresh={onRefresh}
