@@ -24,6 +24,7 @@ import type {
   MatrixTimeSlot,
   MatrixPlanItem,
 } from "@/lib/types/plan/views";
+import { getDefaultTimeSlots } from "@/lib/config/timeSlots";
 import type { TimelinePlanItem } from "@/components/plan/TimelineView";
 import type { TablePlanItem } from "@/components/plan/TableView";
 import type { ListPlanItem, GroupBy } from "@/components/plan/ListView";
@@ -99,25 +100,7 @@ function getWeekStart(date: Date): Date {
   return d;
 }
 
-/**
- * 기본 시간 슬롯 생성
- */
-function getDefaultTimeSlots(): MatrixTimeSlot[] {
-  return [
-    { id: "slot-1", name: "1교시", startTime: "08:00", endTime: "08:50", order: 1, type: "study", isDefault: true, isActive: true },
-    { id: "slot-2", name: "2교시", startTime: "09:00", endTime: "09:50", order: 2, type: "study", isDefault: true, isActive: true },
-    { id: "slot-3", name: "3교시", startTime: "10:00", endTime: "10:50", order: 3, type: "study", isDefault: true, isActive: true },
-    { id: "slot-4", name: "4교시", startTime: "11:00", endTime: "11:50", order: 4, type: "study", isDefault: true, isActive: true },
-    { id: "slot-5", name: "점심", startTime: "12:00", endTime: "13:00", order: 5, type: "meal", isDefault: true, isActive: true },
-    { id: "slot-6", name: "5교시", startTime: "13:00", endTime: "13:50", order: 6, type: "study", isDefault: true, isActive: true },
-    { id: "slot-7", name: "6교시", startTime: "14:00", endTime: "14:50", order: 7, type: "study", isDefault: true, isActive: true },
-    { id: "slot-8", name: "7교시", startTime: "15:00", endTime: "15:50", order: 8, type: "study", isDefault: true, isActive: true },
-    { id: "slot-9", name: "자습1", startTime: "16:00", endTime: "17:50", order: 9, type: "study", isDefault: true, isActive: true },
-    { id: "slot-10", name: "저녁", startTime: "18:00", endTime: "19:00", order: 10, type: "meal", isDefault: true, isActive: true },
-    { id: "slot-11", name: "자습2", startTime: "19:00", endTime: "20:50", order: 11, type: "study", isDefault: true, isActive: true },
-    { id: "slot-12", name: "자습3", startTime: "21:00", endTime: "22:00", order: 12, type: "study", isDefault: true, isActive: true },
-  ];
-}
+// 기본 시간 슬롯은 lib/config/timeSlots.ts에서 import
 
 /**
  * 플랜을 MatrixPlanItem으로 변환

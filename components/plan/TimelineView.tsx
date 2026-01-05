@@ -9,7 +9,7 @@
  * - 현재 시간 표시기
  */
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { cn } from "@/lib/cn";
 import { textPrimary, textSecondary, textMuted } from "@/lib/utils/darkMode";
 import { SimpleCompleteCheckbox } from "./SimpleCompleteCheckbox";
@@ -129,7 +129,7 @@ interface TimelineItemProps {
   onSimpleComplete?: (planId: string, planType: string) => void;
 }
 
-function TimelineItem({
+const TimelineItem = memo(function TimelineItem({
   plan,
   isFirst,
   isLast,
@@ -278,7 +278,8 @@ function TimelineItem({
       </div>
     </div>
   );
-}
+});
+TimelineItem.displayName = "TimelineItem";
 
 // ============================================
 // 메인 컴포넌트

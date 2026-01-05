@@ -93,27 +93,14 @@ export class TimeAllocationService implements ITimeAllocationService {
           continue;
         }
 
-        // 첫 번째 시간 슬롯 사용
-        const firstSlot = timeRanges[0];
-        let currentTime = this.timeToMinutes(firstSlot.start);
-        const endTime = this.timeToMinutes(firstSlot.end);
-
-        plans.forEach((plan, index) => {
-          const duration = plan.estimated_duration ?? 60;
-          const planEndTime = Math.min(currentTime + duration, endTime);
-
-          allocatedPlans.push(
-            this.createAllocatedPlan(
-              plan,
-              date,
-              index,
-              this.minutesToTime(currentTime),
-              this.minutesToTime(planEndTime)
-            )
-          );
-
-          currentTime = planEndTime;
-        });
+        // Best-Fit Decreasing 알고리즘으로 시간 할당
+        const { allocated, unallocated } = this.allocateWithBestFit(
+          plans,
+          timeRanges,
+          date
+        );
+        allocatedPlans.push(...allocated);
+        unallocatedPlans.push(...unallocated);
       }
 
       logger.info("allocateTime", "시간 할당 완료", {
@@ -194,6 +181,110 @@ export class TimeAllocationService implements ITimeAllocationService {
     });
 
     return grouped;
+  }
+
+  /**
+   * Best-Fit Decreasing 알고리즘으로 시간 할당
+   *
+   * 1. 플랜을 duration 내림차순 정렬 (큰 것부터)
+   * 2. 각 플랜에 대해 남은 공간이 가장 작으면서 수용 가능한 슬롯 선택
+   * 3. 슬롯이 없으면 unallocated로 분류
+   */
+  private allocateWithBestFit(
+    plans: ScheduledPlan[],
+    timeRanges: Array<{ start: string; end: string }>,
+    date: string
+  ): {
+    allocated: Array<PlanPayloadBase & { content_id: string; date: string }>;
+    unallocated: ScheduledPlan[];
+  } {
+    // Bin 타입 정의
+    interface Bin {
+      slot: { start: string; end: string };
+      usedMinutes: number;
+      remainingMinutes: number;
+      plans: ScheduledPlan[];
+    }
+
+    // 1. 플랜을 duration 내림차순 정렬 (Best-Fit Decreasing)
+    const sortedPlans = [...plans].sort(
+      (a, b) => (b.estimated_duration ?? 60) - (a.estimated_duration ?? 60)
+    );
+
+    // 2. 각 시간 슬롯을 Bin으로 관리
+    const bins: Bin[] = timeRanges.map((slot) => {
+      const slotMinutes =
+        this.timeToMinutes(slot.end) - this.timeToMinutes(slot.start);
+      return {
+        slot,
+        usedMinutes: 0,
+        remainingMinutes: slotMinutes,
+        plans: [],
+      };
+    });
+
+    const allocated: Array<PlanPayloadBase & { content_id: string; date: string }> = [];
+    const unallocated: ScheduledPlan[] = [];
+
+    // 3. Best-Fit 배정
+    for (const plan of sortedPlans) {
+      const duration = plan.estimated_duration ?? 60;
+
+      // 가장 적합한 Bin 찾기 (남은 공간이 가장 작으면서 플랜을 수용할 수 있는 Bin)
+      let bestBin: Bin | null = null;
+      let minRemaining = Infinity;
+
+      for (const bin of bins) {
+        if (
+          bin.remainingMinutes >= duration &&
+          bin.remainingMinutes - duration < minRemaining
+        ) {
+          bestBin = bin;
+          minRemaining = bin.remainingMinutes - duration;
+        }
+      }
+
+      if (bestBin) {
+        bestBin.plans.push(plan);
+        bestBin.usedMinutes += duration;
+        bestBin.remainingMinutes -= duration;
+      } else {
+        // 슬롯이 부족한 경우 미할당으로 분류
+        unallocated.push(plan);
+      }
+    }
+
+    // 4. Bin별로 시간 배정 (원래 순서 유지를 위해 각 bin 내에서 다시 정렬)
+    let globalBlockIndex = 0;
+    for (const bin of bins) {
+      // 원래 플랜 순서 복원 (배정 순서 유지를 위해)
+      const binPlans = bin.plans.sort((a, b) => {
+        const aIndex = plans.findIndex((p) => p === a);
+        const bIndex = plans.findIndex((p) => p === b);
+        return aIndex - bIndex;
+      });
+
+      let currentTime = this.timeToMinutes(bin.slot.start);
+
+      for (const plan of binPlans) {
+        const duration = plan.estimated_duration ?? 60;
+        const endTime = currentTime + duration;
+
+        allocated.push(
+          this.createAllocatedPlan(
+            plan,
+            date,
+            globalBlockIndex++,
+            this.minutesToTime(currentTime),
+            this.minutesToTime(endTime)
+          )
+        );
+
+        currentTime = endTime;
+      }
+    }
+
+    return { allocated, unallocated };
   }
 
   /**

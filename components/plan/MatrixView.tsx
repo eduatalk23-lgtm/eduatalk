@@ -10,7 +10,7 @@
  * 드래그앤드롭으로 플랜을 다른 셀로 이동할 수 있습니다.
  */
 
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, memo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -170,7 +170,7 @@ interface DraggablePlanCardProps {
   enableDrag?: boolean;
 }
 
-function DraggablePlanCard({
+const DraggablePlanCard = memo(function DraggablePlanCard({
   plan,
   slotId,
   date,
@@ -274,7 +274,8 @@ function DraggablePlanCard({
       )}
     </div>
   );
-}
+});
+DraggablePlanCard.displayName = "DraggablePlanCard";
 
 // ============================================
 // 드롭 가능한 셀
@@ -294,7 +295,7 @@ interface DroppableCellProps {
   enableDrop?: boolean;
 }
 
-function DroppableCell({
+const DroppableCell = memo(function DroppableCell({
   slotId,
   date,
   startTime,
@@ -337,7 +338,8 @@ function DroppableCell({
       {children}
     </div>
   );
-}
+});
+DroppableCell.displayName = "DroppableCell";
 
 // ============================================
 // 드래그 오버레이 카드
@@ -347,7 +349,7 @@ interface DragOverlayCardProps {
   plan: MatrixPlanItem;
 }
 
-function DragOverlayCard({ plan }: DragOverlayCardProps) {
+const DragOverlayCard = memo(function DragOverlayCard({ plan }: DragOverlayCardProps) {
   return (
     <div
       className={cn(
@@ -369,7 +371,8 @@ function DragOverlayCard({ plan }: DragOverlayCardProps) {
       )}
     </div>
   );
-}
+});
+DragOverlayCard.displayName = "DragOverlayCard";
 
 // ============================================
 // 메인 컴포넌트

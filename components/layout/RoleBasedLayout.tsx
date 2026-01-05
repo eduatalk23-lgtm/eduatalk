@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/navigation/global/Breadcrumbs";
 import { LogoSection } from "@/components/navigation/global/LogoSection";
 import { SidebarUserSection } from "@/components/navigation/global/SidebarUserSection";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { OfflineStatusIndicator } from "@/components/ui/OfflineStatusIndicator";
 import { useSidebar } from "./SidebarContext";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -89,8 +90,12 @@ function SidebarContent({
             dashboardHref={dashboardHref}
             roleLabel={roleLabel}
           />
-          {/* A1 개선: 데스크톱 알림 센터 */}
-          {userId && <NotificationCenter userId={userId} />}
+          <div className="flex items-center gap-2">
+            {/* 오프라인 상태 표시 */}
+            <OfflineStatusIndicator variant="minimal" />
+            {/* A1 개선: 데스크톱 알림 센터 */}
+            {userId && <NotificationCenter userId={userId} />}
+          </div>
         </div>
       </div>
 
@@ -352,6 +357,8 @@ export function RoleBasedLayout({
                   variant="mobile"
                 />
                 <div className="flex items-center gap-2">
+                  {/* 오프라인 상태 표시 (모바일용 컴팩트) */}
+                  <OfflineStatusIndicator variant="compact" />
                   {/* A1 개선: 인앱 알림 센터 */}
                   {userId && <NotificationCenter userId={userId} />}
                   <MobileSidebar
