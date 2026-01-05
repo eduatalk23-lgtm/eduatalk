@@ -3,9 +3,10 @@
 import { useEffect, useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
-import { DroppableContainer, DraggablePlanItem } from './dnd';
+import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { usePlanToast } from './PlanToast';
+import { PlanItemCard, toPlanItemData } from './items';
 
 interface UnfinishedDockProps {
   studentId: string;
@@ -242,88 +243,25 @@ export function UnfinishedDock({
         {/* 플랜 목록 */}
         <div className="p-4 space-y-2">
           {plans.map((plan) => {
-            const rangeDisplay = plan.planned_start_page_or_time && plan.planned_end_page_or_time
-              ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`
-              : undefined;
+            const planData = toPlanItemData(plan, 'plan');
 
             return (
-              <DraggablePlanItem
+              <PlanItemCard
                 key={plan.id}
-                id={plan.id}
-                type="plan"
-                containerId="unfinished"
-                title={plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                subject={plan.content_subject ?? undefined}
-                range={rangeDisplay}
-              >
-                <div className="flex items-center gap-3 bg-white rounded-lg p-3 border border-red-100">
-                  {/* 체크박스 */}
-                  <input
-                    type="checkbox"
-                    checked={selectedPlans.has(plan.id)}
-                    onChange={() => handleToggleSelect(plan.id)}
-                    className="w-4 h-4 rounded border-gray-300"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-
-                  {/* 정보 */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">
-                        {formatDate(plan.carryover_from_date ?? plan.plan_date)}
-                      </span>
-                      <span className="font-medium truncate">
-                        {plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                      </span>
-                    </div>
-                    {rangeDisplay && (
-                      <div className="text-sm text-gray-500">{rangeDisplay}</div>
-                    )}
-                    {plan.carryover_count > 0 && (
-                      <div className="text-xs text-amber-600">
-                        {plan.carryover_count}회 이월됨
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 액션 버튼 */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleMoveToDaily(plan.id)}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      →Daily
-                    </button>
-                    <button
-                      onClick={() => handleMoveToWeekly(plan.id)}
-                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                    >
-                      →Weekly
-                    </button>
-                    <button
-                      onClick={() => onRedistribute(plan.id)}
-                      className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                    >
-                      재분배
-                    </button>
-                    {onEdit && (
-                      <button
-                        onClick={() => onEdit(plan.id)}
-                        className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                        title="플랜 수정"
-                      >
-                        수정
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(plan.id)}
-                      className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </DraggablePlanItem>
+                plan={planData}
+                container="unfinished"
+                showProgress={false}
+                showCarryover={true}
+                selectable={true}
+                isSelected={selectedPlans.has(plan.id)}
+                onSelect={handleToggleSelect}
+                onMoveToDaily={handleMoveToDaily}
+                onMoveToWeekly={handleMoveToWeekly}
+                onRedistribute={onRedistribute}
+                onEdit={onEdit}
+                onDelete={handleDelete}
+                onRefresh={onRefresh}
+              />
             );
           })}
         </div>
@@ -341,11 +279,4 @@ export function UnfinishedDock({
       )}
     </DroppableContainer>
   );
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  return `${month}/${day}`;
 }

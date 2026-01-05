@@ -3,8 +3,9 @@
 import { useEffect, useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
-import { DroppableContainer, DraggablePlanItem } from './dnd';
+import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
+import { PlanItemCard, toPlanItemData } from './items';
 
 interface WeeklyDockProps {
   studentId: string;
@@ -285,149 +286,44 @@ export function WeeklyDock({
             <div className="grid grid-cols-2 gap-2">
               {/* 일반 플랜 */}
               {plans.map((plan) => {
-                const rangeDisplay = plan.custom_range_display ??
-                  (plan.planned_start_page_or_time && plan.planned_end_page_or_time
-                    ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`
-                    : undefined);
+                const planData = toPlanItemData(plan, 'plan');
+                const isCompleted = plan.status === 'completed';
 
                 return (
-                  <DraggablePlanItem
+                  <PlanItemCard
                     key={plan.id}
-                    id={plan.id}
-                    type="plan"
-                    containerId="weekly"
-                    title={plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                    subject={plan.content_subject ?? undefined}
-                    range={rangeDisplay}
-                    disabled={plan.status === 'completed'}
-                  >
-                    <div
-                      className={cn(
-                        'flex flex-col gap-2 bg-white rounded-lg p-3 border',
-                        plan.status === 'completed'
-                          ? 'border-green-300 bg-green-50/50'
-                          : selectedPlans.has(plan.id)
-                            ? 'border-amber-300 bg-amber-50'
-                            : 'border-green-100 hover:border-green-300'
-                      )}
-                    >
-                      <div className="flex items-start gap-2">
-                        {/* 선택 체크박스 */}
-                        {plan.status !== 'completed' && (
-                          <input
-                            type="checkbox"
-                            checked={selectedPlans.has(plan.id)}
-                            onChange={() => handleToggleSelect(plan.id)}
-                            className="w-4 h-4 mt-0.5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div
-                            className={cn(
-                              'font-medium text-sm truncate',
-                              plan.status === 'completed' && 'line-through text-gray-500'
-                            )}
-                          >
-                            {plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {plan.content_subject && <span>{plan.content_subject} · </span>}
-                            {rangeDisplay}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 액션 */}
-                      {plan.status !== 'completed' && (
-                        <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-                          <button
-                            onClick={() => handleMoveToDaily(plan.id, selectedDate)}
-                            className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                          >
-                            오늘로
-                          </button>
-                          <button
-                            onClick={() => onRedistribute(plan.id)}
-                            className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                          >
-                            볼륨
-                          </button>
-                          {onEdit && (
-                            <button
-                              onClick={() => onEdit(plan.id)}
-                              className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                              title="플랜 수정"
-                            >
-                              수정
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(plan.id)}
-                            className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </DraggablePlanItem>
+                    plan={planData}
+                    container="weekly"
+                    variant="compact"
+                    showProgress={false}
+                    selectable={!isCompleted}
+                    isSelected={selectedPlans.has(plan.id)}
+                    onSelect={handleToggleSelect}
+                    onMoveToDaily={(id) => handleMoveToDaily(id, selectedDate)}
+                    onRedistribute={onRedistribute}
+                    onEdit={onEdit}
+                    onDelete={handleDelete}
+                    onRefresh={onRefresh}
+                  />
                 );
               })}
 
               {/* Ad-hoc 플랜 */}
-              {adHocPlans.map((adHoc) => (
-                <DraggablePlanItem
-                  key={adHoc.id}
-                  id={adHoc.id}
-                  type="adhoc"
-                  containerId="weekly"
-                  title={adHoc.title}
-                  range={adHoc.estimated_minutes ? `약 ${adHoc.estimated_minutes}분` : undefined}
-                  disabled={adHoc.status === 'completed'}
-                >
-                  <div
-                    className={cn(
-                      'flex flex-col gap-2 bg-white rounded-lg p-3 border',
-                      adHoc.status === 'completed'
-                        ? 'border-green-300 bg-green-50/50'
-                        : 'border-purple-100'
-                    )}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded shrink-0">
-                        단발성
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={cn(
-                            'font-medium text-sm truncate',
-                            adHoc.status === 'completed' && 'line-through text-gray-500'
-                          )}
-                        >
-                          {adHoc.title}
-                        </div>
-                        {adHoc.estimated_minutes && (
-                          <div className="text-xs text-gray-500">
-                            약 {adHoc.estimated_minutes}분
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              {adHocPlans.map((adHoc) => {
+                const planData = toPlanItemData(adHoc, 'adhoc');
 
-                    {adHoc.status !== 'completed' && (
-                      <div className="flex justify-end pt-1 border-t border-gray-100">
-                        <button
-                          onClick={() => handleDelete(adHoc.id, true)}
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </DraggablePlanItem>
-              ))}
+                return (
+                  <PlanItemCard
+                    key={adHoc.id}
+                    plan={planData}
+                    container="weekly"
+                    variant="compact"
+                    showProgress={false}
+                    onDelete={handleDelete}
+                    onRefresh={onRefresh}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

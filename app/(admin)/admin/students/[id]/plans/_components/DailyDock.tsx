@@ -3,10 +3,10 @@
 import { useEffect, useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
-import { DroppableContainer, DraggablePlanItem } from './dnd';
-import { QuickCompleteButton, InlineVolumeEditor, QuickProgressInput } from './QuickActions';
+import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
+import { PlanItemCard, toPlanItemData } from './items';
 
 interface DailyDockProps {
   studentId: string;
@@ -310,203 +310,40 @@ export function DailyDock({
           <div className="space-y-2">
             {/* 일반 플랜 */}
             {plans.map((plan) => {
-              const hasPageRange = plan.planned_start_page_or_time != null && plan.planned_end_page_or_time != null;
+              const planData = toPlanItemData(plan, 'plan');
               const isCompleted = plan.is_completed || plan.status === 'completed';
 
               return (
-                <DraggablePlanItem
+                <PlanItemCard
                   key={plan.id}
-                  id={plan.id}
-                  type="plan"
-                  containerId="daily"
-                  title={plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                  subject={plan.content_subject ?? undefined}
-                  range={hasPageRange ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}` : undefined}
-                  disabled={isCompleted}
-                >
-                  <div
-                    className={cn(
-                      'flex items-center gap-3 bg-white rounded-lg p-3 border',
-                      isCompleted
-                        ? 'border-green-200 bg-green-50/50'
-                        : selectedPlans.has(plan.id)
-                          ? 'border-amber-300 bg-amber-50'
-                          : 'border-blue-100'
-                    )}
-                  >
-                    {/* 선택 체크박스 */}
-                    {!isCompleted && (
-                      <input
-                        type="checkbox"
-                        checked={selectedPlans.has(plan.id)}
-                        onChange={() => handleToggleSelect(plan.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    )}
-
-                    {/* 완료 체크박스 */}
-                    <QuickCompleteButton
-                      planId={plan.id}
-                      planType="plan"
-                      isCompleted={isCompleted}
-                      onSuccess={onRefresh}
-                    />
-
-                    {/* 드래그 핸들 */}
-                    <span className="text-gray-400 cursor-grab">☰</span>
-
-                    {/* 정보 */}
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className={cn(
-                          'font-medium truncate',
-                          isCompleted && 'line-through text-gray-500'
-                        )}
-                      >
-                        {plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        {plan.content_subject && (
-                          <span className="text-gray-500">{plan.content_subject}</span>
-                        )}
-                        {hasPageRange && !isCompleted ? (
-                          <InlineVolumeEditor
-                            planId={plan.id}
-                            currentStart={plan.planned_start_page_or_time!}
-                            currentEnd={plan.planned_end_page_or_time!}
-                            onSuccess={onRefresh}
-                          />
-                        ) : hasPageRange ? (
-                          <span className="text-gray-500">
-                            p.{plan.planned_start_page_or_time}-{plan.planned_end_page_or_time}
-                          </span>
-                        ) : null}
-                      </div>
-                      {/* 진행 상황 */}
-                      {hasPageRange && !isCompleted && (
-                        <div className="mt-1">
-                          <QuickProgressInput
-                            planId={plan.id}
-                            plannedStart={plan.planned_start_page_or_time!}
-                            plannedEnd={plan.planned_end_page_or_time!}
-                            completedStart={plan.completed_start_page_or_time ?? 0}
-                            completedEnd={plan.completed_end_page_or_time ?? 0}
-                            onSuccess={onRefresh}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 액션 */}
-                    {isCompleted ? (
-                      <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                        완료
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => onRedistribute(plan.id)}
-                          className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                          title="볼륨 재분배"
-                        >
-                          재분배
-                        </button>
-                        {onEdit && (
-                          <button
-                            onClick={() => onEdit(plan.id)}
-                            className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                            title="플랜 수정"
-                          >
-                            수정
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleMoveToWeekly(plan.id)}
-                          className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                          title="Weekly로 이동"
-                        >
-                          →W
-                        </button>
-                        <button
-                          onClick={() => handleDelete(plan.id)}
-                          className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                          title="삭제"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </DraggablePlanItem>
+                  plan={planData}
+                  container="daily"
+                  showProgress={true}
+                  selectable={!isCompleted}
+                  isSelected={selectedPlans.has(plan.id)}
+                  onSelect={handleToggleSelect}
+                  onMoveToWeekly={handleMoveToWeekly}
+                  onRedistribute={onRedistribute}
+                  onEdit={onEdit}
+                  onDelete={handleDelete}
+                  onRefresh={onRefresh}
+                />
               );
             })}
 
             {/* Ad-hoc 플랜 */}
             {adHocPlans.map((adHoc) => {
-              const isCompleted = adHoc.status === 'completed';
+              const planData = toPlanItemData(adHoc, 'adhoc');
 
               return (
-                <DraggablePlanItem
+                <PlanItemCard
                   key={adHoc.id}
-                  id={adHoc.id}
-                  type="adhoc"
-                  containerId="daily"
-                  title={adHoc.title}
-                  range={adHoc.estimated_minutes ? `약 ${adHoc.estimated_minutes}분` : undefined}
-                  disabled={isCompleted}
-                >
-                  <div
-                    className={cn(
-                      'flex items-center gap-3 bg-white rounded-lg p-3 border',
-                      isCompleted
-                        ? 'border-green-200 bg-green-50/50'
-                        : 'border-purple-100'
-                    )}
-                  >
-                    {/* 완료 체크박스 */}
-                    <QuickCompleteButton
-                      planId={adHoc.id}
-                      planType="adhoc"
-                      isCompleted={isCompleted}
-                      onSuccess={onRefresh}
-                    />
-
-                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                      단발성
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className={cn(
-                          'font-medium truncate',
-                          isCompleted && 'line-through text-gray-500'
-                        )}
-                      >
-                        {adHoc.title}
-                      </div>
-                      {adHoc.estimated_minutes && (
-                        <div className="text-sm text-gray-500">
-                          약 {adHoc.estimated_minutes}분
-                        </div>
-                      )}
-                    </div>
-
-                    {isCompleted ? (
-                      <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                        완료
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleDelete(adHoc.id, true)}
-                        className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-                        title="삭제"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </DraggablePlanItem>
+                  plan={planData}
+                  container="daily"
+                  showProgress={false}
+                  onDelete={handleDelete}
+                  onRefresh={onRefresh}
+                />
               );
             })}
           </div>
