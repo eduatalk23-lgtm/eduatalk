@@ -18,6 +18,7 @@ import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
 import { useAdminPlanRealtime } from '@/lib/realtime';
+import { useInvalidateAllDockQueries } from '@/lib/hooks/useAdminDockQueries';
 import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
@@ -179,12 +180,18 @@ export function AdminPlanManagement({
     setShowStatusModal(true);
   };
 
-  // 새로고침
+  // React Query 캐시 무효화 (Dock 컴포넌트용)
+  const invalidateAllDocks = useInvalidateAllDockQueries();
+
+  // 새로고침 (React Query 캐시 + Next.js router)
   const handleRefresh = useCallback(() => {
+    // React Query 캐시 무효화 (Dock 컴포넌트 즉시 갱신)
+    invalidateAllDocks();
+    // Next.js router refresh (Server Component 데이터 갱신)
     startTransition(() => {
       router.refresh();
     });
-  }, [router]);
+  }, [router, invalidateAllDocks]);
 
   // 실시간 업데이트 구독
   useAdminPlanRealtime({
