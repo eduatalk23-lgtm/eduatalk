@@ -3,29 +3,51 @@
 import { useState, useTransition, useRef, useEffect } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
+import { Check, Circle } from 'lucide-react';
 
 interface QuickCompleteButtonProps {
   planId: string;
   planType: 'plan' | 'adhoc';
   isCompleted: boolean;
   onSuccess: () => void;
+  size?: 'sm' | 'md' | 'lg';
 }
 
 /**
- * 빠른 완료/미완료 토글 버튼
+ * 빠른 완료/미완료 토글 버튼 (원형 디자인)
  */
 export function QuickCompleteButton({
   planId,
   planType,
   isCompleted,
   onSuccess,
+  size = 'md',
 }: QuickCompleteButtonProps) {
   const [isPending, startTransition] = useTransition();
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const sizeClasses = {
+    sm: 'w-5 h-5',
+    md: 'w-6 h-6',
+    lg: 'w-7 h-7',
+  };
+
+  const iconSizes = {
+    sm: 12,
+    md: 14,
+    lg: 16,
+  };
 
   const handleToggle = async () => {
     const supabase = createSupabaseBrowserClient();
     const tableName = planType === 'plan' ? 'student_plan' : 'ad_hoc_plans';
     const newStatus = isCompleted ? 'pending' : 'completed';
+
+    // 완료 처리시 애니메이션
+    if (!isCompleted) {
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 300);
+    }
 
     startTransition(async () => {
       if (planType === 'plan') {
@@ -60,15 +82,43 @@ export function QuickCompleteButton({
       }}
       disabled={isPending}
       className={cn(
-        'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+        'relative rounded-full flex items-center justify-center transition-all duration-200',
+        'focus:outline-none focus:ring-2 focus:ring-offset-1',
+        sizeClasses[size],
         isCompleted
-          ? 'bg-green-500 border-green-500 text-white'
-          : 'border-gray-300 hover:border-green-400',
-        isPending && 'opacity-50'
+          ? 'bg-green-500 text-white shadow-sm focus:ring-green-300'
+          : 'border-2 border-gray-300 text-gray-400 hover:border-green-400 hover:text-green-500 hover:bg-green-50 focus:ring-green-200',
+        isPending && 'opacity-50 cursor-not-allowed',
+        isAnimating && 'scale-110'
       )}
       title={isCompleted ? '완료 취소' : '완료 처리'}
+      aria-label={isCompleted ? '완료 취소' : '완료 처리'}
     >
-      {isCompleted && <span className="text-xs">✓</span>}
+      {isCompleted ? (
+        <Check
+          size={iconSizes[size]}
+          strokeWidth={3}
+          className={cn(
+            'transition-transform',
+            isAnimating && 'animate-bounce'
+          )}
+        />
+      ) : (
+        <Circle
+          size={iconSizes[size] - 4}
+          strokeWidth={0}
+          className="fill-current opacity-0 group-hover:opacity-30"
+        />
+      )}
+
+      {/* 호버시 체크 힌트 표시 */}
+      {!isCompleted && !isPending && (
+        <Check
+          size={iconSizes[size] - 2}
+          strokeWidth={2}
+          className="absolute opacity-0 hover:opacity-50 transition-opacity text-green-500"
+        />
+      )}
     </button>
   );
 }
