@@ -20,10 +20,20 @@ import {
   toPlanGroupError,
   PlanGroupError,
   PlanGroupErrorCodes,
+  type PlanGroupErrorCode,
 } from "@/lib/errors/planGroupErrors";
 import type { SubmissionPhase } from "../_ui/SubmissionProgress";
 import { WIZARD_STEPS, TIMING } from "../constants/wizardConstants";
 import { planSubmissionLogger } from "../utils/wizardLogger";
+
+/**
+ * 제출 에러 정보 타입
+ * ErrorWithGuide 컴포넌트와 통합을 위해 에러 코드 포함
+ */
+export type SubmissionErrorInfo = {
+  message: string;
+  code?: PlanGroupErrorCode;
+};
 
 /**
  * usePlanSubmission Props
@@ -138,7 +148,7 @@ export function usePlanSubmission({
 
   // A3 개선: 제출 진행 단계 추적
   const [submissionPhase, setSubmissionPhase] = useState<SubmissionPhase>("idle");
-  const [submissionError, setSubmissionError] = useState<string | undefined>(undefined);
+  const [submissionError, setSubmissionError] = useState<SubmissionErrorInfo | undefined>(undefined);
 
   /* -------------------------------------------------------------------------- */
   /*                             Draft Save Logic                               */
@@ -168,7 +178,10 @@ export function usePlanSubmission({
         if (!periodValidation.isValid && periodValidation.error) {
           setValidationErrors([periodValidation.error]);
           setSubmissionPhase("error");
-          setSubmissionError(periodValidation.error);
+          setSubmissionError({
+            message: periodValidation.error,
+            code: PlanGroupErrorCodes.VALIDATION_FAILED,
+          });
           return;
         }
 
@@ -275,7 +288,10 @@ export function usePlanSubmission({
         );
         // A3 개선: 에러 단계
         setSubmissionPhase("error");
-        setSubmissionError(planGroupError.userMessage);
+        setSubmissionError({
+          message: planGroupError.userMessage,
+          code: planGroupError.code as PlanGroupErrorCode,
+        });
         // 사용자에게 명확한 에러 메시지 표시
         toast.showError(planGroupError.userMessage);
         setValidationErrors([planGroupError.userMessage]);

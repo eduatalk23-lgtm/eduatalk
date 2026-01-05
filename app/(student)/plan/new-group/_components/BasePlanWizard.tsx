@@ -29,6 +29,8 @@ import { isStepReadOnly, type WizardMode } from "./utils/modeUtils";
 import { SaveStatusIndicator, type SaveStatus } from "./_ui/SaveStatusIndicator";
 import { SubmissionProgress, type SubmissionPhase } from "./_ui/SubmissionProgress";
 import { AutoSaveIndicator } from "./_ui/AutoSaveIndicator";
+import { ErrorWithGuide } from "./_ui/ErrorWithGuide";
+import type { SubmissionErrorInfo } from "./hooks/usePlanSubmission";
 // Phase 4: 접근성 훅
 import { useWizardKeyboardNavigation } from "./hooks/useWizardKeyboardNavigation";
 import { useWizardFocusManagement } from "./hooks/useWizardFocusManagement";
@@ -113,7 +115,7 @@ export type BasePlanWizardProps = {
 
   // A3 개선: 제출 진행 상태
   submissionPhase?: SubmissionPhase;
-  submissionError?: string;
+  submissionError?: SubmissionErrorInfo;
   onResetSubmissionPhase?: () => void;
 
   // A4 개선: 오토세이브 상태
@@ -173,8 +175,10 @@ export function BasePlanWizard({
       validationErrors,
       validationWarnings,
       fieldErrors,
+      structuredErrors,
     },
     isDirty,
+    clearStructuredErrors,
   } = usePlanWizard();
 
   // Phase 4: 키보드 네비게이션 훅
@@ -273,8 +277,26 @@ export function BasePlanWizard({
         </div>
       )}
 
-      {/* 에러 메시지 */}
-      {validationErrors.length > 0 && (
+      {/* 구조화된 에러 (ErrorWithGuide 사용) */}
+      {structuredErrors.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {structuredErrors.map((error, index) => (
+            <ErrorWithGuide
+              key={`${error.code}-${index}`}
+              errorCode={error.code}
+              message={error.message}
+              onClose={() => {
+                // 마지막 에러면 전체 클리어, 아니면 현재 에러만 필터링 (구현 단순화를 위해 전체 클리어)
+                clearStructuredErrors();
+              }}
+              compact={structuredErrors.length > 1}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 일반 에러 메시지 (구조화되지 않은 에러) */}
+      {validationErrors.length > 0 && structuredErrors.length === 0 && (
         <div className="mb-6 rounded-xl bg-red-50 p-4">
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold text-red-800">오류</h3>
@@ -304,24 +326,23 @@ export function BasePlanWizard({
       {/* A3 개선: 제출 진행 상태 표시 */}
       {submissionPhase !== "idle" && submissionPhase !== "completed" && (
         <div className="mb-6">
-          <SubmissionProgress
-            phase={submissionPhase}
-            errorMessage={submissionError}
-          />
-          {/* 에러 발생 시 다시 시도 버튼 */}
-          {submissionPhase === "error" && onResetSubmissionPhase && (
-            <div className="mt-4 flex justify-center">
-              <button
-                type="button"
-                onClick={onResetSubmissionPhase}
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                다시 시도
-              </button>
-            </div>
+          {/* 진행 중 상태일 때는 SubmissionProgress 표시 */}
+          {submissionPhase !== "error" && (
+            <SubmissionProgress
+              phase={submissionPhase}
+              errorMessage={submissionError?.message}
+            />
+          )}
+
+          {/* 에러 발생 시 ErrorWithGuide 표시 */}
+          {submissionPhase === "error" && submissionError && (
+            <ErrorWithGuide
+              errorCode={submissionError.code}
+              message={submissionError.message}
+              onRetry={onResetSubmissionPhase}
+              onClose={onResetSubmissionPhase}
+              className="w-full"
+            />
           )}
         </div>
       )}

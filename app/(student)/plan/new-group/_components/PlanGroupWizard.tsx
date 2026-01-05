@@ -398,6 +398,7 @@ function PlanGroupWizardInner({
     prevStep,
     setStep,
     setErrors,
+    setStructuredErrors,
     setWarnings,
     setFieldError,
     clearFieldError,
@@ -675,9 +676,10 @@ function PlanGroupWizardInner({
         window.location.href = `/admin/plan-groups/${draftGroupId}`;
       } catch (error) {
         wizardLogger.error("관리자 캠프 완료 처리 실패", error, { component: "PlanGroupWizard" });
-        const errorMessage = error instanceof Error ? error.message : "완료 처리에 실패했습니다.";
-        setErrors([errorMessage]);
-        toast.showError(errorMessage);
+        const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
+        const errorCode = planGroupError.code as typeof PlanGroupErrorCodes[keyof typeof PlanGroupErrorCodes];
+        setStructuredErrors([{ code: errorCode, message: planGroupError.userMessage }]);
+        toast.showError(planGroupError.userMessage);
       }
       return;
     }
@@ -746,7 +748,7 @@ function PlanGroupWizardInner({
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       }
     }
-  }, [draftGroupId, isAdminContinueMode, wizardData, currentStep, initialData, toast, setErrors, router]);
+  }, [draftGroupId, isAdminContinueMode, wizardData, currentStep, initialData, toast, setStructuredErrors, router]);
 
   // 진행률 계산
   const progress = useMemo(() => calculateProgress(currentStep, wizardData, isTemplateMode), [currentStep, wizardData, isTemplateMode]);

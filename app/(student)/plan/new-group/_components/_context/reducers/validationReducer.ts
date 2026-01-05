@@ -5,6 +5,19 @@
  * 위저드 검증 관련 액션만 처리합니다.
  */
 
+import type { PlanGroupErrorCode } from "@/lib/errors/planGroupErrors";
+
+/**
+ * 구조화된 에러 타입
+ * - ErrorWithGuide 컴포넌트와 함께 사용하여 복구 가이드 표시
+ */
+export type StructuredError = {
+  /** 에러 코드 (복구 가이드 조회용) */
+  code: PlanGroupErrorCode;
+  /** 커스텀 메시지 (없으면 에러 코드 기본 메시지 사용) */
+  message?: string;
+};
+
 /**
  * 검증 상태 타입
  */
@@ -12,6 +25,8 @@ export type ValidationState = {
   validationErrors: string[];
   validationWarnings: string[];
   fieldErrors: Map<string, string>;
+  /** 구조화된 에러 (ErrorWithGuide 컴포넌트용) */
+  structuredErrors: StructuredError[];
 };
 
 /**
@@ -20,6 +35,9 @@ export type ValidationState = {
 export type ValidationAction =
   | { type: "SET_ERRORS"; payload: string[] }
   | { type: "SET_WARNINGS"; payload: string[] }
+  | { type: "SET_STRUCTURED_ERRORS"; payload: StructuredError[] }
+  | { type: "ADD_STRUCTURED_ERROR"; payload: StructuredError }
+  | { type: "CLEAR_STRUCTURED_ERRORS" }
   | { type: "SET_FIELD_ERROR"; payload: { field: string; error: string } }
   | { type: "SET_FIELD_ERRORS"; payload: Map<string, string> }
   | { type: "CLEAR_FIELD_ERROR"; payload: string }
@@ -46,6 +64,21 @@ export function validationReducer(
       return {
         ...state,
         validationWarnings: action.payload,
+      };
+    case "SET_STRUCTURED_ERRORS":
+      return {
+        ...state,
+        structuredErrors: action.payload,
+      };
+    case "ADD_STRUCTURED_ERROR":
+      return {
+        ...state,
+        structuredErrors: [...state.structuredErrors, action.payload],
+      };
+    case "CLEAR_STRUCTURED_ERRORS":
+      return {
+        ...state,
+        structuredErrors: [],
       };
     case "SET_FIELD_ERROR": {
       const newFieldErrors = new Map(state.fieldErrors);
@@ -74,6 +107,7 @@ export function validationReducer(
         validationErrors: [],
         validationWarnings: [],
         fieldErrors: new Map(),
+        structuredErrors: [],
       };
     default:
       return state;
@@ -87,6 +121,9 @@ export function isValidationAction(action: { type: string }): action is Validati
   return [
     "SET_ERRORS",
     "SET_WARNINGS",
+    "SET_STRUCTURED_ERRORS",
+    "ADD_STRUCTURED_ERROR",
+    "CLEAR_STRUCTURED_ERRORS",
     "SET_FIELD_ERROR",
     "SET_FIELD_ERRORS",
     "CLEAR_FIELD_ERROR",
@@ -101,4 +138,5 @@ export const initialValidationState: ValidationState = {
   validationErrors: [],
   validationWarnings: [],
   fieldErrors: new Map(),
+  structuredErrors: [],
 };

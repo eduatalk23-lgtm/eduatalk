@@ -52,6 +52,7 @@ import {
   isValidationAction,
   type WizardAction as CombinedWizardAction,
 } from "./reducers";
+import type { StructuredError } from "./reducers/validationReducer";
 
 /**
  * Wizard 상태 타입
@@ -63,6 +64,8 @@ export type WizardState = {
   validationErrors: string[];
   validationWarnings: string[];
   fieldErrors: Map<string, string>;
+  /** 구조화된 에러 (ErrorWithGuide용) */
+  structuredErrors: StructuredError[];
   draftGroupId: string | null;
   isSubmitting: boolean;
   isDirty: boolean; // 변경 사항이 있는지 여부
@@ -79,6 +82,9 @@ export type WizardAction =
   | { type: "SET_STEP"; payload: WizardStep }
   | { type: "SET_ERRORS"; payload: string[] }
   | { type: "SET_WARNINGS"; payload: string[] }
+  | { type: "SET_STRUCTURED_ERRORS"; payload: StructuredError[] }
+  | { type: "ADD_STRUCTURED_ERROR"; payload: StructuredError }
+  | { type: "CLEAR_STRUCTURED_ERRORS" }
   | { type: "SET_FIELD_ERROR"; payload: { field: string; error: string } }
   | { type: "SET_FIELD_ERRORS"; payload: Map<string, string> }
   | { type: "CLEAR_FIELD_ERROR"; payload: string }
@@ -172,6 +178,21 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           ...state,
           validationWarnings: action.payload,
         };
+      case "SET_STRUCTURED_ERRORS":
+        return {
+          ...state,
+          structuredErrors: action.payload,
+        };
+      case "ADD_STRUCTURED_ERROR":
+        return {
+          ...state,
+          structuredErrors: [...state.structuredErrors, action.payload],
+        };
+      case "CLEAR_STRUCTURED_ERRORS":
+        return {
+          ...state,
+          structuredErrors: [],
+        };
       case "SET_FIELD_ERROR": {
         const newFieldErrors = new Map(state.fieldErrors);
         newFieldErrors.set(action.payload.field, action.payload.error);
@@ -199,6 +220,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
           validationErrors: [],
           validationWarnings: [],
           fieldErrors: new Map(),
+          structuredErrors: [],
         };
     }
   }
@@ -350,6 +372,7 @@ function createInitialState(
     validationErrors: initialData?._validationErrors || [],
     validationWarnings: [],
     fieldErrors: new Map(),
+    structuredErrors: [],
     draftGroupId: initialDraftId || initialData?.groupId || null,
     isSubmitting: false,
     isDirty: false, // 초기 상태는 변경 사항 없음
@@ -370,6 +393,10 @@ type PlanWizardContextType = {
   setStep: (step: WizardStep) => void;
   setErrors: (errors: string[]) => void;
   setWarnings: (warnings: string[]) => void;
+  // 구조화된 에러 (ErrorWithGuide용)
+  setStructuredErrors: (errors: StructuredError[]) => void;
+  addStructuredError: (error: StructuredError) => void;
+  clearStructuredErrors: () => void;
   setFieldError: (field: string, error: string) => void;
   setFieldErrors: (errors: Map<string, string>) => void;
   clearFieldError: (field: string) => void;
@@ -441,6 +468,19 @@ export function PlanWizardProvider({
 
   const setWarnings = useCallback((warnings: string[]) => {
     dispatch({ type: "SET_WARNINGS", payload: warnings });
+  }, []);
+
+  // 구조화된 에러 함수들 (ErrorWithGuide용)
+  const setStructuredErrors = useCallback((errors: StructuredError[]) => {
+    dispatch({ type: "SET_STRUCTURED_ERRORS", payload: errors });
+  }, []);
+
+  const addStructuredError = useCallback((error: StructuredError) => {
+    dispatch({ type: "ADD_STRUCTURED_ERROR", payload: error });
+  }, []);
+
+  const clearStructuredErrors = useCallback(() => {
+    dispatch({ type: "CLEAR_STRUCTURED_ERRORS" });
   }, []);
 
   const setFieldError = useCallback((field: string, error: string) => {
@@ -551,8 +591,12 @@ export function PlanWizardProvider({
       validationErrors: state.validationErrors,
       validationWarnings: state.validationWarnings,
       fieldErrors: state.fieldErrors,
+      structuredErrors: state.structuredErrors,
       setErrors,
       setWarnings,
+      setStructuredErrors,
+      addStructuredError,
+      clearStructuredErrors,
       setFieldError,
       setFieldErrors,
       clearFieldError,
@@ -561,13 +605,18 @@ export function PlanWizardProvider({
       getFirstErrorField,
       hasErrors: state.validationErrors.length > 0 || state.fieldErrors.size > 0,
       hasWarnings: state.validationWarnings.length > 0,
+      hasStructuredErrors: state.structuredErrors.length > 0,
     }),
     [
       state.validationErrors,
       state.validationWarnings,
       state.fieldErrors,
+      state.structuredErrors,
       setErrors,
       setWarnings,
+      setStructuredErrors,
+      addStructuredError,
+      clearStructuredErrors,
       setFieldError,
       setFieldErrors,
       clearFieldError,
@@ -588,6 +637,9 @@ export function PlanWizardProvider({
     setStep,
     setErrors,
     setWarnings,
+    setStructuredErrors,
+    addStructuredError,
+    clearStructuredErrors,
     setFieldError,
     setFieldErrors,
     clearFieldError,

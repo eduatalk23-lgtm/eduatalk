@@ -8,6 +8,7 @@
  */
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import type { StructuredError } from "./reducers/validationReducer";
 
 /**
  * WizardValidationContext 값 타입
@@ -19,10 +20,18 @@ export type WizardValidationContextValue = {
   validationWarnings: string[];
   /** 필드별 에러 맵 */
   fieldErrors: Map<string, string>;
+  /** 구조화된 에러 (ErrorWithGuide용) */
+  structuredErrors: StructuredError[];
   /** 전역 에러 설정 */
   setErrors: (errors: string[]) => void;
   /** 전역 경고 설정 */
   setWarnings: (warnings: string[]) => void;
+  /** 구조화된 에러 설정 (복구 가이드 포함) */
+  setStructuredErrors: (errors: StructuredError[]) => void;
+  /** 구조화된 에러 추가 */
+  addStructuredError: (error: StructuredError) => void;
+  /** 구조화된 에러 초기화 */
+  clearStructuredErrors: () => void;
   /** 단일 필드 에러 설정 */
   setFieldError: (field: string, error: string) => void;
   /** 여러 필드 에러 설정 */
@@ -39,6 +48,8 @@ export type WizardValidationContextValue = {
   hasErrors: boolean;
   /** 경고 존재 여부 (빠른 체크용) */
   hasWarnings: boolean;
+  /** 구조화된 에러 존재 여부 */
+  hasStructuredErrors: boolean;
 };
 
 export const WizardValidationContext = createContext<WizardValidationContextValue | null>(null);
@@ -78,8 +89,12 @@ export function WizardValidationProvider({ children, value }: WizardValidationPr
       value.validationErrors,
       value.validationWarnings,
       value.fieldErrors,
+      value.structuredErrors,
       value.setErrors,
       value.setWarnings,
+      value.setStructuredErrors,
+      value.addStructuredError,
+      value.clearStructuredErrors,
       value.setFieldError,
       value.setFieldErrors,
       value.clearFieldError,
@@ -88,6 +103,7 @@ export function WizardValidationProvider({ children, value }: WizardValidationPr
       value.getFirstErrorField,
       value.hasErrors,
       value.hasWarnings,
+      value.hasStructuredErrors,
     ]
   );
 

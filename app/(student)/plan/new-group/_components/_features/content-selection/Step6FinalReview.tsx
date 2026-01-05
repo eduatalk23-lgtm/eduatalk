@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useCallback, memo } from "react";
 import { defaultRangeRecommendationConfig } from "@/lib/recommendations/config/defaultConfig";
 import { WizardData } from "../../PlanGroupWizard";
@@ -17,6 +16,7 @@ import { ContentList } from "./Step6FinalReview/ContentList";
 import { ComparisonTable } from "./Step6FinalReview/ComparisonTable";
 import { usePlanWizard } from "../../_context/PlanWizardContext";
 import { areStep6PropsEqual } from "../../utils/stepMemoComparison";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 function Step6FinalReviewComponent({
   data: dataProp,
@@ -323,6 +323,9 @@ function Step6FinalReviewComponent({
           선택한 콘텐츠와 학습 범위를 확인하고 필요시 조정해주세요.
         </p>
       </div>
+
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step6} />
 
       {/* 요약 정보 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4">

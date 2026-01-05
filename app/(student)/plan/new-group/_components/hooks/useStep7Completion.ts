@@ -19,16 +19,18 @@ import {
   PlanGroupErrorCodes,
   getErrorInfo,
   type PlanGroupError,
+  type PlanGroupErrorCode,
 } from "@/lib/errors/planGroupErrors";
 import { wizardLogger } from "../utils/wizardLogger";
+import type { StructuredError } from "../_context/reducers/validationReducer";
 
 type UseStep7CompletionProps = {
   /** 플랜 그룹 ID */
   draftGroupId: string | null;
   /** 관리자 continue 모드 여부 */
   isAdminContinueMode: boolean;
-  /** 에러 설정 함수 */
-  setErrors: (errors: string[]) => void;
+  /** 구조화된 에러 설정 함수 (ErrorWithGuide용) */
+  setStructuredErrors: (errors: StructuredError[]) => void;
 };
 
 type UseStep7CompletionReturn = {
@@ -52,7 +54,7 @@ type UseStep7CompletionReturn = {
 export function useStep7Completion({
   draftGroupId,
   isAdminContinueMode,
-  setErrors,
+  setStructuredErrors,
 }: UseStep7CompletionProps): UseStep7CompletionReturn {
   const router = useRouter();
   const toast = useToast();
@@ -74,9 +76,10 @@ export function useStep7Completion({
         const checkResult = await checkPlansExistAction(draftGroupId);
 
         if (!checkResult.hasPlans) {
-          const errorInfo = getErrorInfo(PlanGroupErrorCodes.PLAN_GENERATION_FAILED);
+          const errorCode = PlanGroupErrorCodes.PLAN_GENERATION_FAILED;
+          const errorInfo = getErrorInfo(errorCode);
           toast.showError(errorInfo.message);
-          setErrors([errorInfo.message, ...errorInfo.guide.actions]);
+          setStructuredErrors([{ code: errorCode }]);
           return;
         }
 
@@ -94,8 +97,8 @@ export function useStep7Completion({
       } catch (error) {
         wizardLogger.error("관리자 캠프 완료 처리 실패", error, { hook: "useStep7Completion" });
         const planGroupError = toPlanGroupError(error, PlanGroupErrorCodes.UNKNOWN_ERROR);
-        const errorInfo = getErrorInfo(planGroupError.code as keyof typeof PlanGroupErrorCodes);
-        setErrors([planGroupError.userMessage, ...errorInfo.guide.actions]);
+        const errorCode = planGroupError.code as PlanGroupErrorCode;
+        setStructuredErrors([{ code: errorCode, message: planGroupError.userMessage }]);
         toast.showError(planGroupError.userMessage);
       }
       return;
@@ -107,9 +110,9 @@ export function useStep7Completion({
       const checkResult = await checkPlansExistAction(draftGroupId);
       if (!checkResult.hasPlans) {
         // 플랜이 없으면 에러 표시 (Step 7에서 이미 생성되어야 함)
-        const errorInfo = getErrorInfo(PlanGroupErrorCodes.PLAN_GENERATION_FAILED);
+        const errorCode = PlanGroupErrorCodes.PLAN_GENERATION_FAILED;
         toast.showError("플랜이 생성되지 않았습니다. 플랜 재생성 버튼을 클릭해주세요.");
-        setErrors([errorInfo.message, ...errorInfo.guide.actions]);
+        setStructuredErrors([{ code: errorCode }]);
         return;
       }
     } catch (error) {
@@ -177,7 +180,7 @@ export function useStep7Completion({
         router.push(`/plan/group/${draftGroupId}`, { scroll: true });
       }
     }
-  }, [draftGroupId, isAdminContinueMode, toast, setErrors, router, queryClient]);
+  }, [draftGroupId, isAdminContinueMode, toast, setStructuredErrors, router, queryClient]);
 
   return {
     handleStep7Complete,

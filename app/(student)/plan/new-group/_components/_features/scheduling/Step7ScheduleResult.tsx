@@ -15,6 +15,7 @@ import { PlanScheduleView } from "@/app/(student)/plan/group/[id]/_components/Pl
 import { ContentScheduleList } from "./components/ContentScheduleCard";
 import { LayoutGrid, BookOpen } from "lucide-react";
 import { SuccessCelebration } from "../../_ui/SuccessCelebration";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 type Step7ScheduleResultProps = {
   groupId: string;
@@ -394,6 +395,9 @@ export function Step7ScheduleResult({
           {generatePlansMutation.isPending ? "재생성 중..." : "플랜 재생성"}
         </button>
       </div>
+
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step7} />
 
       {/* L2: 데이터 변경 경고 배너 */}
       {showDirtyWarning && (

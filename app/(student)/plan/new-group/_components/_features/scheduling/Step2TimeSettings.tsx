@@ -5,6 +5,7 @@ import { WizardData, WizardStep } from "../../PlanGroupWizard";
 import { TimeSettingsPanel } from "./components/TimeSettingsPanel";
 import { PlanWizardContext } from "../../_context/PlanWizardContext";
 import { areStep2PropsEqual } from "../../utils/stepMemoComparison";
+import { StepHelpCard, STEP_HELP_CONTENTS } from "../../_ui/StepHelpCard";
 
 type Step2TimeSettingsProps = {
   data?: WizardData; // Optional: usePlanWizard에서 가져올 수 있음
@@ -77,6 +78,9 @@ function Step2TimeSettingsComponent({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* 단계 도움말 */}
+      <StepHelpCard content={STEP_HELP_CONTENTS.step2} />
+
       {/* 설정 패널 */}
       <TimeSettingsPanel
         data={data}
