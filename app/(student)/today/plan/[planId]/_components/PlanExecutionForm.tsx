@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plan } from "@/lib/data/studentPlans";
@@ -11,6 +11,8 @@ import { usePlanTimerStore } from "@/lib/store/planTimerStore";
 import { StatusBadge } from "@/app/(student)/today/_components/timer/StatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
+import { CompletionFlow } from "@/app/(student)/today/_components/CompletionFlow";
+import type { NextPlanSuggestion, DailyProgress } from "@/lib/domains/today/services/nextPlanService";
 
 type PlanCompletionMode = "today" | "camp";
 
@@ -54,6 +56,14 @@ export function PlanExecutionForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const [hasActiveSession, setHasActiveSession] = useState(!!activeSession);
   const [showPostponeConfirm, setShowPostponeConfirm] = useState(false);
+
+  // CompletionFlow 관련 상태
+  const [showCompletionFlow, setShowCompletionFlow] = useState(false);
+  const [completionResult, setCompletionResult] = useState<{
+    nextPlanSuggestion?: NextPlanSuggestion;
+    dailyProgress?: DailyProgress;
+    studyDurationSeconds?: number;
+  } | null>(null);
 
   // 상태 결정
   const isAlreadyCompleted = !!plan.actual_end_time;
@@ -174,7 +184,19 @@ export function PlanExecutionForm({
             Array.isArray(query.queryKey) && query.queryKey[0] === "todayPlans",
         });
 
-        // 모드에 따른 리다이렉트
+        // Today 모드에서 다음 플랜 제안이 있으면 CompletionFlow 표시
+        if (mode === "today" && (result.nextPlanSuggestion || result.dailyProgress)) {
+          setCompletionResult({
+            nextPlanSuggestion: result.nextPlanSuggestion,
+            dailyProgress: result.dailyProgress,
+            studyDurationSeconds: result.accumulatedSeconds,
+          });
+          setShowCompletionFlow(true);
+          setIsCompleting(false);
+          return;
+        }
+
+        // 모드에 따른 리다이렉트 (Camp 모드 또는 다음 플랜 제안이 없는 경우)
         if (mode === "camp") {
           // 캠프 모드: /camp/today로 리다이렉트
           const params = new URLSearchParams();
@@ -244,6 +266,43 @@ export function PlanExecutionForm({
 
   const handlePostpone = () => {
     setShowPostponeConfirm(true);
+  };
+
+  // CompletionFlow 닫기 핸들러
+  const handleCloseCompletionFlow = useCallback(() => {
+    setShowCompletionFlow(false);
+    setCompletionResult(null);
+    // /today로 리다이렉트
+    const params = new URLSearchParams();
+    params.set("completedPlanId", plan.id);
+    if (plan.plan_date) {
+      params.set("date", plan.plan_date);
+    }
+    const query = params.toString();
+    router.push(query ? `/today?${query}` : "/today");
+  }, [plan.id, plan.plan_date, router]);
+
+  // 다음 플랜 시작 핸들러
+  const handleStartNextPlan = useCallback((nextPlanId: string) => {
+    setShowCompletionFlow(false);
+    setCompletionResult(null);
+    // 다음 플랜 실행 페이지로 이동
+    router.push(`/today/plan/${nextPlanId}`);
+  }, [router]);
+
+  // 학습 시간 포맷팅 함수
+  const formatStudyDuration = (seconds?: number): string | undefined => {
+    if (!seconds || seconds <= 0) return undefined;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+      return `${minutes}분`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes === 0) {
+      return `${hours}시간`;
+    }
+    return `${hours}시간 ${remainingMinutes}분`;
   };
 
   // 상태 D: 이미 완료됨
@@ -596,6 +655,26 @@ export function PlanExecutionForm({
         cancelLabel="취소"
         onConfirm={handlePostponeConfirm}
         variant="default"
+      />
+
+      {/* 학습 완료 후 흐름 */}
+      <CompletionFlow
+        show={showCompletionFlow}
+        planTitle={content?.title || plan.chapter || "학습 플랜"}
+        studyDuration={formatStudyDuration(completionResult?.studyDurationSeconds)}
+        nextSuggestion={completionResult?.nextPlanSuggestion}
+        dailyProgress={completionResult?.dailyProgress}
+        onClose={handleCloseCompletionFlow}
+        onStartNextPlan={handleStartNextPlan}
+        // 만족도 평가용 props
+        planId={plan.id}
+        studentId={plan.student_id}
+        tenantId={plan.tenant_id}
+        contentType={plan.content_type}
+        subjectType={plan.subject_type || plan.content_subject || undefined}
+        estimatedDuration={plan.estimated_minutes || undefined}
+        actualDuration={completionResult?.studyDurationSeconds ? Math.floor(completionResult.studyDurationSeconds / 60) : undefined}
+        completionRate={plan.progress || undefined}
       />
     </div>
   );
