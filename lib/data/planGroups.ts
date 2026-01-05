@@ -1129,12 +1129,27 @@ export async function getPlanExclusions(
   tenantId?: string | null
 ): Promise<PlanExclusion[]> {
   const supabase = await createSupabaseServerClient();
+  
+  // 전역 관리: 플랜 그룹에서 student_id 조회 후 학생별 전역 제외일 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("camp_template_id, plan_type, student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+  
+  if (!planGroup?.student_id) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getPlanExclusions] 플랜 그룹을 찾을 수 없음", { groupId });
+    }
+    return [];
+  }
 
   const selectExclusions = () =>
     supabase
       .from("plan_exclusions")
       .select("id,tenant_id,student_id,plan_group_id,exclusion_date,exclusion_type,reason,created_at")
-      .eq("plan_group_id", groupId)
+      .eq("student_id", planGroup.student_id) // 전역 관리: student_id로 조회
+      .is("plan_group_id", null) // 전역 관리: plan_group_id IS NULL
       .order("exclusion_date", { ascending: true });
 
   let query = selectExclusions();
@@ -1158,12 +1173,6 @@ export async function getPlanExclusions(
   const dbExclusions = (data as PlanExclusion[] | null) ?? [];
 
   // 캠프 플랜인 경우 템플릿 제외일 확인 및 포함
-  const { data: planGroup } = await supabase
-    .from("plan_groups")
-    .select("camp_template_id, plan_type, student_id")
-    .eq("id", groupId)
-    .maybeSingle();
-
   if (planGroup?.plan_type === "camp" && planGroup.camp_template_id) {
     try {
       const { getCampTemplate } = await import("@/lib/data/campTemplates");
@@ -1191,7 +1200,7 @@ export async function getPlanExclusions(
             id: `template-${te.exclusion_date}`, // 임시 ID (템플릿 제외일임을 표시)
             tenant_id: tenantId || "",
             student_id: planGroup.student_id || "",
-            plan_group_id: groupId,
+            plan_group_id: null, // 전역 관리: 항상 NULL
             exclusion_date: te.exclusion_date,
             exclusion_type: te.exclusion_type as ExclusionType,
             reason: te.reason || null,
@@ -1273,279 +1282,17 @@ async function createExclusions(
     exclusion_type: string;
     reason?: string | null;
   }>,
-  planGroupId?: string | null
+  planGroupId?: string | null // 이제 무시됨 - 전역 관리로 전환
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
-
+  // 전역 관리: planGroupId 파라미터는 이제 무시되고 항상 plan_group_id = NULL로 저장
+  // 하위 호환성을 위해 파라미터는 유지
+  
   if (exclusions.length === 0) {
     return { success: true };
   }
 
-  // plan_group_id가 있는 경우: 플랜 그룹별 관리 로직
-  if (planGroupId) {
-    // 플랜 그룹에서 student_id 확인
-    const { data: group } = await supabase
-      .from("plan_groups")
-      .select("student_id")
-      .eq("id", planGroupId)
-      .maybeSingle();
-
-    if (!group?.student_id) {
-      return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
-    }
-
-    // student_id 일치 확인
-    if (group.student_id !== studentId) {
-      return { success: false, error: "학생 ID가 일치하지 않습니다." };
-    }
-
-    // 중복 체크: 현재 플랜 그룹 내 제외일 조회 (날짜+유형 조합)
-    const currentExclusionsQuery = supabase
-      .from("plan_exclusions")
-      .select("id, exclusion_date, exclusion_type")
-      .eq("student_id", studentId)
-      .eq("plan_group_id", planGroupId);
-
-    if (tenantId) {
-      currentExclusionsQuery.eq("tenant_id", tenantId);
-    }
-
-    const { data: currentExclusions, error: exclusionsError } =
-      await currentExclusionsQuery;
-
-    if (exclusionsError) {
-      handleQueryError(exclusionsError as PostgrestError | null, {
-        context: "[data/planGroups] createExclusions - checkExclusions",
-      });
-    }
-
-    // 현재 플랜 그룹에 이미 있는 제외일 (날짜+유형 조합)
-    const existingKeys = new Set(
-      (currentExclusions || []).map(
-        (e) => `${e.exclusion_date}-${e.exclusion_type}`
-      )
-    );
-
-    // 시간 관리 영역의 제외일 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-    const timeManagementExclusionsQuery = supabase
-      .from("plan_exclusions")
-      .select("id, exclusion_date, exclusion_type, reason")
-      .eq("student_id", studentId);
-
-    if (tenantId) {
-      timeManagementExclusionsQuery.eq("tenant_id", tenantId);
-    }
-
-    // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-    timeManagementExclusionsQuery.or(
-      `plan_group_id.is.null,plan_group_id.neq.${planGroupId}`
-    );
-
-    const { data: timeManagementExclusions } =
-      await timeManagementExclusionsQuery;
-
-    // 시간 관리 영역의 제외일을 키로 매핑
-    const timeManagementMap = new Map(
-      (timeManagementExclusions || []).map((e) => [
-        `${e.exclusion_date}-${e.exclusion_type}`,
-        e,
-      ])
-    );
-
-    // 업데이트할 항목과 새로 생성할 항목 분리
-    const toUpdate: Array<{ id: string; exclusion: typeof exclusions[0] }> =
-      [];
-    const toInsert: typeof exclusions = [];
-
-    for (const exclusion of exclusions) {
-      const key = `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
-
-      // 현재 플랜 그룹에 이미 있으면 스킵
-      if (existingKeys.has(key)) {
-        if (process.env.NODE_ENV === "development") {
-          console.log("[createExclusions] 이미 존재하는 제외일 스킵", {
-            key,
-            planGroupId,
-          });
-        }
-        continue;
-      }
-
-      // 시간 관리 영역에 있으면 업데이트
-      const timeManagementExclusion = timeManagementMap.get(key);
-      if (timeManagementExclusion) {
-        toUpdate.push({
-          id: timeManagementExclusion.id,
-          exclusion,
-        });
-      } else {
-        // 없으면 새로 생성
-        toInsert.push(exclusion);
-      }
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[createExclusions] 처리 요약", {
-        updateCount: toUpdate.length,
-        insertCount: toInsert.length,
-        skipCount:
-          exclusions.length - toUpdate.length - toInsert.length,
-        planGroupId,
-      });
-    }
-
-    // 시간 관리 영역의 제외일을 현재 플랜 그룹으로 업데이트
-    if (toUpdate.length > 0) {
-      for (const { id, exclusion } of toUpdate) {
-        const { error: updateError } = await supabase
-          .from("plan_exclusions")
-          .update({
-            plan_group_id: planGroupId,
-            reason: exclusion.reason || null,
-          })
-          .eq("id", id);
-
-        if (updateError) {
-          handleQueryError(updateError, {
-            context: "[data/planGroups] createExclusions - updateExclusion",
-          });
-          // 업데이트 실패 시 새로 생성 목록에 추가
-          toInsert.push(exclusion);
-        } else if (process.env.NODE_ENV === "development") {
-          console.log("[createExclusions] 제외일 재활용 성공", {
-            exclusionDate: exclusion.exclusion_date,
-            exclusionType: exclusion.exclusion_type,
-            planGroupId,
-          });
-        }
-      }
-    }
-
-    // 새로 생성할 제외일
-    if (toInsert.length > 0) {
-      const payload = toInsert.map((exclusion) => ({
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: planGroupId,
-        exclusion_date: exclusion.exclusion_date,
-        exclusion_type: exclusion.exclusion_type,
-        reason: exclusion.reason || null,
-      }));
-
-      let { error } = await supabase.from("plan_exclusions").insert(payload);
-
-      if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-        const fallbackPayload = payload.map(
-          ({ tenant_id: _tenantId, ...rest }) => rest
-        );
-        ({ error } = await supabase
-          .from("plan_exclusions")
-          .insert(fallbackPayload));
-      }
-
-      // 중복 키 에러 처리 (데이터베이스 레벨 unique 제약조건)
-      if (error && (ErrorCodeCheckers.isUniqueViolation(error) || error.message?.includes("duplicate"))) {
-        return {
-          success: false,
-          error: "이미 등록된 제외일이 있습니다.",
-        };
-      }
-
-      if (error) {
-        handleQueryError(error, {
-          context: "[data/planGroups] createExclusions",
-        });
-        return { success: false, error: error.message };
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("[createExclusions] 제외일 생성 완료", {
-          insertCount: toInsert.length,
-          planGroupId,
-        });
-      }
-    }
-
-    return { success: true };
-  }
-
-  // plan_group_id가 없는 경우: 시간 관리 영역에 저장 (plan_group_id = NULL)
-  // 중복 체크: 같은 날짜+유형의 제외일이 이미 있으면 스킵
-  const existingExclusionsQuery = supabase
-    .from("plan_exclusions")
-    .select("id, exclusion_date, exclusion_type")
-    .eq("student_id", studentId)
-    .is("plan_group_id", null);
-
-  if (tenantId) {
-    existingExclusionsQuery.eq("tenant_id", tenantId);
-  }
-
-  const { data: existingExclusions, error: existingError } =
-    await existingExclusionsQuery;
-
-  if (existingError) {
-    handleQueryError(existingError as PostgrestError | null, {
-      context: "[data/planGroups] createExclusions - checkExisting",
-    });
-  }
-
-  // 기존 제외일 키 (날짜+유형 조합)
-  const existingKeys = new Set(
-    (existingExclusions || []).map(
-      (e) => `${e.exclusion_date}-${e.exclusion_type}`
-    )
-  );
-
-  // 중복되지 않은 제외일만 필터링
-  const newExclusions = exclusions.filter(
-    (e) => !existingKeys.has(`${e.exclusion_date}-${e.exclusion_type}`)
-  );
-
-  if (newExclusions.length === 0) {
-    return { success: true }; // 모든 제외일이 이미 존재
-  }
-
-  const payload = newExclusions.map((exclusion) => ({
-    tenant_id: tenantId,
-    student_id: studentId,
-    plan_group_id: null, // 시간 관리 영역
-    exclusion_date: exclusion.exclusion_date,
-    exclusion_type: exclusion.exclusion_type,
-    reason: exclusion.reason || null,
-  }));
-
-  let { error } = await supabase.from("plan_exclusions").insert(payload);
-
-  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-    const fallbackPayload = payload.map(
-      ({ tenant_id: _tenantId, ...rest }) => rest
-    );
-    ({ error } = await supabase.from("plan_exclusions").insert(fallbackPayload));
-  }
-
-  // 중복 키 에러 처리
-  if (error && (ErrorCodeCheckers.isUniqueViolation(error) || error.message?.includes("duplicate"))) {
-    return {
-      success: false,
-      error: "이미 등록된 제외일이 있습니다.",
-    };
-  }
-
-  if (error) {
-    handleQueryError(error, {
-      context: "[data/planGroups] createExclusions",
-    });
-    return { success: false, error: error.message };
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[createExclusions] 시간 관리 영역 제외일 생성 완료", {
-      insertCount: newExclusions.length,
-    });
-  }
-
-  return { success: true };
+  // 전역 관리 모드: plan_group_id = NULL로 저장
+  return createStudentExclusions(studentId, tenantId, exclusions);
 }
 
 /**
@@ -1560,7 +1307,8 @@ export async function createPlanExclusions(
     reason?: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
-  // 플랜 그룹에서 student_id 조회
+  // 전역 관리: groupId는 student_id 조회에만 사용
+  // 실제 저장은 항상 plan_group_id = NULL로 수행
   const supabase = await createSupabaseServerClient();
   const { data: group } = await supabase
     .from("plan_groups")
@@ -1572,8 +1320,8 @@ export async function createPlanExclusions(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 통합 함수 호출
-  return createExclusions(group.student_id, tenantId, exclusions, groupId);
+  // 전역 관리: createStudentExclusions 사용
+  return createStudentExclusions(group.student_id, tenantId, exclusions);
 }
 
 /**
@@ -1601,6 +1349,21 @@ export async function getAcademySchedules(
 ): Promise<AcademySchedule[]> {
   const supabase = await createSupabaseServerClient();
   
+  // 전역 관리: plan_group_id로 직접 조회 대신 student_id로 조회
+  // 플랜 그룹에서 student_id 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+  
+  if (!planGroup?.student_id) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getAcademySchedules] 플랜 그룹을 찾을 수 없음", { groupId });
+    }
+    return [];
+  }
+  
   // academies와 조인하여 travel_time 가져오기
   const selectSchedules = () =>
     supabase
@@ -1608,7 +1371,8 @@ export async function getAcademySchedules(
       .select(
         "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
       )
-      .eq("plan_group_id", groupId) // plan_group_id로 조회 (플랜 그룹별 관리)
+      .eq("student_id", planGroup.student_id) // 전역 관리: student_id로 조회
+      .is("plan_group_id", null) // 전역 관리: plan_group_id IS NULL
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -1630,7 +1394,8 @@ export async function getAcademySchedules(
       .select(
         "id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
       )
-      .eq("plan_group_id", groupId)
+      .eq("student_id", planGroup.student_id)
+      .is("plan_group_id", null)
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -1803,6 +1568,20 @@ export async function getPlanGroupAcademySchedules(
   is_locked: boolean;
 }>> {
   const supabase = await createSupabaseServerClient();
+  
+  // 전역 관리: 플랜 그룹에서 student_id 조회 후 학생별 전역 학원 일정 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+  
+  if (!planGroup?.student_id) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getPlanGroupAcademySchedules] 플랜 그룹을 찾을 수 없음", { groupId });
+    }
+    return [];
+  }
 
   // source, is_locked, travel_time 필드를 포함하여 조회
   let query = supabase
@@ -1810,7 +1589,8 @@ export async function getPlanGroupAcademySchedules(
     .select(
       "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,source,is_locked,travel_time"
     )
-    .eq("plan_group_id", groupId)
+    .eq("student_id", planGroup.student_id) // 전역 관리: student_id로 조회
+    .is("plan_group_id", null) // 전역 관리: plan_group_id IS NULL
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -1937,14 +1717,17 @@ export async function createPlanAcademySchedules(
   }>,
   useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await getSupabaseClient(useAdminClient);
-
+  // 전역 관리: groupId 파라미터는 student_id 조회에만 사용
+  // 실제 저장은 항상 plan_group_id = NULL로 수행
+  
   if (schedules.length === 0) {
     if (process.env.NODE_ENV === "development") {
       console.log("[createPlanAcademySchedules] 학원 일정이 없습니다.");
     }
     return { success: true };
   }
+
+  const supabase = await getSupabaseClient(useAdminClient);
 
   // 플랜 그룹에서 student_id 조회
   const { data: group } = await supabase
@@ -1957,204 +1740,8 @@ export async function createPlanAcademySchedules(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 디버깅: 입력된 학원 일정 확인
-  if (process.env.NODE_ENV === "development") {
-    console.log("[createPlanAcademySchedules] 입력된 학원 일정", {
-      groupId,
-      studentId: group.student_id,
-      tenantId,
-      schedulesCount: schedules.length,
-    });
-  }
-
-  const studentId = group.student_id;
-
-  // 중복 체크: 현재 플랜 그룹의 기존 학원 일정 조회
-  const existingSchedules = await getAcademySchedules(groupId, tenantId);
-  const existingKeys = new Set(
-    existingSchedules.map((s) => 
-      `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
-    )
-  );
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[createPlanAcademySchedules] 기존 학원 일정 (현재 플랜 그룹)", {
-      existingSchedulesCount: existingSchedules.length,
-    });
-  }
-
-  // 시간 관리 영역의 학원 일정 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-  const timeManagementSchedulesQuery = supabase
-    .from("academy_schedules")
-    .select("id, day_of_week, start_time, end_time, academy_name, subject, academy_id")
-    .eq("student_id", studentId);
-  
-  if (tenantId) {
-    timeManagementSchedulesQuery.eq("tenant_id", tenantId);
-  }
-  
-  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-  timeManagementSchedulesQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
-  
-  const { data: timeManagementSchedules } = await timeManagementSchedulesQuery;
-  
-  // 시간 관리 영역의 학원 일정을 키로 매핑
-  const timeManagementMap = new Map(
-    (timeManagementSchedules || []).map((s) => [
-      `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`,
-      s,
-    ])
-  );
-
-  // 업데이트할 항목과 새로 생성할 항목 분리
-  const toUpdate: Array<{ id: string; schedule: typeof schedules[0] }> = [];
-  const toInsert: typeof schedules = [];
-
-  for (const schedule of schedules) {
-    const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}:${schedule.academy_name || ""}:${schedule.subject || ""}`;
-    
-    // 현재 플랜 그룹에 이미 있으면 스킵
-    if (existingKeys.has(key)) {
-      if (process.env.NODE_ENV === "development") {
-        console.log("[createPlanAcademySchedules] 이미 존재하는 학원 일정 스킵", { key });
-      }
-      continue;
-    }
-    
-    // 시간 관리 영역에 있으면 업데이트
-    const timeManagementSchedule = timeManagementMap.get(key);
-    if (timeManagementSchedule) {
-      toUpdate.push({
-        id: timeManagementSchedule.id,
-        schedule,
-      });
-    } else {
-      // 없으면 새로 생성
-      toInsert.push(schedule);
-    }
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    console.log("[createPlanAcademySchedules] 처리 요약", {
-      updateCount: toUpdate.length,
-      insertCount: toInsert.length,
-      skipCount: schedules.length - toUpdate.length - toInsert.length,
-    });
-  }
-
-  // 시간 관리 영역의 학원 일정을 현재 플랜 그룹으로 업데이트
-  if (toUpdate.length > 0) {
-    for (const { id, schedule } of toUpdate) {
-      // academy_name으로 academy 찾기 또는 생성
-      const academyName = schedule.academy_name || "학원";
-      const travelTime = schedule.travel_time ?? 60;
-      const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
-
-      if (!academyResult.id) {
-        console.warn("[createPlanAcademySchedules] 학원 ID 확보 실패, 새로 생성으로 폴백", {
-          academyName,
-          scheduleId: id,
-          error: academyResult.error,
-        });
-        toInsert.push(schedule);
-        continue;
-      }
-      const academyId = academyResult.id;
-
-      const { error: updateError } = await supabase
-        .from("academy_schedules")
-        .update({
-          plan_group_id: groupId,
-          academy_id: academyId,
-          academy_name: schedule.academy_name || null,
-          subject: schedule.subject || null,
-          // source, is_locked, travel_time 필드 저장
-          source: schedule.source || "student",
-          is_locked: schedule.is_locked ?? false,
-          travel_time: schedule.travel_time ?? 60,
-        })
-        .eq("id", id);
-
-      if (updateError) {
-        handleQueryError(updateError, {
-          context: "[data/planGroups] createPlanAcademySchedules - updateSchedule",
-        });
-        toInsert.push(schedule);
-      } else if (process.env.NODE_ENV === "development") {
-        console.log("[createPlanAcademySchedules] 학원 일정 재활용 성공", {
-          dayOfWeek: schedule.day_of_week,
-          startTime: schedule.start_time,
-          endTime: schedule.end_time,
-        });
-      }
-    }
-  }
-
-  // 새로 생성할 학원 일정
-  if (toInsert.length > 0) {
-    // academy_name별로 academy를 찾거나 생성
-    const academyNameMap = new Map<string, string>();
-
-    for (const schedule of toInsert) {
-      const academyName = schedule.academy_name || "학원";
-      const travelTime = schedule.travel_time ?? 60;
-
-      if (!academyNameMap.has(academyName)) {
-        const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
-        if (!academyResult.id) {
-          // 에러 메시지에 실제 DB 에러 원인 포함
-          return { success: false, error: `학원 생성에 실패했습니다: ${academyName} - ${academyResult.error}` };
-        }
-        academyNameMap.set(academyName, academyResult.id);
-      }
-    }
-
-    // academy_id와 plan_group_id를 포함한 payload 생성
-    const payload = toInsert.map((schedule) => {
-      const academyName = schedule.academy_name || "학원";
-      const academyId = academyNameMap.get(academyName);
-      
-      if (!academyId) {
-        throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
-      }
-
-      return {
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: groupId,
-        academy_id: academyId,
-        day_of_week: schedule.day_of_week,
-        start_time: schedule.start_time,
-        end_time: schedule.end_time,
-        academy_name: schedule.academy_name || null,
-        subject: schedule.subject || null,
-        // source, is_locked, travel_time 필드 저장
-        source: schedule.source || "student",
-        is_locked: schedule.is_locked ?? false,
-        travel_time: schedule.travel_time ?? 60,
-      };
-    });
-
-    let { error } = await supabase.from("academy_schedules").insert(payload);
-
-    if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-      const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-      ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
-    }
-
-    if (error) {
-      handleQueryError(error, {
-        context: "[data/planGroups] createPlanAcademySchedules",
-      });
-      return { success: false, error: error.message };
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      console.log("[createPlanAcademySchedules] 학원 일정 생성 완료", { insertCount: toInsert.length });
-    }
-  }
-
-  return { success: true };
+  // 전역 관리: createStudentAcademySchedules 사용
+  return createStudentAcademySchedules(group.student_id, tenantId, schedules);
 }
 
 /**
@@ -2348,13 +1935,13 @@ export async function getPlanGroupWithDetails(
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
 }> {
-  // 플랜 그룹별 제외일과 학원 일정 조회
+  // 전역 관리: 학생별 제외일/학원 일정 조회 (plan_group_id IS NULL)
   // 각 조회가 실패해도 다른 데이터는 정상적으로 반환되도록 Promise.allSettled 사용
   const [groupResult, contentsResult, exclusionsResult, academySchedulesResult] = await Promise.allSettled([
     getPlanGroupById(groupId, studentId, tenantId),
     getPlanContents(groupId, tenantId),
-    getPlanExclusions(groupId, tenantId), // 플랜 그룹별 제외일
-    getAcademySchedules(groupId, tenantId), // 플랜 그룹별 학원 일정 조회 (전역 아님)
+    getPlanExclusions(groupId, tenantId), // 학생별 전역 제외일
+    getAcademySchedules(groupId, tenantId), // 학생별 전역 학원 일정
   ]);
 
   // 결과 추출 (실패 시 기본값 사용)
@@ -2412,7 +1999,7 @@ export async function getPlanGroupWithDetailsForAdmin(
   }
 
   // 관리자용 학원 일정 조회 (RLS 우회를 위해 Admin 클라이언트 사용)
-  // 플랜 그룹별 학원 일정만 조회 (전역 아님)
+  // 전역 관리: 학생별 학원 일정 조회 (plan_group_id IS NULL)
   const getAcademySchedulesForAdmin = async (): Promise<AcademySchedule[]> => {
     let adminSchedulesData: AcademySchedule[] | null = null; // Declare adminSchedulesData here
 
@@ -2425,18 +2012,18 @@ export async function getPlanGroupWithDetailsForAdmin(
       if (process.env.NODE_ENV === "development") {
         console.warn("[getPlanGroupWithDetailsForAdmin] Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용");
       }
-      return getAcademySchedules(groupId, tenantId); // 플랜 그룹별 조회로 변경
+      return getAcademySchedules(groupId, tenantId); // 전역 관리 함수 사용
     }
 
-    // academies와 조인하여 travel_time 가져오기 (plan_group_id로 조회)
+    // 전역 관리: academies와 조인하여 travel_time 가져오기 (student_id + plan_group_id IS NULL)
     const selectSchedules = () =>
       adminClient
         .from("academy_schedules")
         .select(
           "id,tenant_id,student_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
         )
-        .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
-        .eq("tenant_id", tenantId)
+        .eq("student_id", group.student_id) // 전역 관리: student_id로 조회
+        .is("plan_group_id", null) // 전역 관리: plan_group_id IS NULL
         .order("day_of_week", { ascending: true })
         .order("start_time", { ascending: true });
 
@@ -2444,15 +2031,15 @@ export async function getPlanGroupWithDetailsForAdmin(
     adminSchedulesData = data as AcademySchedule[] | null;
 
     if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-      // academy_id가 없는 경우를 대비한 fallback (plan_group_id로 조회)
+      // academy_id가 없는 경우를 대비한 fallback (전역 관리)
       const fallbackSelect = () =>
         adminClient
           .from("academy_schedules")
           .select(
             "id,tenant_id,student_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at"
           )
-          .eq("plan_group_id", groupId) // 플랜 그룹별 조회로 변경
-          .eq("tenant_id", tenantId)
+          .eq("student_id", group.student_id) // 전역 관리: student_id로 조회
+          .is("plan_group_id", null) // 전역 관리: plan_group_id IS NULL
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });
 

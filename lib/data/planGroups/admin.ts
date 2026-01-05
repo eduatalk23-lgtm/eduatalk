@@ -77,13 +77,13 @@ export async function getPlanGroupWithDetails(
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
 }> {
-  // 플랜 그룹별 제외일과 학원 일정 조회
+  // 전역 관리: 학생별 제외일/학원 일정 조회 (plan_group_id IS NULL)
   // 각 조회가 실패해도 다른 데이터는 정상적으로 반환되도록 Promise.allSettled 사용
   const [groupResult, contentsResult, exclusionsResult, academySchedulesResult] = await Promise.allSettled([
     getPlanGroupById(groupId, studentId, tenantId),
     getPlanContents(groupId, tenantId),
-    getPlanExclusions(groupId, tenantId), // 플랜 그룹별 제외일
-    getAcademySchedules(groupId, tenantId), // 플랜 그룹별 학원 일정 조회 (전역 아님)
+    getPlanExclusions(groupId, tenantId), // 학생별 전역 제외일
+    getAcademySchedules(groupId, tenantId), // 학생별 전역 학원 일정
   ]);
 
   // 결과 추출 (실패 시 기본값 사용)

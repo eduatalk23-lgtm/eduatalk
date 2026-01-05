@@ -12,6 +12,7 @@ import { getSupabaseClient, getOrCreateAcademy } from "./utils";
 
 /**
  * 플랜 그룹의 학원 일정 조회
+ * 전역 관리 방식: 학생의 모든 학원 일정을 조회 (plan_group_id IS NULL)
  */
 export async function getAcademySchedules(
   groupId: string,
@@ -19,14 +20,26 @@ export async function getAcademySchedules(
 ): Promise<AcademySchedule[]> {
   const supabase = await createSupabaseServerClient();
 
-  // academies와 조인하여 travel_time 가져오기
+  // 먼저 플랜 그룹에서 student_id 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (!planGroup?.student_id) {
+    return [];
+  }
+
+  // 전역 관리: 학생의 모든 학원 일정 조회 (plan_group_id IS NULL)
   const selectSchedules = () =>
     supabase
       .from("academy_schedules")
       .select(
         "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
       )
-      .eq("plan_group_id", groupId) // plan_group_id로 조회 (플랜 그룹별 관리)
+      .eq("student_id", planGroup.student_id)
+      .is("plan_group_id", null)
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -52,7 +65,8 @@ export async function getAcademySchedules(
       .select(
         "id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,academies(travel_time)"
       )
-      .eq("plan_group_id", groupId)
+      .eq("student_id", planGroup.student_id)
+      .is("plan_group_id", null)
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -205,6 +219,7 @@ export async function getStudentAcademySchedules(
 
 /**
  * 플랜 그룹의 학원 일정 조회 (source, is_locked 포함)
+ * 전역 관리 방식: 학생의 모든 학원 일정을 조회 (plan_group_id IS NULL)
  */
 export async function getPlanGroupAcademySchedules(
   groupId: string,
@@ -215,13 +230,25 @@ export async function getPlanGroupAcademySchedules(
 }>> {
   const supabase = await createSupabaseServerClient();
 
-  // source, is_locked, travel_time 필드를 포함하여 조회
+  // 먼저 플랜 그룹에서 student_id 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("student_id")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (!planGroup?.student_id) {
+    return [];
+  }
+
+  // 전역 관리: 학생의 모든 학원 일정 조회 (plan_group_id IS NULL)
   let query = supabase
     .from("academy_schedules")
     .select(
       "id,tenant_id,student_id,plan_group_id,academy_id,day_of_week,start_time,end_time,academy_name,subject,created_at,updated_at,source,is_locked,travel_time"
     )
-    .eq("plan_group_id", groupId)
+    .eq("student_id", planGroup.student_id)
+    .is("plan_group_id", null)
     .order("day_of_week", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -328,6 +355,7 @@ export async function createAcademySchedules(
 
 /**
  * 플랜 그룹에 학원 일정 생성 (상세 버전 - source, is_locked, travel_time 지원)
+ * 전역 관리 방식: plan_group_id = NULL로 저장 (학생별 전역 관리)
  */
 export async function createPlanAcademySchedules(
   groupId: string,
@@ -371,7 +399,7 @@ export async function createPlanAcademySchedules(
   if (process.env.NODE_ENV === "development") {
     logActionDebug(
       { domain: "data", action: "createPlanAcademySchedules" },
-      "입력된 학원 일정",
+      "입력된 학원 일정 (전역 관리 모드)",
       {
         groupId,
         studentId: group.student_id,
@@ -383,10 +411,21 @@ export async function createPlanAcademySchedules(
 
   const studentId = group.student_id;
 
-  // 중복 체크: 현재 플랜 그룹의 기존 학원 일정 조회
-  const existingSchedules = await getAcademySchedules(groupId, tenantId);
+  // 전역 관리: 학생의 기존 학원 일정 조회 (plan_group_id IS NULL)
+  const existingSchedulesQuery = supabase
+    .from("academy_schedules")
+    .select("id, day_of_week, start_time, end_time, academy_name, subject, academy_id")
+    .eq("student_id", studentId)
+    .is("plan_group_id", null);
+
+  if (tenantId) {
+    existingSchedulesQuery.eq("tenant_id", tenantId);
+  }
+
+  const { data: existingSchedules } = await existingSchedulesQuery;
+
   const existingKeys = new Set(
-    existingSchedules.map((s) =>
+    (existingSchedules || []).map((s) =>
       `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`
     )
   );
@@ -394,196 +433,101 @@ export async function createPlanAcademySchedules(
   if (process.env.NODE_ENV === "development") {
     logActionDebug(
       { domain: "data", action: "createPlanAcademySchedules" },
-      "기존 학원 일정 (현재 플랜 그룹)",
-      { existingSchedulesCount: existingSchedules.length }
+      "기존 학원 일정 (전역)",
+      { existingSchedulesCount: existingSchedules?.length || 0 }
     );
   }
 
-  // 시간 관리 영역의 학원 일정 조회 (plan_group_id가 NULL이거나 다른 플랜 그룹)
-  const timeManagementSchedulesQuery = supabase
-    .from("academy_schedules")
-    .select("id, day_of_week, start_time, end_time, academy_name, subject, academy_id")
-    .eq("student_id", studentId);
+  // 중복되지 않은 일정만 필터링
+  const toInsert = schedules.filter((schedule) => {
+    const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}:${schedule.academy_name || ""}:${schedule.subject || ""}`;
+    const isDuplicate = existingKeys.has(key);
+    if (isDuplicate && process.env.NODE_ENV === "development") {
+      logActionDebug(
+        { domain: "data", action: "createPlanAcademySchedules" },
+        "이미 존재하는 학원 일정 스킵",
+        { key }
+      );
+    }
+    return !isDuplicate;
+  });
 
-  if (tenantId) {
-    timeManagementSchedulesQuery.eq("tenant_id", tenantId);
+  if (process.env.NODE_ENV === "development") {
+    logActionDebug(
+      { domain: "data", action: "createPlanAcademySchedules" },
+      "처리 요약 (전역 관리)",
+      {
+        insertCount: toInsert.length,
+        skipCount: schedules.length - toInsert.length,
+      }
+    );
   }
 
-  // plan_group_id가 NULL이거나 현재 그룹이 아닌 것
-  timeManagementSchedulesQuery.or(`plan_group_id.is.null,plan_group_id.neq.${groupId}`);
+  if (toInsert.length === 0) {
+    return { success: true }; // 모든 학원 일정이 이미 존재
+  }
 
-  const { data: timeManagementSchedules } = await timeManagementSchedulesQuery;
+  // academy_name별로 academy를 찾거나 생성
+  const academyNameMap = new Map<string, string>();
 
-  // 시간 관리 영역의 학원 일정을 키로 매핑
-  const timeManagementMap = new Map(
-    (timeManagementSchedules || []).map((s) => [
-      `${s.day_of_week}:${s.start_time}:${s.end_time}:${s.academy_name || ""}:${s.subject || ""}`,
-      s,
-    ])
-  );
+  for (const schedule of toInsert) {
+    const academyName = schedule.academy_name || "학원";
+    const travelTime = schedule.travel_time ?? 60;
 
-  // 업데이트할 항목과 새로 생성할 항목 분리
-  const toUpdate: Array<{ id: string; schedule: typeof schedules[0] }> = [];
-  const toInsert: typeof schedules = [];
-
-  for (const schedule of schedules) {
-    const key = `${schedule.day_of_week}:${schedule.start_time}:${schedule.end_time}:${schedule.academy_name || ""}:${schedule.subject || ""}`;
-
-    // 현재 플랜 그룹에 이미 있으면 스킵
-    if (existingKeys.has(key)) {
-      if (process.env.NODE_ENV === "development") {
-        logActionDebug(
-          { domain: "data", action: "createPlanAcademySchedules" },
-          "이미 존재하는 학원 일정 스킵",
-          { key }
-        );
+    if (!academyNameMap.has(academyName)) {
+      const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
+      if (!academyResult.id) {
+        return { success: false, error: `학원 생성에 실패했습니다: ${academyName} - ${academyResult.error}` };
       }
-      continue;
+      academyNameMap.set(academyName, academyResult.id);
+    }
+  }
+
+  // 전역 관리: plan_group_id = NULL로 저장
+  const payload = toInsert.map((schedule) => {
+    const academyName = schedule.academy_name || "학원";
+    const academyId = academyNameMap.get(academyName);
+
+    if (!academyId) {
+      throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
     }
 
-    // 시간 관리 영역에 있으면 업데이트
-    const timeManagementSchedule = timeManagementMap.get(key);
-    if (timeManagementSchedule) {
-      toUpdate.push({
-        id: timeManagementSchedule.id,
-        schedule,
-      });
-    } else {
-      // 없으면 새로 생성
-      toInsert.push(schedule);
-    }
+    return {
+      tenant_id: tenantId,
+      student_id: studentId,
+      plan_group_id: null,  // 전역 관리: 항상 NULL
+      academy_id: academyId,
+      day_of_week: schedule.day_of_week,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      academy_name: schedule.academy_name || null,
+      subject: schedule.subject || null,
+      source: schedule.source || "student",
+      is_locked: schedule.is_locked ?? false,
+      travel_time: schedule.travel_time ?? 60,
+    };
+  });
+
+  let { error } = await supabase.from("academy_schedules").insert(payload);
+
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
+    const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
+    ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
+  }
+
+  if (error) {
+    handleQueryError(error, {
+      context: "[data/planGroups] createPlanAcademySchedules",
+    });
+    return { success: false, error: error.message };
   }
 
   if (process.env.NODE_ENV === "development") {
     logActionDebug(
       { domain: "data", action: "createPlanAcademySchedules" },
-      "처리 요약",
-      {
-        updateCount: toUpdate.length,
-        insertCount: toInsert.length,
-        skipCount: schedules.length - toUpdate.length - toInsert.length,
-      }
+      "학원 일정 생성 완료 (전역 관리)",
+      { insertCount: toInsert.length }
     );
-  }
-
-  // 시간 관리 영역의 학원 일정을 현재 플랜 그룹으로 업데이트
-  if (toUpdate.length > 0) {
-    for (const { id, schedule } of toUpdate) {
-      // academy_name으로 academy 찾기 또는 생성
-      const academyName = schedule.academy_name || "학원";
-      const travelTime = schedule.travel_time ?? 60;
-      const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
-
-      if (!academyResult.id) {
-        logActionWarn(
-          { domain: "data", action: "createPlanAcademySchedules" },
-          "학원 ID 확보 실패, 새로 생성으로 폴백",
-          { academyName, scheduleId: id, error: academyResult.error }
-        );
-        toInsert.push(schedule);
-        continue;
-      }
-      const academyId = academyResult.id;
-
-      const { error: updateError } = await supabase
-        .from("academy_schedules")
-        .update({
-          plan_group_id: groupId,
-          academy_id: academyId,
-          academy_name: schedule.academy_name || null,
-          subject: schedule.subject || null,
-          // source, is_locked, travel_time 필드 저장
-          source: schedule.source || "student",
-          is_locked: schedule.is_locked ?? false,
-          travel_time: schedule.travel_time ?? 60,
-        })
-        .eq("id", id);
-
-      if (updateError) {
-        handleQueryError(updateError, {
-          context: "[data/planGroups] createPlanAcademySchedules - updateSchedule",
-        });
-        toInsert.push(schedule);
-      } else if (process.env.NODE_ENV === "development") {
-        logActionDebug(
-          { domain: "data", action: "createPlanAcademySchedules" },
-          "학원 일정 재활용 성공",
-          {
-            dayOfWeek: schedule.day_of_week,
-            startTime: schedule.start_time,
-            endTime: schedule.end_time,
-          }
-        );
-      }
-    }
-  }
-
-  // 새로 생성할 학원 일정
-  if (toInsert.length > 0) {
-    // academy_name별로 academy를 찾거나 생성
-    const academyNameMap = new Map<string, string>();
-
-    for (const schedule of toInsert) {
-      const academyName = schedule.academy_name || "학원";
-      const travelTime = schedule.travel_time ?? 60;
-
-      if (!academyNameMap.has(academyName)) {
-        const academyResult = await getOrCreateAcademy(studentId, tenantId, academyName, travelTime, useAdminClient);
-        if (!academyResult.id) {
-          // 에러 메시지에 실제 DB 에러 원인 포함
-          return { success: false, error: `학원 생성에 실패했습니다: ${academyName} - ${academyResult.error}` };
-        }
-        academyNameMap.set(academyName, academyResult.id);
-      }
-    }
-
-    // academy_id와 plan_group_id를 포함한 payload 생성
-    const payload = toInsert.map((schedule) => {
-      const academyName = schedule.academy_name || "학원";
-      const academyId = academyNameMap.get(academyName);
-
-      if (!academyId) {
-        throw new Error(`학원 ID를 찾을 수 없습니다: ${academyName}`);
-      }
-
-      return {
-        tenant_id: tenantId,
-        student_id: studentId,
-        plan_group_id: groupId,
-        academy_id: academyId,
-        day_of_week: schedule.day_of_week,
-        start_time: schedule.start_time,
-        end_time: schedule.end_time,
-        academy_name: schedule.academy_name || null,
-        subject: schedule.subject || null,
-        // source, is_locked, travel_time 필드 저장
-        source: schedule.source || "student",
-        is_locked: schedule.is_locked ?? false,
-        travel_time: schedule.travel_time ?? 60,
-      };
-    });
-
-    let { error } = await supabase.from("academy_schedules").insert(payload);
-
-    if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
-      const fallbackPayload = payload.map(({ tenant_id: _tenantId, ...rest }) => rest);
-      ({ error } = await supabase.from("academy_schedules").insert(fallbackPayload));
-    }
-
-    if (error) {
-      handleQueryError(error, {
-        context: "[data/planGroups] createPlanAcademySchedules",
-      });
-      return { success: false, error: error.message };
-    }
-
-    if (process.env.NODE_ENV === "development") {
-      logActionDebug(
-        { domain: "data", action: "createPlanAcademySchedules" },
-        "학원 일정 생성 완료",
-        { insertCount: toInsert.length }
-      );
-    }
   }
 
   return { success: true };

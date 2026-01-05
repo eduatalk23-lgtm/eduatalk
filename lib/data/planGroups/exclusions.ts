@@ -11,6 +11,7 @@ import type { PlanExclusion, ExclusionType } from "./types";
 
 /**
  * 플랜 그룹의 제외일 목록 조회
+ * 전역 관리 방식: 학생의 모든 제외일을 조회 (plan_group_id IS NULL)
  * 캠프 플랜인 경우 템플릿 제외일도 포함
  */
 export async function getPlanExclusions(
@@ -19,11 +20,24 @@ export async function getPlanExclusions(
 ): Promise<PlanExclusion[]> {
   const supabase = await createSupabaseServerClient();
 
+  // 먼저 플랜 그룹에서 student_id 조회
+  const { data: planGroup } = await supabase
+    .from("plan_groups")
+    .select("student_id, camp_template_id, plan_type")
+    .eq("id", groupId)
+    .maybeSingle();
+
+  if (!planGroup?.student_id) {
+    return [];
+  }
+
+  // 전역 관리: 학생의 모든 제외일 조회 (plan_group_id IS NULL)
   const selectExclusions = () =>
     supabase
       .from("plan_exclusions")
       .select("id,tenant_id,student_id,plan_group_id,exclusion_date,exclusion_type,reason,created_at")
-      .eq("plan_group_id", groupId)
+      .eq("student_id", planGroup.student_id)
+      .is("plan_group_id", null)
       .order("exclusion_date", { ascending: true });
 
   let query = selectExclusions();
@@ -47,13 +61,7 @@ export async function getPlanExclusions(
   const dbExclusions = (data as PlanExclusion[] | null) ?? [];
 
   // 캠프 플랜인 경우 템플릿 제외일 확인 및 포함
-  const { data: planGroup } = await supabase
-    .from("plan_groups")
-    .select("camp_template_id, plan_type, student_id")
-    .eq("id", groupId)
-    .maybeSingle();
-
-  if (planGroup?.plan_type === "camp" && planGroup.camp_template_id) {
+  if (planGroup.plan_type === "camp" && planGroup.camp_template_id) {
     try {
       const { getCampTemplate } = await import("@/lib/data/campTemplates");
       const template = await getCampTemplate(planGroup.camp_template_id);
@@ -452,6 +460,7 @@ async function createExclusions(
 
 /**
  * 플랜 그룹에 제외일 생성
+ * 전역 관리 방식: plan_group_id = NULL로 저장 (학생별 전역 관리)
  */
 export async function createPlanExclusions(
   groupId: string,
@@ -474,8 +483,8 @@ export async function createPlanExclusions(
     return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
   }
 
-  // 통합 함수 호출
-  return createExclusions(group.student_id, tenantId, exclusions, groupId);
+  // 전역 관리: plan_group_id = NULL로 저장
+  return createStudentExclusions(group.student_id, tenantId, exclusions);
 }
 
 /**

@@ -291,101 +291,53 @@ async function _updatePlanGroupDraft(
     }
   }
 
-  // 제외일 업데이트 (플랜 그룹별 관리)
-  // 플랜 그룹의 기존 제외일을 삭제하고 새로운 제외일로 교체
-  if (data.exclusions !== undefined) {
-    const supabase = await createSupabaseServerClient();
+  // 제외일 업데이트 (전역 관리)
+  // 학생별 전역 제외일에 새로운 항목 추가 (중복은 자동 스킵)
+  // 주의: 제외일 삭제는 시간 관리 영역에서만 가능
+  if (data.exclusions !== undefined && data.exclusions.length > 0) {
+    const exclusionsResult = await createPlanExclusions(
+      groupId,
+      tenantContext.tenantId,
+      data.exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: e.exclusion_type,
+        reason: e.reason || null,
+      }))
+    );
 
-    // 플랜 그룹의 기존 제외일 삭제
-    const deleteQuery = supabase
-      .from("plan_exclusions")
-      .delete()
-      .eq("plan_group_id", groupId);
-
-    const { error: deleteError } = await deleteQuery;
-
-    if (deleteError) {
-      logActionError(
-        { domain: "plan", action: "_updatePlanGroupDraft" },
-        deleteError,
-        { groupId, operation: "기존 제외일 삭제 실패" }
+    if (!exclusionsResult.success) {
+      throw new AppError(
+        exclusionsResult.error || "제외일 업데이트에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
-      // 삭제 실패해도 계속 진행 (경고만)
-    }
-
-    // 새로운 제외일 추가
-    if (data.exclusions.length > 0) {
-      const exclusionsResult = await createPlanExclusions(
-        groupId,
-        tenantContext.tenantId,
-        data.exclusions.map((e) => ({
-          exclusion_date: e.exclusion_date,
-          exclusion_type: e.exclusion_type,
-          reason: e.reason || null,
-        }))
-      );
-
-      if (!exclusionsResult.success) {
-        // 중복 에러인 경우 VALIDATION_ERROR로 처리
-        const isDuplicateError = exclusionsResult.error?.includes("중복된 제외일");
-        throw new AppError(
-          exclusionsResult.error || "제외일 업데이트에 실패했습니다.",
-          isDuplicateError ? ErrorCode.VALIDATION_ERROR : ErrorCode.DATABASE_ERROR,
-          isDuplicateError ? 400 : 500,
-          true
-        );
-      }
     }
   }
 
-  // 학원 일정 업데이트 (플랜 그룹별 관리)
-  // Phase 2: 플랜 그룹별로 독립적으로 관리되며, 플랜 그룹 간 중복 허용
-  if (data.academy_schedules !== undefined) {
-    const supabase = await createSupabaseServerClient();
+  // 학원 일정 업데이트 (전역 관리)
+  // 학생별 전역 학원 일정에 새로운 항목 추가 (중복은 자동 스킵)
+  // 주의: 학원 일정 삭제는 시간 관리 영역에서만 가능
+  if (data.academy_schedules !== undefined && data.academy_schedules.length > 0) {
+    const schedulesResult = await createPlanAcademySchedules(
+      groupId,
+      tenantContext.tenantId,
+      data.academy_schedules.map((s) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name || null,
+        subject: s.subject || null,
+      }))
+    );
 
-    // 기존 학원 일정 삭제 (현재 플랜 그룹만)
-    const deleteQuery = supabase
-      .from("academy_schedules")
-      .delete()
-      .eq("plan_group_id", groupId); // 플랜 그룹별 삭제
-
-    if (tenantContext.tenantId) {
-      deleteQuery.eq("tenant_id", tenantContext.tenantId);
-    }
-
-    const { error: deleteError } = await deleteQuery;
-
-    if (deleteError) {
-      logActionError(
-        { domain: "plan", action: "_updatePlanGroupDraft" },
-        deleteError,
-        { groupId, operation: "기존 학원 일정 삭제 실패" }
+    if (!schedulesResult.success) {
+      throw new AppError(
+        schedulesResult.error || "학원 일정 업데이트에 실패했습니다.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
       );
-      // 삭제 실패해도 계속 진행 (경고만)
-    }
-
-    // 새로운 학원 일정 추가 (현재 플랜 그룹에만)
-    if (data.academy_schedules.length > 0) {
-      const schedulesResult = await createPlanAcademySchedules(
-        groupId,
-        tenantContext.tenantId,
-        data.academy_schedules.map((s) => ({
-          day_of_week: s.day_of_week,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          academy_name: s.academy_name || null,
-          subject: s.subject || null,
-        }))
-      );
-
-      if (!schedulesResult.success) {
-        throw new AppError(
-          schedulesResult.error || "학원 일정 업데이트에 실패했습니다.",
-          ErrorCode.DATABASE_ERROR,
-          500,
-          true
-        );
-      }
     }
   }
 

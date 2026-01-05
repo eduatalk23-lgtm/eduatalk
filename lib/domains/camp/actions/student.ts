@@ -743,7 +743,7 @@ export const submitCampParticipation = withErrorHandling(
           );
         } else {
           await supabase.from("plan_contents").delete().eq("plan_group_id", existingGroupByTemplate.id);
-          await supabase.from("plan_exclusions").delete().eq("plan_group_id", existingGroupByTemplate.id);
+          // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
 
           const { error: deleteGroupError } = await supabase
             .from("plan_groups")
@@ -1069,7 +1069,7 @@ export const declineCampInvitation = withErrorHandling(
       // 관련 데이터 삭제
       await supabase.from("student_plan").delete().eq("plan_group_id", draftGroup.id);
       await supabase.from("plan_contents").delete().eq("plan_group_id", draftGroup.id);
-      await supabase.from("plan_exclusions").delete().eq("plan_group_id", draftGroup.id);
+      // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
       await supabase.from("plan_groups").delete().eq("id", draftGroup.id);
     }
 
@@ -1177,7 +1177,7 @@ export const cancelCampParticipation = withErrorHandling(
     if (planGroup) {
       await supabase.from("student_plan").delete().eq("plan_group_id", planGroup.id);
       await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
-      await supabase.from("plan_exclusions").delete().eq("plan_group_id", planGroup.id);
+      // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
       await supabase.from("plan_groups").delete().eq("id", planGroup.id);
     }
 
