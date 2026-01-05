@@ -192,4 +192,28 @@ export const SELECTORS = {
   nameInput: '[data-testid="plan-name-input"], input[name="name"]',
   periodStartInput: '[data-testid="period-start"]',
   periodEndInput: '[data-testid="period-end"]',
+
+  // Phase 1: CompletionFlow
+  completionFlow: '[data-testid="completion-flow"], .completion-flow',
+  dailyProgress: '[data-testid="daily-progress"]',
+  nextPlanCard: '[data-testid="next-plan-card"]',
+  endTodayButton: 'button:has-text("오늘은 여기까지")',
+
+  // Phase 2: Milestone
+  milestoneToast: '[data-testid="milestone-toast"]',
+  timerDisplay: '[data-testid="timer-display"]',
+  streakDays: '[data-testid="streak-days"]',
+
+  // Phase 3: Reminder
+  incompleteReminder: '[data-testid="incomplete-reminder"]',
+  reminderSettings: '[data-testid="reminder-settings"]',
+  reminderToggle: '[data-testid="reminder-toggle"]',
+  reminderTimeInput: '[data-testid="reminder-time"]',
+  thresholdSelect: '[data-testid="threshold-select"]',
+
+  // 플랜 카드
+  planCard: '[data-testid="plan-card"], [data-testid="plan-item"]',
+  planTimer: '[data-testid="plan-timer"]',
+  startButton: 'button:has-text("시작"), button:has-text("학습 시작")',
+  completeButton: 'button:has-text("완료"), button:has-text("학습 완료")',
 };
