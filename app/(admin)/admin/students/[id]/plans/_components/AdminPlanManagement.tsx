@@ -79,6 +79,10 @@ const PlanStatusModal = dynamic(
   () => import('./modals/PlanStatusModal').then(mod => ({ default: mod.PlanStatusModal })),
   { ssr: false }
 );
+const BulkEditModal = dynamic(
+  () => import('./modals/BulkEditModal').then(mod => ({ default: mod.BulkEditModal })),
+  { ssr: false }
+);
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -128,6 +132,8 @@ export function AdminPlanManagement({
     status: string;
     title: string;
   } | null>(null);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<string[]>([]);
 
   // 날짜 변경 핸들러
   const handleDateChange = useCallback((date: string) => {
@@ -178,6 +184,12 @@ export function AdminPlanManagement({
   const handleOpenStatusChange = (planId: string, currentStatus: string, title: string) => {
     setSelectedPlanForStatus({ id: planId, status: currentStatus, title });
     setShowStatusModal(true);
+  };
+
+  // 일괄 수정 모달 열기
+  const handleOpenBulkEdit = (planIds: string[]) => {
+    setSelectedPlansForBulkEdit(planIds);
+    setShowBulkEditModal(true);
   };
 
   // React Query 캐시 무효화 (Dock 컴포넌트용)
@@ -313,6 +325,9 @@ export function AdminPlanManagement({
           setShowConditionalDeleteModal(false);
           setShowTemplateModal(false);
           setShowStatusModal(false);
+          setShowBulkEditModal(false);
+          setShowMoveToGroupModal(false);
+          setShowCopyModal(false);
         },
         description: '모달 닫기',
         category: 'modal',
@@ -731,6 +746,23 @@ export function AdminPlanManagement({
             onSuccess={() => {
               setShowStatusModal(false);
               setSelectedPlanForStatus(null);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 일괄 수정 모달 */}
+        {showBulkEditModal && selectedPlansForBulkEdit.length > 0 && (
+          <BulkEditModal
+            planIds={selectedPlansForBulkEdit}
+            studentId={studentId}
+            onClose={() => {
+              setShowBulkEditModal(false);
+              setSelectedPlansForBulkEdit([]);
+            }}
+            onSuccess={() => {
+              setShowBulkEditModal(false);
+              setSelectedPlansForBulkEdit([]);
               handleRefresh();
             }}
           />
