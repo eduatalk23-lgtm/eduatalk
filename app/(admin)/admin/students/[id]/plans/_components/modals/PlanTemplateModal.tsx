@@ -9,6 +9,7 @@ import {
   createPlanTemplate,
   applyPlanTemplate,
   deletePlanTemplate,
+  updatePlanTemplate,
   type PlanTemplate,
   type PlanTemplateItem,
 } from '@/lib/domains/admin-plan/actions/planTemplates';
@@ -22,7 +23,7 @@ interface PlanTemplateModalProps {
   onSuccess: () => void;
 }
 
-type Mode = 'list' | 'create' | 'apply';
+type Mode = 'list' | 'create' | 'apply' | 'edit';
 
 export function PlanTemplateModal({
   studentId,
@@ -38,9 +39,10 @@ export function PlanTemplateModal({
   const [isPending, startTransition] = useTransition();
   const { showSuccess, showError } = useToast();
 
-  // 새 템플릿 생성 폼
+  // 새 템플릿 생성/편집 폼
   const [templateName, setTemplateName] = useState('');
   const [templateDesc, setTemplateDesc] = useState('');
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
   // 적용할 템플릿
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
@@ -173,6 +175,47 @@ export function PlanTemplateModal({
     });
   };
 
+  const handleEditTemplate = (template: PlanTemplate) => {
+    setEditingTemplateId(template.id);
+    setTemplateName(template.name);
+    setTemplateDesc(template.description ?? '');
+    setMode('edit');
+  };
+
+  const handleUpdateTemplate = () => {
+    if (!editingTemplateId) return;
+    if (!templateName.trim()) {
+      showError('템플릿 이름을 입력해주세요.');
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await updatePlanTemplate({
+        templateId: editingTemplateId,
+        name: templateName,
+        description: templateDesc || undefined,
+      });
+
+      if (result.success) {
+        showSuccess('템플릿이 수정되었습니다.');
+        // 로컬 상태 업데이트
+        setTemplates((prev) =>
+          prev.map((t) =>
+            t.id === editingTemplateId
+              ? { ...t, name: templateName.trim(), description: templateDesc.trim() || null }
+              : t
+          )
+        );
+        setMode('list');
+        setEditingTemplateId(null);
+        setTemplateName('');
+        setTemplateDesc('');
+      } else {
+        showError(result.error ?? '템플릿 수정에 실패했습니다.');
+      }
+    });
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
@@ -202,14 +245,22 @@ export function PlanTemplateModal({
         {/* 헤더 */}
         <div className="p-4 border-b shrink-0">
           <h2 className="text-lg font-bold">
-            {mode === 'create' ? '템플릿 저장' : mode === 'apply' ? '템플릿 적용' : '플랜 템플릿'}
+            {mode === 'create'
+              ? '템플릿 저장'
+              : mode === 'apply'
+                ? '템플릿 적용'
+                : mode === 'edit'
+                  ? '템플릿 편집'
+                  : '플랜 템플릿'}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             {mode === 'create'
               ? `${planIds?.length ?? 0}개 플랜을 템플릿으로 저장`
               : mode === 'apply'
                 ? '저장된 템플릿을 학생에게 적용'
-                : '템플릿을 관리하고 적용하세요'}
+                : mode === 'edit'
+                  ? '템플릿 이름과 설명을 수정합니다'
+                  : '템플릿을 관리하고 적용하세요'}
           </p>
         </div>
 
@@ -244,6 +295,44 @@ export function PlanTemplateModal({
               <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
                 {planIds?.length ?? 0}개의 플랜이 이 템플릿에 포함됩니다.
               </div>
+            </div>
+          )}
+
+          {mode === 'edit' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  템플릿 이름 *
+                </label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="예: 수학 기본 과정"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  설명 (선택)
+                </label>
+                <textarea
+                  value={templateDesc}
+                  onChange={(e) => setTemplateDesc(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  rows={3}
+                  placeholder="템플릿에 대한 설명을 입력하세요"
+                />
+              </div>
+              {editingTemplateId && (() => {
+                const template = templates.find((t) => t.id === editingTemplateId);
+                const itemCount = (template?.items as unknown[])?.length ?? 0;
+                return (
+                  <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                    이 템플릿에는 {itemCount}개의 플랜이 포함되어 있습니다.
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -492,12 +581,20 @@ export function PlanTemplateModal({
                             {(template.items as unknown[]).length}개 플랜 • {formatDate(template.created_at)}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteTemplate(template.id)}
-                          className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
-                        >
-                          삭제
-                        </button>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleEditTemplate(template)}
+                            className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                          >
+                            편집
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(template.id)}
+                            className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
+                          >
+                            삭제
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -548,6 +645,15 @@ export function PlanTemplateModal({
                 {isPending ? '적용 중...' : applyToOtherStudents && selectedTargetStudents.length > 0
                   ? `${selectedTargetStudents.length}명에게 적용`
                   : '템플릿 적용'}
+              </button>
+            )}
+            {mode === 'edit' && (
+              <button
+                onClick={handleUpdateTemplate}
+                disabled={!templateName.trim() || isPending}
+                className="px-4 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-md disabled:opacity-50"
+              >
+                {isPending ? '저장 중...' : '수정 완료'}
               </button>
             )}
           </div>

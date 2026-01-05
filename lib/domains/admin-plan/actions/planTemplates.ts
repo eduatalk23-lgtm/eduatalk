@@ -278,6 +278,54 @@ export async function applyPlanTemplate(
   }
 }
 
+export interface UpdateTemplateInput {
+  templateId: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * 템플릿 수정 (관리자용)
+ */
+export async function updatePlanTemplate(
+  input: UpdateTemplateInput
+): Promise<AdminPlanResponse<void>> {
+  try {
+    const { tenantId } = await requireAdminOrConsultant({ requireTenant: true });
+    const supabase = await createSupabaseServerClient();
+
+    if (!input.name.trim()) {
+      return { success: false, error: '템플릿 이름을 입력해주세요.' };
+    }
+
+    const { error } = await supabase
+      .from('plan_templates')
+      .update({
+        name: input.name.trim(),
+        description: input.description?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', input.templateId)
+      .eq('tenant_id', tenantId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath('/admin/students');
+
+    return { success: true, data: undefined };
+  } catch (error) {
+    logActionError({ domain: 'admin-plan', action: 'updatePlanTemplate' }, error, {
+      templateId: input.templateId,
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '템플릿 수정 중 오류가 발생했습니다.',
+    };
+  }
+}
+
 /**
  * 템플릿 삭제 (관리자용)
  */
