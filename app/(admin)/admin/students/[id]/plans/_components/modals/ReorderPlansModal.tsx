@@ -22,6 +22,21 @@ interface PlanItem {
   planned_end_page_or_time: number | null;
 }
 
+// 주간 범위 계산 (월요일~일요일)
+function getWeekRange(dateStr: string) {
+  const date = new Date(dateStr + 'T00:00:00');
+  const dayOfWeek = date.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(date);
+  weekStart.setDate(date.getDate() + mondayOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return {
+    start: weekStart.toISOString().split('T')[0],
+    end: weekEnd.toISOString().split('T')[0],
+  };
+}
+
 export function ReorderPlansModal({
   studentId,
   targetDate,
@@ -47,10 +62,14 @@ export function ReorderPlansModal({
         .eq('is_active', true)
         .eq('container_type', containerType);
 
-      // unfinished는 날짜 조건 없음
-      if (containerType !== 'unfinished') {
+      // 컨테이너 타입별 날짜 필터링
+      if (containerType === 'daily') {
         query.eq('plan_date', targetDate);
+      } else if (containerType === 'weekly') {
+        const weekRange = getWeekRange(targetDate);
+        query.gte('plan_date', weekRange.start).lte('plan_date', weekRange.end);
       }
+      // unfinished는 날짜 조건 없음
 
       const { data, error } = await query.order('sequence', { ascending: true });
 
