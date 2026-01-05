@@ -65,6 +65,10 @@ const PlanTemplateModal = dynamic(
   () => import('./modals/PlanTemplateModal').then(mod => ({ default: mod.PlanTemplateModal })),
   { ssr: false }
 );
+const MoveToGroupModal = dynamic(
+  () => import('./modals/MoveToGroupModal').then(mod => ({ default: mod.MoveToGroupModal })),
+  { ssr: false }
+);
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -103,6 +107,9 @@ export function AdminPlanManagement({
   const [showConditionalDeleteModal, setShowConditionalDeleteModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);
+  const [showMoveToGroupModal, setShowMoveToGroupModal] = useState(false);
+  const [selectedPlansForMove, setSelectedPlansForMove] = useState<string[]>([]);
+  const [currentGroupIdForMove, setCurrentGroupIdForMove] = useState<string | null>(null);
 
   // 날짜 변경 핸들러
   const handleDateChange = useCallback((date: string) => {
@@ -134,6 +141,13 @@ export function AdminPlanManagement({
   const handleOpenTemplateWithPlans = (planIds: string[]) => {
     setTemplatePlanIds(planIds);
     setShowTemplateModal(true);
+  };
+
+  // 그룹 이동 모달 열기
+  const handleOpenMoveToGroup = (planIds: string[], currentGroupId?: string | null) => {
+    setSelectedPlansForMove(planIds);
+    setCurrentGroupIdForMove(currentGroupId ?? null);
+    setShowMoveToGroupModal(true);
   };
 
   // 새로고침
@@ -366,6 +380,7 @@ export function AdminPlanManagement({
           onRedistribute={handleOpenRedistribute}
           onEdit={handleOpenEdit}
           onReorder={() => handleOpenReorder('unfinished')}
+          onMoveToGroup={handleOpenMoveToGroup}
           onRefresh={handleRefresh}
         />
 
@@ -388,6 +403,7 @@ export function AdminPlanManagement({
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('daily')}
+            onMoveToGroup={handleOpenMoveToGroup}
             onRefresh={handleRefresh}
           />
 
@@ -399,6 +415,7 @@ export function AdminPlanManagement({
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('weekly')}
+            onMoveToGroup={handleOpenMoveToGroup}
             onRefresh={handleRefresh}
           />
         </div>
@@ -596,6 +613,25 @@ export function AdminPlanManagement({
             onSuccess={() => {
               setShowTemplateModal(false);
               setTemplatePlanIds([]);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {showMoveToGroupModal && (
+          <MoveToGroupModal
+            planIds={selectedPlansForMove}
+            studentId={studentId}
+            currentGroupId={currentGroupIdForMove}
+            onClose={() => {
+              setShowMoveToGroupModal(false);
+              setSelectedPlansForMove([]);
+              setCurrentGroupIdForMove(null);
+            }}
+            onSuccess={() => {
+              setShowMoveToGroupModal(false);
+              setSelectedPlansForMove([]);
+              setCurrentGroupIdForMove(null);
               handleRefresh();
             }}
           />

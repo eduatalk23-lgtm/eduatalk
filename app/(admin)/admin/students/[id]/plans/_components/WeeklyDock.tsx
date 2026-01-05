@@ -13,6 +13,7 @@ interface WeeklyDockProps {
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
+  onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onRefresh: () => void;
 }
 
@@ -42,6 +43,7 @@ export function WeeklyDock({
   onRedistribute,
   onEdit,
   onReorder,
+  onMoveToGroup,
   onRefresh,
 }: WeeklyDockProps) {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
@@ -224,12 +226,22 @@ export function WeeklyDock({
               </button>
             )}
             {selectedPlans.size > 0 && (
-              <button
-                onClick={handleBulkRedistribute}
-                className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
-              >
-                일괄 작업 ({selectedPlans.size})
-              </button>
+              <>
+                <button
+                  onClick={handleBulkRedistribute}
+                  className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
+                >
+                  일괄 작업 ({selectedPlans.size})
+                </button>
+                {onMoveToGroup && (
+                  <button
+                    onClick={() => onMoveToGroup(Array.from(selectedPlans))}
+                    className="px-3 py-1.5 text-sm bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
+                  >
+                    그룹 이동
+                  </button>
+                )}
+              </>
             )}
             {onReorder && plans.length > 1 && (
               <button
