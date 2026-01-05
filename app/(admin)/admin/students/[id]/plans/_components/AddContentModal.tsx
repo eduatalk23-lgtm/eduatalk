@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createFlexibleContent } from '@/lib/domains/admin-plan/actions/flexibleContent';
+import { createPlanFromContent } from '@/lib/domains/admin-plan/actions/createPlanFromContent';
 import { cn } from '@/lib/cn';
 import type { ContentType, RangeType } from '@/lib/domains/admin-plan/types';
 import { usePlanToast } from './PlanToast';
@@ -58,9 +59,15 @@ export function AddContentModal({
       return;
     }
 
+    // 기간 배치 시 종료일 필수
+    if (distributionMode === 'period' && !periodEnd) {
+      showToast('종료 날짜를 선택하세요', 'warning');
+      return;
+    }
+
     startTransition(async () => {
-      // 유연한 콘텐츠 생성
-      const result = await createFlexibleContent({
+      // 1. 유연한 콘텐츠 생성
+      const contentResult = await createFlexibleContent({
         tenant_id: tenantId,
         content_type: contentType,
         title: title.trim(),
@@ -74,16 +81,34 @@ export function AddContentModal({
         student_id: studentId,
       });
 
-      if (!result.success) {
-        showToast('콘텐츠 생성 실패: ' + result.error, 'error');
+      if (!contentResult.success || !contentResult.data) {
+        showToast('콘텐츠 생성 실패: ' + contentResult.error, 'error');
         return;
       }
 
-      // TODO: 배치 방식에 따른 플랜 생성 로직
-      // distributionMode === 'today' -> 오늘 Daily에 추가
-      // distributionMode === 'period' -> 기간에 걸쳐 분배
-      // distributionMode === 'weekly' -> Weekly Dock에 추가
+      // 2. 배치 방식에 따른 플랜 생성
+      const planResult = await createPlanFromContent({
+        flexibleContentId: contentResult.data.id,
+        contentTitle: title.trim(),
+        contentSubject: subject || subjectArea || null,
+        rangeStart: rangeType !== 'custom' && rangeStart ? Number(rangeStart) : null,
+        rangeEnd: rangeType !== 'custom' && rangeEnd ? Number(rangeEnd) : null,
+        customRangeDisplay: rangeType === 'custom' ? customRange : null,
+        totalVolume: totalVolume ? Number(totalVolume) : null,
+        distributionMode,
+        targetDate: distributionMode === 'period' ? periodStart : targetDate,
+        periodEndDate: distributionMode === 'period' ? periodEnd : undefined,
+        studentId,
+        tenantId,
+      });
 
+      if (!planResult.success) {
+        showToast('플랜 생성 실패: ' + planResult.error, 'error');
+        return;
+      }
+
+      const modeLabel = distributionMode === 'today' ? 'Daily' : distributionMode === 'weekly' ? 'Weekly' : '기간';
+      showToast(`${modeLabel}에 ${planResult.data?.createdCount || 1}개 플랜 추가됨`, 'success');
       onSuccess();
     });
   };

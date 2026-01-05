@@ -101,3 +101,11 @@ export {
   type BatchProgressEvent,
   type BatchPlanGenerationResult,
 } from './batchAIPlanGeneration';
+
+// Create Plan from Content
+export {
+  createPlanFromContent,
+  type DistributionMode,
+  type CreatePlanFromContentInput,
+  type CreatePlanFromContentResult,
+} from './createPlanFromContent';
