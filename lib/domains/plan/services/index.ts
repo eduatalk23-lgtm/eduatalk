@@ -120,6 +120,7 @@ export {
   analyzeGroupSchedule,
   generateWeakSubjectReinforcement,
   generateStudentReinforcement,
+  generateEnhancedAdaptiveSchedule,
 } from "./adaptiveScheduler";
 
 export type {
@@ -131,7 +132,91 @@ export type {
   AdaptiveScheduleAnalysis,
   WeakSubjectReinforcement,
   WeakSubjectReinforcementPlan,
+  EnhancedAdaptiveOptions,
+  EnhancedAdaptiveScheduleAnalysis,
+  EnhancedRecommendation,
 } from "./adaptiveScheduler";
+
+// 피로도 모델링 서비스
+export {
+  calculateFatigueScore,
+  suggestRestDays,
+  adjustLearningIntensity,
+  generateFatigueWarnings,
+} from "./fatigueModelingService";
+
+export type {
+  IntensityLevel,
+  FatigueMetrics,
+  FatigueAnalysisInput,
+  RestDaySuggestion,
+  FatigueAnalysisResult,
+} from "./fatigueModelingService";
+
+// 학습 속도 예측 서비스
+export {
+  predictLearningPace,
+  getStudentLearningProfile,
+  adjustEstimatedDuration,
+} from "./learningPacePredictor";
+
+export type {
+  TimePeriod,
+  ConfidenceLevel,
+  SubjectVelocityData,
+  TimePeriodEfficiency,
+  LearningPacePredictionInput,
+  PredictedLearningPace,
+  StudentLearningProfile,
+  LearningPaceResult,
+} from "./learningPacePredictor";
+
+// 동적 난이도 조정 서비스
+export {
+  inferPlanDifficultyFeedback,
+  getStudentDifficultyProfile,
+  getSubjectDifficultyAdjustment,
+  getSubjectsNeedingAdjustment,
+} from "./dynamicDifficultyService";
+
+export type {
+  DifficultyFeedback,
+  SubjectDifficultyData,
+  StudentDifficultyProfile,
+  DifficultyAnalysisInput,
+  DifficultyResult,
+} from "./dynamicDifficultyService";
+
+// 학습 데이터 기반 추천 가중치 서비스
+export {
+  calculateLearningWeights,
+  getTimeSlotWeight,
+  getSubjectWeight,
+  applyLearningWeights,
+} from "./learningWeightService";
+
+export type {
+  SubjectWeight,
+  TimeSlotWeight,
+  LearningWeightResult,
+  WeightServiceResult,
+} from "./learningWeightService";
+
+// 지연 예측 서비스
+export {
+  analyzeStudentPattern,
+  predictPlanDelays,
+  getHighRiskPlans,
+} from "./delayPredictionService";
+
+export type {
+  RiskLevel,
+  ActionType,
+  SuggestedAction,
+  DelayPrediction,
+  StudentPatternAnalysis,
+  DelayPredictionResult,
+} from "./delayPredictionService";
 
 // ============================================
 // 타입 (lib/plan/shared에서 re-export)

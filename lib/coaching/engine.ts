@@ -55,6 +55,42 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
     highlights.push("집중해서 학습하는 모습이 보여요!");
   }
 
+  // Phase 2: 마일스톤 달성
+  if (metrics.milestoneAchievements >= 10) {
+    highlights.push(`이번 주 ${metrics.milestoneAchievements}개의 마일스톤을 달성했어요! 대단해요!`);
+  } else if (metrics.milestoneAchievements >= 5) {
+    highlights.push(`${metrics.milestoneAchievements}개의 마일스톤 달성! 꾸준히 성장하고 있어요.`);
+  }
+
+  // Phase 2: 학습 연속일
+  if (metrics.streakDays >= 7) {
+    highlights.push(`${metrics.streakDays}일 연속 학습 중! 놀라운 꾸준함이에요!`);
+  } else if (metrics.streakDays >= 3) {
+    highlights.push(`${metrics.streakDays}일 연속 학습 중! 좋은 습관이 형성되고 있어요.`);
+  }
+
+  // Phase 2: 피로도 낮음 (건강한 상태)
+  if (metrics.fatigueScore <= 30 && metrics.fatigueIntensity === "low") {
+    highlights.push("피로도가 낮아요! 건강한 학습 리듬을 유지하고 있어요.");
+  }
+
+  // Phase 2: 만족도 높음
+  if (metrics.satisfactionAverage >= 4.0) {
+    highlights.push(`평균 학습 만족도 ${metrics.satisfactionAverage.toFixed(1)}점! 학습이 잘 맞고 있어요.`);
+  } else if (metrics.satisfactionTrend === "improving") {
+    highlights.push("학습 만족도가 점점 높아지고 있어요!");
+  }
+
+  // Phase 2: 학습 효율성 높음
+  if (metrics.learningEfficiency >= 0.8) {
+    highlights.push("학습 효율이 매우 좋아요! 시간 대비 성과가 뛰어나요.");
+  }
+
+  // Phase 2: 난이도 적절
+  if (metrics.difficultyFeedback === "appropriate") {
+    highlights.push("학습 난이도가 잘 맞고 있어요!");
+  }
+
   // ============================================
   // 2. WARNINGS (주의할 점)
   // ============================================
@@ -94,6 +130,53 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
   // 목표 진행률 저조
   if (metrics.weeklyGoalsProgress < 30 && metrics.weeklyGoalsProgress > 0) {
     warnings.push("목표 진행률이 낮아요. 현재 " + metrics.weeklyGoalsProgress + "% 진행 중입니다.");
+  }
+
+  // Phase 3: 지연된 플랜 경고
+  if (metrics.delayedPlansCount >= 5) {
+    warnings.push(`${metrics.delayedPlansCount}개의 플랜이 밀려있어요. 우선순위를 정해서 처리해보세요.`);
+  } else if (metrics.delayedPlansCount >= 3) {
+    warnings.push(`밀린 플랜이 ${metrics.delayedPlansCount}개 있어요. 계획을 조정해보세요.`);
+  }
+
+  // Phase 3: 미완료 플랜 경고
+  if (metrics.incompleteCount >= 10) {
+    warnings.push(`이번 주 미완료 플랜이 ${metrics.incompleteCount}개예요. 플랜 수를 조정해보세요.`);
+  } else if (metrics.incompleteCount >= 7) {
+    warnings.push(`미완료 플랜이 ${metrics.incompleteCount}개 있어요.`);
+  }
+
+  // Phase 2: 피로도 높음 경고
+  if (metrics.fatigueIntensity === "overload") {
+    warnings.push("피로도가 매우 높아요! 즉시 휴식이 필요해요.");
+  } else if (metrics.fatigueIntensity === "high" || metrics.fatigueScore >= 70) {
+    warnings.push(`피로도가 높아요 (${metrics.fatigueScore}점). 휴식일을 계획해보세요.`);
+  } else if (metrics.fatigueIntensity === "medium" || metrics.fatigueScore >= 50) {
+    warnings.push("피로도가 쌓이고 있어요. 학습량을 조절해보세요.");
+  }
+
+  // Phase 2: 만족도 하락 경고
+  if (metrics.satisfactionAverage > 0 && metrics.satisfactionAverage < 2.5) {
+    warnings.push("학습 만족도가 낮아요. 학습 방식이나 콘텐츠를 점검해보세요.");
+  } else if (metrics.satisfactionTrend === "declining") {
+    warnings.push("학습 만족도가 떨어지고 있어요. 원인을 찾아보세요.");
+  }
+
+  // Phase 2: 난이도 부적절 경고
+  if (metrics.difficultyFeedback === "too_hard") {
+    warnings.push("학습 난이도가 높아요. 기초부터 다시 점검하거나 학습량을 줄여보세요.");
+  } else if (metrics.difficultyFeedback === "too_easy") {
+    warnings.push("학습 난이도가 낮아요. 더 도전적인 콘텐츠를 시도해보세요.");
+  }
+
+  // Phase 2: 고위험 플랜 경고
+  if (metrics.highRiskPlansCount >= 3) {
+    warnings.push(`${metrics.highRiskPlansCount}개의 플랜이 지연 위험이 높아요. 일정을 조정해보세요.`);
+  }
+
+  // Phase 2: 학습 효율성 낮음 경고
+  if (metrics.learningEfficiency < 0.5) {
+    warnings.push("학습 효율이 낮아요. 집중할 수 있는 환경을 만들어보세요.");
   }
 
   // ============================================
@@ -143,6 +226,47 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
   // 집중력 개선
   if (metrics.focusScore < 60) {
     nextWeekGuide.push("집중 시간을 늘려보세요. 30분 이상 연속으로 학습하는 세션을 늘려가요.");
+  }
+
+  // Phase 2-3: 연속 학습일 관련 가이드
+  if (metrics.streakDays >= 3 && metrics.streakDays < 7) {
+    nextWeekGuide.push(`연속 ${metrics.streakDays}일 학습 중! 7일 연속 달성에 도전해보세요.`);
+  } else if (metrics.streakDays === 0) {
+    nextWeekGuide.push("매일 조금씩이라도 학습하는 습관을 만들어보세요.");
+  }
+
+  // Phase 3: 밀린 플랜 해소 가이드
+  if (metrics.delayedPlansCount > 0) {
+    nextWeekGuide.push(`밀린 플랜 ${metrics.delayedPlansCount}개를 먼저 처리해보세요.`);
+  }
+
+  // Phase 2: 피로도 기반 가이드
+  if (metrics.fatigueIntensity === "overload" || metrics.fatigueScore >= 80) {
+    nextWeekGuide.push("다음 주에는 휴식일을 반드시 포함하세요. 무리하지 마세요!");
+  } else if (metrics.fatigueIntensity === "high" || metrics.fatigueScore >= 60) {
+    nextWeekGuide.push("학습량을 20-30% 줄이고 휴식 시간을 확보하세요.");
+  }
+
+  // Phase 2: 고위험 플랜 대응 가이드
+  if (metrics.highRiskPlansCount > 0) {
+    nextWeekGuide.push("지연 위험이 있는 플랜들을 우선 처리하거나 일정을 재조정하세요.");
+  }
+
+  // Phase 2: 난이도 조정 가이드
+  if (metrics.difficultyFeedback === "too_hard") {
+    nextWeekGuide.push("더 쉬운 콘텐츠로 시작해서 점진적으로 난이도를 높여보세요.");
+  } else if (metrics.difficultyFeedback === "too_easy") {
+    nextWeekGuide.push("더 도전적인 콘텐츠를 선택해서 성장을 가속화하세요.");
+  }
+
+  // Phase 2: 효율성 개선 가이드
+  if (metrics.learningEfficiency < 0.6) {
+    nextWeekGuide.push("짧은 시간이라도 집중해서 학습하는 습관을 만들어보세요.");
+  }
+
+  // Phase 2: 만족도 개선 가이드
+  if (metrics.satisfactionTrend === "declining" || (metrics.satisfactionAverage > 0 && metrics.satisfactionAverage < 3)) {
+    nextWeekGuide.push("학습 콘텐츠나 방식을 바꿔보는 건 어떨까요?");
   }
 
   // 기본 가이드 (위 조건에 해당하지 않는 경우)

@@ -10,6 +10,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Plan } from "@/lib/data/studentPlans";
 import { logActionError } from "@/lib/logging/actionLogger";
 
+// 피로도 및 지연 예측 서비스 임포트
+import type { FatigueMetrics, RestDaySuggestion } from "./fatigueModelingService";
+import type { StudentDifficultyProfile } from "./dynamicDifficultyService";
+import type { LearningWeightResult } from "./learningWeightService";
+import type { DelayPrediction, StudentPatternAnalysis } from "./delayPredictionService";
+
 // ============================================
 // 상수 정의
 // ============================================
@@ -831,5 +837,335 @@ export async function analyzeGroupSchedule(
     patterns,
     recommendations,
     analyzedAt: new Date().toISOString(),
+  };
+}
+
+// ============================================
+// 통합 적응형 스케줄 분석
+// ============================================
+
+/**
+ * 통합 적응형 스케줄 분석 옵션
+ */
+export type EnhancedAdaptiveOptions = {
+  /** 휴식일 제안 포함 여부 */
+  includeRestDaySuggestions?: boolean;
+  /** 난이도 조정 포함 여부 */
+  includeDifficultyAdjustments?: boolean;
+  /** 지연 예측 포함 여부 */
+  includeDelayPredictions?: boolean;
+  /** 학습 가중치 포함 여부 */
+  includeLearningWeights?: boolean;
+  /** 분석 기간 (일) */
+  daysBack?: number;
+  /** 예측 기간 (일) */
+  predictionDays?: number;
+};
+
+/**
+ * 통합 적응형 스케줄 분석 결과
+ */
+export type EnhancedAdaptiveScheduleAnalysis = AdaptiveScheduleAnalysis & {
+  /** 피로도 분석 */
+  fatigue?: {
+    metrics: FatigueMetrics;
+    suggestedRestDays: RestDaySuggestion[];
+    intensityAdjustment: number;
+    warnings: string[];
+  };
+  /** 난이도 프로필 */
+  difficultyProfile?: StudentDifficultyProfile;
+  /** 학습 가중치 */
+  learningWeights?: LearningWeightResult;
+  /** 지연 예측 */
+  delayPredictions?: {
+    patternAnalysis: StudentPatternAnalysis;
+    highRiskPlans: DelayPrediction[];
+    overallRiskLevel: "low" | "medium" | "high";
+  };
+  /** 자동 제외일 (휴식일 + 고위험일) */
+  suggestedExclusionDates: string[];
+  /** 종합 권장사항 */
+  enhancedRecommendations: EnhancedRecommendation[];
+};
+
+/**
+ * 통합 권장사항
+ */
+export type EnhancedRecommendation = ScheduleRecommendation & {
+  /** 권장 출처 */
+  source: "pattern" | "fatigue" | "difficulty" | "delay" | "weight";
+  /** 자동 적용 가능 여부 */
+  autoApplicable: boolean;
+};
+
+/**
+ * 통합 적응형 스케줄 분석을 수행합니다.
+ *
+ * 이 함수는 다음 서비스들을 통합하여 종합적인 분석을 제공합니다:
+ * - 기본 학습 패턴 분석
+ * - 피로도 모델링 (휴식일 제안)
+ * - 동적 난이도 조정
+ * - 학습 데이터 기반 가중치
+ * - 지연 예측 및 선제 조치
+ *
+ * @param studentId 학생 ID
+ * @param options 분석 옵션
+ * @returns 통합 적응형 스케줄 분석 결과
+ */
+export async function generateEnhancedAdaptiveSchedule(
+  studentId: string,
+  options: EnhancedAdaptiveOptions = {}
+): Promise<EnhancedAdaptiveScheduleAnalysis> {
+  const {
+    includeRestDaySuggestions = true,
+    includeDifficultyAdjustments = true,
+    includeDelayPredictions = true,
+    includeLearningWeights = true,
+    daysBack = 30,
+    predictionDays = 7,
+  } = options;
+
+  // 동적 import로 순환 참조 방지
+  const { calculateFatigueScore, suggestRestDays, generateFatigueWarnings } =
+    await import("./fatigueModelingService");
+  const { getStudentDifficultyProfile, getSubjectsNeedingAdjustment } =
+    await import("./dynamicDifficultyService");
+  const { calculateLearningWeights } = await import("./learningWeightService");
+  const { analyzeStudentPattern, getHighRiskPlans } = await import("./delayPredictionService");
+  const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+
+  const supabase = await createSupabaseServerClient();
+
+  // 1. 기본 적응형 분석 수행
+  const baseAnalysis = await analyzeAdaptiveSchedule(supabase, studentId, daysBack);
+
+  const enhancedRecommendations: EnhancedRecommendation[] = baseAnalysis.recommendations.map((r) => ({
+    ...r,
+    source: "pattern" as const,
+    autoApplicable: false,
+  }));
+
+  const suggestedExclusionDates: string[] = [];
+
+  // 2. 피로도 분석 및 휴식일 제안
+  let fatigueData: EnhancedAdaptiveScheduleAnalysis["fatigue"] | undefined;
+  if (includeRestDaySuggestions) {
+    try {
+      const fatigueResult = await calculateFatigueScore({
+        studentId,
+        daysToAnalyze: daysBack,
+      });
+      if (fatigueResult.success && fatigueResult.data) {
+        const metrics = fatigueResult.data;
+
+        // 향후 예정된 날짜들 (다음 7일)
+        const plannedDates: string[] = [];
+        const today = new Date();
+        for (let i = 1; i <= predictionDays; i++) {
+          const date = new Date(today);
+          date.setDate(date.getDate() + i);
+          plannedDates.push(date.toISOString().split("T")[0]);
+        }
+
+        const restDaySuggestions = suggestRestDays(metrics, plannedDates);
+        const intensityAdjustment = metrics.suggestedIntensityAdjustment;
+        const warnings = generateFatigueWarnings(metrics);
+
+        fatigueData = {
+          metrics,
+          suggestedRestDays: restDaySuggestions,
+          intensityAdjustment,
+          warnings,
+        };
+
+        // 휴식일을 제외일에 추가
+        restDaySuggestions
+          .filter((s) => s.priority === "high")
+          .forEach((s) => {
+            suggestedExclusionDates.push(s.date);
+          });
+
+        // 피로도 관련 권장사항 추가
+        if (metrics.fatigueScore >= 70) {
+          enhancedRecommendations.push({
+            type: "workload_adjust",
+            priority: 5,
+            title: "피로 누적 경고",
+            description: `피로도 점수가 ${metrics.fatigueScore}%로 높습니다. 휴식이 필요합니다.`,
+            expectedImprovement: "휴식 후 학습 효율 30% 이상 향상 예상",
+            actions: restDaySuggestions.map((s) => `${s.date}: ${s.reason}`),
+            source: "fatigue",
+            autoApplicable: true,
+          });
+        }
+      }
+    } catch (error) {
+      logActionError(
+        { domain: "plan", action: "generateEnhancedAdaptiveSchedule:fatigue" },
+        error,
+        { studentId }
+      );
+    }
+  }
+
+  // 3. 난이도 프로필 분석
+  let difficultyProfile: StudentDifficultyProfile | undefined;
+  if (includeDifficultyAdjustments) {
+    try {
+      const difficultyResult = await getStudentDifficultyProfile({
+        studentId,
+        daysBack,
+      });
+      if (difficultyResult.success && difficultyResult.data) {
+        difficultyProfile = difficultyResult.data;
+
+        // 조정이 필요한 과목들
+        const subjectsNeedingAdjustmentResult = await getSubjectsNeedingAdjustment(studentId);
+
+        if (subjectsNeedingAdjustmentResult.success && subjectsNeedingAdjustmentResult.data) {
+          const subjectsNeedingAdjustment = subjectsNeedingAdjustmentResult.data;
+          if (subjectsNeedingAdjustment.length > 0) {
+            enhancedRecommendations.push({
+              type: "subject_focus",
+              priority: 4,
+              title: "과목별 난이도 조정 필요",
+              description: `${subjectsNeedingAdjustment.length}개 과목의 난이도 조정이 필요합니다.`,
+              expectedImprovement: "적정 난이도로 학습 지속성 향상",
+              actions: subjectsNeedingAdjustment.map((s) =>
+                s.recommendedAdjustment > 0
+                  ? `${s.subjectType}: 난이도 상향 권장 (현재 너무 쉬움)`
+                  : `${s.subjectType}: 난이도 하향 권장 (현재 너무 어려움)`
+              ),
+              source: "difficulty",
+              autoApplicable: false,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      logActionError(
+        { domain: "plan", action: "generateEnhancedAdaptiveSchedule:difficulty" },
+        error,
+        { studentId }
+      );
+    }
+  }
+
+  // 4. 학습 가중치 계산
+  let learningWeights: LearningWeightResult | undefined;
+  if (includeLearningWeights) {
+    try {
+      const weightsResult = await calculateLearningWeights(studentId, daysBack);
+      if (weightsResult.success && weightsResult.data) {
+        learningWeights = weightsResult.data;
+
+        // 비효율적인 시간대 권장
+        const inefficientSlots = learningWeights.timeSlotWeights.filter(
+          (s) => s.weight < 0.7 && s.dataPoints >= 5
+        );
+        if (inefficientSlots.length > 0) {
+          enhancedRecommendations.push({
+            type: "time_shift",
+            priority: 3,
+            title: "비효율적인 학습 시간대 감지",
+            description: `${inefficientSlots.length}개의 시간대에서 학습 효율이 낮습니다.`,
+            expectedImprovement: "시간대 조정으로 완료율 15% 향상 예상",
+            actions: inefficientSlots.map(
+              (s) => `${s.dayOfWeek} ${s.hour}시: 완료율 ${Math.round(s.completionRate)}%`
+            ),
+            source: "weight",
+            autoApplicable: false,
+          });
+        }
+      }
+    } catch (error) {
+      logActionError(
+        { domain: "plan", action: "generateEnhancedAdaptiveSchedule:weights" },
+        error,
+        { studentId }
+      );
+    }
+  }
+
+  // 5. 지연 예측
+  let delayPredictionData: EnhancedAdaptiveScheduleAnalysis["delayPredictions"] | undefined;
+  if (includeDelayPredictions) {
+    try {
+      const patternResult = await analyzeStudentPattern(studentId, daysBack);
+      const highRiskResult = await getHighRiskPlans(studentId, predictionDays);
+
+      if (patternResult.success && patternResult.data) {
+        const patternAnalysis = patternResult.data;
+        const highRiskPlans = highRiskResult.success && highRiskResult.data ? highRiskResult.data : [];
+
+        // 전체 리스크 레벨 결정
+        let overallRiskLevel: "low" | "medium" | "high" = "low";
+        if (highRiskPlans.some((p) => p.riskLevel === "high")) {
+          overallRiskLevel = "high";
+        } else if (highRiskPlans.some((p) => p.riskLevel === "medium")) {
+          overallRiskLevel = "medium";
+        }
+
+        delayPredictionData = {
+          patternAnalysis,
+          highRiskPlans,
+          overallRiskLevel,
+        };
+
+        // 고위험 플랜이 있으면 권장사항 추가
+        if (highRiskPlans.length > 0) {
+          enhancedRecommendations.push({
+            type: "workload_adjust",
+            priority: overallRiskLevel === "high" ? 5 : 4,
+            title: `${highRiskPlans.length}개 플랜 지연 위험`,
+            description: `향후 ${predictionDays}일 내 ${highRiskPlans.length}개 플랜의 지연 위험이 감지되었습니다.`,
+            expectedImprovement: "선제적 조정으로 플랜 완료율 유지",
+            actions: highRiskPlans.slice(0, 3).flatMap((p) =>
+              p.suggestedActions.map((a) => `${p.planDate}: ${a.description}`)
+            ),
+            source: "delay",
+            autoApplicable: true,
+          });
+        }
+
+        // 연속 미완료 경고
+        if (patternAnalysis.consecutiveIncompleteStreak >= 3) {
+          enhancedRecommendations.push({
+            type: "workload_adjust",
+            priority: 5,
+            title: "연속 미완료 경고",
+            description: `최근 ${patternAnalysis.consecutiveIncompleteStreak}개 플랜이 연속으로 미완료 되었습니다.`,
+            expectedImprovement: "학습량 조정으로 완료율 회복",
+            actions: [
+              "일일 학습량을 줄여보세요.",
+              "하루 휴식을 취해보세요.",
+              "완료 가능한 작은 목표부터 시작하세요.",
+            ],
+            source: "delay",
+            autoApplicable: false,
+          });
+        }
+      }
+    } catch (error) {
+      logActionError(
+        { domain: "plan", action: "generateEnhancedAdaptiveSchedule:delay" },
+        error,
+        { studentId }
+      );
+    }
+  }
+
+  // 권장사항 정렬 (우선순위 높은 순)
+  enhancedRecommendations.sort((a, b) => b.priority - a.priority);
+
+  return {
+    ...baseAnalysis,
+    fatigue: fatigueData,
+    difficultyProfile,
+    learningWeights,
+    delayPredictions: delayPredictionData,
+    suggestedExclusionDates: [...new Set(suggestedExclusionDates)], // 중복 제거
+    enhancedRecommendations,
   };
 }

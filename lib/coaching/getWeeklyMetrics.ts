@@ -7,6 +7,14 @@ import { getStudentRiskScore } from "@/lib/risk/engine";
 import { getRecommendations } from "@/lib/recommendations/engine";
 import { getHistoryPattern, type HistoryPatternMetrics } from "@/lib/metrics/getHistoryPattern";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
+import { getWeeklyMilestoneAchievements } from "@/lib/domains/today/services/learningFeedbackService";
+import { getWeeklyIncompleteSummary } from "@/lib/services/planReminderService";
+// Phase 2: 적응형 스케줄링 서비스
+import { calculateFatigueScore } from "@/lib/domains/plan/services/fatigueModelingService";
+import { getStudentDifficultyProfile } from "@/lib/domains/plan/services/dynamicDifficultyService";
+import { calculateLearningWeights } from "@/lib/domains/plan/services/learningWeightService";
+import { getHighRiskPlans } from "@/lib/domains/plan/services/delayPredictionService";
+import { getSatisfactionSummary } from "@/lib/domains/satisfaction/satisfactionService";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -22,6 +30,19 @@ export type WeeklyMetricsData = {
   recommendations: string[]; // 추천 엔진 결과
   consistencyScore: number; // 이번주 연속성 지표 (0-100)
   focusScore: number; // 집중 타이머 품질 (0-100)
+  // Phase 2-3 확장 필드
+  milestoneAchievements: number; // 이번주 마일스톤 달성 수
+  streakDays: number; // 연속 학습일 수
+  incompleteCount: number; // 이번주 미완료 플랜 수
+  delayedPlansCount: number; // 지연된 플랜 수
+  // Phase 2 적응형 스케줄링 필드
+  fatigueScore: number; // 피로도 점수 (0-100)
+  fatigueIntensity: "low" | "medium" | "high" | "overload"; // 피로도 강도
+  satisfactionAverage: number; // 평균 만족도 (1-5)
+  satisfactionTrend: "improving" | "stable" | "declining"; // 만족도 추세
+  difficultyFeedback: "too_easy" | "appropriate" | "too_hard"; // 난이도 적합성
+  highRiskPlansCount: number; // 고위험 플랜 수
+  learningEfficiency: number; // 학습 효율성 (0-1)
 };
 
 /**
@@ -56,6 +77,14 @@ export async function getWeeklyMetrics(
       recommendations,
       historyPattern,
       sessions,
+      milestoneData,
+      incompleteSummary,
+      // Phase 2: 적응형 스케줄링 데이터
+      fatigueResult,
+      difficultyResult,
+      learningWeightsResult,
+      highRiskPlansResult,
+      satisfactionResult,
     ] = await Promise.all([
       getStudyTime(supabase, studentId, weekStart, weekEnd),
       getPlanCompletion(supabase, studentId, weekStart, weekEnd),
@@ -70,6 +99,39 @@ export async function getWeeklyMetrics(
         weekStart.toISOString().slice(0, 10),
         weekEnd.toISOString().slice(0, 10)
       ),
+      // Phase 2-3 확장: 마일스톤 및 미완료 플랜 데이터
+      getWeeklyMilestoneAchievements(studentId).catch(() => ({
+        totalAchievements: 0,
+        byType: {},
+        hasStreak: false,
+        streakDays: 0,
+      })),
+      getWeeklyIncompleteSummary(studentId).catch(() => ({
+        totalIncomplete: 0,
+        bySubject: {},
+        delayedCount: 0,
+      })),
+      // Phase 2: 적응형 스케줄링 서비스 호출
+      calculateFatigueScore({ studentId, daysToAnalyze: 14 }).catch(() => ({
+        success: false,
+        data: null,
+      })),
+      getStudentDifficultyProfile({ studentId, daysBack: 30 }).catch(() => ({
+        success: false,
+        data: null,
+      })),
+      calculateLearningWeights(studentId, 30).catch(() => ({
+        success: false,
+        data: null,
+      })),
+      getHighRiskPlans(studentId, 7).catch(() => ({
+        success: false,
+        data: null,
+      })),
+      getSatisfactionSummary(studentId, 7).catch(() => ({
+        success: false,
+        data: null,
+      })),
     ]);
 
     // 주간 학습시간
@@ -108,6 +170,29 @@ export async function getWeeklyMetrics(
     // Focus Score 계산 (집중 타이머 품질)
     const focusScore = calculateFocusScore(sessions);
 
+    // Phase 2: 적응형 스케줄링 메트릭 추출
+    const fatigueScore = fatigueResult.success && fatigueResult.data
+      ? fatigueResult.data.fatigueScore
+      : 0;
+    const fatigueIntensity = fatigueResult.success && fatigueResult.data
+      ? fatigueResult.data.intensityLevel
+      : "low" as const;
+    const difficultyFeedback = difficultyResult.success && difficultyResult.data
+      ? difficultyResult.data.overallDifficulty
+      : "appropriate" as const;
+    const highRiskPlansCount = highRiskPlansResult.success && highRiskPlansResult.data
+      ? highRiskPlansResult.data.length
+      : 0;
+    const learningEfficiency = learningWeightsResult.success && learningWeightsResult.data
+      ? learningWeightsResult.data.overallEfficiency
+      : 1.0;
+    const satisfactionAverage = satisfactionResult.success && satisfactionResult.data
+      ? satisfactionResult.data.averageRating
+      : 0;
+    const satisfactionTrend = satisfactionResult.success && satisfactionResult.data
+      ? satisfactionResult.data.recentTrend
+      : "stable" as const;
+
     return {
       weeklyStudyMinutes,
       weeklyStudyTrend,
@@ -118,6 +203,19 @@ export async function getWeeklyMetrics(
       recommendations: topRecommendations,
       consistencyScore,
       focusScore,
+      // Phase 2-3 확장 필드
+      milestoneAchievements: milestoneData.totalAchievements,
+      streakDays: milestoneData.streakDays,
+      incompleteCount: incompleteSummary.totalIncomplete,
+      delayedPlansCount: incompleteSummary.delayedCount || 0,
+      // Phase 2 적응형 스케줄링 필드
+      fatigueScore,
+      fatigueIntensity,
+      satisfactionAverage,
+      satisfactionTrend,
+      difficultyFeedback,
+      highRiskPlansCount,
+      learningEfficiency,
     };
   } catch (error) {
     console.error("[coaching/getWeeklyMetrics] 주간 메트릭 수집 실패", error);
@@ -132,6 +230,18 @@ export async function getWeeklyMetrics(
       recommendations: [],
       consistencyScore: 0,
       focusScore: 0,
+      milestoneAchievements: 0,
+      streakDays: 0,
+      incompleteCount: 0,
+      delayedPlansCount: 0,
+      // Phase 2 적응형 스케줄링 필드 기본값
+      fatigueScore: 0,
+      fatigueIntensity: "low",
+      satisfactionAverage: 0,
+      satisfactionTrend: "stable",
+      difficultyFeedback: "appropriate",
+      highRiskPlansCount: 0,
+      learningEfficiency: 1.0,
     };
   }
 }
