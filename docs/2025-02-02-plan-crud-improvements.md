@@ -574,6 +574,7 @@ CREATE TABLE plan_group_backups (
 - `docs/2025-02-02-plan-creation-features-comprehensive-analysis.md` - 플랜 생성 기능 분석
 - `docs/admin-plan-assignment-flow.md` - 관리자 플랜 배정 플로우
 - `docs/플랜_그룹_생성_저장_정보.md` - 저장 정보 상세
+- `docs/2025-02-02-plan-exclusions-academy-schedules-global-management-analysis.md` - 제외일/학원 일정 전역 관리 전환 상세 분석
 
 ---
 
