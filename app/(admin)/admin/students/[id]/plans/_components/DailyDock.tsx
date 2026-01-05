@@ -19,6 +19,7 @@ interface DailyDockProps {
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
+  onStatusChange?: (planId: string, currentStatus: string, title: string) => void;
   onRefresh: () => void;
 }
 
@@ -55,6 +56,7 @@ export function DailyDock({
   onReorder,
   onMoveToGroup,
   onCopy,
+  onStatusChange,
   onRefresh,
 }: DailyDockProps) {
   const [plans, setPlans] = useState<DailyPlan[]>([]);
@@ -325,6 +327,7 @@ export function DailyDock({
                   onMoveToWeekly={handleMoveToWeekly}
                   onRedistribute={onRedistribute}
                   onEdit={onEdit}
+                  onStatusChange={onStatusChange}
                   onDelete={handleDelete}
                   onRefresh={onRefresh}
                 />

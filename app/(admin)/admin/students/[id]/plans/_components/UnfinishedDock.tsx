@@ -16,6 +16,7 @@ interface UnfinishedDockProps {
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
+  onStatusChange?: (planId: string, currentStatus: string, title: string) => void;
   onRefresh: () => void;
 }
 
@@ -39,6 +40,7 @@ export function UnfinishedDock({
   onReorder,
   onMoveToGroup,
   onCopy,
+  onStatusChange,
   onRefresh,
 }: UnfinishedDockProps) {
   const [plans, setPlans] = useState<UnfinishedPlan[]>([]);
@@ -259,6 +261,7 @@ export function UnfinishedDock({
                 onMoveToWeekly={handleMoveToWeekly}
                 onRedistribute={onRedistribute}
                 onEdit={onEdit}
+                onStatusChange={onStatusChange}
                 onDelete={handleDelete}
                 onRefresh={onRefresh}
               />

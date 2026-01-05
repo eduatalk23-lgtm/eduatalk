@@ -7,7 +7,7 @@ import { QuickCompleteButton, InlineVolumeEditor, QuickProgressInput } from '../
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput } from 'lucide-react';
+import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft } from 'lucide-react';
 
 export type PlanItemType = 'plan' | 'adhoc';
 export type ContainerType = 'daily' | 'weekly' | 'unfinished';
@@ -54,6 +54,7 @@ interface PlanItemCardProps {
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
   onMoveToGroup?: (id: string) => void;
+  onStatusChange?: (id: string, currentStatus: string, title: string) => void;
   onRefresh?: () => void;
 }
 
@@ -92,6 +93,7 @@ export function PlanItemCard({
   onEdit,
   onCopy,
   onMoveToGroup,
+  onStatusChange,
   onRefresh,
 }: PlanItemCardProps) {
   const [isPending, startTransition] = useTransition();
@@ -250,6 +252,12 @@ export function PlanItemCard({
                     <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
                       <Edit3 className="w-4 h-4 mr-2" />
                       수정
+                    </DropdownMenu.Item>
+                  )}
+                  {!isAdHoc && onStatusChange && (
+                    <DropdownMenu.Item onClick={() => onStatusChange(plan.id, plan.status, plan.title)}>
+                      <ToggleLeft className="w-4 h-4 mr-2" />
+                      상태 변경
                     </DropdownMenu.Item>
                   )}
                   {onCopy && (
@@ -434,6 +442,12 @@ export function PlanItemCard({
                   <DropdownMenu.Item onClick={() => onEdit(plan.id)}>
                     <Edit3 className="w-4 h-4 mr-2" />
                     수정
+                  </DropdownMenu.Item>
+                )}
+                {!isAdHoc && onStatusChange && (
+                  <DropdownMenu.Item onClick={() => onStatusChange(plan.id, plan.status, plan.title)}>
+                    <ToggleLeft className="w-4 h-4 mr-2" />
+                    상태 변경
                   </DropdownMenu.Item>
                 )}
                 {onEditDate && (

@@ -16,6 +16,7 @@ interface WeeklyDockProps {
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
+  onStatusChange?: (planId: string, currentStatus: string, title: string) => void;
   onRefresh: () => void;
 }
 
@@ -47,6 +48,7 @@ export function WeeklyDock({
   onReorder,
   onMoveToGroup,
   onCopy,
+  onStatusChange,
   onRefresh,
 }: WeeklyDockProps) {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
@@ -302,6 +304,7 @@ export function WeeklyDock({
                     onMoveToDaily={(id) => handleMoveToDaily(id, selectedDate)}
                     onRedistribute={onRedistribute}
                     onEdit={onEdit}
+                    onStatusChange={onStatusChange}
                     onDelete={handleDelete}
                     onRefresh={onRefresh}
                   />
