@@ -109,3 +109,28 @@ export {
   type CreatePlanFromContentInput,
   type CreatePlanFromContentResult,
 } from './createPlanFromContent';
+
+// Copy Plan Actions
+export {
+  copyPlansToDate,
+  type CopyPlanInput,
+  type CopyPlanResult,
+} from './copyPlan';
+
+// Edit Plan Actions
+export {
+  getStudentPlanForEdit,
+  adminUpdateStudentPlan,
+  adminBulkUpdatePlans,
+  type StudentPlanUpdateInput,
+  type StudentPlanDetail,
+} from './editPlan';
+
+// Move to Group Actions
+export {
+  getStudentPlanGroups,
+  movePlansToGroup,
+  type MoveToGroupInput,
+  type MoveToGroupResult,
+  type PlanGroupInfo,
+} from './moveToGroup';
