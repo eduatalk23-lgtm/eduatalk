@@ -3,11 +3,47 @@
 ## 📋 문서 정보
 
 - **작성일**: 2025-02-02
+- **최종 업데이트**: 2026-01-05
 - **작성 목적**: 관리자 영역에서 학생의 학습 플랜을 생성, 수정, 조정, 변경, 삭제하는 기능의 부족한 부분 조사 및 문서화
-- **분석 범위**: 
+- **분석 범위**:
   - `app/(admin)/admin/students/[id]/plans/` - 관리자 플랜 관리 UI
   - `lib/domains/admin-plan/` - 관리자 플랜 도메인 로직
   - `lib/domains/plan/` - 플랜 공통 도메인 로직
+
+> ⚠️ **업데이트 노트 (2026-01-05)**: 이 문서에서 "❌ 없음"으로 표시된 대부분의 기능이 현재 구현 완료되었습니다. 아래 "현재 구현 상태 요약" 섹션을 참조하세요.
+
+---
+
+## ✅ 현재 구현 상태 요약 (2026-01-05 업데이트)
+
+### 구현 완료된 모달 컴포넌트 (`_components/modals/`)
+
+| 파일 | 기능 | 연결 상태 |
+|------|------|-----------|
+| `EditPlanModal.tsx` | 정규 플랜 전체 수정 | ✅ AdminPlanManagement 연결됨 |
+| `BulkEditModal.tsx` | 플랜 일괄 수정 | ✅ AdminPlanManagement 연결됨 |
+| `CopyPlanModal.tsx` | 플랜 복사/복제 | ✅ AdminPlanManagement 연결됨 |
+| `MoveToGroupModal.tsx` | 플랜 그룹 간 이동 | ✅ AdminPlanManagement 연결됨 |
+| `PlanStatusModal.tsx` | 플랜 상태 변경 | ✅ AdminPlanManagement 연결됨 |
+| `ConditionalDeleteModal.tsx` | 조건부 일괄 삭제 | ✅ AdminPlanManagement 연결됨 |
+| `PlanTemplateModal.tsx` | 플랜 템플릿 저장/불러오기 | ✅ AdminPlanManagement 연결됨 |
+| `ReorderPlansModal.tsx` | 명시적 순서 지정 | ✅ AdminPlanManagement 연결됨 |
+
+### 구현 완료된 서버 액션 (`lib/domains/admin-plan/actions/`)
+
+| 파일 | 함수 | 기능 |
+|------|------|------|
+| `copyPlan.ts` | `copyPlansToDate` | 플랜 복사 |
+| `editPlan.ts` | `adminUpdateStudentPlan`, `adminBulkUpdatePlans` | 단일/일괄 수정 |
+| `moveToGroup.ts` | `movePlansToGroup`, `getStudentPlanGroups` | 그룹 이동 |
+| `createPlanFromContent.ts` | `createPlanFromContent` | 콘텐츠 기반 플랜 생성 (배치 분배) |
+
+### 기타 구현 완료
+
+| 컴포넌트 | 기능 |
+|----------|------|
+| `DeletedPlansView.tsx` | 삭제된 플랜 복구 |
+| `AddContentModal.tsx` | 콘텐츠 추가 + 배치 분배 로직 완성 |
 
 ---
 
@@ -430,6 +466,8 @@
 
 ## 📊 기능 완성도 요약
 
+### 2025-02-02 (최초 작성 시)
+
 | 카테고리 | 완료 | 부분 구현 | 미구현 | 완성도 |
 |---------|------|----------|--------|--------|
 | 생성 | 4 | 1 | 0 | 80% |
@@ -439,27 +477,49 @@
 | 삭제 | 3 | 1 | 4 | 38% |
 | **전체** | **18** | **4** | **12** | **55%** |
 
+### 2026-01-05 (업데이트 후)
+
+| 카테고리 | 완료 | 부분 구현 | 미구현 | 완성도 |
+|---------|------|----------|--------|--------|
+| 생성 | 5 | 0 | 0 | 100% |
+| 수정 | 9 | 0 | 0 | 100% |
+| 조정 | 6 | 0 | 0 | 100% |
+| 변경 | 6 | 0 | 0 | 100% |
+| 삭제 | 7 | 0 | 1 | 88% |
+| **전체** | **33** | **0** | **1** | **97%** |
+
+> **미구현 1개**: 영구 삭제 (하드 삭제) - 의도적으로 미구현 (소프트 삭제로 충분)
+
 ---
 
 ## 🎯 다음 단계
 
-1. **우선순위 높은 기능부터 구현**
-   - 정규 플랜 전체 수정 모달
-   - 플랜 일괄 삭제
+### ✅ 완료된 항목 (2026-01-05)
 
-2. **기존 코드 리팩토링**
-   - `AddContentModal`의 배치 분배 로직 완성
-   - `BulkRedistributeModal` 구현 상태 확인 및 완성
+1. ~~**우선순위 높은 기능부터 구현**~~
+   - ✅ 정규 플랜 전체 수정 모달 (`EditPlanModal`)
+   - ✅ 플랜 일괄 삭제 (`ConditionalDeleteModal`)
 
-3. **테스트**
+2. ~~**기존 코드 리팩토링**~~
+   - ✅ `AddContentModal`의 배치 분배 로직 완성 (`createPlanFromContent`)
+   - ✅ `BulkRedistributeModal` → `BulkEditModal`로 대체
+
+### 남은 작업
+
+1. **테스트**
    - 각 기능별 통합 테스트 작성
    - 사용자 시나리오 기반 E2E 테스트
 
-4. **문서화**
+2. **문서화**
    - 사용자 가이드 작성
    - API 문서 업데이트
 
+3. **성능 최적화**
+   - React Query 캐싱 전략 검토
+   - 대용량 플랜 목록 최적화
+
 ---
 
-**마지막 업데이트**: 2025-02-02
+**최초 작성**: 2025-02-02
+**마지막 업데이트**: 2026-01-05
 
