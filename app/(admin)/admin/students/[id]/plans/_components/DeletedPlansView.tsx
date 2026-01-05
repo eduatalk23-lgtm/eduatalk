@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
-import { ChevronDown, ChevronRight, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, RotateCcw, Trash2, Loader2 } from 'lucide-react';
 import {
   getDeletedPlans,
   restoreDeletedPlans,
   permanentlyDeletePlans,
   type DeletedPlanInfo,
 } from '@/lib/domains/admin-plan/actions/deletedPlans';
+
+const PAGE_SIZE = 20;
 
 interface DeletedPlansViewProps {
   studentId: string;
@@ -37,26 +39,47 @@ function getRelativeTime(dateStr: string): string {
 
 export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps) {
   const [deletedPlans, setDeletedPlans] = useState<DeletedPlanInfo[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmPermanentDelete, setConfirmPermanentDelete] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { showSuccess, showError } = useToast();
 
-  // 삭제된 플랜 목록 로드
-  const loadDeletedPlans = async () => {
+  // 삭제된 플랜 목록 초기 로드
+  const loadDeletedPlans = useCallback(async () => {
     setIsLoading(true);
-    const result = await getDeletedPlans(studentId);
+    const result = await getDeletedPlans(studentId, { offset: 0, limit: PAGE_SIZE });
     if (result.success && result.data) {
-      setDeletedPlans(result.data);
+      setDeletedPlans(result.data.plans);
+      setTotalCount(result.data.totalCount);
+      setHasMore(result.data.hasMore);
     }
     setIsLoading(false);
-  };
+  }, [studentId]);
+
+  // 더보기 로드
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const result = await getDeletedPlans(studentId, {
+      offset: deletedPlans.length,
+      limit: PAGE_SIZE,
+    });
+    if (result.success && result.data) {
+      setDeletedPlans((prev) => [...prev, ...result.data!.plans]);
+      setHasMore(result.data.hasMore);
+    }
+    setIsLoadingMore(false);
+  }, [studentId, deletedPlans.length, isLoadingMore, hasMore]);
 
   useEffect(() => {
     loadDeletedPlans();
-  }, [studentId]);
+  }, [loadDeletedPlans]);
 
   const handleToggleSelect = (planId: string) => {
     setSelectedIds((prev) => {
@@ -127,7 +150,7 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
   };
 
   // 삭제된 플랜이 없으면 표시하지 않음
-  if (!isLoading && deletedPlans.length === 0) {
+  if (!isLoading && totalCount === 0) {
     return null;
   }
 
@@ -163,7 +186,7 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
           <span className="text-lg">🗑️</span>
           <span className="font-medium text-gray-700">삭제된 플랜</span>
           <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-            {deletedPlans.length}
+            {totalCount}
           </span>
         </div>
         <span className="text-xs text-gray-500">
@@ -256,6 +279,28 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
                 );
               })}
             </div>
+
+            {/* 더보기 버튼 */}
+            {hasMore && (
+              <div className="mt-3 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="px-4 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      로딩 중...
+                    </>
+                  ) : (
+                    <>
+                      더보기 ({deletedPlans.length}/{totalCount})
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* 안내 문구 */}
             <p className="mt-3 text-xs text-gray-500 text-center">

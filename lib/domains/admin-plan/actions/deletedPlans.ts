@@ -19,16 +19,44 @@ export interface DeletedPlanInfo {
   plan_group_name: string | null;
 }
 
+export interface DeletedPlansResult {
+  plans: DeletedPlanInfo[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface GetDeletedPlansOptions {
+  offset?: number;
+  limit?: number;
+}
+
+const DEFAULT_LIMIT = 20;
+
 /**
- * 삭제된 플랜 목록 조회 (관리자용)
+ * 삭제된 플랜 목록 조회 (관리자용) - 페이지네이션 지원
  */
 export async function getDeletedPlans(
-  studentId: string
-): Promise<AdminPlanResponse<DeletedPlanInfo[]>> {
+  studentId: string,
+  options: GetDeletedPlansOptions = {}
+): Promise<AdminPlanResponse<DeletedPlansResult>> {
   try {
     await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
 
+    const { offset = 0, limit = DEFAULT_LIMIT } = options;
+
+    // 전체 개수 조회
+    const { count: totalCount, error: countError } = await supabase
+      .from('student_plan')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', studentId)
+      .eq('is_active', false);
+
+    if (countError) {
+      return { success: false, error: countError.message };
+    }
+
+    // 플랜 목록 조회 (페이지네이션)
     const { data, error } = await supabase
       .from('student_plan')
       .select(`
@@ -47,7 +75,7 @@ export async function getDeletedPlans(
       .eq('student_id', studentId)
       .eq('is_active', false)
       .order('updated_at', { ascending: false })
-      .limit(100);
+      .range(offset, offset + limit - 1);
 
     if (error) {
       return { success: false, error: error.message };
@@ -73,7 +101,17 @@ export async function getDeletedPlans(
       };
     });
 
-    return { success: true, data: deletedPlans };
+    const total = totalCount ?? 0;
+    const hasMore = offset + deletedPlans.length < total;
+
+    return {
+      success: true,
+      data: {
+        plans: deletedPlans,
+        totalCount: total,
+        hasMore,
+      },
+    };
   } catch (error) {
     logActionError({ domain: 'admin-plan', action: 'getDeletedPlans' }, error, { studentId });
     return {
