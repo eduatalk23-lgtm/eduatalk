@@ -49,6 +49,7 @@ interface PlanItemCardProps {
   onRedistribute?: (id: string) => void;
   onDelete?: (id: string, isAdHoc?: boolean) => void;
   onEditDate?: (id: string) => void;
+  onEdit?: (id: string) => void;
   onRefresh?: () => void;
 }
 
@@ -84,6 +85,7 @@ export function PlanItemCard({
   onRedistribute,
   onDelete,
   onEditDate,
+  onEdit,
   onRefresh,
 }: PlanItemCardProps) {
   const [isPending, startTransition] = useTransition();
@@ -222,6 +224,15 @@ export function PlanItemCard({
                   className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
                 >
                   볼륨
+                </button>
+              )}
+              {!isAdHoc && onEdit && (
+                <button
+                  onClick={() => onEdit(plan.id)}
+                  className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                  title="수정"
+                >
+                  수정
                 </button>
               )}
               <button
@@ -380,6 +391,16 @@ export function PlanItemCard({
                 title="볼륨 재분배"
               >
                 재분배
+              </button>
+            )}
+            {/* Edit */}
+            {!isAdHoc && onEdit && (
+              <button
+                onClick={() => onEdit(plan.id)}
+                className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                title="플랜 수정"
+              >
+                수정
               </button>
             )}
             {/* Edit date */}

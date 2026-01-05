@@ -12,11 +12,12 @@ import { WeeklyDock } from './WeeklyDock';
 import { WeeklyCalendar } from './WeeklyCalendar';
 import { PlanDndProvider, type ContainerType } from './dnd';
 import { PlanHistoryViewer } from './PlanHistoryViewer';
+import { DeletedPlansView } from './DeletedPlansView';
 import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
-import { Wand2, Plus, LineChart, Zap } from 'lucide-react';
+import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
 const AddContentModal = dynamic(
@@ -48,6 +49,22 @@ const AdminQuickPlanModal = dynamic(
   { ssr: false }
 );
 const PlanOptimizationPanel = dynamic(() => import('./PlanOptimizationPanel'), { ssr: false });
+const EditPlanModal = dynamic(
+  () => import('./modals/EditPlanModal').then(mod => ({ default: mod.EditPlanModal })),
+  { ssr: false }
+);
+const ReorderPlansModal = dynamic(
+  () => import('./modals/ReorderPlansModal').then(mod => ({ default: mod.ReorderPlansModal })),
+  { ssr: false }
+);
+const ConditionalDeleteModal = dynamic(
+  () => import('./modals/ConditionalDeleteModal').then(mod => ({ default: mod.ConditionalDeleteModal })),
+  { ssr: false }
+);
+const PlanTemplateModal = dynamic(
+  () => import('./modals/PlanTemplateModal').then(mod => ({ default: mod.PlanTemplateModal })),
+  { ssr: false }
+);
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -79,6 +96,13 @@ export function AdminPlanManagement({
   const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
   const [showQuickPlanModal, setShowQuickPlanModal] = useState(false);
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<string | null>(null);
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [reorderContainerType, setReorderContainerType] = useState<'daily' | 'weekly' | 'unfinished'>('daily');
+  const [showConditionalDeleteModal, setShowConditionalDeleteModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);
 
   // 날짜 변경 핸들러
   const handleDateChange = useCallback((date: string) => {
@@ -92,6 +116,24 @@ export function AdminPlanManagement({
   const handleOpenRedistribute = (planId: string) => {
     setSelectedPlanForRedistribute(planId);
     setShowRedistributeModal(true);
+  };
+
+  // 편집 모달 열기
+  const handleOpenEdit = (planId: string) => {
+    setSelectedPlanForEdit(planId);
+    setShowEditModal(true);
+  };
+
+  // 순서 변경 모달 열기
+  const handleOpenReorder = (containerType: 'daily' | 'weekly' | 'unfinished') => {
+    setReorderContainerType(containerType);
+    setShowReorderModal(true);
+  };
+
+  // 템플릿 모달 열기 (선택된 플랜으로)
+  const handleOpenTemplateWithPlans = (planIds: string[]) => {
+    setTemplatePlanIds(planIds);
+    setShowTemplateModal(true);
   };
 
   // 새로고침
@@ -195,6 +237,10 @@ export function AdminPlanManagement({
           setShowCreateWizard(false);
           setShowOptimizationPanel(false);
           setShowQuickPlanModal(false);
+          setShowEditModal(false);
+          setShowReorderModal(false);
+          setShowConditionalDeleteModal(false);
+          setShowTemplateModal(false);
         },
         description: '모달 닫기',
         category: 'modal',
@@ -270,13 +316,38 @@ export function AdminPlanManagement({
               <LineChart className="h-4 w-4" />
               AI 분석
             </button>
-            <button
-              onClick={() => setShowShortcutsHelp(true)}
-              className="p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
-              title="키보드 단축키 (Shift + ?)"
-            >
-              ⌨️
-            </button>
+            {/* 더보기 드롭다운 */}
+            <div className="relative group">
+              <button
+                className="flex items-center gap-1 p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
+                title="더보기"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <button
+                  onClick={() => setShowTemplateModal(true)}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  플랜 템플릿
+                </button>
+                <button
+                  onClick={() => setShowConditionalDeleteModal(true)}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  조건부 삭제
+                </button>
+                <hr className="my-1" />
+                <button
+                  onClick={() => setShowShortcutsHelp(true)}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+                >
+                  ⌨️ 단축키 도움말
+                </button>
+              </div>
+            </div>
             <CarryoverButton
               studentId={studentId}
               tenantId={tenantId}
@@ -293,6 +364,8 @@ export function AdminPlanManagement({
           studentId={studentId}
           tenantId={tenantId}
           onRedistribute={handleOpenRedistribute}
+          onEdit={handleOpenEdit}
+          onReorder={() => handleOpenReorder('unfinished')}
           onRefresh={handleRefresh}
         />
 
@@ -313,6 +386,8 @@ export function AdminPlanManagement({
             onAddContent={() => setShowAddContentModal(true)}
             onAddAdHoc={() => setShowAddAdHocModal(true)}
             onRedistribute={handleOpenRedistribute}
+            onEdit={handleOpenEdit}
+            onReorder={() => handleOpenReorder('daily')}
             onRefresh={handleRefresh}
           />
 
@@ -322,9 +397,14 @@ export function AdminPlanManagement({
             tenantId={tenantId}
             selectedDate={selectedDate}
             onRedistribute={handleOpenRedistribute}
+            onEdit={handleOpenEdit}
+            onReorder={() => handleOpenReorder('weekly')}
             onRefresh={handleRefresh}
           />
         </div>
+
+        {/* 삭제된 플랜 (복구 기능) */}
+        <DeletedPlansView studentId={studentId} onRefresh={handleRefresh} />
 
         {/* 요약 대시보드 & 활동 히스토리 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -452,6 +532,70 @@ export function AdminPlanManagement({
             onClose={() => setShowQuickPlanModal(false)}
             onSuccess={() => {
               setShowQuickPlanModal(false);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 플랜 수정 모달 */}
+        {showEditModal && selectedPlanForEdit && (
+          <EditPlanModal
+            planId={selectedPlanForEdit}
+            studentId={studentId}
+            tenantId={tenantId}
+            onClose={() => {
+              setShowEditModal(false);
+              setSelectedPlanForEdit(null);
+            }}
+            onSuccess={() => {
+              setShowEditModal(false);
+              setSelectedPlanForEdit(null);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 순서 변경 모달 */}
+        {showReorderModal && (
+          <ReorderPlansModal
+            studentId={studentId}
+            targetDate={selectedDate}
+            containerType={reorderContainerType}
+            onClose={() => setShowReorderModal(false)}
+            onSuccess={() => {
+              setShowReorderModal(false);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 조건부 삭제 모달 */}
+        {showConditionalDeleteModal && (
+          <ConditionalDeleteModal
+            studentId={studentId}
+            tenantId={tenantId}
+            onClose={() => setShowConditionalDeleteModal(false)}
+            onSuccess={() => {
+              setShowConditionalDeleteModal(false);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 플랜 템플릿 모달 */}
+        {showTemplateModal && (
+          <PlanTemplateModal
+            studentId={studentId}
+            planIds={templatePlanIds.length > 0 ? templatePlanIds : undefined}
+            targetDate={selectedDate}
+            planGroupId={activePlanGroupId ?? undefined}
+            onClose={() => {
+              setShowTemplateModal(false);
+              setTemplatePlanIds([]);
+            }}
+            onSuccess={() => {
+              setShowTemplateModal(false);
+              setTemplatePlanIds([]);
               handleRefresh();
             }}
           />

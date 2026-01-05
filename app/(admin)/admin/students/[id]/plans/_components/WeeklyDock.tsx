@@ -4,12 +4,15 @@ import { useEffect, useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer, DraggablePlanItem } from './dnd';
+import { BulkRedistributeModal } from './BulkRedistributeModal';
 
 interface WeeklyDockProps {
   studentId: string;
   tenantId: string;
   selectedDate: string;
   onRedistribute: (planId: string) => void;
+  onEdit?: (planId: string) => void;
+  onReorder?: () => void;
   onRefresh: () => void;
 }
 
@@ -37,12 +40,18 @@ export function WeeklyDock({
   tenantId,
   selectedDate,
   onRedistribute,
+  onEdit,
+  onReorder,
   onRefresh,
 }: WeeklyDockProps) {
   const [plans, setPlans] = useState<WeeklyPlan[]>([]);
   const [adHocPlans, setAdHocPlans] = useState<AdHocPlan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+
+  // 선택 관련 상태
+  const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
+  const [showBulkModal, setShowBulkModal] = useState(false);
 
   // 주간 범위 계산
   const getWeekRange = (dateStr: string) => {
@@ -140,6 +149,40 @@ export function WeeklyDock({
     });
   };
 
+  // 선택 관련 핸들러
+  const handleToggleSelect = (planId: string) => {
+    setSelectedPlans((prev) => {
+      const next = new Set(prev);
+      if (next.has(planId)) {
+        next.delete(planId);
+      } else {
+        next.add(planId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const uncompletedPlans = plans.filter((p) => p.status !== 'completed');
+    if (selectedPlans.size === uncompletedPlans.length) {
+      setSelectedPlans(new Set());
+    } else {
+      setSelectedPlans(new Set(uncompletedPlans.map((p) => p.id)));
+    }
+  };
+
+  const handleBulkRedistribute = () => {
+    if (selectedPlans.size > 0) {
+      setShowBulkModal(true);
+    }
+  };
+
+  const handleBulkSuccess = () => {
+    setShowBulkModal(false);
+    setSelectedPlans(new Set());
+    onRefresh();
+  };
+
   const weekRange = getWeekRange(selectedDate);
   const formatWeekRange = () => {
     const start = new Date(weekRange.start + 'T00:00:00');
@@ -169,8 +212,37 @@ export function WeeklyDock({
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-500">
-            드래그하여 Daily로 이동
+          <div className="flex items-center gap-2">
+            {plans.filter((p) => p.status !== 'completed').length > 0 && (
+              <button
+                onClick={handleSelectAll}
+                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+              >
+                {selectedPlans.size === plans.filter((p) => p.status !== 'completed').length
+                  ? '전체 해제'
+                  : '전체 선택'}
+              </button>
+            )}
+            {selectedPlans.size > 0 && (
+              <button
+                onClick={handleBulkRedistribute}
+                className="px-3 py-1.5 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
+              >
+                일괄 작업 ({selectedPlans.size})
+              </button>
+            )}
+            {onReorder && plans.length > 1 && (
+              <button
+                onClick={onReorder}
+                className="px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                title="순서 변경"
+              >
+                ↕️
+              </button>
+            )}
+            <span className="text-xs text-gray-500">
+              드래그하여 Daily로 이동
+            </span>
           </div>
         </div>
 
@@ -212,10 +284,22 @@ export function WeeklyDock({
                         'flex flex-col gap-2 bg-white rounded-lg p-3 border',
                         plan.status === 'completed'
                           ? 'border-green-300 bg-green-50/50'
-                          : 'border-green-100 hover:border-green-300'
+                          : selectedPlans.has(plan.id)
+                            ? 'border-amber-300 bg-amber-50'
+                            : 'border-green-100 hover:border-green-300'
                       )}
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-2">
+                        {/* 선택 체크박스 */}
+                        {plan.status !== 'completed' && (
+                          <input
+                            type="checkbox"
+                            checked={selectedPlans.has(plan.id)}
+                            onChange={() => handleToggleSelect(plan.id)}
+                            className="w-4 h-4 mt-0.5 rounded border-gray-300 text-amber-500 focus:ring-amber-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div
                             className={cn(
@@ -247,6 +331,15 @@ export function WeeklyDock({
                           >
                             볼륨
                           </button>
+                          {onEdit && (
+                            <button
+                              onClick={() => onEdit(plan.id)}
+                              className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                              title="플랜 수정"
+                            >
+                              수정
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDelete(plan.id)}
                             className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
@@ -317,6 +410,17 @@ export function WeeklyDock({
           )}
         </div>
       </div>
+
+      {/* 일괄 작업 모달 */}
+      {showBulkModal && (
+        <BulkRedistributeModal
+          planIds={Array.from(selectedPlans)}
+          studentId={studentId}
+          tenantId={tenantId}
+          onClose={() => setShowBulkModal(false)}
+          onSuccess={handleBulkSuccess}
+        />
+      )}
     </DroppableContainer>
   );
 }

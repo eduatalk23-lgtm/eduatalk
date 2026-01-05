@@ -11,6 +11,8 @@ interface UnfinishedDockProps {
   studentId: string;
   tenantId: string;
   onRedistribute: (planId: string) => void;
+  onEdit?: (planId: string) => void;
+  onReorder?: () => void;
   onRefresh: () => void;
 }
 
@@ -30,6 +32,8 @@ export function UnfinishedDock({
   studentId,
   tenantId,
   onRedistribute,
+  onEdit,
+  onReorder,
   onRefresh,
 }: UnfinishedDockProps) {
   const [plans, setPlans] = useState<UnfinishedPlan[]>([]);
@@ -201,6 +205,15 @@ export function UnfinishedDock({
                 일괄 작업 ({selectedPlans.size})
               </button>
             )}
+            {onReorder && plans.length > 1 && (
+              <button
+                onClick={onReorder}
+                className="px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+                title="순서 변경"
+              >
+                ↕️
+              </button>
+            )}
           </div>
         </div>
 
@@ -271,6 +284,15 @@ export function UnfinishedDock({
                     >
                       재분배
                     </button>
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(plan.id)}
+                        className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                        title="플랜 수정"
+                      >
+                        수정
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDelete(plan.id)}
                       className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
