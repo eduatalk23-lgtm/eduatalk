@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { usePlanToast } from './PlanToast';
 import { PlanItemCard, toPlanItemData } from './items';
+import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
 
 interface UnfinishedDockProps {
   studentId: string;
@@ -20,18 +21,6 @@ interface UnfinishedDockProps {
   onRefresh: () => void;
 }
 
-interface UnfinishedPlan {
-  id: string;
-  plan_date: string;
-  content_title: string | null;
-  content_subject: string | null;
-  planned_start_page_or_time: number | null;
-  planned_end_page_or_time: number | null;
-  carryover_from_date: string | null;
-  carryover_count: number;
-  custom_title: string | null;
-}
-
 export function UnfinishedDock({
   studentId,
   tenantId,
@@ -43,43 +32,13 @@ export function UnfinishedDock({
   onStatusChange,
   onRefresh,
 }: UnfinishedDockProps) {
-  const [plans, setPlans] = useState<UnfinishedPlan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
+  const { plans, isLoading, invalidate } = useUnfinishedDockQuery(studentId);
+
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [showBulkModal, setShowBulkModal] = useState(false);
   const { showToast } = usePlanToast();
-
-  useEffect(() => {
-    async function fetchUnfinished() {
-      const supabase = createSupabaseBrowserClient();
-
-      const { data, error } = await supabase
-        .from('student_plan')
-        .select(`
-          id,
-          plan_date,
-          content_title,
-          content_subject,
-          planned_start_page_or_time,
-          planned_end_page_or_time,
-          carryover_from_date,
-          carryover_count,
-          custom_title
-        `)
-        .eq('student_id', studentId)
-        .eq('container_type', 'unfinished')
-        .eq('is_active', true)
-        .order('plan_date', { ascending: true });
-
-      if (!error && data) {
-        setPlans(data);
-      }
-      setIsLoading(false);
-    }
-
-    fetchUnfinished();
-  }, [studentId]);
 
   const handleToggleSelect = (planId: string) => {
     setSelectedPlans((prev) => {

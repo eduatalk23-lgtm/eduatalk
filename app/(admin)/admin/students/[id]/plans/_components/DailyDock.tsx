@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
+import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 
 interface DailyDockProps {
   studentId: string;
@@ -23,28 +24,6 @@ interface DailyDockProps {
   onRefresh: () => void;
 }
 
-interface DailyPlan {
-  id: string;
-  content_title: string | null;
-  content_subject: string | null;
-  planned_start_page_or_time: number | null;
-  planned_end_page_or_time: number | null;
-  completed_start_page_or_time: number | null;
-  completed_end_page_or_time: number | null;
-  status: string | null;
-  is_completed: boolean;
-  custom_title: string | null;
-  custom_range_display: string | null;
-  sequence: number | null;
-}
-
-interface AdHocPlan {
-  id: string;
-  title: string;
-  status: string;
-  estimated_minutes: number | null;
-}
-
 export function DailyDock({
   studentId,
   tenantId,
@@ -59,60 +38,18 @@ export function DailyDock({
   onStatusChange,
   onRefresh,
 }: DailyDockProps) {
-  const [plans, setPlans] = useState<DailyPlan[]>([]);
-  const [adHocPlans, setAdHocPlans] = useState<AdHocPlan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
+  const { plans, adHocPlans, isLoading, invalidate } = useDailyDockQuery(
+    studentId,
+    selectedDate
+  );
+
   const [isPending, startTransition] = useTransition();
   const { showToast } = usePlanToast();
 
   // 선택 관련 상태
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
-
-  useEffect(() => {
-    async function fetchDaily() {
-      setIsLoading(true);
-      const supabase = createSupabaseBrowserClient();
-
-      // 일반 플랜
-      const { data: planData } = await supabase
-        .from('student_plan')
-        .select(`
-          id,
-          content_title,
-          content_subject,
-          planned_start_page_or_time,
-          planned_end_page_or_time,
-          completed_start_page_or_time,
-          completed_end_page_or_time,
-          status,
-          is_completed,
-          custom_title,
-          custom_range_display,
-          sequence
-        `)
-        .eq('student_id', studentId)
-        .eq('plan_date', selectedDate)
-        .eq('container_type', 'daily')
-        .eq('is_active', true)
-        .order('sequence', { ascending: true });
-
-      // Ad-hoc 플랜
-      const { data: adHocData } = await supabase
-        .from('ad_hoc_plans')
-        .select('id, title, status, estimated_minutes')
-        .eq('student_id', studentId)
-        .eq('plan_date', selectedDate)
-        .eq('container_type', 'daily')
-        .order('created_at', { ascending: true });
-
-      setPlans(planData ?? []);
-      setAdHocPlans(adHocData ?? []);
-      setIsLoading(false);
-    }
-
-    fetchDaily();
-  }, [studentId, selectedDate]);
 
   const handleMoveToWeekly = async (planId: string) => {
     const supabase = createSupabaseBrowserClient();

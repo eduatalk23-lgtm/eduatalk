@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
+import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 
 interface WeeklyDockProps {
   studentId: string;
@@ -20,25 +21,6 @@ interface WeeklyDockProps {
   onRefresh: () => void;
 }
 
-interface WeeklyPlan {
-  id: string;
-  content_title: string | null;
-  content_subject: string | null;
-  planned_start_page_or_time: number | null;
-  planned_end_page_or_time: number | null;
-  status: string | null;
-  custom_title: string | null;
-  custom_range_display: string | null;
-  plan_group_id: string | null;
-}
-
-interface AdHocPlan {
-  id: string;
-  title: string;
-  status: string;
-  estimated_minutes: number | null;
-}
-
 export function WeeklyDock({
   studentId,
   tenantId,
@@ -51,74 +33,17 @@ export function WeeklyDock({
   onStatusChange,
   onRefresh,
 }: WeeklyDockProps) {
-  const [plans, setPlans] = useState<WeeklyPlan[]>([]);
-  const [adHocPlans, setAdHocPlans] = useState<AdHocPlan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query 훅 사용 (캐싱 및 중복 요청 방지)
+  const { plans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
+    studentId,
+    selectedDate
+  );
+
   const [isPending, startTransition] = useTransition();
 
   // 선택 관련 상태
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
-
-  // 주간 범위 계산
-  const getWeekRange = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    const dayOfWeek = date.getDay();
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const weekStart = new Date(date);
-    weekStart.setDate(date.getDate() + mondayOffset);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    return {
-      start: weekStart.toISOString().split('T')[0],
-      end: weekEnd.toISOString().split('T')[0],
-    };
-  };
-
-  useEffect(() => {
-    async function fetchWeekly() {
-      setIsLoading(true);
-      const supabase = createSupabaseBrowserClient();
-      const weekRange = getWeekRange(selectedDate);
-
-      // Weekly 플랜 조회
-      const { data: planData } = await supabase
-        .from('student_plan')
-        .select(`
-          id,
-          content_title,
-          content_subject,
-          planned_start_page_or_time,
-          planned_end_page_or_time,
-          status,
-          custom_title,
-          custom_range_display,
-          plan_group_id
-        `)
-        .eq('student_id', studentId)
-        .eq('container_type', 'weekly')
-        .eq('is_active', true)
-        .gte('plan_date', weekRange.start)
-        .lte('plan_date', weekRange.end)
-        .order('created_at', { ascending: true });
-
-      // Weekly Ad-hoc 플랜
-      const { data: adHocData } = await supabase
-        .from('ad_hoc_plans')
-        .select('id, title, status, estimated_minutes')
-        .eq('student_id', studentId)
-        .eq('container_type', 'weekly')
-        .gte('plan_date', weekRange.start)
-        .lte('plan_date', weekRange.end)
-        .order('created_at', { ascending: true });
-
-      setPlans(planData ?? []);
-      setAdHocPlans(adHocData ?? []);
-      setIsLoading(false);
-    }
-
-    fetchWeekly();
-  }, [studentId, selectedDate]);
 
   const handleMoveToDaily = async (planId: string, targetDate: string) => {
     const supabase = createSupabaseBrowserClient();
@@ -190,7 +115,6 @@ export function WeeklyDock({
     onRefresh();
   };
 
-  const weekRange = getWeekRange(selectedDate);
   const formatWeekRange = () => {
     const start = new Date(weekRange.start + 'T00:00:00');
     const end = new Date(weekRange.end + 'T00:00:00');
