@@ -262,6 +262,7 @@ export function UnfinishedDock({
                 onRedistribute={onRedistribute}
                 onEdit={onEdit}
                 onMoveToGroup={onMoveToGroup ? (id) => onMoveToGroup([id]) : undefined}
+                onCopy={onCopy ? (id) => onCopy([id]) : undefined}
                 onStatusChange={onStatusChange}
                 onDelete={handleDelete}
                 onRefresh={onRefresh}
