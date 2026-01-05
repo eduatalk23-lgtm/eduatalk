@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
+import { ChevronDown, ChevronRight, RotateCcw, Trash2 } from 'lucide-react';
 import {
   getDeletedPlans,
   restoreDeletedPlans,
@@ -15,12 +16,32 @@ interface DeletedPlansViewProps {
   onRefresh: () => void;
 }
 
+/**
+ * 상대 시간 표시 (예: "3시간 전", "2일 전")
+ */
+function getRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+  if (diffHours < 24) return `${diffHours}시간 전`;
+  if (diffDays < 7) return `${diffDays}일 전`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
+  return `${Math.floor(diffDays / 30)}개월 전`;
+}
+
 export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps) {
   const [deletedPlans, setDeletedPlans] = useState<DeletedPlanInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmPermanentDelete, setConfirmPermanentDelete] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { showSuccess, showError } = useToast();
 
   // 삭제된 플랜 목록 로드
@@ -105,12 +126,16 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
     return `${month}/${day} ${hours}:${minutes}`;
   };
 
+  // 삭제된 플랜이 없으면 표시하지 않음
+  if (!isLoading && deletedPlans.length === 0) {
+    return null;
+  }
+
   if (isLoading) {
     return (
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
         <div className="animate-pulse space-y-3">
           <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-12 bg-gray-200 rounded" />
           <div className="h-12 bg-gray-200 rounded" />
         </div>
       </div>
@@ -124,93 +149,121 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
         isPending && 'opacity-50 pointer-events-none'
       )}
     >
-      {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-100">
+      {/* 헤더 - 클릭하여 접기/펼치기 */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-100 hover:bg-gray-150 transition-colors"
+      >
         <div className="flex items-center gap-2">
+          {isExpanded ? (
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-gray-500" />
+          )}
           <span className="text-lg">🗑️</span>
           <span className="font-medium text-gray-700">삭제된 플랜</span>
-          <span className="text-sm text-gray-500">({deletedPlans.length}개)</span>
+          <span className="text-sm text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+            {deletedPlans.length}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          {deletedPlans.length > 0 && (
-            <button
-              onClick={handleSelectAll}
-              className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded"
-            >
-              {selectedIds.size === deletedPlans.length ? '전체 해제' : '전체 선택'}
-            </button>
-          )}
-          {selectedIds.size > 0 && (
-            <>
-              <button
-                onClick={handleRestore}
-                className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                복구 ({selectedIds.size})
-              </button>
-              <button
-                onClick={() => setConfirmPermanentDelete(true)}
-                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                영구 삭제 ({selectedIds.size})
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+        <span className="text-xs text-gray-500">
+          {isExpanded ? '접기' : '펼쳐서 복구하기'}
+        </span>
+      </button>
 
-      {/* 플랜 목록 */}
-      <div className="p-4">
-        {deletedPlans.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>삭제된 플랜이 없습니다</p>
+      {/* 펼쳐진 경우에만 내용 표시 */}
+      {isExpanded && (
+        <>
+          {/* 액션 버튼 */}
+          <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSelectAll}
+                className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded"
+              >
+                {selectedIds.size === deletedPlans.length ? '전체 해제' : '전체 선택'}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <>
+                  <button
+                    onClick={handleRestore}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    복구 ({selectedIds.size})
+                  </button>
+                  <button
+                    onClick={() => setConfirmPermanentDelete(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    영구 삭제
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {deletedPlans.map((plan) => {
-              const range =
-                plan.planned_start_page_or_time != null && plan.planned_end_page_or_time != null
-                  ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`
-                  : null;
 
-              return (
-                <div
-                  key={plan.id}
-                  className={cn(
-                    'flex items-center gap-3 bg-white rounded-lg p-3 border',
-                    selectedIds.has(plan.id) ? 'border-gray-400 bg-gray-100' : 'border-gray-200'
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(plan.id)}
-                    onChange={() => handleToggleSelect(plan.id)}
-                    className="w-4 h-4 rounded border-gray-300"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate text-gray-700">
-                      {plan.custom_title ?? plan.content_title ?? '제목 없음'}
+          {/* 플랜 목록 */}
+          <div className="p-4">
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {deletedPlans.map((plan) => {
+                const range =
+                  plan.planned_start_page_or_time != null && plan.planned_end_page_or_time != null
+                    ? `p.${plan.planned_start_page_or_time}-${plan.planned_end_page_or_time}`
+                    : null;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={cn(
+                      'flex items-center gap-3 bg-white rounded-lg p-3 border transition-colors',
+                      selectedIds.has(plan.id)
+                        ? 'border-green-400 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    )}
+                    onClick={() => handleToggleSelect(plan.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(plan.id)}
+                      onChange={() => handleToggleSelect(plan.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate text-gray-700">
+                        {plan.custom_title ?? plan.content_title ?? '제목 없음'}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+                        <span>{formatDate(plan.plan_date)}</span>
+                        {plan.content_subject && <span>• {plan.content_subject}</span>}
+                        {range && <span>• {range}</span>}
+                        {plan.plan_group_name && (
+                          <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+                            {plan.plan_group_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>{formatDate(plan.plan_date)}</span>
-                      {plan.content_subject && <span>• {plan.content_subject}</span>}
-                      {range && <span>• {range}</span>}
-                      {plan.plan_group_name && (
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
-                          {plan.plan_group_name}
-                        </span>
-                      )}
+                    <div className="text-xs text-gray-400 shrink-0 text-right">
+                      <div className="text-amber-600 font-medium">{getRelativeTime(plan.updated_at)}</div>
+                      <div>{formatDateTime(plan.updated_at)}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-400 shrink-0">
-                    삭제: {formatDateTime(plan.updated_at)}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            {/* 안내 문구 */}
+            <p className="mt-3 text-xs text-gray-500 text-center">
+              삭제된 플랜은 30일 후 자동으로 영구 삭제됩니다.
+            </p>
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* 영구 삭제 확인 모달 */}
       {confirmPermanentDelete && (
