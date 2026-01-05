@@ -15,3 +15,6 @@ export {
   useAttendanceRealtime,
   useAdminAttendanceRealtime,
 } from "./useAttendanceRealtime";
+
+// 관리자 플랜 실시간 업데이트
+export { useAdminPlanRealtime } from "./useAdminPlanRealtime";

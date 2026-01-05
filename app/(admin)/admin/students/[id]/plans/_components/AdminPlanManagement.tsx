@@ -17,6 +17,7 @@ import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
+import { useAdminPlanRealtime } from '@/lib/realtime';
 import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
@@ -184,6 +185,13 @@ export function AdminPlanManagement({
       router.refresh();
     });
   }, [router]);
+
+  // 실시간 업데이트 구독
+  useAdminPlanRealtime({
+    studentId,
+    onRefresh: handleRefresh,
+    debounceMs: 1000, // 1초 debounce로 빈번한 새로고침 방지
+  });
 
   // DnD 이동 핸들러 (이벤트 로깅 포함)
   // targetDate: 날짜 기반 드롭 시 캘린더에서 드롭한 날짜
