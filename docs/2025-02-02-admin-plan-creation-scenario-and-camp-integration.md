@@ -29,11 +29,26 @@
 
 관리자가 사용할 수 있는 플랜 생성 방법은 다음과 같습니다:
 
-1. **플랜 그룹 생성 (7단계 위자드)** - 가장 상세한 설정
-2. **AI 플랜 생성** - AI 기반 자동 생성
-3. **빠른 플랜 추가** - 간단한 플랜 추가
-4. **콘텐츠 추가** - 특정 콘텐츠로 플랜 추가
-5. **일회성 플랜 추가** - 단발성 플랜 추가
+1. **플랜 그룹 생성 (7단계 위자드)** - 가장 상세한 설정 (항상 사용 가능)
+2. **AI 플랜 생성** - AI 기반 자동 생성 (활성 플랜 그룹이 있을 때만 표시)
+3. **빠른 플랜 추가** - 간단한 플랜 추가 (항상 사용 가능)
+4. **콘텐츠 추가** - 특정 콘텐츠로 플랜 추가 (Daily Dock에서 사용 가능)
+5. **일회성 플랜 추가** - 단발성 플랜 추가 (활성 플랜 그룹이 있을 때만 사용 가능)
+
+### 버튼 표시 조건
+
+**헤더 영역 버튼들** (`/admin/students/[id]/plans`):
+- ✅ **빠른 추가**: 항상 표시
+- ✅ **플랜 그룹**: 항상 표시
+- ⚠️ **AI 생성**: `activePlanGroupId`가 있을 때만 표시 (활성 플랜 그룹 필요)
+- ✅ **AI 분석**: 항상 표시
+
+**Daily Dock 버튼들**:
+- ✅ **+ 플랜 추가**: 항상 표시 (콘텐츠 추가 모달 열기)
+- ⚠️ **+ 단발성**: 버튼은 항상 표시되지만, `activePlanGroupId`가 없으면 모달이 열리지 않음 (활성 플랜 그룹 필요)
+
+**Weekly Dock**:
+- 플랜 추가 버튼 없음 (재분배 기능만 제공)
 
 ---
 
@@ -46,11 +61,13 @@
 **경로**: `/admin/students`
 
 **프로세스**:
+
 1. 관리자가 학생 목록 페이지에 접근
 2. 학생 목록에서 특정 학생을 선택 (테이블에서 클릭)
 3. 해당 학생의 플랜 관리 페이지로 이동: `/admin/students/[id]/plans`
 
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/page.tsx` - 학생 목록 페이지
 - `app/(admin)/admin/students/_components/StudentListClient.tsx` - 학생 목록 클라이언트
 - `app/(admin)/admin/students/_components/StudentTable.tsx` - 학생 테이블
@@ -60,49 +77,135 @@
 **경로**: `/admin/students/[id]/plans`
 
 **프로세스**:
+
 1. 플랜 관리 페이지에서 "플랜 그룹" 버튼 클릭 (또는 키보드 단축키 `g`)
 2. 7단계 플랜 생성 위자드 모달이 열림
 
+**버튼 위치**:
+- 헤더 영역 우측 상단
+- 항상 표시됨 (조건 없음)
+
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement.tsx` - 플랜 관리 메인 컴포넌트
 - `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step.tsx` - 7단계 위자드
+
+### 시나리오 2: 빠른 플랜 추가
+
+**경로**: `/admin/students/[id]/plans`
+
+**프로세스**:
+
+1. 플랜 관리 페이지에서 "빠른 추가" 버튼 클릭 (또는 키보드 단축키 `q`)
+2. 빠른 플랜 추가 모달이 열림
+3. 콘텐츠 선택 및 간단한 설정 후 플랜 생성
+
+**버튼 위치**:
+- 헤더 영역 우측 상단 (플랜 그룹 버튼 왼쪽)
+- 항상 표시됨 (조건 없음)
+
+**관련 컴포넌트**:
+- `app/(admin)/admin/students/[id]/plans/_components/AdminQuickPlanModal.tsx` - 빠른 플랜 추가 모달
+
+### 시나리오 3: AI 플랜 생성
+
+**경로**: `/admin/students/[id]/plans`
+
+**프로세스**:
+
+1. 활성 플랜 그룹이 있는 경우에만 "AI 생성" 버튼이 표시됨
+2. "AI 생성" 버튼 클릭 (또는 키보드 단축키 `i`)
+3. AI 플랜 생성 모달이 열림
+4. AI 설정 후 플랜 생성
+
+**버튼 표시 조건**:
+- ⚠️ **활성 플랜 그룹(`activePlanGroupId`)이 있어야 함**
+- 활성 플랜 그룹이 없으면 버튼이 표시되지 않음
+
+**관련 컴포넌트**:
+- `app/(admin)/admin/students/[id]/plans/_components/AdminAIPlanModal.tsx` - AI 플랜 생성 모달
+
+### 시나리오 4: 콘텐츠 추가 (Daily Dock)
+
+**경로**: `/admin/students/[id]/plans`
+
+**프로세스**:
+
+1. Daily Dock 영역에서 "+ 플랜 추가" 버튼 클릭
+2. 콘텐츠 추가 모달이 열림
+3. 콘텐츠 선택 및 날짜 설정 후 플랜 생성
+
+**버튼 위치**:
+- Daily Dock 헤더 우측
+- 항상 표시됨 (조건 없음)
+
+**관련 컴포넌트**:
+- `app/(admin)/admin/students/[id]/plans/_components/DailyDock.tsx` - Daily Dock 컴포넌트
+- `app/(admin)/admin/students/[id]/plans/_components/AddContentModal.tsx` - 콘텐츠 추가 모달
+
+### 시나리오 5: 일회성 플랜 추가 (Daily Dock)
+
+**경로**: `/admin/students/[id]/plans`
+
+**프로세스**:
+
+1. Daily Dock 영역에서 "+ 단발성" 버튼 클릭
+2. 일회성 플랜 추가 모달이 열림
+3. 플랜 정보 입력 후 생성
+
+**버튼 표시 조건**:
+- ⚠️ **활성 플랜 그룹(`activePlanGroupId`)이 있어야 함**
+- 활성 플랜 그룹이 없으면 버튼이 표시되지 않음
+
+**관련 컴포넌트**:
+- `app/(admin)/admin/students/[id]/plans/_components/DailyDock.tsx` - Daily Dock 컴포넌트
+- `app/(admin)/admin/students/[id]/plans/_components/AddAdHocModal.tsx` - 일회성 플랜 추가 모달
 
 #### 3단계: 7단계 위자드 진행
 
 **Step 1: 기본 정보**
+
 - 플랜 이름
 - 기간 (시작일, 종료일)
 - 플랜 목적 (내신대비, 모의고사, 수능)
 
 **Step 2: 시간 설정**
+
 - 학원 스케줄 설정
 - 제외 일정 설정
 
 **Step 3: 스케줄 미리보기**
+
 - 생성될 스케줄 미리 확인
 
 **Step 4: 콘텐츠 선택**
+
 - 학습할 콘텐츠 선택
 - 콘텐츠 범위 설정
 
 **Step 5: 배분 설정**
+
 - 콘텐츠 배분 방식 설정
 
 **Step 6: 최종 검토**
+
 - 모든 설정 사항 검토
 
 **Step 7: 생성 및 결과**
+
 - 플랜 그룹 생성 실행
 - 생성 결과 확인
 
 #### 4단계: 플랜 그룹 생성 완료
 
 **결과**:
+
 - 플랜 그룹이 생성되고 `draft` 상태로 저장됨
 - 생성된 플랜 그룹 ID 반환
 - 선택적으로 AI 플랜 생성 모달 자동 열림
 
 **관련 액션**:
+
 - `lib/domains/plan/actions/plan-groups/create.ts` - `createPlanGroupAction`
 - `lib/data/planGroups.ts` - `createPlanGroup`
 
@@ -250,6 +353,7 @@
 **파일**: `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step.tsx`
 
 **주요 특징**:
+
 - 모달 형태의 전체 화면 위자드
 - 상단에 7단계 진행 인디케이터 표시
 - 각 Step별 제목과 설명 표시
@@ -258,6 +362,7 @@
 - 자동 저장 상태 표시
 
 **UI 레이아웃**:
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  [X] 플랜 그룹 생성                    [자동저장 상태]    │
@@ -304,8 +409,9 @@
    - "새 시간표 만들기" 링크 (TODO)
 
 **UI 특징**:
+
 - 아이콘과 함께 레이블 표시 (Calendar, FileText, Target, Clock)
-- 필수 항목은 빨간색 별표(*) 표시
+- 필수 항목은 빨간색 별표(\*) 표시
 - 실시간 검증 피드백
 - 선택된 블록셋의 블록 정보 미리보기
 
@@ -333,6 +439,7 @@
    - 삭제 버튼으로 개별 제거 가능
 
 **UI 특징**:
+
 - 폼 형태의 추가 UI (드롭다운/입력 필드)
 - 추가/취소 버튼으로 폼 토글
 - 빈 상태일 때 안내 메시지 표시
@@ -359,6 +466,7 @@
    - "시간 설정 수정" 버튼으로 Step 2로 이동
 
 **UI 특징**:
+
 - 시각적인 캘린더 UI
 - 제외일은 빨간색, 학원 스케줄은 파란색으로 구분
 - 정보 아이콘으로 도움말 표시
@@ -395,6 +503,7 @@
    - "콘텐츠 선택 건너뛰기" 옵션 제공
 
 **UI 특징**:
+
 - 최대 선택 개수 제한 시도 시 경고 메시지
 - 선택된 콘텐츠의 통계 실시간 업데이트
 - 확장/축소 애니메이션
@@ -426,6 +535,7 @@
    - 과목별 통계 표시
 
 **UI 특징**:
+
 - 콘텐츠가 없을 때 경고 메시지
 - 정보 아이콘으로 각 설정 설명
 - 통계 정보를 시각적으로 표시
@@ -457,6 +567,7 @@
    - 노란색 배경의 경고 메시지
 
 **UI 특징**:
+
 - 모든 설정을 한눈에 확인 가능
 - 각 섹션별 수정 버튼으로 빠른 수정
 - AI 생성 옵션을 명확하게 표시
@@ -490,6 +601,7 @@
    - "이전 단계로" / "다시 시도" 버튼
 
 **UI 특징**:
+
 - 단계별 진행 상태를 명확하게 표시
 - 프로그레스 바로 진행률 시각화
 - 오류 발생 시 재시도 옵션 제공
@@ -593,6 +705,10 @@ export default async function StudentPlansPage({ params, searchParams }: Props) 
     status: 'active',
   });
   const activePlanGroupId = activePlanGroups[0]?.id ?? null;
+
+  // ⚠️ 중요: activePlanGroupId가 null이면 다음 버튼들이 표시되지 않음:
+  // - 헤더 영역의 "AI 생성" 버튼
+  // - Daily Dock의 "+ 단발성" 버튼 (기능 사용 불가)
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -769,6 +885,7 @@ async function _createPlanGroup(
 ```
 
 **핵심 로직**:
+
 - `options.studentId`가 제공되면 관리자 모드로 인식
 - 관리자 모드에서는 해당 `studentId`를 사용하여 플랜 그룹 생성
 - 일반 모드(학생 모드)에서는 현재 로그인한 사용자의 ID 사용
@@ -803,7 +920,7 @@ async function _createPlanGroup(
 ```293:319:lib/domains/plan/actions/plan-groups/create.ts
   // 캠프 모드인 경우 camp_invitation_id로 먼저 확인
   const supabase = await createSupabaseServerClient();
-  
+
   // 캠프 모드인 경우 camp_invitation_id로 기존 플랜 그룹 확인
   if (data.camp_invitation_id) {
     const { data: existingCampGroup, error: campGroupError } = await supabase
@@ -880,46 +997,55 @@ async function _createPlanGroup(
 ### 방안 1: 관리자 위자드에 캠프 모드 옵션 추가
 
 **구현 방법**:
+
 1. `AdminPlanCreationWizard7Step`에 캠프 모드 토글 추가
 2. 캠프 모드 선택 시 캠프 템플릿 선택 UI 표시
 3. 선택된 템플릿의 기본 설정을 위자드에 자동 채움
 4. 플랜 그룹 생성 시 `camp_template_id`와 `camp_invitation_id` 포함
 
 **장점**:
+
 - 기존 위자드 구조 재사용 가능
 - 관리자가 캠프 모드와 일반 모드를 동일한 인터페이스에서 사용 가능
 
 **단점**:
+
 - 위자드가 복잡해질 수 있음
 - 캠프 초대 생성 로직 추가 필요
 
 ### 방안 2: 별도의 캠프 플랜 생성 모달
 
 **구현 방법**:
+
 1. `AdminPlanManagement`에 "캠프 플랜 생성" 버튼 추가
 2. 캠프 템플릿 선택 모달 생성
 3. 선택된 템플릿과 학생 정보로 플랜 그룹 생성
 
 **장점**:
+
 - 캠프 모드 전용 UI로 명확함
 - 기존 위자드와 분리되어 유지보수 용이
 
 **단점**:
+
 - 별도 컴포넌트 개발 필요
 - 코드 중복 가능성
 
 ### 방안 3: 학생 목록에서 일괄 캠프 플랜 생성
 
 **구현 방법**:
+
 1. 학생 목록에서 여러 학생 선택
 2. "캠프 플랜 일괄 생성" 버튼 클릭
 3. 캠프 템플릿 선택 후 선택된 학생들에게 일괄 생성
 
 **장점**:
+
 - 여러 학생에게 동시에 캠프 플랜 생성 가능
 - 효율적인 작업 흐름
 
 **단점**:
+
 - 일괄 생성 로직 복잡도 증가
 - 에러 처리 및 롤백 로직 필요
 
@@ -931,6 +1057,7 @@ async function _createPlanGroup(
 2. **일괄 생성**: 학생 목록에서 일괄 캠프 플랜 생성 기능 추가
 
 이렇게 하면:
+
 - 개별 학생에 대한 세밀한 제어 가능
 - 여러 학생에 대한 효율적인 작업 가능
 - 기존 코드 구조 최대한 재사용
@@ -987,4 +1114,3 @@ async function _createPlanGroup(
 ---
 
 **마지막 업데이트**: 2025-02-02
-
