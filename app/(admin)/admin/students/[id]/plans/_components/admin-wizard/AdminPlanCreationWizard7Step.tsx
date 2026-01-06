@@ -37,6 +37,7 @@ import { Step7GenerateResult } from "./steps/Step7GenerateResult";
 
 // Server action import
 import { createPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups/create";
+import { updatePlanGroupDraftAction } from "@/lib/domains/plan/actions/plan-groups/update";
 import type { PlanGroupCreationData } from "@/lib/types/plan";
 
 // ============================================
@@ -86,10 +87,12 @@ function WizardInner({
     wizardData,
     isSubmitting,
     error,
+    draftGroupId,
     createdGroupId,
     isDirty,
     setSubmitting,
     setError,
+    setDraftId,
     setCreatedGroupId,
     resetDirtyState,
   } = useAdminWizardData();
@@ -104,15 +107,94 @@ function WizardInner({
   // ============================================
 
   const handleAutoSave = useCallback(async () => {
-    // TODO: 임시 저장 API 호출
-    console.log("[AutoSave] 저장 중...", wizardData);
-    resetDirtyState();
-  }, [wizardData, resetDirtyState]);
+    try {
+      const {
+        name,
+        planPurpose,
+        periodStart,
+        periodEnd,
+        selectedContents,
+        skipContents,
+        exclusions,
+        academySchedules,
+        schedulerType,
+        blockSetId,
+        schedulerOptions,
+      } = wizardData;
+
+      // 최소 기간 정보가 없으면 저장하지 않음
+      if (!periodStart || !periodEnd) {
+        console.log("[AutoSave] 기간 정보 없음, 저장 스킵");
+        return;
+      }
+
+      // PlanGroupCreationData 구성
+      const planGroupData: Partial<PlanGroupCreationData> = {
+        name: name || `Draft-${new Date().toISOString().split("T")[0]}`,
+        plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
+        scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
+        period_start: periodStart,
+        period_end: periodEnd,
+        block_set_id: blockSetId || null,
+        scheduler_options: schedulerOptions || undefined,
+        contents: skipContents
+          ? []
+          : selectedContents.map((c, index) => ({
+              content_type: c.contentType as "book" | "lecture",
+              content_id: c.contentId,
+              master_content_id: null,
+              start_range: c.startRange,
+              end_range: c.endRange,
+              start_detail_id: null,
+              end_detail_id: null,
+              display_order: index,
+            })),
+        exclusions: exclusions.map((e) => ({
+          exclusion_date: e.exclusion_date,
+          exclusion_type: e.exclusion_type === "holiday" ? "휴일지정"
+            : e.exclusion_type === "personal" ? "개인사정"
+            : "기타" as const,
+          reason: e.reason || undefined,
+        })),
+        academy_schedules: academySchedules.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          academy_name: s.academy_name || undefined,
+          subject: s.subject || undefined,
+        })),
+      };
+
+      if (draftGroupId) {
+        // 기존 draft 업데이트
+        console.log("[AutoSave] draft 업데이트:", draftGroupId);
+        await updatePlanGroupDraftAction(draftGroupId, planGroupData);
+      } else {
+        // 새 draft 생성
+        console.log("[AutoSave] 새 draft 생성");
+        const result = await createPlanGroupAction(planGroupData as PlanGroupCreationData, {
+          skipContentValidation: true,
+          studentId: studentId,
+        });
+
+        // 성공 시 draftId 저장
+        if ("groupId" in result && result.groupId) {
+          console.log("[AutoSave] draft 생성 완료:", result.groupId);
+          setDraftId(result.groupId);
+        }
+      }
+
+      resetDirtyState();
+    } catch (err) {
+      console.error("[AutoSave] 자동저장 실패:", err);
+      // 자동저장 실패는 무시 (사용자에게 에러 표시하지 않음)
+    }
+  }, [wizardData, draftGroupId, studentId, setDraftId, resetDirtyState]);
 
   const { status: autoSaveStatus, lastSavedAt } = useAdminAutoSave({
     data: wizardData,
     initialData: null,
-    draftGroupId: null,
+    draftGroupId: draftGroupId,
     saveFn: handleAutoSave,
     options: { enabled: isDirty && !isSubmitting },
   });
@@ -250,20 +332,31 @@ function WizardInner({
         })),
       };
 
-      const result = await createPlanGroupAction(planGroupData, {
-        skipContentValidation: true,
-        studentId: studentId,
-      });
+      let groupId: string;
 
-      // 에러 확인
-      if ("success" in result && result.success === false) {
-        setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
-        setSubmitting(false);
-        return;
+      if (draftGroupId) {
+        // 기존 draft가 있으면 업데이트
+        console.log("[AdminWizard] 기존 draft 업데이트:", draftGroupId);
+        await updatePlanGroupDraftAction(draftGroupId, planGroupData);
+        groupId = draftGroupId;
+      } else {
+        // 새 플랜 그룹 생성
+        const result = await createPlanGroupAction(planGroupData, {
+          skipContentValidation: true,
+          studentId: studentId,
+        });
+
+        // 에러 확인
+        if ("success" in result && result.success === false) {
+          setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
+          setSubmitting(false);
+          return;
+        }
+
+        groupId = (result as { groupId: string }).groupId;
       }
 
       // 성공 시
-      const groupId = (result as { groupId: string }).groupId;
       setCreatedGroupId(groupId);
       setSubmitting(false);
       onSuccess(groupId, wizardData.generateAIPlan);
@@ -276,6 +369,7 @@ function WizardInner({
     hasErrors,
     wizardData,
     studentId,
+    draftGroupId,
     setSubmitting,
     setError,
     setCreatedGroupId,

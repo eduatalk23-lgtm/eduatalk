@@ -13,6 +13,7 @@ interface DailyDockProps {
   studentId: string;
   tenantId: string;
   selectedDate: string;
+  activePlanGroupId: string | null;
   onAddContent: () => void;
   onAddAdHoc: () => void;
   onRedistribute: (planId: string) => void;
@@ -28,6 +29,7 @@ export function DailyDock({
   studentId,
   tenantId,
   selectedDate,
+  activePlanGroupId,
   onAddContent,
   onAddAdHoc,
   onRedistribute,
@@ -223,12 +225,25 @@ export function DailyDock({
           >
             + 플랜 추가
           </button>
-          <button
-            onClick={onAddAdHoc}
-            className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
-          >
-            + 단발성
-          </button>
+          <div className="relative group">
+            <button
+              onClick={onAddAdHoc}
+              disabled={!activePlanGroupId}
+              className={cn(
+                'px-3 py-1.5 text-sm rounded-md',
+                activePlanGroupId
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              )}
+            >
+              + 단발성
+            </button>
+            {!activePlanGroupId && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                활성 플랜 그룹이 필요합니다
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

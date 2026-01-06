@@ -115,29 +115,78 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
     setStep(step);
   };
 
+  // 오류 메시지에서 관련 Step 추출
+  const getStepFromError = (error: string): WizardStep | null => {
+    const errorLower = error.toLowerCase();
+    if (errorLower.includes("기간") || errorLower.includes("날짜") || errorLower.includes("이름")) {
+      return 1;
+    }
+    if (errorLower.includes("시간") || errorLower.includes("스케줄") || errorLower.includes("제외")) {
+      return 2;
+    }
+    if (errorLower.includes("미리보기") || errorLower.includes("프리뷰")) {
+      return 3;
+    }
+    if (errorLower.includes("콘텐츠") || errorLower.includes("교재") || errorLower.includes("강의")) {
+      return 4;
+    }
+    if (errorLower.includes("배분") || errorLower.includes("레벨") || errorLower.includes("취약")) {
+      return 5;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       {/* 검증 오류/경고 */}
       {(hasErrors || validationWarnings.length > 0) && (
         <div className="space-y-2">
-          {validationErrors.map((error, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          ))}
-          {validationWarnings.map((warning, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
-              <p className="text-sm text-amber-700">{warning}</p>
-            </div>
-          ))}
+          {validationErrors.map((error, i) => {
+            const errorStep = getStepFromError(error);
+            return (
+              <div
+                key={i}
+                className="flex items-start justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-500" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+                {errorStep && (
+                  <button
+                    type="button"
+                    onClick={() => goToStep(errorStep)}
+                    className="flex-shrink-0 text-xs text-red-600 underline hover:text-red-800"
+                  >
+                    Step {errorStep}에서 수정
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {validationWarnings.map((warning, i) => {
+            const warningStep = getStepFromError(warning);
+            return (
+              <div
+                key={i}
+                className="flex items-start justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+                  <p className="text-sm text-amber-700">{warning}</p>
+                </div>
+                {warningStep && (
+                  <button
+                    type="button"
+                    onClick={() => goToStep(warningStep)}
+                    className="flex-shrink-0 text-xs text-amber-600 underline hover:text-amber-800"
+                  >
+                    Step {warningStep}에서 수정
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -298,7 +347,12 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
                   </p>
                 </div>
               </div>
-              <ul className="max-h-32 space-y-1 overflow-y-auto">
+              <ul
+                className={cn(
+                  "space-y-1 overflow-y-auto",
+                  selectedContents.length > 4 && "max-h-48"
+                )}
+              >
                 {selectedContents.map((content) => (
                   <li
                     key={content.contentId}
