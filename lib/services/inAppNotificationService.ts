@@ -446,6 +446,130 @@ export async function deleteNotification(
   }
 }
 
+// ============================================
+// 실시간 브로드캐스트 (Supabase Realtime)
+// ============================================
+
+/**
+ * 실시간 알림 브로드캐스트 (일시적 알림용)
+ *
+ * DB에 저장하지 않고 실시간으로 클라이언트에 알림을 전송합니다.
+ * 일시적인 알림(예: 타이머 완료, 실시간 상태 업데이트)에 사용합니다.
+ *
+ * @example
+ * ```typescript
+ * // 타이머 완료 시 실시간 알림
+ * await broadcastNotification(userId, {
+ *   type: 'timer_complete',
+ *   title: '학습 완료!',
+ *   message: '수학 30분 학습을 완료했습니다.',
+ * });
+ * ```
+ */
+export async function broadcastNotification(
+  userId: string,
+  notification: {
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const adminClient = createSupabaseAdminClient();
+
+    if (!adminClient) {
+      return {
+        success: false,
+        error: "Admin 클라이언트를 초기화할 수 없습니다.",
+      };
+    }
+
+    // Supabase Realtime 브로드캐스트 채널 사용
+    const channel = adminClient.channel(`notifications-${userId}`);
+
+    await channel.send({
+      type: "broadcast",
+      event: "notification",
+      payload: {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        metadata: notification.data ?? {},
+        is_read: false,
+        created_at: new Date().toISOString(),
+        read_at: null,
+        tenant_id: null,
+      },
+    });
+
+    // 채널 정리
+    await adminClient.removeChannel(channel);
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    logActionError(
+      { domain: "service", action: "broadcastNotification" },
+      error,
+      { userId, type: notification.type }
+    );
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 특정 사용자들에게 실시간 알림 브로드캐스트
+ */
+export async function broadcastBulkNotification(
+  userIds: string[],
+  notification: {
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+  }
+): Promise<{ success: boolean; sentCount: number; error?: string }> {
+  try {
+    if (userIds.length === 0) {
+      return { success: true, sentCount: 0 };
+    }
+
+    const results = await Promise.allSettled(
+      userIds.map((userId) => broadcastNotification(userId, notification))
+    );
+
+    const successCount = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
+
+    return { success: true, sentCount: successCount };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    logActionError(
+      { domain: "service", action: "broadcastBulkNotification" },
+      error,
+      { userCount: userIds.length, type: notification.type }
+    );
+    return {
+      success: false,
+      sentCount: 0,
+      error: errorMessage,
+    };
+  }
+}
+
+// ============================================
+// 관리 기능
+// ============================================
+
 /**
  * 오래된 알림 정리 (관리자용)
  * @param daysOld 삭제할 알림의 최소 기간 (일)

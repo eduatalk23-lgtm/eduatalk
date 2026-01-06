@@ -3706,6 +3706,159 @@ export type Database = {
           },
         ]
       }
+      plan_reminder_logs: {
+        Row: {
+          id: string
+          plan_count: number | null
+          reminder_date: string
+          reminder_type: string
+          sent_at: string | null
+          student_id: string
+        }
+        Insert: {
+          id?: string
+          plan_count?: number | null
+          reminder_date: string
+          reminder_type: string
+          sent_at?: string | null
+          student_id: string
+        }
+        Update: {
+          id?: string
+          plan_count?: number | null
+          reminder_date?: string
+          reminder_type?: string
+          sent_at?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_reminder_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_satisfaction_ratings: {
+        Row: {
+          actual_duration: number | null
+          completion_rate: number | null
+          content_type: string | null
+          created_at: string
+          estimated_duration: number | null
+          feedback: string | null
+          id: string
+          plan_id: string
+          rating: number
+          student_id: string
+          subject_type: string | null
+          tags: string[] | null
+          tenant_id: string | null
+        }
+        Insert: {
+          actual_duration?: number | null
+          completion_rate?: number | null
+          content_type?: string | null
+          created_at?: string
+          estimated_duration?: number | null
+          feedback?: string | null
+          id?: string
+          plan_id: string
+          rating: number
+          student_id: string
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+        }
+        Update: {
+          actual_duration?: number | null
+          completion_rate?: number | null
+          content_type?: string | null
+          created_at?: string
+          estimated_duration?: number | null
+          feedback?: string | null
+          id?: string
+          plan_id?: string
+          rating?: number
+          student_id?: string
+          subject_type?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "today_plan_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_satisfaction_ratings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          items: Json
+          name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          items?: Json
+          name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          items?: Json
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_timer_logs: {
         Row: {
           created_at: string | null
@@ -5316,6 +5469,93 @@ export type Database = {
           },
         ]
       }
+      student_milestone_logs: {
+        Row: {
+          achieved_at: string | null
+          id: string
+          milestone_type: string
+          milestone_value: number | null
+          plan_id: string | null
+          student_id: string
+        }
+        Insert: {
+          achieved_at?: string | null
+          id?: string
+          milestone_type: string
+          milestone_value?: number | null
+          plan_id?: string | null
+          student_id: string
+        }
+        Update: {
+          achieved_at?: string | null
+          id?: string
+          milestone_type?: string
+          milestone_value?: number | null
+          plan_id?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_milestone_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "student_plan"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_milestone_logs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "today_plan_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_milestone_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_milestone_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_enabled: boolean | null
+          milestone_type: string
+          sound_enabled: boolean | null
+          student_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          milestone_type: string
+          sound_enabled?: boolean | null
+          student_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          milestone_type?: string
+          sound_enabled?: boolean | null
+          student_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_milestone_settings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_mock_scores: {
         Row: {
           created_at: string | null
@@ -5785,6 +6025,53 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_reminder_settings: {
+        Row: {
+          created_at: string | null
+          delayed_plan_threshold: number | null
+          delayed_plan_warning_enabled: boolean | null
+          id: string
+          incomplete_reminder_enabled: boolean | null
+          incomplete_reminder_time: string | null
+          student_id: string
+          updated_at: string | null
+          weekly_summary_day: number | null
+          weekly_summary_enabled: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          delayed_plan_threshold?: number | null
+          delayed_plan_warning_enabled?: boolean | null
+          id?: string
+          incomplete_reminder_enabled?: boolean | null
+          incomplete_reminder_time?: string | null
+          student_id: string
+          updated_at?: string | null
+          weekly_summary_day?: number | null
+          weekly_summary_enabled?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          delayed_plan_threshold?: number | null
+          delayed_plan_warning_enabled?: boolean | null
+          id?: string
+          incomplete_reminder_enabled?: boolean | null
+          incomplete_reminder_time?: string | null
+          student_id?: string
+          updated_at?: string | null
+          weekly_summary_day?: number | null
+          weekly_summary_enabled?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_reminder_settings_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -6801,6 +7088,31 @@ export type Database = {
           },
         ]
       }
+      scores: {
+        Row: {
+          avg_score: number | null
+          created_at: string | null
+          exam_date: string | null
+          exam_title: string | null
+          grade: number | null
+          id: string | null
+          percentile: number | null
+          rank_grade: number | null
+          score: number | null
+          score_type: string | null
+          semester: number | null
+          standard_score: number | null
+          std_dev: number | null
+          student_id: string | null
+          subject: string | null
+          subject_group_id: string | null
+          subject_id: string | null
+          tenant_id: string | null
+          total_students: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       today_plan_view: {
         Row: {
           actual_end_time: string | null
@@ -7144,4 +7456,3 @@ export const Constants = {
     },
   },
 } as const
-
