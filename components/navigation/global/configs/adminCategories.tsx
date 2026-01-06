@@ -31,6 +31,7 @@ import {
   Radio,
   AlertTriangle,
   UserCircle,
+  ListPlus,
 } from "lucide-react";
 
 export const adminCategories: NavigationCategory[] = [
@@ -57,6 +58,12 @@ export const adminCategories: NavigationCategory[] = [
         label: "학생 목록",
         href: "/admin/students",
         icon: <Users className="w-4 h-4" />,
+      },
+      {
+        id: "admin-plan-creation",
+        label: "플랜 생성",
+        href: "/admin/plan-creation",
+        icon: <ListPlus className="w-4 h-4" />,
       },
       {
         id: "admin-parent-links",

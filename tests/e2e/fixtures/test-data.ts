@@ -226,4 +226,79 @@ export const SELECTORS = {
   networkBanner: '[data-testid="network-banner"], [role="alert"]:has-text("인터넷")',
   offlineBanner: '[role="alert"]:has-text("인터넷 연결이 끊어졌습니다")',
   reconnectBanner: '[role="alert"]:has-text("인터넷 연결이 복구되었습니다")',
+
+  // 플랜 생성 통합 섹션
+  planCreation: {
+    // 섹션
+    studentSelectionSection: 'section:has-text("학생 선택")',
+    methodSelectionSection: 'section:has-text("생성 방법 선택")',
+    creationFlowSection: 'section:has-text("생성 진행")',
+    resultsSection: 'section:has-text("결과")',
+
+    // 학생 선택
+    studentSearchInput: 'input[placeholder*="검색"]',
+    studentTable: "table",
+    studentRow: "tbody tr",
+    studentCheckbox: 'input[type="checkbox"]',
+    selectAllCheckbox: 'thead input[type="checkbox"]',
+    selectedCountBadge: ':has-text("명 선택")',
+    clearSelectionButton: 'button:has-text("선택 해제")',
+
+    // 생성 방법
+    methodCard: '[class*="rounded-xl"][class*="cursor-pointer"]',
+    aiMethodCard: ':has-text("AI 플랜")',
+    planGroupMethodCard: ':has-text("플랜 그룹")',
+    quickPlanMethodCard: ':has-text("빠른 플랜")',
+    contentAddMethodCard: ':has-text("콘텐츠 추가")',
+    startCreationButton: 'button:has-text("생성 시작")',
+
+    // 진행 상태
+    progressTracker: '[class*="progress"]',
+    progressBar: '[role="progressbar"]',
+    currentStudentName: '[class*="current"]',
+    pauseButton: 'button:has-text("일시정지")',
+    resumeButton: 'button:has-text("재개")',
+
+    // 결과
+    resultsSummary: ':has-text("성공"), :has-text("실패")',
+    resultsTable: "table",
+    retryFailedButton: 'button:has-text("재시도")',
+    newCreationButton: 'button:has-text("새 플랜 생성")',
+  },
+};
+
+// ============================================
+// 플랜 생성 테스트 데이터
+// ============================================
+
+export const PLAN_CREATION_DATA = {
+  // AI 플랜 생성 설정
+  aiSettings: {
+    planDuration: 30,
+    dailyStudyMinutes: 180,
+    daysPerWeek: [1, 2, 3, 4, 5],
+    focusAreas: ["수학", "영어"],
+    difficultyLevel: "medium" as const,
+  },
+
+  // 플랜 그룹 설정
+  planGroupSettings: {
+    dailyStudyMinutes: 120,
+    daysPerWeek: [1, 2, 3, 4, 5, 6],
+    defaultDurationDays: 14,
+  },
+
+  // 빠른 플랜 설정
+  quickPlanSettings: {
+    defaultStartTime: "09:00",
+    defaultEndTime: "10:00",
+    defaultDurationMinutes: 60,
+  },
+
+  // 콘텐츠 추가 설정
+  contentAddSettings: {
+    distributionStrategy: "even" as const,
+    defaultDurationDays: 7,
+    dailyStudyMinutes: 90,
+  },
 };
