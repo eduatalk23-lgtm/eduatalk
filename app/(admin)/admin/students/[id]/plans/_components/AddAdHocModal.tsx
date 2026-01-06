@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react';
 import { createAdHocPlan } from '@/lib/domains/admin-plan/actions/adHocPlan';
 import { cn } from '@/lib/cn';
 import { usePlanToast } from './PlanToast';
+import { ModalWrapper, ModalButton } from './modals';
+import { CalendarPlus } from 'lucide-react';
 
 interface AddAdHocModalProps {
   studentId: string;
@@ -29,7 +31,6 @@ export function AddAdHocModal({
   const [planDate, setPlanDate] = useState(targetDate);
   const [estimatedMinutes, setEstimatedMinutes] = useState('');
   const [description, setDescription] = useState('');
-  const [linkContent, setLinkContent] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,160 +65,128 @@ export function AddAdHocModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div
-        className={cn(
-          'bg-white rounded-lg w-full max-w-md',
-          isPending && 'opacity-50 pointer-events-none'
-        )}
-      >
-        {/* 헤더 */}
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold">단발성 플랜 추가</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            한 번만 수행할 학습 항목을 추가합니다
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="p-4 space-y-4">
-            {/* 검증 오류 표시 */}
-            {validationError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
-                {validationError}
-              </div>
-            )}
-
-            {/* 제목 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                제목 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="예: 내일 특강 준비"
-                value={title}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (validationError) setValidationError(null);
-                }}
-                className={cn(
-                  'w-full px-3 py-2 border rounded-md',
-                  validationError && !title.trim() && 'border-red-500'
-                )}
-                required
-              />
+    <ModalWrapper
+      open={true}
+      onClose={onClose}
+      title="단발성 플랜 추가"
+      subtitle="한 번만 수행할 학습 항목을 추가합니다"
+      icon={<CalendarPlus className="h-5 w-5" />}
+      theme="purple"
+      size="md"
+      loading={isPending}
+      footer={
+        <>
+          <ModalButton variant="secondary" onClick={onClose}>
+            취소
+          </ModalButton>
+          <ModalButton
+            type="submit"
+            theme="purple"
+            loading={isPending}
+            onClick={() => {
+              const form = document.getElementById('add-adhoc-form') as HTMLFormElement;
+              form?.requestSubmit();
+            }}
+          >
+            추가
+          </ModalButton>
+        </>
+      }
+    >
+      <form id="add-adhoc-form" onSubmit={handleSubmit}>
+        <div className="p-4 space-y-4">
+          {/* 검증 오류 표시 */}
+          {validationError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {validationError}
             </div>
+          )}
 
-            {/* 날짜 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                날짜
-              </label>
-              <input
-                type="date"
-                value={planDate}
-                onChange={(e) => setPlanDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
-              />
-            </div>
+          {/* 제목 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              제목 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="예: 내일 특강 준비"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (validationError) setValidationError(null);
+              }}
+              className={cn(
+                'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent',
+                validationError && !title.trim() && 'border-red-500'
+              )}
+              required
+              autoFocus
+            />
+          </div>
 
-            {/* 예상 소요시간 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                예상 소요시간 (분)
-              </label>
+          {/* 날짜 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              날짜
+            </label>
+            <input
+              type="date"
+              value={planDate}
+              onChange={(e) => setPlanDate(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* 예상 소요시간 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              예상 소요시간
+            </label>
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 placeholder="60"
                 value={estimatedMinutes}
                 onChange={(e) => setEstimatedMinutes(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 min="1"
               />
-            </div>
-
-            {/* 콘텐츠 연결 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                콘텐츠 연결 (선택)
-              </label>
-              <div className="space-y-2">
-                <label
-                  className={cn(
-                    'flex items-center gap-3 p-3 border rounded-lg cursor-pointer',
-                    !linkContent && 'border-blue-500 bg-blue-50'
-                  )}
-                >
-                  <input
-                    type="radio"
-                    checked={!linkContent}
-                    onChange={() => setLinkContent(false)}
-                  />
-                  <span>없음 (자유 학습)</span>
-                </label>
-                <label
-                  className={cn(
-                    'flex items-center gap-3 p-3 border rounded-lg cursor-pointer',
-                    linkContent && 'border-blue-500 bg-blue-50'
-                  )}
-                >
-                  <input
-                    type="radio"
-                    checked={linkContent}
-                    onChange={() => setLinkContent(true)}
-                  />
-                  <span>콘텐츠 연결</span>
-                </label>
-                {linkContent && (
-                  <div className="ml-6">
-                    <input
-                      type="text"
-                      placeholder="콘텐츠 검색..."
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                      disabled
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      (콘텐츠 검색 기능 준비 중)
-                    </p>
-                  </div>
-                )}
+              <span className="text-gray-500">분</span>
+              <div className="flex gap-1 ml-2">
+                {[15, 30, 60, 90].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setEstimatedMinutes(String(mins))}
+                    className={cn(
+                      'px-2 py-1 text-xs rounded border transition-colors',
+                      estimatedMinutes === String(mins)
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:bg-gray-50'
+                    )}
+                  >
+                    {mins}분
+                  </button>
+                ))}
               </div>
             </div>
-
-            {/* 메모 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                메모
-              </label>
-              <textarea
-                placeholder="학습 관련 메모..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md resize-none"
-                rows={3}
-              />
-            </div>
           </div>
 
-          {/* 푸터 */}
-          <div className="p-4 border-t flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-md"
-            >
-              추가
-            </button>
+          {/* 메모 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              메모
+            </label>
+            <textarea
+              placeholder="학습 관련 메모..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              rows={3}
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </ModalWrapper>
   );
 }

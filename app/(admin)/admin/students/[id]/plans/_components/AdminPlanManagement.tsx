@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback, useMemo } from 'react';
+import { useState, useReducer, useTransition, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/cn';
@@ -17,13 +17,14 @@ import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
+import { modalReducer, initialModalState, type ModalType } from './types/modalState';
 import { useAdminPlanRealtime } from '@/lib/realtime';
 import { useInvalidateAllDockQueries } from '@/lib/hooks/useAdminDockQueries';
 import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
-const AddContentModal = dynamic(
-  () => import('./AddContentModal').then(mod => ({ default: mod.AddContentModal })),
+const AddContentWizard = dynamic(
+  () => import('./add-content-wizard').then(mod => ({ default: mod.AddContentWizard })),
   { ssr: false }
 );
 const AddAdHocModal = dynamic(
@@ -104,35 +105,118 @@ export function AdminPlanManagement({
 
   // 상태 관리
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [showAddContentModal, setShowAddContentModal] = useState(false);
-  const [showAddAdHocModal, setShowAddAdHocModal] = useState(false);
-  const [showRedistributeModal, setShowRedistributeModal] = useState(false);
+
+  // 모달 상태 관리 (useReducer 패턴)
+  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
+
+  // 모달 열기/닫기 헬퍼 함수들 (기존 API 호환성 유지)
+  const openModal = useCallback((type: ModalType) => {
+    dispatchModal({ type: 'OPEN_MODAL', payload: type });
+  }, []);
+
+  const closeModal = useCallback((type: ModalType) => {
+    dispatchModal({ type: 'CLOSE_MODAL', payload: type });
+  }, []);
+
+  const closeAllModals = useCallback(() => {
+    dispatchModal({ type: 'CLOSE_ALL' });
+  }, []);
+
+  // 기존 API와의 호환성을 위한 래퍼 (점진적 마이그레이션)
+  const showAddContentModal = modals.addContent;
+  const setShowAddContentModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'addContent' });
+  }, []);
+
+  const showAddAdHocModal = modals.addAdHoc;
+  const setShowAddAdHocModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'addAdHoc' });
+  }, []);
+
+  const showRedistributeModal = modals.redistribute;
+  const setShowRedistributeModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'redistribute' });
+  }, []);
+
+  const showShortcutsHelp = modals.shortcutsHelp;
+  const setShowShortcutsHelp = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'shortcutsHelp' });
+  }, []);
+
+  const showAIPlanModal = modals.aiPlan;
+  const setShowAIPlanModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'aiPlan' });
+  }, []);
+
+  const showCreateWizard = modals.createWizard;
+  const setShowCreateWizard = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'createWizard' });
+  }, []);
+
+  const showOptimizationPanel = modals.optimization;
+  const setShowOptimizationPanel = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'optimization' });
+  }, []);
+
+  const showQuickPlanModal = modals.quickPlan;
+  const setShowQuickPlanModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'quickPlan' });
+  }, []);
+
+  const showEditModal = modals.edit;
+  const setShowEditModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'edit' });
+  }, []);
+
+  const showReorderModal = modals.reorder;
+  const setShowReorderModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'reorder' });
+  }, []);
+
+  const showConditionalDeleteModal = modals.conditionalDelete;
+  const setShowConditionalDeleteModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'conditionalDelete' });
+  }, []);
+
+  const showTemplateModal = modals.template;
+  const setShowTemplateModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'template' });
+  }, []);
+
+  const showMoveToGroupModal = modals.moveToGroup;
+  const setShowMoveToGroupModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'moveToGroup' });
+  }, []);
+
+  const showCopyModal = modals.copy;
+  const setShowCopyModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'copy' });
+  }, []);
+
+  const showStatusModal = modals.status;
+  const setShowStatusModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'status' });
+  }, []);
+
+  const showBulkEditModal = modals.bulkEdit;
+  const setShowBulkEditModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'bulkEdit' });
+  }, []);
+
+  // 모달 관련 추가 상태 (데이터)
   const [selectedPlanForRedistribute, setSelectedPlanForRedistribute] = useState<string | null>(null);
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  const [showAIPlanModal, setShowAIPlanModal] = useState(false);
-  const [showCreateWizard, setShowCreateWizard] = useState(false);
-  const [showOptimizationPanel, setShowOptimizationPanel] = useState(false);
-  const [showQuickPlanModal, setShowQuickPlanModal] = useState(false);
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<string | null>(null);
-  const [showReorderModal, setShowReorderModal] = useState(false);
   const [reorderContainerType, setReorderContainerType] = useState<'daily' | 'weekly' | 'unfinished'>('daily');
-  const [showConditionalDeleteModal, setShowConditionalDeleteModal] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);
-  const [showMoveToGroupModal, setShowMoveToGroupModal] = useState(false);
   const [selectedPlansForMove, setSelectedPlansForMove] = useState<string[]>([]);
   const [currentGroupIdForMove, setCurrentGroupIdForMove] = useState<string | null>(null);
-  const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedPlansForCopy, setSelectedPlansForCopy] = useState<string[]>([]);
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<{
     id: string;
     status: string;
     title: string;
   } | null>(null);
-  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<string[]>([]);
 
   // 날짜 변경 핸들러
@@ -311,24 +395,7 @@ export function AdminPlanManagement({
       },
       {
         key: 'Escape',
-        action: () => {
-          setShowAddContentModal(false);
-          setShowAddAdHocModal(false);
-          setShowRedistributeModal(false);
-          setShowShortcutsHelp(false);
-          setShowAIPlanModal(false);
-          setShowCreateWizard(false);
-          setShowOptimizationPanel(false);
-          setShowQuickPlanModal(false);
-          setShowEditModal(false);
-          setShowReorderModal(false);
-          setShowConditionalDeleteModal(false);
-          setShowTemplateModal(false);
-          setShowStatusModal(false);
-          setShowBulkEditModal(false);
-          setShowMoveToGroupModal(false);
-          setShowCopyModal(false);
-        },
+        action: closeAllModals,
         description: '모달 닫기',
         category: 'modal',
       },
@@ -473,6 +540,7 @@ export function AdminPlanManagement({
             studentId={studentId}
             tenantId={tenantId}
             selectedDate={selectedDate}
+            activePlanGroupId={activePlanGroupId}
             onAddContent={() => setShowAddContentModal(true)}
             onAddAdHoc={() => setShowAddAdHocModal(true)}
             onRedistribute={handleOpenRedistribute}
@@ -518,7 +586,7 @@ export function AdminPlanManagement({
 
         {/* 모달들 */}
         {showAddContentModal && (
-          <AddContentModal
+          <AddContentWizard
             studentId={studentId}
             tenantId={tenantId}
             targetDate={selectedDate}

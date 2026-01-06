@@ -1,13 +1,84 @@
 # 관리자 플랜 생성 시나리오 및 캠프 모드 통합 분석
 
-> 작성일: 2025-02-02  
-> 상태: 완료  
+> 작성일: 2025-02-02
+> 상태: 완료
 > 목적: 관리자가 학생을 선택하여 플랜을 생성하는 기본 시나리오 정리 및 캠프 모드 통합 가능성 점검
+
+---
+
+## 🚧 개선 작업 진행 상태
+
+> 최종 업데이트: 2026-01-06
+
+### 완료된 Phase (1~7) ✅
+
+| Phase | 작업 | 상태 | 변경 파일 |
+|-------|------|------|----------|
+| 1.1 | Step 4 체크박스 중복 확인 | ✅ 완료 | 중복 아님 (다른 조건부 렌더링) |
+| 1.2 | AddAdHocModal 미구현 기능 제거 | ✅ 완료 | `AddAdHocModal.tsx` |
+| 1.3 | DailyDock "+ 단발성" 버튼 비활성화 | ✅ 완료 | `DailyDock.tsx`, `AdminPlanManagement.tsx` |
+| 2 | 7단계 위자드 자동저장 구현 | ✅ 완료 | `AdminPlanCreationWizard7Step.tsx` |
+| 3 | 키보드 단축키 문서화 | ✅ 완료 | 본 문서 (아래 섹션) |
+| 4 | Step 6 최종검토 UX 개선 | ✅ 완료 | `Step6FinalReview.tsx` |
+| 5 | 모달 상태 useReducer 리팩토링 | ✅ 완료 | `AdminPlanManagement.tsx`, `types/modalState.ts` |
+| 6 | AddContentModal 3단계 위자드 분리 | ✅ 완료 | `add-content-wizard/`, `AdminPlanManagement.tsx` |
+| 7 | UI 일관성 개선 (모달 색상/아이콘 통일) | ✅ 완료 | `modals/ModalWrapper.tsx`, `AddAdHocModal.tsx` |
+
+### 모든 Phase 완료! 🎉
+
+관리자 플랜 생성 기능 개선 작업이 모두 완료되었습니다.
+
+### Phase 7 상세: UI 일관성 개선
+
+**생성된 공통 컴포넌트**:
+
+- `modals/ModalWrapper.tsx` - 공통 모달 래퍼
+- `modals/index.ts` - 모달 컴포넌트 export
+
+**모달 테마 색상 체계**:
+
+| 테마 | 색상 | 용도 |
+|------|------|------|
+| blue | 파랑 | 기본 액션 (콘텐츠 추가, 플랜 그룹) |
+| amber | 주황 | 빠른 액션 (빠른 추가) |
+| purple | 보라 | 특별 액션 (단발성, AI 관련) |
+| green | 초록 | 성공/완료 관련 |
+| red | 빨강 | 삭제/위험 액션 |
+
+**ModalWrapper 사용법**:
+
+```tsx
+import { ModalWrapper, ModalButton } from './modals';
+
+<ModalWrapper
+  open={true}
+  onClose={onClose}
+  title="모달 제목"
+  subtitle="부제목 (선택)"
+  icon={<Icon className="h-5 w-5" />}
+  theme="blue"
+  size="md"
+  loading={isPending}
+  footer={
+    <>
+      <ModalButton variant="secondary" onClick={onClose}>취소</ModalButton>
+      <ModalButton type="submit" theme="blue">확인</ModalButton>
+    </>
+  }
+>
+  {/* 모달 내용 */}
+</ModalWrapper>
+```
+
+### 관련 계획 파일
+
+- 전체 계획: `~/.claude/plans/lazy-launching-neumann.md`
 
 ---
 
 ## 📋 목차
 
+0. [개선 작업 진행 상태](#-개선-작업-진행-상태)
 1. [개요](#개요)
 2. [기본 시나리오](#기본-시나리오)
 3. [시각화 (플로우차트)](#시각화-플로우차트)
@@ -15,7 +86,8 @@
 5. [관련 코드 분석](#관련-코드-분석)
 6. [캠프 모드 통합 가능성](#캠프-모드-통합-가능성)
 7. [통합 방안 제안](#통합-방안-제안)
-8. [참고 자료](#참고-자료)
+8. [키보드 단축키](#키보드-단축키)
+9. [참고 자료](#참고-자료)
 
 ---
 
@@ -38,16 +110,19 @@
 ### 버튼 표시 조건
 
 **헤더 영역 버튼들** (`/admin/students/[id]/plans`):
+
 - ✅ **빠른 추가**: 항상 표시
 - ✅ **플랜 그룹**: 항상 표시
 - ⚠️ **AI 생성**: `activePlanGroupId`가 있을 때만 표시 (활성 플랜 그룹 필요)
 - ✅ **AI 분석**: 항상 표시
 
 **Daily Dock 버튼들**:
+
 - ✅ **+ 플랜 추가**: 항상 표시 (콘텐츠 추가 모달 열기)
 - ⚠️ **+ 단발성**: 버튼은 항상 표시되지만, `activePlanGroupId`가 없으면 모달이 열리지 않음 (활성 플랜 그룹 필요)
 
 **Weekly Dock**:
+
 - 플랜 추가 버튼 없음 (재분배 기능만 제공)
 
 ### 버튼이 보이지 않는 경우
@@ -55,10 +130,12 @@
 #### 문제 1: "AI 생성" 버튼이 보이지 않음
 
 **원인**:
+
 - 활성 플랜 그룹(`activePlanGroupId`)이 없음
 - 플랜 그룹이 생성되었지만 활성화되지 않음
 
 **해결 방법**:
+
 1. "플랜 그룹" 버튼을 클릭하여 플랜 그룹 생성
 2. 플랜 그룹을 활성화 (`status: 'active'`)
 3. 활성화 후 페이지 새로고침
@@ -66,10 +143,12 @@
 #### 문제 2: "+ 단발성" 버튼을 클릭해도 모달이 열리지 않음
 
 **원인**:
+
 - 활성 플랜 그룹(`activePlanGroupId`)이 없음
 - `AddAdHocModal`은 `planGroupId`가 필수이므로 활성 플랜 그룹이 필요
 
 **해결 방법**:
+
 1. "플랜 그룹" 버튼을 클릭하여 플랜 그룹 생성
 2. 플랜 그룹을 활성화
 3. 활성화 후 "+ 단발성" 버튼 클릭
@@ -77,11 +156,13 @@
 #### 문제 3: 모든 버튼이 보이지 않음
 
 **원인**:
+
 - 권한 문제 (관리자 권한이 아님)
 - 페이지 로딩 오류
 - CSS 스타일 문제
 
 **해결 방법**:
+
 1. 브라우저 개발자 도구로 콘솔 에러 확인
 2. 페이지 새로고침
 3. 관리자 권한 확인
@@ -118,6 +199,7 @@
 2. 7단계 플랜 생성 위자드 모달이 열림
 
 **버튼 위치**:
+
 - 헤더 영역 우측 상단
 - 항상 표시됨 (조건 없음)
 
@@ -137,10 +219,12 @@
 3. 콘텐츠 선택 및 간단한 설정 후 플랜 생성
 
 **버튼 위치**:
+
 - 헤더 영역 우측 상단 (플랜 그룹 버튼 왼쪽)
 - 항상 표시됨 (조건 없음)
 
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/[id]/plans/_components/AdminQuickPlanModal.tsx` - 빠른 플랜 추가 모달
 
 ### 시나리오 3: AI 플랜 생성
@@ -155,10 +239,12 @@
 4. AI 설정 후 플랜 생성
 
 **버튼 표시 조건**:
+
 - ⚠️ **활성 플랜 그룹(`activePlanGroupId`)이 있어야 함**
 - 활성 플랜 그룹이 없으면 버튼이 표시되지 않음
 
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/[id]/plans/_components/AdminAIPlanModal.tsx` - AI 플랜 생성 모달
 
 ### 시나리오 4: 콘텐츠 추가 (Daily Dock)
@@ -172,10 +258,12 @@
 3. 콘텐츠 선택 및 날짜 설정 후 플랜 생성
 
 **버튼 위치**:
+
 - Daily Dock 헤더 우측
 - 항상 표시됨 (조건 없음)
 
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/[id]/plans/_components/DailyDock.tsx` - Daily Dock 컴포넌트
 - `app/(admin)/admin/students/[id]/plans/_components/AddContentModal.tsx` - 콘텐츠 추가 모달
 
@@ -190,10 +278,12 @@
 3. 플랜 정보 입력 후 생성
 
 **버튼 표시 조건**:
+
 - ⚠️ **활성 플랜 그룹(`activePlanGroupId`)이 있어야 함**
 - 활성 플랜 그룹이 없으면 버튼이 표시되지 않음
 
 **관련 컴포넌트**:
+
 - `app/(admin)/admin/students/[id]/plans/_components/DailyDock.tsx` - Daily Dock 컴포넌트
 - `app/(admin)/admin/students/[id]/plans/_components/AddAdHocModal.tsx` - 일회성 플랜 추가 모달
 
@@ -1121,6 +1211,63 @@ async function _createPlanGroup(
 - [ ] 일괄 캠프 플랜 생성 모달 구현
 - [ ] 일괄 생성 진행 상황 표시 UI 구현
 - [ ] 에러 처리 및 부분 성공 처리 로직 구현
+
+---
+
+## 키보드 단축키
+
+관리자 플랜 관리 페이지(`/admin/students/[id]/plans`)에서 사용할 수 있는 키보드 단축키입니다.
+
+> **주의**: 입력 필드(input, textarea, select)에 포커스가 있을 때는 단축키가 비활성화됩니다.
+
+### 탐색
+
+| 단축키 | 설명 |
+|--------|------|
+| `←` (ArrowLeft) | 이전 날짜로 이동 |
+| `→` (ArrowRight) | 다음 날짜로 이동 |
+| `T` | 오늘로 이동 |
+
+### 작업
+
+| 단축키 | 설명 |
+|--------|------|
+| `R` | 새로고침 |
+
+### 모달
+
+| 단축키 | 설명 | 조건 |
+|--------|------|------|
+| `N` | 플랜 추가 (콘텐츠 추가 모달) | - |
+| `A` | 단발성 추가 | - |
+| `Q` | 빠른 플랜 추가 | - |
+| `G` | 플랜 그룹 생성 (7단계 위자드) | - |
+| `I` | AI 플랜 생성 | 활성 플랜 그룹 필요 |
+| `O` | AI 플랜 최적화 | - |
+| `Shift + ?` | 단축키 도움말 | - |
+| `Esc` | 모든 모달 닫기 | - |
+
+### 위저드 내부 단축키
+
+7단계 플랜 그룹 생성 위저드 내에서 사용할 수 있는 단축키입니다.
+
+| 단축키 | 설명 |
+|--------|------|
+| `Esc` | 위저드 닫기 |
+
+### 인라인 편집 단축키
+
+날짜 편집, 범위 편집 등 인라인 에디터에서 사용할 수 있는 단축키입니다.
+
+| 단축키 | 설명 |
+|--------|------|
+| `Enter` | 변경사항 저장 |
+| `Esc` | 편집 취소 |
+
+### 관련 코드
+
+- `app/(admin)/admin/students/[id]/plans/_components/useKeyboardShortcuts.ts` - 키보드 단축키 훅
+- `app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement.tsx` - 단축키 설정 (라인 264-359)
 
 ---
 
