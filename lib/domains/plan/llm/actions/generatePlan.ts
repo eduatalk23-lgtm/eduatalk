@@ -28,6 +28,7 @@ import {
   type ValidationWarning,
 } from "../validators/planValidator";
 import type { AcademyScheduleForPrompt, BlockInfoForPrompt } from "../transformers/requestBuilder";
+import { getPlanExclusions } from "@/lib/data/planGroups/exclusions";
 
 // ============================================
 // 타입 정의
@@ -44,6 +45,8 @@ export interface GeneratePlanInput {
   dailyStudyMinutes: number;
   /** 제외 요일 (0-6) */
   excludeDays?: number[];
+  /** 제외 날짜 (YYYY-MM-DD 형식) - 직접 전달하거나, planGroupId가 있으면 자동 조회 */
+  excludeDates?: string[];
   /** 취약 과목 우선 */
   prioritizeWeakSubjects?: boolean;
   /** 과목 균형 */
@@ -359,6 +362,17 @@ export async function generatePlanWithAI(
       return { success: false, error: "선택된 콘텐츠가 없습니다." };
     }
 
+    // 2-1. 제외 날짜 조회 (입력값 우선, 없으면 플랜 그룹에서 조회)
+    let excludeDates: string[] = [];
+    if (input.excludeDates && input.excludeDates.length > 0) {
+      // 입력으로 직접 전달된 제외 날짜 사용
+      excludeDates = input.excludeDates;
+    } else if (input.planGroupId) {
+      // 기존 플랜 그룹이 있으면 해당 그룹의 제외일 조회
+      const exclusions = await getPlanExclusions(input.planGroupId, tenantId);
+      excludeDates = exclusions.map((e) => e.exclusion_date);
+    }
+
     // 3. LLM 요청 빌드
     const llmRequest = buildLLMRequest({
       student: {
@@ -442,7 +456,7 @@ export async function generatePlanWithAI(
       academySchedules,
       blockSets,
       excludeDays: input.excludeDays,
-      excludeDates: [], // TODO: 제외 날짜 지원 시 추가
+      excludeDates,
       dailyStudyMinutes: input.dailyStudyMinutes,
     });
 
@@ -681,7 +695,7 @@ export async function previewPlanWithAI(
       academySchedules,
       blockSets,
       excludeDays: input.excludeDays,
-      excludeDates: [],
+      excludeDates: input.excludeDates || [],
       dailyStudyMinutes: input.dailyStudyMinutes,
     });
 

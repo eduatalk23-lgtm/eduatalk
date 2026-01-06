@@ -11,6 +11,10 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import {
+  llmOptimizationCache,
+  createCacheKey,
+} from "@/lib/cache/memoryCache";
 
 import { createMessage, extractJSON, estimateCost } from "../client";
 import {
@@ -468,15 +472,22 @@ export async function analyzePlanEfficiency(
     return { success: false, error: "로그인이 필요합니다." };
   }
 
+  // 분석 기간 설정
+  const analysisDays = input.analysisDays || 30;
+
+  // 캐시 확인 (1일 TTL)
+  const cachedData = await getCachedOptimization(input.studentId, analysisDays);
+  if (cachedData) {
+    console.log("[Plan Optimization] 캐시 히트");
+    return { success: true, data: cachedData };
+  }
+
   try {
     // 1. 학생 정보 로드
     const studentInfo = await loadStudentBasicInfo(supabase, input.studentId);
     if (!studentInfo) {
       return { success: false, error: "학생 정보를 찾을 수 없습니다." };
     }
-
-    // 2. 분석 기간 설정
-    const analysisDays = input.analysisDays || 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - analysisDays);
 
@@ -548,20 +559,26 @@ export async function analyzePlanEfficiency(
       modelTier
     );
 
+    const resultData = {
+      analysis: parsed,
+      inputData: {
+        executionStats,
+        analysisPeriod: `최근 ${analysisDays}일`,
+      },
+      cost: {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        estimatedUSD: estimatedCost,
+      },
+    };
+
+    // 10. 캐시 저장 (1일 TTL)
+    await cacheOptimization(input.studentId, analysisDays, resultData);
+    console.log("[Plan Optimization] 결과 캐시 저장 완료");
+
     return {
       success: true,
-      data: {
-        analysis: parsed,
-        inputData: {
-          executionStats,
-          analysisPeriod: `최근 ${analysisDays}일`,
-        },
-        cost: {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          estimatedUSD: estimatedCost,
-        },
-      },
+      data: resultData,
     };
   } catch (error) {
     console.error("[Plan Optimization] 오류:", error);
@@ -579,14 +596,15 @@ export async function analyzePlanEfficiency(
 
 /**
  * 캐시된 분석 결과 조회
- * (향후 구현 - 현재는 항상 null 반환)
+ * 1일 TTL 메모리 캐시 사용
  */
 export async function getCachedOptimization(
   studentId: string,
   analysisDays: number
 ): Promise<OptimizePlanResult["data"] | null> {
-  // TODO: 캐시 구현 (1일 캐싱)
-  return null;
+  const cacheKey = createCacheKey("plan-optimization", studentId, analysisDays);
+  const cached = llmOptimizationCache.get(cacheKey);
+  return cached as OptimizePlanResult["data"] | null;
 }
 
 /**
@@ -598,5 +616,6 @@ export async function cacheOptimization(
   analysisDays: number,
   data: OptimizePlanResult["data"]
 ): Promise<void> {
-  // TODO: 캐시 구현
+  const cacheKey = createCacheKey("plan-optimization", studentId, analysisDays);
+  llmOptimizationCache.set(cacheKey, data);
 }

@@ -11,6 +11,10 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import {
+  llmRecommendationCache,
+  createCacheKey,
+} from "@/lib/cache/memoryCache";
 
 import { createMessage, extractJSON, estimateCost } from "../client";
 import {
@@ -361,6 +365,16 @@ export async function recommendContentWithAI(
   //   return { success: false, error: "권한이 없습니다." };
   // }
 
+  // 캐시 확인 (1일 TTL)
+  const cachedData = await getCachedRecommendations(
+    input.studentId,
+    input.focusArea
+  );
+  if (cachedData) {
+    console.log("[AI Content Rec] 캐시 히트");
+    return { success: true, data: cachedData };
+  }
+
   try {
     // 1. 학생 프로필 로드
     const studentProfile = await loadStudentProfile(supabase, input.studentId);
@@ -439,21 +453,28 @@ export async function recommendContentWithAI(
       modelTier
     );
 
+    // 10. 결과 데이터 구성
+    const resultData = {
+      recommendations: validRecommendations,
+      summary: {
+        ...parsed.summary,
+        totalRecommended: validRecommendations.length,
+      },
+      insights: parsed.insights,
+      cost: {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        estimatedUSD: estimatedCost,
+      },
+    };
+
+    // 11. 캐시 저장 (1일 TTL)
+    await cacheRecommendations(input.studentId, input.focusArea, resultData);
+    console.log("[AI Content Rec] 결과 캐시 저장 완료");
+
     return {
       success: true,
-      data: {
-        recommendations: validRecommendations,
-        summary: {
-          ...parsed.summary,
-          totalRecommended: validRecommendations.length,
-        },
-        insights: parsed.insights,
-        cost: {
-          inputTokens: result.usage.inputTokens,
-          outputTokens: result.usage.outputTokens,
-          estimatedUSD: estimatedCost,
-        },
-      },
+      data: resultData,
     };
   } catch (error) {
     console.error("[AI Content Rec] 오류:", error);
@@ -465,32 +486,42 @@ export async function recommendContentWithAI(
 }
 
 // ============================================
-// 추천 결과 캐싱 (선택적)
+// 추천 결과 캐싱
 // ============================================
 
-// 추천 결과를 1시간 캐싱할 수 있는 구조
-// 실제 구현은 Redis 또는 Supabase 테이블 사용
+// 추천 결과를 1일 캐싱 (LRU 메모리 캐시 사용)
+// lib/cache/memoryCache.ts의 llmRecommendationCache 인스턴스 활용
 
 /**
  * 캐시된 추천 결과 조회
- * (향후 구현 - 현재는 항상 null 반환)
+ * 1일 TTL 메모리 캐시 사용
  */
 export async function getCachedRecommendations(
   studentId: string,
   focusArea?: string
 ): Promise<RecommendContentResult["data"] | null> {
-  // TODO: 캐시 구현
-  return null;
+  const cacheKey = createCacheKey(
+    "content-recommendation",
+    studentId,
+    focusArea ?? "all"
+  );
+  const cached = llmRecommendationCache.get(cacheKey);
+  return cached as RecommendContentResult["data"] | null;
 }
 
 /**
  * 추천 결과 캐시 저장
- * (향후 구현)
+ * 1일 TTL 메모리 캐시 사용
  */
 export async function cacheRecommendations(
   studentId: string,
   focusArea: string | undefined,
   data: RecommendContentResult["data"]
 ): Promise<void> {
-  // TODO: 캐시 구현
+  const cacheKey = createCacheKey(
+    "content-recommendation",
+    studentId,
+    focusArea ?? "all"
+  );
+  llmRecommendationCache.set(cacheKey, data);
 }
