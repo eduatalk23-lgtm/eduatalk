@@ -24,6 +24,7 @@ import {
   preparePlanGenerationData,
   type AISchedulerOptionsOverride,
 } from "./preparePlanGenerationData";
+import { createPlanNumberCalculator } from "./planNumbering";
 
 /**
  * 서비스 기반 플랜 생성 입력
@@ -112,9 +113,8 @@ export async function generatePlansWithServices(
       }
     > = [];
 
-    // plan_number 계산을 위한 Map
-    const planNumberMap = new Map<string, number>();
-    let nextPlanNumber = 1;
+    // plan_number 계산기 사용
+    const planNumberCalc = createPlanNumberCalculator();
 
     for (const { date, segments, dateMetadata, dayType } of dateAllocations) {
       segments.forEach((segment, index) => {
@@ -126,16 +126,12 @@ export async function generatePlansWithServices(
         const metadata = contentMetadataMap.get(resolvedContentId) ?? contentMetadataMap.get(originalContentId);
 
         // plan_number 계산: 동일한 날짜+콘텐츠+범위는 같은 번호 부여
-        const planKey = `${date}:${resolvedContentId}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
-        let planNumber: number;
-
-        if (planNumberMap.has(planKey)) {
-          planNumber = planNumberMap.get(planKey)!;
-        } else {
-          planNumber = nextPlanNumber;
-          planNumberMap.set(planKey, planNumber);
-          nextPlanNumber++;
-        }
+        const planNumber = planNumberCalc.getPlanNumber(
+          date,
+          resolvedContentId,
+          segment.plan.planned_start_page_or_time,
+          segment.plan.planned_end_page_or_time
+        );
 
         planPayloads.push({
           plan_date: date,

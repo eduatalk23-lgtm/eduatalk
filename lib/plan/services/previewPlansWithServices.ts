@@ -13,6 +13,7 @@ import type { ServiceContext } from "@/lib/plan/shared";
 import { ServiceErrorCodes, toServiceError } from "./errors";
 import { createServiceLogger, globalPerformanceTracker } from "./logging";
 import { preparePlanGenerationData } from "./preparePlanGenerationData";
+import { createPlanNumberCalculator } from "./planNumbering";
 
 /**
  * 프리뷰 플랜 타입
@@ -132,8 +133,7 @@ export async function previewPlansWithServices(
 
     // 8. 미리보기 플랜 생성
     const previewPlans: PreviewPlan[] = [];
-    const previewPlanNumberMap = new Map<string, number>();
-    let previewNextPlanNumber = 1;
+    const planNumberCalc = createPlanNumberCalculator();
 
     for (const { date, segments, dateMetadata } of dateAllocations) {
       let blockIndex = 1;
@@ -167,23 +167,18 @@ export async function previewPlansWithServices(
         }
 
         // 플랜 번호 부여 (변환된 ID 사용)
-        const planKey = `${date}:${resolvedContentId}:${segment.plan.planned_start_page_or_time}:${segment.plan.planned_end_page_or_time}`;
-        let planNumber: number | null = null;
-
-        if (previewPlanNumberMap.has(planKey)) {
-          planNumber = previewPlanNumberMap.get(planKey)!;
-        } else {
-          planNumber = previewNextPlanNumber;
-          previewPlanNumberMap.set(planKey, planNumber);
-          previewNextPlanNumber++;
-        }
+        const planNumber = planNumberCalc.getPlanNumber(
+          date,
+          resolvedContentId,
+          segment.plan.planned_start_page_or_time,
+          segment.plan.planned_end_page_or_time
+        );
 
         // DEBUG: plan_number 확인
         if (process.env.NODE_ENV === "development" && blockIndex <= 2) {
           console.log("[previewPlansWithServices] planNumber:", {
             date,
             blockIndex,
-            planKey,
             planNumber,
             content_id: resolvedContentId.substring(0, 8),
           });

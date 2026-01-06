@@ -213,6 +213,7 @@ export async function analyzeStudentPattern(
         plan_date,
         subject_type,
         simple_completed,
+        simple_completed_at,
         progress
       `
       )
@@ -240,6 +241,9 @@ export async function analyzeStudentPattern(
     // 연속 미완료 추적
     let currentStreak = 0;
     let maxStreak = 0;
+
+    // 지연일 추적
+    const delayDays: number[] = [];
 
     // 최근 트렌드 분석
     const recentPlans = allPlans.slice(-10);
@@ -270,6 +274,23 @@ export async function analyzeStudentPattern(
         maxStreak = Math.max(maxStreak, currentStreak);
       } else {
         currentStreak = 0;
+      }
+
+      // 지연일 계산: 완료된 플랜의 경우 완료일 - 예정일
+      if (isCompleted && plan.simple_completed_at) {
+        const planDate = new Date(plan.plan_date);
+        planDate.setHours(0, 0, 0, 0); // 날짜만 비교
+
+        const completedDate = new Date(plan.simple_completed_at);
+        completedDate.setHours(0, 0, 0, 0);
+
+        const diffTime = completedDate.getTime() - planDate.getTime();
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+        // 양수면 지연, 음수면 조기 완료 (여기서는 지연만 추적)
+        if (diffDays >= 0) {
+          delayDays.push(diffDays);
+        }
       }
     }
 
@@ -314,6 +335,12 @@ export async function analyzeStudentPattern(
       else if (diff < -0.15) recentTrend = "declining";
     }
 
+    // 평균 지연일 계산
+    const averageDelayDays =
+      delayDays.length > 0
+        ? Math.round((delayDays.reduce((a, b) => a + b, 0) / delayDays.length) * 10) / 10
+        : 0;
+
     return {
       success: true,
       data: {
@@ -323,7 +350,7 @@ export async function analyzeStudentPattern(
         weakSubjects,
         consecutiveIncompleteStreak: currentStreak, // 현재 진행 중인 연속 미완료
         recentTrend,
-        averageDelayDays: 0, // TODO: 실제 지연일 추적 필요
+        averageDelayDays,
       },
     };
   } catch (error) {

@@ -218,6 +218,36 @@ export type {
   DelayPredictionResult,
 } from "./delayPredictionService";
 
+// 실시간 피드백 서비스
+export {
+  processCompletionFeedback,
+  generateRealtimeRecommendation,
+  updateLearningWeightsFromFeedback,
+} from "./realtimeFeedbackService";
+
+export type {
+  CompletionFeedbackInput,
+  FeedbackAnalysis,
+  FeedbackRecommendation,
+  WeightAdjustment,
+  RealtimeRecommendation,
+} from "./realtimeFeedbackService";
+
+// 지능형 스케줄링 오케스트레이터
+export {
+  analyzeIntelligentScheduling,
+  getQuickSchedulingSummary,
+} from "./intelligentSchedulingOrchestrator";
+
+export type {
+  IntelligentSchedulingAnalysis,
+  KeyInsight,
+  UnifiedRecommendation,
+  ComponentAnalysis,
+  PredictionMetrics,
+  OrchestratorOptions,
+} from "./intelligentSchedulingOrchestrator";
+
 // ============================================
 // 타입 (lib/plan/shared에서 re-export)
 // ============================================

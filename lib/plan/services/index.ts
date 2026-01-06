@@ -139,3 +139,9 @@ export {
   type LogEntry,
   type PerformanceMetric,
 } from "./logging";
+
+// 플랜 번호 계산 유틸리티
+export {
+  PlanNumberCalculator,
+  createPlanNumberCalculator,
+} from "./planNumbering";

@@ -26,6 +26,11 @@ import {
   getMasterContentId,
   isFromMaster,
 } from "@/lib/plan/content";
+import {
+  contentMetadataCache,
+  contentDurationCache,
+  createCacheKey,
+} from "@/lib/cache/memoryCache";
 
 /**
  * Chapter 정보 맵 타입
@@ -251,6 +256,13 @@ async function loadBookMetadata(
   queryClient: SupabaseAnyClient,
   masterQueryClient: SupabaseAnyClient
 ): Promise<ContentMetadataResult | null> {
+  // 캐시 키 생성 (학생별, 콘텐츠별로 고유)
+  const cacheKey = createCacheKey("book-metadata", studentId, contentId);
+  const cached = contentMetadataCache.get(cacheKey) as ContentMetadataResult | undefined;
+  if (cached) {
+    return cached;
+  }
+
   // 학생 교재 조회
   const { data: book } = await queryClient
     .from("books")
@@ -260,12 +272,14 @@ async function loadBookMetadata(
     .maybeSingle();
 
   if (book) {
-    return {
+    const result: ContentMetadataResult = {
       title: book.title || null,
       subject: book.subject || null,
       subject_category: book.subject_category || null,
       category: null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   // 마스터 콘텐츠 ID로 학생 교재 찾기
@@ -278,12 +292,14 @@ async function loadBookMetadata(
     .maybeSingle();
 
   if (bookByMaster) {
-    return {
+    const result: ContentMetadataResult = {
       title: bookByMaster.title || null,
       subject: bookByMaster.subject || null,
       subject_category: bookByMaster.subject_category || null,
       category: null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   // 마스터 교재 조회
@@ -294,12 +310,14 @@ async function loadBookMetadata(
     .maybeSingle();
 
   if (masterBook) {
-    return {
+    const result: ContentMetadataResult = {
       title: masterBook.title || null,
       subject: masterBook.subject || null,
       subject_category: masterBook.subject_category || null,
       category: masterBook.content_category || null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   return null;
@@ -313,6 +331,13 @@ async function loadLectureMetadata(
   queryClient: SupabaseAnyClient,
   masterQueryClient: SupabaseAnyClient
 ): Promise<ContentMetadataResult | null> {
+  // 캐시 키 생성 (학생별, 콘텐츠별로 고유)
+  const cacheKey = createCacheKey("lecture-metadata", studentId, contentId);
+  const cached = contentMetadataCache.get(cacheKey) as ContentMetadataResult | undefined;
+  if (cached) {
+    return cached;
+  }
+
   // 학생 강의 조회
   const { data: lecture } = await queryClient
     .from("lectures")
@@ -322,12 +347,14 @@ async function loadLectureMetadata(
     .maybeSingle();
 
   if (lecture) {
-    return {
+    const result: ContentMetadataResult = {
       title: lecture.title || null,
       subject: lecture.subject || null,
       subject_category: lecture.subject_category || null,
       category: null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   // 마스터 콘텐츠 ID로 학생 강의 찾기 (master_content_id 또는 master_lecture_id로 조회)
@@ -340,12 +367,14 @@ async function loadLectureMetadata(
     .maybeSingle();
 
   if (lectureByMaster) {
-    return {
+    const result: ContentMetadataResult = {
       title: lectureByMaster.title || null,
       subject: lectureByMaster.subject || null,
       subject_category: lectureByMaster.subject_category || null,
       category: null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   // 마스터 강의 조회
@@ -356,12 +385,14 @@ async function loadLectureMetadata(
     .maybeSingle();
 
   if (masterLecture) {
-    return {
+    const result: ContentMetadataResult = {
       title: masterLecture.title || null,
       subject: masterLecture.subject || null,
       subject_category: masterLecture.subject_category || null,
       category: masterLecture.content_category || null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   return null;
@@ -372,6 +403,13 @@ async function loadCustomContentMetadata(
   studentId: string,
   queryClient: SupabaseAnyClient
 ): Promise<ContentMetadataResult | null> {
+  // 캐시 키 생성 (학생별, 콘텐츠별로 고유)
+  const cacheKey = createCacheKey("custom-metadata", studentId, finalContentId);
+  const cached = contentMetadataCache.get(cacheKey) as ContentMetadataResult | undefined;
+  if (cached) {
+    return cached;
+  }
+
   const { data: customContent } = await queryClient
     .from("student_custom_contents")
     .select("title, subject, subject_category, content_category")
@@ -380,12 +418,14 @@ async function loadCustomContentMetadata(
     .maybeSingle();
 
   if (customContent) {
-    return {
+    const result: ContentMetadataResult = {
       title: customContent.title || null,
       subject: customContent.subject || null,
       subject_category: customContent.subject_category || null,
       category: customContent.content_category || null,
     };
+    contentMetadataCache.set(cacheKey, result);
+    return result;
   }
 
   return null;

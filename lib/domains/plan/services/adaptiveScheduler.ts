@@ -1146,6 +1146,61 @@ export async function generateEnhancedAdaptiveSchedule(
             autoApplicable: false,
           });
         }
+
+        // 평균 지연일 기반 권장사항
+        if (patternAnalysis.averageDelayDays >= 2) {
+          const delayLevel =
+            patternAnalysis.averageDelayDays >= 5
+              ? "매우 높음"
+              : patternAnalysis.averageDelayDays >= 3
+                ? "높음"
+                : "다소 높음";
+
+          enhancedRecommendations.push({
+            type: "time_shift",
+            priority: patternAnalysis.averageDelayDays >= 5 ? 5 : 4,
+            title: `평균 지연일 ${delayLevel}`,
+            description: `플랜 완료까지 평균 ${patternAnalysis.averageDelayDays}일이 지연되고 있습니다.`,
+            expectedImprovement:
+              "일정 조정으로 지연일 50% 감소 예상",
+            actions:
+              patternAnalysis.averageDelayDays >= 5
+                ? [
+                    "플랜 분량을 30% 줄여보세요.",
+                    "취약 요일에 플랜을 배치하지 마세요.",
+                    "버퍼 일자를 추가해 여유를 확보하세요.",
+                  ]
+                : patternAnalysis.averageDelayDays >= 3
+                  ? [
+                      "플랜 분량을 20% 줄여보세요.",
+                      "주말에 보충 시간을 확보하세요.",
+                    ]
+                  : [
+                      "현재 페이스를 유지하며 점진적으로 개선하세요.",
+                      "완료 가능한 작은 목표부터 시작하세요.",
+                    ],
+            source: "delay",
+            autoApplicable: false,
+          });
+        }
+
+        // 하락 추세 경고
+        if (patternAnalysis.recentTrend === "declining") {
+          enhancedRecommendations.push({
+            type: "workload_adjust",
+            priority: 4,
+            title: "학습 완료율 하락 추세",
+            description: "최근 학습 완료율이 하락하고 있습니다.",
+            expectedImprovement: "조기 조치로 하락 추세 반전 가능",
+            actions: [
+              "학습량을 일시적으로 줄여보세요.",
+              "동기 부여가 필요한지 확인하세요.",
+              "취약 과목에 집중해 성취감을 높여보세요.",
+            ],
+            source: "delay",
+            autoApplicable: false,
+          });
+        }
       }
     } catch (error) {
       logActionError(
@@ -1168,4 +1223,300 @@ export async function generateEnhancedAdaptiveSchedule(
     suggestedExclusionDates: [...new Set(suggestedExclusionDates)], // 중복 제거
     enhancedRecommendations,
   };
+}
+
+// ============================================
+// 진행률 모니터링 타입
+// ============================================
+
+/**
+ * 진행률 모니터링 결과
+ */
+export type ProgressMonitorResult = {
+  /** 학생 ID */
+  studentId: string;
+  /** 플랜 그룹 ID */
+  planGroupId: string;
+  /** 총 플랜 수 */
+  totalPlans: number;
+  /** 완료 플랜 수 */
+  completedPlans: number;
+  /** 진행률 (0-100) */
+  progressRate: number;
+  /** 예상 진행률 (날짜 기준) */
+  expectedProgressRate: number;
+  /** 진행 상태 */
+  status: "ahead" | "on-track" | "behind" | "critical";
+  /** 예상 완료일 */
+  estimatedCompletionDate: string | null;
+  /** 지연 위험 플랜 수 */
+  atRiskPlanCount: number;
+  /** 권장 조치 */
+  suggestedActions: {
+    type: "reschedule" | "reduce" | "extend" | "maintain";
+    description: string;
+    urgency: "low" | "medium" | "high";
+  }[];
+  /** 분석일시 */
+  analyzedAt: string;
+};
+
+/**
+ * 플랜 그룹의 진행률을 모니터링합니다.
+ *
+ * @param studentId - 학생 ID
+ * @param planGroupId - 플랜 그룹 ID
+ * @returns 진행률 모니터링 결과
+ */
+export async function monitorPlanGroupProgress(
+  studentId: string,
+  planGroupId: string
+): Promise<{ success: boolean; data?: ProgressMonitorResult; error?: string }> {
+  try {
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    // 플랜 그룹 정보 조회
+    const { data: planGroup, error: pgError } = await supabase
+      .from("plan_groups")
+      .select("period_start, period_end, name")
+      .eq("id", planGroupId)
+      .eq("student_id", studentId)
+      .single();
+
+    if (pgError || !planGroup) {
+      return { success: false, error: "플랜 그룹을 찾을 수 없습니다." };
+    }
+
+    // 해당 플랜 그룹의 모든 플랜 조회
+    const { data: plans, error: plansError } = await supabase
+      .from("student_plan")
+      .select("id, plan_date, simple_completed, simple_completed_at")
+      .eq("student_id", studentId)
+      .eq("plan_group_id", planGroupId)
+      .order("plan_date", { ascending: true });
+
+    if (plansError) {
+      return { success: false, error: `플랜 조회 실패: ${plansError.message}` };
+    }
+
+    const allPlans = plans || [];
+    const totalPlans = allPlans.length;
+
+    if (totalPlans === 0) {
+      return { success: false, error: "플랜이 없습니다." };
+    }
+
+    const completedPlans = allPlans.filter((p) => p.simple_completed === true).length;
+    const progressRate = Math.round((completedPlans / totalPlans) * 100);
+
+    // 예상 진행률 계산 (기간 기준)
+    const periodStart = new Date(planGroup.period_start);
+    const periodEnd = new Date(planGroup.period_end);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const elapsedDays = Math.max(0, Math.ceil((today.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const expectedProgressRate = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+
+    // 진행 상태 결정
+    const progressDiff = progressRate - expectedProgressRate;
+    let status: ProgressMonitorResult["status"];
+    if (progressDiff >= 10) {
+      status = "ahead";
+    } else if (progressDiff >= -10) {
+      status = "on-track";
+    } else if (progressDiff >= -25) {
+      status = "behind";
+    } else {
+      status = "critical";
+    }
+
+    // 예상 완료일 계산 (현재 완료 속도 기준)
+    let estimatedCompletionDate: string | null = null;
+    if (completedPlans > 0 && completedPlans < totalPlans) {
+      const daysPerPlan = elapsedDays / completedPlans;
+      const remainingPlans = totalPlans - completedPlans;
+      const daysToComplete = Math.ceil(remainingPlans * daysPerPlan);
+      const estimatedDate = new Date(today);
+      estimatedDate.setDate(estimatedDate.getDate() + daysToComplete);
+      estimatedCompletionDate = estimatedDate.toISOString().split("T")[0];
+    } else if (completedPlans === totalPlans) {
+      estimatedCompletionDate = today.toISOString().split("T")[0];
+    }
+
+    // 지연 위험 플랜 수 (오늘 이전 미완료 플랜)
+    const atRiskPlanCount = allPlans.filter(
+      (p) => !p.simple_completed && new Date(p.plan_date) < today
+    ).length;
+
+    // 권장 조치 결정
+    const suggestedActions: ProgressMonitorResult["suggestedActions"] = [];
+
+    if (status === "critical") {
+      suggestedActions.push({
+        type: "reschedule",
+        description: "진행률이 매우 낮습니다. 플랜 재조정이 필요합니다.",
+        urgency: "high",
+      });
+      suggestedActions.push({
+        type: "reduce",
+        description: "일일 학습량을 줄여 달성 가능한 목표를 설정하세요.",
+        urgency: "high",
+      });
+    } else if (status === "behind") {
+      suggestedActions.push({
+        type: "reschedule",
+        description: "뒤처진 부분을 보충하기 위해 일정 재조정을 고려하세요.",
+        urgency: "medium",
+      });
+    } else if (status === "ahead") {
+      suggestedActions.push({
+        type: "maintain",
+        description: "현재 페이스가 좋습니다. 꾸준히 유지하세요.",
+        urgency: "low",
+      });
+    } else {
+      suggestedActions.push({
+        type: "maintain",
+        description: "예정대로 진행 중입니다. 현재 페이스를 유지하세요.",
+        urgency: "low",
+      });
+    }
+
+    if (atRiskPlanCount > 0) {
+      suggestedActions.push({
+        type: "reschedule",
+        description: `${atRiskPlanCount}개의 미완료 플랜이 있습니다. 처리가 필요합니다.`,
+        urgency: atRiskPlanCount >= 5 ? "high" : "medium",
+      });
+    }
+
+    // 예상 완료일이 기간 종료일을 넘으면 경고
+    if (
+      estimatedCompletionDate &&
+      new Date(estimatedCompletionDate) > periodEnd
+    ) {
+      suggestedActions.push({
+        type: "extend",
+        description: "현재 속도로는 기간 내 완료가 어렵습니다. 기간 연장을 고려하세요.",
+        urgency: "medium",
+      });
+    }
+
+    return {
+      success: true,
+      data: {
+        studentId,
+        planGroupId,
+        totalPlans,
+        completedPlans,
+        progressRate,
+        expectedProgressRate,
+        status,
+        estimatedCompletionDate,
+        atRiskPlanCount,
+        suggestedActions,
+        analyzedAt: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+    logActionError(
+      { domain: "plan", action: "monitorPlanGroupProgress" },
+      error,
+      { studentId, planGroupId }
+    );
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
+ * 학생의 모든 활성 플랜 그룹 진행률을 모니터링합니다.
+ *
+ * @param studentId - 학생 ID
+ * @returns 모든 플랜 그룹의 진행률 모니터링 결과
+ */
+export async function monitorAllPlanGroupProgress(
+  studentId: string
+): Promise<{
+  success: boolean;
+  data?: {
+    results: ProgressMonitorResult[];
+    overallStatus: "good" | "needs-attention" | "critical";
+    criticalCount: number;
+    behindCount: number;
+  };
+  error?: string;
+}> {
+  try {
+    const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+    const supabase = await createSupabaseServerClient();
+
+    // 활성 플랜 그룹 목록 조회 (오늘 이후 종료일)
+    const today = new Date().toISOString().split("T")[0];
+    const { data: planGroups, error: pgError } = await supabase
+      .from("plan_groups")
+      .select("id")
+      .eq("student_id", studentId)
+      .gte("period_end", today)
+      .order("period_start", { ascending: true });
+
+    if (pgError) {
+      return { success: false, error: `플랜 그룹 조회 실패: ${pgError.message}` };
+    }
+
+    if (!planGroups || planGroups.length === 0) {
+      return {
+        success: true,
+        data: {
+          results: [],
+          overallStatus: "good",
+          criticalCount: 0,
+          behindCount: 0,
+        },
+      };
+    }
+
+    // 각 플랜 그룹 진행률 모니터링
+    const results: ProgressMonitorResult[] = [];
+    for (const pg of planGroups) {
+      const result = await monitorPlanGroupProgress(studentId, pg.id);
+      if (result.success && result.data) {
+        results.push(result.data);
+      }
+    }
+
+    // 전체 상태 결정
+    const criticalCount = results.filter((r) => r.status === "critical").length;
+    const behindCount = results.filter((r) => r.status === "behind").length;
+
+    let overallStatus: "good" | "needs-attention" | "critical";
+    if (criticalCount > 0) {
+      overallStatus = "critical";
+    } else if (behindCount > 0) {
+      overallStatus = "needs-attention";
+    } else {
+      overallStatus = "good";
+    }
+
+    return {
+      success: true,
+      data: {
+        results,
+        overallStatus,
+        criticalCount,
+        behindCount,
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류";
+    logActionError(
+      { domain: "plan", action: "monitorAllPlanGroupProgress" },
+      error,
+      { studentId }
+    );
+    return { success: false, error: errorMessage };
+  }
 }
