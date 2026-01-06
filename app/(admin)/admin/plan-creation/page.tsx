@@ -26,8 +26,13 @@ export const metadata = {
   description: "학생들의 학습 플랜을 통합 생성하고 관리합니다",
 };
 
-export default async function PlanCreationPage() {
+interface PageProps {
+  searchParams: Promise<{ studentIds?: string }>;
+}
+
+export default async function PlanCreationPage({ searchParams }: PageProps) {
   const { userId, role } = await getCurrentUserRole();
+  const params = await searchParams;
 
   if (!userId || !isAdminRole(role)) {
     redirect("/login");
@@ -124,6 +129,11 @@ export default async function PlanCreationPage() {
     };
   });
 
+  // URL 파라미터에서 사전 선택된 학생 ID 파싱
+  const initialSelectedIds = params.studentIds
+    ? params.studentIds.split(",").filter((id) => studentsWithData.some((s) => s.id === id))
+    : undefined;
+
   return (
     <div className="p-6 md:p-10">
       <div className="flex flex-col gap-6">
@@ -131,6 +141,7 @@ export default async function PlanCreationPage() {
         <PlanCreationClient
           students={studentsWithData}
           isAdmin={role === "admin"}
+          initialSelectedIds={initialSelectedIds}
         />
       </div>
     </div>

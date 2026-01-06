@@ -14,14 +14,16 @@ import { ResultsSection } from "./results/ResultsSection";
 interface PlanCreationClientProps {
   students: StudentListRow[];
   isAdmin: boolean;
+  initialSelectedIds?: string[];
 }
 
 export function PlanCreationClient({
   students,
   isAdmin,
+  initialSelectedIds,
 }: PlanCreationClientProps) {
   return (
-    <PlanCreationProvider students={students}>
+    <PlanCreationProvider students={students} initialSelectedIds={initialSelectedIds}>
       <PlanCreationContent students={students} isAdmin={isAdmin} />
     </PlanCreationProvider>
   );

@@ -32,9 +32,9 @@ export type PlanCreationAction =
   | { type: "RESET_RESULTS_ONLY" };
 
 /** 초기 상태 생성 */
-export function createInitialState(): PlanCreationState {
+export function createInitialState(initialSelectedIds?: string[]): PlanCreationState {
   return {
-    selectedStudentIds: new Set(),
+    selectedStudentIds: new Set(initialSelectedIds ?? []),
     selectedMethod: null,
     currentStep: "student-selection",
     isCreating: false,

@@ -55,16 +55,18 @@ export function usePlanCreation() {
 interface PlanCreationProviderProps {
   children: ReactNode;
   students: StudentListRow[];
+  initialSelectedIds?: string[];
 }
 
 // Provider Component
 export function PlanCreationProvider({
   children,
   students,
+  initialSelectedIds,
 }: PlanCreationProviderProps) {
   const [state, dispatch] = useReducer(
     planCreationReducer,
-    undefined,
+    initialSelectedIds,
     createInitialState
   );
 

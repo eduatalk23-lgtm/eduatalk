@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { ListPlus } from "lucide-react";
 import {
   bulkToggleStudentStatus,
   bulkDeleteStudents,
@@ -39,6 +40,14 @@ export function StudentBulkActions({
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const { showSuccess, showError } = useToast();
   const selectedCount = selectedIds.length;
+
+  // 플랜 생성 페이지로 이동
+  const handleNavigateToPlanCreation = useCallback(() => {
+    if (selectedCount === 0) return;
+    const params = new URLSearchParams();
+    params.set("studentIds", selectedIds.join(","));
+    router.push(`/admin/plan-creation?${params.toString()}`);
+  }, [selectedIds, selectedCount, router]);
 
   const handleConfirm = () => {
     if (!confirmAction || selectedCount === 0) return;
@@ -159,6 +168,18 @@ export function StudentBulkActions({
             )}
           >
             AI 플랜 생성
+          </button>
+
+          <button
+            onClick={handleNavigateToPlanCreation}
+            disabled={isPending || selectedCount === 0}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white transition",
+              "bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            <ListPlus className="h-4 w-4" />
+            플랜 생성
           </button>
 
           {isAdmin && (
