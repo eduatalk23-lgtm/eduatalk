@@ -16,6 +16,7 @@ import { previewPlanWithAI, type PreviewPlanResult } from "@/lib/domains/plan/ll
 import type { LLMPlanGenerationResponse, ModelTier } from "@/lib/domains/plan/llm/types";
 import { StreamingProgress } from "./StreamingProgress";
 import { useStreamingGeneration } from "./hooks/useStreamingGeneration";
+import { WebSearchResultsPanel } from "@/components/plan";
 
 // ============================================
 // 타입 정의
@@ -61,6 +62,8 @@ interface ConfigSectionProps {
   setModelTier: (v: ModelTier) => void;
   additionalInstructions: string;
   setAdditionalInstructions: (v: string) => void;
+  enableWebSearch: boolean;
+  setEnableWebSearch: (v: boolean) => void;
 }
 
 function ConfigSection({
@@ -78,6 +81,8 @@ function ConfigSection({
   setModelTier,
   additionalInstructions,
   setAdditionalInstructions,
+  enableWebSearch,
+  setEnableWebSearch,
 }: ConfigSectionProps) {
   const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -212,6 +217,31 @@ function ConfigSection({
         </div>
       </div>
 
+      {/* 웹 검색 (Gemini Grounding) */}
+      <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enableWebSearch}
+            onChange={(e) => setEnableWebSearch(e.target.checked)}
+            className="w-4 h-4 mt-1 text-blue-600 rounded"
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className={cn("text-sm font-medium", textPrimary)}>
+                🌐 웹 검색으로 최신 학습 자료 찾기
+              </span>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                Beta
+              </span>
+            </div>
+            <p className={cn("text-xs mt-1", textMuted)}>
+              AI가 인터넷에서 관련 학습 자료를 검색하여 플랜에 반영합니다
+            </p>
+          </div>
+        </label>
+      </div>
+
       {/* 추가 지시사항 */}
       <div>
         <label className={cn("block text-sm font-medium mb-2", textPrimary)}>
@@ -257,6 +287,7 @@ export function AIPlanGeneratorPanel({
   const [reviewRatio, setReviewRatio] = useState(0.2);
   const [modelTier, setModelTier] = useState<ModelTier>("standard");
   const [additionalInstructions, setAdditionalInstructions] = useState("");
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
 
   // 생성 상태
   const [phase, setPhase] = useState<GenerationPhase>("config");
@@ -273,6 +304,7 @@ export function AIPlanGeneratorPanel({
     result: streamingResult,
     error: streamingError,
     cost: streamingCost,
+    webSearchResults: streamingWebSearchResults,
     reset: resetStreaming,
   } = useStreamingGeneration({
     onComplete: (response) => {
@@ -323,6 +355,10 @@ export function AIPlanGeneratorPanel({
         reviewRatio: includeReview ? reviewRatio : undefined,
         additionalInstructions: additionalInstructions || undefined,
         modelTier,
+        enableWebSearch,
+        webSearchConfig: enableWebSearch
+          ? { mode: "dynamic", saveResults: true }
+          : undefined,
       });
       return;
     }
@@ -341,6 +377,10 @@ export function AIPlanGeneratorPanel({
         reviewRatio: includeReview ? reviewRatio : undefined,
         additionalInstructions: additionalInstructions || undefined,
         modelTier,
+        enableWebSearch,
+        webSearchConfig: enableWebSearch
+          ? { mode: "dynamic", saveResults: true }
+          : undefined,
       });
 
       setResult(response);
@@ -408,6 +448,8 @@ export function AIPlanGeneratorPanel({
               setModelTier={setModelTier}
               additionalInstructions={additionalInstructions}
               setAdditionalInstructions={setAdditionalInstructions}
+              enableWebSearch={enableWebSearch}
+              setEnableWebSearch={setEnableWebSearch}
             />
 
             {/* 요약 정보 */}
@@ -532,6 +574,14 @@ export function AIPlanGeneratorPanel({
                   ))}
                 </ul>
               </div>
+            )}
+
+            {/* 웹 검색 결과 */}
+            {streamingWebSearchResults && streamingWebSearchResults.results.length > 0 && (
+              <WebSearchResultsPanel
+                results={streamingWebSearchResults.results}
+                searchQueries={streamingWebSearchResults.searchQueries}
+              />
             )}
 
             {/* 주간 요약 */}

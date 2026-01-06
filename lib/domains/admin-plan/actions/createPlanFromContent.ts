@@ -149,7 +149,6 @@ function createPlanRecord(params: {
     custom_range_display: params.customRangeDisplay,
     estimated_minutes: params.totalVolume ? Math.ceil(params.totalVolume * 1.5) : null, // 기본 예상 시간
     status: 'pending',
-    is_completed: false,
     is_active: true,
     sequence: params.sequence ?? 0,
     created_at: params.now,

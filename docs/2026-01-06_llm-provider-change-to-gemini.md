@@ -24,6 +24,7 @@
 ```
 
 **설정된 환경 변수**:
+
 - `LLM_PROVIDER=gemini` - 기본 LLM Provider를 Gemini로 설정
 - `GOOGLE_API_KEY=AIzaSyD3OQ3ZFdJNtEc08_dX10HOadfO12Kn2g4` - Google API 키 (이미 설정됨)
 
@@ -72,11 +73,11 @@ export function getDefaultProvider(): ProviderType {
 
 **파일**: `lib/domains/plan/llm/providers/gemini.ts`
 
-| Tier | Model | Max Tokens | Temperature | 비용 (USD/1M tokens) |
-|------|-------|------------|-------------|---------------------|
-| fast | gemini-1.5-flash | 4,096 | 0.3 | Input: $0.075, Output: $0.3 |
-| standard | gemini-1.5-pro | 8,192 | 0.5 | Input: $1.25, Output: $5.0 |
-| advanced | gemini-1.5-pro | 16,384 | 0.7 | Input: $1.25, Output: $5.0 |
+| Tier     | Model            | Max Tokens | Temperature | 비용 (USD/1M tokens)        |
+| -------- | ---------------- | ---------- | ----------- | --------------------------- |
+| fast     | gemini-1.5-flash | 4,096      | 0.3         | Input: $0.075, Output: $0.3 |
+| standard | gemini-1.5-pro   | 8,192      | 0.5         | Input: $1.25, Output: $5.0  |
+| advanced | gemini-1.5-pro   | 16,384     | 0.7         | Input: $1.25, Output: $5.0  |
 
 ### 비용 비교
 
@@ -98,6 +99,7 @@ cat .env.local | grep -E "(LLM_PROVIDER|GOOGLE_API_KEY)"
 ```
 
 **결과**:
+
 ```
 LLM_PROVIDER=gemini
 GOOGLE_API_KEY=AIzaSyD3OQ3ZFdJNtEc08_dX10HOadfO12Kn2g4
@@ -122,6 +124,7 @@ const geminiProvider = getProvider("gemini");
 ## 🚀 다음 단계
 
 1. **개발 서버 재시작**
+
    ```bash
    # 환경 변수 변경 후 서버 재시작 필요
    pnpm dev
@@ -182,4 +185,3 @@ LLM_PROVIDER=gemini
 ---
 
 **작업 완료**: LLM Provider가 성공적으로 Gemini로 변경되었습니다. 🎉
-

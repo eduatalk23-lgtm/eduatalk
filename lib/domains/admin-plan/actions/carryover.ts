@@ -57,7 +57,7 @@ export async function runCarryoverForStudent(
       .eq('tenant_id', input.tenantId) // tenant 격리
       .eq('container_type', 'daily')
       .eq('is_active', true)
-      .eq('is_completed', false)
+      .neq('status', 'completed')
       .lt('plan_date', today)
       .order('plan_date', { ascending: true });
 
@@ -316,7 +316,7 @@ export async function getCarryoverPreview(
       .eq('tenant_id', input.tenantId) // tenant 격리
       .eq('container_type', 'daily')
       .eq('is_active', true)
-      .eq('is_completed', false)
+      .neq('status', 'completed')
       .lt('plan_date', today)
       .order('plan_date', { ascending: true });
 

@@ -265,7 +265,7 @@ export function DailyDock({
             {/* 일반 플랜 */}
             {plans.map((plan) => {
               const planData = toPlanItemData(plan, 'plan');
-              const isCompleted = plan.is_completed || plan.status === 'completed';
+              const isCompleted = plan.status === 'completed' || (plan.progress ?? 0) >= 100;
 
               return (
                 <PlanItemCard

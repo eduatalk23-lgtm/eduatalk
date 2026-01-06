@@ -34,6 +34,7 @@ import type {
   FrameworkConversionResult,
 } from "../types/aiFramework";
 import type { ModelTier } from "../types";
+import type { WebSearchResult, GroundingConfig } from "../providers/base";
 
 // ============================================
 // 입력/출력 타입
@@ -63,6 +64,17 @@ export interface GenerateFrameworkInput {
     subjectCategory: string;
     contentType: "book" | "lecture" | "custom";
   }>;
+  /** 웹 검색 활성화 여부 (Gemini Grounding) */
+  enableWebSearch?: boolean;
+  /** 웹 검색 설정 */
+  webSearchConfig?: {
+    /** 검색 모드 - dynamic: 필요시 검색, always: 항상 검색 */
+    mode?: "dynamic" | "always";
+    /** 동적 검색 임계값 (0.0 - 1.0) */
+    dynamicThreshold?: number;
+    /** 검색 결과를 DB에 저장할지 여부 */
+    saveResults?: boolean;
+  };
 }
 
 /**
@@ -85,6 +97,12 @@ export interface GenerateFrameworkResult {
   processingTimeMs?: number;
   /** 낮은 신뢰도 경고 */
   lowConfidenceWarning?: boolean;
+  /** 웹 검색 결과 (grounding 활성화 시) */
+  webSearchResults?: {
+    searchQueries: string[];
+    resultsCount: number;
+    results: WebSearchResult[];
+  };
 }
 
 // ============================================
@@ -167,6 +185,15 @@ async function _generateAIFramework(
   // 사용자 프롬프트 생성
   const userPrompt = buildFrameworkUserPrompt(frameworkInput);
 
+  // Grounding 설정 (웹 검색 활성화 시)
+  const groundingConfig: GroundingConfig | undefined = input.enableWebSearch
+    ? {
+        enabled: true,
+        mode: input.webSearchConfig?.mode || "dynamic",
+        dynamicThreshold: input.webSearchConfig?.dynamicThreshold,
+      }
+    : undefined;
+
   try {
     // AI 호출
     const response = await createMessage({
@@ -179,6 +206,7 @@ async function _generateAIFramework(
       ],
       modelTier,
       maxTokens: 4000, // 프레임워크는 상대적으로 작은 출력
+      grounding: groundingConfig,
     });
 
     // 응답 파싱
@@ -212,6 +240,26 @@ async function _generateAIFramework(
     // 신뢰도 확인
     const lowConfidenceWarning = !isHighConfidenceFramework(framework, 0.7);
 
+    // 웹 검색 결과 처리
+    let webSearchResults:
+      | {
+          searchQueries: string[];
+          resultsCount: number;
+          results: WebSearchResult[];
+        }
+      | undefined;
+
+    if (
+      response.groundingMetadata &&
+      response.groundingMetadata.webResults.length > 0
+    ) {
+      webSearchResults = {
+        searchQueries: response.groundingMetadata.searchQueries,
+        resultsCount: response.groundingMetadata.webResults.length,
+        results: response.groundingMetadata.webResults,
+      };
+    }
+
     return {
       success: true,
       framework,
@@ -222,6 +270,7 @@ async function _generateAIFramework(
       },
       processingTimeMs: Date.now() - startTime,
       lowConfidenceWarning,
+      webSearchResults,
     };
   } catch (error) {
     const errorMessage =

@@ -60,6 +60,8 @@ export interface CreateMessageOptions {
   maxTokens?: number;
   /** 생성 온도 (0-1) */
   temperature?: number;
+  /** Grounding(웹 검색) 설정 - Gemini Provider에서만 지원 */
+  grounding?: GroundingConfig;
 }
 
 /**
@@ -79,6 +81,8 @@ export interface CreateMessageResult {
   modelId: string;
   /** 프로바이더 타입 */
   provider: ProviderType;
+  /** Grounding 메타데이터 (웹 검색 결과) - Gemini Provider에서 grounding 활성화 시 포함 */
+  groundingMetadata?: GroundingMetadata;
 }
 
 /**
@@ -115,6 +119,52 @@ export interface ProviderStatus {
   hasApiKey: boolean;
   /** 에러 메시지 (있는 경우) */
   errorMessage?: string;
+}
+
+// ============================================
+// Grounding (웹 검색) 관련 타입
+// ============================================
+
+/**
+ * Grounding 설정
+ * Gemini API의 웹 검색 기능을 활성화하기 위한 설정입니다.
+ */
+export interface GroundingConfig {
+  /** Grounding 활성화 여부 */
+  enabled: boolean;
+  /** 검색 모드 - dynamic: 필요시 검색, always: 항상 검색 */
+  mode?: "dynamic" | "always";
+  /** 동적 검색 임계값 (0.0 - 1.0, 기본값: 0.3) */
+  dynamicThreshold?: number;
+}
+
+/**
+ * 웹 검색 결과 항목
+ */
+export interface WebSearchResult {
+  /** 웹 페이지 URL */
+  url: string;
+  /** 웹 페이지 제목 */
+  title: string;
+  /** 검색 결과 요약/스니펫 */
+  snippet?: string;
+}
+
+/**
+ * Grounding 메타데이터
+ * LLM 응답에 포함된 웹 검색 결과 정보입니다.
+ */
+export interface GroundingMetadata {
+  /** 수행된 검색 쿼리 목록 */
+  searchQueries: string[];
+  /** 웹 검색 결과 목록 */
+  webResults: WebSearchResult[];
+  /** 인용 정보 (응답 텍스트에서 웹 소스 참조 위치) */
+  citations?: Array<{
+    startIndex: number;
+    endIndex: number;
+    uri: string;
+  }>;
 }
 
 // ============================================

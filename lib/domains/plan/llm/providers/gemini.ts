@@ -14,6 +14,8 @@ import {
   type StreamMessageOptions,
   type CostInfo,
   type ProviderStatus,
+  type GroundingConfig,
+  type GroundingMetadata,
 } from "./base";
 
 // ============================================
@@ -23,21 +25,21 @@ import {
 const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
   fast: {
     tier: "fast",
-    modelId: "gemini-1.5-flash",
+    modelId: "gemini-2.0-flash",
     maxTokens: 4096,
     temperature: 0.3,
     provider: "gemini",
   },
   standard: {
     tier: "standard",
-    modelId: "gemini-1.5-pro",
+    modelId: "gemini-2.0-flash",
     maxTokens: 8192,
     temperature: 0.5,
     provider: "gemini",
   },
   advanced: {
     tier: "advanced",
-    modelId: "gemini-1.5-pro",
+    modelId: "gemini-1.5-pro-latest",
     maxTokens: 16384,
     temperature: 0.7,
     provider: "gemini",
@@ -201,11 +203,103 @@ export class GeminiProvider extends BaseLLMProvider {
   }
 
   /**
+   * Grounding tools 빌드
+   * @param grounding - Grounding 설정
+   * @param modelId - 모델 ID (버전 감지용)
+   * @returns Gemini API tools 배열
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private buildGroundingTools(grounding?: GroundingConfig, modelId?: string): any[] {
+    if (!grounding?.enabled) return [];
+
+    // Gemini 2.0 모델 감지
+    const isGemini2 = modelId?.includes("gemini-2.0");
+
+    console.log("[Gemini] buildGroundingTools:", {
+      modelId,
+      isGemini2,
+      groundingMode: grounding.mode,
+      enabled: grounding.enabled,
+    });
+
+    // Gemini 2.0은 googleSearch만 지원 (동적/항상 모드 무관)
+    if (isGemini2) {
+      console.log("[Gemini] Using googleSearch for Gemini 2.0");
+      return [{ googleSearch: {} }];
+    }
+
+    // Gemini 1.5: mode에 따라 분기
+    if (grounding.mode === "always") {
+      // 항상 검색
+      return [{ googleSearch: {} }];
+    }
+
+    // 동적 검색 (기본값) - Gemini 1.5 호환
+    return [
+      {
+        googleSearchRetrieval: {
+          dynamicRetrievalConfig: {
+            mode: "MODE_DYNAMIC",
+            dynamicThreshold: grounding.dynamicThreshold ?? 0.3,
+          },
+        },
+      },
+    ];
+  }
+
+  /**
+   * Gemini 응답에서 Grounding 메타데이터 추출
+   * @param response - Gemini API 응답
+   * @returns GroundingMetadata 또는 undefined
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractGroundingMetadata(response: any): GroundingMetadata | undefined {
+    const groundingMeta = response.candidates?.[0]?.groundingMetadata;
+    if (!groundingMeta) return undefined;
+
+    // 검색 쿼리 추출
+    const searchQueries: string[] =
+      groundingMeta.webSearchQueries || groundingMeta.searchQueries || [];
+
+    // 웹 검색 결과 추출
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const webResults = (groundingMeta.groundingChunks || []).map((chunk: any) => ({
+      url: chunk.web?.uri || "",
+      title: chunk.web?.title || "",
+      snippet: chunk.retrievedContext?.text || "",
+    }));
+
+    // 인용 정보 추출
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const citations = (groundingMeta.groundingSupports || []).flatMap((support: any) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (support.groundingChunkIndices || []).map((index: number, _i: number) => ({
+        startIndex: support.segment?.startIndex || 0,
+        endIndex: support.segment?.endIndex || 0,
+        uri: groundingMeta.groundingChunks?.[index]?.web?.uri || "",
+      }))
+    );
+
+    return {
+      searchQueries,
+      webResults,
+      citations: citations.length > 0 ? citations : undefined,
+    };
+  }
+
+  /**
    * 메시지 생성 (비스트리밍)
    */
   async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult> {
     const config = this.getModelConfig(options.modelTier || "standard");
     const model = this.getModel(config);
+
+    console.log("[Gemini] createMessage 시작:", {
+      modelId: config.modelId,
+      tier: options.modelTier,
+      groundingEnabled: options.grounding?.enabled,
+      groundingMode: options.grounding?.mode,
+    });
 
     const formattedMessages = this.formatMessages(options.system, options.messages);
 
@@ -213,18 +307,55 @@ export class GeminiProvider extends BaseLLMProvider {
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     const history = formattedMessages.slice(0, -1);
 
-    // Chat 세션 시작
+    // Grounding tools 빌드 (modelId 전달)
+    const tools = this.buildGroundingTools(options.grounding, config.modelId);
+
+    console.log("[Gemini] Chat 설정:", {
+      historyLength: history.length,
+      toolsCount: tools.length,
+      tools: JSON.stringify(tools),
+    });
+
+    // Chat 세션 시작 (Grounding tools 포함)
     const chat = model.startChat({
       history,
       generationConfig: {
         maxOutputTokens: options.maxTokens || config.maxTokens,
         temperature: options.temperature ?? config.temperature,
       },
+      // Grounding tools가 있는 경우에만 추가
+      ...(tools.length > 0 && { tools }),
     });
 
     const result = await chat.sendMessage(lastMessage.parts);
     const response = result.response;
     const content = response.text();
+
+    // 응답 구조 진단 로깅
+    if (options.grounding?.enabled) {
+      const candidate = response.candidates?.[0];
+      console.log("[Gemini] 응답 구조:", {
+        hasCandidate: !!candidate,
+        finishReason: candidate?.finishReason,
+        hasGroundingMetadata: !!candidate?.groundingMetadata,
+        groundingMetadataKeys: candidate?.groundingMetadata
+          ? Object.keys(candidate.groundingMetadata)
+          : [],
+      });
+    }
+
+    // Grounding 메타데이터 추출
+    const groundingMetadata = options.grounding?.enabled
+      ? this.extractGroundingMetadata(response)
+      : undefined;
+
+    if (options.grounding?.enabled) {
+      console.log("[Gemini] Grounding 결과:", {
+        hasMetadata: !!groundingMetadata,
+        searchQueries: groundingMetadata?.searchQueries?.length ?? 0,
+        webResults: groundingMetadata?.webResults?.length ?? 0,
+      });
+    }
 
     // 토큰 사용량 추정 (Gemini API는 정확한 토큰 수를 제공하지 않을 수 있음)
     const inputTokens = this.estimateTokens(
@@ -241,6 +372,7 @@ export class GeminiProvider extends BaseLLMProvider {
       },
       modelId: config.modelId,
       provider: "gemini",
+      groundingMetadata,
     };
   }
 
@@ -251,23 +383,36 @@ export class GeminiProvider extends BaseLLMProvider {
     const config = this.getModelConfig(options.modelTier || "standard");
     const model = this.getModel(config);
 
+    console.log("[Gemini] streamMessage 시작:", {
+      modelId: config.modelId,
+      tier: options.modelTier,
+      groundingEnabled: options.grounding?.enabled,
+    });
+
     const formattedMessages = this.formatMessages(options.system, options.messages);
 
     // 마지막 메시지 추출
     const lastMessage = formattedMessages[formattedMessages.length - 1];
     const history = formattedMessages.slice(0, -1);
 
+    // Grounding tools 빌드 (modelId 전달)
+    const tools = this.buildGroundingTools(options.grounding, config.modelId);
+
     let fullContent = "";
     let stopReason: string | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let lastResponse: any = null;
 
     try {
-      // Chat 세션 시작
+      // Chat 세션 시작 (Grounding tools 포함)
       const chat = model.startChat({
         history,
         generationConfig: {
           maxOutputTokens: options.maxTokens || config.maxTokens,
           temperature: options.temperature ?? config.temperature,
         },
+        // Grounding tools가 있는 경우에만 추가
+        ...(tools.length > 0 && { tools }),
       });
 
       const result = await chat.sendMessageStream(lastMessage.parts);
@@ -283,7 +428,15 @@ export class GeminiProvider extends BaseLLMProvider {
         if (chunk.candidates?.[0]?.finishReason) {
           stopReason = chunk.candidates[0].finishReason;
         }
+
+        // 마지막 응답 저장 (grounding metadata 추출용)
+        lastResponse = chunk;
       }
+
+      // Grounding 메타데이터 추출
+      const groundingMetadata = options.grounding?.enabled && lastResponse
+        ? this.extractGroundingMetadata(lastResponse)
+        : undefined;
 
       // 토큰 사용량 추정
       const inputTokens = this.estimateTokens(
@@ -300,6 +453,7 @@ export class GeminiProvider extends BaseLLMProvider {
         },
         modelId: config.modelId,
         provider: "gemini",
+        groundingMetadata,
       };
 
       options.onComplete?.(messageResult);

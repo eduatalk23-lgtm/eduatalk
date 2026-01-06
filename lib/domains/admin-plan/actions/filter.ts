@@ -27,7 +27,6 @@ export interface FilteredPlan {
   completed_start_page_or_time: number | null;
   completed_end_page_or_time: number | null;
   status: string | null;
-  is_completed: boolean;
   container_type: string;
   carryover_count: number;
 }
@@ -64,7 +63,6 @@ export async function getFilteredPlans(
         completed_start_page_or_time,
         completed_end_page_or_time,
         status,
-        is_completed,
         container_type,
         carryover_count
       `,
@@ -84,7 +82,7 @@ export async function getFilteredPlans(
     // 상태 필터
     if (params.status && params.status !== 'all') {
       if (params.status === 'completed') {
-        query = query.eq('is_completed', true);
+        query = query.eq('status', 'completed');
       } else if (params.status === 'in_progress') {
         query = query.eq('status', 'in_progress');
       } else if (params.status === 'pending') {

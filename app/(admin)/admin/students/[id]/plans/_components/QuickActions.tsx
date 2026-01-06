@@ -55,7 +55,6 @@ export function QuickCompleteButton({
           .from(tableName)
           .update({
             status: newStatus,
-            is_completed: !isCompleted,
             completed_at: isCompleted ? null : new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -326,7 +325,6 @@ export function QuickProgressInput({
         .update({
           completed_start_page_or_time: completedStart || plannedStart,
           completed_end_page_or_time: newCompletedEnd,
-          is_completed: isComplete,
           status: isComplete ? 'completed' : 'in_progress',
           completed_at: isComplete ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),

@@ -10,8 +10,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { revalidatePath } from "next/cache";
 
-import { createMessage, getModelConfig, estimateCost } from "../client";
+import { createMessage, getModelConfig, estimateCost, type GroundingMetadata, type WebSearchResult } from "../client";
 import { SYSTEM_PROMPT, buildUserPrompt, estimatePromptTokens } from "../prompts/planGeneration";
+import { getWebSearchContentService } from "../services/webSearchContentService";
 import { buildLLMRequest, validateRequest } from "../transformers/requestBuilder";
 import { parseLLMResponse, toDBPlanDataList } from "../transformers/responseParser";
 
@@ -63,6 +64,17 @@ export interface GeneratePlanInput {
   planGroupId?: string;
   /** 새 플랜 그룹 이름 (새로 생성할 경우) */
   planGroupName?: string;
+  /** 웹 검색 활성화 여부 (Gemini Grounding) */
+  enableWebSearch?: boolean;
+  /** 웹 검색 설정 */
+  webSearchConfig?: {
+    /** 검색 모드 - dynamic: 필요시 검색, always: 항상 검색 */
+    mode?: "dynamic" | "always";
+    /** 동적 검색 임계값 (0.0 - 1.0) */
+    dynamicThreshold?: number;
+    /** 검색 결과를 DB에 저장할지 여부 */
+    saveResults?: boolean;
+  };
 }
 
 export interface GeneratePlanResult {
@@ -81,6 +93,14 @@ export interface GeneratePlanResult {
       valid: boolean;
       errors: ValidationError[];
       warnings: ValidationWarning[];
+    };
+    /** 웹 검색 결과 (grounding 활성화 시) */
+    webSearchResults?: {
+      searchQueries: string[];
+      resultsCount: number;
+      savedCount?: number;
+      /** 검색 결과 목록 (UI 표시용) */
+      results: WebSearchResult[];
     };
   };
   error?: string;
@@ -429,11 +449,69 @@ export async function generatePlanWithAI(
     const modelTier = input.modelTier || "standard";
     const userPrompt = buildUserPrompt(llmRequest);
 
+    // Grounding 설정 (웹 검색)
+    const groundingConfig = input.enableWebSearch
+      ? {
+          enabled: true,
+          mode: input.webSearchConfig?.mode || ("dynamic" as const),
+          dynamicThreshold: input.webSearchConfig?.dynamicThreshold,
+        }
+      : undefined;
+
     const result = await createMessage({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier,
+      grounding: groundingConfig,
     });
+
+    // 6-1. 웹 검색 결과 처리
+    let webSearchResults:
+      | {
+          searchQueries: string[];
+          resultsCount: number;
+          savedCount?: number;
+          results: WebSearchResult[];
+        }
+      | undefined;
+
+    if (result.groundingMetadata && result.groundingMetadata.webResults.length > 0) {
+      console.log(
+        `[AI Plan] 웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
+      );
+
+      webSearchResults = {
+        searchQueries: result.groundingMetadata.searchQueries,
+        resultsCount: result.groundingMetadata.webResults.length,
+        results: result.groundingMetadata.webResults,
+      };
+
+      // DB 저장 옵션이 활성화된 경우
+      if (input.webSearchConfig?.saveResults && tenantId) {
+        const webContentService = getWebSearchContentService();
+
+        // Grounding 메타데이터를 콘텐츠로 변환
+        const webContents = webContentService.transformToContent(result.groundingMetadata, {
+          tenantId,
+          // 콘텐츠에서 과목 정보 추출 (첫 번째 콘텐츠 기준)
+          subject: contents[0]?.subject,
+          subjectCategory: contents[0]?.subject_category,
+        });
+
+        if (webContents.length > 0) {
+          const saveResult = await webContentService.saveToDatabase(webContents, tenantId);
+          webSearchResults.savedCount = saveResult.savedCount;
+
+          console.log(
+            `[AI Plan] 웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
+          );
+
+          if (saveResult.errors.length > 0) {
+            console.warn("[AI Plan] 웹 콘텐츠 저장 오류:", saveResult.errors);
+          }
+        }
+      }
+    }
 
     // 7. 응답 파싱
     const parsed = parseLLMResponse(result.content, result.modelId, result.usage);
@@ -516,6 +594,7 @@ export async function generatePlanWithAI(
           estimatedUSD: estimatedCost,
         },
         validation: validationResult,
+        webSearchResults,
       },
     };
   } catch (error) {

@@ -16,6 +16,7 @@ import { getStudentProfileById } from "@/lib/data/studentProfiles";
 import { getStudentCareerGoalById } from "@/lib/data/studentCareerGoals";
 import type { StudentInfoData } from "./_types/studentFormTypes";
 import { PlanListSection } from "./_components/PlanListSection";
+import { PlanListSectionClient } from "./_components/PlanListSectionClient";
 import { ContentListSection } from "./_components/ContentListSection";
 import { ScoreTrendSection } from "./_components/ScoreTrendSection";
 import { SessionListSection } from "./_components/SessionListSection";
@@ -167,9 +168,15 @@ export default async function AdminStudentDetailPage({
 
           {/* 학습계획 탭 */}
           <TabContent tab="plan">
-            <Suspense fallback={<PlanListSectionSkeleton />}>
-              <PlanListSection studentId={studentId} tenantId={tenantId} />
-            </Suspense>
+            <PlanListSectionClient
+              studentId={studentId}
+              tenantId={tenantId}
+              studentName={student.name ?? ""}
+            >
+              <Suspense fallback={<PlanListSectionSkeleton />}>
+                <PlanListSection studentId={studentId} tenantId={tenantId} />
+              </Suspense>
+            </PlanListSectionClient>
           </TabContent>
 
           {/* 콘텐츠 탭 */}

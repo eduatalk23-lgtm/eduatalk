@@ -16,7 +16,8 @@ import {
   createCacheKey,
 } from "@/lib/cache/memoryCache";
 
-import { createMessage, extractJSON, estimateCost } from "../client";
+import { createMessage, extractJSON, estimateCost, type GroundingMetadata } from "../client";
+import { getWebSearchContentService } from "../services/webSearchContentService";
 import {
   CONTENT_RECOMMENDATION_SYSTEM_PROMPT,
   buildContentRecommendationPrompt,
@@ -49,6 +50,17 @@ export interface RecommendContentInput {
   additionalInstructions?: string;
   /** 모델 티어 (기본값: fast - 비용 효율적) */
   modelTier?: ModelTier;
+  /** 웹 검색 활성화 여부 (Gemini Grounding) */
+  enableWebSearch?: boolean;
+  /** 웹 검색 설정 */
+  webSearchConfig?: {
+    /** 검색 모드 - dynamic: 필요시 검색, always: 항상 검색 */
+    mode?: "dynamic" | "always";
+    /** 동적 검색 임계값 (0.0 - 1.0) */
+    dynamicThreshold?: number;
+    /** 검색 결과를 DB에 저장할지 여부 */
+    saveResults?: boolean;
+  };
 }
 
 export interface RecommendContentResult {
@@ -61,6 +73,12 @@ export interface RecommendContentResult {
       inputTokens: number;
       outputTokens: number;
       estimatedUSD: number;
+    };
+    /** 웹 검색 결과 (grounding 활성화 시) */
+    webSearchResults?: {
+      searchQueries: string[];
+      resultsCount: number;
+      savedCount?: number;
     };
   };
   error?: string;
@@ -422,11 +440,71 @@ export async function recommendContentWithAI(
     const modelTier = input.modelTier || "fast";
     const userPrompt = buildContentRecommendationPrompt(llmRequest);
 
+    // Grounding 설정 (웹 검색)
+    const groundingConfig = input.enableWebSearch
+      ? {
+          enabled: true,
+          mode: input.webSearchConfig?.mode || ("dynamic" as const),
+          dynamicThreshold: input.webSearchConfig?.dynamicThreshold,
+        }
+      : undefined;
+
     const result = await createMessage({
       system: CONTENT_RECOMMENDATION_SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier,
+      grounding: groundingConfig,
     });
+
+    // 6-1. 웹 검색 결과 처리
+    let webSearchResults:
+      | {
+          searchQueries: string[];
+          resultsCount: number;
+          savedCount?: number;
+        }
+      | undefined;
+
+    if (result.groundingMetadata && result.groundingMetadata.webResults.length > 0) {
+      console.log(
+        `[AI Content Rec] 웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
+      );
+
+      webSearchResults = {
+        searchQueries: result.groundingMetadata.searchQueries,
+        resultsCount: result.groundingMetadata.webResults.length,
+      };
+
+      // DB 저장 옵션이 활성화된 경우 - tenantId 조회 필요
+      if (input.webSearchConfig?.saveResults) {
+        // 학생의 tenant_id 조회
+        const { data: studentData } = await supabase
+          .from("students")
+          .select("tenant_id")
+          .eq("id", input.studentId)
+          .single();
+
+        if (studentData?.tenant_id) {
+          const webContentService = getWebSearchContentService();
+
+          // Grounding 메타데이터를 콘텐츠로 변환
+          const webContents = webContentService.transformToContent(result.groundingMetadata, {
+            tenantId: studentData.tenant_id,
+            // 추천 과목 카테고리 기반
+            subject: input.subjectCategories?.[0],
+          });
+
+          if (webContents.length > 0) {
+            const saveResult = await webContentService.saveToDatabase(webContents, studentData.tenant_id);
+            webSearchResults.savedCount = saveResult.savedCount;
+
+            console.log(
+              `[AI Content Rec] 웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
+            );
+          }
+        }
+      }
+    }
 
     // 7. 응답 파싱
     const parsed = extractJSON<ContentRecommendationResponse>(result.content);
@@ -466,6 +544,7 @@ export async function recommendContentWithAI(
         outputTokens: result.usage.outputTokens,
         estimatedUSD: estimatedCost,
       },
+      webSearchResults,
     };
 
     // 11. 캐시 저장 (1일 TTL)

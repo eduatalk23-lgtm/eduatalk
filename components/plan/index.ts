@@ -64,3 +64,8 @@ export {
   type ListPlanItem,
   type GroupBy,
 } from "./ListView";
+
+export {
+  WebSearchResultsPanel,
+  type WebSearchResultsPanelProps,
+} from "./WebSearchResultsPanel";

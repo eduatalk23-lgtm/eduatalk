@@ -309,6 +309,7 @@ export interface ContentInfo {
 
 /**
  * 여러 학생의 활성 플랜 그룹에 콘텐츠 추가
+ * 활성 플랜 그룹이 없는 경우 자동으로 새 플랜 그룹을 생성합니다.
  */
 export async function addBatchContents(
   students: BatchStudentInput[],
@@ -320,13 +321,18 @@ export async function addBatchContents(
     const supabase = await createSupabaseServerClient();
     const results: BatchResult[] = [];
 
+    // 오늘 날짜 (플랜 그룹 생성 시 기본값으로 사용)
+    const today = new Date().toISOString().split("T")[0];
+
     for (const student of students) {
       try {
         // 사용자가 전달하지 않은 경우 현재 사용자의 tenantId 사용
         const studentTenantId = student.tenantId ?? tenantId;
 
-        // 1. 학생의 활성 플랜 그룹 찾기
-        const { data: planGroup } = await supabase
+        // 1. 학생의 활성 플랜 그룹 찾기 또는 생성
+        let planGroupId: string;
+
+        const { data: existingGroup } = await supabase
           .from("plan_groups")
           .select("id")
           .eq("student_id", student.studentId)
@@ -336,19 +342,41 @@ export async function addBatchContents(
           .limit(1)
           .maybeSingle();
 
-        if (!planGroup) {
-          results.push({
-            studentId: student.studentId,
-            studentName: student.studentName,
-            success: false,
-            message: "활성 플랜 그룹이 없습니다",
-          });
-          continue;
+        if (existingGroup) {
+          planGroupId = existingGroup.id;
+        } else {
+          // 활성 플랜 그룹이 없는 경우 자동으로 생성
+          const { data: newGroup, error: groupError } = await supabase
+            .from("plan_groups")
+            .insert({
+              student_id: student.studentId,
+              tenant_id: studentTenantId,
+              name: `${student.studentName} 콘텐츠 플랜`,
+              period_start: today,
+              period_end: today,
+              status: "active",
+              creation_mode: "content_distribution",
+              created_by: userId,
+            })
+            .select("id")
+            .single();
+
+          if (groupError || !newGroup) {
+            results.push({
+              studentId: student.studentId,
+              studentName: student.studentName,
+              success: false,
+              message: "플랜 그룹 생성 실패",
+              error: groupError?.message || "알 수 없는 오류",
+            });
+            continue;
+          }
+          planGroupId = newGroup.id;
         }
 
         // 2. 콘텐츠 추가 (plan_contents 테이블에)
         const contentInserts = contents.map((content, index) => ({
-          plan_group_id: planGroup.id,
+          plan_group_id: planGroupId,
           content_type: content.contentType,
           content_id: content.id,
           display_order: index + 1,
@@ -375,7 +403,7 @@ export async function addBatchContents(
           studentName: student.studentName,
           success: true,
           message: `${contents.length}개의 콘텐츠가 추가되었습니다`,
-          planGroupId: planGroup.id,
+          planGroupId,
         });
       } catch (err) {
         results.push({

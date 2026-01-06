@@ -30,6 +30,8 @@ import { parseLLMResponse } from "@/lib/domains/plan/llm/transformers/responsePa
 import { validatePlans } from "@/lib/domains/plan/llm/validators/planValidator";
 
 import type { GeneratedPlanItem, ModelTier } from "@/lib/domains/plan/llm/types";
+import type { GroundingConfig } from "@/lib/domains/plan/llm/providers/base";
+import { getWebSearchContentService } from "@/lib/domains/plan/llm/services/webSearchContentService";
 import type {
   BatchPlanSettings,
   StudentPlanResult,
@@ -41,6 +43,7 @@ import type {
   PreviewToSaveInput,
   PreviewSaveResult,
 } from "../types/preview";
+import type { PreviewStreamingOptions } from "../types/streaming";
 
 // ============================================
 // 데이터 로딩 함수 (재사용)
@@ -48,13 +51,31 @@ import type {
 
 async function loadStudentData(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  studentId: string
+  studentId: string,
+  tenantId?: string
 ) {
-  const { data } = await supabase
+  let query = supabase
     .from("students")
-    .select("id, name, grade, school_name, target_university, target_major")
-    .eq("id", studentId)
-    .single();
+    .select("id, name, grade, school_id, school_type")
+    .eq("id", studentId);
+
+  // tenant_id가 제공된 경우 추가 필터링
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data, error } = await query.single();
+
+  // 디버깅을 위한 상세 로깅
+  if (error) {
+    console.error(`[batchPreviewPlans/loadStudentData] 학생 조회 실패 - studentId: ${studentId}`, {
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      tenantId: tenantId || "not provided",
+    });
+  }
+
   return data;
 }
 
@@ -77,20 +98,45 @@ async function loadContents(
 ) {
   if (contentIds.length === 0) return [];
 
-  const { data: books } = await supabase
-    .from("books")
-    .select("id, title, subject, subject_category, total_pages, estimated_hours")
-    .in("id", contentIds);
+  // master_books와 master_lectures 테이블에서 조회 (books/lectures 테이블 없음)
+  const [booksResult, lecturesResult] = await Promise.all([
+    supabase
+      .from("master_books")
+      .select("id, title, subject, subject_category, total_pages, estimated_hours")
+      .in("id", contentIds)
+      .eq("is_active", true),
+    supabase
+      .from("master_lectures")
+      .select("id, title, subject, subject_category, total_episodes, estimated_hours")
+      .in("id", contentIds)
+      .eq("is_active", true),
+  ]);
 
-  const { data: lectures } = await supabase
-    .from("lectures")
-    .select("id, title, subject, subject_category, total_lectures, estimated_hours")
-    .in("id", contentIds);
-
-  return [
-    ...(books || []).map((b) => ({ ...b, content_type: "book" as const })),
-    ...(lectures || []).map((l) => ({ ...l, content_type: "lecture" as const })),
+  const contents = [
+    ...(booksResult.data || []).map((b) => ({
+      id: b.id,
+      title: b.title,
+      subject: b.subject,
+      subject_category: b.subject_category,
+      content_type: "book" as const,
+      total_pages: b.total_pages,
+      total_lectures: null,
+      estimated_hours: b.estimated_hours ? Number(b.estimated_hours) : null,
+    })),
+    ...(lecturesResult.data || []).map((l) => ({
+      id: l.id,
+      title: l.title,
+      subject: l.subject,
+      subject_category: l.subject_category,
+      content_type: "lecture" as const,
+      total_pages: null,
+      total_lectures: l.total_episodes,
+      estimated_hours: l.estimated_hours ? Number(l.estimated_hours) : null,
+    })),
   ];
+
+  console.log(`[loadContents] Preview - books: ${booksResult.data?.length || 0}, lectures: ${lecturesResult.data?.length || 0}`);
+  return contents;
 }
 
 async function loadTimeSlots(
@@ -231,8 +277,8 @@ async function generatePreviewForStudent(
   settings: BatchPlanSettings
 ): Promise<StudentPlanPreview> {
   try {
-    // 1. 학생 데이터 로드
-    const student = await loadStudentData(supabase, studentId);
+    // 1. 학생 데이터 로드 (tenantId를 전달하여 정확한 tenant 컨텍스트에서 조회)
+    const student = await loadStudentData(supabase, studentId, tenantId);
     if (!student) {
       return {
         studentId,
@@ -275,9 +321,9 @@ async function generatePreviewForStudent(
         id: student.id,
         name: student.name,
         grade: student.grade,
-        school_name: student.school_name,
-        target_university: student.target_university,
-        target_major: student.target_major,
+        school_name: undefined, // students 테이블에 해당 컬럼 없음
+        target_university: undefined,
+        target_major: undefined,
       },
       scores,
       contents: contents.slice(0, 20).map((c) => ({
@@ -326,10 +372,20 @@ async function generatePreviewForStudent(
     const modelTier = settings.modelTier || "fast";
     const userPrompt = buildUserPrompt(llmRequest);
 
+    // Grounding(웹 검색) 설정 빌드
+    const grounding: GroundingConfig | undefined = settings.enableWebSearch
+      ? {
+          enabled: true,
+          mode: settings.webSearchConfig?.mode || "dynamic",
+          dynamicThreshold: settings.webSearchConfig?.dynamicThreshold ?? 0.3,
+        }
+      : undefined;
+
     const result = await createMessage({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier,
+      grounding,
     });
 
     // 7. 응답 파싱
@@ -385,6 +441,40 @@ async function generatePreviewForStudent(
       modelTier
     );
 
+    // 13. Grounding 메타데이터 처리 및 저장
+    let webSearchResults: StudentPlanPreview["webSearchResults"];
+
+    if (result.groundingMetadata && settings.enableWebSearch) {
+      const metadata = result.groundingMetadata;
+
+      webSearchResults = {
+        searchQueries: metadata.searchQueries || [],
+        resultsCount: metadata.webResults?.length || 0,
+      };
+
+      // 검색 결과 저장 옵션이 활성화된 경우 DB에 저장
+      if (settings.webSearchConfig?.saveResults && metadata.webResults?.length > 0) {
+        try {
+          const webSearchService = getWebSearchContentService();
+          const contents = webSearchService.transformToContent(metadata, {
+            tenantId,
+            subject: undefined, // LLM이 추론한 subject 사용
+          });
+
+          if (contents.length > 0) {
+            const saveResult = await webSearchService.saveToDatabase(contents, tenantId);
+            webSearchResults.savedCount = saveResult.savedCount;
+            console.log(
+              `[Batch Preview] 학생 ${studentId}: 웹 검색 결과 ${saveResult.savedCount}개 저장 완료`
+            );
+          }
+        } catch (saveError) {
+          console.error(`[Batch Preview] 웹 검색 결과 저장 오류:`, saveError);
+          // 저장 실패해도 플랜 생성은 계속 진행
+        }
+      }
+    }
+
     return {
       studentId,
       studentName: student.name,
@@ -406,6 +496,7 @@ async function generatePreviewForStudent(
         outputTokens: result.usage.outputTokens,
         estimatedUSD: cost,
       },
+      webSearchResults,
     };
   } catch (error) {
     console.error(`[Batch Preview] 학생 ${studentId} 오류:`, error);
@@ -560,9 +651,10 @@ async function _saveFromPreview(
           student_id: preview.studentId,
           tenant_id: tenantContext.tenantId,
           name: groupName,
-          start_date: preview.summary?.dateRange.start,
-          end_date: preview.summary?.dateRange.end,
-          source: "ai",
+          period_start: preview.summary?.dateRange.start,
+          period_end: preview.summary?.dateRange.end,
+          status: "active",
+          creation_mode: "ai",
         })
         .select("id")
         .single();
@@ -578,24 +670,25 @@ async function _saveFromPreview(
       }
 
       // 플랜 저장
-      const plansToInsert = preview.plans!.map((plan) => ({
+      const plansToInsert = preview.plans!.map((plan, index) => ({
         student_id: preview.studentId,
         tenant_id: tenantContext.tenantId,
         plan_group_id: planGroup.id,
         content_id: plan.contentId,
+        content_type: plan.contentType || "book",
         plan_date: plan.date,
+        block_index: index,
         start_time: plan.startTime,
         end_time: plan.endTime,
         estimated_minutes: plan.estimatedMinutes,
-        range_start: plan.rangeStart,
-        range_end: plan.rangeEnd,
-        notes: plan.notes,
-        is_review: plan.isReview,
-        source: "ai",
+        planned_start_page_or_time: plan.rangeStart,
+        planned_end_page_or_time: plan.rangeEnd,
+        memo: plan.notes,
+        status: "pending",
       }));
 
       const { error: plansError } = await supabase
-        .from("student_plans")
+        .from("student_plan")
         .insert(plansToInsert);
 
       if (plansError) {
@@ -639,3 +732,186 @@ async function _saveFromPreview(
 }
 
 export const saveFromPreview = withErrorHandlingSafe(_saveFromPreview);
+
+// ============================================
+// 스트리밍 미리보기 생성 (Phase 3)
+// ============================================
+
+interface BatchPreviewStreamingInput extends BatchPreviewInput {
+  streamingOptions?: PreviewStreamingOptions;
+}
+
+/**
+ * 스트리밍을 지원하는 배치 미리보기 생성
+ *
+ * 학생별로 진행 상태를 실시간 스트리밍합니다.
+ * 미리보기에서는 웹 검색(Grounding)을 비활성화하여 속도를 높입니다.
+ */
+export async function generateBatchPreviewWithStreaming(
+  input: BatchPreviewStreamingInput
+): Promise<BatchPreviewResult> {
+  const { students, settings, streamingOptions } = input;
+  const send = streamingOptions?.onProgress;
+  const signal = streamingOptions?.signal;
+
+  // 권한 확인
+  const user = await getCurrentUser();
+  if (!user || !["admin", "consultant"].includes(user.role)) {
+    throw new AppError(
+      "관리자 또는 컨설턴트 권한이 필요합니다.",
+      ErrorCode.FORBIDDEN,
+      403,
+      true
+    );
+  }
+
+  const tenantContext = await requireTenantContext();
+  const supabase = await createSupabaseServerClient();
+
+  if (!students || students.length === 0) {
+    throw new AppError(
+      "처리할 학생이 없습니다.",
+      ErrorCode.INVALID_INPUT,
+      400,
+      true
+    );
+  }
+
+  // 시작 이벤트
+  send?.({
+    type: "preview_start",
+    progress: 0,
+    total: students.length,
+    timestamp: Date.now(),
+    studentIds: students.map((s) => s.studentId),
+  });
+
+  const previews: StudentPlanPreview[] = [];
+
+  // 순차 처리 (스트리밍에서는 동시성 제한 없이 순차 처리)
+  for (let i = 0; i < students.length; i++) {
+    // 취소 확인
+    if (signal?.aborted) {
+      break;
+    }
+
+    const student = students[i];
+
+    // 학생 이름 조회 (시작 이벤트용)
+    const studentData = await loadStudentData(
+      supabase,
+      student.studentId,
+      tenantContext.tenantId
+    );
+    const studentName = studentData?.name || "Unknown";
+
+    // 학생 시작 이벤트
+    send?.({
+      type: "preview_student_start",
+      progress: i,
+      total: students.length,
+      timestamp: Date.now(),
+      studentId: student.studentId,
+      studentName,
+    });
+
+    try {
+      // 미리보기 생성 (Grounding 비활성화 - 속도 우선)
+      const settingsWithoutGrounding: BatchPlanSettings = {
+        ...settings,
+        enableWebSearch: false, // 미리보기에서는 웹 검색 비활성화
+      };
+
+      const preview = await generatePreviewForStudent(
+        supabase,
+        tenantContext.tenantId,
+        student.studentId,
+        student.contentIds,
+        settingsWithoutGrounding
+      );
+
+      previews.push(preview);
+
+      // 학생 완료 이벤트
+      send?.({
+        type: "preview_student_complete",
+        progress: i + 1,
+        total: students.length,
+        timestamp: Date.now(),
+        studentId: student.studentId,
+        studentName: preview.studentName,
+        preview,
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "알 수 없는 오류";
+
+      const errorPreview: StudentPlanPreview = {
+        studentId: student.studentId,
+        studentName,
+        status: "error",
+        error: errorMessage,
+      };
+
+      previews.push(errorPreview);
+
+      // 학생 오류 이벤트
+      send?.({
+        type: "preview_student_error",
+        progress: i + 1,
+        total: students.length,
+        timestamp: Date.now(),
+        studentId: student.studentId,
+        studentName,
+        error: errorMessage,
+      });
+    }
+  }
+
+  // 요약 계산
+  const succeeded = previews.filter((p) => p.status === "success").length;
+  const failed = previews.filter((p) => p.status === "error").length;
+  const skipped = previews.filter((p) => p.status === "skipped").length;
+  const totalPlans = previews.reduce(
+    (sum, p) => sum + (p.summary?.totalPlans || 0),
+    0
+  );
+  const totalCost = previews.reduce(
+    (sum, p) => sum + (p.cost?.estimatedUSD || 0),
+    0
+  );
+
+  const qualityScores = previews
+    .filter((p) => p.qualityScore)
+    .map((p) => p.qualityScore!.overall);
+  const averageQualityScore =
+    qualityScores.length > 0
+      ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
+      : 0;
+
+  const summary = {
+    total: students.length,
+    succeeded,
+    failed,
+    skipped,
+    totalPlans,
+    totalCost,
+    averageQualityScore: Math.round(averageQualityScore),
+  };
+
+  // 완료 이벤트
+  send?.({
+    type: "preview_complete",
+    progress: students.length,
+    total: students.length,
+    timestamp: Date.now(),
+    previews,
+    summary,
+  });
+
+  return {
+    success: true,
+    previews,
+    summary,
+  };
+}

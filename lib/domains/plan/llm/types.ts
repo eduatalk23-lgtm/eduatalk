@@ -149,6 +149,7 @@ export interface GeneratedPlanItem {
   endTime: string; // HH:mm
   contentId: string;
   contentTitle: string;
+  contentType?: "book" | "lecture"; // 콘텐츠 유형 (DB 저장용)
   subject: string;
   subjectCategory?: string;
   rangeStart?: number; // 시작 페이지/강 번호

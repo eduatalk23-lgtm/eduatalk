@@ -815,7 +815,7 @@ export async function createQuickPlanForStudent(
       resolvedContentId = contentId;
     }
 
-    // 1. plan_group 생성 (plan_mode='quick', is_single_day=true, created_by 포함)
+    // 1. plan_group 생성 (plan_mode='quick', is_single_day=true, last_admin_id 포함)
     const { data: planGroup, error: groupError } = await supabase
       .from("plan_groups")
       .insert({
@@ -829,7 +829,8 @@ export async function createQuickPlanForStudent(
         plan_mode: "quick",
         is_single_day: true,
         creation_mode: isFreeLearning ? "free_learning" : "content_based",
-        created_by: auth.userId, // 생성한 관리자 기록
+        last_admin_id: auth.userId, // 생성/수정한 관리자 기록
+        admin_modified_at: new Date().toISOString(),
       })
       .select("id")
       .single();

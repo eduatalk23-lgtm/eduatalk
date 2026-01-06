@@ -234,7 +234,6 @@ export async function applyPlanTemplate(
         container_type: item.container_type,
         plan_group_id: groupId,
         status: 'pending',
-        is_completed: false,
         is_active: true,
         sequence: item.sequence,
         created_at: now,

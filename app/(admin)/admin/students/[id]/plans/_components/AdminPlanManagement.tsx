@@ -11,6 +11,7 @@ import { DailyDock } from './DailyDock';
 import { WeeklyDock } from './WeeklyDock';
 import { WeeklyCalendar } from './WeeklyCalendar';
 import { PlanDndProvider, getBaseContainerType, type ContainerType } from './dnd';
+import { PlanToastProvider } from './PlanToast';
 import { PlanHistoryViewer } from './PlanHistoryViewer';
 import { DeletedPlansView } from './DeletedPlansView';
 import { CarryoverButton } from './CarryoverButton';
@@ -430,8 +431,9 @@ export function AdminPlanManagement({
   useKeyboardShortcuts({ shortcuts });
 
   return (
-    <PlanDndProvider onMoveItem={handleMoveItem}>
-      <div className={cn('space-y-6', isPending && 'opacity-50 pointer-events-none')}>
+    <PlanToastProvider>
+      <PlanDndProvider onMoveItem={handleMoveItem}>
+        <div className={cn('space-y-6', isPending && 'opacity-50 pointer-events-none')}>
         {/* 헤더 영역 */}
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
@@ -845,7 +847,8 @@ export function AdminPlanManagement({
           onOpenChange={setShowOptimizationPanel}
           hideTrigger
         />
-      </div>
-    </PlanDndProvider>
+        </div>
+      </PlanDndProvider>
+    </PlanToastProvider>
   );
 }

@@ -7,6 +7,7 @@
 import { useState, useCallback, useRef } from "react";
 import { generatePlanStream, type StreamEvent, type StreamPlanInput } from "@/lib/domains/plan/llm/actions/streamPlan";
 import type { LLMPlanGenerationResponse } from "@/lib/domains/plan/llm";
+import type { WebSearchResult } from "@/lib/domains/plan/llm/client";
 
 export type GenerationPhase =
   | "idle"
@@ -29,6 +30,13 @@ export interface UseStreamingGenerationOptions {
   onError?: (error: string) => void;
 }
 
+/** 웹 검색 결과 타입 */
+export interface WebSearchResults {
+  searchQueries: string[];
+  resultsCount: number;
+  results: WebSearchResult[];
+}
+
 export interface UseStreamingGenerationReturn {
   /** 생성 시작 */
   startGeneration: (input: StreamPlanInput) => Promise<void>;
@@ -44,6 +52,8 @@ export interface UseStreamingGenerationReturn {
   error: string | null;
   /** 비용 정보 */
   cost: { inputTokens: number; outputTokens: number; estimatedUSD: number } | null;
+  /** 웹 검색 결과 */
+  webSearchResults: WebSearchResults | null;
   /** 상태 리셋 */
   reset: () => void;
 }
@@ -70,6 +80,7 @@ export function useStreamingGeneration(
     outputTokens: number;
     estimatedUSD: number;
   } | null>(null);
+  const [webSearchResults, setWebSearchResults] = useState<WebSearchResults | null>(null);
 
   const abortRef = useRef(false);
 
@@ -123,6 +134,9 @@ export function useStreamingGeneration(
         if (event.data.cost) {
           setCost(event.data.cost);
         }
+        if (event.data.webSearchResults) {
+          setWebSearchResults(event.data.webSearchResults);
+        }
         break;
 
       case "error":
@@ -145,6 +159,7 @@ export function useStreamingGeneration(
     setError(null);
     setResult(null);
     setCost(null);
+    setWebSearchResults(null);
     setProgress({
       phase: "starting",
       progress: 0,
@@ -195,6 +210,7 @@ export function useStreamingGeneration(
     setResult(null);
     setError(null);
     setCost(null);
+    setWebSearchResults(null);
     setProgress({
       phase: "idle",
       progress: 0,
@@ -211,6 +227,7 @@ export function useStreamingGeneration(
     result,
     error,
     cost,
+    webSearchResults,
     reset,
   };
 }

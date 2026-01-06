@@ -277,7 +277,7 @@ export function RedistributeModal({
               planned_end_page_or_time: newPlanEnd,
               container_type: 'weekly',
               is_active: true,
-              is_completed: false,
+              status: 'pending',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });
@@ -307,7 +307,7 @@ export function RedistributeModal({
               planned_end_page_or_time: newPlanEnd,
               container_type: 'daily',
               is_active: true,
-              is_completed: false,
+              status: 'pending',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             });

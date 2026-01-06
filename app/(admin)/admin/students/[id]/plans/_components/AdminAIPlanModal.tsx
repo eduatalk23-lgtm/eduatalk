@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Zap, Lightbulb } from 'lucide-react';
+import { X, Wand2, AlertCircle, Loader2, CheckCircle2, Sparkles, Zap, Lightbulb, Globe } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { AIPlanGeneratorPanel } from '@/app/(student)/plan/new-group/_components/_features/ai-mode';
 // 직접 경로에서 타입 import (barrel export 회피 - 서버/클라이언트 분리)
@@ -15,6 +15,8 @@ import {
 // Server Action 직접 import (barrel export 회피)
 import { generateHybridPlanCompleteAction } from '@/lib/domains/plan/llm/actions/generateHybridPlanComplete';
 import { isErrorResult } from '@/lib/errors';
+import { WebSearchResultsPanel } from '@/components/plan';
+import type { WebSearchResult } from '@/lib/domains/plan/llm/providers/base';
 
 interface AdminAIPlanModalProps {
   studentId: string;
@@ -92,6 +94,12 @@ export function AdminAIPlanModal({
     totalProcessingTimeMs: number;
     tokensUsed: { input: number; output: number };
   } | null>(null);
+
+  // 웹 검색 옵션 (하이브리드 모드)
+  const [enableWebSearch, setEnableWebSearch] = useState(false);
+  const [saveWebResults, setSaveWebResults] = useState(true);
+  const [webSearchResults, setWebSearchResults] = useState<WebSearchResult[] | null>(null);
+  const [webSearchQueries, setWebSearchQueries] = useState<string[]>([]);
 
   // 플랜 그룹 및 학생/콘텐츠 데이터 로드
   useEffect(() => {
@@ -232,6 +240,11 @@ export function AdminAIPlanModal({
         },
         modelTier: 'standard',
         role: 'admin',
+        enableWebSearch,
+        webSearchConfig: enableWebSearch ? {
+          mode: 'dynamic',
+          saveResults: saveWebResults,
+        } : undefined,
       });
 
       if (!result.success) {
@@ -251,6 +264,13 @@ export function AdminAIPlanModal({
         totalProcessingTimeMs: result.totalProcessingTimeMs || 0,
         tokensUsed: result.tokensUsed || { input: 0, output: 0 },
       });
+
+      // 웹 검색 결과 저장
+      if (result.webSearchResults?.results) {
+        setWebSearchResults(result.webSearchResults.results);
+        setWebSearchQueries(result.webSearchResults.searchQueries || []);
+      }
+
       setSaveSuccess(true);
 
       // 3초 후 모달 닫기 (AI 추천사항 확인 시간)
@@ -359,6 +379,15 @@ export function AdminAIPlanModal({
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* 웹 검색 결과 표시 */}
+              {webSearchResults && webSearchResults.length > 0 && (
+                <WebSearchResultsPanel
+                  results={webSearchResults}
+                  searchQueries={webSearchQueries}
+                  className="mt-4"
+                />
               )}
 
               <p className="text-center text-xs text-gray-400">
@@ -506,6 +535,49 @@ export function AdminAIPlanModal({
                   <span className="text-gray-600">성적 데이터</span>
                   <span className="font-medium text-gray-900">{scoresData.length}개 과목</span>
                 </div>
+              </div>
+
+              {/* 웹 검색 옵션 */}
+              <div className="p-4 rounded-lg border border-gray-200 bg-white space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-gray-700">웹 검색 활용</span>
+                    <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-600 rounded">Gemini</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEnableWebSearch(!enableWebSearch)}
+                    className={cn(
+                      'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                      enableWebSearch ? 'bg-blue-500' : 'bg-gray-300'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                        enableWebSearch ? 'translate-x-4' : 'translate-x-1'
+                      )}
+                    />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  AI가 최신 학습 트렌드와 콘텐츠 정보를 검색하여 플랜에 반영합니다.
+                </p>
+                {enableWebSearch && (
+                  <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                    <input
+                      type="checkbox"
+                      id="saveWebResults"
+                      checked={saveWebResults}
+                      onChange={(e) => setSaveWebResults(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                    />
+                    <label htmlFor="saveWebResults" className="text-xs text-gray-500">
+                      검색 결과를 콘텐츠로 저장
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* 버튼 */}

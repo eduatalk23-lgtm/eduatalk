@@ -98,7 +98,6 @@ export async function copyPlansToDate(
             plan_date: targetDate,
             container_type: sourcePlan.container_type,
             status: 'pending',
-            is_completed: false,
             is_active: true,
             sequence: sourcePlan.sequence,
             plan_details: sourcePlan.plan_details,

@@ -27,6 +27,7 @@ import {
   type GenerateFrameworkResult,
 } from "./generateHybridPlan";
 import type { AIRecommendations, AIFramework } from "../types/aiFramework";
+import type { WebSearchResult } from "../providers/base";
 
 /**
  * 에러 메시지 추출 헬퍼
@@ -67,6 +68,14 @@ export interface GenerateHybridPlanCompleteInput {
   contentMappings?: GenerateFrameworkInput["contentMappings"];
   /** 사용자 역할 */
   role?: "student" | "admin" | "consultant";
+  /** 웹 검색 활성화 여부 (Gemini Grounding) */
+  enableWebSearch?: boolean;
+  /** 웹 검색 설정 */
+  webSearchConfig?: {
+    mode?: "dynamic" | "always";
+    dynamicThreshold?: number;
+    saveResults?: boolean;
+  };
 }
 
 /**
@@ -93,6 +102,12 @@ export interface GenerateHybridPlanCompleteResult {
   error?: string;
   /** 에러 단계 */
   errorPhase?: "ai_framework" | "plan_generation";
+  /** 웹 검색 결과 (grounding 활성화 시) */
+  webSearchResults?: {
+    searchQueries: string[];
+    resultsCount: number;
+    results: WebSearchResult[];
+  };
 }
 
 // ============================================
@@ -148,6 +163,8 @@ async function _generateHybridPlanComplete(
     additionalInstructions: input.additionalInstructions,
     modelTier: input.modelTier,
     contentMappings: input.contentMappings,
+    enableWebSearch: input.enableWebSearch,
+    webSearchConfig: input.webSearchConfig,
   });
 
   // 에러 처리 (withErrorHandlingSafe 래핑 결과)
@@ -222,6 +239,7 @@ async function _generateHybridPlanComplete(
     aiProcessingTimeMs: frameworkResult.processingTimeMs,
     totalProcessingTimeMs: Date.now() - totalStartTime,
     lowConfidenceWarning: frameworkResult.lowConfidenceWarning,
+    webSearchResults: frameworkResult.webSearchResults,
   };
 }
 
@@ -255,6 +273,12 @@ export interface PreviewHybridPlanResult {
   lowConfidenceWarning?: boolean;
   /** 에러 메시지 */
   error?: string;
+  /** 웹 검색 결과 (grounding 활성화 시) */
+  webSearchResults?: {
+    searchQueries: string[];
+    resultsCount: number;
+    results: WebSearchResult[];
+  };
 }
 
 /**
@@ -279,6 +303,8 @@ async function _previewHybridPlan(
     additionalInstructions: input.additionalInstructions,
     modelTier: input.modelTier,
     contentMappings: input.contentMappings,
+    enableWebSearch: input.enableWebSearch,
+    webSearchConfig: input.webSearchConfig,
   });
 
   // 에러 처리 (withErrorHandlingSafe 래핑 결과)
@@ -313,6 +339,7 @@ async function _previewHybridPlan(
     tokensUsed: frameworkResult.tokensUsed,
     processingTimeMs: frameworkResult.processingTimeMs,
     lowConfidenceWarning: frameworkResult.lowConfidenceWarning,
+    webSearchResults: frameworkResult.webSearchResults,
   };
 }
 

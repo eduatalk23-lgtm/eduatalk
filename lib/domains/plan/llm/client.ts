@@ -26,6 +26,8 @@ import {
   type ProviderType,
   type CreateMessageOptions as ProviderCreateMessageOptions,
   type CreateMessageResult as ProviderCreateMessageResult,
+  type GroundingConfig,
+  type GroundingMetadata,
 } from "./providers";
 
 // ============================================
@@ -42,7 +44,7 @@ export {
   isDefaultProviderAvailable,
 } from "./providers";
 
-export type { LLMProvider, ProviderType } from "./providers";
+export type { LLMProvider, ProviderType, GroundingConfig, GroundingMetadata, WebSearchResult } from "./providers";
 
 // ============================================
 // 환경 변수 검증 (하위 호환용)
@@ -146,6 +148,8 @@ export interface CreateMessageOptions {
   modelTier?: ModelTier;
   maxTokens?: number;
   temperature?: number;
+  /** Grounding(웹 검색) 설정 - Gemini Provider에서만 지원 */
+  grounding?: GroundingConfig;
 }
 
 export interface CreateMessageResult {
@@ -156,6 +160,8 @@ export interface CreateMessageResult {
     outputTokens: number;
   };
   modelId: string;
+  /** Grounding 메타데이터 (웹 검색 결과) - Gemini Provider에서 grounding 활성화 시 포함 */
+  groundingMetadata?: GroundingMetadata;
 }
 
 /**
@@ -194,6 +200,7 @@ export async function createMessage(
     modelTier: options.modelTier,
     maxTokens: options.maxTokens,
     temperature: options.temperature,
+    grounding: options.grounding,
   });
 
   // 하위 호환성을 위해 provider 필드 제거
@@ -202,6 +209,7 @@ export async function createMessage(
     stopReason: result.stopReason,
     usage: result.usage,
     modelId: result.modelId,
+    groundingMetadata: result.groundingMetadata,
   };
 }
 
@@ -250,6 +258,7 @@ export async function streamMessage(
           stopReason: result.stopReason,
           usage: result.usage,
           modelId: result.modelId,
+          groundingMetadata: result.groundingMetadata,
         });
       }
     : undefined;
@@ -260,6 +269,7 @@ export async function streamMessage(
     modelTier: options.modelTier,
     maxTokens: options.maxTokens,
     temperature: options.temperature,
+    grounding: options.grounding,
     onText: options.onText,
     onComplete: wrappedOnComplete,
     onError: options.onError,
@@ -271,6 +281,7 @@ export async function streamMessage(
     stopReason: result.stopReason,
     usage: result.usage,
     modelId: result.modelId,
+    groundingMetadata: result.groundingMetadata,
   };
 }
 

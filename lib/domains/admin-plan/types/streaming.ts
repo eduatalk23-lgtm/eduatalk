@@ -2,11 +2,13 @@
  * 배치 플랜 생성 스트리밍 타입
  *
  * Phase 1: 실시간 진행률 스트리밍을 위한 이벤트 타입
+ * Phase 3: 미리보기 스트리밍 이벤트 타입 추가
  *
  * @module lib/domains/admin-plan/types/streaming
  */
 
 import type { StudentPlanResult } from "../actions/batchAIPlanGeneration";
+import type { StudentPlanPreview, BatchPreviewResult } from "./preview";
 
 // ============================================
 // 스트리밍 이벤트 타입
@@ -135,6 +137,123 @@ export function parseSSEEvent(data: string): BatchStreamEvent | null {
     const jsonStr = data.replace(/^data:\s*/, "").trim();
     if (!jsonStr) return null;
     return JSON.parse(jsonStr) as BatchStreamEvent;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
+// 미리보기 스트리밍 이벤트 타입 (Phase 3)
+// ============================================
+
+/**
+ * 미리보기 스트림 이벤트 기본 타입
+ */
+interface PreviewStreamEventBase {
+  /** 현재 진행 인덱스 (1-based) */
+  progress: number;
+  /** 전체 학생 수 */
+  total: number;
+  /** 타임스탬프 */
+  timestamp: number;
+}
+
+/**
+ * 미리보기 시작 이벤트
+ */
+export interface PreviewStreamStartEvent extends PreviewStreamEventBase {
+  type: "preview_start";
+  /** 처리할 학생 ID 목록 */
+  studentIds: string[];
+}
+
+/**
+ * 미리보기 학생 처리 시작 이벤트
+ */
+export interface PreviewStreamStudentStartEvent extends PreviewStreamEventBase {
+  type: "preview_student_start";
+  studentId: string;
+  studentName: string;
+}
+
+/**
+ * 미리보기 학생 처리 완료 이벤트
+ */
+export interface PreviewStreamStudentCompleteEvent extends PreviewStreamEventBase {
+  type: "preview_student_complete";
+  studentId: string;
+  studentName: string;
+  preview: StudentPlanPreview;
+}
+
+/**
+ * 미리보기 학생 처리 오류 이벤트
+ */
+export interface PreviewStreamStudentErrorEvent extends PreviewStreamEventBase {
+  type: "preview_student_error";
+  studentId: string;
+  studentName: string;
+  error: string;
+}
+
+/**
+ * 미리보기 완료 이벤트
+ */
+export interface PreviewStreamCompleteEvent extends PreviewStreamEventBase {
+  type: "preview_complete";
+  previews: StudentPlanPreview[];
+  summary: BatchPreviewResult["summary"];
+}
+
+/**
+ * 미리보기 전체 오류 이벤트
+ */
+export interface PreviewStreamErrorEvent extends PreviewStreamEventBase {
+  type: "preview_error";
+  error: string;
+}
+
+/**
+ * 미리보기 스트림 이벤트 유니온 타입
+ */
+export type PreviewStreamEvent =
+  | PreviewStreamStartEvent
+  | PreviewStreamStudentStartEvent
+  | PreviewStreamStudentCompleteEvent
+  | PreviewStreamStudentErrorEvent
+  | PreviewStreamCompleteEvent
+  | PreviewStreamErrorEvent;
+
+/**
+ * 미리보기 진행률 콜백 함수 타입
+ */
+export type OnPreviewProgressCallback = (event: PreviewStreamEvent) => void;
+
+/**
+ * 미리보기 스트리밍 옵션
+ */
+export interface PreviewStreamingOptions {
+  /** 진행률 콜백 */
+  onProgress?: OnPreviewProgressCallback;
+  /** AbortSignal for cancellation */
+  signal?: AbortSignal;
+}
+
+/**
+ * 미리보기 이벤트를 SSE 형식 문자열로 변환
+ */
+export function formatPreviewSSEEvent(event: PreviewStreamEvent): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
+
+/**
+ * 미리보기 SSE 이벤트 파싱
+ */
+export function parsePreviewSSEEvent(data: string): PreviewStreamEvent | null {
+  try {
+    const jsonStr = data.replace(/^data:\s*/, "").trim();
+    if (!jsonStr) return null;
+    return JSON.parse(jsonStr) as PreviewStreamEvent;
   } catch {
     return null;
   }

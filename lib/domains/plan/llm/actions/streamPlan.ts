@@ -8,7 +8,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getModelConfig, streamMessage, estimateCost } from "../client";
+import { getModelConfig, streamMessage, estimateCost, type WebSearchResult } from "../client";
 import { SYSTEM_PROMPT, buildUserPrompt } from "../prompts/planGeneration";
 import { parseLLMResponse } from "../transformers/responseParser";
 import type { ModelTier, LLMPlanGenerationResponse } from "../types";
@@ -34,6 +34,12 @@ export interface StreamEvent {
     response?: LLMPlanGenerationResponse;
     error?: string;
     cost?: { inputTokens: number; outputTokens: number; estimatedUSD: number };
+    /** 웹 검색 결과 (grounding 사용 시) */
+    webSearchResults?: {
+      searchQueries: string[];
+      resultsCount: number;
+      results: WebSearchResult[];
+    };
   };
 }
 
@@ -53,6 +59,14 @@ export interface StreamPlanInput {
   reviewRatio?: number;
   additionalInstructions?: string;
   modelTier?: ModelTier;
+  /** 웹 검색 활성화 (Gemini Grounding) */
+  enableWebSearch?: boolean;
+  /** 웹 검색 설정 */
+  webSearchConfig?: {
+    mode?: "dynamic" | "always";
+    dynamicThreshold?: number;
+    saveResults?: boolean;
+  };
 }
 
 // ============================================
@@ -240,10 +254,20 @@ export async function* streamPlanGeneration(
     let fullContent = "";
     let lastProgress = 30;
 
+    // 웹 검색 설정 구성
+    const groundingConfig = input.enableWebSearch
+      ? {
+          enabled: true,
+          mode: input.webSearchConfig?.mode || ("dynamic" as const),
+          dynamicThreshold: input.webSearchConfig?.dynamicThreshold,
+        }
+      : undefined;
+
     const result = await streamMessage({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       modelTier: input.modelTier || "standard",
+      grounding: groundingConfig,
       onText: (text) => {
         fullContent += text;
         // 진행률 업데이트 (30% ~ 80%)
@@ -287,6 +311,15 @@ export async function* streamPlanGeneration(
       data: { message: "완료!", progress: 100 },
     };
 
+    // 웹 검색 결과 처리
+    const webSearchResults = result.groundingMetadata && result.groundingMetadata.webResults.length > 0
+      ? {
+          searchQueries: result.groundingMetadata.searchQueries,
+          resultsCount: result.groundingMetadata.webResults.length,
+          results: result.groundingMetadata.webResults,
+        }
+      : undefined;
+
     // 완료 이벤트
     yield {
       type: "complete",
@@ -297,6 +330,7 @@ export async function* streamPlanGeneration(
           outputTokens: result.usage.outputTokens,
           estimatedUSD,
         },
+        webSearchResults,
       },
     };
   } catch (error) {

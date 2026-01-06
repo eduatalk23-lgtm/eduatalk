@@ -12,10 +12,9 @@ export interface DailyPlan {
   content_subject: string | null;
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
-  completed_start_page_or_time: number | null;
-  completed_end_page_or_time: number | null;
+  completed_amount: number | null;
+  progress: number | null;
   status: string | null;
-  is_completed: boolean;
   custom_title: string | null;
   custom_range_display: string | null;
   sequence: number | null;
@@ -102,10 +101,9 @@ export function dailyPlansQueryOptions(studentId: string, date: string) {
           content_subject,
           planned_start_page_or_time,
           planned_end_page_or_time,
-          completed_start_page_or_time,
-          completed_end_page_or_time,
+          completed_amount,
+          progress,
           status,
-          is_completed,
           custom_title,
           custom_range_display,
           sequence,

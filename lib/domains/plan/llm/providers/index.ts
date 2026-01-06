@@ -20,6 +20,9 @@ export type {
   CostInfo,
   ProviderStatus,
   LLMProvider,
+  GroundingConfig,
+  GroundingMetadata,
+  WebSearchResult,
 } from "./base";
 
 export { BaseLLMProvider } from "./base";

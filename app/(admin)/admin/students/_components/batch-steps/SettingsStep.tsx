@@ -84,6 +84,19 @@ function CoinIcon({ className }: { className?: string }) {
   );
 }
 
+function GlobeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+      />
+    </svg>
+  );
+}
+
 // ============================================
 // Props
 // ============================================
@@ -127,9 +140,9 @@ export function SettingsStep({
   const isValidPeriod = daysDiff > 0 && daysDiff <= 365;
 
   const modelOptions = [
-    { value: "fast", label: "Fast (Haiku) - 빠르고 저렴" },
-    { value: "standard", label: "Standard (Sonnet) - 균형" },
-    { value: "advanced", label: "Advanced (Sonnet+) - 고품질" },
+    { value: "fast", label: "빠른 생성 - 기본 플랜" },
+    { value: "standard", label: "표준 - 균형 잡힌 플랜" },
+    { value: "advanced", label: "정밀 - 상세 분석" },
   ];
 
   const dailyMinutesOptions = [
@@ -314,6 +327,65 @@ export function SettingsStep({
             </span>
           </label>
         </div>
+      </div>
+
+      {/* 웹 검색 옵션 (Gemini Grounding) */}
+      <div
+        className={cn(
+          "rounded-lg border p-4 space-y-3",
+          borderDefaultVar,
+          bgSurfaceVar
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <GlobeIcon className="h-4 w-4 text-blue-500" />
+            <span className={cn("text-sm font-medium", textPrimaryVar)}>
+              웹 검색 활용
+            </span>
+            <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-600 rounded dark:bg-blue-900/50 dark:text-blue-400">
+              Gemini
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => updateSetting("enableWebSearch", !settings.enableWebSearch)}
+            className={cn(
+              "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
+              settings.enableWebSearch ? "bg-blue-500" : "bg-gray-300 dark:bg-gray-600"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                settings.enableWebSearch ? "translate-x-4" : "translate-x-1"
+              )}
+            />
+          </button>
+        </div>
+        <p className={cn("text-xs", textSecondaryVar)}>
+          AI가 최신 학습 트렌드와 콘텐츠 정보를 검색하여 플랜에 반영합니다.
+        </p>
+        {settings.enableWebSearch && (
+          <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <input
+              type="checkbox"
+              id="saveWebResults"
+              checked={settings.webSearchConfig?.saveResults ?? true}
+              onChange={(e) =>
+                updateSetting("webSearchConfig", {
+                  ...settings.webSearchConfig,
+                  mode: "dynamic" as const,
+                  saveResults: e.target.checked,
+                })
+              }
+              className="h-3.5 w-3.5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            <label htmlFor="saveWebResults" className={cn("text-xs", textSecondaryVar)}>
+              검색 결과를 콘텐츠로 저장
+            </label>
+          </div>
+        )}
       </div>
 
       {/* 예상 비용 */}

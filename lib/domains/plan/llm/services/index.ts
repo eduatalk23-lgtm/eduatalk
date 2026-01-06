@@ -94,3 +94,13 @@ export {
   type MatchingOptions,
   type MatchingResult,
 } from "./personalizedMatchingService";
+
+// 웹 검색 콘텐츠 서비스 (Gemini Grounding)
+export {
+  WebSearchContentService,
+  getWebSearchContentService,
+  type WebContentType,
+  type WebSearchContent,
+  type SaveWebContentResult,
+  type TransformContext,
+} from "./webSearchContentService";

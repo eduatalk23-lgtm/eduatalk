@@ -45,6 +45,12 @@ export interface StudentPlanPreview {
   };
   /** 에러 메시지 */
   error?: string;
+  /** 웹 검색 결과 (Gemini Grounding) */
+  webSearchResults?: {
+    searchQueries: string[];
+    resultsCount: number;
+    savedCount?: number;
+  };
 }
 
 /**

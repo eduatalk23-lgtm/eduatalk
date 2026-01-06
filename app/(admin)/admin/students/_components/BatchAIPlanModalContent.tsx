@@ -32,12 +32,13 @@ import {
 
 import {
   parseSSEEvent,
+  parsePreviewSSEEvent,
 } from "@/lib/domains/admin-plan/types/streaming";
 
 import {
-  generateBatchPreview,
   saveFromPreview,
 } from "@/lib/domains/admin-plan/actions/batchPreviewPlans";
+import type { StudentPlanPreview } from "@/lib/domains/admin-plan/types/preview";
 import { BatchPreviewStep } from "./BatchPreviewStep";
 
 import {
@@ -196,7 +197,7 @@ export function BatchAIPlanModalContent({
     }
   }, [selectedStudents.length, settings.modelTier, setEstimatedCost]);
 
-  // 미리보기 생성
+  // 미리보기 생성 (스트리밍 방식)
   const handlePreview = useCallback(async () => {
     if (selectedStudents.length === 0) {
       showError("선택된 학생이 없습니다.");
@@ -213,8 +214,14 @@ export function BatchAIPlanModalContent({
     setLoading(true);
     goToPreview();
     setPreviewResult(null);
+    setProgress(0);
+    setCurrentStudent("");
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
+      // 학생 콘텐츠 정보 가져오기
       const studentIds = selectedStudents.map((s) => s.id);
       const contentsMap = await getStudentsContentsForBatch(studentIds);
 
@@ -225,33 +232,116 @@ export function BatchAIPlanModalContent({
 
       setPreviewStudents(students);
 
-      const result = await generateBatchPreview({
-        students,
-        settings,
+      // 스트리밍 API 호출
+      const response = await fetch("/api/admin/batch-plan/preview/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          students,
+          settings,
+        }),
+        signal: controller.signal,
       });
 
-      if (result.success && result.previews) {
-        setPreviewResult(result);
-        const successIds = result.previews
-          .filter((p) => p.status === "success")
-          .map((p) => p.studentId);
-        setSelectedStudentIds(successIds);
-      } else {
-        const errorMessage =
-          typeof result.error === "string"
-            ? result.error
-            : "미리보기 생성에 실패했습니다.";
-        showError(errorMessage);
-        goToSettings();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "미리보기 생성 요청에 실패했습니다.");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("스트림을 읽을 수 없습니다.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const partialPreviews: StudentPlanPreview[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const event = parsePreviewSSEEvent(line);
+          if (!event) continue;
+
+          switch (event.type) {
+            case "preview_start":
+              setProgress(0);
+              break;
+
+            case "preview_student_start":
+              setCurrentStudent(event.studentName);
+              break;
+
+            case "preview_student_complete":
+              partialPreviews.push(event.preview);
+              setProgress(event.progress);
+              // 부분 결과 즉시 표시
+              setPreviewResult({
+                success: true,
+                previews: [...partialPreviews],
+                summary: {
+                  total: event.total,
+                  succeeded: partialPreviews.filter((p) => p.status === "success").length,
+                  failed: partialPreviews.filter((p) => p.status === "error").length,
+                  skipped: partialPreviews.filter((p) => p.status === "skipped").length,
+                  totalPlans: partialPreviews.reduce((sum, p) => sum + (p.summary?.totalPlans || 0), 0),
+                  totalCost: partialPreviews.reduce((sum, p) => sum + (p.cost?.estimatedUSD || 0), 0),
+                  averageQualityScore: 0,
+                },
+              });
+              break;
+
+            case "preview_student_error":
+              partialPreviews.push({
+                studentId: event.studentId,
+                studentName: event.studentName,
+                status: "error",
+                error: event.error,
+              });
+              setProgress(event.progress);
+              break;
+
+            case "preview_complete":
+              setPreviewResult({
+                success: true,
+                previews: event.previews,
+                summary: event.summary,
+              });
+              const successIds = event.previews
+                .filter((p) => p.status === "success")
+                .map((p) => p.studentId);
+              setSelectedStudentIds(successIds);
+              setCurrentStudent("");
+              break;
+
+            case "preview_error":
+              throw new Error(event.error);
+          }
+        }
       }
     } catch (error) {
-      console.error("Preview Error:", error);
+      if (error instanceof Error && error.name === "AbortError") {
+        goToSettings();
+        return;
+      }
+
+      console.error("Preview Streaming Error:", error);
       showError(
         error instanceof Error ? error.message : "미리보기 생성 중 오류가 발생했습니다."
       );
       goToSettings();
     } finally {
       setLoading(false);
+      setCurrentStudent("");
+      abortControllerRef.current = null;
     }
   }, [
     selectedStudents,
@@ -263,6 +353,8 @@ export function BatchAIPlanModalContent({
     setPreviewResult,
     setPreviewStudents,
     setSelectedStudentIds,
+    setProgress,
+    setCurrentStudent,
   ]);
 
   // 미리보기에서 저장
@@ -587,7 +679,7 @@ export function BatchAIPlanModalContent({
             estimatedCost={estimatedCost}
           />
         )}
-        {currentStep === "preview" && previewResult && (
+        {currentStep === "preview" && previewResult && !isLoading && (
           <BatchPreviewStep
             previewResult={previewResult}
             selectedStudentIds={selectedStudentIds}
@@ -596,11 +688,62 @@ export function BatchAIPlanModalContent({
           />
         )}
         {currentStep === "preview" && !previewResult && isLoading && (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
             <LoaderIcon className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-3" style={{ color: textSecondaryVar }}>
-              미리보기 생성 중...
-            </span>
+            <div className="text-center">
+              <p className={cn("text-sm font-medium", textSecondaryVar)}>
+                미리보기 생성 중...
+              </p>
+              {currentStudent && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
+                  {currentStudent} 처리 중
+                </p>
+              )}
+              {progress > 0 && (
+                <p className={cn("text-xs mt-2", textSecondaryVar)}>
+                  {progress} / {selectedStudents.length} 완료
+                </p>
+              )}
+            </div>
+            {/* 진행률 바 */}
+            {progress > 0 && (
+              <div className="w-full max-w-xs">
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                    style={{ width: `${(progress / selectedStudents.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* 부분 결과 표시 (스트리밍 중) */}
+        {currentStep === "preview" && previewResult && isLoading && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+              <LoaderIcon className="h-5 w-5 animate-spin text-blue-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  {currentStudent ? `${currentStudent} 처리 중...` : "플랜 생성 중..."}
+                </p>
+                <p className={cn("text-xs", textSecondaryVar)}>
+                  {progress} / {selectedStudents.length} 완료
+                </p>
+              </div>
+              <div className="w-24 h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                  style={{ width: `${(progress / selectedStudents.length) * 100}%` }}
+                />
+              </div>
+            </div>
+            <BatchPreviewStep
+              previewResult={previewResult}
+              selectedStudentIds={selectedStudentIds}
+              onSelectionChange={setSelectedStudentIds}
+              isLoading={isLoading}
+            />
           </div>
         )}
         {currentStep === "progress" && (

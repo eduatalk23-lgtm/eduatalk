@@ -56,7 +56,6 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
         .select(`
           id,
           status,
-          is_completed,
           content_subject,
           plan_date,
           planned_start_page_or_time,
@@ -79,7 +78,7 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
 
       // 통계 계산
       const totalPlans = plans.length;
-      const completedPlans = plans.filter(p => p.is_completed).length;
+      const completedPlans = plans.filter(p => p.status === 'completed').length;
       const pendingPlans = plans.filter(p => p.status === 'pending' || !p.status).length;
       const inProgressPlans = plans.filter(p => p.status === 'in_progress').length;
       const carryoverCount = plans.filter(p => (p.carryover_count ?? 0) > 0).length;
@@ -101,7 +100,7 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
         const subject = p.content_subject ?? '기타';
         const current = subjectMap.get(subject) ?? { total: 0, completed: 0 };
         current.total += 1;
-        if (p.is_completed) current.completed += 1;
+        if (p.status === 'completed') current.completed += 1;
         subjectMap.set(subject, current);
       });
 
@@ -122,7 +121,7 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
         if (trendMap.has(p.plan_date)) {
           const current = trendMap.get(p.plan_date)!;
           current.total += 1;
-          if (p.is_completed) current.completed += 1;
+          if (p.status === 'completed') current.completed += 1;
         }
       });
 

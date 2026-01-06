@@ -19,8 +19,8 @@ export interface PlanItemData {
   subject?: string;
   pageRangeStart?: number | null;
   pageRangeEnd?: number | null;
-  completedStart?: number | null;
-  completedEnd?: number | null;
+  completedAmount?: number | null;
+  progress?: number | null;
   status: string;
   isCompleted: boolean;
   customTitle?: string | null;
@@ -385,8 +385,8 @@ export function PlanItemCard({
                 planId={plan.id}
                 plannedStart={plan.pageRangeStart!}
                 plannedEnd={plan.pageRangeEnd!}
-                completedStart={plan.completedStart ?? 0}
-                completedEnd={plan.completedEnd ?? 0}
+                completedStart={plan.pageRangeStart ?? 0}
+                completedEnd={(plan.pageRangeStart ?? 0) + (plan.completedAmount ?? 0)}
                 onSuccess={onRefresh}
               />
             </div>
@@ -517,10 +517,10 @@ export function toPlanItemData(
     subject: raw.content_subject ?? undefined,
     pageRangeStart: raw.planned_start_page_or_time,
     pageRangeEnd: raw.planned_end_page_or_time,
-    completedStart: raw.completed_start_page_or_time,
-    completedEnd: raw.completed_end_page_or_time,
+    completedAmount: raw.completed_amount,
+    progress: raw.progress,
     status: raw.status ?? 'pending',
-    isCompleted: raw.is_completed || raw.status === 'completed',
+    isCompleted: raw.status === 'completed' || (raw.progress ?? 0) >= 100,
     customTitle: raw.custom_title,
     customRangeDisplay: raw.custom_range_display,
     planDate: raw.plan_date,
