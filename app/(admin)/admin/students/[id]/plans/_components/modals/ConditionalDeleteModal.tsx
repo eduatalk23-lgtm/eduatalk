@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { cn } from '@/lib/cn';
+import { Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
 import { logPlanDeleted } from '@/lib/domains/admin-plan/actions';
+import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface ConditionalDeleteModalProps {
   studentId: string;
@@ -179,155 +180,147 @@ export function ConditionalDeleteModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div
-        className={cn(
-          'bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col',
-          isPending && 'opacity-50 pointer-events-none'
-        )}
-      >
-        {/* 헤더 */}
-        <div className="p-4 border-b shrink-0">
-          <h2 className="text-lg font-bold text-red-700">조건부 삭제</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            조건에 맞는 플랜을 일괄 삭제합니다
-          </p>
-        </div>
-
-        {/* 필터 조건 */}
-        <div className="p-4 space-y-3 border-b">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">상태</label>
-              <select
-                value={filter.status}
-                onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">컨테이너</label>
-              <select
-                value={filter.containerType}
-                onChange={(e) => setFilter({ ...filter, containerType: e.target.value as FilterCondition['containerType'] })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
-              >
-                {CONTAINER_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">시작일</label>
-              <input
-                type="date"
-                value={filter.dateFrom}
-                onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">종료일</label>
-              <input
-                type="date"
-                value={filter.dateTo}
-                onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-                className="w-full px-2 py-1.5 border rounded text-sm"
-              />
-            </div>
-          </div>
+    <ModalWrapper
+      open={true}
+      onClose={onClose}
+      title="조건부 삭제"
+      subtitle="조건에 맞는 플랜을 일괄 삭제합니다"
+      icon={<Trash2 className="h-5 w-5" />}
+      theme="red"
+      size="lg"
+      loading={isPending}
+      footer={
+        <>
+          <ModalButton variant="secondary" onClick={onClose}>
+            취소
+          </ModalButton>
+          <ModalButton
+            variant="danger"
+            onClick={handleDelete}
+            disabled={previewPlans.length === 0 || !confirmDelete}
+            loading={isPending}
+          >
+            {previewPlans.length}개 삭제
+          </ModalButton>
+        </>
+      }
+    >
+      {/* 필터 조건 */}
+      <div className="p-4 space-y-3 border-b">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">플랜 그룹</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">상태</label>
             <select
-              value={filter.planGroupId}
-              onChange={(e) => setFilter({ ...filter, planGroupId: e.target.value })}
-              className="w-full px-2 py-1.5 border rounded text-sm"
+              value={filter.status}
+              onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
+              className="w-full px-2 py-1.5 border rounded-lg text-sm"
             >
-              <option value="all">모든 그룹</option>
-              <option value="none">그룹 없음</option>
-              {planGroups.map((g) => (
-                <option key={g.id} value={g.id}>{g.name}</option>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
           </div>
-          <button
-            onClick={handlePreview}
-            disabled={isLoading}
-            className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium"
-          >
-            {isLoading ? '조회 중...' : '조건에 맞는 플랜 조회'}
-          </button>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">컨테이너</label>
+            <select
+              value={filter.containerType}
+              onChange={(e) => setFilter({ ...filter, containerType: e.target.value as FilterCondition['containerType'] })}
+              className="w-full px-2 py-1.5 border rounded-lg text-sm"
+            >
+              {CONTAINER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
-
-        {/* 미리보기 */}
-        <div className="p-4 flex-1 overflow-y-auto">
-          {previewPlans.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              조건을 설정하고 조회 버튼을 눌러주세요
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-red-700 mb-2">
-                삭제될 플랜: {previewPlans.length}개
-              </div>
-              <div className="max-h-48 overflow-y-auto space-y-1">
-                {previewPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex items-center justify-between p-2 bg-red-50 rounded text-sm"
-                  >
-                    <div className="flex-1 min-w-0 truncate">
-                      {plan.custom_title ?? plan.content_title ?? '제목 없음'}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-                      <span>{formatDate(plan.plan_date)}</span>
-                      <span>{getStatusLabel(plan.status)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 삭제 확인 */}
-              <div className="mt-4 p-3 bg-red-100 rounded-lg">
-                <label className="flex items-center gap-2 text-sm text-red-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={confirmDelete}
-                    onChange={(e) => setConfirmDelete(e.target.checked)}
-                    className="rounded border-red-300 text-red-600 focus:ring-red-500"
-                  />
-                  <span>
-                    <strong>{previewPlans.length}개</strong> 플랜 삭제를 확인합니다
-                  </span>
-                </label>
-              </div>
-            </div>
-          )}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">시작일</label>
+            <input
+              type="date"
+              value={filter.dateFrom}
+              onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
+              className="w-full px-2 py-1.5 border rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">종료일</label>
+            <input
+              type="date"
+              value={filter.dateTo}
+              onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
+              className="w-full px-2 py-1.5 border rounded-lg text-sm"
+            />
+          </div>
         </div>
-
-        {/* 푸터 */}
-        <div className="p-4 border-t flex justify-end gap-2 shrink-0">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">플랜 그룹</label>
+          <select
+            value={filter.planGroupId}
+            onChange={(e) => setFilter({ ...filter, planGroupId: e.target.value })}
+            className="w-full px-2 py-1.5 border rounded-lg text-sm"
           >
-            취소
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={previewPlans.length === 0 || !confirmDelete || isPending}
-            className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isPending ? '삭제 중...' : `${previewPlans.length}개 삭제`}
-          </button>
+            <option value="all">모든 그룹</option>
+            <option value="none">그룹 없음</option>
+            {planGroups.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
         </div>
+        <button
+          onClick={handlePreview}
+          disabled={isLoading}
+          className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+        >
+          {isLoading ? '조회 중...' : '조건에 맞는 플랜 조회'}
+        </button>
       </div>
-    </div>
+
+      {/* 미리보기 */}
+      <div className="p-4">
+        {previewPlans.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            조건을 설정하고 조회 버튼을 눌러주세요
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-red-700 mb-2">
+              삭제될 플랜: {previewPlans.length}개
+            </div>
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {previewPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="flex items-center justify-between p-2 bg-red-50 rounded-lg text-sm"
+                >
+                  <div className="flex-1 min-w-0 truncate">
+                    {plan.custom_title ?? plan.content_title ?? '제목 없음'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                    <span>{formatDate(plan.plan_date)}</span>
+                    <span>{getStatusLabel(plan.status)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 삭제 확인 */}
+            <div className="mt-4 p-3 bg-red-100 rounded-lg">
+              <label className="flex items-center gap-2 text-sm text-red-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={confirmDelete}
+                  onChange={(e) => setConfirmDelete(e.target.checked)}
+                  className="rounded border-red-300 text-red-600 focus:ring-red-500"
+                />
+                <span>
+                  <strong>{previewPlans.length}개</strong> 플랜 삭제를 확인합니다
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+    </ModalWrapper>
   );
 }

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { adminUpdateStudentPlan } from '@/lib/domains/admin-plan/actions/editPlan';
 import type { PlanStatus } from '@/lib/domains/admin-plan/types';
+import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface PlanStatusModalProps {
   planId: string;
@@ -81,65 +83,58 @@ export function PlanStatusModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div
-        className={cn(
-          'bg-white rounded-lg w-full max-w-sm overflow-hidden',
-          isPending && 'opacity-50 pointer-events-none'
-        )}
-      >
-        {/* 헤더 */}
-        <div className="p-4 border-b">
-          <h2 className="text-lg font-bold">상태 변경</h2>
-          <p className="text-sm text-gray-500 truncate mt-1">{planTitle}</p>
-        </div>
-
-        {/* 상태 선택 */}
-        <div className="p-4 space-y-2">
-          {STATUS_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className={cn(
-                'flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors',
-                selectedStatus === option.value
-                  ? option.color
-                  : 'border-gray-200 hover:bg-gray-50'
-              )}
-            >
-              <input
-                type="radio"
-                checked={selectedStatus === option.value}
-                onChange={() => setSelectedStatus(option.value)}
-                className="w-4 h-4"
-              />
-              <div className="flex-1">
-                <div className="font-medium">{option.label}</div>
-                <div className="text-xs opacity-75">{option.description}</div>
-              </div>
-              {option.value === currentStatus && (
-                <span className="text-xs px-2 py-0.5 bg-white/50 rounded">현재</span>
-              )}
-            </label>
-          ))}
-        </div>
-
-        {/* 푸터 */}
-        <div className="p-4 border-t flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
-          >
+    <ModalWrapper
+      open={true}
+      onClose={onClose}
+      title="상태 변경"
+      subtitle={planTitle}
+      icon={<RefreshCw className="h-5 w-5" />}
+      theme="blue"
+      size="sm"
+      loading={isPending}
+      footer={
+        <>
+          <ModalButton variant="secondary" onClick={onClose}>
             취소
-          </button>
-          <button
+          </ModalButton>
+          <ModalButton
+            theme="blue"
             onClick={handleSubmit}
-            disabled={selectedStatus === currentStatus || isPending}
-            className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={selectedStatus === currentStatus}
+            loading={isPending}
           >
-            {isPending ? '변경 중...' : '상태 변경'}
-          </button>
-        </div>
+            상태 변경
+          </ModalButton>
+        </>
+      }
+    >
+      <div className="p-4 space-y-2">
+        {STATUS_OPTIONS.map((option) => (
+          <label
+            key={option.value}
+            className={cn(
+              'flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors',
+              selectedStatus === option.value
+                ? option.color
+                : 'border-gray-200 hover:bg-gray-50'
+            )}
+          >
+            <input
+              type="radio"
+              checked={selectedStatus === option.value}
+              onChange={() => setSelectedStatus(option.value)}
+              className="w-4 h-4"
+            />
+            <div className="flex-1">
+              <div className="font-medium">{option.label}</div>
+              <div className="text-xs opacity-75">{option.description}</div>
+            </div>
+            {option.value === currentStatus && (
+              <span className="text-xs px-2 py-0.5 bg-white/50 rounded">현재</span>
+            )}
+          </label>
+        ))}
       </div>
-    </div>
+    </ModalWrapper>
   );
 }
