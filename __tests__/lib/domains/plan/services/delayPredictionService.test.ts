@@ -452,6 +452,193 @@ describe("delayPredictionService", () => {
     });
   });
 
+  describe("averageDelayDays 계산", () => {
+    interface PlanWithCompletion {
+      plan_date: string;
+      simple_completed: boolean;
+      simple_completed_at: string | null;
+    }
+
+    function calculateAverageDelayDays(plans: PlanWithCompletion[]): number {
+      const delayDays: number[] = [];
+
+      for (const plan of plans) {
+        const isCompleted = plan.simple_completed === true;
+
+        if (isCompleted && plan.simple_completed_at) {
+          const planDate = new Date(plan.plan_date);
+          planDate.setHours(0, 0, 0, 0);
+
+          const completedDate = new Date(plan.simple_completed_at);
+          completedDate.setHours(0, 0, 0, 0);
+
+          const diffTime = completedDate.getTime() - planDate.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 0) {
+            delayDays.push(diffDays);
+          }
+        }
+      }
+
+      if (delayDays.length === 0) return 0;
+      return (
+        Math.round(
+          (delayDays.reduce((a, b) => a + b, 0) / delayDays.length) * 10
+        ) / 10
+      );
+    }
+
+    it("당일 완료 시 지연일 0", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-15",
+          simple_completed: true,
+          simple_completed_at: "2025-01-15T10:30:00Z",
+        },
+      ];
+      expect(calculateAverageDelayDays(plans)).toBe(0);
+    });
+
+    it("1일 지연 완료 시 지연일 1", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-15",
+          simple_completed: true,
+          simple_completed_at: "2025-01-16T10:30:00Z",
+        },
+      ];
+      expect(calculateAverageDelayDays(plans)).toBe(1);
+    });
+
+    it("3일 지연 완료 시 지연일 3", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-15",
+          simple_completed: true,
+          // 로컬 날짜로 파싱되도록 T00:00:00 형식 사용
+          simple_completed_at: "2025-01-18T00:00:00",
+        },
+      ];
+      expect(calculateAverageDelayDays(plans)).toBe(3);
+    });
+
+    it("여러 플랜의 평균 지연일 계산", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-10",
+          simple_completed: true,
+          simple_completed_at: "2025-01-10T09:00:00", // 0일 지연
+        },
+        {
+          plan_date: "2025-01-11",
+          simple_completed: true,
+          simple_completed_at: "2025-01-13T12:00:00", // 2일 지연
+        },
+        {
+          plan_date: "2025-01-12",
+          simple_completed: true,
+          simple_completed_at: "2025-01-16T18:00:00", // 4일 지연
+        },
+      ];
+      // (0 + 2 + 4) / 3 = 2.0
+      expect(calculateAverageDelayDays(plans)).toBe(2);
+    });
+
+    it("미완료 플랜은 지연일 계산에서 제외", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-10",
+          simple_completed: true,
+          simple_completed_at: "2025-01-11T09:00:00", // 1일 지연
+        },
+        {
+          plan_date: "2025-01-11",
+          simple_completed: false, // 미완료
+          simple_completed_at: null,
+        },
+        {
+          plan_date: "2025-01-12",
+          simple_completed: true,
+          simple_completed_at: "2025-01-15T18:00:00", // 3일 지연
+        },
+      ];
+      // (1 + 3) / 2 = 2.0
+      expect(calculateAverageDelayDays(plans)).toBe(2);
+    });
+
+    it("조기 완료는 지연일에 포함하지 않음", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-15",
+          simple_completed: true,
+          simple_completed_at: "2025-01-14T10:00:00", // 하루 전 완료 → 음수이므로 제외
+        },
+        {
+          plan_date: "2025-01-16",
+          simple_completed: true,
+          simple_completed_at: "2025-01-18T10:00:00", // 2일 지연
+        },
+      ];
+      // 조기 완료는 제외되므로 2일만 계산
+      expect(calculateAverageDelayDays(plans)).toBe(2);
+    });
+
+    it("완료된 플랜이 없으면 0 반환", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-10",
+          simple_completed: false,
+          simple_completed_at: null,
+        },
+        {
+          plan_date: "2025-01-11",
+          simple_completed: false,
+          simple_completed_at: null,
+        },
+      ];
+      expect(calculateAverageDelayDays(plans)).toBe(0);
+    });
+
+    it("빈 배열이면 0 반환", () => {
+      expect(calculateAverageDelayDays([])).toBe(0);
+    });
+
+    it("소수점 첫째 자리까지 반올림", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-10",
+          simple_completed: true,
+          simple_completed_at: "2025-01-11T09:00:00", // 1일
+        },
+        {
+          plan_date: "2025-01-11",
+          simple_completed: true,
+          simple_completed_at: "2025-01-13T12:00:00", // 2일
+        },
+        {
+          plan_date: "2025-01-12",
+          simple_completed: true,
+          simple_completed_at: "2025-01-13T18:00:00", // 1일
+        },
+      ];
+      // (1 + 2 + 1) / 3 = 1.333... → 1.3
+      expect(calculateAverageDelayDays(plans)).toBe(1.3);
+    });
+
+    it("시간대와 관계없이 날짜 단위로 계산", () => {
+      const plans: PlanWithCompletion[] = [
+        {
+          plan_date: "2025-01-15",
+          simple_completed: true,
+          simple_completed_at: "2025-01-16T01:00:00", // 다음 날 새벽 1시
+        },
+      ];
+      // 날짜만 비교하므로 1일 지연
+      expect(calculateAverageDelayDays(plans)).toBe(1);
+    });
+  });
+
   describe("트렌드 분석", () => {
     function analyzeTrend(
       recentPlans: Array<{ simple_completed: boolean }>,

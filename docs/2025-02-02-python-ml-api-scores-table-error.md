@@ -1,8 +1,53 @@
 # Python ML API `scores` 테이블 에러 조사 보고서
 
-**작성일**: 2025-02-02  
-**문제 발생 위치**: Python ML API (`python/src/db_connector.py`)  
+**작성일**: 2025-02-02
+**문제 발생 위치**: Python ML API (`python/src/db_connector.py`)
 **에러 코드**: `PGRST205`
+
+---
+
+## ✅ 해결 완료
+
+**해결일**: 2026-01-06
+**해결 방법**: 옵션 1 - 통합 뷰 생성
+
+### 적용된 마이그레이션
+
+**파일**: `supabase/migrations/20260106120000_create_scores_unified_view.sql`
+
+```sql
+CREATE OR REPLACE VIEW scores AS
+-- Internal scores (내신 성적)
+SELECT
+    sis.id, sis.student_id, sis.tenant_id,
+    s.name AS subject,
+    COALESCE(sis.raw_score, 0) AS score,
+    sis.rank_grade, sis.created_at,
+    'internal'::TEXT AS score_type
+    -- ... (추가 필드)
+FROM student_internal_scores sis
+LEFT JOIN subjects s ON s.id = sis.subject_id
+
+UNION ALL
+
+-- Mock scores (모의고사 성적)
+SELECT
+    sms.id, sms.student_id, sms.tenant_id,
+    s.name AS subject,
+    COALESCE(sms.raw_score, 0) AS score,
+    sms.grade_score AS rank_grade, sms.created_at,
+    'mock'::TEXT AS score_type
+    -- ... (추가 필드)
+FROM student_mock_scores sms
+LEFT JOIN subjects s ON s.id = sms.subject_id;
+```
+
+### 검증 결과
+
+- ✅ 뷰 생성 완료
+- ✅ Mock 성적 5개 레코드 확인
+- ✅ TypeScript 타입 재생성 완료 (`lib/supabase/database.types.ts`)
+- ✅ Python ML API 코드 변경 없이 해결
 
 ---
 
@@ -27,11 +72,13 @@ Get predictable subjects error: Error: {'message': "Could not find the table 'pu
 ### 1. 데이터베이스 스키마 불일치
 
 **현재 데이터베이스 구조**:
+
 - ✅ `student_internal_scores` - 내신 성적 테이블
 - ✅ `student_mock_scores` - 모의고사 성적 테이블
 - ❌ `scores` - **존재하지 않음**
 
 **Python ML API 코드**:
+
 ```python:100:112:python/src/db_connector.py
 def get_student_scores(
     self, student_id: str, limit: int = 100
@@ -53,6 +100,7 @@ def get_student_scores(
 다음 엔드포인트들이 `get_student_scores()` 메서드를 사용하여 에러가 발생합니다:
 
 1. **예측 가능한 과목 목록** (`/api/predictions/subjects/{student_id}`)
+
    ```python:171:196:python/src/api/routes/predictions.py
    @router.get("/subjects/{student_id}")
    async def get_predictable_subjects(student_id: str) -> dict[str, Any]:
@@ -62,6 +110,7 @@ def get_student_scores(
    ```
 
 2. **콘텐츠 추천** (`/api/recommendations/content`)
+
    ```python:86:145:python/src/api/routes/recommendations.py
    @router.post("/content", response_model=ContentRecommendationResponse)
    async def recommend_content(
@@ -74,6 +123,7 @@ def get_student_scores(
    ```
 
 3. **성적 예측** (`/api/predictions/score`)
+
    ```python:64:117:python/src/api/routes/predictions.py
    @router.post("/score", response_model=ScorePredictionResponse)
    async def predict_score(request: ScorePredictionRequest) -> ScorePredictionResponse:
@@ -84,6 +134,7 @@ def get_student_scores(
    ```
 
 4. **취약 과목 조회** (`/api/recommendations/weak-subjects/{student_id}`)
+
    ```python:209:238:python/src/api/routes/recommendations.py
    @router.get("/weak-subjects/{student_id}")
    async def get_weak_subjects(student_id: str) -> dict[str, Any]:
@@ -106,10 +157,12 @@ def get_student_scores(
 ### 3. 테이블 구조 차이
 
 **레거시 `scores` 테이블 (존재하지 않음)**:
+
 - 단일 테이블에 모든 성적 데이터 저장
 - `subject` 필드로 과목 구분
 
 **현재 스키마**:
+
 - `student_internal_scores`: 내신 성적 (과목 ID 기반)
 - `student_mock_scores`: 모의고사 성적 (과목 ID 기반)
 - 정규화된 구조로 `subject_id`, `subject_group_id` 등 사용
@@ -125,7 +178,7 @@ def get_student_scores(
 ```sql
 -- 통합 성적 뷰 생성
 CREATE OR REPLACE VIEW scores AS
-SELECT 
+SELECT
     id,
     student_id,
     tenant_id,
@@ -145,7 +198,7 @@ FROM student_internal_scores
 
 UNION ALL
 
-SELECT 
+SELECT
     id,
     student_id,
     tenant_id,
@@ -164,11 +217,13 @@ FROM student_mock_scores;
 ```
 
 **장점**:
+
 - Python ML API 코드 수정 최소화
 - 기존 로직 유지 가능
 - 데이터베이스 레벨에서 통합 관리
 
 **단점**:
+
 - 뷰 성능 고려 필요
 - 과목명 조인으로 인한 성능 저하 가능
 
@@ -190,7 +245,7 @@ def get_student_scores(
         .limit(limit)
         .execute()
     )
-    
+
     # 모의고사 성적 조회
     mock_response = (
         self.client.table("student_mock_scores")
@@ -200,34 +255,36 @@ def get_student_scores(
         .limit(limit)
         .execute()
     )
-    
+
     # DataFrame 변환 및 통합
     internal_df = pd.DataFrame(internal_response.data)
     mock_df = pd.DataFrame(mock_response.data)
-    
+
     # 컬럼명 통일 (subject 필드 추가)
     if not internal_df.empty:
         internal_df['subject'] = internal_df['subjects']['name']
         internal_df['score'] = internal_df['raw_score']
         internal_df['score_type'] = 'internal'
-    
+
     if not mock_df.empty:
         mock_df['subject'] = mock_df['subjects']['name']
         mock_df['score'] = mock_df['raw_score']
         mock_df['score_type'] = 'mock'
-    
+
     # 통합 및 정렬
     combined_df = pd.concat([internal_df, mock_df], ignore_index=True)
     combined_df = combined_df.sort_values('created_at', ascending=False).head(limit)
-    
+
     return combined_df
 ```
 
 **장점**:
+
 - 데이터베이스 뷰 불필요
 - 더 세밀한 제어 가능
 
 **단점**:
+
 - 코드 복잡도 증가
 - 두 번의 쿼리 실행으로 인한 성능 고려
 
@@ -263,20 +320,20 @@ def get_all_student_scores(
 
 ### 필드 매핑 테이블
 
-| 레거시 `scores` | `student_internal_scores` | `student_mock_scores` | 비고 |
-|----------------|---------------------------|----------------------|------|
-| `id` | `id` | `id` | - |
-| `student_id` | `student_id` | `student_id` | - |
-| `subject` | `subjects.name` (조인) | `subjects.name` (조인) | 텍스트 → ID 기반 |
-| `score` | `raw_score` | `raw_score` | - |
-| `created_at` | `created_at` | `created_at` | - |
-| `grade` | `grade` | `grade` | - |
-| - | `semester` | - | 내신 전용 |
-| - | `avg_score` | - | 내신 전용 |
-| - | `std_dev` | - | 내신 전용 |
-| - | `rank_grade` | `grade_score` | - |
-| - | `exam_date` | - | 모의고사 전용 |
-| - | `exam_title` | - | 모의고사 전용 |
+| 레거시 `scores` | `student_internal_scores` | `student_mock_scores`  | 비고             |
+| --------------- | ------------------------- | ---------------------- | ---------------- |
+| `id`            | `id`                      | `id`                   | -                |
+| `student_id`    | `student_id`              | `student_id`           | -                |
+| `subject`       | `subjects.name` (조인)    | `subjects.name` (조인) | 텍스트 → ID 기반 |
+| `score`         | `raw_score`               | `raw_score`            | -                |
+| `created_at`    | `created_at`              | `created_at`           | -                |
+| `grade`         | `grade`                   | `grade`                | -                |
+| -               | `semester`                | -                      | 내신 전용        |
+| -               | `avg_score`               | -                      | 내신 전용        |
+| -               | `std_dev`                 | -                      | 내신 전용        |
+| -               | `rank_grade`              | `grade_score`          | -                |
+| -               | `exam_date`               | -                      | 모의고사 전용    |
+| -               | `exam_title`              | -                      | 모의고사 전용    |
 
 ---
 
@@ -291,6 +348,7 @@ def get_all_student_scores(
 ### 구현 단계
 
 1. **마이그레이션 파일 생성**
+
    ```bash
    # 시스템 타임스탬프 사용
    supabase migration new create_scores_view
@@ -337,4 +395,3 @@ def get_all_student_scores(
 
 **작성자**: AI Assistant  
 **검토 필요**: Python ML API 팀, 데이터베이스 팀
-

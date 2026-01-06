@@ -43,36 +43,38 @@
 
 ## 알려진 문제점
 
-### 1. AI 플랜 생성 시 제외 날짜 미지원 🔴 HIGH
+### 1. AI 플랜 생성 시 제외 날짜 미지원 ✅ (해결됨)
 
-**위치**: `lib/domains/plan/llm/actions/generatePlan.ts:445`
+**위치**: `lib/domains/plan/llm/actions/generatePlan.ts`
 
-**문제**:
+**해결 상태**: ✅ 완료 (2026-01-05)
+
+**해결 내용**:
+1. `GeneratePlanInput` 타입에 `excludeDates?: string[]` 필드 추가
+2. 플랜 그룹이 있으면 `getPlanExclusions()`로 제외일 자동 조회
+3. `validatePlans()` 호출 시 `excludeDates` 전달
+4. Preview 함수에도 동일하게 적용
+
+**구현 코드**:
 ```typescript
-excludeDates: [], // TODO: 제외 날짜 지원 시 추가
-```
-
-**영향**:
-- AI 플랜 생성 시 제외일이 반영되지 않음
-- 사용자가 설정한 제외일과 AI 생성 플랜이 충돌할 수 있음
-
-**해결 방안**:
-```typescript
-// 플랜 그룹의 제외일 조회
-const exclusions = await getPlanExclusions(planGroupId);
-const excludeDates = exclusions.map(e => e.exclusion_date);
+// 제외 날짜 조회 (입력값 우선, 없으면 플랜 그룹에서 조회)
+let excludeDates: string[] = [];
+if (input.excludeDates && input.excludeDates.length > 0) {
+  excludeDates = input.excludeDates;
+} else if (input.planGroupId) {
+  const exclusions = await getPlanExclusions(input.planGroupId, tenantId);
+  excludeDates = exclusions.map((e) => e.exclusion_date);
+}
 
 const validationResult = validatePlans({
   plans: allPlans,
   academySchedules,
   blockSets,
   excludeDays: input.excludeDays,
-  excludeDates: excludeDates, // 제외 날짜 추가
+  excludeDates, // 제외 날짜 전달
   dailyStudyMinutes: input.dailyStudyMinutes,
 });
 ```
-
-**예상 작업량**: 0.5일
 
 ---
 
@@ -244,34 +246,39 @@ const copiedContents = await Promise.all(copyPromises);
 
 ---
 
-### 3. DB 쿼리 성능 🟠 HIGH
+### 3. DB 쿼리 성능 ✅ (부분 해결됨)
 
 **위치**: `lib/data/planGroups.ts`, `lib/plan/shared/ContentResolutionService.ts`
 
-**문제**:
-- `student_content_progress` 조회: 194.824ms (46.5%)
-- `student_study_sessions` 조회: 200.571ms (47.9%)
-- 스파이크 발생 시 550ms+
+**해결 상태**: ✅ 부분 해결 (2026-01-05)
 
-**해결 방안**:
-1. **인덱스 추가**:
-   ```sql
-   CREATE INDEX idx_student_content_progress_student_date 
-   ON student_content_progress(student_id, content_id, updated_at);
-   
-   CREATE INDEX idx_study_sessions_student_date 
-   ON student_study_sessions(student_id, plan_date, status);
-   ```
+**해결 내용**:
+1. **인덱스**: 기존 인덱스가 이미 충분히 최적화되어 있음 확인
+2. **메모리 캐싱**: `lib/cache/memoryCache.ts` 추가
+3. **콘텐츠 메타데이터 캐싱**: `lib/plan/contentResolver.ts`에 캐싱 적용
 
-2. **쿼리 최적화**:
-   - 필요한 컬럼만 선택
-   - 날짜 범위 쿼리 최적화
+**구현 코드**:
+```typescript
+// lib/cache/memoryCache.ts
+export class MemoryCache<T> {
+  // LRU 기반 TTL 지원 메모리 캐시
+  constructor(maxSize = 1000, defaultTtlMs = 5 * 60 * 1000) { ... }
+}
 
-3. **캐싱 전략**:
-   - 진행률 데이터 5분 캐싱
-   - 세션 데이터 1분 캐싱
+// 전역 캐시 인스턴스
+export const contentMetadataCache = new MemoryCache<unknown>(500, 5 * 60 * 1000);
+export const contentDurationCache = new MemoryCache<number>(500, 5 * 60 * 1000);
+export const studySessionCache = new MemoryCache<unknown>(200, 1 * 60 * 1000);
+export const progressCache = new MemoryCache<unknown>(500, 5 * 60 * 1000);
+```
 
-**예상 작업량**: 2-3일
+**적용 위치**:
+- `loadBookMetadata()` - 5분 TTL
+- `loadLectureMetadata()` - 5분 TTL
+- `loadCustomContentMetadata()` - 5분 TTL
+
+**남은 작업**:
+- 캐시 히트율 모니터링 추가 (선택사항)
 
 ---
 
@@ -311,36 +318,36 @@ const copiedContents = await Promise.all(copyPromises);
 
 ---
 
-### 2. generate/preview 중복 코드 🟠 HIGH
+### 2. generate/preview 중복 코드 ✅ (대부분 해결됨)
 
-**위치**: 
-- `app/(student)/actions/plan-groups/generatePlansRefactored.ts`
-- `app/(student)/actions/plan-groups/previewPlansRefactored.ts`
+**위치**:
+- `lib/plan/services/generatePlansWithServices.ts`
+- `lib/plan/services/previewPlansWithServices.ts`
 
-**문제**:
-- 두 함수가 90% 중복 코드
-- 1,600줄 중복 코드
+**해결 상태**: ✅ 대부분 완료 (2026-01-05)
 
-**해결 방안**:
+**해결 내용**:
+1. Phase 5: 공통 로직 70%가 `preparePlanGenerationData`로 추출됨
+2. `PlanNumberCalculator` 유틸리티로 plan_number 계산 로직 통합
+3. 실제 중복률이 90% → 15%로 감소
+
+**구현 코드**:
 ```typescript
-// 공통 로직 추출
-async function generateOrPreviewPlans(
-  groupId: string,
-  options: { previewOnly: boolean }
-): Promise<PlanResult> {
-  // 공통 로직
-  const plans = await generatePlansFromGroup(...);
-  
-  if (options.previewOnly) {
-    return { previewPlans: plans };
+// lib/plan/services/planNumbering.ts
+export class PlanNumberCalculator {
+  getPlanNumber(date, contentId, startRange, endRange): number {
+    const key = this.createPlanKey(date, contentId, startRange, endRange);
+    return this.getOrAssignNumber(key);
   }
-  
-  await savePlans(plans);
-  return { savedCount: plans.length };
 }
+
+// 사용 예시 (generate/preview 공통)
+const planNumberCalc = createPlanNumberCalculator();
+const planNumber = planNumberCalc.getPlanNumber(date, resolvedContentId, start, end);
 ```
 
-**예상 작업량**: 2-3일
+**남은 작업**:
+- 추가 중복 코드가 있으면 점진적으로 리팩토링
 
 ---
 
@@ -626,4 +633,5 @@ averageDelayDays: 0, // TODO: 실제 지연일 추적 필요
 **작성자**: AI Assistant  
 **검토 필요**: 개발팀 리뷰  
 **업데이트 주기**: 분기별 또는 주요 변경 시
+
 

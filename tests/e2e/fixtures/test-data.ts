@@ -216,4 +216,14 @@ export const SELECTORS = {
   planTimer: '[data-testid="plan-timer"]',
   startButton: 'button:has-text("시작"), button:has-text("학습 시작")',
   completeButton: 'button:has-text("완료"), button:has-text("학습 완료")',
+
+  // Phase 2.3: Fallback UI 컴포넌트
+  queryStateWrapper: '[data-testid="query-state-wrapper"]',
+  loadingState: '[data-testid="loading-state"], .loading-skeleton, .animate-pulse',
+  errorState: '[data-testid="error-state"], .error-boundary',
+  emptyState: '[data-testid="empty-state"], .empty-state',
+  retryButton: 'button:has-text("다시 시도"), button:has-text("재시도"), [data-testid="retry-button"]',
+  networkBanner: '[data-testid="network-banner"], [role="alert"]:has-text("인터넷")',
+  offlineBanner: '[role="alert"]:has-text("인터넷 연결이 끊어졌습니다")',
+  reconnectBanner: '[role="alert"]:has-text("인터넷 연결이 복구되었습니다")',
 };
