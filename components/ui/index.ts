@@ -87,3 +87,19 @@ export { SkeletonForm } from "./SkeletonForm";
 export { SectionCard } from "./SectionCard";
 export { StickySaveButton } from "./StickySaveButton";
 
+// ============================================
+// Fallback UI 컴포넌트 (Phase 2)
+// ============================================
+
+// QueryStateWrapper - React Query 상태 통합 래퍼
+export {
+  QueryStateWrapper,
+  extractQueryState,
+  combineQueryStates,
+  type QueryState,
+  type QueryStateWrapperProps,
+} from "./QueryStateWrapper";
+
+// NetworkStatusBanner - 네트워크 상태 배너
+export { NetworkStatusBanner, type NetworkStatusBannerProps } from "./NetworkStatusBanner";
+
