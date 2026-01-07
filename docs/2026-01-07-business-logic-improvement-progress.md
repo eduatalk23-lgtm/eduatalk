@@ -8,11 +8,11 @@
 
 ## 전체 진행 상황
 
-- **완료**: 6개 작업
+- **완료**: 7개 작업
 - **진행 중**: 0개 작업
-- **대기 중**: 1개 작업
+- **대기 중**: 0개 작업
 
-**전체 진행률**: 86% (6/7)
+**전체 진행률**: 100% (7/7) ✅
 
 ---
 
@@ -152,7 +152,27 @@
 
 ---
 
-## ⏳ 남은 작업
+#### ✅ 작업 4.2: any 타입 제거 및 명시적 타입 정의
+
+**완료 일자**: 2026-01-07  
+**문서**: `docs/2026-01-07-phase4-2-remove-any-types.md`
+
+**완료 내용**:
+
+- `calendarDrag.ts`: `StudentPlanWithPlanGroup`, `StudentPlanVersionWithPlanGroup` 타입 추가 및 3곳의 `any` 타입 제거
+- `contentIndividualization.ts`: `PlanContentWithPlanGroup` 타입 추가 및 4곳의 `any` 타입 제거
+- `studentId` null 체크 추가로 런타임 안전성 향상
+
+**변경된 파일**:
+
+- `lib/domains/plan/actions/calendarDrag.ts` (수정)
+- `lib/domains/plan/actions/contentIndividualization.ts` (수정)
+
+**커밋**: `373818de` - feat: Phase 4.2 - any 타입 제거 및 명시적 타입 정의
+
+---
+
+## ✅ 모든 작업 완료
 
 
 ---
@@ -225,6 +245,7 @@
 4. `docs/2026-01-07-phase2-2-optimistic-locking-calendar-drag.md`
 5. `docs/2026-01-07-phase3-1-batch-preview-academy-blocks-load.md`
 6. `docs/2026-01-07-phase4-1-plan-group-deletion-consolidation.md`
+7. `docs/2026-01-07-phase4-2-remove-any-types.md`
 
 ### 계획 및 분석 문서
 
@@ -298,14 +319,9 @@ ls -la lib/types/plan/
 - Phase 2.2: 약 30분
 - Phase 3.1: 약 30분
 - Phase 4.1: 약 1시간
+- Phase 4.2: 약 30분
 
-**총 소요 시간**: 약 4.5시간
-
-### 예상 남은 시간
-
-- 작업 4.2: 1-2일 (약 6-8시간)
-
-**예상 총 남은 시간**: 1-2일 (약 6-8시간)
+**총 소요 시간**: 약 5시간
 
 ---
 
@@ -317,9 +333,9 @@ ls -la lib/types/plan/
 - [x] Phase 2.2: 플랜 수정 Optimistic Locking 구현
 - [x] Phase 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
 - [x] Phase 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
-- [ ] Phase 4.2: any 타입 제거 및 명시적 타입 정의
+- [x] Phase 4.2: any 타입 제거 및 명시적 타입 정의
 
 ---
 
 **마지막 업데이트**: 2026-01-07  
-**다음 작업**: Phase 4.2 - any 타입 제거 및 명시적 타입 정의
+**상태**: 모든 작업 완료 ✅
