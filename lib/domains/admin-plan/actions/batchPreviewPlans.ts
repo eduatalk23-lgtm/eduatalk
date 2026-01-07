@@ -33,6 +33,10 @@ import type { GeneratedPlanItem, ModelTier } from "@/lib/domains/plan/llm/types"
 import type { GroundingConfig } from "@/lib/domains/plan/llm/providers/base";
 import { getWebSearchContentService } from "@/lib/domains/plan/llm/services/webSearchContentService";
 import type {
+  AcademyScheduleForPrompt,
+  BlockInfoForPrompt,
+} from "@/lib/domains/plan/llm/transformers/requestBuilder";
+import type {
   BatchPlanSettings,
   StudentPlanResult,
 } from "./batchAIPlanGeneration";
@@ -181,6 +185,78 @@ async function loadLearningStats(
   };
 }
 
+/**
+ * 학원 일정 로드 (검증용)
+ */
+async function loadAcademySchedules(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string,
+  tenantId: string
+): Promise<AcademyScheduleForPrompt[]> {
+  const { data: schedules } = await supabase
+    .from("academy_schedules")
+    .select("id, day_of_week, start_time, end_time, academy_name, subject, travel_time")
+    .eq("student_id", studentId)
+    .eq("tenant_id", tenantId)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (!schedules || schedules.length === 0) {
+    return [];
+  }
+
+  return schedules.map((s) => ({
+    id: s.id,
+    dayOfWeek: s.day_of_week,
+    startTime: s.start_time ? s.start_time.slice(0, 5) : "00:00", // HH:mm
+    endTime: s.end_time ? s.end_time.slice(0, 5) : "00:00",
+    academyName: s.academy_name || undefined,
+    subject: s.subject || undefined,
+    travelTime: s.travel_time ? Number(s.travel_time) : undefined,
+  }));
+}
+
+/**
+ * 블록셋 정보 로드 (검증용)
+ */
+async function loadBlockSets(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  studentId: string
+): Promise<BlockInfoForPrompt[]> {
+  // 학생의 활성 블록셋 확인
+  const { data: student } = await supabase
+    .from("students")
+    .select("active_block_set_id")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (!student?.active_block_set_id) {
+    return [];
+  }
+
+  // 활성 블록셋의 블록 스케줄 조회
+  const { data: blocks } = await supabase
+    .from("student_block_schedule")
+    .select("id, day_of_week, start_time, end_time")
+    .eq("student_id", studentId)
+    .eq("block_set_id", student.active_block_set_id)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (!blocks || blocks.length === 0) {
+    return [];
+  }
+
+  return blocks.map((b, index) => ({
+    id: b.id,
+    blockIndex: index,
+    dayOfWeek: b.day_of_week,
+    startTime: b.start_time ? b.start_time.slice(0, 5) : "00:00", // HH:mm
+    endTime: b.end_time ? b.end_time.slice(0, 5) : "00:00",
+    blockName: undefined,
+  }));
+}
+
 // ============================================
 // 품질 점수 계산
 // ============================================
@@ -299,12 +375,15 @@ async function generatePreviewForStudent(
     }
 
     // 3. 관련 데이터 로드
-    const [scores, contents, timeSlots, learningStats] = await Promise.all([
-      loadScores(supabase, studentId),
-      loadContents(supabase, contentIds),
-      loadTimeSlots(supabase, tenantId),
-      loadLearningStats(supabase, studentId),
-    ]);
+    const [scores, contents, timeSlots, learningStats, academySchedules, blockSets] =
+      await Promise.all([
+        loadScores(supabase, studentId),
+        loadContents(supabase, contentIds),
+        loadTimeSlots(supabase, tenantId),
+        loadLearningStats(supabase, studentId),
+        loadAcademySchedules(supabase, studentId, tenantId),
+        loadBlockSets(supabase, studentId),
+      ]);
 
     if (contents.length === 0) {
       return {
@@ -411,8 +490,8 @@ async function generatePreviewForStudent(
     // 9. 검증
     const validation = validatePlans({
       plans: allPlans,
-      academySchedules: [], // TODO: 학원 일정 로드
-      blockSets: [], // TODO: 블록 정보 로드
+      academySchedules,
+      blockSets,
       excludeDays: settings.excludeDays || [],
       excludeDates: [],
       dailyStudyMinutes: settings.dailyStudyMinutes,
