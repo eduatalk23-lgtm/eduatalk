@@ -3,10 +3,16 @@ import { getActiveGoals } from "@/lib/goals/queries";
 import { calculateGoalProgress, type Goal, type GoalProgress } from "@/lib/goals/calc";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
 import { GOAL_CONSTANTS } from "@/lib/metrics/constants";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  DateBasedMetricsOptions,
+} from "./types";
+import {
+  normalizeDateString,
+  handleMetricsError,
+  nullToDefault,
+} from "./utils";
 
 export type GoalStatusMetrics = {
   totalActiveGoals: number;
@@ -27,18 +33,39 @@ export type GoalStatusMetrics = {
  * 목표 상태 메트릭 조회
  * 
  * N+1 쿼리 최적화: 모든 목표의 진행률 데이터를 한 번의 쿼리로 조회
+ * 
+ * @param supabase - Supabase 서버 클라이언트
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @param options.todayDate - 기준 날짜 (Date 객체 또는 YYYY-MM-DD 형식 문자열)
+ * @returns 목표 상태 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getGoalStatus(supabase, {
+ *   studentId: "student-123",
+ *   todayDate: new Date('2025-01-15'),
+ * });
+ * 
+ * if (result.success) {
+ *   console.log(`평균 진행률: ${result.data.averageProgress}%`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getGoalStatus(
   supabase: SupabaseServerClient,
-  studentId: string,
-  todayDate: string
-): Promise<GoalStatusMetrics> {
+  options: DateBasedMetricsOptions
+): Promise<MetricsResult<GoalStatusMetrics>> {
   try {
-    const today = new Date(todayDate);
+    const { studentId, todayDate } = options;
+    const todayDateStr = normalizeDateString(todayDate);
+    const today = new Date(todayDateStr);
     today.setHours(0, 0, 0, 0);
 
     // 활성 목표 조회
-    const activeGoals = await getActiveGoals(supabase, studentId, todayDate);
+    const activeGoals = await getActiveGoals(supabase, studentId, todayDateStr);
 
     if (activeGoals.length === 0) {
       return {
@@ -126,25 +153,31 @@ export async function getGoalStatus(
     ).length;
 
     return {
-      totalActiveGoals,
-      goalsNearDeadline,
-      goalsVeryNearDeadline,
-      averageProgress,
-      lowProgressGoals,
-      veryLowProgressGoals,
-      goals: goalsWithProgress,
+      success: true,
+      data: {
+        totalActiveGoals,
+        goalsNearDeadline,
+        goalsVeryNearDeadline,
+        averageProgress,
+        lowProgressGoals,
+        veryLowProgressGoals,
+        goals: goalsWithProgress,
+      },
     };
   } catch (error) {
-    console.error("[metrics/getGoalStatus] 목표 상태 조회 실패", error);
-    return {
-      totalActiveGoals: 0,
-      goalsNearDeadline: 0,
-      goalsVeryNearDeadline: 0,
-      averageProgress: 0,
-      lowProgressGoals: 0,
-      veryLowProgressGoals: 0,
-      goals: [],
-    };
+    return handleMetricsError(
+      error,
+      "[metrics/getGoalStatus]",
+      {
+        totalActiveGoals: 0,
+        goalsNearDeadline: 0,
+        goalsVeryNearDeadline: 0,
+        averageProgress: 0,
+        lowProgressGoals: 0,
+        veryLowProgressGoals: 0,
+        goals: [],
+      }
+    );
   }
 }
 

@@ -59,16 +59,16 @@ export async function getWeeklyMetrics(
 
   // 모든 메트릭 병렬 조회
   const [
-    studyTime,
+    studyTimeResult,
     planCompletionResult,
-    goalStatus,
+    goalStatusResult,
     scoreTrendResult,
     weakSubjectsResult,
     historyPatternResult,
   ] = await Promise.all([
-    getStudyTime(supabase, studentId, weekStart, weekEnd),
+    getStudyTime(supabase, { studentId, weekStart, weekEnd }),
     getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
-    getGoalStatus(supabase, studentId, todayDate),
+    getGoalStatus(supabase, { studentId, todayDate }),
     getScoreTrend(supabase, { studentId }),
     getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
     getHistoryPattern(supabase, { studentId, todayDate }),
@@ -78,6 +78,19 @@ export async function getWeeklyMetrics(
   const planCompletion = planCompletionResult.success
     ? planCompletionResult.data
     : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
+
+  // 목표 상태 결과 처리
+  const goalStatus = goalStatusResult.success
+    ? goalStatusResult.data
+    : {
+        totalActiveGoals: 0,
+        goalsNearDeadline: 0,
+        goalsVeryNearDeadline: 0,
+        averageProgress: 0,
+        lowProgressGoals: 0,
+        veryLowProgressGoals: 0,
+        goals: [],
+      };
 
   // 성적 추이 결과 처리
   const scoreTrend = scoreTrendResult.success
@@ -106,6 +119,16 @@ export async function getWeeklyMetrics(
         consecutivePlanFailures: 0,
         consecutiveNoStudyDays: 0,
         recentHistoryEvents: [],
+      };
+
+  // 주간 학습시간 결과 처리
+  const studyTime = studyTimeResult.success
+    ? studyTimeResult.data
+    : {
+        thisWeekMinutes: 0,
+        lastWeekMinutes: 0,
+        changePercent: 0,
+        changeMinutes: 0,
       };
 
   return {

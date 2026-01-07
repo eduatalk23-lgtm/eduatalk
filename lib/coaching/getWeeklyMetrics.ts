@@ -86,9 +86,9 @@ export async function getWeeklyMetrics(
       highRiskPlansResult,
       satisfactionResult,
     ] = await Promise.all([
-      getStudyTime(supabase, studentId, weekStart, weekEnd),
+      getStudyTime(supabase, { studentId, weekStart, weekEnd }),
       getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
-      getGoalStatus(supabase, studentId, todayDate),
+      getGoalStatus(supabase, { studentId, todayDate }),
       getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
       getStudentRiskScore(supabase, studentId, { recordHistory: false }),
       getRecommendations(supabase, studentId),
@@ -134,7 +134,15 @@ export async function getWeeklyMetrics(
       })),
     ]);
 
-    // 주간 학습시간
+    // 주간 학습시간 결과 처리
+    const studyTime = studyTimeResult.success
+      ? studyTimeResult.data
+      : {
+          thisWeekMinutes: 0,
+          lastWeekMinutes: 0,
+          changePercent: 0,
+          changeMinutes: 0,
+        };
     const weeklyStudyMinutes = studyTime.thisWeekMinutes;
     const weeklyStudyTrend = studyTime.changePercent;
 
@@ -151,6 +159,19 @@ export async function getWeeklyMetrics(
           consecutivePlanFailures: 0,
           consecutiveNoStudyDays: 0,
           recentHistoryEvents: [],
+        };
+
+    // 목표 상태 결과 처리
+    const goalStatus = goalStatusResult.success
+      ? goalStatusResult.data
+      : {
+          totalActiveGoals: 0,
+          goalsNearDeadline: 0,
+          goalsVeryNearDeadline: 0,
+          averageProgress: 0,
+          lowProgressGoals: 0,
+          veryLowProgressGoals: 0,
+          goals: [],
         };
 
     // 목표 달성률

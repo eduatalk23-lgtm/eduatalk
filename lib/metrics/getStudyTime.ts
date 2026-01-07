@@ -5,10 +5,12 @@ import {
   getEndOfDayUTC,
   formatDateInTimezone,
 } from "@/lib/utils/dateUtils";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  WeeklyMetricsOptions,
+} from "./types";
+import { handleMetricsError } from "./utils";
 
 export type StudyTimeMetrics = {
   thisWeekMinutes: number;
@@ -21,14 +23,35 @@ export type StudyTimeMetrics = {
  * 주간 학습시간 메트릭 조회
  * 
  * 최적화: 이번 주와 지난 주 데이터를 한 번의 쿼리로 조회한 뒤 메모리에서 분리
+ * 
+ * @param supabase - Supabase 서버 클라이언트
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @param options.weekStart - 주간 시작일
+ * @param options.weekEnd - 주간 종료일
+ * @returns 주간 학습시간 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getStudyTime(supabase, {
+ *   studentId: "student-123",
+ *   weekStart: new Date('2025-01-13'),
+ *   weekEnd: new Date('2025-01-19'),
+ * });
+ * 
+ * if (result.success) {
+ *   console.log(`이번주 학습시간: ${result.data.thisWeekMinutes}분`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getStudyTime(
   supabase: SupabaseServerClient,
-  studentId: string,
-  weekStart: Date,
-  weekEnd: Date
-): Promise<StudyTimeMetrics> {
+  options: WeeklyMetricsOptions
+): Promise<MetricsResult<StudyTimeMetrics>> {
   try {
+    const { studentId, weekStart, weekEnd } = options;
     // weekStart와 weekEnd를 KST 기준으로 해석하여 UTC 범위로 변환
     const weekStartStr = formatDateInTimezone(weekStart, "Asia/Seoul");
     const weekEndStr = formatDateInTimezone(weekEnd, "Asia/Seoul");

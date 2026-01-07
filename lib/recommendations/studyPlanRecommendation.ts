@@ -33,12 +33,22 @@ export async function getStudyPlanRecommendations(
     weekEnd.setHours(23, 59, 59, 999);
 
     // 데이터 조회
-    const [studyTime, planCompletionResult, riskResult, activeGoals] = await Promise.all([
-      getStudyTime(supabase, studentId, weekStart, weekEnd),
+    const [studyTimeResult, planCompletionResult, riskResult, activeGoals] = await Promise.all([
+      getStudyTime(supabase, { studentId, weekStart, weekEnd }),
       getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
       getStudentRiskScore(supabase, studentId, { recordHistory: false }),
       getActiveGoals(supabase, studentId, today.toISOString().slice(0, 10)),
     ]);
+
+    // 주간 학습시간 결과 처리
+    const studyTime = studyTimeResult.success
+      ? studyTimeResult.data
+      : {
+          thisWeekMinutes: 0,
+          lastWeekMinutes: 0,
+          changePercent: 0,
+          changeMinutes: 0,
+        };
 
     // 플랜 실행률 결과 처리
     const planCompletion = planCompletionResult.success
