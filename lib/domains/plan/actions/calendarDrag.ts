@@ -88,10 +88,11 @@ export async function rescheduleOnDrop(
     const supabase = await createSupabaseServerClient();
 
     if (planType === "student_plan") {
-      // 기존 플랜 조회 (plan_group_id 포함)
+      // 기존 플랜 조회 (plan_group_id, version 포함)
+      // Phase 2.2: Optimistic Locking을 위해 version 필드도 조회
       const { data: existingPlan, error: fetchError } = await supabase
         .from("student_plan")
-        .select("id, plan_date, start_time, end_time, student_id, content_title, plan_group_id, plan_groups!inner(student_id)")
+        .select("id, plan_date, start_time, end_time, student_id, content_title, plan_group_id, version, plan_groups!inner(student_id)")
         .eq("id", planId)
         .single();
 
@@ -214,9 +215,12 @@ export async function rescheduleOnDrop(
       }
 
       // 업데이트 데이터 구성
+      // Phase 2.2: Optimistic Locking - 버전 증가
+      const currentVersion = existingPlan.version ?? 1;
       const updateData: Record<string, unknown> = {
         plan_date: newDate,
         updated_at: new Date().toISOString(),
+        version: currentVersion + 1,
       };
 
       // 시간이 제공된 경우 설정
@@ -227,13 +231,25 @@ export async function rescheduleOnDrop(
         }
       }
 
-      const { error: updateError } = await supabase
+      // Optimistic Locking: 버전 체크와 함께 업데이트
+      const { data: updatedPlan, error: updateError } = await supabase
         .from("student_plan")
         .update(updateData)
-        .eq("id", planId);
+        .eq("id", planId)
+        .eq("version", currentVersion)
+        .select("id")
+        .single();
 
       if (updateError) {
         return { success: false, error: updateError.message };
+      }
+
+      // 버전 불일치로 업데이트 실패 (다른 요청이 먼저 수정함)
+      if (!updatedPlan) {
+        return {
+          success: false,
+          error: "플랜이 이미 수정되었습니다. 새로고침 후 다시 시도해주세요.",
+        };
       }
     } else if (planType === "ad_hoc_plan") {
       // ad_hoc_plan 조회 (plan_group_id 포함)
@@ -410,9 +426,10 @@ export async function resizePlanDuration(
 
     if (planType === "student_plan") {
       // student_plan: plan_groups.student_id로 소유자 확인
+      // Phase 2.2: Optimistic Locking을 위해 version 필드도 조회
       const { data: existingPlan, error: fetchError } = await supabase
         .from("student_plan")
-        .select("id, plan_groups!inner(student_id)")
+        .select("id, version, plan_groups!inner(student_id)")
         .eq("id", planId)
         .single();
 
@@ -428,17 +445,31 @@ export async function resizePlanDuration(
       }
 
       // 업데이트
-      const { error: updateError } = await supabase
+      // Phase 2.2: Optimistic Locking - 버전 체크와 함께 업데이트
+      const currentVersion = existingPlan.version ?? 1;
+      const { data: updatedPlan, error: updateError } = await supabase
         .from("student_plan")
         .update({
           start_time: newStartTime,
           end_time: newEndTime,
           updated_at: new Date().toISOString(),
+          version: currentVersion + 1,
         })
-        .eq("id", planId);
+        .eq("id", planId)
+        .eq("version", currentVersion)
+        .select("id")
+        .single();
 
       if (updateError) {
         return { success: false, error: updateError.message };
+      }
+
+      // 버전 불일치로 업데이트 실패 (다른 요청이 먼저 수정함)
+      if (!updatedPlan) {
+        return {
+          success: false,
+          error: "플랜이 이미 수정되었습니다. 새로고침 후 다시 시도해주세요.",
+        };
       }
     } else {
       // ad_hoc_plans: student_id로 직접 확인
