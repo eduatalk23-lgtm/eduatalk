@@ -3,8 +3,9 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
-import { logActionError } from '@/lib/logging/actionLogger';
+import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse, ContainerType } from '../types';
+import { createAutoContentPlanGroupAction } from './createAutoContentPlanGroup';
 
 export type DistributionMode = 'today' | 'period' | 'weekly';
 
@@ -28,6 +29,10 @@ export interface CreatePlanFromContentInput {
   // 학생 정보
   studentId: string;
   tenantId: string;
+
+  // 플래너/플랜그룹 연결 (Phase 1: 플래너 선택 강제화)
+  plannerId?: string;      // 선택된 플래너 ID
+  planGroupId?: string;    // 지정된 그룹 ID (없으면 자동 생성)
 }
 
 export interface CreatePlanFromContentResult {
@@ -45,6 +50,41 @@ export async function createPlanFromContent(
     await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
     const now = new Date().toISOString();
+
+    // 플랜그룹 ID 결정 (자동 생성 또는 기존 사용)
+    let effectivePlanGroupId: string | undefined = input.planGroupId;
+
+    // plannerId가 있고 planGroupId가 없으면 자동 생성
+    if (input.plannerId && !input.planGroupId) {
+      logActionDebug(
+        { domain: 'admin-plan', action: 'createPlanFromContent' },
+        '플랜그룹 자동 생성 시작',
+        { plannerId: input.plannerId, studentId: input.studentId }
+      );
+
+      const autoGroupResult = await createAutoContentPlanGroupAction({
+        tenantId: input.tenantId,
+        studentId: input.studentId,
+        plannerId: input.plannerId,
+        contentTitle: input.contentTitle,
+        targetDate: input.targetDate,
+        planPurpose: 'content',
+      });
+
+      if (!autoGroupResult.success || !autoGroupResult.groupId) {
+        return {
+          success: false,
+          error: autoGroupResult.error || '플랜 그룹 자동 생성에 실패했습니다.',
+        };
+      }
+
+      effectivePlanGroupId = autoGroupResult.groupId;
+      logActionDebug(
+        { domain: 'admin-plan', action: 'createPlanFromContent' },
+        '플랜그룹 자동 생성 완료',
+        { groupId: effectivePlanGroupId }
+      );
+    }
 
     // flexible_content에서 content_type 및 master content IDs 조회
     const { data: flexibleContent, error: fetchError } = await supabase
@@ -84,6 +124,7 @@ export async function createPlanFromContent(
         containerType: 'daily',
         startPage: input.rangeStart,
         endPage: input.rangeEnd,
+        planGroupId: effectivePlanGroupId,
         now,
       }));
     } else if (input.distributionMode === 'weekly') {
@@ -96,6 +137,7 @@ export async function createPlanFromContent(
         containerType: 'weekly',
         startPage: input.rangeStart,
         endPage: input.rangeEnd,
+        planGroupId: effectivePlanGroupId,
         now,
       }));
     } else if (input.distributionMode === 'period' && input.periodEndDate) {
@@ -105,6 +147,7 @@ export async function createPlanFromContent(
         contentType: flexibleContent.content_type,
         contentId: contentId,
         periodEndDate: input.periodEndDate,
+        planGroupId: effectivePlanGroupId,
         now,
       });
       plansToCreate.push(...distributedPlans);
@@ -168,6 +211,7 @@ function createPlanRecord(params: {
   endPage: number | null;
   customRangeDisplay?: string | null;
   totalVolume?: number | null;
+  planGroupId?: string; // 플랜그룹 연결
   now: string;
   sequence?: number;
 }): Record<string, unknown> {
@@ -186,6 +230,7 @@ function createPlanRecord(params: {
     planned_end_page_or_time: params.endPage,
     custom_range_display: params.customRangeDisplay,
     estimated_minutes: params.totalVolume ? Math.ceil(params.totalVolume * 1.5) : null, // 기본 예상 시간
+    plan_group_id: params.planGroupId || null, // 플랜그룹 연결
     status: 'pending',
     is_active: true,
     sequence: params.sequence ?? 0,
@@ -211,6 +256,7 @@ function distributeOverPeriod(params: {
   rangeEnd: number | null;
   customRangeDisplay?: string | null;
   totalVolume?: number | null;
+  planGroupId?: string; // 플랜그룹 연결
   now: string;
 }): Array<Record<string, unknown>> {
   const plans: Array<Record<string, unknown>> = [];
@@ -256,6 +302,7 @@ function distributeOverPeriod(params: {
           endPage: rangeEndForDay,
           customRangeDisplay: null,
           totalVolume: rangeEndForDay - currentStart + 1,
+          planGroupId: params.planGroupId,
           now: params.now,
           sequence: i,
         }));
@@ -284,6 +331,7 @@ function distributeOverPeriod(params: {
         endPage: params.rangeEnd,
         customRangeDisplay: params.customRangeDisplay,
         totalVolume: params.totalVolume,
+        planGroupId: params.planGroupId,
         now: params.now,
         sequence: i,
       }));

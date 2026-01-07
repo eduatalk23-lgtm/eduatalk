@@ -88,7 +88,7 @@ export interface ExclusionSchedule {
   exclusion_date: string;
   exclusion_type: "holiday" | "event" | "personal";
   reason?: string;
-  source?: "manual" | "academy" | "template" | "planner";
+  source?: "manual" | "academy" | "template" | "planner" | "imported";
   is_locked?: boolean;
 }
 
@@ -379,6 +379,8 @@ export interface AdminPlanCreationWizardProps {
   studentId: string;
   tenantId: string;
   studentName: string;
+  /** 플래너 ID (플랜 그룹 생성 시 필수) */
+  plannerId?: string;
   onClose: () => void;
   onSuccess: (groupId: string, generateAI: boolean) => void;
 }

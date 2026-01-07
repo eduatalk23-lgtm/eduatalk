@@ -211,6 +211,16 @@ async function _createPlanGroup(
       `Admin creating plan for student`,
       { adminId: auth.userId, studentId, adminRole: auth.adminRole }
     );
+
+    // 관리자 모드에서는 플래너 선택 필수 (플래너 우선순위 정책)
+    if (!data.planner_id) {
+      throw new AppError(
+        "플래너를 먼저 선택해주세요.",
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
   }
 
   const tenantContext = await requireTenantContext();

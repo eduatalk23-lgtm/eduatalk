@@ -23,6 +23,7 @@ export function AddContentWizard({
   targetDate,
   onClose,
   onSuccess,
+  selectedPlannerId,
 }: AddContentWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<AddContentWizardData>(() => initialWizardData(targetDate));
@@ -121,6 +122,8 @@ export function AddContentWizard({
         periodEndDate: data.distributionMode === 'period' ? data.periodEnd : undefined,
         studentId,
         tenantId,
+        // Phase 1: 플래너 선택 강제화 - plannerId 전달 (없으면 자동 그룹 생성)
+        plannerId: selectedPlannerId,
       });
 
       if (!planResult.success) {

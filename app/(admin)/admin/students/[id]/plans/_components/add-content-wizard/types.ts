@@ -30,6 +30,8 @@ export interface AddContentWizardProps {
   targetDate: string;
   onClose: () => void;
   onSuccess: () => void;
+  /** 선택된 플래너 ID (플래너 선택 강제화) */
+  selectedPlannerId?: string;
 }
 
 export const STEP_TITLES: Record<number, string> = {

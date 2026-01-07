@@ -10,7 +10,7 @@
  * @module app/(admin)/admin/students/[id]/plans/_components/PlannerManagement
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Calendar,
   Plus,
@@ -96,6 +96,47 @@ function PlannerCard({
   onDuplicate: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // 메뉴 열기 (스마트 위치 계산)
+  const handleMenuOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!menuOpen && menuButtonRef.current) {
+      const rect = menuButtonRef.current.getBoundingClientRect();
+      const menuHeight = 280; // 예상 메뉴 높이 (모든 항목 포함)
+      const menuWidth = 160; // w-40 = 160px
+
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // 위/아래 공간 비교하여 더 넓은 쪽으로 열기
+      let top: number;
+      if (spaceBelow >= menuHeight) {
+        // 아래 공간 충분 → 아래로 열기
+        top = rect.bottom + 4;
+      } else if (spaceAbove >= menuHeight) {
+        // 위 공간 충분 → 위로 열기
+        top = rect.top - menuHeight - 4;
+      } else {
+        // 둘 다 부족 → 더 넓은 쪽으로, 화면 경계 내로 제한
+        top =
+          spaceBelow > spaceAbove
+            ? Math.min(rect.bottom + 4, window.innerHeight - menuHeight - 8)
+            : Math.max(8, rect.top - menuHeight - 4);
+      }
+
+      // 좌우 경계 체크
+      let left = rect.right - menuWidth;
+      if (left < 8) left = 8;
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+
+      setMenuPosition({ top, left });
+    }
+    setMenuOpen(!menuOpen);
+  };
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("ko-KR", {
@@ -115,8 +156,8 @@ function PlannerCard({
       className={cn(
         "relative p-4 bg-white border rounded-lg transition-all cursor-pointer",
         isSelected
-          ? "border-blue-500 ring-2 ring-blue-200"
-          : "border-gray-200 hover:border-gray-300"
+          ? "border-blue-500 ring-2 ring-blue-200 shadow-md shadow-blue-100"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
       )}
       onClick={onSelect}
     >
@@ -137,26 +178,27 @@ function PlannerCard({
           {/* 메뉴 버튼 */}
           <div className="relative">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(!menuOpen);
-              }}
+              ref={menuButtonRef}
+              onClick={handleMenuOpen}
               className="p-1 hover:bg-gray-100 rounded"
             >
               <MoreVertical className="w-4 h-4 text-gray-500" />
             </button>
 
-            {/* 드롭다운 메뉴 */}
+            {/* 드롭다운 메뉴 (fixed positioning으로 부모 overflow 제약 회피) */}
             {menuOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-10"
+                  className="fixed inset-0 z-40"
                   onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen(false);
                   }}
                 />
-                <div className="absolute right-0 top-full mt-1 z-20 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+                <div
+                  className="fixed z-50 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 max-h-[280px] overflow-y-auto"
+                  style={{ top: menuPosition.top, left: menuPosition.left }}
+                >
                   {/* 수정 */}
                   <button
                     onClick={(e) => {
@@ -411,15 +453,23 @@ export function PlannerManagement({
         </div>
       )}
 
-      {/* 빈 상태 */}
+      {/* 빈 상태 - 첫 플래너 만들기 강조 */}
       {!isLoading && !error && planners.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Calendar className="w-12 h-12 text-gray-300 mb-3" />
-          <p className="text-gray-500 mb-4">아직 생성된 플래너가 없습니다.</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-xl">
+          <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+            <Calendar className="w-8 h-8 text-blue-600" />
+          </div>
+          <h4 className="text-lg font-semibold text-gray-900 mb-2">
+            플래너를 시작해보세요
+          </h4>
+          <p className="text-sm text-gray-600 mb-6 max-w-xs">
+            플래너를 생성하면 학생의 학습 플랜을 체계적으로 관리할 수 있습니다.
+          </p>
           <button
             onClick={() => setCreateModalOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-xl hover:shadow-blue-600/30"
           >
+            <Plus className="w-5 h-5" />
             첫 플래너 만들기
           </button>
         </div>

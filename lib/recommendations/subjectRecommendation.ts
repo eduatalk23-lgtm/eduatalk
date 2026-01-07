@@ -41,7 +41,7 @@ export async function getSubjectRecommendations(
     const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
     // 데이터 조회
-    const [weakSubjectsResult, scoreTrend, sessions, activeGoals] = await Promise.all([
+    const [weakSubjectsResult, scoreTrendResult, sessions, activeGoals] = await Promise.all([
       getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
       getScoreTrend(supabase, { studentId }),
       getSessionsByDateRange(supabase, studentId, fourWeeksAgoStr, weekEndStr),
@@ -56,6 +56,16 @@ export async function getSubjectRecommendations(
           subjectStudyTime: new Map<string, number>(),
           totalStudyTime: 0,
           weakSubjectStudyTimeRatio: 0,
+        };
+
+    // 성적 추이 결과 처리
+    const scoreTrendData = scoreTrendResult.success
+      ? scoreTrendResult.data
+      : {
+          hasDecliningTrend: false,
+          decliningSubjects: [],
+          lowGradeSubjects: [],
+          recentScores: [],
         };
 
     // 취약 과목별 학습시간 계산 (최근 4주)
@@ -114,7 +124,7 @@ export async function getSubjectRecommendations(
     }
 
     // Rule 2: 성적 2회 연속 하락 → 추천
-    for (const subject of scoreTrend.decliningSubjects) {
+    for (const subject of scoreTrendData.decliningSubjects) {
       if (!weakSubjectsData.weakSubjects.includes(subject)) {
         recommendations.push(
           `${subject}는 최근 2회 연속 등급이 하락했습니다. ${subject}에 집중 학습이 필요합니다.`

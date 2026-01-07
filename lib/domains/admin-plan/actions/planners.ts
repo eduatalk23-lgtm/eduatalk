@@ -58,6 +58,10 @@ export interface CreatePlannerInput {
   defaultSchedulerType?: string;
   defaultSchedulerOptions?: Record<string, unknown>;
   adminMemo?: string;
+  /** 학원 일정 (시간 관리에서 불러오기) */
+  academySchedules?: PlannerAcademyScheduleInput[];
+  /** 제외일 (시간 관리에서 불러오기) */
+  exclusions?: PlannerExclusionInput[];
 }
 
 /**
@@ -206,6 +210,8 @@ async function checkAdminOrConsultant() {
 
 /**
  * 플래너 생성
+ *
+ * academySchedules, exclusions가 제공되면 플래너 생성 후 함께 저장합니다.
  */
 async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
   const { user, tenantId } = await checkAdminOrConsultant();
@@ -247,7 +253,100 @@ async function _createPlanner(input: CreatePlannerInput): Promise<Planner> {
     );
   }
 
+  const plannerId = data.id as string;
+
+  // 학원 일정이 제공된 경우 저장
+  if (input.academySchedules && input.academySchedules.length > 0) {
+    await _setPlannerAcademySchedulesInternal(
+      supabase,
+      tenantId,
+      plannerId,
+      input.academySchedules
+    );
+  }
+
+  // 제외일이 제공된 경우 저장
+  if (input.exclusions && input.exclusions.length > 0) {
+    await _setPlannerExclusionsInternal(
+      supabase,
+      tenantId,
+      plannerId,
+      input.exclusions
+    );
+  }
+
+  // 관계 데이터를 포함하여 조회 후 반환
+  const hasRelations = !!(input.academySchedules?.length || input.exclusions?.length);
+  if (hasRelations) {
+    const plannerWithRelations = await _getPlanner(plannerId, true);
+    if (plannerWithRelations) {
+      return plannerWithRelations;
+    }
+  }
+
   return mapPlannerFromDB(data);
+}
+
+/**
+ * 내부용: 학원일정 저장 (인증 체크 없이)
+ */
+async function _setPlannerAcademySchedulesInternal(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  tenantId: string,
+  plannerId: string,
+  schedules: PlannerAcademyScheduleInput[]
+): Promise<void> {
+  if (schedules.length === 0) return;
+
+  const { error } = await supabase.from("planner_academy_schedules").insert(
+    schedules.map((s) => ({
+      tenant_id: tenantId,
+      planner_id: plannerId,
+      academy_id: s.academyId || null,
+      academy_name: s.academyName || null,
+      day_of_week: s.dayOfWeek,
+      start_time: s.startTime,
+      end_time: s.endTime,
+      subject: s.subject || null,
+      travel_time: s.travelTime ?? 60,
+      source: s.source || "imported",
+      is_locked: s.isLocked || false,
+    }))
+  );
+
+  if (error) {
+    console.error("[_createPlanner] 학원일정 저장 실패:", error);
+    // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
+  }
+}
+
+/**
+ * 내부용: 제외일 저장 (인증 체크 없이)
+ */
+async function _setPlannerExclusionsInternal(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  tenantId: string,
+  plannerId: string,
+  exclusions: PlannerExclusionInput[]
+): Promise<void> {
+  if (exclusions.length === 0) return;
+
+  const { error } = await supabase.from("planner_exclusions").insert(
+    exclusions.map((e) => ({
+      tenant_id: tenantId,
+      planner_id: plannerId,
+      exclusion_date: e.exclusionDate,
+      exclusion_type: e.exclusionType,
+      reason: e.reason || null,
+      source: e.source || "imported",
+      is_locked: e.isLocked || false,
+    }))
+  );
+
+  if (error) {
+    console.error("[_createPlanner] 제외일 저장 실패:", error);
+    // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
+  }
 }
 
 export const createPlannerAction = withErrorHandling(_createPlanner);

@@ -7,19 +7,25 @@
  * - 스케줄러 타입 선택
  * - 학원 스케줄 연동
  * - 제외 일정 설정
+ * - 시간 관리 데이터 불러오기 기능
  *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step2TimeSettings
  */
 
-import { useCallback, useState } from "react";
-import { Clock, Calendar, Plus, X, Building2, AlertCircle, Coffee, Moon, Sun, Lock } from "lucide-react";
+import { useCallback, useState, useEffect } from "react";
+import { Clock, Calendar, Plus, X, Building2, AlertCircle, Coffee, Moon, Sun, Lock, Download } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   useAdminWizardData,
   useAdminWizardValidation,
   useAdminWizardStep,
 } from "../_context";
 import type { ExclusionSchedule, AcademySchedule, NonStudyTimeBlock } from "../_context/types";
+import { syncTimeManagementAcademySchedulesAction } from "@/lib/domains/plan/actions/plan-groups/academy";
+import { syncTimeManagementExclusionsAction } from "@/lib/domains/plan/actions/plan-groups/exclusions";
+import { AdminAcademyScheduleImportModal } from "../modals/AdminAcademyScheduleImportModal";
+import { AdminExclusionImportModal } from "../modals/AdminExclusionImportModal";
 
 /**
  * Step2TimeSettings Props
@@ -68,6 +74,7 @@ export function Step2TimeSettings({
   const { wizardData, updateData } = useAdminWizardData();
   const { setFieldError, clearFieldError } = useAdminWizardValidation();
   const { prevStep } = useAdminWizardStep();
+  const toast = useToast();
 
   const {
     schedulerType,
@@ -104,6 +111,51 @@ export function Step2TimeSettings({
 
   const [showAddExclusion, setShowAddExclusion] = useState(false);
   const [showAddAcademy, setShowAddAcademy] = useState(false);
+
+  // 시간 관리에서 불러오기 Modal 상태
+  const [isAcademyImportModalOpen, setIsAcademyImportModalOpen] = useState(false);
+  const [isExclusionImportModalOpen, setIsExclusionImportModalOpen] = useState(false);
+
+  // 불러올 수 있는 데이터
+  const [availableAcademySchedules, setAvailableAcademySchedules] = useState<AcademySchedule[]>([]);
+  const [availableExclusions, setAvailableExclusions] = useState<ExclusionSchedule[]>([]);
+
+  // 배지용 개수 (새로 불러올 수 있는 항목 수)
+  const [academyAvailableCount, setAcademyAvailableCount] = useState<number | null>(null);
+  const [exclusionAvailableCount, setExclusionAvailableCount] = useState<number | null>(null);
+
+  // 로딩 상태
+  const [isLoadingAcademy, setIsLoadingAcademy] = useState(false);
+  const [isLoadingExclusion, setIsLoadingExclusion] = useState(false);
+
+  /**
+   * 제외일 유형 변환: 한글(시간관리) → 영문(관리자 위저드)
+   */
+  const mapExclusionType = (korean: string): "holiday" | "event" | "personal" => {
+    switch (korean) {
+      case "휴일지정":
+        return "holiday";
+      case "휴가":
+      case "개인사정":
+        return "personal";
+      default:
+        return "event";
+    }
+  };
+
+  /**
+   * 학원 일정 키 생성 (중복 체크용)
+   */
+  const getAcademyKey = (schedule: AcademySchedule): string => {
+    return `${schedule.day_of_week}-${schedule.start_time}-${schedule.end_time}`;
+  };
+
+  /**
+   * 제외일 키 생성 (중복 체크용)
+   */
+  const getExclusionKey = (exclusion: ExclusionSchedule): string => {
+    return `${exclusion.exclusion_date}-${exclusion.exclusion_type}`;
+  };
 
   // 스케줄러 타입 변경
   const handleSchedulerTypeChange = useCallback(
@@ -235,6 +287,190 @@ export function Step2TimeSettings({
     },
     [academySchedules, updateData]
   );
+
+  /**
+   * 학원 일정 개수 조회 (배지용)
+   */
+  const loadAcademyAvailableCount = useCallback(async () => {
+    if (!studentId) return;
+    try {
+      const result = await syncTimeManagementAcademySchedulesAction(null, studentId);
+      if (result.academySchedules) {
+        // 이미 등록된 항목 제외
+        const existingKeys = new Set(academySchedules.map(getAcademyKey));
+        const newCount = result.academySchedules.filter(
+          (s) => !existingKeys.has(`${s.day_of_week}-${s.start_time}-${s.end_time}`)
+        ).length;
+        setAcademyAvailableCount(newCount > 0 ? newCount : null);
+      }
+    } catch {
+      // 에러 시 배지 숨김
+      setAcademyAvailableCount(null);
+    }
+  }, [studentId, academySchedules]);
+
+  /**
+   * 제외일 개수 조회 (배지용)
+   */
+  const loadExclusionAvailableCount = useCallback(async () => {
+    if (!studentId || !periodStart || !periodEnd) return;
+    try {
+      const result = await syncTimeManagementExclusionsAction(null, periodStart, periodEnd, studentId);
+      if (result.exclusions) {
+        // 이미 등록된 항목 제외 (날짜+유형 조합)
+        const existingKeys = new Set(exclusions.map(getExclusionKey));
+        const newCount = result.exclusions.filter(
+          (e) => !existingKeys.has(`${e.exclusion_date}-${mapExclusionType(e.exclusion_type)}`)
+        ).length;
+        setExclusionAvailableCount(newCount > 0 ? newCount : null);
+      }
+    } catch {
+      // 에러 시 배지 숨김
+      setExclusionAvailableCount(null);
+    }
+  }, [studentId, periodStart, periodEnd, exclusions]);
+
+  /**
+   * 학원 일정 불러오기 모달 열기
+   */
+  const handleOpenAcademyImportModal = useCallback(async () => {
+    if (!studentId) {
+      toast.showError("학생 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    setIsLoadingAcademy(true);
+    try {
+      const result = await syncTimeManagementAcademySchedulesAction(null, studentId);
+      if (!result.academySchedules || result.academySchedules.length === 0) {
+        toast.showInfo("시간 관리에 등록된 학원 일정이 없습니다.");
+        return;
+      }
+
+      // 관리자 위저드 타입으로 변환
+      const convertedSchedules: AcademySchedule[] = result.academySchedules.map((s) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name,
+        subject: s.subject,
+        travel_time: s.travel_time ?? 30,
+        source: "imported" as const,
+      }));
+
+      setAvailableAcademySchedules(convertedSchedules);
+      setIsAcademyImportModalOpen(true);
+    } catch (error) {
+      toast.showError("학원 일정을 불러오는 중 오류가 발생했습니다.");
+      console.error("Academy schedule load error:", error);
+    } finally {
+      setIsLoadingAcademy(false);
+    }
+  }, [studentId]);
+
+  /**
+   * 제외일 불러오기 모달 열기
+   */
+  const handleOpenExclusionImportModal = useCallback(async () => {
+    if (!studentId) {
+      toast.showError("학생 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    if (!periodStart || !periodEnd) {
+      toast.showError("학습 기간을 먼저 설정해주세요.");
+      return;
+    }
+
+    setIsLoadingExclusion(true);
+    try {
+      const result = await syncTimeManagementExclusionsAction(null, periodStart, periodEnd, studentId);
+      if (!result.exclusions || result.exclusions.length === 0) {
+        toast.showInfo("해당 기간 내 등록된 제외일이 없습니다.");
+        return;
+      }
+
+      // 관리자 위저드 타입으로 변환
+      const convertedExclusions: ExclusionSchedule[] = result.exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: mapExclusionType(e.exclusion_type),
+        reason: e.reason,
+        source: "imported" as const,
+      }));
+
+      setAvailableExclusions(convertedExclusions);
+      setIsExclusionImportModalOpen(true);
+    } catch (error) {
+      toast.showError("제외일을 불러오는 중 오류가 발생했습니다.");
+      console.error("Exclusion load error:", error);
+    } finally {
+      setIsLoadingExclusion(false);
+    }
+  }, [studentId, periodStart, periodEnd]);
+
+  /**
+   * 학원 일정 Import 핸들러
+   */
+  const handleImportAcademySchedules = useCallback(
+    (selectedSchedules: AcademySchedule[]) => {
+      // 기존 항목과 중복되지 않는 것만 추가
+      const existingKeys = new Set(academySchedules.map(getAcademyKey));
+      const newSchedules = selectedSchedules.filter(
+        (s) => !existingKeys.has(getAcademyKey(s))
+      );
+
+      if (newSchedules.length === 0) {
+        toast.showInfo("추가할 새로운 학원 일정이 없습니다.");
+        return;
+      }
+
+      updateData({
+        academySchedules: [...academySchedules, ...newSchedules],
+      });
+
+      toast.showSuccess(`${newSchedules.length}개의 학원 일정이 추가되었습니다.`);
+      setIsAcademyImportModalOpen(false);
+    },
+    [academySchedules, updateData]
+  );
+
+  /**
+   * 제외일 Import 핸들러
+   */
+  const handleImportExclusions = useCallback(
+    (selectedExclusions: ExclusionSchedule[]) => {
+      // 기존 항목과 중복되지 않는 것만 추가
+      const existingKeys = new Set(exclusions.map(getExclusionKey));
+      const newExclusions = selectedExclusions.filter(
+        (e) => !existingKeys.has(getExclusionKey(e))
+      );
+
+      if (newExclusions.length === 0) {
+        toast.showInfo("추가할 새로운 제외일이 없습니다.");
+        return;
+      }
+
+      updateData({
+        exclusions: [...exclusions, ...newExclusions],
+      });
+
+      toast.showSuccess(`${newExclusions.length}개의 제외일이 추가되었습니다.`);
+      setIsExclusionImportModalOpen(false);
+    },
+    [exclusions, updateData]
+  );
+
+  // 학원 일정 개수 로드 (초기 및 academySchedules 변경 시)
+  useEffect(() => {
+    loadAcademyAvailableCount();
+  }, [loadAcademyAvailableCount]);
+
+  // 제외일 개수 로드 (기간 설정 후 및 exclusions 변경 시)
+  useEffect(() => {
+    if (periodStart && periodEnd) {
+      loadExclusionAvailableCount();
+    }
+  }, [loadExclusionAvailableCount, periodStart, periodEnd]);
 
   return (
     <div className="space-y-6">
@@ -392,15 +628,34 @@ export function Step2TimeSettings({
             학원 스케줄 <span className="text-xs text-gray-400">(선택)</span>
           </label>
           {editable && (
-            <button
-              type="button"
-              onClick={() => setShowAddAcademy(true)}
-              data-testid="add-academy-button"
-              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              추가
-            </button>
+            <div className="flex items-center gap-2">
+              {/* 시간 관리에서 불러오기 버튼 */}
+              <button
+                type="button"
+                onClick={handleOpenAcademyImportModal}
+                disabled={isLoadingAcademy}
+                data-testid="import-academy-button"
+                className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" />
+                {isLoadingAcademy ? "불러오는 중..." : "시간 관리에서 불러오기"}
+                {academyAvailableCount !== null && academyAvailableCount > 0 && (
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                    {academyAvailableCount}
+                  </span>
+                )}
+              </button>
+              {/* 직접 추가 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowAddAcademy(true)}
+                data-testid="add-academy-button"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                직접 추가
+              </button>
+            </div>
           )}
         </div>
 
@@ -568,15 +823,35 @@ export function Step2TimeSettings({
             제외 일정 <span className="text-xs text-gray-400">(선택)</span>
           </label>
           {editable && (
-            <button
-              type="button"
-              onClick={() => setShowAddExclusion(true)}
-              data-testid="add-exclusion-button"
-              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-            >
-              <Plus className="h-4 w-4" />
-              추가
-            </button>
+            <div className="flex items-center gap-2">
+              {/* 시간 관리에서 불러오기 버튼 */}
+              <button
+                type="button"
+                onClick={handleOpenExclusionImportModal}
+                disabled={isLoadingExclusion || !periodStart || !periodEnd}
+                data-testid="import-exclusion-button"
+                className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!periodStart || !periodEnd ? "학습 기간을 먼저 설정해주세요" : ""}
+              >
+                <Download className="h-4 w-4" />
+                {isLoadingExclusion ? "불러오는 중..." : "시간 관리에서 불러오기"}
+                {exclusionAvailableCount !== null && exclusionAvailableCount > 0 && (
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                    {exclusionAvailableCount}
+                  </span>
+                )}
+              </button>
+              {/* 직접 추가 버튼 */}
+              <button
+                type="button"
+                onClick={() => setShowAddExclusion(true)}
+                data-testid="add-exclusion-button"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                직접 추가
+              </button>
+            </div>
           )}
         </div>
 
@@ -709,6 +984,26 @@ export function Step2TimeSettings({
           </ul>
         </div>
       </div>
+
+      {/* 학원 일정 Import Modal */}
+      <AdminAcademyScheduleImportModal
+        isOpen={isAcademyImportModalOpen}
+        onClose={() => setIsAcademyImportModalOpen(false)}
+        availableSchedules={availableAcademySchedules}
+        existingSchedules={academySchedules}
+        onImport={handleImportAcademySchedules}
+      />
+
+      {/* 제외일 Import Modal */}
+      <AdminExclusionImportModal
+        isOpen={isExclusionImportModalOpen}
+        onClose={() => setIsExclusionImportModalOpen(false)}
+        availableExclusions={availableExclusions}
+        existingExclusions={exclusions}
+        onImport={handleImportExclusions}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createAdHocPlan } from '@/lib/domains/admin-plan/actions/adHocPlan';
+import { createAutoContentPlanGroupAction } from '@/lib/domains/admin-plan/actions/createAutoContentPlanGroup';
 import { cn } from '@/lib/cn';
 import { usePlanToast } from './PlanToast';
 import { ModalWrapper, ModalButton } from './modals';
@@ -10,7 +11,10 @@ import { CalendarPlus } from 'lucide-react';
 interface AddAdHocModalProps {
   studentId: string;
   tenantId: string;
-  planGroupId: string; // 캘린더 아키텍처 필수
+  /** 선택된 플래너 ID (필수 - Phase 1: 플래너 선택 강제화) */
+  plannerId: string;
+  /** 기존 플랜 그룹 ID (선택적 - 없으면 자동 생성) */
+  planGroupId?: string;
   targetDate: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -19,6 +23,7 @@ interface AddAdHocModalProps {
 export function AddAdHocModal({
   studentId,
   tenantId,
+  plannerId,
   planGroupId,
   targetDate,
   onClose,
@@ -43,10 +48,35 @@ export function AddAdHocModal({
     }
 
     startTransition(async () => {
+      // Phase 1: 플랜그룹 자동 생성 로직
+      let effectivePlanGroupId = planGroupId;
+
+      // planGroupId가 없으면 자동 생성
+      if (!effectivePlanGroupId) {
+        const autoGroupResult = await createAutoContentPlanGroupAction({
+          tenantId,
+          studentId,
+          plannerId,
+          contentTitle: title.trim(),
+          targetDate: planDate,
+          planPurpose: 'adhoc',
+        });
+
+        if (!autoGroupResult.success || !autoGroupResult.groupId) {
+          showToast(
+            '플랜 그룹 자동 생성 실패: ' + autoGroupResult.error,
+            'error'
+          );
+          return;
+        }
+
+        effectivePlanGroupId = autoGroupResult.groupId;
+      }
+
       const result = await createAdHocPlan({
         tenant_id: tenantId,
         student_id: studentId,
-        plan_group_id: planGroupId,
+        plan_group_id: effectivePlanGroupId,
         plan_date: planDate,
         title: title.trim(),
         description: description.trim() || null,

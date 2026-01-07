@@ -72,6 +72,8 @@ interface WizardInnerProps {
   studentId: string;
   tenantId: string;
   studentName: string;
+  /** 플래너 ID (플랜 그룹 생성 시 연결) */
+  plannerId?: string;
   onClose: () => void;
   onSuccess: (groupId: string, generateAI: boolean) => void;
 }
@@ -80,6 +82,7 @@ function WizardInner({
   studentId,
   tenantId,
   studentName,
+  plannerId,
   onClose,
   onSuccess,
 }: WizardInnerProps) {
@@ -136,6 +139,7 @@ function WizardInner({
         period_start: periodStart,
         period_end: periodEnd,
         block_set_id: blockSetId || null,
+        planner_id: plannerId || null,
         scheduler_options: schedulerOptions || undefined,
         contents: skipContents
           ? []
@@ -189,7 +193,7 @@ function WizardInner({
       console.error("[AutoSave] 자동저장 실패:", err);
       // 자동저장 실패는 무시 (사용자에게 에러 표시하지 않음)
     }
-  }, [wizardData, draftGroupId, studentId, setDraftId, resetDirtyState]);
+  }, [wizardData, draftGroupId, studentId, plannerId, setDraftId, resetDirtyState]);
 
   const { status: autoSaveStatus, lastSavedAt } = useAdminAutoSave({
     data: wizardData,
@@ -303,6 +307,7 @@ function WizardInner({
         period_start: periodStart,
         period_end: periodEnd,
         block_set_id: blockSetId || null,
+        planner_id: plannerId || null,
         scheduler_options: schedulerOptions || undefined,
         contents: skipContents
           ? []
@@ -369,6 +374,7 @@ function WizardInner({
     hasErrors,
     wizardData,
     studentId,
+    plannerId,
     draftGroupId,
     setSubmitting,
     setError,
@@ -544,6 +550,7 @@ export function AdminPlanCreationWizard7Step({
   studentId,
   tenantId,
   studentName,
+  plannerId,
   onClose,
   onSuccess,
 }: AdminPlanCreationWizardProps) {
@@ -553,6 +560,7 @@ export function AdminPlanCreationWizard7Step({
         studentId={studentId}
         tenantId={tenantId}
         studentName={studentName}
+        plannerId={plannerId}
         onClose={onClose}
         onSuccess={onSuccess}
       />

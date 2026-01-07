@@ -21,7 +21,7 @@ import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcut
 import { modalReducer, initialModalState, type ModalType } from './types/modalState';
 import { useAdminPlanRealtime } from '@/lib/realtime';
 import { useInvalidateAllDockQueries } from '@/lib/hooks/useAdminDockQueries';
-import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal } from 'lucide-react';
+import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal, AlertTriangle } from 'lucide-react';
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
 const AddContentWizard = dynamic(
@@ -417,7 +417,9 @@ export function AdminPlanManagement({
       },
       {
         key: 'g',
-        action: () => setShowCreateWizard(true),
+        action: () => {
+          if (selectedPlannerId) setShowCreateWizard(true);
+        },
         description: '플랜 그룹 생성',
         category: 'modal',
       },
@@ -428,7 +430,7 @@ export function AdminPlanManagement({
         category: 'modal',
       },
     ],
-    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId]
+    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId, selectedPlannerId]
   );
 
   useKeyboardShortcuts({ shortcuts });
@@ -437,6 +439,16 @@ export function AdminPlanManagement({
     <PlanToastProvider>
       <PlanDndProvider onMoveItem={handleMoveItem}>
         <div className={cn('space-y-6', isPending && 'opacity-50 pointer-events-none')}>
+        {/* 플래너 미선택 경고 배너 */}
+        {!selectedPlannerId && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span className="text-sm text-amber-700">
+              플랜을 생성하려면 먼저 상단에서 플래너를 생성하거나 선택해주세요.
+            </span>
+          </div>
+        )}
+
         {/* 헤더 영역 */}
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
@@ -451,8 +463,14 @@ export function AdminPlanManagement({
             </button>
             <button
               onClick={() => setShowCreateWizard(true)}
-              className="flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
-              title="플랜 그룹 생성 (g)"
+              disabled={!selectedPlannerId}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                selectedPlannerId
+                  ? "bg-primary-600 text-white hover:bg-primary-700"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              )}
+              title={selectedPlannerId ? "플랜 그룹 생성 (g)" : "먼저 플래너를 선택해주세요"}
             >
               <Plus className="h-4 w-4" />
               플랜 그룹
@@ -593,11 +611,12 @@ export function AdminPlanManagement({
         )}
 
         {/* 모달들 */}
-        {showAddContentModal && (
+        {showAddContentModal && selectedPlannerId && (
           <AddContentWizard
             studentId={studentId}
             tenantId={tenantId}
             targetDate={selectedDate}
+            selectedPlannerId={selectedPlannerId}
             onClose={() => setShowAddContentModal(false)}
             onSuccess={() => {
               setShowAddContentModal(false);
@@ -606,11 +625,12 @@ export function AdminPlanManagement({
           />
         )}
 
-        {showAddAdHocModal && activePlanGroupId && (
+        {showAddAdHocModal && selectedPlannerId && (
           <AddAdHocModal
             studentId={studentId}
             tenantId={tenantId}
-            planGroupId={activePlanGroupId}
+            plannerId={selectedPlannerId}
+            planGroupId={activePlanGroupId ?? undefined}
             targetDate={selectedDate}
             onClose={() => setShowAddAdHocModal(false)}
             onSuccess={() => {
@@ -658,11 +678,12 @@ export function AdminPlanManagement({
         )}
 
         {/* 플랜 그룹 생성 위자드 (7단계) */}
-        {showCreateWizard && (
+        {showCreateWizard && selectedPlannerId && (
           <AdminPlanCreationWizard7Step
             studentId={studentId}
             tenantId={tenantId}
             studentName={studentName}
+            plannerId={selectedPlannerId}
             onClose={() => setShowCreateWizard(false)}
             onSuccess={(groupId, generateAI) => {
               setShowCreateWizard(false);

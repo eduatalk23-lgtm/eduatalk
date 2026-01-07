@@ -75,7 +75,7 @@ export async function analyzePlanRegenerationNeed(
     weekEnd.setHours(23, 59, 59, 999);
 
     // 데이터 조회
-    const [weakSubjectsResult, scoreTrend, planStats] = await Promise.all([
+    const [weakSubjectsResult, scoreTrendResult, planStats] = await Promise.all([
       getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
       getScoreTrend(supabase, { studentId }),
       getPlanCompletionStats(supabase, studentId, planGroupId),
@@ -91,8 +91,18 @@ export async function analyzePlanRegenerationNeed(
           weakSubjectStudyTimeRatio: 0,
         };
 
+    // 성적 추이 결과 처리
+    const scoreTrendData = scoreTrendResult.success
+      ? scoreTrendResult.data
+      : {
+          hasDecliningTrend: false,
+          decliningSubjects: [],
+          lowGradeSubjects: [],
+          recentScores: [],
+        };
+
     // Rule 1: 2회 연속 점수 하락 과목 → high priority
-    for (const subject of scoreTrend.decliningSubjects) {
+    for (const subject of scoreTrendData.decliningSubjects) {
       suggestions.push({
         type: "score_decline",
         priority: "high",
