@@ -25,6 +25,7 @@ import {
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import type { ContentSlot, SlotTemplate } from "@/lib/types/content-selection";
 import { revalidatePath } from "next/cache";
+import { deletePlanGroupCascade } from "@/lib/domains/plan/utils/planGroupDeletion";
 
 /**
  * 슬롯 템플릿을 ContentSlot으로 변환
@@ -730,39 +731,25 @@ export const submitCampParticipation = withErrorHandling(
           { existingGroupId: existingGroupByTemplate.id, currentInvitationId: invitationId }
         );
 
-        const { error: deleteExistingError } = await supabase
-          .from("student_plan")
-          .delete()
-          .eq("plan_group_id", existingGroupByTemplate.id);
+        // 이전 플랜 그룹 삭제 (hard delete)
+        const deleteResult = await deletePlanGroupCascade(existingGroupByTemplate.id, {
+          studentId: user.userId,
+          hardDelete: true,
+          deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+        });
 
-        if (deleteExistingError) {
+        if (!deleteResult.success) {
           logActionDebug(
             { domain: "camp", action: "submitCampParticipation" },
-            "이전 플랜 삭제 실패 (무시하고 계속 진행)",
-            { error: deleteExistingError }
+            "이전 플랜 그룹 삭제 실패 (무시하고 계속 진행)",
+            { error: deleteResult.error, groupId: existingGroupByTemplate.id }
           );
         } else {
-          await supabase.from("plan_contents").delete().eq("plan_group_id", existingGroupByTemplate.id);
-          // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
-
-          const { error: deleteGroupError } = await supabase
-            .from("plan_groups")
-            .delete()
-            .eq("id", existingGroupByTemplate.id);
-
-          if (deleteGroupError) {
-            logActionDebug(
-              { domain: "camp", action: "submitCampParticipation" },
-              "이전 플랜 그룹 삭제 실패 (무시하고 계속 진행)",
-              { error: deleteGroupError }
-            );
-          } else {
-            logActionDebug(
-              { domain: "camp", action: "submitCampParticipation" },
-              "이전 플랜 그룹 삭제 완료",
-              { groupId: existingGroupByTemplate.id }
-            );
-          }
+          logActionDebug(
+            { domain: "camp", action: "submitCampParticipation" },
+            "이전 플랜 그룹 삭제 완료",
+            { groupId: existingGroupByTemplate.id }
+          );
         }
       }
 
@@ -1066,11 +1053,21 @@ export const declineCampInvitation = withErrorHandling(
       .maybeSingle();
 
     if (draftGroup) {
-      // 관련 데이터 삭제
-      await supabase.from("student_plan").delete().eq("plan_group_id", draftGroup.id);
-      await supabase.from("plan_contents").delete().eq("plan_group_id", draftGroup.id);
-      // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
-      await supabase.from("plan_groups").delete().eq("id", draftGroup.id);
+      // 관련 데이터 삭제 (hard delete)
+      const deleteResult = await deletePlanGroupCascade(draftGroup.id, {
+        studentId: user.userId,
+        hardDelete: true,
+        deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+      });
+
+      if (!deleteResult.success) {
+        logActionError(
+          { domain: "camp", action: "declineCampInvitation" },
+          new Error(deleteResult.error || "플랜 그룹 삭제 실패"),
+          { groupId: draftGroup.id }
+        );
+        // 삭제 실패해도 계속 진행 (초대 거절은 진행)
+      }
     }
 
     // 초대 상태를 declined로 업데이트하고 거절 사유 저장
@@ -1173,12 +1170,22 @@ export const cancelCampParticipation = withErrorHandling(
       );
     }
 
-    // 플랜 그룹이 있으면 삭제
+    // 플랜 그룹이 있으면 삭제 (hard delete)
     if (planGroup) {
-      await supabase.from("student_plan").delete().eq("plan_group_id", planGroup.id);
-      await supabase.from("plan_contents").delete().eq("plan_group_id", planGroup.id);
-      // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 플랜 그룹 삭제 시 삭제하지 않음
-      await supabase.from("plan_groups").delete().eq("id", planGroup.id);
+      const deleteResult = await deletePlanGroupCascade(planGroup.id, {
+        studentId: user.userId,
+        hardDelete: true,
+        deleteExclusions: false, // 전역 관리: plan_exclusions는 학생별 전역 데이터이므로 삭제하지 않음
+      });
+
+      if (!deleteResult.success) {
+        logActionError(
+          { domain: "camp", action: "cancelCampParticipation" },
+          new Error(deleteResult.error || "플랜 그룹 삭제 실패"),
+          { groupId: planGroup.id }
+        );
+        // 삭제 실패해도 계속 진행 (초대 취소는 진행)
+      }
     }
 
     // 초대 상태를 cancelled로 업데이트 (사용자 취소 상태)
