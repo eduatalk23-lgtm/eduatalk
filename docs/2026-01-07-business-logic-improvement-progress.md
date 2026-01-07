@@ -26,12 +26,14 @@
 **문서**: `docs/2026-01-07-phase1-1-upsert-plan-contents-atomic.md`
 
 **완료 내용**:
+
 - PostgreSQL RPC 함수 `upsert_plan_contents_atomic` 생성
 - TypeScript 래퍼 함수 `upsertPlanContentsAtomic` 추가
 - `lib/domains/plan/service.ts`의 `savePlanContents` 함수 수정
 - `lib/domains/plan/actions/plan-groups/update.ts`의 `_updatePlanGroupDraft` 함수 수정
 
 **변경된 파일**:
+
 - `supabase/migrations/20260107163140_create_upsert_plan_contents_atomic.sql` (신규)
 - `lib/domains/plan/transactions.ts` (수정)
 - `lib/domains/plan/service.ts` (수정)
@@ -47,12 +49,14 @@
 **문서**: `docs/2026-01-07-phase1-2-auto-rollback-batch-operations.md`
 
 **완료 내용**:
+
 - `BatchOperation` 인터페이스에 `rollback` 함수 추가
 - `withBatchOperations` 함수에 자동 롤백 기능 구현
 - 실패 시 성공한 작업들을 역순(LIFO)으로 자동 롤백
 - `enableAutoRollback` 옵션으로 자동 롤백 제어 가능
 
 **변경된 파일**:
+
 - `lib/supabase/transaction.ts` (수정)
 
 **커밋**: `2dbc94c4` - feat: Phase 1.2 - withBatchOperations 자동 롤백 로직 추가
@@ -67,11 +71,13 @@
 **문서**: `docs/2026-01-07-phase2-1-plan-generation-concurrency-control.md`
 
 **완료 내용**:
+
 - PostgreSQL Advisory Lock RPC 함수 `acquire_plan_group_lock` 생성
 - `lib/utils/planGroupLock.ts`의 `acquirePlanGroupLock` 함수 개선
 - `lib/domains/plan/actions/plan-groups/generatePlansWithServices.ts`에 락 획득 로직 추가
 
 **변경된 파일**:
+
 - `supabase/migrations/20260107163641_create_plan_group_lock_functions.sql` (신규)
 - `lib/utils/planGroupLock.ts` (수정)
 - `lib/domains/plan/actions/plan-groups/generatePlansWithServices.ts` (수정)
@@ -86,11 +92,13 @@
 **문서**: `docs/2026-01-07-phase2-2-optimistic-locking-calendar-drag.md`
 
 **완료 내용**:
+
 - `lib/domains/plan/actions/calendarDrag.ts`의 `rescheduleOnDrop` 함수에 Optimistic Locking 적용
 - `resizePlanDuration` 함수에 Optimistic Locking 적용
 - `student_plan` 테이블의 `version` 필드를 활용한 동시 수정 방지
 
 **변경된 파일**:
+
 - `lib/domains/plan/actions/calendarDrag.ts` (수정)
 
 **커밋**: `e07566fd` - feat: Phase 2.2 - 플랜 수정 Optimistic Locking 구현
@@ -110,6 +118,7 @@
 **목표**: 배치 미리보기에서 누락된 데이터 로드
 
 **영향 파일**:
+
 - `lib/domains/admin-plan/actions/batchPreviewPlans.ts` (414-415줄)
 
 **구현 방법**:
@@ -123,16 +132,18 @@
    - 학생의 활성 블록셋 조회
 
 3. **배치 미리보기 함수에 통합**
+
    ```typescript
    const academySchedules = await getAcademySchedules(studentId, {
      start: periodStart,
      end: periodEnd,
    });
-   
+
    const blockSets = await getBlockSetsForStudent(studentId);
    ```
 
 **참고 파일**:
+
 - 계획 문서: `.cursor/plans/-14010842.plan.md` (135-165줄)
 - 비즈니스 로직 체크리스트: `docs/2026-01-06-business-logic-audit-checklist.md`
 
@@ -149,6 +160,7 @@
 **목표**: 중복된 플랜 그룹 삭제 코드를 유틸리티 함수로 추출
 
 **발견된 중복 코드**:
+
 - `lib/domains/camp/actions/student.ts` (745줄, 1070-1073줄, 1178-1181줄)
 - 동일한 패턴: `student_plan` 삭제 → `plan_contents` 삭제 → `plan_groups` 삭제
 
@@ -159,10 +171,12 @@
 3. 기존 코드를 함수 호출로 대체
 
 **참고**:
+
 - 기존 RPC 함수: `delete_plan_group_cascade` (이미 존재)
 - 마이그레이션: `supabase/migrations/20251230000001_create_plan_group_rpc_functions.sql`
 
 **참고 파일**:
+
 - 계획 문서: `.cursor/plans/-14010842.plan.md` (170-183줄)
 
 ---
@@ -176,6 +190,7 @@
 **목표**: `any` 타입 제거 및 명시적 타입 정의
 
 **영향 파일**:
+
 - `lib/domains/plan/actions/calendarDrag.ts` (105줄, 143줄, 425줄)
 - `lib/domains/plan/actions/contentIndividualization.ts` (176줄, 256줄, 316줄, 380줄)
 
@@ -186,6 +201,7 @@
 3. 타입 단언 대신 타입 가드 사용
 
 **참고 파일**:
+
 - 계획 문서: `.cursor/plans/-14010842.plan.md` (185-198줄)
 - 개발 가이드라인: 타입 안전성 섹션
 
@@ -194,22 +210,26 @@
 ## 📋 다음 세션 시작 체크리스트
 
 ### 1. 환경 확인
+
 - [ ] 최신 코드 pull 확인
 - [ ] 마이그레이션 적용 상태 확인
 - [ ] 개발 서버 실행 가능 여부 확인
 
 ### 2. 작업 3.1 시작 전 확인사항
+
 - [ ] `lib/domains/admin-plan/actions/batchPreviewPlans.ts` 파일 확인
 - [ ] `lib/data/academySchedules.ts` 또는 유사 파일 존재 여부 확인
 - [ ] `lib/plan/blocks.ts`의 `getBlockSetForPlanGroup` 함수 확인
 - [ ] 배치 미리보기에서 어떤 데이터가 누락되었는지 확인
 
 ### 3. 작업 4.1 시작 전 확인사항
+
 - [ ] `lib/domains/camp/actions/student.ts`의 중복 코드 위치 확인
 - [ ] 기존 `delete_plan_group_cascade` RPC 함수 확인
 - [ ] TypeScript 래퍼 함수 필요 여부 확인
 
 ### 4. 작업 4.2 시작 전 확인사항
+
 - [ ] `calendarDrag.ts`의 `any` 사용 위치 확인 (이미 일부 수정됨)
 - [ ] `contentIndividualization.ts` 파일 확인
 - [ ] 타입 정의 파일 위치 확인 (`lib/types/plan/` 등)
@@ -219,12 +239,14 @@
 ## 🔍 참고 문서
 
 ### 완료된 작업 문서
+
 1. `docs/2026-01-07-phase1-1-upsert-plan-contents-atomic.md`
 2. `docs/2026-01-07-phase1-2-auto-rollback-batch-operations.md`
 3. `docs/2026-01-07-phase2-1-plan-generation-concurrency-control.md`
 4. `docs/2026-01-07-phase2-2-optimistic-locking-calendar-drag.md`
 
 ### 계획 및 분석 문서
+
 1. `.cursor/plans/-14010842.plan.md` - 전체 작업 계획
 2. `docs/2026-01-06-business-logic-audit-checklist.md` - 비즈니스 로직 점검 체크리스트
 3. `docs/2026-01-06-business-logic-analysis-and-improvements.md` - 비즈니스 로직 분석
@@ -234,11 +256,13 @@
 ## 📝 작업 순서 권장사항
 
 ### 우선순위 순서
+
 1. **작업 3.1** (HIGH) - 배치 미리보기 데이터 로드
 2. **작업 4.1** (MEDIUM) - 중복 코드 제거
 3. **작업 4.2** (MEDIUM) - 타입 안전성 개선
 
 ### 의존성
+
 - 작업 3.1: 독립적 (다른 작업과 의존성 없음)
 - 작업 4.1: 독립적 (Phase 1 완료 후 가능)
 - 작업 4.2: 독립적 (언제든 가능)
@@ -286,6 +310,7 @@ ls -la lib/types/plan/
 ## 📊 작업 통계
 
 ### 완료된 작업별 소요 시간
+
 - Phase 1.1: 약 1시간
 - Phase 1.2: 약 30분
 - Phase 2.1: 약 1시간
@@ -294,6 +319,7 @@ ls -la lib/types/plan/
 **총 소요 시간**: 약 3시간
 
 ### 예상 남은 시간
+
 - 작업 3.1: 1일 (약 4-6시간)
 - 작업 4.1: 1일 (약 4-6시간)
 - 작업 4.2: 1-2일 (약 6-8시간)
@@ -316,4 +342,3 @@ ls -la lib/types/plan/
 
 **마지막 업데이트**: 2026-01-07  
 **다음 작업**: Phase 3.1 - 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
-
