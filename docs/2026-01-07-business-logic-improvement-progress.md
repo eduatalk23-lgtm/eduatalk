@@ -8,11 +8,11 @@
 
 ## 전체 진행 상황
 
-- **완료**: 5개 작업
+- **완료**: 6개 작업
 - **진행 중**: 0개 작업
-- **대기 중**: 2개 작업
+- **대기 중**: 1개 작업
 
-**전체 진행률**: 71% (5/7)
+**전체 진행률**: 86% (6/7)
 
 ---
 
@@ -127,40 +127,36 @@
 
 ---
 
+### Phase 4: MEDIUM - 코드 중복 제거 및 최적화
+
+#### ✅ 작업 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
+
+**완료 일자**: 2026-01-07  
+**문서**: `docs/2026-01-07-phase4-1-plan-group-deletion-consolidation.md`
+
+**완료 내용**:
+
+- `lib/domains/plan/utils/planGroupDeletion.ts` 유틸리티 함수 생성
+- `deletePlanGroupCascade` 함수 구현: hard delete/soft delete 옵션 지원
+- `lib/domains/camp/actions/student.ts`의 3곳 중복 코드를 유틸리티 함수 호출로 대체
+  - `submitCampParticipation` (745줄)
+  - `declineCampInvitation` (1070-1073줄)
+  - `cancelCampParticipation` (1178-1181줄)
+
+**변경된 파일**:
+
+- `lib/domains/plan/utils/planGroupDeletion.ts` (신규)
+- `lib/domains/camp/actions/student.ts` (수정)
+
+**커밋**: `5a6ec1cc` - feat: Phase 4.1 - 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
+
+---
+
 ## ⏳ 남은 작업
 
 
 ---
 
-### Phase 4: MEDIUM - 코드 중복 제거 및 최적화
-
-#### ⏳ 작업 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
-
-**상태**: 대기 중  
-**우선순위**: MEDIUM  
-**예상 소요 시간**: 1일
-
-**목표**: 중복된 플랜 그룹 삭제 코드를 유틸리티 함수로 추출
-
-**발견된 중복 코드**:
-
-- `lib/domains/camp/actions/student.ts` (745줄, 1070-1073줄, 1178-1181줄)
-- 동일한 패턴: `student_plan` 삭제 → `plan_contents` 삭제 → `plan_groups` 삭제
-
-**구현 방법**:
-
-1. `lib/domains/plan/utils/planGroupDeletion.ts` 생성
-2. `deletePlanGroupCascade(groupId)` 함수 구현
-3. 기존 코드를 함수 호출로 대체
-
-**참고**:
-
-- 기존 RPC 함수: `delete_plan_group_cascade` (이미 존재)
-- 마이그레이션: `supabase/migrations/20251230000001_create_plan_group_rpc_functions.sql`
-
-**참고 파일**:
-
-- 계획 문서: `.cursor/plans/-14010842.plan.md` (170-183줄)
 
 ---
 
@@ -228,6 +224,7 @@
 3. `docs/2026-01-07-phase2-1-plan-generation-concurrency-control.md`
 4. `docs/2026-01-07-phase2-2-optimistic-locking-calendar-drag.md`
 5. `docs/2026-01-07-phase3-1-batch-preview-academy-blocks-load.md`
+6. `docs/2026-01-07-phase4-1-plan-group-deletion-consolidation.md`
 
 ### 계획 및 분석 문서
 
@@ -300,15 +297,15 @@ ls -la lib/types/plan/
 - Phase 2.1: 약 1시간
 - Phase 2.2: 약 30분
 - Phase 3.1: 약 30분
+- Phase 4.1: 약 1시간
 
-**총 소요 시간**: 약 3.5시간
+**총 소요 시간**: 약 4.5시간
 
 ### 예상 남은 시간
 
-- 작업 4.1: 1일 (약 4-6시간)
 - 작업 4.2: 1-2일 (약 6-8시간)
 
-**예상 총 남은 시간**: 2-3일 (약 10-14시간)
+**예상 총 남은 시간**: 1-2일 (약 6-8시간)
 
 ---
 
@@ -319,10 +316,10 @@ ls -la lib/types/plan/
 - [x] Phase 2.1: 플랜 생성 동시성 제어 구현
 - [x] Phase 2.2: 플랜 수정 Optimistic Locking 구현
 - [x] Phase 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
-- [ ] Phase 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
+- [x] Phase 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
 - [ ] Phase 4.2: any 타입 제거 및 명시적 타입 정의
 
 ---
 
 **마지막 업데이트**: 2026-01-07  
-**다음 작업**: Phase 4.1 - 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
+**다음 작업**: Phase 4.2 - any 타입 제거 및 명시적 타입 정의
