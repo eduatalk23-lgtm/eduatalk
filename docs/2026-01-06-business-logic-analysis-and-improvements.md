@@ -32,12 +32,12 @@ Planner (플래너)
 
 ### 1.2 엔티티별 역할
 
-| 엔티티 | 역할 | 특징 |
-|--------|------|------|
-| **Planner** | 학생별 학습 기간 단위 관리 | 기간별 시간 설정, 블록셋, 스케줄러 기본값 관리 |
-| **PlanGroup** | 학습 계획 그룹 (메타데이터) | 목적, 기간, 스케줄러 타입, 콘텐츠 그룹핑 |
-| **Plan** | 개별 학습 일정 (실행 단위) | 날짜, 시간, 콘텐츠 범위, 진행률 |
-| **AdHocPlan** | 단발성/일회성 학습 일정 | 반복 규칙 지원, 플랜그룹 연결 |
+| 엔티티        | 역할                        | 특징                                           |
+| ------------- | --------------------------- | ---------------------------------------------- |
+| **Planner**   | 학생별 학습 기간 단위 관리  | 기간별 시간 설정, 블록셋, 스케줄러 기본값 관리 |
+| **PlanGroup** | 학습 계획 그룹 (메타데이터) | 목적, 기간, 스케줄러 타입, 콘텐츠 그룹핑       |
+| **Plan**      | 개별 학습 일정 (실행 단위)  | 날짜, 시간, 콘텐츠 범위, 진행률                |
+| **AdHocPlan** | 단발성/일회성 학습 일정     | 반복 규칙 지원, 플랜그룹 연결                  |
 
 ---
 
@@ -48,6 +48,7 @@ Planner (플래너)
 **테이블**: `planners`
 
 **주요 필드**:
+
 - `period_start`, `period_end`: 학습 기간
 - `study_hours`, `self_study_hours`, `lunch_time`: 시간 설정 (JSONB)
 - `non_study_time_blocks`: 비학습 시간 블록 (JSONB 배열)
@@ -55,17 +56,20 @@ Planner (플래너)
 - `block_set_id`: 블록셋 연결
 
 **비즈니스 로직**:
+
 - 플래너 → 플랜그룹 상속: 시간 설정 자동 상속 (완료)
 - 플래너 해제 시 상속된 설정 정리 (미완료)
 
 ### 2.2 현재 상태
 
 ✅ **완료된 작업**:
+
 - 플래너 시간 설정 → 플랜그룹 자동 상속
 - DB 마이그레이션: `plan_groups`에 `study_hours`, `self_study_hours`, `lunch_time` 컬럼 추가
 - 위저드 Step1BasicInfo에서 플래너 선택 시 자동 채우기
 
 ⚠️ **미완료 작업**:
+
 - 스케줄러 로직에서 저장된 시간 설정 활용 (하드코딩된 기본값 사용 중)
 - 플래너 해제 시 상속된 설정 정리 로직
 - Step3SchedulePreview에서 실제 가용 시간 시각화
@@ -95,6 +99,7 @@ Planner (플래너)
 **테이블**: `plan_groups`
 
 **주요 필드**:
+
 - `plan_purpose`: 목적 (내신대비, 모의고사, 수능, 기타)
 - `scheduler_type`: 스케줄러 타입 (`1730_timetable`, `default`)
 - `scheduler_options`: 스케줄러 옵션 (JSONB)
@@ -104,11 +109,13 @@ Planner (플래너)
 - `study_hours`, `self_study_hours`, `lunch_time`: 시간 설정 (플래너 상속)
 
 **플랜 타입**:
+
 - `individual`: 개별 플랜
 - `integrated`: 통합 플랜
 - `camp`: 캠프 프로그램
 
 **생성 모드**:
+
 - `structured`: 위저드 기반 구조화된 생성
 - `content_based`: 콘텐츠 기반 생성
 - `quick`: 빠른 생성
@@ -117,6 +124,7 @@ Planner (플래너)
 ### 3.2 비즈니스 로직
 
 **플랜 생성 흐름**:
+
 1. 플랜그룹 생성 (위저드 또는 API)
 2. 콘텐츠 선택 및 범위 설정
 3. 스케줄러 실행 (`generatePlansFromGroup`)
@@ -124,6 +132,7 @@ Planner (플래너)
 5. DB 저장 (`student_plan` 테이블)
 
 **상태 관리**:
+
 - `draft`: 초안
 - `active`: 활성
 - `completed`: 완료
@@ -148,6 +157,7 @@ Planner (플래너)
 **테이블**: `student_plan`
 
 **주요 필드**:
+
 - `plan_group_id`: 플랜그룹 참조
 - `plan_date`: 학습 날짜
 - `block_index`: 블록 인덱스
@@ -157,12 +167,14 @@ Planner (플래너)
 - `progress`, `completed_amount`: 진행률
 
 **1730 타임테이블 확장 필드**:
+
 - `cycle_day_number`: 주기 내 일자 번호
 - `date_type`: 날짜 유형 (`study`, `review`, `exclusion`)
 - `time_slot_type`: 시간대 유형 (`study`, `self_study`)
 - `duration_info`, `review_info`, `allocation_type`: 메타데이터 (JSONB)
 
 **Calendar-First 아키텍처 필드**:
+
 - `container_type`: 컨테이너 타입 (`daily`, `weekly`, `unfinished`)
 - `is_locked`: 잠금 상태
 - `estimated_minutes`: 예상 학습 시간
@@ -173,16 +185,19 @@ Planner (플래너)
 ### 4.2 비즈니스 로직
 
 **플랜 생성**:
+
 - 스케줄러가 `ScheduledPlan[]` 생성
 - 시간 슬롯 배정 후 DB 저장
 - Episode 분할 로직 적용
 
 **플랜 수정**:
+
 - 드래그 앤 드롭으로 날짜 이동
 - 시간 조정 (`resizePlanDuration`)
 - 이월 처리 (`carryover`)
 
 **플랜 삭제**:
+
 - 개별 삭제
 - 플랜그룹 삭제 시 연쇄 삭제
 
@@ -209,6 +224,7 @@ Planner (플래너)
 **테이블**: `ad_hoc_plans`
 
 **주요 필드**:
+
 - `plan_group_id`: 플랜그룹 연결 (캘린더 아키텍처 필수)
 - `plan_date`: 학습 날짜
 - `title`, `description`: 제목 및 설명
@@ -220,6 +236,7 @@ Planner (플래너)
 - `recurrence_parent_id`: 반복 부모 ID (자기 참조)
 
 **비즈니스 로직**:
+
 - 단발성 플랜 생성 (`createAdHocPlan`)
 - 반복 규칙 지원 (`recurrence_rule`)
 - 플랜그룹으로 승격 (`promoteToRegularPlan`)
@@ -228,12 +245,14 @@ Planner (플래너)
 ### 5.2 현재 상태
 
 ✅ **완료된 작업**:
+
 - 단발성 플랜 CRUD
 - 반복 규칙 지원
 - 플랜그룹 연결
 - 이월 처리
 
 ⚠️ **개선 필요 사항**:
+
 - 반복 규칙 UI/UX 개선
 - 단발성 플랜 → 정규 플랜 전환 프로세스 개선
 - 단발성 플랜과 정규 플랜 통합 표시
@@ -260,17 +279,20 @@ Planner (플래너)
 ### 6.1 현재 구조
 
 **주요 파일**:
+
 - `lib/scheduler/SchedulerEngine.ts`: 1730 타임테이블 스케줄링 엔진
 - `lib/plan/scheduler.ts`: 스케줄러 오케스트레이션
 - `lib/plan/1730TimetableLogic.ts`: 1730 알고리즘 로직
 
 **스케줄러 타입**:
+
 - `1730_timetable`: 1730 타임테이블 알고리즘
 - `default`: 기본 스케줄러 (단순 분할)
 
 ### 6.2 1730 타임테이블 알고리즘
 
 **주요 단계**:
+
 1. **주기 계산** (`calculateCycle`): 학습일/복습일 분류
 2. **콘텐츠 필터링** (`filterContents`): 취약과목 집중 모드
 3. **날짜 배정** (`calculateContentAllocation`): 전략/취약 과목 로직
@@ -278,6 +300,7 @@ Planner (플래너)
 5. **시간 슬롯 배정** (`assignTimeSlots`): Bin Packing 알고리즘 유사
 
 **SchedulerEngine 클래스**:
+
 - 컨텍스트 기반 설계
 - 캐싱 메커니즘 (cycleDays, contentAllocationMap 등)
 - 실패 원인 수집 (`failureReasons`)
@@ -285,11 +308,13 @@ Planner (플래너)
 ### 6.3 현재 상태
 
 ✅ **완료된 작업**:
+
 - 1730 타임테이블 알고리즘 구현
 - SchedulerEngine 클래스 캡슐화
 - 실패 원인 수집 및 보고
 
 ⚠️ **개선 필요 사항**:
+
 - 플래너 시간 설정 활용 (하드코딩된 기본값 사용 중)
 - 스케줄러 옵션 검증 강화
 - 성능 최적화 (대량 플랜 생성 시)
@@ -297,14 +322,16 @@ Planner (플래너)
 ### 6.4 개선 필요 사항
 
 1. **플래너 시간 설정 통합** (우선순위: 높음)
+
    ```typescript
    // 현재: 하드코딩
    const DEFAULT_STUDY_HOURS = { start: "10:00", end: "19:00" };
-   
+
    // 개선: plan_group에서 조회
    const studyHours = planGroup.study_hours ?? DEFAULT_STUDY_HOURS;
    const lunchTime = planGroup.lunch_time ?? { start: "12:00", end: "13:00" };
    ```
+
    - 파일: `lib/scheduler/calculateAvailableDates.ts`, `lib/scheduler/generateTimeSlots.ts`
 
 2. **스케줄러 옵션 검증** (우선순위: 중간)
@@ -326,16 +353,19 @@ Planner (플래너)
 ### 7.1 현재 구조
 
 **주요 파일**:
+
 - `app/(admin)/admin/plan-creation/_hooks/useBatchProcessor.ts`: 배치 처리 훅
 - `lib/domains/admin-plan/actions/batchPreviewPlans.ts`: 배치 미리보기
 - `lib/domains/admin-plan/actions/batchAIPlanGeneration.ts`: 배치 AI 플랜 생성
 - `lib/offline/queue.ts`: 오프라인 큐 처리
 
 **배치 처리 전략**:
+
 - `sequential`: 순차 처리
 - `parallel`: 병렬 처리 (최대 동시 실행 수 제한)
 
 **재시도 전략**:
+
 - 최대 재시도 횟수 설정
 - 지수 백오프 (exponential backoff)
 - 재시도 지연 시간 설정
@@ -343,12 +373,14 @@ Planner (플래너)
 ### 7.2 비즈니스 로직
 
 **useBatchProcessor 훅**:
+
 - 학생 목록을 순차/병렬로 처리
 - 진행 상황 추적 (`progress`, `results`)
 - 일시정지/재개/취소 기능
 - 재시도 로직
 
 **오프라인 큐**:
+
 - 오프라인 상태에서 액션 저장
 - 온라인 복귀 시 자동 처리
 - 오래된 액션 정리
@@ -356,12 +388,14 @@ Planner (플래너)
 ### 7.3 현재 상태
 
 ✅ **완료된 작업**:
+
 - 배치 처리 훅 구현
 - 순차/병렬 처리 지원
 - 재시도 로직
 - 오프라인 큐
 
 ⚠️ **개선 필요 사항**:
+
 - 배치 처리 진행 상황 UI 개선
 - 에러 처리 및 복구 로직 강화
 - 배치 처리 성능 최적화
@@ -389,11 +423,13 @@ Planner (플래너)
 ### 8.1 현재 구조
 
 **주요 파일**:
+
 - `app/(student)/plan/calendar/_components/DayView.tsx`: 일별 뷰
 - `app/(student)/plan/calendar/_utils/timelineUtils.ts`: 타임라인 유틸리티
 - `app/(student)/today/_components/TimelineView.tsx`: 타임라인 뷰
 
 **타임라인 슬롯 타입**:
+
 - `학습시간`: 정규 플랜
 - `점심시간`: 점심 시간 블록
 - `학원일정`: 학원 일정
@@ -401,6 +437,7 @@ Planner (플래너)
 - `자율학습`: 자율 학습 시간
 
 **타임라인 빌드 로직**:
+
 - `daily_schedule.time_slots` 기반 타임슬롯 생성
 - 플랜 시간 정보로 타임라인 배치
 - 제외일 처리 (휴일지정, 기타)
@@ -408,6 +445,7 @@ Planner (플래너)
 ### 8.2 비즈니스 로직
 
 **buildTimelineSlots 함수**:
+
 1. 제외일 확인 및 필터링
 2. 날짜별 플랜 필터링
 3. 시간 정보 기준 정렬
@@ -415,6 +453,7 @@ Planner (플래너)
 5. 학원일정 통합
 
 **DayView 컴포넌트**:
+
 - 일별 플랜 표시
 - 드래그 앤 드롭 지원
 - 타임라인 시각화
@@ -422,12 +461,14 @@ Planner (플래너)
 ### 8.3 현재 상태
 
 ✅ **완료된 작업**:
+
 - 타임라인 슬롯 생성 로직
 - 제외일 처리
 - 학원일정 통합
 - 드래그 앤 드롭 지원
 
 ⚠️ **개선 필요 사항**:
+
 - 타임라인 성능 최적화 (대량 플랜 처리)
 - 타임라인 UI/UX 개선
 - 가상 타임라인 (예상 시간 표시)
@@ -513,10 +554,12 @@ Planner (플래너)
 #### 1. 서비스 레이어 분리
 
 **현재 문제**:
+
 - 비즈니스 로직이 액션 파일에 혼재
 - 재사용성 낮음
 
 **개선 방향**:
+
 ```
 lib/domains/plan/services/
 ├── PlannerService.ts        # 플래너 관련 비즈니스 로직
@@ -529,10 +572,12 @@ lib/domains/plan/services/
 #### 2. 타입 시스템 강화
 
 **현재 문제**:
+
 - 타입 정의가 여러 파일에 분산
 - 타입 일관성 부족
 
 **개선 방향**:
+
 - 도메인별 타입 파일 통합
 - 타입 가드 함수 추가
 - Zod 스키마와 타입 동기화
@@ -540,10 +585,12 @@ lib/domains/plan/services/
 #### 3. 에러 처리 표준화
 
 **현재 문제**:
+
 - 에러 처리 방식이 일관되지 않음
 - 에러 메시지가 사용자 친화적이지 않음
 
 **개선 방향**:
+
 - 표준 에러 타입 정의
 - 에러 코드 체계 구축
 - 에러 메시지 다국어 지원
@@ -593,28 +640,33 @@ lib/domains/plan/services/
 ## 10. 관련 파일 목록
 
 ### 플래너
+
 - `supabase/migrations/20260106200000_create_planners_table.sql`
 - `lib/domains/admin-plan/actions/planners.ts`
 - `app/(admin)/admin/students/[id]/plans/_components/PlannerCreationModal.tsx`
 - `app/(admin)/admin/students/[id]/plans/_components/PlannerManagement.tsx`
 
 ### 플랜그룹
+
 - `lib/types/plan/domain.ts` (PlanGroup 타입)
 - `lib/domains/plan/actions/plan-groups/create.ts`
 - `lib/domains/plan/actions/plan-groups/update.ts`
 - `lib/data/planGroups.ts`
 
 ### 플랜
+
 - `lib/types/plan/domain.ts` (Plan 타입)
 - `lib/domains/plan/actions/plans.ts`
 - `lib/data/studentPlans.ts`
 
 ### 단발성 플랜
+
 - `lib/domains/admin-plan/actions/adHocPlan.ts`
 - `lib/domains/admin-plan/types.ts` (AdHocPlan 타입)
 - `app/(admin)/admin/students/[id]/plans/_components/AddAdHocModal.tsx`
 
 ### 스케줄러
+
 - `lib/scheduler/SchedulerEngine.ts`
 - `lib/plan/scheduler.ts`
 - `lib/plan/1730TimetableLogic.ts`
@@ -622,12 +674,14 @@ lib/domains/plan/services/
 - `lib/scheduler/generateTimeSlots.ts`
 
 ### 배치 처리
+
 - `app/(admin)/admin/plan-creation/_hooks/useBatchProcessor.ts`
 - `lib/domains/admin-plan/actions/batchPreviewPlans.ts`
 - `lib/domains/admin-plan/actions/batchAIPlanGeneration.ts`
 - `lib/offline/queue.ts`
 
 ### 캘린더/타임라인
+
 - `app/(student)/plan/calendar/_components/DayView.tsx`
 - `app/(student)/plan/calendar/_utils/timelineUtils.ts`
 - `app/(student)/today/_components/TimelineView.tsx`
@@ -658,4 +712,3 @@ lib/domains/plan/services/
 ---
 
 **마지막 업데이트**: 2026-01-06
-

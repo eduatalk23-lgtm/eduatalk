@@ -35,12 +35,12 @@
 
 ### 1.2 심각도 분류
 
-| 심각도 | 설명 | 조치 시기 |
-|--------|------|----------|
-| **🔴 CRITICAL** | 즉시 수정 필요, 데이터 손실/불일치 위험 | 즉시 |
-| **🟠 HIGH** | 빠른 시일 내 수정 권장, 사용자 경험에 큰 영향 | 1주일 내 |
-| **🟡 MEDIUM** | 중기 개선 권장, 점진적 개선 가능 | 1개월 내 |
-| **🟢 LOW** | 장기 개선, 우선순위 낮음 | 3개월 내 |
+| 심각도          | 설명                                          | 조치 시기 |
+| --------------- | --------------------------------------------- | --------- |
+| **🔴 CRITICAL** | 즉시 수정 필요, 데이터 손실/불일치 위험       | 즉시      |
+| **🟠 HIGH**     | 빠른 시일 내 수정 권장, 사용자 경험에 큰 영향 | 1주일 내  |
+| **🟡 MEDIUM**   | 중기 개선 권장, 점진적 개선 가능              | 1개월 내  |
+| **🟢 LOW**      | 장기 개선, 우선순위 낮음                      | 3개월 내  |
 
 ---
 
@@ -69,11 +69,12 @@
 
 1. **DELETE → INSERT 패턴 사용** 🟡 MEDIUM
 
-   **위치**: 
+   **위치**:
    - `lib/domains/camp/actions/student.ts` (745줄, 1070-1073줄, 1178-1181줄)
    - `lib/domains/plan/actions/contentPlanGroup/quickCreate.ts` (504줄)
 
    **문제**:
+
    ```typescript
    // 현재: DELETE 후 INSERT (트랜잭션 없음)
    await supabase.from("plan_contents").delete().eq("plan_group_id", groupId);
@@ -85,23 +86,24 @@
    - 중간 상태에서 다른 요청이 조회하면 데이터 불일치
 
    **개선 방안**:
+
    ```typescript
    // 옵션 1: RPC 함수로 트랜잭션 처리
    await supabase.rpc("upsert_plan_contents", {
      p_group_id: groupId,
-     p_contents: newContents
+     p_contents: newContents,
    });
 
    // 옵션 2: 배치 작업으로 순차 실행
    await withBatchOperations([
      { name: "Delete old", execute: () => deleteOld() },
-     { name: "Insert new", execute: () => insertNew() }
+     { name: "Insert new", execute: () => insertNew() },
    ]);
    ```
 
 2. **트랜잭션 범위 불명확** 🟡 MEDIUM
 
-   **위치**: 
+   **위치**:
    - `lib/domains/plan/llm/actions/generatePlan.ts` (306줄)
    - `lib/domains/admin-plan/actions/planTemplates.ts` (249줄)
 
@@ -123,11 +125,17 @@
    - 복잡한 트랜잭션에서 롤백 누락 가능
 
    **개선 방안**:
+
    ```typescript
    // 롤백 함수 자동 실행
    const result = await withBatchOperations(operations);
    if (!result.success && result.rollbackIds) {
-     await rollbackUpdates(supabase, tableName, result.rollbackIds, rollbackData);
+     await rollbackUpdates(
+       supabase,
+       tableName,
+       result.rollbackIds,
+       rollbackData
+     );
    }
    ```
 
@@ -186,6 +194,7 @@
    - 진행률 계산 로직 표준화 필요
 
    **개선 방안**:
+
    ```typescript
    // 상태 업데이트 시 진행률 자동 계산
    function updatePlanStatus(plan: Plan, status: PlanStatus) {
@@ -245,6 +254,7 @@
    - 플랜 그룹 상태 업데이트 시 Race Condition 가능
 
    **개선 방안**:
+
    ```typescript
    // 플랜 그룹 락 획득
    const lockAcquired = await acquirePlanGroupLock(supabase, groupId);
@@ -268,6 +278,7 @@
    - Optimistic Locking 미적용
 
    **개선 방안**:
+
    ```typescript
    // Optimistic Locking 적용
    const { data, error } = await supabase
@@ -309,13 +320,16 @@
    - `lib/domains/plan/llm/providers/gemini.ts` (610줄)
 
    **문제**:
+
    ```typescript
    // ❌ 나쁜 예
-   const isOwner = (existingPlan as any).plan_groups?.student_id === user.userId;
+   const isOwner =
+     (existingPlan as any).plan_groups?.student_id === user.userId;
    const studentId = (planContent as any).plan_groups?.student_id;
    ```
 
    **개선 방안**:
+
    ```typescript
    // ✅ 좋은 예: 타입 정의
    interface PlanWithGroup extends Plan {
@@ -337,6 +351,7 @@
    - Optional Chaining 미사용
 
    **개선 방안**:
+
    ```typescript
    // ✅ 좋은 예
    const { data, error } = await supabase.from("students").select("*");
@@ -376,6 +391,7 @@
    - 사용자 친화적 메시지와 기술적 메시지 혼재
 
    **개선 방안**:
+
    ```typescript
    // 표준 에러 메시지 포맷
    throw new AppError(
@@ -383,7 +399,7 @@
      ErrorCode.BUSINESS_LOGIC_ERROR,
      400,
      true, // 사용자에게 표시
-     { reason: 'insufficient_study_days' } // 기술적 정보
+     { reason: "insufficient_study_days" } // 기술적 정보
    );
    ```
 
@@ -396,6 +412,7 @@
    - 디버깅이 어려움
 
    **개선 방안**:
+
    ```typescript
    // 모든 에러 로깅
    catch (error) {
@@ -453,6 +470,7 @@
    - 자동 복구 로직 없음
 
    **개선 방안**:
+
    ```typescript
    // 검증 실패 시 복구 제안
    const validation = validatePlans(plans);
@@ -495,11 +513,12 @@
    - 대량 플랜 생성 시 성능 저하
 
    **개선 방안**:
+
    ```typescript
    // ✅ 좋은 예: 배치 조회
-   const contentIds = plans.map(p => p.content_id);
+   const contentIds = plans.map((p) => p.content_id);
    const contents = await getContentsBatch(contentIds);
-   const contentMap = new Map(contents.map(c => [c.id, c]));
+   const contentMap = new Map(contents.map((c) => [c.id, c]));
    ```
 
 2. **불필요한 재계산** 🟡 MEDIUM
@@ -543,6 +562,7 @@
    - 플랜 생성 시 시간 충돌 가능
 
    **개선 방안**:
+
    ```typescript
    const academySchedules = await getAcademySchedules(studentId, period);
    ```
@@ -560,6 +580,7 @@
    - 가용 시간 계산 부정확
 
    **개선 방안**:
+
    ```typescript
    const blockSets = await getBlockSets(studentId);
    ```
@@ -568,7 +589,7 @@
 
 1. **콘텐츠 제목 조인 미구현**
 
-   **위치**: 
+   **위치**:
    - `lib/domains/plan/actions/content-calendar.ts` (558줄)
    - `lib/domains/plan/actions/timezone.ts` (347줄)
 
@@ -683,25 +704,30 @@
 ## 11. 관련 파일 목록
 
 ### 트랜잭션 처리
+
 - `lib/supabase/transaction.ts` - 배치 작업 유틸리티
 - `lib/reschedule/transaction.ts` - 재조정 트랜잭션
 - `lib/domains/plan/transactions.ts` - 플랜 트랜잭션
 - `lib/domains/today/transactions.ts` - 학습 세션 트랜잭션
 
 ### 동시성 제어
+
 - `lib/domains/today/actions/timer.ts` - 타이머 Race Condition 방지
 - `lib/reschedule/transaction.ts` - 재조정 락 메커니즘
 
 ### 타입 안전성
+
 - `lib/domains/plan/actions/calendarDrag.ts` - `any` 타입 사용
 - `lib/domains/plan/actions/contentIndividualization.ts` - `any` 타입 사용
 
 ### 에러 처리
+
 - `lib/errors/handler.ts` - 표준 에러 처리
 - `lib/errors/planGroupErrors.ts` - 플랜 그룹 에러
 - `lib/domains/camp/errors.ts` - 캠프 에러
 
 ### 검증
+
 - `lib/validation/wizardValidator.ts` - 위저드 검증
 - `lib/domains/plan/services/planValidationService.ts` - 플랜 검증
 - `lib/domains/plan/services/slotValidationService.ts` - 슬롯 검증
@@ -731,4 +757,3 @@
 ---
 
 **마지막 업데이트**: 2026-01-06
-

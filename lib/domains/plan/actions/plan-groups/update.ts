@@ -13,6 +13,7 @@ import {
   createPlanExclusions,
   createPlanAcademySchedules,
 } from "@/lib/data/planGroups";
+import { upsertPlanContentsAtomic } from "@/lib/domains/plan/transactions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling, withErrorHandlingSafe } from "@/lib/errors";
 import { PlanValidator } from "@/lib/validation/planValidator";
@@ -248,46 +249,50 @@ async function _updatePlanGroupDraft(
     }
   }
 
-  // 콘텐츠 업데이트 (기존 삭제 후 재생성)
+  // 콘텐츠 업데이트 (원자적 트랜잭션으로 기존 삭제 후 재생성)
+  // Phase 1.1: DELETE → INSERT 패턴을 UPSERT로 전환
   if (data.contents !== undefined) {
-    const supabase = await createSupabaseServerClient();
-    const { error: deleteError } = await supabase
-      .from("plan_contents")
-      .delete()
-      .eq("plan_group_id", groupId);
+    const contentsInput = data.contents.map((c, index) => ({
+      content_type: c.content_type,
+      content_id: c.content_id,
+      content_name: null,
+      start_range: c.start_range,
+      end_range: c.end_range,
+      subject_name: null,
+      subject_category: null,
+      display_order: c.display_order ?? index,
+      start_detail_id: c.start_detail_id ?? null,
+      end_detail_id: c.end_detail_id ?? null,
+      master_content_id: null,
+      priority: null,
+      is_paused: false,
+      paused_until: null,
+      scheduler_mode: null,
+      individual_schedule: null,
+      custom_study_days: null,
+      content_scheduler_options: null,
+      is_auto_recommended: false,
+      recommendation_source: null,
+      recommendation_reason: null,
+      recommendation_metadata: null,
+      recommended_by: null,
+      recommended_at: null,
+      generation_status: null,
+    }));
 
-    if (deleteError) {
+    const result = await upsertPlanContentsAtomic(
+      groupId,
+      tenantContext.tenantId,
+      contentsInput
+    );
+
+    if (!result.success) {
       throw new AppError(
-        `기존 콘텐츠 삭제 실패: ${deleteError.message}`,
+        result.error || "콘텐츠 업데이트에 실패했습니다.",
         ErrorCode.DATABASE_ERROR,
         500,
         true
       );
-    }
-
-    if (data.contents.length > 0) {
-      const contentsResult = await createPlanContents(
-        groupId,
-        tenantContext.tenantId,
-        data.contents.map((c) => ({
-          content_type: c.content_type,
-          content_id: c.content_id,
-          start_range: c.start_range,
-          end_range: c.end_range,
-          start_detail_id: c.start_detail_id ?? null,
-          end_detail_id: c.end_detail_id ?? null,
-          display_order: c.display_order ?? 0,
-        }))
-      );
-
-      if (!contentsResult.success) {
-        throw new AppError(
-          contentsResult.error || "콘텐츠 업데이트에 실패했습니다.",
-          ErrorCode.DATABASE_ERROR,
-          500,
-          true
-        );
-      }
     }
   }
 

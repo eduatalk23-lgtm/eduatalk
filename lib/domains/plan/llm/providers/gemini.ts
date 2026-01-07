@@ -68,6 +68,83 @@ const GEMINI_PRICING: Record<ModelTier, CostInfo> = {
   },
 };
 
+
+/**
+ * Gemini API Rate Limiter
+ *
+ * 요청 간격을 제어하여 Rate Limit 에러를 사전에 방지합니다.
+ * Gemini Free Tier: 15 RPM (분당 15 요청) → 최소 4초 간격 권장
+ * Gemini Pay-as-you-go: 1000 RPM → 최소 60ms 간격
+ */
+class GeminiRateLimiter {
+  private lastRequestTime: number = 0;
+  private requestQueue: Array<() => void> = [];
+  private isProcessing: boolean = false;
+
+  /**
+   * @param minIntervalMs - 요청 간 최소 간격 (밀리초)
+   */
+  constructor(private readonly minIntervalMs: number = 4000) {}
+
+  /**
+   * 다음 요청까지 대기해야 하는 시간 계산
+   */
+  private getWaitTime(): number {
+    const now = Date.now();
+    const elapsed = now - this.lastRequestTime;
+    const waitTime = Math.max(0, this.minIntervalMs - elapsed);
+    return waitTime;
+  }
+
+  /**
+   * Rate Limit을 준수하며 요청 실행
+   *
+   * @param fn - 실행할 비동기 함수
+   * @returns 함수 실행 결과
+   */
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    const waitTime = this.getWaitTime();
+
+    if (waitTime > 0) {
+      console.log(`[GeminiRateLimiter] ${waitTime}ms 대기 중...`);
+      await this.delay(waitTime);
+    }
+
+    this.lastRequestTime = Date.now();
+
+    try {
+      return await fn();
+    } finally {
+      // 요청 완료 후 시간 갱신 (에러 발생해도)
+      this.lastRequestTime = Date.now();
+    }
+  }
+
+  /**
+   * 대기
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 현재 설정된 최소 간격 반환
+   */
+  getMinInterval(): number {
+    return this.minIntervalMs;
+  }
+
+  /**
+   * 마지막 요청 이후 경과 시간
+   */
+  getElapsedSinceLastRequest(): number {
+    return Date.now() - this.lastRequestTime;
+  }
+}
+
+// 싱글톤 Rate Limiter 인스턴스 (Free Tier 기준 4초 간격)
+const geminiRateLimiter = new GeminiRateLimiter(4000);
+
 // ============================================
 // GeminiProvider 클래스
 // ============================================
@@ -97,6 +174,98 @@ export class GeminiProvider extends BaseLLMProvider {
    */
   private getApiKey(): string {
     return this.validateApiKey(process.env.GOOGLE_API_KEY, "GOOGLE_API_KEY");
+  }
+
+
+  /**
+   * Rate Limit 에러 감지
+   *
+   * Google Gemini API에서 발생하는 429 Too Many Requests 에러 및
+   * 할당량 초과 에러를 감지합니다.
+   *
+   * @param error - 감지할 에러 객체
+   * @returns Rate Limit 에러인 경우 true, 그렇지 않으면 false
+   */
+  private isRateLimitError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const errorMessage = error.message.toLowerCase();
+
+    // 429 에러 코드 감지
+    if (errorMessage.includes("429")) {
+      return true;
+    }
+
+    // 할당량 관련 키워드 감지
+    if (errorMessage.includes("quota")) {
+      return true;
+    }
+
+    // Rate limit 관련 키워드 감지
+    if (errorMessage.includes("rate limit")) {
+      return true;
+    }
+
+    // Too many requests 관련 키워드 감지
+    if (errorMessage.includes("too many requests")) {
+      return true;
+    }
+
+    // GoogleGenerativeAI 에러 메시지 패턴 감지
+    if (errorMessage.includes("exceeded your current quota")) {
+      return true;
+    }
+
+    // Google API 특정 에러 코드
+    if (errorMessage.includes("resource_exhausted")) {
+      return true;
+    }
+
+    return false;
+  }
+
+
+  /**
+   * Rate Limit 에러에서 재시도 지연 시간 추출
+   *
+   * 에러 메시지에서 권장 대기 시간을 추출합니다.
+   * 추출할 수 없는 경우 기본값을 반환합니다.
+   *
+   * @param error - 에러 객체
+   * @param attempt - 현재 시도 횟수 (지수 백오프 계산용)
+   * @returns 대기 시간 (밀리초)
+   */
+  private extractRetryDelay(error: unknown, attempt: number): number {
+    const baseDelay = 1000; // 1초 기본 대기
+    const maxDelay = 60000; // 최대 60초
+
+    // 지수 백오프: 1초, 2초, 4초, 8초, ...
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+
+    // 에러 메시지에서 retry-after 정보 추출 시도
+    if (error instanceof Error) {
+      const message = error.message;
+
+      // "retry after X seconds" 패턴 감지
+      const retryMatch = message.match(/retry\s*(?:after|in)\s*(\d+)\s*(?:s|sec|seconds?)/i);
+      if (retryMatch) {
+        const seconds = parseInt(retryMatch[1], 10);
+        return Math.min(seconds * 1000, maxDelay);
+      }
+
+      // "wait X seconds" 패턴 감지
+      const waitMatch = message.match(/wait\s*(\d+)\s*(?:s|sec|seconds?)/i);
+      if (waitMatch) {
+        const seconds = parseInt(waitMatch[1], 10);
+        return Math.min(seconds * 1000, maxDelay);
+      }
+    }
+
+    // 지터 추가 (0-500ms)로 thundering herd 방지
+    const jitter = Math.random() * 500;
+    return exponentialDelay + jitter;
   }
 
   /**
@@ -293,6 +462,7 @@ export class GeminiProvider extends BaseLLMProvider {
   async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult> {
     const config = this.getModelConfig(options.modelTier || "standard");
     const model = this.getModel(config);
+    const maxRetries = 3;
 
     console.log("[Gemini] createMessage 시작:", {
       modelId: config.modelId,
@@ -327,53 +497,85 @@ export class GeminiProvider extends BaseLLMProvider {
       ...(tools.length > 0 && { tools }),
     });
 
-    const result = await chat.sendMessage(lastMessage.parts);
-    const response = result.response;
-    const content = response.text();
+    // Rate Limit 재시도 로직
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`[Gemini] 재시도 ${attempt}/${maxRetries}`);
+        }
 
-    // 응답 구조 진단 로깅
-    if (options.grounding?.enabled) {
-      const candidate = response.candidates?.[0];
-      console.log("[Gemini] 응답 구조:", {
-        hasCandidate: !!candidate,
-        finishReason: candidate?.finishReason,
-        hasGroundingMetadata: !!candidate?.groundingMetadata,
-        groundingMetadataKeys: candidate?.groundingMetadata
-          ? Object.keys(candidate.groundingMetadata)
-          : [],
-      });
+        // Rate Limiter를 통해 요청 간격 제어
+        const result = await geminiRateLimiter.execute(() =>
+          chat.sendMessage(lastMessage.parts)
+        );
+        const response = result.response;
+        const content = response.text();
+
+        // 응답 구조 진단 로깅
+        if (options.grounding?.enabled) {
+          const candidate = response.candidates?.[0];
+          console.log("[Gemini] 응답 구조:", {
+            hasCandidate: !!candidate,
+            finishReason: candidate?.finishReason,
+            hasGroundingMetadata: !!candidate?.groundingMetadata,
+            groundingMetadataKeys: candidate?.groundingMetadata
+              ? Object.keys(candidate.groundingMetadata)
+              : [],
+          });
+        }
+
+        // Grounding 메타데이터 추출
+        const groundingMetadata = options.grounding?.enabled
+          ? this.extractGroundingMetadata(response)
+          : undefined;
+
+        if (options.grounding?.enabled) {
+          console.log("[Gemini] Grounding 결과:", {
+            hasMetadata: !!groundingMetadata,
+            searchQueries: groundingMetadata?.searchQueries?.length ?? 0,
+            webResults: groundingMetadata?.webResults?.length ?? 0,
+          });
+        }
+
+        // 토큰 사용량 추정 (Gemini API는 정확한 토큰 수를 제공하지 않을 수 있음)
+        const inputTokens = this.estimateTokens(
+          options.system + options.messages.map((m) => m.content).join("")
+        );
+        const outputTokens = this.estimateTokens(content);
+
+        return {
+          content,
+          stopReason: response.candidates?.[0]?.finishReason || null,
+          usage: {
+            inputTokens,
+            outputTokens,
+          },
+          modelId: config.modelId,
+          provider: "gemini",
+          groundingMetadata,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          console.warn(
+            `[Gemini] Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`,
+            { error: lastError.message }
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Rate Limit이 아니거나 최대 재시도 횟수 초과
+        throw lastError;
+      }
     }
 
-    // Grounding 메타데이터 추출
-    const groundingMetadata = options.grounding?.enabled
-      ? this.extractGroundingMetadata(response)
-      : undefined;
-
-    if (options.grounding?.enabled) {
-      console.log("[Gemini] Grounding 결과:", {
-        hasMetadata: !!groundingMetadata,
-        searchQueries: groundingMetadata?.searchQueries?.length ?? 0,
-        webResults: groundingMetadata?.webResults?.length ?? 0,
-      });
-    }
-
-    // 토큰 사용량 추정 (Gemini API는 정확한 토큰 수를 제공하지 않을 수 있음)
-    const inputTokens = this.estimateTokens(
-      options.system + options.messages.map((m) => m.content).join("")
-    );
-    const outputTokens = this.estimateTokens(content);
-
-    return {
-      content,
-      stopReason: response.candidates?.[0]?.finishReason || null,
-      usage: {
-        inputTokens,
-        outputTokens,
-      },
-      modelId: config.modelId,
-      provider: "gemini",
-      groundingMetadata,
-    };
+    // 모든 재시도 실패 시
+    throw lastError || new Error("[Gemini] 알 수 없는 에러");
   }
 
   /**
@@ -382,6 +584,7 @@ export class GeminiProvider extends BaseLLMProvider {
   async streamMessage(options: StreamMessageOptions): Promise<CreateMessageResult> {
     const config = this.getModelConfig(options.modelTier || "standard");
     const model = this.getModel(config);
+    const maxRetries = 3;
 
     console.log("[Gemini] streamMessage 시작:", {
       modelId: config.modelId,
@@ -398,71 +601,100 @@ export class GeminiProvider extends BaseLLMProvider {
     // Grounding tools 빌드 (modelId 전달)
     const tools = this.buildGroundingTools(options.grounding, config.modelId);
 
-    let fullContent = "";
-    let stopReason: string | null = null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let lastResponse: any = null;
+    // Rate Limit 재시도 로직
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let fullContent = "";
+      let stopReason: string | null = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let lastResponse: any = null;
 
-    try {
-      // Chat 세션 시작 (Grounding tools 포함)
-      const chat = model.startChat({
-        history,
-        generationConfig: {
-          maxOutputTokens: options.maxTokens || config.maxTokens,
-          temperature: options.temperature ?? config.temperature,
-        },
-        // Grounding tools가 있는 경우에만 추가
-        ...(tools.length > 0 && { tools }),
-      });
-
-      const result = await chat.sendMessageStream(lastMessage.parts);
-
-      for await (const chunk of result.stream) {
-        const text = chunk.text();
-        if (text) {
-          fullContent += text;
-          options.onText?.(text);
+      try {
+        if (attempt > 0) {
+          console.log(`[Gemini] streamMessage 재시도 ${attempt}/${maxRetries}`);
         }
 
-        // finishReason 캡처
-        if (chunk.candidates?.[0]?.finishReason) {
-          stopReason = chunk.candidates[0].finishReason;
+        // Chat 세션 시작 (Grounding tools 포함)
+        const chat = model.startChat({
+          history,
+          generationConfig: {
+            maxOutputTokens: options.maxTokens || config.maxTokens,
+            temperature: options.temperature ?? config.temperature,
+          },
+          // Grounding tools가 있는 경우에만 추가
+          ...(tools.length > 0 && { tools }),
+        });
+
+        // Rate Limiter를 통해 요청 간격 제어
+        const result = await geminiRateLimiter.execute(() =>
+          chat.sendMessageStream(lastMessage.parts)
+        );
+
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            fullContent += text;
+            options.onText?.(text);
+          }
+
+          // finishReason 캡처
+          if (chunk.candidates?.[0]?.finishReason) {
+            stopReason = chunk.candidates[0].finishReason;
+          }
+
+          // 마지막 응답 저장 (grounding metadata 추출용)
+          lastResponse = chunk;
         }
 
-        // 마지막 응답 저장 (grounding metadata 추출용)
-        lastResponse = chunk;
+        // Grounding 메타데이터 추출
+        const groundingMetadata = options.grounding?.enabled && lastResponse
+          ? this.extractGroundingMetadata(lastResponse)
+          : undefined;
+
+        // 토큰 사용량 추정
+        const inputTokens = this.estimateTokens(
+          options.system + options.messages.map((m) => m.content).join("")
+        );
+        const outputTokens = this.estimateTokens(fullContent);
+
+        const messageResult: CreateMessageResult = {
+          content: fullContent,
+          stopReason,
+          usage: {
+            inputTokens,
+            outputTokens,
+          },
+          modelId: config.modelId,
+          provider: "gemini",
+          groundingMetadata,
+        };
+
+        options.onComplete?.(messageResult);
+        return messageResult;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          console.warn(
+            `[Gemini] streamMessage Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`,
+            { error: lastError.message }
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Rate Limit이 아니거나 최대 재시도 횟수 초과
+        options.onError?.(lastError);
+        throw lastError;
       }
-
-      // Grounding 메타데이터 추출
-      const groundingMetadata = options.grounding?.enabled && lastResponse
-        ? this.extractGroundingMetadata(lastResponse)
-        : undefined;
-
-      // 토큰 사용량 추정
-      const inputTokens = this.estimateTokens(
-        options.system + options.messages.map((m) => m.content).join("")
-      );
-      const outputTokens = this.estimateTokens(fullContent);
-
-      const messageResult: CreateMessageResult = {
-        content: fullContent,
-        stopReason,
-        usage: {
-          inputTokens,
-          outputTokens,
-        },
-        modelId: config.modelId,
-        provider: "gemini",
-        groundingMetadata,
-      };
-
-      options.onComplete?.(messageResult);
-      return messageResult;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      options.onError?.(err);
-      throw err;
     }
+
+    // 모든 재시도 실패 시
+    const finalError = lastError || new Error("[Gemini] streamMessage 알 수 없는 에러");
+    options.onError?.(finalError);
+    throw finalError;
   }
 }
 

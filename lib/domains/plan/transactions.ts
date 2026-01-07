@@ -321,3 +321,121 @@ export async function generatePlansAtomic(
     inserted_count: result.inserted_count,
   };
 }
+
+/**
+ * 플랜 콘텐츠 입력 타입 (upsert용)
+ */
+export type UpsertPlanContentInput = {
+  content_type: string;
+  content_id: string;
+  content_name?: string | null;
+  start_range: number;
+  end_range: number;
+  subject_name?: string | null;
+  subject_category?: string | null;
+  display_order?: number;
+  start_detail_id?: string | null;
+  end_detail_id?: string | null;
+  master_content_id?: string | null;
+  priority?: string | null;
+  is_paused?: boolean;
+  paused_until?: string | null;
+  scheduler_mode?: string | null;
+  individual_schedule?: Record<string, unknown> | null;
+  custom_study_days?: number[] | null;
+  content_scheduler_options?: Record<string, unknown> | null;
+  is_auto_recommended?: boolean;
+  recommendation_source?: string | null;
+  recommendation_reason?: string | null;
+  recommendation_metadata?: Record<string, unknown> | null;
+  recommended_by?: string | null;
+  recommended_at?: string | null;
+  generation_status?: string | null;
+};
+
+/**
+ * 플랜 콘텐츠 upsert 결과 타입
+ */
+export type UpsertPlanContentsResult = {
+  success: boolean;
+  deleted_count?: number;
+  inserted_count?: number;
+  error?: string;
+  error_code?: string;
+};
+
+/**
+ * 원자적으로 plan_contents를 교체합니다.
+ *
+ * 기존 plan_contents 삭제 → 새 plan_contents 삽입이
+ * PostgreSQL 트랜잭션으로 래핑되어 있어 부분 실패 시 자동 롤백됩니다.
+ *
+ * @param groupId 플랜 그룹 ID
+ * @param tenantId 테넌트 ID
+ * @param contents 플랜 콘텐츠 배열
+ * @param useAdmin Admin 클라이언트 사용 여부 (관리자 모드)
+ */
+export async function upsertPlanContentsAtomic(
+  groupId: string,
+  tenantId: string,
+  contents: UpsertPlanContentInput[],
+  useAdmin = false
+): Promise<UpsertPlanContentsResult> {
+  const supabase = useAdmin
+    ? ensureAdminClient()
+    : await createSupabaseServerClient();
+
+  if (!supabase) {
+    return {
+      success: false,
+      error: "Supabase 클라이언트를 생성할 수 없습니다.",
+    };
+  }
+
+  const { data, error } = await supabase.rpc("upsert_plan_contents_atomic", {
+    p_group_id: groupId,
+    p_tenant_id: tenantId,
+    p_contents: contents as unknown as Json,
+  });
+
+  if (error) {
+    logActionError(
+      { domain: "plan", action: "upsertPlanContentsAtomic" },
+      error,
+      { groupId, contentsCount: contents.length }
+    );
+    return {
+      success: false,
+      error: error.message,
+      error_code: error.code,
+    };
+  }
+
+  // RPC 함수에서 반환한 결과 파싱
+  const result = data as {
+    success: boolean;
+    deleted_count?: number;
+    inserted_count?: number;
+    error?: string;
+    code?: string;
+  };
+
+  if (!result.success) {
+    logActionError(
+      { domain: "plan", action: "upsertPlanContentsAtomic" },
+      new Error(result.error || "트랜잭션 실패"),
+      { groupId, contentsCount: contents.length, errorCode: result.code }
+    );
+    return {
+      success: false,
+      error: result.error || "알 수 없는 오류가 발생했습니다.",
+      error_code: result.code,
+    };
+  }
+
+  return {
+    success: true,
+    deleted_count: result.deleted_count,
+    inserted_count: result.inserted_count,
+  };
+}

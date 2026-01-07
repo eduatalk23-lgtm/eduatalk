@@ -9,6 +9,7 @@
 
 import * as repository from "./repository";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { upsertPlanContentsAtomic } from "./transactions";
 import type {
   PlanGroup,
   Plan,
@@ -199,29 +200,91 @@ export async function getPlanContents(
 }
 
 /**
- * 플랜 콘텐츠 일괄 저장 (기존 삭제 후 새로 생성)
+ * 플랜 콘텐츠 일괄 저장 (원자적 트랜잭션으로 기존 삭제 후 새로 생성)
+ * 
+ * Phase 1.1: DELETE → INSERT 패턴을 UPSERT로 전환
+ * PostgreSQL RPC 함수를 사용하여 원자적 트랜잭션 보장
  */
 export async function savePlanContents(
   planGroupId: string,
-  contents: Array<Partial<PlanContent>>
+  contents: Array<Partial<PlanContent>>,
+  options?: {
+    tenantId?: string;
+    studentId?: string;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 기존 콘텐츠 삭제
-    await repository.deletePlanContentsByGroupId(planGroupId);
+    // tenant_id가 제공되지 않은 경우 plan_group을 조회하여 가져옴
+    let tenantId = options?.tenantId;
+    if (!tenantId) {
+      if (!options?.studentId) {
+        return {
+          success: false,
+          error: "tenantId 또는 studentId가 필요합니다.",
+        };
+      }
+      const planGroup = await getPlanGroupById(
+        planGroupId,
+        options.studentId
+      );
+      if (!planGroup) {
+        return {
+          success: false,
+          error: "플랜 그룹을 찾을 수 없습니다.",
+        };
+      }
+      tenantId = planGroup.tenant_id;
+    }
 
-    // 새 콘텐츠 생성
-    if (contents.length > 0) {
-      const contentsWithGroupId = contents.map((c, index) => ({
-        ...c,
-        plan_group_id: planGroupId,
-        display_order: c.display_order ?? index,
-      }));
-      await repository.insertPlanContents(contentsWithGroupId);
+    // RPC 함수를 사용하여 원자적 트랜잭션으로 처리
+    const contentsInput = contents.map((c, index) => ({
+      content_type: c.content_type ?? "",
+      content_id: c.content_id ?? "",
+      content_name: c.content_name ?? null,
+      start_range: c.start_range ?? 0,
+      end_range: c.end_range ?? 0,
+      subject_name: c.subject_name ?? null,
+      subject_category: c.subject_category ?? null,
+      display_order: c.display_order ?? index,
+      start_detail_id: c.start_detail_id ?? null,
+      end_detail_id: c.end_detail_id ?? null,
+      master_content_id: c.master_content_id ?? null,
+      priority: c.priority ?? null,
+      is_paused: c.is_paused ?? false,
+      paused_until: c.paused_until ?? null,
+      scheduler_mode: c.scheduler_mode ?? null,
+      individual_schedule: c.individual_schedule ?? null,
+      custom_study_days: c.custom_study_days ?? null,
+      content_scheduler_options: c.content_scheduler_options ?? null,
+      is_auto_recommended: c.is_auto_recommended ?? false,
+      recommendation_source: c.recommendation_source ?? null,
+      recommendation_reason: c.recommendation_reason ?? null,
+      recommendation_metadata: c.recommendation_metadata ?? null,
+      recommended_by: c.recommended_by ?? null,
+      recommended_at: c.recommended_at ?? null,
+      generation_status: c.generation_status ?? null,
+    }));
+
+    const result = await upsertPlanContentsAtomic(
+      planGroupId,
+      tenantId,
+      contentsInput
+    );
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || "플랜 콘텐츠 저장에 실패했습니다.",
+      };
     }
 
     return { success: true };
   } catch (error) {
-    logActionError({ domain: "plan", action: "savePlanContents" }, error, { planGroupId, contentsCount: contents.length });
+    logActionError(
+      { domain: "plan", action: "savePlanContents" },
+      error,
+      { planGroupId, contentsCount: contents.length }
+    );
     return {
       success: false,
       error:
