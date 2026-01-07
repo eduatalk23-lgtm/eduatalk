@@ -222,6 +222,9 @@ export async function applyPlanTemplate(
 
       const studentPlans = items.map((item) => ({
         student_id: targetStudentId,
+        tenant_id: tenantId,
+        block_index: 0,
+        content_type: 'free', // 템플릿 기본값
         content_master_id: item.content_master_id,
         content_detail_id: item.content_detail_id,
         content_title: item.content_title,

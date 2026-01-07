@@ -21,6 +21,7 @@ import type {
   AdditionalPeriodReallocation,
   NonStudyTimeBlock,
   DailyScheduleInfo,
+  TimeRange,
 } from "./domain";
 import type { ContentSlot } from "@/lib/types/content-selection";
 
@@ -37,6 +38,7 @@ export type PlanGroupCreationData = {
   period_end: string; // date
   target_date?: string | null; // date
   block_set_id?: string | null;
+  planner_id?: string | null; // 플래너 연결
   contents: PlanContentInput[];
   exclusions: PlanExclusionInput[];
   academy_schedules: AcademyScheduleInput[];
@@ -55,6 +57,10 @@ export type PlanGroupCreationData = {
   // 2단계 콘텐츠 선택 시스템 (슬롯 모드)
   use_slot_mode?: boolean;
   content_slots?: ContentSlot[] | null;
+  // NEW: 플래너 상속 시간 설정 (Planner와 동일한 구조)
+  study_hours?: TimeRange | null; // 학습 시간 (예: {start: "10:00", end: "19:00"})
+  self_study_hours?: TimeRange | null; // 자율학습 시간 (예: {start: "19:00", end: "22:00"})
+  lunch_time?: TimeRange | null; // 점심 시간 (예: {start: "12:00", end: "13:00"})
 };
 
 /**

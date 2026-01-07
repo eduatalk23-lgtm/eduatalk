@@ -59,6 +59,9 @@ function createDefaultWizardData(): AdminWizardData {
   thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
 
   return {
+    // 플래너 연결
+    plannerId: undefined,
+    // Step 1
     name: "",
     planPurpose: "",
     periodStart: formatDate(today),
@@ -69,6 +72,12 @@ function createDefaultWizardData(): AdminWizardData {
     timeSettings: undefined,
     academySchedules: [],
     exclusions: [],
+    // 플래너 호환 시간 설정 (플래너 선택 시 자동 채우기됨)
+    studyHours: null,
+    selfStudyHours: null,
+    lunchTime: null,
+    nonStudyTimeBlocks: [],
+    // Step 4
     selectedContents: [],
     skipContents: false,
     schedulerOptions: {
@@ -114,6 +123,7 @@ function createInitialState(
 
 function hasDataChanged(initial: AdminWizardData, current: AdminWizardData): boolean {
   // 핵심 스칼라 필드 비교
+  if (initial.plannerId !== current.plannerId) return true;
   if (initial.name !== current.name) return true;
   if (initial.planPurpose !== current.planPurpose) return true;
   if (initial.periodStart !== current.periodStart) return true;

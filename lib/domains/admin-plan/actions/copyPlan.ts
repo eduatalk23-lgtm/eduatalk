@@ -85,6 +85,9 @@ export async function copyPlansToDate(
         for (const targetDate of input.targetDates) {
           const newPlan = {
             student_id: targetStudentId,
+            tenant_id: tenantId,
+            block_index: 0,
+            content_type: 'free', // 복사 시 기본값
             content_master_id: sourcePlan.content_master_id,
             content_detail_id: sourcePlan.content_detail_id,
             content_title: sourcePlan.content_title,

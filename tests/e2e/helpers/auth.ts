@@ -11,12 +11,12 @@ import { type Page } from "@playwright/test";
  */
 export const TEST_CREDENTIALS = {
   admin: {
-    email: process.env.TEST_ADMIN_EMAIL || "admin@test.com",
-    password: process.env.TEST_ADMIN_PASSWORD || "testpassword123",
+    email: process.env.TEST_ADMIN_EMAIL || "test@test.com",
+    password: process.env.TEST_ADMIN_PASSWORD || "111111",
   },
   student: {
-    email: process.env.TEST_STUDENT_EMAIL || "student@test.com",
-    password: process.env.TEST_STUDENT_PASSWORD || "testpassword123",
+    email: process.env.TEST_STUDENT_EMAIL || "test@test.com",
+    password: process.env.TEST_STUDENT_PASSWORD || "111111",
   },
 };
 

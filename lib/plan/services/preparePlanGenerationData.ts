@@ -263,15 +263,24 @@ export async function preparePlanGenerationData(
     effectiveGroupOptions
   );
 
+  // plan_group의 시간 설정을 TimeRange 형식으로 변환
+  const groupStudyHours = group.study_hours
+    ? { start: group.study_hours.start_time, end: group.study_hours.end_time }
+    : null;
+  const groupSelfStudyHours = group.self_study_hours
+    ? { start: group.self_study_hours.start_time, end: group.self_study_hours.end_time }
+    : null;
+
   const schedulerOptions = {
     // 기본 설정에서 가져오되, AI 오버라이드 우선 적용
     study_days: aiSchedulerOptionsOverride?.study_days ?? mergedSettings.study_review_ratio.study_days,
     review_days: aiSchedulerOptionsOverride?.review_days ?? mergedSettings.study_review_ratio.review_days,
     weak_subject_focus: aiSchedulerOptionsOverride?.weak_subject_focus ?? mergedSettings.weak_subject_focus,
     review_scope: mergedSettings.review_scope,
-    lunch_time: mergedSettings.lunch_time,
-    camp_study_hours: mergedSettings.study_hours,
-    self_study_hours: mergedSettings.self_study_hours,
+    // 시간 설정: plan_group 컬럼 우선, 없으면 merged settings 사용
+    lunch_time: group.lunch_time || mergedSettings.lunch_time,
+    camp_study_hours: groupStudyHours || mergedSettings.study_hours,
+    self_study_hours: groupSelfStudyHours || mergedSettings.self_study_hours,
     // AI에서 생성된 과목/콘텐츠 할당 (있는 경우)
     ...(aiSchedulerOptionsOverride?.subject_allocations && {
       subject_allocations: aiSchedulerOptionsOverride.subject_allocations,

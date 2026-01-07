@@ -141,6 +141,15 @@ export type SelfStudyHours = {
 };
 
 /**
+ * 시간 범위 타입 (Planner 호환)
+ * Planner의 study_hours, self_study_hours, lunch_time과 동일한 구조
+ */
+export type TimeRange = {
+  start: string; // HH:mm format
+  end: string;   // HH:mm format
+};
+
+/**
  * 교과 제약 조건
  */
 export type RequiredSubject = {
@@ -305,6 +314,7 @@ export type PlanGroup = {
   period_end: string; // date
   target_date: string | null; // date (D-day)
   block_set_id: string | null;
+  planner_id?: string | null; // 플래너 연결
   status: PlanStatus;
   deleted_at: string | null;
   daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보 (Step7에서 생성)
@@ -313,6 +323,7 @@ export type PlanGroup = {
   non_study_time_blocks?: NonStudyTimeBlock[] | null; // JSONB: 학습 시간 제외 항목
   study_hours?: StudyHours | null; // JSONB: 학습 시간 설정
   self_study_hours?: SelfStudyHours | null; // JSONB: 자율학습 시간 설정
+  lunch_time?: TimeRange | null; // JSONB: 점심 시간 설정 (Planner 상속)
   // 캠프 관련 필드
   plan_type?: PlanType | null;
   camp_template_id?: string | null;

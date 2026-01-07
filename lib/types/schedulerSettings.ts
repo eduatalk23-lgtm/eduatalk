@@ -128,6 +128,30 @@ export const DEFAULT_SCHEDULER_SETTINGS: SchedulerSettings = {
 };
 
 /**
+ * 캠프 시간 기본값 (스케줄러용)
+ * calculateAvailableDates.ts에서 사용
+ */
+export const DEFAULT_CAMP_STUDY_HOURS: TimeRange = {
+  start: "10:00",
+  end: "19:00",
+};
+
+export const DEFAULT_CAMP_SELF_STUDY_HOURS: TimeRange = {
+  start: "19:00",
+  end: "22:00",
+};
+
+export const DEFAULT_CAMP_LUNCH_TIME: TimeRange = {
+  start: "12:00",
+  end: "13:00",
+};
+
+export const DEFAULT_DESIGNATED_HOLIDAY_HOURS: TimeRange = {
+  start: "13:00",
+  end: "19:00",
+};
+
+/**
  * 스케줄러 설정 유효성 검증
  */
 export function validateSchedulerSettings(

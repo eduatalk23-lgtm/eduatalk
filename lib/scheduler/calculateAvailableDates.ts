@@ -3,6 +3,13 @@
  * 1730 Timetable 기반 학습 가능 날짜 산출
  */
 
+import {
+  DEFAULT_CAMP_STUDY_HOURS,
+  DEFAULT_CAMP_SELF_STUDY_HOURS,
+  DEFAULT_CAMP_LUNCH_TIME,
+  DEFAULT_DESIGNATED_HOLIDAY_HOURS,
+} from "@/lib/types/schedulerSettings";
+
 export type DayType = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
 
 export type TimeRange = {
@@ -541,15 +548,15 @@ function generateTimeSlots(
   const dateAcademySchedules = getAcademySchedulesForDate(date, academySchedules);
   const dateNonStudyTimeBlocks = getNonStudyTimeBlocksForDate(date, options.non_study_time_blocks);
 
-  // 기본 설정값
+  // 기본 설정값 (중앙화된 상수 사용)
   const campStudyHours: TimeRange =
-    options.camp_study_hours || { start: "10:00", end: "19:00" };
+    options.camp_study_hours || DEFAULT_CAMP_STUDY_HOURS;
   const campSelfStudyHours: TimeRange =
-    options.camp_self_study_hours || { start: "19:00", end: "22:00" };
+    options.camp_self_study_hours || DEFAULT_CAMP_SELF_STUDY_HOURS;
   const lunchTime: TimeRange =
-    options.lunch_time || { start: "12:00", end: "13:00" };
+    options.lunch_time || DEFAULT_CAMP_LUNCH_TIME;
   const designatedHolidayHours: TimeRange =
-    options.designated_holiday_hours || { start: "13:00", end: "19:00" };
+    options.designated_holiday_hours || DEFAULT_DESIGNATED_HOLIDAY_HOURS;
 
   // 지정휴일 처리
   if (dayType === "지정휴일") {
@@ -779,15 +786,15 @@ function calculateAvailableTimeForDate(
 
   let availableRanges: TimeRange[] = [];
 
-  // 기본 설정값
+  // 기본 설정값 (중앙화된 상수 사용)
   const campStudyHours: TimeRange =
-    options.camp_study_hours || { start: "10:00", end: "19:00" };
+    options.camp_study_hours || DEFAULT_CAMP_STUDY_HOURS;
   const campSelfStudyHours: TimeRange =
-    options.camp_self_study_hours || { start: "19:00", end: "22:00" };
+    options.camp_self_study_hours || DEFAULT_CAMP_SELF_STUDY_HOURS;
   const lunchTime: TimeRange =
-    options.lunch_time || { start: "12:00", end: "13:00" };
+    options.lunch_time || DEFAULT_CAMP_LUNCH_TIME;
   const designatedHolidayHours: TimeRange =
-    options.designated_holiday_hours || { start: "13:00", end: "19:00" };
+    options.designated_holiday_hours || DEFAULT_DESIGNATED_HOLIDAY_HOURS;
 
   // 1. 지정휴일 처리
   if (dayType === "지정휴일") {

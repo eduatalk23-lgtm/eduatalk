@@ -12,14 +12,14 @@
  */
 
 import { useCallback, useState } from "react";
-import { Clock, Calendar, Plus, X, Building2, AlertCircle } from "lucide-react";
+import { Clock, Calendar, Plus, X, Building2, AlertCircle, Coffee, Moon, Sun, Lock } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   useAdminWizardData,
   useAdminWizardValidation,
   useAdminWizardStep,
 } from "../_context";
-import type { ExclusionSchedule, AcademySchedule } from "../_context/types";
+import type { ExclusionSchedule, AcademySchedule, NonStudyTimeBlock } from "../_context/types";
 
 /**
  * Step2TimeSettings Props
@@ -50,6 +50,14 @@ const EXCLUSION_TYPES = [
   { value: "personal", label: "개인" },
 ] as const;
 
+const NON_STUDY_BLOCK_TYPES: Record<NonStudyTimeBlock["type"], { label: string; icon: "coffee" | "moon" | "sun" }> = {
+  "아침식사": { label: "아침식사", icon: "coffee" },
+  "점심식사": { label: "점심식사", icon: "coffee" },
+  "저녁식사": { label: "저녁식사", icon: "coffee" },
+  "수면": { label: "수면", icon: "moon" },
+  "기타": { label: "기타", icon: "sun" },
+};
+
 /**
  * Step 2: 시간 설정 컴포넌트
  */
@@ -67,7 +75,16 @@ export function Step2TimeSettings({
     exclusions,
     periodStart,
     periodEnd,
+    // NEW: 플래너 상속 시간 설정
+    plannerId,
+    studyHours,
+    selfStudyHours,
+    lunchTime,
+    nonStudyTimeBlocks,
   } = wizardData;
+
+  // 플래너에서 상속된 시간 설정이 있는지 확인
+  const hasInheritedTimeSettings = !!plannerId && (!!studyHours || !!selfStudyHours || !!lunchTime);
 
   // 새 제외일/학원 스케줄 입력 상태
   const [newExclusion, setNewExclusion] = useState<Partial<ExclusionSchedule>>({
@@ -82,6 +99,7 @@ export function Step2TimeSettings({
     end_time: "21:00",
     academy_name: "",
     subject: "",
+    travel_time: 30, // 기본 이동시간 30분
   });
 
   const [showAddExclusion, setShowAddExclusion] = useState(false);
@@ -160,15 +178,37 @@ export function Step2TimeSettings({
       return;
     }
 
+    // 종료 시간이 시작 시간보다 이후인지 확인
+    if (newAcademy.start_time >= newAcademy.end_time) {
+      setFieldError("academy", "종료 시간은 시작 시간보다 이후여야 합니다.");
+      return;
+    }
+
+    // 동일 요일에 시간대가 겹치는 일정 중복 확인
+    const dayOfWeek = newAcademy.day_of_week ?? 1;
+    const startTime = newAcademy.start_time;
+    const endTime = newAcademy.end_time;
+    const hasOverlap = academySchedules.some((schedule) => {
+      if (schedule.day_of_week !== dayOfWeek) return false;
+      // 시간대 겹침 체크: 새 시작 < 기존 종료 && 새 종료 > 기존 시작
+      return startTime < schedule.end_time && endTime > schedule.start_time;
+    });
+
+    if (hasOverlap) {
+      setFieldError("academy", "해당 요일에 시간대가 겹치는 일정이 있습니다.");
+      return;
+    }
+
     updateData({
       academySchedules: [
         ...academySchedules,
         {
-          day_of_week: newAcademy.day_of_week ?? 1,
+          day_of_week: dayOfWeek,
           start_time: newAcademy.start_time,
           end_time: newAcademy.end_time,
           academy_name: newAcademy.academy_name,
           subject: newAcademy.subject,
+          travel_time: newAcademy.travel_time ?? 30,
           source: "manual",
         },
       ],
@@ -180,6 +220,7 @@ export function Step2TimeSettings({
       end_time: "21:00",
       academy_name: "",
       subject: "",
+      travel_time: 30,
     });
     setShowAddAcademy(false);
     clearFieldError("academy");
@@ -197,6 +238,108 @@ export function Step2TimeSettings({
 
   return (
     <div className="space-y-6">
+      {/* 플래너 상속 시간 설정 표시 (읽기 전용) */}
+      {hasInheritedTimeSettings && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Lock className="h-4 w-4 text-blue-500" />
+            <label className="text-sm font-medium text-gray-700">
+              플래너에서 상속된 시간 설정
+            </label>
+            <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              읽기 전용
+            </span>
+          </div>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="grid grid-cols-3 gap-4">
+              {/* 학습 시간 */}
+              {studyHours && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Sun className="h-3 w-3" />
+                    학습 시간
+                  </div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {studyHours.start} - {studyHours.end}
+                  </p>
+                </div>
+              )}
+              {/* 자율학습 시간 */}
+              {selfStudyHours && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Moon className="h-3 w-3" />
+                    자율학습 시간
+                  </div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {selfStudyHours.start} - {selfStudyHours.end}
+                  </p>
+                </div>
+              )}
+              {/* 점심 시간 */}
+              {lunchTime && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <Coffee className="h-3 w-3" />
+                    점심 시간
+                  </div>
+                  <p className="text-sm font-medium text-gray-800">
+                    {lunchTime.start} - {lunchTime.end}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비학습 블록 표시 (플래너 상속) */}
+      {nonStudyTimeBlocks && nonStudyTimeBlocks.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Coffee className="h-4 w-4 text-gray-500" />
+            <label className="text-sm font-medium text-gray-700">
+              비학습 시간 블록
+            </label>
+            {plannerId && (
+              <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                플래너에서 상속
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            {nonStudyTimeBlocks.map((block, index) => {
+              const blockInfo = NON_STUDY_BLOCK_TYPES[block.type];
+              const IconComponent = blockInfo?.icon === "coffee" ? Coffee : blockInfo?.icon === "moon" ? Moon : Sun;
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                >
+                  <div className="flex items-center gap-3">
+                    <IconComponent className="h-4 w-4 text-gray-400" />
+                    <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      {blockInfo?.label || block.type}
+                    </span>
+                    <span className="text-sm text-gray-700">
+                      {block.start_time.slice(0, 5)} - {block.end_time.slice(0, 5)}
+                    </span>
+                    {block.day_of_week && block.day_of_week.length > 0 && block.day_of_week.length < 7 && (
+                      <span className="text-xs text-gray-500">
+                        ({block.day_of_week.map(d => WEEKDAYS[d]).join(", ")})
+                      </span>
+                    )}
+                    {block.description && (
+                      <span className="text-sm text-gray-500">- {block.description}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 스케줄러 타입 선택 */}
       <div className="space-y-3">
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -282,8 +425,18 @@ export function Step2TimeSettings({
                       {schedule.academy_name}
                     </span>
                   )}
+                  {schedule.travel_time !== undefined && schedule.travel_time > 0 && (
+                    <span className="text-xs text-orange-600">
+                      (이동 {schedule.travel_time}분)
+                    </span>
+                  )}
+                  {schedule.is_locked && (
+                    <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs text-gray-500">
+                      플래너
+                    </span>
+                  )}
                 </div>
-                {editable && (
+                {editable && !schedule.is_locked && (
                   <button
                     type="button"
                     onClick={() => handleRemoveAcademy(index)}
@@ -352,6 +505,36 @@ export function Step2TimeSettings({
                   onChange={(e) =>
                     setNewAcademy({ ...newAcademy, end_time: e.target.value })
                   }
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-600">
+                  이동시간 (분)
+                  <span className="ml-1 text-orange-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={newAcademy.travel_time ?? 30}
+                  onChange={(e) =>
+                    setNewAcademy({ ...newAcademy, travel_time: Number(e.target.value) })
+                  }
+                  min={0}
+                  max={180}
+                  placeholder="30"
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
+                />
+                <p className="mt-0.5 text-xs text-gray-500">등/하원 이동에 필요한 시간</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-600">과목 (선택)</label>
+                <input
+                  type="text"
+                  value={newAcademy.subject || ""}
+                  onChange={(e) =>
+                    setNewAcademy({ ...newAcademy, subject: e.target.value })
+                  }
+                  placeholder="예: 수학, 영어"
                   className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 />
               </div>

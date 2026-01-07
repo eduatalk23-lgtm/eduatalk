@@ -12,12 +12,22 @@
  */
 
 import { useMemo, useState } from "react";
-import { Calendar, Clock, ArrowLeft, Info, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  ArrowLeft,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  BarChart3,
+  List,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   useAdminWizardData,
   useAdminWizardStep,
 } from "../_context";
+import { WeeklyAvailabilityTimeline } from "./_components/WeeklyAvailabilityTimeline";
 
 /**
  * Step3SchedulePreview Props
@@ -28,7 +38,7 @@ interface Step3SchedulePreviewProps {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-type ViewMode = "week" | "day";
+type ViewMode = "timeline" | "week" | "day";
 
 /**
  * 주어진 기간의 날짜 배열 생성
@@ -94,9 +104,13 @@ export function Step3SchedulePreview({
     exclusions,
     blockSetId,
     name,
+    studyHours,
+    selfStudyHours,
+    lunchTime,
+    nonStudyTimeBlocks,
   } = wizardData;
 
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [viewMode, setViewMode] = useState<ViewMode>("timeline");
   const [currentWeekIndex, setCurrentWeekIndex] = useState(0);
 
   // 날짜 배열과 주 단위 그룹화
@@ -204,32 +218,48 @@ export function Step3SchedulePreview({
 
       {/* 뷰 전환 */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-gray-50 p-1">
+          <button
+            type="button"
+            onClick={() => setViewMode("timeline")}
+            data-testid="view-mode-timeline"
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              viewMode === "timeline"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            )}
+          >
+            <BarChart3 className="h-4 w-4" />
+            타임라인
+          </button>
           <button
             type="button"
             onClick={() => setViewMode("week")}
             data-testid="view-mode-week"
             className={cn(
-              "rounded-lg px-3 py-1.5 text-sm font-medium",
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "week"
-                ? "bg-blue-100 text-blue-700"
-                : "text-gray-600 hover:bg-gray-100"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             )}
           >
-            주간 뷰
+            <Calendar className="h-4 w-4" />
+            캘린더
           </button>
           <button
             type="button"
             onClick={() => setViewMode("day")}
             data-testid="view-mode-day"
             className={cn(
-              "rounded-lg px-3 py-1.5 text-sm font-medium",
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               viewMode === "day"
-                ? "bg-blue-100 text-blue-700"
-                : "text-gray-600 hover:bg-gray-100"
+                ? "bg-white text-blue-700 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             )}
           >
-            일간 뷰
+            <List className="h-4 w-4" />
+            리스트
           </button>
         </div>
 
@@ -263,6 +293,19 @@ export function Step3SchedulePreview({
           </div>
         )}
       </div>
+
+      {/* 타임라인 뷰 (신규) */}
+      {viewMode === "timeline" && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <WeeklyAvailabilityTimeline
+            studyHours={studyHours ?? null}
+            selfStudyHours={selfStudyHours}
+            lunchTime={lunchTime ?? null}
+            academySchedules={academySchedules}
+            nonStudyTimeBlocks={nonStudyTimeBlocks}
+          />
+        </div>
+      )}
 
       {/* 주간 캘린더 뷰 */}
       {viewMode === "week" && (

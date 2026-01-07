@@ -8,11 +8,12 @@
  * - 콘텐츠 선택/해제
  * - 범위 설정 (시작/종료)
  * - 과목별 전략/약점 분류
+ * - 마스터 콘텐츠 검색 및 추가 기능
  *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step4ContentSelection
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   BookOpen,
   Video,
@@ -23,6 +24,7 @@ import {
   Zap,
   Target,
   AlertCircle,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -34,6 +36,7 @@ import {
   useAdminWizardValidation,
 } from "../_context";
 import type { SelectedContent, SubjectType } from "../_context/types";
+import { MasterContentSearchModal } from "./_components/MasterContentSearchModal";
 
 /**
  * Step4ContentSelection Props
@@ -64,33 +67,40 @@ export function Step4ContentSelection({
   const [contents, setContents] = useState<StudentContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [masterSearchModalOpen, setMasterSearchModalOpen] = useState(false);
 
-  // 콘텐츠 로드
-  useEffect(() => {
-    async function loadContents() {
-      try {
-        setLoading(true);
-        const result = await getStudentContentsForAdmin(studentId, tenantId);
+  // 이미 선택된 콘텐츠 ID 집합 (중복 방지용)
+  const existingContentIds = useMemo(() => {
+    return new Set(selectedContents.map((c) => c.contentId));
+  }, [selectedContents]);
 
-        if ("success" in result && result.success === false) {
-          console.error("[Step4] 콘텐츠 로드 실패:", result.error);
-          setFieldError("contents", "콘텐츠를 불러오는데 실패했습니다.");
-          return;
-        }
+  // 콘텐츠 로드 함수
+  const loadContents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const result = await getStudentContentsForAdmin(studentId, tenantId);
 
-        const data = result as { contents: StudentContentItem[] };
-        setContents(data.contents);
-        clearFieldError("contents");
-      } catch (error) {
-        console.error("[Step4] 콘텐츠 로드 실패:", error);
+      if ("success" in result && result.success === false) {
+        console.error("[Step4] 콘텐츠 로드 실패:", result.error);
         setFieldError("contents", "콘텐츠를 불러오는데 실패했습니다.");
-      } finally {
-        setLoading(false);
+        return;
       }
-    }
 
-    loadContents();
+      const data = result as { contents: StudentContentItem[] };
+      setContents(data.contents);
+      clearFieldError("contents");
+    } catch (error) {
+      console.error("[Step4] 콘텐츠 로드 실패:", error);
+      setFieldError("contents", "콘텐츠를 불러오는데 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
   }, [studentId, tenantId, setFieldError, clearFieldError]);
+
+  // 초기 로드
+  useEffect(() => {
+    loadContents();
+  }, [loadContents]);
 
   // 선택 여부 확인
   const isSelected = useCallback(
@@ -168,6 +178,41 @@ export function Step4ContentSelection({
     [updateData]
   );
 
+  // 마스터 콘텐츠에서 선택된 콘텐츠 추가
+  const handleMasterContentSelect = useCallback(
+    async (content: SelectedContent) => {
+      // 최대 개수 체크
+      if (selectedContents.length >= 9) {
+        alert("최대 9개의 콘텐츠를 선택할 수 있습니다.");
+        return;
+      }
+
+      // 중복 체크
+      if (existingContentIds.has(content.contentId)) {
+        alert("이미 추가된 콘텐츠입니다.");
+        return;
+      }
+
+      // 콘텐츠 추가
+      updateData({
+        selectedContents: [
+          ...selectedContents,
+          {
+            ...content,
+            displayOrder: selectedContents.length,
+          },
+        ],
+      });
+
+      // 콘텐츠 목록 새로고침 (새로 추가된 학생 콘텐츠 반영)
+      await loadContents();
+
+      // 모달 닫기
+      setMasterSearchModalOpen(false);
+    },
+    [selectedContents, existingContentIds, updateData, loadContents]
+  );
+
   // 확장 토글
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -210,8 +255,8 @@ export function Step4ContentSelection({
 
   return (
     <div className="space-y-4">
-      {/* 선택 현황 */}
-      <div className="flex items-center justify-between">
+      {/* 선택 현황 및 액션 */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <p className="text-sm text-gray-600">
             선택:{" "}
@@ -233,16 +278,33 @@ export function Step4ContentSelection({
             </div>
           )}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input
-            type="checkbox"
-            checked={skipContents}
-            onChange={(e) => handleSkipToggle(e.target.checked)}
-            data-testid="skip-contents-checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-blue-600"
-          />
-          콘텐츠 선택 건너뛰기
-        </label>
+        <div className="flex items-center gap-3">
+          {/* 마스터 콘텐츠에서 추가 버튼 */}
+          <button
+            type="button"
+            onClick={() => setMasterSearchModalOpen(true)}
+            disabled={selectedContents.length >= 9 || skipContents}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition",
+              selectedContents.length >= 9 || skipContents
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+            )}
+          >
+            <Package className="h-4 w-4" />
+            마스터에서 추가
+          </button>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={skipContents}
+              onChange={(e) => handleSkipToggle(e.target.checked)}
+              data-testid="skip-contents-checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
+            />
+            콘텐츠 선택 건너뛰기
+          </label>
+        </div>
       </div>
 
       {/* 콘텐츠 목록 */}
@@ -446,8 +508,19 @@ export function Step4ContentSelection({
           <li>콘텐츠를 클릭하여 선택/해제할 수 있습니다.</li>
           <li>선택한 콘텐츠의 범위를 조정하여 학습량을 설정하세요.</li>
           <li>&quot;전략 과목&quot;과 &quot;취약 과목&quot;으로 분류하면 AI가 더 정확한 플랜을 생성합니다.</li>
+          <li>&quot;마스터에서 추가&quot; 버튼으로 마스터 콘텐츠 라이브러리에서 검색하여 추가할 수 있습니다.</li>
         </ul>
       </div>
+
+      {/* 마스터 콘텐츠 검색 모달 */}
+      <MasterContentSearchModal
+        open={masterSearchModalOpen}
+        onClose={() => setMasterSearchModalOpen(false)}
+        onSelect={handleMasterContentSelect}
+        studentId={studentId}
+        tenantId={tenantId}
+        existingContentIds={existingContentIds}
+      />
     </div>
   );
 }

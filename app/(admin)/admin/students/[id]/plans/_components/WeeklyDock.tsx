@@ -11,6 +11,8 @@ import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 interface WeeklyDockProps {
   studentId: string;
   tenantId: string;
+  /** 플래너 ID (플래너 기반 필터링용) */
+  plannerId?: string;
   selectedDate: string;
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
@@ -24,6 +26,7 @@ interface WeeklyDockProps {
 export function WeeklyDock({
   studentId,
   tenantId,
+  plannerId,
   selectedDate,
   onRedistribute,
   onEdit,
@@ -36,7 +39,8 @@ export function WeeklyDock({
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
   const { plans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
     studentId,
-    selectedDate
+    selectedDate,
+    plannerId
   );
 
   const [isPending, startTransition] = useTransition();

@@ -4,26 +4,32 @@
  * Step 1: 기본 정보
  *
  * Phase 3: 7단계 위저드 확장
+ * - 플래너 선택 (신규 추가 - Phase 4)
  * - 학습 기간 설정
  * - 플랜 이름
  * - 학습 목적
- * - 블록셋 선택 (신규 추가)
+ * - 블록셋 선택
  *
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step1BasicInfo
  */
 
 import { useEffect, useCallback, useState } from "react";
-import { Calendar, FileText, Target, Clock, ChevronDown, Plus } from "lucide-react";
+import { Calendar, FileText, Target, Clock, ChevronDown, Plus, FolderOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   useAdminWizardData,
   useAdminWizardValidation,
 } from "../_context";
-import type { PlanPurpose } from "../_context/types";
+import type { PlanPurpose, ExclusionSchedule, AcademySchedule } from "../_context/types";
 import {
   getBlockSetsForStudent,
   type BlockSetWithBlocks,
 } from "@/lib/domains/admin-plan/actions/blockSets";
+import {
+  getStudentPlannersAction,
+  getPlannerAction,
+  type Planner,
+} from "@/lib/domains/admin-plan/actions";
 
 /**
  * Step1BasicInfo Props
@@ -48,12 +54,40 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const { wizardData, updateData } = useAdminWizardData();
   const { fieldErrors, setFieldError, clearFieldError } = useAdminWizardValidation();
 
+  // 플래너 관련 상태
+  const [planners, setPlanners] = useState<Planner[]>([]);
+  const [isLoadingPlanners, setIsLoadingPlanners] = useState(false);
+  const [showPlannerDropdown, setShowPlannerDropdown] = useState(false);
+
   // 블록셋 관련 상태
   const [blockSets, setBlockSets] = useState<BlockSetWithBlocks[]>([]);
   const [isLoadingBlockSets, setIsLoadingBlockSets] = useState(false);
   const [showBlockSetDropdown, setShowBlockSetDropdown] = useState(false);
 
-  const { periodStart, periodEnd, name, planPurpose, blockSetId } = wizardData;
+  const { periodStart, periodEnd, name, planPurpose, blockSetId, plannerId } = wizardData;
+
+  // 플래너 로드
+  useEffect(() => {
+    async function loadPlanners() {
+      if (!studentId) return;
+
+      setIsLoadingPlanners(true);
+      try {
+        const result = await getStudentPlannersAction(studentId, {
+          status: ["active", "draft"],
+          includeArchived: false,
+        });
+        if (result && "data" in result) {
+          setPlanners(result.data);
+        }
+      } catch (err) {
+        console.error("[Step1] 플래너 로드 실패:", err);
+      } finally {
+        setIsLoadingPlanners(false);
+      }
+    }
+    loadPlanners();
+  }, [studentId]);
 
   // 블록셋 로드 (Server Action 사용)
   useEffect(() => {
@@ -151,6 +185,114 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
     [updateData]
   );
 
+  // 플래너 선택 핸들러 (플래너 설정을 위자드에 자동 채우기)
+  const handlePlannerSelect = useCallback(
+    async (id: string | undefined) => {
+      setShowPlannerDropdown(false);
+
+      // 플래너 선택 해제 시: 상속 설정 정리
+      if (!id) {
+        updateData({
+          plannerId: undefined,
+          // 시간 설정 초기화
+          studyHours: null,
+          selfStudyHours: null,
+          lunchTime: null,
+          nonStudyTimeBlocks: [],
+          // is_locked 항목만 제거 (수동 추가 항목 유지)
+          exclusions: wizardData.exclusions.filter(e => !e.is_locked),
+          academySchedules: wizardData.academySchedules.filter(s => !s.is_locked),
+        });
+        return;
+      }
+
+      updateData({ plannerId: id });
+
+      // 플래너 상세 정보 로드 후 자동 채우기
+      try {
+        const planner = await getPlannerAction(id, true);
+        if (!planner) return;
+
+        // 기본 정보 자동 채우기
+        const autoFillData: Partial<typeof wizardData> = {
+          plannerId: id,
+          periodStart: planner.periodStart,
+          periodEnd: planner.periodEnd,
+          blockSetId: planner.blockSetId ?? undefined,
+        };
+
+        // NEW: 시간 설정 자동 채우기 (플래너와 완전 호환)
+        autoFillData.studyHours = planner.studyHours ?? null;
+        autoFillData.selfStudyHours = planner.selfStudyHours ?? null;
+        autoFillData.lunchTime = planner.lunchTime ?? null;
+        autoFillData.nonStudyTimeBlocks = planner.nonStudyTimeBlocks ?? [];
+
+        // NEW: 스케줄러 타입 자동 채우기
+        if (planner.defaultSchedulerType) {
+          autoFillData.schedulerType = planner.defaultSchedulerType as "1730_timetable" | "custom" | "";
+        }
+
+        // 제외일 매핑 (플래너 exclusionType → 위자드 exclusion_type)
+        // 플래너에서 가져온 제외일은 is_locked: true로 설정하여 삭제 방지
+        // 기존 수동 추가 항목 유지
+        const manualExclusions = wizardData.exclusions.filter(e => !e.is_locked);
+        if (planner.exclusions && planner.exclusions.length > 0) {
+          const mapExclusionType = (type: string): "holiday" | "event" | "personal" => {
+            switch (type) {
+              case "휴일지정": return "holiday";
+              case "개인사정": return "personal";
+              default: return "event";
+            }
+          };
+          const plannerExclusions: ExclusionSchedule[] = planner.exclusions.map((e) => ({
+            exclusion_date: e.exclusionDate,
+            exclusion_type: mapExclusionType(e.exclusionType),
+            reason: e.reason ?? undefined,
+            source: "planner",
+            is_locked: true, // 플래너에서 가져온 제외일은 삭제 방지
+          }));
+          autoFillData.exclusions = [...plannerExclusions, ...manualExclusions];
+        } else {
+          autoFillData.exclusions = manualExclusions;
+        }
+
+        // 학원 일정 매핑
+        // 플래너에서 가져온 학원일정은 is_locked: true로 설정하여 삭제 방지
+        // 기존 수동 추가 항목 유지
+        const manualAcademySchedules = wizardData.academySchedules.filter(s => !s.is_locked);
+        if (planner.academySchedules && planner.academySchedules.length > 0) {
+          const plannerAcademySchedules: AcademySchedule[] = planner.academySchedules.map((s) => ({
+            academy_name: s.academyName ?? "학원",
+            day_of_week: s.dayOfWeek,
+            start_time: s.startTime,
+            end_time: s.endTime,
+            subject: s.subject ?? undefined,
+            travel_time: s.travelTime ?? 60,
+            source: "planner",
+            is_locked: true, // 플래너에서 가져온 학원일정은 삭제 방지
+          }));
+          autoFillData.academySchedules = [...plannerAcademySchedules, ...manualAcademySchedules];
+        } else {
+          autoFillData.academySchedules = manualAcademySchedules;
+        }
+
+        // 스케줄러 옵션
+        if (planner.defaultSchedulerOptions) {
+          const opts = planner.defaultSchedulerOptions as Record<string, number>;
+          autoFillData.schedulerOptions = {
+            study_days: opts.study_days ?? 6,
+            review_days: opts.review_days ?? 1,
+          };
+        }
+
+        updateData(autoFillData);
+      } catch (err) {
+        console.error("[Step1] 플래너 설정 로드 실패:", err);
+      }
+    },
+    [updateData, wizardData]
+  );
+
   // 기간 계산
   const getDaysDiff = () => {
     if (!periodStart || !periodEnd) return 0;
@@ -165,9 +307,116 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const daysDiff = getDaysDiff();
   const isValidPeriod = daysDiff > 0 && daysDiff <= 365;
   const selectedBlockSet = blockSets.find((bs) => bs.id === blockSetId);
+  const selectedPlanner = planners.find((p) => p.id === plannerId);
+
+  // 날짜 포맷팅 헬퍼
+  const formatDateDisplay = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   return (
     <div className="space-y-6">
+      {/* 플래너 선택 (신규 - Phase 4) */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <FolderOpen className="h-4 w-4" />
+          플래너 연결 <span className="text-xs text-gray-400">(선택)</span>
+        </label>
+        <p className="text-xs text-gray-500">
+          기존 플래너를 선택하면 해당 플래너의 설정(기간, 제외일, 학원일정)이 자동으로 채워집니다.
+        </p>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowPlannerDropdown(!showPlannerDropdown)}
+            disabled={isLoadingPlanners}
+            data-testid="planner-select"
+            className={cn(
+              "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition",
+              selectedPlanner
+                ? "border-blue-500 bg-blue-50 text-blue-700"
+                : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+            )}
+          >
+            <span>
+              {isLoadingPlanners
+                ? "불러오는 중..."
+                : selectedPlanner
+                  ? selectedPlanner.name
+                  : "플래너를 선택하세요 (선택 안 함 가능)"}
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 transition-transform",
+                showPlannerDropdown && "rotate-180"
+              )}
+            />
+          </button>
+
+          {showPlannerDropdown && (
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              {/* 선택 안 함 옵션 */}
+              <button
+                type="button"
+                onClick={() => handlePlannerSelect(undefined)}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-gray-50",
+                  !plannerId && "bg-blue-50 text-blue-700"
+                )}
+              >
+                선택 안 함 (새로 설정)
+              </button>
+
+              {planners.length === 0 && !isLoadingPlanners ? (
+                <div className="px-3 py-4 text-center text-sm text-gray-500">
+                  <p>활성 플래너가 없습니다.</p>
+                </div>
+              ) : (
+                planners.map((planner) => (
+                  <button
+                    key={planner.id}
+                    type="button"
+                    onClick={() => handlePlannerSelect(planner.id)}
+                    className={cn(
+                      "flex w-full flex-col items-start px-3 py-2.5 text-left text-sm hover:bg-gray-50",
+                      plannerId === planner.id && "bg-blue-50 text-blue-700"
+                    )}
+                  >
+                    <span className="font-medium">{planner.name}</span>
+                    <span className="text-xs text-gray-500">
+                      {formatDateDisplay(planner.periodStart)} ~ {formatDateDisplay(planner.periodEnd)}
+                      {planner.planGroupCount !== undefined && planner.planGroupCount > 0 && (
+                        <> · 플랜그룹 {planner.planGroupCount}개</>
+                      )}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {selectedPlanner && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="mb-1 text-xs font-medium text-blue-800">선택된 플래너 정보</p>
+            <div className="flex flex-wrap gap-2 text-xs text-blue-700">
+              <span>기간: {formatDateDisplay(selectedPlanner.periodStart)} ~ {formatDateDisplay(selectedPlanner.periodEnd)}</span>
+              {selectedPlanner.exclusions && selectedPlanner.exclusions.length > 0 && (
+                <span>· 제외일 {selectedPlanner.exclusions.length}개</span>
+              )}
+              {selectedPlanner.academySchedules && selectedPlanner.academySchedules.length > 0 && (
+                <span>· 학원일정 {selectedPlanner.academySchedules.length}개</span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 기간 설정 */}
       <div className="space-y-3">
         <label className="flex items-center gap-2 text-sm font-medium text-gray-700">

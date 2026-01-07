@@ -3105,6 +3105,125 @@ export type Database = {
           },
         ]
       }
+      plan_creation_history: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          creation_method: string
+          failed_count: number
+          id: string
+          results: Json
+          settings_snapshot: Json
+          skipped_count: number
+          started_at: string | null
+          status: string
+          success_count: number
+          target_student_ids: string[]
+          template_id: string | null
+          tenant_id: string
+          total_count: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          creation_method: string
+          failed_count?: number
+          id?: string
+          results?: Json
+          settings_snapshot?: Json
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          success_count?: number
+          target_student_ids?: string[]
+          template_id?: string | null
+          tenant_id: string
+          total_count?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          creation_method?: string
+          failed_count?: number
+          id?: string
+          results?: Json
+          settings_snapshot?: Json
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          success_count?: number
+          target_student_ids?: string[]
+          template_id?: string | null
+          tenant_id?: string
+          total_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_creation_history_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "plan_creation_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_creation_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_creation_templates: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          creation_method: string
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          settings: Json
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          creation_method: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          settings?: Json
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          creation_method?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          settings?: Json
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_creation_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_events: {
         Row: {
           actor_id: string | null
@@ -3453,6 +3572,7 @@ export type Database = {
           plan_mode: string | null
           plan_purpose: string | null
           plan_type: string | null
+          planner_id: string | null
           request_notes: string | null
           schedule_generated_at: string | null
           scheduler_options: Json | null
@@ -3503,6 +3623,7 @@ export type Database = {
           plan_mode?: string | null
           plan_purpose?: string | null
           plan_type?: string | null
+          planner_id?: string | null
           request_notes?: string | null
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
@@ -3553,6 +3674,7 @@ export type Database = {
           plan_mode?: string | null
           plan_purpose?: string | null
           plan_type?: string | null
+          planner_id?: string | null
           request_notes?: string | null
           schedule_generated_at?: string | null
           scheduler_options?: Json | null
@@ -3606,6 +3728,13 @@ export type Database = {
             columns: ["migrated_from_adhoc_id"]
             isOneToOne: false
             referencedRelation: "ad_hoc_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_groups_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
             referencedColumns: ["id"]
           },
           {
@@ -3968,6 +4097,217 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_views_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planner_academy_schedules: {
+        Row: {
+          academy_id: string | null
+          academy_name: string | null
+          created_at: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          is_locked: boolean | null
+          planner_id: string
+          source: string | null
+          start_time: string
+          subject: string | null
+          tenant_id: string
+          travel_time: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          academy_id?: string | null
+          academy_name?: string | null
+          created_at?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_locked?: boolean | null
+          planner_id: string
+          source?: string | null
+          start_time: string
+          subject?: string | null
+          tenant_id: string
+          travel_time?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          academy_id?: string | null
+          academy_name?: string | null
+          created_at?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_locked?: boolean | null
+          planner_id?: string
+          source?: string | null
+          start_time?: string
+          subject?: string | null
+          tenant_id?: string
+          travel_time?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_academy_schedules_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_academy_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planner_exclusions: {
+        Row: {
+          created_at: string | null
+          exclusion_date: string
+          exclusion_type: string
+          id: string
+          is_locked: boolean | null
+          planner_id: string
+          reason: string | null
+          source: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          exclusion_date: string
+          exclusion_type: string
+          id?: string
+          is_locked?: boolean | null
+          planner_id: string
+          reason?: string | null
+          source?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string | null
+          exclusion_date?: string
+          exclusion_type?: string
+          id?: string
+          is_locked?: boolean | null
+          planner_id?: string
+          reason?: string | null
+          source?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planner_exclusions_planner_id_fkey"
+            columns: ["planner_id"]
+            isOneToOne: false
+            referencedRelation: "planners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planner_exclusions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planners: {
+        Row: {
+          admin_memo: string | null
+          block_set_id: string | null
+          created_at: string | null
+          created_by: string | null
+          default_scheduler_options: Json | null
+          default_scheduler_type: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          lunch_time: Json | null
+          name: string
+          non_study_time_blocks: Json | null
+          period_end: string
+          period_start: string
+          self_study_hours: Json | null
+          status: string | null
+          student_id: string
+          study_hours: Json | null
+          target_date: string | null
+          tenant_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_memo?: string | null
+          block_set_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          default_scheduler_options?: Json | null
+          default_scheduler_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          lunch_time?: Json | null
+          name: string
+          non_study_time_blocks?: Json | null
+          period_end: string
+          period_start: string
+          self_study_hours?: Json | null
+          status?: string | null
+          student_id: string
+          study_hours?: Json | null
+          target_date?: string | null
+          tenant_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_memo?: string | null
+          block_set_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          default_scheduler_options?: Json | null
+          default_scheduler_type?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          lunch_time?: Json | null
+          name?: string
+          non_study_time_blocks?: Json | null
+          period_end?: string
+          period_start?: string
+          self_study_hours?: Json | null
+          status?: string | null
+          student_id?: string
+          study_hours?: Json | null
+          target_date?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planners_block_set_id_fkey"
+            columns: ["block_set_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_block_sets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planners_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planners_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -7456,3 +7796,4 @@ export const Constants = {
     },
   },
 } as const
+

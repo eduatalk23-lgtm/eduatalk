@@ -121,14 +121,14 @@ export const BATCH_PLAN_DATA = {
 
 export const TEST_STUDENTS = {
   // 테스트용 학생 ID (환경 변수 또는 기본값)
-  primaryStudentId: process.env.TEST_STUDENT_ID || "test-student-1",
-  secondaryStudentId: process.env.TEST_STUDENT_2_ID || "test-student-2",
+  primaryStudentId: process.env.TEST_STUDENT_ID || "d326ad9f-d8f1-4fcb-aadb-fb3638239735",
+  secondaryStudentId: process.env.TEST_STUDENT_2_ID || "924e1e3a-1e90-47e5-ada2-e797e850fc58",
 
   // 배치 테스트용 학생 목록
   batchStudents: [
-    process.env.TEST_STUDENT_ID || "test-student-1",
-    process.env.TEST_STUDENT_2_ID || "test-student-2",
-    process.env.TEST_STUDENT_3_ID || "test-student-3",
+    process.env.TEST_STUDENT_ID || "d326ad9f-d8f1-4fcb-aadb-fb3638239735",
+    process.env.TEST_STUDENT_2_ID || "924e1e3a-1e90-47e5-ada2-e797e850fc58",
+    process.env.TEST_STUDENT_3_ID || "6d1cff5e-fa9f-4811-8d7f-44f75850b62b",
   ],
 };
 
@@ -300,5 +300,121 @@ export const PLAN_CREATION_DATA = {
     distributionStrategy: "even" as const,
     defaultDurationDays: 7,
     dailyStudyMinutes: 90,
+  },
+};
+
+// ============================================
+// 플래너 테스트 데이터
+// ============================================
+
+export const PLANNER_TEST_DATA = {
+  // 기본 플래너
+  basic: {
+    name: "E2E 테스트 플래너",
+    description: "E2E 테스트용 플래너입니다.",
+    periodStart: getToday(),
+    periodEnd: getDaysLater(30),
+    studyHours: {
+      start: "10:00",
+      end: "19:00",
+    },
+    selfStudyHours: {
+      start: "19:00",
+      end: "22:00",
+    },
+    lunchTime: {
+      start: "12:00",
+      end: "13:00",
+    },
+    schedulerType: "1730_timetable" as const,
+    studyDays: 6,
+    reviewDays: 1,
+  },
+
+  // 짧은 기간 플래너
+  shortTerm: {
+    name: "단기 집중 플래너",
+    description: "2주 집중 학습",
+    periodStart: getToday(),
+    periodEnd: getDaysLater(14),
+    studyHours: {
+      start: "09:00",
+      end: "21:00",
+    },
+    lunchTime: {
+      start: "12:00",
+      end: "13:00",
+    },
+    schedulerType: "1730_timetable" as const,
+    studyDays: 7,
+    reviewDays: 0,
+  },
+
+  // 학원 일정 포함 플래너
+  withAcademySchedule: {
+    name: "학원 일정 포함 플래너",
+    description: "학원 일정이 포함된 플래너",
+    periodStart: getToday(),
+    periodEnd: getDaysLater(60),
+    studyHours: {
+      start: "10:00",
+      end: "18:00",
+    },
+    lunchTime: {
+      start: "12:00",
+      end: "13:00",
+    },
+    academySchedules: [
+      {
+        academyName: "수학 학원",
+        dayOfWeek: 1, // 월요일
+        startTime: "14:00",
+        endTime: "16:00",
+        subject: "수학",
+        travelTime: 30,
+      },
+      {
+        academyName: "영어 학원",
+        dayOfWeek: 3, // 수요일
+        startTime: "15:00",
+        endTime: "17:00",
+        subject: "영어",
+        travelTime: 45,
+      },
+    ],
+    schedulerType: "1730_timetable" as const,
+    studyDays: 5,
+    reviewDays: 1,
+  },
+
+  // 제외일 포함 플래너
+  withExclusions: {
+    name: "제외일 포함 플래너",
+    description: "휴일 제외일이 포함된 플래너",
+    periodStart: getToday(),
+    periodEnd: getDaysLater(45),
+    studyHours: {
+      start: "10:00",
+      end: "19:00",
+    },
+    lunchTime: {
+      start: "12:00",
+      end: "13:00",
+    },
+    exclusions: [
+      {
+        exclusionDate: getDaysLater(7),
+        exclusionType: "holiday",
+        reason: "공휴일",
+      },
+      {
+        exclusionDate: getDaysLater(14),
+        exclusionType: "personal",
+        reason: "가족 행사",
+      },
+    ],
+    schedulerType: "1730_timetable" as const,
+    studyDays: 6,
+    reviewDays: 1,
   },
 };

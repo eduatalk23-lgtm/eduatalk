@@ -12,6 +12,8 @@ import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 interface DailyDockProps {
   studentId: string;
   tenantId: string;
+  /** 플래너 ID (플래너 기반 필터링용) */
+  plannerId?: string;
   selectedDate: string;
   activePlanGroupId: string | null;
   onAddContent: () => void;
@@ -28,6 +30,7 @@ interface DailyDockProps {
 export function DailyDock({
   studentId,
   tenantId,
+  plannerId,
   selectedDate,
   activePlanGroupId,
   onAddContent,
@@ -43,7 +46,8 @@ export function DailyDock({
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
   const { plans, adHocPlans, isLoading, invalidate } = useDailyDockQuery(
     studentId,
-    selectedDate
+    selectedDate,
+    plannerId
   );
 
   const [isPending, startTransition] = useTransition();

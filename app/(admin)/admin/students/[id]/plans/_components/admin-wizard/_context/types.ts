@@ -53,6 +53,31 @@ export interface StudentContent {
 }
 
 // ============================================
+// 시간 범위 타입 (Planner 호환)
+// ============================================
+
+/**
+ * 시간 범위 (HH:mm 형식)
+ * Planner의 study_hours, self_study_hours, lunch_time과 호환
+ */
+export interface TimeRange {
+  start: string; // HH:mm format
+  end: string;   // HH:mm format
+}
+
+/**
+ * 비학습 시간 블록
+ * Planner의 non_study_time_blocks와 호환
+ */
+export interface NonStudyTimeBlock {
+  type: "아침식사" | "점심식사" | "저녁식사" | "수면" | "기타";
+  start_time: string;  // HH:mm format
+  end_time: string;    // HH:mm format
+  day_of_week?: number[];  // 0-6 (일-토), 비어있으면 매일
+  description?: string;
+}
+
+// ============================================
 // 스케줄 관련 타입
 // ============================================
 
@@ -63,7 +88,7 @@ export interface ExclusionSchedule {
   exclusion_date: string;
   exclusion_type: "holiday" | "event" | "personal";
   reason?: string;
-  source?: "manual" | "academy" | "template";
+  source?: "manual" | "academy" | "template" | "planner";
   is_locked?: boolean;
 }
 
@@ -77,7 +102,7 @@ export interface AcademySchedule {
   academy_name?: string;
   subject?: string;
   travel_time?: number;
-  source?: "manual" | "imported";
+  source?: "manual" | "imported" | "planner";
   is_locked?: boolean;
 }
 
@@ -132,6 +157,9 @@ export interface ContentAllocation {
  * Admin Wizard 데이터 (7단계용 확장)
  */
 export interface AdminWizardData {
+  // 플래너 연결 (선택적)
+  plannerId?: string | null;
+
   // Step 1: 기본 정보
   name: string;
   planPurpose: PlanPurpose;
@@ -145,6 +173,13 @@ export interface AdminWizardData {
   timeSettings?: TimeSettings;
   academySchedules: AcademySchedule[];
   exclusions: ExclusionSchedule[];
+
+  // Step 2: 플래너 호환 시간 설정 (NEW)
+  // 플래너 선택 시 자동 상속, 미선택 시 null
+  studyHours?: TimeRange | null;           // 학습시간 (기본: 10:00-19:00)
+  selfStudyHours?: TimeRange | null;       // 자율학습시간 (기본: 19:00-22:00)
+  lunchTime?: TimeRange | null;            // 점심시간 (기본: 12:00-13:00)
+  nonStudyTimeBlocks?: NonStudyTimeBlock[]; // 비학습 블록 (식사, 수면 등)
 
   // Step 3: 스케줄 미리보기 (데이터 없음, UI만)
 

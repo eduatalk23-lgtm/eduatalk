@@ -12,6 +12,8 @@ import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
 interface UnfinishedDockProps {
   studentId: string;
   tenantId: string;
+  /** 플래너 ID (플래너 기반 필터링용) */
+  plannerId?: string;
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
@@ -24,6 +26,7 @@ interface UnfinishedDockProps {
 export function UnfinishedDock({
   studentId,
   tenantId,
+  plannerId,
   onRedistribute,
   onEdit,
   onReorder,
@@ -33,7 +36,7 @@ export function UnfinishedDock({
   onRefresh,
 }: UnfinishedDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans, isLoading, invalidate } = useUnfinishedDockQuery(studentId);
+  const { plans, isLoading, invalidate } = useUnfinishedDockQuery(studentId, plannerId);
 
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();

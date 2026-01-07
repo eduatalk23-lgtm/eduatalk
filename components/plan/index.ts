@@ -69,3 +69,18 @@ export {
   WebSearchResultsPanel,
   type WebSearchResultsPanelProps,
 } from "./WebSearchResultsPanel";
+
+export {
+  AvailabilityTimeline,
+  type AvailabilityTimelineProps,
+} from "./AvailabilityTimeline";
+
+export {
+  ConflictWarning,
+  type ConflictWarningProps,
+} from "./ConflictWarning";
+
+export {
+  PeriodAvailabilitySummary,
+  type PeriodAvailabilitySummaryProps,
+} from "./PeriodAvailabilitySummary";

@@ -46,6 +46,31 @@ export async function createPlanFromContent(
     const supabase = await createSupabaseServerClient();
     const now = new Date().toISOString();
 
+    // flexible_content에서 content_type 및 master content IDs 조회
+    const { data: flexibleContent, error: fetchError } = await supabase
+      .from('flexible_contents')
+      .select('content_type, master_book_id, master_lecture_id, master_custom_content_id')
+      .eq('id', input.flexibleContentId)
+      .single();
+
+    if (fetchError || !flexibleContent) {
+      return { success: false, error: '콘텐츠를 찾을 수 없습니다.' };
+    }
+
+    // Determine the actual content_id based on content_type
+    // 마스터 콘텐츠가 연결된 경우 해당 ID 사용, 없으면 flexible_content_id를 content_id로 사용
+    let contentId: string | null = null;
+    if (flexibleContent.content_type === 'book') {
+      contentId = flexibleContent.master_book_id;
+    } else if (flexibleContent.content_type === 'lecture') {
+      contentId = flexibleContent.master_lecture_id;
+    } else if (flexibleContent.content_type === 'custom') {
+      contentId = flexibleContent.master_custom_content_id;
+    }
+
+    // 마스터 콘텐츠가 없으면 content_id는 null로 유지 (flexible_content_id만 사용)
+    // validate_content_reference 트리거가 content_id를 검증하므로 잘못된 값 전달 방지
+
     // 생성할 플랜 데이터 배열
     const plansToCreate: Array<Record<string, unknown>> = [];
 
@@ -53,6 +78,8 @@ export async function createPlanFromContent(
       // 오늘(Daily Dock)에 단일 플랜 추가
       plansToCreate.push(createPlanRecord({
         ...input,
+        contentType: flexibleContent.content_type,
+        contentId: contentId,
         planDate: input.targetDate,
         containerType: 'daily',
         startPage: input.rangeStart,
@@ -63,6 +90,8 @@ export async function createPlanFromContent(
       // Weekly Dock에 단일 플랜 추가
       plansToCreate.push(createPlanRecord({
         ...input,
+        contentType: flexibleContent.content_type,
+        contentId: contentId,
         planDate: input.targetDate,
         containerType: 'weekly',
         startPage: input.rangeStart,
@@ -73,6 +102,8 @@ export async function createPlanFromContent(
       // 기간에 걸쳐 분배
       const distributedPlans = distributeOverPeriod({
         ...input,
+        contentType: flexibleContent.content_type,
+        contentId: contentId,
         periodEndDate: input.periodEndDate,
         now,
       });
@@ -125,6 +156,9 @@ export async function createPlanFromContent(
  */
 function createPlanRecord(params: {
   studentId: string;
+  tenantId: string;
+  contentType: string;
+  contentId: string | null;
   flexibleContentId: string;
   contentTitle: string;
   contentSubject: string | null;
@@ -139,6 +173,10 @@ function createPlanRecord(params: {
 }): Record<string, unknown> {
   return {
     student_id: params.studentId,
+    tenant_id: params.tenantId,
+    block_index: 0,
+    content_type: params.contentType,
+    content_id: params.contentId,
     flexible_content_id: params.flexibleContentId,
     content_title: params.contentTitle,
     content_subject: params.contentSubject,
@@ -161,6 +199,9 @@ function createPlanRecord(params: {
  */
 function distributeOverPeriod(params: {
   studentId: string;
+  tenantId: string;
+  contentType: string;
+  contentId: string | null;
   flexibleContentId: string;
   contentTitle: string;
   contentSubject: string | null;
@@ -203,6 +244,9 @@ function distributeOverPeriod(params: {
       if (currentStart <= params.rangeEnd) {
         plans.push(createPlanRecord({
           studentId: params.studentId,
+          tenantId: params.tenantId,
+          contentType: params.contentType,
+          contentId: params.contentId,
           flexibleContentId: params.flexibleContentId,
           contentTitle: params.contentTitle,
           contentSubject: params.contentSubject,
@@ -228,6 +272,9 @@ function distributeOverPeriod(params: {
 
       plans.push(createPlanRecord({
         studentId: params.studentId,
+        tenantId: params.tenantId,
+        contentType: params.contentType,
+        contentId: params.contentId,
         flexibleContentId: params.flexibleContentId,
         contentTitle: params.contentTitle,
         contentSubject: params.contentSubject,

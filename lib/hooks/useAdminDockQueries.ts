@@ -18,17 +18,20 @@ import {
 
 /**
  * Daily Dock 쿼리 훅
+ * @param studentId 학생 ID
+ * @param date 날짜
+ * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
  */
-export function useDailyDockQuery(studentId: string, date: string) {
+export function useDailyDockQuery(studentId: string, date: string, plannerId?: string) {
   const queryClient = useQueryClient();
 
-  const plansQuery = useQuery(dailyPlansQueryOptions(studentId, date));
+  const plansQuery = useQuery(dailyPlansQueryOptions(studentId, date, plannerId));
   const adHocQuery = useQuery(dailyAdHocPlansQueryOptions(studentId, date));
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: adminDockKeys.daily(studentId, date) });
+    queryClient.invalidateQueries({ queryKey: adminDockKeys.daily(studentId, date, plannerId) });
     queryClient.invalidateQueries({ queryKey: adminDockKeys.dailyAdHoc(studentId, date) });
-  }, [queryClient, studentId, date]);
+  }, [queryClient, studentId, date, plannerId]);
 
   return {
     plans: plansQuery.data ?? [],
@@ -46,13 +49,16 @@ export function useDailyDockQuery(studentId: string, date: string) {
 
 /**
  * Weekly Dock 쿼리 훅
+ * @param studentId 학생 ID
+ * @param selectedDate 선택된 날짜
+ * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
  */
-export function useWeeklyDockQuery(studentId: string, selectedDate: string) {
+export function useWeeklyDockQuery(studentId: string, selectedDate: string, plannerId?: string) {
   const queryClient = useQueryClient();
   const weekRange = getWeekRange(selectedDate);
 
   const plansQuery = useQuery(
-    weeklyPlansQueryOptions(studentId, weekRange.start, weekRange.end)
+    weeklyPlansQueryOptions(studentId, weekRange.start, weekRange.end, plannerId)
   );
   const adHocQuery = useQuery(
     weeklyAdHocPlansQueryOptions(studentId, weekRange.start, weekRange.end)
@@ -60,12 +66,12 @@ export function useWeeklyDockQuery(studentId: string, selectedDate: string) {
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({
-      queryKey: adminDockKeys.weekly(studentId, weekRange.start, weekRange.end),
+      queryKey: adminDockKeys.weekly(studentId, weekRange.start, weekRange.end, plannerId),
     });
     queryClient.invalidateQueries({
       queryKey: adminDockKeys.weeklyAdHoc(studentId, weekRange.start, weekRange.end),
     });
-  }, [queryClient, studentId, weekRange.start, weekRange.end]);
+  }, [queryClient, studentId, weekRange.start, weekRange.end, plannerId]);
 
   return {
     plans: plansQuery.data ?? [],
@@ -84,15 +90,17 @@ export function useWeeklyDockQuery(studentId: string, selectedDate: string) {
 
 /**
  * Unfinished Dock 쿼리 훅
+ * @param studentId 학생 ID
+ * @param plannerId 플래너 ID (선택, 플래너 기반 필터링용)
  */
-export function useUnfinishedDockQuery(studentId: string) {
+export function useUnfinishedDockQuery(studentId: string, plannerId?: string) {
   const queryClient = useQueryClient();
 
-  const plansQuery = useQuery(unfinishedPlansQueryOptions(studentId));
+  const plansQuery = useQuery(unfinishedPlansQueryOptions(studentId, plannerId));
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: adminDockKeys.unfinished(studentId) });
-  }, [queryClient, studentId]);
+    queryClient.invalidateQueries({ queryKey: adminDockKeys.unfinished(studentId, plannerId) });
+  }, [queryClient, studentId, plannerId]);
 
   return {
     plans: plansQuery.data ?? [],

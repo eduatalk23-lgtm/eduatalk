@@ -92,6 +92,8 @@ interface AdminPlanManagementProps {
   tenantId: string;
   initialDate: string;
   activePlanGroupId: string | null;
+  /** 선택된 플래너 ID (플래너 기반 필터링용) */
+  selectedPlannerId?: string;
 }
 
 export function AdminPlanManagement({
@@ -100,6 +102,7 @@ export function AdminPlanManagement({
   tenantId,
   initialDate,
   activePlanGroupId,
+  selectedPlannerId,
 }: AdminPlanManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -519,6 +522,7 @@ export function AdminPlanManagement({
         <UnfinishedDock
           studentId={studentId}
           tenantId={tenantId}
+          plannerId={selectedPlannerId}
           onRedistribute={handleOpenRedistribute}
           onEdit={handleOpenEdit}
           onReorder={() => handleOpenReorder('unfinished')}
@@ -541,6 +545,7 @@ export function AdminPlanManagement({
           <DailyDock
             studentId={studentId}
             tenantId={tenantId}
+            plannerId={selectedPlannerId}
             selectedDate={selectedDate}
             activePlanGroupId={activePlanGroupId}
             onAddContent={() => setShowAddContentModal(true)}
@@ -558,6 +563,7 @@ export function AdminPlanManagement({
           <WeeklyDock
             studentId={studentId}
             tenantId={tenantId}
+            plannerId={selectedPlannerId}
             selectedDate={selectedDate}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}

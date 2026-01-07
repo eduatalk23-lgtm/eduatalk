@@ -48,15 +48,18 @@ export async function navigateToStudentPlans(
   studentId: string
 ): Promise<void> {
   await page.goto(`/admin/students/${studentId}/plans`);
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
+  // 페이지 로딩 완료 대기 (networkidle 대신 요소 기반 대기)
+  await page.waitForTimeout(2000);
 }
 
 /**
  * 플랜 생성 버튼 클릭
  */
 export async function clickCreatePlanButton(page: Page): Promise<void> {
+  // "플랜 그룹" 버튼을 찾아서 클릭 (UI 구조에 맞춤)
   const createButton = page.locator(
-    '[data-testid="create-plan-button"], button:has-text("플랜 생성"), button:has-text("새 플랜")'
+    '[data-testid="create-plan-button"], button:has-text("플랜 그룹")'
   );
   await createButton.click();
   await page.waitForTimeout(500);
@@ -405,4 +408,154 @@ export async function createPlanFullFlow(
 
   // Step 7
   await executeStep7(page);
+}
+
+// ============================================
+// 플래너 관련 헬퍼
+// ============================================
+
+export interface PlannerData {
+  name: string;
+  description?: string;
+  periodStart: string;
+  periodEnd: string;
+  studyHours?: { start: string; end: string };
+  selfStudyHours?: { start: string; end: string };
+  lunchTime?: { start: string; end: string };
+}
+
+/**
+ * 플래너 생성 모달 열기
+ */
+export async function openCreatePlannerModal(page: Page): Promise<void> {
+  const createButton = page.locator(
+    'button:has-text("새 플래너"), [data-testid="create-planner-button"]'
+  );
+  await createButton.click();
+  await page.waitForTimeout(500);
+}
+
+/**
+ * 플래너 생성 폼 입력
+ */
+export async function fillPlannerForm(
+  page: Page,
+  data: PlannerData
+): Promise<void> {
+  // 이름
+  const nameInput = page.locator(
+    'input[placeholder*="겨울방학"], input[type="text"]'
+  ).first();
+  await nameInput.fill(data.name);
+
+  // 설명
+  if (data.description) {
+    const descInput = page.locator('textarea').first();
+    if (await descInput.isVisible()) {
+      await descInput.fill(data.description);
+    }
+  }
+
+  // 기간
+  const periodStartInput = page.locator('input[type="date"]').first();
+  const periodEndInput = page.locator('input[type="date"]').nth(1);
+  await periodStartInput.fill(data.periodStart);
+  await periodEndInput.fill(data.periodEnd);
+
+  // 학습 시간
+  if (data.studyHours) {
+    const studyStartInput = page.locator('input[type="time"]').first();
+    const studyEndInput = page.locator('input[type="time"]').nth(1);
+    await studyStartInput.fill(data.studyHours.start);
+    await studyEndInput.fill(data.studyHours.end);
+  }
+
+  // 점심 시간
+  if (data.lunchTime) {
+    const lunchStartInput = page.locator('input[type="time"]').nth(2);
+    const lunchEndInput = page.locator('input[type="time"]').nth(3);
+    await lunchStartInput.fill(data.lunchTime.start);
+    await lunchEndInput.fill(data.lunchTime.end);
+  }
+}
+
+/**
+ * 플래너 생성 제출
+ */
+export async function submitPlannerForm(page: Page): Promise<void> {
+  const submitButton = page.locator(
+    'button:has-text("플래너 생성"), button:has-text("생성")'
+  ).last();
+  await submitButton.click();
+  await page.waitForTimeout(1000);
+}
+
+/**
+ * 플래너 선택 (Step1에서)
+ */
+export async function selectPlanner(
+  page: Page,
+  plannerIndex: number = 0
+): Promise<void> {
+  const plannerSelect = page.locator(
+    '[data-testid="planner-select"], button:has-text("플래너 선택")'
+  );
+
+  if (await plannerSelect.isVisible()) {
+    await plannerSelect.click();
+    await page.waitForTimeout(300);
+
+    const plannerOption = page.locator(
+      '.absolute button, [role="option"]'
+    ).nth(plannerIndex);
+
+    if (await plannerOption.isVisible()) {
+      await plannerOption.click();
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
+/**
+ * 플래너 선택 해제 (Step1에서)
+ */
+export async function clearPlannerSelection(page: Page): Promise<void> {
+  const plannerSelect = page.locator(
+    '[data-testid="planner-select"], button:has-text("플래너")'
+  );
+
+  if (await plannerSelect.isVisible()) {
+    await plannerSelect.click();
+    await page.waitForTimeout(300);
+
+    const clearOption = page.locator(
+      'button:has-text("선택 안함"), button:has-text("없음")'
+    );
+
+    if (await clearOption.isVisible()) {
+      await clearOption.click();
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
+/**
+ * 플래너가 선택되었는지 확인
+ */
+export async function expectPlannerSelected(page: Page): Promise<void> {
+  const plannerSelect = page.locator(
+    '[data-testid="planner-select"], button:has-text("플래너")'
+  );
+  const selectText = await plannerSelect.textContent();
+  expect(selectText).not.toContain("선택");
+}
+
+/**
+ * 상속된 설정이 잠금 표시되었는지 확인
+ */
+export async function expectLockedInheritedSettings(page: Page): Promise<void> {
+  const lockedIndicator = page.locator(
+    '[data-locked="true"], .locked-item, svg[data-lucide="lock"]'
+  );
+  await expect(lockedIndicator.first()).toBeVisible({ timeout: 5000 });
 }

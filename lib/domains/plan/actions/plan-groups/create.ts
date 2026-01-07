@@ -39,6 +39,14 @@ interface AtomicCreateResult {
   errorCode?: string;
 }
 
+/**
+ * TimeRange 타입 (플래너/플랜 그룹 공통)
+ */
+interface TimeRange {
+  start: string; // HH:mm format
+  end: string;   // HH:mm format
+}
+
 interface PlanGroupAtomicInput {
   name: string | null;
   plan_purpose: string | null;
@@ -48,6 +56,7 @@ interface PlanGroupAtomicInput {
   period_end: string;
   target_date: string | null;
   block_set_id: string | null;
+  planner_id: string | null;
   status: string;
   subject_constraints: Record<string, unknown> | null;
   additional_period_reallocation: Record<string, unknown> | null;
@@ -58,6 +67,10 @@ interface PlanGroupAtomicInput {
   camp_invitation_id: string | null;
   use_slot_mode: boolean;
   content_slots: Record<string, unknown>[] | null;
+  // NEW: Time settings columns (inherited from planner)
+  study_hours: TimeRange | null;
+  self_study_hours: TimeRange | null;
+  lunch_time: TimeRange | null;
 }
 
 interface ContentInput {
@@ -426,6 +439,7 @@ async function _createPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
+    planner_id: data.planner_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -436,6 +450,10 @@ async function _createPlanGroup(
     camp_invitation_id: data.camp_invitation_id || null,
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: data.content_slots || null,
+    // NEW: Time settings (inherited from planner)
+    study_hours: data.study_hours || null,
+    self_study_hours: data.self_study_hours || null,
+    lunch_time: data.lunch_time || null,
   };
 
   // 원자적 플랜 그룹 생성 (plan_groups + plan_contents + plan_exclusions + academy_schedules)
@@ -634,6 +652,7 @@ async function _savePlanGroupDraft(
       formatDateString(new Date(Date.now() + DAYS_PER_WEEK * MILLISECONDS_PER_DAY)),
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
+    planner_id: data.planner_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -644,6 +663,10 @@ async function _savePlanGroupDraft(
     camp_invitation_id: data.camp_invitation_id || null,
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: data.content_slots || null,
+    // NEW: Time settings (inherited from planner)
+    study_hours: data.study_hours || null,
+    self_study_hours: data.self_study_hours || null,
+    lunch_time: data.lunch_time || null,
   };
 
   // 콘텐츠 데이터 준비
@@ -757,6 +780,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     period_end: group.period_end,
     target_date: group.target_date,
     block_set_id: group.block_set_id,
+    planner_id: group.planner_id ?? null, // 플래너 연결 유지
     status: "draft",
     subject_constraints: group.subject_constraints ?? null,
     additional_period_reallocation: group.additional_period_reallocation ?? null,
@@ -767,6 +791,10 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     camp_invitation_id: null, // 복사본은 새 캠프 초대가 아님
     use_slot_mode: group.use_slot_mode ?? false,
     content_slots: (group.content_slots as Record<string, unknown>[] | null) ?? null,
+    // NEW: Time settings (복사 시 원본 설정 유지)
+    study_hours: (group.study_hours as TimeRange | null) ?? null,
+    self_study_hours: (group.self_study_hours as TimeRange | null) ?? null,
+    lunch_time: (group.lunch_time as TimeRange | null) ?? null,
   };
 
   // 콘텐츠 데이터 준비
@@ -840,6 +868,7 @@ type CalendarOnlyPlanGroupInput = {
   period_end: string;
   target_date?: string | null;
   block_set_id?: string | null;
+  planner_id?: string | null;
   exclusions?: PlanGroupCreationData["exclusions"];
   academy_schedules?: PlanGroupCreationData["academy_schedules"];
   study_review_cycle?: PlanGroupCreationData["study_review_cycle"];
@@ -913,6 +942,7 @@ async function _saveCalendarOnlyPlanGroup(
     period_end: data.period_end,
     target_date: data.target_date || null,
     block_set_id: data.block_set_id || null,
+    planner_id: data.planner_id || null,
     status: "draft",
     subject_constraints: data.subject_constraints || null,
     additional_period_reallocation: data.additional_period_reallocation || null,
@@ -923,6 +953,10 @@ async function _saveCalendarOnlyPlanGroup(
     camp_invitation_id: data.camp_invitation_id || null,
     use_slot_mode: data.use_slot_mode ?? false,
     content_slots: null, // 캘린더 전용이므로 콘텐츠 슬롯 없음
+    // NEW: Time settings - 캘린더 전용에서도 시간 설정 저장
+    study_hours: null,
+    self_study_hours: null,
+    lunch_time: null,
   };
 
   // 콘텐츠 없음 (캘린더 전용)
