@@ -45,6 +45,14 @@ type MockScoreRow = {
   } | null;
 };
 
+/**
+ * 성적 추이 메트릭 타입
+ * 
+ * @property hasDecliningTrend - 최근 2회 연속 등급 하락 여부
+ * @property decliningSubjects - 하락한 과목 목록 (최근 2회 연속 하락한 과목)
+ * @property lowGradeSubjects - 저등급 과목 목록 (7등급 이상인 과목)
+ * @property recentScores - 최근 성적 목록 (최대 10개, 내신 및 모의고사 포함)
+ */
 export type ScoreTrendMetrics = {
   hasDecliningTrend: boolean; // 최근 2회 연속 등급 하락
   decliningSubjects: string[]; // 하락한 과목 목록
