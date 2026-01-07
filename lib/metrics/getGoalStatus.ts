@@ -14,6 +14,17 @@ import {
   nullToDefault,
 } from "./utils";
 
+/**
+ * 목표 상태 메트릭 타입
+ * 
+ * @property totalActiveGoals - 활성 목표 수
+ * @property goalsNearDeadline - 마감 임박 목표 수 (D-7 이내)
+ * @property goalsVeryNearDeadline - 매우 임박 목표 수 (D-3 이내)
+ * @property averageProgress - 평균 진행률 (0-100)
+ * @property lowProgressGoals - 저진행률 목표 수 (30% 미만)
+ * @property veryLowProgressGoals - 매우 저진행률 목표 수 (50% 미만)
+ * @property goals - 목표별 상세 정보 목록
+ */
 export type GoalStatusMetrics = {
   totalActiveGoals: number;
   goalsNearDeadline: number; // D-7 이내 목표 수

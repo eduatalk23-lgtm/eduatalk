@@ -31,6 +31,14 @@ type AnalysisRow = {
   risk_score: number | null;
 };
 
+/**
+ * 취약 과목 메트릭 타입
+ * 
+ * @property weakSubjects - 취약 과목 목록 (risk_score >= 50인 과목)
+ * @property subjectStudyTime - 과목별 학습시간 맵 (과목명 -> 분 단위)
+ * @property totalStudyTime - 전체 학습시간 (분)
+ * @property weakSubjectStudyTimeRatio - 취약 과목 학습시간 비율 (0-100, 취약 과목 학습시간 / 전체 학습시간 * 100)
+ */
 export type WeakSubjectMetrics = {
   weakSubjects: string[]; // 취약 과목 목록
   subjectStudyTime: Map<string, number>; // 과목별 학습시간 (분)

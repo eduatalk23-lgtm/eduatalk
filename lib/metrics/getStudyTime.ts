@@ -12,6 +12,14 @@ import type {
 } from "./types";
 import { handleMetricsError } from "./utils";
 
+/**
+ * 주간 학습시간 메트릭 타입
+ * 
+ * @property thisWeekMinutes - 이번 주 학습시간 (분)
+ * @property lastWeekMinutes - 지난 주 학습시간 (분)
+ * @property changePercent - 지난주 대비 변화율 (%, 양수면 증가, 음수면 감소)
+ * @property changeMinutes - 지난주 대비 변화량 (분, 양수면 증가, 음수면 감소)
+ */
 export type StudyTimeMetrics = {
   thisWeekMinutes: number;
   lastWeekMinutes: number;

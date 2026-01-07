@@ -21,6 +21,13 @@ type PlanRow = {
   content_id: string | null;
 };
 
+/**
+ * 플랜 실행률 메트릭 타입
+ * 
+ * @property totalPlans - 전체 플랜 수 (더미 콘텐츠 제외)
+ * @property completedPlans - 완료된 플랜 수
+ * @property completionRate - 실행률 (0-100, 완료된 플랜 수 / 전체 플랜 수 * 100)
+ */
 export type PlanCompletionMetrics = {
   totalPlans: number;
   completedPlans: number;
