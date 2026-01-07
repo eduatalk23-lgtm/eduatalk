@@ -185,3 +185,74 @@ export function isEmptyArray<T>(arr: T[] | null | undefined): arr is null | unde
   return !arr || arr.length === 0;
 }
 
+/**
+ * 타입 가드: 값이 null이 아니고 undefined도 아님을 확인
+ * 
+ * @param value - 확인할 값
+ * @returns 값이 null/undefined가 아니면 true
+ * 
+ * @example
+ * ```typescript
+ * const rows = await safeQueryArray<Row>(...);
+ * const validRows = rows.filter(isNotNull);
+ * ```
+ */
+export function isNotNull<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * 타입 가드: 문자열이 null이 아니고 비어있지 않음을 확인
+ * 
+ * @param value - 확인할 문자열
+ * @returns 문자열이 유효하면 true
+ * 
+ * @example
+ * ```typescript
+ * const validEvents = historyRows
+ *   .filter(row => isNotNullString(row.event_type))
+ *   .map(row => row.event_type);
+ * ```
+ */
+export function isNotNullString(
+  value: string | null | undefined
+): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+/**
+ * 타입 가드: 숫자가 null이 아니고 유효한 숫자임을 확인
+ * 
+ * @param value - 확인할 숫자
+ * @returns 숫자가 유효하면 true
+ * 
+ * @example
+ * ```typescript
+ * const validScores = scores
+ *   .filter(score => isNotNullNumber(score.risk_score))
+ *   .map(score => score.risk_score);
+ * ```
+ */
+export function isNotNullNumber(
+  value: number | null | undefined
+): value is number {
+  return typeof value === "number" && !isNaN(value);
+}
+
+/**
+ * 안전한 배열 필터링: null/undefined 제거
+ * 
+ * @param arr - 필터링할 배열
+ * @returns null/undefined가 제거된 배열
+ * 
+ * @example
+ * ```typescript
+ * const validRows = filterNotNull(rows);
+ * ```
+ */
+export function filterNotNull<T>(
+  arr: Array<T | null | undefined>
+): T[] {
+  return arr.filter(isNotNull) as T[];
+}
+

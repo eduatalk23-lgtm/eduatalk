@@ -6,7 +6,12 @@ import type {
   MetricsResult,
   BaseMetricsOptions,
 } from "./types";
-import { handleMetricsError, nullToDefault } from "./utils";
+import {
+  handleMetricsError,
+  nullToDefault,
+  isNotNullString,
+  isNotNullNumber,
+} from "./utils";
 
 /**
  * 내신 성적 조회 결과 타입
@@ -142,9 +147,13 @@ export async function getScoreTrend(
     internalRows.forEach((row) => {
       const subjectName = row.subject_groups?.name;
       const grade = row.rank_grade;
-      
+
       // subject_groups.name이 null이거나 grade가 null인 경우 제외
-      if (subjectName && grade !== null && grade !== undefined && row.created_at) {
+      if (
+        isNotNullString(subjectName) &&
+        isNotNullNumber(grade) &&
+        isNotNullString(row.created_at)
+      ) {
         allScores.push({
           subject: subjectName,
           scoreType: "internal",
@@ -160,9 +169,13 @@ export async function getScoreTrend(
     mockRows.forEach((row) => {
       const subjectName = row.subject_groups?.name;
       const grade = row.grade_score;
-      
+
       // subject_groups.name이 null이거나 grade가 null인 경우 제외
-      if (subjectName && grade !== null && grade !== undefined && row.exam_date) {
+      if (
+        isNotNullString(subjectName) &&
+        isNotNullNumber(grade) &&
+        isNotNullString(row.exam_date)
+      ) {
         allScores.push({
           subject: subjectName,
           scoreType: "mock",

@@ -11,6 +11,7 @@ import {
   toDateString,
   handleMetricsError,
   nullToDefault,
+  isNotNullString,
 } from "./utils";
 
 type HistoryRow = {
@@ -92,7 +93,9 @@ export async function getHistoryPattern(
     // 날짜별로 그룹화
     const dateMap = new Map<string, Set<string>>();
     safeHistoryRows.forEach((row) => {
-      if (!row.created_at || !row.event_type) return;
+      if (!isNotNullString(row.created_at) || !isNotNullString(row.event_type)) {
+        return;
+      }
       const date = toDateString(new Date(row.created_at));
       const existing = dateMap.get(date) || new Set();
       existing.add(row.event_type);
@@ -116,7 +119,10 @@ export async function getHistoryPattern(
     let consecutiveNoStudyDays = 0;
     const studySessionDates = new Set<string>();
     safeHistoryRows.forEach((row) => {
-      if (row.event_type === "study_session" && row.created_at) {
+      if (
+        row.event_type === "study_session" &&
+        isNotNullString(row.created_at)
+      ) {
         const date = toDateString(new Date(row.created_at));
         studySessionDates.add(date);
       }
@@ -138,8 +144,10 @@ export async function getHistoryPattern(
     const recentHistoryEvents = safeHistoryRows
       .slice(0, HISTORY_PATTERN_CONSTANTS.RECENT_EVENTS_LIMIT)
       .map((row) => ({
-        eventType: row.event_type || "",
-        date: row.created_at ? toDateString(new Date(row.created_at)) : "",
+        eventType: row.event_type ?? "",
+        date: isNotNullString(row.created_at)
+          ? toDateString(new Date(row.created_at))
+          : "",
       }));
 
     return {

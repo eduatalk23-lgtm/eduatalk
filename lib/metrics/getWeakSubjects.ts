@@ -7,7 +7,13 @@ import type {
   MetricsResult,
   WeeklyMetricsOptions,
 } from "./types";
-import { toDateString, handleMetricsError, nullToDefault } from "./utils";
+import {
+  toDateString,
+  handleMetricsError,
+  nullToDefault,
+  isNotNullString,
+  isNotNullNumber,
+} from "./utils";
 
 type PlanRow = {
   id: string;
@@ -258,12 +264,11 @@ export async function getWeakSubjects(
     const weakSubjects = analyses
       .filter(
         (a) =>
-          a.subject &&
-          a.risk_score !== null &&
-          a.risk_score !== undefined &&
+          isNotNullString(a.subject) &&
+          isNotNullNumber(a.risk_score) &&
           a.risk_score >= WEAK_SUBJECT_CONSTANTS.RISK_SCORE_THRESHOLD
       )
-      .map((a) => a.subject!);
+      .map((a) => a.subject as string);
 
     // 전체 학습시간 계산
     const totalStudyTime = Array.from(subjectTimeMap.values()).reduce(
