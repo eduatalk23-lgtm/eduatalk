@@ -99,6 +99,7 @@ lib/domains/plan/
 ```
 
 **마이그레이션 계획**:
+
 1. Phase 1: Actions에서 비즈니스 로직 추출 → Service로 이동
 2. Phase 2: Repository 패턴 완전 적용
 3. Phase 3: 타입 정의 통합
@@ -212,10 +213,14 @@ lib/
    - `app/(student)/actions/plan-groups/create.ts:334-338`
    - `app/(student)/plan/new-group/_components/hooks/usePlanPayloadBuilder.ts:117-119`
 
-2. **블록 세트 조회 로직 중복**:
-   - `lib/plan/blocks.ts:88-143`
-   - `lib/utils/planGroupTransform.ts:115-127`
-   - `app/(admin)/actions/campTemplateActions.ts:1406-1454`
+2. **템플릿 블록 세트 조회 로직 중복** (✅ 해결됨):
+   - ~~`lib/plan/blocks.ts::getTemplateBlockSet`~~ → `lib/domains/camp/utils/templateBlockSetResolver.ts::getTemplateBlockSetInfo` 사용
+   - ~~`lib/plan/blocks.ts::getTemplateBlockSetId`~~ → `lib/domains/camp/utils/templateBlockSetResolver.ts::resolveTemplateBlockSetId` 사용
+   - ~~`lib/camp/campAdapter.ts::resolveCampBlockSetId`~~ → `lib/domains/camp/utils/templateBlockSetResolver.ts::resolveTemplateBlockSetId` 사용
+   - ~~`lib/domains/camp/actions/blockSets.ts::_getTemplateBlockSet`~~ → `lib/domains/camp/utils/templateBlockSetResolver.ts::getTemplateBlockSetInfo` 사용
+   - **통합 완료일**: 2026-01-15
+   - **통합 함수**: `lib/domains/camp/utils/templateBlockSetResolver.ts`
+   - **참고**: `docs/2026-01-15-template-block-set-resolver-guide.md`
 
 3. **학습-복습 주기 병합 로직 중복**:
    - `app/(student)/actions/plan-groups/create.ts:70-74`
@@ -427,6 +432,7 @@ export async function findPlanGroups(
 ```
 
 **마이그레이션 계획**:
+
 1. Phase 1: 새로 작성하는 함수는 파라미터 패턴 사용
 2. Phase 2: 기존 함수 점진적 마이그레이션
 3. Phase 3: 내부 생성 패턴 완전 제거
@@ -698,7 +704,11 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
 
 ```typescript
 // user_metadata가 Record<string, any>로 되어 타입 안전성이 낮음
-const signupRole = user.user_metadata?.signup_role as "student" | "parent" | null | undefined;
+const signupRole = user.user_metadata?.signup_role as
+  | "student"
+  | "parent"
+  | null
+  | undefined;
 ```
 
 #### 영향
@@ -771,9 +781,7 @@ const groupIds = planGroups.map((g) => g.id);
 const allContents = await getPlanContentsBatch(groupIds);
 
 // 그룹별로 매핑
-const contentsMap = new Map(
-  allContents.map((c) => [c.plan_group_id, c])
-);
+const contentsMap = new Map(allContents.map((c) => [c.plan_group_id, c]));
 
 for (const group of planGroups) {
   const contents = contentsMap.get(group.id) ?? [];
@@ -913,9 +921,14 @@ export const getCachedWeeklyMetrics = unstable_cache(
 1. **레거시 코드 제거**
    - 사용되지 않는 레거시 코드 제거
    - 중복 코드 통합
+   - ✅ **완료**: 템플릿 블록 세트 조회 로직 통합 (2026-01-15)
+     - 4개 중복 함수 → 2개 통합 함수로 통합
+     - `lib/domains/camp/utils/templateBlockSetResolver.ts` 생성
+     - 기존 함수들은 deprecated 처리 후 내부적으로 통합 함수 사용
 
 2. **문서화 및 테스트**
    - 마이그레이션 가이드 작성
+   - ✅ **완료**: 템플릿 블록 세트 조회 통합 가이드 작성 (2026-01-15)
    - 단위 테스트 작성
    - 통합 테스트 작성
 
@@ -925,7 +938,7 @@ export const getCachedWeeklyMetrics = unstable_cache(
 
 #### 함수 시그니처 표준
 
-```typescript
+````typescript
 /**
  * [함수 설명]
  *
@@ -949,7 +962,7 @@ export async function functionName(
 ): Promise<Result<FunctionResult, BusinessError>> {
   // 구현
 }
-```
+````
 
 #### 에러 처리 표준
 
@@ -1018,4 +1031,3 @@ export async function functionName(...): Promise<Result<ReturnType>> {
 ---
 
 **마지막 업데이트**: 2026-01-15
-

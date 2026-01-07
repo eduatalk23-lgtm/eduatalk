@@ -5,8 +5,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupAllowedRole } from "@/lib/auth/planGroupAuth";
 import { PlanGroupError, PlanGroupErrorCodes, ErrorUserMessages } from "@/lib/errors/planGroupErrors";
 import { logError } from "@/lib/errors/handler";
-import { getCampTemplate } from "@/lib/data/campTemplates";
 import { isCampMode } from "@/lib/plan/context";
+import { resolveTemplateBlockSetId, getTemplateBlockSetInfo } from "@/lib/domains/camp/utils/templateBlockSetResolver";
 
 export type BlockInfo = {
   day_of_week: number;
@@ -198,10 +198,8 @@ export async function getBlockSetForPlanGroup(
 /**
  * 템플릿 블록 세트를 조회합니다.
  *
- * 조회 순서:
- * 1. 연결 테이블(camp_template_block_sets)에서 템플릿에 연결된 블록 세트 조회
- * 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
- * 3. tenant_blocks에서 실제 블록 정보 조회
+ * @deprecated 이 함수는 내부적으로 통합 함수를 사용합니다.
+ * 새로운 코드에서는 `getTemplateBlockSetInfo`를 직접 사용하세요.
  *
  * @param templateId 캠프 템플릿 ID
  * @param tenantId 테넌트 ID (선택사항)
@@ -212,74 +210,26 @@ async function getTemplateBlockSet(
   tenantId?: string | null
 ): Promise<BlockInfo[] | null> {
   const supabase = await createSupabaseServerClient();
-
-  // 1. 연결 테이블에서 템플릿에 연결된 블록 세트 조회
-  const { data: templateBlockSetLink } = await supabase
-    .from("camp_template_block_sets")
-    .select("tenant_block_set_id")
-    .eq("camp_template_id", templateId)
-    .maybeSingle();
-
-  let templateBlockSetId: string | null = null;
-  if (templateBlockSetLink) {
-    templateBlockSetId = templateBlockSetLink.tenant_block_set_id;
-  } else {
-    // 2. 하위 호환성: template_data.block_set_id 확인 (마이그레이션 전 데이터용)
-    const template = await getCampTemplate(templateId);
-    const templateData = template?.template_data as Record<string, unknown> | null;
-    if (templateData?.block_set_id && typeof templateData.block_set_id === "string") {
-      templateBlockSetId = templateData.block_set_id;
-    }
-  }
-
-  if (!templateBlockSetId) {
-    return null;
-  }
-
-  // 3. tenant_blocks에서 블록 조회
-  const { data: blockRows, error: blocksError } = await supabase
-    .from("tenant_blocks")
-    .select("day_of_week, start_time, end_time")
-    .eq("tenant_block_set_id", templateBlockSetId)
-    .order("day_of_week", { ascending: true })
-    .order("start_time", { ascending: true });
-
-  if (blocksError) {
-    const errorContext = {
+  
+  try {
+    const blockSetInfo = await getTemplateBlockSetInfo(supabase, {
       templateId,
-      templateBlockSetId,
-      error: blocksError.message,
-      code: blocksError.code,
-      details: blocksError.details,
-      hint: blocksError.hint,
-    };
-    logError(blocksError, {
-      function: "getTemplateBlockSet",
-      ...errorContext,
+      includeBlocks: true,
+      tenantId,
     });
+
+    return blockSetInfo?.blocks ?? null;
+  } catch (error) {
     // DB 에러는 throw하여 호출자가 캐시 미스와 구분할 수 있도록 함
-    throw new Error(`템플릿 블록 세트 조회 실패: ${blocksError.message}`);
+    throw error;
   }
-
-  // 블록이 없는 경우 (정상적인 캐시 미스) - null 반환
-  if (!blockRows || blockRows.length === 0) {
-    return null;
-  }
-
-  return blockRows.map((b) => ({
-    day_of_week: b.day_of_week || 0,
-    start_time: b.start_time || "00:00",
-    end_time: b.end_time || "00:00",
-  }));
 }
 
 /**
  * 템플릿 블록 세트 ID를 조회합니다.
  *
- * 조회 순서:
- * 1. 연결 테이블(camp_template_block_sets)에서 직접 조회
- * 2. scheduler_options.template_block_set_id 확인 (Fallback)
- * 3. template_data.block_set_id 확인 (하위 호환성)
+ * @deprecated 이 함수는 내부적으로 통합 함수를 사용합니다.
+ * 새로운 코드에서는 `resolveTemplateBlockSetId`를 직접 사용하세요.
  *
  * 이 함수는 블록 세트 ID만 반환하며, 실제 블록 정보는 조회하지 않습니다.
  * 블록 정보가 필요한 경우 `getTemplateBlockSet` 함수를 사용하세요.
@@ -306,71 +256,12 @@ export async function getTemplateBlockSetId(
   tenantId?: string | null
 ): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
-
-  // 1. 연결 테이블에서 직접 조회
-  const { data: templateBlockSetLink, error: linkError } = await supabase
-    .from("camp_template_block_sets")
-    .select("tenant_block_set_id")
-    .eq("camp_template_id", templateId)
-    .maybeSingle();
-
-  if (linkError) {
-    logError(linkError, {
-      function: "getTemplateBlockSetId",
-      templateId,
-      code: linkError.code,
-      details: linkError.details,
-      hint: linkError.hint,
-      level: "warn", // 연결 테이블 조회 실패는 치명적이지 않을 수 있으므로 경고 레벨
-    });
-    // 연결 테이블 조회 실패는 치명적이지 않을 수 있으므로 fallback으로 진행
-  } else if (templateBlockSetLink) {
-    return templateBlockSetLink.tenant_block_set_id;
-  }
-
-  // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-  if ((schedulerOptions as { template_block_set_id?: string })?.template_block_set_id) {
-    return (schedulerOptions as { template_block_set_id: string }).template_block_set_id;
-  }
-
-  // 3. template_data에서 block_set_id 확인 (하위 호환성)
-  const template = await getCampTemplate(templateId);
-  if (template?.template_data) {
-    try {
-      let templateData: { block_set_id?: string } | null = null;
-      if (typeof template.template_data === "string") {
-        templateData = JSON.parse(template.template_data) as { block_set_id?: string };
-      } else {
-        templateData = template.template_data as { block_set_id?: string };
-      }
-
-      if (templateData?.block_set_id) {
-        return templateData.block_set_id;
-      }
-    } catch (parseError) {
-      logError(parseError, {
-        function: "getTemplateBlockSetId",
-        templateId,
-        level: "warn", // 파싱 에러는 치명적이지 않으므로 경고 레벨
-      });
-      // 파싱 에러는 치명적이지 않으므로 null 반환
-    }
-  }
-
-  // 모든 조회 방법이 실패한 경우 null 반환 (정상적인 경우일 수 있음)
-  // 하지만 로깅은 강화
-  logError(
-    new Error("템플릿 블록 세트 ID를 찾을 수 없습니다."),
-    {
-      function: "getTemplateBlockSetId",
-      templateId,
-      tenantId,
-      hasSchedulerOptions: !!schedulerOptions,
-      level: "warn",
-    }
-  );
   
-  return null;
+  return await resolveTemplateBlockSetId(supabase, {
+    templateId,
+    schedulerOptions,
+    tenantId,
+  });
 }
 
 /**

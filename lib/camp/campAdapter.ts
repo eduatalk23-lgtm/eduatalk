@@ -92,6 +92,9 @@ export function parseSchedulerOptions(
 /**
  * 캠프 블록 세트 ID 조회 (3단계 우선순위)
  * 
+ * @deprecated 이 함수는 내부적으로 통합 함수를 사용합니다.
+ * 새로운 코드에서는 `resolveTemplateBlockSetId`를 직접 사용하세요.
+ * 
  * 1. 연결 테이블(camp_template_block_sets)에서 직접 조회 (가장 직접적)
  * 2. scheduler_options.template_block_set_id 확인 (Fallback)
  * 3. template_data.block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
@@ -102,58 +105,36 @@ export function parseSchedulerOptions(
  * @param templateData - 파싱된 template_data (선택사항)
  * @returns 블록 세트 ID 또는 null
  */
+import { resolveTemplateBlockSetId } from "@/lib/domains/camp/utils/templateBlockSetResolver";
+import type { SchedulerOptions } from "@/lib/types/plan/domain";
+
 export async function resolveCampBlockSetId(
   supabase: SupabaseClient,
   campTemplateId: string | null,
   group: Pick<PlanGroup, "scheduler_options">,
   templateData?: CampTemplateData | null
 ): Promise<string | null> {
-  let blockSetId: string | null = null;
-
-  // 1. 연결 테이블에서 직접 조회 (가장 직접적이고 명확한 방법)
-  if (campTemplateId) {
-    const { data: templateBlockSetLink, error: linkError } = await supabase
-      .from("camp_template_block_sets")
-      .select("tenant_block_set_id")
-      .eq("camp_template_id", campTemplateId)
-      .maybeSingle();
-
-    if (linkError) {
-      console.error(
-        "[campAdapter] 템플릿 블록 세트 연결 조회 에러:",
-        linkError
-      );
-    } else if (templateBlockSetLink) {
-      blockSetId = templateBlockSetLink.tenant_block_set_id;
-      console.log(
-        "[campAdapter] 연결 테이블에서 block_set_id 발견:",
-        blockSetId
-      );
-    }
+  if (!campTemplateId) {
+    return null;
   }
 
-  // 2. scheduler_options에서 template_block_set_id 확인 (Fallback)
-  if (!blockSetId && group.scheduler_options) {
-    const schedulerOptions = parseSchedulerOptions(group.scheduler_options);
-    if (schedulerOptions?.template_block_set_id) {
-      blockSetId = schedulerOptions.template_block_set_id;
-      console.log(
-        "[campAdapter] scheduler_options에서 template_block_set_id 발견 (Fallback):",
-        blockSetId
-      );
-    }
-  }
+  // scheduler_options 파싱
+  const schedulerOptions = group.scheduler_options
+    ? parseSchedulerOptions(group.scheduler_options)
+    : null;
 
-  // 3. template_data에서 block_set_id 확인 (하위 호환성, 마이그레이션 전 데이터용)
-  if (!blockSetId && templateData?.block_set_id) {
-    blockSetId = templateData.block_set_id;
-    console.log(
-      "[campAdapter] template_data에서 block_set_id 발견 (하위 호환성):",
-      blockSetId
-    );
-  }
-
-  return blockSetId;
+  // template_data에서 block_set_id 추출 (하위 호환성)
+  // 통합 함수는 내부에서 getCampTemplate을 호출하므로, 여기서는 schedulerOptions만 전달
+  // templateData의 block_set_id는 통합 함수 내부에서 처리됨
+  
+  // Supabase 클라이언트를 통합 함수가 기대하는 타입으로 변환
+  // 통합 함수는 SupabaseServerClient를 기대하지만, 여기서는 일반 SupabaseClient를 받음
+  // 타입 호환성을 위해 undefined를 전달하여 내부에서 생성하도록 함
+  return await resolveTemplateBlockSetId(undefined, {
+    templateId: campTemplateId,
+    schedulerOptions: schedulerOptions as SchedulerOptions | null,
+    tenantId: null, // tenantId는 이 함수의 시그니처에 없으므로 null 전달
+  });
 }
 
 /**
