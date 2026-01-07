@@ -19,6 +19,13 @@ type HistoryRow = {
   created_at: string | null;
 };
 
+/**
+ * 히스토리 패턴 메트릭 타입
+ * 
+ * @property consecutivePlanFailures - 연속 플랜 미완료 횟수 (최근 날짜부터 역순으로 계산)
+ * @property consecutiveNoStudyDays - 연속 학습세션 없는 날 수 (최근 날짜부터 역순으로 계산)
+ * @property recentHistoryEvents - 최근 이벤트 목록 (최대 20개)
+ */
 export type HistoryPatternMetrics = {
   consecutivePlanFailures: number; // 연속 플랜 미완료 횟수
   consecutiveNoStudyDays: number; // 연속 학습세션 없는 날 수
