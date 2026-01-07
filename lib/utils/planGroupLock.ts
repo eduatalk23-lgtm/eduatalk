@@ -44,41 +44,47 @@ export function getPlanGroupLockKey(groupId: string): number {
 /**
  * 플랜 그룹 단위 Advisory Lock 획득
  * 
- * 주의: Supabase에서는 Advisory Lock을 직접 지원하지 않으므로,
- * 대신 plan_groups 테이블에 SELECT FOR UPDATE를 사용합니다.
+ * Phase 2.1: PostgreSQL Advisory Lock을 사용하여 동시성 제어
+ * RPC 함수를 통해 트랜잭션 레벨 Advisory Lock을 획득합니다.
  * 
  * @param supabase Supabase 클라이언트
  * @param groupId 플랜 그룹 ID
  * @returns Lock 획득 성공 여부
- * 
- * @throws {Error} Lock 획득 실패 시
  */
 export async function acquirePlanGroupLock(
   supabase: SupabaseClient,
   groupId: string
 ): Promise<boolean> {
   try {
-    // SELECT FOR UPDATE로 행 레벨 락 획득
-    // 트랜잭션 내에서만 유효
-    const { data, error } = await supabase
-      .from('plan_groups')
-      .select('id')
-      .eq('id', groupId)
-      .single();
-    
+    const { data, error } = await supabase.rpc('acquire_plan_group_lock', {
+      p_group_id: groupId,
+    });
+
     if (error) {
-      if (error.code === 'PGRST116') {
-        // 플랜 그룹이 존재하지 않음
-        throw new Error(`Plan group not found: ${groupId}`);
-      }
-      throw new Error(`Failed to acquire lock: ${error.message}`);
+      logActionError(
+        { domain: "utils", action: "acquirePlanGroupLock" },
+        error,
+        { groupId }
+      );
+      return false;
     }
-    
-    // 실제로는 트랜잭션 내에서 SELECT FOR UPDATE를 사용해야 하지만,
-    // Supabase 클라이언트에서는 직접 지원하지 않으므로
-    // 여기서는 단순히 존재 여부만 확인
-    // 실제 락은 트랜잭션 래퍼에서 처리
-    return true;
+
+    const result = data as {
+      success: boolean;
+      acquired: boolean;
+      error?: string;
+    };
+
+    if (!result.success) {
+      logActionError(
+        { domain: "utils", action: "acquirePlanGroupLock" },
+        new Error(result.error || "Lock acquisition failed"),
+        { groupId }
+      );
+      return false;
+    }
+
+    return result.acquired === true;
   } catch (error) {
     logActionError(
       { domain: "utils", action: "acquirePlanGroupLock" },
@@ -102,20 +108,8 @@ export async function tryAcquirePlanGroupLock(
   supabase: SupabaseClient,
   groupId: string
 ): Promise<boolean> {
-  const lockKey = getPlanGroupLockKey(groupId);
-  
-  // Advisory Lock 시도 (논블로킹)
-  const { data, error } = await supabase.rpc('pg_try_advisory_xact_lock', {
-    key: lockKey,
-  });
-  
-  if (error) {
-    // Lock 획득 실패
-    return false;
-  }
-  
-  // data는 boolean (true = 획득 성공, false = 획득 실패)
-  return data === true;
+  // acquire_plan_group_lock은 이미 논블로킹이므로 동일하게 사용
+  return acquirePlanGroupLock(supabase, groupId);
 }
 
 // ============================================

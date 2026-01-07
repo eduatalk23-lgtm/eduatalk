@@ -13,6 +13,7 @@
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { acquirePlanGroupLock } from "@/lib/utils/planGroupLock";
 import { PlanStatus } from "@/lib/types/plan";
 import {
   getPlanGroupWithDetailsByRole,
@@ -99,6 +100,20 @@ async function _generatePlansWithServices(
   const access = await verifyPlanGroupAccess();
   const tenantContext = await requireTenantContext();
   const supabase = await createSupabaseServerClient();
+
+  // ============================================
+  // 0. 동시성 제어: 플랜 그룹 락 획득
+  // Phase 2.1: 동일 플랜 그룹에 대한 동시 생성 요청 방지
+  // ============================================
+  const lockAcquired = await acquirePlanGroupLock(supabase, groupId);
+  if (!lockAcquired) {
+    throw new AppError(
+      "플랜 생성이 이미 진행 중입니다. 잠시 후 다시 시도해주세요.",
+      ErrorCode.DATABASE_ERROR, // CONCURRENT_OPERATION이 없으면 DATABASE_ERROR 사용
+      409,
+      true
+    );
+  }
 
   // 플랜 그룹 및 관련 데이터 조회
   const { group, contents, exclusions, academySchedules } =
