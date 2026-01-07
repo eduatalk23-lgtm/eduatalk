@@ -35,6 +35,7 @@ PRIMARY KEY (id)
 ### 2. Foreign Keys
 
 #### `plan_groups` 테이블
+
 - ✅ `tenant_id` → `tenants(id)`
 - ✅ `student_id` → `students(id)`
 - ✅ `block_set_id` → `student_block_sets(id)`
@@ -45,6 +46,7 @@ PRIMARY KEY (id)
 - ✅ `migrated_from_adhoc_id` → `ad_hoc_plans(id)`
 
 #### `ad_hoc_plans` 테이블
+
 - ✅ `tenant_id` → `tenants(id)`
 - ✅ `student_id` → `students(id)`
 - ✅ `plan_group_id` → `plan_groups(id)`
@@ -53,6 +55,7 @@ PRIMARY KEY (id)
 - ✅ `recurrence_parent_id` → `ad_hoc_plans(id)` (자기 참조)
 
 #### `flexible_contents` 테이블
+
 - ✅ `tenant_id` → `tenants(id)`
 - ✅ `student_id` → `students(id)`
 - ✅ `subject_id` → `subjects(id)`
@@ -62,6 +65,7 @@ PRIMARY KEY (id)
 - ✅ `created_by` → `users(id)`
 
 #### `plan_exclusions` 테이블
+
 - ✅ `plan_group_id` → `plan_groups(id)`
 - ✅ `student_id` → `students(id)`
 - ✅ `tenant_id` → `tenants(id)`
@@ -70,11 +74,13 @@ PRIMARY KEY (id)
 ### 3. 제약 조건 평가
 
 **✅ 강점:**
+
 - 모든 외래 키 관계가 명확하게 정의됨
 - UNIQUE 제약으로 중복 데이터 방지 (`plan_exclusions`, `plan_groups.camp_invitation_id`)
 - CASCADE 삭제 정책이 적절히 설정됨
 
 **⚠️ 주의사항:**
+
 - 일부 외래 키에 인덱스가 없어 조인 성능에 영향 가능 (아래 인덱스 섹션 참조)
 
 ---
@@ -84,6 +90,7 @@ PRIMARY KEY (id)
 ### 1. 기존 인덱스 현황
 
 #### `plan_groups` 테이블
+
 ```sql
 -- 학생별 활성 플랜 그룹 조회
 idx_plan_groups_student_status (student_id, status) WHERE deleted_at IS NULL
@@ -101,11 +108,12 @@ idx_plan_groups_template (template_plan_group_id) WHERE template_plan_group_id I
 idx_plan_groups_study_type (study_type) WHERE study_type IS NOT NULL
 
 -- 콘텐츠 기반 플랜 그룹 조회
-idx_plan_groups_student_content_based (student_id, creation_mode) 
+idx_plan_groups_student_content_based (student_id, creation_mode)
   WHERE creation_mode = 'content_based'
 ```
 
 #### `student_plan` 테이블
+
 ```sql
 -- 플랜 그룹별 조회 및 삭제
 idx_student_plan_plan_group_id (plan_group_id)
@@ -121,6 +129,7 @@ idx_student_plan_group_date_range (plan_group_id, plan_date)
 ```
 
 #### `ad_hoc_plans` 테이블
+
 ```sql
 -- 학생별 날짜 기준 조회
 idx_ad_hoc_plans_student_date (student_id, plan_date)
@@ -129,7 +138,7 @@ idx_ad_hoc_plans_student_date (student_id, plan_date)
 idx_ad_hoc_plans_content (flexible_content_id) WHERE flexible_content_id IS NOT NULL
 
 -- 반복 부모 ID로 조회
-idx_ad_hoc_plans_recurrence_parent (recurrence_parent_id) 
+idx_ad_hoc_plans_recurrence_parent (recurrence_parent_id)
   WHERE recurrence_parent_id IS NOT NULL
 
 -- 플랜 그룹 ID로 조회
@@ -137,6 +146,7 @@ idx_ad_hoc_plans_plan_group (plan_group_id)
 ```
 
 #### `plan_contents` 테이블
+
 ```sql
 -- 플랜 그룹별 콘텐츠 조회
 idx_plan_contents_plan_group_id (plan_group_id)
@@ -146,6 +156,7 @@ idx_plan_contents_content_type (content_type, content_id)
 ```
 
 #### `plan_exclusions` 테이블
+
 ```sql
 -- 플랜 그룹별 제외일 조회
 idx_plan_exclusions_plan_group_id (plan_group_id)
@@ -155,6 +166,7 @@ idx_plan_exclusions_date (plan_group_id, exclusion_date)
 ```
 
 #### `academy_schedules` 테이블
+
 ```sql
 -- 플랜 그룹별 학원 일정 조회
 idx_academy_schedules_plan_group_id (plan_group_id)
@@ -163,11 +175,13 @@ idx_academy_schedules_plan_group_id (plan_group_id)
 ### 2. 인덱스 평가
 
 **✅ 강점:**
+
 - 주요 조회 패턴에 맞는 인덱스가 잘 구성됨
 - 부분 인덱스(Partial Index) 활용으로 인덱스 크기 최적화
 - 복합 인덱스가 자주 사용되는 쿼리 패턴에 맞춰 설계됨
 
 **⚠️ 개선 필요:**
+
 - Database Linter에서 많은 미사용 인덱스(unused_index) 발견
 - 일부 외래 키에 인덱스가 없음 (아래 섹션 참조)
 
@@ -178,6 +192,7 @@ idx_academy_schedules_plan_group_id (plan_group_id)
 ### 1. Critical Issues
 
 #### ❌ Security Definer View
+
 - **이슈**: `public.scores` 뷰가 `SECURITY DEFINER`로 정의됨
 - **영향**: 보안 위험 (권한 상승 가능성)
 - **우선순위**: 높음
@@ -188,10 +203,12 @@ idx_academy_schedules_plan_group_id (plan_group_id)
 #### ⚠️ Auth RLS InitPlan (auth_rls_initplan)
 
 **문제:**
+
 - 많은 테이블의 RLS 정책이 각 행마다 `current_setting()` 또는 `auth.<function>()`을 재평가
 - 성능 저하 원인
 
 **영향받는 테이블 (관리자 플랜 생성 관련):**
+
 - `plan_groups`
 - `student_plan`
 - `plan_exclusions`
@@ -201,6 +218,7 @@ idx_academy_schedules_plan_group_id (plan_group_id)
 - `plan_contents`
 
 **개선 방안:**
+
 ```sql
 -- 현재 (비효율적)
 CREATE POLICY "policy_name" ON plan_groups
@@ -216,10 +234,12 @@ CREATE POLICY "policy_name" ON plan_groups
 #### ⚠️ Multiple Permissive Policies (multiple_permissive_policies)
 
 **문제:**
+
 - 동일한 역할과 액션에 대해 여러 개의 허용 정책이 존재
 - PostgreSQL이 모든 정책을 평가해야 함
 
 **영향받는 테이블:**
+
 - `plan_groups`
 - `student_plan`
 - `plan_exclusions`
@@ -229,15 +249,18 @@ CREATE POLICY "policy_name" ON plan_groups
 - `plan_contents`
 
 **개선 방안:**
+
 - 여러 정책을 하나로 통합
 - OR 조건을 사용하여 단일 정책으로 병합
 
 #### ⚠️ Unindexed Foreign Keys (unindexed_foreign_keys)
 
 **문제:**
+
 - 외래 키 컬럼에 인덱스가 없어 조인 및 삭제 성능 저하
 
 **영향받는 테이블 (관리자 플랜 생성 관련):**
+
 - `plan_creation_history` - `plan_group_id` 외래 키
 - `plan_history` - `plan_group_id` 외래 키
 - `plan_timer_logs` - `plan_group_id` 외래 키
@@ -245,6 +268,7 @@ CREATE POLICY "policy_name" ON plan_groups
 - `reschedule_log` - `plan_group_id` 외래 키
 
 **개선 방안:**
+
 ```sql
 -- 예시: plan_creation_history 테이블
 CREATE INDEX IF NOT EXISTS idx_plan_creation_history_plan_group_id
@@ -254,30 +278,36 @@ ON plan_creation_history(plan_group_id);
 #### ⚠️ Duplicate Index
 
 **문제:**
+
 - `student_milestone_settings` 테이블에 동일한 인덱스가 중복 존재
   - `idx_milestone_settings_student`
   - `idx_student_milestone_settings_student_id`
 
 **조치:**
+
 - 중복 인덱스 제거 (이미 `20260104105631_drop_duplicate_indexes_and_constraints.sql`에서 처리됨)
 
 #### ⚠️ Unused Indexes (unused_index)
 
 **문제:**
+
 - 많은 인덱스가 실제로 사용되지 않음
 - 불필요한 저장 공간 및 쓰기 성능 저하
 
 **조치:**
+
 - 실제 쿼리 패턴 분석 후 미사용 인덱스 제거
 - 주의: 인덱스 사용 여부는 쿼리 패턴에 따라 달라질 수 있으므로 신중하게 판단 필요
 
 ### 3. Security Warnings
 
 #### ⚠️ Extension in Public Schema
+
 - `pg_trgm` 확장이 `public` 스키마에 설치됨
 - 권한 관리 주의 필요
 
 #### ⚠️ Leaked Password Protection Disabled
+
 - 비밀번호 유출 보호 기능이 비활성화됨
 - 보안 강화를 위해 활성화 권장
 
@@ -355,6 +385,7 @@ Supabase 설정에서 비밀번호 유출 보호 기능을 활성화합니다.
 - `create_quick_plan_atomic()` - 빠른 플랜 생성
 
 **장점:**
+
 - 트랜잭션 보장
 - 네트워크 라운드트립 감소
 - RLS 우회 (SECURITY DEFINER)
@@ -370,6 +401,7 @@ Supabase 설정에서 비밀번호 유출 보호 기능을 활성화합니다.
 ### 3. 쿼리 패턴 분석
 
 실제 사용되는 쿼리 패턴을 분석하여:
+
 - 필요한 인덱스 추가
 - 불필요한 인덱스 제거
 - 쿼리 최적화
@@ -379,23 +411,27 @@ Supabase 설정에서 비밀번호 유출 보호 기능을 활성화합니다.
 ## ✅ 체크리스트
 
 ### 제약 조건
+
 - [x] 모든 주요 테이블에 PRIMARY KEY 설정
 - [x] 외래 키 관계 명확히 정의
 - [x] UNIQUE 제약으로 중복 방지
 - [ ] 모든 외래 키에 인덱스 존재 확인
 
 ### 인덱스
+
 - [x] 주요 조회 패턴에 맞는 인덱스 구성
 - [x] 부분 인덱스 활용
 - [ ] 미사용 인덱스 정리
 - [ ] 외래 키 인덱스 보완
 
 ### RLS 정책
+
 - [ ] `auth_rls_initplan` 이슈 해결
 - [ ] 중복 정책 통합
 - [ ] 정책 성능 최적화
 
 ### 보안
+
 - [ ] Security Definer View 검토
 - [ ] 비밀번호 유출 보호 활성화
 - [ ] Extension 권한 관리
@@ -419,4 +455,5 @@ Supabase 설정에서 비밀번호 유출 보호 기능을 활성화합니다.
 - [Supabase RLS 최적화 가이드](https://supabase.com/docs/guides/auth/row-level-security)
 - [PostgreSQL 인덱스 최적화](https://www.postgresql.org/docs/current/indexes.html)
 - [Database Linter 도구](https://github.com/supabase/database-linter)
+
 

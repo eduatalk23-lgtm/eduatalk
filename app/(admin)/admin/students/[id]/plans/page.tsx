@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { AdminPlanManagement } from './_components/AdminPlanManagement';
+import { StudentPlansPageClient } from './_components/StudentPlansPageClient';
 import { AdminPlanManagementSkeleton } from './_components/AdminPlanManagementSkeleton';
 import { getPlanGroupsForStudent } from '@/lib/data/planGroups';
 
@@ -57,9 +57,9 @@ export default async function StudentPlansPage({ params, searchParams }: Props) 
         </p>
       </div>
 
-      {/* 플랜 관리 컴포넌트 */}
+      {/* 플래너 & 플랜 관리 컴포넌트 */}
       <Suspense fallback={<AdminPlanManagementSkeleton />}>
-        <AdminPlanManagement
+        <StudentPlansPageClient
           studentId={student.id}
           studentName={student.name}
           tenantId={student.tenant_id}

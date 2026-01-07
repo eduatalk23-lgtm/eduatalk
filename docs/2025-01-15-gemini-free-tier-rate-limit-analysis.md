@@ -21,6 +21,7 @@
 ### 1. 요청 수 제한
 
 #### 개인 계정 (무료 플랜)
+
 - **분당 요청 수**: 최대 **60회** (RPM: Requests Per Minute)
 - **일일 요청 수**: 최대 **1,000회** (RPD: Requests Per Day)
 
@@ -29,19 +30,21 @@
 ### 2. 토큰 처리 제한
 
 #### Gemini 1.5 Flash 모델
+
 - **분당 요청 수**: 최대 **15회**
 - **분당 토큰 처리**: 최대 **100만 토큰** (1,000,000 tokens/minute)
 
 #### 토큰 윈도우
+
 - **컨텍스트 윈도우**: **100만 토큰** (1,000,000 tokens)
 
 ### 3. 모델별 제한사항
 
-| 모델 | 분당 요청 수 | 분당 토큰 처리 | 일일 요청 수 |
-|------|------------|--------------|------------|
-| Gemini 1.5 Flash | 15회 | 100만 토큰 | 1,000회 |
-| Gemini 1.5 Pro | 제한 정보 없음 | 제한 정보 없음 | 1,000회 |
-| Gemini 2.0 Flash | 제한 정보 없음 | 제한 정보 없음 | 1,000회 |
+| 모델             | 분당 요청 수   | 분당 토큰 처리 | 일일 요청 수 |
+| ---------------- | -------------- | -------------- | ------------ |
+| Gemini 1.5 Flash | 15회           | 100만 토큰     | 1,000회      |
+| Gemini 1.5 Pro   | 제한 정보 없음 | 제한 정보 없음 | 1,000회      |
+| Gemini 2.0 Flash | 제한 정보 없음 | 제한 정보 없음 | 1,000회      |
 
 **참고**: Gemini 2.0 Flash 및 Gemini 1.5 Pro의 정확한 제한사항은 Google 공식 문서를 통해 확인이 필요합니다.
 
@@ -49,7 +52,7 @@
 
 무료 플랜을 초과하는 사용량이 발생할 경우:
 
-- **Gemini 1.5 Flash**: 
+- **Gemini 1.5 Flash**:
   - Input: $0.075 per 1M tokens
   - Output: $0.3 per 1M tokens
 - **Gemini 1.5 Pro / Gemini 2.0 Flash**:
@@ -72,11 +75,11 @@ const CONCURRENCY_LIMIT = 3; // 동시 처리 수 제한
 // 배치 처리 (동시에 최대 3명씩)
 for (let i = 0; i < students.length; i += CONCURRENCY_LIMIT) {
   const batch = students.slice(i, i + CONCURRENCY_LIMIT);
-  
+
   const batchResults = await Promise.all(
     batch.map((s) => generatePlanForStudent(...))
   );
-  
+
   // 레이트 리밋 방지를 위한 짧은 대기 (배치 사이)
   if (i + CONCURRENCY_LIMIT < students.length) {
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -91,15 +94,15 @@ for (let i = 0; i < students.length; i += CONCURRENCY_LIMIT) {
 ```typescript
 const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
   fast: {
-    modelId: "gemini-2.0-flash",  // ⚠️ Gemini 2.0 Flash
+    modelId: "gemini-2.0-flash", // ⚠️ Gemini 2.0 Flash
     maxTokens: 4096,
   },
   standard: {
-    modelId: "gemini-2.0-flash",  // ⚠️ Gemini 2.0 Flash
+    modelId: "gemini-2.0-flash", // ⚠️ Gemini 2.0 Flash
     maxTokens: 8192,
   },
   advanced: {
-    modelId: "gemini-1.5-pro-latest",  // ⚠️ Gemini 1.5 Pro
+    modelId: "gemini-1.5-pro-latest", // ⚠️ Gemini 1.5 Pro
     maxTokens: 16384,
   },
 };
@@ -108,12 +111,14 @@ const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
 ### 2. Rate Limit 처리 현황
 
 #### ✅ Supabase Rate Limit 처리
+
 - **파일**: `lib/auth/rateLimitHandler.ts`
 - **기능**: 429 에러 감지, 지수 백오프 재시도, 요청 간격 제어
 
 #### ❌ Gemini API Rate Limit 처리
+
 - **현재 상태**: **구현되지 않음**
-- **문제점**: 
+- **문제점**:
   - 429 에러 처리 없음
   - 재시도 로직 없음
   - 요청 간격 제어 없음
@@ -130,6 +135,7 @@ const avgOutputTokens = 1500;
 ```
 
 **실제 사용량**:
+
 - 입력: 약 2,000 토큰/요청
 - 출력: 약 1,500 토큰/요청
 - **총 토큰**: 약 3,500 토큰/요청
@@ -143,15 +149,18 @@ const avgOutputTokens = 1500;
 #### 시나리오 분석
 
 **현재 설정**:
+
 - 동시 처리: 3명
 - 배치 사이 대기: 500ms
 
 **문제점**:
+
 1. **동시 3명 처리 시**: 3개 요청이 거의 동시에 발생
 2. **배치 사이 500ms 대기**: 다음 배치까지 500ms 대기
 3. **1분 동안 처리 가능한 학생 수**: 약 60명 (60회/분 ÷ 1회/학생)
 
 **위험 시나리오**:
+
 - 10명의 학생을 배치 생성할 경우:
   - 첫 번째 배치: 3명 동시 요청 (약 0초)
   - 두 번째 배치: 3명 동시 요청 (약 0.5초)
@@ -168,25 +177,30 @@ const avgOutputTokens = 1500;
 ### 2. 일일 요청 수 초과 위험
 
 **현재 설정**:
+
 - 일일 최대 요청: 1,000회
 
 **위험 시나리오**:
+
 - 하루에 100명 이상의 학생에게 플랜을 생성하면 일일 제한 초과 가능
 
 ### 3. 토큰 처리 제한 위험
 
 **Gemini 1.5 Flash 기준**:
+
 - 분당 최대 토큰: 100만 토큰
 - 요청당 평균 토큰: 약 3,500 토큰
 - **분당 처리 가능 요청 수**: 약 285회 (1,000,000 ÷ 3,500)
 
 **분석**:
+
 - 토큰 제한보다 요청 수 제한이 더 엄격함
 - 요청 수 제한(60회/분)이 먼저 걸릴 가능성이 높음
 
 ### 4. Rate Limit 에러 처리 부재
 
 **현재 문제점**:
+
 - Gemini API 429 에러 발생 시 재시도 로직 없음
 - 에러 발생 시 전체 배치 실패 가능
 - 사용자에게 명확한 에러 메시지 제공 안 됨
@@ -206,7 +220,7 @@ const avgOutputTokens = 1500;
 private isRateLimitError(error: unknown): boolean {
   if (error instanceof Error) {
     // Google API 429 에러 감지
-    return error.message.includes('429') || 
+    return error.message.includes('429') ||
            error.message.includes('quota') ||
            error.message.includes('rate limit');
   }
@@ -217,14 +231,14 @@ private isRateLimitError(error: unknown): boolean {
 async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult> {
   const maxRetries = 3;
   let lastError: Error | null = null;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       // 기존 createMessage 로직
       return await this.createMessageInternal(options);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       if (this.isRateLimitError(error) && attempt < maxRetries) {
         // 지수 백오프: 2초, 4초, 8초
         const delay = Math.pow(2, attempt) * 1000;
@@ -232,11 +246,11 @@ async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult>
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
-      
+
       throw lastError;
     }
   }
-  
+
   throw lastError || new Error('Unknown error');
 }
 ```
@@ -249,16 +263,16 @@ async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult>
 class GeminiRateLimiter {
   private lastRequestTime: number = 0;
   private minInterval: number = 1000; // 최소 1초 간격 (60회/분 보장)
-  
+
   async waitIfNeeded(): Promise<void> {
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
-    
+
     if (timeSinceLastRequest < this.minInterval) {
       const waitTime = this.minInterval - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 }
@@ -303,17 +317,17 @@ if (i + CONCURRENCY_LIMIT < students.length) {
 ```typescript
 // 일일 요청 수 추적 (Redis 또는 DB)
 async function checkDailyQuota(tenantId: string): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split("T")[0];
   const requestCount = await getDailyRequestCount(tenantId, today);
-  
+
   if (requestCount >= 1000) {
     throw new AppError(
-      '일일 요청 한도(1,000회)를 초과했습니다. 내일 다시 시도해주세요.',
+      "일일 요청 한도(1,000회)를 초과했습니다. 내일 다시 시도해주세요.",
       ErrorCode.RATE_LIMIT_EXCEEDED,
       429
     );
   }
-  
+
   return true;
 }
 ```
@@ -326,8 +340,8 @@ async function checkDailyQuota(tenantId: string): Promise<boolean> {
 // Rate Limit 에러 발생 시 로깅
 if (this.isRateLimitError(error)) {
   logActionDebug(
-    { domain: 'llm', action: 'createMessage', provider: 'gemini' },
-    'Rate limit 에러 발생',
+    { domain: "llm", action: "createMessage", provider: "gemini" },
+    "Rate limit 에러 발생",
     {
       attempt,
       maxRetries,
@@ -386,11 +400,13 @@ if (this.isRateLimitError(error)) {
 ## 📈 예상 개선 효과
 
 ### 현재 상태
+
 - ❌ Rate limit 에러 발생 시 전체 실패
 - ❌ 대량 배치 생성 시 제한 초과 위험
 - ❌ 에러 처리 부재
 
 ### 개선 후
+
 - ✅ Rate limit 에러 자동 재시도
 - ✅ 요청 간격 제어로 제한 준수
 - ✅ 명확한 에러 메시지 제공
@@ -401,14 +417,17 @@ if (this.isRateLimitError(error)) {
 ## 🔗 관련 파일
 
 ### 핵심 구현 파일
+
 - `lib/domains/plan/llm/providers/gemini.ts` - Gemini Provider (Rate Limit 처리 추가 필요)
 - `lib/domains/admin-plan/actions/batchAIPlanGeneration.ts` - 배치 생성 로직 (요청 간격 조정 필요)
 
 ### 참고 파일
+
 - `lib/auth/rateLimitHandler.ts` - Supabase Rate Limit 처리 (참고용)
 - `lib/domains/plan/llm/client.ts` - LLM 클라이언트
 
 ### 관련 문서
+
 - `docs/2026-01-06_llm-provider-change-to-gemini.md` - LLM Provider 변경 문서
 - `docs/2026-01-15-gemini-grounding-content-recommendation-implementation-status.md` - Grounding 기능 문서
 
@@ -417,10 +436,12 @@ if (this.isRateLimitError(error)) {
 ## 📝 참고 자료
 
 ### Google Gemini API 공식 문서
+
 - [Gemini API Rate Limits](https://ai.google.dev/pricing) (확인 필요)
 - [Gemini API Quotas](https://ai.google.dev/docs/quota) (확인 필요)
 
 ### 웹 검색 결과 요약
+
 - **개인 계정 무료 플랜**: 분당 60회, 일일 1,000회
 - **Gemini 1.5 Flash**: 분당 15회, 분당 100만 토큰
 - **토큰 윈도우**: 100만 토큰
@@ -432,21 +453,25 @@ if (this.isRateLimitError(error)) {
 ## ✅ 체크리스트
 
 ### 즉시 적용 필요
+
 - [ ] Gemini Provider에 Rate Limit 에러 처리 추가
 - [ ] 요청 간격 제어 구현 (최소 1초)
 - [ ] 배치 사이 대기 시간 증가 (500ms → 1000ms)
 - [ ] 동시 처리 수 조정 검토 (3 → 1 또는 2)
 
 ### 단기 개선
+
 - [ ] 일일 요청 수 추적 구현
 - [ ] Rate limit 에러 메시지 개선
 - [ ] 모니터링 로깅 추가
 
 ### 중기 개선
+
 - [ ] 모니터링 대시보드 구현
 - [ ] 자동 스케일링 로직 구현
 
 ---
 
 **문서 작성 완료일**: 2025-01-15
+
 

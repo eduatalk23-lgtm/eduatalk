@@ -66,11 +66,24 @@ export const TimeConfigPanel = React.memo(function TimeConfigPanel({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
+          {/* 학습 시간 */}
+          {(!campMode || canStudentInputTimeSettings) && (
+            <TimeRangeInput
+              label="학습 시간"
+              description="하루 중 플랜이 배치될 기본 학습 시간대"
+              value={data.time_settings?.camp_study_hours}
+              onChange={(range) => updateTimeSetting("camp_study_hours", range)}
+              defaultStart="10:00"
+              defaultEnd="19:00"
+              disabled={!editable}
+            />
+          )}
+
           {/* 점심시간 */}
           {(!campMode || canStudentInputTimeSettings) && (
             <TimeRangeInput
               label="점심시간"
-              description="모든 학습일에서 제외할 점심 시간대"
+              description="학습 시간 내에서 제외할 점심 시간대"
               value={data.time_settings?.lunch_time}
               onChange={(range) => updateTimeSetting("lunch_time", range)}
               defaultStart="12:00"
