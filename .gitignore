@@ -83,3 +83,4 @@ python/*.egg-info/
 .pytest_cache/
 .mypy_cache/
 playwright-report/
+test-results/
