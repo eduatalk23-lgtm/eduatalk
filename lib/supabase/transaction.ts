@@ -25,6 +25,10 @@ export interface BatchOperationResult<T> {
   failedAt?: number;
   /** 롤백이 필요한 작업들의 ID (성공한 작업들) */
   rollbackIds?: string[];
+  /** 롤백 수행 여부 (자동 롤백이 실행된 경우) */
+  rollbackPerformed?: boolean;
+  /** 롤백 중 발생한 오류 (있는 경우) */
+  rollbackErrors?: string[];
 }
 
 /**
@@ -37,12 +41,22 @@ export interface BatchOperation<T = unknown> {
   execute: () => Promise<{ success: boolean; data?: T; error?: string }>;
   /** 롤백 시 사용할 ID (선택적) */
   rollbackId?: string;
+  /** 롤백 함수 (선택적, 실패 시 자동 실행) */
+  rollback?: () => Promise<void>;
 }
 
 /**
  * 여러 작업을 순차적으로 실행하고 에러를 추적합니다.
  * 하나의 작업이 실패하면 나머지 작업을 중단하고 에러 정보를 반환합니다.
+ * 
+ * Phase 1.2: 자동 롤백 기능 추가
+ * - 각 작업에 rollback 함수가 제공된 경우, 실패 시 성공한 작업들을 역순으로 롤백합니다.
+ * - 롤백 함수는 LIFO (Last In First Out) 순서로 실행됩니다.
  *
+ * @param operations 작업 배열
+ * @param options 옵션
+ * @param options.enableAutoRollback 자동 롤백 활성화 여부 (기본값: true)
+ * 
  * @example
  * const result = await withBatchOperations([
  *   {
@@ -52,6 +66,10 @@ export interface BatchOperation<T = unknown> {
  *       return { success: !error, error: error?.message };
  *     },
  *     rollbackId: '1',
+ *     rollback: async () => {
+ *       // 원래 상태로 복원
+ *       await supabase.from('student_plan').update({...}).eq('id', '1');
+ *     },
  *   },
  *   {
  *     name: 'Update plan 2',
@@ -60,17 +78,27 @@ export interface BatchOperation<T = unknown> {
  *       return { success: !error, error: error?.message };
  *     },
  *     rollbackId: '2',
+ *     rollback: async () => {
+ *       await supabase.from('student_plan').update({...}).eq('id', '2');
+ *     },
  *   },
- * ]);
+ * ], { enableAutoRollback: true });
  */
 export async function withBatchOperations<T = unknown>(
-  operations: BatchOperation<T>[]
+  operations: BatchOperation<T>[],
+  options?: {
+    /** 자동 롤백 활성화 여부 (기본값: true) */
+    enableAutoRollback?: boolean;
+  }
 ): Promise<BatchOperationResult<T[]>> {
   const results: T[] = [];
   const rollbackIds: string[] = [];
+  const completedOperations: Array<{ operation: BatchOperation<T>; index: number }> = [];
   let failedAt: number | undefined;
   let errorMessage: string | undefined;
+  const enableAutoRollback = options?.enableAutoRollback !== false; // 기본값: true
 
+  // 작업 실행
   for (let i = 0; i < operations.length; i++) {
     const operation = operations[i];
 
@@ -90,6 +118,11 @@ export async function withBatchOperations<T = unknown>(
       if (operation.rollbackId) {
         rollbackIds.push(operation.rollbackId);
       }
+
+      // 롤백 함수가 있는 경우 기록
+      if (operation.rollback) {
+        completedOperations.push({ operation, index: i });
+      }
     } catch (error) {
       failedAt = i;
       errorMessage =
@@ -97,6 +130,33 @@ export async function withBatchOperations<T = unknown>(
           ? `${operation.name}: ${error.message}`
           : `${operation.name} 실행 중 오류 발생`;
       break;
+    }
+  }
+
+  // 실패 시 자동 롤백 수행
+  let rollbackPerformed = false;
+  const rollbackErrors: string[] = [];
+
+  if (failedAt !== undefined && enableAutoRollback && completedOperations.length > 0) {
+    rollbackPerformed = true;
+
+    // 역순으로 롤백 실행 (LIFO)
+    for (let i = completedOperations.length - 1; i >= 0; i--) {
+      const { operation } = completedOperations[i];
+      try {
+        await operation.rollback?.();
+      } catch (rollbackError) {
+        const errorMsg = rollbackError instanceof Error 
+          ? rollbackError.message 
+          : `${operation.name} 롤백 실패`;
+        rollbackErrors.push(errorMsg);
+        console.error(`[withBatchOperations] 롤백 실패: ${operation.name}`, rollbackError);
+      }
+    }
+
+    // 롤백 오류가 있으면 에러 메시지에 추가
+    if (rollbackErrors.length > 0) {
+      errorMessage = `${errorMessage} (롤백 중 오류: ${rollbackErrors.join(', ')})`;
     }
   }
 
@@ -108,6 +168,8 @@ export async function withBatchOperations<T = unknown>(
       totalCount: operations.length,
       failedAt,
       rollbackIds: rollbackIds.length > 0 ? rollbackIds : undefined,
+      rollbackPerformed: rollbackPerformed || undefined,
+      rollbackErrors: rollbackErrors.length > 0 ? rollbackErrors : undefined,
     };
   }
 
