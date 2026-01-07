@@ -8,11 +8,11 @@
 
 ## 전체 진행 상황
 
-- **완료**: 4개 작업
+- **완료**: 5개 작업
 - **진행 중**: 0개 작업
-- **대기 중**: 3개 작업
+- **대기 중**: 2개 작업
 
-**전체 진행률**: 57% (4/7)
+**전체 진행률**: 71% (5/7)
 
 ---
 
@@ -105,47 +105,30 @@
 
 ---
 
-## ⏳ 남은 작업
-
 ### Phase 3: HIGH - 미완료 TODO 작업
 
-#### ⏳ 작업 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드
+#### ✅ 작업 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드
 
-**상태**: 대기 중  
-**우선순위**: HIGH  
-**예상 소요 시간**: 1일
+**완료 일자**: 2026-01-07  
+**문서**: `docs/2026-01-07-phase3-1-batch-preview-academy-blocks-load.md`
 
-**목표**: 배치 미리보기에서 누락된 데이터 로드
+**완료 내용**:
 
-**영향 파일**:
+- `loadAcademySchedules` 함수 추가: 학생의 학원 일정을 조회하고 `AcademyScheduleForPrompt` 타입으로 변환
+- `loadBlockSets` 함수 추가: 학생의 활성 블록셋 정보를 조회하고 `BlockInfoForPrompt` 타입으로 변환
+- `generatePreviewForStudent` 함수에서 학원 일정과 블록셋 정보를 병렬로 로드
+- `validatePlans` 호출 시 실제 데이터 전달하여 검증 기능 활성화
 
-- `lib/domains/admin-plan/actions/batchPreviewPlans.ts` (414-415줄)
+**변경된 파일**:
 
-**구현 방법**:
+- `lib/domains/admin-plan/actions/batchPreviewPlans.ts` (수정)
 
-1. **학원 일정 로드 함수 생성/확인**
-   - `lib/data/academySchedules.ts` 또는 유사 파일 확인
-   - 학생 ID와 기간으로 학원 일정 조회
+**커밋**: `0cca5379` - feat: Phase 3.1 - 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
 
-2. **블록셋 정보 로드 함수 생성/확인**
-   - `lib/plan/blocks.ts`의 `getBlockSetForPlanGroup` 활용
-   - 학생의 활성 블록셋 조회
+---
 
-3. **배치 미리보기 함수에 통합**
+## ⏳ 남은 작업
 
-   ```typescript
-   const academySchedules = await getAcademySchedules(studentId, {
-     start: periodStart,
-     end: periodEnd,
-   });
-
-   const blockSets = await getBlockSetsForStudent(studentId);
-   ```
-
-**참고 파일**:
-
-- 계획 문서: `.cursor/plans/-14010842.plan.md` (135-165줄)
-- 비즈니스 로직 체크리스트: `docs/2026-01-06-business-logic-audit-checklist.md`
 
 ---
 
@@ -244,6 +227,7 @@
 2. `docs/2026-01-07-phase1-2-auto-rollback-batch-operations.md`
 3. `docs/2026-01-07-phase2-1-plan-generation-concurrency-control.md`
 4. `docs/2026-01-07-phase2-2-optimistic-locking-calendar-drag.md`
+5. `docs/2026-01-07-phase3-1-batch-preview-academy-blocks-load.md`
 
 ### 계획 및 분석 문서
 
@@ -315,16 +299,16 @@ ls -la lib/types/plan/
 - Phase 1.2: 약 30분
 - Phase 2.1: 약 1시간
 - Phase 2.2: 약 30분
+- Phase 3.1: 약 30분
 
-**총 소요 시간**: 약 3시간
+**총 소요 시간**: 약 3.5시간
 
 ### 예상 남은 시간
 
-- 작업 3.1: 1일 (약 4-6시간)
 - 작업 4.1: 1일 (약 4-6시간)
 - 작업 4.2: 1-2일 (약 6-8시간)
 
-**예상 총 남은 시간**: 2-3일 (약 14-20시간)
+**예상 총 남은 시간**: 2-3일 (약 10-14시간)
 
 ---
 
@@ -334,11 +318,11 @@ ls -la lib/types/plan/
 - [x] Phase 1.2: withBatchOperations에 자동 롤백 로직 추가
 - [x] Phase 2.1: 플랜 생성 동시성 제어 구현
 - [x] Phase 2.2: 플랜 수정 Optimistic Locking 구현
-- [ ] Phase 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
+- [x] Phase 3.1: 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
 - [ ] Phase 4.1: 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
 - [ ] Phase 4.2: any 타입 제거 및 명시적 타입 정의
 
 ---
 
 **마지막 업데이트**: 2026-01-07  
-**다음 작업**: Phase 3.1 - 배치 미리보기에서 학원 일정 및 블록 정보 로드 구현
+**다음 작업**: Phase 4.1 - 플랜 그룹 삭제 로직 통합 및 중복 코드 제거
