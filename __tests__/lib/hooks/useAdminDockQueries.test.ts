@@ -46,7 +46,7 @@ describe('adminDockKeys', () => {
 
       const key = adminDockKeys.daily(studentId, date);
 
-      expect(key).toEqual(['adminDock', 'daily', 'student-123', '2024-01-15']);
+      expect(key).toEqual(['adminDock', 'daily', 'student-123', '2024-01-15', 'all']);
     });
   });
 
@@ -69,7 +69,7 @@ describe('adminDockKeys', () => {
 
       const key = adminDockKeys.weekly(studentId, weekStart, weekEnd);
 
-      expect(key).toEqual(['adminDock', 'weekly', 'student-123', '2024-01-15', '2024-01-21']);
+      expect(key).toEqual(['adminDock', 'weekly', 'student-123', '2024-01-15', '2024-01-21', 'all']);
     });
   });
 
@@ -91,7 +91,7 @@ describe('adminDockKeys', () => {
 
       const key = adminDockKeys.unfinished(studentId);
 
-      expect(key).toEqual(['adminDock', 'unfinished', 'student-123']);
+      expect(key).toEqual(['adminDock', 'unfinished', 'student-123', 'all']);
     });
   });
 });
@@ -170,7 +170,7 @@ describe('Query Options', () => {
 
       const options = dailyPlansQueryOptions(studentId, date);
 
-      expect(options.queryKey).toEqual(['adminDock', 'daily', 'student-123', '2024-01-15']);
+      expect(options.queryKey).toEqual(['adminDock', 'daily', 'student-123', '2024-01-15', 'all']);
     });
 
     it('queryFn이 함수이다', () => {
@@ -208,6 +208,7 @@ describe('Query Options', () => {
         'student-123',
         '2024-01-15',
         '2024-01-21',
+        'all',
       ]);
     });
 
@@ -224,7 +225,7 @@ describe('Query Options', () => {
 
       const options = unfinishedPlansQueryOptions(studentId);
 
-      expect(options.queryKey).toEqual(['adminDock', 'unfinished', 'student-123']);
+      expect(options.queryKey).toEqual(['adminDock', 'unfinished', 'student-123', 'all']);
     });
 
     it('queryFn이 함수이다', () => {

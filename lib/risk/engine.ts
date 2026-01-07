@@ -58,15 +58,26 @@ export async function getWeeklyMetrics(
   const todayDate = today.toISOString().slice(0, 10);
 
   // 모든 메트릭 병렬 조회
-  const [studyTime, planCompletion, goalStatus, scoreTrend, weakSubjects, historyPattern] =
-    await Promise.all([
-      getStudyTime(supabase, studentId, weekStart, weekEnd),
-      getPlanCompletion(supabase, studentId, weekStart, weekEnd),
-      getGoalStatus(supabase, studentId, todayDate),
-      getScoreTrend(supabase, studentId),
-      getWeakSubjects(supabase, studentId, weekStart, weekEnd),
-      getHistoryPattern(supabase, studentId, todayDate),
-    ]);
+  const [
+    studyTime,
+    planCompletionResult,
+    goalStatus,
+    scoreTrend,
+    weakSubjects,
+    historyPattern,
+  ] = await Promise.all([
+    getStudyTime(supabase, studentId, weekStart, weekEnd),
+    getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
+    getGoalStatus(supabase, studentId, todayDate),
+    getScoreTrend(supabase, studentId),
+    getWeakSubjects(supabase, studentId, weekStart, weekEnd),
+    getHistoryPattern(supabase, studentId, todayDate),
+  ]);
+
+  // 플랜 실행률 결과 처리
+  const planCompletion = planCompletionResult.success
+    ? planCompletionResult.data
+    : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
 
   return {
     studyTime,

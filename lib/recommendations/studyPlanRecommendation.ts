@@ -33,12 +33,17 @@ export async function getStudyPlanRecommendations(
     weekEnd.setHours(23, 59, 59, 999);
 
     // 데이터 조회
-    const [studyTime, planCompletion, riskResult, activeGoals] = await Promise.all([
+    const [studyTime, planCompletionResult, riskResult, activeGoals] = await Promise.all([
       getStudyTime(supabase, studentId, weekStart, weekEnd),
-      getPlanCompletion(supabase, studentId, weekStart, weekEnd),
+      getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
       getStudentRiskScore(supabase, studentId, { recordHistory: false }),
       getActiveGoals(supabase, studentId, today.toISOString().slice(0, 10)),
     ]);
+
+    // 플랜 실행률 결과 처리
+    const planCompletion = planCompletionResult.success
+      ? planCompletionResult.data
+      : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
 
     // Rule 1: 플랜 실행률 < 50% → 다음주 블록 수 줄이기
     if (planCompletion.completionRate < 50) {

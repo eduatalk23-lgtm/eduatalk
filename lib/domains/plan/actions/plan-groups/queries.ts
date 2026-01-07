@@ -12,7 +12,7 @@ import { timeToMinutes } from "./utils";
 import { logActionError, logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import type { CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
 import { getBlockSetForPlanGroup } from "@/lib/plan/blocks";
-import type { DailyScheduleInfo } from "@/lib/types/plan";
+import type { DailyScheduleInfo, PlanGroup } from "@/lib/types/plan";
 import { fetchBlocksWithFallback } from "@/lib/utils/databaseFallback";
 import type { PlanGroupSchedulerOptions, TimeRange } from "@/lib/types/schedulerSettings";
 import {
@@ -920,7 +920,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
 
     // 블록 세트에서 기본 블록 정보 가져오기
     const baseBlocks = await getBlockSetForPlanGroup(
-      group,
+      group as unknown as PlanGroup,
       targetStudentId,
       userRole.userId || "",
       userRole.role as "student" | "admin" | "consultant",
@@ -1235,7 +1235,7 @@ async function _getScheduleResultData(groupId: string): Promise<{
     periodStart: group.period_start || "",
     periodEnd: group.period_end || "",
     schedulerType: group.scheduler_type || null,
-    schedulerOptions: group.scheduler_options || null,
+    schedulerOptions: group.scheduler_options as PlanGroupSchedulerOptions | null,
     contents: Array.from(contentsMap.values()),
     blocks,
     dateTimeSlots, // 날짜별 time_slots 매핑

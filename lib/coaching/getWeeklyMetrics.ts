@@ -70,7 +70,7 @@ export async function getWeeklyMetrics(
     // 모든 메트릭 병렬 조회
     const [
       studyTime,
-      planCompletion,
+      planCompletionResult,
       goalStatus,
       weakSubjects,
       riskResult,
@@ -87,7 +87,7 @@ export async function getWeeklyMetrics(
       satisfactionResult,
     ] = await Promise.all([
       getStudyTime(supabase, studentId, weekStart, weekEnd),
-      getPlanCompletion(supabase, studentId, weekStart, weekEnd),
+      getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
       getGoalStatus(supabase, studentId, todayDate),
       getWeakSubjects(supabase, studentId, weekStart, weekEnd),
       getStudentRiskScore(supabase, studentId, { recordHistory: false }),
@@ -139,6 +139,9 @@ export async function getWeeklyMetrics(
     const weeklyStudyTrend = studyTime.changePercent;
 
     // 플랜 실행률
+    const planCompletion = planCompletionResult.success
+      ? planCompletionResult.data
+      : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
     const weeklyPlanCompletion = planCompletion.completionRate;
 
     // 목표 달성률

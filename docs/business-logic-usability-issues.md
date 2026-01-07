@@ -33,7 +33,7 @@ export async function getPlanCompletion(
   studentId: string,
   weekStart: Date,
   weekEnd: Date
-): Promise<PlanCompletionMetrics>
+): Promise<PlanCompletionMetrics>;
 ```
 
 #### 패턴 B: 내부에서 생성
@@ -177,18 +177,16 @@ export async function getPlanCompletion(
   studentId: string,
   weekStart: Date,
   weekEnd: Date
-)
+);
 
 // 패턴 B: supabase가 없음
-export async function getPlanGroups(
-  filters: PlanGroupFilters
-)
+export async function getPlanGroups(filters: PlanGroupFilters);
 
 // 패턴 C: 옵션 객체 사용
 export async function getWeeklyMetrics(
   supabase: SupabaseServerClient,
   studentId: string
-)
+);
 ```
 
 #### 옵션 객체 사용 여부 불일치
@@ -200,14 +198,14 @@ export async function getWeakSubjects(
   studentId: string,
   weekStart: Date,
   weekEnd: Date
-)
+);
 
 // 옵션 객체 (더 나은 방식)
 export async function getWeeklyMetrics(
   supabase: SupabaseServerClient,
   studentId: string,
   options?: { weekStart?: Date; weekEnd?: Date }
-)
+);
 ```
 
 ### 영향
@@ -227,7 +225,7 @@ export async function getPlanCompletion(
     weekStart: Date;
     weekEnd: Date;
   }
-): Promise<PlanCompletionMetrics>
+): Promise<PlanCompletionMetrics>;
 ```
 
 ---
@@ -371,16 +369,16 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
 
 ### 개선 제안
 
-```typescript
+````typescript
 /**
  * 주간 플랜 실행률 메트릭 조회
- * 
+ *
  * @param supabase - Supabase 서버 클라이언트
  * @param studentId - 학생 ID
  * @param weekStart - 주간 시작일 (Date 객체)
  * @param weekEnd - 주간 종료일 (Date 객체)
  * @returns 플랜 실행률 메트릭 (totalPlans, completedPlans, completionRate)
- * 
+ *
  * @example
  * ```typescript
  * const supabase = await createSupabaseServerClient();
@@ -391,7 +389,7 @@ export function coachingEngine(metrics: WeeklyMetricsData): WeeklyCoaching {
  * ```
  */
 export async function getPlanCompletion(...)
-```
+````
 
 ---
 
@@ -439,7 +437,8 @@ export async function getWeeklyMetrics(
   }
 ) {
   const getStudyTimeFn = dependencies?.getStudyTime ?? getStudyTime;
-  const getPlanCompletionFn = dependencies?.getPlanCompletion ?? getPlanCompletion;
+  const getPlanCompletionFn =
+    dependencies?.getPlanCompletion ?? getPlanCompletion;
   // ...
 }
 ```
@@ -489,14 +488,14 @@ export async function getWeeklyMetrics(
 
 #### 함수 시그니처 표준
 
-```typescript
+````typescript
 /**
  * [함수 설명]
- * 
+ *
  * @param supabase - Supabase 서버 클라이언트
  * @param options - 함수 옵션
  * @returns [반환 타입 설명]
- * 
+ *
  * @example
  * ```typescript
  * const result = await functionName(supabase, { ... });
@@ -508,13 +507,13 @@ export async function functionName(
 ): Promise<FunctionResult> {
   // 구현
 }
-```
+````
 
 #### 에러 처리 표준
 
 ```typescript
 // Result 타입 사용 (권장)
-export type Result<T, E = Error> = 
+export type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 
@@ -523,8 +522,8 @@ export async function functionName(...): Promise<Result<ReturnType>> {
     // ...
     return { success: true, data: result };
   } catch (error) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error instanceof Error ? error : new Error(String(error))
     };
   }
@@ -553,15 +552,15 @@ export async function functionName(
 
 ## 📊 영향도 분석
 
-| 문제점 | 영향도 | 우선순위 | 예상 작업량 |
-|--------|--------|----------|------------|
-| Supabase 클라이언트 의존성 불일치 | 높음 | 높음 | 2-3일 |
-| 에러 처리 패턴 불일치 | 높음 | 높음 | 2-3일 |
-| 함수 시그니처 일관성 부족 | 중간 | 중간 | 1-2일 |
-| 타입 안전성 문제 | 중간 | 중간 | 1-2일 |
-| 의존성 관리 문제 | 낮음 | 낮음 | 3-5일 |
-| 문서화 부족 | 낮음 | 낮음 | 2-3일 |
-| 테스트 가능성 문제 | 중간 | 낮음 | 3-5일 |
+| 문제점                            | 영향도 | 우선순위 | 예상 작업량 |
+| --------------------------------- | ------ | -------- | ----------- |
+| Supabase 클라이언트 의존성 불일치 | 높음   | 높음     | 2-3일       |
+| 에러 처리 패턴 불일치             | 높음   | 높음     | 2-3일       |
+| 함수 시그니처 일관성 부족         | 중간   | 중간     | 1-2일       |
+| 타입 안전성 문제                  | 중간   | 중간     | 1-2일       |
+| 의존성 관리 문제                  | 낮음   | 낮음     | 3-5일       |
+| 문서화 부족                       | 낮음   | 낮음     | 2-3일       |
+| 테스트 가능성 문제                | 중간   | 낮음     | 3-5일       |
 
 ---
 
@@ -576,7 +575,7 @@ export async function functionName(
 ---
 
 **참고 문서**:
+
 - [비즈니스 로직 분리 가이드](./business-logic-separation.md)
 - [에러 처리 가이드라인](./error-handling-guidelines.md)
 - [서버 액션 가이드라인](./server-actions-guideline.md)
-

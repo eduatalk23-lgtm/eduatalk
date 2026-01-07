@@ -1,10 +1,17 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isCompletedPlan, filterLearningPlans } from "@/lib/utils/planUtils";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  WeeklyMetricsOptions,
+} from "./types";
+import {
+  toDateString,
+  handleMetricsError,
+  nullToDefault,
+  isEmptyArray,
+} from "./utils";
 
 type PlanRow = {
   id: string;
@@ -22,16 +29,37 @@ export type PlanCompletionMetrics = {
 
 /**
  * 주간 플랜 실행률 메트릭 조회
+ * 
+ * @param supabase - Supabase 서버 클라이언트
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @param options.weekStart - 주간 시작일
+ * @param options.weekEnd - 주간 종료일
+ * @returns 플랜 실행률 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getPlanCompletion(supabase, {
+ *   studentId: "student-123",
+ *   weekStart: new Date('2025-01-13'),
+ *   weekEnd: new Date('2025-01-19'),
+ * });
+ * 
+ * if (result.success) {
+ *   console.log(`실행률: ${result.data.completionRate}%`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getPlanCompletion(
   supabase: SupabaseServerClient,
-  studentId: string,
-  weekStart: Date,
-  weekEnd: Date
-): Promise<PlanCompletionMetrics> {
+  options: WeeklyMetricsOptions
+): Promise<MetricsResult<PlanCompletionMetrics>> {
   try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    const { studentId, weekStart, weekEnd } = options;
+    const weekStartStr = toDateString(weekStart);
+    const weekEndStr = toDateString(weekEnd);
 
     const planRows = await safeQueryArray<PlanRow>(
       async () => {
@@ -54,8 +82,11 @@ export async function getPlanCompletion(
       { context: "[metrics/getPlanCompletion] 플랜 조회" }
     );
 
+    // null 체크 및 기본값 처리
+    const safePlanRows = nullToDefault(planRows, []);
+
     // 학습 플랜만 필터링 (더미 콘텐츠 제외)
-    const learningPlans = filterLearningPlans(planRows);
+    const learningPlans = filterLearningPlans(safePlanRows);
 
     const totalPlans = learningPlans.length;
     // 통일된 완료 기준 사용 (actual_end_time 또는 progress >= 100)
@@ -64,17 +95,23 @@ export async function getPlanCompletion(
       totalPlans > 0 ? Math.round((completedPlans / totalPlans) * 100) : 0;
 
     return {
-      totalPlans,
-      completedPlans,
-      completionRate,
+      success: true,
+      data: {
+        totalPlans,
+        completedPlans,
+        completionRate,
+      },
     };
   } catch (error) {
-    console.error("[metrics/getPlanCompletion] 플랜 실행률 조회 실패", error);
-    return {
-      totalPlans: 0,
-      completedPlans: 0,
-      completionRate: 0,
-    };
+    return handleMetricsError(
+      error,
+      "[metrics/getPlanCompletion]",
+      {
+        totalPlans: 0,
+        completedPlans: 0,
+        completionRate: 0,
+      }
+    );
   }
 }
 

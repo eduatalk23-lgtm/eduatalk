@@ -235,7 +235,7 @@ describe("createQuickPlanForStudent", () => {
       vi.mocked(isAdminContext).mockReturnValue(true);
     });
 
-    it("plan_groups에 created_by 필드가 설정됨", async () => {
+    it("plan_groups에 last_admin_id 필드가 설정됨", async () => {
       mockSupabase.single
         .mockResolvedValueOnce({
           data: { id: "flex-content-123" },
@@ -257,13 +257,16 @@ describe("createQuickPlanForStudent", () => {
         isFreeLearning: true,
       });
 
-      // insert 호출 확인 (plan_groups)
+      // insert 호출 확인 - plan_groups insert를 찾음
       const insertCalls = mockSupabase.insert.mock.calls;
-      // 두 번째 insert가 plan_groups
-      const planGroupInsert = insertCalls[1]?.[0];
+      // plan_groups insert에 last_admin_id가 포함되어 있는지 확인
+      const planGroupInsert = insertCalls.find(
+        (call) => call[0]?.last_admin_id !== undefined
+      )?.[0];
 
+      expect(planGroupInsert).toBeDefined();
       if (planGroupInsert) {
-        expect(planGroupInsert.created_by).toBe("admin-123");
+        expect(planGroupInsert.last_admin_id).toBe("admin-123");
         expect(planGroupInsert.student_id).toBe("student-789");
       }
     });

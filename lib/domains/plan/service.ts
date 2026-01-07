@@ -9,7 +9,7 @@
 
 import * as repository from "./repository";
 import { logActionError } from "@/lib/logging/actionLogger";
-import { upsertPlanContentsAtomic } from "./transactions";
+import { upsertPlanContentsAtomic, type UpsertPlanContentInput } from "./transactions";
 import type {
   PlanGroup,
   Plan,
@@ -207,7 +207,7 @@ export async function getPlanContents(
  */
 export async function savePlanContents(
   planGroupId: string,
-  contents: Array<Partial<PlanContent>>,
+  contents: Array<Partial<PlanContent> & Record<string, unknown>>,
   options?: {
     tenantId?: string;
     studentId?: string;
@@ -237,32 +237,32 @@ export async function savePlanContents(
     }
 
     // RPC 함수를 사용하여 원자적 트랜잭션으로 처리
-    const contentsInput = contents.map((c, index) => ({
-      content_type: c.content_type ?? "",
-      content_id: c.content_id ?? "",
-      content_name: c.content_name ?? null,
-      start_range: c.start_range ?? 0,
-      end_range: c.end_range ?? 0,
-      subject_name: c.subject_name ?? null,
-      subject_category: c.subject_category ?? null,
-      display_order: c.display_order ?? index,
-      start_detail_id: c.start_detail_id ?? null,
-      end_detail_id: c.end_detail_id ?? null,
-      master_content_id: c.master_content_id ?? null,
-      priority: c.priority ?? null,
-      is_paused: c.is_paused ?? false,
-      paused_until: c.paused_until ?? null,
-      scheduler_mode: c.scheduler_mode ?? null,
-      individual_schedule: c.individual_schedule ?? null,
-      custom_study_days: c.custom_study_days ?? null,
-      content_scheduler_options: c.content_scheduler_options ?? null,
-      is_auto_recommended: c.is_auto_recommended ?? false,
-      recommendation_source: c.recommendation_source ?? null,
-      recommendation_reason: c.recommendation_reason ?? null,
-      recommendation_metadata: c.recommendation_metadata ?? null,
-      recommended_by: c.recommended_by ?? null,
-      recommended_at: c.recommended_at ?? null,
-      generation_status: c.generation_status ?? null,
+    const contentsInput: UpsertPlanContentInput[] = contents.map((c, index) => ({
+      content_type: (c.content_type as string) ?? "",
+      content_id: (c.content_id as string) ?? "",
+      content_name: (c.content_name as string) ?? null,
+      start_range: (c.start_range as number) ?? 0,
+      end_range: (c.end_range as number) ?? 0,
+      subject_name: (c.subject_name as string) ?? null,
+      subject_category: (c.subject_category as string) ?? null,
+      display_order: (c.display_order as number) ?? index,
+      start_detail_id: (c.start_detail_id as string) ?? null,
+      end_detail_id: (c.end_detail_id as string) ?? null,
+      master_content_id: (c.master_content_id as string) ?? null,
+      priority: c.priority != null ? String(c.priority) : null,
+      is_paused: (c.is_paused as boolean) ?? false,
+      paused_until: (c.paused_until as string) ?? null,
+      scheduler_mode: (c.scheduler_mode as string) ?? null,
+      individual_schedule: (c.individual_schedule as any) ?? null,
+      custom_study_days: (c.custom_study_days as any) ?? null,
+      content_scheduler_options: (c.content_scheduler_options as any) ?? null,
+      is_auto_recommended: (c.is_auto_recommended as boolean) ?? false,
+      recommendation_source: (c.recommendation_source as string) ?? null,
+      recommendation_reason: (c.recommendation_reason as string) ?? null,
+      recommendation_metadata: (c.recommendation_metadata as any) ?? null,
+      recommended_by: (c.recommended_by as string) ?? null,
+      recommended_at: (c.recommended_at as string) ?? null,
+      generation_status: (c.generation_status as string) ?? null,
     }));
 
     const result = await upsertPlanContentsAtomic(

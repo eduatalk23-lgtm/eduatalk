@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Custom ignores to prevent memory overflow:
+    "python/**",
+    ".venv/**",
+    "**/site-packages/**",
+    "node_modules/**",
   ]),
   {
     rules: {

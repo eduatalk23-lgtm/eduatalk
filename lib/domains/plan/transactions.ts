@@ -392,7 +392,8 @@ export async function upsertPlanContentsAtomic(
     };
   }
 
-  const { data, error } = await supabase.rpc("upsert_plan_contents_atomic", {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any).rpc("upsert_plan_contents_atomic", {
     p_group_id: groupId,
     p_tenant_id: tenantId,
     p_contents: contents as unknown as Json,

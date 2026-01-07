@@ -182,7 +182,7 @@ export async function splitContentSchedule(
       }
     }
 
-    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const contentWithGroup = planContent as unknown as PlanContentWithPlanGroup;
     const studentId = contentWithGroup.plan_groups?.student_id;
     if (studentId) {
       revalidatePath(`/admin/students/${studentId}/plans`);
@@ -264,7 +264,7 @@ export async function pauseContent(
       .in("status", ["pending", "in_progress"])
       .gte("plan_date", today);
 
-    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const contentWithGroup = planContent as unknown as PlanContentWithPlanGroup;
     const studentId = contentWithGroup.plan_groups?.student_id;
     if (studentId) {
       revalidatePath(`/admin/students/${studentId}/plans`);
@@ -326,7 +326,7 @@ export async function resumeContent(
       return { success: false, error: updateError.message };
     }
 
-    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const contentWithGroup = planContent as unknown as PlanContentWithPlanGroup;
     const studentId = contentWithGroup.plan_groups?.student_id;
     if (studentId) {
       revalidatePath(`/admin/students/${studentId}/plans`);
@@ -392,7 +392,7 @@ export async function setContentPriority(
       return { success: false, error: updateError.message };
     }
 
-    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const contentWithGroup = planContent as unknown as PlanContentWithPlanGroup;
     const studentId = contentWithGroup.plan_groups?.student_id;
     if (studentId) {
       revalidatePath(`/admin/students/${studentId}/plans`);

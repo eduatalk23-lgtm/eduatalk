@@ -24,7 +24,7 @@ type StudentPlanWithPlanGroup = {
   version: number | null;
   plan_groups: {
     student_id: string;
-  } | null;
+  } | { student_id: string }[] | null;
 };
 
 /**
@@ -35,7 +35,7 @@ type StudentPlanVersionWithPlanGroup = {
   version: number | null;
   plan_groups: {
     student_id: string;
-  } | null;
+  } | { student_id: string }[] | null;
 };
 
 export interface DragDropResult {
@@ -135,7 +135,9 @@ export async function rescheduleOnDrop(
       // 권한 확인
       const isAdmin = user.role === "admin" || user.role === "superadmin";
       const planWithGroup = existingPlan as StudentPlanWithPlanGroup;
-      const isOwner = planWithGroup.plan_groups?.student_id === user.userId;
+      const planGroups = planWithGroup.plan_groups;
+      const groupStudentId = Array.isArray(planGroups) ? planGroups[0]?.student_id : planGroups?.student_id;
+      const isOwner = groupStudentId === user.userId;
       if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
       }
@@ -172,8 +174,9 @@ export async function rescheduleOnDrop(
 
       // 충돌 감지: 같은 날짜에 시간대가 겹치는 플랜이 있는지 확인
       if (newStartTime && newEndTime) {
-        const planWithGroup = existingPlan as StudentPlanWithPlanGroup;
-        const studentId = planWithGroup.plan_groups?.student_id || user.userId;
+        const planWithGroup2 = existingPlan as StudentPlanWithPlanGroup;
+        const planGroups = planWithGroup2.plan_groups;
+        const studentId = (Array.isArray(planGroups) ? planGroups[0]?.student_id : planGroups?.student_id) || user.userId;
 
         const { data: conflictingPlans } = await supabase
           .from("student_plan")
@@ -470,8 +473,11 @@ export async function resizePlanDuration(
       }
 
       // 권한 확인
+      // 권한 확인
       const planWithGroup = existingPlan as StudentPlanVersionWithPlanGroup;
-      const isOwner = planWithGroup.plan_groups?.student_id === user.userId;
+      const planGroups = planWithGroup.plan_groups;
+      const groupStudentId = Array.isArray(planGroups) ? planGroups[0]?.student_id : planGroups?.student_id;
+      const isOwner = groupStudentId === user.userId;
       if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
       }
