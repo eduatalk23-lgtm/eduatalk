@@ -6,6 +6,38 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 
 export type PlanType = "student_plan" | "ad_hoc_plan";
 
+// ============================================
+// 타입 정의
+// ============================================
+
+/**
+ * student_plan과 plan_groups 조인 결과 타입
+ */
+type StudentPlanWithPlanGroup = {
+  id: string;
+  plan_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  student_id: string;
+  content_title: string | null;
+  plan_group_id: string | null;
+  version: number | null;
+  plan_groups: {
+    student_id: string;
+  } | null;
+};
+
+/**
+ * student_plan (버전만)과 plan_groups 조인 결과 타입
+ */
+type StudentPlanVersionWithPlanGroup = {
+  id: string;
+  version: number | null;
+  plan_groups: {
+    student_id: string;
+  } | null;
+};
+
 export interface DragDropResult {
   success: boolean;
   error?: string;
@@ -102,8 +134,8 @@ export async function rescheduleOnDrop(
 
       // 권한 확인
       const isAdmin = user.role === "admin" || user.role === "superadmin";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isOwner = (existingPlan as any).plan_groups?.student_id === user.userId;
+      const planWithGroup = existingPlan as StudentPlanWithPlanGroup;
+      const isOwner = planWithGroup.plan_groups?.student_id === user.userId;
       if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
       }
@@ -140,8 +172,8 @@ export async function rescheduleOnDrop(
 
       // 충돌 감지: 같은 날짜에 시간대가 겹치는 플랜이 있는지 확인
       if (newStartTime && newEndTime) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const studentId = (existingPlan as any).plan_groups?.student_id || user.userId;
+        const planWithGroup = existingPlan as StudentPlanWithPlanGroup;
+        const studentId = planWithGroup.plan_groups?.student_id || user.userId;
 
         const { data: conflictingPlans } = await supabase
           .from("student_plan")
@@ -438,8 +470,8 @@ export async function resizePlanDuration(
       }
 
       // 권한 확인
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const isOwner = (existingPlan as any).plan_groups?.student_id === user.userId;
+      const planWithGroup = existingPlan as StudentPlanVersionWithPlanGroup;
+      const isOwner = planWithGroup.plan_groups?.student_id === user.userId;
       if (!isAdmin && !isOwner) {
         return { success: false, error: "권한이 없습니다." };
       }

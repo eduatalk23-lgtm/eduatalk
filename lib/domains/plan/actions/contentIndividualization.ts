@@ -8,6 +8,16 @@ import { revalidatePath } from "next/cache";
 // Types
 // ============================================
 
+/**
+ * plan_contents와 plan_groups 조인 결과 타입
+ */
+type PlanContentWithPlanGroup = {
+  id: string;
+  plan_groups: {
+    student_id: string;
+  } | null;
+};
+
 export type ActionResult = {
   success: boolean;
   error?: string;
@@ -172,9 +182,11 @@ export async function splitContentSchedule(
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const studentId = (planContent as any).plan_groups?.student_id;
-    revalidatePath(`/admin/students/${studentId}/plans`);
+    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const studentId = contentWithGroup.plan_groups?.student_id;
+    if (studentId) {
+      revalidatePath(`/admin/students/${studentId}/plans`);
+    }
 
     return { success: true };
   } catch (error) {
@@ -252,9 +264,11 @@ export async function pauseContent(
       .in("status", ["pending", "in_progress"])
       .gte("plan_date", today);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const studentId = (planContent as any).plan_groups?.student_id;
-    revalidatePath(`/admin/students/${studentId}/plans`);
+    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const studentId = contentWithGroup.plan_groups?.student_id;
+    if (studentId) {
+      revalidatePath(`/admin/students/${studentId}/plans`);
+    }
     revalidatePath("/today");
 
     return { success: true };
@@ -312,9 +326,11 @@ export async function resumeContent(
       return { success: false, error: updateError.message };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const studentId = (planContent as any).plan_groups?.student_id;
-    revalidatePath(`/admin/students/${studentId}/plans`);
+    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const studentId = contentWithGroup.plan_groups?.student_id;
+    if (studentId) {
+      revalidatePath(`/admin/students/${studentId}/plans`);
+    }
 
     return { success: true };
   } catch (error) {
@@ -376,9 +392,11 @@ export async function setContentPriority(
       return { success: false, error: updateError.message };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const studentId = (planContent as any).plan_groups?.student_id;
-    revalidatePath(`/admin/students/${studentId}/plans`);
+    const contentWithGroup = planContent as PlanContentWithPlanGroup;
+    const studentId = contentWithGroup.plan_groups?.student_id;
+    if (studentId) {
+      revalidatePath(`/admin/students/${studentId}/plans`);
+    }
 
     return { success: true };
   } catch (error) {
