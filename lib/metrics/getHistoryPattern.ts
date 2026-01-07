@@ -1,10 +1,17 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
 import { HISTORY_PATTERN_CONSTANTS } from "@/lib/metrics/constants";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  DateBasedMetricsOptions,
+} from "./types";
+import {
+  normalizeDateString,
+  toDateString,
+  handleMetricsError,
+  nullToDefault,
+} from "./utils";
 
 type HistoryRow = {
   event_type: string | null;
@@ -22,20 +29,41 @@ export type HistoryPatternMetrics = {
 
 /**
  * 히스토리 패턴 메트릭 조회
+ * 
+ * @param supabase - Supabase 서버 클라이언트
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @param options.todayDate - 기준 날짜 (Date 객체 또는 YYYY-MM-DD 형식 문자열)
+ * @returns 히스토리 패턴 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getHistoryPattern(supabase, {
+ *   studentId: "student-123",
+ *   todayDate: new Date('2025-01-15'),
+ * });
+ * 
+ * if (result.success) {
+ *   console.log(`연속 미완료: ${result.data.consecutivePlanFailures}일`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getHistoryPattern(
   supabase: SupabaseServerClient,
-  studentId: string,
-  todayDate: string
-): Promise<HistoryPatternMetrics> {
+  options: DateBasedMetricsOptions
+): Promise<MetricsResult<HistoryPatternMetrics>> {
   try {
-    const today = new Date(todayDate);
+    const { studentId, todayDate } = options;
+    const todayDateStr = normalizeDateString(todayDate);
+    const today = new Date(todayDateStr);
     today.setHours(0, 0, 0, 0);
 
     // 최근 30일 히스토리 조회
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - HISTORY_PATTERN_CONSTANTS.HISTORY_LOOKBACK_DAYS);
-    const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
+    const thirtyDaysAgoStr = toDateString(thirtyDaysAgo);
 
     const historyRows = await safeQueryArray<HistoryRow>(
       async () => {
@@ -58,11 +86,14 @@ export async function getHistoryPattern(
       { context: "[metrics/getHistoryPattern] 히스토리 조회" }
     );
 
+    // null 체크 및 기본값 처리
+    const safeHistoryRows = nullToDefault(historyRows, []);
+
     // 날짜별로 그룹화
     const dateMap = new Map<string, Set<string>>();
-    historyRows.forEach((row) => {
+    safeHistoryRows.forEach((row) => {
       if (!row.created_at || !row.event_type) return;
-      const date = new Date(row.created_at).toISOString().slice(0, 10);
+      const date = toDateString(new Date(row.created_at));
       const existing = dateMap.get(date) || new Set();
       existing.add(row.event_type);
       dateMap.set(date, existing);
@@ -84,9 +115,9 @@ export async function getHistoryPattern(
     // 연속 학습세션 없는 날 확인
     let consecutiveNoStudyDays = 0;
     const studySessionDates = new Set<string>();
-    historyRows.forEach((row) => {
+    safeHistoryRows.forEach((row) => {
       if (row.event_type === "study_session" && row.created_at) {
-        const date = new Date(row.created_at).toISOString().slice(0, 10);
+        const date = toDateString(new Date(row.created_at));
         studySessionDates.add(date);
       }
     });
@@ -94,7 +125,7 @@ export async function getHistoryPattern(
     // 오늘부터 역순으로 확인
     const checkDate = new Date(today);
     for (let i = 0; i < HISTORY_PATTERN_CONSTANTS.HISTORY_LOOKBACK_DAYS; i++) {
-      const dateStr = checkDate.toISOString().slice(0, 10);
+      const dateStr = toDateString(checkDate);
       if (!studySessionDates.has(dateStr)) {
         consecutiveNoStudyDays++;
       } else {
@@ -104,25 +135,31 @@ export async function getHistoryPattern(
     }
 
     // 최근 이벤트 목록
-    const recentHistoryEvents = historyRows
+    const recentHistoryEvents = safeHistoryRows
       .slice(0, HISTORY_PATTERN_CONSTANTS.RECENT_EVENTS_LIMIT)
       .map((row) => ({
         eventType: row.event_type || "",
-        date: row.created_at ? new Date(row.created_at).toISOString().slice(0, 10) : "",
+        date: row.created_at ? toDateString(new Date(row.created_at)) : "",
       }));
 
     return {
-      consecutivePlanFailures,
-      consecutiveNoStudyDays,
-      recentHistoryEvents,
+      success: true,
+      data: {
+        consecutivePlanFailures,
+        consecutiveNoStudyDays,
+        recentHistoryEvents,
+      },
     };
   } catch (error) {
-    console.error("[metrics/getHistoryPattern] 히스토리 패턴 조회 실패", error);
-    return {
-      consecutivePlanFailures: 0,
-      consecutiveNoStudyDays: 0,
-      recentHistoryEvents: [],
-    };
+    return handleMetricsError(
+      error,
+      "[metrics/getHistoryPattern]",
+      {
+        consecutivePlanFailures: 0,
+        consecutiveNoStudyDays: 0,
+        recentHistoryEvents: [],
+      }
+    );
   }
 }
 

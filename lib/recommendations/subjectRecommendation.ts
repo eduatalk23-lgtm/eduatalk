@@ -41,12 +41,22 @@ export async function getSubjectRecommendations(
     const weekEndStr = weekEnd.toISOString().slice(0, 10);
 
     // 데이터 조회
-    const [weakSubjectsData, scoreTrend, sessions, activeGoals] = await Promise.all([
-      getWeakSubjects(supabase, studentId, weekStart, weekEnd),
-      getScoreTrend(supabase, studentId),
+    const [weakSubjectsResult, scoreTrend, sessions, activeGoals] = await Promise.all([
+      getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
+      getScoreTrend(supabase, { studentId }),
       getSessionsByDateRange(supabase, studentId, fourWeeksAgoStr, weekEndStr),
       getActiveGoals(supabase, studentId, today.toISOString().slice(0, 10)),
     ]);
+
+    // 취약 과목 결과 처리
+    const weakSubjectsData = weakSubjectsResult.success
+      ? weakSubjectsResult.data
+      : {
+          weakSubjects: [],
+          subjectStudyTime: new Map<string, number>(),
+          totalStudyTime: 0,
+          weakSubjectStudyTimeRatio: 0,
+        };
 
     // 취약 과목별 학습시간 계산 (최근 4주)
     const subjectTimeMap = new Map<string, number>();

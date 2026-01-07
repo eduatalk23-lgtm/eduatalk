@@ -166,12 +166,22 @@ export async function getRecommendedMasterContents(
     weekEnd.setHours(23, 59, 59, 999);
 
     // 취약 과목, Risk Index, 성적 요약 조회
-    const [weakSubjectsData, riskIndexMap, schoolSummaryMap, mockSummaryMap] = await Promise.all([
-      getWeakSubjects(supabase, studentId, weekStart, weekEnd),
+    const [weakSubjectsResult, riskIndexMap, schoolSummaryMap, mockSummaryMap] = await Promise.all([
+      getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
       getRiskIndexBySubject(studentId),
       getSchoolScoreSummary(studentId),
       getMockScoreSummary(studentId),
     ]);
+
+    // 취약 과목 결과 처리
+    const weakSubjectsData = weakSubjectsResult.success
+      ? weakSubjectsResult.data
+      : {
+          weakSubjects: [],
+          subjectStudyTime: new Map<string, number>(),
+          totalStudyTime: 0,
+          weakSubjectStudyTimeRatio: 0,
+        };
 
     const weakSubjects = weakSubjectsData.weakSubjects;
     const riskSubjects = Array.from(riskIndexMap.entries())

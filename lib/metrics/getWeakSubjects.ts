@@ -2,10 +2,12 @@ import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
 import { WEAK_SUBJECT_CONSTANTS } from "@/lib/metrics/constants";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  WeeklyMetricsOptions,
+} from "./types";
+import { toDateString, handleMetricsError, nullToDefault } from "./utils";
 
 type PlanRow = {
   id: string;
@@ -34,16 +36,37 @@ export type WeakSubjectMetrics = {
  * 취약 과목 메트릭 조회
  * 
  * N+1 쿼리 최적화: 플랜과 콘텐츠 정보를 배치로 조회
+ * 
+ * @param supabase - Supabase 서버 클라이언트
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @param options.weekStart - 주간 시작일
+ * @param options.weekEnd - 주간 종료일
+ * @returns 취약 과목 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getWeakSubjects(supabase, {
+ *   studentId: "student-123",
+ *   weekStart: new Date('2025-01-13'),
+ *   weekEnd: new Date('2025-01-19'),
+ * });
+ * 
+ * if (result.success) {
+ *   console.log(`취약 과목: ${result.data.weakSubjects.join(', ')}`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getWeakSubjects(
   supabase: SupabaseServerClient,
-  studentId: string,
-  weekStart: Date,
-  weekEnd: Date
-): Promise<WeakSubjectMetrics> {
+  options: WeeklyMetricsOptions
+): Promise<MetricsResult<WeakSubjectMetrics>> {
   try {
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    const { studentId, weekStart, weekEnd } = options;
+    const weekStartStr = toDateString(weekStart);
+    const weekEndStr = toDateString(weekEnd);
 
     // 이번 주 세션 조회
     const sessions = await getSessionsByDateRange(
@@ -259,19 +282,25 @@ export async function getWeakSubjects(
       totalStudyTime > 0 ? Math.round((weakSubjectStudyTime / totalStudyTime) * 100) : 0;
 
     return {
-      weakSubjects,
-      subjectStudyTime: subjectTimeMap,
-      totalStudyTime,
-      weakSubjectStudyTimeRatio,
+      success: true,
+      data: {
+        weakSubjects,
+        subjectStudyTime: subjectTimeMap,
+        totalStudyTime,
+        weakSubjectStudyTimeRatio,
+      },
     };
   } catch (error) {
-    console.error("[metrics/getWeakSubjects] 취약 과목 조회 실패", error);
-    return {
-      weakSubjects: [],
-      subjectStudyTime: new Map(),
-      totalStudyTime: 0,
-      weakSubjectStudyTimeRatio: 0,
-    };
+    return handleMetricsError(
+      error,
+      "[metrics/getWeakSubjects]",
+      {
+        weakSubjects: [],
+        subjectStudyTime: new Map(),
+        totalStudyTime: 0,
+        weakSubjectStudyTimeRatio: 0,
+      }
+    );
   }
 }
 

@@ -75,11 +75,21 @@ export async function analyzePlanRegenerationNeed(
     weekEnd.setHours(23, 59, 59, 999);
 
     // 데이터 조회
-    const [weakSubjectsData, scoreTrend, planStats] = await Promise.all([
-      getWeakSubjects(supabase, studentId, weekStart, weekEnd),
-      getScoreTrend(supabase, studentId),
+    const [weakSubjectsResult, scoreTrend, planStats] = await Promise.all([
+      getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
+      getScoreTrend(supabase, { studentId }),
       getPlanCompletionStats(supabase, studentId, planGroupId),
     ]);
+
+    // 취약 과목 결과 처리
+    const weakSubjectsData = weakSubjectsResult.success
+      ? weakSubjectsResult.data
+      : {
+          weakSubjects: [],
+          subjectStudyTime: new Map<string, number>(),
+          totalStudyTime: 0,
+          weakSubjectStudyTimeRatio: 0,
+        };
 
     // Rule 1: 2회 연속 점수 하락 과목 → high priority
     for (const subject of scoreTrend.decliningSubjects) {

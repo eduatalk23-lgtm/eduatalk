@@ -72,10 +72,10 @@ export async function getWeeklyMetrics(
       studyTime,
       planCompletionResult,
       goalStatus,
-      weakSubjects,
+      weakSubjectsResult,
       riskResult,
       recommendations,
-      historyPattern,
+      historyPatternResult,
       sessions,
       milestoneData,
       incompleteSummary,
@@ -89,10 +89,10 @@ export async function getWeeklyMetrics(
       getStudyTime(supabase, studentId, weekStart, weekEnd),
       getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
       getGoalStatus(supabase, studentId, todayDate),
-      getWeakSubjects(supabase, studentId, weekStart, weekEnd),
+      getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
       getStudentRiskScore(supabase, studentId, { recordHistory: false }),
       getRecommendations(supabase, studentId),
-      getHistoryPattern(supabase, studentId, todayDate),
+      getHistoryPattern(supabase, { studentId, todayDate }),
       getSessionsByDateRange(
         supabase,
         studentId,
@@ -144,10 +144,27 @@ export async function getWeeklyMetrics(
       : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
     const weeklyPlanCompletion = planCompletion.completionRate;
 
+    // 히스토리 패턴 결과 처리
+    const historyPattern = historyPatternResult.success
+      ? historyPatternResult.data
+      : {
+          consecutivePlanFailures: 0,
+          consecutiveNoStudyDays: 0,
+          recentHistoryEvents: [],
+        };
+
     // 목표 달성률
     const weeklyGoalsProgress = goalStatus.averageProgress;
 
-    // 취약 과목
+    // 취약 과목 결과 처리
+    const weakSubjects = weakSubjectsResult.success
+      ? weakSubjectsResult.data
+      : {
+          weakSubjects: [],
+          subjectStudyTime: new Map<string, number>(),
+          totalStudyTime: 0,
+          weakSubjectStudyTimeRatio: 0,
+        };
     const weakSubjectsList = weakSubjects.weakSubjects;
 
     // Risk Level

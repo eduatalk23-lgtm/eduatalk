@@ -62,22 +62,51 @@ export async function getWeeklyMetrics(
     studyTime,
     planCompletionResult,
     goalStatus,
-    scoreTrend,
-    weakSubjects,
-    historyPattern,
+    scoreTrendResult,
+    weakSubjectsResult,
+    historyPatternResult,
   ] = await Promise.all([
     getStudyTime(supabase, studentId, weekStart, weekEnd),
     getPlanCompletion(supabase, { studentId, weekStart, weekEnd }),
     getGoalStatus(supabase, studentId, todayDate),
-    getScoreTrend(supabase, studentId),
-    getWeakSubjects(supabase, studentId, weekStart, weekEnd),
-    getHistoryPattern(supabase, studentId, todayDate),
+    getScoreTrend(supabase, { studentId }),
+    getWeakSubjects(supabase, { studentId, weekStart, weekEnd }),
+    getHistoryPattern(supabase, { studentId, todayDate }),
   ]);
 
   // 플랜 실행률 결과 처리
   const planCompletion = planCompletionResult.success
     ? planCompletionResult.data
     : { totalPlans: 0, completedPlans: 0, completionRate: 0 };
+
+  // 성적 추이 결과 처리
+  const scoreTrend = scoreTrendResult.success
+    ? scoreTrendResult.data
+    : {
+        hasDecliningTrend: false,
+        decliningSubjects: [],
+        lowGradeSubjects: [],
+        recentScores: [],
+      };
+
+  // 취약 과목 결과 처리
+  const weakSubjects = weakSubjectsResult.success
+    ? weakSubjectsResult.data
+    : {
+        weakSubjects: [],
+        subjectStudyTime: new Map<string, number>(),
+        totalStudyTime: 0,
+        weakSubjectStudyTimeRatio: 0,
+      };
+
+  // 히스토리 패턴 결과 처리
+  const historyPattern = historyPatternResult.success
+    ? historyPatternResult.data
+    : {
+        consecutivePlanFailures: 0,
+        consecutiveNoStudyDays: 0,
+        recentHistoryEvents: [],
+      };
 
   return {
     studyTime,

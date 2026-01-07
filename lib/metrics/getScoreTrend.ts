@@ -1,10 +1,12 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeQueryArray } from "@/lib/supabase/safeQuery";
 import { SCORE_CONSTANTS, SCORE_TREND_CONSTANTS } from "@/lib/metrics/constants";
-
-type SupabaseServerClient = Awaited<
-  ReturnType<typeof createSupabaseServerClient>
->;
+import type {
+  SupabaseServerClient,
+  MetricsResult,
+  BaseMetricsOptions,
+} from "./types";
+import { handleMetricsError, nullToDefault } from "./utils";
 
 /**
  * 내신 성적 조회 결과 타입
@@ -57,14 +59,27 @@ export type ScoreTrendMetrics = {
  * 최근 성적 추이를 분석합니다.
  * 
  * @param supabase - Supabase 서버 클라이언트
- * @param studentId - 학생 ID
- * @returns 성적 추이 메트릭
+ * @param options - 메트릭 조회 옵션
+ * @param options.studentId - 학생 ID
+ * @returns 성적 추이 메트릭 결과
+ * 
+ * @example
+ * ```typescript
+ * const result = await getScoreTrend(supabase, { studentId: "student-123" });
+ * 
+ * if (result.success) {
+ *   console.log(`하락 추세: ${result.data.hasDecliningTrend}`);
+ * } else {
+ *   console.error(result.error);
+ * }
+ * ```
  */
 export async function getScoreTrend(
   supabase: SupabaseServerClient,
-  studentId: string
-): Promise<ScoreTrendMetrics> {
+  options: BaseMetricsOptions
+): Promise<MetricsResult<ScoreTrendMetrics>> {
   try {
+    const { studentId } = options;
     // 내신 성적 및 모의고사 성적 병렬 조회
     const [internalRows, mockRows] = await Promise.all([
       // 내신 성적 조회: student_internal_scores 테이블 사용
@@ -193,32 +208,25 @@ export async function getScoreTrend(
     const hasDecliningTrend = decliningSubjects.length > 0;
 
     return {
-      hasDecliningTrend,
-      decliningSubjects,
-      lowGradeSubjects,
-      recentScores: allScores.slice(0, SCORE_TREND_CONSTANTS.RETURN_SCORES_LIMIT),
+      success: true,
+      data: {
+        hasDecliningTrend,
+        decliningSubjects,
+        lowGradeSubjects,
+        recentScores: allScores.slice(0, SCORE_TREND_CONSTANTS.RETURN_SCORES_LIMIT),
+      },
     };
   } catch (error) {
-    // 예외 발생 시 상세 정보 로깅
-    const errorInfo: Record<string, unknown> = {
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : "Unknown",
-      stack: error instanceof Error ? error.stack : undefined,
-    };
-    
-    try {
-      errorInfo.raw = JSON.parse(JSON.stringify(error));
-    } catch {
-      errorInfo.raw = String(error);
-    }
-    
-    console.error("[metrics/getScoreTrend] 성적 추이 조회 실패", errorInfo);
-    return {
-      hasDecliningTrend: false,
-      decliningSubjects: [],
-      lowGradeSubjects: [],
-      recentScores: [],
-    };
+    return handleMetricsError(
+      error,
+      "[metrics/getScoreTrend]",
+      {
+        hasDecliningTrend: false,
+        decliningSubjects: [],
+        lowGradeSubjects: [],
+        recentScores: [],
+      }
+    );
   }
 }
 
