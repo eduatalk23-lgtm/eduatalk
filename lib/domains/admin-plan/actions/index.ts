@@ -105,6 +105,7 @@ export {
 // Create Plan from Content
 export {
   createPlanFromContent,
+  createPlanFromContentWithScheduler,
   type DistributionMode,
   type CreatePlanFromContentInput,
   type CreatePlanFromContentResult,
@@ -160,3 +161,12 @@ export {
   type PlannerExclusion,
   type PlannerAcademySchedule,
 } from './planners';
+
+// Time Management Actions (Admin)
+export {
+  addStudentAcademyScheduleForAdmin,
+  addStudentExclusionForAdmin,
+  type AddAcademyScheduleInput,
+  type AddExclusionInput,
+  type TimeManagementActionResult,
+} from './timeManagement';

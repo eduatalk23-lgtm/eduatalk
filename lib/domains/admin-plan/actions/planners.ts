@@ -82,6 +82,8 @@ export interface UpdatePlannerInput {
   defaultSchedulerType?: string;
   defaultSchedulerOptions?: Record<string, unknown>;
   adminMemo?: string | null;
+  /** 기존 플랜 그룹에도 변경사항을 반영할지 여부 */
+  syncToExistingGroups?: boolean;
 }
 
 /**
@@ -518,6 +520,35 @@ async function _updatePlanner(
       500,
       true
     );
+  }
+
+  // 기존 플랜 그룹에 변경사항 동기화
+  if (updates.syncToExistingGroups) {
+    const planGroupUpdateData: Record<string, unknown> = {};
+
+    // 시간 설정 동기화
+    if (updates.studyHours !== undefined) planGroupUpdateData.study_hours = updates.studyHours;
+    if (updates.selfStudyHours !== undefined) planGroupUpdateData.self_study_hours = updates.selfStudyHours;
+    if (updates.lunchTime !== undefined) planGroupUpdateData.lunch_time = updates.lunchTime;
+    if (updates.nonStudyTimeBlocks !== undefined) planGroupUpdateData.non_study_time_blocks = updates.nonStudyTimeBlocks;
+    if (updates.defaultSchedulerType !== undefined) planGroupUpdateData.scheduler_type = updates.defaultSchedulerType;
+    if (updates.defaultSchedulerOptions !== undefined) planGroupUpdateData.scheduler_options = updates.defaultSchedulerOptions;
+    if (updates.blockSetId !== undefined) planGroupUpdateData.block_set_id = updates.blockSetId;
+
+    // 동기화할 데이터가 있는 경우에만 업데이트
+    if (Object.keys(planGroupUpdateData).length > 0) {
+      const { error: syncError } = await supabase
+        .from("plan_groups")
+        .update(planGroupUpdateData)
+        .eq("planner_id", plannerId)
+        .in("status", ["active", "draft"])
+        .is("deleted_at", null);
+
+      if (syncError) {
+        console.warn("[_updatePlanner] 플랜 그룹 동기화 실패:", syncError);
+        // 플래너는 이미 업데이트되었으므로 경고만 로깅
+      }
+    }
   }
 
   return mapPlannerFromDB(data);

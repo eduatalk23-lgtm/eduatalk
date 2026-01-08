@@ -196,14 +196,46 @@ export async function getPlanGroupEventHistory(
 
 /**
  * 특정 학생의 최근 이벤트 조회
+ * @param studentId - 학생 ID
+ * @param limit - 조회 개수 (기본 50)
+ * @param plannerId - 플래너 ID (선택, 지정 시 해당 플래너의 플랜 이벤트만 조회)
  */
 export async function getStudentRecentEvents(
   studentId: string,
-  limit = 50
+  limit = 50,
+  plannerId?: string
 ): Promise<AdminPlanResponse<PlanEvent[]>> {
   try {
     const supabase = await createSupabaseServerClient();
 
+    // plannerId가 있으면 student_plan → plan_groups 조인하여 필터링
+    if (plannerId) {
+      const { data, error } = await supabase
+        .from('plan_events')
+        .select(`
+          *,
+          student_plan!inner (
+            plan_group_id,
+            plan_groups!inner (
+              planner_id
+            )
+          )
+        `)
+        .eq('student_id', studentId)
+        .eq('student_plan.plan_groups.planner_id', plannerId)
+        .order('occurred_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      // 조인 데이터 제거하고 이벤트만 반환
+      const events = (data ?? []).map(({ student_plan, ...event }) => event);
+      return { success: true, data: events as PlanEvent[] };
+    }
+
+    // plannerId가 없으면 모든 이벤트 조회
     const { data, error } = await supabase
       .from('plan_events')
       .select('*')

@@ -88,6 +88,19 @@ async function _createAutoContentPlanGroup(
     };
   }
 
+  // 1-1. 플래너 제외일 조회 (targetDate 이후만)
+  const { data: plannerExclusions } = await supabase
+    .from("planner_exclusions")
+    .select("*")
+    .eq("planner_id", input.plannerId)
+    .gte("exclusion_date", input.targetDate);
+
+  // 1-2. 플래너 학원일정 조회
+  const { data: plannerSchedules } = await supabase
+    .from("planner_academy_schedules")
+    .select("*")
+    .eq("planner_id", input.plannerId);
+
   // 2. 플랜그룹 이름 생성
   const dateStr = format(new Date(input.targetDate), "yyyy-MM-dd");
   const truncatedTitle = input.contentTitle.length > 20
@@ -126,13 +139,34 @@ async function _createAutoContentPlanGroup(
   };
 
   // 4. RPC를 통한 원자적 플랜그룹 생성
+  // 플래너의 제외일/학원일정을 플랜 그룹에 상속
+  const inheritedExclusions = (plannerExclusions || []).map((e) => ({
+    exclusion_date: e.exclusion_date,
+    exclusion_type: e.exclusion_type,
+    reason: e.reason,
+    source: "inherited",
+    is_locked: false,
+  }));
+
+  const inheritedSchedules = (plannerSchedules || []).map((s) => ({
+    day_of_week: s.day_of_week,
+    start_time: s.start_time,
+    end_time: s.end_time,
+    academy_name: s.academy_name,
+    academy_id: s.academy_id,
+    subject: s.subject,
+    travel_time: s.travel_time,
+    source: "inherited",
+    is_locked: false,
+  }));
+
   const { data, error } = await supabase.rpc("create_plan_group_atomic", {
     p_tenant_id: tenantContext.tenantId,
     p_student_id: input.studentId,
     p_plan_group: planGroupData,
     p_contents: [],
-    p_exclusions: [],
-    p_schedules: [],
+    p_exclusions: inheritedExclusions,
+    p_schedules: inheritedSchedules,
   });
 
   if (error) {
@@ -177,12 +211,14 @@ async function _createAutoContentPlanGroup(
       plannerId: input.plannerId,
       studentId: input.studentId,
       groupName,
+      inheritedExclusionsCount: inheritedExclusions.length,
+      inheritedSchedulesCount: inheritedSchedules.length,
     }
   );
 
   logActionDebug(
     { domain: "admin-plan", action: "createAutoContentPlanGroup" },
-    `자동 플랜그룹 생성 완료: ${groupName}`,
+    `자동 플랜그룹 생성 완료: ${groupName} (제외일 ${inheritedExclusions.length}개, 학원일정 ${inheritedSchedules.length}개 상속)`,
     { groupId: result.group_id }
   );
 

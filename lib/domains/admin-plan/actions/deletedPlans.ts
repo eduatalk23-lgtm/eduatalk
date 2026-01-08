@@ -28,12 +28,17 @@ export interface DeletedPlansResult {
 export interface GetDeletedPlansOptions {
   offset?: number;
   limit?: number;
+  plannerId?: string;
 }
 
 const DEFAULT_LIMIT = 20;
 
 /**
  * 삭제된 플랜 목록 조회 (관리자용) - 페이지네이션 지원
+ * @param studentId - 학생 ID
+ * @param options.offset - 페이지네이션 오프셋
+ * @param options.limit - 조회 개수
+ * @param options.plannerId - 플래너 ID (선택, 지정 시 해당 플래너의 삭제된 플랜만 조회)
  */
 export async function getDeletedPlans(
   studentId: string,
@@ -43,39 +48,73 @@ export async function getDeletedPlans(
     await requireAdminOrConsultant({ requireTenant: true });
     const supabase = await createSupabaseServerClient();
 
-    const { offset = 0, limit = DEFAULT_LIMIT } = options;
+    const { offset = 0, limit = DEFAULT_LIMIT, plannerId } = options;
 
     // 전체 개수 조회
-    const { count: totalCount, error: countError } = await supabase
+    let countQuery = supabase
       .from('student_plan')
-      .select('id', { count: 'exact', head: true })
+      .select(
+        plannerId
+          ? 'id, plan_groups!inner(planner_id)'
+          : 'id',
+        { count: 'exact', head: true }
+      )
       .eq('student_id', studentId)
       .eq('is_active', false);
+
+    if (plannerId) {
+      countQuery = countQuery.eq('plan_groups.planner_id', plannerId);
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
 
     if (countError) {
       return { success: false, error: countError.message };
     }
 
     // 플랜 목록 조회 (페이지네이션)
-    const { data, error } = await supabase
+    let dataQuery = supabase
       .from('student_plan')
-      .select(`
-        id,
-        content_title,
-        custom_title,
-        content_subject,
-        plan_date,
-        planned_start_page_or_time,
-        planned_end_page_or_time,
-        updated_at,
-        plan_groups:plan_group_id (
-          name
-        )
-      `)
+      .select(
+        plannerId
+          ? `
+            id,
+            content_title,
+            custom_title,
+            content_subject,
+            plan_date,
+            planned_start_page_or_time,
+            planned_end_page_or_time,
+            updated_at,
+            plan_groups!inner (
+              name,
+              planner_id
+            )
+          `
+          : `
+            id,
+            content_title,
+            custom_title,
+            content_subject,
+            plan_date,
+            planned_start_page_or_time,
+            planned_end_page_or_time,
+            updated_at,
+            plan_groups:plan_group_id (
+              name
+            )
+          `
+      )
       .eq('student_id', studentId)
       .eq('is_active', false)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (plannerId) {
+      dataQuery = dataQuery.eq('plan_groups.planner_id', plannerId);
+    }
+
+    const { data, error } = await dataQuery;
 
     if (error) {
       return { success: false, error: error.message };
