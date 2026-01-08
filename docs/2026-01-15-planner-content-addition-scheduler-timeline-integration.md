@@ -11,8 +11,9 @@
 2. [스케줄러 및 타임라인 기능 개요](#스케줄러-및-타임라인-기능-개요)
 3. [연계 방법 설계](#연계-방법-설계)
 4. [구현 방안](#구현-방안)
-5. [데이터 흐름](#데이터-흐름)
-6. [주요 함수 및 타입](#주요-함수-및-타입)
+5. [기존 타임라인 고려 여부 점검](#기존-타임라인-고려-여부-점검)
+6. [데이터 흐름](#데이터-흐름)
+7. [주요 함수 및 타입](#주요-함수-및-타입)
 
 ---
 
@@ -631,6 +632,288 @@ async function generateScheduleForPlanner(input: {
 
 ---
 
+## 기존 타임라인 고려 여부 점검
+
+### 현재 상태 분석
+
+#### ❌ 기존 타임라인 미고려
+
+**현재 구현의 문제점**:
+
+1. **SchedulerEngine.generateStudyDayPlans**
+   - `slotAvailability`를 초기화할 때 `usedTime: 0`으로 시작
+   - 기존에 저장된 플랜의 시간 정보를 조회하지 않음
+   - 기존 플랜이 점유한 시간을 고려하지 않음
+
+2. **assignPlanTimes**
+   - `slotAvailability`를 초기화할 때 `usedTime: 0`으로 시작
+   - 기존 플랜의 시간 정보를 고려하지 않음
+
+3. **generatePlansFromGroup**
+   - 기존 플랜을 조회하는 로직이 없음
+   - 항상 새로운 플랜만 생성
+
+**결과**:
+- 새로운 콘텐츠 추가 시 기존 플랜과 시간이 겹칠 수 있음
+- 빈 시간대를 활용하지 못함
+- 타임라인 효율성이 떨어짐
+
+---
+
+### 기존 타임라인 고려 기능
+
+#### ✅ AvailabilityService 존재
+
+**위치**: `lib/domains/plan/services/AvailabilityService.ts`
+
+**기능**:
+- 기존 플랜을 고려한 가용시간 계산
+- 점유 슬롯 추출 및 남은 가용시간 계산
+- 새 플랜 배치 가능 여부 확인
+
+**주요 메서드**:
+```typescript
+calculateAvailabilityWithExistingPlans(input: AvailabilityCalculationInput): AvailabilityWithExistingPlans
+canPlacePlan(dailyInfo: DailyAvailabilityInfo, durationMinutes: number): { canPlace: boolean; suggestedSlots: TimeRange[] }
+findAvailableSlotsForDuration(dailyAvailability: DailyAvailabilityInfo[], durationMinutes: number): Array<{ date: string; slot: TimeRange }>
+```
+
+**문제점**:
+- ❌ 스케줄러 로직에서 사용되지 않음
+- ❌ `SchedulerEngine`과 연계되지 않음
+- ❌ `assignPlanTimes`와 연계되지 않음
+
+---
+
+### 기존 타임라인 고려 구현 방안
+
+#### 방안 1: SchedulerEngine에 기존 플랜 반영 (권장)
+
+**구현 단계**:
+
+1. **기존 플랜 조회**
+   ```typescript
+   async function getExistingPlansForPlanGroup(
+     planGroupId: string,
+     periodStart: string,
+     periodEnd: string
+   ): Promise<Array<{
+     plan_date: string;
+     start_time: string | null;
+     end_time: string | null;
+   }>> {
+     const supabase = await createSupabaseServerClient();
+     const { data } = await supabase
+       .from("student_plan")
+       .select("plan_date, start_time, end_time")
+       .eq("plan_group_id", planGroupId)
+       .gte("plan_date", periodStart)
+       .lte("plan_date", periodEnd)
+       .not("start_time", "is", null)
+       .not("end_time", "is", null)
+       .eq("is_active", true);
+     
+     return data || [];
+   }
+   ```
+
+2. **기존 플랜 시간을 slotAvailability에 반영**
+   ```typescript
+   // SchedulerEngine.generateStudyDayPlans 내부
+   const existingPlans = await getExistingPlansForPlanGroup(
+     group.id,
+     periodStart,
+     periodEnd
+   );
+   
+   // 날짜별 기존 플랜 그룹화
+   const existingPlansByDate = new Map<string, Array<{ start: string; end: string }>>();
+   existingPlans.forEach(plan => {
+     if (!existingPlansByDate.has(plan.plan_date)) {
+       existingPlansByDate.set(plan.plan_date, []);
+     }
+     if (plan.start_time && plan.end_time) {
+       existingPlansByDate.get(plan.plan_date)!.push({
+         start: plan.start_time,
+         end: plan.end_time,
+       });
+     }
+   });
+   
+   // slotAvailability 초기화 시 기존 플랜 시간 반영
+   const slotAvailability: Array<{ slot: typeof studyTimeSlots[0]; usedTime: number }> = 
+     studyTimeSlots.map((slot) => {
+       const slotStart = timeToMinutes(slot.start);
+       const slotEnd = timeToMinutes(slot.end);
+       let usedTime = 0;
+       
+       // 해당 날짜의 기존 플랜 확인
+       const dateExistingPlans = existingPlansByDate.get(date) || [];
+       dateExistingPlans.forEach(existingPlan => {
+         const planStart = timeToMinutes(existingPlan.start);
+         const planEnd = timeToMinutes(existingPlan.end);
+         
+         // 기존 플랜이 이 슬롯과 겹치는 경우
+         if (planStart < slotEnd && planEnd > slotStart) {
+           const overlapStart = Math.max(planStart, slotStart);
+           const overlapEnd = Math.min(planEnd, slotEnd);
+           usedTime += overlapEnd - overlapStart;
+         }
+       });
+       
+       return { slot, usedTime };
+     });
+   ```
+
+3. **dateTimeSlots에서 기존 플랜 시간 제외**
+   ```typescript
+   // 기존 플랜 시간을 고려한 dateTimeSlots 생성
+   const adjustedDateTimeSlots = new Map<string, Array<TimeSlot>>();
+   
+   dateTimeSlots.forEach((slots, date) => {
+     const existingPlansForDate = existingPlansByDate.get(date) || [];
+     const adjustedSlots: TimeSlot[] = [];
+     
+     slots.forEach(slot => {
+       if (slot.type === "학습시간") {
+         // 기존 플랜 시간을 제외한 빈 시간대 계산
+         let remainingRanges = [{ start: slot.start, end: slot.end }];
+         
+         existingPlansForDate.forEach(plan => {
+           remainingRanges = remainingRanges.flatMap(range =>
+             subtractTimeRange(range, { start: plan.start, end: plan.end })
+           );
+         });
+         
+         // 빈 시간대를 새로운 슬롯으로 추가
+         remainingRanges.forEach(range => {
+           if (timeToMinutes(range.end) > timeToMinutes(range.start)) {
+             adjustedSlots.push({
+               type: "학습시간",
+               start: range.start,
+               end: range.end,
+               label: slot.label,
+             });
+           }
+         });
+       } else {
+         // 학습시간이 아닌 슬롯은 그대로 유지
+         adjustedSlots.push(slot);
+       }
+     });
+     
+     adjustedDateTimeSlots.set(date, adjustedSlots);
+   });
+   ```
+
+**장점**:
+- 기존 플랜과 겹치지 않음
+- 빈 시간대를 효율적으로 활용
+- 타임라인 효율성 향상
+
+**단점**:
+- 기존 플랜 조회 추가 (성능 고려 필요)
+- 로직 복잡도 증가
+
+---
+
+#### 방안 2: AvailabilityService 활용
+
+**구현 단계**:
+
+1. **AvailabilityService로 가용시간 계산**
+   ```typescript
+   const availabilityService = getAvailabilityService();
+   
+   // 기존 플랜 조회
+   const existingPlans = await getExistingPlansForPlanGroup(
+     planGroupId,
+     periodStart,
+     periodEnd
+   );
+   
+   // 가용시간 계산
+   const availability = availabilityService.calculateAvailabilityWithExistingPlans({
+     dailySchedule: scheduleResult.daily_schedule,
+     existingPlans: existingPlans.map(plan => ({
+       id: plan.id,
+       plan_date: plan.plan_date,
+       start_time: plan.start_time,
+       end_time: plan.end_time,
+       content_type: plan.content_type,
+       content_id: plan.content_id,
+     })),
+   });
+   
+   // 남은 가용시간을 dateTimeSlots로 변환
+   const adjustedDateTimeSlots = new Map<string, Array<TimeSlot>>();
+   availability.dailyAvailability.forEach(dayInfo => {
+     const slots: TimeSlot[] = dayInfo.remainingRanges.map(range => ({
+       type: "학습시간",
+       start: range.start,
+       end: range.end,
+     }));
+     adjustedDateTimeSlots.set(dayInfo.date, slots);
+   });
+   ```
+
+2. **조정된 dateTimeSlots를 스케줄러에 전달**
+   ```typescript
+   const scheduledPlans = await generatePlansFromGroup(
+     group,
+     [planContent],
+     exclusions,
+     academySchedules,
+     blocks,
+     undefined,
+     undefined,
+     undefined, // dateAvailableTimeRanges는 사용하지 않음
+     adjustedDateTimeSlots, // 기존 플랜을 고려한 타임라인
+     contentDurationMap,
+   );
+   ```
+
+**장점**:
+- 기존 서비스 재사용
+- 로직 분리 및 유지보수 용이
+- 테스트 용이
+
+**단점**:
+- `AvailabilityService`가 스케줄러와 완전히 통합되지 않음
+- 추가 변환 단계 필요
+
+---
+
+### 구현 권장 사항
+
+#### 1. 단계적 구현
+
+**Phase 1: 기존 플랜 조회 및 반영**
+- 플랜 그룹의 기존 플랜 조회 함수 추가
+- `SchedulerEngine`에 기존 플랜 정보 전달
+
+**Phase 2: slotAvailability 초기화 개선**
+- 기존 플랜 시간을 `slotAvailability`에 반영
+- 빈 시간대만 활용하도록 수정
+
+**Phase 3: dateTimeSlots 조정**
+- 기존 플랜 시간을 제외한 `dateTimeSlots` 생성
+- `AvailabilityService` 활용 검토
+
+#### 2. 성능 최적화
+
+- 기존 플랜 조회 시 인덱스 활용
+- 날짜별 그룹화 캐싱
+- 배치 조회 최적화
+
+#### 3. 에러 처리
+
+- 기존 플랜 조회 실패 시 fallback
+- 시간 겹침 감지 및 경고
+- 충분한 가용시간 없을 때 에러 처리
+
+---
+
 ## 결론
 
 ### 현재 상태
@@ -638,20 +921,35 @@ async function generateScheduleForPlanner(input: {
 - ❌ 플래너 콘텐츠 추가 시 스케줄러 미활용
 - ❌ 타임라인 기능 미활용
 - ❌ 플래너의 시간 설정 미활용
+- ❌ **기존 타임라인 미고려** ⚠️
 
 ### 개선 방향
 
 - ✅ 기존 스케줄러 및 타임라인 기능 재사용
 - ✅ 플래너 정보를 플랜 그룹 형식으로 변환
 - ✅ Step 2.5 스케줄 생성 후 Best Fit 알고리즘 적용
+- ✅ **기존 플랜 시간을 고려한 빈 시간대 활용** ⚠️ (새로 추가)
 
 ### 구현 방법
 
 1. **방안 1 (권장)**: 새로운 함수 생성 (`createPlanFromContentWithScheduler`)
+   - 기존 플랜 조회 및 반영 로직 포함
+   - `SchedulerEngine`에 기존 플랜 정보 전달
+
 2. **방안 2**: 기존 함수 확장 (`createPlanFromContent`에 옵션 추가)
+   - `useScheduler` 옵션 추가
+   - 기존 타임라인 고려 옵션 추가
+
+### 기존 타임라인 고려 구현
+
+1. **기존 플랜 조회**: 플랜 그룹의 기존 플랜 시간 정보 조회
+2. **slotAvailability 초기화**: 기존 플랜 시간을 반영하여 초기화
+3. **dateTimeSlots 조정**: 기존 플랜 시간을 제외한 빈 시간대만 사용
+4. **AvailabilityService 활용**: 기존 서비스 재사용 검토
 
 ---
 
 **작성자**: AI Assistant  
-**검토 필요**: 구현 전 팀 검토 및 우선순위 결정 권장
+**검토 필요**: 구현 전 팀 검토 및 우선순위 결정 권장  
+**업데이트**: 2026-01-15 - 기존 타임라인 고려 여부 점검 추가
 
