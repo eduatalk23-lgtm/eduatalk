@@ -4,19 +4,33 @@ import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableDateCell } from './dnd';
+import { buildDayTypesFromDailySchedule, type DayType } from '@/lib/date/calendarDayTypes';
+import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 interface WeeklyCalendarProps {
   studentId: string;
   selectedDate: string;
   onDateSelect: (date: string) => void;
   plannerId?: string;
+  /** 플랜 그룹의 daily_schedule (1730 Timetable 방법론 준수) */
+  dailySchedules?: DailyScheduleInfo[][];
+  /** 플래너 제외일 목록 */
+  exclusions?: Array<{
+    exclusionDate: string;
+    exclusionType: string;
+    reason?: string | null;
+  }>;
 }
 
 interface DaySummary {
   date: string;
   totalPlans: number;
   completedPlans: number;
-  isReviewDay: boolean;
+  dayType: DayType;
+  dayTypeLabel?: string;
+  isExclusionDay: boolean;
+  exclusionType?: string;
+  exclusionReason?: string;
   isToday: boolean;
 }
 
@@ -25,6 +39,8 @@ export function WeeklyCalendar({
   selectedDate,
   onDateSelect,
   plannerId,
+  dailySchedules,
+  exclusions,
 }: WeeklyCalendarProps) {
   const [weekDays, setWeekDays] = useState<DaySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +58,20 @@ export function WeeklyCalendar({
 
       const today = new Date().toISOString().split('T')[0];
 
+      // 1730 Timetable 방법론: buildDayTypesFromDailySchedule 사용
+      // exclusions를 underscore 형식으로 변환 (buildDayTypesFromDailySchedule 함수 규격 맞춤)
+      const formattedExclusions = exclusions?.map((exc) => ({
+        exclusion_date: exc.exclusionDate,
+        exclusion_type: exc.exclusionType,
+        reason: exc.reason,
+      }));
+
+      // 날짜별 타입 정보 맵 생성
+      const dayTypeMap = buildDayTypesFromDailySchedule(
+        dailySchedules ?? [],
+        formattedExclusions
+      );
+
       // 7일간의 날짜 생성
       const days: DaySummary[] = [];
       for (let i = 0; i < 7; i++) {
@@ -49,11 +79,20 @@ export function WeeklyCalendar({
         date.setDate(weekStart.getDate() + i);
         const dateStr = date.toISOString().split('T')[0];
 
+        // dayTypeMap에서 해당 날짜의 타입 정보 가져오기
+        const dayTypeInfo = dayTypeMap.get(dateStr);
+        const dayType = dayTypeInfo?.type ?? 'normal';
+        const isExclusionDay = dayType === '지정휴일' || dayType === '휴가' || dayType === '개인일정';
+
         days.push({
           date: dateStr,
           totalPlans: 0,
           completedPlans: 0,
-          isReviewDay: i === 6, // 일요일을 복습일로 가정
+          dayType,
+          dayTypeLabel: dayTypeInfo?.label,
+          isExclusionDay,
+          exclusionType: dayTypeInfo?.exclusion?.exclusion_type,
+          exclusionReason: dayTypeInfo?.exclusion?.reason ?? undefined,
           isToday: dateStr === today,
         });
       }
@@ -105,7 +144,7 @@ export function WeeklyCalendar({
     }
 
     fetchWeekData();
-  }, [studentId, selectedDate, plannerId]);
+  }, [studentId, selectedDate, plannerId, dailySchedules, exclusions]);
 
   const getDayLabel = (index: number) => {
     const labels = ['월', '화', '수', '목', '금', '토', '일'];
@@ -153,9 +192,12 @@ export function WeeklyCalendar({
                   'w-full flex flex-col items-center p-2 rounded-lg border transition-all',
                   isSelected
                     ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                    : day.isExclusionDay
+                    ? 'border-orange-300 bg-orange-50 hover:border-orange-400'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-                  day.isToday && !isSelected && 'border-blue-300 bg-blue-50/50'
+                  day.isToday && !isSelected && !day.isExclusionDay && 'border-blue-300 bg-blue-50/50'
                 )}
+                title={day.isExclusionDay ? `${day.exclusionType}${day.exclusionReason ? `: ${day.exclusionReason}` : ''}` : undefined}
               >
                 {/* 요일 */}
                 <span
@@ -179,7 +221,11 @@ export function WeeklyCalendar({
 
                 {/* 상태 아이콘 또는 플랜 수 */}
                 <div className="mt-1 h-5">
-                  {day.isReviewDay ? (
+                  {day.isExclusionDay ? (
+                    <span className="text-xs text-orange-600 font-medium" title={day.exclusionReason ?? day.exclusionType}>
+                      {day.exclusionType === '휴가' ? '🏖' : day.exclusionType === '개인사정' ? '📅' : '⛔'}
+                    </span>
+                  ) : day.dayType === '복습일' ? (
                     <span className="text-xs text-purple-600 font-medium">R</span>
                   ) : statusIcon ? (
                     <span
@@ -208,7 +254,7 @@ export function WeeklyCalendar({
       </div>
 
       {/* 범례 */}
-      <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center justify-center gap-4 mt-3 text-xs text-gray-500">
         <span className="flex items-center gap-1">
           <span className="text-green-500">✓</span> 완료
         </span>
@@ -217,6 +263,9 @@ export function WeeklyCalendar({
         </span>
         <span className="flex items-center gap-1">
           <span className="text-purple-600 font-medium">R</span> 복습일
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-orange-600">⛔</span> 제외일
         </span>
       </div>
     </div>

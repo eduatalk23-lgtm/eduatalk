@@ -154,6 +154,29 @@ export async function getTodayAdHocPlans(
 
 /**
  * 단발성 플랜 생성
+ *
+ * @deprecated Since v2.0.0. Use `createUnifiedPlan` from './unifiedPlanCreate' instead.
+ * This function will be removed in v3.0.0.
+ *
+ * Migration guide:
+ * ```typescript
+ * // Before
+ * await createAdHocPlan({ student_id, tenant_id, plan_group_id, title, ... });
+ *
+ * // After
+ * import { createUnifiedPlan } from './unifiedPlanCreate';
+ * await createUnifiedPlan({
+ *   studentId,
+ *   tenantId,
+ *   planGroupId,
+ *   title,
+ *   isAdhoc: true,
+ *   ...
+ * });
+ * ```
+ *
+ * Note: This function now stores data in `student_plan` table with `is_adhoc=true`
+ * instead of the deprecated `ad_hoc_plans` table.
  */
 export async function createAdHocPlan(
   input: AdHocPlanInsert,
@@ -454,9 +477,11 @@ export async function carryoverAdHocPlans(
 // ============================================
 // Enhanced Ad-hoc Plan Functions (Phase 3)
 // ============================================
+// @deprecated These functions are deprecated. Use createUnifiedPlan instead.
 
 /**
- * 향상된 Ad-hoc 플랜 생성 (콘텐츠 연결, 반복 지원)
+ * 향상된 Ad-hoc 플랜 생성 입력 타입
+ * @deprecated Use UnifiedPlanInput from './unifiedPlanCreate' instead
  */
 export interface EnhancedAdHocPlanInput {
   studentId: string;
@@ -485,6 +510,9 @@ export interface EnhancedAdHocPlanInput {
   };
 }
 
+/**
+ * @deprecated Use createUnifiedPlan from './unifiedPlanCreate' instead.
+ */
 export async function createEnhancedAdHocPlan(
   input: EnhancedAdHocPlanInput,
   actorId?: string,
@@ -1078,6 +1106,8 @@ export interface StudentAdHocPlanInput {
 /**
  * 학생용 향상된 Ad-hoc 플랜 생성 (콘텐츠 연결, 반복 지원)
  * 관리자 권한 없이 자신의 플랜만 생성 가능
+ *
+ * @deprecated Use createUnifiedPlan from './unifiedPlanCreate' instead.
  */
 export async function createStudentAdHocPlan(
   input: StudentAdHocPlanInput

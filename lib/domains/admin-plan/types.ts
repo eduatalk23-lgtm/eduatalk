@@ -69,6 +69,9 @@ export type EventType =
   | 'adhoc_completed'
   | 'adhoc_cancelled'
   | 'adhoc_promoted'
+  // 통합 플랜 생성 이벤트
+  | 'unified_plan_created'
+  | 'unified_adhoc_created'
   // 상담 이벤트
   | 'consultation_requested'
   | 'consultation_scheduled'

@@ -25,7 +25,8 @@ export type ModalType =
   | 'moveToGroup'
   | 'copy'
   | 'status'
-  | 'bulkEdit';
+  | 'bulkEdit'
+  | 'unifiedAdd';
 
 /**
  * 모달 상태
@@ -47,6 +48,7 @@ export interface ModalState {
   copy: boolean;
   status: boolean;
   bulkEdit: boolean;
+  unifiedAdd: boolean;
 }
 
 /**
@@ -77,6 +79,7 @@ export const initialModalState: ModalState = {
   copy: false,
   status: false,
   bulkEdit: false,
+  unifiedAdd: false,
 };
 
 /**
@@ -115,4 +118,5 @@ export const modalKeyMap: Record<string, ModalType> = {
   showCopyModal: 'copy',
   showStatusModal: 'status',
   showBulkEditModal: 'bulkEdit',
+  showUnifiedAddModal: 'unifiedAdd',
 };

@@ -14,11 +14,22 @@ export {
   unlinkMasterContent,
 } from './flexibleContent';
 
+// Unified Plan Creation (New - replaces ad-hoc plan creation)
+export {
+  createUnifiedPlan,
+  createUnifiedAdhocPlan,
+  ensurePlanGroup,
+  type UnifiedPlanInput,
+  type UnifiedPlanResult,
+} from './unifiedPlanCreate';
+
 // Ad-hoc Plan Actions
+// @deprecated Use createUnifiedPlan for creating plans
 export {
   getAdHocPlans,
   getAdHocPlan,
   getTodayAdHocPlans,
+  /** @deprecated Use createUnifiedPlan instead */
   createAdHocPlan,
   updateAdHocPlan,
   updateAdHocPlanStatus,

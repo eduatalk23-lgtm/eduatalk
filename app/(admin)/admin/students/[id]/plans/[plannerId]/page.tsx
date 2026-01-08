@@ -6,6 +6,7 @@ import { getPlanGroupsForStudent } from '@/lib/data/planGroups';
 import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
 import { PlannerHeader } from '../_components/PlannerHeader';
+import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 interface Props {
   params: Promise<{ id: string; plannerId: string }>;
@@ -61,6 +62,27 @@ export default async function PlannerPlanManagementPage({
   });
   const activePlanGroupId = activePlanGroups[0]?.id ?? null;
 
+  // 5. 해당 플래너의 플랜 그룹에서 daily_schedule 조회
+  const supabase = await createSupabaseServerClient();
+  const { data: plannerGroups } = await supabase
+    .from('plan_groups')
+    .select('daily_schedule')
+    .eq('planner_id', plannerId)
+    .eq('student_id', studentId)
+    .is('deleted_at', null);
+
+  // daily_schedule 추출 (여러 그룹이 있을 수 있음)
+  const plannerDailySchedules: DailyScheduleInfo[][] = (plannerGroups ?? [])
+    .map((g) => g.daily_schedule as DailyScheduleInfo[] | null)
+    .filter((s): s is DailyScheduleInfo[] => Array.isArray(s) && s.length > 0);
+
+  // 6. 플래너 제외일 매핑
+  const plannerExclusions = planner.exclusions?.map((exc) => ({
+    exclusionDate: exc.exclusionDate,
+    exclusionType: exc.exclusionType,
+    reason: exc.reason,
+  })) ?? [];
+
   return (
     <div className="container mx-auto py-6 px-4">
       {/* 플래너 헤더: 뒤로가기 + 플래너 정보 */}
@@ -80,6 +102,8 @@ export default async function PlannerPlanManagementPage({
           activePlanGroupId={activePlanGroupId}
           selectedPlannerId={plannerId}
           autoOpenWizard={openWizard === 'true'}
+          plannerDailySchedules={plannerDailySchedules}
+          plannerExclusions={plannerExclusions}
         />
       </Suspense>
     </div>

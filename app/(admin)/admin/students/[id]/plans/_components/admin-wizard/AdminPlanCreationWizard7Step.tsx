@@ -413,6 +413,11 @@ function WizardInner({
         schedulerType,
         blockSetId,
         schedulerOptions,
+        // 플래너에서 상속된 시간 설정
+        studyHours,
+        selfStudyHours,
+        lunchTime,
+        nonStudyTimeBlocks,
       } = wizardData;
 
       // content_allocations 생성
@@ -469,6 +474,11 @@ function WizardInner({
           academy_name: s.academy_name || undefined,
           subject: s.subject || undefined,
         })),
+        // 플래너에서 상속된 시간 설정 (플래너 선택 시 자동 채워짐)
+        study_hours: studyHours || null,
+        self_study_hours: selfStudyHours || null,
+        lunch_time: lunchTime || null,
+        non_study_time_blocks: nonStudyTimeBlocks || null,
       };
 
       let groupId: string;

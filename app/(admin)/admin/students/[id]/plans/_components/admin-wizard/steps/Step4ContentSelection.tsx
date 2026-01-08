@@ -25,6 +25,7 @@ import {
   Target,
   AlertCircle,
   Package,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -262,9 +263,71 @@ export function Step4ContentSelection({
             학생에게 등록된 콘텐츠가 없습니다.
           </p>
           <p className="mt-1 text-xs text-gray-500">
-            콘텐츠 없이 플랜 그룹을 생성하고, 나중에 콘텐츠를 추가할 수 있습니다.
+            마스터 콘텐츠에서 검색하여 추가하거나, 콘텐츠 없이 플랜 그룹을 생성할 수 있습니다.
           </p>
+          {/* 마스터에서 추가 버튼 */}
+          <button
+            type="button"
+            onClick={() => setMasterSearchModalOpen(true)}
+            disabled={selectedContents.length >= 9 || skipContents}
+            className={cn(
+              "mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+              selectedContents.length >= 9 || skipContents
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            )}
+          >
+            <Package className="h-4 w-4" />
+            마스터에서 추가
+          </button>
         </div>
+
+        {/* 마스터에서 추가한 콘텐츠 목록 */}
+        {selectedContents.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-gray-700">
+              마스터에서 추가한 콘텐츠 ({selectedContents.length}개)
+            </p>
+            <div className="space-y-2">
+              {selectedContents.map((content) => (
+                <div
+                  key={content.contentId}
+                  className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
+                      {content.contentType === "book" ? (
+                        <BookOpen className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Video className="h-4 w-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{content.title}</p>
+                      <p className="text-xs text-gray-500">
+                        범위: {content.startRange} - {content.endRange}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateData({
+                        selectedContents: selectedContents.filter(
+                          (c) => c.contentId !== content.contentId
+                        ),
+                      })
+                    }
+                    className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <label className="flex items-center gap-2 text-sm text-gray-600">
           <input
             type="checkbox"
@@ -275,6 +338,16 @@ export function Step4ContentSelection({
           />
           콘텐츠 선택 건너뛰기
         </label>
+
+        {/* 마스터 콘텐츠 검색 모달 */}
+        <MasterContentSearchModal
+          open={masterSearchModalOpen}
+          onClose={() => setMasterSearchModalOpen(false)}
+          onSelect={handleMasterContentSelect}
+          studentId={studentId}
+          tenantId={tenantId}
+          existingContentIds={existingContentIds}
+        />
       </div>
     );
   }

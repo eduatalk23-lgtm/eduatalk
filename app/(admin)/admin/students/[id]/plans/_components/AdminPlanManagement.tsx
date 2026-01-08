@@ -23,6 +23,7 @@ import { modalReducer, initialModalState, type ModalType } from './types/modalSt
 import { useAdminPlanRealtime } from '@/lib/realtime';
 import { useInvalidateAllDockQueries } from '@/lib/hooks/useAdminDockQueries';
 import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal, AlertTriangle, Filter, Book, Video, FileText } from 'lucide-react';
+import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 // 콘텐츠 유형 필터 타입
 export type ContentTypeFilter = 'all' | 'book' | 'lecture' | 'custom';
@@ -62,6 +63,10 @@ const AdminPlanCreationWizard7Step = dynamic(
 );
 const AdminQuickPlanModal = dynamic(
   () => import('./AdminQuickPlanModal').then(mod => ({ default: mod.AdminQuickPlanModal })),
+  { ssr: false }
+);
+const UnifiedPlanAddModal = dynamic(
+  () => import('./UnifiedPlanAddModal').then(mod => ({ default: mod.UnifiedPlanAddModal })),
   { ssr: false }
 );
 const PlanOptimizationPanel = dynamic(() => import('./PlanOptimizationPanel'), { ssr: false });
@@ -108,6 +113,14 @@ interface AdminPlanManagementProps {
   selectedPlannerId?: string;
   /** 페이지 로드 시 위저드 자동 오픈 여부 */
   autoOpenWizard?: boolean;
+  /** 플래너 플랜 그룹의 daily_schedule (1730 Timetable 방법론 준수) */
+  plannerDailySchedules?: DailyScheduleInfo[][];
+  /** 플래너 제외일 목록 */
+  plannerExclusions?: Array<{
+    exclusionDate: string;
+    exclusionType: string;
+    reason?: string | null;
+  }>;
 }
 
 export function AdminPlanManagement({
@@ -118,6 +131,8 @@ export function AdminPlanManagement({
   activePlanGroupId,
   selectedPlannerId,
   autoOpenWizard = false,
+  plannerDailySchedules,
+  plannerExclusions,
 }: AdminPlanManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -224,6 +239,20 @@ export function AdminPlanManagement({
     dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'bulkEdit' });
   }, []);
 
+  const showUnifiedAddModal = modals.unifiedAdd;
+  const setShowUnifiedAddModal = useCallback((show: boolean) => {
+    dispatchModal({ type: show ? 'OPEN_MODAL' : 'CLOSE_MODAL', payload: 'unifiedAdd' });
+  }, []);
+
+  // 통합 모달 초기 모드 상태
+  const [unifiedModalMode, setUnifiedModalMode] = useState<'quick' | 'content'>('quick');
+
+  // 통합 모달 열기 헬퍼
+  const openUnifiedModal = useCallback((mode: 'quick' | 'content') => {
+    setUnifiedModalMode(mode);
+    setShowUnifiedAddModal(true);
+  }, [setShowUnifiedAddModal]);
+
   // 모달 관련 추가 상태 (데이터)
   const [selectedPlanForRedistribute, setSelectedPlanForRedistribute] = useState<string | null>(null);
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
@@ -250,12 +279,18 @@ export function AdminPlanManagement({
   }, [autoOpenWizard, setShowCreateWizard]);
 
   // 날짜 변경 핸들러
-  const handleDateChange = useCallback((date: string) => {
-    setSelectedDate(date);
-    startTransition(() => {
-      router.push(`/admin/students/${studentId}/plans?date=${date}`);
-    });
-  }, [router, studentId]);
+  const handleDateChange = useCallback(
+    (date: string) => {
+      setSelectedDate(date);
+      startTransition(() => {
+        const basePath = selectedPlannerId
+          ? `/admin/students/${studentId}/plans/${selectedPlannerId}`
+          : `/admin/students/${studentId}/plans`;
+        router.push(`${basePath}?date=${date}`);
+      });
+    },
+    [router, studentId, selectedPlannerId]
+  );
 
   // 재분배 모달 열기
   const handleOpenRedistribute = (planId: string) => {
@@ -409,14 +444,14 @@ export function AdminPlanManagement({
       // 모달 (플래너 선택 필요)
       {
         key: 'n',
-        action: () => canCreatePlans && setShowAddContentModal(true),
-        description: '플랜 추가',
+        action: () => canCreatePlans && openUnifiedModal('content'),
+        description: '콘텐츠 플랜 추가',
         category: 'modal',
       },
       {
         key: 'a',
-        action: () => canCreatePlans && setShowAddAdHocModal(true),
-        description: '단발성 추가',
+        action: () => canCreatePlans && openUnifiedModal('quick'),
+        description: '빠른 플랜 추가',
         category: 'modal',
       },
       {
@@ -434,7 +469,7 @@ export function AdminPlanManagement({
       },
       {
         key: 'q',
-        action: () => canCreatePlans && setShowQuickPlanModal(true),
+        action: () => canCreatePlans && openUnifiedModal('quick'),
         description: '빠른 플랜 추가',
         category: 'modal',
       },
@@ -457,7 +492,7 @@ export function AdminPlanManagement({
         category: 'modal',
       },
     ],
-    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId, canCreatePlans]
+    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId, canCreatePlans, openUnifiedModal]
   );
 
   useKeyboardShortcuts({ shortcuts });
@@ -529,7 +564,7 @@ export function AdminPlanManagement({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowQuickPlanModal(true)}
+              onClick={() => openUnifiedModal('quick')}
               disabled={!canCreatePlans}
               className={cn(
                 "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
@@ -537,7 +572,7 @@ export function AdminPlanManagement({
                   ? "bg-warning-500 text-white hover:bg-warning-600"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               )}
-              title={canCreatePlans ? "빠른 플랜 추가 (q)" : "먼저 플래너를 선택해주세요"}
+              title={canCreatePlans ? "빠른 플랜 추가 (Q/A)" : "먼저 플래너를 선택해주세요"}
             >
               <Zap className="h-4 w-4" />
               빠른 추가
@@ -645,6 +680,8 @@ export function AdminPlanManagement({
           selectedDate={selectedDate}
           onDateSelect={handleDateChange}
           plannerId={selectedPlannerId}
+          dailySchedules={plannerDailySchedules}
+          exclusions={plannerExclusions}
         />
 
         {/* Daily & Weekly Docks */}
@@ -657,8 +694,8 @@ export function AdminPlanManagement({
             selectedDate={selectedDate}
             activePlanGroupId={activePlanGroupId}
             contentTypeFilter={contentTypeFilter}
-            onAddContent={() => setShowAddContentModal(true)}
-            onAddAdHoc={() => setShowAddAdHocModal(true)}
+            onAddContent={() => openUnifiedModal('content')}
+            onAddAdHoc={() => openUnifiedModal('quick')}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('daily')}
@@ -807,7 +844,7 @@ export function AdminPlanManagement({
           />
         )}
 
-        {/* 빠른 플랜 추가 모달 */}
+        {/* 빠른 플랜 추가 모달 (레거시) */}
         {showQuickPlanModal && selectedPlannerId && (
           <AdminQuickPlanModal
             studentId={studentId}
@@ -818,6 +855,24 @@ export function AdminPlanManagement({
             onClose={() => setShowQuickPlanModal(false)}
             onSuccess={() => {
               setShowQuickPlanModal(false);
+              handleRefresh();
+            }}
+          />
+        )}
+
+        {/* 통합 플랜 추가 모달 (빠른 추가 + 콘텐츠 추가) */}
+        {showUnifiedAddModal && selectedPlannerId && (
+          <UnifiedPlanAddModal
+            isOpen={showUnifiedAddModal}
+            studentId={studentId}
+            tenantId={tenantId}
+            targetDate={selectedDate}
+            plannerId={selectedPlannerId}
+            planGroupId={activePlanGroupId ?? undefined}
+            initialMode={unifiedModalMode}
+            onClose={() => setShowUnifiedAddModal(false)}
+            onSuccess={() => {
+              setShowUnifiedAddModal(false);
               handleRefresh();
             }}
           />

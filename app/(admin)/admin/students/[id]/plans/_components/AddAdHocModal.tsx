@@ -1,5 +1,12 @@
 'use client';
 
+/**
+ * Add Ad-Hoc Modal
+ *
+ * @deprecated Since v2.0.0. Use `UnifiedPlanAddModal` with `initialMode="quick"` instead.
+ * This component will be removed in v3.0.0.
+ */
+
 import { useState, useTransition } from 'react';
 import { createAdHocPlan } from '@/lib/domains/admin-plan/actions/adHocPlan';
 import { createAutoContentPlanGroupAction } from '@/lib/domains/admin-plan/actions/createAutoContentPlanGroup';

@@ -3,6 +3,9 @@
 /**
  * Admin Quick Plan Modal
  *
+ * @deprecated Since v2.0.0. Use `UnifiedPlanAddModal` with `initialMode="quick"` instead.
+ * This component will be removed in v3.0.0.
+ *
  * 관리자가 학생을 대신하여 빠르게 플랜을 생성하는 모달
  * - planGroupId 없이도 새 그룹을 만들면서 플랜 생성
  * - createQuickPlanForStudent Server Action 사용
@@ -25,14 +28,14 @@ interface AdminQuickPlanModalProps {
   onSuccess: () => void;
 }
 
+// 자유 학습 유형 (DB CHECK 제약조건과 일치해야 함)
 const FREE_LEARNING_TYPES = [
   { value: 'free', label: '자유 학습' },
-  { value: 'reading', label: '독서' },
-  { value: 'exercise', label: '운동' },
   { value: 'review', label: '복습' },
+  { value: 'practice', label: '연습/문제풀이' },
+  { value: 'reading', label: '독서' },
+  { value: 'video', label: '영상 시청' },
   { value: 'assignment', label: '과제' },
-  { value: 'test', label: '테스트' },
-  { value: 'other', label: '기타' },
 ] as const;
 
 export function AdminQuickPlanModal({
