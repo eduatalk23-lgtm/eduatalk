@@ -7,6 +7,8 @@ import type { AdminPlanResponse } from '../types';
 
 export interface PlanFilterParams {
   studentId: string;
+  /** 플래너 ID (플래너 기반 필터링용) */
+  plannerId?: string;
   search?: string;
   status?: 'all' | 'pending' | 'in_progress' | 'completed';
   subject?: string;
@@ -49,10 +51,8 @@ export async function getFilteredPlans(
     const supabase = await createSupabaseServerClient();
 
     // 기본 쿼리 빌더 (tenant 격리 포함)
-    let query = supabase
-      .from('student_plan')
-      .select(
-        `
+    // 플래너 필터링이 필요한 경우 plan_groups와 조인
+    const selectFields = `
         id,
         content_title,
         content_subject,
@@ -65,12 +65,22 @@ export async function getFilteredPlans(
         status,
         container_type,
         carryover_count
-      `,
-        { count: 'exact' }
-      )
-      .eq('student_id', params.studentId)
-      .eq('tenant_id', tenantId) // tenant 격리
-      .eq('is_active', true);
+      `;
+
+    let query = params.plannerId
+      ? supabase
+          .from('student_plan')
+          .select(`${selectFields}, plan_groups!inner(planner_id)`, { count: 'exact' })
+          .eq('student_id', params.studentId)
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true)
+          .eq('plan_groups.planner_id', params.plannerId)
+      : supabase
+          .from('student_plan')
+          .select(selectFields, { count: 'exact' })
+          .eq('student_id', params.studentId)
+          .eq('tenant_id', tenantId)
+          .eq('is_active', true);
 
     // 검색어 필터
     if (params.search) {
@@ -153,10 +163,15 @@ export async function getFilteredPlans(
       ),
     ] as string[];
 
+    // plan_groups 필드 제거 (플래너 필터링 시 조인된 데이터)
+    const plans = params.plannerId
+      ? (data ?? []).map(({ plan_groups, ...rest }: FilteredPlan & { plan_groups?: unknown }) => rest)
+      : (data ?? []);
+
     return {
       success: true,
       data: {
-        plans: data ?? [],
+        plans,
         totalCount: count ?? 0,
         subjects,
       },
