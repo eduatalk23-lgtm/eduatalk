@@ -890,21 +890,298 @@ student_plan 테이블 INSERT (start_time, end_time 포함)
 - ✅ Next.js 빌드 성공 (172 페이지)
 - ✅ ESLint 검사 통과 (에러 없음)
 
-### 🔄 다음 단계 (Phase 3/4)
+---
 
-#### Phase 3: Dock과 타임라인 통합
-1. DailyDock에 오늘의 타임라인 표시
-2. WeeklyDock에 주간 타임라인 표시
-3. 플랜 관리 페이지 타임라인 시각화
+## Phase 3 구현 완료 (2026-01-08)
 
-#### Phase 4: SchedulerEngine 개선
-1. `SchedulerContext`에 `existingPlans` 필드 추가
-2. `generateStudyDayPlans`에서 기존 플랜 반영
-3. 과목별 보정 계수 적용 (content_allocations 활용)
+### ✅ 구현 내용
+
+#### 1. DailyDock 타임라인 통합
+
+**목적**: DailyDock 상단에 오늘의 타임라인 바를 표시하고, 각 플랜에 시작-종료 시간 정보 표시
+
+**커밋**: `32a65184`
+
+#### 2. 구현된 파일
+
+##### `lib/query-options/adminDock.ts` - DailyPlan 타입 확장
+
+```typescript
+export interface DailyPlan {
+  // ... 기존 필드
+  start_time: string | null;       // 추가
+  end_time: string | null;         // 추가
+  estimated_minutes: number | null; // 추가
+}
+```
+
+- 쿼리 select 절에 시간 필드 추가
+- 플래너 필터링 시 plan_groups 조인에도 반영
+
+##### `app/.../DailyDockTimeline.tsx` (신규 생성)
+
+```typescript
+interface DailyDockTimelineProps {
+  plans: DailyPlan[];
+  displayRange?: { start: string; end: string };
+  compact?: boolean;
+}
+
+export function DailyDockTimeline({ plans, ... }: DailyDockTimelineProps)
+```
+
+**기능**:
+- 오늘의 플랜들을 타임라인 바로 시각화
+- 완료/진행 중 플랜 색상 구분 (녹색/파랑)
+- 2시간 단위 시간 눈금 표시
+- 총 배정 시간 표시
+- 호버 시 플랜 상세 정보 툴팁
+
+##### `app/.../DailyDock.tsx` - 타임라인 통합
+
+```tsx
+{/* 타임라인 */}
+{allPlans.length > 0 && (
+  <div className="px-4 pt-3">
+    <DailyDockTimeline plans={allPlans} />
+  </div>
+)}
+
+{/* PlanItemCard에 showTime 적용 */}
+<PlanItemCard
+  plan={planData}
+  showTime={true}  // 추가
+  ...
+/>
+```
+
+##### `app/.../items/PlanItemCard.tsx` - 시간 데이터 매핑
+
+```typescript
+// toPlanItemData 함수에 추가
+estimatedMinutes: raw.estimated_minutes,
+```
+
+### 📊 구현 결과
+
+| 구현 항목 | 상태 |
+|-----------|------|
+| DailyPlan 타입에 시간 필드 추가 | ✅ 완료 |
+| DailyDockTimeline 컴포넌트 생성 | ✅ 완료 |
+| DailyDock에 타임라인 통합 | ✅ 완료 |
+| PlanItemCard에 showTime 적용 | ✅ 완료 |
+
+---
+
+## Phase 4 구현 완료 (2026-01-08)
+
+### ✅ 구현 내용
+
+#### 1. SchedulerEngine 개선
+
+**목적**: SchedulerEngine이 기존 플랜 정보를 직접 인식하여 시간 충돌 방지
+
+**커밋**: `32a65184`
+
+#### 2. 구현된 변경사항
+
+##### `lib/scheduler/SchedulerEngine.ts`
+
+**ExistingPlanInfo 인터페이스 추가**:
+```typescript
+export interface ExistingPlanInfo {
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
+export type SchedulerContext = {
+  // ... 기존 필드
+  existingPlans?: ExistingPlanInfo[];  // 추가
+};
+```
+
+**calculateUsedTimeForSlot 헬퍼 메서드 추가**:
+```typescript
+private calculateUsedTimeForSlot(
+  slot: { start: string; end: string },
+  existingPlansForDate: ExistingPlanInfo[]
+): number {
+  let usedTime = 0;
+  const slotStart = timeToMinutes(slot.start);
+  const slotEnd = timeToMinutes(slot.end);
+
+  for (const plan of existingPlansForDate) {
+    const planStart = timeToMinutes(plan.start_time);
+    const planEnd = timeToMinutes(plan.end_time);
+    const overlapStart = Math.max(slotStart, planStart);
+    const overlapEnd = Math.min(slotEnd, planEnd);
+    if (overlapEnd > overlapStart) {
+      usedTime += overlapEnd - overlapStart;
+    }
+  }
+  return usedTime;
+}
+```
+
+**slotAvailability 초기화 개선**:
+```typescript
+// generateStudyDayPlans에서 기존 플랜 시간 반영
+const existingPlansForDate = this.context.existingPlans?.filter(
+  (p) => p.date === date
+) || [];
+
+const slotAvailability = studyTimeSlots.map((slot) => ({
+  slot,
+  usedTime: this.calculateUsedTimeForSlot(slot, existingPlansForDate),
+}));
+```
+
+##### `lib/plan/scheduler.ts`
+
+```typescript
+import { type ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
+
+export async function generatePlansFromGroup(
+  // ... 기존 파라미터
+  periodEnd?: string,
+  existingPlans?: ExistingPlanInfo[]  // 추가
+): Promise<ScheduledPlan[]>
+
+// SchedulerContext에 existingPlans 전달
+const context: SchedulerContext = {
+  // ... 기존 필드
+  existingPlans,
+};
+```
+
+##### `lib/domains/admin-plan/actions/createPlanFromContent.ts`
+
+```typescript
+// 기존 플랜을 ExistingPlanInfo 형식으로 변환
+const existingPlansForScheduler = existingPlans.map((p) => ({
+  date: p.plan_date,
+  start_time: p.start_time,
+  end_time: p.end_time,
+}));
+
+// generatePlansFromGroup에 전달
+const scheduledPlans = await generatePlansFromGroup(
+  // ... 기존 파라미터
+  existingPlansForScheduler
+);
+```
+
+### 📊 구현 결과
+
+| 구현 항목 | 상태 |
+|-----------|------|
+| ExistingPlanInfo 인터페이스 추가 | ✅ 완료 |
+| calculateUsedTimeForSlot 메서드 추가 | ✅ 완료 |
+| slotAvailability 초기화 시 기존 플랜 반영 | ✅ 완료 |
+| generatePlansFromGroup에 existingPlans 전달 | ✅ 완료 |
+| createPlanFromContent에서 통합 | ✅ 완료 |
+
+### 🔧 데이터 흐름
+
+```
+createPlanFromContent()
+    │
+    ├── getExistingPlansForStudent() ─── 기존 플랜 조회
+    │         │
+    │         ▼
+    │   existingPlans: { date, start_time, end_time }[]
+    │
+    ▼
+generatePlansFromGroup(existingPlans)
+    │
+    ▼
+SchedulerEngine.generate(context: { existingPlans })
+    │
+    ├── generateStudyDayPlans()
+    │         │
+    │         ├── calculateUsedTimeForSlot() ─── 슬롯별 사용 시간 계산
+    │         │
+    │         ▼
+    │   slotAvailability = [{ slot, usedTime: 이미_사용된_시간 }]
+    │
+    ▼
+Best Fit Algorithm (기존 플랜 시간 고려)
+```
+
+---
+
+## 추가 버그 수정 (2026-01-08)
+
+### getFilteredPlans 플래너 필터링
+
+**커밋**: `4ef34c7c`
+
+**문제**: `getFilteredPlans` 함수에 `plannerId` 파라미터가 없어 플래너 기반 필터링 불가
+
+**해결**:
+```typescript
+// lib/domains/admin-plan/actions/filter.ts
+export interface PlanFilterParams {
+  studentId: string;
+  plannerId?: string;  // 추가
+  // ...
+}
+
+// plan_groups와 조인하여 플래너 필터링
+let query = params.plannerId
+  ? supabase
+      .from('student_plan')
+      .select(`${selectFields}, plan_groups!inner(planner_id)`, { count: 'exact' })
+      .eq('plan_groups.planner_id', params.plannerId)
+  : supabase
+      .from('student_plan')
+      .select(selectFields, { count: 'exact' });
+```
+
+---
+
+## 전체 구현 완료 상태
+
+### 완료된 Phase
+
+| Phase | 내용 | 커밋 | 상태 |
+|-------|------|------|------|
+| Phase 1 | 전략/취약과목 입력 UI | 2026-01-15 | ✅ 완료 |
+| Phase 2 | today 모드 스케줄러 통합 | 2026-01-08 | ✅ 완료 |
+| Phase 3 | DailyDock 타임라인 통합 | `32a65184` | ✅ 완료 |
+| Phase 4 | SchedulerEngine 개선 | `32a65184` | ✅ 완료 |
+
+### 검증 완료
+
+- ✅ TypeScript 컴파일 성공
+- ✅ Next.js 빌드 성공 (172 페이지)
+- ✅ ESLint 검사 통과 (수정 파일 기준)
+
+### 🔄 향후 개선 가능 작업
+
+#### 선택적 개선
+
+1. **WeeklyDock 타임라인 통합**
+   - 주간 타임라인 시각화 (현재 DailyDock만 적용)
+
+2. **콘텐츠 소요시간 정밀화**
+   - Episode 기반 정확한 duration 계산
+
+3. **UI 개선**
+   - 플랜 생성 전 미리보기 기능
+   - 기존/신규 플랜 시각적 구분
+
+4. **테스트 코드**
+   - Phase 3/4 기능에 대한 단위 테스트 작성
+
+5. **과목별 보정 계수 적용**
+   - content_allocations 기반 보정 계수 스케줄러 적용
+   - 취약과목: ×1.2, 전략과목: ×1.0~1.1
 
 ---
 
 **작성자**: AI Assistant
-**최종 업데이트**: 2026-01-08 (Phase 2 완료)
+**최종 업데이트**: 2026-01-08 (Phase 3 + Phase 4 완료)
 **구현자**: Claude Opus 4.5
 
