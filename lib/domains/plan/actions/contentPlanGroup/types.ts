@@ -138,6 +138,8 @@ export type CreateQuickPlanForStudentInput = CreateQuickPlanInput & {
   studentId: string;
   /** 테넌트 ID (옵션 - 없으면 관리자의 테넌트 사용) */
   tenantId?: string;
+  /** 플래너 ID (필수 - Plan Group 자동 선택/생성 시 사용) */
+  plannerId: string;
 };
 
 /**

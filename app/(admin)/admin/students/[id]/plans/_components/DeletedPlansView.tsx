@@ -16,6 +16,7 @@ const PAGE_SIZE = 20;
 interface DeletedPlansViewProps {
   studentId: string;
   onRefresh: () => void;
+  plannerId?: string;
 }
 
 /**
@@ -37,7 +38,7 @@ function getRelativeTime(dateStr: string): string {
   return `${Math.floor(diffDays / 30)}개월 전`;
 }
 
-export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps) {
+export function DeletedPlansView({ studentId, onRefresh, plannerId }: DeletedPlansViewProps) {
   const [deletedPlans, setDeletedPlans] = useState<DeletedPlanInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -52,14 +53,14 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
   // 삭제된 플랜 목록 초기 로드
   const loadDeletedPlans = useCallback(async () => {
     setIsLoading(true);
-    const result = await getDeletedPlans(studentId, { offset: 0, limit: PAGE_SIZE });
+    const result = await getDeletedPlans(studentId, { offset: 0, limit: PAGE_SIZE, plannerId });
     if (result.success && result.data) {
       setDeletedPlans(result.data.plans);
       setTotalCount(result.data.totalCount);
       setHasMore(result.data.hasMore);
     }
     setIsLoading(false);
-  }, [studentId]);
+  }, [studentId, plannerId]);
 
   // 더보기 로드
   const loadMore = useCallback(async () => {
@@ -69,13 +70,14 @@ export function DeletedPlansView({ studentId, onRefresh }: DeletedPlansViewProps
     const result = await getDeletedPlans(studentId, {
       offset: deletedPlans.length,
       limit: PAGE_SIZE,
+      plannerId,
     });
     if (result.success && result.data) {
       setDeletedPlans((prev) => [...prev, ...result.data!.plans]);
       setHasMore(result.data.hasMore);
     }
     setIsLoadingMore(false);
-  }, [studentId, deletedPlans.length, isLoadingMore, hasMore]);
+  }, [studentId, deletedPlans.length, isLoadingMore, hasMore, plannerId]);
 
   useEffect(() => {
     loadDeletedPlans();

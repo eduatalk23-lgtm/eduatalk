@@ -80,13 +80,16 @@ export async function getGoalStatus(
 
     if (activeGoals.length === 0) {
       return {
-        totalActiveGoals: 0,
-        goalsNearDeadline: 0,
-        goalsVeryNearDeadline: 0,
-        averageProgress: 0,
-        lowProgressGoals: 0,
-        veryLowProgressGoals: 0,
-        goals: [],
+        success: true,
+        data: {
+          totalActiveGoals: 0,
+          goalsNearDeadline: 0,
+          goalsVeryNearDeadline: 0,
+          averageProgress: 0,
+          lowProgressGoals: 0,
+          veryLowProgressGoals: 0,
+          goals: [],
+        },
       };
     }
 

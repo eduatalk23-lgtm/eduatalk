@@ -41,12 +41,19 @@ export function StudentBulkActions({
   const { showSuccess, showError } = useToast();
   const selectedCount = selectedIds.length;
 
-  // 플랜 생성 페이지로 이동
+  // 플랜 생성: 학생 상세 페이지 플랜 탭으로 이동
   const handleNavigateToPlanCreation = useCallback(() => {
     if (selectedCount === 0) return;
-    const params = new URLSearchParams();
-    params.set("studentIds", selectedIds.join(","));
-    router.push(`/admin/plan-creation?${params.toString()}`);
+
+    if (selectedCount === 1) {
+      // 단일 학생: 해당 학생의 플랜 탭으로 이동 (위저드 자동 오픈)
+      router.push(`/admin/students/${selectedIds[0]}/plans?openWizard=true`);
+    } else {
+      // 다중 학생: 첫 번째 학생 페이지로 이동 + 배치 모드
+      router.push(
+        `/admin/students/${selectedIds[0]}/plans?batchStudentIds=${selectedIds.join(",")}`
+      );
+    }
   }, [selectedIds, selectedCount, router]);
 
   const handleConfirm = () => {

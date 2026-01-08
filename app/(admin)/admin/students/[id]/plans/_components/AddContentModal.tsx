@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { createFlexibleContent } from '@/lib/domains/admin-plan/actions/flexibleContent';
-import { createPlanFromContent } from '@/lib/domains/admin-plan/actions/createPlanFromContent';
+import {
+  createPlanFromContent,
+  createPlanFromContentWithScheduler,
+} from '@/lib/domains/admin-plan/actions/createPlanFromContent';
 import { cn } from '@/lib/cn';
 import type { ContentType, RangeType } from '@/lib/domains/admin-plan/types';
 import { usePlanToast } from './PlanToast';
@@ -11,6 +14,8 @@ interface AddContentModalProps {
   studentId: string;
   tenantId: string;
   targetDate: string;
+  /** 플래너 ID (필수 - Plan Group 자동 생성 시 연결) */
+  plannerId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -21,6 +26,7 @@ export function AddContentModal({
   studentId,
   tenantId,
   targetDate,
+  plannerId,
   onClose,
   onSuccess,
 }: AddContentModalProps) {
@@ -50,6 +56,9 @@ export function AddContentModal({
   const [distributionMode, setDistributionMode] = useState<DistributionMode>('today');
   const [periodStart, setPeriodStart] = useState(targetDate);
   const [periodEnd, setPeriodEnd] = useState('');
+
+  // 스케줄러 옵션 (today 모드 전용)
+  const [useScheduler, setUseScheduler] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +96,9 @@ export function AddContentModal({
       }
 
       // 2. 배치 방식에 따른 플랜 생성
-      const planResult = await createPlanFromContent({
+      // period 모드: 스케줄러 활용 (기존 타임라인 고려)
+      // today/weekly 모드: 기존 로직 유지
+      const planInput = {
         flexibleContentId: contentResult.data.id,
         contentTitle: title.trim(),
         contentSubject: subject || subjectArea || null,
@@ -100,7 +111,15 @@ export function AddContentModal({
         periodEndDate: distributionMode === 'period' ? periodEnd : undefined,
         studentId,
         tenantId,
-      });
+        plannerId,
+        // today 모드에서만 스케줄러 옵션 전달
+        useScheduler: distributionMode === 'today' ? useScheduler : false,
+      };
+
+      const planResult =
+        distributionMode === 'period'
+          ? await createPlanFromContentWithScheduler(planInput)
+          : await createPlanFromContent(planInput);
 
       if (!planResult.success) {
         showToast('플랜 생성 실패: ' + planResult.error, 'error');
@@ -314,8 +333,23 @@ export function AddContentModal({
                   checked={distributionMode === 'today'}
                   onChange={() => setDistributionMode('today')}
                 />
-                <div>
+                <div className="flex-1">
                   <div className="font-medium">오늘만 추가 (Daily Dock)</div>
+                  {/* today 모드에서만 스케줄러 옵션 표시 */}
+                  {distributionMode === 'today' && (
+                    <label
+                      className="flex items-center gap-2 mt-2 text-sm text-gray-600"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={useScheduler}
+                        onChange={(e) => setUseScheduler(e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      자동 시간 배정 (기존 플랜 고려)
+                    </label>
+                  )}
                 </div>
               </label>
 

@@ -18,6 +18,7 @@ import {
   Plus,
   ChevronDown,
   Package,
+  PenLine,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -31,6 +32,7 @@ import type { SelectedContent } from "../../_context/types";
 // ============================================
 
 type ContentTypeFilter = "all" | "book" | "lecture";
+type ModalTab = "search" | "direct";
 
 interface MasterContentSearchResult {
   id: string;
@@ -69,12 +71,24 @@ export function MasterContentSearchModal({
   tenantId,
   existingContentIds,
 }: MasterContentSearchModalProps) {
+  // 탭 상태
+  const [activeTab, setActiveTab] = useState<ModalTab>("search");
+
   // 검색 상태
   const [searchQuery, setSearchQuery] = useState("");
   const [contentType, setContentType] = useState<ContentTypeFilter>("all");
   const [curriculumRevisionId, setCurriculumRevisionId] = useState("");
   const [subjectGroupId, setSubjectGroupId] = useState("");
   const [subjectId, setSubjectId] = useState("");
+
+  // 직접 입력 상태
+  const [directTitle, setDirectTitle] = useState("");
+  const [directContentType, setDirectContentType] = useState<"book" | "lecture">("book");
+  const [directSubject, setDirectSubject] = useState("");
+  const [directTotalRange, setDirectTotalRange] = useState(100);
+  const [directRangeStart, setDirectRangeStart] = useState(1);
+  const [directRangeEnd, setDirectRangeEnd] = useState(100);
+  const [isAddingDirect, setIsAddingDirect] = useState(false);
 
   // 검색 결과
   const [searchResults, setSearchResults] = useState<MasterContentSearchResult[]>([]);
@@ -177,6 +191,9 @@ export function MasterContentSearchModal({
   // 모달 닫을 때 상태 초기화
   useEffect(() => {
     if (!open) {
+      // 탭 초기화
+      setActiveTab("search");
+      // 검색 상태 초기화
       setSearchQuery("");
       setContentType("all");
       setCurriculumRevisionId("");
@@ -187,6 +204,13 @@ export function MasterContentSearchModal({
       setSelectedMaster(null);
       setRangeStart(1);
       setRangeEnd(1);
+      // 직접 입력 상태 초기화
+      setDirectTitle("");
+      setDirectContentType("book");
+      setDirectSubject("");
+      setDirectTotalRange(100);
+      setDirectRangeStart(1);
+      setDirectRangeEnd(100);
     }
   }, [open]);
 
@@ -341,6 +365,52 @@ export function MasterContentSearchModal({
     }
   }, [selectedMaster, studentId, rangeStart, rangeEnd, onSelect]);
 
+  // 직접 입력 콘텐츠 추가
+  const handleDirectContentAdd = useCallback(() => {
+    if (!directTitle.trim()) {
+      alert("콘텐츠 제목을 입력해주세요.");
+      return;
+    }
+
+    if (directTotalRange < 1) {
+      alert("총 범위는 1 이상이어야 합니다.");
+      return;
+    }
+
+    setIsAddingDirect(true);
+
+    try {
+      // 직접 입력 콘텐츠는 임시 ID 생성 (실제 저장은 플랜 생성 시점에)
+      const tempId = `direct-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const newContent: SelectedContent = {
+        contentId: tempId,
+        contentType: directContentType,
+        title: directTitle.trim(),
+        subject: directSubject.trim() || undefined,
+        startRange: directRangeStart,
+        endRange: directRangeEnd,
+        totalRange: directTotalRange,
+        subjectType: null,
+        isDirectInput: true, // 직접 입력 표시
+      };
+
+      onSelect(newContent);
+
+      // 폼 초기화
+      setDirectTitle("");
+      setDirectSubject("");
+      setDirectTotalRange(100);
+      setDirectRangeStart(1);
+      setDirectRangeEnd(100);
+    } catch (error) {
+      console.error("[MasterContentSearchModal] 직접 입력 추가 실패:", error);
+      alert(error instanceof Error ? error.message : "콘텐츠 추가에 실패했습니다.");
+    } finally {
+      setIsAddingDirect(false);
+    }
+  }, [directTitle, directContentType, directSubject, directTotalRange, directRangeStart, directRangeEnd, onSelect]);
+
   // 검색 비활성화 조건
   const searchDisabled =
     !searchQuery.trim() &&
@@ -360,26 +430,212 @@ export function MasterContentSearchModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl">
         {/* 헤더 */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
-              마스터 콘텐츠에서 추가
-            </h2>
+        <div className="border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">콘텐츠 추가</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {/* 탭 전환 */}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("search")}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+                activeTab === "search"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              )}
+            >
+              <Package className="h-4 w-4" />
+              마스터에서 검색
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("direct")}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+                activeTab === "direct"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              )}
+            >
+              <PenLine className="h-4 w-4" />
+              직접 입력
+            </button>
+          </div>
         </div>
 
         {/* 콘텐츠 영역 */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* 선택된 콘텐츠 범위 설정 */}
-          {selectedMaster ? (
+          {/* 직접 입력 탭 */}
+          {activeTab === "direct" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                마스터 콘텐츠에 없는 교재나 강의를 직접 입력하여 추가할 수 있습니다.
+              </p>
+
+              {/* 콘텐츠 타입 선택 */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  콘텐츠 유형 <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectContentType("book");
+                      setDirectTotalRange(100);
+                      setDirectRangeEnd(100);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+                      directContentType === "book"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    )}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    교재
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectContentType("lecture");
+                      setDirectTotalRange(30);
+                      setDirectRangeEnd(30);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition",
+                      directContentType === "lecture"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    )}
+                  >
+                    <Video className="h-4 w-4" />
+                    강의
+                  </button>
+                </div>
+              </div>
+
+              {/* 콘텐츠 제목 */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  콘텐츠 제목 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={directTitle}
+                  onChange={(e) => setDirectTitle(e.target.value)}
+                  placeholder={
+                    directContentType === "book"
+                      ? "예: 개념원리 수학 상"
+                      : "예: 국어 문학 개념완성"
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+
+              {/* 과목 (선택) */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  과목 <span className="text-xs text-gray-400">(선택)</span>
+                </label>
+                <input
+                  type="text"
+                  value={directSubject}
+                  onChange={(e) => setDirectSubject(e.target.value)}
+                  placeholder="예: 수학, 국어, 영어..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+
+              {/* 총 범위 */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  총 범위 <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={directTotalRange}
+                    onChange={(e) => {
+                      const val = Math.max(1, parseInt(e.target.value) || 1);
+                      setDirectTotalRange(val);
+                      setDirectRangeEnd(Math.min(directRangeEnd, val));
+                    }}
+                    min={1}
+                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <span className="text-sm text-gray-600">
+                    {directContentType === "book" ? "페이지" : "강"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 학습 범위 */}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  학습 범위
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={directRangeStart}
+                    onChange={(e) =>
+                      setDirectRangeStart(
+                        Math.max(1, Math.min(directRangeEnd, parseInt(e.target.value) || 1))
+                      )
+                    }
+                    min={1}
+                    max={directRangeEnd}
+                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <span className="text-gray-500">~</span>
+                  <input
+                    type="number"
+                    value={directRangeEnd}
+                    onChange={(e) =>
+                      setDirectRangeEnd(
+                        Math.min(
+                          directTotalRange,
+                          Math.max(directRangeStart, parseInt(e.target.value) || directRangeStart)
+                        )
+                      )
+                    }
+                    min={directRangeStart}
+                    max={directTotalRange}
+                    className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  />
+                  <span className="text-sm text-gray-500">
+                    / {directTotalRange}
+                    {directContentType === "book" ? "페이지" : "강"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 추가 버튼 */}
+              <button
+                type="button"
+                onClick={handleDirectContentAdd}
+                disabled={!directTitle.trim() || isAddingDirect}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                {isAddingDirect ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                콘텐츠 추가
+              </button>
+            </div>
+          ) : selectedMaster ? (
             <div className="space-y-4">
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
                 <div className="flex items-start gap-3">

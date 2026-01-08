@@ -4,7 +4,10 @@ import { useState, useTransition, useCallback, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { createFlexibleContent } from '@/lib/domains/admin-plan/actions/flexibleContent';
-import { createPlanFromContent } from '@/lib/domains/admin-plan/actions/createPlanFromContent';
+import {
+  createPlanFromContent,
+  createPlanFromContentWithScheduler,
+} from '@/lib/domains/admin-plan/actions/createPlanFromContent';
 import { usePlanToast } from '../PlanToast';
 import { Step1ContentInfo, Step2RangeSettings, Step3Distribution } from './steps';
 import {
@@ -23,7 +26,7 @@ export function AddContentWizard({
   targetDate,
   onClose,
   onSuccess,
-  selectedPlannerId,
+  plannerId,
 }: AddContentWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<AddContentWizardData>(() => initialWizardData(targetDate));
@@ -108,7 +111,9 @@ export function AddContentWizard({
       }
 
       // 2. 배치 방식에 따른 플랜 생성
-      const planResult = await createPlanFromContent({
+      // period 모드: 스케줄러 활용 (기존 타임라인 고려)
+      // today/weekly 모드: 기존 로직 유지
+      const planInput = {
         flexibleContentId: contentResult.data.id,
         contentTitle: data.title.trim(),
         contentSubject: data.subject || data.subjectArea || null,
@@ -122,9 +127,16 @@ export function AddContentWizard({
         periodEndDate: data.distributionMode === 'period' ? data.periodEnd : undefined,
         studentId,
         tenantId,
-        // Phase 1: 플래너 선택 강제화 - plannerId 전달 (없으면 자동 그룹 생성)
-        plannerId: selectedPlannerId,
-      });
+        // 플래너 선택 강제화 - plannerId 전달 (필수)
+        plannerId,
+        // today 모드에서만 스케줄러 옵션 전달
+        useScheduler: data.distributionMode === 'today' ? data.useScheduler : false,
+      };
+
+      const planResult =
+        data.distributionMode === 'period'
+          ? await createPlanFromContentWithScheduler(planInput)
+          : await createPlanFromContent(planInput);
 
       if (!planResult.success) {
         showToast('플랜 생성 실패: ' + planResult.error, 'error');
@@ -157,7 +169,14 @@ export function AddContentWizard({
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <Step1ContentInfo data={data} onChange={handleDataChange} />;
+        return (
+          <Step1ContentInfo
+            data={data}
+            onChange={handleDataChange}
+            studentId={studentId}
+            tenantId={tenantId}
+          />
+        );
       case 2:
         return <Step2RangeSettings data={data} onChange={handleDataChange} />;
       case 3:

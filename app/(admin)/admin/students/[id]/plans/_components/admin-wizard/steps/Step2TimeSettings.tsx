@@ -24,6 +24,10 @@ import {
 import type { ExclusionSchedule, AcademySchedule, NonStudyTimeBlock } from "../_context/types";
 import { syncTimeManagementAcademySchedulesAction } from "@/lib/domains/plan/actions/plan-groups/academy";
 import { syncTimeManagementExclusionsAction } from "@/lib/domains/plan/actions/plan-groups/exclusions";
+import {
+  addStudentAcademyScheduleForAdmin,
+  addStudentExclusionForAdmin,
+} from "@/lib/domains/admin-plan/actions/timeManagement";
 import { AdminAcademyScheduleImportModal } from "../modals/AdminAcademyScheduleImportModal";
 import { AdminExclusionImportModal } from "../modals/AdminExclusionImportModal";
 
@@ -88,10 +92,16 @@ export function Step2TimeSettings({
     selfStudyHours,
     lunchTime,
     nonStudyTimeBlocks,
+    // 스케줄러 옵션 (학습일/복습일)
+    schedulerOptions,
   } = wizardData;
 
   // 플래너에서 상속된 시간 설정이 있는지 확인
   const hasInheritedTimeSettings = !!plannerId && (!!studyHours || !!selfStudyHours || !!lunchTime);
+
+  // 플래너에서 상속된 스케줄러 옵션이 있는지 확인
+  const hasInheritedSchedulerOptions = !!plannerId && !!schedulerOptions &&
+    (schedulerOptions.study_days !== undefined || schedulerOptions.review_days !== undefined);
 
   // 새 제외일/학원 스케줄 입력 상태
   const [newExclusion, setNewExclusion] = useState<Partial<ExclusionSchedule>>({
@@ -165,8 +175,8 @@ export function Step2TimeSettings({
     [updateData]
   );
 
-  // 제외일 추가
-  const handleAddExclusion = useCallback(() => {
+  // 제외일 추가 (시간 관리에도 저장)
+  const handleAddExclusion = useCallback(async () => {
     if (!newExclusion.exclusion_date) {
       setFieldError("exclusion", "날짜를 선택해주세요.");
       return;
@@ -192,26 +202,54 @@ export function Step2TimeSettings({
       return;
     }
 
-    updateData({
-      exclusions: [
-        ...exclusions,
-        {
-          exclusion_date: newExclusion.exclusion_date,
-          exclusion_type: newExclusion.exclusion_type || "personal",
-          reason: newExclusion.reason,
-          source: "manual",
-        },
-      ],
-    });
+    // 시간 관리에 저장
+    setIsLoadingExclusion(true);
+    try {
+      const result = await addStudentExclusionForAdmin(studentId, {
+        exclusion_date: newExclusion.exclusion_date,
+        exclusion_type: newExclusion.exclusion_type || "personal",
+        reason: newExclusion.reason,
+      });
 
-    setNewExclusion({
-      exclusion_date: "",
-      exclusion_type: "personal",
-      reason: "",
-    });
-    setShowAddExclusion(false);
-    clearFieldError("exclusion");
-  }, [newExclusion, exclusions, periodStart, periodEnd, updateData, setFieldError, clearFieldError]);
+      if (!result.success) {
+        setFieldError("exclusion", result.error || "제외일 저장에 실패했습니다.");
+        return;
+      }
+
+      // 위저드 컨텍스트에도 추가
+      updateData({
+        exclusions: [
+          ...exclusions,
+          {
+            exclusion_date: newExclusion.exclusion_date,
+            exclusion_type: newExclusion.exclusion_type || "personal",
+            reason: newExclusion.reason,
+            source: "manual",
+          },
+        ],
+      });
+
+      // 성공 토스트
+      toast.showSuccess("제외일이 시간 관리에 저장되었습니다.");
+
+      setNewExclusion({
+        exclusion_date: "",
+        exclusion_type: "personal",
+        reason: "",
+      });
+      setShowAddExclusion(false);
+      clearFieldError("exclusion");
+
+      // 배지 카운트 갱신
+      loadExclusionAvailableCount();
+    } catch (error) {
+      console.error("[handleAddExclusion] Error:", error);
+      setFieldError("exclusion", "제외일 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoadingExclusion(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newExclusion, exclusions, periodStart, periodEnd, studentId, updateData, setFieldError, clearFieldError, toast]);
 
   // 제외일 삭제
   const handleRemoveExclusion = useCallback(
@@ -223,8 +261,8 @@ export function Step2TimeSettings({
     [exclusions, updateData]
   );
 
-  // 학원 스케줄 추가
-  const handleAddAcademy = useCallback(() => {
+  // 학원 스케줄 추가 (시간 관리에도 저장)
+  const handleAddAcademy = useCallback(async () => {
     if (!newAcademy.start_time || !newAcademy.end_time) {
       setFieldError("academy", "시간을 입력해주세요.");
       return;
@@ -251,32 +289,63 @@ export function Step2TimeSettings({
       return;
     }
 
-    updateData({
-      academySchedules: [
-        ...academySchedules,
-        {
-          day_of_week: dayOfWeek,
-          start_time: newAcademy.start_time,
-          end_time: newAcademy.end_time,
-          academy_name: newAcademy.academy_name,
-          subject: newAcademy.subject,
-          travel_time: newAcademy.travel_time ?? 30,
-          source: "manual",
-        },
-      ],
-    });
+    // 시간 관리에 저장
+    setIsLoadingAcademy(true);
+    try {
+      const result = await addStudentAcademyScheduleForAdmin(studentId, {
+        day_of_week: dayOfWeek,
+        start_time: newAcademy.start_time,
+        end_time: newAcademy.end_time,
+        academy_name: newAcademy.academy_name,
+        subject: newAcademy.subject,
+        travel_time: newAcademy.travel_time ?? 30,
+      });
 
-    setNewAcademy({
-      day_of_week: 1,
-      start_time: "18:00",
-      end_time: "21:00",
-      academy_name: "",
-      subject: "",
-      travel_time: 30,
-    });
-    setShowAddAcademy(false);
-    clearFieldError("academy");
-  }, [newAcademy, academySchedules, updateData, setFieldError, clearFieldError]);
+      if (!result.success) {
+        setFieldError("academy", result.error || "학원 일정 저장에 실패했습니다.");
+        return;
+      }
+
+      // 위저드 컨텍스트에도 추가
+      updateData({
+        academySchedules: [
+          ...academySchedules,
+          {
+            day_of_week: dayOfWeek,
+            start_time: newAcademy.start_time,
+            end_time: newAcademy.end_time,
+            academy_name: newAcademy.academy_name,
+            subject: newAcademy.subject,
+            travel_time: newAcademy.travel_time ?? 30,
+            source: "manual",
+          },
+        ],
+      });
+
+      // 성공 토스트
+      toast.showSuccess("학원 일정이 시간 관리에 저장되었습니다.");
+
+      setNewAcademy({
+        day_of_week: 1,
+        start_time: "18:00",
+        end_time: "21:00",
+        academy_name: "",
+        subject: "",
+        travel_time: 30,
+      });
+      setShowAddAcademy(false);
+      clearFieldError("academy");
+
+      // 배지 카운트 갱신
+      loadAcademyAvailableCount();
+    } catch (error) {
+      console.error("[handleAddAcademy] Error:", error);
+      setFieldError("academy", "학원 일정 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoadingAcademy(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newAcademy, academySchedules, studentId, updateData, setFieldError, clearFieldError, toast]);
 
   // 학원 스케줄 삭제
   const handleRemoveAcademy = useCallback(
@@ -618,6 +687,38 @@ export function Step2TimeSettings({
             </button>
           ))}
         </div>
+
+        {/* 플래너에서 상속된 스케줄러 옵션 (학습일/복습일) - 읽기 전용 */}
+        {hasInheritedSchedulerOptions && (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-blue-900">
+                플래너에서 상속된 주간 학습/복습 설정
+              </span>
+              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                읽기 전용
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-blue-600">주간 학습일:</span>
+                <span className="text-sm font-medium text-blue-900">
+                  {schedulerOptions?.study_days ?? 6}일
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-blue-600">주간 복습일:</span>
+                <span className="text-sm font-medium text-blue-900">
+                  {schedulerOptions?.review_days ?? 1}일
+                </span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-blue-600">
+              이 설정은 플래너에서 상속됩니다. 수정하려면 플래너 설정을 변경하세요.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 학원 스케줄 */}

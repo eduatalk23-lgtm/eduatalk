@@ -1,13 +1,9 @@
-import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { StudentPlansPageClient } from './_components/StudentPlansPageClient';
-import { AdminPlanManagementSkeleton } from './_components/AdminPlanManagementSkeleton';
-import { getPlanGroupsForStudent } from '@/lib/data/planGroups';
+import { PlannerSelectionPage } from './_components/PlannerSelectionPage';
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ date?: string }>;
 }
 
 async function getStudentInfo(studentId: string) {
@@ -26,24 +22,19 @@ async function getStudentInfo(studentId: string) {
   return data;
 }
 
-export default async function StudentPlansPage({ params, searchParams }: Props) {
-  const { id } = await params;
-  const { date } = await searchParams;
+/**
+ * 플래너 선택 페이지
+ * - 학생의 플래너 목록을 표시
+ * - 플래너 선택 시 /admin/students/[id]/plans/[plannerId]로 이동
+ */
+export default async function StudentPlansPage({ params }: Props) {
+  const { id: studentId } = await params;
 
-  const student = await getStudentInfo(id);
+  const student = await getStudentInfo(studentId);
 
   if (!student) {
     notFound();
   }
-
-  const targetDate = date ?? new Date().toISOString().split('T')[0];
-
-  // 활성 플랜 그룹 조회
-  const activePlanGroups = await getPlanGroupsForStudent({
-    studentId: id,
-    status: 'active',
-  });
-  const activePlanGroupId = activePlanGroups[0]?.id ?? null;
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -53,20 +44,16 @@ export default async function StudentPlansPage({ params, searchParams }: Props) 
           플랜 관리: {student.name}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          학생의 학습 플랜을 관리하고 재분배할 수 있습니다
+          플래너를 선택하여 학습 플랜을 관리하세요
         </p>
       </div>
 
-      {/* 플래너 & 플랜 관리 컴포넌트 */}
-      <Suspense fallback={<AdminPlanManagementSkeleton />}>
-        <StudentPlansPageClient
-          studentId={student.id}
-          studentName={student.name}
-          tenantId={student.tenant_id}
-          initialDate={targetDate}
-          activePlanGroupId={activePlanGroupId}
-        />
-      </Suspense>
+      {/* 플래너 선택 컴포넌트 */}
+      <PlannerSelectionPage
+        studentId={student.id}
+        tenantId={student.tenant_id}
+        studentName={student.name}
+      />
     </div>
   );
 }

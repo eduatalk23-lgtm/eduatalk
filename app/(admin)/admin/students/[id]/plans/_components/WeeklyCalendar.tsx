@@ -9,6 +9,7 @@ interface WeeklyCalendarProps {
   studentId: string;
   selectedDate: string;
   onDateSelect: (date: string) => void;
+  plannerId?: string;
 }
 
 interface DaySummary {
@@ -23,6 +24,7 @@ export function WeeklyCalendar({
   studentId,
   selectedDate,
   onDateSelect,
+  plannerId,
 }: WeeklyCalendarProps) {
   const [weekDays, setWeekDays] = useState<DaySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,17 +62,35 @@ export function WeeklyCalendar({
       const weekStartStr = days[0].date;
       const weekEndStr = days[6].date;
 
-      const { data: plans } = await supabase
-        .from('student_plan')
-        .select('plan_date, status')
-        .eq('student_id', studentId)
-        .eq('is_active', true)
-        .eq('container_type', 'daily')
-        .gte('plan_date', weekStartStr)
-        .lte('plan_date', weekEndStr);
+      // plannerId가 있으면 plan_groups 조인하여 필터링
+      type PlanData = { plan_date: string; status: string };
+      let plans: PlanData[] = [];
+
+      if (plannerId) {
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status, plan_groups!inner(planner_id)')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .eq('container_type', 'daily')
+          .gte('plan_date', weekStartStr)
+          .lte('plan_date', weekEndStr)
+          .eq('plan_groups.planner_id', plannerId);
+        plans = (data ?? []) as unknown as PlanData[];
+      } else {
+        const { data } = await supabase
+          .from('student_plan')
+          .select('plan_date, status')
+          .eq('student_id', studentId)
+          .eq('is_active', true)
+          .eq('container_type', 'daily')
+          .gte('plan_date', weekStartStr)
+          .lte('plan_date', weekEndStr);
+        plans = (data ?? []) as PlanData[];
+      }
 
       // 날짜별로 집계
-      for (const plan of plans ?? []) {
+      for (const plan of plans) {
         const day = days.find((d) => d.date === plan.plan_date);
         if (day) {
           day.totalPlans++;
@@ -85,7 +105,7 @@ export function WeeklyCalendar({
     }
 
     fetchWeekData();
-  }, [studentId, selectedDate]);
+  }, [studentId, selectedDate, plannerId]);
 
   const getDayLabel = (index: number) => {
     const labels = ['월', '화', '수', '목', '금', '토', '일'];

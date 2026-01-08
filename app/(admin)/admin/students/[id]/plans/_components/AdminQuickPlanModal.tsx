@@ -19,6 +19,8 @@ interface AdminQuickPlanModalProps {
   tenantId: string;
   studentName: string;
   targetDate: string;
+  /** 플래너 ID (필수) - 플랜 그룹 생성 시 연결 */
+  plannerId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -38,6 +40,7 @@ export function AdminQuickPlanModal({
   tenantId,
   studentName,
   targetDate,
+  plannerId,
   onClose,
   onSuccess,
 }: AdminQuickPlanModalProps) {
@@ -63,6 +66,7 @@ export function AdminQuickPlanModal({
       const result = await createQuickPlanForStudent({
         studentId,
         tenantId,
+        plannerId,
         title: title.trim(),
         planDate,
         estimatedMinutes: estimatedMinutes ? Number(estimatedMinutes) : 30,

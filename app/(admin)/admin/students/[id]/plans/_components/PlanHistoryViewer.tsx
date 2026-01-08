@@ -9,12 +9,14 @@ interface PlanHistoryViewerProps {
   studentId: string;
   limit?: number;
   className?: string;
+  plannerId?: string;
 }
 
 export function PlanHistoryViewer({
   studentId,
   limit = 20,
   className,
+  plannerId,
 }: PlanHistoryViewerProps) {
   const [events, setEvents] = useState<PlanEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +24,7 @@ export function PlanHistoryViewer({
 
   useEffect(() => {
     async function fetchEvents() {
-      const result = await getStudentRecentEvents(studentId, limit);
+      const result = await getStudentRecentEvents(studentId, limit, plannerId);
       if (result.success && result.data) {
         setEvents(result.data);
       }
@@ -30,7 +32,7 @@ export function PlanHistoryViewer({
     }
 
     fetchEvents();
-  }, [studentId, limit]);
+  }, [studentId, limit, plannerId]);
 
   const getEventIcon = (eventType: string): string => {
     switch (eventType) {

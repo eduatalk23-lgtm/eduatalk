@@ -37,6 +37,10 @@ export interface SelectedContent {
   totalRange: number;
   subjectType?: SubjectType;
   displayOrder?: number;
+  /** 직접 입력으로 추가된 콘텐츠 여부 */
+  isDirectInput?: boolean;
+  /** 전략 과목 주간 배정일 (2, 3, 4). 전략 과목인 경우에만 유효 */
+  weeklyDays?: 2 | 3 | 4 | null;
 }
 
 /**

@@ -134,17 +134,10 @@ export async function getWeeklyMetrics(
       })),
     ]);
 
-    // 주간 학습시간 결과 처리
-    const studyTime = studyTimeResult.success
-      ? studyTimeResult.data
-      : {
-          thisWeekMinutes: 0,
-          lastWeekMinutes: 0,
-          changePercent: 0,
-          changeMinutes: 0,
-        };
-    const weeklyStudyMinutes = studyTime.thisWeekMinutes;
-    const weeklyStudyTrend = studyTime.changePercent;
+    // 주간 학습시간 (MetricsResult 타입 처리)
+    const studyTimeData = studyTime.success ? studyTime.data : null;
+    const weeklyStudyMinutes = studyTimeData?.thisWeekMinutes ?? 0;
+    const weeklyStudyTrend = studyTimeData?.changePercent ?? 0;
 
     // 플랜 실행률
     const planCompletion = planCompletionResult.success
@@ -161,21 +154,9 @@ export async function getWeeklyMetrics(
           recentHistoryEvents: [],
         };
 
-    // 목표 상태 결과 처리
-    const goalStatus = goalStatusResult.success
-      ? goalStatusResult.data
-      : {
-          totalActiveGoals: 0,
-          goalsNearDeadline: 0,
-          goalsVeryNearDeadline: 0,
-          averageProgress: 0,
-          lowProgressGoals: 0,
-          veryLowProgressGoals: 0,
-          goals: [],
-        };
-
-    // 목표 달성률
-    const weeklyGoalsProgress = goalStatus.averageProgress;
+    // 목표 달성률 (MetricsResult 타입 처리)
+    const goalStatusData = goalStatus.success ? goalStatus.data : null;
+    const weeklyGoalsProgress = goalStatusData?.averageProgress ?? 0;
 
     // 취약 과목 결과 처리
     const weakSubjects = weakSubjectsResult.success

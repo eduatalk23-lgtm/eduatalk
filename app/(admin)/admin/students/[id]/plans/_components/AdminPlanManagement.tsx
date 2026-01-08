@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useReducer, useTransition, useCallback, useMemo } from 'react';
+import { useState, useReducer, useTransition, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/cn';
@@ -17,11 +17,23 @@ import { DeletedPlansView } from './DeletedPlansView';
 import { CarryoverButton } from './CarryoverButton';
 import { SummaryDashboard } from './SummaryDashboard';
 import { PlanQualityDashboard } from './PlanQualityDashboard';
+import { PlanTypeStats } from './PlanTypeStats';
 import { useKeyboardShortcuts, type ShortcutConfig } from './useKeyboardShortcuts';
 import { modalReducer, initialModalState, type ModalType } from './types/modalState';
 import { useAdminPlanRealtime } from '@/lib/realtime';
 import { useInvalidateAllDockQueries } from '@/lib/hooks/useAdminDockQueries';
-import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { Wand2, Plus, LineChart, Zap, Trash2, ClipboardList, MoreHorizontal, AlertTriangle, Filter, Book, Video, FileText } from 'lucide-react';
+
+// 콘텐츠 유형 필터 타입
+export type ContentTypeFilter = 'all' | 'book' | 'lecture' | 'custom';
+
+// 필터 옵션 정의
+const CONTENT_TYPE_FILTERS: { value: ContentTypeFilter; label: string; icon: React.ReactNode }[] = [
+  { value: 'all', label: '전체', icon: null },
+  { value: 'book', label: '교재', icon: <Book className="w-3 h-3" /> },
+  { value: 'lecture', label: '강의', icon: <Video className="w-3 h-3" /> },
+  { value: 'custom', label: '직접입력', icon: <FileText className="w-3 h-3" /> },
+];
 
 // 동적 import로 코드 스플리팅 (모달 컴포넌트)
 const AddContentWizard = dynamic(
@@ -94,6 +106,8 @@ interface AdminPlanManagementProps {
   activePlanGroupId: string | null;
   /** 선택된 플래너 ID (플래너 기반 필터링용) */
   selectedPlannerId?: string;
+  /** 페이지 로드 시 위저드 자동 오픈 여부 */
+  autoOpenWizard?: boolean;
 }
 
 export function AdminPlanManagement({
@@ -103,12 +117,15 @@ export function AdminPlanManagement({
   initialDate,
   activePlanGroupId,
   selectedPlannerId,
+  autoOpenWizard = false,
 }: AdminPlanManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   // 상태 관리
   const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
   // 모달 상태 관리 (useReducer 패턴)
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
@@ -222,6 +239,15 @@ export function AdminPlanManagement({
     title: string;
   } | null>(null);
   const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<string[]>([]);
+
+  // 위저드 자동 오픈 (URL 파라미터로 트리거)
+  const hasAutoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpenWizard && !hasAutoOpened.current) {
+      hasAutoOpened.current = true;
+      setShowCreateWizard(true);
+    }
+  }, [autoOpenWizard, setShowCreateWizard]);
 
   // 날짜 변경 핸들러
   const handleDateChange = useCallback((date: string) => {
@@ -348,6 +374,9 @@ export function AdminPlanManagement({
     handleDateChange(current.toISOString().split('T')[0]);
   }, [selectedDate, handleDateChange]);
 
+  // 플래너 선택 여부 확인 (플랜 생성 기능 활성화 조건)
+  const canCreatePlans = !!selectedPlannerId;
+
   // 키보드 단축키 설정
   const shortcuts: ShortcutConfig[] = useMemo(
     () => [
@@ -377,16 +406,16 @@ export function AdminPlanManagement({
         description: '새로고침',
         category: 'action',
       },
-      // 모달
+      // 모달 (플래너 선택 필요)
       {
         key: 'n',
-        action: () => setShowAddContentModal(true),
+        action: () => canCreatePlans && setShowAddContentModal(true),
         description: '플랜 추가',
         category: 'modal',
       },
       {
         key: 'a',
-        action: () => setShowAddAdHocModal(true),
+        action: () => canCreatePlans && setShowAddAdHocModal(true),
         description: '단발성 추가',
         category: 'modal',
       },
@@ -405,7 +434,7 @@ export function AdminPlanManagement({
       },
       {
         key: 'q',
-        action: () => setShowQuickPlanModal(true),
+        action: () => canCreatePlans && setShowQuickPlanModal(true),
         description: '빠른 플랜 추가',
         category: 'modal',
       },
@@ -417,9 +446,7 @@ export function AdminPlanManagement({
       },
       {
         key: 'g',
-        action: () => {
-          if (selectedPlannerId) setShowCreateWizard(true);
-        },
+        action: () => canCreatePlans && setShowCreateWizard(true),
         description: '플랜 그룹 생성',
         category: 'modal',
       },
@@ -430,7 +457,7 @@ export function AdminPlanManagement({
         category: 'modal',
       },
     ],
-    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId, selectedPlannerId]
+    [navigateDate, handleRefresh, handleDateChange, activePlanGroupId, canCreatePlans]
   );
 
   useKeyboardShortcuts({ shortcuts });
@@ -451,12 +478,66 @@ export function AdminPlanManagement({
 
         {/* 헤더 영역 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
+            {/* 콘텐츠 유형 필터 */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors",
+                  contentTypeFilter !== 'all'
+                    ? "bg-blue-50 border-blue-300 text-blue-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                )}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>
+                  {CONTENT_TYPE_FILTERS.find(f => f.value === contentTypeFilter)?.label}
+                </span>
+              </button>
+              {showFilterDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowFilterDropdown(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1 w-36 bg-white border rounded-lg shadow-lg z-50 py-1">
+                    {CONTENT_TYPE_FILTERS.map((filter) => (
+                      <button
+                        key={filter.value}
+                        onClick={() => {
+                          setContentTypeFilter(filter.value);
+                          setShowFilterDropdown(false);
+                        }}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50",
+                          contentTypeFilter === filter.value && "bg-blue-50 text-blue-700"
+                        )}
+                      >
+                        {filter.icon}
+                        <span>{filter.label}</span>
+                        {contentTypeFilter === filter.value && (
+                          <span className="ml-auto text-blue-500">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowQuickPlanModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-warning-500 px-3 py-2 text-sm font-medium text-white hover:bg-warning-600"
-              title="빠른 플랜 추가 (q)"
+              disabled={!canCreatePlans}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                canCreatePlans
+                  ? "bg-warning-500 text-white hover:bg-warning-600"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              )}
+              title={canCreatePlans ? "빠른 플랜 추가 (q)" : "먼저 플래너를 선택해주세요"}
             >
               <Zap className="h-4 w-4" />
               빠른 추가
@@ -536,11 +617,19 @@ export function AdminPlanManagement({
         {/* 현황 카드 */}
         <PlanStatsCards studentId={studentId} />
 
+        {/* 유형별 통계 */}
+        <PlanTypeStats
+          studentId={studentId}
+          selectedDate={selectedDate}
+          plannerId={selectedPlannerId}
+        />
+
         {/* 미완료 Dock */}
         <UnfinishedDock
           studentId={studentId}
           tenantId={tenantId}
           plannerId={selectedPlannerId}
+          contentTypeFilter={contentTypeFilter}
           onRedistribute={handleOpenRedistribute}
           onEdit={handleOpenEdit}
           onReorder={() => handleOpenReorder('unfinished')}
@@ -555,6 +644,7 @@ export function AdminPlanManagement({
           studentId={studentId}
           selectedDate={selectedDate}
           onDateSelect={handleDateChange}
+          plannerId={selectedPlannerId}
         />
 
         {/* Daily & Weekly Docks */}
@@ -566,6 +656,7 @@ export function AdminPlanManagement({
             plannerId={selectedPlannerId}
             selectedDate={selectedDate}
             activePlanGroupId={activePlanGroupId}
+            contentTypeFilter={contentTypeFilter}
             onAddContent={() => setShowAddContentModal(true)}
             onAddAdHoc={() => setShowAddAdHocModal(true)}
             onRedistribute={handleOpenRedistribute}
@@ -583,6 +674,7 @@ export function AdminPlanManagement({
             tenantId={tenantId}
             plannerId={selectedPlannerId}
             selectedDate={selectedDate}
+            contentTypeFilter={contentTypeFilter}
             onRedistribute={handleOpenRedistribute}
             onEdit={handleOpenEdit}
             onReorder={() => handleOpenReorder('weekly')}
@@ -594,12 +686,12 @@ export function AdminPlanManagement({
         </div>
 
         {/* 삭제된 플랜 (복구 기능) */}
-        <DeletedPlansView studentId={studentId} onRefresh={handleRefresh} />
+        <DeletedPlansView studentId={studentId} onRefresh={handleRefresh} plannerId={selectedPlannerId} />
 
         {/* 요약 대시보드 & 활동 히스토리 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SummaryDashboard studentId={studentId} />
-          <PlanHistoryViewer studentId={studentId} />
+          <PlanHistoryViewer studentId={studentId} plannerId={selectedPlannerId} />
         </div>
 
         {/* 플랜 품질 대시보드 (Phase 4) */}
@@ -616,7 +708,7 @@ export function AdminPlanManagement({
             studentId={studentId}
             tenantId={tenantId}
             targetDate={selectedDate}
-            selectedPlannerId={selectedPlannerId}
+            plannerId={selectedPlannerId}
             onClose={() => setShowAddContentModal(false)}
             onSuccess={() => {
               setShowAddContentModal(false);
@@ -716,12 +808,13 @@ export function AdminPlanManagement({
         )}
 
         {/* 빠른 플랜 추가 모달 */}
-        {showQuickPlanModal && (
+        {showQuickPlanModal && selectedPlannerId && (
           <AdminQuickPlanModal
             studentId={studentId}
             tenantId={tenantId}
             studentName={studentName}
             targetDate={selectedDate}
+            plannerId={selectedPlannerId}
             onClose={() => setShowQuickPlanModal(false)}
             onSuccess={() => {
               setShowQuickPlanModal(false);

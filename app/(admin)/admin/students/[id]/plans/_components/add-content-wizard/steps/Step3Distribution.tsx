@@ -42,40 +42,61 @@ export function Step3Distribution({ data, onChange, targetDate }: Step3Distribut
       {/* 배치 방식 선택 */}
       <div className="space-y-3">
         {DISTRIBUTION_OPTIONS.map(({ mode, label, description, icon }) => (
-          <button
+          <div
             key={mode}
-            type="button"
-            onClick={() => onChange({ distributionMode: mode })}
             className={cn(
-              'w-full flex items-start gap-4 p-4 border rounded-lg text-left transition-colors',
+              'w-full border rounded-lg transition-colors',
               data.distributionMode === mode
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             )}
           >
-            <div
-              className={cn(
-                'p-2 rounded-lg',
-                data.distributionMode === mode ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-              )}
+            <button
+              type="button"
+              onClick={() => onChange({ distributionMode: mode })}
+              className="w-full flex items-start gap-4 p-4 text-left"
             >
-              {icon}
-            </div>
-            <div className="flex-1">
               <div
                 className={cn(
-                  'font-medium',
-                  data.distributionMode === mode ? 'text-blue-700' : 'text-gray-700'
+                  'p-2 rounded-lg',
+                  data.distributionMode === mode ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
                 )}
               >
-                {label}
+                {icon}
               </div>
-              <div className="text-sm text-gray-500 mt-0.5">{description}</div>
-            </div>
-            {data.distributionMode === mode && (
-              <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              <div className="flex-1">
+                <div
+                  className={cn(
+                    'font-medium',
+                    data.distributionMode === mode ? 'text-blue-700' : 'text-gray-700'
+                  )}
+                >
+                  {label}
+                </div>
+                <div className="text-sm text-gray-500 mt-0.5">{description}</div>
+              </div>
+              {data.distributionMode === mode && (
+                <CheckCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+              )}
+            </button>
+            {/* today 모드에서만 스케줄러 옵션 표시 */}
+            {mode === 'today' && data.distributionMode === 'today' && (
+              <div className="px-4 pb-4">
+                <label
+                  className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    checked={data.useScheduler}
+                    onChange={(e) => onChange({ useScheduler: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  자동 시간 배정 (기존 플랜 고려)
+                </label>
+              </div>
             )}
-          </button>
+          </div>
         ))}
       </div>
 

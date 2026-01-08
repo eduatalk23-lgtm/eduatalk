@@ -1,25 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { isAdminRole } from "@/lib/auth/isAdminRole";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ErrorState } from "@/components/ui/ErrorState";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { getStudentPhonesBatch } from "@/lib/utils/studentPhoneUtils";
-import { getStudentSchoolsBatch } from "@/lib/data/studentSchools";
-import { PlanCreationClient } from "./_components/PlanCreationClient";
-import type { StudentDivision } from "@/lib/constants/students";
-
-type StudentRow = {
-  id: string;
-  name?: string | null;
-  grade?: string | null;
-  class?: string | null;
-  school_id?: string | null;
-  school_type?: "MIDDLE" | "HIGH" | "UNIVERSITY" | null;
-  division?: StudentDivision | null;
-  created_at?: string | null;
-  is_active?: boolean | null;
-};
 
 export const metadata = {
   title: "플랜 생성 관리 | TimeLevelUp",
@@ -30,6 +11,12 @@ interface PageProps {
   searchParams: Promise<{ studentIds?: string }>;
 }
 
+/**
+ * 플랜 생성 페이지 - 학생 상세 페이지로 리다이렉트
+ *
+ * 기존 북마크/링크 호환성을 위해 유지하며,
+ * 실제 플랜 생성은 학생 상세 페이지(/admin/students/[id]/plans)에서 진행
+ */
 export default async function PlanCreationPage({ searchParams }: PageProps) {
   const { userId, role } = await getCurrentUserRole();
   const params = await searchParams;
@@ -38,112 +25,21 @@ export default async function PlanCreationPage({ searchParams }: PageProps) {
     redirect("/login");
   }
 
-  const supabase = await createSupabaseServerClient();
+  // URL 파라미터에서 학생 ID 파싱
+  const studentIds = params.studentIds?.split(",").filter(Boolean) || [];
 
-  // 활성 학생 목록 조회 (플랜 생성 대상)
-  const selectFields =
-    "id,name,grade,class,school_id,school_type,division,created_at,is_active";
-
-  const { data: students, error } = await supabase
-    .from("students")
-    .select(selectFields)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-
-  if (error) {
-    console.error("[plan-creation] 학생 목록 조회 실패", {
-      message: error.message,
-      code: error.code,
-    });
-
-    return (
-      <div className="p-6 md:p-10">
-        <div className="flex flex-col gap-6">
-          <PageHeader title="플랜 생성 관리" />
-          <ErrorState
-            title="학생 목록을 불러올 수 없습니다"
-            message="학생 목록을 조회하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-            actionHref="/admin/plan-creation"
-            actionLabel="새로고침"
-          />
-        </div>
-      </div>
-    );
+  if (studentIds.length === 0) {
+    // 학생 ID가 없으면 학생 목록으로 이동
+    redirect("/admin/students");
   }
 
-  const studentRows = (students as StudentRow[] | null) ?? [];
+  if (studentIds.length === 1) {
+    // 단일 학생: 해당 학생의 플랜 탭으로 이동 (위저드 자동 오픈)
+    redirect(`/admin/students/${studentIds[0]}/plans?openWizard=true`);
+  }
 
-  // 배치 쿼리로 학교 정보 및 연락처 정보 일괄 조회
-  const studentIds = studentRows.map((s) => s.id);
-
-  // 성별 조회를 위한 import
-  const { getStudentGendersBatch } = await import(
-    "@/lib/data/studentProfiles"
-  );
-  const { getAuthUserMetadata } = await import(
-    "@/lib/utils/authUserMetadata"
-  );
-  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
-  const adminClient = createSupabaseAdminClient();
-
-  // 병렬로 데이터 페칭
-  const [phoneDataList, schoolMap, genderMap, userMetadata] = await Promise.all(
-    [
-      getStudentPhonesBatch(studentIds),
-      getStudentSchoolsBatch(
-        supabase,
-        studentRows.map((s) => ({
-          id: s.id,
-          school_id: s.school_id ?? null,
-          school_type: s.school_type ?? null,
-        }))
-      ),
-      getStudentGendersBatch(studentIds),
-      getAuthUserMetadata(adminClient, studentIds),
-    ]
-  );
-
-  // 연락처 데이터를 Map으로 변환
-  const phoneDataMap = new Map(phoneDataList.map((p) => [p.id, p]));
-
-  // 데이터를 학생 정보와 결합
-  const studentsWithData = studentRows.map((student) => {
-    const phoneData = phoneDataMap.get(student.id);
-    const schoolName = schoolMap.get(student.id) ?? "-";
-    const gender = genderMap.get(student.id) ?? null;
-    const email = userMetadata.get(student.id)?.email ?? null;
-
-    return {
-      id: student.id,
-      name: student.name ?? null,
-      grade: student.grade ? String(student.grade) : null,
-      class: student.class ?? null,
-      division: student.division ?? null,
-      schoolName,
-      phone: phoneData?.phone ?? null,
-      mother_phone: phoneData?.mother_phone ?? null,
-      father_phone: phoneData?.father_phone ?? null,
-      is_active: student.is_active ?? null,
-      gender,
-      email,
-    };
-  });
-
-  // URL 파라미터에서 사전 선택된 학생 ID 파싱
-  const initialSelectedIds = params.studentIds
-    ? params.studentIds.split(",").filter((id) => studentsWithData.some((s) => s.id === id))
-    : undefined;
-
-  return (
-    <div className="p-6 md:p-10">
-      <div className="flex flex-col gap-6">
-        <PageHeader title="플랜 생성 관리" />
-        <PlanCreationClient
-          students={studentsWithData}
-          isAdmin={role === "admin"}
-          initialSelectedIds={initialSelectedIds}
-        />
-      </div>
-    </div>
+  // 다중 학생: 첫 번째 학생 페이지로 이동 + 배치 모드
+  redirect(
+    `/admin/students/${studentIds[0]}/plans?batchStudentIds=${studentIds.join(",")}`
   );
 }

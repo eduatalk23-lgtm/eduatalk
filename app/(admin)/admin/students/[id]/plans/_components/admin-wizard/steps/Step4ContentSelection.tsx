@@ -52,6 +52,13 @@ const SUBJECT_TYPE_OPTIONS: { value: SubjectType; label: string; icon: React.Rea
   { value: "weakness", label: "취약 과목", icon: <Target className="h-3 w-3" /> },
 ];
 
+const WEEKLY_DAYS_OPTIONS: { value: 2 | 3 | 4 | null; label: string }[] = [
+  { value: null, label: "미지정" },
+  { value: 2, label: "2일" },
+  { value: 3, label: "3일" },
+  { value: 4, label: "4일" },
+];
+
 /**
  * Step 4: 콘텐츠 선택 컴포넌트
  */
@@ -163,7 +170,26 @@ export function Step4ContentSelection({
     (contentId: string, subjectType: SubjectType) => {
       updateData({
         selectedContents: selectedContents.map((c) =>
-          c.contentId === contentId ? { ...c, subjectType } : c
+          c.contentId === contentId
+            ? {
+                ...c,
+                subjectType,
+                // 전략과목이 아니면 weeklyDays 초기화
+                weeklyDays: subjectType === "strategy" ? c.weeklyDays : null,
+              }
+            : c
+        ),
+      });
+    },
+    [selectedContents, updateData]
+  );
+
+  // 주간 배정일 업데이트 (전략 과목 전용)
+  const handleUpdateWeeklyDays = useCallback(
+    (contentId: string, weeklyDays: 2 | 3 | 4 | null) => {
+      updateData({
+        selectedContents: selectedContents.map((c) =>
+          c.contentId === contentId ? { ...c, weeklyDays } : c
         ),
       });
     },
@@ -488,6 +514,35 @@ export function Step4ContentSelection({
                       ))}
                     </div>
                   </div>
+
+                  {/* 주간 배정일 설정 (전략 과목만 표시) */}
+                  {selectedContent.subjectType === "strategy" && (
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs text-gray-600">주간 배정일:</label>
+                      <div className="flex gap-2">
+                        {WEEKLY_DAYS_OPTIONS.map((option) => (
+                          <button
+                            key={option.value || "null"}
+                            type="button"
+                            onClick={() =>
+                              handleUpdateWeeklyDays(item.id, option.value)
+                            }
+                            className={cn(
+                              "rounded px-2 py-1 text-xs font-medium transition",
+                              selectedContent.weeklyDays === option.value
+                                ? "bg-orange-500 text-white"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        (주당 학습 일수)
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -508,6 +563,7 @@ export function Step4ContentSelection({
           <li>콘텐츠를 클릭하여 선택/해제할 수 있습니다.</li>
           <li>선택한 콘텐츠의 범위를 조정하여 학습량을 설정하세요.</li>
           <li>&quot;전략 과목&quot;과 &quot;취약 과목&quot;으로 분류하면 AI가 더 정확한 플랜을 생성합니다.</li>
+          <li>전략 과목 선택 시 주당 학습 일수(2-4일)를 지정할 수 있습니다.</li>
           <li>&quot;마스터에서 추가&quot; 버튼으로 마스터 콘텐츠 라이브러리에서 검색하여 추가할 수 있습니다.</li>
         </ul>
       </div>

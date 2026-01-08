@@ -94,6 +94,14 @@ export function PlanCreationProvider({
     dispatch({ type: "CLEAR_METHOD" });
   }, []);
 
+  const selectPlanner = useCallback((plannerId: string) => {
+    dispatch({ type: "SELECT_PLANNER", payload: plannerId });
+  }, []);
+
+  const clearPlanner = useCallback(() => {
+    dispatch({ type: "CLEAR_PLANNER" });
+  }, []);
+
   const selectedStudents = useMemo(() => {
     return students.filter((s) => state.selectedStudentIds.has(s.id));
   }, [students, state.selectedStudentIds]);
@@ -102,20 +110,26 @@ export function PlanCreationProvider({
     () => ({
       selectedStudentIds: state.selectedStudentIds,
       selectedStudents,
+      selectedPlannerId: state.selectedPlannerId,
       selectedMethod: state.selectedMethod,
       toggleStudent,
       selectAllStudents,
       clearSelection,
+      selectPlanner,
+      clearPlanner,
       selectMethod,
       clearMethod,
     }),
     [
       state.selectedStudentIds,
+      state.selectedPlannerId,
       state.selectedMethod,
       selectedStudents,
       toggleStudent,
       selectAllStudents,
       clearSelection,
+      selectPlanner,
+      clearPlanner,
       selectMethod,
       clearMethod,
     ]

@@ -126,18 +126,19 @@ export async function getStudyTime(
         : 0;
 
     return {
-      thisWeekMinutes,
-      lastWeekMinutes,
-      changePercent,
-      changeMinutes,
+      success: true,
+      data: {
+        thisWeekMinutes,
+        lastWeekMinutes,
+        changePercent,
+        changeMinutes,
+      },
     };
   } catch (error) {
     console.error("[metrics/getStudyTime] 학습시간 조회 실패", error);
     return {
-      thisWeekMinutes: 0,
-      lastWeekMinutes: 0,
-      changePercent: 0,
-      changeMinutes: 0,
+      success: false,
+      error: error instanceof Error ? error.message : "학습시간 조회 실패",
     };
   }
 }

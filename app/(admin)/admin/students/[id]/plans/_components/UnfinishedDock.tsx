@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
@@ -8,12 +8,15 @@ import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { usePlanToast } from './PlanToast';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import type { ContentTypeFilter } from './AdminPlanManagement';
 
 interface UnfinishedDockProps {
   studentId: string;
   tenantId: string;
   /** 플래너 ID (플래너 기반 필터링용) */
   plannerId?: string;
+  /** 콘텐츠 유형 필터 */
+  contentTypeFilter?: ContentTypeFilter;
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
@@ -27,6 +30,7 @@ export function UnfinishedDock({
   studentId,
   tenantId,
   plannerId,
+  contentTypeFilter = 'all',
   onRedistribute,
   onEdit,
   onReorder,
@@ -36,7 +40,13 @@ export function UnfinishedDock({
   onRefresh,
 }: UnfinishedDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans, isLoading, invalidate } = useUnfinishedDockQuery(studentId, plannerId);
+  const { plans: allPlans, isLoading, invalidate } = useUnfinishedDockQuery(studentId, plannerId);
+
+  // 콘텐츠 유형 필터 적용
+  const plans = useMemo(() => {
+    if (contentTypeFilter === 'all') return allPlans;
+    return allPlans.filter(plan => plan.content_type === contentTypeFilter);
+  }, [allPlans, contentTypeFilter]);
 
   const [selectedPlans, setSelectedPlans] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -146,7 +156,7 @@ export function UnfinishedDock({
     <DroppableContainer id="unfinished">
       <div
         className={cn(
-          'bg-red-50 rounded-lg border border-red-200 overflow-hidden',
+          'bg-red-50 rounded-lg border border-red-200',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >

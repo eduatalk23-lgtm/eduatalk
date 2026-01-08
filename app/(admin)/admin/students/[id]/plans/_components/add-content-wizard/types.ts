@@ -10,6 +10,10 @@ export interface AddContentWizardData {
   subject: string;
   title: string;
   linkMaster: boolean;
+  /** 마스터 콘텐츠 ID (linkMaster가 true일 때 사용) */
+  masterContentId?: string;
+  /** 마스터 콘텐츠 제목 (표시용) */
+  masterContentTitle?: string;
 
   // Step 2: 범위 설정
   rangeType: RangeType;
@@ -22,6 +26,8 @@ export interface AddContentWizardData {
   distributionMode: DistributionMode;
   periodStart: string;
   periodEnd: string;
+  /** 스케줄러를 사용한 자동 시간 배정 (today 모드 전용) */
+  useScheduler: boolean;
 }
 
 export interface AddContentWizardProps {
@@ -30,8 +36,8 @@ export interface AddContentWizardProps {
   targetDate: string;
   onClose: () => void;
   onSuccess: () => void;
-  /** 선택된 플래너 ID (플래너 선택 강제화) */
-  selectedPlannerId?: string;
+  /** 선택된 플래너 ID (필수 - 플랜 그룹 생성 시 연결) */
+  plannerId: string;
 }
 
 export const STEP_TITLES: Record<number, string> = {
@@ -54,6 +60,8 @@ export const initialWizardData = (targetDate: string): AddContentWizardData => (
   subject: '',
   title: '',
   linkMaster: false,
+  masterContentId: undefined,
+  masterContentTitle: undefined,
 
   // Step 2
   rangeType: 'page',
@@ -66,4 +74,5 @@ export const initialWizardData = (targetDate: string): AddContentWizardData => (
   distributionMode: 'today',
   periodStart: targetDate,
   periodEnd: '',
+  useScheduler: false,
 });

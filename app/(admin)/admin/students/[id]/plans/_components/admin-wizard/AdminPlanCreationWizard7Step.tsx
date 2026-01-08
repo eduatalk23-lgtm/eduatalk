@@ -12,7 +12,7 @@
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step
  */
 
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -39,6 +39,8 @@ import { Step7GenerateResult } from "./steps/Step7GenerateResult";
 import { createPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups/create";
 import { updatePlanGroupDraftAction } from "@/lib/domains/plan/actions/plan-groups/update";
 import type { PlanGroupCreationData } from "@/lib/types/plan";
+import { getPlannerAction } from "@/lib/domains/admin-plan/actions";
+import type { ExclusionSchedule, AcademySchedule } from "./_context/types";
 
 // ============================================
 // 상수
@@ -98,12 +100,108 @@ function WizardInner({
     setDraftId,
     setCreatedGroupId,
     resetDirtyState,
+    updateData,
   } = useAdminWizardData();
 
   const { currentStep, totalSteps, nextStep, prevStep, canGoNext, canGoPrev } =
     useAdminWizardStep();
 
   const { hasErrors, validationErrors, clearValidation } = useAdminWizardValidation();
+
+  // ============================================
+  // 플래너 자동 로드 (plannerId가 제공된 경우)
+  // ============================================
+
+  const plannerLoadedRef = useRef(false);
+  const [isPlannerLoading, setIsPlannerLoading] = useState(false);
+
+  useEffect(() => {
+    if (!plannerId || plannerLoadedRef.current) return;
+
+    const plannerIdToLoad = plannerId; // TypeScript closure를 위해 변수에 저장
+
+    async function loadPlannerData() {
+      setIsPlannerLoading(true);
+      try {
+        const planner = await getPlannerAction(plannerIdToLoad, true);
+        if (!planner) {
+          console.warn("[WizardInner] 플래너를 찾을 수 없음:", plannerIdToLoad);
+          setIsPlannerLoading(false);
+          return;
+        }
+
+        // 플래너 설정을 wizardData에 자동 채우기
+        const autoFillData: Partial<typeof wizardData> = {
+          plannerId: plannerIdToLoad,
+          periodStart: planner.periodStart,
+          periodEnd: planner.periodEnd,
+          blockSetId: planner.blockSetId ?? undefined,
+          studyHours: planner.studyHours ?? null,
+          selfStudyHours: planner.selfStudyHours ?? null,
+          lunchTime: planner.lunchTime ?? null,
+          nonStudyTimeBlocks: planner.nonStudyTimeBlocks ?? [],
+        };
+
+        // 스케줄러 타입 자동 채우기
+        if (planner.defaultSchedulerType) {
+          autoFillData.schedulerType = planner.defaultSchedulerType as "1730_timetable" | "custom" | "";
+        }
+
+        // 제외일 매핑
+        if (planner.exclusions && planner.exclusions.length > 0) {
+          const mapExclusionType = (type: string): "holiday" | "event" | "personal" => {
+            switch (type) {
+              case "휴일지정": return "holiday";
+              case "개인사정": return "personal";
+              default: return "event";
+            }
+          };
+          const plannerExclusions: ExclusionSchedule[] = planner.exclusions.map((e) => ({
+            exclusion_date: e.exclusionDate,
+            exclusion_type: mapExclusionType(e.exclusionType),
+            reason: e.reason ?? undefined,
+            source: "planner",
+            is_locked: true,
+          }));
+          autoFillData.exclusions = plannerExclusions;
+        }
+
+        // 학원 일정 매핑
+        if (planner.academySchedules && planner.academySchedules.length > 0) {
+          const plannerAcademySchedules: AcademySchedule[] = planner.academySchedules.map((s) => ({
+            academy_name: s.academyName ?? "학원",
+            day_of_week: s.dayOfWeek,
+            start_time: s.startTime,
+            end_time: s.endTime,
+            subject: s.subject ?? undefined,
+            travel_time: s.travelTime ?? 60,
+            source: "planner",
+            is_locked: true,
+          }));
+          autoFillData.academySchedules = plannerAcademySchedules;
+        }
+
+        // 스케줄러 옵션
+        if (planner.defaultSchedulerOptions) {
+          const opts = planner.defaultSchedulerOptions as Record<string, number>;
+          autoFillData.schedulerOptions = {
+            study_days: opts.study_days ?? 6,
+            review_days: opts.review_days ?? 1,
+          };
+        }
+
+        updateData(autoFillData);
+        plannerLoadedRef.current = true;
+        console.log("[WizardInner] 플래너 데이터 자동 로드 완료:", plannerIdToLoad);
+      } catch (err) {
+        console.error("[WizardInner] 플래너 로드 실패:", err);
+      } finally {
+        setIsPlannerLoading(false);
+      }
+    }
+
+    loadPlannerData();
+  }, [plannerId, updateData]);
 
   // ============================================
   // 자동 저장
@@ -131,6 +229,24 @@ function WizardInner({
         return;
       }
 
+      // content_allocations 생성
+      const contentAllocations = skipContents
+        ? []
+        : selectedContents
+            .filter((c) => c.subjectType !== null)
+            .map((c) => ({
+              content_type: c.contentType as "book" | "lecture",
+              content_id: c.contentId,
+              subject_type: c.subjectType as "strategy" | "weakness",
+              weekly_days: c.subjectType === "strategy" && c.weeklyDays ? c.weeklyDays : undefined,
+            }));
+
+      // schedulerOptions에 content_allocations 병합
+      const enhancedSchedulerOptions = {
+        ...schedulerOptions,
+        content_allocations: contentAllocations.length > 0 ? contentAllocations : undefined,
+      };
+
       // PlanGroupCreationData 구성
       const planGroupData: Partial<PlanGroupCreationData> = {
         name: name || `Draft-${new Date().toISOString().split("T")[0]}`,
@@ -140,7 +256,7 @@ function WizardInner({
         period_end: periodEnd,
         block_set_id: blockSetId || null,
         planner_id: plannerId || null,
-        scheduler_options: schedulerOptions || undefined,
+        scheduler_options: enhancedSchedulerOptions,
         contents: skipContents
           ? []
           : selectedContents.map((c, index) => ({
@@ -299,6 +415,24 @@ function WizardInner({
         schedulerOptions,
       } = wizardData;
 
+      // content_allocations 생성
+      const contentAllocations = skipContents
+        ? []
+        : selectedContents
+            .filter((c) => c.subjectType !== null)
+            .map((c) => ({
+              content_type: c.contentType as "book" | "lecture",
+              content_id: c.contentId,
+              subject_type: c.subjectType as "strategy" | "weakness",
+              weekly_days: c.subjectType === "strategy" && c.weeklyDays ? c.weeklyDays : undefined,
+            }));
+
+      // schedulerOptions에 content_allocations 병합
+      const enhancedSchedulerOptions = {
+        ...schedulerOptions,
+        content_allocations: contentAllocations.length > 0 ? contentAllocations : undefined,
+      };
+
       // PlanGroupCreationData 구성
       const planGroupData: PlanGroupCreationData = {
         name: name || null,
@@ -308,7 +442,7 @@ function WizardInner({
         period_end: periodEnd,
         block_set_id: blockSetId || null,
         planner_id: plannerId || null,
-        scheduler_options: schedulerOptions || undefined,
+        scheduler_options: enhancedSchedulerOptions,
         contents: skipContents
           ? []
           : selectedContents.map((c, index) => ({
@@ -554,8 +688,12 @@ export function AdminPlanCreationWizard7Step({
   onClose,
   onSuccess,
 }: AdminPlanCreationWizardProps) {
+  // plannerId가 제공되면 initialData로 전달하고, Step 2부터 시작
+  const initialData = plannerId ? { plannerId } : undefined;
+  const initialStep = plannerId ? 2 : 1;
+
   return (
-    <AdminWizardProvider>
+    <AdminWizardProvider initialData={initialData} initialStep={initialStep}>
       <WizardInner
         studentId={studentId}
         tenantId={tenantId}

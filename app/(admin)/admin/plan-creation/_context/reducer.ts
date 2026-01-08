@@ -15,6 +15,9 @@ export type PlanCreationAction =
   | { type: "TOGGLE_STUDENT"; payload: string }
   | { type: "SELECT_ALL_STUDENTS"; payload: string[] }
   | { type: "CLEAR_SELECTION" }
+  // 플래너 선택
+  | { type: "SELECT_PLANNER"; payload: string }
+  | { type: "CLEAR_PLANNER" }
   // 방법 선택
   | { type: "SELECT_METHOD"; payload: CreationMethod }
   | { type: "CLEAR_METHOD" }
@@ -35,6 +38,7 @@ export type PlanCreationAction =
 export function createInitialState(initialSelectedIds?: string[]): PlanCreationState {
   return {
     selectedStudentIds: new Set(initialSelectedIds ?? []),
+    selectedPlannerId: null,
     selectedMethod: null,
     currentStep: "student-selection",
     isCreating: false,
@@ -80,8 +84,27 @@ export function planCreationReducer(
       return {
         ...state,
         selectedStudentIds: new Set(),
+        selectedPlannerId: null,
         selectedMethod: null,
         currentStep: "student-selection",
+      };
+    }
+
+    // 플래너 선택
+    case "SELECT_PLANNER": {
+      return {
+        ...state,
+        selectedPlannerId: action.payload,
+        currentStep: "planner-selection",
+      };
+    }
+
+    case "CLEAR_PLANNER": {
+      return {
+        ...state,
+        selectedPlannerId: null,
+        selectedMethod: null,
+        currentStep: "planner-selection",
       };
     }
 

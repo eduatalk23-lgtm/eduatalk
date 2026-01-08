@@ -14,6 +14,7 @@ export type CreationMethod =
 /** 플로우 단계 */
 export type PlanCreationStep =
   | "student-selection" // 학생 선택
+  | "planner-selection" // 플래너 선택 (추가)
   | "method-selection" // 방법 선택
   | "creation-process" // 생성 진행
   | "results"; // 결과 확인
@@ -36,6 +37,9 @@ export interface CreationResult {
 export interface PlanCreationState {
   // 학생 선택
   selectedStudentIds: Set<string>;
+
+  // 플래너 선택 (추가)
+  selectedPlannerId: string | null;
 
   // 방법 선택
   selectedMethod: CreationMethod | null;
@@ -102,10 +106,16 @@ export const CREATION_METHODS: CreationMethodInfo[] = [
 export interface SelectionContextValue {
   selectedStudentIds: Set<string>;
   selectedStudents: StudentListRow[];
+  /** 선택된 플래너 ID */
+  selectedPlannerId: string | null;
   selectedMethod: CreationMethod | null;
   toggleStudent: (id: string) => void;
   selectAllStudents: () => void;
   clearSelection: () => void;
+  /** 플래너 선택 */
+  selectPlanner: (plannerId: string) => void;
+  /** 플래너 선택 해제 */
+  clearPlanner: () => void;
   selectMethod: (method: CreationMethod) => void;
   clearMethod: () => void;
 }

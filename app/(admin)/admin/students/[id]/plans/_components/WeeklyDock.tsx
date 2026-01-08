@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useWeeklyDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import type { ContentTypeFilter } from './AdminPlanManagement';
 
 interface WeeklyDockProps {
   studentId: string;
@@ -14,6 +15,8 @@ interface WeeklyDockProps {
   /** 플래너 ID (플래너 기반 필터링용) */
   plannerId?: string;
   selectedDate: string;
+  /** 콘텐츠 유형 필터 */
+  contentTypeFilter?: ContentTypeFilter;
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
@@ -28,6 +31,7 @@ export function WeeklyDock({
   tenantId,
   plannerId,
   selectedDate,
+  contentTypeFilter = 'all',
   onRedistribute,
   onEdit,
   onReorder,
@@ -37,11 +41,17 @@ export function WeeklyDock({
   onRefresh,
 }: WeeklyDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
+  const { plans: allPlans, adHocPlans, isLoading, weekRange, invalidate } = useWeeklyDockQuery(
     studentId,
     selectedDate,
     plannerId
   );
+
+  // 콘텐츠 유형 필터 적용
+  const plans = useMemo(() => {
+    if (contentTypeFilter === 'all') return allPlans;
+    return allPlans.filter(plan => plan.content_type === contentTypeFilter);
+  }, [allPlans, contentTypeFilter]);
 
   const [isPending, startTransition] = useTransition();
 
@@ -131,7 +141,7 @@ export function WeeklyDock({
     <DroppableContainer id="weekly">
       <div
         className={cn(
-          'bg-green-50 rounded-lg border border-green-200 overflow-hidden',
+          'bg-green-50 rounded-lg border border-green-200',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
