@@ -114,3 +114,61 @@ export default async function Page({
 Supabase with PostgreSQL. Migrations in `supabase/migrations/`. Uses Row Level Security (RLS).
 
 Key tables: `students`, `student_plans`, `scores`, `plan_groups`, `blocks`, `tenants`
+
+## Agent Workflow Rules (자동 서브에이전트 활용)
+
+Claude가 작업 수행 시 **반드시** 아래 워크플로우를 따른다.
+
+### Phase 1: 작업 시작 전 (필수)
+
+```
+[ ] Explore 에이전트 → 관련 코드/패턴 탐색
+[ ] 기존 코드 패턴 파악 (비슷한 기능이 어떻게 구현되어 있는지)
+[ ] 복잡한 작업(3개 이상 파일 수정)일 경우 → Plan 에이전트로 계획 수립
+```
+
+### Phase 2: 코드 작성 후 (필수)
+
+작성한 코드에 대해 자체 리뷰 수행:
+
+```
+[ ] TypeScript: any 사용 금지, null 처리 확인
+[ ] 보안: 사용자 입력 검증, SQL injection/XSS 방지
+[ ] 패턴 준수: 프로젝트 기존 패턴과 일관성 유지
+[ ] 에러 처리: try-catch, 에러 메시지 명확성
+[ ] 불필요한 코드 없음: 과도한 추상화, 미사용 변수 제거
+```
+
+### Phase 3: 기능 완성 후 (필수)
+
+```
+[ ] pnpm lint → 린트 에러 확인 및 수정
+[ ] pnpm build → 빌드 성공 확인
+[ ] 관련 테스트가 있다면 pnpm test 실행
+[ ] 변경사항 요약 제공 (어떤 파일을, 왜 수정했는지)
+```
+
+### 에러 발생 시 자동 디버깅 프로세스
+
+```
+1. 에러 메시지 분석
+2. 관련 코드 위치 탐색 (Explore 에이전트)
+3. 유사 패턴 검색 (프로젝트 내 비슷한 케이스)
+4. 단계별 해결책 제시 + 적용
+5. 수정 후 재검증 (lint/build)
+```
+
+### 서브에이전트 활용 기준
+
+| 상황 | 사용할 에이전트 |
+|------|----------------|
+| 코드 위치/패턴 모를 때 | `Explore` (thoroughness: medium) |
+| 복잡한 기능 구현 전 | `Plan` |
+| 여러 파일 동시 검색 | `Explore` (thoroughness: very thorough) |
+| 에러 원인 추적 | `Explore` + 자체 분석 |
+
+### 사용자 피드백 루프
+
+작업 완료 후 항상 확인:
+- "의도한 대로 동작하나요?"
+- "추가로 수정할 부분이 있나요?"

@@ -46,6 +46,7 @@ export type TimeSlot = {
 **용도**: 플랜 생성 시 제외 시간으로 인한 분할 처리를 포함한 타임라인 구성
 
 **특징**:
+
 - 학습 시간대와 자율 학습 시간대를 구분
 - 분할 정보 포함 (제외 시간으로 인해 분할된 경우)
 
@@ -56,17 +57,21 @@ export type TimeSlot = {
 **위치**: `lib/plan/scheduler.ts`
 
 ```typescript
-export type DateTimeSlots = Map<string, Array<{
-  type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
-  start: string; // HH:mm
-  end: string; // HH:mm
-  label?: string;
-}>>;
+export type DateTimeSlots = Map<
+  string,
+  Array<{
+    type: "학습시간" | "점심시간" | "학원일정" | "이동시간" | "자율학습";
+    start: string; // HH:mm
+    end: string; // HH:mm
+    label?: string;
+  }>
+>;
 ```
 
 **용도**: Step 2.5 스케줄 결과로 날짜별 시간 타임라인을 저장
 
 **특징**:
+
 - 날짜별로 다양한 타입의 시간 슬롯 관리
 - 학습시간, 점심시간, 학원일정, 이동시간, 자율학습 구분
 
@@ -90,6 +95,7 @@ export type TimelineSlot = {
 **용도**: 캘린더 UI에서 날짜별 타임라인 슬롯 표시
 
 **특징**:
+
 - 플랜 정보와 학원일정 정보 포함
 - UI 렌더링에 최적화된 구조
 
@@ -100,12 +106,16 @@ export type TimelineSlot = {
 **위치**: `lib/plan/scheduler.ts`
 
 ```typescript
-export type DateAvailableTimeRanges = Map<string, Array<{ start: string; end: string }>>;
+export type DateAvailableTimeRanges = Map<
+  string,
+  Array<{ start: string; end: string }>
+>;
 ```
 
 **용도**: Step 2.5 스케줄 결과로 날짜별 사용 가능 시간 범위 저장
 
 **특징**:
+
 - 날짜별로 여러 시간 범위 지원 (점심시간 제외 등)
 - 타임슬롯이 없을 때 fallback으로 사용
 
@@ -124,17 +134,19 @@ export function buildPlanTimeline(
   availableTimeRanges: Array<{ start: string; end: string }>,
   useSelfStudy: boolean = false,
   selfStudyRanges?: Array<{ start: string; end: string }>
-): PlanTimeline
+): PlanTimeline;
 ```
 
 **기능**:
+
 - 플랜의 소요시간을 사용 가능한 시간 범위에 배정
 - 학습 시간대에 먼저 배정, 부족하면 자율 학습 시간 사용
 - 제외 시간으로 인한 분할 정보 생성
 
 **활용 상태**: ✅ 정의되어 있으나 현재 코드베이스에서 직접 호출하는 곳이 없음
 
-**문제점**: 
+**문제점**:
+
 - 함수는 정의되어 있지만 실제로 사용되지 않음
 - `SchedulerEngine`에서 직접 시간 배정을 수행하므로 이 함수가 필요 없을 수 있음
 
@@ -151,10 +163,11 @@ export function buildTimelineSlots(
   plans: PlanWithContent[],
   academySchedules: AcademySchedule[],
   exclusions: PlanExclusion[]
-): TimelineSlot[]
+): TimelineSlot[];
 ```
 
 **기능**:
+
 - 날짜별 타임라인 슬롯 생성 (UI 표시용)
 - `daily_schedule`의 `time_slots`와 플랜, 학원일정을 결합
 - 플랜의 시간 정보를 사용하여 타임라인대로 배치
@@ -163,6 +176,7 @@ export function buildTimelineSlots(
 **활용 상태**: ✅ 활발히 사용 중
 
 **사용 위치**:
+
 - `app/(student)/plan/calendar/_hooks/useTimelineSlots.ts`
 - 캘린더 UI에서 날짜별 타임라인 표시
 
@@ -185,10 +199,12 @@ const studyTimeSlots = timeSlots.filter((slot) => slot.type === "학습시간");
 ```
 
 **활용 위치**:
+
 - `generateStudyDayPlans`: 학습일 플랜 생성 시 Best Fit 알고리즘으로 슬롯 배정
 - `coordinateGlobalDistribution`: 전역 배치 조율 시 날짜별 용량 계산
 
 **알고리즘**:
+
 - **Best Fit**: 남은 시간이 가장 적은 슬롯에 배정 (공간 효율 최대화)
 - **First Fit Fallback**: Best Fit 실패 시 첫 번째 사용 가능한 슬롯에 배정
 
@@ -200,11 +216,13 @@ const availableRanges = dateAvailableTimeRanges?.get(date) || [];
 ```
 
 **활용 위치**:
+
 - `generateStudyDayPlans`: `dateTimeSlots`가 없을 때 fallback으로 사용
 - `generateReviewDayPlans`: 복습일 플랜 생성 시 시간 범위 사용
 - `generateAdditionalPeriodReallocationPlans`: 추가 기간 재배치 시 시간 범위 사용
 
 **우선순위**:
+
 1. `dateTimeSlots` (Step 2.5 스케줄 결과) - 우선 사용
 2. `dateAvailableTimeRanges` (Step 2.5 스케줄 결과) - fallback
 3. 기존 블록 기반 시간 배정 - 최종 fallback
@@ -223,14 +241,15 @@ export async function generatePlansFromGroup(
   contents: PlanContent[],
   // ...
   dateAvailableTimeRanges?: DateAvailableTimeRanges,
-  dateTimeSlots?: DateTimeSlots,
+  dateTimeSlots?: DateTimeSlots
   // ...
-): Promise<ScheduledPlan[]>
+): Promise<ScheduledPlan[]>;
 ```
 
 **활용 상태**: ✅ 활발히 사용 중
 
 **전달 경로**:
+
 1. `preparePlanGenerationData` → Step 2.5 스케줄 결과 생성
 2. `generatePlansFromGroup` → 스케줄러에 전달
 3. `SchedulerEngine` → 타임라인 기반 플랜 생성
@@ -249,18 +268,16 @@ export async function generatePlansFromGroup(
 
 ```typescript
 // 4. 스케줄 계산
-const scheduleResult = await scheduleGenerationService.generateSchedule(
+const scheduleResult = await scheduleGenerationService
+  .generateSchedule
   // ...
-);
+  ();
 
 // 5. 날짜별 시간 할당
-const dateTimeSlots = scheduleResult.daily_schedule.reduce(
-  (map, daily) => {
-    map.set(daily.date, daily.time_slots || []);
-    return map;
-  },
-  new Map<string, TimeSlot[]>()
-);
+const dateTimeSlots = scheduleResult.daily_schedule.reduce((map, daily) => {
+  map.set(daily.date, daily.time_slots || []);
+  return map;
+}, new Map<string, TimeSlot[]>());
 
 const dateAvailableTimeRanges = scheduleResult.daily_schedule.reduce(
   (map, daily) => {
@@ -274,6 +291,7 @@ const dateAvailableTimeRanges = scheduleResult.daily_schedule.reduce(
 **활용 상태**: ✅ 활발히 사용 중
 
 **결과**:
+
 - `dateTimeSlots`: 날짜별 시간 타임라인
 - `dateAvailableTimeRanges`: 날짜별 사용 가능 시간 범위
 
@@ -294,10 +312,11 @@ export function assignPlanTimes(
   contentDurationMap: Map<string, ContentDurationInfo>,
   dayType: string,
   totalStudyHours: number
-): PlanTimeSegment[]
+): PlanTimeSegment[];
 ```
 
 **알고리즘**:
+
 - **Best Fit**: 소요시간 내림차순 정렬 후 가장 적합한 슬롯에 배정
 - **Episode 기반 배정**: 강의 콘텐츠의 경우 episode별 실제 duration 반영
 - **Precalculated Time Bypass**: `SchedulerEngine` 결과가 있으면 그대로 사용
@@ -305,6 +324,7 @@ export function assignPlanTimes(
 **활용 상태**: ✅ 활발히 사용 중
 
 **사용 위치**:
+
 - `PlanPayloadBuilder.buildDatePayloads`: 날짜별 플랜 페이로드 생성 시
 
 ---
@@ -326,7 +346,8 @@ const studyTimeSlots = timeSlotsForDate
 
 **활용 상태**: ✅ 활발히 사용 중
 
-**역할**: 
+**역할**:
+
 - 날짜별 플랜 페이로드 생성 시 타임라인 정보 활용
 - `assignPlanTimes`를 호출하여 플랜 시간 배정
 
@@ -341,6 +362,7 @@ const studyTimeSlots = timeSlotsForDate
 **역할**: 캘린더 UI에서 타임라인 슬롯 생성
 
 **활용**:
+
 - `buildTimelineSlots` 함수 호출
 - 날짜별 타임라인 슬롯 생성 및 반환
 
@@ -353,6 +375,7 @@ const studyTimeSlots = timeSlotsForDate
 **위치**: `app/(student)/plan/calendar/_components/`
 
 **타임라인 표시**:
+
 - `DayView`: 일별 타임라인 표시
 - `WeekView`: 주별 타임라인 표시
 - `TimelineItem`: 개별 타임슬롯 표시
@@ -410,10 +433,12 @@ const studyTimeSlots = timeSlotsForDate
 ### 1. buildPlanTimeline 함수 정리
 
 **옵션 A: 제거**
+
 - 현재 사용되지 않으므로 제거 고려
 - `SchedulerEngine`에서 직접 처리하므로 중복
 
 **옵션 B: 재활용**
+
 - `SchedulerEngine` 내부에서 사용하도록 리팩토링
 - 제외 시간으로 인한 분할 처리 로직 재사용
 
@@ -424,10 +449,12 @@ const studyTimeSlots = timeSlotsForDate
 ### 2. 타입 정의 통합
 
 **현재 문제**:
+
 - 여러 파일에 유사한 타입 정의가 분산되어 있음
 - 타입 간 변환이 복잡함
 
 **개선 방안**:
+
 ```typescript
 // lib/types/plan/timeline.ts (새 파일)
 export type TimeSlotBase = {
@@ -435,11 +462,11 @@ export type TimeSlotBase = {
   end: string; // HH:mm
 };
 
-export type TimeSlotType = 
-  | "학습시간" 
-  | "점심시간" 
-  | "학원일정" 
-  | "이동시간" 
+export type TimeSlotType =
+  | "학습시간"
+  | "점심시간"
+  | "학원일정"
+  | "이동시간"
   | "자율학습"
   | "study"
   | "self_study";
@@ -456,6 +483,7 @@ export type TimelineSlot = TimeSlot & {
 ```
 
 **장점**:
+
 - 타입 정의 중앙화
 - 타입 간 변환 간소화
 - 유지보수성 향상
@@ -465,11 +493,13 @@ export type TimelineSlot = TimeSlot & {
 ### 3. 타임라인 생성 로직 통합
 
 **현재 구조**:
+
 - `buildPlanTimeline`: 플랜 타임라인 생성 (미사용)
 - `buildTimelineSlots`: UI 타임라인 생성
 - `SchedulerEngine`: 스케줄러 타임라인 활용
 
 **개선 방안**:
+
 - `buildPlanTimeline` 제거 또는 `SchedulerEngine` 내부로 이동
 - `buildTimelineSlots`는 UI 전용으로 유지
 - 역할 명확화
@@ -479,10 +509,12 @@ export type TimelineSlot = TimeSlot & {
 ### 4. 문서화 개선
 
 **현재 상태**:
+
 - 타임라인 활용이 여러 파일에 분산되어 있음
 - 각 함수의 역할과 관계가 명확하지 않음
 
 **개선 방안**:
+
 - 각 타임라인 관련 함수에 JSDoc 주석 추가
 - 타임라인 생성 플로우 다이어그램 작성
 - 타입 간 변환 가이드 작성
@@ -494,11 +526,13 @@ export type TimelineSlot = TimeSlot & {
 ### 현재 상태
 
 ✅ **잘 작동하는 부분**:
+
 - Step 2.5 스케줄 결과를 활용한 타임라인 기반 플랜 생성
 - Best Fit 알고리즘을 통한 효율적인 시간 배정
 - UI에서의 타임라인 표시
 
 ⚠️ **개선 필요 부분**:
+
 - `buildPlanTimeline` 함수 미사용
 - 타입 정의 중복 및 분산
 - 타임라인 생성 로직 역할 명확화 필요
@@ -513,4 +547,3 @@ export type TimelineSlot = TimeSlot & {
 
 **작성자**: AI Assistant  
 **검토 필요**: 타입 정의 통합 및 함수 정리 작업 전 팀 검토 권장
-

@@ -65,12 +65,12 @@
 
 ### 상태 관리 방식 비교
 
-| 진입점 | 학생 선택 | 플래너 선택 | 상태 관리 방식 |
-|--------|----------|------------|----------------|
-| `/admin/plan-creation` | Context (useReducer) | Context (useReducer) | 중앙화된 Context |
-| `/admin/students/[id]/plans` | URL 파라미터 | 로컬 상태 (useState) | 분산된 로컬 상태 |
-| `/admin/students` | 로컬 상태 (useState) | 없음 | 로컬 상태 |
-| `/admin/students/[id]` | URL 파라미터 | 없음 | URL 파라미터 |
+| 진입점                       | 학생 선택            | 플래너 선택          | 상태 관리 방식   |
+| ---------------------------- | -------------------- | -------------------- | ---------------- |
+| `/admin/plan-creation`       | Context (useReducer) | Context (useReducer) | 중앙화된 Context |
+| `/admin/students/[id]/plans` | URL 파라미터         | 로컬 상태 (useState) | 분산된 로컬 상태 |
+| `/admin/students`            | 로컬 상태 (useState) | 없음                 | 로컬 상태        |
+| `/admin/students/[id]`       | URL 파라미터         | 없음                 | URL 파라미터     |
 
 ---
 
@@ -81,6 +81,7 @@
 **구현 위치**: `app/(admin)/admin/plan-creation/_context/PlanCreationContext.tsx`
 
 **상태 관리**:
+
 ```typescript
 // Context 기반 중앙화된 상태 관리
 type PlanCreationState = {
@@ -96,16 +97,18 @@ const [state, dispatch] = useReducer(planCreationReducer, initialState);
 ```
 
 **특징**:
+
 - ✅ 중앙화된 상태 관리
 - ✅ URL 파라미터로 초기 선택 가능 (`?studentIds=id1,id2`)
 - ✅ 학생 선택 변경 시 방법 선택 자동 초기화
 - ✅ 다중 학생 선택 지원
 
 **플로우**:
+
 ```
 1. 학생 선택 (StudentSelectionSection)
    └── toggleStudent(id) → dispatch({ type: "TOGGLE_STUDENT" })
-   
+
 2. 학생 선택 완료 후
    └── selectedStudentIds.size > 0 → 방법 선택 섹션 표시
 ```
@@ -115,6 +118,7 @@ const [state, dispatch] = useReducer(planCreationReducer, initialState);
 **구현 위치**: `app/(admin)/admin/students/[id]/plans/page.tsx`
 
 **상태 관리**:
+
 ```typescript
 // URL 파라미터로 학생 ID 전달
 export default async function StudentPlansPage({ params }: Props) {
@@ -124,12 +128,14 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **특징**:
+
 - ✅ 단일 학생만 지원
 - ✅ URL 파라미터 기반 (서버 컴포넌트)
 - ⚠️ 다중 학생 배치 모드 지원 (`?batchStudentIds=id1,id2`)
 - ⚠️ 배치 모드에서 상태 관리 불명확
 
 **플로우**:
+
 ```
 1. URL에서 학생 ID 추출
    └── params.id
@@ -143,6 +149,7 @@ export default async function StudentPlansPage({ params }: Props) {
 **구현 위치**: `app/(admin)/admin/students/_components/StudentListClient.tsx`
 
 **상태 관리**:
+
 ```typescript
 // 로컬 상태 (useState)
 const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -154,11 +161,13 @@ const selectedStudents = useMemo(() => {
 ```
 
 **특징**:
+
 - ✅ 다중 학생 선택 지원
 - ⚠️ 로컬 상태 (페이지를 벗어나면 초기화)
 - ⚠️ 다른 페이지와 상태 공유 불가
 
 **플로우**:
+
 ```
 1. 학생 선택 (체크박스)
    └── handleToggleSelect(id) → setSelectedIds
@@ -173,6 +182,7 @@ const selectedStudents = useMemo(() => {
 **구현 위치**: `app/(admin)/admin/students/[id]/page.tsx`
 
 **상태 관리**:
+
 ```typescript
 // URL 파라미터로 학생 ID 전달
 export default async function AdminStudentDetailPage({ params }: Props) {
@@ -182,11 +192,13 @@ export default async function AdminStudentDetailPage({ params }: Props) {
 ```
 
 **특징**:
+
 - ✅ 단일 학생만 지원
 - ✅ URL 파라미터 기반
 - ⚠️ 플랜 섹션에서 플랜 그룹 생성 위저드 직접 호출
 
 **플로우**:
+
 ```
 1. URL에서 학생 ID 추출
    └── params.id
@@ -204,6 +216,7 @@ export default async function AdminStudentDetailPage({ params }: Props) {
 **구현 위치**: `app/(admin)/admin/plan-creation/_context/reducer.ts`
 
 **상태 관리**:
+
 ```typescript
 // Context 기반
 case "SELECT_PLANNER": {
@@ -216,11 +229,13 @@ case "SELECT_PLANNER": {
 ```
 
 **특징**:
+
 - ✅ Context 기반 중앙화
 - ✅ 학생 선택 후 플래너 선택 단계
 - ⚠️ 플래너 선택 UI 위치 불명확 (코드에서 확인 필요)
 
 **플로우**:
+
 ```
 1. 학생 선택 완료
    └── selectedStudentIds.size > 0
@@ -237,6 +252,7 @@ case "SELECT_PLANNER": {
 **구현 위치**: `app/(admin)/admin/students/[id]/plans/_components/StudentPlansPageClient.tsx`
 
 **상태 관리**:
+
 ```typescript
 // PlannerManagement에서 플래너 선택
 const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
@@ -249,12 +265,14 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 ```
 
 **특징**:
+
 - ✅ PlannerManagement 컴포넌트에서 관리
 - ✅ AdminPlanManagement에 prop으로 전달
 - ⚠️ 로컬 상태 (페이지 새로고침 시 초기화)
 - ⚠️ 플래너 선택 필수 강제 (버튼 비활성화)
 
 **플로우**:
+
 ```
 1. PlannerManagement에서 플래너 목록 표시
    └── 플래너 선택 드롭다운
@@ -274,11 +292,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 **구현 위치**: 각 모달 컴포넌트
 
 **특징**:
+
 - ✅ `plannerId` prop 필수 (Phase 1 완료)
 - ✅ `AddContentWizard`, `AddAdHocModal`, `AdminAIPlanModal`, `AdminQuickPlanModal` 모두 지원
 - ⚠️ 각 모달에서 개별적으로 `plannerId` 받음
 
 **플로우**:
+
 ```
 1. AdminPlanManagement에서 모달 열기
    └── openModal('addContent')
@@ -296,13 +316,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 
 ### 플랜 생성 방법별 비교
 
-| 방법 | 컴포넌트 | 학생 선택 | 플래너 선택 | 진입점 |
-|------|---------|----------|------------|--------|
-| 플랜 그룹 생성 (7단계) | `AdminPlanCreationWizard7Step` | 단일/다중 | 필수 | `/admin/plan-creation`, `/admin/students/[id]/plans` |
-| 콘텐츠 추가 | `AddContentWizard` | 단일 | 필수 | `/admin/students/[id]/plans` |
-| 단발성 플랜 | `AddAdHocModal` | 단일 | 필수 | `/admin/students/[id]/plans` |
-| AI 플랜 생성 | `AdminAIPlanModal` | 단일/다중 | 필수 | `/admin/students/[id]/plans`, `/admin/plan-creation` |
-| 빠른 플랜 추가 | `AdminQuickPlanModal` | 단일 | 필수 | `/admin/students/[id]/plans`, `/admin/plan-creation` |
+| 방법                   | 컴포넌트                       | 학생 선택 | 플래너 선택 | 진입점                                               |
+| ---------------------- | ------------------------------ | --------- | ----------- | ---------------------------------------------------- |
+| 플랜 그룹 생성 (7단계) | `AdminPlanCreationWizard7Step` | 단일/다중 | 필수        | `/admin/plan-creation`, `/admin/students/[id]/plans` |
+| 콘텐츠 추가            | `AddContentWizard`             | 단일      | 필수        | `/admin/students/[id]/plans`                         |
+| 단발성 플랜            | `AddAdHocModal`                | 단일      | 필수        | `/admin/students/[id]/plans`                         |
+| AI 플랜 생성           | `AdminAIPlanModal`             | 단일/다중 | 필수        | `/admin/students/[id]/plans`, `/admin/plan-creation` |
+| 빠른 플랜 추가         | `AdminQuickPlanModal`          | 단일      | 필수        | `/admin/students/[id]/plans`, `/admin/plan-creation` |
 
 ### 플랜 생성 플로우 비교
 
@@ -323,6 +343,7 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 ```
 
 **특징**:
+
 - ✅ 단계별 플로우 명확
 - ✅ Context 기반 상태 관리
 - ⚠️ 플래너 선택 단계가 실제로 표시되는지 확인 필요
@@ -343,6 +364,7 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 ```
 
 **특징**:
+
 - ✅ 플래너 선택 필수 (버튼 비활성화)
 - ⚠️ 각 모달이 독립적으로 동작
 - ⚠️ 상태 관리가 분산
@@ -356,12 +378,14 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 #### 문제점
 
 **학생 선택 상태가 여러 곳에 분산**:
+
 - `/admin/plan-creation`: Context 기반
 - `/admin/students`: 로컬 상태
 - `/admin/students/[id]/plans`: URL 파라미터
 - `/admin/students/[id]`: URL 파라미터
 
 **영향**:
+
 - 학생 목록에서 선택한 학생이 플랜 생성 페이지로 전달되지 않을 수 있음
 - URL 파라미터로 전달하지만, 상태가 일관되지 않음
 - 페이지 간 이동 시 선택 상태 손실 가능
@@ -387,11 +411,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 #### 문제점
 
 **플래너 선택이 여러 곳에서 독립적으로 관리**:
+
 - `/admin/plan-creation`: Context 기반
 - `/admin/students/[id]/plans`: 로컬 상태
 - 각 모달: prop으로 전달
 
 **영향**:
+
 - 같은 학생에 대해 다른 플래너가 선택될 수 있음
 - 플래너 선택 상태가 페이지 간 공유되지 않음
 - 사용자 경험 불일치
@@ -414,11 +440,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 #### 문제점
 
 **같은 플랜 생성 방법이 다른 진입점에서 다르게 동작**:
+
 - `AdminPlanCreationWizard7Step`: `/admin/plan-creation`과 `/admin/students/[id]/plans`에서 사용
 - `AddContentWizard`: `/admin/students/[id]/plans`에서만 사용
 - `BatchAIPlanWrapper`: `/admin/plan-creation`에서만 사용
 
 **영향**:
+
 - 코드 중복 가능성
 - 동작 불일치 가능성
 - 유지보수 어려움
@@ -428,11 +456,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 #### 문제점
 
 **학생 선택이 URL 파라미터에 의존**:
+
 - `?studentIds=id1,id2`
 - `?batchStudentIds=id1,id2`
 - `?openWizard=true`
 
 **영향**:
+
 - URL이 길어질 수 있음
 - 브라우저 히스토리 관리 복잡
 - 상태 복원 시 파싱 필요
@@ -442,11 +472,13 @@ const [selectedPlannerId, setSelectedPlannerId] = useState<string | null>(null);
 #### 문제점
 
 **상태 관리 방식이 혼재**:
+
 - Context 기반: `/admin/plan-creation`
 - 로컬 상태: `/admin/students/[id]/plans`
 - URL 파라미터: 여러 페이지
 
 **영향**:
+
 - 일관성 부족
 - 상태 공유 어려움
 - 디버깅 어려움
@@ -492,8 +524,10 @@ export function StudentSelectionManager({
 // StudentListClient.tsx
 const handleNavigateToPlanCreation = () => {
   // URL 파라미터로 전달
-  router.push(`/admin/plan-creation?studentIds=${Array.from(selectedIds).join(',')}`);
-  
+  router.push(
+    `/admin/plan-creation?studentIds=${Array.from(selectedIds).join(",")}`
+  );
+
   // 또는 Context에 저장 (같은 세션 내)
   // setGlobalStudentSelection(Array.from(selectedIds));
 };
@@ -641,6 +675,7 @@ export function PlanCreationWrapper({
 **예상 소요 시간**: 8시간
 
 **파일**:
+
 - `components/admin/StudentSelectionManager.tsx` (신규)
 - `app/(admin)/admin/students/_components/StudentListClient.tsx` (수정)
 - `app/(admin)/admin/students/[id]/plans/page.tsx` (수정)
@@ -665,6 +700,7 @@ export function PlanCreationWrapper({
 **예상 소요 시간**: 6시간
 
 **파일**:
+
 - `components/plan/PlannerSelector.tsx` (수정)
 - `app/(admin)/admin/plan-creation/_components/planner-selection/PlannerSelectionSection.tsx` (신규)
 - `app/(admin)/admin/students/[id]/plans/_components/StudentPlansPageClient.tsx` (수정)
@@ -688,6 +724,7 @@ export function PlanCreationWrapper({
 **예상 소요 시간**: 10시간
 
 **파일**:
+
 - `components/admin/PlanCreationWrapper.tsx` (신규)
 - `app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement.tsx` (수정)
 - 각 플랜 생성 모달 컴포넌트 (수정)
@@ -712,6 +749,7 @@ export function PlanCreationWrapper({
 **예상 소요 시간**: 8시간
 
 **파일**:
+
 - `lib/contexts/AdminPlanCreationContext.tsx` (신규, 선택적)
 - `app/(admin)/admin/plan-creation/_context/PlanCreationContext.tsx` (수정)
 - 각 진입점 페이지 (수정)
@@ -784,4 +822,3 @@ export function PlanCreationWrapper({
 ---
 
 **마지막 업데이트**: 2026-01-15
-

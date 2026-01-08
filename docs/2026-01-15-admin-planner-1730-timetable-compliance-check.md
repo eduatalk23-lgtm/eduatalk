@@ -32,21 +32,27 @@
   - ✅ 복습일 수 (`review_days`) - 슬라이더 (0-3)
   - ✅ 복습 범위 (`review_scope`) - 드롭다운 ("full" | "partial")
 
-#### 2. 전략과목/취약과목 정보 ⚠️ **부분 구현**
+#### 2. 전략과목/취약과목 정보 ✅ **구현됨** [2026-01-15 업데이트]
 ```typescript
 {
-  subject_id: string;
-  subject_name: string;
+  content_type: "book" | "lecture";
+  content_id: string;
   subject_type: "strategy" | "weakness";
   weekly_days?: number; // 전략과목인 경우: 2, 3, 4
 }
 ```
 
+**구현 상태**:
+- ✅ Step 4에서 콘텐츠별 과목 유형 선택 가능
+- ✅ 전략과목 선택 시 주당 배정 일수(2, 3, 4일) 설정 가능
+- ✅ `scheduler_options.content_allocations`에 저장
+- 🔄 스케줄러 통합 대기 중 (보정 계수 적용)
+
 **영향**:
-- 소요시간 계산 시 과목별 보정 계수가 적용되지 않음
+- 소요시간 계산 시 과목별 보정 계수 적용 준비 완료
   - 취약과목: ×1.2
   - 전략과목: ×1.0~1.1
-- 과목 배정 방식 결정 불가
+- 과목 배정 방식 결정 가능
 
 #### 3. 학생 수준 정보 ✅ **구현됨**
 ```typescript
@@ -105,9 +111,11 @@ default_scheduler_options: input.defaultSchedulerOptions || {
 - Step 2.5 스케줄 결과 표시
 - 타임라인 시각화
 
-##### Step 4: 콘텐츠 선택 ✅
+##### Step 4: 콘텐츠 선택 ✅ **[2026-01-15 업데이트]**
 - 학생 콘텐츠 선택
 - 콘텐츠 범위 설정
+- ✅ **과목 유형 선택**: 전략과목/취약과목 선택 UI 존재
+- ✅ **주당 배정 일수 선택**: 전략과목 선택 시 주당 배정 일수(2, 3, 4일) 설정 UI 추가 (Phase 1 완료)
 
 ##### Step 5: 배분 설정 ⚠️ **부분 구현**
 **위치**: `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step5AllocationSettings.tsx`
@@ -131,23 +139,24 @@ const studentLevel = schedulerOptions.student_level || "medium";
 ##### Step 7: 생성 및 결과 ✅
 - 플랜 생성 및 결과 표시
 
-### 문제점 요약
+### 문제점 요약 [2026-01-15 업데이트]
 
-#### ❌ 누락된 필수 입력 항목
+#### ✅ Phase 1 완료: 필수 입력 항목 추가
 
-1. **전략과목/취약과목 정보**
-   - 현재 상태: Step 5에서 과목별 유형 설정 불가
-   - 영향: 소요시간 계산 시 과목별 보정 계수 미적용
-   - 권장 해결 방법:
-     - Step 4 또는 Step 5에 과목별 유형 설정 UI 추가
-     - 각 콘텐츠 선택 시 "전략과목" 또는 "취약과목" 선택
-     - 전략과목인 경우 주당 배정 일수 선택 (2, 3, 4)
+1. **전략과목/취약과목 정보** ✅ **완료**
+   - ~~현재 상태: Step 5에서 과목별 유형 설정 불가~~ → **Step 4에 이미 구현되어 있음을 확인**
+   - ✅ Step 4에서 각 콘텐츠에 대해 "전략과목" 또는 "취약과목" 선택 가능
+   - ✅ 위치: `Step4ContentSelection.tsx:49-53, 463-490`
+   - 🔄 다음 단계: 스케줄러에서 과목별 보정 계수 적용
 
-2. **과목별 주당 배정 일수**
-   - 현재 상태: 전략과목의 주당 배정 일수 설정 불가
-   - 영향: 전략과목 배정 방식 결정 불가
-   - 권장 해결 방법:
-     - Step 5에 전략과목별 주당 배정 일수 설정 UI 추가
+2. **과목별 주당 배정 일수** ✅ **완료**
+   - ~~현재 상태: 전략과목의 주당 배정 일수 설정 불가~~
+   - ✅ **구현 완료 (2026-01-15)**: Step 4에 주당 배정 일수(2, 3, 4일, 미지정) 선택 UI 추가
+   - ✅ 위치: `Step4ContentSelection.tsx:518-545`
+   - ✅ 데이터 흐름: UI → `wizardData.selectedContents[].weeklyDays` → `scheduler_options.content_allocations`
+   - 🔄 다음 단계: 스케줄러에서 주당 배정 일수 반영
+
+#### ⚠️ 남은 개선 사항
 
 #### ✅ 잘 구현된 부분
 
@@ -251,23 +260,21 @@ const scheduledPlans = await generatePlansFromGroup(
 - ✅ 타임라인 조정 기능 구현됨
 - ✅ period 모드에서만 사용됨
 
-### 문제점 요약
+### 문제점 요약 [2026-01-08 업데이트]
 
-#### ⚠️ today/weekly 모드에서 스케줄러 미활용
+#### ✅ today 모드 스케줄러 통합 완료 (Phase 2)
 
 **현재 상태**:
-- `today` 모드: 오늘 날짜에 단일 플랜 추가 (단순 배치)
-- `weekly` 모드: 주간 Dock에 단일 플랜 추가 (단순 배치)
-- `period` 모드: 스케줄러 활용 (Best Fit 알고리즘)
+- `today` 모드: ✅ 스케줄러 옵션 추가 (useScheduler 체크박스)
+  - 체크 시: Best Fit 알고리즘으로 기존 플랜 고려하여 시간 배정
+  - 미체크 시: 기존 동작 유지 (시간 미배정)
+- `weekly` 모드: 유연성 유지를 위해 스케줄러 미적용 (의도적 결정)
+- `period` 모드: ✅ 스케줄러 활용 (Best Fit 알고리즘)
 
-**영향**:
-- today/weekly 모드에서 플래너의 시간 설정 미활용
-- 기존 타임라인 미고려 (시간 충돌 가능)
-- Best Fit 알고리즘 미적용
-
-**권장 해결 방법**:
-- today/weekly 모드에서도 스케줄러 활용 옵션 제공
-- 또는 today/weekly 모드에서도 기존 타임라인 고려
+**해결됨**:
+- ~~today 모드에서 플래너의 시간 설정 미활용~~ → ✅ 스케줄러 통합
+- ~~기존 타임라인 미고려 (시간 충돌 가능)~~ → ✅ 기존 플랜 충돌 방지
+- ~~Best Fit 알고리즘 미적용~~ → ✅ singleDayScheduler.ts 구현
 
 #### ✅ 잘 구현된 부분
 
@@ -506,29 +513,398 @@ scheduler_options: {
    - React Query로 데이터 조회
    - 캐시 무효화 지원
 
-#### ⚠️ 개선이 필요한 부분
+#### ⚠️ 개선이 필요한 부분 [2026-01-08 업데이트]
 
-1. **필수 입력 항목 누락**
-   - 전략과목/취약과목 정보 입력 UI 없음
-   - 과목별 주당 배정 일수 설정 불가
+1. ~~**필수 입력 항목 누락**~~ ✅ **Phase 1 완료**
+   - ~~전략과목/취약과목 정보 입력 UI 없음~~ → ✅ 완료
+   - ~~과목별 주당 배정 일수 설정 불가~~ → ✅ 완료
 
-2. **today/weekly 모드**
-   - 스케줄러 미활용
-   - 타임라인 미고려
+2. ~~**today/weekly 모드**~~ ✅ **Phase 2 완료**
+   - ~~today 모드 스케줄러 미활용~~ → ✅ 완료 (useScheduler 옵션 추가)
+   - ~~today 모드 타임라인 미고려~~ → ✅ 완료 (기존 플랜 충돌 방지)
+   - weekly 모드: 유연성 유지를 위해 의도적으로 스케줄러 미적용
 
-3. **Dock과 타임라인 통합**
+3. **Dock과 타임라인 통합** (Phase 3)
    - Dock에서 타임라인 정보 표시 없음
    - 관리자 플랜 관리 페이지 타임라인 시각화 없음
 
 ### 권장 구현 순서
 
-1. **Phase 1 (필수)**: 전략과목/취약과목 정보 입력 UI 추가
-2. **Phase 2 (중요)**: today/weekly 모드 스케줄러 활용
+1. ~~**Phase 1 (필수)**: 전략과목/취약과목 정보 입력 UI 추가~~ ✅ **완료 (2026-01-15)**
+2. ~~**Phase 2 (중요)**: today 모드 스케줄러 활용~~ ✅ **완료 (2026-01-08)**
+   - Weekly 모드는 유연성 유지를 위해 스케줄러 미적용 결정
 3. **Phase 3 (개선)**: Dock과 타임라인 통합
 4. **Phase 4 (선택)**: SchedulerEngine 개선
 
 ---
 
-**작성자**: AI Assistant  
-**최종 업데이트**: 2026-01-15
+## Phase 1 구현 완료 (2026-01-15)
+
+### ✅ 구현 내용
+
+#### 1. 타입 시스템 업데이트
+**파일**: `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/_context/types.ts`
+```typescript
+export interface SelectedContent {
+  // ... 기존 필드
+  /** 전략 과목 주간 배정일 (2, 3, 4). 전략 과목인 경우에만 유효 */
+  weeklyDays?: 2 | 3 | 4 | null;
+}
+```
+
+#### 2. UI 구현 (Step 4)
+**파일**: `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step4ContentSelection.tsx`
+
+**추가된 기능**:
+- 상수: `WEEKLY_DAYS_OPTIONS` (미지정, 2일, 3일, 4일)
+- 핸들러: `handleUpdateWeeklyDays` (주간 배정일 업데이트)
+- 핸들러 수정: `handleUpdateSubjectType` (과목 유형 변경 시 weeklyDays 자동 초기화)
+- UI: 전략과목 선택 시 주간 배정일 버튼 표시 (조건부 렌더링)
+
+**UI 동작**:
+```
+[전략 과목] 선택
+    ↓
+주간 배정일 섹션 표시
+[미지정] [2일] [3일] [4일]
+    ↓
+선택 → 오렌지색 하이라이트
+```
+
+**위치**: Line 518-545
+
+#### 3. 제출 로직 구현 (Step 7)
+**파일**: `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step.tsx`
+
+**추가된 로직**:
+```typescript
+// content_allocations 생성
+const contentAllocations = skipContents
+  ? []
+  : selectedContents
+      .filter((c) => c.subjectType !== null)
+      .map((c) => ({
+        content_type: c.contentType as "book" | "lecture",
+        content_id: c.contentId,
+        subject_type: c.subjectType as "strategy" | "weakness",
+        weekly_days: c.subjectType === "strategy" && c.weeklyDays ? c.weeklyDays : undefined,
+      }));
+
+// schedulerOptions에 병합
+const enhancedSchedulerOptions = {
+  ...schedulerOptions,
+  content_allocations: contentAllocations.length > 0 ? contentAllocations : undefined,
+};
+```
+
+**적용 위치**:
+- `handleSubmit`: Line 400-416
+- `handleAutoSave`: Line 232-248
+
+#### 4. 데이터 흐름
+
+```
+Step 4 UI 입력
+    ↓
+wizardData.selectedContents[].weeklyDays 저장
+    ↓
+Step 7 제출
+    ↓
+content_allocations 생성
+  - subjectType !== null만 필터링
+  - 전략과목이고 weeklyDays가 있으면 포함
+  - null → undefined 변환
+    ↓
+scheduler_options.content_allocations
+    ↓
+DB: plan_groups.scheduler_options (JSONB)
+```
+
+### 📊 구현 결과
+
+#### 수정된 파일
+1. `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/_context/types.ts` (Line 43)
+2. `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step4ContentSelection.tsx` (Lines 55-60, 169-197, 518-566)
+3. `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/AdminPlanCreationWizard7Step.tsx` (Lines 400-416, 232-248)
+
+#### 검증 완료
+- ✅ TypeScript 컴파일 성공
+- ✅ Next.js 빌드 성공
+- ✅ ESLint 검사 통과 (수정 파일 기준)
+
+### 🔄 다음 단계
+
+#### 스케줄러 통합 (필요 시)
+1. **SchedulerEngine에서 content_allocations 활용**
+   - `scheduler_options.content_allocations` 읽기
+   - 전략과목: 주당 배정 일수 반영
+   - 취약과목: 보정 계수(×1.2) 적용
+   - 전략과목: 보정 계수(×1.0~1.1) 적용
+
+2. **검증 방법**
+   ```sql
+   -- DB 확인
+   SELECT
+     id,
+     name,
+     scheduler_options->'content_allocations' as allocations
+   FROM plan_groups
+   WHERE id = '<생성된 플랜 그룹 ID>';
+   ```
+
+   **기대 결과**:
+   ```json
+   {
+     "content_allocations": [
+       {
+         "content_type": "book",
+         "content_id": "...",
+         "subject_type": "strategy",
+         "weekly_days": 3
+       },
+       {
+         "content_type": "lecture",
+         "content_id": "...",
+         "subject_type": "weakness"
+       }
+     ]
+   }
+   ```
+
+---
+
+## Phase 2 구현 완료 (2026-01-08)
+
+### ✅ 구현 내용
+
+#### 1. today 모드 스케줄러 통합
+
+**목적**: today 모드에서 콘텐츠 추가 시 기존 플랜 타임라인을 고려하여 자동 시간 배정
+
+**구현 방식**: Option C - 기존 함수에 스케줄러 옵션 추가
+
+#### 2. 신규 파일 생성
+
+##### `lib/domains/admin-plan/utils/durationCalculator.ts`
+```typescript
+/**
+ * 콘텐츠 타입과 볼륨 기반 소요시간 계산
+ */
+export function calculateEstimatedMinutes(
+  totalVolume: number | null | undefined,
+  contentType: string
+): number {
+  if (!totalVolume || totalVolume <= 0) return 30;
+  switch (contentType) {
+    case 'lecture': return totalVolume * 30;  // 에피소드당 30분
+    case 'book': return Math.ceil(totalVolume * 2);  // 페이지당 2분
+    case 'custom': return Math.ceil(totalVolume * 1.5);
+    default: return 30;
+  }
+}
+```
+
+##### `lib/domains/admin-plan/actions/planCreation/singleDayScheduler.ts`
+```typescript
+export interface SingleDayScheduleInput {
+  studentId: string;
+  plannerId: string;
+  targetDate: string;
+  estimatedMinutes: number;
+}
+
+export interface SingleDayScheduleResult {
+  success: boolean;
+  startTime?: string;
+  endTime?: string;
+  error?: string;
+}
+
+/**
+ * 단일 날짜에서 Best Fit 알고리즘으로 사용 가능한 시간 슬롯 찾기
+ */
+export async function findAvailableTimeSlot(
+  input: SingleDayScheduleInput
+): Promise<SingleDayScheduleResult>
+```
+
+**Best Fit 알고리즘**:
+1. `generateScheduleForPlanner()` - 플래너 시간 설정 조회
+2. `getExistingPlansForStudent()` - 기존 플랜 조회
+3. `adjustDateTimeSlotsWithExistingPlans()` - 충돌 시간 제거
+4. 가장 작은 적합 슬롯 선택
+5. `{ startTime, endTime }` 반환
+
+#### 3. 기존 파일 수정
+
+##### `lib/domains/admin-plan/actions/createPlanFromContent.ts`
+
+**인터페이스 확장**:
+```typescript
+export interface CreatePlanFromContentInput {
+  // ... 기존 필드 ...
+
+  // 스케줄러 옵션 (today 모드 전용)
+  /** 스케줄러를 사용한 자동 시간 배정 활성화 (기본: false) */
+  useScheduler?: boolean;
+  /** 예상 소요시간 (분). 지정하지 않으면 콘텐츠 타입과 볼륨으로 자동 계산 */
+  estimatedMinutes?: number;
+}
+```
+
+**today 모드 분기 수정**:
+```typescript
+if (input.distributionMode === 'today') {
+  let startTime: string | undefined;
+  let endTime: string | undefined;
+
+  // 스케줄러가 활성화된 경우 Best Fit으로 시간 슬롯 찾기
+  if (input.useScheduler && input.plannerId) {
+    const estimatedMinutes = input.estimatedMinutes ||
+      calculateEstimatedMinutes(input.totalVolume, flexibleContent.content_type);
+
+    const scheduleResult = await findAvailableTimeSlot({
+      studentId: input.studentId,
+      plannerId: input.plannerId,
+      targetDate: input.targetDate,
+      estimatedMinutes,
+    });
+
+    if (scheduleResult.success) {
+      startTime = scheduleResult.startTime;
+      endTime = scheduleResult.endTime;
+    }
+  }
+
+  plansToCreate.push(createPlanRecord({
+    ...existingFields,
+    startTime,
+    endTime,
+  }));
+}
+```
+
+**`createPlanRecord()` 함수 확장**:
+```typescript
+function createPlanRecord(params: {
+  // ... 기존 파라미터 ...
+  startTime?: string;
+  endTime?: string;
+}) {
+  return {
+    // ... 기존 필드 ...
+    start_time: params.startTime || null,
+    end_time: params.endTime || null,
+  };
+}
+```
+
+##### UI 수정 파일
+
+1. **`AddContentModal.tsx`**
+   - `useScheduler` 상태 추가
+   - today 모드 선택 시 "자동 시간 배정 (기존 플랜 고려)" 체크박스 표시
+   - `planInput`에 `useScheduler` 전달
+
+2. **`add-content-wizard/types.ts`**
+   - `AddContentWizardData` 인터페이스에 `useScheduler: boolean` 추가
+   - `initialWizardData`에 `useScheduler: false` 기본값 설정
+
+3. **`add-content-wizard/steps/Step3Distribution.tsx`**
+   - today 모드 선택 시 체크박스 UI 표시
+   ```tsx
+   {mode === 'today' && data.distributionMode === 'today' && (
+     <div className="px-4 pb-4">
+       <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+         <input
+           type="checkbox"
+           checked={data.useScheduler}
+           onChange={(e) => onChange({ useScheduler: e.target.checked })}
+         />
+         자동 시간 배정 (기존 플랜 고려)
+       </label>
+     </div>
+   )}
+   ```
+
+4. **`add-content-wizard/AddContentWizard.tsx`**
+   - `planInput`에 `useScheduler` 옵션 전달
+
+#### 4. 데이터 흐름
+
+```
+AddContentModal / AddContentWizard
+    │
+    │  useScheduler: true (체크박스 선택)
+    ▼
+createPlanFromContent()
+    │
+    ├── distributionMode === 'today'
+    │         │
+    │         ▼
+    │   findAvailableTimeSlot()
+    │         │
+    │         ├── generateScheduleForPlanner() ─── 플래너 시간 설정
+    │         ├── getExistingPlansForStudent() ── 기존 플랜 조회
+    │         ├── adjustDateTimeSlotsWithExistingPlans() ── 충돌 제거
+    │         └── Best Fit Algorithm ─────────── 최적 슬롯 선택
+    │                   │
+    │                   ▼
+    │         { startTime, endTime }
+    │
+    ▼
+createPlanRecord({ startTime, endTime })
+    │
+    ▼
+student_plan 테이블 INSERT (start_time, end_time 포함)
+```
+
+#### 5. 설계 결정 사항
+
+| 항목 | 결정 | 이유 |
+|------|------|------|
+| **Weekly 모드** | 스케줄러 미적용 유지 | Weekly dock의 "유동적 플랜" 특성 유지 |
+| **기본값** | UI 체크박스 제공 (false) | 사용자가 명시적으로 선택하도록 |
+| **실패 처리** | 시간 없이 생성 (graceful fallback) | 플랜 생성은 항상 보장 |
+
+### 📊 구현 결과
+
+#### 신규 파일
+| 파일 | 역할 |
+|------|------|
+| `lib/domains/admin-plan/utils/durationCalculator.ts` | 소요시간 계산 유틸 |
+| `lib/domains/admin-plan/actions/planCreation/singleDayScheduler.ts` | 단일 날짜 Best Fit 스케줄러 |
+
+#### 수정 파일
+| 파일 | 수정 내용 |
+|------|----------|
+| `lib/domains/admin-plan/actions/createPlanFromContent.ts` | 인터페이스 확장, today 모드 스케줄러 통합 |
+| `lib/domains/admin-plan/actions/planCreation/index.ts` | singleDayScheduler export 추가 |
+| `AddContentModal.tsx` | useScheduler 상태 및 UI 추가 |
+| `add-content-wizard/types.ts` | useScheduler 필드 추가 |
+| `add-content-wizard/steps/Step3Distribution.tsx` | 체크박스 UI 추가 |
+| `add-content-wizard/AddContentWizard.tsx` | planInput에 useScheduler 전달 |
+
+#### 검증 완료
+- ✅ TypeScript 컴파일 성공
+- ✅ Next.js 빌드 성공 (172 페이지)
+- ✅ ESLint 검사 통과 (에러 없음)
+
+### 🔄 다음 단계 (Phase 3/4)
+
+#### Phase 3: Dock과 타임라인 통합
+1. DailyDock에 오늘의 타임라인 표시
+2. WeeklyDock에 주간 타임라인 표시
+3. 플랜 관리 페이지 타임라인 시각화
+
+#### Phase 4: SchedulerEngine 개선
+1. `SchedulerContext`에 `existingPlans` 필드 추가
+2. `generateStudyDayPlans`에서 기존 플랜 반영
+3. 과목별 보정 계수 적용 (content_allocations 활용)
+
+---
+
+**작성자**: AI Assistant
+**최종 업데이트**: 2026-01-08 (Phase 2 완료)
+**구현자**: Claude Opus 4.5
 
