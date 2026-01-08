@@ -41,6 +41,15 @@ import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
 /**
+ * 기존 플랜 정보 (시간 충돌 방지용)
+ */
+export interface ExistingPlanInfo {
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
+/**
  * SchedulerEngine 컨텍스트 타입
  */
 export type SchedulerContext = {
@@ -59,6 +68,8 @@ export type SchedulerContext = {
     string,
     { subject?: string | null; subject_category?: string | null }
   >;
+  /** 기존 플랜 정보 (Phase 4 - 시간 충돌 방지용) */
+  existingPlans?: ExistingPlanInfo[];
 };
 
 /**
@@ -93,6 +104,36 @@ export class SchedulerEngine {
    */
   private addFailureReason(reason: PlanGenerationFailureReason): void {
     this.failureReasons.push(reason);
+  }
+
+  /**
+   * 특정 슬롯에서 기존 플랜이 사용한 시간 계산 (Phase 4)
+   * @param slot 시간 슬롯 (start, end)
+   * @param existingPlansForDate 해당 날짜의 기존 플랜 목록
+   * @returns 기존 플랜이 사용한 시간 (분)
+   */
+  private calculateUsedTimeForSlot(
+    slot: { start: string; end: string },
+    existingPlansForDate: ExistingPlanInfo[]
+  ): number {
+    let usedTime = 0;
+    const slotStart = timeToMinutes(slot.start);
+    const slotEnd = timeToMinutes(slot.end);
+
+    for (const plan of existingPlansForDate) {
+      const planStart = timeToMinutes(plan.start_time);
+      const planEnd = timeToMinutes(plan.end_time);
+
+      // 슬롯과 기존 플랜의 겹치는 부분 계산
+      const overlapStart = Math.max(slotStart, planStart);
+      const overlapEnd = Math.min(slotEnd, planEnd);
+
+      if (overlapEnd > overlapStart) {
+        usedTime += overlapEnd - overlapStart;
+      }
+    }
+
+    return usedTime;
   }
 
   /**
@@ -1098,10 +1139,13 @@ export class SchedulerEngine {
           totalAvailableMinutes += slotEnd - slotStart;
         });
 
-        // 슬롯별 사용 가능한 시간 추적
+        // 슬롯별 사용 가능한 시간 추적 (기존 플랜이 사용한 시간 반영 - Phase 4)
+        const existingPlansForDate = this.context.existingPlans?.filter(
+          (p) => p.date === date
+        ) || [];
         const slotAvailability: Array<{ slot: typeof studyTimeSlots[0]; usedTime: number }> = studyTimeSlots.map((slot) => ({
           slot,
-          usedTime: 0,
+          usedTime: this.calculateUsedTimeForSlot(slot, existingPlansForDate),
         }));
 
         // Best Fit 알고리즘: 각 플랜을 가장 적합한 슬롯에 배치

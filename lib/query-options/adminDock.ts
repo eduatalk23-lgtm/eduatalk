@@ -10,6 +10,7 @@ export interface DailyPlan {
   id: string;
   content_title: string | null;
   content_subject: string | null;
+  content_type: string | null;
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   completed_amount: number | null;
@@ -19,12 +20,17 @@ export interface DailyPlan {
   custom_range_display: string | null;
   sequence: number | null;
   plan_group_id: string | null;
+  // Phase 3: 시간 정보 추가
+  start_time: string | null;
+  end_time: string | null;
+  estimated_minutes: number | null;
 }
 
 export interface WeeklyPlan {
   id: string;
   content_title: string | null;
   content_subject: string | null;
+  content_type: string | null;
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   status: string | null;
@@ -38,11 +44,13 @@ export interface UnfinishedPlan {
   plan_date: string;
   content_title: string | null;
   content_subject: string | null;
+  content_type: string | null;
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   carryover_from_date: string | null;
   carryover_count: number;
   custom_title: string | null;
+  status: string | null;
 }
 
 export interface AdHocPlan {
@@ -104,6 +112,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             id,
             content_title,
             content_subject,
+            content_type,
             planned_start_page_or_time,
             planned_end_page_or_time,
             completed_amount,
@@ -113,6 +122,9 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             custom_range_display,
             sequence,
             plan_group_id,
+            start_time,
+            end_time,
+            estimated_minutes,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -134,6 +146,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           id,
           content_title,
           content_subject,
+          content_type,
           planned_start_page_or_time,
           planned_end_page_or_time,
           completed_amount,
@@ -142,7 +155,10 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           custom_title,
           custom_range_display,
           sequence,
-          plan_group_id
+          plan_group_id,
+          start_time,
+          end_time,
+          estimated_minutes
         `)
         .eq('student_id', studentId)
         .eq('plan_date', date)
@@ -209,6 +225,7 @@ export function weeklyPlansQueryOptions(
             id,
             content_title,
             content_subject,
+            content_type,
             planned_start_page_or_time,
             planned_end_page_or_time,
             status,
@@ -236,6 +253,7 @@ export function weeklyPlansQueryOptions(
           id,
           content_title,
           content_subject,
+          content_type,
           planned_start_page_or_time,
           planned_end_page_or_time,
           status,
@@ -308,11 +326,13 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             plan_date,
             content_title,
             content_subject,
+            content_type,
             planned_start_page_or_time,
             planned_end_page_or_time,
             carryover_from_date,
             carryover_count,
             custom_title,
+            status,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -333,11 +353,13 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           plan_date,
           content_title,
           content_subject,
+          content_type,
           planned_start_page_or_time,
           planned_end_page_or_time,
           carryover_from_date,
           carryover_count,
-          custom_title
+          custom_title,
+          status
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')

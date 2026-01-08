@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableContainer } from './dnd';
 import { usePlanToast } from './PlanToast';
 import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
+import { DailyDockTimeline } from './DailyDockTimeline';
 import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import type { ContentTypeFilter } from './AdminPlanManagement';
 
 interface DailyDockProps {
   studentId: string;
@@ -16,6 +18,8 @@ interface DailyDockProps {
   plannerId?: string;
   selectedDate: string;
   activePlanGroupId: string | null;
+  /** 콘텐츠 유형 필터 */
+  contentTypeFilter?: ContentTypeFilter;
   onAddContent: () => void;
   onAddAdHoc: () => void;
   onRedistribute: (planId: string) => void;
@@ -33,6 +37,7 @@ export function DailyDock({
   plannerId,
   selectedDate,
   activePlanGroupId,
+  contentTypeFilter = 'all',
   onAddContent,
   onAddAdHoc,
   onRedistribute,
@@ -44,11 +49,17 @@ export function DailyDock({
   onRefresh,
 }: DailyDockProps) {
   // React Query 훅 사용 (캐싱 및 중복 요청 방지)
-  const { plans, adHocPlans, isLoading, invalidate } = useDailyDockQuery(
+  const { plans: allPlans, adHocPlans, isLoading, invalidate } = useDailyDockQuery(
     studentId,
     selectedDate,
     plannerId
   );
+
+  // 콘텐츠 유형 필터 적용
+  const plans = useMemo(() => {
+    if (contentTypeFilter === 'all') return allPlans;
+    return allPlans.filter(plan => plan.content_type === contentTypeFilter);
+  }, [allPlans, contentTypeFilter]);
 
   const [isPending, startTransition] = useTransition();
   const { showToast } = usePlanToast();
@@ -159,7 +170,7 @@ export function DailyDock({
     <DroppableContainer id="daily">
       <div
         className={cn(
-          'bg-blue-50 rounded-lg border border-blue-200 overflow-hidden',
+          'bg-blue-50 rounded-lg border border-blue-200',
           isPending && 'opacity-50 pointer-events-none'
         )}
       >
@@ -251,6 +262,13 @@ export function DailyDock({
         </div>
       </div>
 
+      {/* 타임라인 */}
+      {allPlans.length > 0 && (
+        <div className="px-4 pt-3">
+          <DailyDockTimeline plans={allPlans} />
+        </div>
+      )}
+
       {/* 플랜 목록 */}
       <div className="p-4">
         {isLoading ? (
@@ -277,6 +295,7 @@ export function DailyDock({
                   plan={planData}
                   container="daily"
                   showProgress={true}
+                  showTime={true}
                   selectable={!isCompleted}
                   isSelected={selectedPlans.has(plan.id)}
                   onSelect={handleToggleSelect}

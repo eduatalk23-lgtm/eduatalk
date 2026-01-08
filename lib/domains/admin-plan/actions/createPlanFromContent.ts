@@ -6,6 +6,19 @@ import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { logActionError, logActionDebug } from '@/lib/logging/actionLogger';
 import type { AdminPlanResponse, ContainerType } from '../types';
 import { createAutoContentPlanGroupAction } from './createAutoContentPlanGroup';
+import {
+  getExistingPlansForStudent,
+  groupExistingPlansByDate,
+} from './planCreation/existingPlansQuery';
+import {
+  adjustDateTimeSlotsWithExistingPlans,
+  adjustDateAvailableTimeRangesWithExistingPlans,
+  timeToMinutes,
+} from './planCreation/timelineAdjustment';
+import { generateScheduleForPlanner } from './planCreation/scheduleGenerator';
+import { findAvailableTimeSlot } from './planCreation/singleDayScheduler';
+import { calculateEstimatedMinutes } from '../utils/durationCalculator';
+import { generatePlansFromGroup, type DateTimeSlots as SchedulerDateTimeSlots } from '@/lib/plan/scheduler';
 
 export type DistributionMode = 'today' | 'period' | 'weekly';
 
@@ -30,9 +43,17 @@ export interface CreatePlanFromContentInput {
   studentId: string;
   tenantId: string;
 
-  // 플래너/플랜그룹 연결 (Phase 1: 플래너 선택 강제화)
-  plannerId?: string;      // 선택된 플래너 ID
-  planGroupId?: string;    // 지정된 그룹 ID (없으면 자동 생성)
+  // 플래너/플랜그룹 연결 (플래너 선택 필수)
+  /** 선택된 플래너 ID (필수 - Plan Group 자동 선택/생성 시 사용) */
+  plannerId: string;
+  /** 지정된 그룹 ID (없으면 자동 생성) */
+  planGroupId?: string;
+
+  // 스케줄러 옵션 (today 모드 전용)
+  /** 스케줄러를 사용한 자동 시간 배정 활성화 (기본: false) */
+  useScheduler?: boolean;
+  /** 예상 소요시간 (분). 지정하지 않으면 콘텐츠 타입과 볼륨으로 자동 계산 */
+  estimatedMinutes?: number;
 }
 
 export interface CreatePlanFromContentResult {
@@ -116,6 +137,40 @@ export async function createPlanFromContent(
 
     if (input.distributionMode === 'today') {
       // 오늘(Daily Dock)에 단일 플랜 추가
+      let startTime: string | undefined;
+      let endTime: string | undefined;
+
+      // 스케줄러 활성화 시 자동 시간 배정
+      if (input.useScheduler && input.plannerId) {
+        const estimatedMinutes =
+          input.estimatedMinutes ||
+          calculateEstimatedMinutes(input.totalVolume, flexibleContent.content_type);
+
+        const scheduleResult = await findAvailableTimeSlot({
+          studentId: input.studentId,
+          plannerId: input.plannerId,
+          targetDate: input.targetDate,
+          estimatedMinutes,
+        });
+
+        if (scheduleResult.success && scheduleResult.startTime && scheduleResult.endTime) {
+          startTime = scheduleResult.startTime;
+          endTime = scheduleResult.endTime;
+          logActionDebug(
+            { domain: 'admin-plan', action: 'createPlanFromContent' },
+            '스케줄러로 시간 배정 완료',
+            { startTime, endTime, estimatedMinutes }
+          );
+        } else {
+          // 스케줄러 실패 시 시간 없이 생성 (graceful fallback)
+          logActionDebug(
+            { domain: 'admin-plan', action: 'createPlanFromContent' },
+            '스케줄러 시간 배정 실패, 시간 없이 생성',
+            { error: scheduleResult.error }
+          );
+        }
+      }
+
       plansToCreate.push(createPlanRecord({
         ...input,
         contentType: flexibleContent.content_type,
@@ -125,6 +180,8 @@ export async function createPlanFromContent(
         startPage: input.rangeStart,
         endPage: input.rangeEnd,
         planGroupId: effectivePlanGroupId,
+        startTime,
+        endTime,
         now,
       }));
     } else if (input.distributionMode === 'weekly') {
@@ -214,7 +271,18 @@ function createPlanRecord(params: {
   planGroupId?: string; // 플랜그룹 연결
   now: string;
   sequence?: number;
+  // 스케줄러 시간 배정 (선택적)
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
 }): Record<string, unknown> {
+  // estimated_minutes 계산: 시간이 있으면 시간 기반, 없으면 볼륨 기반
+  let estimatedMinutes: number | null = null;
+  if (params.startTime && params.endTime) {
+    estimatedMinutes = timeToMinutes(params.endTime) - timeToMinutes(params.startTime);
+  } else if (params.totalVolume) {
+    estimatedMinutes = Math.ceil(params.totalVolume * 1.5);
+  }
+
   return {
     student_id: params.studentId,
     tenant_id: params.tenantId,
@@ -229,7 +297,9 @@ function createPlanRecord(params: {
     planned_start_page_or_time: params.startPage,
     planned_end_page_or_time: params.endPage,
     custom_range_display: params.customRangeDisplay,
-    estimated_minutes: params.totalVolume ? Math.ceil(params.totalVolume * 1.5) : null, // 기본 예상 시간
+    start_time: params.startTime || null,
+    end_time: params.endTime || null,
+    estimated_minutes: estimatedMinutes,
     plan_group_id: params.planGroupId || null, // 플랜그룹 연결
     status: 'pending',
     is_active: true,
@@ -339,4 +409,280 @@ function distributeOverPeriod(params: {
   }
 
   return plans;
+}
+
+/**
+ * 스케줄러를 활용한 콘텐츠 기반 플랜 생성
+ *
+ * period 모드에서 플래너의 스케줄러 설정과 기존 타임라인을 고려하여
+ * Best Fit 알고리즘으로 플랜을 생성
+ *
+ * @param input - 플랜 생성 입력
+ * @returns 생성된 플랜 정보
+ */
+export async function createPlanFromContentWithScheduler(
+  input: CreatePlanFromContentInput
+): Promise<AdminPlanResponse<CreatePlanFromContentResult>> {
+  try {
+    await requireAdminOrConsultant({ requireTenant: true });
+    const supabase = await createSupabaseServerClient();
+
+    // period 모드가 아니면 기존 함수 사용
+    if (input.distributionMode !== 'period' || !input.periodEndDate) {
+      return createPlanFromContent(input);
+    }
+
+    logActionDebug(
+      { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+      '스케줄러 기반 플랜 생성 시작',
+      {
+        plannerId: input.plannerId,
+        studentId: input.studentId,
+        distributionMode: input.distributionMode,
+        targetDate: input.targetDate,
+        periodEndDate: input.periodEndDate,
+      }
+    );
+
+    // 1. 플랜 그룹 ID 결정 (자동 생성 또는 기존 사용)
+    let effectivePlanGroupId: string | undefined = input.planGroupId;
+
+    if (input.plannerId && !input.planGroupId) {
+      const autoGroupResult = await createAutoContentPlanGroupAction({
+        tenantId: input.tenantId,
+        studentId: input.studentId,
+        plannerId: input.plannerId,
+        contentTitle: input.contentTitle,
+        targetDate: input.targetDate,
+        planPurpose: 'content',
+      });
+
+      if (!autoGroupResult.success || !autoGroupResult.groupId) {
+        return {
+          success: false,
+          error: autoGroupResult.error || '플랜 그룹 자동 생성에 실패했습니다.',
+        };
+      }
+
+      effectivePlanGroupId = autoGroupResult.groupId;
+    }
+
+    // 2. 플래너 기반 스케줄 생성
+    const scheduleResult = await generateScheduleForPlanner(
+      input.plannerId,
+      input.targetDate,
+      input.periodEndDate
+    );
+
+    if (!scheduleResult.success) {
+      logActionError(
+        { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+        new Error(scheduleResult.error || '스케줄 생성 실패'),
+        { plannerId: input.plannerId }
+      );
+      // 스케줄 생성 실패 시 기존 로직으로 fallback
+      return createPlanFromContent(input);
+    }
+
+    // 3. 기존 플랜 조회 (학생의 전체 플랜 조회하여 시간 충돌 방지)
+    const existingPlans = await getExistingPlansForStudent(
+      input.studentId,
+      input.targetDate,
+      input.periodEndDate
+    );
+    const existingPlansByDate = groupExistingPlansByDate(existingPlans);
+
+    // 4. 기존 타임라인 반영 (기존 플랜 시간 제외)
+    const adjustedDateTimeSlots = adjustDateTimeSlotsWithExistingPlans(
+      scheduleResult.dateTimeSlots,
+      existingPlansByDate
+    );
+    const adjustedDateAvailableTimeRanges = adjustDateAvailableTimeRangesWithExistingPlans(
+      scheduleResult.dateAvailableTimeRanges,
+      existingPlansByDate
+    );
+
+    // 5. flexible_content에서 content_type 및 master content IDs 조회
+    const { data: flexibleContent, error: fetchError } = await supabase
+      .from('flexible_contents')
+      .select('content_type, master_book_id, master_lecture_id, master_custom_content_id')
+      .eq('id', input.flexibleContentId)
+      .single();
+
+    if (fetchError || !flexibleContent) {
+      return { success: false, error: '콘텐츠를 찾을 수 없습니다.' };
+    }
+
+    // content_id 결정
+    let contentId: string | null = null;
+    if (flexibleContent.content_type === 'book') {
+      contentId = flexibleContent.master_book_id;
+    } else if (flexibleContent.content_type === 'lecture') {
+      contentId = flexibleContent.master_lecture_id;
+    } else if (flexibleContent.content_type === 'custom') {
+      contentId = flexibleContent.master_custom_content_id;
+    }
+
+    // 6. 플랜 그룹 정보 조회 (generatePlansFromGroup에 전달)
+    const { data: planGroup, error: groupError } = await supabase
+      .from('plan_groups')
+      .select('*')
+      .eq('id', effectivePlanGroupId)
+      .single();
+
+    if (groupError || !planGroup) {
+      return { success: false, error: '플랜 그룹을 찾을 수 없습니다.' };
+    }
+
+    // 7. 플랜 그룹의 제외일, 학원일정, 블록 조회
+    const { data: exclusions } = await supabase
+      .from('plan_group_exclusions')
+      .select('*')
+      .eq('plan_group_id', effectivePlanGroupId);
+
+    const { data: academySchedules } = await supabase
+      .from('plan_group_academy_schedules')
+      .select('*')
+      .eq('plan_group_id', effectivePlanGroupId);
+
+    let blocks: Array<{ day_of_week: number; start_time: string; end_time: string }> = [];
+    if (planGroup.block_set_id) {
+      const { data: blockData } = await supabase
+        .from('tenant_block_set_items')
+        .select('day_of_week, start_time, end_time')
+        .eq('block_set_id', planGroup.block_set_id);
+
+      if (blockData) {
+        blocks = blockData;
+      }
+    }
+
+    // 8. PlanContent 형식으로 변환
+    const planContents = [
+      {
+        id: crypto.randomUUID(),
+        plan_group_id: effectivePlanGroupId!,
+        tenant_id: input.tenantId,
+        content_type: flexibleContent.content_type as 'book' | 'lecture' | 'custom',
+        content_id: contentId || input.flexibleContentId,
+        start_range: input.rangeStart || 1,
+        end_range: input.rangeEnd || 100,
+        display_order: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ];
+
+    // 9. generatePlansFromGroup으로 Best Fit 알고리즘 적용
+    // blocks는 dateAvailableTimeRanges가 없을 때만 fallback으로 사용됨
+    // 우리가 adjustedDateAvailableTimeRanges를 전달하므로 빈 배열 전달
+    // Phase 4: existingPlans를 ExistingPlanInfo[] 형식으로 변환
+    const existingPlansForScheduler = existingPlans.map((p) => ({
+      date: p.plan_date,
+      start_time: p.start_time,
+      end_time: p.end_time,
+    }));
+    const scheduledPlans = await generatePlansFromGroup(
+      planGroup,
+      planContents,
+      exclusions || [],
+      academySchedules || [],
+      [],
+      undefined, // contentSubjects
+      undefined, // riskIndexMap
+      adjustedDateAvailableTimeRanges,
+      adjustedDateTimeSlots as SchedulerDateTimeSlots,
+      undefined, // contentDurationMap
+      undefined, // contentChapterMap
+      input.targetDate,
+      input.periodEndDate,
+      existingPlansForScheduler // Phase 4: 기존 플랜 정보 전달
+    );
+
+    if (scheduledPlans.length === 0) {
+      logActionDebug(
+        { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+        '스케줄러가 플랜을 생성하지 못함, 기존 로직으로 fallback',
+        { reason: '사용 가능한 시간대 없음' }
+      );
+      // 스케줄러가 플랜을 생성하지 못한 경우 기존 로직으로 fallback
+      return createPlanFromContent(input);
+    }
+
+    // 10. 플랜 저장
+    const now = new Date().toISOString();
+    const plansToInsert = scheduledPlans.map((plan, index) => ({
+      student_id: input.studentId,
+      tenant_id: input.tenantId,
+      plan_group_id: effectivePlanGroupId,
+      plan_date: plan.plan_date,
+      block_index: plan.block_index || 0,
+      content_type: flexibleContent.content_type,
+      content_id: contentId,
+      flexible_content_id: input.flexibleContentId,
+      content_title: input.contentTitle,
+      content_subject: input.contentSubject,
+      planned_start_page_or_time: plan.planned_start_page_or_time,
+      planned_end_page_or_time: plan.planned_end_page_or_time,
+      start_time: plan.start_time,
+      end_time: plan.end_time,
+      estimated_minutes:
+        plan.start_time && plan.end_time
+          ? timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time)
+          : null,
+      container_type: 'daily' as ContainerType,
+      status: 'pending',
+      is_active: true,
+      sequence: index,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    const { data, error } = await supabase
+      .from('student_plan')
+      .insert(plansToInsert)
+      .select('id');
+
+    if (error) {
+      logActionError(
+        { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+        error,
+        { plansToInsertCount: plansToInsert.length }
+      );
+      return { success: false, error: error.message };
+    }
+
+    // 경로 재검증
+    revalidatePath(`/admin/students/${input.studentId}/plans`);
+    revalidatePath('/today');
+    revalidatePath('/plan');
+
+    logActionDebug(
+      { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+      '스케줄러 기반 플랜 생성 완료',
+      { createdCount: data?.length || 0 }
+    );
+
+    return {
+      success: true,
+      data: {
+        createdPlanIds: data?.map((d) => d.id) || [],
+        createdCount: data?.length || 0,
+      },
+    };
+  } catch (error) {
+    logActionError(
+      { domain: 'admin-plan', action: 'createPlanFromContentWithScheduler' },
+      error,
+      {
+        studentId: input.studentId,
+        distributionMode: input.distributionMode,
+        targetDate: input.targetDate,
+      }
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '플랜 생성 중 오류가 발생했습니다.',
+    };
+  }
 }

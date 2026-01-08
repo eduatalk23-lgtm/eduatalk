@@ -523,6 +523,7 @@ export function toPlanItemData(
     isCompleted: raw.status === 'completed' || (raw.progress ?? 0) >= 100,
     customTitle: raw.custom_title,
     customRangeDisplay: raw.custom_range_display,
+    estimatedMinutes: raw.estimated_minutes, // Phase 3: 소요시간 추가
     planDate: raw.plan_date,
     startTime: raw.start_time,
     endTime: raw.end_time,

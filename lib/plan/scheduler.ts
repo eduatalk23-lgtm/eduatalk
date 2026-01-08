@@ -15,7 +15,7 @@ import {
   type CycleDayInfo,
 } from "@/lib/plan/1730TimetableLogic";
 import { validateAllocations, getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
-import { SchedulerEngine, type SchedulerContext } from "@/lib/scheduler/SchedulerEngine";
+import { SchedulerEngine, type SchedulerContext, type ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
@@ -95,7 +95,8 @@ export async function generatePlansFromGroup(
   contentDurationMap?: ContentDurationMap, // 콘텐츠 소요시간 정보
   contentChapterMap?: Map<string, string | null>, // 콘텐츠 chapter 정보 (원본 content_id -> chapter 문자열)
   periodStart?: string, // 재조정 시 사용할 기간 시작일 (선택사항)
-  periodEnd?: string // 재조정 시 사용할 기간 종료일 (선택사항)
+  periodEnd?: string, // 재조정 시 사용할 기간 종료일 (선택사항)
+  existingPlans?: ExistingPlanInfo[] // Phase 4: 기존 플랜 정보 (시간 충돌 방지)
 ): Promise<ScheduledPlan[]> {
   // 1. 학습 가능한 날짜 목록 생성 (제외일 제외)
   // 재조정 시에는 전달된 periodStart/periodEnd 사용, 아니면 group의 기간 사용
@@ -166,7 +167,8 @@ export async function generatePlansFromGroup(
         dateTimeSlots,
         contentDurationMap,
         contentSubjects,
-        startDate
+        startDate,
+        existingPlans
       );
       plans = result.plans;
       failureReasons = result.failureReasons;
@@ -901,7 +903,8 @@ function generate1730TimetablePlans(
   dateTimeSlots?: DateTimeSlots,
   contentDurationMap?: ContentDurationMap,
   contentSubjects?: Map<string, { subject?: string | null; subject_category?: string | null }>,
-  periodStart?: string
+  periodStart?: string,
+  existingPlans?: ExistingPlanInfo[] // Phase 4: 기존 플랜 정보
 ): { plans: ScheduledPlan[]; failureReasons: import("@/lib/errors/planGenerationErrors").PlanGenerationFailureReason[] } {
   // dates 배열에서 periodStart와 periodEnd 추출
   const actualPeriodStart = periodStart || dates[0];
@@ -925,6 +928,7 @@ function generate1730TimetablePlans(
     dateTimeSlots,
     contentDurationMap,
     contentSubjects,
+    existingPlans, // Phase 4: 기존 플랜 정보 전달
   };
 
   // SchedulerEngine을 사용하여 플랜 생성
