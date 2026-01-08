@@ -24,6 +24,10 @@ import {
   textMuted,
   borderDefault,
 } from "@/lib/utils/darkMode";
+import {
+  getAdminPlanGroupBackPath,
+  getAdminPlanGroupBackLabel,
+} from "@/lib/navigation/adminPlanNavigation";
 
 type AdminPlanGroupDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -138,6 +142,22 @@ export default async function AdminPlanGroupDetailPage({
   // 캠프 모드 확인
   const isCampMode = group.plan_type === "camp";
 
+  // 네비게이션 경로 및 라벨 생성
+  const backPath = getAdminPlanGroupBackPath({
+    groupId: id,
+    studentId: group.student_id,
+    plannerId: group.planner_id,
+    campTemplateId: group.camp_template_id,
+    isCampMode,
+  });
+  const backLabel = getAdminPlanGroupBackLabel({
+    groupId: id,
+    studentId: group.student_id,
+    plannerId: group.planner_id,
+    campTemplateId: group.camp_template_id,
+    isCampMode,
+  });
+
   // 캠프 모드일 때 템플릿 블록 세트 정보 조회 (Adapter 패턴 사용)
   let templateBlocks: Array<{
     id: string;
@@ -210,11 +230,7 @@ export default async function AdminPlanGroupDetailPage({
           bgSurface
         )}>
           <Link
-            href={
-              isCampMode && group.camp_template_id
-                ? `/admin/camp-templates/${group.camp_template_id}/participants`
-                : "/admin/dashboard"
-            }
+            href={backPath}
             className={cn(
               "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition",
               textSecondary,
@@ -234,9 +250,7 @@ export default async function AdminPlanGroupDetailPage({
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            {isCampMode && group.camp_template_id
-              ? "참여자 목록으로"
-              : "대시보드로"}
+            {backLabel}
           </Link>
         </div>
 
