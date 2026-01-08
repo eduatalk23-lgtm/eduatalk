@@ -9,7 +9,13 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { X, Loader2, Calendar, Clock, Info, Moon, Download, Building, CalendarX } from "lucide-react";
+import { X, Loader2, Calendar, Clock, Info, Moon, Download, Building, CalendarX, Plus } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
+import {
+  addStudentAcademyScheduleForAdmin,
+  addStudentExclusionForAdmin,
+} from "@/lib/domains/admin-plan/actions/timeManagement";
+import { validateAcademyScheduleOverlap } from "@/lib/validation/scheduleValidator";
 import { cn } from "@/lib/cn";
 import {
   createPlannerAction,
@@ -104,6 +110,8 @@ interface FormData {
   studyDays: number;
   reviewDays: number;
   adminMemo: string;
+  /** 수정 시 기존 플랜 그룹에도 변경사항 반영 여부 */
+  syncToExistingGroups: boolean;
 }
 
 // ============================================
@@ -131,6 +139,7 @@ function getDefaultFormData(): FormData {
     studyDays: 6,
     reviewDays: 1,
     adminMemo: "",
+    syncToExistingGroups: false,
   };
 }
 
@@ -159,6 +168,7 @@ function plannerToFormData(planner: Planner, isDuplicate: boolean = false): Form
     studyDays: schedulerOptions?.study_days ?? 6,
     reviewDays: schedulerOptions?.review_days ?? 1,
     adminMemo: planner.adminMemo || "",
+    syncToExistingGroups: false,
   };
 }
 
@@ -193,6 +203,30 @@ export function PlannerCreationModal({
   const [availableExclusions, setAvailableExclusions] = useState<ExclusionSchedule[]>([]);
   const [isExclusionImportModalOpen, setIsExclusionImportModalOpen] = useState(false);
   const [isLoadingExclusion, setIsLoadingExclusion] = useState(false);
+
+  // 직접 추가 관련 상태
+  const [showAddAcademy, setShowAddAcademy] = useState(false);
+  const [showAddExclusion, setShowAddExclusion] = useState(false);
+  const [isAddingAcademy, setIsAddingAcademy] = useState(false);
+  const [isAddingExclusion, setIsAddingExclusion] = useState(false);
+
+  const [newAcademy, setNewAcademy] = useState<Partial<AcademySchedule>>({
+    day_of_week: 1,
+    start_time: "18:00",
+    end_time: "21:00",
+    academy_name: "",
+    subject: "",
+    travel_time: 30,
+  });
+
+  const [newExclusion, setNewExclusion] = useState<Partial<ExclusionSchedule>>({
+    exclusion_date: "",
+    exclusion_type: "personal",
+    reason: "",
+  });
+
+  // Toast
+  const toast = useToast();
 
   // 모드 판별
   const mode = useMemo(() => {
@@ -301,7 +335,7 @@ export function PlannerCreationModal({
 
   // 폼 필드 변경 핸들러
   const handleChange = useCallback(
-    (field: keyof FormData, value: string | number) => {
+    (field: keyof FormData, value: string | number | boolean) => {
       setFormData((prev) => ({ ...prev, [field]: value }));
       setError(null);
     },
@@ -377,6 +411,89 @@ export function PlannerCreationModal({
     setAcademySchedules((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  /**
+   * 학원 일정 직접 추가 핸들러
+   */
+  const handleAddAcademy = useCallback(async () => {
+    // 시간 입력 검증
+    if (!newAcademy.start_time || !newAcademy.end_time) {
+      setError("시간을 입력해주세요.");
+      return;
+    }
+
+    // 종료 시간 > 시작 시간 검증
+    if (newAcademy.start_time >= newAcademy.end_time) {
+      setError("종료 시간은 시작 시간보다 이후여야 합니다.");
+      return;
+    }
+
+    const dayOfWeek = newAcademy.day_of_week ?? 1;
+
+    // 동일 요일 시간대 겹침 검사
+    const scheduleToValidate = {
+      day_of_week: dayOfWeek,
+      start_time: newAcademy.start_time,
+      end_time: newAcademy.end_time,
+      travel_time: newAcademy.travel_time ?? 30,
+    };
+
+    const validation = validateAcademyScheduleOverlap(scheduleToValidate, academySchedules);
+    if (!validation.isValid) {
+      setError("해당 요일에 시간대가 겹치는 일정이 있습니다.");
+      return;
+    }
+
+    setIsAddingAcademy(true);
+    try {
+      // 시간 관리에 저장
+      const result = await addStudentAcademyScheduleForAdmin(studentId, {
+        day_of_week: dayOfWeek,
+        start_time: newAcademy.start_time,
+        end_time: newAcademy.end_time,
+        academy_name: newAcademy.academy_name,
+        subject: newAcademy.subject,
+      });
+
+      if (!result.success) {
+        setError(result.error || "학원 일정 저장에 실패했습니다.");
+        return;
+      }
+
+      // 로컬 상태 업데이트 (검증 통과한 값들이므로 타입 단언 사용)
+      setAcademySchedules((prev) => [
+        ...prev,
+        {
+          day_of_week: dayOfWeek,
+          start_time: newAcademy.start_time!,
+          end_time: newAcademy.end_time!,
+          academy_name: newAcademy.academy_name || "",
+          subject: newAcademy.subject || "",
+          travel_time: newAcademy.travel_time ?? 30,
+          source: "manual" as const,
+        },
+      ]);
+
+      toast.showSuccess("학원 일정이 시간 관리에 저장되었습니다.");
+
+      // 폼 리셋
+      setNewAcademy({
+        day_of_week: 1,
+        start_time: "18:00",
+        end_time: "21:00",
+        academy_name: "",
+        subject: "",
+        travel_time: 30,
+      });
+      setShowAddAcademy(false);
+      setError(null);
+    } catch (err) {
+      console.error("[handleAddAcademy] Error:", err);
+      setError("학원 일정 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsAddingAcademy(false);
+    }
+  }, [newAcademy, academySchedules, studentId, toast]);
+
   // ============================================
   // 제외일 Import 핸들러
   // ============================================
@@ -436,6 +553,79 @@ export function PlannerCreationModal({
     setExclusions((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  /**
+   * 제외일 직접 추가 핸들러
+   */
+  const handleAddExclusion = useCallback(async () => {
+    // 날짜 필수 검증
+    if (!newExclusion.exclusion_date) {
+      setError("날짜를 선택해주세요.");
+      return;
+    }
+
+    // 기간 범위 내 검증
+    if (formData.periodStart && formData.periodEnd) {
+      const date = new Date(newExclusion.exclusion_date);
+      const start = new Date(formData.periodStart);
+      const end = new Date(formData.periodEnd);
+      if (date < start || date > end) {
+        setError("학습 기간 내의 날짜를 선택해주세요.");
+        return;
+      }
+    }
+
+    // 중복 날짜 검사
+    const isDuplicate = exclusions.some(
+      (e) => e.exclusion_date === newExclusion.exclusion_date
+    );
+    if (isDuplicate) {
+      setError("이미 추가된 날짜입니다.");
+      return;
+    }
+
+    setIsAddingExclusion(true);
+    try {
+      // 시간 관리에 저장
+      const result = await addStudentExclusionForAdmin(studentId, {
+        exclusion_date: newExclusion.exclusion_date,
+        exclusion_type: newExclusion.exclusion_type || "personal",
+        reason: newExclusion.reason,
+      });
+
+      if (!result.success) {
+        setError(result.error || "제외일 저장에 실패했습니다.");
+        return;
+      }
+
+      // 로컬 상태 업데이트 (검증 통과한 값들이므로 타입 단언 사용)
+      setExclusions((prev) => [
+        ...prev,
+        {
+          exclusion_date: newExclusion.exclusion_date!,
+          exclusion_type: newExclusion.exclusion_type || "personal",
+          reason: newExclusion.reason || "",
+          source: "manual" as const,
+        },
+      ]);
+
+      toast.showSuccess("제외일이 시간 관리에 저장되었습니다.");
+
+      // 폼 리셋
+      setNewExclusion({
+        exclusion_date: "",
+        exclusion_type: "personal",
+        reason: "",
+      });
+      setShowAddExclusion(false);
+      setError(null);
+    } catch (err) {
+      console.error("[handleAddExclusion] Error:", err);
+      setError("제외일 저장 중 오류가 발생했습니다.");
+    } finally {
+      setIsAddingExclusion(false);
+    }
+  }, [newExclusion, exclusions, formData.periodStart, formData.periodEnd, studentId, toast]);
+
   // 폼 제출
   const handleSubmit = async () => {
     const validationError = validateForm();
@@ -479,6 +669,8 @@ export function PlannerCreationModal({
             review_days: formData.reviewDays,
           },
           adminMemo: formData.adminMemo.trim() || null,
+          // 기존 플랜 그룹에도 변경사항 반영
+          syncToExistingGroups: formData.syncToExistingGroups,
         };
 
         result = await updatePlannerAction(editPlanner.id, updateInput);
@@ -817,20 +1009,143 @@ export function PlannerCreationModal({
                     </span>
                   )}
                 </h3>
-                <button
-                  type="button"
-                  onClick={handleOpenAcademyImportModal}
-                  disabled={isLoadingAcademy || isSubmitting}
-                  className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isLoadingAcademy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  시간 관리에서 불러오기
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenAcademyImportModal}
+                    disabled={isLoadingAcademy || isSubmitting}
+                    className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingAcademy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    시간 관리에서 불러오기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddAcademy(!showAddAcademy)}
+                    disabled={isSubmitting}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="h-4 w-4" />
+                    직접 추가
+                  </button>
+                </div>
               </div>
+
+              {/* 직접 추가 인라인 폼 */}
+              {showAddAcademy && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">요일</label>
+                      <select
+                        value={newAcademy.day_of_week}
+                        onChange={(e) => setNewAcademy({ ...newAcademy, day_of_week: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingAcademy}
+                      >
+                        {DAY_NAMES.map((name, idx) => (
+                          <option key={idx} value={idx}>{name}요일</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">학원명</label>
+                      <input
+                        type="text"
+                        value={newAcademy.academy_name || ""}
+                        onChange={(e) => setNewAcademy({ ...newAcademy, academy_name: e.target.value })}
+                        placeholder="예: 영어학원"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingAcademy}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">시작 시간</label>
+                      <input
+                        type="time"
+                        value={newAcademy.start_time || ""}
+                        onChange={(e) => setNewAcademy({ ...newAcademy, start_time: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingAcademy}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">종료 시간</label>
+                      <input
+                        type="time"
+                        value={newAcademy.end_time || ""}
+                        onChange={(e) => setNewAcademy({ ...newAcademy, end_time: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingAcademy}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">이동 시간(분)</label>
+                      <input
+                        type="number"
+                        value={newAcademy.travel_time || 0}
+                        onChange={(e) => setNewAcademy({ ...newAcademy, travel_time: parseInt(e.target.value) || 0 })}
+                        min={0}
+                        max={120}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingAcademy}
+                      />
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-xs text-gray-600 mb-1">과목 (선택)</label>
+                    <input
+                      type="text"
+                      value={newAcademy.subject || ""}
+                      onChange={(e) => setNewAcademy({ ...newAcademy, subject: e.target.value })}
+                      placeholder="예: 영어"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isAddingAcademy}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddAcademy(false);
+                        setNewAcademy({
+                          day_of_week: 1,
+                          start_time: "18:00",
+                          end_time: "21:00",
+                          academy_name: "",
+                          subject: "",
+                          travel_time: 30,
+                        });
+                      }}
+                      disabled={isAddingAcademy}
+                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:text-gray-400"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddAcademy}
+                      disabled={isAddingAcademy}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isAddingAcademy ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          추가 중...
+                        </>
+                      ) : (
+                        "추가"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {academySchedules.length > 0 ? (
                 <div className="space-y-2">
@@ -886,7 +1201,7 @@ export function PlannerCreationModal({
                     등록된 학원 일정이 없습니다.
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    &quot;시간 관리에서 불러오기&quot;를 클릭하여 학생의 학원 일정을 가져올 수 있습니다.
+                    &quot;직접 추가&quot; 또는 &quot;시간 관리에서 불러오기&quot;를 클릭하여 학원 일정을 추가할 수 있습니다.
                   </p>
                 </div>
               )}
@@ -904,21 +1219,109 @@ export function PlannerCreationModal({
                     </span>
                   )}
                 </h3>
-                <button
-                  type="button"
-                  onClick={handleOpenExclusionImportModal}
-                  disabled={isLoadingExclusion || isSubmitting || !formData.periodStart || !formData.periodEnd}
-                  className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  title={!formData.periodStart || !formData.periodEnd ? "기간을 먼저 설정해주세요" : ""}
-                >
-                  {isLoadingExclusion ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  시간 관리에서 불러오기
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleOpenExclusionImportModal}
+                    disabled={isLoadingExclusion || isSubmitting || !formData.periodStart || !formData.periodEnd}
+                    className="inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    title={!formData.periodStart || !formData.periodEnd ? "기간을 먼저 설정해주세요" : ""}
+                  >
+                    {isLoadingExclusion ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    시간 관리에서 불러오기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddExclusion(!showAddExclusion)}
+                    disabled={isSubmitting || !formData.periodStart || !formData.periodEnd}
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    title={!formData.periodStart || !formData.periodEnd ? "기간을 먼저 설정해주세요" : ""}
+                  >
+                    <Plus className="h-4 w-4" />
+                    직접 추가
+                  </button>
+                </div>
               </div>
+
+              {/* 직접 추가 인라인 폼 */}
+              {showAddExclusion && (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">날짜</label>
+                      <input
+                        type="date"
+                        value={newExclusion.exclusion_date || ""}
+                        onChange={(e) => setNewExclusion({ ...newExclusion, exclusion_date: e.target.value })}
+                        min={formData.periodStart}
+                        max={formData.periodEnd}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingExclusion}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">유형</label>
+                      <select
+                        value={newExclusion.exclusion_type || "personal"}
+                        onChange={(e) => setNewExclusion({ ...newExclusion, exclusion_type: e.target.value as ExclusionSchedule["exclusion_type"] })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={isAddingExclusion}
+                      >
+                        <option value="holiday">휴일</option>
+                        <option value="personal">개인</option>
+                        <option value="event">행사</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="block text-xs text-gray-600 mb-1">사유 (선택)</label>
+                    <input
+                      type="text"
+                      value={newExclusion.reason || ""}
+                      onChange={(e) => setNewExclusion({ ...newExclusion, reason: e.target.value })}
+                      placeholder="예: 가족 여행"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={isAddingExclusion}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddExclusion(false);
+                        setNewExclusion({
+                          exclusion_date: "",
+                          exclusion_type: "personal",
+                          reason: "",
+                        });
+                      }}
+                      disabled={isAddingExclusion}
+                      className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 disabled:text-gray-400"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddExclusion}
+                      disabled={isAddingExclusion}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isAddingExclusion ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          추가 중...
+                        </>
+                      ) : (
+                        "추가"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {exclusions.length > 0 ? (
                 <div className="space-y-2">
@@ -1074,6 +1477,29 @@ export function PlannerCreationModal({
                 disabled={isSubmitting}
               />
             </section>
+
+            {/* 수정 모드: 기존 플랜 그룹 동기화 옵션 */}
+            {mode === "edit" && (
+              <section className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.syncToExistingGroups}
+                    onChange={(e) => handleChange("syncToExistingGroups", e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    disabled={isSubmitting}
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">
+                      기존 플랜 그룹에도 반영
+                    </span>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      활성/초안 상태의 플랜 그룹에 시간 설정(학습시간, 자습시간, 점심시간 등)을 동기화합니다.
+                    </p>
+                  </div>
+                </label>
+              </section>
+            )}
           </div>
         </div>
 

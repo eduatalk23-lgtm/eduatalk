@@ -10,7 +10,7 @@
  * @module app/(admin)/admin/students/[id]/plans/_components/PlannerManagement
  */
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Calendar,
   Plus,
@@ -25,6 +25,9 @@ import {
   AlertCircle,
   Copy,
   Check,
+  Clock,
+  FolderOpen,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -35,6 +38,7 @@ import {
   type PlannerStatus,
 } from "@/lib/domains/admin-plan/actions";
 import { PlannerCreationModal } from "./PlannerCreationModal";
+import { PlannerStats } from "./PlannerStats";
 
 // ============================================
 // 타입 정의
@@ -46,6 +50,12 @@ interface PlannerManagementProps {
   studentName: string;
   onPlannerSelect?: (planner: Planner) => void;
   selectedPlannerId?: string;
+  /**
+   * 컴포넌트 모드
+   * - 'selection': 플래너 선택 전용 페이지 (PlannerStats 숨김)
+   * - 'inline': 기존 인라인 모드 (기본값)
+   */
+  mode?: 'selection' | 'inline';
 }
 
 // ============================================
@@ -104,29 +114,24 @@ function PlannerCard({
     e.stopPropagation();
     if (!menuOpen && menuButtonRef.current) {
       const rect = menuButtonRef.current.getBoundingClientRect();
-      const menuHeight = 280; // 예상 메뉴 높이 (모든 항목 포함)
-      const menuWidth = 160; // w-40 = 160px
+      const menuHeight = 280;
+      const menuWidth = 160;
 
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
 
-      // 위/아래 공간 비교하여 더 넓은 쪽으로 열기
       let top: number;
       if (spaceBelow >= menuHeight) {
-        // 아래 공간 충분 → 아래로 열기
         top = rect.bottom + 4;
       } else if (spaceAbove >= menuHeight) {
-        // 위 공간 충분 → 위로 열기
         top = rect.top - menuHeight - 4;
       } else {
-        // 둘 다 부족 → 더 넓은 쪽으로, 화면 경계 내로 제한
         top =
           spaceBelow > spaceAbove
             ? Math.min(rect.bottom + 4, window.innerHeight - menuHeight - 8)
             : Math.max(8, rect.top - menuHeight - 4);
       }
 
-      // 좌우 경계 체크
       let left = rect.right - menuWidth;
       if (left < 8) left = 8;
       if (left + menuWidth > window.innerWidth - 8) {
@@ -140,185 +145,273 @@ function PlannerCard({
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("ko-KR", {
-      year: "numeric",
       month: "short",
       day: "numeric",
     });
   };
+
+  const formatFullDate = (date: string) => {
+    return new Date(date).toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  // 남은 일수 계산
+  const getDaysRemaining = () => {
+    const end = new Date(planner.periodEnd);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  };
+
+  const daysRemaining = getDaysRemaining();
 
   const handleStatusAction = (status: PlannerStatus) => {
     setMenuOpen(false);
     onStatusChange(status);
   };
 
+  // 상태별 배경색
+  const statusBgColors = {
+    draft: "from-gray-50 to-gray-100/50",
+    active: "from-emerald-50 to-teal-50/50",
+    paused: "from-amber-50 to-yellow-50/50",
+    archived: "from-slate-50 to-gray-50/50",
+    completed: "from-blue-50 to-indigo-50/50",
+  };
+
   return (
     <div
       className={cn(
-        "relative p-4 bg-white border rounded-lg transition-all cursor-pointer",
+        "group relative overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer",
+        "bg-gradient-to-br",
+        statusBgColors[planner.status],
         isSelected
-          ? "border-blue-500 ring-2 ring-blue-200 shadow-md shadow-blue-100"
-          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
+          ? "border-blue-500 shadow-lg shadow-blue-500/20 ring-2 ring-blue-500/20"
+          : "border-transparent hover:border-gray-300 hover:shadow-md",
+        menuOpen && "z-30"
       )}
       onClick={onSelect}
     >
-      {/* 헤더 */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 truncate">{planner.name}</h4>
-          {planner.description && (
-            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">
-              {planner.description}
-            </p>
-          )}
-        </div>
+      {/* 상단 컬러 바 */}
+      <div
+        className={cn(
+          "absolute top-0 left-0 right-0 h-1 rounded-t-xl",
+          planner.status === "active" && "bg-gradient-to-r from-emerald-500 to-teal-500",
+          planner.status === "draft" && "bg-gradient-to-r from-gray-400 to-gray-500",
+          planner.status === "paused" && "bg-gradient-to-r from-amber-500 to-yellow-500",
+          planner.status === "archived" && "bg-gradient-to-r from-slate-400 to-gray-400",
+          planner.status === "completed" && "bg-gradient-to-r from-blue-500 to-indigo-500"
+        )}
+      />
 
-        <div className="flex items-center gap-2">
-          <StatusBadge status={planner.status} />
+      <div className="p-5">
+        {/* 헤더 */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <StatusBadge status={planner.status} />
+              {planner.status === "active" && daysRemaining >= 0 && daysRemaining <= 7 && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                  D-{daysRemaining}
+                </span>
+              )}
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+              {planner.name}
+            </h4>
+            {planner.description && (
+              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                {planner.description}
+              </p>
+            )}
+          </div>
 
           {/* 메뉴 버튼 */}
-          <div className="relative">
-            <button
-              ref={menuButtonRef}
-              onClick={handleMenuOpen}
-              className="p-1 hover:bg-gray-100 rounded"
-            >
-              <MoreVertical className="w-4 h-4 text-gray-500" />
-            </button>
-
-            {/* 드롭다운 메뉴 (fixed positioning으로 부모 overflow 제약 회피) */}
-            {menuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuOpen(false);
-                  }}
-                />
-                <div
-                  className="fixed z-50 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 max-h-[280px] overflow-y-auto"
-                  style={{ top: menuPosition.top, left: menuPosition.left }}
-                >
-                  {/* 수정 */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onEdit();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                  >
-                    <Edit className="w-4 h-4" />
-                    수정
-                  </button>
-                  {/* 복제 */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onDuplicate();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                  >
-                    <Copy className="w-4 h-4" />
-                    복제
-                  </button>
-                  <hr className="my-1" />
-                  {/* 상태 변경 */}
-                  {planner.status === "draft" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStatusAction("active");
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                    >
-                      <Play className="w-4 h-4" />
-                      활성화
-                    </button>
-                  )}
-                  {planner.status === "active" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStatusAction("paused");
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                    >
-                      <Pause className="w-4 h-4" />
-                      일시정지
-                    </button>
-                  )}
-                  {planner.status === "paused" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStatusAction("active");
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                    >
-                      <Play className="w-4 h-4" />
-                      재개
-                    </button>
-                  )}
-                  {planner.status !== "completed" && planner.status !== "archived" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStatusAction("completed");
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                    >
-                      <Check className="w-4 h-4" />
-                      완료 처리
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStatusAction("archived");
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50"
-                  >
-                    <Archive className="w-4 h-4" />
-                    보관
-                  </button>
-                  <hr className="my-1" />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenuOpen(false);
-                      onDelete();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    삭제
-                  </button>
-                </div>
-              </>
+          <button
+            ref={menuButtonRef}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleMenuOpen(e);
+            }}
+            className={cn(
+              "p-2 rounded-lg transition-all shrink-0",
+              "text-gray-400 hover:text-gray-600",
+              menuOpen ? "bg-gray-200 text-gray-600" : "hover:bg-gray-200/70"
             )}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 기간 정보 */}
+        <div className="mt-4 flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/80 shadow-sm">
+              <Calendar className="w-4 h-4 text-gray-500" />
+            </div>
+            <div>
+              <div className="text-xs text-gray-400">학습 기간</div>
+              <div className="font-medium">
+                {formatDate(planner.periodStart)} ~ {formatDate(planner.periodEnd)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 통계 정보 */}
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <div className="flex flex-col items-center p-2.5 bg-white/60 rounded-lg">
+            <FolderOpen className="w-4 h-4 text-gray-400 mb-1" />
+            <span className="text-lg font-bold text-gray-900">
+              {planner.planGroupCount ?? 0}
+            </span>
+            <span className="text-xs text-gray-500">플랜그룹</span>
+          </div>
+          <div className="flex flex-col items-center p-2.5 bg-white/60 rounded-lg">
+            <Clock className="w-4 h-4 text-gray-400 mb-1" />
+            <span className="text-lg font-bold text-gray-900">
+              {(planner.defaultSchedulerOptions as { study_days?: number } | null)?.study_days ?? 6}
+            </span>
+            <span className="text-xs text-gray-500">주간 학습일</span>
+          </div>
+          <div className="flex flex-col items-center p-2.5 bg-white/60 rounded-lg">
+            <Target className="w-4 h-4 text-gray-400 mb-1" />
+            <span className="text-lg font-bold text-gray-900">
+              {daysRemaining >= 0 ? daysRemaining : 0}
+            </span>
+            <span className="text-xs text-gray-500">남은 일수</span>
+          </div>
+        </div>
+
+        {/* 하단 CTA */}
+        <div className="mt-4 pt-3 border-t border-gray-200/50 flex items-center justify-between">
+          <span className="text-xs text-gray-400">
+            {formatFullDate(planner.periodStart)} 시작
+          </span>
+          <div className="flex items-center gap-1 text-sm font-medium text-blue-600 group-hover:gap-2 transition-all">
+            <span>관리하기</span>
+            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
       </div>
 
-      {/* 기간 정보 */}
-      <div className="flex items-center gap-1 mt-3 text-sm text-gray-600">
-        <Calendar className="w-4 h-4" />
-        <span>
-          {formatDate(planner.periodStart)} ~ {formatDate(planner.periodEnd)}
-        </span>
-      </div>
-
-      {/* 하단 정보 */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        {planner.planGroupCount !== undefined && (
-          <span className="text-xs text-gray-500">
-            플랜그룹 {planner.planGroupCount}개
-          </span>
-        )}
-        <ChevronRight className="w-4 h-4 text-gray-400" />
-      </div>
+      {/* 드롭다운 메뉴 */}
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(false);
+            }}
+          />
+          <div
+            className="fixed z-50 w-44 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 max-h-[300px] overflow-y-auto"
+            style={{ top: menuPosition.top, left: menuPosition.left }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onEdit();
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+            >
+              <Edit className="w-4 h-4 text-gray-400" />
+              수정
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onDuplicate();
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+            >
+              <Copy className="w-4 h-4 text-gray-400" />
+              복제
+            </button>
+            <hr className="my-1.5 mx-3" />
+            {planner.status === "draft" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusAction("active");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-emerald-50 text-emerald-600 transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                활성화
+              </button>
+            )}
+            {planner.status === "active" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusAction("paused");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-amber-50 text-amber-600 transition-colors"
+              >
+                <Pause className="w-4 h-4" />
+                일시정지
+              </button>
+            )}
+            {planner.status === "paused" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusAction("active");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-emerald-50 text-emerald-600 transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                재개
+              </button>
+            )}
+            {planner.status !== "completed" && planner.status !== "archived" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStatusAction("completed");
+                }}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 text-blue-600 transition-colors"
+              >
+                <Check className="w-4 h-4" />
+                완료 처리
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStatusAction("archived");
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-gray-50 transition-colors"
+            >
+              <Archive className="w-4 h-4 text-gray-400" />
+              보관
+            </button>
+            <hr className="my-1.5 mx-3" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onDelete();
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              삭제
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -333,6 +426,7 @@ export function PlannerManagement({
   studentName,
   onPlannerSelect,
   selectedPlannerId,
+  mode = 'inline',
 }: PlannerManagementProps) {
   const [planners, setPlanners] = useState<Planner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -341,6 +435,12 @@ export function PlannerManagement({
   const [showArchived, setShowArchived] = useState(false);
   const [editPlanner, setEditPlanner] = useState<Planner | undefined>();
   const [duplicatePlanner, setDuplicatePlanner] = useState<Planner | undefined>();
+
+  // 선택된 플래너 객체 계산
+  const selectedPlanner = useMemo(
+    () => planners.find((p) => p.id === selectedPlannerId),
+    [planners, selectedPlannerId]
+  );
 
   // 플래너 목록 로드
   const loadPlanners = useCallback(async () => {
@@ -412,25 +512,30 @@ export function PlannerManagement({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">
-          {studentName}의 플래너
-        </h3>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold text-gray-900">
+            {studentName}의 플래너
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">
+            학습 플랜을 관리할 플래너를 선택하세요
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
-              className="rounded border-gray-300"
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             보관됨 포함
           </label>
           <button
             onClick={() => setCreateModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-xl hover:shadow-blue-600/30"
           >
             <Plus className="w-4 h-4" />
             새 플래너
@@ -455,29 +560,38 @@ export function PlannerManagement({
 
       {/* 빈 상태 - 첫 플래너 만들기 강조 */}
       {!isLoading && !error && planners.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-dashed border-blue-200 rounded-xl">
-          <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-            <Calendar className="w-8 h-8 text-blue-600" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 p-8">
+          {/* 배경 장식 */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-40 h-40 bg-white rounded-full blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-60 h-60 bg-white rounded-full blur-3xl" />
           </div>
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">
-            플래너를 시작해보세요
-          </h4>
-          <p className="text-sm text-gray-600 mb-6 max-w-xs">
-            플래너를 생성하면 학생의 학습 플랜을 체계적으로 관리할 수 있습니다.
-          </p>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all hover:shadow-xl hover:shadow-blue-600/30"
-          >
-            <Plus className="w-5 h-5" />
-            첫 플래너 만들기
-          </button>
+
+          <div className="relative flex flex-col items-center justify-center py-8 text-center">
+            <div className="flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl mb-6 shadow-xl">
+              <Calendar className="w-10 h-10 text-white" />
+            </div>
+            <h4 className="text-2xl font-bold text-white mb-3">
+              플래너를 시작해보세요
+            </h4>
+            <p className="text-base text-white/80 mb-8 max-w-md">
+              플래너를 생성하면 학생의 학습 플랜을 체계적으로 관리할 수 있습니다.
+              목표 기간, 학습 일정, 콘텐츠를 한 곳에서 관리하세요.
+            </p>
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 font-semibold rounded-xl hover:bg-blue-50 shadow-xl shadow-black/20 transition-all hover:scale-105"
+            >
+              <Plus className="w-5 h-5" />
+              첫 플래너 만들기
+            </button>
+          </div>
         </div>
       )}
 
       {/* 플래너 목록 */}
       {!isLoading && planners.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {planners.map((planner) => (
             <PlannerCard
               key={planner.id}
@@ -491,6 +605,15 @@ export function PlannerManagement({
             />
           ))}
         </div>
+      )}
+
+      {/* 선택된 플래너 통계 및 타임라인 (selection 모드에서는 숨김) */}
+      {mode !== 'selection' && selectedPlanner && (
+        <PlannerStats
+          planner={selectedPlanner}
+          studentId={studentId}
+          className="mt-4 p-4 bg-white rounded-lg border border-gray-200"
+        />
       )}
 
       {/* 플래너 생성/수정/복제 모달 */}
