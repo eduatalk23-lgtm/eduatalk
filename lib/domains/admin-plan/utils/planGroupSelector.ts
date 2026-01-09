@@ -11,6 +11,10 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import type { PlanGroupSelectorResult, PlanGroupInfo } from "../actions/planCreation/types";
+import {
+  inheritPlannerConfigFromRaw,
+  type PlannerConfigRaw,
+} from "./plannerConfigInheritance";
 
 /**
  * 플래너에 연결된 활성 Plan Group 선택
@@ -190,6 +194,9 @@ export async function createPlanGroupForPlanner(input: {
       .select("*")
       .eq("planner_id", plannerId);
 
+    // 플래너 설정을 플랜 그룹 생성용 설정으로 변환
+    const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
+
     // Plan Group 생성 (플래너 설정 상속)
     const { data: planGroup, error: insertError } = await supabase
       .from("plan_groups")
@@ -202,14 +209,8 @@ export async function createPlanGroupForPlanner(input: {
         period_end: periodEnd,
         status: "active",
         creation_mode: "calendar_only",
-        // 플래너에서 설정 상속
-        study_hours: planner.study_hours,
-        self_study_hours: planner.self_study_hours,
-        lunch_time: planner.lunch_time,
-        scheduler_type: planner.default_scheduler_type ?? "even",
-        scheduler_options: planner.default_scheduler_options ?? {},
-        block_set_id: planner.block_set_id,
-        non_study_time_blocks: planner.non_study_time_blocks,
+        // 플래너에서 설정 상속 (일관된 기본값 사용)
+        ...inheritedConfig,
         // 메타데이터
         created_by: user.userId,
       })

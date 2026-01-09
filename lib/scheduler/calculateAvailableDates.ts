@@ -9,6 +9,11 @@ import {
   DEFAULT_CAMP_LUNCH_TIME,
   DEFAULT_DESIGNATED_HOLIDAY_HOURS,
 } from "@/lib/types/schedulerSettings";
+import {
+  subtractTimeRange,
+  mergeTimeRanges,
+  calculateHours,
+} from "./timeRangeUtils";
 
 export type DayType = "학습일" | "복습일" | "지정휴일" | "휴가" | "개인일정";
 
@@ -145,104 +150,10 @@ export type CalculateOptions = {
   non_study_time_blocks?: NonStudyTimeBlock[]; // 학습 시간 제외 항목
 };
 
-/**
- * 두 시간 범위가 겹치는지 확인
- */
-function timeRangesOverlap(
-  range1: TimeRange,
-  range2: TimeRange
-): boolean {
-  const start1 = timeToMinutes(range1.start);
-  const end1 = timeToMinutes(range1.end);
-  const start2 = timeToMinutes(range2.start);
-  const end2 = timeToMinutes(range2.end);
-
-  return start1 < end2 && start2 < end1;
-}
-
-/**
- * 시간 범위에서 다른 시간 범위를 제외
- */
-function subtractTimeRange(
-  base: TimeRange,
-  exclude: TimeRange
-): TimeRange[] {
-  const baseStart = timeToMinutes(base.start);
-  const baseEnd = timeToMinutes(base.end);
-  const excludeStart = timeToMinutes(exclude.start);
-  const excludeEnd = timeToMinutes(exclude.end);
-
-  // 겹치지 않으면 원본 반환
-  if (excludeEnd <= baseStart || excludeStart >= baseEnd) {
-    return [base];
-  }
-
-  const result: TimeRange[] = [];
-
-  // 앞부분
-  if (baseStart < excludeStart) {
-    result.push({
-      start: minutesToTime(baseStart),
-      end: minutesToTime(excludeStart),
-    });
-  }
-
-  // 뒷부분
-  if (excludeEnd < baseEnd) {
-    result.push({
-      start: minutesToTime(excludeEnd),
-      end: minutesToTime(baseEnd),
-    });
-  }
-
-  return result;
-}
-
-/**
- * 여러 시간 범위를 병합 (겹치는 부분 제거)
- */
-function mergeTimeRanges(ranges: TimeRange[]): TimeRange[] {
-  if (ranges.length === 0) return [];
-
-  // 시작 시간 기준 정렬
-  const sorted = [...ranges].sort(
-    (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
-  );
-
-  const merged: TimeRange[] = [];
-  let current = sorted[0];
-
-  for (let i = 1; i < sorted.length; i++) {
-    const next = sorted[i];
-    const currentEnd = timeToMinutes(current.end);
-    const nextStart = timeToMinutes(next.start);
-
-    // 겹치거나 연속된 경우 병합
-    if (nextStart <= currentEnd) {
-      current = {
-        start: current.start,
-        end: minutesToTime(Math.max(currentEnd, timeToMinutes(next.end))),
-      };
-    } else {
-      merged.push(current);
-      current = next;
-    }
-  }
-
-  merged.push(current);
-  return merged;
-}
-
-/**
- * 시간 범위의 총 시간(시간 단위) 계산
- */
-function calculateHours(ranges: TimeRange[]): number {
-  return ranges.reduce((total, range) => {
-    const start = timeToMinutes(range.start);
-    const end = timeToMinutes(range.end);
-    return total + (end - start) / 60;
-  }, 0);
-}
+// 시간 범위 유틸리티 함수들은 ./timeRangeUtils.ts에서 import됨
+// - subtractTimeRange: 시간 범위 차감
+// - mergeTimeRanges: 시간 범위 병합
+// - calculateHours: 시간 범위 총 시간 계산
 
 /**
  * 날짜의 요일 반환 (0: 일요일, 1: 월요일, ..., 6: 토요일)

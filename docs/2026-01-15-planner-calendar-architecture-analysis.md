@@ -25,6 +25,7 @@
 ### 목적
 
 플래너 시스템과 캘린더 시스템의 아키텍처를 종합적으로 분석하여:
+
 - 시스템 간 상호작용 이해
 - 데이터 흐름 파악
 - 통합 포인트 식별
@@ -75,32 +76,32 @@ CREATE TABLE planners (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL,
     student_id UUID NOT NULL,
-    
+
     -- 기본 정보
     name TEXT NOT NULL,
     description TEXT,
     status TEXT DEFAULT 'active', -- 'draft', 'active', 'paused', 'archived', 'completed'
-    
+
     -- 기간 설정
     period_start DATE NOT NULL,
     period_end DATE NOT NULL,
     target_date DATE,
-    
+
     -- 학습 시간 설정 (JSONB)
     study_hours JSONB DEFAULT '{"start": "10:00", "end": "19:00"}',
     self_study_hours JSONB DEFAULT '{"start": "19:00", "end": "22:00"}',
     lunch_time JSONB DEFAULT '{"start": "12:00", "end": "13:00"}',
-    
+
     -- 블록셋 연결
     block_set_id UUID REFERENCES tenant_block_sets(id),
-    
+
     -- 비학습시간 블록 (JSONB 배열)
     non_study_time_blocks JSONB DEFAULT '[]',
-    
+
     -- 스케줄러 설정
     default_scheduler_type TEXT DEFAULT '1730_timetable',
     default_scheduler_options JSONB DEFAULT '{"study_days": 6, "review_days": 1}',
-    
+
     -- 메타데이터
     admin_memo TEXT,
     created_by UUID,
@@ -125,16 +126,23 @@ CREATE TABLE planners (
 
 ```typescript
 // 플래너 생성
-export async function createPlanner(input: CreatePlannerInput): Promise<Planner>
+export async function createPlanner(
+  input: CreatePlannerInput
+): Promise<Planner>;
 
 // 플래너 수정
-export async function updatePlanner(id: string, input: UpdatePlannerInput): Promise<Planner>
+export async function updatePlanner(
+  id: string,
+  input: UpdatePlannerInput
+): Promise<Planner>;
 
 // 플래너 조회
-export async function getPlanner(id: string): Promise<Planner | null>
+export async function getPlanner(id: string): Promise<Planner | null>;
 
 // 플래너 목록 조회
-export async function getPlannersByStudent(studentId: string): Promise<Planner[]>
+export async function getPlannersByStudent(
+  studentId: string
+): Promise<Planner[]>;
 ```
 
 #### 2. 플래너 스케줄 생성
@@ -147,10 +155,11 @@ export async function generateScheduleForPlanner(
   plannerId: string,
   periodStart: string,
   periodEnd: string
-): Promise<ScheduleGenerationResult>
+): Promise<ScheduleGenerationResult>;
 ```
 
 **주요 기능**:
+
 - 플래너 설정 기반 스케줄 생성
 - 학원일정, 제외일, 블록셋 고려
 - 날짜별 사용 가능 시간 범위 계산
@@ -161,6 +170,7 @@ export async function generateScheduleForPlanner(
 **위치**: `components/plan/PlannerTimeline.tsx`
 
 **기능**:
+
 - 주간 타임라인 시각화
 - 가용 학습 시간대 표시
 - 기존 플랜 점유 시간 표시
@@ -196,12 +206,14 @@ PlanCalendarView (메인 컨테이너)
 **위치**: `app/(student)/plan/calendar/_components/PlanCalendarView.tsx`
 
 **주요 책임**:
+
 - 뷰 모드 관리 (month/week/day)
 - 필터링 상태 관리
 - URL 파라미터 동기화
 - 플랜 데이터 그룹화
 
 **주요 Props**:
+
 ```typescript
 type PlanCalendarViewProps = {
   plans: PlanWithContent[];
@@ -224,12 +236,14 @@ type PlanCalendarViewProps = {
 **위치**: `app/(student)/plan/calendar/_components/MonthView.tsx`
 
 **주요 기능**:
+
 - 월별 캘린더 그리드 렌더링
 - 날짜별 플랜 표시
 - 드래그 앤 드롭 지원
 - 날짜 클릭 이벤트 처리
 
 **주요 훅**:
+
 - `useCalendarData`: 날짜별 데이터 그룹화
 - `useCalendarDragDrop`: 드래그 앤 드롭 관리
 - `useMonthViewModals`: 모달 상태 관리
@@ -240,12 +254,14 @@ type PlanCalendarViewProps = {
 **위치**: `app/(student)/plan/calendar/_components/WeekView.tsx`
 
 **주요 기능**:
+
 - 주별 타임라인 렌더링
 - 시간대별 플랜 표시
 - 플랜 연결 상태 표시
 - 일별 타임라인 모달
 
 **특징**:
+
 - 시간 슬롯 기반 렌더링
 - 플랜 연결 시각화 (같은 콘텐츠의 연속 플랜)
 - 시간대별 색상 구분
@@ -255,6 +271,7 @@ type PlanCalendarViewProps = {
 **위치**: `app/(student)/plan/calendar/_components/DayView.tsx`
 
 **주요 기능**:
+
 - 일별 상세 타임라인
 - 시간대별 플랜 표시
 - 플랜 상세 정보 모달
@@ -278,7 +295,7 @@ export function useCalendarData(
   plansByDate: Map<string, PlanWithContent[]>;
   exclusionsByDate: Map<string, PlanExclusion[]>;
   academySchedulesByDate: Map<string, AcademySchedule[]>;
-}
+};
 ```
 
 #### 2. useCalendarDragDrop
@@ -288,9 +305,7 @@ export function useCalendarData(
 **기능**: 플랜 드래그 앤 드롭 관리
 
 ```typescript
-export function useCalendarDragDrop(options: {
-  onMoveSuccess?: () => void;
-}): {
+export function useCalendarDragDrop(options: { onMoveSuccess?: () => void }): {
   draggedItem: DragItem | null;
   dropTarget: string | null;
   isMoving: boolean;
@@ -298,7 +313,7 @@ export function useCalendarDragDrop(options: {
   dragHandlers: DragHandlers;
   dropHandlers: DropHandlers;
   setDragImageElement: (element: HTMLElement | null) => void;
-}
+};
 ```
 
 #### 3. usePlanConnectionState
@@ -310,7 +325,7 @@ export function useCalendarDragDrop(options: {
 ```typescript
 export function usePlanConnectionState(
   plansByDate: Map<string, PlanWithContent[]>
-): GetPlanConnectionStateFn
+): GetPlanConnectionStateFn;
 ```
 
 ### 캘린더 유틸리티
@@ -320,6 +335,7 @@ export function usePlanConnectionState(
 **위치**: `lib/date/calendarUtils.ts`
 
 **주요 함수**:
+
 - `formatDateString`: 날짜 포맷팅
 - `parseDateString`: 날짜 파싱
 - `formatMonthYear`: 월/년 포맷팅
@@ -331,6 +347,7 @@ export function usePlanConnectionState(
 **위치**: `app/(student)/plan/calendar/_utils/timelineUtils.ts`
 
 **주요 함수**:
+
 - `getTimeSlotColorClass`: 시간 슬롯 색상 클래스
 - `getTimeSlotIcon`: 시간 슬롯 아이콘
 - `getTimelineSlots`: 타임라인 슬롯 생성
@@ -346,12 +363,14 @@ export function usePlanConnectionState(
 **위치**: `lib/plan/1730TimetableLogic.ts`
 
 **특징**:
+
 - 6일 학습 + 1일 복습 사이클
 - 전략/취약 과목 분리 배정
 - 블록 기반 시간 할당
 - 복습의 복습 지원
 
 **주요 함수**:
+
 ```typescript
 export function generate1730TimetablePlans(
   availableDates: string[],
@@ -359,12 +378,12 @@ export function generate1730TimetablePlans(
   blocks: BlockInfo[],
   academySchedules: AcademySchedule[],
   exclusions: PlanExclusion[],
-  schedulerOptions?: SchedulerOptions,
+  schedulerOptions?: SchedulerOptions
   // ... 기타 파라미터
 ): {
   plans: ScheduledPlan[];
   failureReasons: PlanGenerationFailureReason[];
-}
+};
 ```
 
 #### 2. Default Scheduler
@@ -372,6 +391,7 @@ export function generate1730TimetablePlans(
 **위치**: `lib/plan/scheduler.ts`
 
 **특징**:
+
 - 기본 순차 배정
 - 블록 기반 시간 할당
 - 제외일, 학원일정 고려
@@ -381,20 +401,22 @@ export function generate1730TimetablePlans(
 **위치**: `lib/scheduler/SchedulerEngine.ts`
 
 **주요 클래스**:
+
 ```typescript
 export class SchedulerEngine {
   // 스케줄 생성
   generateSchedule(context: SchedulerContext): ScheduleResult;
-  
+
   // 시간 슬롯 할당
   allocateTimeSlots(plans: ScheduledPlan[]): AllocatedPlan[];
-  
+
   // 충돌 검사
   checkConflicts(plans: AllocatedPlan[]): Conflict[];
 }
 ```
 
 **주요 기능**:
+
 - 날짜별 사용 가능 시간 범위 계산
 - 시간 타임라인 생성
 - 기존 플랜 고려한 시간 할당
@@ -523,12 +545,14 @@ export type Plan = {
 **위치**: `app/(admin)/admin/students/[id]/plans/_components/AdminPlanManagement.tsx`
 
 **주요 기능**:
+
 - 플래너 선택 및 관리
 - 플랜 생성 위저드
 - 플랜 목록 표시 (Daily/Weekly/Unfinished Dock)
 - 플랜 통계 및 대시보드
 
 **주요 컴포넌트**:
+
 - `PlannerManagement`: 플래너 목록/선택
 - `PlannerCreationModal`: 플래너 생성/수정
 - `AdminPlanCreationWizard7Step`: 플랜 생성 위저드
@@ -539,6 +563,7 @@ export type Plan = {
 **위치**: `components/plan/PlannerTimeline.tsx`
 
 **주요 기능**:
+
 - 주간 타임라인 시각화
 - 가용 학습 시간대 표시
 - 기존 플랜 점유 시간 표시
@@ -550,6 +575,7 @@ export type Plan = {
 **위치**: `app/(student)/plan/calendar/_components/PlanCalendarView.tsx`
 
 **주요 기능**:
+
 - 월/주/일 뷰 전환
 - 플랜 필터링
 - 플랜 재조정 모달
@@ -623,10 +649,12 @@ export type Plan = {
 **위치**: `lib/domains/admin-plan/actions/planCreation/scheduleGenerator.ts`
 
 **통합 방식**:
+
 - 플래너 설정을 스케줄러 옵션으로 변환
 - `generateScheduleForPlanner()` 함수로 통합
 
 **주요 기능**:
+
 ```typescript
 // 플래너 기반 스케줄 생성
 const result = await generateScheduleForPlanner(
@@ -644,10 +672,12 @@ const { dateAvailableTimeRanges, dateTimeSlots } = result;
 **위치**: `lib/plan/scheduler.ts`
 
 **통합 방식**:
+
 - `generatePlansFromGroup()` 함수에서 스케줄러 호출
 - 스케줄 결과를 플랜 생성에 활용
 
 **주요 기능**:
+
 ```typescript
 const plans = await generatePlansFromGroup(
   group,
@@ -666,10 +696,12 @@ const plans = await generatePlansFromGroup(
 **위치**: `app/(student)/plan/calendar/page.tsx`
 
 **통합 방식**:
+
 - 플랜 데이터를 캘린더 뷰에 전달
 - 날짜별 그룹화 후 렌더링
 
 **주요 기능**:
+
 ```typescript
 // 서버 컴포넌트에서 플랜 조회
 const plans = await getPlansByDateRange(
@@ -692,17 +724,19 @@ const plans = await getPlansByDateRange(
 **위치**: `lib/realtime/useAdminPlanRealtime.ts`
 
 **통합 방식**:
+
 - Supabase Realtime 구독
 - 플랜 변경 시 자동 새로고침
 
 **주요 기능**:
+
 ```typescript
 useAdminPlanRealtime({
   studentId,
   onPlanUpdated: () => {
     router.refresh();
     invalidateQueries();
-  }
+  },
 });
 ```
 
@@ -739,53 +773,81 @@ useAdminPlanRealtime({
    - Phase 2: 1730 Timetable 방법론 준수 ✅
    - Phase 3: 단일 날짜 스케줄러 ✅
 
-2. **캘린더 성능 최적화**
+2. **아키텍처 개선 (2026-01-09 Phase 1 완료)** ✅
+   - 기본값 상수화 (`lib/domains/admin-plan/constants/schedulerDefaults.ts`) ✅
+   - 설정 상속 함수 추출 (`lib/domains/admin-plan/utils/plannerConfigInheritance.ts`) ✅
+   - 시간 범위 유틸리티 통합 (`lib/scheduler/timeRangeUtils.ts`) ✅
+
+3. **캘린더 성능 최적화** (Phase 2 대기)
    - 메모이제이션 적용
    - 가상 스크롤링 검토
 
 ### 개선 방향
 
-#### 1. 아키텍처 개선
+#### 1. 아키텍처 개선 ✅ Phase 1 완료 (2026-01-09)
+
+**해결된 문제점**:
+
+- ~~플래너와 플랜 그룹 간 관계가 명확하지 않음~~ → 설정 상속 함수로 명확화
+- ~~스케줄러 옵션 전달 경로가 복잡함~~ → 기본값 상수화로 일관성 확보
+- ~~기본값 불일치 ("even" vs "1730_timetable")~~ → `SCHEDULER_DEFAULTS.TYPE`으로 통일
+
+**완료된 개선**:
+
+- `inheritPlannerConfigFromRaw()`: 플래너→플랜그룹 설정 상속 함수
+- `SCHEDULER_DEFAULTS`: 기본값 상수 (TYPE, OPTIONS, STUDY_HOURS 등)
+- `TimeRangeUtils`: 시간 범위 계산 유틸리티 클래스
+
+**수정된 파일**:
+
+- `planGroupSelector.ts`: 중복 상속 코드 제거
+- `createAutoContentPlanGroup.ts`: 중복 상속 코드 제거
+- `calculateAvailableDates.ts`: 시간 범위 함수 ~90줄 제거
+
+**남은 작업 (Phase 2-3)**:
+
+- DayView 컴포넌트 분할
+- 스케줄러 옵션 전달 수정 (scheduleGenerator.ts)
+- 스케줄러 Factory 패턴 도입
+
+#### 2. 성능 개선 (Phase 2 예정)
 
 **문제점**:
-- 플래너와 플랜 그룹 간 관계가 명확하지 않음
-- 스케줄러 옵션 전달 경로가 복잡함
 
-**개선 방안**:
-- 플래너 설정을 플랜 그룹에 자동 상속
-- 스케줄러 옵션 통합 관리
-
-#### 2. 성능 개선
-
-**문제점**:
 - 대량 플랜 조회 시 성능 저하
 - 캘린더 렌더링 최적화 필요
+- DayView 934줄, ContentLinkingModal 923줄 (거대 컴포넌트)
 
 **개선 방안**:
-- 페이지네이션 적용
+
+- DayView 분할 (DayViewHeader, DayViewTimeline, DayViewContainers, AdHocPlanSection)
+- Props 그룹화 (MemoizedDayCell 61개 Props → 20개 이하)
 - 가상 스크롤링 도입
-- 메모이제이션 강화
 
 #### 3. 사용자 경험 개선
 
 **문제점**:
+
 - 플래너와 캘린더 간 일관성 부족
 - 플랜 수정 시 즉시 반영 안 됨
 
 **개선 방안**:
+
 - 실시간 업데이트 강화
 - 일관된 UI/UX 적용
 
-#### 4. 코드 구조 개선
+#### 4. 코드 구조 개선 (Phase 3 예정)
 
 **문제점**:
-- 컴포넌트 파일 크기가 큼
-- 로직과 UI 분리 필요
+
+- 스케줄러 확장성 부족 (switch문 기반)
+- 중복 로직 (planConnections 계산 등)
 
 **개선 방안**:
-- 컴포넌트 분리
-- 커스텀 훅으로 로직 분리
-- 타입 정의 통합
+
+- 스케줄러 Factory 패턴 도입
+- 중복 훅 통합 (usePlanConnectionState 활용)
+- ContentLinkingModal 분할
 
 ---
 
@@ -798,5 +860,4 @@ useAdminPlanRealtime({
 
 ---
 
-**마지막 업데이트**: 2026-01-15
-
+**마지막 업데이트**: 2026-01-09 (Phase 1 아키텍처 개선 완료)

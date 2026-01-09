@@ -11,9 +11,13 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
-import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { withErrorHandling } from "@/lib/errors";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { format } from "date-fns";
+import {
+  inheritPlannerConfigFromRaw,
+  type PlannerConfigRaw,
+} from "../utils/plannerConfigInheritance";
 
 // ============================================
 // 타입 정의
@@ -40,13 +44,6 @@ export interface CreateAutoContentPlanGroupResult {
   error?: string;
 }
 
-/**
- * TimeRange 타입
- */
-interface TimeRange {
-  start: string;
-  end: string;
-}
 
 // ============================================
 // 플랜그룹 자동 생성
@@ -111,31 +108,27 @@ async function _createAutoContentPlanGroup(
     ? `임시 그룹 (${dateStr})`
     : `${truncatedTitle} (${dateStr})`;
 
-  // 3. 플랜그룹 데이터 준비 (플래너에서 설정 상속)
+  // 3. 플랜그룹 데이터 준비 (플래너에서 설정 상속 - 일관된 기본값 사용)
+  const inheritedConfig = inheritPlannerConfigFromRaw(planner as PlannerConfigRaw);
+
   const planGroupData = {
     name: groupName,
     plan_purpose: null,
-    scheduler_type: planner.default_scheduler_type || "1730_timetable",
-    scheduler_options: planner.default_scheduler_options || { study_days: 6, review_days: 1 },
+    // 플래너에서 상속된 설정 (일관된 기본값 보장)
+    ...inheritedConfig,
     period_start: input.targetDate,
     period_end: input.targetDate, // 단일 날짜 그룹
     target_date: null,
-    block_set_id: planner.block_set_id || null,
     planner_id: input.plannerId,
     status: "active", // 자동 생성 그룹은 바로 활성화
     subject_constraints: null,
     additional_period_reallocation: null,
-    non_study_time_blocks: planner.non_study_time_blocks || null,
     daily_schedule: null,
     plan_type: "individual",
     camp_template_id: null,
     camp_invitation_id: null,
     use_slot_mode: false,
     content_slots: null,
-    // 플래너에서 시간 설정 상속
-    study_hours: (planner.study_hours as TimeRange) || { start: "10:00", end: "19:00" },
-    self_study_hours: (planner.self_study_hours as TimeRange) || { start: "19:00", end: "22:00" },
-    lunch_time: (planner.lunch_time as TimeRange) || { start: "12:00", end: "13:00" },
   };
 
   // 4. RPC를 통한 원자적 플랜그룹 생성
