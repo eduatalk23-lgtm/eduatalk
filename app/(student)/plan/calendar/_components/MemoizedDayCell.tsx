@@ -28,30 +28,45 @@ type ConnectionState = {
   isMiddle: boolean;
 };
 
-type MemoizedDayCellProps = {
+// Props 그룹화 타입 정의
+export type DateInfo = {
   day: number;
   year: number;
   month: number;
   dateStr: string;
+};
+
+export type DayData = {
   dayPlans: PlanWithContent[];
   dayAdHocPlans?: AdHocPlanForCalendar[];
   dayExclusions: PlanExclusion[];
   dayAcademySchedules: AcademySchedule[];
+};
+
+export type DayCellMetadata = {
   dayTypeInfo?: DayTypeInfo;
   dailySchedule?: DailyScheduleInfo;
   isToday: boolean;
   showOnlyStudyTime: boolean;
   studentId?: string;
+};
+
+export type DayCellHandlers = {
   getConnectionState: (date: string, planId: string) => ConnectionState;
   onDateClick: (date: Date) => void;
   onPlanClick: (plan: PlanWithContent) => void;
   onQuickAdd: (dateStr: string) => void;
-  // 드래그 앤 드롭 관련
+};
+
+export type DragDropState = {
   isDropTarget: boolean;
   canDrop: boolean;
   isDragging: boolean;
   isMoving: boolean;
   draggedItemPlanId?: string;
+};
+
+export type DragDropHandlers = {
   onDragEnter: (e: React.DragEvent, dateStr: string) => void;
   onDragOver: (e: React.DragEvent, dateStr: string) => void;
   onDragLeave: (e: React.DragEvent) => void;
@@ -60,36 +75,31 @@ type MemoizedDayCellProps = {
   onDragEnd: (e: React.DragEvent) => void;
 };
 
+type MemoizedDayCellProps = {
+  dateInfo: DateInfo;
+  dayData: DayData;
+  metadata: DayCellMetadata;
+  handlers: DayCellHandlers;
+  dragDropState: DragDropState;
+  dragDropHandlers: DragDropHandlers;
+};
+
 function MemoizedDayCellComponent({
-  day,
-  year,
-  month,
-  dateStr,
-  dayPlans,
-  dayAdHocPlans = [],
-  dayExclusions,
-  dayAcademySchedules,
-  dayTypeInfo,
-  dailySchedule,
-  isToday,
-  showOnlyStudyTime,
-  studentId,
-  getConnectionState,
-  onDateClick,
-  onPlanClick,
-  onQuickAdd,
-  isDropTarget,
-  canDrop,
-  isDragging,
-  isMoving,
-  draggedItemPlanId,
-  onDragEnter,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragStart,
-  onDragEnd,
+  dateInfo,
+  dayData,
+  metadata,
+  handlers,
+  dragDropState,
+  dragDropHandlers,
 }: MemoizedDayCellProps) {
+  // Props 구조 분해
+  const { day, year, month, dateStr } = dateInfo;
+  const { dayPlans, dayAdHocPlans = [], dayExclusions, dayAcademySchedules } = dayData;
+  const { dayTypeInfo, dailySchedule, isToday, showOnlyStudyTime, studentId } = metadata;
+  const { getConnectionState, onDateClick, onPlanClick, onQuickAdd } = handlers;
+  const { isDropTarget, canDrop, isDragging, isMoving, draggedItemPlanId } = dragDropState;
+  const { onDragEnter, onDragOver, onDragLeave, onDrop, onDragStart, onDragEnd } = dragDropHandlers;
+
   const date = new Date(year, month, day);
 
   // 날짜 타입별 스타일링
@@ -504,29 +514,41 @@ function MemoizedDayCellComponent({
 export const MemoizedDayCell = memo(
   MemoizedDayCellComponent,
   (prevProps, nextProps) => {
-    // 기본 속성 비교
+    // dateInfo 비교
     if (
-      prevProps.day !== nextProps.day ||
-      prevProps.year !== nextProps.year ||
-      prevProps.month !== nextProps.month ||
-      prevProps.isToday !== nextProps.isToday ||
-      prevProps.showOnlyStudyTime !== nextProps.showOnlyStudyTime ||
-      prevProps.isDropTarget !== nextProps.isDropTarget ||
-      prevProps.canDrop !== nextProps.canDrop ||
-      prevProps.isDragging !== nextProps.isDragging ||
-      prevProps.isMoving !== nextProps.isMoving ||
-      prevProps.draggedItemPlanId !== nextProps.draggedItemPlanId
+      prevProps.dateInfo.day !== nextProps.dateInfo.day ||
+      prevProps.dateInfo.year !== nextProps.dateInfo.year ||
+      prevProps.dateInfo.month !== nextProps.dateInfo.month
     ) {
       return false;
     }
 
-    // 플랜 배열 비교 (길이와 ID, 상태, 컨테이너 타입 비교)
-    if (prevProps.dayPlans.length !== nextProps.dayPlans.length) {
+    // metadata 비교
+    if (
+      prevProps.metadata.isToday !== nextProps.metadata.isToday ||
+      prevProps.metadata.showOnlyStudyTime !== nextProps.metadata.showOnlyStudyTime
+    ) {
       return false;
     }
-    for (let i = 0; i < prevProps.dayPlans.length; i++) {
-      const prevPlan = prevProps.dayPlans[i];
-      const nextPlan = nextProps.dayPlans[i];
+
+    // dragDropState 비교
+    if (
+      prevProps.dragDropState.isDropTarget !== nextProps.dragDropState.isDropTarget ||
+      prevProps.dragDropState.canDrop !== nextProps.dragDropState.canDrop ||
+      prevProps.dragDropState.isDragging !== nextProps.dragDropState.isDragging ||
+      prevProps.dragDropState.isMoving !== nextProps.dragDropState.isMoving ||
+      prevProps.dragDropState.draggedItemPlanId !== nextProps.dragDropState.draggedItemPlanId
+    ) {
+      return false;
+    }
+
+    // dayData.dayPlans 배열 비교 (길이와 ID, 상태, 컨테이너 타입 비교)
+    if (prevProps.dayData.dayPlans.length !== nextProps.dayData.dayPlans.length) {
+      return false;
+    }
+    for (let i = 0; i < prevProps.dayData.dayPlans.length; i++) {
+      const prevPlan = prevProps.dayData.dayPlans[i];
+      const nextPlan = nextProps.dayData.dayPlans[i];
       const prevContainerType = (prevPlan as { container_type?: string | null }).container_type;
       const nextContainerType = (nextPlan as { container_type?: string | null }).container_type;
       const prevCarryover = (prevPlan as { carryover_count?: number | null }).carryover_count;
@@ -542,19 +564,19 @@ export const MemoizedDayCell = memo(
       }
     }
 
-    // 제외일 배열 비교
-    if (prevProps.dayExclusions.length !== nextProps.dayExclusions.length) {
+    // dayData.dayExclusions 배열 비교
+    if (prevProps.dayData.dayExclusions.length !== nextProps.dayData.dayExclusions.length) {
       return false;
     }
 
-    // 학원일정 배열 비교
-    if (prevProps.dayAcademySchedules.length !== nextProps.dayAcademySchedules.length) {
+    // dayData.dayAcademySchedules 배열 비교
+    if (prevProps.dayData.dayAcademySchedules.length !== nextProps.dayData.dayAcademySchedules.length) {
       return false;
     }
 
-    // Ad-hoc 플랜 배열 비교
-    const prevAdHocPlans = prevProps.dayAdHocPlans || [];
-    const nextAdHocPlans = nextProps.dayAdHocPlans || [];
+    // dayData.dayAdHocPlans 배열 비교
+    const prevAdHocPlans = prevProps.dayData.dayAdHocPlans || [];
+    const nextAdHocPlans = nextProps.dayData.dayAdHocPlans || [];
     if (prevAdHocPlans.length !== nextAdHocPlans.length) {
       return false;
     }
@@ -570,10 +592,10 @@ export const MemoizedDayCell = memo(
       }
     }
 
-    // dayTypeInfo 비교
+    // metadata.dayTypeInfo 비교
     if (
-      prevProps.dayTypeInfo?.type !== nextProps.dayTypeInfo?.type ||
-      prevProps.dayTypeInfo?.label !== nextProps.dayTypeInfo?.label
+      prevProps.metadata.dayTypeInfo?.type !== nextProps.metadata.dayTypeInfo?.type ||
+      prevProps.metadata.dayTypeInfo?.label !== nextProps.metadata.dayTypeInfo?.label
     ) {
       return false;
     }

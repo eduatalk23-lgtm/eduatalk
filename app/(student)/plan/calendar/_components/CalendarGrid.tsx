@@ -113,34 +113,30 @@ function CalendarGridComponent({
       result.push(
         <MemoizedDayCell
           key={day}
-          day={day}
-          year={year}
-          month={month}
-          dateStr={dateStr}
-          dayPlans={dayPlans}
-          dayAdHocPlans={dayAdHocPlans}
-          dayExclusions={dayExclusions}
-          dayAcademySchedules={dayAcademySchedules}
-          dayTypeInfo={dayTypeInfo}
-          dailySchedule={dailySchedule}
-          isToday={isToday}
-          showOnlyStudyTime={showOnlyStudyTime}
-          studentId={studentId}
-          getConnectionState={getPlanConnectionState}
-          onDateClick={onDateClick}
-          onPlanClick={onPlanClick}
-          onQuickAdd={onQuickAdd}
-          isDropTarget={isDropTargetCell}
-          canDrop={!!canDropHere}
-          isDragging={isDragging}
-          isMoving={isMoving}
-          draggedItemPlanId={draggedItem?.planId}
-          onDragEnter={dropHandlers.onDragEnter}
-          onDragOver={dropHandlers.onDragOver}
-          onDragLeave={dropHandlers.onDragLeave}
-          onDrop={dropHandlers.onDrop}
-          onDragStart={dragHandlers.onDragStart}
-          onDragEnd={dragHandlers.onDragEnd}
+          dateInfo={{ day, year, month, dateStr }}
+          dayData={{ dayPlans, dayAdHocPlans, dayExclusions, dayAcademySchedules }}
+          metadata={{ dayTypeInfo, dailySchedule, isToday, showOnlyStudyTime, studentId }}
+          handlers={{
+            getConnectionState: getPlanConnectionState,
+            onDateClick,
+            onPlanClick,
+            onQuickAdd,
+          }}
+          dragDropState={{
+            isDropTarget: isDropTargetCell,
+            canDrop: !!canDropHere,
+            isDragging,
+            isMoving,
+            draggedItemPlanId: draggedItem?.planId,
+          }}
+          dragDropHandlers={{
+            onDragEnter: dropHandlers.onDragEnter,
+            onDragOver: dropHandlers.onDragOver,
+            onDragLeave: dropHandlers.onDragLeave,
+            onDrop: dropHandlers.onDrop,
+            onDragStart: dragHandlers.onDragStart,
+            onDragEnd: dragHandlers.onDragEnd,
+          }}
         />
       );
     }
