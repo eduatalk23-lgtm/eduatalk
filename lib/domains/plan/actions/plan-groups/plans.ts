@@ -278,50 +278,6 @@ async function _getPlansByGroupId(groupId: string): Promise<{
 
 export const getPlansByGroupIdAction = withErrorHandling(_getPlansByGroupId);
 
-async function _checkPlansExist(groupId: string): Promise<{
-  hasPlans: boolean;
-  planCount: number;
-}> {
-  const user = await getCurrentUser();
-  if (!user || user.role !== "student") {
-    throw new AppError(
-      "로그인이 필요합니다.",
-      ErrorCode.UNAUTHORIZED,
-      401,
-      true
-    );
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { count, error } = await supabase
-    .from("student_plan")
-    .select("*", { count: "exact", head: true })
-    .eq("plan_group_id", groupId)
-    .eq("student_id", user.userId);
-
-  if (error) {
-    logActionError(
-      { domain: "plan", action: "checkPlansExist" },
-      error,
-      { groupId }
-    );
-    throw new AppError(
-      error.message || "플랜 개수 확인에 실패했습니다.",
-      ErrorCode.DATABASE_ERROR,
-      500,
-      true,
-      { supabaseError: error }
-    );
-  }
-
-  return {
-    hasPlans: (count ?? 0) > 0,
-    planCount: count ?? 0,
-  };
-}
-
-export const checkPlansExistAction = withErrorHandling(_checkPlansExist);
-
 async function _getActivePlanGroups(
   excludeGroupId?: string
 ): Promise<Array<{ id: string; name: string | null }>> {

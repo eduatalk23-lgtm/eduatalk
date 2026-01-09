@@ -610,6 +610,7 @@ export async function updatePlanGroup(
     period_end?: string;
     target_date?: string | null;
     block_set_id?: string | null;
+    planner_id?: string | null;
     status?: string;
     daily_schedule?: DailyScheduleInfo[] | null; // JSONB: 일별 스케줄 정보
     subject_constraints?: SubjectConstraints | null; // JSONB: 교과 제약 조건
@@ -631,6 +632,7 @@ export async function updatePlanGroup(
   if (updates.period_end !== undefined) payload.period_end = updates.period_end;
   if (updates.target_date !== undefined) payload.target_date = updates.target_date;
   if (updates.block_set_id !== undefined) payload.block_set_id = updates.block_set_id;
+  if (updates.planner_id !== undefined) payload.planner_id = updates.planner_id;
   if (updates.status !== undefined) payload.status = updates.status;
   if (updates.daily_schedule !== undefined) payload.daily_schedule = updates.daily_schedule;
   if (updates.subject_constraints !== undefined) payload.subject_constraints = updates.subject_constraints;

@@ -35,7 +35,7 @@ interface Step7GenerateResultProps {
   studentId: string;
   tenantId: string;
   studentName: string;
-  onSubmit: () => Promise<void>;
+  onSubmit: () => Promise<boolean>;
   onSuccess: (groupId: string, generateAI: boolean) => void;
   onClose: () => void;
 }
@@ -100,7 +100,13 @@ export function Step7GenerateResult({
       setProgress(30);
 
       // 실제 생성 호출
-      await onSubmit();
+      const success = await onSubmit();
+
+      // 실패 시 에러 상태로 전환
+      if (!success) {
+        setPhase("error");
+        return;
+      }
 
       setProgress(60);
 

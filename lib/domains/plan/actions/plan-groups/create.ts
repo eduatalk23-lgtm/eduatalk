@@ -367,23 +367,27 @@ async function _createPlanGroup(
     return { groupId: existingGroup.id };
   }
 
-  // 플랜 기간 중복 검증 (활성/진행 중인 플랜과 겹치는지 확인)
-  const overlapResult = await checkPlanPeriodOverlap(
-    studentId,
-    data.period_start,
-    data.period_end
-  );
-
-  if (overlapResult.hasOverlap) {
-    const overlappingNames = overlapResult.overlappingPlans
-      .map((p) => p.name || "이름 없음")
-      .join(", ");
-    throw new AppError(
-      `선택한 기간이 기존 플랜과 겹칩니다: ${overlappingNames}`,
-      ErrorCode.VALIDATION_ERROR,
-      400,
-      true
+  // 플랜 기간 중복 검증 (학생 자가 생성 시에만)
+  // 관리자 모드 (planner_id 있음): 플래너 기반 필터링으로 충돌 없음 → 검증 건너뛰기
+  // 학생 모드 (planner_id 없음): 기존 검증 유지 (경고 목적)
+  if (!data.planner_id) {
+    const overlapResult = await checkPlanPeriodOverlap(
+      studentId,
+      data.period_start,
+      data.period_end
     );
+
+    if (overlapResult.hasOverlap) {
+      const overlappingNames = overlapResult.overlappingPlans
+        .map((p) => p.name || "이름 없음")
+        .join(", ");
+      throw new AppError(
+        `선택한 기간이 기존 플랜과 겹칩니다: ${overlappingNames}`,
+        ErrorCode.VALIDATION_ERROR,
+        400,
+        true
+      );
+    }
   }
 
   // 학생 콘텐츠의 master_content_id 조회 (배치 조회) - RPC 호출 전에 준비

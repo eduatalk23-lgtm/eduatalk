@@ -391,10 +391,10 @@ function WizardInner({
   // 제출 핸들러
   // ============================================
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (): Promise<boolean> => {
     if (hasErrors) {
       setError("입력 값에 오류가 있습니다. 이전 단계를 확인해주세요.");
-      return;
+      return false;
     }
 
     setSubmitting(true);
@@ -512,7 +512,7 @@ function WizardInner({
         if ("success" in result && result.success === false) {
           setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
           setSubmitting(false);
-          return;
+          return false;
         }
 
         groupId = (result as { groupId: string }).groupId;
@@ -522,10 +522,12 @@ function WizardInner({
       setCreatedGroupId(groupId);
       setSubmitting(false);
       onSuccess(groupId, wizardData.generateAIPlan);
+      return true;
     } catch (err) {
       console.error("[AdminWizard] 생성 실패:", err);
-      setError("플랜 그룹 생성 중 오류가 발생했습니다.");
+      setError(err instanceof Error ? err.message : "플랜 그룹 생성 중 오류가 발생했습니다.");
       setSubmitting(false);
+      return false;
     }
   }, [
     hasErrors,

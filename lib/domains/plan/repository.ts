@@ -245,6 +245,9 @@ export async function deleteAcademySchedulesByGroupId(
 /**
  * 플랜 기간 중복 검증
  * 동일 학생의 활성/진행 중인 플랜과 기간이 겹치는지 확인
+ *
+ * 참고: 관리자 모드(planner_id 있음)에서는 이 함수가 호출되지 않음
+ * - 플래너 기반 필터링으로 충돌 없음 → 검증 건너뛰기
  */
 export async function checkPlanPeriodOverlap(
   studentId: string,

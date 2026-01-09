@@ -216,7 +216,8 @@ async function _updatePlanGroupDraft(
     data.additional_period_reallocation !== undefined ||
     data.non_study_time_blocks !== undefined ||
     data.use_slot_mode !== undefined ||
-    data.content_slots !== undefined
+    data.content_slots !== undefined ||
+    data.planner_id !== undefined
   ) {
     const updateResult = await updatePlanGroup(groupId, studentId, {
       name: data.name || null,
@@ -230,6 +231,7 @@ async function _updatePlanGroupDraft(
       period_end: data.period_end,
       target_date: data.target_date || null,
       block_set_id: data.block_set_id || null,
+      planner_id: data.planner_id || null,
       daily_schedule: data.daily_schedule || null,
       subject_constraints: data.subject_constraints || null,
       additional_period_reallocation: data.additional_period_reallocation || null,
