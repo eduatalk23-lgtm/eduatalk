@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { getDayTypeStyling } from "../_hooks/useDayTypeStyling";
 import { useCalendarData } from "../_hooks/useCalendarData";
 import { getTimelineSlots } from "../_hooks/useTimelineSlots";
+import { usePlanConnections } from "../_hooks/usePlanConnections";
 
 // 큰 모달 컴포넌트는 동적 import로 코드 스플리팅
 const DayTimelineModal = dynamic(
@@ -33,11 +34,6 @@ type WeekViewProps = {
   dayTypes: Map<string, DayTypeInfo>;
   dailyScheduleMap: Map<string, DailyScheduleInfo>;
   showOnlyStudyTime?: boolean;
-};
-
-type PlanConnection = {
-  planIds: string[];
-  groupKey: string;
 };
 
 function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, dayTypes, dailyScheduleMap, showOnlyStudyTime = false }: WeekViewProps) {
@@ -72,44 +68,8 @@ function WeekViewComponent({ plans, currentDate, exclusions, academySchedules, d
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
-  // 같은 플랜의 동일 회차를 그룹화 (plan_number 또는 content_id + sequence 기준)
-  const planConnections = useMemo(() => {
-    const connectionMap = new Map<string, PlanConnection>();
-    
-    plans.forEach((plan) => {
-      // 그룹 키 생성: plan_number가 있으면 사용, 없으면 content_id + sequence 조합
-      const groupKey = plan.plan_number !== null && plan.plan_number !== undefined
-        ? `plan_number_${plan.plan_number}`
-        : plan.sequence !== null && plan.sequence !== undefined
-        ? `content_${plan.content_id}_seq_${plan.sequence}`
-        : null;
-      
-      if (!groupKey) return;
-      
-      if (!connectionMap.has(groupKey)) {
-        connectionMap.set(groupKey, {
-          planIds: [],
-          groupKey,
-        });
-      }
-      
-      connectionMap.get(groupKey)!.planIds.push(plan.id);
-    });
-    
-    // 2개 이상의 플랜이 있는 그룹만 반환
-    return Array.from(connectionMap.values()).filter(
-      (conn) => conn.planIds.length >= 2
-    );
-  }, [plans]);
-
-  // 연결된 플랜 ID Set 생성 (빠른 조회를 위해)
-  const connectedPlanIds = useMemo(() => {
-    const ids = new Set<string>();
-    planConnections.forEach((conn) => {
-      conn.planIds.forEach((id) => ids.add(id));
-    });
-    return ids;
-  }, [planConnections]);
+  // 플랜 연결 그룹화 (공통 훅 사용)
+  const { connectedPlanIds } = usePlanConnections(plans);
 
   return (
     <>
