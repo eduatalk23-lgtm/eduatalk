@@ -12,6 +12,53 @@
 
 ---
 
+## ✅ 현재 프로젝트 상태 점검 (2026-01-15)
+
+### 빌드 및 타입 체크
+
+- ✅ **TypeScript 타입 체크**: 통과 (0 errors)
+- ✅ **Next.js 빌드**: 성공 (모든 라우트 정상 생성)
+- ⚠️ **ESLint**: 31개 경고 (0개 에러)
+
+### ESLint 경고 상세
+
+#### 1. 사용되지 않는 변수 (4개)
+- `openModal` (243줄): 정의되었으나 사용되지 않음
+- `closeModal` (247줄): 정의되었으나 사용되지 않음
+- `handleOpenTemplateWithPlans` (479줄): 정의되었으나 사용되지 않음
+- `handleOpenBulkEdit` (511줄): 정의되었으나 사용되지 않음
+
+**영향**: 최적화 작업 시 이 변수들을 제거하거나 실제 사용처를 확인 필요
+
+#### 2. React Hook 의존성 경고 (1개)
+- `useMemo` (670줄): `shortcuts` 배열 생성 시 의존성 누락
+  - 누락된 의존성: `closeAllModals`, `setShowAIPlanModal`, `setShowCreateWizard`, `setShowOptimizationPanel`, `setShowShortcutsHelp`
+
+**영향**: 최적화 작업 시 의존성 배열 수정 필요
+
+#### 3. 디자인 시스템 정책 경고 (20개)
+- 하드코딩된 색상 클래스 사용 (예: `bg-amber-50`, `text-amber-700` 등)
+- 위치: 693-839줄 (경고 배너, 필터 드롭다운, 버튼 등)
+
+**영향**: 최적화 작업과 별개이지만, 리팩토링 시 함께 개선 가능
+
+#### 4. Spacing-First 정책 경고 (6개)
+- `margin` 클래스 사용 (예: `mt-1`)
+- 위치: 732, 821, 836줄
+
+**영향**: 최적화 작업과 별개이지만, 리팩토링 시 함께 개선 가능
+
+### 결론
+
+**✅ 최적화 작업 진행 가능**: 현재 프로젝트는 빌드 및 타입 체크를 모두 통과하고 있으며, ESLint 경고는 모두 비치명적입니다. 최적화 작업을 안전하게 진행할 수 있습니다.
+
+**⚠️ 작업 시 주의사항**:
+1. 사용되지 않는 변수(`openModal`, `closeModal` 등)는 최적화 과정에서 자연스럽게 제거될 예정
+2. React Hook 의존성 경고는 최적화 작업(특히 항목 1, 6)에서 해결 예정
+3. 디자인 시스템 및 Spacing 정책 경고는 별도 작업으로 분리 권장
+
+---
+
 ## 🎯 최적화 우선순위
 
 ### 🔴 High Priority (즉시 개선 가능, 큰 영향)
@@ -70,17 +117,31 @@
 const modalState = useMemo(() => {
   const state: Record<string, boolean> = {};
   const setters: Record<string, (show: boolean) => void> = {};
-  
+
   const modalTypes: ModalType[] = [
-    'addContent', 'addAdHoc', 'redistribute', 'shortcutsHelp',
-    'aiPlan', 'createWizard', 'optimization', 'quickPlan',
-    'edit', 'reorder', 'conditionalDelete', 'template',
-    'moveToGroup', 'copy', 'status', 'bulkEdit', 'unifiedAdd'
+    "addContent",
+    "addAdHoc",
+    "redistribute",
+    "shortcutsHelp",
+    "aiPlan",
+    "createWizard",
+    "optimization",
+    "quickPlan",
+    "edit",
+    "reorder",
+    "conditionalDelete",
+    "template",
+    "moveToGroup",
+    "copy",
+    "status",
+    "bulkEdit",
+    "unifiedAdd",
   ];
-  
+
   modalTypes.forEach((type) => {
-    state[`show${type.charAt(0).toUpperCase() + type.slice(1)}Modal`] = modals[type];
-    setters[`setShow${type.charAt(0).toUpperCase() + type.slice(1)}Modal`] = 
+    state[`show${type.charAt(0).toUpperCase() + type.slice(1)}Modal`] =
+      modals[type];
+    setters[`setShow${type.charAt(0).toUpperCase() + type.slice(1)}Modal`] =
       useCallback((show: boolean) => {
         dispatchModal({
           type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
@@ -88,7 +149,7 @@ const modalState = useMemo(() => {
         });
       }, []);
   });
-  
+
   return { state, setters };
 }, [modals]);
 
@@ -102,15 +163,18 @@ const modalState = useMemo(() => {
 // hooks/useModalState.ts
 export function useModalState() {
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
-  
-  const createModalState = useCallback((type: ModalType) => {
-    return {
-      isOpen: modals[type],
-      open: () => dispatchModal({ type: "OPEN_MODAL", payload: type }),
-      close: () => dispatchModal({ type: "CLOSE_MODAL", payload: type }),
-    };
-  }, [modals]);
-  
+
+  const createModalState = useCallback(
+    (type: ModalType) => {
+      return {
+        isOpen: modals[type],
+        open: () => dispatchModal({ type: "OPEN_MODAL", payload: type }),
+        close: () => dispatchModal({ type: "CLOSE_MODAL", payload: type }),
+      };
+    },
+    [modals]
+  );
+
   return {
     modals,
     createModalState,
@@ -119,11 +183,12 @@ export function useModalState() {
 }
 
 // 사용
-const addContentModal = createModalState('addContent');
+const addContentModal = createModalState("addContent");
 // addContentModal.isOpen, addContentModal.open(), addContentModal.close()
 ```
 
 **예상 효과**:
+
 - 코드 라인 수: **-135줄** (17개 × 8줄)
 - 유지보수성: 새로운 모달 추가 시 1줄만 추가
 - 가독성: 중복 제거로 핵심 로직에 집중
@@ -168,9 +233,7 @@ const createDynamicImport = <T extends React.ComponentType<any>>(
   return dynamic(
     () =>
       import(config.path).then((mod) => ({
-        default: config.exportName 
-          ? mod[config.exportName] 
-          : mod.default,
+        default: config.exportName ? mod[config.exportName] : mod.default,
       })),
     { ssr: false }
   ) as React.ComponentType<T>;
@@ -178,9 +241,15 @@ const createDynamicImport = <T extends React.ComponentType<any>>(
 
 // 사용
 const MODAL_IMPORTS = {
-  AddContentWizard: { path: "./add-content-wizard", exportName: "AddContentWizard" },
+  AddContentWizard: {
+    path: "./add-content-wizard",
+    exportName: "AddContentWizard",
+  },
   AddAdHocModal: { path: "./AddAdHocModal", exportName: "AddAdHocModal" },
-  RedistributeModal: { path: "./RedistributeModal", exportName: "RedistributeModal" },
+  RedistributeModal: {
+    path: "./RedistributeModal",
+    exportName: "RedistributeModal",
+  },
   // ...
 } as const;
 
@@ -194,6 +263,7 @@ export const Modals = Object.entries(MODAL_IMPORTS).reduce(
 ```
 
 **예상 효과**:
+
 - 코드 라인 수: **-100줄** (17개 × 6줄)
 - 유지보수성: 새로운 모달 추가 시 설정만 추가
 - 일관성: 모든 모달이 동일한 방식으로 로드
@@ -292,9 +362,9 @@ const MODAL_CONFIGS: ModalConfig[] = [
   const ModalComponent = config.component;
   const isOpen = modals[config.type];
   const shouldRender = config.condition?.() ?? true;
-  
+
   if (!isOpen || !shouldRender) return null;
-  
+
   return (
     <ModalComponent
       key={config.type}
@@ -305,6 +375,7 @@ const MODAL_CONFIGS: ModalConfig[] = [
 ```
 
 **예상 효과**:
+
 - 코드 라인 수: **-200줄** (17개 × 12줄)
 - 유지보수성: 모달 추가/수정이 설정만 변경
 - 일관성: 모든 모달이 동일한 패턴으로 관리
@@ -360,6 +431,7 @@ export const CONTENT_TYPE_FILTERS: {
 ```
 
 **예상 효과**:
+
 - 성능: 컴포넌트 재렌더링 시 상수 재생성 방지
 - 재사용성: 다른 컴포넌트에서도 사용 가능
 - 테스트 용이성: 상수만 독립적으로 테스트 가능
@@ -452,6 +524,7 @@ const [modalData, dispatchModalData] = useReducer(
 ```
 
 **예상 효과**:
+
 - 코드 라인 수: **-20줄**
 - 상태 관리 일관성: 모든 모달 데이터가 동일한 패턴
 - 모달 닫기 시 자동 초기화 가능
@@ -553,6 +626,7 @@ const shortcuts: ShortcutConfig[] = useMemo(
 ```
 
 **예상 효과**:
+
 - 성능: 불필요한 함수 재생성 방지
 - 메모리: 함수 참조 안정성 향상
 
@@ -597,6 +671,7 @@ function isValidPlanStatus(status: string): status is PlanStatus {
 ```
 
 **예상 효과**:
+
 - 타입 안전성: 런타임 타입 검증
 - 버그 예방: 잘못된 상태 값 전달 방지
 
@@ -678,6 +753,7 @@ export function MoreActionsDropdown({
 ```
 
 **예상 효과**:
+
 - 가독성: 메인 컴포넌트가 간결해짐
 - 재사용성: 다른 곳에서도 사용 가능
 - 테스트 용이성: 독립적으로 테스트 가능
@@ -688,23 +764,24 @@ export function MoreActionsDropdown({
 
 ## 📊 예상 개선 효과 요약
 
-| 항목 | 코드 감소 | 작업 시간 | 우선순위 |
-|------|----------|----------|----------|
-| 1. 모달 상태 관리 래퍼 | -135줄 | 30-45분 | 🔴 High |
-| 2. 동적 import 통합 | -100줄 | 20-30분 | 🔴 High |
-| 3. 모달 렌더링 통합 | -200줄 | 45-60분 | 🔴 High |
-| 4. 상수 외부화 | -13줄 | 5-10분 | 🟡 Medium |
-| 5. 모달 데이터 통합 | -20줄 | 30-40분 | 🟡 Medium |
-| 6. useCallback 최적화 | -10줄 | 20-30분 | 🟡 Medium |
-| 7. 타입 안전성 | -5줄 | 10-15분 | 🟢 Low |
-| 8. 조건부 렌더링 | -30줄 | 15-20분 | 🟢 Low |
-| **합계** | **-513줄** | **3-4시간** | |
+| 항목                   | 코드 감소  | 작업 시간   | 우선순위  |
+| ---------------------- | ---------- | ----------- | --------- |
+| 1. 모달 상태 관리 래퍼 | -135줄     | 30-45분     | 🔴 High   |
+| 2. 동적 import 통합    | -100줄     | 20-30분     | 🔴 High   |
+| 3. 모달 렌더링 통합    | -200줄     | 45-60분     | 🔴 High   |
+| 4. 상수 외부화         | -13줄      | 5-10분      | 🟡 Medium |
+| 5. 모달 데이터 통합    | -20줄      | 30-40분     | 🟡 Medium |
+| 6. useCallback 최적화  | -10줄      | 20-30분     | 🟡 Medium |
+| 7. 타입 안전성         | -5줄       | 10-15분     | 🟢 Low    |
+| 8. 조건부 렌더링       | -30줄      | 15-20분     | 🟢 Low    |
+| **합계**               | **-513줄** | **3-4시간** |           |
 
 ---
 
 ## 🚀 구현 로드맵
 
 ### Phase 1: High Priority (1-2일)
+
 1. 모달 상태 관리 래퍼 함수 중복 제거
 2. 동적 import 패턴 통합
 3. 모달 렌더링 패턴 통합
@@ -712,6 +789,7 @@ export function MoreActionsDropdown({
 **예상 효과**: 코드 라인 수 **-435줄** (33% 감소)
 
 ### Phase 2: Medium Priority (1일)
+
 4. 상수 정의 외부화
 5. 모달 데이터 상태 통합 관리
 6. useCallback 의존성 최적화
@@ -719,6 +797,7 @@ export function MoreActionsDropdown({
 **예상 효과**: 코드 라인 수 **-43줄**, 성능 개선
 
 ### Phase 3: Low Priority (0.5일)
+
 7. 타입 안전성 개선
 8. 조건부 렌더링 최적화
 
@@ -745,4 +824,3 @@ export function MoreActionsDropdown({
 
 **작성자**: AI Assistant  
 **검토 필요**: 코드 리뷰 및 테스트 계획 수립
-
