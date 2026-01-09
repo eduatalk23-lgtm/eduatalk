@@ -500,8 +500,15 @@ export function PlannerManagement({
     setCreateModalOpen(false);
     setEditPlanner(undefined);
     setDuplicatePlanner(undefined);
-    loadPlanners();
-    onPlannerSelect?.(planner);
+
+    // onPlannerSelect가 있으면 다른 페이지로 이동하므로 목록 갱신 불필요
+    // 라우팅과 상태 변경의 경합 조건(race condition) 방지
+    if (onPlannerSelect) {
+      onPlannerSelect(planner);
+    } else {
+      // onPlannerSelect가 없으면 현재 페이지에 남아있으므로 목록 갱신
+      loadPlanners();
+    }
   };
 
   // 모달 닫기

@@ -312,7 +312,69 @@ const backLabel = getAdminPlanGroupBackLabel({
 
 ---
 
-**작업 완료 일자**: 2026-01-15  
-**작업자**: AI Assistant  
+## 🔧 추가 수정 (2026-01-08)
+
+### 발견된 추가 문제
+
+**문제**: 플래너 선택 페이지에서 새 플래너 생성 후 플랜 관리 페이지로 이동했다가 다시 플래너 선택 페이지로 리다이렉트되는 버그
+
+**원인 분석**:
+
+`PlannerManagement.tsx`의 `handlePlannerSaved` 함수에서 race condition 발생:
+
+```typescript
+// 수정 전 (문제 코드)
+const handlePlannerSaved = (planner: Planner) => {
+  setCreateModalOpen(false);
+  setEditPlanner(undefined);
+  setDuplicatePlanner(undefined);
+  loadPlanners();                  // ← 비동기 함수, await 없이 호출
+  onPlannerSelect?.(planner);      // ← router.push 호출
+};
+```
+
+**문제 흐름**:
+1. `loadPlanners()` 비동기 실행 시작
+2. `onPlannerSelect()` → `router.push()`로 새 페이지 이동 시작
+3. 이동 중에 `loadPlanners()` 완료 → `setPlanners()` 상태 변경
+4. 상태 변경이 라우팅에 간섭하여 리다이렉트 발생
+
+### 해결 방법
+
+`onPlannerSelect`가 전달되면 다른 페이지로 이동하므로 목록 갱신이 불필요. 조건부 분기로 경합 조건 방지:
+
+```typescript
+// 수정 후
+const handlePlannerSaved = (planner: Planner) => {
+  setCreateModalOpen(false);
+  setEditPlanner(undefined);
+  setDuplicatePlanner(undefined);
+
+  // onPlannerSelect가 있으면 다른 페이지로 이동하므로 목록 갱신 불필요
+  // 라우팅과 상태 변경의 경합 조건(race condition) 방지
+  if (onPlannerSelect) {
+    onPlannerSelect(planner);
+  } else {
+    // onPlannerSelect가 없으면 현재 페이지에 남아있으므로 목록 갱신
+    loadPlanners();
+  }
+};
+```
+
+### 수정된 파일
+
+- `app/(admin)/admin/students/[id]/plans/_components/PlannerManagement.tsx` (498-512줄)
+
+### 테스트 시나리오
+
+1. **플래너 생성**: `/admin/students/[id]/plans`에서 "새 플래너" 클릭 → 생성 완료 → 플랜 관리 페이지로 이동 확인 (리다이렉트 없어야 함)
+2. **플래너 수정**: 플래너 수정 후 해당 플래너 페이지로 정상 이동 확인
+3. **플래너 복제**: 복제 후 새 플래너 페이지로 정상 이동 확인
+
+---
+
+**작업 완료 일자**: 2026-01-15
+**추가 수정 일자**: 2026-01-08
+**작업자**: AI Assistant
 **검토 상태**: 완료
 

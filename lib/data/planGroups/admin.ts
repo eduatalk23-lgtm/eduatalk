@@ -118,6 +118,91 @@ export async function getPlanGroupWithDetails(
 }
 
 /**
+ * 관리자용 플랜 콘텐츠 조회 (RLS 우회)
+ *
+ * plan_contents 테이블은 RLS 정책이 plan_groups를 통해 적용되며,
+ * Server Action 컨텍스트에서 auth.uid()가 올바르게 설정되지 않을 수 있어
+ * Admin Client를 사용하여 RLS를 우회합니다.
+ */
+export async function getPlanContentsForAdmin(
+  groupId: string,
+  tenantId: string
+): Promise<PlanContent[]> {
+  console.log("[getPlanContentsForAdmin] 호출됨", { groupId, tenantId });
+
+  // 1. Service Role Key로 시도 (RLS 우회)
+  const { createSupabaseAdminClient } = await import("@/lib/supabase/admin");
+  const adminClient = createSupabaseAdminClient();
+
+  console.log("[getPlanContentsForAdmin] adminClient 생성:", adminClient ? "성공" : "실패");
+
+  if (!adminClient) {
+    // Admin 클라이언트를 생성할 수 없으면 일반 함수 사용 (fallback)
+    if (process.env.NODE_ENV === "development") {
+      logActionWarn(
+        { domain: "data", action: "getPlanContentsForAdmin" },
+        "Admin 클라이언트를 생성할 수 없어 일반 클라이언트 사용"
+      );
+    }
+    return getPlanContents(groupId, tenantId);
+  }
+
+  const selectContents = () =>
+    adminClient
+      .from("plan_contents")
+      .select(
+        "id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
+      )
+      .eq("plan_group_id", groupId)
+      .eq("tenant_id", tenantId)
+      .order("display_order", { ascending: true });
+
+  let { data, error } = await selectContents();
+
+  console.log("[getPlanContentsForAdmin] 쿼리 결과:", {
+    dataCount: data?.length ?? 0,
+    error: error ? { message: error.message, code: error.code } : null,
+  });
+
+  if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
+    // 컬럼이 없는 경우 fallback 쿼리 시도
+    const fallbackSelect = () =>
+      adminClient
+        .from("plan_contents")
+        .select(
+          "id,tenant_id,plan_group_id,content_type,content_id,master_content_id,start_range,end_range,start_detail_id,end_detail_id,display_order,is_auto_recommended,recommendation_source,recommendation_reason,recommendation_metadata,recommended_at,recommended_by,created_at,updated_at"
+        )
+        .eq("plan_group_id", groupId)
+        .eq("tenant_id", tenantId)
+        .order("display_order", { ascending: true });
+
+    ({ data, error } = await fallbackSelect());
+  }
+
+  if (error) {
+    handleQueryError(error, {
+      context: "[data/planGroups] getPlanContentsForAdmin",
+    });
+    // 에러 발생 시 빈 배열 반환
+    return [];
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    logActionDebug(
+      { domain: "data", action: "getPlanContentsForAdmin" },
+      "관리자용 플랜 콘텐츠 조회 성공",
+      {
+        groupId,
+        tenantId,
+        contentsCount: data?.length ?? 0,
+      }
+    );
+  }
+
+  return (data as PlanContent[] | null) ?? [];
+}
+
+/**
  * 관리자용 플랜 그룹 상세 정보 조회 (RLS 우회)
  */
 export async function getPlanGroupWithDetailsForAdmin(
@@ -129,6 +214,7 @@ export async function getPlanGroupWithDetailsForAdmin(
   exclusions: PlanExclusion[];
   academySchedules: AcademySchedule[];
 }> {
+  console.log("[getPlanGroupWithDetailsForAdmin] 호출됨", { groupId, tenantId });
   const group = await getPlanGroupByIdForAdmin(groupId, tenantId);
 
   if (!group) {
@@ -172,7 +258,8 @@ export async function getPlanGroupWithDetailsForAdmin(
         .order("day_of_week", { ascending: true })
         .order("start_time", { ascending: true });
 
-    let { data, error } = await selectSchedules();
+    const { data, error: initialError } = await selectSchedules();
+    let error = initialError;
     adminSchedulesData = data as AcademySchedule[] | null;
 
     if (error && ErrorCodeCheckers.isColumnNotFound(error)) {
@@ -246,9 +333,9 @@ export async function getPlanGroupWithDetailsForAdmin(
     return academySchedules;
   };
 
-  // 플랜 그룹별 제외일과 학원 일정 조회
+  // 플랜 그룹별 제외일과 학원 일정 조회 (RLS 우회)
   const [contents, exclusions, academySchedules] = await Promise.all([
-    getPlanContents(groupId, tenantId),
+    getPlanContentsForAdmin(groupId, tenantId), // RLS 우회를 위해 Admin 버전 사용
     getPlanExclusions(groupId, tenantId),
     getAcademySchedulesForAdmin(),
   ]);

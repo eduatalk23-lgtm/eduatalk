@@ -438,6 +438,13 @@ function WizardInner({
         content_allocations: contentAllocations.length > 0 ? contentAllocations : undefined,
       };
 
+      // 디버그: 콘텐츠 데이터 확인
+      console.log("[AdminWizard] handleSubmit 콘텐츠 데이터", {
+        skipContents,
+        selectedContentsCount: selectedContents.length,
+        selectedContents: selectedContents.map(c => ({ id: c.contentId, type: c.contentType })),
+      });
+
       // PlanGroupCreationData 구성
       const planGroupData: PlanGroupCreationData = {
         name: name || null,
@@ -478,8 +485,14 @@ function WizardInner({
         study_hours: studyHours || null,
         self_study_hours: selfStudyHours || null,
         lunch_time: lunchTime || null,
-        non_study_time_blocks: nonStudyTimeBlocks || null,
+        non_study_time_blocks: nonStudyTimeBlocks || undefined,
       };
+
+      // 디버그: planGroupData.contents 확인
+      console.log("[AdminWizard] planGroupData.contents", {
+        contentsCount: planGroupData.contents.length,
+        contents: planGroupData.contents,
+      });
 
       let groupId: string;
 

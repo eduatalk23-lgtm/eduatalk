@@ -107,6 +107,15 @@ async function createPlanGroupAtomic(
   exclusions: ExclusionInput[],
   schedules: ScheduleInput[]
 ): Promise<AtomicCreateResult> {
+  console.log("[createPlanGroupAtomic] RPC 호출 전", {
+    tenantId,
+    studentId,
+    contentsCount: contents.length,
+    contentsData: contents,
+    exclusionsCount: exclusions.length,
+    schedulesCount: schedules.length,
+  });
+
   const supabase = await createSupabaseServerClient();
 
   const { data, error } = await supabase.rpc("create_plan_group_atomic", {
@@ -133,6 +142,8 @@ async function createPlanGroupAtomic(
 
   // RPC 결과 파싱 (JSONB 반환)
   const result = data as { success: boolean; group_id?: string; error?: string; error_code?: string };
+
+  console.log("[createPlanGroupAtomic] RPC 결과", { result });
 
   if (!result.success) {
     logActionError(

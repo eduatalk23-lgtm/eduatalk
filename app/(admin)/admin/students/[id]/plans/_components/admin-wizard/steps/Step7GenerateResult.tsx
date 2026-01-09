@@ -69,8 +69,21 @@ export function Step7GenerateResult({
   const [phase, setPhase] = useState<GenerationPhase>("idle");
   const [progress, setProgress] = useState(0);
 
+  // 디버그: Step7 상태 확인
+  console.log("[Step7] 렌더링 상태", {
+    phase,
+    hasErrors,
+    validationErrors,
+    isSubmitting,
+    createdGroupId,
+    skipContents,
+    selectedContentsCount: selectedContents.length,
+  });
+
   // 생성 실행
   const handleGenerate = useCallback(async () => {
+    console.log("[Step7] handleGenerate 호출됨!", { hasErrors, generateAIPlan });
+
     if (hasErrors) {
       setError("입력 값에 오류가 있습니다. 이전 단계를 확인해주세요.");
       return;

@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/cn';
 import { movePlanToContainer } from '@/lib/domains/admin-plan/actions';
+import { generatePlansFromGroupAction, checkPlansExistAction } from '@/lib/domains/plan/actions/plan-groups/plans';
+import { updatePlanGroupStatus } from '@/lib/domains/plan/actions/plan-groups/status';
+import { useToast } from '@/components/ui/ToastProvider';
 import { PlanStatsCards } from './PlanStatsCards';
 import { UnfinishedDock } from './UnfinishedDock';
 import { DailyDock } from './DailyDock';
@@ -136,6 +139,7 @@ export function AdminPlanManagement({
 }: AdminPlanManagementProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const toast = useToast();
 
   // 상태 관리
   const [selectedDate, setSelectedDate] = useState(initialDate);
@@ -814,13 +818,45 @@ export function AdminPlanManagement({
             studentName={studentName}
             plannerId={selectedPlannerId}
             onClose={() => setShowCreateWizard(false)}
-            onSuccess={(groupId, generateAI) => {
+            onSuccess={async (groupId, generateAI) => {
               setShowCreateWizard(false);
-              handleRefresh();
-              // AI 생성 옵션이 선택된 경우, 새로 생성된 그룹으로 AI 모달 열기
               if (generateAI) {
+                // AI 생성: AI 모달에서 플랜 생성
                 setNewGroupIdForAI(groupId);
                 setShowAIPlanModal(true);
+              } else {
+                // AI 없이 생성: 플랜 그룹 상태를 saved로 변경 후 플랜 생성
+                try {
+                  // 1. 플랜 그룹 상태를 "saved"로 변경
+                  try {
+                    await updatePlanGroupStatus(groupId, "saved");
+                  } catch (statusError) {
+                    const errorMessage = statusError instanceof Error ? statusError.message : "플랜 그룹 상태 업데이트에 실패했습니다.";
+                    toast.showError(errorMessage);
+                    handleRefresh();
+                    return;
+                  }
+
+                  // 2. 플랜 생성
+                  const result = await generatePlansFromGroupAction(groupId);
+
+                  // 3. 플랜 생성 확인
+                  const checkResult = await checkPlansExistAction(groupId);
+                  if (!checkResult.hasPlans) {
+                    toast.showError("플랜 생성에 실패했습니다. 플랜이 생성되지 않았습니다.");
+                    handleRefresh();
+                    return;
+                  }
+
+                  // 4. 성공 메시지 표시
+                  toast.showSuccess(`플랜이 생성되었습니다. (총 ${result.count}개)`);
+                  handleRefresh();
+                } catch (err) {
+                  console.error('[AdminPlanManagement] 플랜 생성 실패:', err);
+                  const errorMessage = err instanceof Error ? err.message : "플랜 생성에 실패했습니다.";
+                  toast.showError(errorMessage);
+                  handleRefresh();
+                }
               }
             }}
           />

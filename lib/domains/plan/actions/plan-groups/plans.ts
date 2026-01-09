@@ -23,8 +23,10 @@ import { logActionError } from "@/lib/logging/actionLogger";
 async function _generatePlansFromGroup(
   groupId: string
 ): Promise<{ count: number }> {
+  console.log("[_generatePlansFromGroup] 호출됨", { groupId });
   const access = await verifyPlanGroupAccess();
   const tenantContext = await requireTenantContext();
+  console.log("[_generatePlansFromGroup] 인증 정보", { role: access.role, tenantId: tenantContext.tenantId });
 
   // 플랜 그룹 정보 조회하여 studentId와 isCampMode 결정
   const { group } = await getPlanGroupWithDetailsByRole(

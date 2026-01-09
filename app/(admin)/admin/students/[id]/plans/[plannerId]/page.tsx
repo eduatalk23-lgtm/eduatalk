@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getPlannerAction } from '@/lib/domains/admin-plan/actions';
-import { getPlanGroupsForStudent } from '@/lib/data/planGroups';
 import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
 import { PlannerHeader } from '../_components/PlannerHeader';
@@ -55,21 +54,18 @@ export default async function PlannerPlanManagementPage({
 
   const targetDate = date ?? new Date().toISOString().split('T')[0];
 
-  // 4. 활성 플랜 그룹 조회
-  const activePlanGroups = await getPlanGroupsForStudent({
-    studentId,
-    status: 'active',
-  });
-  const activePlanGroupId = activePlanGroups[0]?.id ?? null;
-
-  // 5. 해당 플래너의 플랜 그룹에서 daily_schedule 조회
+  // 4. 해당 플래너의 플랜 그룹 조회 (활성 그룹 ID + daily_schedule)
   const supabase = await createSupabaseServerClient();
   const { data: plannerGroups } = await supabase
     .from('plan_groups')
-    .select('daily_schedule')
+    .select('id, status, daily_schedule')
     .eq('planner_id', plannerId)
     .eq('student_id', studentId)
-    .is('deleted_at', null);
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  // 현재 플래너의 활성 플랜 그룹 ID 추출
+  const activePlanGroupId = plannerGroups?.find(g => g.status === 'active')?.id ?? null;
 
   // daily_schedule 추출 (여러 그룹이 있을 수 있음)
   const plannerDailySchedules: DailyScheduleInfo[][] = (plannerGroups ?? [])
