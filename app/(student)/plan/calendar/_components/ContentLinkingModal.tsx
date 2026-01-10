@@ -31,6 +31,7 @@ import {
   textSecondary,
   textMuted,
 } from "@/lib/utils/darkMode";
+import { ContentCard } from "./ContentCard";
 
 type VirtualPlanInfo = {
   planId: string;
@@ -566,67 +567,21 @@ export function ContentLinkingModal({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredStudentContents.map((content) => {
-                    const isSelected = selectedContent?.contentId === content.contentId;
-                    const TypeIcon = TAB_CONFIG[activeTab].icon;
-
-                    return (
-                      <button
-                        key={content.contentId}
-                        type="button"
-                        onClick={() => handleSelectStudentContent(content)}
-                        className={cn(
-                          "w-full rounded-lg border-2 p-4 text-left transition-all",
-                          isSelected
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
-                            : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        )}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <TypeIcon
-                              className={cn(
-                                "mt-0.5 h-5 w-5",
-                                isSelected ? "text-indigo-600" : "text-gray-400"
-                              )}
-                            />
-                            <div>
-                              <div
-                                className={cn(
-                                  "font-medium",
-                                  isSelected ? "text-indigo-700" : textPrimary
-                                )}
-                              >
-                                {content.title}
-                              </div>
-                              <div className="mt-1 flex items-center gap-2">
-                                {content.subjectCategory && (
-                                  <span className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-300">
-                                    {content.subjectCategory}
-                                  </span>
-                                )}
-                                {content.subject && (
-                                  <span className={cn("text-xs", textMuted)}>
-                                    {content.subject}
-                                  </span>
-                                )}
-                              </div>
-                              <div className={cn("mt-1 text-xs", textMuted)}>
-                                {content.totalPages
-                                  ? `${content.totalPages}페이지`
-                                  : content.totalEpisodes
-                                    ? `${content.totalEpisodes}회차`
-                                    : null}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <Check className="h-5 w-5 text-indigo-600" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {filteredStudentContents.map((content) => (
+                    <ContentCard
+                      key={content.contentId}
+                      contentId={content.contentId}
+                      title={content.title}
+                      isSelected={selectedContent?.contentId === content.contentId}
+                      icon={TAB_CONFIG[activeTab].icon}
+                      colorScheme="indigo"
+                      onClick={() => handleSelectStudentContent(content)}
+                      subjectCategory={content.subjectCategory}
+                      subject={content.subject}
+                      totalPages={content.totalPages}
+                      totalEpisodes={content.totalEpisodes}
+                    />
+                  ))}
                 </div>
               )
             ) : sourceTab === "recommended" ? (
@@ -649,75 +604,29 @@ export function ContentLinkingModal({
                 <div className="space-y-2">
                   {recommendedContents
                     .filter((rec) => activeTab === "book" ? rec.contentType === "book" : rec.contentType === "lecture")
-                    .map((rec) => {
-                    const isSelected = selectedContent?.contentId === rec.id;
-                    const TypeIcon = rec.contentType === "book" ? BookOpen : Video;
-
-                    return (
-                      <button
+                    .map((rec) => (
+                      <ContentCard
                         key={rec.id}
-                        type="button"
+                        contentId={rec.id}
+                        title={rec.title}
+                        isSelected={selectedContent?.contentId === rec.id}
+                        icon={rec.contentType === "book" ? BookOpen : Video}
+                        colorScheme="amber"
+                        iconOverlay={
+                          <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-500" />
+                        }
+                        badge={
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            추천
+                          </span>
+                        }
                         onClick={() => handleSelectRecommendedContent(rec)}
-                        className={cn(
-                          "w-full rounded-lg border-2 p-4 text-left transition-all",
-                          isSelected
-                            ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30"
-                            : "border-gray-200 dark:border-gray-700 hover:border-amber-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        )}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className="relative">
-                              <TypeIcon
-                                className={cn(
-                                  "mt-0.5 h-5 w-5",
-                                  isSelected ? "text-amber-600" : "text-gray-400"
-                                )}
-                              />
-                              <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-amber-500" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={cn(
-                                    "font-medium",
-                                    isSelected ? "text-amber-700" : textPrimary
-                                  )}
-                                >
-                                  {rec.title}
-                                </span>
-                                <span className="rounded-full bg-amber-100 text-amber-700 px-2 py-0.5 text-xs font-medium">
-                                  추천
-                                </span>
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-2">
-                                {rec.subject && (
-                                  <span className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-300">
-                                    {rec.subject}
-                                  </span>
-                                )}
-                                {rec.recommendationReason && (
-                                  <span className={cn("text-xs", textMuted)}>
-                                    {rec.recommendationReason}
-                                  </span>
-                                )}
-                              </div>
-                              <div className={cn("mt-1 text-xs", textMuted)}>
-                                {rec.total_pages
-                                  ? `${rec.total_pages}페이지`
-                                  : rec.total_episodes
-                                    ? `${rec.total_episodes}회차`
-                                    : null}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <Check className="h-5 w-5 text-amber-600" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                        subjectCategory={rec.subject}
+                        description={rec.recommendationReason}
+                        totalPages={rec.total_pages}
+                        totalEpisodes={rec.total_episodes}
+                      />
+                    ))}
                 </div>
               )
             ) : (
@@ -740,77 +649,33 @@ export function ContentLinkingModal({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {masterSearch.results.map((master) => {
-                    const isSelected = selectedContent?.contentId === master.id;
-                    const TypeIcon = master.content_type === "book" ? BookOpen : Video;
-
-                    return (
-                      <button
-                        key={master.id}
-                        type="button"
-                        onClick={() => handleSelectMasterContent(master)}
-                        className={cn(
-                          "w-full rounded-lg border-2 p-4 text-left transition-all",
-                          isSelected
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30"
-                            : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                        )}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <TypeIcon
-                              className={cn(
-                                "mt-0.5 h-5 w-5",
-                                isSelected ? "text-indigo-600" : "text-gray-400"
-                              )}
-                            />
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={cn(
-                                    "font-medium",
-                                    isSelected ? "text-indigo-700" : textPrimary
-                                  )}
-                                >
-                                  {master.title}
-                                </span>
-                                <span className={cn(
-                                  "rounded-full px-2 py-0.5 text-xs font-medium",
-                                  master.content_type === "book"
-                                    ? "bg-blue-100 text-blue-700"
-                                    : "bg-purple-100 text-purple-700"
-                                )}>
-                                  {master.content_type === "book" ? "교재" : "강의"}
-                                </span>
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-2">
-                                {master.publisher_or_academy && (
-                                  <span className={cn("text-xs", textMuted)}>
-                                    {master.publisher_or_academy}
-                                  </span>
-                                )}
-                                {master.subject && (
-                                  <span className="rounded bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-600 dark:text-gray-300">
-                                    {master.subject}
-                                  </span>
-                                )}
-                              </div>
-                              <div className={cn("mt-1 text-xs", textMuted)}>
-                                {master.total_pages
-                                  ? `${master.total_pages}페이지`
-                                  : master.total_episodes
-                                    ? `${master.total_episodes}회차`
-                                    : null}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <Check className="h-5 w-5 text-indigo-600" />
+                  {masterSearch.results.map((master) => (
+                    <ContentCard
+                      key={master.id}
+                      contentId={master.id}
+                      title={master.title}
+                      isSelected={selectedContent?.contentId === master.id}
+                      icon={master.content_type === "book" ? BookOpen : Video}
+                      colorScheme="indigo"
+                      badge={
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            master.content_type === "book"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-purple-100 text-purple-700"
                           )}
-                        </div>
-                      </button>
-                    );
-                  })}
+                        >
+                          {master.content_type === "book" ? "교재" : "강의"}
+                        </span>
+                      }
+                      onClick={() => handleSelectMasterContent(master)}
+                      publisherOrAcademy={master.publisher_or_academy}
+                      subjectCategory={master.subject}
+                      totalPages={master.total_pages}
+                      totalEpisodes={master.total_episodes}
+                    />
+                  ))}
                 </div>
               )
             )}
