@@ -16,6 +16,7 @@ import {
 } from "@/lib/plan/1730TimetableLogic";
 import { validateAllocations, getEffectiveAllocation } from "@/lib/utils/subjectAllocation";
 import { SchedulerEngine, type SchedulerContext, type ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
+import { generateScheduledPlans, type SchedulerInput } from "@/lib/scheduler";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
 
@@ -149,45 +150,26 @@ export async function generatePlansFromGroup(
     };
   });
 
-  // 3. 스케줄러 유형별로 플랜 생성
-  let plans: ScheduledPlan[] = [];
-  let failureReasons: import("@/lib/errors/planGenerationErrors").PlanGenerationFailureReason[] = [];
-  
-  switch (group.scheduler_type) {
-    case "1730_timetable": {
-      const result = generate1730TimetablePlans(
-        availableDates,
-        contentInfos,
-        blocks,
-        academySchedules,
-        exclusions,
-        group.scheduler_options ?? undefined,
-        riskIndexMap,
-        dateAvailableTimeRanges,
-        dateTimeSlots,
-        contentDurationMap,
-        contentSubjects,
-        startDate,
-        existingPlans
-      );
-      plans = result.plans;
-      failureReasons = result.failureReasons;
-      break;
-    }
-    default:
-      plans = generateDefaultPlans(
-        availableDates,
-        contentInfos,
-        blocks,
-        academySchedules,
-        exclusions,
-        riskIndexMap,
-        dateAvailableTimeRanges,
-        dateTimeSlots,
-        contentDurationMap
-      );
-      break;
-  }
+  // 3. 스케줄러 유형별로 플랜 생성 (Factory 패턴 사용)
+  const schedulerInput: SchedulerInput = {
+    availableDates,
+    contentInfos,
+    blocks,
+    academySchedules,
+    exclusions,
+    options: group.scheduler_options ?? undefined,
+    riskIndexMap,
+    dateAvailableTimeRanges,
+    dateTimeSlots,
+    contentDurationMap,
+    contentSubjects,
+    periodStart: startDate,
+    existingPlans,
+  };
+
+  const schedulerResult = generateScheduledPlans(group.scheduler_type, schedulerInput);
+  let plans: ScheduledPlan[] = schedulerResult.plans;
+  const failureReasons: import("@/lib/errors/planGenerationErrors").PlanGenerationFailureReason[] = schedulerResult.failureReasons;
 
   // 4. 추가 기간 재배치 처리 (복습의 복습)
   const additionalReallocation = group.additional_period_reallocation as AdditionalPeriodReallocation | null | undefined;
