@@ -70,8 +70,11 @@ export const SCHEDULER_DEFAULTS = {
 
 /**
  * 스케줄러 타입 (리터럴 타입)
+ *
+ * Note: lib/scheduler/types.ts에 동일한 정의가 있습니다.
+ * 순환 참조 방지를 위해 이 파일에서 직접 정의합니다.
  */
-export type SchedulerType = typeof SCHEDULER_DEFAULTS.TYPE | "even" | "default";
+export type SchedulerType = typeof SCHEDULER_DEFAULTS.TYPE | "default" | null;
 
 /**
  * 스케줄러 옵션 타입

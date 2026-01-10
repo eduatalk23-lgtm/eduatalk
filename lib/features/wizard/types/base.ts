@@ -202,8 +202,11 @@ export type SubjectType = "strategy" | "weakness" | null;
 
 /**
  * 스케줄러 타입
+ *
+ * Note: lib/scheduler/types.ts에 동일한 정의가 있습니다.
+ * 순환 참조 방지를 위해 이 파일에서 직접 정의합니다.
  */
-export type SchedulerType = "1730_timetable" | "custom" | "";
+export type SchedulerType = "1730_timetable" | "default" | "custom" | "" | null;
 
 /**
  * 학생 레벨

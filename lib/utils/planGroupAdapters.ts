@@ -5,7 +5,7 @@
  * DetailView에서 Step 컴포넌트를 재사용하기 위한 타입 변환
  */
 
-import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, SchedulerType, ExclusionType, PlanContentWithDetails } from "@/lib/types/plan";
+import type { PlanGroup, PlanExclusion, AcademySchedule, PlanPurpose, ExclusionType, PlanContentWithDetails } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
 import { getSchedulerOptionsWithTimeSettings, extractTimeSettingsFromSchedulerOptions } from "@/lib/utils/schedulerOptions";
 
@@ -95,7 +95,7 @@ export function planGroupToWizardData(
     // Step 1: 기본 정보
     name: group.name || "",
     plan_purpose: (group.plan_purpose === "기타" ? "" : (group.plan_purpose as "내신대비" | "모의고사(수능)" | "")) || "",
-    scheduler_type: (group.scheduler_type as SchedulerType) || "",
+    scheduler_type: group.scheduler_type === "1730_timetable" ? "1730_timetable" : "",
     scheduler_options: schedulerOptions ? {
       study_days: schedulerOptions.study_days,
       review_days: schedulerOptions.review_days,

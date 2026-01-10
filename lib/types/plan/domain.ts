@@ -36,8 +36,12 @@ export type CampInvitationStatus = "pending" | "accepted" | "declined" | "expire
 
 /**
  * 스케줄러 유형
+ *
+ * Note: lib/scheduler/types.ts에 동일한 정의가 있습니다.
+ * 순환 참조 방지를 위해 이 파일에서 직접 정의합니다.
+ * 새 스케줄러 추가 시 lib/scheduler/types.ts도 함께 업데이트하세요.
  */
-export type SchedulerType = "1730_timetable";
+export type SchedulerType = "1730_timetable" | "default" | null;
 
 /**
  * 플랜 생성 모드
