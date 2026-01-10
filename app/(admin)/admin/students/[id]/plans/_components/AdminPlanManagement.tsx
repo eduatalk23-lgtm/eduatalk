@@ -34,6 +34,7 @@ import { CarryoverButton } from "./CarryoverButton";
 import { SummaryDashboard } from "./SummaryDashboard";
 import { PlanQualityDashboard } from "./PlanQualityDashboard";
 import { PlanTypeStats } from "./PlanTypeStats";
+import { PlanGroupSummaryCard } from "./PlanGroupSummaryCard";
 import {
   useKeyboardShortcuts,
   type ShortcutConfig,
@@ -49,7 +50,6 @@ import {
   Wand2,
   Plus,
   LineChart,
-  Zap,
   Trash2,
   ClipboardList,
   MoreHorizontal,
@@ -58,6 +58,8 @@ import {
   Book,
   Video,
   FileText,
+  X,
+  Keyboard,
 } from "lucide-react";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 
@@ -235,6 +237,17 @@ export function AdminPlanManagement({
   const [contentTypeFilter, setContentTypeFilter] =
     useState<ContentTypeFilter>("all");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  // 단축키 힌트 배너 상태 (localStorage 연동)
+  const [showShortcutsHint, setShowShortcutsHint] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("admin-plan-shortcuts-hint-dismissed") !== "true";
+  });
+
+  const dismissShortcutsHint = useCallback(() => {
+    setShowShortcutsHint(false);
+    localStorage.setItem("admin-plan-shortcuts-hint-dismissed", "true");
+  }, []);
 
   // 모달 상태 관리 (useReducer 패턴)
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
@@ -699,6 +712,26 @@ export function AdminPlanManagement({
             </div>
           )}
 
+          {/* 단축키 힌트 배너 */}
+          {showShortcutsHint && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Keyboard className="h-4 w-4 flex-shrink-0 text-blue-600" />
+                <span className="text-sm text-blue-700">
+                  <strong>Tip:</strong> 키보드 단축키로 더 빠르게 작업하세요!{" "}
+                  <kbd className="px-1.5 py-0.5 text-xs bg-blue-100 border border-blue-300 rounded">?</kbd> 키를 눌러 확인
+                </span>
+              </div>
+              <button
+                onClick={dismissShortcutsHint}
+                className="p-1 hover:bg-blue-100 rounded transition-colors"
+                aria-label="단축키 힌트 닫기"
+              >
+                <X className="h-4 w-4 text-blue-600" />
+              </button>
+            </div>
+          )}
+
           {/* 헤더 영역 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -762,17 +795,17 @@ export function AdminPlanManagement({
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
                   canCreatePlans
-                    ? "bg-warning-500 text-white hover:bg-warning-600"
+                    ? "bg-primary-600 text-white hover:bg-primary-700"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 )}
                 title={
                   canCreatePlans
-                    ? "빠른 플랜 추가 (Q/A)"
+                    ? "+플랜 추가 (Q/A)"
                     : "먼저 플래너를 선택해주세요"
                 }
               >
-                <Zap className="h-4 w-4" />
-                빠른 추가
+                <Plus className="h-4 w-4" />
+                +플랜 추가
               </button>
               <button
                 onClick={() => setShowCreateWizard(true)}
@@ -885,6 +918,14 @@ export function AdminPlanManagement({
             exclusions={plannerExclusions}
           />
 
+          {/* 플랜 그룹 요약 카드 - activePlanGroupId가 있을 때만 표시 */}
+          {activePlanGroupId && (
+            <PlanGroupSummaryCard
+              planGroupId={activePlanGroupId}
+              tenantId={tenantId}
+            />
+          )}
+
           {/* Daily & Weekly Docks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Daily Dock */}
@@ -895,8 +936,6 @@ export function AdminPlanManagement({
               selectedDate={selectedDate}
               activePlanGroupId={activePlanGroupId}
               contentTypeFilter={contentTypeFilter}
-              onAddContent={() => openUnifiedModal("content")}
-              onAddAdHoc={() => openUnifiedModal("quick")}
               onRedistribute={handleOpenRedistribute}
               onEdit={handleOpenEdit}
               onReorder={() => handleOpenReorder("daily")}

@@ -7,7 +7,22 @@ import { QuickCompleteButton, InlineVolumeEditor, QuickProgressInput } from '../
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
-import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft } from 'lucide-react';
+import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft, AlertTriangle, ChevronRight, Check, Clock, Circle, XCircle } from 'lucide-react';
+import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
+import type { PlanStatus } from '@/lib/types/plan';
+
+/** 빠른 상태 변경 옵션 */
+const QUICK_STATUS_OPTIONS: Array<{
+  status: PlanStatus;
+  label: string;
+  icon: typeof Check;
+  colorClass: string;
+}> = [
+  { status: 'pending', label: '대기', icon: Circle, colorClass: 'text-gray-500' },
+  { status: 'in_progress', label: '진행중', icon: Clock, colorClass: 'text-blue-500' },
+  { status: 'completed', label: '완료', icon: Check, colorClass: 'text-green-500' },
+  { status: 'cancelled', label: '취소', icon: XCircle, colorClass: 'text-red-500' },
+];
 
 export type PlanItemType = 'plan' | 'adhoc';
 export type ContainerType = 'daily' | 'weekly' | 'unfinished';
@@ -44,6 +59,8 @@ interface PlanItemCardProps {
   showActions?: boolean;
   selectable?: boolean;
   isSelected?: boolean;
+  /** 시간 충돌 정보 (optional, DailyDock에서만 전달) */
+  conflictInfo?: ConflictInfo;
   onSelect?: (id: string) => void;
   onMoveToDaily?: (id: string, date?: string) => void;
   onMoveToWeekly?: (id: string) => void;
@@ -55,6 +72,8 @@ interface PlanItemCardProps {
   onCopy?: (id: string) => void;
   onMoveToGroup?: (id: string) => void;
   onStatusChange?: (id: string, currentStatus: string, title: string) => void;
+  /** 빠른 상태 변경 콜백 (서브메뉴에서 직접 상태 변경 시 사용) */
+  onQuickStatusUpdate?: (id: string, newStatus: PlanStatus) => Promise<void>;
   onRefresh?: () => void;
 }
 
@@ -83,6 +102,7 @@ export function PlanItemCard({
   showActions = true,
   selectable = false,
   isSelected = false,
+  conflictInfo,
   onSelect,
   onMoveToDaily,
   onMoveToWeekly,
@@ -94,6 +114,7 @@ export function PlanItemCard({
   onCopy,
   onMoveToGroup,
   onStatusChange,
+  onQuickStatusUpdate,
   onRefresh,
 }: PlanItemCardProps) {
   const [isPending, startTransition] = useTransition();
@@ -160,6 +181,43 @@ export function PlanItemCard({
       }
 
       showSuccess('플랜이 삭제되었습니다.');
+      onRefresh?.();
+    });
+  };
+
+  /** 빠른 상태 변경 핸들러 */
+  const handleQuickStatusChange = async (newStatus: PlanStatus) => {
+    // 같은 상태면 무시
+    if (plan.status === newStatus) return;
+
+    // 외부 콜백이 있으면 사용
+    if (onQuickStatusUpdate) {
+      try {
+        await onQuickStatusUpdate(plan.id, newStatus);
+        showSuccess(`상태가 '${QUICK_STATUS_OPTIONS.find(o => o.status === newStatus)?.label}'(으)로 변경되었습니다.`);
+      } catch (error) {
+        showError('상태 변경 실패: ' + (error instanceof Error ? error.message : '알 수 없는 오류'));
+      }
+      return;
+    }
+
+    // 기본 구현: 직접 DB 업데이트
+    const supabase = createSupabaseBrowserClient();
+    startTransition(async () => {
+      const { error } = await supabase
+        .from('student_plan')
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', plan.id);
+
+      if (error) {
+        showError('상태 변경 실패: ' + error.message);
+        return;
+      }
+
+      showSuccess(`상태가 '${QUICK_STATUS_OPTIONS.find(o => o.status === newStatus)?.label}'(으)로 변경되었습니다.`);
       onRefresh?.();
     });
   };
@@ -254,11 +312,55 @@ export function PlanItemCard({
                       수정
                     </DropdownMenu.Item>
                   )}
-                  {!isAdHoc && onStatusChange && (
-                    <DropdownMenu.Item onClick={() => onStatusChange(plan.id, plan.status, plan.title)}>
-                      <ToggleLeft className="w-4 h-4 mr-2" />
-                      상태 변경
-                    </DropdownMenu.Item>
+                  {!isAdHoc && (onStatusChange || true) && (
+                    <div className="relative group/status">
+                      <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] dark:text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]">
+                        <ToggleLeft className="w-4 h-4" />
+                        <span className="flex-1">상태 변경</span>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                      {/* 서브메뉴 */}
+                      <div className="absolute left-full top-0 ml-1 hidden group-hover/status:block z-50">
+                        <div className="min-w-[140px] rounded-lg border shadow-lg bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-1">
+                          {QUICK_STATUS_OPTIONS.map((option) => {
+                            const Icon = option.icon;
+                            const isCurrentStatus = plan.status === option.status;
+                            return (
+                              <button
+                                key={option.status}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleQuickStatusChange(option.status);
+                                }}
+                                className={cn(
+                                  'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
+                                  isCurrentStatus && 'bg-gray-100 dark:bg-gray-700'
+                                )}
+                              >
+                                <Icon className={cn('w-4 h-4', option.colorClass)} />
+                                <span>{option.label}</span>
+                                {isCurrentStatus && <Check className="w-3 h-3 ml-auto text-green-500" />}
+                              </button>
+                            );
+                          })}
+                          {onStatusChange && (
+                            <>
+                              <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onStatusChange(plan.id, plan.status, plan.title);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                                <span>상세 변경...</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
                   {onCopy && (
                     <DropdownMenu.Item onClick={() => onCopy(plan.id)}>
@@ -305,9 +407,25 @@ export function PlanItemCard({
         className={cn(
           'flex items-center gap-3 bg-white rounded-lg p-3 border transition-opacity',
           isCompleted ? colors.borderCompleted : colors.border,
-          isPending && 'opacity-50 pointer-events-none'
+          isPending && 'opacity-50 pointer-events-none',
+          // 충돌 시 주황색 테두리
+          conflictInfo && !isCompleted && 'border-orange-400 border-2 bg-orange-50/30'
         )}
       >
+        {/* 충돌 경고 아이콘 */}
+        {conflictInfo && !isCompleted && (
+          <div className="relative group shrink-0">
+            <AlertTriangle className="w-4 h-4 text-orange-500" />
+            {/* 툴팁 */}
+            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
+              <div className="bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap shadow-lg">
+                {conflictInfo.message}
+              </div>
+              <div className="absolute left-2 top-full border-4 border-transparent border-t-gray-900" />
+            </div>
+          </div>
+        )}
+
         {/* Checkbox for selection or completion */}
         {selectable ? (
           <input
@@ -444,11 +562,55 @@ export function PlanItemCard({
                     수정
                   </DropdownMenu.Item>
                 )}
-                {!isAdHoc && onStatusChange && (
-                  <DropdownMenu.Item onClick={() => onStatusChange(plan.id, plan.status, plan.title)}>
-                    <ToggleLeft className="w-4 h-4 mr-2" />
-                    상태 변경
-                  </DropdownMenu.Item>
+                {!isAdHoc && (onStatusChange || true) && (
+                  <div className="relative group/status">
+                    <div className="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-sm px-4 py-2 text-body-2 outline-none transition-base text-[var(--text-secondary)] dark:text-[var(--text-primary)] hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]">
+                      <ToggleLeft className="w-4 h-4" />
+                      <span className="flex-1">상태 변경</span>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                    {/* 서브메뉴 */}
+                    <div className="absolute left-full top-0 ml-1 hidden group-hover/status:block z-50">
+                      <div className="min-w-[140px] rounded-lg border shadow-lg bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 py-1">
+                        {QUICK_STATUS_OPTIONS.map((option) => {
+                          const Icon = option.icon;
+                          const isCurrentStatus = plan.status === option.status;
+                          return (
+                            <button
+                              key={option.status}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickStatusChange(option.status);
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700',
+                                isCurrentStatus && 'bg-gray-100 dark:bg-gray-700'
+                              )}
+                            >
+                              <Icon className={cn('w-4 h-4', option.colorClass)} />
+                              <span>{option.label}</span>
+                              {isCurrentStatus && <Check className="w-3 h-3 ml-auto text-green-500" />}
+                            </button>
+                          );
+                        })}
+                        {onStatusChange && (
+                          <>
+                            <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStatusChange(plan.id, plan.status, plan.title);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              <span>상세 변경...</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
                 {onEditDate && (
                   <DropdownMenu.Item onClick={() => onEditDate(plan.id)}>

@@ -9,6 +9,7 @@ import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { PlanItemCard, toPlanItemData } from './items';
 import { DailyDockTimeline } from './DailyDockTimeline';
 import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { detectTimeConflicts, type ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 
 interface DailyDockProps {
@@ -20,8 +21,6 @@ interface DailyDockProps {
   activePlanGroupId: string | null;
   /** 콘텐츠 유형 필터 */
   contentTypeFilter?: ContentTypeFilter;
-  onAddContent: () => void;
-  onAddAdHoc: () => void;
   onRedistribute: (planId: string) => void;
   onEdit?: (planId: string) => void;
   onReorder?: () => void;
@@ -38,8 +37,6 @@ export function DailyDock({
   selectedDate,
   activePlanGroupId,
   contentTypeFilter = 'all',
-  onAddContent,
-  onAddAdHoc,
   onRedistribute,
   onEdit,
   onReorder,
@@ -60,6 +57,17 @@ export function DailyDock({
     if (contentTypeFilter === 'all') return allPlans;
     return allPlans.filter(plan => plan.content_type === contentTypeFilter);
   }, [allPlans, contentTypeFilter]);
+
+  // 시간 충돌 감지 (필터링된 플랜 기준)
+  const conflictMap = useMemo(() => {
+    const timeSlots = allPlans.map((plan) => ({
+      id: plan.id,
+      title: plan.content_title ?? plan.custom_title ?? '플랜',
+      startTime: plan.start_time ?? null,
+      endTime: plan.end_time ?? null,
+    }));
+    return detectTimeConflicts(timeSlots);
+  }, [allPlans]);
 
   const [isPending, startTransition] = useTransition();
   const { showToast } = usePlanToast();
@@ -234,31 +242,6 @@ export function DailyDock({
               ↕️
             </button>
           )}
-          <button
-            onClick={onAddContent}
-            className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            + 플랜 추가
-          </button>
-          <div className="relative group">
-            <button
-              onClick={onAddAdHoc}
-              disabled={!activePlanGroupId}
-              className={cn(
-                'px-3 py-1.5 text-sm rounded-md',
-                activePlanGroupId
-                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              )}
-            >
-              + 단발성
-            </button>
-            {!activePlanGroupId && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                활성 플랜 그룹이 필요합니다
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -288,6 +271,7 @@ export function DailyDock({
             {plans.map((plan) => {
               const planData = toPlanItemData(plan, 'plan');
               const isCompleted = plan.status === 'completed' || (plan.progress ?? 0) >= 100;
+              const conflictInfo = conflictMap.get(plan.id);
 
               return (
                 <PlanItemCard
@@ -298,6 +282,7 @@ export function DailyDock({
                   showTime={true}
                   selectable={!isCompleted}
                   isSelected={selectedPlans.has(plan.id)}
+                  conflictInfo={conflictInfo}
                   onSelect={handleToggleSelect}
                   onMoveToWeekly={handleMoveToWeekly}
                   onRedistribute={onRedistribute}
