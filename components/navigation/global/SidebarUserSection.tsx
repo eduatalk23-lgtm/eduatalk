@@ -5,6 +5,8 @@ import { layoutStyles } from "@/components/navigation/global/navStyles";
 import { User, Building2 } from "lucide-react";
 import { SignOutButton } from "@/app/_components/SignOutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { OfflineStatusIndicator } from "@/components/ui/OfflineStatusIndicator";
 
 type SidebarUserSectionProps = {
   roleLabel: string;
@@ -14,6 +16,8 @@ type SidebarUserSectionProps = {
     type?: string;
   } | null;
   variant?: "desktop" | "mobile";
+  /** 알림 센터용 userId (데스크톱 전용) */
+  userId?: string | null;
 };
 
 /**
@@ -26,6 +30,7 @@ export function SidebarUserSection({
   userName,
   tenantInfo,
   variant = "desktop",
+  userId,
 }: SidebarUserSectionProps) {
 
   if (variant === "mobile") {
@@ -170,11 +175,17 @@ export function SidebarUserSection({
       {/* 액션 버튼 그룹 - 구분선 추가 */}
       <div className={cn(
         "pt-2 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-700))]",
-        layoutStyles.flexBetween, 
+        layoutStyles.flexBetween,
         "gap-2"
       )}>
         <SignOutButton variant="compact" />
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          {/* 오프라인 상태 표시 */}
+          <OfflineStatusIndicator variant="minimal" />
+          {/* 알림 센터 */}
+          {userId && <NotificationCenter userId={userId} />}
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );

@@ -8,10 +8,11 @@ import { SidebarUserSection } from "@/components/navigation/global/SidebarUserSe
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { OfflineStatusIndicator } from "@/components/ui/OfflineStatusIndicator";
 import { useSidebar } from "./SidebarContext";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Pin, PinOff } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { mapRoleForNavigation } from "@/lib/navigation/utils";
 import { layoutStyles, sidebarStyles, mobileNavStyles, sidebarWidths } from "@/components/navigation/global/navStyles";
+import { motion } from "framer-motion";
 
 type RoleBasedLayoutProps = {
   role: "student" | "admin" | "parent" | "consultant" | "superadmin";
@@ -36,6 +37,7 @@ function SharedSidebarContent({
   onNavigate,
   roleLabel,
   userName,
+  isCollapsed,
 }: {
   role: RoleBasedLayoutProps["role"];
   tenantInfo?: RoleBasedLayoutProps["tenantInfo"];
@@ -43,6 +45,8 @@ function SharedSidebarContent({
   onNavigate?: () => void;
   roleLabel: string;
   userName?: string | null;
+  /** 강제 collapsed 상태 (Hover 시 false 전달 위함) */
+  isCollapsed?: boolean;
 }) {
   return (
     <>
@@ -50,6 +54,7 @@ function SharedSidebarContent({
         <CategoryNav
           role={mapRoleForNavigation(role)}
           onNavigate={onNavigate}
+          isCollapsed={isCollapsed}
         />
       </div>
       {variant === "mobile" && (
@@ -72,6 +77,10 @@ function SidebarContent({
   onNavigate,
   userName,
   userId,
+  isCollapsed,
+  onToggleCollapse,
+  /** 실제 Context의 isCollapsed 상태 (핀 아이콘 표시용) */
+  isPinned,
 }: {
   role: RoleBasedLayoutProps["role"];
   dashboardHref: string;
@@ -80,21 +89,45 @@ function SidebarContent({
   onNavigate?: () => void;
   userName?: string | null;
   userId?: string | null;
+  /** 사이드바 접힘 상태 (UI 렌더링용) */
+  isCollapsed?: boolean;
+  /** 접힘/펼침 토글 함수 */
+  onToggleCollapse?: () => void;
+  /** 사이드바 고정 상태 (핀 아이콘 표시용) - true면 고정됨 */
+  isPinned?: boolean;
 }) {
   return (
     <>
       {/* 로고 - 그림자 추가로 구분 */}
       <div className={cn(sidebarStyles.header, "shadow-sm")}>
         <div className="flex items-center justify-between w-full">
-          <LogoSection
-            dashboardHref={dashboardHref}
-            roleLabel={roleLabel}
-          />
+          {/* 로고 + 핀 버튼 그룹 */}
           <div className="flex items-center gap-2">
-            {/* 오프라인 상태 표시 */}
-            <OfflineStatusIndicator variant="minimal" />
-            {/* A1 개선: 데스크톱 알림 센터 */}
-            {userId && <NotificationCenter userId={userId} />}
+            <LogoSection
+              dashboardHref={dashboardHref}
+              roleLabel={roleLabel}
+              isCollapsed={isCollapsed}
+            />
+            {/* 토글 버튼 (데스크톱 전용) - 로고 옆에 배치 */}
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                className={cn(
+                  "hidden md:flex items-center justify-center p-1.5 rounded-md transition-colors",
+                  isPinned
+                    ? "text-primary-600 hover:bg-primary-50 hover:text-primary-700"
+                    : "text-[var(--text-tertiary)] hover:bg-[rgb(var(--color-secondary-100))] hover:text-[var(--text-primary)]"
+                )}
+                aria-label={isPinned ? "사이드바 고정 해제" : "사이드바 고정"}
+                title={isPinned ? "사이드바 고정 해제" : "사이드바 고정"}
+              >
+                {isPinned ? (
+                  <PinOff className="w-4 h-4" />
+                ) : (
+                  <Pin className="w-4 h-4 rotate-45" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -106,6 +139,7 @@ function SidebarContent({
           userName={userName}
           tenantInfo={tenantInfo && role !== "superadmin" ? tenantInfo : null}
           variant="desktop"
+          userId={userId}
         />
       </div>
 
@@ -120,6 +154,7 @@ function SidebarContent({
           onNavigate={onNavigate}
           roleLabel={roleLabel}
           userName={userName}
+          isCollapsed={isCollapsed}
         />
       </div>
     </>
@@ -320,28 +355,97 @@ export function RoleBasedLayout({
   userName,
   userId,
 }: RoleBasedLayoutProps) {
+  const { isCollapsed, toggleCollapse } = useSidebar();
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Hover 핸들러 (Delay 적용)
+  const handleMouseEnter = () => {
+    if (!isCollapsed) return; // 고정된 상태면 무시
+    
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(true);
+    }, 25); // 0.025초 지연 (빠른 반응)
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsHovered(false);
+  };
+  
+  // Collapse 상태가 바뀌면 Hover 상태 초기화
+  useEffect(() => {
+    setIsHovered(false);
+  }, [isCollapsed]);
+
   const content = (
     <div className="flex min-h-screen bg-[rgb(var(--color-secondary-50))] dark:bg-[rgb(var(--color-secondary-900))]">
-      {/* 사이드바 네비게이션 (데스크톱) */}
+      {/* 사이드바 네비게이션 (데스크톱) - Hover Overlay 패턴 적용 */}
       {showSidebar && (
-        <aside
-          className={cn(
-            sidebarStyles.container,
-            "hidden md:block",
-            sidebarWidths.expanded
-          )}
-        >
-          <div className="sticky top-0 h-screen overflow-y-auto">
-            <SidebarContent
-              role={role}
-              dashboardHref={dashboardHref}
-              roleLabel={roleLabel}
-              tenantInfo={tenantInfo}
-              userName={userName}
-              userId={userId}
-            />
-          </div>
-        </aside>
+        <>
+          {/* 1. Layout Spacer: 본문 콘텐츠 위치를 잡기 위한 투명 공간 */}
+          <motion.div 
+            className="hidden md:block flex-shrink-0"
+            initial={false}
+            animate={{ width: isCollapsed ? "4rem" : "20rem" }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+          />
+
+          {/* 2. Visual Panel: 실제 사이드바 UI (Hover 시 확장) */}
+          <motion.aside
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            initial={false}
+            animate={{ 
+              width: isCollapsed && !isHovered ? "4rem" : "20rem",
+              // Hover 확장 시 z-index와 그림자 처리 필요
+              zIndex: isCollapsed && isHovered ? 50 : 10,
+              boxShadow: isCollapsed && isHovered 
+                ? "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)" // shadow-xl
+                : "none"
+            }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className={cn(
+              sidebarStyles.container,
+              "hidden md:block fixed left-0 top-0 h-screen overflow-hidden", // overflow-hidden 추가
+              // width 클래스는 motion.animate로 제어하므로 제거
+              // isCollapsed && isHovered 스타일도 motion.animate로 이동
+            )}
+            style={{
+              borderRightWidth: isCollapsed && isHovered ? 0 : 1
+            }}
+          >
+            <div className="relative h-full flex flex-col w-[20rem]"> {/* 내부 컨텐츠는 항상 20rem 너비 유지하여 찌그러짐 방지 */}
+              {/* Collapsed && Not Hovered: 햄버거 아이콘만 표시 */}
+              {isCollapsed && !isHovered ? (
+                <div className="flex flex-col items-center py-4 w-16"> {/* w-16 고정 */}
+                  <button
+                    className="p-2 rounded-md hover:bg-[rgb(var(--color-secondary-100))] text-[var(--text-secondary)]"
+                    aria-label="메뉴 펼치기"
+                  >
+                    <Menu className="w-6 h-6" />
+                  </button>
+                </div>
+              ) : (
+                /* Expanded or Hovered: 전체 사이드바 콘텐츠 */
+                <SidebarContent
+                  role={role}
+                  dashboardHref={dashboardHref}
+                  roleLabel={roleLabel}
+                  tenantInfo={tenantInfo}
+                  userName={userName}
+                  userId={userId}
+                  // 아이콘 모드(Icon Rail)를 사용하지 않고 항상 펼쳐진 UI 사용
+                  isCollapsed={false}
+                  onToggleCollapse={toggleCollapse}
+                  // 고정 상태: isCollapsed=false면 고정됨
+                  isPinned={!isCollapsed}
+                />
+              )}
+            </div>
+          </motion.aside>
+        </>
       )}
 
       {/* 메인 콘텐츠 */}

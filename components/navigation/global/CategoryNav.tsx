@@ -21,15 +21,24 @@ import {
   findCategoryBySearch,
   filterCategoryItemsByRole,
 } from "./categoryNavUtils";
+import { motion, AnimatePresence } from "framer-motion";
 
 type CategoryNavProps = {
   role: NavigationRole;
   className?: string;
   onNavigate?: () => void; // 모바일에서 네비게이션 후 드로어 닫기용
+  /** 
+   * Context의 isCollapsed 상태를 덮어쓸 값.
+   * Hover 등으로 인해 시각적으로만 펼쳐지는 경우, Context는 collapsed여도 이 prop을 false로 전달하여 펼침 UI를 보여줄 수 있음.
+   */
+  isCollapsed?: boolean; 
 };
 
-export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
-  const { isCollapsed } = useSidebar();
+export function CategoryNav({ role, className, onNavigate, isCollapsed: propIsCollapsed }: CategoryNavProps) {
+  const { isCollapsed: contextIsCollapsed } = useSidebar();
+  // prop이 있으면 prop 사용, 없으면 context 사용
+  const isCollapsed = propIsCollapsed ?? contextIsCollapsed;
+
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const safePathname = ensurePathname(pathname);
@@ -258,7 +267,14 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
               >
                 {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
                 {!isCollapsed ? (
-                  <span className="transition-opacity">{category.label}</span>
+                  <motion.span 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {category.label}
+                  </motion.span>
                 ) : (
                   <span className="sr-only">{category.label}</span>
                 )}
@@ -292,19 +308,27 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                 >
                   <div className="flex items-center gap-2">
                     {category.icon && <span className="flex-shrink-0" aria-hidden="true">{category.icon}</span>}
-                    {!isCollapsed ? (
-                      <span className="transition-opacity">{category.label}</span>
-                    ) : (
-                      <span className="sr-only">{category.label}</span>
-                    )}
+                    <AnimatePresence mode="wait">
+                      {!isCollapsed ? (
+                        <motion.span 
+                          className="origin-left"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {category.label}
+                        </motion.span>
+                      ) : (
+                        <span className="sr-only">{category.label}</span>
+                      )}
+                    </AnimatePresence>
                   </div>
                   {!isCollapsed && (
-                    <svg
-                      className={cn(
-                        "h-4 w-4 transition-transform flex-shrink-0 motion-reduce:transition-none",
-                        isExpanded && "will-change-transform",
-                        isExpanded ? "rotate-180" : ""
-                      )}
+                    <motion.svg
+                      className="h-4 w-4 flex-shrink-0"
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -314,7 +338,7 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                       aria-hidden="true"
                     >
                       <path d="M19 9l-7 7-7-7" />
-                    </svg>
+                    </motion.svg>
                   )}
                 </button>
                 {/* Collapsed 모드 툴팁 */}
@@ -330,105 +354,107 @@ export function CategoryNav({ role, className, onNavigate }: CategoryNavProps) {
                 </span>
               )}
 
-              {/* 카테고리 아이템들 - Grid 기반 애니메이션 */}
-              {!isCollapsed && (
-                <div
-                  id={`category-items-${category.id}`}
-                  className={cn(
-                    "grid transition-[grid-template-rows,opacity] duration-300 ease-in-out motion-reduce:transition-none",
-                    isExpanded
-                      ? "grid-rows-[1fr] opacity-100"
-                      : "grid-rows-[0fr] opacity-0 pointer-events-none"
-                  )}
-                  role="group"
-                  aria-label={`${category.label} 하위 메뉴`}
-                  aria-hidden={!isExpanded}
-                >
-                  <div className="min-h-0">
+              {/* 카테고리 아이템들 - Framer Motion Animation */}
+              <AnimatePresence initial={false}>
+                {!isCollapsed && isExpanded && (
+                  <motion.div
+                    id={`category-items-${category.id}`}
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{
+                      height: { duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] },
+                      opacity: { duration: 0.2, delay: 0.1 }
+                    }}
+                    role="group"
+                    aria-label={`${category.label} 하위 메뉴`}
+                    className="overflow-hidden"
+                  >
                     <div className="flex flex-col gap-1 pl-4 pt-1 pb-1 pr-1">
-                    {(() => {
-                      // 같은 레벨의 형제 아이템들 중 가장 구체적인 경로만 활성화
-                      const filteredItems = filterCategoryItemsByRole(category.items, role);
+                      {(() => {
+                        // 같은 레벨의 형제 아이템들 중 가장 구체적인 경로만 활성화
+                        const filteredItems = filterCategoryItemsByRole(category.items, role);
 
-                      // 모든 아이템의 활성화 상태를 먼저 계산
-                      const activeItems = filteredItems.filter(item =>
-                        isItemActive(safePathname, item, searchParams)
-                      );
+                        // 모든 아이템의 활성화 상태를 먼저 계산
+                        const activeItems = filteredItems.filter(item =>
+                          isItemActive(safePathname, item, searchParams)
+                        );
 
-                      // 활성화된 아이템들 중 가장 긴 href를 가진 아이템 찾기
-                      const longestActiveHref = activeItems.length > 0
-                        ? activeItems.reduce((longest, item) =>
-                            item.href.length > longest.length ? item.href : longest
-                          , "")
-                        : "";
+                        // 활성화된 아이템들 중 가장 긴 href를 가진 아이템 찾기
+                        const longestActiveHref = activeItems.length > 0
+                          ? activeItems.reduce((longest, item) =>
+                              item.href.length > longest.length ? item.href : longest
+                            , "")
+                          : "";
 
-                      return filteredItems.map((item) => {
-                        // 가장 구체적인 경로만 활성화 (형제 중 중복 방지)
-                        const itemActive = isItemActive(safePathname, item, searchParams) &&
-                          item.href.length >= longestActiveHref.length;
+                        return filteredItems.map((item, itemIndex) => {
+                          // 가장 구체적인 경로만 활성화 (형제 중 중복 방지)
+                          const itemActive = isItemActive(safePathname, item, searchParams) &&
+                            item.href.length >= longestActiveHref.length;
 
-                    return (
-                      <div key={item.id}>
-                        {/* 메인 아이템 */}
-                        <Link
-                          href={item.href}
-                          onClick={handleLinkClick}
-                          className={getSubItemClasses({
-                            isActive: itemActive,
-                          })}
-                          aria-current={itemActive ? "page" : undefined}
-                        >
-                          {item.icon && <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>}
-                          <span>{item.label}</span>
-                        </Link>
+                          return (
+                            <motion.div 
+                              key={item.id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.2, delay: itemIndex * 0.05 }}
+                            >
+                              {/* 메인 아이템 */}
+                              <Link
+                                href={item.href}
+                                onClick={handleLinkClick}
+                                className={getSubItemClasses({
+                                  isActive: itemActive,
+                                })}
+                                aria-current={itemActive ? "page" : undefined}
+                              >
+                                {item.icon && <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>}
+                                <span>{item.label}</span>
+                              </Link>
 
-                        {/* Children 아이템 (예: 콘텐츠 > 교재 > 등록) */}
-                        {item.children && item.children.length > 0 && (
-                          <div className="flex flex-col gap-1 pl-6" role="group" aria-label={`${item.label} 하위 메뉴`}>
-                            {(() => {
-                              const children = item.children!;
+                              {/* Children 아이템 */}
+                              {item.children && item.children.length > 0 && (
+                                <div className="flex flex-col gap-1 pl-6" role="group" aria-label={`${item.label} 하위 메뉴`}>
+                                  {(() => {
+                                    const children = item.children!;
+                                    const activeChildren = children.filter(child =>
+                                      isItemActive(safePathname, child, searchParams)
+                                    );
+                                    const longestChildHref = activeChildren.length > 0
+                                      ? activeChildren.reduce((longest, child) =>
+                                          child.href.length > longest.length ? child.href : longest
+                                        , "")
+                                      : "";
 
-                              // children 중 활성화된 아이템들 계산
-                              const activeChildren = children.filter(child =>
-                                isItemActive(safePathname, child, searchParams)
-                              );
-
-                              // 가장 긴 href 찾기
-                              const longestChildHref = activeChildren.length > 0
-                                ? activeChildren.reduce((longest, child) =>
-                                    child.href.length > longest.length ? child.href : longest
-                                  , "")
-                                : "";
-
-                              return children.map((child) => {
-                                const childActive = isItemActive(safePathname, child, searchParams) &&
-                                  child.href.length >= longestChildHref.length;
-                                return (
-                                  <Link
-                                    key={child.id}
-                                    href={child.href}
-                                    onClick={handleLinkClick}
-                                    className={getChildItemClasses({
-                                      isActive: childActive,
-                                    })}
-                                    aria-current={childActive ? "page" : undefined}
-                                  >
-                                    {child.icon && <span className="flex-shrink-0" aria-hidden="true">{child.icon}</span>}
-                                    <span>{child.label}</span>
-                                  </Link>
-                                );
-                              });
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                    );
-                      });
-                    })()}
+                                    return children.map((child) => {
+                                      const childActive = isItemActive(safePathname, child, searchParams) &&
+                                        child.href.length >= longestChildHref.length;
+                                      return (
+                                        <Link
+                                          key={child.id}
+                                          href={child.href}
+                                          onClick={handleLinkClick}
+                                          className={getChildItemClasses({
+                                            isActive: childActive,
+                                          })}
+                                          aria-current={childActive ? "page" : undefined}
+                                        >
+                                          {child.icon && <span className="flex-shrink-0" aria-hidden="true">{child.icon}</span>}
+                                          <span>{child.label}</span>
+                                        </Link>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                              )}
+                            </motion.div>
+                          );
+                        });
+                      })()}
                     </div>
-                  </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
           )}
         </div>
