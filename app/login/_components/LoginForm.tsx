@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/domains/auth/actions";
 import { ResendEmailButton } from "./ResendEmailButton";
+import { StyledInput } from "./StyledInput";
+import { motion } from "framer-motion";
 
 type LoginFormProps = {
   returnUrl?: string;
@@ -59,11 +61,11 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
 
   return (
     <>
-      <div>
-        <h1 className="text-h1">로그인</h1>
-        <p className="text-sm text-neutral-500">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">Welcome Back</h1>
+        <p className="mt-2 text-neutral-500">
           계정이 없다면{" "}
-          <Link href="/signup" className="text-black underline">
+          <Link href="/signup" className="font-medium text-black underline-offset-4 hover:underline">
             회원가입
           </Link>
           을 진행해주세요.
@@ -72,67 +74,81 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
 
       {/* ⛔ 여기‼ 절대로 action= 넣으면 안 됨 */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          이메일
-          <input
-            type="email"
-            name="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded border px-3 py-2 [var(--text-primary)] placeholder:-[var(--text-placeholder)]"
-            placeholder="you@example.com"
-          />
-        </label>
+        <StyledInput
+          label="이메일"
+          type="email"
+          name="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+        />
 
-        <label className="flex flex-col gap-1 text-sm">
-          비밀번호
-          <input
-            type="password"
-            name="password"
-            required
-            className="rounded border px-3 py-2 [var(--text-primary)] placeholder:-[var(--text-placeholder)]"
-            placeholder="••••••••"
-          />
-        </label>
+        <StyledInput
+          label="비밀번호"
+          type="password"
+          name="password"
+          required
+          placeholder="••••••••"
+        />
 
         <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              name="rememberMe"
-              className="h-4 w-4 rounded border-gray-300"
-            />
-            <span className="text-neutral-600">자동로그인</span>
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <div className="relative flex items-center">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                className="peer h-4 w-4 rounded border-gray-300 text-black focus:ring-black/20"
+              />
+            </div>
+            <span className="text-neutral-600 group-hover:text-black transition-colors">자동로그인</span>
           </label>
-          <Link href="/forgot-password" className="text-neutral-500 hover:text-black hover:underline">
+          <Link href="/forgot-password" className="text-neutral-500 hover:text-black hover:underline transition-colors">
             비밀번호를 잊으셨나요?
           </Link>
         </div>
 
         {message && (
-          <p className="rounded bg-green-50 px-3 py-2 text-sm text-green-700">
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 font-medium"
+          >
             {message}
-          </p>
+          </motion.p>
         )}
 
         {error && (
-          <div className="rounded bg-red-50 px-3 py-2 text-sm text-red-700 flex flex-col gap-2">
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 font-medium flex flex-col gap-2"
+          >
             <p>{error}</p>
             {needsEmailVerification && verificationEmail && (
               <div>
                 <ResendEmailButton email={verificationEmail} />
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         <button
           type="submit"
           disabled={isPending}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="mt-2 w-full rounded-xl bg-black px-4 py-3.5 text-white font-medium shadow-lg shadow-black/20 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30 active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
         >
-          {isPending ? "로그인 중..." : "로그인"}
+          {isPending ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              로그인 중...
+            </span>
+          ) : (
+            "로그인"
+          )}
         </button>
       </form>
     </>

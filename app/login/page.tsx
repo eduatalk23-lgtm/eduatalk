@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LoginForm } from "./_components/LoginForm";
+import { AnimatedBackground } from "./_components/AnimatedBackground";
+import { GlassCard } from "./_components/GlassCard";
 
 
 type LoginPageProps = {
@@ -97,8 +99,11 @@ export default async function LoginPage({
   }
 
   return (
-    <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-4">
-      <LoginForm returnUrl={returnUrl} />
+    <section className="relative flex min-h-screen w-full items-center justify-center p-4">
+      <AnimatedBackground />
+      <GlassCard className="w-full max-w-[420px]">
+        <LoginForm returnUrl={returnUrl} />
+      </GlassCard>
     </section>
   );
 }
