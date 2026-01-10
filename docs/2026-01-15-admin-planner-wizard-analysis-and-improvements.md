@@ -648,3 +648,4 @@ if (planner.exclusions && planner.exclusions.length > 0) {
 3. **UI 표시 개선 필요**: 플래너에서 가져온 항목임을 더 명확히 표시
 
 위 개선 방향을 따라 단계적으로 구현하면 사용자 경험이 크게 개선될 것입니다.
+

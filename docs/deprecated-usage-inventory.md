@@ -9,30 +9,15 @@
 
 ---
 
-## 1. 전화번호 유틸리티 (`phoneMasking.ts`)
+## 1. ~~전화번호 유틸리티 (`phoneMasking.ts`)~~ ✅ 완료
 
-### Deprecated 파일
-- **파일**: `lib/utils/phoneMasking.ts`
-- **상태**: 전체 파일 deprecated
-- **대체**: `lib/utils/phone.ts`의 `maskPhoneNumber` 함수 사용
+> **완료일**: 2025-01-15
+> **관련 문서**: `docs/fix-server-action-build-error-2025-01-15.md`
 
-### 사용처 목록
-
-#### 1.1 실제 코드 사용처
-
-| 파일 경로 | 라인 | 사용 방식 | 난이도 |
-|----------|------|----------|--------|
-| `app/(admin)/admin/attendance/sms-logs/_components/SMSLogsTable.tsx` | 6, 114 | `import { maskPhoneNumber } from "@/lib/utils/phoneMasking"` | 낮음 |
-
-**총 사용처**: 1곳
-
-#### 1.2 마이그레이션 계획
-
-**작업 내용**:
-1. `SMSLogsTable.tsx`에서 import 경로를 `@/lib/utils/phone`으로 변경
-2. `phoneMasking.ts` 파일 삭제
-
-**예상 작업 시간**: 0.5일
+### 완료된 작업
+- ✅ `SMSLogsTable.tsx`에서 import 경로를 `@/lib/utils/phone`으로 변경
+- ✅ `phoneMasking.ts` 파일 삭제
+- ✅ 빌드 검증 완료
 
 ---
 
@@ -174,14 +159,14 @@ Supabase 스키마 확인 결과:
 
 ## 마이그레이션 우선순위
 
-| 우선순위 | 작업 | 난이도 | 예상 시간 | 리스크 |
-|---------|------|--------|----------|--------|
-| 1 | Supabase Client Selector 삭제 | 낮음 | 0.1일 | 낮음 (사용처 없음) |
-| 2 | Plan Group Transform 함수 제거 | 낮음 | 0.5일 | 낮음 (사용처 없음) |
-| 3 | 전화번호 유틸리티 통합 | 낮음 | 1일 | 낮음 (1곳만 사용) |
-| 4 | Difficulty Level 필드 마이그레이션 | 중간 | 1일 | 중간 (폼 수정 필요) |
+| 우선순위 | 작업 | 난이도 | 예상 시간 | 리스크 | 상태 |
+|---------|------|--------|----------|--------|------|
+| 1 | Supabase Client Selector 삭제 | 낮음 | 0.1일 | 낮음 (사용처 없음) | 대기 |
+| 2 | Plan Group Transform 함수 제거 | 낮음 | 0.5일 | 낮음 (사용처 없음) | 대기 |
+| ~~3~~ | ~~전화번호 유틸리티 통합~~ | ~~낮음~~ | ~~1일~~ | ~~낮음 (1곳만 사용)~~ | ✅ 완료 |
+| 4 | Difficulty Level 필드 마이그레이션 | 중간 | 1일 | 중간 (폼 수정 필요) | 대기 |
 
-**총 예상 작업 시간**: 약 2.6일
+**총 예상 작업 시간**: 약 1.6일 (전화번호 유틸리티 완료로 1일 단축)
 
 ---
 

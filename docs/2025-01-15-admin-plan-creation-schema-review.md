@@ -457,3 +457,4 @@ Supabase 설정에서 비밀번호 유출 보호 기능을 활성화합니다.
 - [Database Linter 도구](https://github.com/supabase/database-linter)
 
 
+

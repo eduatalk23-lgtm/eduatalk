@@ -84,6 +84,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **특징**:
+
 - ✅ 명확한 페이지 제목과 설명
 - ✅ 플래너 선택 전용 페이지로 분리
 - ✅ URL 기반 라우팅으로 북마크/공유 가능
@@ -120,6 +121,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **특징**:
+
 - ✅ `PlannerHeader`로 플래너 정보 표시 및 뒤로가기 링크 제공
 - ✅ `selectedPlannerId`가 URL에서 추출되어 항상 존재
 - ✅ 서버 컴포넌트에서 플래너 검증 수행
@@ -140,6 +142,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **문제점**:
+
 - ⚠️ 경고 메시지만 표시하고 명확한 액션 버튼 없음
 - ⚠️ "상단에서"라는 표현이 모호함 (실제로는 별도 페이지)
 - ⚠️ 플래너 선택 페이지로 이동하는 직접적인 링크 없음
@@ -189,6 +192,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **특징**:
+
 - ✅ 뒤로가기 링크 제공
 - ✅ 현재 플래너 정보 명확히 표시
 - ⚠️ 플래너 변경 기능 없음 (다른 플래너로 전환하려면 뒤로가기 후 재선택 필요)
@@ -214,6 +218,7 @@ export default async function StudentPlansPage({ params }: Props) {
 #### 사용자 시나리오
 
 **시나리오 1: 플래너 미선택 상태에서 플랜 생성 시도**
+
 ```
 1. 사용자가 /admin/students/[id]/plans/[plannerId]에 직접 접근 (잘못된 URL)
 2. 또는 플래너 선택 없이 플랜 관리 페이지 접근
@@ -223,6 +228,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **시나리오 2: 플래너 변경 필요 시**
+
 ```
 1. 사용자가 플랜 관리 페이지에서 작업 중
 2. 다른 플래너로 전환 필요
@@ -293,6 +299,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ### 개선 방안 1: 플래너 미선택 경고 배너 개선 (우선순위: 높음)
 
 #### 목표
+
 플래너 미선택 시 명확한 안내와 직접적인 액션 버튼 제공
 
 #### 구현 내용
@@ -337,6 +344,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ```
 
 **개선 효과**:
+
 - ✅ 명확한 액션 버튼 제공
 - ✅ 플래너 선택 페이지로 직접 이동 가능
 - ✅ 플래너 생성 버튼도 함께 제공 (편의성 향상)
@@ -348,6 +356,7 @@ export default async function StudentPlansPage({ params }: Props) {
 ### 개선 방안 2: 플래너 헤더에 플래너 변경 기능 추가 (우선순위: 중간)
 
 #### 목표
+
 플랜 관리 페이지에서 다른 플래너로 빠르게 전환 가능하도록 개선
 
 #### 구현 내용
@@ -468,6 +477,7 @@ export function PlannerHeader({
 ```
 
 **개선 효과**:
+
 - ✅ 플랜 관리 페이지에서 플래너 빠른 전환 가능
 - ✅ 뒤로가기 없이 다른 플래너로 이동
 - ✅ 현재 플래너 명확히 표시
@@ -479,6 +489,7 @@ export function PlannerHeader({
 ### 개선 방안 3: 플래너 선택 페이지 UI 개선 (우선순위: 낮음)
 
 #### 목표
+
 플래너 선택 페이지의 중요성과 사용성을 시각적으로 강조
 
 #### 구현 내용
@@ -506,7 +517,7 @@ export function PlannerHeader({
     {/* 중요 안내 배너 */}
     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
       <p className="text-sm text-blue-700">
-        💡 <strong>플래너란?</strong> 학습 기간과 목표를 설정하는 컨테이너입니다. 
+        💡 <strong>플래너란?</strong> 학습 기간과 목표를 설정하는 컨테이너입니다.
         플래너를 선택하면 해당 기간의 플랜을 생성하고 관리할 수 있습니다.
       </p>
     </div>
@@ -534,7 +545,7 @@ export function PlannerHeader({
       플래너가 없습니다
     </h3>
     <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
-      학습 플랜을 생성하려면 먼저 플래너를 만들어야 합니다. 
+      학습 플랜을 생성하려면 먼저 플래너를 만들어야 합니다.
       플래너는 학습 기간과 목표를 설정하는 컨테이너입니다.
     </p>
     <button
@@ -549,6 +560,7 @@ export function PlannerHeader({
 ```
 
 **개선 효과**:
+
 - ✅ 플래너의 개념과 중요성 명확히 전달
 - ✅ 플래너가 없을 때의 안내 개선
 - ✅ 시각적 강조로 사용성 향상
@@ -561,12 +573,12 @@ export function PlannerHeader({
 
 ### 사용성 지표 개선
 
-| 지표 | 현재 | 개선 후 | 개선율 |
-|------|------|---------|--------|
-| 플래너 선택까지 소요 시간 | 3-5초 | 1-2초 | 60% ↓ |
-| 플래너 변경 소요 시간 | 5-8초 | 1-2초 | 75% ↓ |
-| 플래너 미선택 시 혼란도 | 높음 | 낮음 | - |
-| 플래너 선택 페이지 이탈률 | 중간 | 낮음 | - |
+| 지표                      | 현재  | 개선 후 | 개선율 |
+| ------------------------- | ----- | ------- | ------ |
+| 플래너 선택까지 소요 시간 | 3-5초 | 1-2초   | 60% ↓  |
+| 플래너 변경 소요 시간     | 5-8초 | 1-2초   | 75% ↓  |
+| 플래너 미선택 시 혼란도   | 높음  | 낮음    | -      |
+| 플래너 선택 페이지 이탈률 | 중간  | 낮음    | -      |
 
 ### 사용자 경험 개선
 
@@ -648,6 +660,7 @@ export function PlannerHeader({
 ### 구현 필요 항목
 
 #### Phase 1
+
 - [ ] 플래너 미선택 경고 배너 개선
   - [ ] 액션 버튼 추가
   - [ ] 플래너 선택 페이지 링크 추가
@@ -655,6 +668,7 @@ export function PlannerHeader({
   - [ ] 스타일링 및 반응형 대응
 
 #### Phase 2
+
 - [ ] 플래너 헤더에 플래너 변경 기능 추가
   - [ ] 플래너 목록 로드 로직 추가
   - [ ] 드롭다운 UI 구현
@@ -662,6 +676,7 @@ export function PlannerHeader({
   - [ ] 현재 플래너 표시 로직
 
 #### Phase 3 (선택적)
+
 - [ ] 플래너 선택 페이지 UI 개선
   - [ ] 헤더 개선
   - [ ] 플래너 개념 안내 배너 추가
@@ -700,4 +715,3 @@ export function PlannerHeader({
 **작성일**: 2026-01-15  
 **작성자**: AI Assistant  
 **검토 필요**: 개발팀 리뷰 필요
-

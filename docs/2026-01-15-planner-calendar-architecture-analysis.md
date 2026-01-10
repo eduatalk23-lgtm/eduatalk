@@ -778,9 +778,21 @@ useAdminPlanRealtime({
    - 설정 상속 함수 추출 (`lib/domains/admin-plan/utils/plannerConfigInheritance.ts`) ✅
    - 시간 범위 유틸리티 통합 (`lib/scheduler/timeRangeUtils.ts`) ✅
 
-3. **캘린더 성능 최적화** (Phase 2 대기)
-   - 메모이제이션 적용
-   - 가상 스크롤링 검토
+3. **코드 분리 (2026-01-09 Phase 2 완료)** ✅
+   - DayView 레거시 테이블 뷰 분리 (`DayViewTableLegacy.tsx`) ✅
+   - ContentCard 공통 컴포넌트 추출 (`ContentCard.tsx`) ✅
+   - ContentLinkingModal 리팩토링 ✅
+
+4. **캘린더 성능 최적화 (2026-01-09 Phase 3 완료)** ✅
+   - PlanConnections 훅 추출 (중복 코드 제거) ✅
+   - MemoizedDayCell Props 그룹화 (28개 → 6개) ✅
+   - WeekView 메모이제이션 개선 (MemoizedWeekCard 추출) ✅
+
+5. **스케줄러 Factory 패턴 (2026-01-09 Phase 4 완료)** ✅
+   - IScheduler 인터페이스 정의 ✅
+   - SchedulerFactory + Registry 패턴 구현 ✅
+   - switch문 → Factory 호출로 교체 ✅
+   - SchedulerType 타입 일관성 확보 ✅
 
 ### 개선 방향
 
@@ -804,27 +816,116 @@ useAdminPlanRealtime({
 - `createAutoContentPlanGroup.ts`: 중복 상속 코드 제거
 - `calculateAvailableDates.ts`: 시간 범위 함수 ~90줄 제거
 
-**남은 작업 (Phase 2-3)**:
+**남은 작업**: ~~Phase 4에서 스케줄러 Factory 패턴 도입 완료~~
 
-- DayView 컴포넌트 분할
-- 스케줄러 옵션 전달 수정 (scheduleGenerator.ts)
-- 스케줄러 Factory 패턴 도입
+#### 2. 코드 분리 ✅ Phase 2 완료 (2026-01-09)
 
-#### 2. 성능 개선 (Phase 2 예정)
+**완료된 개선**:
 
-**문제점**:
+- `DayViewTableLegacy.tsx`: DayView에서 276줄 레거시 테이블 뷰 분리
+  - 비활성화된 테이블 형식 뷰를 별도 컴포넌트로 추출
+  - 필요시 프린트 뷰, 관리자 상세 뷰 등에 재활용 가능
+- `ContentCard.tsx`: ContentLinkingModal에서 공통 카드 컴포넌트 추출
+  - Student/Recommended/Master 콘텐츠 카드 통합
+  - colorScheme, badge, iconOverlay 등 유연한 Props 설계
+- ContentLinkingModal 리팩토링: ~150줄 감소
 
-- 대량 플랜 조회 시 성능 저하
-- 캘린더 렌더링 최적화 필요
-- DayView 934줄, ContentLinkingModal 923줄 (거대 컴포넌트)
+**수정된 파일**:
 
-**개선 방안**:
+- `DayView.tsx`: 934줄 → 658줄 (-276줄)
+- `ContentLinkingModal.tsx`: 923줄 → ~770줄 (-150줄)
 
-- DayView 분할 (DayViewHeader, DayViewTimeline, DayViewContainers, AdHocPlanSection)
-- Props 그룹화 (MemoizedDayCell 61개 Props → 20개 이하)
-- 가상 스크롤링 도입
+**신규 파일**:
 
-#### 3. 사용자 경험 개선
+- `app/(student)/plan/calendar/_components/DayViewTableLegacy.tsx` (280줄)
+- `app/(student)/plan/calendar/_components/ContentCard.tsx` (145줄)
+
+#### 3. 성능 개선 ✅ Phase 3 완료 (2026-01-09)
+
+**해결된 문제점**:
+
+- ~~대량 플랜 조회 시 성능 저하~~ → 메모이제이션 적용으로 개선
+- ~~캘린더 렌더링 최적화 필요~~ → 컴포넌트 분리 및 메모이제이션
+- ~~중복 코드 (planConnections 계산 3곳)~~ → usePlanConnections 훅으로 통합
+- ~~MemoizedDayCell Props 28개 과다~~ → 6개 그룹 객체로 통합
+
+**완료된 개선**:
+
+- `usePlanConnections.ts`: 플랜 연결 그룹화 공통 훅 (DayView, WeekView 중복 제거)
+- `MemoizedWeekCard.tsx`: 주간 뷰 카드 메모이제이션 컴포넌트
+- MemoizedDayCell Props 그룹화: dateInfo, dayData, metadata, handlers, dragDropState, dragDropHandlers
+
+**수정된 파일**:
+
+- `DayView.tsx`: 658줄 → 620줄 (PlanConnections 중복 제거)
+- `WeekView.tsx`: 439줄 → 155줄 (MemoizedWeekCard 분리로 -284줄)
+- `MemoizedDayCell.tsx`: Props 28개 → 6개 그룹 객체
+- `CalendarGrid.tsx`: 호출부 새 Props 구조 적용
+
+**신규 파일**:
+
+- `app/(student)/plan/calendar/_hooks/usePlanConnections.ts` (65줄)
+- `app/(student)/plan/calendar/_components/MemoizedWeekCard.tsx` (290줄)
+
+**남은 작업 (Phase 5 예정)**:
+
+- 가상 스크롤링 검토 (대량 플랜 시)
+
+#### 4. 스케줄러 Factory 패턴 ✅ Phase 4 완료 (2026-01-09)
+
+**해결된 문제점**:
+
+- ~~스케줄러 선택이 switch문 기반~~ → Factory + Registry 패턴으로 교체
+- ~~새 스케줄러 추가 시 switch문 수정 필요~~ → Registry에 등록만 하면 됨
+- ~~SchedulerType 정의가 3곳에서 불일치~~ → 각 파일에서 일관된 타입 정의 (순환 참조 방지)
+
+**완료된 개선**:
+
+- `lib/scheduler/types.ts`: IScheduler 인터페이스, SchedulerInput/Output, SchedulerType 정의
+- `lib/scheduler/SchedulerFactory.ts`: Factory + Registry 패턴 구현
+- `lib/scheduler/schedulers/Timetable1730Scheduler.ts`: 1730 스케줄러 IScheduler 래퍼
+- `lib/scheduler/schedulers/DefaultScheduler.ts`: Default 스케줄러 IScheduler 래퍼
+- `lib/scheduler/index.ts`: Public API exports
+
+**수정된 파일**:
+
+- `lib/plan/scheduler.ts`: switch문 → `generateScheduledPlans()` Factory 호출 (lines 153-172)
+- `lib/types/plan/domain.ts`: SchedulerType에 `"default" | null` 추가
+- `lib/domains/admin-plan/constants/schedulerDefaults.ts`: SchedulerType에 `null` 추가
+- `lib/features/wizard/types/base.ts`: SchedulerType에 `"default" | null` 추가
+- `lib/utils/planGroupAdapters.ts`: WizardData 변환 시 타입 안전성 수정
+
+**신규 파일 구조**:
+
+```
+lib/scheduler/
+├── index.ts                    # Public exports
+├── types.ts                    # IScheduler, SchedulerInput/Output, SchedulerType
+├── SchedulerFactory.ts         # Factory + Registry
+├── SchedulerEngine.ts          # 기존 (변경 없음)
+└── schedulers/
+    ├── index.ts                # Scheduler exports
+    ├── Timetable1730Scheduler.ts
+    ├── DefaultScheduler.ts
+    └── defaultSchedulerLogic.ts
+```
+
+**새 스케줄러 추가 방법**:
+
+```typescript
+// 1. lib/scheduler/schedulers/MyScheduler.ts 생성
+export const MyScheduler: IScheduler = {
+  type: "my_scheduler",
+  name: "My Scheduler",
+  canHandle(type) { return type === "my_scheduler"; },
+  generate(input) { /* 로직 */ }
+};
+
+// 2. lib/scheduler/types.ts의 SCHEDULER_TYPES에 추가
+// 3. SchedulerFactory.ts의 registry에 등록
+```
+
+#### 5. 사용자 경험 개선
 
 **문제점**:
 
@@ -836,18 +937,13 @@ useAdminPlanRealtime({
 - 실시간 업데이트 강화
 - 일관된 UI/UX 적용
 
-#### 4. 코드 구조 개선 (Phase 3 예정)
+#### 6. 코드 구조 개선 ✅ Phase 3-4에서 완료
 
-**문제점**:
+**해결된 문제점**:
 
-- 스케줄러 확장성 부족 (switch문 기반)
-- 중복 로직 (planConnections 계산 등)
-
-**개선 방안**:
-
-- 스케줄러 Factory 패턴 도입
-- 중복 훅 통합 (usePlanConnectionState 활용)
-- ContentLinkingModal 분할
+- ~~스케줄러 확장성 부족 (switch문 기반)~~ → Phase 4에서 Factory 패턴 도입
+- ~~중복 로직 (planConnections 계산 등)~~ → Phase 3에서 usePlanConnections 훅으로 통합
+- ~~ContentLinkingModal 분할~~ → Phase 2에서 ContentCard 추출로 부분 완료
 
 ---
 
@@ -860,4 +956,4 @@ useAdminPlanRealtime({
 
 ---
 
-**마지막 업데이트**: 2026-01-09 (Phase 1 아키텍처 개선 완료)
+**마지막 업데이트**: 2026-01-09 (Phase 2 코드 분리 완료 - DayViewTableLegacy, ContentCard 추출)

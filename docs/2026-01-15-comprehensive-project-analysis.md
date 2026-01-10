@@ -38,13 +38,13 @@
 
 ### 1.3 사용자 역할
 
-| 역할 | 설명 | 주요 기능 |
-|------|------|----------|
-| **student** | 학생 | 학습 플랜 확인, 성적 입력, 오늘의 학습 계획 |
-| **admin** | 관리자 | 학생 관리, 플랜 생성, 성적 분석, 출석 관리 |
-| **consultant** | 담당자 | 학생 상담, 플랜 조정, 리포트 작성 |
-| **parent** | 학부모 | 자녀 학습 현황 확인, 리포트 조회 |
-| **superadmin** | 슈퍼 관리자 | 시스템 전체 관리, 테넌트 관리 |
+| 역할           | 설명        | 주요 기능                                   |
+| -------------- | ----------- | ------------------------------------------- |
+| **student**    | 학생        | 학습 플랜 확인, 성적 입력, 오늘의 학습 계획 |
+| **admin**      | 관리자      | 학생 관리, 플랜 생성, 성적 분석, 출석 관리  |
+| **consultant** | 담당자      | 학생 상담, 플랜 조정, 리포트 작성           |
+| **parent**     | 학부모      | 자녀 학습 현황 확인, 리포트 조회            |
+| **superadmin** | 슈퍼 관리자 | 시스템 전체 관리, 테넌트 관리               |
 
 ---
 
@@ -52,47 +52,47 @@
 
 ### 2.1 핵심 프레임워크
 
-| 기술 | 버전 | 용도 |
-|------|------|------|
-| **Next.js** | 16.0.10 | React 프레임워크 (App Router) |
-| **React** | 19.2.0 | UI 라이브러리 |
-| **TypeScript** | 5 | 타입 안전성 |
-| **Tailwind CSS** | 4 | 유틸리티 CSS 프레임워크 |
+| 기술             | 버전    | 용도                          |
+| ---------------- | ------- | ----------------------------- |
+| **Next.js**      | 16.0.10 | React 프레임워크 (App Router) |
+| **React**        | 19.2.0  | UI 라이브러리                 |
+| **TypeScript**   | 5       | 타입 안전성                   |
+| **Tailwind CSS** | 4       | 유틸리티 CSS 프레임워크       |
 
 ### 2.2 상태 관리
 
-| 라이브러리 | 버전 | 용도 |
-|------------|------|------|
-| **@tanstack/react-query** | 5.90.10 | 서버 상태 관리 (캐싱, 동기화) |
-| **Zustand** | 5.0.9 | 클라이언트 글로벌 상태 관리 (선택적 사용) |
-| **React Context** | 내장 | 테마, 인증, 사이드바 등 컨텍스트 관리 |
+| 라이브러리                | 버전    | 용도                                      |
+| ------------------------- | ------- | ----------------------------------------- |
+| **@tanstack/react-query** | 5.90.10 | 서버 상태 관리 (캐싱, 동기화)             |
+| **Zustand**               | 5.0.9   | 클라이언트 글로벌 상태 관리 (선택적 사용) |
+| **React Context**         | 내장    | 테마, 인증, 사이드바 등 컨텍스트 관리     |
 
 ### 2.3 백엔드 및 인증
 
-| 기술 | 버전 | 용도 |
-|------|------|------|
-| **Supabase** | 2.81.1 | 백엔드 서비스 (PostgreSQL, Auth, Storage) |
-| **@supabase/ssr** | 0.7.0 | SSR 지원 |
-| **@supabase/auth-helpers-nextjs** | 0.10.0 | Next.js 인증 헬퍼 |
+| 기술                              | 버전   | 용도                                      |
+| --------------------------------- | ------ | ----------------------------------------- |
+| **Supabase**                      | 2.81.1 | 백엔드 서비스 (PostgreSQL, Auth, Storage) |
+| **@supabase/ssr**                 | 0.7.0  | SSR 지원                                  |
+| **@supabase/auth-helpers-nextjs** | 0.10.0 | Next.js 인증 헬퍼                         |
 
 ### 2.4 UI 라이브러리
 
-| 라이브러리 | 버전 | 용도 |
-|------------|------|------|
-| **recharts** | 3.5.1 | 차트 라이브러리 (Lazy Loading 적용) |
-| **lucide-react** | 0.554.0 | 아이콘 라이브러리 (최적화됨) |
-| **framer-motion** | 12.23.25 | 애니메이션 라이브러리 |
-| **react-hook-form** | 7.68.0 | 폼 상태 관리 |
-| **zod** | 3.23.8 | 스키마 검증 |
+| 라이브러리          | 버전     | 용도                                |
+| ------------------- | -------- | ----------------------------------- |
+| **recharts**        | 3.5.1    | 차트 라이브러리 (Lazy Loading 적용) |
+| **lucide-react**    | 0.554.0  | 아이콘 라이브러리 (최적화됨)        |
+| **framer-motion**   | 12.23.25 | 애니메이션 라이브러리               |
+| **react-hook-form** | 7.68.0   | 폼 상태 관리                        |
+| **zod**             | 3.23.8   | 스키마 검증                         |
 
 ### 2.5 개발 도구
 
-| 도구 | 버전 | 용도 |
-|------|------|------|
-| **Vitest** | 4.0.15 | 단위 테스트 |
-| **Playwright** | 1.48.0 | E2E 테스트 |
-| **ESLint** | 9 | 코드 품질 검사 |
-| **@next/bundle-analyzer** | 16.0.3 | 번들 분석 |
+| 도구                      | 버전   | 용도           |
+| ------------------------- | ------ | -------------- |
+| **Vitest**                | 4.0.15 | 단위 테스트    |
+| **Playwright**            | 1.48.0 | E2E 테스트     |
+| **ESLint**                | 9      | 코드 품질 검사 |
+| **@next/bundle-analyzer** | 16.0.3 | 번들 분석      |
 
 ---
 
@@ -137,6 +137,7 @@
 프로젝트는 **25개의 도메인**으로 분리되어 있으며, 각 도메인은 독립적인 비즈니스 로직을 포함합니다.
 
 **주요 도메인**:
+
 - `plan/` - 학습 계획 생성 및 관리 (가장 복잡)
 - `camp/` - 캠프 관리 (가장 큰 도메인)
 - `today/` - 컨테이너 기반 일일 플랜
@@ -157,7 +158,7 @@ export class PlanRepository {
   async createPlanGroup(data: CreatePlanGroupInput): Promise<PlanGroup> {
     // Supabase 쿼리 작성
   }
-  
+
   async getPlanGroupById(id: string): Promise<PlanGroup | null> {
     // 데이터 조회
   }
@@ -350,6 +351,7 @@ lib/
 **위치**: `lib/domains/plan/`, `app/(student)/plan/`, `app/(admin)/admin/plan-creation/`
 
 **주요 기능**:
+
 - 학습 계획 그룹 생성 및 관리
 - 자동 스케줄링 (시간 제약 조건 고려)
 - 플랜 위자드 (단계별 생성)
@@ -357,6 +359,7 @@ lib/
 - 플랜 통계 및 분석
 
 **핵심 컴포넌트**:
+
 - `PlanGroupSelector` - 플랜 그룹 선택
 - `PlannerSelector` - 플래너 선택
 - `PlanCalendar` - 캘린더 뷰
@@ -367,12 +370,14 @@ lib/
 **위치**: `lib/domains/today/`, `app/(student)/today/`
 
 **주요 기능**:
+
 - 컨테이너 기반 일일 플랜 관리
 - 드래그 앤 드롭으로 플랜 이동
 - 실시간 진행 상황 추적
 - 미완료 플랜 자동 처리
 
 **컨테이너 시스템**:
+
 - `Today` - 오늘 할 일
 - `Unfinished` - 미완료 항목
 - `Weekly` - 주간 계획
@@ -383,12 +388,14 @@ lib/
 **위치**: `lib/domains/score/`, `app/(student)/scores/`
 
 **주요 기능**:
+
 - 모의고사 성적 입력 및 분석
 - 학교 시험 성적 관리
 - 내신 성적 관리
 - 성적 대시보드 (통계 및 차트)
 
 **성적 종류**:
+
 - `mock_scores` - 모의고사
 - `school_scores` - 학교 시험
 - `internal_scores` - 내신
@@ -398,6 +405,7 @@ lib/
 **위치**: `lib/domains/camp/`, `app/(admin)/admin/camp-templates/`
 
 **주요 기능**:
+
 - 캠프 템플릿 생성 및 관리
 - 캠프 초대 및 참가자 관리
 - 캠프 학습 계획 자동 생성
@@ -409,6 +417,7 @@ lib/
 **위치**: `lib/domains/attendance/`, `app/(admin)/admin/attendance/`
 
 **주요 기능**:
+
 - QR 코드 기반 출석 체크
 - 출석 기록 관리
 - 출석 통계 및 리포트
@@ -419,12 +428,14 @@ lib/
 **위치**: `lib/domains/content/`, `app/(student)/contents/`
 
 **주요 기능**:
+
 - 마스터 콘텐츠 관리 (교재, 강의)
 - 학생 콘텐츠 등록
 - 콘텐츠 검색 및 필터링
 - 콘텐츠 상세 정보
 
 **콘텐츠 종류**:
+
 - `master_books` - 마스터 교재
 - `master_lectures` - 마스터 강의
 - `master_custom_contents` - 마스터 커스텀 콘텐츠
@@ -452,48 +463,48 @@ tenants (기관)
 
 #### 사용자 및 인증
 
-| 테이블 | 설명 | 주요 필드 |
-|--------|------|----------|
-| `tenants` | 기관 정보 | id, name, type, status |
-| `users` | 통합 사용자 | id, email, role, tenant_id |
-| `students` | 학생 정보 | id, name, grade, school_id |
-| `parent_users` | 학부모 정보 | id, name, phone |
+| 테이블                 | 설명             | 주요 필드                          |
+| ---------------------- | ---------------- | ---------------------------------- |
+| `tenants`              | 기관 정보        | id, name, type, status             |
+| `users`                | 통합 사용자      | id, email, role, tenant_id         |
+| `students`             | 학생 정보        | id, name, grade, school_id         |
+| `parent_users`         | 학부모 정보      | id, name, phone                    |
 | `parent_student_links` | 학생-학부모 연결 | parent_id, student_id, is_approved |
 
 #### 학습 계획
 
-| 테이블 | 설명 | 주요 필드 |
-|--------|------|----------|
-| `plan_groups` | 플랜 그룹 | id, student_id, period_start, period_end, status |
-| `student_plan` | 개별 플랜 | id, plan_group_id, plan_date, progress, status |
-| `plan_group_contents` | 플랜 그룹 콘텐츠 | plan_group_id, content_id, display_order |
-| `plan_group_items` | 논리 플랜 아이템 | plan_group_id, content_id, subject_type |
-| `plan_exclusions` | 플랜 제외일 | plan_group_id, exclusion_date |
+| 테이블                | 설명             | 주요 필드                                        |
+| --------------------- | ---------------- | ------------------------------------------------ |
+| `plan_groups`         | 플랜 그룹        | id, student_id, period_start, period_end, status |
+| `student_plan`        | 개별 플랜        | id, plan_group_id, plan_date, progress, status   |
+| `plan_group_contents` | 플랜 그룹 콘텐츠 | plan_group_id, content_id, display_order         |
+| `plan_group_items`    | 논리 플랜 아이템 | plan_group_id, content_id, subject_type          |
+| `plan_exclusions`     | 플랜 제외일      | plan_group_id, exclusion_date                    |
 
 #### 성적
 
-| 테이블 | 설명 | 주요 필드 |
-|--------|------|----------|
-| `mock_scores` | 모의고사 성적 | student_id, exam_date, subject, score |
-| `school_scores` | 학교 시험 성적 | student_id, exam_date, subject, score |
-| `internal_scores` | 내신 성적 | student_id, term, subject, score |
+| 테이블            | 설명           | 주요 필드                             |
+| ----------------- | -------------- | ------------------------------------- |
+| `mock_scores`     | 모의고사 성적  | student_id, exam_date, subject, score |
+| `school_scores`   | 학교 시험 성적 | student_id, exam_date, subject, score |
+| `internal_scores` | 내신 성적      | student_id, term, subject, score      |
 
 #### 콘텐츠
 
-| 테이블 | 설명 | 주요 필드 |
-|--------|------|----------|
-| `master_books` | 마스터 교재 | id, title, publisher_id, subject_id |
-| `master_lectures` | 마스터 강의 | id, title, platform_id, subject_id |
-| `student_books` | 학생 교재 | id, student_id, master_book_id |
-| `student_lectures` | 학생 강의 | id, student_id, master_lecture_id |
+| 테이블             | 설명        | 주요 필드                           |
+| ------------------ | ----------- | ----------------------------------- |
+| `master_books`     | 마스터 교재 | id, title, publisher_id, subject_id |
+| `master_lectures`  | 마스터 강의 | id, title, platform_id, subject_id  |
+| `student_books`    | 학생 교재   | id, student_id, master_book_id      |
+| `student_lectures` | 학생 강의   | id, student_id, master_lecture_id   |
 
 #### 캠프
 
-| 테이블 | 설명 | 주요 필드 |
-|--------|------|----------|
-| `camp_templates` | 캠프 템플릿 | id, name, tenant_id, block_set_id |
-| `camp_invitations` | 캠프 초대 | id, camp_template_id, student_id, status |
-| `camp_learning` | 캠프 학습 기록 | camp_invitation_id, date, content_id |
+| 테이블             | 설명           | 주요 필드                                |
+| ------------------ | -------------- | ---------------------------------------- |
+| `camp_templates`   | 캠프 템플릿    | id, name, tenant_id, block_set_id        |
+| `camp_invitations` | 캠프 초대      | id, camp_template_id, student_id, status |
+| `camp_learning`    | 캠프 학습 기록 | camp_invitation_id, date, content_id     |
 
 ### 6.3 테이블 관계도
 
@@ -530,12 +541,14 @@ students (1) ──── (N) plan_groups
 **Supabase Auth**를 사용하여 인증을 처리합니다.
 
 **인증 흐름**:
+
 1. 사용자 로그인 (`/login`)
 2. Supabase Auth 인증
 3. 세션 쿠키 저장
 4. 역할 기반 리다이렉트
 
 **인증 유틸리티**:
+
 - `lib/auth/getCurrentUser.ts` - 현재 사용자 정보
 - `lib/auth/getCurrentUserRole.ts` - 사용자 역할 확인
 - `lib/auth/sessionManager.ts` - 세션 관리
@@ -543,6 +556,7 @@ students (1) ──── (N) plan_groups
 ### 7.2 역할 기반 접근 제어 (RBAC)
 
 **역할**:
+
 - `superadmin` - 시스템 관리자
 - `admin` - 테넌트 관리자
 - `consultant` - 담당자
@@ -550,12 +564,15 @@ students (1) ──── (N) plan_groups
 - `parent` - 학부모
 
 **권한 확인**:
+
 ```typescript
 // lib/auth/getCurrentUserRole.ts
 export async function getCurrentUserRole() {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   // user.user_metadata.role 또는 users 테이블에서 조회
   return { userId: user?.id, role: user?.role };
 }
@@ -566,6 +583,7 @@ export async function getCurrentUserRole() {
 Supabase의 RLS 정책을 사용하여 데이터 접근을 제어합니다.
 
 **RLS 정책 예시**:
+
 ```sql
 -- 학생은 자신의 플랜만 조회 가능
 CREATE POLICY "Students can view their own plans"
@@ -611,6 +629,7 @@ export async function retryWithBackoff(
 **위치**: `lib/providers/QueryProvider.tsx`
 
 **설정**:
+
 - `staleTime`: 1분 (동적 데이터 기준)
 - `gcTime`: 10분 (캐시 유지 시간)
 - `retry`: 1회
@@ -618,6 +637,7 @@ export async function retryWithBackoff(
 - `refetchOnReconnect`: true
 
 **사용 예시**:
+
 ```typescript
 import { useQuery } from "@tanstack/react-query";
 
@@ -632,6 +652,7 @@ const { data, isLoading } = useQuery({
 #### React Context
 
 **주요 Context**:
+
 - `ThemeProvider` - 다크모드 관리
 - `AuthContext` - 인증 상태
 - `SidebarContext` - 사이드바 상태
@@ -676,6 +697,7 @@ const form = useForm({
 ### 9.1 코드 스플리팅
 
 **동적 Import**:
+
 ```typescript
 const HeavyComponent = dynamic(() => import("./HeavyComponent"), {
   loading: () => <LoadingSkeleton />,
@@ -683,12 +705,14 @@ const HeavyComponent = dynamic(() => import("./HeavyComponent"), {
 ```
 
 **Lazy Loading**:
+
 - `LazyRecharts` - 차트 라이브러리 지연 로딩
 - `ReactQueryDevtools` - 개발 환경에서만 로드
 
 ### 9.2 이미지 최적화
 
 **Next.js Image 컴포넌트**:
+
 ```typescript
 <Image
   src="/image.jpg"
@@ -700,6 +724,7 @@ const HeavyComponent = dynamic(() => import("./HeavyComponent"), {
 ```
 
 **설정** (`next.config.ts`):
+
 - AVIF, WebP 포맷 지원
 - 자동 크기 조정
 - 외부 이미지 도메인 허용
@@ -707,33 +732,35 @@ const HeavyComponent = dynamic(() => import("./HeavyComponent"), {
 ### 9.3 캐싱 전략
 
 **React Query 캐싱**:
+
 - 쿼리 결과 자동 캐싱
 - `staleTime` 및 `gcTime` 설정
 
 **서버 사이드 캐싱**:
+
 ```typescript
 import { unstable_cache } from "next/cache";
 
-const getCachedData = unstable_cache(
-  async () => fetchData(),
-  ["cache-key"],
-  { revalidate: 3600 }
-);
+const getCachedData = unstable_cache(async () => fetchData(), ["cache-key"], {
+  revalidate: 3600,
+});
 ```
 
 ### 9.4 번들 최적화
 
 **패키지 최적화** (`next.config.ts`):
+
 ```typescript
 optimizePackageImports: [
   "lucide-react",
   "recharts",
   "@supabase/supabase-js",
   // ...
-]
+];
 ```
 
 **번들 분석**:
+
 ```bash
 npm run analyze  # ANALYZE=true next build
 ```
@@ -743,6 +770,7 @@ npm run analyze  # ANALYZE=true next build
 **위치**: `next.config.ts`
 
 **기능**:
+
 - 오프라인 지원
 - 설치 프롬프트
 - 서비스 워커
@@ -755,11 +783,13 @@ npm run analyze  # ANALYZE=true next build
 ### 10.1 개발 환경 설정
 
 **필수 요구사항**:
+
 - Node.js 18.x 이상
 - npm 또는 pnpm
 - Supabase 계정 및 프로젝트
 
 **환경 변수** (`.env.local`):
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -871,6 +901,7 @@ utils/
 ### 10.7 주요 개발 가이드라인
 
 자세한 개발 가이드라인은 다음 파일을 참고하세요:
+
 - `.cursor/rules/project_rule.mdc` - 코딩 컨벤션 및 규칙
 - `docs/COMPONENT_GUIDE.md` - 컴포넌트 사용 가이드
 - `README.md` - 프로젝트 개요
@@ -881,23 +912,23 @@ utils/
 
 ### 11.1 코드베이스 규모
 
-| 항목 | 수량 |
-|------|------|
-| **도메인** | 25개 |
-| **커스텀 훅** | 50개 |
-| **유틸리티 함수** | 83개 |
-| **타입 정의** | 35개 |
-| **마이그레이션 파일** | 126개 |
-| **테이블** | 50개 이상 |
+| 항목                  | 수량      |
+| --------------------- | --------- |
+| **도메인**            | 25개      |
+| **커스텀 훅**         | 50개      |
+| **유틸리티 함수**     | 83개      |
+| **타입 정의**         | 35개      |
+| **마이그레이션 파일** | 126개     |
+| **테이블**            | 50개 이상 |
 
 ### 11.2 주요 디렉토리 크기
 
-| 디렉토리 | 파일 수 | 설명 |
-|----------|--------|------|
-| `lib/domains/plan/` | 114개 | 학습 계획 도메인 (가장 복잡) |
-| `lib/domains/camp/` | 28개 | 캠프 도메인 (가장 큰 도메인) |
-| `app/(admin)/admin/students/` | 169개 | 학생 관리 페이지 |
-| `app/(student)/plan/` | 221개 | 학생 플랜 페이지 |
+| 디렉토리                      | 파일 수 | 설명                         |
+| ----------------------------- | ------- | ---------------------------- |
+| `lib/domains/plan/`           | 114개   | 학습 계획 도메인 (가장 복잡) |
+| `lib/domains/camp/`           | 28개    | 캠프 도메인 (가장 큰 도메인) |
+| `app/(admin)/admin/students/` | 169개   | 학생 관리 페이지             |
+| `app/(student)/plan/`         | 221개   | 학생 플랜 페이지             |
 
 ---
 
@@ -949,4 +980,3 @@ utils/
 **마지막 업데이트**: 2026-01-15  
 **작성자**: AI Assistant  
 **버전**: 1.0.0
-
