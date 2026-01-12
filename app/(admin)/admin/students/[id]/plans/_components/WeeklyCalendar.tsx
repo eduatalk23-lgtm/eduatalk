@@ -5,6 +5,8 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/cn';
 import { DroppableDateCell } from './dnd';
 import { buildDayTypesFromDailySchedule, type DayType } from '@/lib/date/calendarDayTypes';
+import { formatDateString } from '@/lib/date/calendarUtils';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 interface WeeklyCalendarProps {
@@ -56,7 +58,7 @@ export function WeeklyCalendar({
       const weekStart = new Date(selected);
       weekStart.setDate(selected.getDate() + mondayOffset);
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayInTimezone();
 
       // 1730 Timetable 방법론: buildDayTypesFromDailySchedule 사용
       // exclusions를 underscore 형식으로 변환 (buildDayTypesFromDailySchedule 함수 규격 맞춤)
@@ -77,7 +79,7 @@ export function WeeklyCalendar({
       for (let i = 0; i < 7; i++) {
         const date = new Date(weekStart);
         date.setDate(weekStart.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = formatDateString(date);
 
         // dayTypeMap에서 해당 날짜의 타입 정보 가져오기
         const dayTypeInfo = dayTypeMap.get(dateStr);

@@ -8,6 +8,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
 import { MoreVertical, Calendar, Edit3, Copy, Trash2, ArrowRight, RefreshCw, FolderInput, ToggleLeft, AlertTriangle, ChevronRight, Check, Clock, Circle, XCircle } from 'lucide-react';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { PlanStatus } from '@/lib/types/plan';
 
@@ -137,7 +138,7 @@ export function PlanItemCard({
       };
 
       if (targetContainer === 'daily') {
-        updateData.plan_date = new Date().toISOString().split('T')[0];
+        updateData.plan_date = getTodayInTimezone();
       }
 
       const { error } = await supabase

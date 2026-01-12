@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useTransition } from 'react';
 import { cn } from '@/lib/cn';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from '@/components/ui/ToastProvider';
+import { formatDateString } from '@/lib/date/calendarUtils';
 
 interface QuickDateEditorProps {
   planId: string;
@@ -288,10 +289,10 @@ export function DatePickerModal({
           {quickDates.map(({ label, date }) => (
             <button
               key={label}
-              onClick={() => setSelectedDate(date.toISOString().split('T')[0])}
+              onClick={() => setSelectedDate(formatDateString(date))}
               className={cn(
                 'px-3 py-1.5 text-sm rounded-full border transition-colors',
-                selectedDate === date.toISOString().split('T')[0]
+                selectedDate === formatDateString(date)
                   ? 'bg-blue-500 text-white border-blue-500'
                   : 'bg-white text-gray-700 border-gray-300 hover:border-blue-500'
               )}

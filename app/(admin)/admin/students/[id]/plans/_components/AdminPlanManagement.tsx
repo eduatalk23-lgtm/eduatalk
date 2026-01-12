@@ -61,6 +61,7 @@ import {
   X,
   Keyboard,
 } from "lucide-react";
+import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 
 // 콘텐츠 유형 필터 타입
@@ -618,7 +619,7 @@ export function AdminPlanManagement({
       },
       {
         key: "t",
-        action: () => handleDateChange(new Date().toISOString().split("T")[0]),
+        action: () => handleDateChange(getTodayInTimezone()),
         description: "오늘로 이동",
         category: "navigation",
       },
@@ -800,12 +801,12 @@ export function AdminPlanManagement({
                 )}
                 title={
                   canCreatePlans
-                    ? "+플랜 추가 (Q/A)"
+                    ? "플랜 추가 (Q/A)"
                     : "먼저 플래너를 선택해주세요"
                 }
               >
                 <Plus className="h-4 w-4" />
-                +플랜 추가
+                플랜 추가
               </button>
               <button
                 onClick={() => setShowCreateWizard(true)}

@@ -5,6 +5,7 @@ import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface ReorderPlansModalProps {
@@ -34,8 +35,8 @@ function getWeekRange(dateStr: string) {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   return {
-    start: weekStart.toISOString().split('T')[0],
-    end: weekEnd.toISOString().split('T')[0],
+    start: formatDateString(weekStart),
+    end: formatDateString(weekEnd),
   };
 }
 

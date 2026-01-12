@@ -16,6 +16,8 @@ import {
   type PlanGroupInfo,
 } from '@/lib/domains/admin-plan/actions/moveToGroup';
 import { createPlanTemplate } from '@/lib/domains/admin-plan/actions/planTemplates';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
 
 interface BulkRedistributeModalProps {
@@ -66,7 +68,7 @@ export function BulkRedistributeModal({
   // 일괄 작업 모드
   const [action, setAction] = useState<BulkAction>('move_to_daily');
   const [targetDate, setTargetDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    return getTodayInTimezone();
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -91,7 +93,7 @@ export function BulkRedistributeModal({
   const [copyDateInput, setCopyDateInput] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return formatDateString(tomorrow);
   });
   const [copyToOtherStudents, setCopyToOtherStudents] = useState(false);
   const [availableStudents, setAvailableStudents] = useState<{ id: string; name: string }[]>([]);

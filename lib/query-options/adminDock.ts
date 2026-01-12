@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import {
   CACHE_STALE_TIME_DYNAMIC,
   CACHE_GC_TIME_DYNAMIC,
@@ -85,8 +86,8 @@ export function getWeekRange(dateStr: string) {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   return {
-    start: weekStart.toISOString().split('T')[0],
-    end: weekEnd.toISOString().split('T')[0],
+    start: formatDateString(weekStart),
+    end: formatDateString(weekEnd),
   };
 }
 

@@ -8,6 +8,7 @@ import { BulkRedistributeModal } from './BulkRedistributeModal';
 import { usePlanToast } from './PlanToast';
 import { PlanItemCard, toPlanItemData } from './items';
 import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { ContentTypeFilter } from './AdminPlanManagement';
 
 interface UnfinishedDockProps {
@@ -67,7 +68,7 @@ export function UnfinishedDock({
 
   const handleMoveToDaily = async (planId: string) => {
     const supabase = createSupabaseBrowserClient();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayInTimezone();
 
     startTransition(async () => {
       await supabase

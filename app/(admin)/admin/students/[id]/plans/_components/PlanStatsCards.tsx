@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import { cn } from '@/lib/cn';
 
 interface PlanStatsCardsProps {
@@ -33,8 +34,8 @@ export function PlanStatsCards({ studentId }: PlanStatsCardsProps) {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
 
-      const weekStartStr = weekStart.toISOString().split('T')[0];
-      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      const weekStartStr = formatDateString(weekStart);
+      const weekEndStr = formatDateString(weekEnd);
 
       try {
         // 미완료 플랜 수

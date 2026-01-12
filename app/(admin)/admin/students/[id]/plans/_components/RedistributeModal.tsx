@@ -11,6 +11,7 @@ import {
 import { usePlanToast } from './PlanToast';
 import { validateVolumeRange } from '@/lib/domains/admin-plan/validation';
 import { createTransactionContext } from '@/lib/supabase/transaction';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 
 interface RedistributeModalProps {
   planId: string;
@@ -148,7 +149,7 @@ export function RedistributeModal({
       const supabase = createSupabaseBrowserClient();
 
       // 미래 플랜 조회
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayInTimezone();
       const { data: futurePlans } = await supabase
         .from('student_plan')
         .select('id, plan_date, planned_start_page_or_time, planned_end_page_or_time')

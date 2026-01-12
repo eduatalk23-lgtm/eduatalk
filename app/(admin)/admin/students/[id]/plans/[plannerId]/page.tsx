@@ -5,6 +5,7 @@ import { getPlannerAction } from '@/lib/domains/admin-plan/actions';
 import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
 import { PlannerHeader } from '../_components/PlannerHeader';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
 
 interface Props {
@@ -52,7 +53,7 @@ export default async function PlannerPlanManagementPage({
     notFound();
   }
 
-  const targetDate = date ?? new Date().toISOString().split('T')[0];
+  const targetDate = date ?? getTodayInTimezone();
 
   // 4. 해당 플래너의 플랜 그룹 조회 (활성 그룹 ID + daily_schedule)
   const supabase = await createSupabaseServerClient();

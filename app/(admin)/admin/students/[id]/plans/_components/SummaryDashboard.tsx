@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import { cn } from '@/lib/cn';
 
 interface SummaryDashboardProps {
@@ -47,8 +48,8 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
       } else {
         startDate.setMonth(now.getMonth() - 1);
       }
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = now.toISOString().split('T')[0];
+      const startDateStr = formatDateString(startDate);
+      const endDateStr = formatDateString(now);
 
       // 플랜 데이터 조회
       const { data: plans } = await supabase
@@ -113,7 +114,7 @@ export function SummaryDashboard({ studentId, className }: SummaryDashboardProps
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = formatDateString(d);
         trendMap.set(dateStr, { completed: 0, total: 0 });
       }
 

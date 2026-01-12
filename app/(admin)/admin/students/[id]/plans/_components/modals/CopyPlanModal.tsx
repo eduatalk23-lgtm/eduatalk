@@ -5,6 +5,7 @@ import { Copy } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { copyPlansToDate } from '@/lib/domains/admin-plan/actions/copyPlan';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { formatDateString } from '@/lib/date/calendarUtils';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface CopyPlanModalProps {
@@ -36,7 +37,7 @@ export function CopyPlanModal({
   const [dateInput, setDateInput] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
+    return formatDateString(tomorrow);
   });
   const { showSuccess, showError } = useToast();
 

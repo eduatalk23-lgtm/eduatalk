@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect } from 'react';
 import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import {
   getPlanTemplates,
   createPlanTemplate,
@@ -47,7 +48,7 @@ export function PlanTemplateModal({
 
   // 적용할 템플릿
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [applyDate, setApplyDate] = useState(targetDate || new Date().toISOString().split('T')[0]);
+  const [applyDate, setApplyDate] = useState(targetDate || getTodayInTimezone());
   const [showPreview, setShowPreview] = useState(false);
 
   // 선택된 템플릿 정보
