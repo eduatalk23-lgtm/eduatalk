@@ -178,7 +178,6 @@ describe('복사된 플랜 필드', () => {
       ...sourcePlan,
       plan_date: '2024-01-15',
       status: 'pending',
-      is_completed: false,
       is_active: true,
     };
 
@@ -190,7 +189,6 @@ describe('복사된 플랜 필드', () => {
       sourcePlan.planned_end_page_or_time
     );
     expect(copiedPlan.status).toBe('pending');
-    expect(copiedPlan.is_completed).toBe(false);
   });
 
   it('복사된 플랜의 날짜는 targetDate로 설정되어야 함', () => {

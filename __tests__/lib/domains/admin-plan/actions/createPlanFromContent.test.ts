@@ -356,13 +356,11 @@ describe('기간 분배 로직 (distributeOverPeriod)', () => {
         planned_end_page_or_time: 10,
         estimated_minutes: 15, // 볼륨 * 1.5
         status: 'pending',
-        is_completed: false,
         is_active: true,
         sequence: 0,
       };
 
       expect(planRecord.status).toBe('pending');
-      expect(planRecord.is_completed).toBe(false);
       expect(planRecord.is_active).toBe(true);
     });
 

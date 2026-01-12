@@ -18,6 +18,7 @@ import { masterBookSchema, formDataToObject } from "@/lib/validation/schemas";
 import type { Subject, SubjectGroup } from "@/lib/data/subjects";
 import type { Publisher, CurriculumRevision } from "@/lib/data/contentMetadata";
 import { useToast } from "@/components/ui/ToastProvider";
+import { ContentDependencyManager } from "@/components/admin/content-dependency";
 
 type MasterBookEditFormProps = {
   book: MasterBook;
@@ -371,6 +372,13 @@ export function MasterBookEditForm({
 
       {/* 교재 상세 정보 */}
       <BookDetailsManager initialDetails={details.map(d => ({ ...d, book_id: book.id }))} />
+
+      {/* 선수학습 관계 */}
+      <ContentDependencyManager
+        contentId={book.id}
+        contentType="book"
+        contentTitle={book.title}
+      />
 
       {/* 버튼 */}
       <div className="flex gap-3">

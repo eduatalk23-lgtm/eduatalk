@@ -18,6 +18,7 @@ import FormField from "@/components/molecules/FormField";
 import { useLectureEpisodesCalculation } from "@/lib/hooks/useLectureEpisodesCalculation";
 import { useMasterBooksRefresh } from "@/lib/hooks/useMasterBooksRefresh";
 import { MasterBookSelector } from "../../_components/MasterBookSelector";
+import { ContentDependencyManager } from "@/components/admin/content-dependency";
 
 export function MasterLectureEditForm({
   lecture,
@@ -312,6 +313,13 @@ export function MasterLectureEditForm({
       <LectureEpisodesManager
         initialEpisodes={episodes.map((e) => ({ ...e, lecture_id: lecture.id }))}
         onChange={handleEpisodesChange}
+      />
+
+      {/* 선수학습 관계 */}
+      <ContentDependencyManager
+        contentId={lecture.id}
+        contentType="lecture"
+        contentTitle={lecture.title}
       />
 
       {/* 버튼 */}
