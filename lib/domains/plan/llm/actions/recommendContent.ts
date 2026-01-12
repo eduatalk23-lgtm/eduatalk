@@ -290,46 +290,79 @@ async function loadCandidateContents(
   subjectCategories?: string[],
   limit: number = 50
 ): Promise<ContentCandidate[]> {
-  // 마스터 콘텐츠에서 추천 후보 조회
-  let query = supabase
-    .from("content_masters")
+  // master_books와 master_lectures에서 각각 조회 후 병합
+  const halfLimit = Math.ceil(limit / 2);
+
+  // 책 조회
+  let booksQuery = supabase
+    .from("master_books")
     .select(`
       id,
       title,
       subject,
       subject_category,
-      content_type,
       difficulty_level,
-      publisher,
-      platform,
+      publisher_name,
       total_pages,
-      total_episodes,
       description
     `)
     .eq("is_active", true)
-    .limit(limit);
+    .limit(halfLimit);
 
   if (subjectCategories && subjectCategories.length > 0) {
-    query = query.in("subject_category", subjectCategories);
+    booksQuery = booksQuery.in("subject_category", subjectCategories);
   }
 
-  const { data: contents } = await query;
+  // 강의 조회
+  let lecturesQuery = supabase
+    .from("master_lectures")
+    .select(`
+      id,
+      title,
+      subject,
+      subject_category,
+      difficulty_level,
+      platform,
+      total_episodes,
+      notes
+    `)
+    .eq("is_active", true)
+    .limit(halfLimit);
 
-  if (!contents) return [];
+  if (subjectCategories && subjectCategories.length > 0) {
+    lecturesQuery = lecturesQuery.in("subject_category", subjectCategories);
+  }
 
-  return contents.map((c) => ({
-    id: c.id,
-    title: c.title,
-    subject: c.subject ?? "",
-    subjectCategory: c.subject_category ?? "",
-    contentType: c.content_type as "book" | "lecture",
-    difficulty: c.difficulty_level as "easy" | "medium" | "hard" | undefined,
-    publisher: c.publisher ?? undefined,
-    platform: c.platform ?? undefined,
-    description: c.description ?? undefined,
-    totalPages: c.total_pages ?? undefined,
-    totalLectures: c.total_episodes ?? undefined,
+  const [{ data: books }, { data: lectures }] = await Promise.all([
+    booksQuery,
+    lecturesQuery,
+  ]);
+
+  const bookContents: ContentCandidate[] = (books || []).map((b) => ({
+    id: b.id,
+    title: b.title,
+    subject: b.subject ?? "",
+    subjectCategory: b.subject_category ?? "",
+    contentType: "book" as const,
+    difficulty: b.difficulty_level as "easy" | "medium" | "hard" | undefined,
+    publisher: b.publisher_name ?? undefined,
+    description: b.description ?? undefined,
+    totalPages: b.total_pages ?? undefined,
   }));
+
+  const lectureContents: ContentCandidate[] = (lectures || []).map((l) => ({
+    id: l.id,
+    title: l.title,
+    subject: l.subject ?? "",
+    subjectCategory: l.subject_category ?? "",
+    contentType: "lecture" as const,
+    difficulty: l.difficulty_level as "easy" | "medium" | "hard" | undefined,
+    platform: l.platform ?? undefined,
+    description: l.notes ?? undefined,
+    totalLectures: l.total_episodes ?? undefined,
+  }));
+
+  return [...bookContents, ...lectureContents];
 }
 
 // ============================================

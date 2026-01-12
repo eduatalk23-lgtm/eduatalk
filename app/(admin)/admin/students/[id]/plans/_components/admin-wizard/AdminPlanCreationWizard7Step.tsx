@@ -445,83 +445,180 @@ function WizardInner({
         selectedContents: selectedContents.map(c => ({ id: c.contentId, type: c.contentType })),
       });
 
-      // PlanGroupCreationData 구성
-      const planGroupData: PlanGroupCreationData = {
-        name: name || null,
-        plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
-        scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
-        period_start: periodStart,
-        period_end: periodEnd,
-        block_set_id: blockSetId || null,
-        planner_id: plannerId || null,
-        scheduler_options: enhancedSchedulerOptions,
-        contents: skipContents
-          ? []
-          : selectedContents.map((c, index) => ({
-              content_type: c.contentType as "book" | "lecture",
-              content_id: c.contentId,
-              master_content_id: null,
-              start_range: c.startRange,
-              end_range: c.endRange,
-              start_detail_id: null,
-              end_detail_id: null,
-              display_order: index,
-            })),
-        exclusions: exclusions.map((e) => ({
-          exclusion_date: e.exclusion_date,
-          exclusion_type: e.exclusion_type === "holiday" ? "휴일지정"
-            : e.exclusion_type === "personal" ? "개인사정"
-            : "기타" as const,
-          reason: e.reason || undefined,
-        })),
-        academy_schedules: academySchedules.map((s) => ({
-          day_of_week: s.day_of_week,
-          start_time: s.start_time,
-          end_time: s.end_time,
-          academy_name: s.academy_name || undefined,
-          subject: s.subject || undefined,
-        })),
-        // 플래너에서 상속된 시간 설정 (플래너 선택 시 자동 채워짐)
-        study_hours: studyHours || null,
-        self_study_hours: selfStudyHours || null,
-        lunch_time: lunchTime || null,
-        non_study_time_blocks: nonStudyTimeBlocks || undefined,
-      };
+      // 공통 데이터 (제외일, 학원일정)
+      const exclusionsData = exclusions.map((e) => ({
+        exclusion_date: e.exclusion_date,
+        exclusion_type: (e.exclusion_type === "holiday" ? "휴일지정"
+          : e.exclusion_type === "personal" ? "개인사정"
+          : "기타") as "휴가" | "개인사정" | "휴일지정" | "기타",
+        reason: e.reason || undefined,
+      }));
 
-      // 디버그: planGroupData.contents 확인
-      console.log("[AdminWizard] planGroupData.contents", {
-        contentsCount: planGroupData.contents.length,
-        contents: planGroupData.contents,
-      });
+      const academySchedulesData = academySchedules.map((s) => ({
+        day_of_week: s.day_of_week,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        academy_name: s.academy_name || undefined,
+        subject: s.subject || undefined,
+      }));
 
-      let groupId: string;
+      // 콘텐츠가 없거나 건너뛰기인 경우: 단일 그룹 생성
+      if (skipContents || selectedContents.length === 0) {
+        const planGroupData: PlanGroupCreationData = {
+          name: name || null,
+          plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
+          scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
+          period_start: periodStart,
+          period_end: periodEnd,
+          block_set_id: blockSetId || null,
+          planner_id: plannerId || null,
+          scheduler_options: enhancedSchedulerOptions,
+          contents: [],
+          exclusions: exclusionsData,
+          academy_schedules: academySchedulesData,
+          study_hours: studyHours || null,
+          self_study_hours: selfStudyHours || null,
+          lunch_time: lunchTime || null,
+          non_study_time_blocks: nonStudyTimeBlocks || undefined,
+        };
 
-      if (draftGroupId) {
-        // 기존 draft가 있으면 업데이트
-        console.log("[AdminWizard] 기존 draft 업데이트:", draftGroupId);
-        await updatePlanGroupDraftAction(draftGroupId, planGroupData);
-        groupId = draftGroupId;
-      } else {
-        // 새 플랜 그룹 생성
-        const result = await createPlanGroupAction(planGroupData, {
-          skipContentValidation: true,
-          studentId: studentId,
-        });
+        let groupId: string;
 
-        // 에러 확인
-        if ("success" in result && result.success === false) {
-          setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
-          setSubmitting(false);
-          return false;
+        if (draftGroupId) {
+          await updatePlanGroupDraftAction(draftGroupId, planGroupData);
+          groupId = draftGroupId;
+        } else {
+          const result = await createPlanGroupAction(planGroupData, {
+            skipContentValidation: true,
+            studentId: studentId,
+          });
+
+          if ("success" in result && result.success === false) {
+            setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
+            setSubmitting(false);
+            return false;
+          }
+
+          groupId = (result as { groupId: string }).groupId;
         }
 
-        groupId = (result as { groupId: string }).groupId;
+        setCreatedGroupId(groupId);
+        setSubmitting(false);
+        onSuccess(groupId, wizardData.generateAIPlan);
+        return true;
       }
 
-      // 성공 시
-      setCreatedGroupId(groupId);
+      // 콘텐츠별로 별도 플랜 그룹 생성
+      console.log("[AdminWizard] 콘텐츠별 플랜 그룹 생성 시작", {
+        contentsCount: selectedContents.length,
+      });
+
+      const createdGroupIds: string[] = [];
+      let firstError: string | null = null;
+
+      for (const content of selectedContents) {
+        // 각 콘텐츠별 content_allocations
+        const singleContentAllocation = content.subjectType
+          ? [{
+              content_type: content.contentType as "book" | "lecture",
+              content_id: content.contentId,
+              subject_type: content.subjectType as "strategy" | "weakness",
+              weekly_days: content.subjectType === "strategy" && content.weeklyDays ? content.weeklyDays : undefined,
+            }]
+          : [];
+
+        const singleEnhancedOptions = {
+          ...schedulerOptions,
+          content_allocations: singleContentAllocation.length > 0 ? singleContentAllocation : undefined,
+        };
+
+        // 그룹 이름: customGroupName > generatedGroupName > title
+        const groupName = content.customGroupName || content.generatedGroupName || content.title;
+
+        const singleGroupData: PlanGroupCreationData = {
+          name: groupName,
+          plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
+          scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
+          period_start: periodStart,
+          period_end: periodEnd,
+          block_set_id: blockSetId || null,
+          planner_id: plannerId || null,
+          scheduler_options: singleEnhancedOptions,
+          contents: [{
+            content_type: content.contentType as "book" | "lecture",
+            content_id: content.contentId,
+            master_content_id: null,
+            start_range: content.startRange,
+            end_range: content.endRange,
+            start_detail_id: null,
+            end_detail_id: null,
+            display_order: 0,
+          }],
+          exclusions: exclusionsData,
+          academy_schedules: academySchedulesData,
+          study_hours: studyHours || null,
+          self_study_hours: selfStudyHours || null,
+          lunch_time: lunchTime || null,
+          non_study_time_blocks: nonStudyTimeBlocks || undefined,
+        };
+
+        console.log("[AdminWizard] 플랜 그룹 생성:", {
+          name: groupName,
+          contentId: content.contentId,
+          contentTitle: content.title,
+        });
+
+        try {
+          const result = await createPlanGroupAction(singleGroupData, {
+            skipContentValidation: true,
+            studentId: studentId,
+          });
+
+          if ("success" in result && result.success === false) {
+            console.error("[AdminWizard] 플랜 그룹 생성 실패:", result.error);
+            if (!firstError) {
+              firstError = result.error?.message || `${content.title} 플랜 그룹 생성 실패`;
+            }
+            continue;
+          }
+
+          const groupId = (result as { groupId: string }).groupId;
+          createdGroupIds.push(groupId);
+        } catch (err) {
+          console.error("[AdminWizard] 플랜 그룹 생성 오류:", err);
+          if (!firstError) {
+            firstError = err instanceof Error ? err.message : `${content.title} 플랜 그룹 생성 오류`;
+          }
+        }
+      }
+
+      // 결과 확인
+      if (createdGroupIds.length === 0) {
+        setError(firstError || "플랜 그룹 생성에 실패했습니다.");
+        setSubmitting(false);
+        return false;
+      }
+
+      // 일부 실패 경고
+      if (createdGroupIds.length < selectedContents.length) {
+        console.warn("[AdminWizard] 일부 플랜 그룹 생성 실패:", {
+          total: selectedContents.length,
+          created: createdGroupIds.length,
+        });
+      }
+
+      // 첫 번째 그룹 ID를 대표로 사용
+      const primaryGroupId = createdGroupIds[0];
+
+      console.log("[AdminWizard] 플랜 그룹 생성 완료:", {
+        createdCount: createdGroupIds.length,
+        primaryGroupId,
+        allGroupIds: createdGroupIds,
+      });
+
+      setCreatedGroupId(primaryGroupId);
       setSubmitting(false);
-      onSuccess(groupId, wizardData.generateAIPlan);
+      onSuccess(primaryGroupId, wizardData.generateAIPlan);
       return true;
     } catch (err) {
       console.error("[AdminWizard] 생성 실패:", err);

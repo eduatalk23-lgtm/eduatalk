@@ -236,7 +236,7 @@ export async function loadContentMetadata(
       metadata = await loadCustomContentMetadata(
         finalContentId,
         studentId,
-        queryClient
+        masterQueryClient
       );
     }
 
@@ -263,8 +263,8 @@ async function loadBookMetadata(
     return cached;
   }
 
-  // 학생 교재 조회
-  const { data: book } = await queryClient
+  // 학생 교재 조회 (admin이 다른 학생 데이터 조회 시 RLS 우회를 위해 masterQueryClient 사용)
+  const { data: book } = await masterQueryClient
     .from("books")
     .select("title, subject, subject_category, master_content_id")
     .eq("id", finalContentId)
@@ -282,9 +282,9 @@ async function loadBookMetadata(
     return result;
   }
 
-  // 마스터 콘텐츠 ID로 학생 교재 찾기
+  // 마스터 콘텐츠 ID로 학생 교재 찾기 (RLS 우회)
   const actualMasterContentId = masterContentId || contentId;
-  const { data: bookByMaster } = await queryClient
+  const { data: bookByMaster } = await masterQueryClient
     .from("books")
     .select("title, subject, subject_category")
     .eq("student_id", studentId)
@@ -338,8 +338,8 @@ async function loadLectureMetadata(
     return cached;
   }
 
-  // 학생 강의 조회
-  const { data: lecture } = await queryClient
+  // 학생 강의 조회 (admin이 다른 학생 데이터 조회 시 RLS 우회를 위해 masterQueryClient 사용)
+  const { data: lecture } = await masterQueryClient
     .from("lectures")
     .select("title, subject, subject_category, master_content_id, master_lecture_id")
     .eq("id", finalContentId)
@@ -357,9 +357,9 @@ async function loadLectureMetadata(
     return result;
   }
 
-  // 마스터 콘텐츠 ID로 학생 강의 찾기 (master_content_id 또는 master_lecture_id로 조회)
+  // 마스터 콘텐츠 ID로 학생 강의 찾기 (RLS 우회)
   const actualMasterContentId = masterContentId || contentId;
-  const { data: lectureByMaster } = await queryClient
+  const { data: lectureByMaster } = await masterQueryClient
     .from("lectures")
     .select("title, subject, subject_category")
     .eq("student_id", studentId)

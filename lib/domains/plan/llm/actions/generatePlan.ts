@@ -30,6 +30,8 @@ import {
 } from "../validators/planValidator";
 import type { AcademyScheduleForPrompt, BlockInfoForPrompt } from "../transformers/requestBuilder";
 import { getPlanExclusions } from "@/lib/data/planGroups/exclusions";
+import { validateContentDependencies } from "@/lib/domains/content-dependency/services/dependencyValidationService";
+import type { ContentType } from "@/lib/types/content-dependency";
 
 // ============================================
 // 타입 정의
@@ -132,21 +134,56 @@ async function loadScores(supabase: Awaited<ReturnType<typeof createSupabaseServ
 }
 
 async function loadContents(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, contentIds: string[]) {
-  const { data: contents } = await supabase
-    .from("content_masters")
-    .select(`
-      id,
-      title,
-      subject,
-      subject_category,
-      content_type,
-      total_pages,
-      total_lectures,
-      estimated_hours
-    `)
-    .in("id", contentIds);
+  // master_books와 master_lectures에서 각각 조회 후 병합
+  const [{ data: books }, { data: lectures }] = await Promise.all([
+    supabase
+      .from("master_books")
+      .select(`
+        id,
+        title,
+        subject,
+        subject_category,
+        total_pages,
+        estimated_hours
+      `)
+      .in("id", contentIds),
+    supabase
+      .from("master_lectures")
+      .select(`
+        id,
+        title,
+        subject,
+        subject_category,
+        total_episodes,
+        estimated_hours
+      `)
+      .in("id", contentIds),
+  ]);
 
-  return contents || [];
+  // 통합 형식으로 변환
+  const bookContents = (books || []).map((b) => ({
+    id: b.id,
+    title: b.title,
+    subject: b.subject,
+    subject_category: b.subject_category,
+    content_type: "book" as const,
+    total_pages: b.total_pages,
+    total_lectures: null as number | null,
+    estimated_hours: b.estimated_hours,
+  }));
+
+  const lectureContents = (lectures || []).map((l) => ({
+    id: l.id,
+    title: l.title,
+    subject: l.subject,
+    subject_category: l.subject_category,
+    content_type: "lecture" as const,
+    total_pages: null as number | null,
+    total_lectures: l.total_episodes,
+    estimated_hours: l.estimated_hours,
+  }));
+
+  return [...bookContents, ...lectureContents];
 }
 
 async function loadTimeSlots(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, tenantId: string) {
@@ -538,6 +575,31 @@ export async function generatePlanWithAI(
       dailyStudyMinutes: input.dailyStudyMinutes,
     });
 
+    // 9-1. 콘텐츠 의존성 검증 (경고만)
+    const contentsForDependencyCheck = contents.map((c, index) => ({
+      contentId: c.id,
+      contentType: c.content_type as ContentType,
+      displayOrder: index,
+      title: c.title,
+    }));
+
+    const dependencyValidationResult = await validateContentDependencies(
+      contentsForDependencyCheck,
+      tenantId,
+      input.planGroupId
+    );
+
+    // 의존성 위반을 ValidationWarning으로 변환하여 추가
+    if (dependencyValidationResult.violations.length > 0) {
+      const dependencyWarnings: ValidationWarning[] = dependencyValidationResult.violations.map((v) => ({
+        type: "content_dependency" as const,
+        planIndex: -1, // 콘텐츠 레벨 검증이므로 특정 플랜 인덱스 없음
+        date: "", // 날짜 독립적
+        message: v.message,
+      }));
+      validationResult.warnings.push(...dependencyWarnings);
+    }
+
     // 검증 결과 로깅
     if (validationResult.errors.length > 0) {
       console.warn(`[AI Plan] 검증 에러 ${validationResult.errors.length}건:`,
@@ -545,6 +607,10 @@ export async function generatePlanWithAI(
     }
     if (validationResult.warnings.length > 0) {
       console.log(`[AI Plan] 검증 경고 ${validationResult.warnings.length}건`);
+    }
+    if (dependencyValidationResult.violations.length > 0) {
+      console.log(`[AI Plan] 의존성 경고 ${dependencyValidationResult.violations.length}건:`,
+        dependencyValidationResult.violations.slice(0, 3).map(v => v.message));
     }
 
     // 10. 플랜 그룹 생성 또는 사용
@@ -777,6 +843,30 @@ export async function previewPlanWithAI(
       excludeDates: input.excludeDates || [],
       dailyStudyMinutes: input.dailyStudyMinutes,
     });
+
+    // 콘텐츠 의존성 검증 (경고만)
+    const contentsForDependencyCheck = contents.map((c, index) => ({
+      contentId: c.id,
+      contentType: c.content_type as ContentType,
+      displayOrder: index,
+      title: c.title,
+    }));
+
+    const dependencyValidationResult = await validateContentDependencies(
+      contentsForDependencyCheck,
+      tenantId
+    );
+
+    // 의존성 위반을 ValidationWarning으로 변환하여 추가
+    if (dependencyValidationResult.violations.length > 0) {
+      const dependencyWarnings: ValidationWarning[] = dependencyValidationResult.violations.map((v) => ({
+        type: "content_dependency" as const,
+        planIndex: -1,
+        date: "",
+        message: v.message,
+      }));
+      validationResult.warnings.push(...dependencyWarnings);
+    }
 
     // 비용 계산
     const estimatedCost = estimateCost(

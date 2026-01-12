@@ -39,6 +39,14 @@ export interface SelectedContent {
   displayOrder?: number;
   /** 전략 과목 주간 배정일 (2, 3, 4). 전략 과목인 경우에만 유효 */
   weeklyDays?: 2 | 3 | 4 | null;
+
+  // 플랜 이름 자동 생성 관련 필드
+  /** 자동 생성된 플랜 그룹 이름 (예: "[수학] 수학의 정석 p.100-200") */
+  generatedGroupName?: string;
+  /** 사용자가 수정한 플랜 그룹 이름 (없으면 generatedGroupName 사용) */
+  customGroupName?: string;
+  /** 회차 번호 (동일 콘텐츠 플랜 생성 순서, 2회차부터 표시) */
+  round?: number;
 }
 
 /**

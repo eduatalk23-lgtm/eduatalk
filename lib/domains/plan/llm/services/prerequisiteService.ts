@@ -506,10 +506,10 @@ export class PrerequisiteService {
 
     // 학생이 완료한 콘텐츠 조회
     const { data: completedPlans } = await supabase
-      .from("student_plans")
-      .select("content_id, completed_at")
+      .from("student_plan")
+      .select("content_id, simple_completed_at")
       .eq("student_id", studentId)
-      .eq("is_completed", true)
+      .eq("status", "completed")
       .not("content_id", "is", null);
 
     if (!completedPlans || completedPlans.length === 0) {

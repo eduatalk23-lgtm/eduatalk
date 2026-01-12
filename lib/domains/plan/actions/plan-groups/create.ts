@@ -362,6 +362,14 @@ async function _createPlanGroup(
 
   // 기존 draft가 있으면 업데이트
   if (existingGroup) {
+    // DEBUG: 기존 draft 업데이트 흐름 추적
+    console.log("[createPlanGroupAction] 기존 draft 발견, 업데이트 진행", {
+      existingGroupId: existingGroup.id,
+      existingGroupStatus: existingGroup.status,
+      dataName: data.name,
+      contentsCount: data.contents?.length ?? 0,
+      contentsData: data.contents?.map(c => ({ id: c.content_id, type: c.content_type, start: c.start_range, end: c.end_range })),
+    });
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePath("/plan");
     return { groupId: existingGroup.id };

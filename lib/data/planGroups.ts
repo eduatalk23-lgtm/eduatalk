@@ -22,6 +22,7 @@ import { handleQueryError } from "@/lib/data/core/errorHandler";
 import {
   createTypedConditionalQuery,
 } from "@/lib/data/core/typedQueryBuilder";
+import { getPlanContentsForAdmin } from "@/lib/data/planGroups/admin";
 import type { Database } from "@/lib/supabase/database.types";
 
 // Database 타입에서 테이블 타입 추출
@@ -2103,9 +2104,9 @@ export async function getPlanGroupWithDetailsForAdmin(
     return academySchedules;
   };
 
-  // 플랜 그룹별 제외일과 학원 일정 조회
+  // 플랜 그룹별 제외일과 학원 일정 조회 (RLS 우회)
   const [contents, exclusions, academySchedules] = await Promise.all([
-    getPlanContents(groupId, tenantId),
+    getPlanContentsForAdmin(groupId, tenantId), // RLS 우회를 위해 Admin 버전 사용
     getPlanExclusions(groupId, tenantId),
     getAcademySchedulesForAdmin(),
   ]);

@@ -128,6 +128,8 @@ export interface GeneratePlanPayload {
   is_reschedulable: boolean;
   subject_type?: "strategy" | "weakness" | null;
   content_title: string | null;
+  /** 사용자 정의 플랜 제목 (형식: [과목] 콘텐츠명 범위) */
+  custom_title?: string | null;
   content_subject: string | null;
   content_subject_category: string | null;
   content_category: string | null;

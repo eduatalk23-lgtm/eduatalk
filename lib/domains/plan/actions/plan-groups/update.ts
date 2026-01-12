@@ -39,6 +39,20 @@ async function _updatePlanGroupDraft(
   groupId: string,
   data: Partial<PlanGroupCreationData>
 ): Promise<void> {
+  // DEBUG: 함수 진입점 데이터 확인
+  console.log("[_updatePlanGroupDraft] 함수 호출됨", {
+    groupId,
+    hasContents: data.contents !== undefined,
+    contentsCount: data.contents?.length ?? 0,
+    dataKeys: Object.keys(data),
+    firstContent: data.contents?.[0] ? {
+      content_id: data.contents[0].content_id,
+      content_type: data.contents[0].content_type,
+      start_range: data.contents[0].start_range,
+      end_range: data.contents[0].end_range,
+    } : null,
+  });
+
   // 권한 확인: 학생 또는 관리자/컨설턴트
   const currentUser = await getCurrentUser();
   if (!currentUser) {
@@ -254,6 +268,19 @@ async function _updatePlanGroupDraft(
   // 콘텐츠 업데이트 (원자적 트랜잭션으로 기존 삭제 후 재생성)
   // Phase 1.1: DELETE → INSERT 패턴을 UPSERT로 전환
   if (data.contents !== undefined) {
+    // DEBUG: 콘텐츠 업데이트 추적
+    console.log("[_updatePlanGroupDraft] 콘텐츠 업데이트 시작", {
+      groupId,
+      tenantId: tenantContext.tenantId,
+      inputContentsCount: data.contents.length,
+      inputContents: data.contents.map(c => ({
+        id: c.content_id,
+        type: c.content_type,
+        start: c.start_range,
+        end: c.end_range,
+      })),
+    });
+
     const contentsInput = data.contents.map((c, index) => ({
       content_type: c.content_type,
       content_id: c.content_id,
@@ -282,11 +309,25 @@ async function _updatePlanGroupDraft(
       generation_status: null,
     }));
 
+    console.log("[_updatePlanGroupDraft] upsertPlanContentsAtomic 호출 전", {
+      groupId,
+      tenantId: tenantContext.tenantId,
+      contentsInputCount: contentsInput.length,
+    });
+
     const result = await upsertPlanContentsAtomic(
       groupId,
       tenantContext.tenantId,
       contentsInput
     );
+
+    console.log("[_updatePlanGroupDraft] upsertPlanContentsAtomic 결과", {
+      groupId,
+      success: result.success,
+      insertedCount: result.inserted_count,
+      deletedCount: result.deleted_count,
+      error: result.error,
+    });
 
     if (!result.success) {
       throw new AppError(
@@ -296,6 +337,11 @@ async function _updatePlanGroupDraft(
         true
       );
     }
+  } else {
+    console.log("[_updatePlanGroupDraft] data.contents가 undefined - 콘텐츠 업데이트 건너뜀", {
+      groupId,
+      hasContents: data.contents !== undefined,
+    });
   }
 
   // 제외일 업데이트 (전역 관리)

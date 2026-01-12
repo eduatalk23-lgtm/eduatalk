@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Sliders,
   Edit3,
+  Hash,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -347,41 +348,76 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
                   </p>
                 </div>
               </div>
-              <ul
+              <div
                 className={cn(
-                  "space-y-1 overflow-y-auto",
-                  selectedContents.length > 4 && "max-h-48"
+                  "space-y-3 overflow-y-auto",
+                  selectedContents.length > 3 && "max-h-80"
                 )}
               >
-                {selectedContents.map((content) => (
-                  <li
+                {selectedContents.map((content, index) => (
+                  <div
                     key={content.contentId}
-                    className="flex items-center gap-2 text-sm text-gray-600"
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-3"
                   >
-                    {content.contentType === "book" ? (
-                      <BookOpen className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
-                    ) : (
-                      <Video className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
-                    )}
-                    <span className="truncate">{content.title}</span>
-                    <span className="flex-shrink-0 text-gray-400">
-                      ({content.startRange}-{content.endRange})
-                    </span>
-                    {content.subjectType && (
-                      <span
-                        className={cn(
-                          "flex-shrink-0 rounded px-1 py-0.5 text-xs",
-                          content.subjectType === "strategy"
-                            ? "bg-orange-100 text-orange-700"
-                            : "bg-blue-100 text-blue-700"
-                        )}
-                      >
-                        {content.subjectType === "strategy" ? "전략" : "취약"}
+                    {/* 콘텐츠 기본 정보 */}
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {content.contentType === "book" ? (
+                        <BookOpen className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                      ) : (
+                        <Video className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                      )}
+                      <span className="truncate font-medium text-gray-900">{content.title}</span>
+                      <span className="flex-shrink-0 text-gray-400">
+                        ({content.startRange}-{content.endRange})
                       </span>
-                    )}
-                  </li>
+                      {content.subjectType && (
+                        <span
+                          className={cn(
+                            "flex-shrink-0 rounded px-1 py-0.5 text-xs",
+                            content.subjectType === "strategy"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-blue-100 text-blue-700"
+                          )}
+                        >
+                          {content.subjectType === "strategy" ? "전략" : "취약"}
+                        </span>
+                      )}
+                      {content.round && content.round > 1 && (
+                        <span className="flex items-center gap-0.5 rounded bg-purple-100 px-1.5 py-0.5 text-xs text-purple-700">
+                          <Hash className="h-3 w-3" />
+                          {content.round}회차
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 플랜 그룹 이름 입력 */}
+                    <div className="mt-2 border-t border-gray-200 pt-2">
+                      <label className="text-xs text-gray-500">플랜 그룹 이름</label>
+                      <input
+                        type="text"
+                        value={content.customGroupName ?? content.generatedGroupName ?? ""}
+                        onChange={(e) => {
+                          const newValue = e.target.value;
+                          updateData({
+                            selectedContents: selectedContents.map((c, i) =>
+                              i === index
+                                ? { ...c, customGroupName: newValue || undefined }
+                                : c
+                            ),
+                          });
+                        }}
+                        placeholder={content.generatedGroupName || "플랜 그룹 이름 입력"}
+                        className="mt-1 w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      {content.generatedGroupName && !content.customGroupName && (
+                        <p className="mt-1 text-xs text-gray-400">
+                          자동 생성됨 (수정 가능)
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </>
           )}
         </div>

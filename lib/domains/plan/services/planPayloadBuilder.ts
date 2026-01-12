@@ -9,6 +9,7 @@
 import { assignPlanTimes } from "@/lib/plan/assignPlanTimes";
 import { splitPlanTimeInputByEpisodes } from "@/lib/plan/planSplitter";
 import { timeToMinutes } from "../actions/plan-groups/utils";
+import { generatePlanNameString } from "@/lib/domains/admin-plan/utils/planNaming";
 import type {
   PlanServiceContext,
   ContentResolutionResult,
@@ -327,6 +328,14 @@ export class PlanPayloadBuilder {
     const now = new Date().toISOString();
 
     for (const segment of timeSegments) {
+      // DEBUG: segment.plan 범위 확인
+      console.log("[PlanPayloadBuilder] segment.plan 범위:", {
+        date,
+        content_id: segment.plan.content_id,
+        planned_start: segment.plan.planned_start_page_or_time,
+        planned_end: segment.plan.planned_end_page_or_time,
+      });
+
       const originalContentId =
         reverseContentIdMap.get(segment.plan.content_id) ||
         segment.plan.content_id;
@@ -360,6 +369,30 @@ export class PlanPayloadBuilder {
         }
       }
 
+      // custom_title 자동 생성: [과목] 콘텐츠명 범위
+      const customTitle = generatePlanNameString({
+        subject: metadata?.subject || null,
+        contentTitle: metadata?.title || "",
+        startRange: segment.plan.planned_start_page_or_time,
+        endRange: segment.plan.planned_end_page_or_time,
+        contentType: segment.plan.content_type as "book" | "lecture",
+      });
+
+      // DEBUG: custom_title 생성 확인
+      console.log("[PlanPayloadBuilder] custom_title 생성:", {
+        date,
+        content_id: finalContentId,
+        customTitle,
+        metadata: {
+          subject: metadata?.subject,
+          title: metadata?.title,
+        },
+        range: {
+          start: segment.plan.planned_start_page_or_time,
+          end: segment.plan.planned_end_page_or_time,
+        },
+      });
+
       payloads.push({
         plan_group_id: this.ctx.groupId,
         student_id: this.ctx.studentId,
@@ -380,6 +413,7 @@ export class PlanPayloadBuilder {
         is_continued: segment.isContinued,
         is_reschedulable: true,
         content_title: metadata?.title || null,
+        custom_title: customTitle || null,
         content_subject: metadata?.subject || null,
         content_subject_category: metadata?.subject_category || null,
         content_category: metadata?.category || null,

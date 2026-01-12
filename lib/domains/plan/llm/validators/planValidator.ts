@@ -31,7 +31,7 @@ export interface ValidationError {
 }
 
 export interface ValidationWarning {
-  type: "time_gap" | "long_session" | "late_night" | "early_morning";
+  type: "time_gap" | "long_session" | "late_night" | "early_morning" | "content_dependency";
   planIndex: number;
   date: string;
   message: string;

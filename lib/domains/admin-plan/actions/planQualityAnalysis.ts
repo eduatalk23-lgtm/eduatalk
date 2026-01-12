@@ -367,19 +367,17 @@ export async function analyzePlanQuality(
       };
     }
 
-    // 플랜 조회
+    // 플랜 조회 (content_subject, content_id는 student_plan에 비정규화됨)
     const { data: plans, error: plansError } = await supabase
-      .from("student_plans")
+      .from("student_plan")
       .select(`
         id,
         scheduled_date,
         scheduled_start_time,
         scheduled_end_time,
         duration_minutes,
-        content_masters (
-          id,
-          subject
-        )
+        content_subject,
+        content_id
       `)
       .eq("plan_group_id", planGroupId)
       .order("scheduled_date");
@@ -404,8 +402,7 @@ export async function analyzePlanQuality(
       { totalMinutes: number; planCount: number }
     >();
     for (const plan of planList) {
-      const subject =
-        (plan.content_masters as { subject?: string } | null)?.subject || "기타";
+      const subject = plan.content_subject || "기타";
       const current = subjectMap.get(subject) || {
         totalMinutes: 0,
         planCount: 0,
@@ -444,8 +441,7 @@ export async function analyzePlanQuality(
     >();
     for (const plan of planList) {
       const date = plan.scheduled_date;
-      const subject =
-        (plan.content_masters as { subject?: string } | null)?.subject || "기타";
+      const subject = plan.content_subject || "기타";
       const current = dailyMap.get(date) || {
         totalMinutes: 0,
         planCount: 0,
@@ -485,7 +481,7 @@ export async function analyzePlanQuality(
     // 커버리지: 현재 플랜에 포함된 고유 콘텐츠 수 / 전체 콘텐츠 수
     const uniqueContentIds = new Set(
       planList
-        .map((p) => (p.content_masters as { id?: string } | null)?.id)
+        .map((p) => p.content_id)
         .filter(Boolean)
     );
     const coverage = calculateCoverageScore(

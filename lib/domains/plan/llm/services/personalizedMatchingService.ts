@@ -264,12 +264,12 @@ export class PersonalizedMatchingService {
 
     // 2. 완료한 콘텐츠 조회
     const { data: completedPlans } = await supabase
-      .from("student_plans")
-      .select("content_id, subject, completed_at, actual_duration")
+      .from("student_plan")
+      .select("content_id, content_subject, simple_completed_at, total_duration_seconds")
       .eq("student_id", studentId)
-      .eq("is_completed", true)
+      .eq("status", "completed")
       .not("content_id", "is", null)
-      .order("completed_at", { ascending: false })
+      .order("simple_completed_at", { ascending: false })
       .limit(100);
 
     const completedContentIds = completedPlans?.map((p) => p.content_id).filter(Boolean) || [];
@@ -343,19 +343,21 @@ export class PersonalizedMatchingService {
   }
 
   private calculateLearningPace(
-    completedPlans: Array<{ content_id: string; actual_duration: number | null }>
+    completedPlans: Array<{ content_id: string; total_duration_seconds: number | null }>
   ): { pagesPerHour: number; velocity: number } {
-    const plansWithDuration = completedPlans.filter((p) => p.actual_duration && p.actual_duration > 0);
+    const plansWithDuration = completedPlans.filter(
+      (p) => p.total_duration_seconds && p.total_duration_seconds > 0
+    );
 
     if (plansWithDuration.length === 0) {
       return { pagesPerHour: 10, velocity: 1.0 }; // 기본값
     }
 
-    // 평균 학습 시간 계산 (분 → 시간)
+    // 평균 학습 시간 계산 (초 → 시간)
     const avgDurationHours =
-      plansWithDuration.reduce((sum, p) => sum + (p.actual_duration || 0), 0) /
+      plansWithDuration.reduce((sum, p) => sum + (p.total_duration_seconds || 0), 0) /
       plansWithDuration.length /
-      60;
+      3600;
 
     // 예상 학습 속도 (페이지/시간) - 기본 10페이지/시간 기준
     const pagesPerHour = avgDurationHours > 0 ? 10 / avgDurationHours : 10;
@@ -367,13 +369,13 @@ export class PersonalizedMatchingService {
   }
 
   private extractRecentInterests(
-    completedPlans: Array<{ subject: string; completed_at: string }>
+    completedPlans: Array<{ content_subject: string | null; simple_completed_at: string | null }>
   ): string[] {
     // 최근 30개 플랜의 과목 추출
     const recentSubjects = completedPlans
       .slice(0, 30)
-      .map((p) => p.subject)
-      .filter(Boolean);
+      .map((p) => p.content_subject)
+      .filter((s): s is string => Boolean(s));
 
     // 빈도 계산
     const frequency = new Map<string, number>();

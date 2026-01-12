@@ -363,6 +363,16 @@ async function _generatePlansWithServices(
       resolution.durationMap,
       resolution.chapterMap
     );
+
+    // DEBUG: 스케줄러 출력 확인
+    console.log("[generatePlansWithServices] scheduledPlans 샘플:",
+      scheduledPlans.slice(0, 5).map(p => ({
+        date: p.plan_date,
+        content_id: p.content_id,
+        start: p.planned_start_page_or_time,
+        end: p.planned_end_page_or_time,
+      }))
+    );
   } catch (error) {
     if (error instanceof PlanGroupError) {
       throw new AppError(

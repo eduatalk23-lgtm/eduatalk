@@ -25,6 +25,7 @@ import {
   type AISchedulerOptionsOverride,
 } from "./preparePlanGenerationData";
 import { createPlanNumberCalculator } from "./planNumbering";
+import { generatePlanNameString } from "@/lib/domains/admin-plan/utils/planNaming";
 
 /**
  * 서비스 기반 플랜 생성 입력
@@ -109,7 +110,9 @@ export async function generatePlansWithServices(
       PlanPayloadBase & {
         content_id: string;
         content_title?: string | null;
+        custom_title?: string | null;
         content_subject?: string | null;
+        content_subject_category?: string | null;
       }
     > = [];
 
@@ -133,6 +136,15 @@ export async function generatePlansWithServices(
           segment.plan.planned_end_page_or_time
         );
 
+        // custom_title 생성: [과목] 콘텐츠명 범위
+        const customTitle = generatePlanNameString({
+          subject: metadata?.subject || null,
+          contentTitle: metadata?.title || "",
+          startRange: segment.plan.planned_start_page_or_time,
+          endRange: segment.plan.planned_end_page_or_time,
+          contentType: segment.plan.content_type as "book" | "lecture",
+        });
+
         planPayloads.push({
           plan_date: date,
           block_index: segment.plan.block_index ?? index,
@@ -151,7 +163,9 @@ export async function generatePlansWithServices(
           plan_number: planNumber,
           subject_type: segment.plan.subject_type ?? null,
           content_title: metadata?.title ?? null,
+          custom_title: customTitle,
           content_subject: metadata?.subject ?? null,
+          content_subject_category: metadata?.subject_category ?? null,
         });
       });
     }

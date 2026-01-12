@@ -131,9 +131,7 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
       deleted_by: user.userId,
     };
 
-    // 4. 백업 데이터 저장 (향후 백업 테이블에 저장하거나 로그로 기록)
-    // NOTE: plan_group_backups 테이블 생성 시 아래 주석 해제하여 백업 저장
-    /*
+    // 4. 백업 데이터 저장
     const { error: backupError } = await supabase
       .from("plan_group_backups")
       .insert({
@@ -141,6 +139,7 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
         student_id: user.userId,
         tenant_id: group.tenant_id,
         backup_data: backupData,
+        deleted_by: user.userId,
         created_at: new Date().toISOString(),
       });
 
@@ -150,9 +149,14 @@ async function _deletePlanGroup(groupId: string): Promise<void> {
         backupError,
         { groupId, step: "backupStorage" }
       );
-      // 백업 실패해도 삭제는 진행
+      // 백업 실패 시 삭제 중단 (데이터 보호 우선)
+      throw new AppError(
+        "플랜 그룹 백업 저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
+        ErrorCode.DATABASE_ERROR,
+        500,
+        true
+      );
     }
-    */
 
   } catch (backupError) {
     logActionError(

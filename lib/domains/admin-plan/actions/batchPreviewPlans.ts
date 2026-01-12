@@ -27,7 +27,12 @@ import {
   validateRequest,
 } from "@/lib/domains/plan/llm/transformers/requestBuilder";
 import { parseLLMResponse } from "@/lib/domains/plan/llm/transformers/responseParser";
-import { validatePlans } from "@/lib/domains/plan/llm/validators/planValidator";
+import {
+  validatePlans,
+  type ValidationWarning,
+} from "@/lib/domains/plan/llm/validators/planValidator";
+import { validateContentDependencies } from "@/lib/domains/content-dependency/services/dependencyValidationService";
+import type { ContentType } from "@/lib/types/content-dependency";
 
 import type { GeneratedPlanItem, ModelTier } from "@/lib/domains/plan/llm/types";
 import type { GroundingConfig } from "@/lib/domains/plan/llm/providers/base";
@@ -162,8 +167,8 @@ async function loadLearningStats(
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const { data } = await supabase
-    .from("student_plans")
-    .select("is_completed, actual_minutes")
+    .from("student_plan")
+    .select("status, total_duration_seconds")
     .eq("student_id", studentId)
     .gte("plan_date", thirtyDaysAgo.toISOString().split("T")[0]);
 
@@ -175,8 +180,11 @@ async function loadLearningStats(
     };
   }
 
-  const completed = data.filter((p) => p.is_completed).length;
-  const totalMinutes = data.reduce((sum, p) => sum + (p.actual_minutes || 0), 0);
+  const completed = data.filter((p) => p.status === "completed").length;
+  const totalMinutes = data.reduce(
+    (sum, p) => sum + Math.round((p.total_duration_seconds || 0) / 60),
+    0
+  );
 
   return {
     average_completion_rate: data.length > 0 ? completed / data.length : 0,
@@ -496,6 +504,30 @@ async function generatePreviewForStudent(
       excludeDates: [],
       dailyStudyMinutes: settings.dailyStudyMinutes,
     });
+
+    // 9-1. 콘텐츠 의존성 검증 (경고만)
+    const contentsForDependencyCheck = contents.map((c, index) => ({
+      contentId: c.id,
+      contentType: c.content_type as ContentType,
+      displayOrder: index,
+      title: c.title,
+    }));
+
+    const dependencyValidationResult = await validateContentDependencies(
+      contentsForDependencyCheck,
+      tenantId
+    );
+
+    // 의존성 위반을 ValidationWarning으로 변환하여 추가
+    if (dependencyValidationResult.violations.length > 0) {
+      const dependencyWarnings: ValidationWarning[] = dependencyValidationResult.violations.map((v) => ({
+        type: "content_dependency" as const,
+        planIndex: -1,
+        date: "",
+        message: v.message,
+      }));
+      validation.warnings.push(...dependencyWarnings);
+    }
 
     // 10. 품질 점수 계산
     const qualityScore = calculateQualityScore(
