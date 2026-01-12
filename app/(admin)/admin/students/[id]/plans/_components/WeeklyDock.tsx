@@ -15,6 +15,8 @@ interface WeeklyDockProps {
   /** 플래너 ID (플래너 기반 필터링용) */
   plannerId?: string;
   selectedDate: string;
+  /** 선택된 플랜 그룹 ID (null = 전체 보기) */
+  selectedGroupId?: string | null;
   /** 콘텐츠 유형 필터 */
   contentTypeFilter?: ContentTypeFilter;
   onRedistribute: (planId: string) => void;
@@ -31,6 +33,7 @@ export function WeeklyDock({
   tenantId,
   plannerId,
   selectedDate,
+  selectedGroupId,
   contentTypeFilter = 'all',
   onRedistribute,
   onEdit,
@@ -47,11 +50,17 @@ export function WeeklyDock({
     plannerId
   );
 
+  // 그룹 필터링 적용
+  const groupFilteredPlans = useMemo(() => {
+    if (selectedGroupId === null || selectedGroupId === undefined) return allPlans;
+    return allPlans.filter(plan => plan.plan_group_id === selectedGroupId);
+  }, [allPlans, selectedGroupId]);
+
   // 콘텐츠 유형 필터 적용
   const plans = useMemo(() => {
-    if (contentTypeFilter === 'all') return allPlans;
-    return allPlans.filter(plan => plan.content_type === contentTypeFilter);
-  }, [allPlans, contentTypeFilter]);
+    if (contentTypeFilter === 'all') return groupFilteredPlans;
+    return groupFilteredPlans.filter(plan => plan.content_type === contentTypeFilter);
+  }, [groupFilteredPlans, contentTypeFilter]);
 
   const [isPending, startTransition] = useTransition();
 

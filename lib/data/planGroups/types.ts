@@ -114,6 +114,125 @@ export type PlanGroupContentSummary = {
   contentNames: string[];
 };
 
+// =============================================
+// 플랜 그룹 백업 관련 타입
+// =============================================
+
+/**
+ * 플랜 그룹 백업 테이블 레코드 타입
+ */
+export type PlanGroupBackup = {
+  id: string;
+  plan_group_id: string;
+  student_id: string;
+  tenant_id: string;
+  backup_data: PlanGroupBackupData;
+  deleted_by: string | null;
+  created_at: string;
+  restored_at: string | null;
+  restored_by: string | null;
+};
+
+/**
+ * 백업 데이터 내부 구조
+ */
+export type PlanGroupBackupData = {
+  plan_group: {
+    id: string;
+    name: string | null;
+    plan_purpose: string | null;
+    scheduler_type: string | null;
+    scheduler_options: SchedulerOptions | null;
+    period_start: string;
+    period_end: string;
+    target_date: string | null;
+    block_set_id: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  };
+  contents: Array<{
+    content_type: string;
+    content_id: string;
+    start_range: number | null;
+    end_range: number | null;
+    display_order: number | null;
+  }>;
+  exclusions: Array<{
+    exclusion_date: string;
+    exclusion_type: string;
+    reason: string | null;
+  }>;
+  academy_schedules: Array<{
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+    academy_name: string | null;
+    subject: string | null;
+  }>;
+  plans: Array<{
+    plan_date: string;
+    block_index: number | null;
+    content_type: string;
+    content_id: string | null;
+    chapter: string | null;
+    planned_start_page_or_time: number | null;
+    planned_end_page_or_time: number | null;
+    completed_amount: number | null;
+    is_reschedulable: boolean | null;
+    start_time: string | null;
+    end_time: string | null;
+    status?: string;
+  }>;
+  progress: Array<{
+    plan_id: string;
+    content_id: string;
+    progress_percentage: number;
+    completed_pages: number | null;
+    total_pages: number | null;
+  }>;
+  deleted_at: string;
+  deleted_by: string;
+};
+
+/**
+ * 삭제된 플랜 그룹 정보 (목록 조회용)
+ */
+export type DeletedPlanGroupInfo = {
+  id: string;
+  planGroupId: string;
+  name: string | null;
+  planPurpose: string | null;
+  periodStart: string;
+  periodEnd: string;
+  status: string;
+  deletedAt: string;
+  planCount: number;
+  contentCount: number;
+  isRestored: boolean;
+};
+
+/**
+ * 플랜 그룹 복원 결과
+ */
+export type RestorePlanGroupResult = {
+  success: boolean;
+  groupId?: string;
+  restoredPlansCount?: number;
+  error?: string;
+};
+
+/**
+ * 삭제된 플랜 그룹 목록 조회 옵션
+ */
+export type GetDeletedPlanGroupsOptions = {
+  studentId: string;
+  tenantId?: string;
+  offset?: number;
+  limit?: number;
+  includeRestored?: boolean;
+};
+
 // Re-export types for convenience
 export type {
   PlanGroup,

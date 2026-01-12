@@ -55,15 +55,25 @@ export default async function PlannerPlanManagementPage({
 
   const targetDate = date ?? getTodayInTimezone();
 
-  // 4. 해당 플래너의 플랜 그룹 조회 (활성 그룹 ID + daily_schedule)
+  // 4. 해당 플래너의 플랜 그룹 조회 (전체 목록 + daily_schedule)
   const supabase = await createSupabaseServerClient();
   const { data: plannerGroups } = await supabase
     .from('plan_groups')
-    .select('id, status, daily_schedule')
+    .select('id, name, status, period_start, period_end, plan_purpose, daily_schedule, created_at')
     .eq('planner_id', plannerId)
     .eq('student_id', studentId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
+
+  // 전체 플랜 그룹 목록 (드롭다운용)
+  const allPlanGroups = (plannerGroups ?? []).map(g => ({
+    id: g.id,
+    name: g.name,
+    status: g.status,
+    periodStart: g.period_start,
+    periodEnd: g.period_end,
+    planPurpose: g.plan_purpose,
+  }));
 
   // 현재 플래너의 활성 플랜 그룹 ID 추출
   const activePlanGroupId = plannerGroups?.find(g => g.status === 'active')?.id ?? null;
@@ -97,6 +107,7 @@ export default async function PlannerPlanManagementPage({
           tenantId={student.tenant_id}
           initialDate={targetDate}
           activePlanGroupId={activePlanGroupId}
+          allPlanGroups={allPlanGroups}
           selectedPlannerId={plannerId}
           autoOpenWizard={openWizard === 'true'}
           plannerDailySchedules={plannerDailySchedules}

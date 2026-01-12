@@ -1,202 +1,66 @@
 "use client";
 
-import {
-  useState,
-  useReducer,
-  useTransition,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-} from "react";
-import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+import { useCallback, useMemo, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { movePlanToContainer } from "@/lib/domains/admin-plan/actions";
 import { generatePlansFromGroupAction } from "@/lib/domains/plan/actions/plan-groups/plans";
 import { checkPlansExistAction } from "@/lib/domains/plan/actions/plan-groups";
 import { updatePlanGroupStatus } from "@/lib/domains/plan/actions/plan-groups/status";
-import { useToast } from "@/components/ui/ToastProvider";
-import { PlanStatsCards } from "./PlanStatsCards";
-import { UnfinishedDock } from "./UnfinishedDock";
-import { DailyDock } from "./DailyDock";
-import { WeeklyDock } from "./WeeklyDock";
-import { WeeklyCalendar } from "./WeeklyCalendar";
 import {
   PlanDndProvider,
   getBaseContainerType,
   type ContainerType,
 } from "./dnd";
 import { PlanToastProvider } from "./PlanToast";
-import { PlanHistoryViewer } from "./PlanHistoryViewer";
-import { DeletedPlansView } from "./DeletedPlansView";
-import { CarryoverButton } from "./CarryoverButton";
-import { SummaryDashboard } from "./SummaryDashboard";
-import { PlanQualityDashboard } from "./PlanQualityDashboard";
-import { PlanTypeStats } from "./PlanTypeStats";
-import { PlanGroupSummaryCard } from "./PlanGroupSummaryCard";
 import {
   useKeyboardShortcuts,
   type ShortcutConfig,
 } from "./useKeyboardShortcuts";
 import {
-  modalReducer,
-  initialModalState,
-  type ModalType,
-} from "./types/modalState";
-import { useAdminPlanRealtime } from "@/lib/realtime";
-import { useInvalidateAllDockQueries } from "@/lib/hooks/useAdminDockQueries";
-import {
-  Wand2,
-  Plus,
-  LineChart,
-  Trash2,
-  ClipboardList,
-  MoreHorizontal,
-  AlertTriangle,
-  Filter,
-  Book,
-  Video,
-  FileText,
-  X,
-  Keyboard,
-} from "lucide-react";
+  AddContentWizard,
+  AddAdHocModal,
+  RedistributeModal,
+  ShortcutsHelpModal,
+  AdminAIPlanModal,
+  AdminPlanCreationWizard7Step,
+  AdminQuickPlanModal,
+  UnifiedPlanAddModal,
+  PlanOptimizationPanel,
+  EditPlanModal,
+  ReorderPlansModal,
+  ConditionalDeleteModal,
+  PlanTemplateModal,
+  MoveToGroupModal,
+  CopyPlanModal,
+  PlanStatusModal,
+  BulkEditModal,
+} from "./dynamicModals";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 
-// 콘텐츠 유형 필터 타입
+// Context & Tabs
+import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
+import { AdminPlanTabs, TabContent } from "./AdminPlanTabs";
+import { PlannerTab, CalendarTab, AnalyticsTab, HistoryTab } from "./tabs";
+
+// Components
+import { AdminPlanHeader } from "./AdminPlanHeader";
+
+// 뷰 모드 타입 (export for backward compatibility)
+export type AdminViewMode = "dock" | "month" | "gantt";
+
+// 콘텐츠 유형 필터 타입 (export for backward compatibility)
 export type ContentTypeFilter = "all" | "book" | "lecture" | "custom";
 
-// 필터 옵션 정의
-const CONTENT_TYPE_FILTERS: {
-  value: ContentTypeFilter;
-  label: string;
-  icon: React.ReactNode;
-}[] = [
-  { value: "all", label: "전체", icon: null },
-  { value: "book", label: "교재", icon: <Book className="w-3 h-3" /> },
-  { value: "lecture", label: "강의", icon: <Video className="w-3 h-3" /> },
-  {
-    value: "custom",
-    label: "직접입력",
-    icon: <FileText className="w-3 h-3" />,
-  },
-];
-
-// 동적 import로 코드 스플리팅 (모달 컴포넌트)
-const AddContentWizard = dynamic(
-  () =>
-    import("./add-content-wizard").then((mod) => ({
-      default: mod.AddContentWizard,
-    })),
-  { ssr: false }
-);
-const AddAdHocModal = dynamic(
-  () =>
-    import("./AddAdHocModal").then((mod) => ({ default: mod.AddAdHocModal })),
-  { ssr: false }
-);
-const RedistributeModal = dynamic(
-  () =>
-    import("./RedistributeModal").then((mod) => ({
-      default: mod.RedistributeModal,
-    })),
-  { ssr: false }
-);
-const ShortcutsHelpModal = dynamic(
-  () =>
-    import("./ShortcutsHelpModal").then((mod) => ({
-      default: mod.ShortcutsHelpModal,
-    })),
-  { ssr: false }
-);
-const AdminAIPlanModal = dynamic(
-  () =>
-    import("./AdminAIPlanModal").then((mod) => ({
-      default: mod.AdminAIPlanModal,
-    })),
-  { ssr: false }
-);
-const AdminPlanCreationWizard7Step = dynamic(
-  () =>
-    import("./admin-wizard").then((mod) => ({
-      default: mod.AdminPlanCreationWizard7Step,
-    })),
-  { ssr: false }
-);
-const AdminQuickPlanModal = dynamic(
-  () =>
-    import("./AdminQuickPlanModal").then((mod) => ({
-      default: mod.AdminQuickPlanModal,
-    })),
-  { ssr: false }
-);
-const UnifiedPlanAddModal = dynamic(
-  () =>
-    import("./UnifiedPlanAddModal").then((mod) => ({
-      default: mod.UnifiedPlanAddModal,
-    })),
-  { ssr: false }
-);
-const PlanOptimizationPanel = dynamic(() => import("./PlanOptimizationPanel"), {
-  ssr: false,
-});
-const EditPlanModal = dynamic(
-  () =>
-    import("./modals/EditPlanModal").then((mod) => ({
-      default: mod.EditPlanModal,
-    })),
-  { ssr: false }
-);
-const ReorderPlansModal = dynamic(
-  () =>
-    import("./modals/ReorderPlansModal").then((mod) => ({
-      default: mod.ReorderPlansModal,
-    })),
-  { ssr: false }
-);
-const ConditionalDeleteModal = dynamic(
-  () =>
-    import("./modals/ConditionalDeleteModal").then((mod) => ({
-      default: mod.ConditionalDeleteModal,
-    })),
-  { ssr: false }
-);
-const PlanTemplateModal = dynamic(
-  () =>
-    import("./modals/PlanTemplateModal").then((mod) => ({
-      default: mod.PlanTemplateModal,
-    })),
-  { ssr: false }
-);
-const MoveToGroupModal = dynamic(
-  () =>
-    import("./modals/MoveToGroupModal").then((mod) => ({
-      default: mod.MoveToGroupModal,
-    })),
-  { ssr: false }
-);
-const CopyPlanModal = dynamic(
-  () =>
-    import("./modals/CopyPlanModal").then((mod) => ({
-      default: mod.CopyPlanModal,
-    })),
-  { ssr: false }
-);
-const PlanStatusModal = dynamic(
-  () =>
-    import("./modals/PlanStatusModal").then((mod) => ({
-      default: mod.PlanStatusModal,
-    })),
-  { ssr: false }
-);
-const BulkEditModal = dynamic(
-  () =>
-    import("./modals/BulkEditModal").then((mod) => ({
-      default: mod.BulkEditModal,
-    })),
-  { ssr: false }
-);
+// 플랜 그룹 요약 정보 타입
+export interface PlanGroupSummary {
+  id: string;
+  name: string | null;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  planPurpose: string | null;
+}
 
 interface AdminPlanManagementProps {
   studentId: string;
@@ -204,13 +68,10 @@ interface AdminPlanManagementProps {
   tenantId: string;
   initialDate: string;
   activePlanGroupId: string | null;
-  /** 선택된 플래너 ID (플래너 기반 필터링용) */
+  allPlanGroups?: PlanGroupSummary[];
   selectedPlannerId?: string;
-  /** 페이지 로드 시 위저드 자동 오픈 여부 */
   autoOpenWizard?: boolean;
-  /** 플래너 플랜 그룹의 daily_schedule (1730 Timetable 방법론 준수) */
   plannerDailySchedules?: DailyScheduleInfo[][];
-  /** 플래너 제외일 목록 */
   plannerExclusions?: Array<{
     exclusionDate: string;
     exclusionType: string;
@@ -218,233 +79,108 @@ interface AdminPlanManagementProps {
   }>;
 }
 
-export function AdminPlanManagement({
-  studentId,
-  studentName,
-  tenantId,
-  initialDate,
-  activePlanGroupId,
-  selectedPlannerId,
+export function AdminPlanManagement(props: AdminPlanManagementProps) {
+  return (
+    <AdminPlanProvider
+      studentId={props.studentId}
+      studentName={props.studentName}
+      tenantId={props.tenantId}
+      initialDate={props.initialDate}
+      activePlanGroupId={props.activePlanGroupId}
+      allPlanGroups={props.allPlanGroups}
+      selectedPlannerId={props.selectedPlannerId}
+      plannerDailySchedules={props.plannerDailySchedules}
+      plannerExclusions={props.plannerExclusions}
+    >
+      <AdminPlanManagementContent
+        autoOpenWizard={props.autoOpenWizard}
+        studentName={props.studentName}
+      />
+    </AdminPlanProvider>
+  );
+}
+
+interface AdminPlanManagementContentProps {
+  autoOpenWizard?: boolean;
+  studentName: string;
+}
+
+function AdminPlanManagementContent({
   autoOpenWizard = false,
-  plannerDailySchedules,
-  plannerExclusions,
-}: AdminPlanManagementProps) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const toast = useToast();
-
-  // 상태 관리
-  const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [contentTypeFilter, setContentTypeFilter] =
-    useState<ContentTypeFilter>("all");
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-
-  // 단축키 힌트 배너 상태 (localStorage 연동)
-  const [showShortcutsHint, setShowShortcutsHint] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("admin-plan-shortcuts-hint-dismissed") !== "true";
-  });
-
-  const dismissShortcutsHint = useCallback(() => {
-    setShowShortcutsHint(false);
-    localStorage.setItem("admin-plan-shortcuts-hint-dismissed", "true");
-  }, []);
-
-  // 모달 상태 관리 (useReducer 패턴)
-  const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
-
-  // 모달 열기/닫기 헬퍼 함수들 (기존 API 호환성 유지)
-  const openModal = useCallback((type: ModalType) => {
-    dispatchModal({ type: "OPEN_MODAL", payload: type });
-  }, []);
-
-  const closeModal = useCallback((type: ModalType) => {
-    dispatchModal({ type: "CLOSE_MODAL", payload: type });
-  }, []);
-
-  const closeAllModals = useCallback(() => {
-    dispatchModal({ type: "CLOSE_ALL" });
-  }, []);
-
-  // 기존 API와의 호환성을 위한 래퍼 (점진적 마이그레이션)
-  const showAddContentModal = modals.addContent;
-  const setShowAddContentModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "addContent",
-    });
-  }, []);
-
-  const showAddAdHocModal = modals.addAdHoc;
-  const setShowAddAdHocModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "addAdHoc",
-    });
-  }, []);
-
-  const showRedistributeModal = modals.redistribute;
-  const setShowRedistributeModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "redistribute",
-    });
-  }, []);
-
-  const showShortcutsHelp = modals.shortcutsHelp;
-  const setShowShortcutsHelp = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "shortcutsHelp",
-    });
-  }, []);
-
-  const showAIPlanModal = modals.aiPlan;
-  const setShowAIPlanModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "aiPlan",
-    });
-  }, []);
-
-  const showCreateWizard = modals.createWizard;
-  const setShowCreateWizard = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "createWizard",
-    });
-  }, []);
-
-  const showOptimizationPanel = modals.optimization;
-  const setShowOptimizationPanel = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "optimization",
-    });
-  }, []);
-
-  const showQuickPlanModal = modals.quickPlan;
-  const setShowQuickPlanModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "quickPlan",
-    });
-  }, []);
-
-  const showEditModal = modals.edit;
-  const setShowEditModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "edit",
-    });
-  }, []);
-
-  const showReorderModal = modals.reorder;
-  const setShowReorderModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "reorder",
-    });
-  }, []);
-
-  const showConditionalDeleteModal = modals.conditionalDelete;
-  const setShowConditionalDeleteModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "conditionalDelete",
-    });
-  }, []);
-
-  const showTemplateModal = modals.template;
-  const setShowTemplateModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "template",
-    });
-  }, []);
-
-  const showMoveToGroupModal = modals.moveToGroup;
-  const setShowMoveToGroupModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "moveToGroup",
-    });
-  }, []);
-
-  const showCopyModal = modals.copy;
-  const setShowCopyModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "copy",
-    });
-  }, []);
-
-  const showStatusModal = modals.status;
-  const setShowStatusModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "status",
-    });
-  }, []);
-
-  const showBulkEditModal = modals.bulkEdit;
-  const setShowBulkEditModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "bulkEdit",
-    });
-  }, []);
-
-  const showUnifiedAddModal = modals.unifiedAdd;
-  const setShowUnifiedAddModal = useCallback((show: boolean) => {
-    dispatchModal({
-      type: show ? "OPEN_MODAL" : "CLOSE_MODAL",
-      payload: "unifiedAdd",
-    });
-  }, []);
-
-  // 통합 모달 초기 모드 상태
-  const [unifiedModalMode, setUnifiedModalMode] = useState<"quick" | "content">(
-    "quick"
-  );
-
-  // 통합 모달 열기 헬퍼
-  const openUnifiedModal = useCallback(
-    (mode: "quick" | "content") => {
-      setUnifiedModalMode(mode);
-      setShowUnifiedAddModal(true);
-    },
-    [setShowUnifiedAddModal]
-  );
-
-  // 모달 관련 추가 상태 (데이터)
-  const [selectedPlanForRedistribute, setSelectedPlanForRedistribute] =
-    useState<string | null>(null);
-  const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
-  const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<string | null>(
-    null
-  );
-  const [reorderContainerType, setReorderContainerType] = useState<
-    "daily" | "weekly" | "unfinished"
-  >("daily");
-  const [templatePlanIds, setTemplatePlanIds] = useState<string[]>([]);
-  const [selectedPlansForMove, setSelectedPlansForMove] = useState<string[]>(
-    []
-  );
-  const [currentGroupIdForMove, setCurrentGroupIdForMove] = useState<
-    string | null
-  >(null);
-  const [selectedPlansForCopy, setSelectedPlansForCopy] = useState<string[]>(
-    []
-  );
-  const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<{
-    id: string;
-    status: string;
-    title: string;
-  } | null>(null);
-  const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<
-    string[]
-  >([]);
+  studentName,
+}: AdminPlanManagementContentProps) {
+  const ctx = useAdminPlan();
+  const {
+    studentId,
+    tenantId,
+    selectedPlannerId,
+    activePlanGroupId,
+    selectedDate,
+    handleDateChange,
+    handleRefresh,
+    isPending,
+    canCreatePlans,
+    // Modal setters
+    setShowCreateWizard,
+    setShowAIPlanModal,
+    setShowOptimizationPanel,
+    setShowShortcutsHelp,
+    closeAllModals,
+    openUnifiedModal,
+    // Modal states
+    showAddContentModal,
+    setShowAddContentModal,
+    showAddAdHocModal,
+    setShowAddAdHocModal,
+    showRedistributeModal,
+    setShowRedistributeModal,
+    showShortcutsHelp,
+    showAIPlanModal,
+    showCreateWizard,
+    showOptimizationPanel,
+    showQuickPlanModal,
+    setShowQuickPlanModal,
+    showUnifiedAddModal,
+    setShowUnifiedAddModal,
+    unifiedModalMode,
+    showEditModal,
+    setShowEditModal,
+    showReorderModal,
+    setShowReorderModal,
+    showConditionalDeleteModal,
+    setShowConditionalDeleteModal,
+    showTemplateModal,
+    setShowTemplateModal,
+    showMoveToGroupModal,
+    setShowMoveToGroupModal,
+    showCopyModal,
+    setShowCopyModal,
+    showStatusModal,
+    setShowStatusModal,
+    showBulkEditModal,
+    setShowBulkEditModal,
+    // Modal data
+    selectedPlanForRedistribute,
+    setSelectedPlanForRedistribute,
+    selectedPlanForEdit,
+    setSelectedPlanForEdit,
+    reorderContainerType,
+    templatePlanIds,
+    setTemplatePlanIds,
+    selectedPlansForMove,
+    setSelectedPlansForMove,
+    currentGroupIdForMove,
+    setCurrentGroupIdForMove,
+    selectedPlansForCopy,
+    setSelectedPlansForCopy,
+    selectedPlanForStatus,
+    setSelectedPlanForStatus,
+    selectedPlansForBulkEdit,
+    setSelectedPlansForBulkEdit,
+    newGroupIdForAI,
+    setNewGroupIdForAI,
+    toast,
+  } = ctx;
 
   // 위저드 자동 오픈 (URL 파라미터로 트리거)
   const hasAutoOpened = useRef(false);
@@ -455,100 +191,17 @@ export function AdminPlanManagement({
     }
   }, [autoOpenWizard, setShowCreateWizard]);
 
-  // 날짜 변경 핸들러
-  const handleDateChange = useCallback(
-    (date: string) => {
-      setSelectedDate(date);
-      startTransition(() => {
-        const basePath = selectedPlannerId
-          ? `/admin/students/${studentId}/plans/${selectedPlannerId}`
-          : `/admin/students/${studentId}/plans`;
-        router.push(`${basePath}?date=${date}`);
-      });
+  // 날짜 이동 헬퍼
+  const navigateDate = useCallback(
+    (days: number) => {
+      const current = new Date(selectedDate + "T00:00:00");
+      current.setDate(current.getDate() + days);
+      handleDateChange(current.toISOString().split("T")[0]);
     },
-    [router, studentId, selectedPlannerId]
+    [selectedDate, handleDateChange]
   );
 
-  // 재분배 모달 열기
-  const handleOpenRedistribute = (planId: string) => {
-    setSelectedPlanForRedistribute(planId);
-    setShowRedistributeModal(true);
-  };
-
-  // 편집 모달 열기
-  const handleOpenEdit = (planId: string) => {
-    setSelectedPlanForEdit(planId);
-    setShowEditModal(true);
-  };
-
-  // 순서 변경 모달 열기
-  const handleOpenReorder = (
-    containerType: "daily" | "weekly" | "unfinished"
-  ) => {
-    setReorderContainerType(containerType);
-    setShowReorderModal(true);
-  };
-
-  // 템플릿 모달 열기 (선택된 플랜으로)
-  const handleOpenTemplateWithPlans = (planIds: string[]) => {
-    setTemplatePlanIds(planIds);
-    setShowTemplateModal(true);
-  };
-
-  // 그룹 이동 모달 열기
-  const handleOpenMoveToGroup = (
-    planIds: string[],
-    currentGroupId?: string | null
-  ) => {
-    setSelectedPlansForMove(planIds);
-    setCurrentGroupIdForMove(currentGroupId ?? null);
-    setShowMoveToGroupModal(true);
-  };
-
-  // 복사 모달 열기
-  const handleOpenCopy = (planIds: string[]) => {
-    setSelectedPlansForCopy(planIds);
-    setShowCopyModal(true);
-  };
-
-  // 상태 변경 모달 열기
-  const handleOpenStatusChange = (
-    planId: string,
-    currentStatus: string,
-    title: string
-  ) => {
-    setSelectedPlanForStatus({ id: planId, status: currentStatus, title });
-    setShowStatusModal(true);
-  };
-
-  // 일괄 수정 모달 열기
-  const handleOpenBulkEdit = (planIds: string[]) => {
-    setSelectedPlansForBulkEdit(planIds);
-    setShowBulkEditModal(true);
-  };
-
-  // React Query 캐시 무효화 (Dock 컴포넌트용)
-  const invalidateAllDocks = useInvalidateAllDockQueries();
-
-  // 새로고침 (React Query 캐시 + Next.js router)
-  const handleRefresh = useCallback(() => {
-    // React Query 캐시 무효화 (Dock 컴포넌트 즉시 갱신)
-    invalidateAllDocks();
-    // Next.js router refresh (Server Component 데이터 갱신)
-    startTransition(() => {
-      router.refresh();
-    });
-  }, [router, invalidateAllDocks]);
-
-  // 실시간 업데이트 구독
-  useAdminPlanRealtime({
-    studentId,
-    onRefresh: handleRefresh,
-    debounceMs: 1000, // 1초 debounce로 빈번한 새로고침 방지
-  });
-
-  // DnD 이동 핸들러 (이벤트 로깅 포함)
-  // targetDate: 날짜 기반 드롭 시 캘린더에서 드롭한 날짜
+  // DnD 이동 핸들러
   const handleMoveItem = useCallback(
     async (
       itemId: string,
@@ -557,10 +210,7 @@ export function AdminPlanManagement({
       toContainer: ContainerType,
       targetDate?: string
     ) => {
-      // 날짜 기반 드롭인 경우 해당 날짜 사용, 아니면 현재 선택된 날짜 사용
       const effectiveTargetDate = targetDate ?? selectedDate;
-
-      // 확장된 컨테이너 타입을 기본 타입으로 변환 (movePlanToContainer용)
       const fromBaseType = getBaseContainerType(fromContainer);
       const toBaseType = getBaseContainerType(toContainer);
 
@@ -578,7 +228,6 @@ export function AdminPlanManagement({
         console.error("Failed to move plan:", result.error);
       }
 
-      // 날짜 기반 드롭이고 현재 선택 날짜와 다른 경우 해당 날짜로 이동
       if (targetDate && targetDate !== selectedDate) {
         handleDateChange(targetDate);
       } else {
@@ -588,23 +237,9 @@ export function AdminPlanManagement({
     [studentId, tenantId, selectedDate, handleRefresh, handleDateChange]
   );
 
-  // 날짜 이동 헬퍼
-  const navigateDate = useCallback(
-    (days: number) => {
-      const current = new Date(selectedDate + "T00:00:00");
-      current.setDate(current.getDate() + days);
-      handleDateChange(current.toISOString().split("T")[0]);
-    },
-    [selectedDate, handleDateChange]
-  );
-
-  // 플래너 선택 여부 확인 (플랜 생성 기능 활성화 조건)
-  const canCreatePlans = !!selectedPlannerId;
-
   // 키보드 단축키 설정
   const shortcuts: ShortcutConfig[] = useMemo(
     () => [
-      // 탐색
       {
         key: "ArrowLeft",
         action: () => navigateDate(-1),
@@ -623,14 +258,12 @@ export function AdminPlanManagement({
         description: "오늘로 이동",
         category: "navigation",
       },
-      // 작업
       {
         key: "r",
         action: handleRefresh,
         description: "새로고침",
         category: "action",
       },
-      // 모달 (플래너 선택 필요)
       {
         key: "n",
         action: () => canCreatePlans && openUnifiedModal("content"),
@@ -688,6 +321,11 @@ export function AdminPlanManagement({
       activePlanGroupId,
       canCreatePlans,
       openUnifiedModal,
+      setShowShortcutsHelp,
+      closeAllModals,
+      setShowAIPlanModal,
+      setShowCreateWizard,
+      setShowOptimizationPanel,
     ]
   );
 
@@ -702,290 +340,24 @@ export function AdminPlanManagement({
             isPending && "opacity-50 pointer-events-none"
           )}
         >
-          {/* 플래너 미선택 경고 배너 */}
-          {!selectedPlannerId && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600" />
-              <span className="text-sm text-amber-700">
-                플랜을 생성하려면 먼저 상단에서 플래너를 생성하거나
-                선택해주세요.
-              </span>
-            </div>
-          )}
-
-          {/* 단축키 힌트 배너 */}
-          {showShortcutsHint && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Keyboard className="h-4 w-4 flex-shrink-0 text-blue-600" />
-                <span className="text-sm text-blue-700">
-                  <strong>Tip:</strong> 키보드 단축키로 더 빠르게 작업하세요!{" "}
-                  <kbd className="px-1.5 py-0.5 text-xs bg-blue-100 border border-blue-300 rounded">?</kbd> 키를 눌러 확인
-                </span>
-              </div>
-              <button
-                onClick={dismissShortcutsHint}
-                className="p-1 hover:bg-blue-100 rounded transition-colors"
-                aria-label="단축키 힌트 닫기"
-              >
-                <X className="h-4 w-4 text-blue-600" />
-              </button>
-            </div>
-          )}
-
           {/* 헤더 영역 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold">{studentName} 플랜 관리</h1>
-              {/* 콘텐츠 유형 필터 */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors",
-                    contentTypeFilter !== "all"
-                      ? "bg-blue-50 border-blue-300 text-blue-700"
-                      : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                  )}
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>
-                    {
-                      CONTENT_TYPE_FILTERS.find(
-                        (f) => f.value === contentTypeFilter
-                      )?.label
-                    }
-                  </span>
-                </button>
-                {showFilterDropdown && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowFilterDropdown(false)}
-                    />
-                    <div className="absolute left-0 top-full mt-1 w-36 bg-white border rounded-lg shadow-lg z-50 py-1">
-                      {CONTENT_TYPE_FILTERS.map((filter) => (
-                        <button
-                          key={filter.value}
-                          onClick={() => {
-                            setContentTypeFilter(filter.value);
-                            setShowFilterDropdown(false);
-                          }}
-                          className={cn(
-                            "w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-50",
-                            contentTypeFilter === filter.value &&
-                              "bg-blue-50 text-blue-700"
-                          )}
-                        >
-                          {filter.icon}
-                          <span>{filter.label}</span>
-                          {contentTypeFilter === filter.value && (
-                            <span className="ml-auto text-blue-500">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => openUnifiedModal("quick")}
-                disabled={!canCreatePlans}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-                  canCreatePlans
-                    ? "bg-primary-600 text-white hover:bg-primary-700"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )}
-                title={
-                  canCreatePlans
-                    ? "플랜 추가 (Q/A)"
-                    : "먼저 플래너를 선택해주세요"
-                }
-              >
-                <Plus className="h-4 w-4" />
-                플랜 추가
-              </button>
-              <button
-                onClick={() => setShowCreateWizard(true)}
-                disabled={!selectedPlannerId}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
-                  selectedPlannerId
-                    ? "bg-primary-600 text-white hover:bg-primary-700"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )}
-                title={
-                  selectedPlannerId
-                    ? "플랜 그룹 생성 (g)"
-                    : "먼저 플래너를 선택해주세요"
-                }
-              >
-                <Plus className="h-4 w-4" />
-                플랜 그룹
-              </button>
-              {activePlanGroupId && (
-                <button
-                  onClick={() => setShowAIPlanModal(true)}
-                  className="flex items-center gap-2 rounded-lg bg-info-50 px-3 py-2 text-sm font-medium text-info-700 hover:bg-info-100"
-                  title="AI 플랜 생성 (i)"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  AI 생성
-                </button>
-              )}
-              <button
-                onClick={() => setShowOptimizationPanel(true)}
-                className="flex items-center gap-2 rounded-lg bg-success-50 px-3 py-2 text-sm font-medium text-success-700 hover:bg-success-100"
-                title="AI 플랜 최적화 (o)"
-              >
-                <LineChart className="h-4 w-4" />
-                AI 분석
-              </button>
-              {/* 더보기 드롭다운 */}
-              <div className="relative group">
-                <button
-                  className="flex items-center gap-1 p-2 text-secondary-500 hover:bg-secondary-100 rounded-lg"
-                  title="더보기"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  <button
-                    onClick={() => setShowTemplateModal(true)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    플랜 템플릿
-                  </button>
-                  <button
-                    onClick={() => setShowConditionalDeleteModal(true)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    조건부 삭제
-                  </button>
-                  <hr className="my-1" />
-                  <button
-                    onClick={() => setShowShortcutsHelp(true)}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
-                  >
-                    ⌨️ 단축키 도움말
-                  </button>
-                </div>
-              </div>
-              <CarryoverButton
-                studentId={studentId}
-                tenantId={tenantId}
-                onSuccess={handleRefresh}
-              />
-            </div>
-          </div>
+          <AdminPlanHeader studentName={studentName} shortcuts={shortcuts} />
 
-          {/* 현황 카드 */}
-          <PlanStatsCards studentId={studentId} />
-
-          {/* 유형별 통계 */}
-          <PlanTypeStats
-            studentId={studentId}
-            selectedDate={selectedDate}
-            plannerId={selectedPlannerId}
-          />
-
-          {/* 미완료 Dock */}
-          <UnfinishedDock
-            studentId={studentId}
-            tenantId={tenantId}
-            plannerId={selectedPlannerId}
-            contentTypeFilter={contentTypeFilter}
-            onRedistribute={handleOpenRedistribute}
-            onEdit={handleOpenEdit}
-            onReorder={() => handleOpenReorder("unfinished")}
-            onMoveToGroup={handleOpenMoveToGroup}
-            onCopy={handleOpenCopy}
-            onStatusChange={handleOpenStatusChange}
-            onRefresh={handleRefresh}
-          />
-
-          {/* 캘린더 뷰 */}
-          <WeeklyCalendar
-            studentId={studentId}
-            selectedDate={selectedDate}
-            onDateSelect={handleDateChange}
-            plannerId={selectedPlannerId}
-            dailySchedules={plannerDailySchedules}
-            exclusions={plannerExclusions}
-          />
-
-          {/* 플랜 그룹 요약 카드 - activePlanGroupId가 있을 때만 표시 */}
-          {activePlanGroupId && (
-            <PlanGroupSummaryCard
-              planGroupId={activePlanGroupId}
-              tenantId={tenantId}
-            />
-          )}
-
-          {/* Daily & Weekly Docks */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Daily Dock */}
-            <DailyDock
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              selectedDate={selectedDate}
-              activePlanGroupId={activePlanGroupId}
-              contentTypeFilter={contentTypeFilter}
-              onRedistribute={handleOpenRedistribute}
-              onEdit={handleOpenEdit}
-              onReorder={() => handleOpenReorder("daily")}
-              onMoveToGroup={handleOpenMoveToGroup}
-              onCopy={handleOpenCopy}
-              onStatusChange={handleOpenStatusChange}
-              onRefresh={handleRefresh}
-            />
-
-            {/* Weekly Dock */}
-            <WeeklyDock
-              studentId={studentId}
-              tenantId={tenantId}
-              plannerId={selectedPlannerId}
-              selectedDate={selectedDate}
-              contentTypeFilter={contentTypeFilter}
-              onRedistribute={handleOpenRedistribute}
-              onEdit={handleOpenEdit}
-              onReorder={() => handleOpenReorder("weekly")}
-              onMoveToGroup={handleOpenMoveToGroup}
-              onCopy={handleOpenCopy}
-              onStatusChange={handleOpenStatusChange}
-              onRefresh={handleRefresh}
-            />
-          </div>
-
-          {/* 삭제된 플랜 (복구 기능) */}
-          <DeletedPlansView
-            studentId={studentId}
-            onRefresh={handleRefresh}
-            plannerId={selectedPlannerId}
-          />
-
-          {/* 요약 대시보드 & 활동 히스토리 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SummaryDashboard studentId={studentId} />
-            <PlanHistoryViewer
-              studentId={studentId}
-              plannerId={selectedPlannerId}
-            />
-          </div>
-
-          {/* 플랜 품질 대시보드 (Phase 4) */}
-          {activePlanGroupId && (
-            <PlanQualityDashboard
-              planGroupId={activePlanGroupId}
-              planGroupName="현재 플랜 그룹"
-            />
-          )}
+          {/* 탭 네비게이션 */}
+          <AdminPlanTabs>
+            <TabContent tab="planner">
+              <PlannerTab tab="planner" />
+            </TabContent>
+            <TabContent tab="calendar">
+              <CalendarTab tab="calendar" />
+            </TabContent>
+            <TabContent tab="analytics">
+              <AnalyticsTab tab="analytics" />
+            </TabContent>
+            <TabContent tab="history">
+              <HistoryTab tab="history" />
+            </TabContent>
+          </AdminPlanTabs>
 
           {/* 모달들 */}
           {showAddContentModal && selectedPlannerId && (
@@ -1054,7 +426,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 플랜 그룹 생성 위자드 (7단계) */}
           {showCreateWizard && selectedPlannerId && (
             <AdminPlanCreationWizard7Step
               studentId={studentId}
@@ -1065,13 +436,10 @@ export function AdminPlanManagement({
               onSuccess={async (groupId, generateAI) => {
                 setShowCreateWizard(false);
                 if (generateAI) {
-                  // AI 생성: AI 모달에서 플랜 생성
                   setNewGroupIdForAI(groupId);
                   setShowAIPlanModal(true);
                 } else {
-                  // AI 없이 생성: 플랜 그룹 상태를 saved로 변경 후 플랜 생성
                   try {
-                    // 1. 플랜 그룹 상태를 "saved"로 변경
                     try {
                       await updatePlanGroupStatus(groupId, "saved");
                     } catch (statusError) {
@@ -1084,10 +452,7 @@ export function AdminPlanManagement({
                       return;
                     }
 
-                    // 2. 플랜 생성
                     const result = await generatePlansFromGroupAction(groupId);
-
-                    // 3. 플랜 생성 확인
                     const checkResult = await checkPlansExistAction(groupId);
                     if (!checkResult.hasPlans) {
                       toast.showError(
@@ -1097,7 +462,6 @@ export function AdminPlanManagement({
                       return;
                     }
 
-                    // 4. 성공 메시지 표시
                     toast.showSuccess(
                       `플랜이 생성되었습니다. (총 ${result.count}개)`
                     );
@@ -1116,7 +480,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 새로 생성된 그룹에 대한 AI 플랜 모달 */}
           {showAIPlanModal && newGroupIdForAI && !activePlanGroupId && (
             <AdminAIPlanModal
               studentId={studentId}
@@ -1134,7 +497,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 빠른 플랜 추가 모달 (레거시) */}
           {showQuickPlanModal && selectedPlannerId && (
             <AdminQuickPlanModal
               studentId={studentId}
@@ -1150,7 +512,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 통합 플랜 추가 모달 (빠른 추가 + 콘텐츠 추가) */}
           {showUnifiedAddModal && selectedPlannerId && (
             <UnifiedPlanAddModal
               isOpen={showUnifiedAddModal}
@@ -1168,7 +529,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 플랜 수정 모달 */}
           {showEditModal && selectedPlanForEdit && (
             <EditPlanModal
               planId={selectedPlanForEdit}
@@ -1186,7 +546,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 순서 변경 모달 */}
           {showReorderModal && (
             <ReorderPlansModal
               studentId={studentId}
@@ -1200,7 +559,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 조건부 삭제 모달 */}
           {showConditionalDeleteModal && (
             <ConditionalDeleteModal
               studentId={studentId}
@@ -1213,7 +571,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 플랜 템플릿 모달 */}
           {showTemplateModal && (
             <PlanTemplateModal
               studentId={studentId}
@@ -1267,7 +624,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 플랜 상태 변경 모달 */}
           {showStatusModal && selectedPlanForStatus && (
             <PlanStatusModal
               planId={selectedPlanForStatus.id}
@@ -1293,7 +649,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* 일괄 수정 모달 */}
           {showBulkEditModal && selectedPlansForBulkEdit.length > 0 && (
             <BulkEditModal
               planIds={selectedPlansForBulkEdit}
@@ -1310,7 +665,6 @@ export function AdminPlanManagement({
             />
           )}
 
-          {/* AI 플랜 최적화 패널 */}
           <PlanOptimizationPanel
             studentId={studentId}
             studentName={studentName}
