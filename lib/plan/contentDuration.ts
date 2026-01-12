@@ -58,21 +58,28 @@ const durationCache = new Map<
 const CACHE_TTL = 5 * 60 * 1000; // 5분
 
 /**
+ * 학생 수준 타입
+ */
+export type StudentLevel = "high" | "medium" | "low";
+
+/**
  * 캐시 키 생성
- * 
+ *
  * @param contentId - 콘텐츠 ID
  * @param startRange - 시작 범위
  * @param endRange - 종료 범위
  * @param dayType - 일 유형 (선택사항)
+ * @param studentLevel - 학생 수준 (선택사항)
  * @returns 캐시 키 문자열
  */
 function getCacheKey(
   contentId: string,
   startRange: number,
   endRange: number,
-  dayType?: string
+  dayType?: string,
+  studentLevel?: StudentLevel
 ): string {
-  return `${contentId}:${startRange}~${endRange}:${dayType || "default"}`;
+  return `${contentId}:${startRange}~${endRange}:${dayType || "default"}:${studentLevel || "default"}`;
 }
 
 /**
@@ -129,19 +136,25 @@ export function invalidateDurationCache(contentId?: string): void {
 
 /**
  * 콘텐츠 소요시간 계산
- * 
+ *
  * @param content - 콘텐츠 정보 (content_type, content_id, start_range, end_range)
  * @param durationInfo - 콘텐츠 소요시간 정보 (episode 정보 포함)
  * @param dayType - 일 유형 ('학습일' | '복습일' 등, 선택사항)
  * @param reviewTimeRatio - 복습일 소요시간 비율 (기본값: 0.5 = 50%, 설정값이 있으면 사용)
+ * @param studentLevel - 학생 수준 ('high' | 'medium' | 'low', 선택사항)
+ *                       - high: 80% 시간 (상위권 - 빠른 학습)
+ *                       - medium: 100% 시간 (중위권 - 기본)
+ *                       - low: 120% 시간 (하위권 - 충분한 시간)
  * @returns 예상 소요시간 (분 단위)
- * 
+ *
  * @example
  * ```typescript
  * const duration = calculateContentDuration(
  *   { content_type: "lecture", content_id: "123", start_range: 1, end_range: 5 },
  *   { content_type: "lecture", content_id: "123", episodes: [{ episode_number: 1, duration: 30 }, ...] },
- *   "학습일"
+ *   "학습일",
+ *   undefined,
+ *   "low" // 하위권 학생 - 120% 시간 적용
  * );
  * ```
  */
@@ -151,7 +164,7 @@ export function invalidateDurationCache(contentId?: string): void {
  */
 function createEpisodeMap(episodes: EpisodeInfo[]): Map<number, number> {
   const episodeMap = new Map<number, number>();
-  
+
   // 유효한 duration만 Map에 추가 (null 체크 및 양수 검증)
   for (const ep of episodes) {
     if (
@@ -163,7 +176,7 @@ function createEpisodeMap(episodes: EpisodeInfo[]): Map<number, number> {
       episodeMap.set(ep.episode_number, ep.duration);
     }
   }
-  
+
   return episodeMap;
 }
 
@@ -176,14 +189,16 @@ export function calculateContentDuration(
   },
   durationInfo: ContentDurationInfo,
   dayType?: "학습일" | "복습일" | string,
-  reviewTimeRatio?: number
+  reviewTimeRatio?: number,
+  studentLevel?: StudentLevel
 ): number {
-  // 캐시 키 생성
+  // 캐시 키 생성 (studentLevel 포함)
   const cacheKey = getCacheKey(
     content.content_id,
     content.start_range,
     content.end_range,
-    dayType
+    dayType,
+    studentLevel
   );
 
   // 캐시된 결과 조회 또는 계산
@@ -192,18 +207,20 @@ export function calculateContentDuration(
       content,
       durationInfo,
       dayType,
-      reviewTimeRatio
+      reviewTimeRatio,
+      studentLevel
     );
   });
 }
 
 /**
  * 내부 계산 함수 (캐싱 로직 제외)
- * 
+ *
  * @param content - 콘텐츠 정보
  * @param durationInfo - 콘텐츠 소요시간 정보
  * @param dayType - 일 유형
  * @param reviewTimeRatio - 복습일 소요시간 비율
+ * @param studentLevel - 학생 수준 (선택사항)
  * @returns 예상 소요시간 (분 단위)
  */
 function calculateContentDurationInternal(
@@ -215,7 +232,8 @@ function calculateContentDurationInternal(
   },
   durationInfo: ContentDurationInfo,
   dayType?: "학습일" | "복습일" | string,
-  reviewTimeRatio?: number
+  reviewTimeRatio?: number,
+  studentLevel?: StudentLevel
 ): number {
   // Range is inclusive, so amount (count) is end - start + 1
   const amount = content.end_range - content.start_range + 1;
@@ -326,7 +344,26 @@ function calculateContentDurationInternal(
   // 복습일이면 소요시간 단축 (설정값 또는 기본값 50% 사용)
   if (dayType === "복습일") {
     const ratio = reviewTimeRatio ?? SCHEDULER_CONFIG.REVIEW.TIME_RATIO;
-    return Math.round(baseTime * ratio);
+    baseTime = Math.round(baseTime * ratio);
+  }
+
+  // 학생 수준별 보정 적용 (선택사항)
+  // high: 80%, medium: 100%, low: 120%
+  if (studentLevel && studentLevel in SCHEDULER_CONFIG.STUDENT_LEVEL) {
+    const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel];
+    baseTime = Math.round(baseTime * levelFactor);
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        `[calculateContentDuration] 학생 수준 보정 적용:`,
+        {
+          content_id: content.content_id,
+          student_level: studentLevel,
+          factor: levelFactor,
+          adjusted_duration: baseTime,
+        }
+      );
+    }
   }
 
   return baseTime;

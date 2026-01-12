@@ -903,6 +903,25 @@ export class SchedulerEngine {
   } {
     const plans: ScheduledPlan[] = [];
 
+    // 1730 Timetable: 학생 수준 및 날짜별 주기 정보 추출
+    const studentLevel = this.context.options?.student_level as
+      | "high"
+      | "medium"
+      | "low"
+      | undefined;
+
+    // cycleDays에서 날짜별 주기 정보 조회를 위한 Map 생성
+    const cycleDayMap = new Map<
+      string,
+      { cycle_day_number: number; day_type: "study" | "review" | "exclusion" }
+    >();
+    this.cycleDays?.forEach((cd) => {
+      cycleDayMap.set(cd.date, {
+        cycle_day_number: cd.cycle_day_number,
+        day_type: cd.day_type,
+      });
+    });
+
     // 취약과목 우선 배정 (정렬)
     const sortedContents = [...contents].sort((a, b) => {
       const aSubject = a.subject?.toLowerCase().trim() || "";
@@ -1082,11 +1101,18 @@ export class SchedulerEngine {
             // 단일 episode인 경우 직접 Map에서 조회 (calculateContentDuration 호출 생략)
             if (amount === 1) {
               const episodeDuration = episodeMap.get(start);
-              requiredMinutes = episodeDuration !== undefined && episodeDuration > 0
+              let baseDuration = episodeDuration !== undefined && episodeDuration > 0
                 ? episodeDuration
                 : 30; // 기본값: 30분
+              // 학생 수준 보정 적용
+              if (studentLevel) {
+                const { SCHEDULER_CONFIG } = require("@/lib/config/schedulerConfig");
+                const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
+                baseDuration = Math.round(baseDuration * levelFactor);
+              }
+              requiredMinutes = baseDuration;
             } else {
-              // 범위인 경우 calculateContentDuration 사용
+              // 범위인 경우 calculateContentDuration 사용 (studentLevel 전달)
               requiredMinutes = calculateContentDuration(
                 {
                   content_type: content.content_type,
@@ -1094,11 +1120,14 @@ export class SchedulerEngine {
                   start_range: start,
                   end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
                 },
-                durationInfo
+                durationInfo,
+                undefined, // dayType
+                undefined, // reviewTimeRatio
+                studentLevel // studentLevel 전달
               );
             }
           } else {
-            // 강의가 아니거나 episode 정보가 없는 경우 기존 로직 사용
+            // 강의가 아니거나 episode 정보가 없는 경우 기존 로직 사용 (studentLevel 전달)
             requiredMinutes = calculateContentDuration(
               {
                 content_type: content.content_type,
@@ -1106,16 +1135,26 @@ export class SchedulerEngine {
                 start_range: start,
                 end_range: endAmount - 1, // Convert Exclusive to Inclusive for calculation
               },
-              durationInfo
+              durationInfo,
+              undefined, // dayType
+              undefined, // reviewTimeRatio
+              studentLevel // studentLevel 전달
             );
           }
         } else {
           // duration 정보가 없으면 기본값 계산
-          requiredMinutes = amount > 0
+          let baseDuration = amount > 0
             ? content.content_type === "lecture"
               ? amount * 30 // 강의: 회차당 30분
               : amount * 2 // 책/커스텀: 페이지당 2분
             : 60; // 기본값: 1시간
+          // 학생 수준 보정 적용
+          if (studentLevel) {
+            const { SCHEDULER_CONFIG } = require("@/lib/config/schedulerConfig");
+            const levelFactor = SCHEDULER_CONFIG.STUDENT_LEVEL[studentLevel] ?? 1.0;
+            baseDuration = Math.round(baseDuration * levelFactor);
+          }
+          requiredMinutes = baseDuration;
         }
 
         return {
@@ -1199,6 +1238,9 @@ export class SchedulerEngine {
               const planStartTime = minutesToTime(slotStart + usedTime);
               const planEndTime = minutesToTime(slotStart + usedTime + slotUsed);
 
+              // 1730 Timetable: 날짜별 주기 정보 조회
+              const cycleInfo = cycleDayMap.get(date);
+
               plans.push({
                 plan_date: date,
                 block_index: blockIndex,
@@ -1210,6 +1252,9 @@ export class SchedulerEngine {
                 is_reschedulable: true,
                 start_time: planStartTime,
                 end_time: planEndTime,
+                // 1730 Timetable 추가 필드
+                cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+                date_type: cycleInfo?.day_type ?? null,
               });
 
               planInfo.remainingMinutes -= slotUsed;
@@ -1287,6 +1332,9 @@ export class SchedulerEngine {
               startMinutes + currentSlotPosition + actualDuration
             );
 
+            // 1730 Timetable: 날짜별 주기 정보 조회
+            const cycleInfo = cycleDayMap.get(date);
+
             plans.push({
               plan_date: date,
               block_index: blockIndex,
@@ -1298,6 +1346,9 @@ export class SchedulerEngine {
               is_reschedulable: true,
               start_time: planStartTime,
               end_time: planEndTime,
+              // 1730 Timetable 추가 필드
+              cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+              date_type: cycleInfo?.day_type ?? null,
             });
 
             remainingMinutes -= actualDuration;
@@ -1346,6 +1397,18 @@ export class SchedulerEngine {
     >
   ): ScheduledPlan[] {
     const plans: ScheduledPlan[] = [];
+
+    // 1730 Timetable: 날짜별 주기 정보 조회를 위한 Map 생성
+    const cycleDayMap = new Map<
+      string,
+      { cycle_day_number: number; day_type: "study" | "review" | "exclusion" }
+    >();
+    this.cycleDays?.forEach((cd) => {
+      cycleDayMap.set(cd.date, {
+        cycle_day_number: cd.cycle_day_number,
+        day_type: cd.day_type,
+      });
+    });
 
     // 학습일에 실제로 플랜이 생성되었는지 확인
     const hasStudyPlans = studyPlansByDate && studyPlansByDate.size > 0;
@@ -1428,6 +1491,9 @@ export class SchedulerEngine {
       let rangeIndex = 0;
       let blockIndex = 1;
 
+      // 1730 Timetable: 날짜별 주기 정보 조회
+      const cycleInfo = cycleDayMap.get(reviewDay);
+
       reviewContents.forEach((content) => {
         const range = weekContentRanges.get(content.content_id);
         if (!range) return;
@@ -1452,6 +1518,9 @@ export class SchedulerEngine {
           is_reschedulable: true,
           start_time: timeRange.start,
           end_time: timeRange.end,
+          // 1730 Timetable 추가 필드
+          cycle_day_number: cycleInfo?.cycle_day_number ?? null,
+          date_type: cycleInfo?.day_type ?? null,
         });
 
         blockIndex++;

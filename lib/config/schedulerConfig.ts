@@ -31,6 +31,14 @@ export const SCHEDULER_CONFIG = {
   LIMITS: {
     MAX_CONTENTS: 9,              // 플랜에 담을 수 있는 최대 콘텐츠 수
     CUSTOM_CONTENT_PAGE_THRESHOLD: 100, // 커스텀 콘텐츠가 이 숫자 이상이면 페이지로 간주
-  }
+  },
+
+  // 학생 수준별 소요시간 보정 계수
+  // 상위권은 빠르게, 하위권은 충분한 시간 제공
+  STUDENT_LEVEL: {
+    high: 0.8,    // 상위권: 80% 시간 (빠른 학습)
+    medium: 1.0,  // 중위권: 100% 시간 (기본)
+    low: 1.2,     // 하위권: 120% 시간 (충분한 시간)
+  } as Record<string, number>,
 } as const;
 

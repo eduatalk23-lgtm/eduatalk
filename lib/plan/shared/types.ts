@@ -132,6 +132,8 @@ export interface GeneratePlanPayload {
   content_subject_category: string | null;
   content_category: string | null;
   sequence: number | null;
+  // 1730 Timetable 추가 필드
+  cycle_day_number?: number | null;
   // 가상 플랜 필드
   is_virtual?: boolean;
   slot_index?: number;

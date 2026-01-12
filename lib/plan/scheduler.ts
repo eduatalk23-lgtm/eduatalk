@@ -53,6 +53,9 @@ export type ScheduledPlan = {
   start_time?: string; // HH:mm 형식
   end_time?: string; // HH:mm 형식
   subject_type?: "strategy" | "weakness" | null; // 전략/취약 정보
+  // 1730 Timetable 추가 필드
+  cycle_day_number?: number | null; // 주기 내 일자 번호 (1~7)
+  date_type?: "study" | "review" | "exclusion" | null; // 날짜 유형
 };
 
 /**
