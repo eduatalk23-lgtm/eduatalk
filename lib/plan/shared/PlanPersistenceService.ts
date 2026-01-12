@@ -276,6 +276,7 @@ export class PlanPersistenceServiceWithContext {
       sequence: payload.sequence,
       // 1730 Timetable 추가 필드
       cycle_day_number: payload.cycle_day_number ?? null,
+      date_type: payload.date_type ?? null,
       // 가상 플랜 필드
       ...(payload.is_virtual && {
         is_virtual: true,
