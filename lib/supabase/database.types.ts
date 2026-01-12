@@ -1240,6 +1240,63 @@ export type Database = {
           },
         ]
       }
+      content_dependencies: {
+        Row: {
+          id: string
+          tenant_id: string
+          prerequisite_content_id: string
+          prerequisite_content_type: string
+          dependent_content_id: string
+          dependent_content_type: string
+          scope: string
+          plan_group_id: string | null
+          note: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          prerequisite_content_id: string
+          prerequisite_content_type: string
+          dependent_content_id: string
+          dependent_content_type: string
+          scope?: string
+          plan_group_id?: string | null
+          note?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          prerequisite_content_id?: string
+          prerequisite_content_type?: string
+          dependent_content_id?: string
+          dependent_content_type?: string
+          scope?: string
+          plan_group_id?: string | null
+          note?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_dependencies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_dependencies_plan_group_id_fkey"
+            columns: ["plan_group_id"]
+            isOneToOne: false
+            referencedRelation: "plan_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_concepts: {
         Row: {
           created_at: string | null
@@ -3753,6 +3810,57 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_groups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_group_backups: {
+        Row: {
+          id: string
+          plan_group_id: string
+          student_id: string
+          tenant_id: string
+          backup_data: Json
+          deleted_by: string | null
+          created_at: string | null
+          restored_at: string | null
+          restored_by: string | null
+        }
+        Insert: {
+          id?: string
+          plan_group_id: string
+          student_id: string
+          tenant_id: string
+          backup_data: Json
+          deleted_by?: string | null
+          created_at?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+        }
+        Update: {
+          id?: string
+          plan_group_id?: string
+          student_id?: string
+          tenant_id?: string
+          backup_data?: Json
+          deleted_by?: string | null
+          created_at?: string | null
+          restored_at?: string | null
+          restored_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_plan_group_backups_student"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_plan_group_backups_tenant"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
