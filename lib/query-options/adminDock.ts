@@ -52,6 +52,7 @@ export interface UnfinishedPlan {
   carryover_count: number;
   custom_title: string | null;
   status: string | null;
+  plan_group_id: string | null;
 }
 
 export interface AdHocPlan {
@@ -334,6 +335,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             carryover_count,
             custom_title,
             status,
+            plan_group_id,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -360,7 +362,8 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           carryover_from_date,
           carryover_count,
           custom_title,
-          status
+          status,
+          plan_group_id
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')
