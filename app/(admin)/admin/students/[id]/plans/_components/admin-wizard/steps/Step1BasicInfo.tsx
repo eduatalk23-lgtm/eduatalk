@@ -13,7 +13,7 @@
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step1BasicInfo
  */
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { Calendar, FileText, Target, Clock, ChevronDown, Plus, FolderOpen, Lock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -30,6 +30,7 @@ import {
   getPlannerAction,
   type Planner,
 } from "@/lib/domains/admin-plan/actions";
+import { useAdminPlan } from "../../context/AdminPlanContext";
 
 /**
  * Step1BasicInfo Props
@@ -53,6 +54,7 @@ const PURPOSE_OPTIONS: { value: PlanPurpose; label: string }[] = [
 export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const { wizardData, updateData } = useAdminWizardData();
   const { fieldErrors, setFieldError, clearFieldError } = useAdminWizardValidation();
+  const { setShowBlockSetCreateModal, showBlockSetCreateModal } = useAdminPlan();
 
   // 플래너 관련 상태
   const [planners, setPlanners] = useState<Planner[]>([]);
@@ -63,6 +65,9 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   const [blockSets, setBlockSets] = useState<BlockSetWithBlocks[]>([]);
   const [isLoadingBlockSets, setIsLoadingBlockSets] = useState(false);
   const [showBlockSetDropdown, setShowBlockSetDropdown] = useState(false);
+
+  // 블록셋 새로고침 (모달에서 생성 후)
+  const [blockSetRefreshKey, setBlockSetRefreshKey] = useState(0);
 
   const { periodStart, periodEnd, name, planPurpose, blockSetId, plannerId } = wizardData;
 
@@ -90,6 +95,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
   }, [studentId]);
 
   // 블록셋 로드 (Server Action 사용)
+  // blockSetRefreshKey가 변경되면 블록셋을 다시 로드함 (모달에서 생성 후 새로고침용)
   useEffect(() => {
     async function loadBlockSets() {
       if (!studentId) return;
@@ -105,7 +111,17 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
       }
     }
     loadBlockSets();
-  }, [studentId]);
+  }, [studentId, blockSetRefreshKey]);
+
+  // 블록셋 생성 모달이 닫히면 블록셋 목록 새로고침
+  const prevShowBlockSetCreateModal = useRef(showBlockSetCreateModal);
+  useEffect(() => {
+    // 모달이 true → false로 변경되면 (닫힘) 블록셋 새로고침
+    if (prevShowBlockSetCreateModal.current && !showBlockSetCreateModal) {
+      setBlockSetRefreshKey((prev) => prev + 1);
+    }
+    prevShowBlockSetCreateModal.current = showBlockSetCreateModal;
+  }, [showBlockSetCreateModal]);
 
   // 기본값 설정: 오늘부터 30일
   useEffect(() => {
@@ -625,7 +641,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
                     className="mt-2 inline-flex items-center gap-1 text-blue-600 hover:underline"
                     onClick={() => {
                       setShowBlockSetDropdown(false);
-                      // TODO: 블록셋 생성 모달 열기
+                      setShowBlockSetCreateModal(true);
                     }}
                   >
                     <Plus className="h-3 w-3" />

@@ -37,6 +37,7 @@ import {
   PlanGroupManageModal,
   ContentDependencyModal,
   BatchOperationsModal,
+  AdminBlockSetCreateModal,
 } from "./dynamicModals";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -169,6 +170,8 @@ function AdminPlanManagementContent({
     setShowContentDependencyModal,
     showBatchOperationsModal,
     setShowBatchOperationsModal,
+    showBlockSetCreateModal,
+    setShowBlockSetCreateModal,
     // Modal data
     selectedPlanForRedistribute,
     setSelectedPlanForRedistribute,
@@ -732,6 +735,17 @@ function AdminPlanManagementContent({
                 }}
               />
             )}
+
+          {showBlockSetCreateModal && (
+            <AdminBlockSetCreateModal
+              studentId={studentId}
+              onClose={() => setShowBlockSetCreateModal(false)}
+              onSuccess={() => {
+                setShowBlockSetCreateModal(false);
+                handleRefresh();
+              }}
+            />
+          )}
 
           <PlanOptimizationPanel
             studentId={studentId}

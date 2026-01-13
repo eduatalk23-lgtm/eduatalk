@@ -37,6 +37,7 @@ export interface ModalSettersReturn {
   showPlanGroupManageModal: boolean;
   showContentDependencyModal: boolean;
   showBatchOperationsModal: boolean;
+  showBlockSetCreateModal: boolean;
   // Setters
   setShowAddContentModal: ModalSetter;
   setShowAddAdHocModal: ModalSetter;
@@ -58,6 +59,7 @@ export interface ModalSettersReturn {
   setShowPlanGroupManageModal: ModalSetter;
   setShowContentDependencyModal: ModalSetter;
   setShowBatchOperationsModal: ModalSetter;
+  setShowBlockSetCreateModal: ModalSetter;
 }
 
 /**
@@ -84,6 +86,7 @@ const MODAL_MAPPINGS: Array<{ type: ModalType; showKey: keyof ModalSettersReturn
   { type: 'planGroupManage', showKey: 'showPlanGroupManageModal', setKey: 'setShowPlanGroupManageModal' },
   { type: 'contentDependency', showKey: 'showContentDependencyModal', setKey: 'setShowContentDependencyModal' },
   { type: 'batchOperations', showKey: 'showBatchOperationsModal', setKey: 'setShowBatchOperationsModal' },
+  { type: 'blockSetCreate', showKey: 'showBlockSetCreateModal', setKey: 'setShowBlockSetCreateModal' },
 ];
 
 /**

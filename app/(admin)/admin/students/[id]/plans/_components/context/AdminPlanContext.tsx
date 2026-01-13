@@ -116,6 +116,8 @@ export interface AdminPlanContextValue {
   setShowContentDependencyModal: (show: boolean) => void;
   showBatchOperationsModal: boolean;
   setShowBatchOperationsModal: (show: boolean) => void;
+  showBlockSetCreateModal: boolean;
+  setShowBlockSetCreateModal: (show: boolean) => void;
 
   // 통합 모달 모드
   unifiedModalMode: "quick" | "content";

@@ -29,7 +29,8 @@ export type ModalType =
   | 'unifiedAdd'
   | 'planGroupManage'
   | 'contentDependency'
-  | 'batchOperations';
+  | 'batchOperations'
+  | 'blockSetCreate';
 
 /**
  * 모달 상태
@@ -55,6 +56,7 @@ export interface ModalState {
   planGroupManage: boolean;
   contentDependency: boolean;
   batchOperations: boolean;
+  blockSetCreate: boolean;
 }
 
 /**
@@ -89,6 +91,7 @@ export const initialModalState: ModalState = {
   planGroupManage: false,
   contentDependency: false,
   batchOperations: false,
+  blockSetCreate: false,
 };
 
 /**
@@ -131,4 +134,5 @@ export const modalKeyMap: Record<string, ModalType> = {
   showPlanGroupManageModal: 'planGroupManage',
   showContentDependencyModal: 'contentDependency',
   showBatchOperationsModal: 'batchOperations',
+  showBlockSetCreateModal: 'blockSetCreate',
 };

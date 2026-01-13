@@ -127,3 +127,8 @@ export const BatchOperationsModal = dynamic(
   () => import('./modals/BatchOperationsModal').then((mod) => ({ default: mod.BatchOperationsModal })),
   { ssr: false }
 );
+
+export const AdminBlockSetCreateModal = dynamic(
+  () => import('./modals/AdminBlockSetCreateModal').then((mod) => ({ default: mod.AdminBlockSetCreateModal })),
+  { ssr: false }
+);
