@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import { DropdownMenu } from "@/components/ui/DropdownMenu";
-import { Info } from "lucide-react";
+import { Info, Trash2, Loader2 } from "lucide-react";
 import type { PlanGroupSummary } from "./context/AdminPlanContext";
 import { PlanGroupDetailModal } from "./dynamicModals";
+import { deletePlanGroupAdmin } from "@/lib/domains/admin-plan/actions/planGroupOperations";
+import { useToast } from "@/components/ui/ToastProvider";
+import { ModalWrapper, ModalButton } from "./modals/ModalWrapper";
 
 interface PlanGroupSelectorProps {
   groups: PlanGroupSummary[];
@@ -69,6 +72,31 @@ export function PlanGroupSelector({
 }: PlanGroupSelectorProps) {
   // 상세 모달 상태
   const [detailGroupId, setDetailGroupId] = useState<string | null>(null);
+  // 삭제 확인 모달 상태
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const { showSuccess, showError } = useToast();
+
+  // 삭제할 그룹 정보
+  const deleteGroup = useMemo(
+    () => groups.find((g) => g.id === deleteGroupId),
+    [groups, deleteGroupId]
+  );
+
+  // 삭제 핸들러
+  const handleDelete = () => {
+    if (!deleteGroupId) return;
+    startTransition(async () => {
+      const result = await deletePlanGroupAdmin(deleteGroupId, studentId);
+      if (result.success) {
+        showSuccess("플랜 그룹이 삭제되었습니다. 휴지통에서 복원할 수 있습니다.");
+        onRefresh?.();
+      } else {
+        showError(result.error || "삭제에 실패했습니다.");
+      }
+      setDeleteGroupId(null);
+    });
+  };
 
   // 선택된 그룹 찾기
   const selectedGroup = useMemo(
@@ -197,16 +225,44 @@ export function PlanGroupSelector({
                 <span className="font-medium truncate flex-1">
                   {group.name || "이름 없음"}
                 </span>
-                <button
+                <span
+                  role="button"
+                  tabIndex={0}
                   onClick={(e) => {
                     e.stopPropagation();
                     setDetailGroupId(group.id);
                   }}
-                  className="p-1 hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] rounded transition-colors flex-shrink-0"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDetailGroupId(group.id);
+                    }
+                  }}
+                  className="p-1 hover:bg-[rgb(var(--color-secondary-100))] dark:hover:bg-[rgb(var(--color-secondary-700))] rounded transition-colors flex-shrink-0 cursor-pointer"
                   title="그룹 상세 보기"
                 >
                   <Info className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                </button>
+                </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteGroupId(group.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDeleteGroupId(group.id);
+                    }
+                  }}
+                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors flex-shrink-0 cursor-pointer"
+                  title="그룹 삭제"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                </span>
                 <span
                   className={cn(
                     "px-1.5 py-0.5 text-xs rounded flex-shrink-0",
@@ -244,6 +300,55 @@ export function PlanGroupSelector({
           }}
           onRefresh={onRefresh}
         />
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {deleteGroupId && deleteGroup && (
+        <ModalWrapper
+          open={true}
+          onClose={() => setDeleteGroupId(null)}
+          title="플랜 그룹 삭제"
+          subtitle={`"${deleteGroup.name || "이름 없음"}" 그룹을 삭제합니다`}
+          icon={<Trash2 className="h-5 w-5" />}
+          theme="red"
+          size="sm"
+          loading={isPending}
+          footer={
+            <>
+              <ModalButton
+                variant="secondary"
+                onClick={() => setDeleteGroupId(null)}
+                disabled={isPending}
+              >
+                취소
+              </ModalButton>
+              <ModalButton
+                variant="danger"
+                onClick={handleDelete}
+                loading={isPending}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    삭제 중...
+                  </>
+                ) : (
+                  "삭제"
+                )}
+              </ModalButton>
+            </>
+          }
+        >
+          <div className="p-4 space-y-3">
+            <p className="text-sm text-[var(--text-secondary)]">
+              이 플랜 그룹을 삭제하시겠습니까?
+            </p>
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-700 dark:text-red-400 space-y-1">
+              <p>• 이 그룹에 포함된 모든 플랜이 함께 삭제됩니다.</p>
+              <p>• 삭제된 그룹은 <strong>History 탭</strong>에서 복원할 수 있습니다.</p>
+            </div>
+          </div>
+        </ModalWrapper>
       )}
     </DropdownMenu.Root>
   );

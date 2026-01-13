@@ -61,7 +61,10 @@ function arePropsEqual(
     prevStatus.isSelected !== nextStatus.isSelected ||
     prevStatus.isExclusion !== nextStatus.isExclusion ||
     prevStatus.exclusionType !== nextStatus.exclusionType ||
-    prevStatus.exclusionReason !== nextStatus.exclusionReason
+    prevStatus.exclusionReason !== nextStatus.exclusionReason ||
+    prevStatus.weekNumber !== nextStatus.weekNumber ||
+    prevStatus.cycleDayNumber !== nextStatus.cycleDayNumber ||
+    prevStatus.dayType !== nextStatus.dayType
   ) {
     return false;
   }
@@ -183,30 +186,43 @@ function DroppableAdminDayCellComponent({
     >
       {/* 날짜 숫자 */}
       <div className="flex items-center justify-between mb-1">
-        <span
-          className={cn(
-            "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full",
-            !status.isCurrentMonth && "text-gray-400",
-            status.isToday && "bg-blue-600 text-white",
-            dayOfWeek === 0 &&
-              status.isCurrentMonth &&
-              !status.isToday &&
-              "text-red-500",
-            dayOfWeek === 6 &&
-              status.isCurrentMonth &&
-              !status.isToday &&
-              "text-blue-500"
-          )}
-        >
-          {format(date, "d")}
-        </span>
+        <div className="flex items-center gap-1">
+          <span
+            className={cn(
+              "text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full",
+              !status.isCurrentMonth && "text-gray-400",
+              status.isToday && "bg-blue-600 text-white",
+              dayOfWeek === 0 &&
+                status.isCurrentMonth &&
+                !status.isToday &&
+                "text-red-500",
+              dayOfWeek === 6 &&
+                status.isCurrentMonth &&
+                !status.isToday &&
+                "text-blue-500"
+            )}
+          >
+            {format(date, "d")}
+          </span>
 
-        {/* 제외일 표시 */}
-        {status.isExclusion && (
+          {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
+          {status.weekNumber != null && status.cycleDayNumber != null && (
+            <span className="text-[9px] text-gray-400">
+              {status.weekNumber}주{status.cycleDayNumber}일
+            </span>
+          )}
+        </div>
+
+        {/* 제외일 또는 날짜 타입 표시 */}
+        {status.isExclusion ? (
           <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
             {status.exclusionType}
           </span>
-        )}
+        ) : status.dayType === "복습일" ? (
+          <span className="text-[10px] px-1 py-0.5 bg-purple-100 text-purple-600 rounded font-medium">
+            R
+          </span>
+        ) : null}
       </div>
 
       {/* 드래그 중 드롭 불가 표시 */}

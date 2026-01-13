@@ -116,6 +116,9 @@ export type DailyScheduleInfo = {
     subject?: string;
     travel_time?: number; // 이동시간 (분 단위)
   }>;
+  // 1730 Timetable 주기 정보
+  week_number?: number | null; // 주차 번호 (1, 2, 3...)
+  cycle_day_number?: number | null; // 주기 내 일차 (1-7)
 };
 
 /**

@@ -481,20 +481,28 @@ function MemoizedDayCellComponent({
               </button>
             )}
           </div>
-          {/* 날짜 타입 배지 */}
+          {/* 날짜 타입 배지 및 주차/일차 정보 */}
           {dayTypeInfo && dayType !== "normal" && (
-            <div className="flex items-center gap-0.5 shrink-0">
-              {dayTypeInfo.icon && (
-                <dayTypeInfo.icon className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
-              )}
-              <span
-                className={cn(
-                  "text-[9px] md:text-[10px] font-medium",
-                  textColorClass
+            <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0.5">
+                {dayTypeInfo.icon && (
+                  <dayTypeInfo.icon className="w-3 h-3 md:w-3.5 md:h-3.5 shrink-0" />
                 )}
-              >
-                {dayTypeInfo.label}
-              </span>
+                <span
+                  className={cn(
+                    "text-[9px] md:text-[10px] font-medium",
+                    textColorClass
+                  )}
+                >
+                  {dayTypeInfo.label}
+                </span>
+              </div>
+              {/* 주차/일차 정보 (학습일/복습일인 경우에만 표시) */}
+              {dailySchedule?.week_number && dailySchedule?.cycle_day_number && (
+                <span className="text-[9px] md:text-[10px] text-muted-foreground whitespace-nowrap">
+                  {dailySchedule.week_number}주차 {dailySchedule.cycle_day_number}일차
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -80,7 +80,7 @@ export function ConditionalDeleteModal({
         .from('plan_groups')
         .select('id, name')
         .eq('student_id', studentId)
-        .eq('is_active', true)
+        .is('deleted_at', null)
         .order('name');
       if (data) {
         setPlanGroups(data);

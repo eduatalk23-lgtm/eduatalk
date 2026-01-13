@@ -110,6 +110,8 @@ export interface AdminPlanContextValue {
   setShowBulkEditModal: (show: boolean) => void;
   showUnifiedAddModal: boolean;
   setShowUnifiedAddModal: (show: boolean) => void;
+  showPlanGroupManageModal: boolean;
+  setShowPlanGroupManageModal: (show: boolean) => void;
 
   // 통합 모달 모드
   unifiedModalMode: "quick" | "content";

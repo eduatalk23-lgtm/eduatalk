@@ -279,6 +279,12 @@ function DayViewComponent({ plans, adHocPlans = [], currentDate, exclusions, aca
                 <span className={cn("text-sm font-bold", textColorClass)}>
                   {dayTypeInfo.label}
                 </span>
+                {/* 주차/일차 정보 (학습일/복습일인 경우에만 표시) */}
+                {dailySchedule?.week_number && dailySchedule?.cycle_day_number && (
+                  <span className={cn("text-sm font-medium", textTertiary)}>
+                    {dailySchedule.week_number}주차 {dailySchedule.cycle_day_number}일차
+                  </span>
+                )}
                 {/* 제외일 상세 정보는 유지 */}
                 {dayExclusions.length > 0 && dayExclusions[0].exclusion_type && (
                   <span className={cn("text-sm font-medium", textTertiary)}>

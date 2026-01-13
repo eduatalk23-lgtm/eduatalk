@@ -112,3 +112,8 @@ export const PlanGroupEditModal = dynamic(
   () => import('./modals/PlanGroupEditModal').then((mod) => ({ default: mod.PlanGroupEditModal })),
   { ssr: false }
 );
+
+export const PlanGroupManageModal = dynamic(
+  () => import('./modals/PlanGroupManageModal').then((mod) => ({ default: mod.PlanGroupManageModal })),
+  { ssr: false }
+);

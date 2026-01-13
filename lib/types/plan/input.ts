@@ -24,6 +24,7 @@ import type {
   TimeRange,
 } from "./domain";
 import type { ContentSlot } from "@/lib/types/content-selection";
+import type { StudyType } from "./contentPlanGroup";
 
 /**
  * 플랜 그룹 생성 데이터
@@ -61,6 +62,9 @@ export type PlanGroupCreationData = {
   study_hours?: TimeRange | null; // 학습 시간 (예: {start: "10:00", end: "19:00"})
   self_study_hours?: TimeRange | null; // 자율학습 시간 (예: {start: "19:00", end: "22:00"})
   lunch_time?: TimeRange | null; // 점심 시간 (예: {start: "12:00", end: "13:00"})
+  // 플랜 그룹 레벨 학습 유형 설정
+  study_type?: StudyType | null; // 전략 학습 또는 취약 보완
+  strategy_days_per_week?: 2 | 3 | 4 | null; // 전략 학습 시 주간 학습일 (study_type이 'strategy'일 때만 사용)
 };
 
 /**

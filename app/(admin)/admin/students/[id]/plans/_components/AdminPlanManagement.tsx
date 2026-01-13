@@ -34,6 +34,7 @@ import {
   CopyPlanModal,
   PlanStatusModal,
   BulkEditModal,
+  PlanGroupManageModal,
 } from "./dynamicModals";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -115,6 +116,7 @@ function AdminPlanManagementContent({
     tenantId,
     selectedPlannerId,
     activePlanGroupId,
+    allPlanGroups,
     selectedDate,
     handleDateChange,
     handleRefresh,
@@ -159,6 +161,8 @@ function AdminPlanManagementContent({
     setShowStatusModal,
     showBulkEditModal,
     setShowBulkEditModal,
+    showPlanGroupManageModal,
+    setShowPlanGroupManageModal,
     // Modal data
     selectedPlanForRedistribute,
     setSelectedPlanForRedistribute,
@@ -568,6 +572,20 @@ function AdminPlanManagementContent({
                 setShowConditionalDeleteModal(false);
                 handleRefresh();
               }}
+            />
+          )}
+
+          {showPlanGroupManageModal && (
+            <PlanGroupManageModal
+              open={showPlanGroupManageModal}
+              studentId={studentId}
+              planGroups={allPlanGroups.map((g) => ({
+                ...g,
+                planType: undefined,
+                campInvitationId: undefined,
+              }))}
+              onClose={() => setShowPlanGroupManageModal(false)}
+              onSuccess={handleRefresh}
             />
           )}
 

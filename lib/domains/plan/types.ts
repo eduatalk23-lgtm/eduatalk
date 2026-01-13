@@ -188,6 +188,9 @@ export type DailyScheduleInfo = {
     subject?: string;
     travel_time?: number;
   }>;
+  // 1730 Timetable 주기 정보
+  week_number?: number | null;
+  cycle_day_number?: number | null;
 };
 
 /**

@@ -221,6 +221,8 @@ function WizardInner({
         schedulerType,
         blockSetId,
         schedulerOptions,
+        studyType,
+        strategyDaysPerWeek,
       } = wizardData;
 
       // 최소 기간 정보가 없으면 저장하지 않음
@@ -283,6 +285,9 @@ function WizardInner({
           academy_name: s.academy_name || undefined,
           subject: s.subject || undefined,
         })),
+        // 플랜 그룹 학습 유형 설정
+        study_type: studyType || null,
+        strategy_days_per_week: strategyDaysPerWeek || null,
       };
 
       if (draftGroupId) {
@@ -418,6 +423,9 @@ function WizardInner({
         selfStudyHours,
         lunchTime,
         nonStudyTimeBlocks,
+        // 플랜 그룹 학습 유형 설정
+        studyType,
+        strategyDaysPerWeek,
       } = wizardData;
 
       // content_allocations 생성
@@ -480,6 +488,9 @@ function WizardInner({
           self_study_hours: selfStudyHours || null,
           lunch_time: lunchTime || null,
           non_study_time_blocks: nonStudyTimeBlocks || undefined,
+          // 플랜 그룹 학습 유형 설정
+          study_type: studyType || null,
+          strategy_days_per_week: strategyDaysPerWeek || null,
         };
 
         let groupId: string;
@@ -560,6 +571,9 @@ function WizardInner({
           self_study_hours: selfStudyHours || null,
           lunch_time: lunchTime || null,
           non_study_time_blocks: nonStudyTimeBlocks || undefined,
+          // 플랜 그룹 학습 유형 설정
+          study_type: studyType || null,
+          strategy_days_per_week: strategyDaysPerWeek || null,
         };
 
         console.log("[AdminWizard] 플랜 그룹 생성:", {

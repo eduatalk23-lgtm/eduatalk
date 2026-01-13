@@ -201,6 +201,9 @@ export interface AdminWizardData {
   schedulerOptions: SchedulerOptions;
   subjectAllocations?: SubjectAllocation[];
   contentAllocations?: ContentAllocation[];
+  // 플랜 그룹 레벨 학습 유형 설정
+  studyType?: SubjectType; // 'strategy' | 'weakness' | null
+  strategyDaysPerWeek?: 2 | 3 | 4 | null; // 전략 학습 시 주간 학습일
 
   // Step 6: 최종 검토 (데이터 없음, UI만)
 

@@ -542,6 +542,7 @@ export default function AdminCalendarView({
               onDateRangeChange={setGanttDateRange}
               rows={ganttRows}
               exclusionsByDate={exclusionsByDate}
+              dailySchedulesByDate={dailySchedulesByDate}
               onPlanClick={handlePlanClick}
               onRefresh={handleRefreshAll}
             />

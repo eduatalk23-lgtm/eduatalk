@@ -46,14 +46,14 @@ CREATE INDEX IF NOT EXISTS idx_plan_group_backups_not_restored
 -- RLS 활성화
 ALTER TABLE plan_group_backups ENABLE ROW LEVEL SECURITY;
 
--- RLS 정책: 학생은 자신의 백업만 조회 가능
-CREATE POLICY "Students can view own backups"
+-- RLS 정책: 서비스 역할 (admin client)은 모든 접근 허용
+CREATE POLICY "Service role has full access"
   ON plan_group_backups
-  FOR SELECT
-  USING (student_id = auth.uid());
+  FOR ALL
+  USING (auth.role() = 'service_role');
 
--- RLS 정책: 관리자는 테넌트 내 모든 백업에 접근 가능
-CREATE POLICY "Admins can access tenant backups"
+-- RLS 정책: 관리자는 테넌트 내 모든 백업에 접근 가능 (WITH CHECK 포함)
+CREATE POLICY "Admins can manage tenant backups"
   ON plan_group_backups
   FOR ALL
   USING (
@@ -62,10 +62,18 @@ CREATE POLICY "Admins can access tenant backups"
       WHERE admin_users.id = auth.uid()
       AND admin_users.tenant_id = plan_group_backups.tenant_id
     )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM admin_users
+      WHERE admin_users.id = auth.uid()
+      AND admin_users.tenant_id = plan_group_backups.tenant_id
+    )
   );
 
--- RLS 정책: 서비스 역할 (admin client)은 모든 접근 허용
-CREATE POLICY "Service role has full access"
+-- RLS 정책: 학생은 자신의 백업 관리 가능 (WITH CHECK 포함)
+CREATE POLICY "Students can manage own backups"
   ON plan_group_backups
   FOR ALL
-  USING (auth.role() = 'service_role');
+  USING (student_id = auth.uid())
+  WITH CHECK (student_id = auth.uid());

@@ -308,6 +308,9 @@ export type DailyScheduleInfo = {
   day_type: DayType;
   study_hours: number;
   time_slots?: TimeSlot[];
+  // 1730 Timetable 주기 정보
+  week_number?: number | null;
+  cycle_day_number?: number | null;
 };
 
 /**

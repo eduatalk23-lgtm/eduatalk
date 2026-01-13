@@ -26,7 +26,8 @@ export type ModalType =
   | 'copy'
   | 'status'
   | 'bulkEdit'
-  | 'unifiedAdd';
+  | 'unifiedAdd'
+  | 'planGroupManage';
 
 /**
  * 모달 상태
@@ -49,6 +50,7 @@ export interface ModalState {
   status: boolean;
   bulkEdit: boolean;
   unifiedAdd: boolean;
+  planGroupManage: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export const initialModalState: ModalState = {
   status: false,
   bulkEdit: false,
   unifiedAdd: false,
+  planGroupManage: false,
 };
 
 /**
@@ -119,4 +122,5 @@ export const modalKeyMap: Record<string, ModalType> = {
   showStatusModal: 'status',
   showBulkEditModal: 'bulkEdit',
   showUnifiedAddModal: 'unifiedAdd',
+  showPlanGroupManageModal: 'planGroupManage',
 };

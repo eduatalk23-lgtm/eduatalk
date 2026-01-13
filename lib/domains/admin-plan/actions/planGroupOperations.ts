@@ -220,6 +220,101 @@ export async function deletePlanGroupAdmin(
 }
 
 // =============================================
+// 플랜 그룹 일괄 삭제 (관리자용)
+// =============================================
+
+export interface BulkDeletePlanGroupsResult {
+  deletedCount: number;
+  failedCount: number;
+  failedIds: string[];
+}
+
+/**
+ * 플랜 그룹 일괄 삭제 (관리자용)
+ * - 여러 플랜 그룹을 순차적으로 삭제
+ * - 각 그룹별 백업 저장
+ * - 캠프 플랜은 자동 건너뜀
+ */
+export async function bulkDeletePlanGroupsAdmin(
+  planGroupIds: string[],
+  studentId: string
+): Promise<AdminPlanResponse<BulkDeletePlanGroupsResult>> {
+  try {
+    const { tenantId, userId } = await requireAdminOrConsultant({ requireTenant: true });
+
+    if (planGroupIds.length === 0) {
+      return {
+        success: false,
+        error: '삭제할 플랜 그룹을 선택해주세요.',
+      };
+    }
+
+    let deletedCount = 0;
+    let failedCount = 0;
+    const failedIds: string[] = [];
+
+    // 순차 삭제 (각 그룹별 백업 저장)
+    for (const groupId of planGroupIds) {
+      const result = await deletePlanGroupAdmin(groupId, studentId);
+      if (result.success) {
+        deletedCount++;
+      } else {
+        failedCount++;
+        failedIds.push(groupId);
+      }
+    }
+
+    // 이벤트 로깅
+    if (tenantId) {
+      await createPlanEvent({
+        tenant_id: tenantId,
+        student_id: studentId,
+        event_type: 'plan_group_deleted',
+        event_category: 'plan_group',
+        actor_type: 'admin',
+        actor_id: userId,
+        payload: {
+          action: 'bulk_delete',
+          deleted_count: deletedCount,
+          failed_count: failedCount,
+          failed_ids: failedIds,
+        },
+      });
+    }
+
+    logActionDebug(
+      { domain: 'admin-plan', action: 'bulkDeletePlanGroupsAdmin' },
+      `플랜 그룹 일괄 삭제 완료: ${deletedCount}개 성공, ${failedCount}개 실패`,
+      { deletedCount, failedCount, failedIds }
+    );
+
+    // 경로 재검증 (deletePlanGroupAdmin에서도 하지만 확실하게)
+    revalidatePath(`/admin/students/${studentId}/plans`);
+    revalidatePath('/today');
+    revalidatePath('/plan');
+
+    return {
+      success: true,
+      data: {
+        deletedCount,
+        failedCount,
+        failedIds,
+      },
+    };
+  } catch (error) {
+    logActionError(
+      { domain: 'admin-plan', action: 'bulkDeletePlanGroupsAdmin' },
+      error,
+      { planGroupIds, studentId }
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : '플랜 그룹 일괄 삭제 중 오류가 발생했습니다.',
+    };
+  }
+}
+
+// =============================================
 // 플랜 그룹 복사 (관리자용)
 // =============================================
 

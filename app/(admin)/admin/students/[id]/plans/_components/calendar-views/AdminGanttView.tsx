@@ -30,6 +30,7 @@ export default function AdminGanttView({
   dateRange,
   rows,
   exclusionsByDate,
+  dailySchedulesByDate,
   onPlanClick,
 }: AdminGanttViewProps) {
   // 날짜 범위 내 모든 날짜
@@ -88,14 +89,16 @@ export default function AdminGanttView({
             {dates.map((date) => {
               const dateStr = format(date, "yyyy-MM-dd");
               const isExclusion = !!exclusionsByDate[dateStr];
+              const dailySchedule = dailySchedulesByDate?.[dateStr];
               const dayOfWeek = date.getDay();
 
               return (
                 <div
                   key={dateStr}
                   className={cn(
-                    "flex flex-col items-center justify-center border-r text-xs",
+                    "flex flex-col items-center justify-center border-r text-xs py-1",
                     isExclusion && "bg-gray-200",
+                    dailySchedule?.day_type === "복습일" && "bg-purple-50",
                     dayOfWeek === 0 && "text-red-500",
                     dayOfWeek === 6 && "text-blue-500"
                   )}
@@ -105,6 +108,19 @@ export default function AdminGanttView({
                     {format(date, "E", { locale: ko })}
                   </span>
                   <span className="font-medium">{format(date, "d")}</span>
+                  {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
+                  {dailySchedule?.week_number != null &&
+                   dailySchedule?.cycle_day_number != null && (
+                    <span className="text-[8px] text-gray-400 leading-tight">
+                      {dailySchedule.week_number}주{dailySchedule.cycle_day_number}일
+                    </span>
+                  )}
+                  {/* 복습일 배지 */}
+                  {dailySchedule?.day_type === "복습일" && (
+                    <span className="text-[8px] px-0.5 bg-purple-100 text-purple-600 rounded font-medium">
+                      R
+                    </span>
+                  )}
                 </div>
               );
             })}

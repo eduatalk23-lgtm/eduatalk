@@ -38,6 +38,7 @@ export default function AdminMonthView({
   onDateSelect,
   plansByDate,
   exclusionsByDate,
+  dailySchedulesByDate,
   onPlanClick,
   onContextMenu: onContextMenuProp,
   onExclusionToggle,
@@ -60,6 +61,7 @@ export default function AdminMonthView({
     (date: Date): DayCellStatus => {
       const dateStr = format(date, "yyyy-MM-dd");
       const exclusion = exclusionsByDate[dateStr];
+      const dailySchedule = dailySchedulesByDate?.[dateStr];
       const today = startOfDay(new Date());
 
       return {
@@ -71,9 +73,13 @@ export default function AdminMonthView({
         isCurrentMonth: isSameMonth(date, currentMonth),
         isPast: isBefore(date, today),
         isDragOver: false, // DnD 컨텍스트에서 관리
+        // 1730 Timetable 주기 정보
+        weekNumber: dailySchedule?.week_number,
+        cycleDayNumber: dailySchedule?.cycle_day_number,
+        dayType: dailySchedule?.day_type,
       };
     },
-    [currentMonth, selectedDate, exclusionsByDate]
+    [currentMonth, selectedDate, exclusionsByDate, dailySchedulesByDate]
   );
 
   // 날짜별 통계 계산

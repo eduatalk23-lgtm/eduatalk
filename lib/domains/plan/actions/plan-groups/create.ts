@@ -71,6 +71,9 @@ interface PlanGroupAtomicInput {
   study_hours: TimeRange | null;
   self_study_hours: TimeRange | null;
   lunch_time: TimeRange | null;
+  // Plan group level study type settings
+  study_type: string | null;
+  strategy_days_per_week: number | null;
 }
 
 interface ContentInput {
@@ -487,6 +490,9 @@ async function _createPlanGroup(
     study_hours: data.study_hours || null,
     self_study_hours: data.self_study_hours || null,
     lunch_time: data.lunch_time || null,
+    // Plan group level study type settings
+    study_type: data.study_type || null,
+    strategy_days_per_week: data.strategy_days_per_week || null,
   };
 
   // 원자적 플랜 그룹 생성 (plan_groups + plan_contents + plan_exclusions + academy_schedules)
@@ -700,6 +706,9 @@ async function _savePlanGroupDraft(
     study_hours: data.study_hours || null,
     self_study_hours: data.self_study_hours || null,
     lunch_time: data.lunch_time || null,
+    // Plan group level study type settings
+    study_type: data.study_type || null,
+    strategy_days_per_week: data.strategy_days_per_week || null,
   };
 
   // 콘텐츠 데이터 준비
@@ -828,6 +837,9 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
     study_hours: (group.study_hours as TimeRange | null) ?? null,
     self_study_hours: (group.self_study_hours as TimeRange | null) ?? null,
     lunch_time: (group.lunch_time as TimeRange | null) ?? null,
+    // Plan group level study type settings (복사 시 원본 설정 유지)
+    study_type: group.study_type ?? null,
+    strategy_days_per_week: group.strategy_days_per_week ?? null,
   };
 
   // 콘텐츠 데이터 준비
@@ -990,6 +1002,9 @@ async function _saveCalendarOnlyPlanGroup(
     study_hours: null,
     self_study_hours: null,
     lunch_time: null,
+    // Plan group level study type settings - 캘린더 전용에서는 미사용
+    study_type: null,
+    strategy_days_per_week: null,
   };
 
   // 콘텐츠 없음 (캘린더 전용)

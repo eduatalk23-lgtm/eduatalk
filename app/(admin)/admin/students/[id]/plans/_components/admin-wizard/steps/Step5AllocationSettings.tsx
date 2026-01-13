@@ -19,10 +19,12 @@ import {
   Target,
   Info,
   Zap,
+  BookOpen,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAdminWizardData } from "../_context";
-import type { SchedulerOptions } from "../_context/types";
+import type { SchedulerOptions, SubjectType } from "../_context/types";
 
 /**
  * Step5AllocationSettings Props
@@ -43,6 +45,36 @@ const WEAK_FOCUS_LEVELS = [
   { value: "high", label: "높음", description: "40% 추가 배분" },
 ] as const;
 
+const STUDY_TYPE_OPTIONS = [
+  {
+    value: null,
+    label: "선택 안함",
+    description: "콘텐츠별 설정 사용",
+    icon: BookOpen,
+    color: "gray",
+  },
+  {
+    value: "strategy",
+    label: "전략 학습",
+    description: "새로운 내용을 주도적으로 학습",
+    icon: Zap,
+    color: "orange",
+  },
+  {
+    value: "weakness",
+    label: "취약 보완",
+    description: "부족한 부분 집중 보완",
+    icon: AlertTriangle,
+    color: "blue",
+  },
+] as const;
+
+const STRATEGY_DAYS_OPTIONS = [
+  { value: 2, label: "주 2일", description: "여유로운 페이스" },
+  { value: 3, label: "주 3일", description: "균형 잡힌 페이스" },
+  { value: 4, label: "주 4일", description: "집중 학습 페이스" },
+] as const;
+
 /**
  * Step 5: 배분 설정 컴포넌트
  */
@@ -51,13 +83,32 @@ export function Step5AllocationSettings({
 }: Step5AllocationSettingsProps) {
   const { wizardData, updateData } = useAdminWizardData();
 
-  const { schedulerOptions, selectedContents, skipContents } = wizardData;
+  const { schedulerOptions, selectedContents, skipContents, studyType, strategyDaysPerWeek } = wizardData;
 
   // 현재 설정 값
   const studentLevel = schedulerOptions.student_level || "medium";
   const weakSubjectFocus = schedulerOptions.weak_subject_focus || "medium";
   const studyDays = schedulerOptions.study_days || 5;
   const reviewDays = schedulerOptions.review_days || 2;
+
+  // 플랜 그룹 학습 유형
+  const handleStudyTypeChange = useCallback(
+    (newStudyType: SubjectType) => {
+      updateData({
+        studyType: newStudyType,
+        // strategy가 아닌 경우 strategyDaysPerWeek 초기화
+        strategyDaysPerWeek: newStudyType === "strategy" ? (strategyDaysPerWeek ?? 3) : null,
+      });
+    },
+    [updateData, strategyDaysPerWeek]
+  );
+
+  const handleStrategyDaysChange = useCallback(
+    (days: 2 | 3 | 4) => {
+      updateData({ strategyDaysPerWeek: days });
+    },
+    [updateData]
+  );
 
   // 과목별 통계
   const contentStats = useMemo(() => {
@@ -250,6 +301,114 @@ export function Step5AllocationSettings({
           </div>
         </div>
       )}
+
+      {/* 플랜 그룹 학습 유형 */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <BookOpen className="h-4 w-4" />
+          플랜 그룹 학습 유형
+        </label>
+        <p className="text-xs text-gray-500">
+          플랜 그룹 전체에 적용될 학습 유형을 선택합니다. 선택하지 않으면 콘텐츠별 설정이 사용됩니다.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {STUDY_TYPE_OPTIONS.map((option) => {
+            const Icon = option.icon;
+            const isSelected = studyType === option.value;
+            const colorClasses = {
+              gray: {
+                selected: "border-gray-500 bg-gray-50",
+                text: "text-gray-700",
+                icon: "text-gray-500",
+              },
+              orange: {
+                selected: "border-orange-500 bg-orange-50",
+                text: "text-orange-700",
+                icon: "text-orange-500",
+              },
+              blue: {
+                selected: "border-blue-500 bg-blue-50",
+                text: "text-blue-700",
+                icon: "text-blue-500",
+              },
+            };
+            const colors = colorClasses[option.color];
+
+            return (
+              <button
+                key={option.value ?? "null"}
+                type="button"
+                onClick={() => handleStudyTypeChange(option.value as SubjectType)}
+                data-testid={`study-type-${option.value ?? "none"}`}
+                className={cn(
+                  "flex flex-col items-start rounded-lg border p-3 text-left transition",
+                  isSelected
+                    ? colors.selected
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className={cn("h-4 w-4", isSelected ? colors.icon : "text-gray-400")} />
+                  <span
+                    className={cn(
+                      "text-sm font-medium",
+                      isSelected ? colors.text : "text-gray-900"
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                </div>
+                <span className="mt-0.5 text-xs text-gray-500">
+                  {option.description}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 전략 학습 선택 시 주간 학습일 설정 */}
+        {studyType === "strategy" && (
+          <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-orange-700">
+              <Zap className="h-4 w-4" />
+              전략 과목 주간 학습일
+            </label>
+            <p className="mt-1 text-xs text-orange-600">
+              전략 과목을 일주일에 몇 일 학습할지 설정합니다.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {STRATEGY_DAYS_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleStrategyDaysChange(option.value)}
+                  data-testid={`strategy-days-${option.value}`}
+                  className={cn(
+                    "flex flex-col items-center rounded-lg border p-2 transition",
+                    strategyDaysPerWeek === option.value
+                      ? "border-orange-500 bg-white"
+                      : "border-orange-200 bg-orange-50/50 hover:border-orange-300"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "text-sm font-semibold",
+                      strategyDaysPerWeek === option.value
+                        ? "text-orange-700"
+                        : "text-orange-600"
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                  <span className="text-xs text-orange-500">
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 학습 일수 설정 */}
       <div className="space-y-3">

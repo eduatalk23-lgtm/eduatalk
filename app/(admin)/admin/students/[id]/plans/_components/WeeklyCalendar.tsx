@@ -34,6 +34,9 @@ interface DaySummary {
   exclusionType?: string;
   exclusionReason?: string;
   isToday: boolean;
+  // 1730 Timetable 주기 정보
+  weekNumber?: number | null;
+  cycleDayNumber?: number | null;
 }
 
 export function WeeklyCalendar({
@@ -74,6 +77,21 @@ export function WeeklyCalendar({
         formattedExclusions
       );
 
+      // 날짜별 주기 정보 맵 생성 (dailySchedules에서 추출)
+      const cycleInfoMap = new Map<string, { weekNumber?: number | null; cycleDayNumber?: number | null }>();
+      if (dailySchedules) {
+        for (const scheduleArray of dailySchedules) {
+          for (const schedule of scheduleArray) {
+            if (schedule.date && (schedule.week_number != null || schedule.cycle_day_number != null)) {
+              cycleInfoMap.set(schedule.date, {
+                weekNumber: schedule.week_number,
+                cycleDayNumber: schedule.cycle_day_number,
+              });
+            }
+          }
+        }
+      }
+
       // 7일간의 날짜 생성
       const days: DaySummary[] = [];
       for (let i = 0; i < 7; i++) {
@@ -86,6 +104,9 @@ export function WeeklyCalendar({
         const dayType = dayTypeInfo?.type ?? 'normal';
         const isExclusionDay = dayType === '지정휴일' || dayType === '휴가' || dayType === '개인일정';
 
+        // 주기 정보 가져오기
+        const cycleInfo = cycleInfoMap.get(dateStr);
+
         days.push({
           date: dateStr,
           totalPlans: 0,
@@ -96,6 +117,8 @@ export function WeeklyCalendar({
           exclusionType: dayTypeInfo?.exclusion?.exclusion_type,
           exclusionReason: dayTypeInfo?.exclusion?.reason ?? undefined,
           isToday: dateStr === today,
+          weekNumber: cycleInfo?.weekNumber,
+          cycleDayNumber: cycleInfo?.cycleDayNumber,
         });
       }
 
@@ -244,6 +267,13 @@ export function WeeklyCalendar({
                     </span>
                   ) : null}
                 </div>
+
+                {/* 주차/일차 정보 (학습일/복습일인 경우에만) */}
+                {day.weekNumber != null && day.cycleDayNumber != null && (
+                  <span className="text-[9px] text-gray-400 mt-0.5">
+                    {day.weekNumber}주{day.cycleDayNumber}일
+                  </span>
+                )}
 
                 {/* 오늘 표시 */}
                 {day.isToday && (

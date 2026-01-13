@@ -38,6 +38,7 @@ export type DailySchedule = {
   academy_schedules?: AcademySchedule[]; // 해당 날짜의 학원일정
   exclusion?: Exclusion | null; // 해당 날짜의 제외일 정보
   week_number?: number; // 주차 번호 (1730 Timetable인 경우)
+  cycle_day_number?: number; // 주기 내 일차 (1-7, 1730 Timetable인 경우)
   time_slots?: TimeSlot[]; // 시간 흐름 순 타임라인
 };
 
@@ -936,6 +937,27 @@ export function calculateAvailableDates(
     weekMap.set(dateStr, currentWeek);
   }
 
+  // cycle_day_number 계산 (주기 내 일차, 1-7)
+  // 제외일은 주기 계산에서 제외되고, 학습일/복습일만 카운트
+  const cycleDayNumberMap: Map<string, number> = new Map();
+  const cycleLength = studyDays + reviewDays; // 기본 7 (6 학습 + 1 복습)
+  let cycleDayNumber = 1;
+
+  for (const date of dates) {
+    const dateStr = formatDate(date);
+    const dayType = dayTypeMap.get(dateStr);
+
+    // 학습일 또는 복습일인 경우에만 주기 내 일차 계산
+    if (dayType === "학습일" || dayType === "복습일") {
+      cycleDayNumberMap.set(dateStr, cycleDayNumber);
+      cycleDayNumber++;
+      if (cycleDayNumber > cycleLength) {
+        cycleDayNumber = 1; // 주기 리셋
+      }
+    }
+    // 제외일(휴가, 개인일정, 지정휴일)은 주기 계산에서 제외
+  }
+
   // 일별 스케줄 계산
   const dailySchedule: DailySchedule[] = [];
   let totalStudyDays = 0;
@@ -987,6 +1009,7 @@ export function calculateAvailableDates(
       academy_schedules: dateAcademySchedules.length > 0 ? dateAcademySchedules : undefined,
       exclusion: exclusion || null,
       week_number: weekMap.get(dateStr),
+      cycle_day_number: cycleDayNumberMap.get(dateStr),
       // time_slots는 항상 배열로 제공 (빈 배열이라도)
       // 제외일이 있는 날짜도 빈 배열로 제공하여 검증 통과
       time_slots: timeSlots,

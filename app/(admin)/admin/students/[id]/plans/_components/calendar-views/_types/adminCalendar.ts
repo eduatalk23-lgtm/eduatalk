@@ -85,6 +85,12 @@ export type DayCellStatus = {
   isPast: boolean;
   /** 드래그 오버 여부 */
   isDragOver: boolean;
+  /** 1730 Timetable 주차 번호 */
+  weekNumber?: number | null;
+  /** 1730 Timetable 주기 내 일차 (1-7) */
+  cycleDayNumber?: number | null;
+  /** 날짜 타입 (학습일/복습일 등) */
+  dayType?: string;
 };
 
 /**
@@ -252,6 +258,8 @@ export type AdminGanttViewProps = {
   onDateRangeChange: (range: { start: string; end: string }) => void;
   rows: GanttRowData[];
   exclusionsByDate: ExclusionsByDate;
+  /** 날짜별 일일 스케줄 정보 (주기 정보 포함) */
+  dailySchedulesByDate?: DailySchedulesByDate;
   onPlanClick: (planId: string) => void;
   onRefresh: () => void;
 };

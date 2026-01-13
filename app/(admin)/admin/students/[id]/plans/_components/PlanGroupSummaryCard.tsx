@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, CheckCircle2, Loader2, Pause, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCircle2, Loader2, Pause, AlertCircle, BookOpen, Repeat2, CalendarOff } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { getPlanGroupSummaryAction } from '@/lib/domains/admin-plan/actions/planGroupSummary';
 
@@ -111,6 +111,38 @@ export function PlanGroupSummaryCard({
           {progressPercentage}%
         </span>
       </div>
+
+      {/* Cycle Stats (1730 Timetable 주기 정보) */}
+      {(data.studyDays != null || data.reviewDays != null || data.totalWeeks != null) && (
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+            {data.studyDays != null && (
+              <div className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>학습일 {data.studyDays}일</span>
+              </div>
+            )}
+            {data.reviewDays != null && (
+              <div className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                <Repeat2 className="w-3.5 h-3.5" />
+                <span>복습일 {data.reviewDays}일</span>
+              </div>
+            )}
+            {data.totalWeeks != null && (
+              <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>{data.totalWeeks}주차</span>
+              </div>
+            )}
+            {data.exclusionDays != null && data.exclusionDays > 0 && (
+              <div className="flex items-center gap-1 text-orange-500 dark:text-orange-400">
+                <CalendarOff className="w-3.5 h-3.5" />
+                <span>제외일 {data.exclusionDays}일</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

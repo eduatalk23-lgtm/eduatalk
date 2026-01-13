@@ -20,6 +20,7 @@ import {
   FileText,
   X,
   Keyboard,
+  Settings2,
 } from "lucide-react";
 import type { ContentTypeFilter } from "./context/AdminPlanContext";
 
@@ -67,6 +68,7 @@ export function AdminPlanHeader({
     setShowTemplateModal,
     setShowConditionalDeleteModal,
     setShowShortcutsHelp,
+    setShowPlanGroupManageModal,
   } = useAdminPlan();
 
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -256,6 +258,13 @@ export function AdminPlanHeader({
               >
                 <ClipboardList className="h-4 w-4" />
                 플랜 템플릿
+              </button>
+              <button
+                onClick={() => setShowPlanGroupManageModal(true)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 text-left"
+              >
+                <Settings2 className="h-4 w-4" />
+                플랜 그룹 관리
               </button>
               <button
                 onClick={() => setShowConditionalDeleteModal(true)}
