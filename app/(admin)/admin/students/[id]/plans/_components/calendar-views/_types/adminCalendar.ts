@@ -44,6 +44,7 @@ export type CalendarPlan = Pick<
   | "plan_group_id"
   | "container_type"
   | "sequence"
+  | "time_slot_type"
 >;
 
 /**
@@ -109,6 +110,13 @@ export type DayCellStats = {
   completionRate: number;
   /** 총 예상 학습 시간 (분) */
   totalEstimatedMinutes: number;
+  // Phase 4: 시간대 유형별 플랜 개수
+  /** 학습 시간에 배치된 플랜 개수 */
+  studySlotPlans?: number;
+  /** 자율학습 시간에 배치된 플랜 개수 */
+  selfStudySlotPlans?: number;
+  /** 시간대 미지정 플랜 개수 */
+  noSlotPlans?: number;
 };
 
 // ============================================

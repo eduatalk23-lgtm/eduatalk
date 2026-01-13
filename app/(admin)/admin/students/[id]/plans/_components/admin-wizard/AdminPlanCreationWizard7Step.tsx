@@ -233,16 +233,21 @@ function WizardInner({
       }
 
       // content_allocations 생성
+      // 우선순위: 콘텐츠 개별 설정(c.subjectType) > 그룹 레벨(studyType) > 기본값(weakness)
       const contentAllocations = skipContents
         ? []
         : selectedContents
-            .filter((c) => c.subjectType !== null)
-            .map((c) => ({
-              content_type: c.contentType as "book" | "lecture",
-              content_id: c.contentId,
-              subject_type: c.subjectType as "strategy" | "weakness",
-              weekly_days: c.subjectType === "strategy" && c.weeklyDays ? c.weeklyDays : undefined,
-            }));
+            .filter((c) => c.contentId) // 유효한 콘텐츠만 포함
+            .map((c) => {
+              const effectiveSubjectType = c.subjectType ?? studyType ?? "weakness";
+              const effectiveWeeklyDays = c.weeklyDays ?? (effectiveSubjectType === "strategy" ? strategyDaysPerWeek : undefined);
+              return {
+                content_type: c.contentType as "book" | "lecture",
+                content_id: c.contentId,
+                subject_type: effectiveSubjectType as "strategy" | "weakness",
+                weekly_days: effectiveWeeklyDays ?? undefined,
+              };
+            });
 
       // schedulerOptions에 content_allocations 병합
       const enhancedSchedulerOptions = {
@@ -440,16 +445,21 @@ function WizardInner({
       } = wizardData;
 
       // content_allocations 생성
+      // 우선순위: 콘텐츠 개별 설정(c.subjectType) > 그룹 레벨(studyType) > 기본값(weakness)
       const contentAllocations = skipContents
         ? []
         : selectedContents
-            .filter((c) => c.subjectType !== null)
-            .map((c) => ({
-              content_type: c.contentType as "book" | "lecture",
-              content_id: c.contentId,
-              subject_type: c.subjectType as "strategy" | "weakness",
-              weekly_days: c.subjectType === "strategy" && c.weeklyDays ? c.weeklyDays : undefined,
-            }));
+            .filter((c) => c.contentId) // 유효한 콘텐츠만 포함
+            .map((c) => {
+              const effectiveSubjectType = c.subjectType ?? studyType ?? "weakness";
+              const effectiveWeeklyDays = c.weeklyDays ?? (effectiveSubjectType === "strategy" ? strategyDaysPerWeek : undefined);
+              return {
+                content_type: c.contentType as "book" | "lecture",
+                content_id: c.contentId,
+                subject_type: effectiveSubjectType as "strategy" | "weakness",
+                weekly_days: effectiveWeeklyDays ?? undefined,
+              };
+            });
 
       // schedulerOptions에 content_allocations 병합
       const enhancedSchedulerOptions = {
@@ -540,18 +550,20 @@ function WizardInner({
 
       for (const content of selectedContents) {
         // 각 콘텐츠별 content_allocations
-        const singleContentAllocation = content.subjectType
-          ? [{
-              content_type: content.contentType as "book" | "lecture",
-              content_id: content.contentId,
-              subject_type: content.subjectType as "strategy" | "weakness",
-              weekly_days: content.subjectType === "strategy" && content.weeklyDays ? content.weeklyDays : undefined,
-            }]
-          : [];
+        // 우선순위: 콘텐츠 개별 설정 > 그룹 레벨 studyType > 기본값(weakness)
+        const effectiveSingleSubjectType = content.subjectType ?? studyType ?? "weakness";
+        const effectiveSingleWeeklyDays = content.weeklyDays ?? (effectiveSingleSubjectType === "strategy" ? strategyDaysPerWeek : undefined);
+
+        const singleContentAllocation = [{
+          content_type: content.contentType as "book" | "lecture",
+          content_id: content.contentId,
+          subject_type: effectiveSingleSubjectType as "strategy" | "weakness",
+          weekly_days: effectiveSingleWeeklyDays ?? undefined,
+        }];
 
         const singleEnhancedOptions = {
           ...schedulerOptions,
-          content_allocations: singleContentAllocation.length > 0 ? singleContentAllocation : undefined,
+          content_allocations: singleContentAllocation,
         };
 
         // 그룹 이름: customGroupName > generatedGroupName > title

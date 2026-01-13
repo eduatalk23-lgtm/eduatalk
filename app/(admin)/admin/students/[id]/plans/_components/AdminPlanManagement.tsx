@@ -35,6 +35,8 @@ import {
   PlanStatusModal,
   BulkEditModal,
   PlanGroupManageModal,
+  ContentDependencyModal,
+  BatchOperationsModal,
 } from "./dynamicModals";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
@@ -163,6 +165,10 @@ function AdminPlanManagementContent({
     setShowBulkEditModal,
     showPlanGroupManageModal,
     setShowPlanGroupManageModal,
+    showContentDependencyModal,
+    setShowContentDependencyModal,
+    showBatchOperationsModal,
+    setShowBatchOperationsModal,
     // Modal data
     selectedPlanForRedistribute,
     setSelectedPlanForRedistribute,
@@ -183,6 +189,14 @@ function AdminPlanManagementContent({
     setSelectedPlansForBulkEdit,
     newGroupIdForAI,
     setNewGroupIdForAI,
+    // Content dependency modal data
+    selectedContentForDependency,
+    setSelectedContentForDependency,
+    // Batch operations modal data
+    selectedPlansForBatch,
+    setSelectedPlansForBatch,
+    batchOperationMode,
+    setBatchOperationMode,
     toast,
   } = ctx;
 
@@ -682,6 +696,42 @@ function AdminPlanManagementContent({
               }}
             />
           )}
+
+          {showContentDependencyModal && selectedContentForDependency && (
+            <ContentDependencyModal
+              content={selectedContentForDependency}
+              planGroupId={activePlanGroupId}
+              onClose={() => {
+                setShowContentDependencyModal(false);
+                setSelectedContentForDependency(null);
+              }}
+              onSuccess={() => {
+                handleRefresh();
+              }}
+            />
+          )}
+
+          {showBatchOperationsModal &&
+            selectedPlansForBatch.length > 0 &&
+            batchOperationMode && (
+              <BatchOperationsModal
+                planIds={selectedPlansForBatch}
+                mode={batchOperationMode}
+                studentId={studentId}
+                tenantId={tenantId}
+                onClose={() => {
+                  setShowBatchOperationsModal(false);
+                  setSelectedPlansForBatch([]);
+                  setBatchOperationMode(null);
+                }}
+                onSuccess={() => {
+                  setShowBatchOperationsModal(false);
+                  setSelectedPlansForBatch([]);
+                  setBatchOperationMode(null);
+                  handleRefresh();
+                }}
+              />
+            )}
 
           <PlanOptimizationPanel
             studentId={studentId}

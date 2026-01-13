@@ -20,6 +20,8 @@ import {
   ArrowRight,
   RefreshCw,
   ExternalLink,
+  AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -27,6 +29,26 @@ import {
   useAdminWizardStep,
   useAdminWizardValidation,
 } from "../_context";
+
+/**
+ * Dock에 배치된 플랜 정보
+ */
+interface DockedPlanSummary {
+  contentId: string;
+  contentTitle: string;
+  estimatedDuration: number;
+  reason: string;
+}
+
+/**
+ * 생성 결과 정보
+ */
+interface GenerationResultInfo {
+  count: number;
+  warnings?: string[];
+  dockedPlans?: DockedPlanSummary[];
+  dockedCount?: number;
+}
 
 /**
  * Step7GenerateResult Props
@@ -38,6 +60,8 @@ interface Step7GenerateResultProps {
   onSubmit: () => Promise<boolean>;
   onSuccess: (groupId: string, generateAI: boolean) => void;
   onClose: () => void;
+  /** 플랜 생성 결과 (dock 정보 포함) */
+  generationResult?: GenerationResultInfo;
 }
 
 type GenerationPhase =
@@ -58,6 +82,7 @@ export function Step7GenerateResult({
   onSubmit,
   onSuccess,
   onClose,
+  generationResult,
 }: Step7GenerateResultProps) {
   const { wizardData, isSubmitting, error, createdGroupId, setSubmitting, setError } =
     useAdminWizardData();
@@ -278,6 +303,56 @@ export function Step7GenerateResult({
               )}
             </div>
           </div>
+
+          {/* Dock 배치 알림 - 시간 부족으로 대기 중인 플랜 */}
+          {generationResult?.dockedCount && generationResult.dockedCount > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4" data-testid="docked-plans-notice">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-amber-800">
+                    {generationResult.dockedCount}개 플랜이 시간 부족으로 대기 중
+                  </h4>
+                  <p className="mt-1 text-sm text-amber-600">
+                    &apos;미완료 플랜&apos; 독에서 수동으로 시간을 배정할 수 있습니다.
+                  </p>
+                  {generationResult.dockedPlans && generationResult.dockedPlans.length > 0 && (
+                    <ul className="mt-3 space-y-1">
+                      {generationResult.dockedPlans.map((plan) => (
+                        <li
+                          key={plan.contentId}
+                          className="flex items-center gap-2 text-sm text-amber-700"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{plan.contentTitle}</span>
+                          <span className="text-amber-500">
+                            ({plan.estimatedDuration}분)
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 경고 메시지 (있는 경우) */}
+          {generationResult?.warnings && generationResult.warnings.length > 0 && (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-500" />
+                <div>
+                  <p className="font-medium text-yellow-800">참고사항</p>
+                  <ul className="mt-1 list-inside list-disc text-sm text-yellow-700">
+                    {generationResult.warnings.map((warning, i) => (
+                      <li key={i}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button

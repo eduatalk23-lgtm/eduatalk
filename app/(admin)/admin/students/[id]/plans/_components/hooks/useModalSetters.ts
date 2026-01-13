@@ -35,6 +35,8 @@ export interface ModalSettersReturn {
   showBulkEditModal: boolean;
   showUnifiedAddModal: boolean;
   showPlanGroupManageModal: boolean;
+  showContentDependencyModal: boolean;
+  showBatchOperationsModal: boolean;
   // Setters
   setShowAddContentModal: ModalSetter;
   setShowAddAdHocModal: ModalSetter;
@@ -54,6 +56,8 @@ export interface ModalSettersReturn {
   setShowBulkEditModal: ModalSetter;
   setShowUnifiedAddModal: ModalSetter;
   setShowPlanGroupManageModal: ModalSetter;
+  setShowContentDependencyModal: ModalSetter;
+  setShowBatchOperationsModal: ModalSetter;
 }
 
 /**
@@ -78,6 +82,8 @@ const MODAL_MAPPINGS: Array<{ type: ModalType; showKey: keyof ModalSettersReturn
   { type: 'bulkEdit', showKey: 'showBulkEditModal', setKey: 'setShowBulkEditModal' },
   { type: 'unifiedAdd', showKey: 'showUnifiedAddModal', setKey: 'setShowUnifiedAddModal' },
   { type: 'planGroupManage', showKey: 'showPlanGroupManageModal', setKey: 'setShowPlanGroupManageModal' },
+  { type: 'contentDependency', showKey: 'showContentDependencyModal', setKey: 'setShowContentDependencyModal' },
+  { type: 'batchOperations', showKey: 'showBatchOperationsModal', setKey: 'setShowBatchOperationsModal' },
 ];
 
 /**

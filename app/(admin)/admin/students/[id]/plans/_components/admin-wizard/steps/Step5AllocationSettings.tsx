@@ -408,6 +408,40 @@ export function Step5AllocationSettings({
             </div>
           </div>
         )}
+
+        {/* 할당 미리보기 - studyType이 선택된 경우 표시 */}
+        {studyType && (
+          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4" data-testid="allocation-preview">
+            <h4 className="text-sm font-medium text-gray-700">할당 미리보기</h4>
+            <div className="mt-2 space-y-1">
+              {(() => {
+                const noIndividualSetting = selectedContents.filter((c) => !c.subjectType).length;
+                const hasIndividualSetting = selectedContents.filter((c) => c.subjectType).length;
+                const effectiveLabel = studyType === "strategy" ? "전략 학습" : "취약 보완";
+
+                return (
+                  <>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium text-gray-800">{noIndividualSetting}개</span> 콘텐츠에{" "}
+                      <span className={cn(
+                        "font-medium",
+                        studyType === "strategy" ? "text-orange-600" : "text-blue-600"
+                      )}>
+                        &apos;{effectiveLabel}&apos;
+                      </span>{" "}
+                      유형이 적용됩니다.
+                    </p>
+                    {hasIndividualSetting > 0 && (
+                      <p className="text-xs text-gray-500">
+                        (개별 설정된 {hasIndividualSetting}개 콘텐츠는 기존 설정 유지)
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 학습 일수 설정 */}

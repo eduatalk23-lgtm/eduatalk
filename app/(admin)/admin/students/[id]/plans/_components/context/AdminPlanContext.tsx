@@ -112,6 +112,10 @@ export interface AdminPlanContextValue {
   setShowUnifiedAddModal: (show: boolean) => void;
   showPlanGroupManageModal: boolean;
   setShowPlanGroupManageModal: (show: boolean) => void;
+  showContentDependencyModal: boolean;
+  setShowContentDependencyModal: (show: boolean) => void;
+  showBatchOperationsModal: boolean;
+  setShowBatchOperationsModal: (show: boolean) => void;
 
   // 통합 모달 모드
   unifiedModalMode: "quick" | "content";
@@ -141,6 +145,26 @@ export interface AdminPlanContextValue {
   newGroupIdForAI: string | null;
   setNewGroupIdForAI: (id: string | null) => void;
 
+  // 콘텐츠 의존성 모달 데이터
+  selectedContentForDependency: {
+    contentId: string;
+    contentType: "book" | "lecture" | "custom";
+    contentName: string;
+  } | null;
+  setSelectedContentForDependency: (
+    content: {
+      contentId: string;
+      contentType: "book" | "lecture" | "custom";
+      contentName: string;
+    } | null
+  ) => void;
+
+  // 배치 작업 모달 데이터
+  selectedPlansForBatch: string[];
+  setSelectedPlansForBatch: (planIds: string[]) => void;
+  batchOperationMode: "date" | "status" | null;
+  setBatchOperationMode: (mode: "date" | "status" | null) => void;
+
   // 모달 열기 헬퍼
   handleOpenRedistribute: (planId: string) => void;
   handleOpenEdit: (planId: string) => void;
@@ -157,6 +181,15 @@ export interface AdminPlanContextValue {
     title: string
   ) => void;
   handleOpenBulkEdit: (planIds: string[]) => void;
+  handleOpenContentDependency: (content: {
+    contentId: string;
+    contentType: "book" | "lecture" | "custom";
+    contentName: string;
+  }) => void;
+  handleOpenBatchOperations: (
+    planIds: string[],
+    mode: "date" | "status"
+  ) => void;
 
   // 플래너 데이터
   plannerDailySchedules?: DailyScheduleInfo[][];
@@ -273,6 +306,22 @@ export function AdminPlanProvider({
   >([]);
   const [newGroupIdForAI, setNewGroupIdForAI] = useState<string | null>(null);
 
+  // 콘텐츠 의존성 모달 상태
+  const [selectedContentForDependency, setSelectedContentForDependency] =
+    useState<{
+      contentId: string;
+      contentType: "book" | "lecture" | "custom";
+      contentName: string;
+    } | null>(null);
+
+  // 배치 작업 모달 상태
+  const [selectedPlansForBatch, setSelectedPlansForBatch] = useState<string[]>(
+    []
+  );
+  const [batchOperationMode, setBatchOperationMode] = useState<
+    "date" | "status" | null
+  >(null);
+
   // React Query 캐시 무효화
   const invalidateAllDocks = useInvalidateAllDockQueries();
 
@@ -371,6 +420,27 @@ export function AdminPlanProvider({
     [modalSetters]
   );
 
+  const handleOpenContentDependency = useCallback(
+    (content: {
+      contentId: string;
+      contentType: "book" | "lecture" | "custom";
+      contentName: string;
+    }) => {
+      setSelectedContentForDependency(content);
+      modalSetters.setShowContentDependencyModal(true);
+    },
+    [modalSetters]
+  );
+
+  const handleOpenBatchOperations = useCallback(
+    (planIds: string[], mode: "date" | "status") => {
+      setSelectedPlansForBatch(planIds);
+      setBatchOperationMode(mode);
+      modalSetters.setShowBatchOperationsModal(true);
+    },
+    [modalSetters]
+  );
+
   // 플랜 생성 가능 여부
   const canCreatePlans = !!selectedPlannerId;
 
@@ -435,6 +505,16 @@ export function AdminPlanProvider({
       newGroupIdForAI,
       setNewGroupIdForAI,
 
+      // 콘텐츠 의존성 모달 데이터
+      selectedContentForDependency,
+      setSelectedContentForDependency,
+
+      // 배치 작업 모달 데이터
+      selectedPlansForBatch,
+      setSelectedPlansForBatch,
+      batchOperationMode,
+      setBatchOperationMode,
+
       // 모달 열기 헬퍼
       handleOpenRedistribute,
       handleOpenEdit,
@@ -444,6 +524,8 @@ export function AdminPlanProvider({
       handleOpenCopy,
       handleOpenStatusChange,
       handleOpenBulkEdit,
+      handleOpenContentDependency,
+      handleOpenBatchOperations,
 
       // 플래너 데이터
       plannerDailySchedules,
@@ -493,6 +575,11 @@ export function AdminPlanProvider({
       handleOpenCopy,
       handleOpenStatusChange,
       handleOpenBulkEdit,
+      handleOpenContentDependency,
+      handleOpenBatchOperations,
+      selectedContentForDependency,
+      selectedPlansForBatch,
+      batchOperationMode,
       plannerDailySchedules,
       plannerExclusions,
       toast,

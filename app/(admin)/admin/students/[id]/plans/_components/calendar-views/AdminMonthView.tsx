@@ -101,6 +101,15 @@ export default function AdminMonthView({
         0
       );
 
+      // Phase 4: 시간대 유형별 통계
+      const studySlotPlans = plans.filter(
+        (p) => (p as { time_slot_type?: string }).time_slot_type === "study"
+      ).length;
+      const selfStudySlotPlans = plans.filter(
+        (p) => (p as { time_slot_type?: string }).time_slot_type === "self_study"
+      ).length;
+      const noSlotPlans = totalPlans - studySlotPlans - selfStudySlotPlans;
+
       return {
         totalPlans,
         completedPlans,
@@ -108,6 +117,9 @@ export default function AdminMonthView({
         pendingPlans,
         completionRate,
         totalEstimatedMinutes,
+        studySlotPlans,
+        selfStudySlotPlans,
+        noSlotPlans,
       };
     },
     [plansByDate]

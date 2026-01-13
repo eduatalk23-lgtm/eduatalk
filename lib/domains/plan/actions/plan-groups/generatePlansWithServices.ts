@@ -55,10 +55,66 @@ import {
   PlanValidationService,
   type GeneratePlanPayload,
 } from "@/lib/domains/plan/services";
+import {
+  AvailabilityAwarePlacementService,
+  type PlanToPlace,
+  type DockedPlanInfo,
+} from "@/lib/domains/plan/services/AvailabilityAwarePlacementService";
+import type { ExistingPlan } from "@/lib/domains/plan/services/AvailabilityService";
+import type { ExistingPlanInfo } from "@/lib/scheduler/SchedulerEngine";
 
 // ============================================
 // 헬퍼 함수
 // ============================================
+
+/**
+ * 기존 플랜 조회 (다른 플랜 그룹의 플랜)
+ * 충돌 방지를 위해 동일 학생의 동일 기간 내 플랜을 조회
+ */
+async function fetchExistingPlans(
+  supabaseClient: ReturnType<typeof createSupabaseServerClient> extends Promise<infer T> ? T : never,
+  studentId: string,
+  periodStart: string,
+  periodEnd: string,
+  excludePlanGroupId: string
+): Promise<ExistingPlan[]> {
+  const { data, error } = await supabaseClient
+    .from("student_plan")
+    .select(`
+      id,
+      plan_date,
+      start_time,
+      end_time,
+      content_type,
+      content_id,
+      content_title,
+      plan_group_id,
+      status
+    `)
+    .eq("student_id", studentId)
+    .gte("plan_date", periodStart)
+    .lte("plan_date", periodEnd)
+    .neq("plan_group_id", excludePlanGroupId)
+    .eq("is_active", true)
+    .is("deleted_at", null);
+
+  if (error) {
+    console.error("[fetchExistingPlans] 기존 플랜 조회 실패:", error);
+    return [];
+  }
+
+  return (data || []).map((p) => ({
+    id: p.id,
+    plan_date: p.plan_date,
+    start_time: p.start_time,
+    end_time: p.end_time,
+    content_type: p.content_type as "book" | "lecture" | "custom",
+    content_id: p.content_id,
+    content_title: p.content_title ?? undefined,
+    plan_group_id: p.plan_group_id,
+    status: p.status ?? undefined,
+  }));
+}
 
 /**
  * 플랜 생성 서비스 컨텍스트 생성
@@ -93,7 +149,12 @@ function createServiceContext(
  */
 async function _generatePlansWithServices(
   groupId: string
-): Promise<{ count: number; warnings?: string[] }> {
+): Promise<{
+  count: number;
+  warnings?: string[];
+  dockedPlans?: DockedPlanInfo[];
+  dockedCount?: number;
+}> {
   // ============================================
   // 1. 인증 및 컨텍스트 설정
   // ============================================
@@ -326,6 +387,29 @@ async function _generatePlansWithServices(
   }
 
   // ============================================
+  // 5.5. 기존 플랜 조회 (스케줄러 호출 전!)
+  // Phase 2: 시간 슬롯 충돌 방지 - 스케줄러가 기존 플랜을 고려하도록 함
+  // ============================================
+  const existingPlans = await fetchExistingPlans(
+    supabase,
+    studentId,
+    group.period_start,
+    group.period_end,
+    groupId
+  );
+
+  // ExistingPlanInfo 형식으로 변환 (스케줄러 요구 타입)
+  const existingPlanInfos: ExistingPlanInfo[] = existingPlans
+    .filter((p) => p.start_time && p.end_time) // 시간 정보 있는 플랜만
+    .map((p) => ({
+      date: p.plan_date,
+      start_time: p.start_time!,
+      end_time: p.end_time!,
+    }));
+
+  console.log(`[generatePlansWithServices] 기존 플랜 ${existingPlanInfos.length}개 발견, 스케줄러에 전달`);
+
+  // ============================================
   // 6. 스케줄러 호출 (플랜 생성)
   // ============================================
   let scheduledPlans: import("@/lib/plan/scheduler").ScheduledPlan[];
@@ -361,7 +445,10 @@ async function _generatePlansWithServices(
       dateAvailableTimeRanges,
       dateTimeSlots,
       resolution.durationMap,
-      resolution.chapterMap
+      resolution.chapterMap,
+      undefined,           // periodStart
+      undefined,           // periodEnd
+      existingPlanInfos    // Phase 2: 기존 플랜 정보 전달 (시간 충돌 방지)
     );
 
     // DEBUG: 스케줄러 출력 확인
@@ -397,6 +484,128 @@ async function _generatePlansWithServices(
       400,
       true
     );
+  }
+
+  // ============================================
+  // 6.5. 추가 폴백 처리: 자율학습 시간 및 dock 배치 (Phase 2)
+  // 스케줄러가 기존 플랜을 고려하여 배치했지만, 학습 시간이 부족한 경우
+  // 자율학습 시간으로 넘치거나 dock에 배치될 수 있음
+  // ============================================
+  let dockedPlansInfo: DockedPlanInfo[] = [];
+
+  // 기존 플랜이 있거나 미배치 플랜이 있는 경우 폴백 처리
+  const unplacedPlans = scheduledPlans.filter((p) => !p.start_time || !p.end_time);
+
+  if (existingPlans.length > 0 || unplacedPlans.length > 0) {
+    console.log(`[generatePlansWithServices] 폴백 처리 시작 - 기존 플랜: ${existingPlans.length}개, 미배치 플랜: ${unplacedPlans.length}개`);
+
+    // 스케줄러 결과를 PlanToPlace 형식으로 변환
+    // 참고: PlanContent 타입에는 title 필드가 없어서 content_id를 기본값으로 사용
+    const plansToPlace: PlanToPlace[] = scheduledPlans.map((plan) => {
+      // start_time, end_time에서 소요시간 계산 (분 단위)
+      let estimatedDuration = 30; // 기본값 30분
+      if (plan.start_time && plan.end_time) {
+        const [startH, startM] = plan.start_time.split(":").map(Number);
+        const [endH, endM] = plan.end_time.split(":").map(Number);
+        estimatedDuration = (endH * 60 + endM) - (startH * 60 + startM);
+        if (estimatedDuration <= 0) estimatedDuration = 30; // 음수면 기본값
+      }
+
+      return {
+        contentId: plan.content_id,
+        contentType: plan.content_type as "book" | "lecture" | "custom",
+        contentTitle: plan.content_id, // TODO: 추후 content 메타데이터에서 title 조회 추가
+        planDate: plan.plan_date,
+        startTime: plan.start_time ?? null,
+        endTime: plan.end_time ?? null,
+        estimatedDuration,
+        priority: plan.subject_type === "strategy" ? 1 : 2, // 전략 과목 우선
+        subjectType: plan.subject_type as "strategy" | "weakness" | null,
+      };
+    });
+
+    // 시간 설정 추출 (TimeSettings의 필드명 사용)
+    const studyHours = groupSchedulerOptions?.camp_study_hours ?? schedulerOptions.camp_study_hours ?? null;
+    const selfStudyHours = groupSchedulerOptions?.camp_self_study_hours ?? schedulerOptions.self_study_hours ?? null;
+
+    // 폴백 배치 서비스 실행
+    const placementService = new AvailabilityAwarePlacementService();
+    const placementResult = placementService.placeWithFallback({
+      plansToPlace,
+      existingPlans,
+      dailySchedule: scheduleResult.daily_schedule,
+      studyHours,
+      selfStudyHours,
+      strategy: "best-fit",
+      periodStart: group.period_start,
+      periodEnd: group.period_end,
+    });
+
+    console.log("[generatePlansWithServices] 배치 결과:", {
+      studyHours: placementResult.summary.placedInStudyHours,
+      selfStudy: placementResult.summary.placedInSelfStudyHours,
+      docked: placementResult.summary.dockedCount,
+    });
+
+    // 배치 결과 반영 - scheduledPlans 업데이트
+    const placedPlansMap = new Map<string, { startTime: string; endTime: string; wasRelocated: boolean }>();
+
+    // 학습 시간 및 자율학습 시간 배치 플랜 수집
+    for (const placed of [...placementResult.studyHoursPlans, ...placementResult.selfStudyPlans]) {
+      const key = `${placed.planDate}:${placed.contentId}`;
+      placedPlansMap.set(key, {
+        startTime: placed.startTime,
+        endTime: placed.endTime,
+        wasRelocated: placed.wasRelocated,
+      });
+    }
+
+    // dock으로 이동할 플랜의 날짜:콘텐츠ID Set
+    const dockedPlanKeys = new Set(
+      placementResult.dockedPlans.map((d) => `${d.planDate}:${d.contentId}`)
+    );
+
+    // scheduledPlans 업데이트
+    scheduledPlans = scheduledPlans.map((plan) => {
+      const key = `${plan.plan_date}:${plan.content_id}`;
+      const placedInfo = placedPlansMap.get(key);
+
+      if (placedInfo) {
+        // 재배치된 시간으로 업데이트
+        return {
+          ...plan,
+          start_time: placedInfo.startTime,
+          end_time: placedInfo.endTime,
+        };
+      }
+
+      // dock으로 이동할 플랜은 시간 슬롯 제거 (dock 처리는 dockedPlansInfo에서 별도 관리)
+      if (dockedPlanKeys.has(key)) {
+        return {
+          ...plan,
+          start_time: undefined,
+          end_time: undefined,
+        };
+      }
+
+      return plan;
+    });
+
+    // dock 플랜 정보 저장
+    dockedPlansInfo = placementResult.dockedPlans;
+
+    // 충돌 관련 경고 추가
+    if (placementResult.conflicts.length > 0) {
+      placementResult.conflicts.forEach((conflict) => {
+        allWarnings.push(`[시간 충돌] ${conflict.contentTitle}: ${conflict.reason}`);
+      });
+    }
+
+    if (placementResult.summary.dockedCount > 0) {
+      allWarnings.push(
+        `${placementResult.summary.dockedCount}개 플랜이 시간 부족으로 '미완료 플랜' dock에 배치되었습니다.`
+      );
+    }
   }
 
   // ============================================
@@ -558,6 +767,9 @@ async function _generatePlansWithServices(
   return {
     count: insertResult.insertedCount,
     warnings: allWarnings.length > 0 ? allWarnings : undefined,
+    // dock에 배치된 플랜 정보 (Phase 2: 시간 충돌 방지)
+    dockedPlans: dockedPlansInfo.length > 0 ? dockedPlansInfo : undefined,
+    dockedCount: dockedPlansInfo.length,
   };
 }
 

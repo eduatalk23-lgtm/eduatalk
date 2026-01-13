@@ -30,6 +30,17 @@ const CONTENT_TYPE_TEXT: Record<string, string> = {
   custom: "기타",
 };
 
+// Phase 4: 시간대 유형 텍스트 및 색상
+const TIME_SLOT_TYPE_TEXT: Record<string, string> = {
+  study: "학습시간",
+  self_study: "자율학습",
+};
+
+const TIME_SLOT_BORDER_COLORS: Record<string, string> = {
+  study: "ring-2 ring-green-300 ring-inset",
+  self_study: "ring-2 ring-teal-300 ring-inset",
+};
+
 interface DraggableGanttPlanBarProps {
   plan: CalendarPlan;
   style: {
@@ -89,6 +100,20 @@ function PlanTooltipContent({ plan }: { plan: CalendarPlan }) {
           )}
         </div>
 
+        {/* Phase 4: 시간대 유형 */}
+        {plan.time_slot_type && (
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span className={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-medium",
+              plan.time_slot_type === "study" && "bg-green-500/30 text-green-300",
+              plan.time_slot_type === "self_study" && "bg-teal-500/30 text-teal-300"
+            )}>
+              {TIME_SLOT_TYPE_TEXT[plan.time_slot_type]}
+            </span>
+          </div>
+        )}
+
         {/* 범위 표시 */}
         {plan.custom_range_display && (
           <div className="text-gray-400 mt-1">
@@ -121,6 +146,8 @@ function arePropsEqual(
     prevPlan.custom_title === nextPlan.custom_title &&
     prevPlan.content_title === nextPlan.content_title &&
     prevPlan.plan_date === nextPlan.plan_date &&
+    // Phase 4: 시간대 유형 비교 추가
+    prevPlan.time_slot_type === nextPlan.time_slot_type &&
     prevProps.style.left === nextProps.style.left &&
     prevProps.style.top === nextProps.style.top &&
     prevProps.disabled === nextProps.disabled
@@ -203,6 +230,8 @@ function DraggableGanttPlanBarComponent({
           "focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-1",
           "active:scale-100",
           getStatusColor(plan.status),
+          // Phase 4: 시간대 유형에 따른 테두리 표시
+          plan.time_slot_type && TIME_SLOT_BORDER_COLORS[plan.time_slot_type],
           isDragging && "opacity-50 shadow-lg z-50 scale-105",
           disabled && "cursor-default opacity-60"
         )}

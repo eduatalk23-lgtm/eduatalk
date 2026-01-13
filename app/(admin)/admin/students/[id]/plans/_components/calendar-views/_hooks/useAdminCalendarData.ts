@@ -106,6 +106,8 @@ export function useAdminCalendarData({
         plan_group_id: plan.plan_group_id,
         container_type: plan.container_type as CalendarPlan["container_type"],
         sequence: plan.sequence,
+        // Phase 4: 시간대 유형
+        time_slot_type: plan.time_slot_type,
       } satisfies CalendarPlan));
   }, [query.data]);
 

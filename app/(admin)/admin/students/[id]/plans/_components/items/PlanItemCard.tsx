@@ -28,6 +28,8 @@ const QUICK_STATUS_OPTIONS: Array<{
 export type PlanItemType = 'plan' | 'adhoc';
 export type ContainerType = 'daily' | 'weekly' | 'unfinished';
 
+export type TimeSlotType = "study" | "self_study" | null;
+
 export interface PlanItemData {
   id: string;
   type: PlanItemType;
@@ -48,6 +50,10 @@ export interface PlanItemData {
   carryoverCount?: number;
   carryoverFromDate?: string | null;
   planGroupId?: string | null;
+  /** Phase 4: 시간대 유형 (학습시간/자율학습시간) */
+  timeSlotType?: TimeSlotType;
+  /** Phase 4: 배치 사유 */
+  allocationReason?: string | null;
 }
 
 interface PlanItemCardProps {
@@ -90,6 +96,20 @@ const containerColors = {
   unfinished: {
     border: 'border-red-100',
     borderCompleted: 'border-green-200 bg-green-50/50',
+  },
+};
+
+/**
+ * Phase 4: 시간대 유형별 색상 스타일
+ */
+const timeSlotColors = {
+  study: {
+    badge: 'bg-green-100 text-green-700',
+    label: '학습',
+  },
+  self_study: {
+    badge: 'bg-teal-100 text-teal-700',
+    label: '자율학습',
   },
 };
 
@@ -247,11 +267,22 @@ export function PlanItemCard({
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              {isAdHoc && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mr-2">
-                  단발성
-                </span>
-              )}
+              <div className="flex items-center gap-1 flex-wrap mb-1">
+                {isAdHoc && (
+                  <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
+                    단발성
+                  </span>
+                )}
+                {/* Phase 4: Time slot type badge */}
+                {plan.timeSlotType && timeSlotColors[plan.timeSlotType] && (
+                  <span className={cn(
+                    "text-xs px-1.5 py-0.5 rounded",
+                    timeSlotColors[plan.timeSlotType].badge
+                  )}>
+                    {timeSlotColors[plan.timeSlotType].label}
+                  </span>
+                )}
+              </div>
               <div
                 className={cn(
                   'font-medium text-sm truncate',
@@ -264,6 +295,20 @@ export function PlanItemCard({
                 {plan.subject && <span>{plan.subject} · </span>}
                 {rangeDisplay}
               </div>
+              {/* Carryover / Dock reason indicator for compact */}
+              {showCarryover && (
+                plan.carryoverCount && plan.carryoverCount > 0 ? (
+                  <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    {plan.carryoverCount}회 이월됨
+                  </div>
+                ) : container === 'unfinished' ? (
+                  <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
+                    배치 대기
+                  </div>
+                ) : null
+              )}
             </div>
           </div>
 
@@ -455,6 +500,16 @@ export function PlanItemCard({
           </span>
         )}
 
+        {/* Phase 4: Time slot type badge */}
+        {plan.timeSlotType && timeSlotColors[plan.timeSlotType] && (
+          <span className={cn(
+            "text-xs px-1.5 py-0.5 rounded shrink-0",
+            timeSlotColors[plan.timeSlotType].badge
+          )}>
+            {timeSlotColors[plan.timeSlotType].label}
+          </span>
+        )}
+
         {/* Plan info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -510,11 +565,19 @@ export function PlanItemCard({
               />
             </div>
           )}
-          {/* Carryover indicator */}
-          {showCarryover && plan.carryoverCount && plan.carryoverCount > 0 && (
-            <div className="text-xs text-amber-600 mt-0.5">
-              {plan.carryoverCount}회 이월됨
-            </div>
+          {/* Carryover / Dock reason indicator */}
+          {showCarryover && (
+            plan.carryoverCount && plan.carryoverCount > 0 ? (
+              <div className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
+                {plan.carryoverCount}회 이월됨
+              </div>
+            ) : container === 'unfinished' ? (
+              <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400" />
+                배치 대기
+              </div>
+            ) : null
           )}
         </div>
 
@@ -693,5 +756,8 @@ export function toPlanItemData(
     carryoverCount: raw.carryover_count ?? 0,
     carryoverFromDate: raw.carryover_from_date,
     planGroupId: raw.plan_group_id,
+    // Phase 4: 시간대 유형 시각화
+    timeSlotType: raw.time_slot_type ?? null,
+    allocationReason: raw.allocation_type?.reason ?? null,
   };
 }

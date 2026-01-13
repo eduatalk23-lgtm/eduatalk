@@ -117,3 +117,13 @@ export const PlanGroupManageModal = dynamic(
   () => import('./modals/PlanGroupManageModal').then((mod) => ({ default: mod.PlanGroupManageModal })),
   { ssr: false }
 );
+
+export const ContentDependencyModal = dynamic(
+  () => import('./modals/ContentDependencyModal').then((mod) => ({ default: mod.ContentDependencyModal })),
+  { ssr: false }
+);
+
+export const BatchOperationsModal = dynamic(
+  () => import('./modals/BatchOperationsModal').then((mod) => ({ default: mod.BatchOperationsModal })),
+  { ssr: false }
+);

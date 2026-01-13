@@ -27,7 +27,9 @@ export type ModalType =
   | 'status'
   | 'bulkEdit'
   | 'unifiedAdd'
-  | 'planGroupManage';
+  | 'planGroupManage'
+  | 'contentDependency'
+  | 'batchOperations';
 
 /**
  * 모달 상태
@@ -51,6 +53,8 @@ export interface ModalState {
   bulkEdit: boolean;
   unifiedAdd: boolean;
   planGroupManage: boolean;
+  contentDependency: boolean;
+  batchOperations: boolean;
 }
 
 /**
@@ -83,6 +87,8 @@ export const initialModalState: ModalState = {
   bulkEdit: false,
   unifiedAdd: false,
   planGroupManage: false,
+  contentDependency: false,
+  batchOperations: false,
 };
 
 /**
@@ -123,4 +129,6 @@ export const modalKeyMap: Record<string, ModalType> = {
   showBulkEditModal: 'bulkEdit',
   showUnifiedAddModal: 'unifiedAdd',
   showPlanGroupManageModal: 'planGroupManage',
+  showContentDependencyModal: 'contentDependency',
+  showBatchOperationsModal: 'batchOperations',
 };

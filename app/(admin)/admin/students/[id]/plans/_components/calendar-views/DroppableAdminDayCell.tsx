@@ -75,7 +75,11 @@ function arePropsEqual(
   if (
     prevStats.totalPlans !== nextStats.totalPlans ||
     prevStats.completedPlans !== nextStats.completedPlans ||
-    prevStats.completionRate !== nextStats.completionRate
+    prevStats.completionRate !== nextStats.completionRate ||
+    // Phase 4: 시간대 유형별 통계 비교
+    prevStats.studySlotPlans !== nextStats.studySlotPlans ||
+    prevStats.selfStudySlotPlans !== nextStats.selfStudySlotPlans ||
+    prevStats.noSlotPlans !== nextStats.noSlotPlans
   ) {
     return false;
   }
@@ -242,6 +246,30 @@ function DroppableAdminDayCellComponent({
               style={{ width: `${stats.completionRate}%` }}
             />
           </div>
+
+          {/* Phase 4: 시간대 유형 분포 바 */}
+          {(stats.studySlotPlans || stats.selfStudySlotPlans || 0) > 0 && (
+            <div className="flex gap-0.5 h-1 mt-0.5" title="학습시간(초록) / 자율학습(청록)">
+              {(stats.studySlotPlans ?? 0) > 0 && (
+                <div
+                  className="bg-green-400 rounded-sm"
+                  style={{ flex: stats.studySlotPlans }}
+                />
+              )}
+              {(stats.selfStudySlotPlans ?? 0) > 0 && (
+                <div
+                  className="bg-teal-400 rounded-sm"
+                  style={{ flex: stats.selfStudySlotPlans }}
+                />
+              )}
+              {(stats.noSlotPlans ?? 0) > 0 && (
+                <div
+                  className="bg-gray-300 rounded-sm"
+                  style={{ flex: stats.noSlotPlans }}
+                />
+              )}
+            </div>
+          )}
 
           {/* 플랜 카운트 */}
           <div className="flex items-center gap-1 text-xs text-gray-500">

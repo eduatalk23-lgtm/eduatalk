@@ -26,6 +26,8 @@ export interface CalendarPlanData {
   plan_group_id: string | null;
   container_type: string | null;
   sequence: number | null;
+  // Phase 4: 시간대 유형
+  time_slot_type: "study" | "self_study" | null;
 }
 
 // Query key factory
@@ -84,7 +86,8 @@ export function monthlyPlansQueryOptions(
         custom_range_display,
         plan_group_id,
         container_type,
-        sequence
+        sequence,
+        time_slot_type
       `;
 
       // 플래너 필터링이 필요한 경우 plan_groups와 조인

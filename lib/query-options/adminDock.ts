@@ -25,6 +25,8 @@ export interface DailyPlan {
   start_time: string | null;
   end_time: string | null;
   estimated_minutes: number | null;
+  // Phase 4: 시간대 유형
+  time_slot_type: 'study' | 'self_study' | null;
 }
 
 export interface WeeklyPlan {
@@ -38,6 +40,8 @@ export interface WeeklyPlan {
   custom_title: string | null;
   custom_range_display: string | null;
   plan_group_id: string | null;
+  // Phase 4: 시간대 유형
+  time_slot_type: 'study' | 'self_study' | null;
 }
 
 export interface UnfinishedPlan {
@@ -53,6 +57,8 @@ export interface UnfinishedPlan {
   custom_title: string | null;
   status: string | null;
   plan_group_id: string | null;
+  // Phase 4: 시간대 유형
+  time_slot_type: 'study' | 'self_study' | null;
 }
 
 export interface AdHocPlan {
@@ -127,6 +133,7 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             start_time,
             end_time,
             estimated_minutes,
+            time_slot_type,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -160,7 +167,8 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           plan_group_id,
           start_time,
           end_time,
-          estimated_minutes
+          estimated_minutes,
+          time_slot_type
         `)
         .eq('student_id', studentId)
         .eq('plan_date', date)
@@ -234,6 +242,7 @@ export function weeklyPlansQueryOptions(
             custom_title,
             custom_range_display,
             plan_group_id,
+            time_slot_type,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -261,7 +270,8 @@ export function weeklyPlansQueryOptions(
           status,
           custom_title,
           custom_range_display,
-          plan_group_id
+          plan_group_id,
+          time_slot_type
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'weekly')
@@ -336,6 +346,7 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             custom_title,
             status,
             plan_group_id,
+            time_slot_type,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -363,7 +374,8 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           carryover_count,
           custom_title,
           status,
-          plan_group_id
+          plan_group_id,
+          time_slot_type
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')
