@@ -1,6 +1,7 @@
 import type { ContentType, RangeType } from '@/lib/domains/admin-plan/types';
 
 export type DistributionMode = 'today' | 'period' | 'weekly';
+export type SubjectType = 'strategy' | 'weakness' | null;
 
 export interface AddContentWizardData {
   // Step 1: 콘텐츠 정보
@@ -14,6 +15,8 @@ export interface AddContentWizardData {
   masterContentId?: string;
   /** 마스터 콘텐츠 제목 (표시용) */
   masterContentTitle?: string;
+  /** 학습 유형: 전략 학습 또는 취약 보완 */
+  subjectType: SubjectType;
 
   // Step 2: 범위 설정
   rangeType: RangeType;
@@ -62,6 +65,7 @@ export const initialWizardData = (targetDate: string): AddContentWizardData => (
   linkMaster: false,
   masterContentId: undefined,
   masterContentTitle: undefined,
+  subjectType: null,
 
   // Step 2
   rangeType: 'page',

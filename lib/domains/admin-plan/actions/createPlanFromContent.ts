@@ -54,6 +54,10 @@ export interface CreatePlanFromContentInput {
   useScheduler?: boolean;
   /** 예상 소요시간 (분). 지정하지 않으면 콘텐츠 타입과 볼륨으로 자동 계산 */
   estimatedMinutes?: number;
+
+  // 학습 유형
+  /** 학습 유형: 전략 학습(strategy) 또는 취약 보완(weakness) */
+  subjectType?: 'strategy' | 'weakness' | null;
 }
 
 export interface CreatePlanFromContentResult {
@@ -274,6 +278,8 @@ function createPlanRecord(params: {
   // 스케줄러 시간 배정 (선택적)
   startTime?: string; // HH:mm
   endTime?: string; // HH:mm
+  // 학습 유형
+  subjectType?: 'strategy' | 'weakness' | null;
 }): Record<string, unknown> {
   // estimated_minutes 계산: 시간이 있으면 시간 기반, 없으면 볼륨 기반
   let estimatedMinutes: number | null = null;
@@ -301,6 +307,7 @@ function createPlanRecord(params: {
     end_time: params.endTime || null,
     estimated_minutes: estimatedMinutes,
     plan_group_id: params.planGroupId || null, // 플랜그룹 연결
+    subject_type: params.subjectType || null, // 학습 유형
     status: 'pending',
     is_active: true,
     sequence: params.sequence ?? 0,
@@ -327,6 +334,7 @@ function distributeOverPeriod(params: {
   customRangeDisplay?: string | null;
   totalVolume?: number | null;
   planGroupId?: string; // 플랜그룹 연결
+  subjectType?: 'strategy' | 'weakness' | null; // 학습 유형
   now: string;
 }): Array<Record<string, unknown>> {
   const plans: Array<Record<string, unknown>> = [];
@@ -373,6 +381,7 @@ function distributeOverPeriod(params: {
           customRangeDisplay: null,
           totalVolume: rangeEndForDay - currentStart + 1,
           planGroupId: params.planGroupId,
+          subjectType: params.subjectType,
           now: params.now,
           sequence: i,
         }));
@@ -402,6 +411,7 @@ function distributeOverPeriod(params: {
         customRangeDisplay: params.customRangeDisplay,
         totalVolume: params.totalVolume,
         planGroupId: params.planGroupId,
+        subjectType: params.subjectType,
         now: params.now,
         sequence: i,
       }));
@@ -631,6 +641,7 @@ export async function createPlanFromContentWithScheduler(
           ? timeToMinutes(plan.end_time) - timeToMinutes(plan.start_time)
           : null,
       container_type: 'daily' as ContainerType,
+      subject_type: input.subjectType || null, // 학습 유형
       status: 'pending',
       is_active: true,
       sequence: index,

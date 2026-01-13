@@ -131,6 +131,8 @@ export function AddContentWizard({
         plannerId,
         // today 모드에서만 스케줄러 옵션 전달
         useScheduler: data.distributionMode === 'today' ? data.useScheduler : false,
+        // 학습 유형
+        subjectType: data.subjectType,
       };
 
       const planResult =
