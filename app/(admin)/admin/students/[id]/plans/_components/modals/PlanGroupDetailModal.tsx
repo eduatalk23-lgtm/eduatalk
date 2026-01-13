@@ -29,6 +29,7 @@ import {
   copyPlanGroupAdmin,
   activatePlanGroupAdmin,
 } from '@/lib/domains/admin-plan/actions/planGroupOperations';
+import { ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { PlanGroupEditModal } from '../dynamicModals';
 
 interface PlanGroupDetailModalProps {
@@ -122,7 +123,7 @@ export function PlanGroupDetailModal({
     if (result) {
       setDetail(result);
     } else {
-      setError('플랜 그룹 정보를 불러올 수 없습니다.');
+      setError(ERROR.PLAN_LOAD);
     }
 
     setIsLoading(false);
@@ -149,7 +150,7 @@ export function PlanGroupDetailModal({
       onRefresh?.();
       onClose();
     } else {
-      setError(result.error || '삭제에 실패했습니다.');
+      setError(formatError(result.error, ERROR.GROUP_DELETE));
     }
   };
 
@@ -163,7 +164,7 @@ export function PlanGroupDetailModal({
       onRefresh?.();
       onClose();
     } else {
-      setError(result.error || '복사에 실패했습니다.');
+      setError(formatError(result.error, ERROR.GROUP_COPY));
     }
   };
 
@@ -177,7 +178,7 @@ export function PlanGroupDetailModal({
       onRefresh?.();
       fetchDetail(); // 상태 업데이트 반영
     } else {
-      setError(result.error || '활성화에 실패했습니다.');
+      setError(formatError(result.error, ERROR.GROUP_ACTIVATE));
     }
   };
 

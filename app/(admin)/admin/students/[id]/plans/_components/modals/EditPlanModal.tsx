@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, Zap, Target } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
   getStudentPlanForEdit,
@@ -9,7 +10,9 @@ import {
   type StudentPlanUpdateInput,
   type StudentPlanDetail,
 } from '@/lib/domains/admin-plan/actions/editPlan';
-import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus, ContainerType, SubjectType } from '@/lib/domains/admin-plan/types';
+import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import { VALIDATION, SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface EditPlanModalProps {
@@ -20,19 +23,6 @@ interface EditPlanModalProps {
   onSuccess: () => void;
 }
 
-const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
-  { value: 'pending', label: '대기중' },
-  { value: 'in_progress', label: '진행중' },
-  { value: 'completed', label: '완료' },
-  { value: 'skipped', label: '건너뜀' },
-  { value: 'cancelled', label: '취소됨' },
-];
-
-const CONTAINER_OPTIONS: { value: ContainerType; label: string }[] = [
-  { value: 'daily', label: 'Daily (일일)' },
-  { value: 'weekly', label: 'Weekly (주간)' },
-  { value: 'unfinished', label: 'Unfinished (미완료)' },
-];
 
 export function EditPlanModal({
   planId,
@@ -56,6 +46,7 @@ export function EditPlanModal({
   const [estimatedMinutes, setEstimatedMinutes] = useState<string>('');
   const [status, setStatus] = useState<PlanStatus>('pending');
   const [containerType, setContainerType] = useState<ContainerType>('daily');
+  const [subjectType, setSubjectType] = useState<SubjectType>(null);
 
   // Load plan data
   useEffect(() => {
@@ -73,8 +64,9 @@ export function EditPlanModal({
         setEstimatedMinutes(data.estimated_minutes?.toString() ?? '');
         setStatus((data.status as PlanStatus) ?? 'pending');
         setContainerType((data.container_type as ContainerType) ?? 'daily');
+        setSubjectType(data.subject_type ?? null);
       } else {
-        showError(result.error ?? '플랜을 불러올 수 없습니다.');
+        showError(formatError(result.error, ERROR.PLAN_LOAD));
         onClose();
       }
       setIsLoading(false);
@@ -116,9 +108,12 @@ export function EditPlanModal({
     if (containerType !== plan?.container_type) {
       updates.container_type = containerType;
     }
+    if (subjectType !== plan?.subject_type) {
+      updates.subject_type = subjectType;
+    }
 
     if (Object.keys(updates).length === 0) {
-      showError('변경된 내용이 없습니다.');
+      showError(VALIDATION.NO_CHANGES);
       return;
     }
 
@@ -126,10 +121,10 @@ export function EditPlanModal({
       const result = await adminUpdateStudentPlan(planId, studentId, updates);
 
       if (result.success) {
-        showSuccess('플랜이 수정되었습니다.');
+        showSuccess(SUCCESS.PLAN_UPDATED);
         onSuccess();
       } else {
-        showError(result.error ?? '수정에 실패했습니다.');
+        showError(formatError(result.error, ERROR.PLAN_UPDATE));
       }
     });
   };
@@ -257,7 +252,7 @@ export function EditPlanModal({
           onChange={(e) => setStatus(e.target.value as PlanStatus)}
           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-          {STATUS_OPTIONS.map((option) => (
+          {PLAN_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -275,12 +270,42 @@ export function EditPlanModal({
           onChange={(e) => setContainerType(e.target.value as ContainerType)}
           className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-          {CONTAINER_OPTIONS.map((option) => (
+          {CONTAINER_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Subject Type (학습 유형) */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          학습 유형
+        </label>
+        <div className="flex gap-2">
+          {SUBJECT_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.value ?? 'null'}
+              type="button"
+              onClick={() => setSubjectType(option.value)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors',
+                subjectType === option.value
+                  ? option.color === 'orange'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700'
+                    : option.color === 'blue'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-400 bg-gray-100 text-gray-700'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              {option.icon === 'zap' && <Zap className="h-4 w-4" />}
+              {option.icon === 'target' && <Target className="h-4 w-4" />}
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
     </form>
   );
@@ -292,7 +317,7 @@ export function EditPlanModal({
       title="플랜 수정"
       subtitle={plan?.content_title ?? '제목 없음'}
       icon={<Pencil className="h-5 w-5" />}
-      theme="blue"
+      theme="amber"
       size="lg"
       loading={isPending}
       footer={
@@ -303,7 +328,7 @@ export function EditPlanModal({
             </ModalButton>
             <ModalButton
               type="submit"
-              theme="blue"
+              theme="amber"
               loading={isPending}
               onClick={() => {
                 const form = document.getElementById('edit-plan-form') as HTMLFormElement;

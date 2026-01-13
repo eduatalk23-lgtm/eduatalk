@@ -6,6 +6,9 @@ import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { adminUpdateStudentPlan } from '@/lib/domains/admin-plan/actions/editPlan';
 import type { PlanStatus } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
+import { getStatusSelectionColor } from '@/lib/domains/admin-plan/utils/statusColorUtils';
+import { SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface PlanStatusModalProps {
@@ -16,39 +19,6 @@ interface PlanStatusModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const STATUS_OPTIONS: { value: PlanStatus; label: string; color: string; description: string }[] = [
-  {
-    value: 'pending',
-    label: '대기중',
-    color: 'bg-gray-100 text-gray-700 border-gray-300',
-    description: '아직 시작하지 않음',
-  },
-  {
-    value: 'in_progress',
-    label: '진행중',
-    color: 'bg-blue-100 text-blue-700 border-blue-300',
-    description: '현재 학습 진행 중',
-  },
-  {
-    value: 'completed',
-    label: '완료',
-    color: 'bg-green-100 text-green-700 border-green-300',
-    description: '학습 완료됨',
-  },
-  {
-    value: 'skipped',
-    label: '건너뜀',
-    color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-    description: '이번에는 건너뜀',
-  },
-  {
-    value: 'cancelled',
-    label: '취소됨',
-    color: 'bg-red-100 text-red-700 border-red-300',
-    description: '플랜 취소됨',
-  },
-];
 
 export function PlanStatusModal({
   planId,
@@ -74,10 +44,10 @@ export function PlanStatusModal({
       });
 
       if (result.success) {
-        showSuccess('상태가 변경되었습니다.');
+        showSuccess(SUCCESS.STATUS_CHANGED);
         onSuccess();
       } else {
-        showError(result.error ?? '상태 변경에 실패했습니다.');
+        showError(formatError(result.error, ERROR.STATUS_CHANGE));
       }
     });
   };
@@ -109,13 +79,13 @@ export function PlanStatusModal({
       }
     >
       <div className="p-4 space-y-2">
-        {STATUS_OPTIONS.map((option) => (
+        {PLAN_STATUS_OPTIONS.map((option) => (
           <label
             key={option.value}
             className={cn(
               'flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors',
               selectedStatus === option.value
-                ? option.color
+                ? getStatusSelectionColor(option.color)
                 : 'border-gray-200 hover:bg-gray-50'
             )}
           >

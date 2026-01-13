@@ -20,12 +20,15 @@ import {
   ChevronDown,
   ArrowRight,
   Loader2,
+  SkipForward,
+  XCircle,
 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import type { CalendarPlan } from "./_types/adminCalendar";
+import type { PlanStatus } from "@/lib/domains/admin-plan/types";
 
 interface BatchActionsToolbarProps {
   /** 선택된 플랜 목록 */
@@ -48,12 +51,12 @@ interface BatchActionsToolbarProps {
   totalPlans: number;
 }
 
-type StatusOption = "completed" | "in_progress" | "pending";
-
-const STATUS_OPTIONS: { value: StatusOption; label: string; icon: typeof CheckCircle2 }[] = [
+const STATUS_OPTIONS: { value: PlanStatus; label: string; icon: typeof CheckCircle2 }[] = [
+  { value: "pending", label: "대기중", icon: Clock },
+  { value: "in_progress", label: "진행중", icon: Clock },
   { value: "completed", label: "완료", icon: CheckCircle2 },
-  { value: "in_progress", label: "진행 중", icon: Clock },
-  { value: "pending", label: "대기", icon: Clock },
+  { value: "skipped", label: "건너뜀", icon: SkipForward },
+  { value: "cancelled", label: "취소됨", icon: XCircle },
 ];
 
 export default function BatchActionsToolbar({
@@ -125,7 +128,7 @@ export default function BatchActionsToolbar({
 
   // 일괄 상태 변경
   const handleBatchStatusChange = useCallback(
-    (status: StatusOption) => {
+    (status: PlanStatus) => {
       startTransition(async () => {
         try {
           const { batchUpdatePlanStatus } = await import(

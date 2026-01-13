@@ -7,6 +7,7 @@ import { logActionError } from '@/lib/logging/actionLogger';
 export interface PlanGroupDetail {
   id: string;
   name: string | null;
+  /** 플랜 그룹 활성화 상태 (active, inactive, archived 등) */
   status: string;
   planPurpose: string | null;
   periodStart: string | null;

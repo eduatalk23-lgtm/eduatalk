@@ -19,6 +19,7 @@ import { createPlanTemplate } from '@/lib/domains/admin-plan/actions/planTemplat
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import { formatDateString } from '@/lib/date/calendarUtils';
 import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
 
 interface BulkRedistributeModalProps {
   planIds: string[];
@@ -40,19 +41,6 @@ interface PlanInfo {
 
 type BulkAction = 'move_to_daily' | 'move_to_weekly' | 'delete' | 'bulk_edit' | 'copy' | 'move_to_group' | 'save_as_template';
 
-const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
-  { value: 'pending', label: '대기중' },
-  { value: 'in_progress', label: '진행중' },
-  { value: 'completed', label: '완료' },
-  { value: 'skipped', label: '건너뜀' },
-  { value: 'cancelled', label: '취소됨' },
-];
-
-const CONTAINER_OPTIONS: { value: ContainerType; label: string }[] = [
-  { value: 'daily', label: 'Daily (일일)' },
-  { value: 'weekly', label: 'Weekly (주간)' },
-  { value: 'unfinished', label: 'Unfinished (미완료)' },
-];
 
 export function BulkRedistributeModal({
   planIds,
@@ -555,7 +543,7 @@ export function BulkRedistributeModal({
                         }
                         className="w-full px-3 py-1.5 border rounded-md text-sm"
                       >
-                        {STATUS_OPTIONS.map((opt) => (
+                        {PLAN_STATUS_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
                           </option>
@@ -585,7 +573,7 @@ export function BulkRedistributeModal({
                         }
                         className="w-full px-3 py-1.5 border rounded-md text-sm"
                       >
-                        {CONTAINER_OPTIONS.map((opt) => (
+                        {CONTAINER_TYPE_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
                             {opt.label}
                           </option>
@@ -634,12 +622,12 @@ export function BulkRedistributeModal({
                       <ul className="space-y-0.5">
                         {editStatus.enabled && (
                           <li>
-                            상태 → {STATUS_OPTIONS.find((o) => o.value === editStatus.value)?.label}
+                            상태 → {PLAN_STATUS_OPTIONS.find((o) => o.value === editStatus.value)?.label}
                           </li>
                         )}
                         {editContainer.enabled && (
                           <li>
-                            컨테이너 → {CONTAINER_OPTIONS.find((o) => o.value === editContainer.value)?.label}
+                            컨테이너 → {CONTAINER_TYPE_OPTIONS.find((o) => o.value === editContainer.value)?.label}
                           </li>
                         )}
                         {editEstimatedMinutes.enabled && (

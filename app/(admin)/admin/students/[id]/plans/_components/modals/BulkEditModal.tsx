@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Zap, Target } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { adminBulkUpdatePlans, type StudentPlanUpdateInput } from '@/lib/domains/admin-plan/actions/editPlan';
-import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus, ContainerType, SubjectType } from '@/lib/domains/admin-plan/types';
+import { SUBJECT_TYPE_OPTIONS, PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
+import { VALIDATION, ERROR, formatError, formatCountSuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface BulkEditModalProps {
@@ -19,19 +22,6 @@ interface EditField {
   value: string | number | null;
 }
 
-const STATUS_OPTIONS: { value: PlanStatus; label: string }[] = [
-  { value: 'pending', label: '대기중' },
-  { value: 'in_progress', label: '진행중' },
-  { value: 'completed', label: '완료' },
-  { value: 'skipped', label: '건너뜀' },
-  { value: 'cancelled', label: '취소됨' },
-];
-
-const CONTAINER_OPTIONS: { value: ContainerType; label: string }[] = [
-  { value: 'daily', label: 'Daily (일일)' },
-  { value: 'weekly', label: 'Weekly (주간)' },
-  { value: 'unfinished', label: 'Unfinished (미완료)' },
-];
 
 export function BulkEditModal({
   planIds,
@@ -55,12 +45,16 @@ export function BulkEditModal({
     enabled: false,
     value: 30,
   });
+  const [subjectTypeField, setSubjectTypeField] = useState<EditField>({
+    enabled: false,
+    value: null,
+  });
 
-  const hasChanges = statusField.enabled || containerField.enabled || estimatedMinutesField.enabled;
+  const hasChanges = statusField.enabled || containerField.enabled || estimatedMinutesField.enabled || subjectTypeField.enabled;
 
   const handleSubmit = async () => {
     if (!hasChanges) {
-      showError('변경할 항목을 선택해주세요.');
+      showError(VALIDATION.SELECT_ITEMS_TO_EDIT);
       return;
     }
 
@@ -75,15 +69,18 @@ export function BulkEditModal({
     if (estimatedMinutesField.enabled && estimatedMinutesField.value !== null) {
       updates.estimated_minutes = Number(estimatedMinutesField.value);
     }
+    if (subjectTypeField.enabled) {
+      updates.subject_type = subjectTypeField.value as SubjectType;
+    }
 
     startTransition(async () => {
       const result = await adminBulkUpdatePlans(planIds, studentId, updates);
 
       if (result.success) {
-        showSuccess(`${planIds.length}개 플랜이 수정되었습니다.`);
+        showSuccess(formatCountSuccess(planIds.length, '수정'));
         onSuccess();
       } else {
-        showError(result.error ?? '일괄 수정에 실패했습니다.');
+        showError(formatError(result.error, ERROR.BULK_UPDATE));
       }
     });
   };
@@ -95,7 +92,7 @@ export function BulkEditModal({
       title="일괄 수정"
       subtitle={`${planIds.length}개 플랜 선택됨`}
       icon={<ListChecks className="h-5 w-5" />}
-      theme="blue"
+      theme="amber"
       size="md"
       loading={isPending}
       footer={
@@ -104,7 +101,7 @@ export function BulkEditModal({
             취소
           </ModalButton>
           <ModalButton
-            theme="blue"
+            theme="amber"
             onClick={handleSubmit}
             disabled={!hasChanges}
             loading={isPending}
@@ -141,7 +138,7 @@ export function BulkEditModal({
               }
               className="w-full px-3 py-2 border rounded-lg text-sm"
             >
-              {STATUS_OPTIONS.map((option) => (
+              {PLAN_STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -171,7 +168,7 @@ export function BulkEditModal({
               }
               className="w-full px-3 py-2 border rounded-lg text-sm"
             >
-              {CONTAINER_OPTIONS.map((option) => (
+              {CONTAINER_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -213,6 +210,51 @@ export function BulkEditModal({
           )}
         </div>
 
+        {/* 학습 유형 변경 */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={subjectTypeField.enabled}
+              onChange={(e) =>
+                setSubjectTypeField((prev) => ({
+                  ...prev,
+                  enabled: e.target.checked,
+                }))
+              }
+              className="rounded border-gray-300"
+            />
+            <span className="font-medium text-sm">학습 유형 변경</span>
+          </label>
+          {subjectTypeField.enabled && (
+            <div className="flex gap-2">
+              {SUBJECT_TYPE_OPTIONS.map((option) => (
+                <button
+                  key={option.value ?? 'null'}
+                  type="button"
+                  onClick={() =>
+                    setSubjectTypeField((prev) => ({ ...prev, value: option.value }))
+                  }
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors',
+                    subjectTypeField.value === option.value
+                      ? option.color === 'orange'
+                        ? 'border-orange-500 bg-orange-50 text-orange-700'
+                        : option.color === 'blue'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-400 bg-gray-100 text-gray-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  )}
+                >
+                  {option.icon === 'zap' && <Zap className="h-4 w-4" />}
+                  {option.icon === 'target' && <Target className="h-4 w-4" />}
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* 미리보기 */}
         {hasChanges && (
           <div className="p-3 bg-blue-50 rounded-lg text-sm">
@@ -220,16 +262,21 @@ export function BulkEditModal({
             <ul className="text-blue-700 space-y-0.5">
               {statusField.enabled && (
                 <li>
-                  상태 → {STATUS_OPTIONS.find((o) => o.value === statusField.value)?.label}
+                  상태 → {PLAN_STATUS_OPTIONS.find((o) => o.value === statusField.value)?.label}
                 </li>
               )}
               {containerField.enabled && (
                 <li>
-                  컨테이너 → {CONTAINER_OPTIONS.find((o) => o.value === containerField.value)?.label}
+                  컨테이너 → {CONTAINER_TYPE_OPTIONS.find((o) => o.value === containerField.value)?.label}
                 </li>
               )}
               {estimatedMinutesField.enabled && (
                 <li>예상 시간 → {estimatedMinutesField.value}분</li>
+              )}
+              {subjectTypeField.enabled && (
+                <li>
+                  학습 유형 → {SUBJECT_TYPE_OPTIONS.find((o) => o.value === subjectTypeField.value)?.label ?? '미지정'}
+                </li>
               )}
             </ul>
           </div>

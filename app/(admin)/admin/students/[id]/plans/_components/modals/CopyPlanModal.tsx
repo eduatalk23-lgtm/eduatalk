@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { copyPlansToDate } from '@/lib/domains/admin-plan/actions/copyPlan';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDateString } from '@/lib/date/calendarUtils';
+import { VALIDATION, ERROR, formatError, formatCopySuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface CopyPlanModalProps {
@@ -78,7 +79,7 @@ export function CopyPlanModal({
 
   const handleSubmit = async () => {
     if (targetDates.length === 0) {
-      showError('복사할 날짜를 추가해주세요.');
+      showError(VALIDATION.SELECT_DATES);
       return;
     }
 
@@ -90,12 +91,10 @@ export function CopyPlanModal({
       });
 
       if (result.success) {
-        showSuccess(
-          `${result.data?.copiedCount}개의 플랜이 복사되었습니다.`
-        );
+        showSuccess(formatCopySuccess(planIds.length, targetDates.length));
         onSuccess();
       } else {
-        showError(result.error ?? '플랜 복사에 실패했습니다.');
+        showError(formatError(result.error, ERROR.PLAN_COPY));
       }
     });
   };

@@ -7,6 +7,10 @@
  * @module app/(admin)/admin/students/[id]/plans/_components/admin-wizard/_context/types
  */
 
+// Re-export SubjectType from common types for backward compatibility
+export type { SubjectType } from '@/lib/domains/admin-plan/types';
+import type { SubjectType } from '@/lib/domains/admin-plan/types';
+
 // ============================================
 // 기본 타입 (기존 호환)
 // ============================================
@@ -16,8 +20,6 @@ export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type PlanPurpose = "내신대비" | "모의고사" | "수능" | "기타" | "";
 
 export type ContentType = "book" | "lecture" | "custom";
-
-export type SubjectType = "strategy" | "weakness" | null;
 
 // ============================================
 // 콘텐츠 관련 타입

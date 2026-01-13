@@ -10,6 +10,7 @@ import { PlanItemCard, toPlanItemData } from './items';
 import { useUnfinishedDockQuery } from '@/lib/hooks/useAdminDockQueries';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { ContentTypeFilter } from './AdminPlanManagement';
+import type { PlanStatus } from '@/lib/types/plan';
 
 interface UnfinishedDockProps {
   studentId: string;
@@ -25,7 +26,7 @@ interface UnfinishedDockProps {
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
-  onStatusChange?: (planId: string, currentStatus: string, title: string) => void;
+  onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
   onRefresh: () => void;
 }
 

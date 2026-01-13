@@ -22,6 +22,7 @@ import {
 } from "../types/modalState";
 import { useModalSetters } from "../hooks/useModalSetters";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
+import type { PlanStatus } from "@/lib/types/plan";
 
 // 콘텐츠 유형 필터 타입
 export type ContentTypeFilter = "all" | "book" | "lecture" | "custom";
@@ -138,9 +139,9 @@ export interface AdminPlanContextValue {
   setCurrentGroupIdForMove: (id: string | null) => void;
   selectedPlansForCopy: string[];
   setSelectedPlansForCopy: (ids: string[]) => void;
-  selectedPlanForStatus: { id: string; status: string; title: string } | null;
+  selectedPlanForStatus: { id: string; status: PlanStatus; title: string } | null;
   setSelectedPlanForStatus: (
-    data: { id: string; status: string; title: string } | null
+    data: { id: string; status: PlanStatus; title: string } | null
   ) => void;
   selectedPlansForBulkEdit: string[];
   setSelectedPlansForBulkEdit: (ids: string[]) => void;
@@ -179,7 +180,7 @@ export interface AdminPlanContextValue {
   handleOpenCopy: (planIds: string[]) => void;
   handleOpenStatusChange: (
     planId: string,
-    currentStatus: string,
+    currentStatus: PlanStatus,
     title: string
   ) => void;
   handleOpenBulkEdit: (planIds: string[]) => void;
@@ -300,7 +301,7 @@ export function AdminPlanProvider({
   );
   const [selectedPlanForStatus, setSelectedPlanForStatus] = useState<{
     id: string;
-    status: string;
+    status: PlanStatus;
     title: string;
   } | null>(null);
   const [selectedPlansForBulkEdit, setSelectedPlansForBulkEdit] = useState<
@@ -407,7 +408,7 @@ export function AdminPlanProvider({
   );
 
   const handleOpenStatusChange = useCallback(
-    (planId: string, currentStatus: string, title: string) => {
+    (planId: string, currentStatus: PlanStatus, title: string) => {
       setSelectedPlanForStatus({ id: planId, status: currentStatus, title });
       modalSetters.setShowStatusModal(true);
     },

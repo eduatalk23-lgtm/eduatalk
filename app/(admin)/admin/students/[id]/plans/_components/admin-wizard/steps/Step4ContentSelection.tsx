@@ -45,6 +45,7 @@ import {
   useAdminWizardValidation,
 } from "../_context";
 import type { SelectedContent, SubjectType } from "../_context/types";
+import { SUBJECT_TYPE_OPTIONS } from "@/lib/domains/admin-plan/types";
 import { MasterContentSearchModal } from "./_components/MasterContentSearchModal";
 
 /**
@@ -59,12 +60,6 @@ interface Step4ContentSelectionProps {
   studentId: string;
   tenantId: string;
 }
-
-const SUBJECT_TYPE_OPTIONS: { value: SubjectType; label: string; icon: React.ReactNode }[] = [
-  { value: null, label: "미분류", icon: null },
-  { value: "strategy", label: "전략 과목", icon: <Zap className="h-3 w-3" /> },
-  { value: "weakness", label: "취약 과목", icon: <Target className="h-3 w-3" /> },
-];
 
 const WEEKLY_DAYS_OPTIONS: { value: 2 | 3 | 4 | null; label: string }[] = [
   { value: null, label: "미지정" },
@@ -715,7 +710,7 @@ export function Step4ContentSelection({
 
                   {/* 과목 타입 설정 */}
                   <div className="flex items-center gap-3">
-                    <label className="text-xs text-gray-600">과목 분류:</label>
+                    <label className="text-xs text-gray-600">학습 유형:</label>
                     <div className="flex gap-2">
                       {SUBJECT_TYPE_OPTIONS.map((option) => (
                         <button
@@ -735,7 +730,8 @@ export function Step4ContentSelection({
                               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                           )}
                         >
-                          {option.icon}
+                          {option.icon === "zap" && <Zap className="h-3 w-3" />}
+                          {option.icon === "target" && <Target className="h-3 w-3" />}
                           {option.label}
                         </button>
                       ))}
@@ -918,13 +914,13 @@ export function Step4ContentSelection({
                   <p className="text-2xl font-bold text-orange-600">
                     {selectedContents.filter((c) => c.subjectType === "strategy").length}
                   </p>
-                  <p className="text-xs text-orange-600">전략 과목</p>
+                  <p className="text-xs text-orange-600">전략 학습</p>
                 </div>
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-center">
                   <p className="text-2xl font-bold text-blue-600">
                     {selectedContents.filter((c) => c.subjectType === "weakness").length}
                   </p>
-                  <p className="text-xs text-blue-600">취약 과목</p>
+                  <p className="text-xs text-blue-600">취약 보완</p>
                 </div>
               </div>
             </>
@@ -946,8 +942,8 @@ export function Step4ContentSelection({
           <ul className="mt-1 list-inside list-disc space-y-1 text-blue-700">
             <li>콘텐츠를 클릭하여 선택/해제할 수 있습니다.</li>
             <li>선택한 콘텐츠의 범위를 조정하여 학습량을 설정하세요.</li>
-            <li>&quot;전략 과목&quot;과 &quot;취약 과목&quot;으로 분류하면 AI가 더 정확한 플랜을 생성합니다.</li>
-            <li>전략 과목 선택 시 주당 학습 일수(2-4일)를 지정할 수 있습니다.</li>
+            <li>&quot;전략 학습&quot;과 &quot;취약 보완&quot;으로 분류하면 AI가 더 정확한 플랜을 생성합니다.</li>
+            <li>전략 학습 선택 시 주당 학습 일수(2-4일)를 지정할 수 있습니다.</li>
           </ul>
         </div>
       )}

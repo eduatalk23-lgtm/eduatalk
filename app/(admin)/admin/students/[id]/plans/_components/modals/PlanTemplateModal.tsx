@@ -15,6 +15,13 @@ import {
   type PlanTemplate,
   type PlanTemplateItem,
 } from '@/lib/domains/admin-plan/actions/planTemplates';
+import {
+  VALIDATION,
+  SUCCESS,
+  ERROR,
+  formatError,
+  formatTemplateApplySuccess,
+} from '@/lib/domains/admin-plan/utils/toastMessages';
 
 interface PlanTemplateModalProps {
   studentId: string;
@@ -103,11 +110,11 @@ export function PlanTemplateModal({
 
   const handleCreateTemplate = () => {
     if (!templateName.trim()) {
-      showError('템플릿 이름을 입력해주세요.');
+      showError(VALIDATION.ENTER_TEMPLATE_NAME);
       return;
     }
     if (!planIds || planIds.length === 0) {
-      showError('저장할 플랜이 없습니다.');
+      showError(VALIDATION.NO_PLANS_TO_SAVE);
       return;
     }
 
@@ -120,23 +127,23 @@ export function PlanTemplateModal({
       });
 
       if (result.success) {
-        showSuccess('템플릿이 저장되었습니다.');
+        showSuccess(SUCCESS.TEMPLATE_SAVED);
         onSuccess();
       } else {
-        showError(result.error ?? '템플릿 저장에 실패했습니다.');
+        showError(formatError(result.error, ERROR.TEMPLATE_SAVE));
       }
     });
   };
 
   const handleApplyTemplate = () => {
     if (!selectedTemplateId) {
-      showError('적용할 템플릿을 선택해주세요.');
+      showError(VALIDATION.SELECT_TEMPLATE);
       return;
     }
 
     // 다른 학생에게 적용 시 대상 학생 필수
     if (applyToOtherStudents && selectedTargetStudents.length === 0) {
-      showError('적용할 학생을 선택해주세요.');
+      showError(VALIDATION.SELECT_STUDENTS);
       return;
     }
 
@@ -151,14 +158,10 @@ export function PlanTemplateModal({
 
       if (result.success) {
         const { createdCount, appliedStudents } = result.data!;
-        if (appliedStudents > 1) {
-          showSuccess(`${appliedStudents}명 학생에게 총 ${createdCount}개 플랜이 생성되었습니다.`);
-        } else {
-          showSuccess(`${createdCount}개 플랜이 생성되었습니다.`);
-        }
+        showSuccess(formatTemplateApplySuccess(createdCount, appliedStudents));
         onSuccess();
       } else {
-        showError(result.error ?? '템플릿 적용에 실패했습니다.');
+        showError(formatError(result.error, ERROR.TEMPLATE_APPLY));
       }
     });
   };
@@ -169,10 +172,10 @@ export function PlanTemplateModal({
     startTransition(async () => {
       const result = await deletePlanTemplate(templateId);
       if (result.success) {
-        showSuccess('템플릿이 삭제되었습니다.');
+        showSuccess(SUCCESS.TEMPLATE_DELETED);
         setTemplates((prev) => prev.filter((t) => t.id !== templateId));
       } else {
-        showError(result.error ?? '삭제 실패');
+        showError(formatError(result.error, ERROR.TEMPLATE_DELETE));
       }
     });
   };
@@ -187,7 +190,7 @@ export function PlanTemplateModal({
   const handleUpdateTemplate = () => {
     if (!editingTemplateId) return;
     if (!templateName.trim()) {
-      showError('템플릿 이름을 입력해주세요.');
+      showError(VALIDATION.ENTER_TEMPLATE_NAME);
       return;
     }
 
@@ -199,7 +202,7 @@ export function PlanTemplateModal({
       });
 
       if (result.success) {
-        showSuccess('템플릿이 수정되었습니다.');
+        showSuccess(SUCCESS.TEMPLATE_UPDATED);
         // 로컬 상태 업데이트
         setTemplates((prev) =>
           prev.map((t) =>
@@ -213,7 +216,7 @@ export function PlanTemplateModal({
         setTemplateName('');
         setTemplateDesc('');
       } else {
-        showError(result.error ?? '템플릿 수정에 실패했습니다.');
+        showError(formatError(result.error, ERROR.TEMPLATE_UPDATE));
       }
     });
   };
@@ -222,14 +225,14 @@ export function PlanTemplateModal({
     startTransition(async () => {
       const result = await duplicatePlanTemplate(template.id);
       if (result.success && result.data) {
-        showSuccess('템플릿이 복제되었습니다.');
+        showSuccess(SUCCESS.TEMPLATE_DUPLICATED);
         // 템플릿 목록 새로고침
         const refreshResult = await getPlanTemplates();
         if (refreshResult.success && refreshResult.data) {
           setTemplates(refreshResult.data);
         }
       } else {
-        showError(result.error ?? '템플릿 복제에 실패했습니다.');
+        showError(formatError(result.error, ERROR.TEMPLATE_DUPLICATE));
       }
     });
   };

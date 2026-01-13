@@ -12,6 +12,7 @@ import {
   updatePlanGroupAction,
   type UpdatePlanGroupInput,
 } from '@/lib/domains/admin-plan/actions/updatePlanGroup';
+import { ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import type { PlanStatus } from '@/lib/types/plan';
 
 interface PlanGroupEditModalProps {
@@ -75,7 +76,7 @@ export function PlanGroupEditModal({
         setPeriodStart(result.periodStart || '');
         setPeriodEnd(result.periodEnd || '');
       } else {
-        setError('플랜 그룹 정보를 불러올 수 없습니다.');
+        setError(ERROR.PLAN_LOAD);
       }
 
       setIsLoading(false);
@@ -127,7 +128,7 @@ export function PlanGroupEditModal({
       onSave?.();
       onClose();
     } else {
-      setError(result.error || '저장에 실패했습니다.');
+      setError(formatError(result.error, ERROR.GROUP_SAVE));
     }
 
     setIsSaving(false);

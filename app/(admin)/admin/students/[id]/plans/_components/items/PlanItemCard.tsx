@@ -39,7 +39,7 @@ export interface PlanItemData {
   pageRangeEnd?: number | null;
   completedAmount?: number | null;
   progress?: number | null;
-  status: string;
+  status: PlanStatus;
   isCompleted: boolean;
   customTitle?: string | null;
   customRangeDisplay?: string | null;
@@ -78,7 +78,7 @@ interface PlanItemCardProps {
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
   onMoveToGroup?: (id: string) => void;
-  onStatusChange?: (id: string, currentStatus: string, title: string) => void;
+  onStatusChange?: (id: string, currentStatus: PlanStatus, title: string) => void;
   /** 빠른 상태 변경 콜백 (서브메뉴에서 직접 상태 변경 시 사용) */
   onQuickStatusUpdate?: (id: string, newStatus: PlanStatus) => Promise<void>;
   onRefresh?: () => void;

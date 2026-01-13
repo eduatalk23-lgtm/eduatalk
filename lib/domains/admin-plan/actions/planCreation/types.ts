@@ -228,6 +228,7 @@ export interface PlanGroupInfo {
   name: string;
   periodStart: string;
   periodEnd: string;
+  /** 플랜 그룹 활성화 상태 (active, inactive, archived 등) */
   status: string;
   createdAt: string;
 }

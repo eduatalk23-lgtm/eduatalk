@@ -5,7 +5,9 @@ import { Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS, CONTAINER_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
 import { logPlanDeleted } from '@/lib/domains/admin-plan/actions';
+import { VALIDATION, ERROR, formatError, formatCountSuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface ConditionalDeleteModalProps {
@@ -28,24 +30,20 @@ interface PreviewPlan {
   content_title: string | null;
   custom_title: string | null;
   plan_date: string;
-  status: string | null;
-  container_type: string | null;
+  status: PlanStatus | null;
+  container_type: ContainerType | null;
 }
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: '모든 상태' },
-  { value: 'pending', label: '대기중' },
-  { value: 'in_progress', label: '진행중' },
-  { value: 'completed', label: '완료' },
-  { value: 'skipped', label: '건너뜀' },
-  { value: 'cancelled', label: '취소됨' },
+// 필터용 상태 옵션 ('all' 포함)
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all' as const, label: '모든 상태' },
+  ...PLAN_STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
 ];
 
-const CONTAINER_OPTIONS = [
-  { value: 'all', label: '모든 컨테이너' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'unfinished', label: 'Unfinished' },
+// 필터용 컨테이너 옵션 ('all' 포함)
+const CONTAINER_FILTER_OPTIONS = [
+  { value: 'all' as const, label: '모든 컨테이너' },
+  ...CONTAINER_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
 ];
 
 export function ConditionalDeleteModal({
@@ -121,7 +119,7 @@ export function ConditionalDeleteModal({
     const { data, error } = await query.order('plan_date', { ascending: true }).limit(50);
 
     if (error) {
-      showError('플랜 조회 실패: ' + error.message);
+      showError(formatError(error.message, ERROR.PLAN_QUERY));
     } else {
       setPreviewPlans(data ?? []);
     }
@@ -131,11 +129,11 @@ export function ConditionalDeleteModal({
   // 삭제 실행
   const handleDelete = async () => {
     if (previewPlans.length === 0) {
-      showError('삭제할 플랜이 없습니다.');
+      showError(VALIDATION.NO_PLANS_TO_DELETE);
       return;
     }
     if (!confirmDelete) {
-      showError('삭제를 확인해주세요.');
+      showError(VALIDATION.CONFIRM_DELETE);
       return;
     }
 
@@ -152,7 +150,7 @@ export function ConditionalDeleteModal({
         .in('id', planIds);
 
       if (error) {
-        showError('삭제 실패: ' + error.message);
+        showError(formatError(error.message, ERROR.PLAN_DELETE));
         return;
       }
 
@@ -165,7 +163,7 @@ export function ConditionalDeleteModal({
         });
       }
 
-      showSuccess(`${previewPlans.length}개 플랜이 삭제되었습니다.`);
+      showSuccess(formatCountSuccess(previewPlans.length, '삭제'));
       onSuccess();
     });
   };
@@ -175,8 +173,8 @@ export function ConditionalDeleteModal({
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
-  const getStatusLabel = (status: string | null) => {
-    return STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status ?? '-';
+  const getStatusLabel = (status: PlanStatus | null) => {
+    return PLAN_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? '-';
   };
 
   return (
@@ -215,8 +213,8 @@ export function ConditionalDeleteModal({
               onChange={(e) => setFilter({ ...filter, status: e.target.value as FilterCondition['status'] })}
               className="w-full px-2 py-1.5 border rounded-lg text-sm"
             >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+              {STATUS_FILTER_OPTIONS.map((o) => (
+                <option key={o.value ?? 'all'} value={o.value ?? ''}>{o.label}</option>
               ))}
             </select>
           </div>
@@ -227,7 +225,7 @@ export function ConditionalDeleteModal({
               onChange={(e) => setFilter({ ...filter, containerType: e.target.value as FilterCondition['containerType'] })}
               className="w-full px-2 py-1.5 border rounded-lg text-sm"
             >
-              {CONTAINER_OPTIONS.map((o) => (
+              {CONTAINER_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>

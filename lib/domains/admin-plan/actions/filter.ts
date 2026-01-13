@@ -3,7 +3,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { logActionError } from '@/lib/logging/actionLogger';
-import type { AdminPlanResponse } from '../types';
+import type { AdminPlanResponse, PlanStatus, ContainerType } from '../types';
 
 export interface PlanFilterParams {
   studentId: string;
@@ -28,8 +28,8 @@ export interface FilteredPlan {
   planned_end_page_or_time: number | null;
   completed_start_page_or_time: number | null;
   completed_end_page_or_time: number | null;
-  status: string | null;
-  container_type: string;
+  status: PlanStatus | null;
+  container_type: ContainerType;
   carryover_count: number;
 }
 

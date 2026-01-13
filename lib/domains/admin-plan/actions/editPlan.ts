@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { requireAdminOrConsultant } from '@/lib/auth/guards';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 import { logActionError } from '@/lib/logging/actionLogger';
-import type { AdminPlanResponse, PlanStatus, ContainerType } from '../types';
+import type { AdminPlanResponse, PlanStatus, ContainerType, SubjectType } from '../types';
 import { createPlanEvent } from './planEvent';
 
 /**
@@ -21,6 +21,8 @@ export interface StudentPlanUpdateInput {
   estimated_minutes?: number | null;
   status?: PlanStatus;
   container_type?: ContainerType;
+  /** 학습 유형 (전략/취약) */
+  subject_type?: SubjectType;
 }
 
 /**
@@ -39,8 +41,10 @@ export interface StudentPlanDetail {
   planned_start_page_or_time: number | null;
   planned_end_page_or_time: number | null;
   estimated_minutes: number | null;
-  status: string;
-  container_type: string;
+  status: PlanStatus;
+  container_type: ContainerType;
+  /** 학습 유형 (전략/취약) */
+  subject_type: SubjectType;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -74,6 +78,7 @@ export async function getStudentPlanForEdit(
         estimated_minutes,
         status,
         container_type,
+        subject_type,
         is_active,
         created_at,
         updated_at
@@ -153,6 +158,7 @@ export async function adminUpdateStudentPlan(
         estimated_minutes,
         status,
         container_type,
+        subject_type,
         is_active,
         created_at,
         updated_at
@@ -186,6 +192,7 @@ export async function adminUpdateStudentPlan(
           planned_end_page_or_time: existingPlan.planned_end_page_or_time,
           status: existingPlan.status,
           container_type: existingPlan.container_type,
+          subject_type: existingPlan.subject_type,
         },
         updated: updates,
       },

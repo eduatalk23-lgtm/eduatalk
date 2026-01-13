@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import type { ContentType } from '@/lib/domains/admin-plan/types';
+import { SUBJECT_TYPE_OPTIONS } from '@/lib/domains/admin-plan/types';
 import type { AddContentWizardData } from '../types';
 import { BookOpen, Video, FileEdit, Search, X, Zap, Target } from 'lucide-react';
 import { MasterContentSearchModal } from '../../admin-wizard/steps/_components/MasterContentSearchModal';
 import type { SelectedContent } from '../../admin-wizard/_context/types';
-import type { SubjectType } from '../types';
 
 interface Step1ContentInfoProps {
   data: AddContentWizardData;
@@ -20,30 +20,6 @@ const CONTENT_TYPES: { type: ContentType; label: string; icon: React.ReactNode }
   { type: 'book', label: '교재', icon: <BookOpen className="h-4 w-4" /> },
   { type: 'lecture', label: '강의', icon: <Video className="h-4 w-4" /> },
   { type: 'custom', label: '커스텀', icon: <FileEdit className="h-4 w-4" /> },
-];
-
-const SUBJECT_TYPE_OPTIONS: { type: SubjectType; label: string; description: string; icon: React.ReactNode; color: string }[] = [
-  {
-    type: null,
-    label: '미지정',
-    description: '학습 유형을 지정하지 않음',
-    icon: null,
-    color: 'gray',
-  },
-  {
-    type: 'strategy',
-    label: '전략 학습',
-    description: '새로운 내용을 주도적으로 학습',
-    icon: <Zap className="h-4 w-4" />,
-    color: 'orange',
-  },
-  {
-    type: 'weakness',
-    label: '취약 보완',
-    description: '부족한 부분 집중 보완',
-    icon: <Target className="h-4 w-4" />,
-    color: 'blue',
-  },
 ];
 
 export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1ContentInfoProps) {
@@ -108,8 +84,8 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
           학습 유형 <span className="text-gray-400">(선택)</span>
         </label>
         <div className="grid grid-cols-3 gap-3">
-          {SUBJECT_TYPE_OPTIONS.map(({ type, label, description, icon, color }) => {
-            const isSelected = data.subjectType === type;
+          {SUBJECT_TYPE_OPTIONS.map(({ value, label, description, icon, color }) => {
+            const isSelected = data.subjectType === value;
             const colorClasses = {
               gray: isSelected
                 ? 'border-gray-400 bg-gray-50 text-gray-700'
@@ -123,16 +99,17 @@ export function Step1ContentInfo({ data, onChange, studentId, tenantId }: Step1C
             };
             return (
               <button
-                key={type ?? 'null'}
+                key={value ?? 'null'}
                 type="button"
-                onClick={() => onChange({ subjectType: type })}
+                onClick={() => onChange({ subjectType: value })}
                 className={cn(
                   'flex flex-col items-center gap-1.5 py-3 px-3 border rounded-lg transition-colors text-center',
-                  colorClasses[color as keyof typeof colorClasses]
+                  colorClasses[color]
                 )}
               >
                 <div className="flex items-center gap-1.5">
-                  {icon}
+                  {icon === 'zap' && <Zap className="h-4 w-4" />}
+                  {icon === 'target' && <Target className="h-4 w-4" />}
                   <span className="font-medium text-sm">{label}</span>
                 </div>
                 <span className="text-xs text-gray-500">{description}</span>

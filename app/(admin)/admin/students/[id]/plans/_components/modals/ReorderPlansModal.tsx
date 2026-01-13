@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDateString } from '@/lib/date/calendarUtils';
+import { SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface ReorderPlansModalProps {
@@ -77,7 +78,7 @@ export function ReorderPlansModal({
       const { data, error } = await query.order('sequence', { ascending: true });
 
       if (error) {
-        showError('플랜 로드 실패: ' + error.message);
+        showError(formatError(error.message, ERROR.PLAN_LOAD));
       } else {
         setPlans(data ?? []);
       }
@@ -138,12 +139,12 @@ export function ReorderPlansModal({
           .eq('id', plans[i].id);
 
         if (error) {
-          showError('순서 저장 실패: ' + error.message);
+          showError(formatError(error.message, ERROR.ORDER_SAVE));
           return;
         }
       }
 
-      showSuccess('순서가 저장되었습니다.');
+      showSuccess(SUCCESS.ORDER_SAVED);
       onSuccess();
     });
   };

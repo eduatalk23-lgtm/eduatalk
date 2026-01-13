@@ -10,6 +10,7 @@ import { useState, useTransition, useCallback } from 'react';
 import { Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { createBlockSetForStudent } from '@/lib/domains/admin-plan/actions/blockSets';
+import { VALIDATION, SUCCESS, ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 import { cn } from '@/lib/cn';
 
@@ -73,17 +74,17 @@ export function AdminBlockSetCreateModal({
   // 블록 추가
   const handleAddBlock = useCallback(() => {
     if (selectedWeekdays.length === 0) {
-      showError('요일을 선택해주세요.');
+      showError(VALIDATION.SELECT_WEEKDAYS);
       return;
     }
 
     if (!blockStartTime || !blockEndTime) {
-      showError('시간을 입력해주세요.');
+      showError(VALIDATION.ENTER_TIME);
       return;
     }
 
     if (blockStartTime >= blockEndTime) {
-      showError('종료 시간은 시작 시간보다 늦어야 합니다.');
+      showError(VALIDATION.INVALID_TIME_RANGE);
       return;
     }
 
@@ -106,12 +107,12 @@ export function AdminBlockSetCreateModal({
   // 블록셋 생성
   const handleCreate = useCallback(() => {
     if (!blockSetName.trim()) {
-      showError('블록셋 이름을 입력해주세요.');
+      showError(VALIDATION.ENTER_BLOCKSET_NAME);
       return;
     }
 
     if (addedBlocks.length === 0) {
-      showError('최소 1개 이상의 시간 블록을 추가해주세요.');
+      showError(VALIDATION.ADD_TIME_BLOCK);
       return;
     }
 
@@ -127,10 +128,10 @@ export function AdminBlockSetCreateModal({
       });
 
       if (result.success && result.blockSetId) {
-        showSuccess('블록셋이 생성되었습니다.');
+        showSuccess(SUCCESS.BLOCKSET_CREATED);
         onSuccess(result.blockSetId);
       } else {
-        showError(result.error ?? '블록셋 생성에 실패했습니다.');
+        showError(formatError(result.error, ERROR.BLOCKSET_CREATE));
       }
     });
   }, [blockSetName, addedBlocks, studentId, showSuccess, showError, onSuccess]);
@@ -145,7 +146,7 @@ export function AdminBlockSetCreateModal({
       title="새 시간표 만들기"
       subtitle="학생의 학습 시간표를 생성합니다"
       icon={<Calendar className="h-5 w-5" />}
-      theme="blue"
+      theme="green"
       size="lg"
       loading={isPending}
       footer={
@@ -155,6 +156,7 @@ export function AdminBlockSetCreateModal({
           </ModalButton>
           <ModalButton
             variant="primary"
+            theme="green"
             onClick={handleCreate}
             disabled={isCreateDisabled}
             loading={isPending}

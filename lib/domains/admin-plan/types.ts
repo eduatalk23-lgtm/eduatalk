@@ -447,3 +447,139 @@ export interface SortOption {
   field: string;
   direction: SortDirection;
 }
+
+// ============================================
+// 학습 유형 (전략/취약) 관련 타입
+// ============================================
+
+/**
+ * 학습 유형 (전략/취약/미지정)
+ * - strategy: 전략 학습 (새로운 내용을 주도적으로 학습)
+ * - weakness: 취약 보완 (부족한 부분 집중 보완)
+ * - null: 미지정
+ */
+export type SubjectType = 'strategy' | 'weakness' | null;
+
+/**
+ * 학습 유형 선택 옵션 (UI용 표준화된 상수)
+ */
+export interface SubjectTypeOption {
+  value: SubjectType;
+  label: string;
+  description: string;
+  icon: 'zap' | 'target' | null;
+  color: 'orange' | 'blue' | 'gray';
+}
+
+/**
+ * 표준화된 학습 유형 옵션
+ * - 모든 컴포넌트에서 동일한 라벨과 색상 사용
+ */
+export const SUBJECT_TYPE_OPTIONS: SubjectTypeOption[] = [
+  {
+    value: null,
+    label: '미지정',
+    description: '학습 유형을 지정하지 않음',
+    icon: null,
+    color: 'gray',
+  },
+  {
+    value: 'strategy',
+    label: '전략 학습',
+    description: '새로운 내용을 주도적으로 학습',
+    icon: 'zap',
+    color: 'orange',
+  },
+  {
+    value: 'weakness',
+    label: '취약 보완',
+    description: '부족한 부분 집중 보완',
+    icon: 'target',
+    color: 'blue',
+  },
+];
+
+// ============================================
+// 플랜 상태 관련 타입
+// ============================================
+
+/**
+ * 플랜 상태 선택 옵션 (UI용 표준화된 상수)
+ */
+export interface PlanStatusOption {
+  value: PlanStatus;
+  label: string;
+  color: string;
+  description: string;
+}
+
+/**
+ * 표준화된 플랜 상태 옵션
+ * - 모든 컴포넌트에서 동일한 라벨과 색상 사용
+ */
+export const PLAN_STATUS_OPTIONS: PlanStatusOption[] = [
+  {
+    value: 'pending',
+    label: '대기중',
+    color: 'gray',
+    description: '아직 시작하지 않은 상태',
+  },
+  {
+    value: 'in_progress',
+    label: '진행중',
+    color: 'blue',
+    description: '현재 진행 중인 상태',
+  },
+  {
+    value: 'completed',
+    label: '완료',
+    color: 'green',
+    description: '성공적으로 완료된 상태',
+  },
+  {
+    value: 'skipped',
+    label: '건너뜀',
+    color: 'amber',
+    description: '의도적으로 건너뛴 상태',
+  },
+  {
+    value: 'cancelled',
+    label: '취소됨',
+    color: 'red',
+    description: '취소된 상태',
+  },
+];
+
+// ============================================
+// 컨테이너 타입 관련 타입
+// ============================================
+
+/**
+ * 컨테이너 타입 선택 옵션 (UI용 표준화된 상수)
+ */
+export interface ContainerTypeOption {
+  value: ContainerType;
+  label: string;
+  description: string;
+}
+
+/**
+ * 표준화된 컨테이너 타입 옵션
+ */
+export const CONTAINER_TYPE_OPTIONS: ContainerTypeOption[] = [
+  {
+    value: 'daily',
+    label: 'Daily (일일)',
+    description: '일일 플랜',
+  },
+  {
+    value: 'weekly',
+    label: 'Weekly (주간)',
+    description: '주간 플랜',
+  },
+  {
+    value: 'unfinished',
+    label: 'Unfinished (미완료)',
+    description: '미완료 플랜',
+  },
+];

@@ -14,7 +14,16 @@ import {
   batchUpdatePlanDates,
   batchUpdatePlanStatus,
 } from '@/lib/domains/admin-plan/actions/batchOperations';
-import type { PlanStatus } from '@/lib/domains/admin-plan/types';
+import type { PlanStatus, ContainerType } from '@/lib/domains/admin-plan/types';
+import { PLAN_STATUS_OPTIONS } from '@/lib/domains/admin-plan/types';
+import { getStatusTextColor } from '@/lib/domains/admin-plan/utils/statusColorUtils';
+import {
+  VALIDATION,
+  ERROR,
+  formatError,
+  formatDateShiftSuccess,
+  formatStatusChangeSuccess,
+} from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 import { cn } from '@/lib/cn';
 import { addDays, format, parseISO } from 'date-fns';
@@ -34,18 +43,11 @@ interface BatchOperationsModalProps {
     id: string;
     title: string;
     date: string;
-    status: string;
+    status: PlanStatus;
   }>;
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const STATUS_OPTIONS: Array<{ value: PlanStatus; label: string; color: string }> = [
-  { value: 'pending', label: '대기중', color: 'text-gray-600' },
-  { value: 'in_progress', label: '진행중', color: 'text-blue-600' },
-  { value: 'completed', label: '완료', color: 'text-green-600' },
-  { value: 'skipped', label: '건너뜀', color: 'text-amber-600' },
-];
 
 export function BatchOperationsModal({
   planIds,
@@ -89,7 +91,7 @@ export function BatchOperationsModal({
   // 날짜 이동 실행
   const handleDateShift = () => {
     if (planIds.length === 0) {
-      showError('선택된 플랜이 없습니다.');
+      showError(VALIDATION.SELECT_PLANS);
       return;
     }
 
@@ -103,10 +105,10 @@ export function BatchOperationsModal({
 
       if (result.success) {
         const count = result.data?.updatedCount || planIds.length;
-        showSuccess(`${count}개 플랜의 날짜가 ${Math.abs(actualDaysToShift)}일 ${actualDaysToShift > 0 ? '뒤로' : '앞으로'} 이동되었습니다.`);
+        showSuccess(formatDateShiftSuccess(count, actualDaysToShift));
         onSuccess();
       } else {
-        showError(result.error || '날짜 이동에 실패했습니다.');
+        showError(formatError(result.error, ERROR.DATE_SHIFT));
       }
     });
   };
@@ -114,7 +116,7 @@ export function BatchOperationsModal({
   // 상태 변경 실행
   const handleStatusChange = () => {
     if (planIds.length === 0) {
-      showError('선택된 플랜이 없습니다.');
+      showError(VALIDATION.SELECT_PLANS);
       return;
     }
 
@@ -127,12 +129,12 @@ export function BatchOperationsModal({
       });
 
       if (result.success) {
-        const statusLabel = STATUS_OPTIONS.find((o) => o.value === newStatus)?.label || newStatus;
+        const statusLabel = PLAN_STATUS_OPTIONS.find((o) => o.value === newStatus)?.label || newStatus;
         const count = result.data?.updatedCount || planIds.length;
-        showSuccess(`${count}개 플랜의 상태가 "${statusLabel}"로 변경되었습니다.`);
+        showSuccess(formatStatusChangeSuccess(count, statusLabel));
         onSuccess();
       } else {
-        showError(result.error || '상태 변경에 실패했습니다.');
+        showError(formatError(result.error, ERROR.STATUS_CHANGE));
       }
     });
   };
@@ -289,7 +291,7 @@ export function BatchOperationsModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">새 상태</label>
               <div className="space-y-2">
-                {STATUS_OPTIONS.map((option) => (
+                {PLAN_STATUS_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
@@ -313,7 +315,7 @@ export function BatchOperationsModal({
                         <div className="w-2 h-2 rounded-full bg-blue-500" />
                       )}
                     </div>
-                    <span className={cn('font-medium', option.color)}>{option.label}</span>
+                    <span className={cn('font-medium', getStatusTextColor(option.color))}>{option.label}</span>
                   </button>
                 ))}
               </div>
@@ -323,8 +325,8 @@ export function BatchOperationsModal({
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="text-sm text-gray-600">
                 <span className="font-medium text-gray-900">{planIds.length}개</span> 플랜의 상태를{' '}
-                <span className={cn('font-medium', STATUS_OPTIONS.find((o) => o.value === newStatus)?.color)}>
-                  {STATUS_OPTIONS.find((o) => o.value === newStatus)?.label}
+                <span className={cn('font-medium', getStatusTextColor(PLAN_STATUS_OPTIONS.find((o) => o.value === newStatus)?.color ?? 'gray'))}>
+                  {PLAN_STATUS_OPTIONS.find((o) => o.value === newStatus)?.label}
                 </span>
                 로 변경합니다.
               </div>

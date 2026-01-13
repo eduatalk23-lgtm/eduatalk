@@ -9,6 +9,7 @@ import {
   movePlansToGroup,
   type PlanGroupInfo,
 } from '@/lib/domains/admin-plan/actions/moveToGroup';
+import { VALIDATION, ERROR, formatError, formatMoveSuccess } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 interface MoveToGroupModalProps {
@@ -47,7 +48,7 @@ export function MoveToGroupModal({
 
   const handleSubmit = async () => {
     if (selectedGroupId === currentGroupId) {
-      showError('현재 그룹과 동일한 그룹입니다.');
+      showError(VALIDATION.SAME_GROUP);
       return;
     }
 
@@ -60,10 +61,10 @@ export function MoveToGroupModal({
 
       if (result.success) {
         const action = selectedGroupId ? '이동' : '그룹에서 제거';
-        showSuccess(`${result.data?.movedCount}개 플랜이 ${action}되었습니다.`);
+        showSuccess(formatMoveSuccess(result.data?.movedCount ?? planIds.length, action));
         onSuccess();
       } else {
-        showError(result.error ?? '플랜 이동에 실패했습니다.');
+        showError(formatError(result.error, ERROR.PLAN_MOVE));
       }
     });
   };

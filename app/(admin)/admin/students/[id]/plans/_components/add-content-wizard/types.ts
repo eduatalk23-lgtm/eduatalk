@@ -1,7 +1,9 @@
-import type { ContentType, RangeType } from '@/lib/domains/admin-plan/types';
+import type { ContentType, RangeType, SubjectType } from '@/lib/domains/admin-plan/types';
+
+// Re-export for backward compatibility
+export type { SubjectType } from '@/lib/domains/admin-plan/types';
 
 export type DistributionMode = 'today' | 'period' | 'weekly';
-export type SubjectType = 'strategy' | 'weakness' | null;
 
 export interface AddContentWizardData {
   // Step 1: 콘텐츠 정보

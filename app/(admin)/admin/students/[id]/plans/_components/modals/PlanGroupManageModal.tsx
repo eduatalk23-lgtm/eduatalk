@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 import { Settings2, Calendar, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/ToastProvider';
 import { bulkDeletePlanGroupsAdmin } from '@/lib/domains/admin-plan/actions/planGroupOperations';
+import { ERROR, formatError } from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 
 // 상태별 배지 스타일
@@ -136,9 +137,7 @@ export function PlanGroupManageModal({
       if (result.success && result.data) {
         const { deletedCount, failedCount } = result.data;
         if (deletedCount > 0) {
-          showSuccess(
-            `${deletedCount}개 플랜 그룹이 삭제되었습니다. 휴지통에서 복원할 수 있습니다.`
-          );
+          showSuccess(`${deletedCount}개 플랜 그룹이 삭제되었습니다. 휴지통에서 복원할 수 있습니다.`);
         }
         if (failedCount > 0) {
           showError(`${failedCount}개 삭제 실패 (캠프 플랜 또는 권한 문제)`);
@@ -148,7 +147,7 @@ export function PlanGroupManageModal({
         onSuccess();
         onClose();
       } else {
-        showError(result.error || '삭제에 실패했습니다.');
+        showError(formatError(result.error, ERROR.BATCH_DELETE));
       }
     });
   };

@@ -11,6 +11,7 @@ import { DailyDockTimeline } from './DailyDockTimeline';
 import { useDailyDockQuery } from '@/lib/hooks/useAdminDockQueries';
 import { detectTimeConflicts, type ConflictInfo } from '@/lib/domains/admin-plan/utils/conflictDetection';
 import type { ContentTypeFilter } from './AdminPlanManagement';
+import type { PlanStatus } from '@/lib/types/plan';
 
 interface DailyDockProps {
   studentId: string;
@@ -28,7 +29,7 @@ interface DailyDockProps {
   onReorder?: () => void;
   onMoveToGroup?: (planIds: string[], currentGroupId?: string | null) => void;
   onCopy?: (planIds: string[]) => void;
-  onStatusChange?: (planId: string, currentStatus: string, title: string) => void;
+  onStatusChange?: (planId: string, currentStatus: PlanStatus, title: string) => void;
   onRefresh: () => void;
 }
 

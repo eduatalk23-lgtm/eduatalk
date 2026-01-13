@@ -23,6 +23,12 @@ import type {
   ContentType,
   DependencyScope,
 } from '@/lib/types/content-dependency';
+import {
+  VALIDATION,
+  SUCCESS,
+  ERROR,
+  formatError,
+} from '@/lib/domains/admin-plan/utils/toastMessages';
 import { ModalWrapper, ModalButton } from './ModalWrapper';
 import { cn } from '@/lib/cn';
 
@@ -91,7 +97,7 @@ export function ContentDependencyModal({
     if (result.success && result.data) {
       setDependencies(result.data);
     } else {
-      showError(result.error || '의존성 조회 실패');
+      showError(formatError(result.error, ERROR.DEPENDENCY_LOAD));
     }
     setIsLoading(false);
   }
@@ -152,7 +158,7 @@ export function ContentDependencyModal({
   // 의존성 추가
   const handleAdd = () => {
     if (!selectedContentId) {
-      showError('콘텐츠를 선택해주세요.');
+      showError(VALIDATION.SELECT_CONTENT);
       return;
     }
 
@@ -185,13 +191,13 @@ export function ContentDependencyModal({
       const result = await addContentDependency(input);
 
       if (result.success) {
-        showSuccess('의존성이 추가되었습니다.');
+        showSuccess(SUCCESS.DEPENDENCY_ADDED);
         setSearchQuery('');
         setSelectedContentId('');
         await loadDependencies();
         onSuccess?.();
       } else {
-        showError(result.error || '의존성 추가 실패');
+        showError(formatError(result.error, ERROR.DEPENDENCY_ADD));
       }
     });
   };
@@ -202,11 +208,11 @@ export function ContentDependencyModal({
       const result = await removeContentDependency(dependencyId);
 
       if (result.success) {
-        showSuccess('의존성이 삭제되었습니다.');
+        showSuccess(SUCCESS.DEPENDENCY_DELETED);
         await loadDependencies();
         onSuccess?.();
       } else {
-        showError(result.error || '의존성 삭제 실패');
+        showError(formatError(result.error, ERROR.DEPENDENCY_DELETE));
       }
     });
   };
