@@ -341,17 +341,18 @@ lib/
 
 **대형 파일 현황**:
 
-| 파일 경로 | 줄 수 | 문제점 | 우선순위 |
-|----------|------|--------|----------|
-| `lib/domains/attendance/actions/student.ts` | 1,105 | God Function, 복잡한 로직 | 🔴 High |
-| `lib/domains/attendance/actions/settings.ts` | 734 | 다중 책임, 복잡한 상태 관리 | 🟡 Medium |
-| `lib/domains/tenant/blockSets.ts` | 592 | 블록 세트 관리 로직 집중 | 🟡 Medium |
-| `lib/domains/attendance/actions/attendance.ts` | 559 | 출석 관련 로직 집중 | 🟡 Medium |
-| `app/(admin)/admin/students/[id]/plans/_components/PlannerCreationModal.tsx` | 1,561 | 거대한 컴포넌트, 15+ 상태 변수 | 🔴 High |
-| `app/(admin)/admin/content-metadata/_components/CurriculumHierarchyManager.tsx` | 1,175 | 복잡한 계층 구조 관리 | 🟡 Medium |
-| `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step2TimeSettings.tsx` | 1,128 | 시간 설정 로직 복잡 | 🟡 Medium |
+| 파일 경로                                                                                    | 줄 수 | 문제점                         | 우선순위  |
+| -------------------------------------------------------------------------------------------- | ----- | ------------------------------ | --------- |
+| `lib/domains/attendance/actions/student.ts`                                                  | 1,105 | God Function, 복잡한 로직      | 🔴 High   |
+| `lib/domains/attendance/actions/settings.ts`                                                 | 734   | 다중 책임, 복잡한 상태 관리    | 🟡 Medium |
+| `lib/domains/tenant/blockSets.ts`                                                            | 592   | 블록 세트 관리 로직 집중       | 🟡 Medium |
+| `lib/domains/attendance/actions/attendance.ts`                                               | 559   | 출석 관련 로직 집중            | 🟡 Medium |
+| `app/(admin)/admin/students/[id]/plans/_components/PlannerCreationModal.tsx`                 | 1,561 | 거대한 컴포넌트, 15+ 상태 변수 | 🔴 High   |
+| `app/(admin)/admin/content-metadata/_components/CurriculumHierarchyManager.tsx`              | 1,175 | 복잡한 계층 구조 관리          | 🟡 Medium |
+| `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step2TimeSettings.tsx` | 1,128 | 시간 설정 로직 복잡            | 🟡 Medium |
 
 **권장 파일 크기**:
+
 - TypeScript 파일: **300줄 이하**
 - React 컴포넌트: **200-300줄 이하**
 - 현재 **20개 이상의 파일**이 권장 크기를 초과
@@ -484,7 +485,10 @@ export function mergeStudyReviewCycle(
 }
 
 // 사용처에서
-import { mergeTimeSettings, mergeStudyReviewCycle } from "@/lib/domains/plan/utils/schedulerOptionsMerger";
+import {
+  mergeTimeSettings,
+  mergeStudyReviewCycle,
+} from "@/lib/domains/plan/utils/schedulerOptionsMerger";
 ```
 
 **에러 처리 통일**:
@@ -513,13 +517,14 @@ export async function withErrorHandling<T>(
 
 **God Function 발견**:
 
-| 함수 | 파일 | 줄 수 | 복잡도 | 문제점 |
-|------|------|------|--------|--------|
-| `generatePlansRefactored` | `lib/plan/services/generatePlansRefactored.ts` | 1,547 | 매우 높음 | 16+ 책임, God Function |
-| `previewPlansRefactored` | `lib/plan/services/previewPlansRefactored.ts` | ~1,500 | 매우 높음 | generate와 90% 중복 |
-| `checkInWithQRCode` | `lib/domains/attendance/actions/student.ts` | ~200 | 높음 | 다단계 처리, 복잡한 로직 |
+| 함수                      | 파일                                           | 줄 수  | 복잡도    | 문제점                   |
+| ------------------------- | ---------------------------------------------- | ------ | --------- | ------------------------ |
+| `generatePlansRefactored` | `lib/plan/services/generatePlansRefactored.ts` | 1,547  | 매우 높음 | 16+ 책임, God Function   |
+| `previewPlansRefactored`  | `lib/plan/services/previewPlansRefactored.ts`  | ~1,500 | 매우 높음 | generate와 90% 중복      |
+| `checkInWithQRCode`       | `lib/domains/attendance/actions/student.ts`    | ~200   | 높음      | 다단계 처리, 복잡한 로직 |
 
 **복잡도 지표**:
+
 - **Cyclomatic Complexity**: 일부 함수가 20+ (권장: 10 이하)
 - **함수당 줄 수**: 일부 함수가 200+ 줄 (권장: 50줄 이하)
 - **중첩 깊이**: 일부 함수가 5+ 레벨 (권장: 3 이하)
@@ -568,7 +573,10 @@ async function verifyQRCodeForCheckIn(qrData: string, context: CheckInContext) {
   // QR 코드 검증 로직
 }
 
-async function createAttendanceRecord(verification: QRVerification, context: CheckInContext) {
+async function createAttendanceRecord(
+  verification: QRVerification,
+  context: CheckInContext
+) {
   // 출석 기록 생성 로직
 }
 ```
@@ -756,11 +764,13 @@ export async function getStudentById(id: string): Promise<Student> {
 #### 현황
 
 **JSDoc 주석 현황**:
+
 - **4,600개 이상의 export 함수** 발견
 - JSDoc 주석이 있는 함수: 약 30-40% (추정)
 - 타입 정의 문서화: 약 50% (추정)
 
 **문서화 품질**:
+
 - ✅ 일부 도메인: 완전한 JSDoc 주석 (`lib/domains/attendance/`)
 - ⚠️ 일부 도메인: 부분적 JSDoc 주석 (`lib/domains/plan/`)
 - ❌ 일부 도메인: JSDoc 주석 부족 (`lib/domains/camp/`)
@@ -768,6 +778,7 @@ export async function getStudentById(id: string): Promise<Student> {
 #### 문제점
 
 1. **함수 설명 부족**:
+
    ```typescript
    // ❌ 나쁜 예: 설명 없음
    export async function getStudentById(id: string) {
@@ -787,6 +798,7 @@ export async function getStudentById(id: string): Promise<Student> {
    ```
 
 2. **타입 정의 문서화 부족**:
+
    ```typescript
    // ❌ 나쁜 예: 타입 설명 없음
    type PlanGroupData = {
@@ -818,7 +830,7 @@ export async function getStudentById(id: string): Promise<Student> {
 
 **JSDoc 주석 표준화**:
 
-```typescript
+````typescript
 /**
  * [함수 설명]
  *
@@ -835,7 +847,7 @@ export async function getStudentById(id: string): Promise<Student> {
 export async function functionName(param: Type): Promise<ReturnType> {
   // ...
 }
-```
+````
 
 **타입 정의 문서화**:
 
@@ -1003,7 +1015,444 @@ if (isValidStudent(data)) {
 
 ---
 
-## 5. 성능 분석
+## 5. UI/UX 분석
+
+### 5.1 접근성 (Accessibility)
+
+#### 문제점
+
+**ARIA 속성 부족**:
+
+- **1,132개 파일**에서 접근성 관련 코드 발견
+- ARIA 속성 사용률: 약 30-40% (추정)
+- 스크린 리더 지원 미흡
+
+**주요 문제**:
+
+1. **ARIA 레이블 부족**:
+   ```tsx
+   // ❌ 나쁜 예: aria-label 없음
+   <button onClick={handleClick}>
+     <Icon name="close" />
+   </button>
+
+   // ✅ 좋은 예: aria-label 포함
+   <button onClick={handleClick} aria-label="닫기">
+     <Icon name="close" />
+   </button>
+   ```
+
+2. **키보드 네비게이션 미흡**:
+   - 일부 컴포넌트만 키보드 네비게이션 지원
+   - 모달 내부 포커스 관리 미흡
+   - Tab 순서 논리적 구성 부족
+
+3. **포커스 관리 문제**:
+   - 모달이 열릴 때 첫 번째 포커스 가능 요소로 자동 포커스 이동 없음
+   - 모달이 닫힐 때 이전 포커스 위치로 복귀 없음
+   - 포커스 트랩 미구현
+
+4. **시맨틱 HTML 부족**:
+   - 일부 컴포넌트에서 `<div>` 남용
+   - `<button>` 대신 `<div>` + `onClick` 사용하는 경우 있음
+
+#### 개선 방향
+
+**접근성 가이드라인**:
+
+```tsx
+// ✅ 키보드 네비게이션 지원
+<button
+  onClick={handleClick}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      handleClick();
+    }
+  }}
+  aria-label="닫기"
+>
+  <Icon name="close" />
+</button>
+
+// ✅ 모달 포커스 관리
+function Modal({ isOpen, onClose, children }) {
+  const firstFocusableRef = useRef<HTMLElement>(null);
+  const lastFocusableRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      firstFocusableRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  // 포커스 트랩 구현
+  // ...
+}
+
+// ✅ 시맨틱 HTML 사용
+// ❌ 나쁜 예
+<div onClick={handleClick}>클릭</div>
+
+// ✅ 좋은 예
+<button onClick={handleClick}>클릭</button>
+```
+
+---
+
+### 5.2 로딩 상태 및 사용자 피드백
+
+#### 현황
+
+- **2,718개 파일**에서 로딩 관련 코드 발견
+- **3,074개 파일**에서 토스트/에러 처리 관련 코드 발견
+
+#### 문제점
+
+1. **로딩 상태 표시 불일치**:
+   - 일부 컴포넌트: Skeleton 사용
+   - 일부 컴포넌트: Spinner 사용
+   - 일부 컴포넌트: 로딩 상태 없음
+
+2. **에러 처리 패턴 불일치**:
+   - 일부: Toast 메시지
+   - 일부: 인라인 에러 표시
+   - 일부: 모달 에러 표시
+
+3. **성공 피드백 부족**:
+   - 작업 완료 후 피드백이 없는 경우 많음
+   - 성공 애니메이션 부족
+
+#### 개선 방향
+
+**통일된 로딩 상태 패턴**:
+
+```tsx
+// ✅ Skeleton 사용 (데이터 로딩)
+<Suspense fallback={<Skeleton />}>
+  <DataComponent />
+</Suspense>
+
+// ✅ Spinner 사용 (액션 로딩)
+<Button isLoading={isSubmitting}>
+  제출
+</Button>
+
+// ✅ 통일된 에러 처리
+const { showError, showSuccess } = useToast();
+
+try {
+  await submitForm();
+  showSuccess("제출이 완료되었습니다.");
+} catch (error) {
+  showError(error.message);
+}
+```
+
+---
+
+### 5.3 컴포넌트 재사용성 및 중복
+
+#### 문제점
+
+**중복 컴포넌트 발견**:
+
+1. **Button 컴포넌트**:
+   - `components/ui/button.tsx`: 4개 파일에서 사용
+   - `components/atoms/Button.tsx`: 29개 파일에서 사용
+   - **결론**: `atoms/Button.tsx`가 더 기능이 많고 개선된 버전
+
+2. **EmptyState 컴포넌트**:
+   - `components/ui/EmptyState.tsx`: 17개 파일에서 사용
+   - `components/molecules/EmptyState.tsx`: 13개 파일에서 사용
+   - **차이점**: `molecules/EmptyState.tsx`가 ReactNode icon 지원
+
+3. **ProgressBar 컴포넌트**:
+   - `components/ui/ProgressBar.tsx`: 제거됨 (✅ 해결됨)
+   - `components/atoms/ProgressBar.tsx`: 통합 완료
+
+4. **Badge 컴포넌트**:
+   - `components/ui/Badge.tsx`: 제거됨 (✅ 해결됨)
+   - `components/atoms/Badge.tsx`: 통합 완료
+
+#### 개선 방향
+
+**컴포넌트 통합 전략**:
+
+1. **Atomic Design 패턴 적용**:
+   ```
+   components/
+   ├── atoms/           # 기본 UI 요소 (Button, Input, Badge)
+   ├── molecules/       # atoms 조합 (FormField, Card)
+   ├── organisms/       # 복잡한 UI (DataTable, Dialog)
+   └── ui/              # 레거시 (점진적 마이그레이션)
+   ```
+
+2. **중복 컴포넌트 통합**:
+   - 더 기능이 많은 버전을 기준으로 통합
+   - 사용처를 점진적으로 마이그레이션
+   - 레거시 컴포넌트는 `@deprecated` 표시 후 제거
+
+---
+
+### 5.4 반응형 디자인
+
+#### 문제점
+
+1. **브레이크포인트 일관성 부족**:
+   - 일부 컴포넌트: `sm:` 사용
+   - 일부 컴포넌트: `md:` 사용
+   - 브레이크포인트 선택 기준이 일관되지 않음
+
+2. **모바일 최적화 부족**:
+   - 일부 모달이 모바일에서 너무 넓음
+   - 테이블이 모바일에서 가로 스크롤 없이 잘림
+   - 터치 친화적 버튼 크기 부족
+
+3. **모바일 우선 패턴 미적용**:
+   - 대부분 모바일 우선 패턴 적용됨 (✅)
+   - 일부 컴포넌트에서 데스크톱 우선 패턴 발견
+
+#### 개선 방향
+
+**표준 브레이크포인트 정의**:
+
+```tsx
+// ✅ 모바일 우선 패턴
+<div className="p-4 md:p-6 lg:p-8">
+  {/* 모바일: p-4, 태블릿: p-6, 데스크톱: p-8 */}
+</div>
+
+// ✅ 모바일 테이블 최적화
+<div className="overflow-x-auto md:overflow-visible">
+  <table className="min-w-full">
+    {/* 모바일: 가로 스크롤, 데스크톱: 일반 테이블 */}
+  </table>
+</div>
+
+// ✅ 모바일 카드 레이아웃
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {/* 모바일: 1열, 태블릿: 2열, 데스크톱: 3열 */}
+</div>
+```
+
+---
+
+### 5.5 모달 및 다이얼로그 통일
+
+#### 문제점
+
+**여러 모달 패턴 혼재**:
+
+1. **Dialog 컴포넌트 사용**:
+   - `components/ui/Dialog.tsx`: 표준 모달 컴포넌트
+   - 일부 페이지에서 사용 중
+
+2. **커스텀 모달**:
+   - 각 페이지별로 커스텀 모달 구현
+   - 일관성 없는 구조 및 스타일
+
+3. **ModalWrapper**:
+   - `app/(admin)/admin/students/[id]/plans/_components/modals/ModalWrapper.tsx`
+   - 관리자 플랜 관리 전용 래퍼
+
+#### 개선 방향
+
+**통일된 모달 패턴**:
+
+```tsx
+// ✅ 표준 Dialog 컴포넌트 사용
+import { Dialog } from "@/components/ui/Dialog";
+
+<Dialog
+  open={isOpen}
+  onClose={onClose}
+  title="제목"
+  description="설명"
+>
+  {/* 내용 */}
+</Dialog>
+
+// ✅ 모달 테마 가이드라인
+// - blue: 조회/기본 액션
+// - amber: 편집/수정 액션
+// - purple: 그룹/조직 관련
+// - green: 생성/추가 액션
+// - red: 삭제/위험 액션
+```
+
+---
+
+### 5.6 Spacing-First 정책 위반
+
+#### 문제점
+
+**많은 파일에서 margin 사용**:
+
+- 형제 요소 간 간격을 `margin`으로 처리하는 경우 많음
+- Spacing-First 정책: 형제 간격은 `gap`, 외곽 여백은 `padding`
+
+**위반 예시**:
+
+```tsx
+// ❌ 나쁜 예: margin 사용
+<div>
+  <Card className="mb-4" />
+  <Card className="mb-4" />
+  <Card />
+</div>
+
+// ✅ 좋은 예: gap 사용
+<div className="flex flex-col gap-4">
+  <Card />
+  <Card />
+  <Card />
+</div>
+```
+
+#### 개선 방향
+
+**Spacing-First 정책 적용**:
+
+1. **형제 요소 간격**: `gap` 사용
+2. **외곽 여백**: 최상단 래퍼의 `padding` 사용
+3. **ESLint 규칙**: margin 클래스 사용 금지 (이미 적용됨)
+
+---
+
+### 5.7 인라인 스타일 사용
+
+#### 문제점
+
+**인라인 스타일 발견**:
+
+- 일부 컴포넌트에서 `style={{ }}` 사용
+- Tailwind CSS 정책: 인라인 스타일 금지
+
+**위반 예시**:
+
+```tsx
+// ❌ 나쁜 예: 인라인 스타일
+<div style={{ width: `${progress}%` }}>
+  진행률
+</div>
+
+// ✅ 좋은 예: Tailwind 클래스
+<div className="w-full">
+  <div className="h-2 bg-blue-500" style={{ width: `${progress}%` }}>
+    {/* 동적 width는 예외적으로 허용 */}
+  </div>
+</div>
+```
+
+#### 개선 방향
+
+**CSS 변수 활용**:
+
+```tsx
+// ✅ 좋은 예: CSS 변수 사용
+<div
+  className="h-2 bg-blue-500 transition-all"
+  style={{ "--progress": `${progress}%` } as React.CSSProperties}
+>
+  {/* 또는 Tailwind arbitrary values */}
+  <div className={`w-[${progress}%]`}>
+    {/* ... */}
+  </div>
+</div>
+```
+
+---
+
+### 5.8 디자인 시스템 일관성
+
+#### 문제점
+
+1. **색상 시스템 불일치**:
+   - 하드코딩된 색상 클래스 사용 (gray-*, indigo-* 등)
+   - 디자인 시스템 토큰 미사용
+
+2. **타이포그래피 불일치**:
+   - 일부 컴포넌트: 디자인 시스템 타이포그래피 클래스 사용
+   - 일부 컴포넌트: 임의의 텍스트 크기 사용
+
+3. **Elevation/Shadow 불일치**:
+   - 일관된 그림자 시스템 부족
+   - 카드 컴포넌트마다 다른 그림자 스타일
+
+#### 개선 방향
+
+**디자인 시스템 통일**:
+
+```tsx
+// ✅ 디자인 시스템 색상 사용
+// ❌ 나쁜 예
+<div className="bg-gray-100 text-gray-800">
+
+// ✅ 좋은 예
+<div className="bg-background text-foreground">
+// 또는 semantic colors
+<div className="bg-primary text-primary-foreground">
+
+// ✅ 디자인 시스템 타이포그래피
+<h1 className="text-h1">제목</h1>
+<p className="text-body-2">본문</p>
+
+// ✅ Elevation 시스템
+<div className="elevation-1">카드 1</div>
+<div className="elevation-2">카드 2</div>
+```
+
+---
+
+### 5.9 사용자 경험 패턴
+
+#### 문제점
+
+1. **폼 검증 피드백**:
+   - 일부 폼: 실시간 검증
+   - 일부 폼: 제출 시 검증
+   - 일관성 부족
+
+2. **자동 저장**:
+   - 일부 위저드: 자동 저장 기능
+   - 일부 위저드: 자동 저장 없음
+   - 사용자 혼란 가능성
+
+3. **로딩 상태 표시**:
+   - 일부 액션: 로딩 표시
+   - 일부 액션: 로딩 표시 없음
+   - 사용자가 작업 진행 여부를 알 수 없음
+
+#### 개선 방향
+
+**일관된 UX 패턴**:
+
+```tsx
+// ✅ 폼 검증 피드백
+// 실시간 검증 (onBlur)
+<Input
+  onBlur={(e) => validateField(e.target.value)}
+  error={fieldError}
+/>
+
+// ✅ 자동 저장 표시
+<div className="flex items-center gap-2">
+  <SaveStatusIndicator status={saveStatus} />
+  <span className="text-sm text-gray-500">
+    {saveStatus === "saving" && "저장 중..."}
+    {saveStatus === "saved" && "저장됨"}
+  </span>
+</div>
+
+// ✅ 로딩 상태 표시
+<Button isLoading={isSubmitting} disabled={isSubmitting}>
+  제출
+</Button>
+```
+
+---
+
+## 6. 성능 분석
 
 ### 5.1 과도한 동적 렌더링
 
