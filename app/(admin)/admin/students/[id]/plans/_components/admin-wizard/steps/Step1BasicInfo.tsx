@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useCallback, useState } from "react";
-import { Calendar, FileText, Target, Clock, ChevronDown, Plus, FolderOpen } from "lucide-react";
+import { Calendar, FileText, Target, Clock, ChevronDown, Plus, FolderOpen, Lock, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   useAdminWizardData,
@@ -239,8 +239,11 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
         if (planner.exclusions && planner.exclusions.length > 0) {
           const mapExclusionType = (type: string): "holiday" | "event" | "personal" => {
             switch (type) {
-              case "휴일지정": return "holiday";
-              case "개인사정": return "personal";
+              case "휴일지정":
+              case "지정휴일": return "holiday";
+              case "휴가": return "event"; // 휴가는 일반 이벤트로 매핑
+              case "개인사정":
+              case "개인일정": return "personal";
               default: return "event";
             }
           };
@@ -321,15 +324,26 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
 
   return (
     <div className="space-y-6">
-      {/* 플래너 선택 (신규 - Phase 4) */}
-      <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <FolderOpen className="h-4 w-4" />
-          플래너 연결 <span className="text-xs text-gray-400">(선택)</span>
-        </label>
-        <p className="text-xs text-gray-500">
-          기존 플래너를 선택하면 해당 플래너의 설정(기간, 제외일, 학원일정)이 자동으로 채워집니다.
-        </p>
+      {/* 플래너 선택 (강화된 UI - Phase 5) */}
+      <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white">
+              <FolderOpen className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">플래너 선택</h3>
+              <p className="text-xs text-gray-500">시간 설정, 제외일, 학원일정이 자동 상속됩니다</p>
+            </div>
+          </div>
+          {selectedPlanner && (
+            <div className="flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              선택됨
+            </div>
+          )}
+        </div>
+
         <div className="relative">
           <button
             type="button"
@@ -337,10 +351,10 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
             disabled={isLoadingPlanners}
             data-testid="planner-select"
             className={cn(
-              "flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition",
+              "flex w-full items-center justify-between rounded-lg border-2 px-4 py-3 text-sm font-medium transition",
               selectedPlanner
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                ? "border-blue-500 bg-white text-blue-700 shadow-sm"
+                : "border-gray-300 bg-white text-gray-600 hover:border-blue-400"
             )}
           >
             <span>
@@ -348,7 +362,7 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
                 ? "불러오는 중..."
                 : selectedPlanner
                   ? selectedPlanner.name
-                  : "플래너를 선택하세요 (선택 안 함 가능)"}
+                  : "플래너를 선택하세요"}
             </span>
             <ChevronDown
               className={cn(
@@ -401,17 +415,50 @@ export function Step1BasicInfo({ studentId, error }: Step1BasicInfoProps) {
           )}
         </div>
 
+        {/* 상속 미리보기 */}
         {selectedPlanner && (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <p className="mb-1 text-xs font-medium text-blue-800">선택된 플래너 정보</p>
-            <div className="flex flex-wrap gap-2 text-xs text-blue-700">
-              <span>기간: {formatDateDisplay(selectedPlanner.periodStart)} ~ {formatDateDisplay(selectedPlanner.periodEnd)}</span>
-              {selectedPlanner.exclusions && selectedPlanner.exclusions.length > 0 && (
-                <span>· 제외일 {selectedPlanner.exclusions.length}개</span>
-              )}
-              {selectedPlanner.academySchedules && selectedPlanner.academySchedules.length > 0 && (
-                <span>· 학원일정 {selectedPlanner.academySchedules.length}개</span>
-              )}
+          <div className="mt-4 rounded-lg border border-blue-100 bg-white p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-700">
+              <Lock className="h-3.5 w-3.5 text-blue-500" />
+              상속될 설정
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {/* 시간 설정 */}
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
+                <Clock className="h-3.5 w-3.5 text-gray-500" />
+                <span className="text-gray-600">
+                  시간 설정: {selectedPlanner.studyHours ? "설정됨" : "없음"}
+                </span>
+              </div>
+
+              {/* 비학습 시간 블록 */}
+              <div className="flex items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5">
+                <Calendar className="h-3.5 w-3.5 text-gray-500" />
+                <span className="text-gray-600">
+                  비학습 블록: {selectedPlanner.nonStudyTimeBlocks?.length ?? 0}개
+                </span>
+              </div>
+
+              {/* 제외일 */}
+              <div className="flex items-center gap-2 rounded-md bg-orange-50 px-2.5 py-1.5">
+                <Lock className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-orange-700">
+                  제외일: {selectedPlanner.exclusions?.length ?? 0}개 (잠금)
+                </span>
+              </div>
+
+              {/* 학원일정 */}
+              <div className="flex items-center gap-2 rounded-md bg-purple-50 px-2.5 py-1.5">
+                <Lock className="h-3.5 w-3.5 text-purple-500" />
+                <span className="text-purple-700">
+                  학원일정: {selectedPlanner.academySchedules?.length ?? 0}개 (잠금)
+                </span>
+              </div>
+            </div>
+
+            {/* 기간 정보 */}
+            <div className="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+              기간: {formatDateDisplay(selectedPlanner.periodStart)} ~ {formatDateDisplay(selectedPlanner.periodEnd)}
             </div>
           </div>
         )}

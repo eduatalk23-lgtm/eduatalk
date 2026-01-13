@@ -103,6 +103,9 @@ export function Step2TimeSettings({
   const hasInheritedSchedulerOptions = !!plannerId && !!schedulerOptions &&
     (schedulerOptions.study_days !== undefined || schedulerOptions.review_days !== undefined);
 
+  // 플래너에서 상속된 스케줄러 타입이 있는지 확인
+  const hasInheritedSchedulerType = !!plannerId && !!schedulerType;
+
   // 새 제외일/학원 스케줄 입력 상태
   const [newExclusion, setNewExclusion] = useState<Partial<ExclusionSchedule>>({
     exclusion_date: "",
@@ -647,10 +650,20 @@ export function Step2TimeSettings({
 
       {/* 스케줄러 타입 선택 */}
       <div className="space-y-3">
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <Clock className="h-4 w-4" />
-          스케줄러 타입
-        </label>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <Clock className="h-4 w-4" />
+            스케줄러 타입
+          </label>
+          {hasInheritedSchedulerType && (
+            <div className="flex items-center gap-1">
+              <Lock className="h-3.5 w-3.5 text-blue-500" />
+              <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                플래너에서 상속
+              </span>
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {SCHEDULER_TYPES.map((type) => (
             <button
@@ -661,26 +674,31 @@ export function Step2TimeSettings({
                   type.value as "1730_timetable" | "custom"
                 )
               }
-              disabled={!editable}
+              disabled={!editable || hasInheritedSchedulerType}
               data-testid={`scheduler-type-${type.value}`}
               className={cn(
                 "flex flex-col items-start rounded-lg border p-4 text-left transition",
                 schedulerType === type.value
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-200 bg-white hover:border-gray-300",
-                !editable && "cursor-not-allowed opacity-50"
+                (!editable || hasInheritedSchedulerType) && "cursor-not-allowed opacity-60"
               )}
             >
-              <span
-                className={cn(
-                  "font-medium",
-                  schedulerType === type.value
-                    ? "text-blue-700"
-                    : "text-gray-900"
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "font-medium",
+                    schedulerType === type.value
+                      ? "text-blue-700"
+                      : "text-gray-900"
+                  )}
+                >
+                  {type.label}
+                </span>
+                {hasInheritedSchedulerType && schedulerType === type.value && (
+                  <Lock className="h-3.5 w-3.5 text-blue-500" />
                 )}
-              >
-                {type.label}
-              </span>
+              </div>
               <span className="mt-1 text-xs text-gray-500">
                 {type.description}
               </span>

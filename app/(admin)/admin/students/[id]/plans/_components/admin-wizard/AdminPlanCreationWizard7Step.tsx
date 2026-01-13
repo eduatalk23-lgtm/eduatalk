@@ -40,6 +40,7 @@ import { createPlanGroupAction } from "@/lib/domains/plan/actions/plan-groups/cr
 import { updatePlanGroupDraftAction } from "@/lib/domains/plan/actions/plan-groups/update";
 import type { PlanGroupCreationData } from "@/lib/types/plan";
 import { getPlannerAction } from "@/lib/domains/admin-plan/actions";
+import { validatePlanner } from "@/lib/domains/admin-plan/actions/planCreation/validatePlanner";
 import type { ExclusionSchedule, AcademySchedule } from "./_context/types";
 
 // ============================================
@@ -402,6 +403,16 @@ function WizardInner({
       return false;
     }
 
+    // 플래너 유효성 검증 (플래너가 선택된 경우)
+    const effectivePlannerId = wizardData.plannerId || plannerId;
+    if (effectivePlannerId) {
+      const plannerValidation = await validatePlanner(effectivePlannerId, tenantId);
+      if (!plannerValidation.success) {
+        setError(plannerValidation.error || "선택한 플래너가 유효하지 않습니다. 플래너를 다시 선택해주세요.");
+        return false;
+      }
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -644,6 +655,7 @@ function WizardInner({
     hasErrors,
     wizardData,
     studentId,
+    tenantId,
     plannerId,
     draftGroupId,
     setSubmitting,

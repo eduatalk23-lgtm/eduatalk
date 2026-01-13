@@ -25,6 +25,8 @@ import {
   Sliders,
   Edit3,
   Hash,
+  Lock,
+  FolderOpen,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -63,7 +65,23 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
     schedulerOptions,
     generateAIPlan,
     aiMode,
+    plannerId,
   } = wizardData;
+
+  // 상속된 항목 통계
+  const inheritedStats = useMemo(() => {
+    const lockedExclusions = exclusions.filter(e => e.is_locked).length;
+    const manualExclusions = exclusions.length - lockedExclusions;
+    const lockedAcademy = academySchedules.filter(s => s.is_locked).length;
+    const manualAcademy = academySchedules.length - lockedAcademy;
+    return {
+      lockedExclusions,
+      manualExclusions,
+      lockedAcademy,
+      manualAcademy,
+      hasInheritedItems: lockedExclusions > 0 || lockedAcademy > 0,
+    };
+  }, [exclusions, academySchedules]);
 
   // 기간 계산
   const daysDiff = useMemo(() => {
@@ -246,6 +264,31 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
           </div>
         </div>
 
+        {/* 플래너 연결 정보 (있는 경우) */}
+        {plannerId && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4" data-testid="planner-connection">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">플래너 연결됨</span>
+              <Lock className="h-3.5 w-3.5 text-blue-500" />
+            </div>
+            {inheritedStats.hasInheritedItems && (
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {inheritedStats.lockedExclusions > 0 && (
+                  <span className="rounded bg-orange-100 px-2 py-0.5 text-orange-700">
+                    제외일 {inheritedStats.lockedExclusions}개 상속
+                  </span>
+                )}
+                {inheritedStats.lockedAcademy > 0 && (
+                  <span className="rounded bg-purple-100 px-2 py-0.5 text-purple-700">
+                    학원일정 {inheritedStats.lockedAcademy}개 상속
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 시간 설정 */}
         <div className="rounded-lg border border-gray-200 bg-white p-4" data-testid="time-settings-summary">
           <div className="mb-3 flex items-center justify-between">
@@ -265,7 +308,10 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-500">스케줄러 타입</span>
+              <span className="flex items-center gap-1 text-gray-500">
+                스케줄러 타입
+                {plannerId && <Lock className="h-3 w-3 text-blue-400" />}
+              </span>
               <span className="font-medium text-gray-900">
                 {schedulerType === "1730_timetable"
                   ? "1730 시간표"
@@ -278,14 +324,34 @@ export function Step6FinalReview({ studentName }: Step6FinalReviewProps) {
               <span className="flex items-center gap-1 text-gray-500">
                 <Building2 className="h-3 w-3" />
                 학원 스케줄
+                {inheritedStats.lockedAcademy > 0 && (
+                  <Lock className="h-3 w-3 text-purple-400" />
+                )}
               </span>
               <span className="font-medium text-gray-900">
                 {academySchedules.length}개
+                {inheritedStats.lockedAcademy > 0 && inheritedStats.manualAcademy > 0 && (
+                  <span className="ml-1 text-xs text-gray-400">
+                    (상속 {inheritedStats.lockedAcademy} + 추가 {inheritedStats.manualAcademy})
+                  </span>
+                )}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">제외 일정</span>
-              <span className="font-medium text-gray-900">{exclusions.length}일</span>
+              <span className="flex items-center gap-1 text-gray-500">
+                제외 일정
+                {inheritedStats.lockedExclusions > 0 && (
+                  <Lock className="h-3 w-3 text-orange-400" />
+                )}
+              </span>
+              <span className="font-medium text-gray-900">
+                {exclusions.length}일
+                {inheritedStats.lockedExclusions > 0 && inheritedStats.manualExclusions > 0 && (
+                  <span className="ml-1 text-xs text-gray-400">
+                    (상속 {inheritedStats.lockedExclusions} + 추가 {inheritedStats.manualExclusions})
+                  </span>
+                )}
+              </span>
             </div>
           </div>
         </div>
