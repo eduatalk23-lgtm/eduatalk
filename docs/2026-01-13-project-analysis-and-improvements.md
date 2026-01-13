@@ -82,20 +82,24 @@
 ### 2.2 기술 스택
 
 #### 프론트엔드
+
 - **Next.js 16.0.10**: App Router, Server Components
 - **React 19.2.0**: 최신 React 기능 활용
 - **TypeScript 5**: 타입 안전성
 - **Tailwind CSS 4**: 유틸리티 우선 스타일링
 
 #### 백엔드
+
 - **Supabase**: PostgreSQL, Auth, Realtime
 - **Server Actions**: Next.js Server Actions 활용
 
 #### 상태 관리
+
 - **React Query 5.90.10**: 서버 상태 관리
 - **Zustand 5.0.9**: 클라이언트 상태 관리
 
 #### 개발 도구
+
 - **Vitest**: 단위 테스트
 - **Playwright**: E2E 테스트
 - **ESLint**: 코드 품질 검사
@@ -120,6 +124,7 @@ lib/domains/
 ```
 
 **구현 상태**:
+
 - ✅ 완전 구현: `school`, `score`, `attendance` (3개)
 - 🔄 부분 구현: `plan` (repository, service만 존재)
 - ❌ 미구현: 나머지 19개 도메인
@@ -169,18 +174,18 @@ export async function createPlan(data: FormData) {
   // 비즈니스 로직이 Actions에 직접 포함
   const startDate = parseDate(data.get("start_date"));
   const endDate = parseDate(data.get("end_date"));
-  
+
   // 날짜 검증 로직
   if (startDate >= endDate) {
     throw new Error("시작일은 종료일보다 이전이어야 합니다.");
   }
-  
+
   // 요일 검증 로직
   const dayOfWeek = startDate.getDay();
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     throw new Error("주말에는 플랜을 생성할 수 없습니다.");
   }
-  
+
   // 데이터베이스 작업
   const { data: plan } = await supabase.from("plans").insert(...);
   return plan;
@@ -198,7 +203,7 @@ export async function validatePlanDates(
   if (startDate >= endDate) {
     throw new PlanValidationError("시작일은 종료일보다 이전이어야 합니다.");
   }
-  
+
   const dayOfWeek = startDate.getDay();
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     throw new PlanValidationError("주말에는 플랜을 생성할 수 없습니다.");
@@ -209,10 +214,10 @@ export async function validatePlanDates(
 export async function createPlan(data: FormData) {
   const startDate = parseDate(data.get("start_date"));
   const endDate = parseDate(data.get("end_date"));
-  
+
   // Service 레이어에서 검증
   await planService.validatePlanDates(startDate, endDate);
-  
+
   // Service 레이어에서 생성
   return await planService.createPlan({
     startDate,
@@ -232,17 +237,21 @@ export async function createPlan(data: FormData) {
 #### 개선 방향
 
 **Phase 1: Deprecated 코드 정리** (1일)
+
 - `app/actions/scores.ts` 완전 제거 또는 사용처 확인 후 제거
 
 **Phase 2: 중간 단계 Actions 마이그레이션** (3일)
+
 - `app/actions/scores-internal.ts` → `lib/domains/score/actions.ts`로 통합
 
 **Phase 3: Plan 도메인 완전 마이그레이션** (5일)
+
 - `lib/domains/plan/actions.ts` 생성
 - `app/(student)/actions/planActions.ts` 마이그레이션
 - 비즈니스 로직을 Service 레이어로 추출
 
 **Phase 4: 나머지 도메인 마이그레이션** (15일)
+
 - `student`, `content`, `goal`, `block`, `camp`, `tenant`, `subject` 도메인 구조화
 
 ---
@@ -263,6 +272,7 @@ lib/domains/
 ```
 
 **비즈니스 로직 혼재**:
+
 - `app/actions/planActions.ts`: 날짜/요일 검증 로직이 Actions에 직접 포함
 - `lib/plan/blocks.ts`: 중복 확인, 개수 제한 등 비즈니스 규칙이 Actions에 포함
 - `lib/plan/blockSets.ts`: 중복 이름 확인 등 비즈니스 로직 혼재
@@ -307,6 +317,7 @@ lib/
 ```
 
 **마이그레이션 미완료**:
+
 - 일부 기능은 레거시 코드 사용
 - 일부 기능은 신규 구조 사용
 - 두 구조 간 데이터 변환 필요
@@ -324,7 +335,381 @@ lib/
 
 ## 4. 코드 품질 분석
 
-### 4.1 기술 부채 (TODO/FIXME)
+### 4.1 파일 크기 및 복잡도
+
+#### 문제점
+
+**대형 파일 현황**:
+
+| 파일 경로 | 줄 수 | 문제점 | 우선순위 |
+|----------|------|--------|----------|
+| `lib/domains/attendance/actions/student.ts` | 1,105 | God Function, 복잡한 로직 | 🔴 High |
+| `lib/domains/attendance/actions/settings.ts` | 734 | 다중 책임, 복잡한 상태 관리 | 🟡 Medium |
+| `lib/domains/tenant/blockSets.ts` | 592 | 블록 세트 관리 로직 집중 | 🟡 Medium |
+| `lib/domains/attendance/actions/attendance.ts` | 559 | 출석 관련 로직 집중 | 🟡 Medium |
+| `app/(admin)/admin/students/[id]/plans/_components/PlannerCreationModal.tsx` | 1,561 | 거대한 컴포넌트, 15+ 상태 변수 | 🔴 High |
+| `app/(admin)/admin/content-metadata/_components/CurriculumHierarchyManager.tsx` | 1,175 | 복잡한 계층 구조 관리 | 🟡 Medium |
+| `app/(admin)/admin/students/[id]/plans/_components/admin-wizard/steps/Step2TimeSettings.tsx` | 1,128 | 시간 설정 로직 복잡 | 🟡 Medium |
+
+**권장 파일 크기**:
+- TypeScript 파일: **300줄 이하**
+- React 컴포넌트: **200-300줄 이하**
+- 현재 **20개 이상의 파일**이 권장 크기를 초과
+
+#### 영향
+
+1. **가독성 저하**: 큰 파일은 이해하기 어려움
+2. **테스트 어려움**: 단위 테스트 작성이 복잡해짐
+3. **병합 충돌**: 여러 개발자가 동시에 작업 시 충돌 증가
+4. **유지보수 어려움**: 버그 수정 및 기능 추가가 어려움
+
+#### 개선 방향
+
+**파일 분리 전략**:
+
+```typescript
+// ❌ 나쁜 예: 1,105줄의 거대한 파일
+// lib/domains/attendance/actions/student.ts
+export async function checkInWithQRCode(...) { /* 200줄 */ }
+export async function checkInWithLocation(...) { /* 200줄 */ }
+export async function checkOut(...) { /* 150줄 */ }
+// ... 10개 이상의 함수
+
+// ✅ 좋은 예: 책임별로 파일 분리
+// lib/domains/attendance/actions/student/checkIn.ts
+export async function checkInWithQRCode(...) { /* 200줄 */ }
+export async function checkInWithLocation(...) { /* 200줄 */ }
+
+// lib/domains/attendance/actions/student/checkOut.ts
+export async function checkOut(...) { /* 150줄 */ }
+
+// lib/domains/attendance/actions/student/index.ts
+export * from "./checkIn";
+export * from "./checkOut";
+```
+
+**컴포넌트 분리 전략**:
+
+```typescript
+// ❌ 나쁜 예: 1,561줄의 거대한 컴포넌트
+// PlannerCreationModal.tsx
+export default function PlannerCreationModal() {
+  // 15+ 상태 변수
+  // 20+ 함수
+  // 복잡한 JSX
+}
+
+// ✅ 좋은 예: 기능별로 컴포넌트 분리
+// PlannerCreationModal.tsx (메인, 200줄)
+export default function PlannerCreationModal() {
+  return (
+    <Modal>
+      <PlannerForm />
+      <PlannerPreview />
+      <PlannerActions />
+    </Modal>
+  );
+}
+
+// _components/PlannerForm.tsx
+// _components/PlannerPreview.tsx
+// _components/PlannerActions.tsx
+```
+
+---
+
+### 4.2 코드 중복
+
+#### 문제점
+
+**발견된 중복 패턴**:
+
+1. **시간 설정 병합 로직 중복** (3곳):
+   - `app/(student)/actions/plan-groups/create.ts:45-68`
+   - `app/(student)/actions/plan-groups/create.ts:334-338`
+   - `app/(student)/plan/new-group/_components/hooks/usePlanPayloadBuilder.ts:117-119`
+
+2. **템플릿 블록 세트 조회 로직** (✅ 일부 해결됨):
+   - ~~`lib/plan/blocks.ts::getTemplateBlockSet`~~ → `lib/domains/camp/utils/templateBlockSetResolver.ts`로 통합 완료
+   - ~~`lib/plan/blocks.ts::getTemplateBlockSetId`~~ → 통합 완료
+   - ~~`lib/camp/campAdapter.ts::resolveCampBlockSetId`~~ → 통합 완료
+
+3. **학습-복습 주기 병합 로직 중복** (3곳):
+   - `app/(student)/actions/plan-groups/create.ts:70-74`
+   - `app/(student)/actions/plan-groups/create.ts:340-344`
+   - `app/(student)/plan/new-group/_components/hooks/usePlanPayloadBuilder.ts:103-106`
+
+4. **전략/취약 과목 할당 로직 중복** (✅ 해결됨):
+   - ~~`app/(student)/plan/new-group/_components/Step6Simplified.tsx`~~ → `lib/utils/subjectAllocation.ts`로 통합 완료
+   - ~~`lib/plan/1730TimetableLogic.ts`~~ → 통합 완료
+
+5. **에러 처리 패턴 중복**:
+   - 여러 파일에서 동일한 try-catch 패턴 반복
+   - 에러 메시지 포맷팅 로직 중복
+
+#### 영향
+
+1. **버그 전파**: 한 곳 수정 시 다른 곳도 수정 필요
+2. **일관성 저하**: 중복 코드가 서로 다른 방식으로 수정될 수 있음
+3. **유지보수 비용 증가**: 동일한 로직을 여러 곳에서 관리
+4. **테스트 복잡도**: 중복 코드마다 테스트 필요
+
+#### 개선 방향
+
+**공통 유틸리티 함수 추출**:
+
+```typescript
+// ✅ 좋은 예: 공통 유틸리티 함수
+// lib/domains/plan/utils/schedulerOptionsMerger.ts
+export function mergeTimeSettings(
+  base: SchedulerOptions,
+  override: Partial<SchedulerOptions>
+): SchedulerOptions {
+  return {
+    ...base,
+    ...override,
+    // 병합 로직
+  };
+}
+
+export function mergeStudyReviewCycle(
+  base: StudyReviewCycle,
+  override: Partial<StudyReviewCycle>
+): StudyReviewCycle {
+  return {
+    ...base,
+    ...override,
+    // 병합 로직
+  };
+}
+
+// 사용처에서
+import { mergeTimeSettings, mergeStudyReviewCycle } from "@/lib/domains/plan/utils/schedulerOptionsMerger";
+```
+
+**에러 처리 통일**:
+
+```typescript
+// ✅ 좋은 예: 공통 에러 처리 유틸리티
+// lib/utils/errorHandling.ts
+export async function withErrorHandling<T>(
+  fn: () => Promise<T>,
+  context?: Record<string, unknown>
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    logError(error, context);
+    throw normalizeError(error);
+  }
+}
+```
+
+---
+
+### 4.3 함수 복잡도
+
+#### 문제점
+
+**God Function 발견**:
+
+| 함수 | 파일 | 줄 수 | 복잡도 | 문제점 |
+|------|------|------|--------|--------|
+| `generatePlansRefactored` | `lib/plan/services/generatePlansRefactored.ts` | 1,547 | 매우 높음 | 16+ 책임, God Function |
+| `previewPlansRefactored` | `lib/plan/services/previewPlansRefactored.ts` | ~1,500 | 매우 높음 | generate와 90% 중복 |
+| `checkInWithQRCode` | `lib/domains/attendance/actions/student.ts` | ~200 | 높음 | 다단계 처리, 복잡한 로직 |
+
+**복잡도 지표**:
+- **Cyclomatic Complexity**: 일부 함수가 20+ (권장: 10 이하)
+- **함수당 줄 수**: 일부 함수가 200+ 줄 (권장: 50줄 이하)
+- **중첩 깊이**: 일부 함수가 5+ 레벨 (권장: 3 이하)
+
+#### 영향
+
+1. **이해 어려움**: 복잡한 함수는 이해하기 어려움
+2. **테스트 어려움**: 모든 경로를 테스트하기 어려움
+3. **버그 위험**: 복잡한 로직은 버그 발생 가능성 증가
+4. **리팩토링 어려움**: 변경 시 사이드 이펙트 위험
+
+#### 개선 방향
+
+**함수 분리 전략**:
+
+```typescript
+// ❌ 나쁜 예: 200줄의 복잡한 함수
+export async function checkInWithQRCode(qrData: string) {
+  // Step 1: 인증 확인 (20줄)
+  // Step 2: 테넌트 컨텍스트 (15줄)
+  // Step 3: QR 코드 검증 (30줄)
+  // Step 4: 테넌트 일치 확인 (20줄)
+  // Step 5: 날짜 준비 (10줄)
+  // Step 6: 기존 기록 확인 (25줄)
+  // Step 7: 출석 기록 생성 (40줄)
+  // Step 8: SMS 전송 (30줄)
+  // Step 9: 결과 반환 (10줄)
+}
+
+// ✅ 좋은 예: 단계별로 함수 분리
+export async function checkInWithQRCode(qrData: string) {
+  const context = await prepareCheckInContext(qrData);
+  const verification = await verifyQRCodeForCheckIn(qrData, context);
+  const attendance = await createAttendanceRecord(verification, context);
+  await sendAttendanceNotification(attendance, context);
+  return { success: true, attendance };
+}
+
+async function prepareCheckInContext(qrData: string) {
+  const user = await requireStudentAuth();
+  const tenantContext = await getTenantContext();
+  return { user, tenantContext, today: new Date().toISOString().slice(0, 10) };
+}
+
+async function verifyQRCodeForCheckIn(qrData: string, context: CheckInContext) {
+  // QR 코드 검증 로직
+}
+
+async function createAttendanceRecord(verification: QRVerification, context: CheckInContext) {
+  // 출석 기록 생성 로직
+}
+```
+
+---
+
+### 4.4 네이밍 일관성
+
+#### 문제점
+
+**발견된 불일치**:
+
+1. **테이블명 불일치**:
+   - ERD 문서: `student_parent_links`
+   - 실제 코드: `parent_student_links`
+   - **결정**: 실제 코드 기준으로 통일
+
+2. **필드명 불일치**:
+   - ERD 문서: `relationship`
+   - 실제 코드: `relation`
+   - **결정**: 실제 코드 기준으로 통일
+
+3. **함수명 패턴 불일치**:
+   - `get*`: 데이터 조회 (일관적)
+   - `fetch*`: 데이터 페칭 (일관적)
+   - `create*`: 생성 (일관적)
+   - `update*`: 수정 (일관적)
+   - `delete*`: 삭제 (일관적)
+   - ⚠️ 일부 파일에서 `remove*`, `remove*` 혼용
+
+4. **변수명 패턴 불일치**:
+   - `camelCase`: 일반 변수 (일관적)
+   - `PascalCase`: 타입/컴포넌트 (일관적)
+   - `UPPER_SNAKE_CASE`: 상수 (일관적)
+   - ⚠️ 일부 파일에서 `snake_case` 혼용
+
+#### 개선 방향
+
+**네이밍 가이드라인 수립**:
+
+```typescript
+// ✅ 함수명 패턴
+// 조회: get*, fetch*, find*
+export async function getStudentById(id: string) { }
+export async function fetchStudents(filters: Filters) { }
+export async function findStudentByEmail(email: string) { }
+
+// 생성: create*
+export async function createStudent(data: StudentData) { }
+
+// 수정: update*
+export async function updateStudent(id: string, data: Partial<StudentData>) { }
+
+// 삭제: delete* (remove* 사용 금지)
+export async function deleteStudent(id: string) { }
+
+// ✅ 변수명 패턴
+// camelCase: 일반 변수
+const studentName = "홍길동";
+const planGroups = await getPlanGroups();
+
+// PascalCase: 타입, 컴포넌트
+type StudentData = { ... };
+export function StudentCard() { }
+
+// UPPER_SNAKE_CASE: 상수
+const MAX_PLAN_COUNT = 100;
+const DEFAULT_SCHEDULER_OPTIONS = { ... };
+```
+
+---
+
+### 4.5 코드 스타일 일관성
+
+#### 문제점
+
+**발견된 스타일 불일치**:
+
+1. **Import 순서**:
+   - 일부 파일: 외부 라이브러리 → 내부 모듈
+   - 일부 파일: 내부 모듈 → 외부 라이브러리
+   - 일부 파일: 알파벳 순서
+
+2. **Export 패턴**:
+   - 일부 파일: `export default`
+   - 일부 파일: `export { ... }`
+   - 일부 파일: `export * from`
+
+3. **타입 정의 위치**:
+   - 일부 파일: 파일 상단
+   - 일부 파일: 함수 위
+   - 일부 파일: 별도 `types.ts` 파일
+
+4. **주석 스타일**:
+   - 일부 파일: JSDoc 주석
+   - 일부 파일: 인라인 주석
+   - 일부 파일: 블록 주석
+
+#### 개선 방향
+
+**코드 스타일 가이드라인**:
+
+```typescript
+// ✅ Import 순서 (ESLint 규칙 적용)
+// 1. 외부 라이브러리
+import { useState, useEffect } from "react";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+// 2. 내부 모듈 (절대 경로)
+import { AppError } from "@/lib/errors";
+import { getStudentById } from "@/lib/domains/student/service";
+
+// 3. 상대 경로
+import { StudentCard } from "./StudentCard";
+
+// ✅ Export 패턴
+// 단일 export: default
+export default function StudentDashboard() { }
+
+// 다중 export: named
+export function getStudentById() { }
+export function createStudent() { }
+
+// ✅ 타입 정의 위치
+// 파일 상단 또는 별도 types.ts 파일
+type StudentData = { ... };
+
+// ✅ 주석 스타일
+/**
+ * 학생 정보를 조회합니다.
+ * @param id - 학생 ID
+ * @returns 학생 정보
+ */
+export async function getStudentById(id: string): Promise<Student> {
+  // 구현
+}
+```
+
+---
+
+### 4.6 기술 부채 (TODO/FIXME)
 
 #### 현황
 
@@ -366,7 +751,133 @@ lib/
 
 ---
 
-### 4.2 에러 처리 불일치
+### 4.7 주석 및 문서화
+
+#### 현황
+
+**JSDoc 주석 현황**:
+- **4,600개 이상의 export 함수** 발견
+- JSDoc 주석이 있는 함수: 약 30-40% (추정)
+- 타입 정의 문서화: 약 50% (추정)
+
+**문서화 품질**:
+- ✅ 일부 도메인: 완전한 JSDoc 주석 (`lib/domains/attendance/`)
+- ⚠️ 일부 도메인: 부분적 JSDoc 주석 (`lib/domains/plan/`)
+- ❌ 일부 도메인: JSDoc 주석 부족 (`lib/domains/camp/`)
+
+#### 문제점
+
+1. **함수 설명 부족**:
+   ```typescript
+   // ❌ 나쁜 예: 설명 없음
+   export async function getStudentById(id: string) {
+     // ...
+   }
+
+   // ✅ 좋은 예: JSDoc 주석 포함
+   /**
+    * 학생 ID로 학생 정보를 조회합니다.
+    * @param id - 학생 UUID
+    * @returns 학생 정보 또는 null
+    * @throws {AppError} 학생을 찾을 수 없을 때
+    */
+   export async function getStudentById(id: string): Promise<Student | null> {
+     // ...
+   }
+   ```
+
+2. **타입 정의 문서화 부족**:
+   ```typescript
+   // ❌ 나쁜 예: 타입 설명 없음
+   type PlanGroupData = {
+     student_id: string;
+     period_start: Date;
+     period_end: Date;
+   };
+
+   // ✅ 좋은 예: 타입 설명 포함
+   /**
+    * 플랜 그룹 생성 데이터
+    */
+   type PlanGroupData = {
+     /** 학생 UUID */
+     student_id: string;
+     /** 학습 기간 시작일 */
+     period_start: Date;
+     /** 학습 기간 종료일 */
+     period_end: Date;
+   };
+   ```
+
+3. **복잡한 로직 설명 부족**:
+   - 복잡한 비즈니스 로직에 대한 설명 부족
+   - 알고리즘 설명 부족
+   - 엣지 케이스 처리 설명 부족
+
+#### 개선 방향
+
+**JSDoc 주석 표준화**:
+
+```typescript
+/**
+ * [함수 설명]
+ *
+ * [상세 설명 (필요 시)]
+ *
+ * @param {타입} paramName - [파라미터 설명]
+ * @returns {타입} [반환값 설명]
+ * @throws {에러타입} [에러 조건 설명]
+ * @example
+ * ```typescript
+ * const result = await functionName(param);
+ * ```
+ */
+export async function functionName(param: Type): Promise<ReturnType> {
+  // ...
+}
+```
+
+**타입 정의 문서화**:
+
+```typescript
+/**
+ * [타입 설명]
+ */
+export interface TypeName {
+  /** [필드 설명] */
+  fieldName: Type;
+}
+```
+
+---
+
+### 4.8 함수 및 모듈 통계
+
+#### 함수 통계
+
+- **총 export 함수 수**: 4,600개 이상
+- **도메인별 함수 수**:
+  - `lib/domains/plan/`: 200+ 함수
+  - `lib/domains/attendance/`: 50+ 함수
+  - `lib/domains/camp/`: 100+ 함수
+  - `lib/domains/admin-plan/`: 150+ 함수
+
+#### 모듈 통계
+
+- **총 TypeScript 파일**: 1,846개
+- **도메인 모듈**: 23개
+- **컴포넌트 파일**: 1,300+ 개
+- **테스트 파일**: 100+ 개
+
+#### 코드 라인 수
+
+- **총 코드 라인**: 약 226,808줄 (`.tsx` 파일)
+- **도메인 로직**: 약 5,783줄 (`lib/domains/`)
+- **컴포넌트**: 약 226,808줄 (`app/`)
+
+---
+
+### 4.9 에러 처리 불일치
 
 #### 문제점
 
@@ -409,7 +920,11 @@ throw new PlanGroupError("플랜 그룹을 찾을 수 없습니다.", ...);
 // ✅ 도메인별 에러 타입 사용
 // lib/domains/{domain}/errors.ts
 export class PlanError extends AppError {
-  constructor(message: string, code: PlanErrorCode, context?: Record<string, unknown>) {
+  constructor(
+    message: string,
+    code: PlanErrorCode,
+    context?: Record<string, unknown>
+  ) {
     super(message, code, 400, true, context);
   }
 }
@@ -418,7 +933,9 @@ export class PlanError extends AppError {
 export async function getPlanById(id: string): Promise<Plan> {
   const plan = await repository.findById(id);
   if (!plan) {
-    throw new PlanError("플랜을 찾을 수 없습니다.", PlanErrorCode.NOT_FOUND, { id });
+    throw new PlanError("플랜을 찾을 수 없습니다.", PlanErrorCode.NOT_FOUND, {
+      id,
+    });
   }
   return plan;
 }
@@ -474,10 +991,7 @@ const name = firstStudent?.name ?? "이름 없음";
 // ✅ 좋은 예: 타입 가드 함수
 function isValidStudent(data: unknown): data is StudentRow {
   return (
-    typeof data === "object" &&
-    data !== null &&
-    "id" in data &&
-    "name" in data
+    typeof data === "object" && data !== null && "id" in data && "name" in data
   );
 }
 
@@ -496,6 +1010,7 @@ if (isValidStudent(data)) {
 #### 문제점
 
 **현재 상태**:
+
 - **90개 이상의 파일**에서 `export const dynamic = 'force-dynamic'` 사용
 - **모든 레이아웃 파일**이 `force-dynamic`:
   - `app/(student)/layout.tsx`
@@ -504,6 +1019,7 @@ if (isValidStudent(data)) {
   - `app/(superadmin)/layout.tsx`
 
 **성능 영향**:
+
 - Next.js의 자동 캐싱 및 ISR 활용 불가
 - 매 요청마다 서버에서 렌더링 수행
 - 데이터베이스 쿼리 중복 실행
@@ -528,6 +1044,7 @@ export const dynamic = "force-dynamic";
 ```
 
 **예상 성능 개선**:
+
 - 페이지 로딩 시간: **30-50% 감소**
 - 서버 부하: **40-60% 감소**
 - 데이터베이스 쿼리: **50-70% 감소**
@@ -539,6 +1056,7 @@ export const dynamic = "force-dynamic";
 #### 문제점
 
 **현재 상태**:
+
 - 대부분 배치 처리로 해결됨
 - 일부 여전히 미해결:
   - Parent 도메인: 부모-학생 연결 조회 시 각 부모별 학생 수를 별도로 계산
@@ -565,9 +1083,7 @@ const groupIds = planGroups.map((g) => g.id);
 const allContents = await getPlanContentsBatch(groupIds);
 
 // 그룹별로 매핑
-const contentsMap = new Map(
-  allContents.map((c) => [c.plan_group_id, c])
-);
+const contentsMap = new Map(allContents.map((c) => [c.plan_group_id, c]));
 
 for (const group of planGroups) {
   const contents = contentsMap.get(group.id) ?? [];
@@ -632,6 +1148,7 @@ import { getGoalStatus } from "@/lib/metrics/getGoalStatus";
 ```
 
 **의존성 방향 불명확**:
+
 - 순환 의존성 위험
 - 리팩토링 어려움
 - 테스트 복잡도 증가
@@ -718,6 +1235,7 @@ export async function getWeeklyMetrics(
 **목표**: Deprecated 코드 제거 및 중간 단계 Actions 마이그레이션
 
 **작업**:
+
 - [ ] `app/actions/scores.ts` 사용처 확인 후 제거
 - [ ] `app/actions/scores-internal.ts` → `lib/domains/score/actions.ts` 마이그레이션
 - [ ] 비즈니스 로직을 Service 레이어로 추출
@@ -729,6 +1247,7 @@ export async function getWeeklyMetrics(
 **목표**: 모든 레이아웃 파일에 적절한 캐싱 전략 적용
 
 **작업**:
+
 - [ ] `app/(student)/layout.tsx` → `revalidate: 300` 적용
 - [ ] `app/(admin)/layout.tsx` → `revalidate: 300` 적용
 - [ ] `app/(parent)/layout.tsx` → `revalidate: 300` 적용
@@ -741,6 +1260,7 @@ export async function getWeeklyMetrics(
 **목표**: 버그 수정 관련 TODO 우선 처리
 
 **작업**:
+
 - [ ] Critical TODO 목록 작성
 - [ ] 우선순위별 처리 계획 수립
 - [ ] 즉시 처리 가능한 항목 처리
@@ -756,6 +1276,7 @@ export async function getWeeklyMetrics(
 **목표**: Plan 도메인을 완전한 레이어 구조로 마이그레이션
 
 **작업**:
+
 - [ ] `lib/domains/plan/actions.ts` 생성
 - [ ] `app/(student)/actions/planActions.ts` 마이그레이션
 - [ ] 비즈니스 로직을 Service 레이어로 추출
@@ -768,6 +1289,7 @@ export async function getWeeklyMetrics(
 **목표**: 도메인별 에러 타입 정의 및 통일된 에러 처리
 
 **작업**:
+
 - [ ] 도메인별 에러 타입 정의 (`lib/domains/{domain}/errors.ts`)
 - [ ] Service 레이어에서 도메인 에러 사용
 - [ ] Actions에서 `withErrorHandling` 적용
@@ -779,6 +1301,7 @@ export async function getWeeklyMetrics(
 **목표**: 남아있는 N+1 쿼리 패턴을 배치 쿼리로 변경
 
 **작업**:
+
 - [ ] N+1 쿼리 패턴 검색 및 목록 작성
 - [ ] 배치 쿼리로 변경
 - [ ] 성능 측정 및 검증
@@ -790,6 +1313,7 @@ export async function getWeeklyMetrics(
 **목표**: null 체크 강화 및 타입 단언 최소화
 
 **작업**:
+
 - [ ] Optional Chaining + Nullish Coalescing 적용
 - [ ] 타입 가드 함수 추가
 - [ ] `any` 타입 제거
@@ -805,6 +1329,7 @@ export async function getWeeklyMetrics(
 **목표**: 미구현 도메인들을 완전한 레이어 구조로 마이그레이션
 
 **작업**:
+
 - [ ] `student`, `content`, `goal`, `block`, `camp`, `tenant`, `subject` 도메인 구조화
 - [ ] Repository 패턴 적용
 - [ ] Service 레이어 구현
@@ -817,6 +1342,7 @@ export async function getWeeklyMetrics(
 **목표**: 각 페이지에 적절한 캐싱 전략 적용
 
 **작업**:
+
 - [ ] 페이지별 데이터 특성 분석
 - [ ] 캐싱 전략 수립
 - [ ] `revalidate` 값 설정
@@ -829,6 +1355,7 @@ export async function getWeeklyMetrics(
 **목표**: `lib/plan/` 레거시 코드를 `lib/domains/plan/`로 마이그레이션
 
 **작업**:
+
 - [ ] 레거시 코드 의존성 분석
 - [ ] 점진적 마이그레이션
 - [ ] 레거시 코드 제거
@@ -844,6 +1371,7 @@ export async function getWeeklyMetrics(
 **목표**: 단위 테스트 커버리지 70% 이상 달성
 
 **작업**:
+
 - [ ] Service 레이어 단위 테스트 작성
 - [ ] Repository 레이어 통합 테스트 작성
 - [ ] 테스트 커버리지 측정 도구 설정
@@ -855,6 +1383,7 @@ export async function getWeeklyMetrics(
 **목표**: 아키텍처 문서 및 개발 가이드 작성
 
 **작업**:
+
 - [ ] 전체 아키텍처 개요 문서 작성
 - [ ] Server Actions API 문서화
 - [ ] 신규 개발자 온보딩 가이드 작성
@@ -866,6 +1395,7 @@ export async function getWeeklyMetrics(
 **목표**: 프로덕션 성능 측정 및 모니터링 시스템 구축
 
 **작업**:
+
 - [ ] 성능 측정 도구 도입 (예: Vercel Analytics, Sentry)
 - [ ] 성능 대시보드 구축
 - [ ] 알림 시스템 설정
@@ -901,4 +1431,3 @@ export async function getWeeklyMetrics(
 **문서 버전**: 1.0  
 **최종 업데이트**: 2026-01-13  
 **작성자**: AI Assistant (Claude)
-
