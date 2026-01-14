@@ -43,7 +43,7 @@ import {
 import type { ContentSlot } from "@/lib/types/content-selection";
 import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
-import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { buildPlanCreationHints } from "@/lib/query/keys";
 
 // 서비스 임포트 (lib/plan/shared로 통합됨)
@@ -411,7 +411,10 @@ async function _generatePlansWithServices(
       end_time: p.end_time!,
     }));
 
-  console.log(`[generatePlansWithServices] 기존 플랜 ${existingPlanInfos.length}개 발견, 스케줄러에 전달`);
+  logActionDebug(
+    { domain: "plan", action: "generatePlansWithServices" },
+    `기존 플랜 ${existingPlanInfos.length}개 발견, 스케줄러에 전달`
+  );
 
   // ============================================
   // 6. 스케줄러 호출 (플랜 생성)
@@ -455,14 +458,9 @@ async function _generatePlansWithServices(
       existingPlanInfos    // Phase 2: 기존 플랜 정보 전달 (시간 충돌 방지)
     );
 
-    // DEBUG: 스케줄러 출력 확인
-    console.log("[generatePlansWithServices] scheduledPlans 샘플:",
-      scheduledPlans.slice(0, 5).map(p => ({
-        date: p.plan_date,
-        content_id: p.content_id,
-        start: p.planned_start_page_or_time,
-        end: p.planned_end_page_or_time,
-      }))
+    logActionDebug(
+      { domain: "plan", action: "generatePlansWithServices" },
+      `스케줄러 출력: ${scheduledPlans.length}개 플랜 생성`
     );
   } catch (error) {
     if (error instanceof PlanGroupError) {
@@ -501,7 +499,10 @@ async function _generatePlansWithServices(
   const unplacedPlans = scheduledPlans.filter((p) => !p.start_time || !p.end_time);
 
   if (existingPlans.length > 0 || unplacedPlans.length > 0) {
-    console.log(`[generatePlansWithServices] 폴백 처리 시작 - 기존 플랜: ${existingPlans.length}개, 미배치 플랜: ${unplacedPlans.length}개`);
+    logActionDebug(
+      { domain: "plan", action: "generatePlansWithServices" },
+      `폴백 처리 시작 - 기존 플랜: ${existingPlans.length}개, 미배치 플랜: ${unplacedPlans.length}개`
+    );
 
     // 스케줄러 결과를 PlanToPlace 형식으로 변환
     // 참고: PlanContent 타입에는 title 필드가 없어서 content_id를 기본값으로 사용
@@ -545,11 +546,15 @@ async function _generatePlansWithServices(
       periodEnd: group.period_end,
     });
 
-    console.log("[generatePlansWithServices] 배치 결과:", {
-      studyHours: placementResult.summary.placedInStudyHours,
-      selfStudy: placementResult.summary.placedInSelfStudyHours,
-      docked: placementResult.summary.dockedCount,
-    });
+    logActionDebug(
+      { domain: "plan", action: "generatePlansWithServices" },
+      "배치 결과",
+      {
+        studyHours: placementResult.summary.placedInStudyHours,
+        selfStudy: placementResult.summary.placedInSelfStudyHours,
+        docked: placementResult.summary.dockedCount,
+      }
+    );
 
     // 배치 결과 반영 - scheduledPlans 업데이트
     const placedPlansMap = new Map<string, { startTime: string; endTime: string; wasRelocated: boolean }>();

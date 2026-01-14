@@ -112,14 +112,17 @@ async function createPlanGroupAtomic(
   exclusions: ExclusionInput[],
   schedules: ScheduleInput[]
 ): Promise<AtomicCreateResult> {
-  console.log("[createPlanGroupAtomic] RPC 호출 전", {
-    tenantId,
-    studentId,
-    contentsCount: contents.length,
-    contentsData: contents,
-    exclusionsCount: exclusions.length,
-    schedulesCount: schedules.length,
-  });
+  logActionDebug(
+    { domain: "plan", action: "createPlanGroupAtomic" },
+    "RPC 호출 전",
+    {
+      tenantId,
+      studentId,
+      contentsCount: contents.length,
+      exclusionsCount: exclusions.length,
+      schedulesCount: schedules.length,
+    }
+  );
 
   const supabase = await createSupabaseServerClient();
 
@@ -148,7 +151,11 @@ async function createPlanGroupAtomic(
   // RPC 결과 파싱 (JSONB 반환)
   const result = data as { success: boolean; group_id?: string; error?: string; error_code?: string };
 
-  console.log("[createPlanGroupAtomic] RPC 결과", { result });
+  logActionDebug(
+    { domain: "plan", action: "createPlanGroupAtomic" },
+    "RPC 결과",
+    { success: result.success, groupId: result.group_id }
+  );
 
   if (!result.success) {
     logActionError(
@@ -367,14 +374,16 @@ async function _createPlanGroup(
 
   // 기존 draft가 있으면 업데이트
   if (existingGroup) {
-    // DEBUG: 기존 draft 업데이트 흐름 추적
-    console.log("[createPlanGroupAction] 기존 draft 발견, 업데이트 진행", {
-      existingGroupId: existingGroup.id,
-      existingGroupStatus: existingGroup.status,
-      dataName: data.name,
-      contentsCount: data.contents?.length ?? 0,
-      contentsData: data.contents?.map(c => ({ id: c.content_id, type: c.content_type, start: c.start_range, end: c.end_range })),
-    });
+    logActionDebug(
+      { domain: "plan", action: "createPlanGroup", userId: studentId },
+      "기존 draft 발견, 업데이트 진행",
+      {
+        existingGroupId: existingGroup.id,
+        existingGroupStatus: existingGroup.status,
+        dataName: data.name,
+        contentsCount: data.contents?.length ?? 0,
+      }
+    );
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePlanCache({ groupId: existingGroup.id, studentId });
     return { groupId: existingGroup.id, ...buildPlanCreationHints({ studentId, groupId: existingGroup.id }) };
