@@ -52,6 +52,31 @@ export interface TimeManagementActionResult {
 }
 
 // ============================================
+// 상수 및 헬퍼
+// ============================================
+
+/**
+ * 영어 제외일 타입을 한국어 DB 값으로 변환
+ * DB CHECK 제약조건: '휴가' | '개인사정' | '휴일지정' | '기타'
+ */
+function mapExclusionTypeToKorean(
+  englishType: string
+): "휴가" | "개인사정" | "휴일지정" | "기타" {
+  switch (englishType) {
+    case "holiday":
+      return "휴일지정";
+    case "vacation":
+      return "휴가";
+    case "personal":
+      return "개인사정";
+    case "event":
+    case "custom":
+    default:
+      return "기타";
+  }
+}
+
+// ============================================
 // 내부 헬퍼 함수
 // ============================================
 
@@ -182,11 +207,9 @@ export async function addStudentExclusionForAdmin(
       return { success: false, error: "날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)" };
     }
 
-    // 제외일 타입 검증 및 변환
-    const validTypes = ["holiday", "event", "personal"];
-    const exclusionType = validTypes.includes(exclusion.exclusion_type)
-      ? exclusion.exclusion_type
-      : "personal";
+    // 제외일 타입을 한국어 DB 값으로 변환
+    // 영어 입력 (holiday, personal, event 등) → 한국어 DB 값 (휴일지정, 개인사정, 기타 등)
+    const koreanExclusionType = mapExclusionTypeToKorean(exclusion.exclusion_type);
 
     // 데이터 레이어 함수 호출 (useAdminClient = true)
     const result = await createStudentExclusions(
@@ -195,7 +218,7 @@ export async function addStudentExclusionForAdmin(
       [
         {
           exclusion_date: exclusion.exclusion_date,
-          exclusion_type: exclusionType,
+          exclusion_type: koreanExclusionType,
           reason: exclusion.reason || null,
         },
       ],
