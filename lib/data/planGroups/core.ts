@@ -425,42 +425,44 @@ export async function updatePlanGroup(
   if (updates.use_slot_mode !== undefined) payload.use_slot_mode = updates.use_slot_mode;
   if (updates.content_slots !== undefined) payload.content_slots = updates.content_slots;
 
-  await createTypedConditionalQuery<null>(
-    async () => {
-      const queryResult = await supabase
-        .from("plan_groups")
-        .update(payload as PlanGroupUpdate)
-        .eq("id", groupId)
-        .eq("student_id", studentId)
-        .is("deleted_at", null);
-      return { data: null, error: queryResult.error };
-    },
-    {
-      context: "[data/planGroups] updatePlanGroup",
-      defaultValue: null,
-      fallbackQuery: async () => {
-        if (payload.scheduler_options !== undefined) {
-          const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
-          const queryResult = await supabase
-            .from("plan_groups")
-            .update(fallbackPayload as PlanGroupUpdate)
-            .eq("id", groupId)
-            .eq("student_id", studentId)
-            .is("deleted_at", null);
-          return { data: null, error: queryResult.error };
-        } else {
-          const queryResult = await supabase
-            .from("plan_groups")
-            .update(payload as PlanGroupUpdate)
-            .eq("id", groupId);
-          return { data: null, error: queryResult.error };
-        }
-      },
-      shouldFallback: (error) => ErrorCodeCheckers.isColumnNotFound(error),
-    }
-  );
+  // Primary query: 모든 필드 포함
+  const { error } = await supabase
+    .from("plan_groups")
+    .update(payload as PlanGroupUpdate)
+    .eq("id", groupId)
+    .eq("student_id", studentId)
+    .is("deleted_at", null);
 
-  return { success: true };
+  // 에러가 없으면 성공
+  if (!error) {
+    return { success: true };
+  }
+
+  // 컬럼 미존재 에러인 경우 fallback 시도
+  if (ErrorCodeCheckers.isColumnNotFound(error) && payload.scheduler_options !== undefined) {
+    const { scheduler_options: _schedulerOptions, ...fallbackPayload } = payload;
+    const fallbackResult = await supabase
+      .from("plan_groups")
+      .update(fallbackPayload as PlanGroupUpdate)
+      .eq("id", groupId)
+      .eq("student_id", studentId)
+      .is("deleted_at", null);
+
+    if (fallbackResult.error) {
+      handleQueryError(fallbackResult.error, {
+        context: "[data/planGroups] updatePlanGroup fallback",
+      });
+      return { success: false, error: fallbackResult.error.message };
+    }
+
+    return { success: true };
+  }
+
+  // 다른 에러인 경우
+  handleQueryError(error, {
+    context: "[data/planGroups] updatePlanGroup",
+  });
+  return { success: false, error: error.message };
 }
 
 /**

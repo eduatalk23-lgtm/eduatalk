@@ -1,4 +1,5 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 import { getWeakSubjects } from "@/lib/metrics/getWeakSubjects";
 import { getRiskIndexBySubject, getSchoolScoreSummary, getMockScoreSummary } from "@/lib/scheduler/scoreLoader";
 import { searchMasterBooks, searchMasterLectures } from "@/lib/data/contentMasters";
@@ -214,14 +215,7 @@ export async function getRecommendedMasterContents(
     const contentMap = new Map<string, RecommendedMasterContent>();
 
     // 1. 취약 과목 기반 추천 (우선순위 1-20)
-    console.log("[recommendations/masterContent] 추천 시작:", {
-      studentId,
-      tenantId,
-      weakSubjectsCount: weakSubjects.length,
-      riskSubjectsCount: riskSubjects.length,
-      hasScoreData,
-      requestedSubjectCounts: requestedSubjectCounts ? Object.fromEntries(requestedSubjectCounts) : null,
-    });
+    logActionDebug("masterContentRecommendation", `추천 시작: weakSubjectsCount=${weakSubjects.length}, riskSubjectsCount=${riskSubjects.length}, hasScoreData=${hasScoreData}`);
     
     for (let i = 0; i < weakSubjects.length && i < 5; i++) {
       const subject = weakSubjects[i];
@@ -240,12 +234,6 @@ export async function getRecommendedMasterContents(
       );
 
       // 최대 개수로 검색 (난이도 필터링은 정렬 후 적용)
-      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 마스터 콘텐츠 조회 시작:`, {
-        subject,
-        tenantId,
-        studentId,
-      });
-      
       const [booksResult, lecturesResult] = await Promise.all([
         searchMasterBooks({
           search: subject,
@@ -258,26 +246,8 @@ export async function getRecommendedMasterContents(
           limit: 10,
         }, supabase),
       ]);
-      
-      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 마스터 콘텐츠 조회 결과:`, {
-        subject,
-        booksCount: booksResult.data.length,
-        lecturesCount: lecturesResult.data.length,
-        booksTotal: booksResult.total,
-        lecturesTotal: lecturesResult.total,
-      });
-      
-      console.log(`[recommendations/masterContent] 취약 과목 "${subject}" 검색 결과:`, {
-        subject,
-        riskScore,
-        recommendedDifficulty,
-        requestedBookCount: bookCount,
-        requestedLectureCount: lectureCount,
-        foundBooks: booksResult.data.length,
-        foundLectures: lecturesResult.data.length,
-        totalBooks: booksResult.total || 0,
-        totalLectures: lecturesResult.total || 0,
-      });
+
+      logActionDebug("masterContentRecommendation", `취약 과목 "${subject}" 검색: books=${booksResult.data.length}/${booksResult.total || 0}, lectures=${lecturesResult.data.length}/${lecturesResult.total || 0}`);
 
       // 최신 개정판 우선 정렬
       const sortedBooks = sortByRevision(booksResult.data);
@@ -368,20 +338,12 @@ export async function getRecommendedMasterContents(
       
       // 콘텐츠 부족 이유 분석
       if (addedBooks.length < bookCount || addedLectures.length < lectureCount) {
-        console.warn(`[recommendations/masterContent] 취약 과목 "${subject}" 콘텐츠 부족:`, {
-          subject,
-          requestedBookCount: bookCount,
-          requestedLectureCount: lectureCount,
-          addedBookCount: addedBooks.length,
-          addedLectureCount: addedLectures.length,
-          availableBooks: filteredBooks.length,
-          availableLectures: filteredLectures.length,
-          reason: filteredBooks.length < bookCount 
-            ? `교재 부족: 요청 ${bookCount}개, 사용 가능 ${filteredBooks.length}개`
-            : filteredLectures.length < lectureCount
-            ? `강의 부족: 요청 ${lectureCount}개, 사용 가능 ${filteredLectures.length}개`
-            : "중복 제거로 인한 부족",
-        });
+        const reason = filteredBooks.length < bookCount
+          ? `교재 부족: 요청 ${bookCount}개, 사용 가능 ${filteredBooks.length}개`
+          : filteredLectures.length < lectureCount
+          ? `강의 부족: 요청 ${lectureCount}개, 사용 가능 ${filteredLectures.length}개`
+          : "중복 제거로 인한 부족";
+        logActionWarn("masterContentRecommendation", `취약 과목 "${subject}" 콘텐츠 부족: ${reason}`);
       }
     }
 
@@ -623,12 +585,6 @@ export async function getRecommendedMasterContents(
         );
 
         if (!hasSubject) {
-          console.log(`[recommendations/masterContent] 필수 과목 "${requiredSubject}" 기본 추천 조회:`, {
-            subject: requiredSubject,
-            tenantId,
-            studentId,
-          });
-          
           const [booksResult, lecturesResult] = await Promise.all([
             searchMasterBooks({
               search: requiredSubject,
@@ -641,12 +597,8 @@ export async function getRecommendedMasterContents(
               limit: 3,
             }, supabase),
           ]);
-          
-          console.log(`[recommendations/masterContent] 필수 과목 "${requiredSubject}" 기본 추천 조회 결과:`, {
-            subject: requiredSubject,
-            booksCount: booksResult.data.length,
-            lecturesCount: lecturesResult.data.length,
-          });
+
+          logActionDebug("masterContentRecommendation", `필수 과목 "${requiredSubject}" 기본 추천: books=${booksResult.data.length}, lectures=${lecturesResult.data.length}`);
 
           // 최신 개정판 우선 정렬
           const sortedBooks = sortByRevision(booksResult.data);
@@ -709,14 +661,10 @@ export async function getRecommendedMasterContents(
         
         // 요청된 개수보다 적은 경우 경고
         if (toTake < requestedCount) {
-          console.warn(`[recommendations/masterContent] 교과 "${subject}" 추천 부족:`, {
-            subject,
-            requestedCount,
-            availableCount: subjectRecommendations.length,
-            reason: subjectRecommendations.length === 0 
-              ? "해당 교과의 추천 콘텐츠가 없음"
-              : `요청된 ${requestedCount}개보다 ${subjectRecommendations.length}개만 사용 가능`,
-          });
+          const warnReason = subjectRecommendations.length === 0
+            ? "해당 교과의 추천 콘텐츠가 없음"
+            : `요청된 ${requestedCount}개보다 ${subjectRecommendations.length}개만 사용 가능`;
+          logActionWarn("masterContentRecommendation", `교과 "${subject}" 추천 부족: ${warnReason}`);
         }
         
         for (let i = 0; i < toTake; i++) {
@@ -732,42 +680,23 @@ export async function getRecommendedMasterContents(
         for (let i = 0; i < fallbackCount; i++) {
           filtered.push(finalRecommendations[i]);
         }
-        console.warn(`[recommendations/masterContent] 요청한 교과의 추천이 없어 전체 추천 중 ${fallbackCount}개 제공`);
+        logActionWarn("masterContentRecommendation", `요청한 교과의 추천이 없어 전체 추천 중 ${fallbackCount}개 제공`);
       }
       
       finalRecommendations = filtered;
     }
     
     // 최종 추천 결과 로깅
-    console.log("[recommendations/masterContent] 최종 추천 결과:", {
-      totalRecommendations: finalRecommendations.length,
-      bySubject: Array.from(
-        finalRecommendations.reduce((acc, r) => {
-          if (r.subject_category) {
-            const count = acc.get(r.subject_category) || 0;
-            acc.set(r.subject_category, count + 1);
-          }
-          return acc;
-        }, new Map<string, number>())
-      ).map(([subject, count]) => ({ subject, count })),
-      byType: finalRecommendations.reduce((acc, r) => {
-        acc[r.contentType] = (acc[r.contentType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-    });
+    const bookCount = finalRecommendations.filter(r => r.contentType === "book").length;
+    const lectureCount = finalRecommendations.filter(r => r.contentType === "lecture").length;
+    logActionDebug("masterContentRecommendation", `최종 추천: ${finalRecommendations.length}개 (books=${bookCount}, lectures=${lectureCount})`);
     
     // contentType 보장: 모든 항목에 contentType이 있는지 확인하고 없으면 추가
     const normalizedRecommendations = finalRecommendations.map((r) => {
       if (!r.contentType) {
         // publisher가 있으면 book, platform이 있으면 lecture로 추정
         const estimatedType = r.publisher ? "book" : r.platform ? "lecture" : "book";
-        console.warn("[recommendations/masterContent] contentType 누락, 추정값 사용:", {
-          id: r.id,
-          title: r.title,
-          estimatedType,
-          publisher: r.publisher,
-          platform: r.platform,
-        });
+        logActionWarn("masterContentRecommendation", `contentType 누락, 추정값 사용: id=${r.id}, estimatedType=${estimatedType}`);
         return {
           ...r,
           contentType: estimatedType as "book" | "lecture",
@@ -779,7 +708,7 @@ export async function getRecommendedMasterContents(
     // 우선순위 순으로 정렬
     return normalizedRecommendations.sort((a, b) => a.priority - b.priority);
   } catch (error) {
-    console.error("[recommendations/masterContent] 마스터 콘텐츠 추천 생성 실패", error);
+    logActionError("masterContentRecommendation", `마스터 콘텐츠 추천 생성 실패: ${error instanceof Error ? error.message : String(error)}`);
     // 에러 발생 시에도 기본 추천 제공
     try {
       const requiredSubjects = ["국어", "수학", "영어"];
@@ -814,7 +743,7 @@ export async function getRecommendedMasterContents(
       
       return fallbackRecommendations;
     } catch (fallbackError) {
-      console.error("[recommendations/masterContent] 기본 추천 생성 실패", fallbackError);
+      logActionError("masterContentRecommendation", `기본 추천 생성 실패: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
       return [];
     }
   }

@@ -9,6 +9,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { revalidatePath } from "next/cache";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import type {
   ViewType,
   ViewSettings,
@@ -44,7 +45,7 @@ export async function getTimeSlots(): Promise<{
       .order("slot_order", { ascending: true });
 
     if (error) {
-      console.error("Get time slots error:", error);
+      logActionError("getTimeSlots", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
@@ -62,7 +63,7 @@ export async function getTimeSlots(): Promise<{
 
     return { success: true, data: slots };
   } catch (error) {
-    console.error("Get time slots error:", error);
+    logActionError("getTimeSlots", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -87,14 +88,14 @@ export async function createDefaultTimeSlots(): Promise<{
     });
 
     if (error) {
-      console.error("Create default time slots error:", error);
+      logActionError("createDefaultTimeSlots", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
     revalidatePath("/plan");
     return { success: true };
   } catch (error) {
-    console.error("Create default time slots error:", error);
+    logActionError("createDefaultTimeSlots", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -137,7 +138,7 @@ export async function getSavedViews(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Get saved views error:", error);
+      logActionError("getSavedViews", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
@@ -155,7 +156,7 @@ export async function getSavedViews(): Promise<{
 
     return { success: true, data: views };
   } catch (error) {
-    console.error("Get saved views error:", error);
+    logActionError("getSavedViews", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -215,7 +216,7 @@ export async function saveView(input: {
       .single();
 
     if (error) {
-      console.error("Save view error:", error);
+      logActionError("saveView", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
@@ -234,7 +235,7 @@ export async function saveView(input: {
     revalidatePath("/plan");
     return { success: true, data: view };
   } catch (error) {
-    console.error("Save view error:", error);
+    logActionError("saveView", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -293,14 +294,14 @@ export async function updateView(
       .eq("id", viewId);
 
     if (error) {
-      console.error("Update view error:", error);
+      logActionError("updateView", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
     revalidatePath("/plan");
     return { success: true };
   } catch (error) {
-    console.error("Update view error:", error);
+    logActionError("updateView", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -326,14 +327,14 @@ export async function deleteView(viewId: string): Promise<{
       .eq("id", viewId);
 
     if (error) {
-      console.error("Delete view error:", error);
+      logActionError("deleteView", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
     revalidatePath("/plan");
     return { success: true };
   } catch (error) {
-    console.error("Delete view error:", error);
+    logActionError("deleteView", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -373,7 +374,7 @@ export async function getDefaultView(): Promise<{
 
     if (error && error.code !== "PGRST116") {
       // PGRST116 = not found
-      console.error("Get default view error:", error);
+      logActionError("getDefaultView", error instanceof Error ? error.message : String(error));
       return { success: false, error: error.message };
     }
 
@@ -395,7 +396,7 @@ export async function getDefaultView(): Promise<{
 
     return { success: true, data: view };
   } catch (error) {
-    console.error("Get default view error:", error);
+    logActionError("getDefaultView", error instanceof Error ? error.message : String(error));
     return { success: false, error: "Unexpected error" };
   }
 }

@@ -4,6 +4,8 @@
  * 오프라인 작업을 IndexedDB에 영구 저장하여 브라우저를 닫아도 유지됩니다.
  */
 
+import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
+
 const DB_NAME = "timelevelup_offline";
 const DB_VERSION = 1;
 const STORE_NAME = "pending_actions";
@@ -47,7 +49,7 @@ async function getDB(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => {
-      console.error("[OfflineStorage] DB 열기 실패:", request.error);
+      logActionError("OfflineStorage.getDB", `DB 열기 실패: ${request.error?.message || "unknown"}`);
       reject(request.error);
     };
 
@@ -89,12 +91,12 @@ export async function saveOfflineAction(action: OfflineAction): Promise<void> {
       const request = store.put(action);
       request.onsuccess = () => resolve();
       request.onerror = () => {
-        console.error("[OfflineStorage] 액션 저장 실패:", request.error);
+        logActionError("OfflineStorage.saveOfflineAction", `액션 저장 실패: ${request.error?.message || "unknown"}`);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[OfflineStorage] 액션 저장 중 예외:", error);
+    logActionError("OfflineStorage.saveOfflineAction", `액션 저장 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     throw error;
   }
 }
@@ -112,12 +114,12 @@ export async function deleteOfflineAction(actionId: string): Promise<void> {
       const request = store.delete(actionId);
       request.onsuccess = () => resolve();
       request.onerror = () => {
-        console.error("[OfflineStorage] 액션 삭제 실패:", request.error);
+        logActionError("OfflineStorage.deleteOfflineAction", `액션 삭제 실패: ${request.error?.message || "unknown"}`);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[OfflineStorage] 액션 삭제 중 예외:", error);
+    logActionError("OfflineStorage.deleteOfflineAction", `액션 삭제 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     throw error;
   }
 }
@@ -136,12 +138,12 @@ export async function getAllPendingActions(): Promise<OfflineAction[]> {
       const request = index.getAll();
       request.onsuccess = () => resolve(request.result || []);
       request.onerror = () => {
-        console.error("[OfflineStorage] 액션 조회 실패:", request.error);
+        logActionError("OfflineStorage.getAllPendingActions", `액션 조회 실패: ${request.error?.message || "unknown"}`);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[OfflineStorage] 액션 조회 중 예외:", error);
+    logActionError("OfflineStorage.getAllPendingActions", `액션 조회 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     return [];
   }
 }
@@ -162,12 +164,12 @@ export async function getPendingActionsForPlan(
       const request = index.getAll(planId);
       request.onsuccess = () => resolve(request.result || []);
       request.onerror = () => {
-        console.error("[OfflineStorage] 플랜 액션 조회 실패:", request.error);
+        logActionError("OfflineStorage.getPendingActionsForPlan", `플랜 액션 조회 실패: ${request.error?.message || "unknown"}`);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[OfflineStorage] 플랜 액션 조회 중 예외:", error);
+    logActionError("OfflineStorage.getPendingActionsForPlan", `플랜 액션 조회 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     return [];
   }
 }
@@ -182,7 +184,7 @@ export async function deletePendingActionsForPlan(
     const actions = await getPendingActionsForPlan(planId);
     await Promise.all(actions.map((action) => deleteOfflineAction(action.id)));
   } catch (error) {
-    console.error("[OfflineStorage] 플랜 액션 삭제 중 예외:", error);
+    logActionError("OfflineStorage.deletePendingActionsForPlan", `플랜 액션 삭제 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     throw error;
   }
 }
@@ -205,12 +207,12 @@ export async function cleanupOldActions(): Promise<number> {
     }
 
     if (deletedCount > 0) {
-      console.log(`[OfflineStorage] ${deletedCount}개의 오래된 액션 정리됨`);
+      logActionDebug("OfflineStorage.cleanupOldActions", `${deletedCount}개의 오래된 액션 정리됨`);
     }
 
     return deletedCount;
   } catch (error) {
-    console.error("[OfflineStorage] 오래된 액션 정리 중 예외:", error);
+    logActionError("OfflineStorage.cleanupOldActions", `오래된 액션 정리 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     return 0;
   }
 }
@@ -235,12 +237,12 @@ export async function getPendingActionCount(): Promise<number> {
       const request = store.count();
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => {
-        console.error("[OfflineStorage] 액션 개수 조회 실패:", request.error);
+        logActionError("OfflineStorage.getPendingActionCount", `액션 개수 조회 실패: ${request.error?.message || "unknown"}`);
         reject(request.error);
       };
     });
   } catch (error) {
-    console.error("[OfflineStorage] 액션 개수 조회 중 예외:", error);
+    logActionError("OfflineStorage.getPendingActionCount", `액션 개수 조회 중 예외: ${error instanceof Error ? error.message : "unknown"}`);
     return 0;
   }
 }

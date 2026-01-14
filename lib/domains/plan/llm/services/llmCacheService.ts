@@ -6,6 +6,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createHash } from "crypto";
 import type { Database } from "@/lib/supabase/database.types";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 type LLMCacheInsert = Database["public"]["Tables"]["llm_response_cache"]["Insert"];
 
@@ -143,7 +144,7 @@ export class LLMCacheService {
   async get<T>(key: string, requestHash: string): Promise<T | null> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
-      console.warn("[LLMCacheService] Admin client unavailable, cache miss");
+      logActionWarn("LLMCacheService.get", "Admin client unavailable, cache miss");
       return null;
     }
 
@@ -159,7 +160,7 @@ export class LLMCacheService {
         .maybeSingle();
 
       if (error) {
-        console.error("[LLMCacheService] Cache lookup error:", error);
+        logActionError("LLMCacheService.get", `Cache lookup error: ${error.message}`);
         return null;
       }
 
@@ -179,7 +180,7 @@ export class LLMCacheService {
 
       return data.response_data as T;
     } catch (err) {
-      console.error("[LLMCacheService] Unexpected error during cache get:", err);
+      logActionError("LLMCacheService.get", `Unexpected error: ${err instanceof Error ? err.message : "unknown"}`);
       return null;
     }
   }
@@ -196,7 +197,7 @@ export class LLMCacheService {
   ): Promise<void> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
-      console.warn("[LLMCacheService] Admin client unavailable, cache skipped");
+      logActionWarn("LLMCacheService.set", "Admin client unavailable, cache skipped");
       return;
     }
 
@@ -228,10 +229,10 @@ export class LLMCacheService {
       );
 
       if (error) {
-        console.error("[LLMCacheService] Cache set error:", error);
+        logActionError("LLMCacheService.set", `Cache set error: ${error.message}`);
       }
     } catch (err) {
-      console.error("[LLMCacheService] Unexpected error during cache set:", err);
+      logActionError("LLMCacheService.set", `Unexpected error: ${err instanceof Error ? err.message : "unknown"}`);
     }
   }
 
@@ -242,9 +243,7 @@ export class LLMCacheService {
   async invalidate(keyPattern: string): Promise<number> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
-      console.warn(
-        "[LLMCacheService] Admin client unavailable, invalidation skipped"
-      );
+      logActionWarn("LLMCacheService.invalidate", "Admin client unavailable, invalidation skipped");
       return 0;
     }
 
@@ -261,16 +260,13 @@ export class LLMCacheService {
       const { data, error } = await query.select("id");
 
       if (error) {
-        console.error("[LLMCacheService] Cache invalidation error:", error);
+        logActionError("LLMCacheService.invalidate", `Cache invalidation error: ${error.message}`);
         return 0;
       }
 
       return data?.length ?? 0;
     } catch (err) {
-      console.error(
-        "[LLMCacheService] Unexpected error during invalidation:",
-        err
-      );
+      logActionError("LLMCacheService.invalidate", `Unexpected error: ${err instanceof Error ? err.message : "unknown"}`);
       return 0;
     }
   }
@@ -281,7 +277,7 @@ export class LLMCacheService {
   async cleanup(): Promise<CleanupResult> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
-      console.warn("[LLMCacheService] Admin client unavailable, cleanup skipped");
+      logActionWarn("LLMCacheService.cleanup", "Admin client unavailable, cleanup skipped");
       return { deleted: 0 };
     }
 
@@ -290,13 +286,13 @@ export class LLMCacheService {
       const { data, error } = await supabase.rpc("cleanup_expired_llm_cache");
 
       if (error) {
-        console.error("[LLMCacheService] Cleanup error:", error);
+        logActionError("LLMCacheService.cleanup", `Cleanup error: ${error.message}`);
         return { deleted: 0 };
       }
 
       return { deleted: data ?? 0 };
     } catch (err) {
-      console.error("[LLMCacheService] Unexpected error during cleanup:", err);
+      logActionError("LLMCacheService.cleanup", `Unexpected error: ${err instanceof Error ? err.message : "unknown"}`);
       return { deleted: 0 };
     }
   }
@@ -307,7 +303,7 @@ export class LLMCacheService {
   async getStats(operation?: OperationType): Promise<CacheStats[]> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) {
-      console.warn("[LLMCacheService] Admin client unavailable");
+      logActionWarn("LLMCacheService.getStats", "Admin client unavailable");
       return [];
     }
 
@@ -325,7 +321,7 @@ export class LLMCacheService {
       const { data, error } = await query;
 
       if (error) {
-        console.error("[LLMCacheService] Stats query error:", error);
+        logActionError("LLMCacheService.getStats", `Stats query error: ${error.message}`);
         return [];
       }
 
@@ -341,7 +337,7 @@ export class LLMCacheService {
         lastCacheAt: row.last_cache_at,
       }));
     } catch (err) {
-      console.error("[LLMCacheService] Unexpected error during getStats:", err);
+      logActionError("LLMCacheService.getStats", `Unexpected error: ${err instanceof Error ? err.message : "unknown"}`);
       return [];
     }
   }
