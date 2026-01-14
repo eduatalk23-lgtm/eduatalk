@@ -8,7 +8,9 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { revalidatePath } from "next/cache";
+import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
+import { logAIPlansGenerated } from "@/lib/domains/admin-plan/actions/planEvent";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 import { createMessage, getModelConfig, estimateCost, type GroundingMetadata, type WebSearchResult } from "../client";
 import { SYSTEM_PROMPT, buildUserPrompt, estimatePromptTokens } from "../prompts/planGeneration";
@@ -637,9 +639,7 @@ export async function generatePlanWithAI(
     await savePlans(supabase, student.id, tenantId, finalPlanGroupId, allPlans);
 
     // 12. 캐시 무효화
-    revalidatePath("/plan");
-    revalidatePath("/plan/calendar");
-    revalidatePath("/today");
+    revalidatePlanCache({ groupId: finalPlanGroupId, studentId: student.id });
 
     // 13. 비용 계산
     const estimatedCost = estimateCost(
@@ -647,6 +647,29 @@ export async function generatePlanWithAI(
       result.usage.outputTokens,
       modelTier
     );
+
+    // 14. 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    logAIPlansGenerated(
+      tenantId,
+      student.id,
+      finalPlanGroupId,
+      {
+        total_plans: allPlans.length,
+        period_start: input.startDate,
+        period_end: input.endDate,
+        model_tier: modelTier,
+        input_tokens: result.usage.inputTokens,
+        output_tokens: result.usage.outputTokens,
+        estimated_cost_usd: estimatedCost,
+      },
+      student.id
+    ).catch((err) => {
+      logActionError(
+        { domain: "plan", action: "generatePlanWithAI" },
+        err,
+        { planGroupId: finalPlanGroupId, step: "event_logging" }
+      );
+    });
 
     return {
       success: true,

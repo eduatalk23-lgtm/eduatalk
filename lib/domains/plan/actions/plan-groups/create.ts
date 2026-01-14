@@ -1,7 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { logActionSuccess, logActionError, logActionDebug } from "@/lib/logging/actionLogger";
+import { logPlanGroupCreated } from "@/lib/domains/admin-plan/actions/planEvent";
+import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
 import { requireStudentAuth } from "@/lib/auth/requireStudentAuth";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
@@ -350,7 +351,7 @@ async function _createPlanGroup(
     } else if (existingCampGroup) {
       // 기존 캠프 플랜 그룹이 있으면 업데이트
       await updatePlanGroupDraftAction(existingCampGroup.id, data);
-      revalidatePath("/plan");
+      revalidatePlanCache({ groupId: existingCampGroup.id, studentId });
       return { groupId: existingCampGroup.id };
     }
   }
@@ -374,7 +375,7 @@ async function _createPlanGroup(
       contentsData: data.contents?.map(c => ({ id: c.content_id, type: c.content_type, start: c.start_range, end: c.end_range })),
     });
     await updatePlanGroupDraftAction(existingGroup.id, data);
-    revalidatePath("/plan");
+    revalidatePlanCache({ groupId: existingGroup.id, studentId });
     return { groupId: existingGroup.id };
   }
 
@@ -518,7 +519,7 @@ async function _createPlanGroup(
       );
       if (retryExistingGroup) {
         await updatePlanGroupDraftAction(retryExistingGroup.id, data);
-        revalidatePath("/plan");
+        revalidatePlanCache({ groupId: retryExistingGroup.id, studentId });
         return { groupId: retryExistingGroup.id };
       }
     }
@@ -533,7 +534,30 @@ async function _createPlanGroup(
 
   const groupId = atomicResult.groupId;
 
-  revalidatePath("/plan");
+  // 이벤트 로깅 (비동기, 실패해도 플랜 그룹 생성에 영향 없음)
+  logPlanGroupCreated(
+    tenantContext.tenantId,
+    studentId,
+    groupId,
+    {
+      name: data.name ?? "플랜 그룹",
+      plan_purpose: data.plan_purpose,
+      period_start: data.period_start,
+      period_end: data.period_end,
+      creation_mode: data.camp_template_id ? "camp" : "wizard",
+      content_count: data.contents?.length ?? 0,
+    },
+    isAdminContext(auth) ? auth.userId : studentId,
+    isAdminContext(auth) ? "admin" : "student"
+  ).catch((err) => {
+    logActionError(
+      { domain: "plan", action: "createPlanGroup" },
+      err,
+      { groupId, step: "event_logging" }
+    );
+  });
+
+  revalidatePlanCache({ groupId, studentId });
   return { groupId };
 }
 
@@ -665,7 +689,7 @@ async function _savePlanGroupDraft(
   // 기존 draft가 있으면 업데이트
   if (existingGroup) {
     await updatePlanGroupDraftAction(existingGroup.id, data);
-    revalidatePath("/plan");
+    revalidatePlanCache({ groupId: existingGroup.id, studentId });
     return { groupId: existingGroup.id };
   }
 
@@ -761,7 +785,7 @@ async function _savePlanGroupDraft(
       );
       if (retryExistingGroup) {
         await updatePlanGroupDraftAction(retryExistingGroup.id, data);
-        revalidatePath("/plan");
+        revalidatePlanCache({ groupId: retryExistingGroup.id, studentId });
         return { groupId: retryExistingGroup.id };
       }
     }
@@ -774,7 +798,7 @@ async function _savePlanGroupDraft(
     );
   }
 
-  revalidatePath("/plan");
+  revalidatePlanCache({ groupId: atomicResult.groupId, studentId });
   return { groupId: atomicResult.groupId };
 }
 
@@ -891,8 +915,7 @@ async function _copyPlanGroup(groupId: string): Promise<{ groupId: string }> {
 
   const newGroupId = atomicResult.groupId;
 
-  revalidatePath("/plan");
-  revalidatePath(`/plan/group/${newGroupId}`);
+  revalidatePlanCache({ groupId: newGroupId, studentId: user.userId });
 
   return { groupId: newGroupId };
 }
@@ -1061,8 +1084,7 @@ async function _saveCalendarOnlyPlanGroup(
     })
     .eq("id", groupId);
 
-  revalidatePath("/plan");
-  revalidatePath(`/plan/group/${groupId}`);
+  revalidatePlanCache({ groupId, studentId: studentAuth.userId });
 
   return { groupId };
 }

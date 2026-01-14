@@ -28,6 +28,11 @@ export interface CalendarPlanData {
   sequence: number | null;
   // Phase 4: 시간대 유형
   time_slot_type: "study" | "self_study" | null;
+  // 1730 Timetable 필드
+  week: number | null;
+  day: number | null;
+  day_type: string | null;
+  cycle_day_number: number | null;
 }
 
 // Query key factory
@@ -87,7 +92,11 @@ export function monthlyPlansQueryOptions(
         plan_group_id,
         container_type,
         sequence,
-        time_slot_type
+        time_slot_type,
+        week,
+        day,
+        day_type,
+        cycle_day_number
       `;
 
       // 플래너 필터링이 필요한 경우 plan_groups와 조인

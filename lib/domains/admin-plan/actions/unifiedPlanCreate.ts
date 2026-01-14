@@ -8,7 +8,7 @@
  * @module lib/domains/admin-plan/actions/unifiedPlanCreate
  */
 
-import { revalidatePath } from "next/cache";
+import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminOrConsultant } from "@/lib/auth/guards";
 import { withErrorHandling } from "@/lib/errors";
@@ -440,9 +440,11 @@ async function _createUnifiedPlan(
   });
 
   // 7. 캐시 재검증
-  revalidatePath(`/admin/students/${input.studentId}/plans`);
-  revalidatePath("/today");
-  revalidatePath("/plan");
+  revalidatePlanCache({
+    groupId: planGroupResult.planGroupId,
+    studentId: input.studentId,
+    includeAdmin: true,
+  });
 
   logActionSuccess(LOG_CONTEXT, {
     planId: createdPlan.id,

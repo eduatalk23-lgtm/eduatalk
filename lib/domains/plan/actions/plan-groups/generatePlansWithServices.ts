@@ -41,6 +41,9 @@ import {
   type DailyScheduleInfo,
 } from "@/lib/plan/virtualSchedulePreview";
 import type { ContentSlot } from "@/lib/types/content-selection";
+import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
+import { logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
+import { logActionError } from "@/lib/logging/actionLogger";
 
 // 서비스 임포트 (lib/plan/shared로 통합됨)
 import {
@@ -762,7 +765,40 @@ async function _generatePlansWithServices(
   }
 
   // ============================================
-  // 12. 결과 반환
+  // 12. 캐시 무효화
+  // ============================================
+  revalidatePlanCache({
+    groupId,
+    studentId,
+    includeCalendar: true,
+  });
+
+  // ============================================
+  // 13. 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+  // ============================================
+  logPlansBatchCreated(
+    tenantId,
+    studentId,
+    groupId,
+    {
+      total_plans: insertResult.insertedCount,
+      period_start: group.period_start ?? "",
+      period_end: group.period_end ?? "",
+      creation_mode: group.creation_mode ?? "wizard",
+      plan_ids: insertResult.insertedIds,
+    },
+    studentId,
+    "student"
+  ).catch((err) => {
+    logActionError(
+      { domain: "plan", action: "generatePlansWithServices" },
+      err,
+      { groupId, step: "event_logging" }
+    );
+  });
+
+  // ============================================
+  // 14. 결과 반환
   // ============================================
   return {
     count: insertResult.insertedCount,

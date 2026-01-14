@@ -546,7 +546,8 @@ export const bulkCreatePlanGroupsForCamp = withErrorHandling(
               exclusion_date: e.exclusion_date,
               exclusion_type: e.exclusion_type,
               reason: e.reason || null,
-            }))
+            })),
+            true // 캠프 대량 처리는 관리자 클라이언트 사용
           );
         }
 

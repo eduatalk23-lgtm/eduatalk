@@ -108,6 +108,11 @@ export function useAdminCalendarData({
         sequence: plan.sequence,
         // Phase 4: 시간대 유형
         time_slot_type: plan.time_slot_type,
+        // 1730 Timetable 필드
+        week: plan.week,
+        day: plan.day,
+        day_type: plan.day_type,
+        cycle_day_number: plan.cycle_day_number,
       } satisfies CalendarPlan));
   }, [query.data]);
 

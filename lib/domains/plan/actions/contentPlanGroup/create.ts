@@ -701,17 +701,23 @@ export async function addContentToCalendarOnlyGroup(
     const schedulerOptions = planGroup.scheduler_options as { weekdays?: number[] } | null;
     const weekdays = schedulerOptions?.weekdays ?? [1, 2, 3, 4, 5]; // 기본: 월-금
 
-    // 제외일 조회
-    const { data: exclusions } = await supabase
+    // 제외일 조회 (전역 + 플랜 그룹별)
+    const { data: exclusionsRaw } = await supabase
       .from("plan_exclusions")
-      .select("date")
-      .eq("plan_group_id", input.planGroupId);
+      .select("exclusion_date")
+      .eq("student_id", planGroup.student_id)
+      .or(`plan_group_id.is.null,plan_group_id.eq.${input.planGroupId}`);
+
+    // getAvailableStudyDates 함수 형식에 맞게 변환
+    const exclusions = (exclusionsRaw ?? []).map((e) => ({
+      date: e.exclusion_date,
+    }));
 
     const studyDates = getAvailableStudyDates(
       startDate,
       endDate,
       weekdays,
-      exclusions ?? [],
+      exclusions,
       input.studyType.type,
       input.studyType.daysPerWeek,
       input.studyType.preferredDays
@@ -1011,17 +1017,23 @@ export async function addContentToExistingPlanGroup(
     const schedulerOptions = planGroup.scheduler_options as { weekdays?: number[] } | null;
     const weekdays = schedulerOptions?.weekdays ?? [1, 2, 3, 4, 5]; // 기본: 월-금
 
-    // 제외일 조회
-    const { data: exclusions } = await supabase
+    // 제외일 조회 (전역 + 플랜 그룹별)
+    const { data: exclusionsRaw } = await supabase
       .from("plan_exclusions")
-      .select("date")
-      .eq("plan_group_id", input.planGroupId);
+      .select("exclusion_date")
+      .eq("student_id", planGroup.student_id)
+      .or(`plan_group_id.is.null,plan_group_id.eq.${input.planGroupId}`);
+
+    // getAvailableStudyDates 함수 형식에 맞게 변환
+    const exclusions = (exclusionsRaw ?? []).map((e) => ({
+      date: e.exclusion_date,
+    }));
 
     const studyDates = getAvailableStudyDates(
       startDate,
       endDate,
       weekdays,
-      exclusions ?? [],
+      exclusions,
       input.studyType.type,
       input.studyType.daysPerWeek,
       input.studyType.preferredDays

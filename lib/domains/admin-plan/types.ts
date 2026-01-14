@@ -72,6 +72,10 @@ export type EventType =
   // 통합 플랜 생성 이벤트
   | 'unified_plan_created'
   | 'unified_adhoc_created'
+  // 플랜 생성 경로별 이벤트
+  | 'quick_plan_created'
+  | 'plans_batch_created'
+  | 'ai_plans_generated'
   // 상담 이벤트
   | 'consultation_requested'
   | 'consultation_scheduled'

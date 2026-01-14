@@ -188,7 +188,7 @@ export async function addStudentExclusionForAdmin(
       ? exclusion.exclusion_type
       : "personal";
 
-    // 데이터 레이어 함수 호출
+    // 데이터 레이어 함수 호출 (useAdminClient = true)
     const result = await createStudentExclusions(
       studentId,
       tenantId,
@@ -198,7 +198,8 @@ export async function addStudentExclusionForAdmin(
           exclusion_type: exclusionType,
           reason: exclusion.reason || null,
         },
-      ]
+      ],
+      true // useAdminClient - 관리자가 학생 데이터 생성 시 RLS 우회
     );
 
     if (!result.success) {

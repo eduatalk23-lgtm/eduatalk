@@ -355,7 +355,8 @@ async function _updatePlanGroupDraft(
         exclusion_date: e.exclusion_date,
         exclusion_type: e.exclusion_type,
         reason: e.reason || null,
-      }))
+      })),
+      isAdmin // 관리자가 학생 데이터 생성 시 RLS 우회
     );
 
     if (!exclusionsResult.success) {

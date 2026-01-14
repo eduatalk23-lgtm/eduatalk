@@ -58,6 +58,10 @@ export {
   logContainerMoved,
   logPlanDeleted,
   logPlanCreated,
+  logPlanGroupCreated,
+  logQuickPlanCreated,
+  logPlansBatchCreated,
+  logAIPlansGenerated,
 } from './planEvent';
 
 // Container Operations (with event logging)

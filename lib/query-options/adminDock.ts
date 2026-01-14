@@ -27,6 +27,11 @@ export interface DailyPlan {
   estimated_minutes: number | null;
   // Phase 4: 시간대 유형
   time_slot_type: 'study' | 'self_study' | null;
+  // 1730 Timetable 필드
+  week: number | null;
+  day: number | null;
+  day_type: string | null;
+  cycle_day_number: number | null;
 }
 
 export interface WeeklyPlan {
@@ -42,6 +47,11 @@ export interface WeeklyPlan {
   plan_group_id: string | null;
   // Phase 4: 시간대 유형
   time_slot_type: 'study' | 'self_study' | null;
+  // 1730 Timetable 필드
+  week: number | null;
+  day: number | null;
+  day_type: string | null;
+  cycle_day_number: number | null;
 }
 
 export interface UnfinishedPlan {
@@ -59,6 +69,11 @@ export interface UnfinishedPlan {
   plan_group_id: string | null;
   // Phase 4: 시간대 유형
   time_slot_type: 'study' | 'self_study' | null;
+  // 1730 Timetable 필드
+  week: number | null;
+  day: number | null;
+  day_type: string | null;
+  cycle_day_number: number | null;
 }
 
 export interface AdHocPlan {
@@ -134,6 +149,10 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
             end_time,
             estimated_minutes,
             time_slot_type,
+            week,
+            day,
+            day_type,
+            cycle_day_number,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -168,7 +187,11 @@ export function dailyPlansQueryOptions(studentId: string, date: string, plannerI
           start_time,
           end_time,
           estimated_minutes,
-          time_slot_type
+          time_slot_type,
+          week,
+          day,
+          day_type,
+          cycle_day_number
         `)
         .eq('student_id', studentId)
         .eq('plan_date', date)
@@ -243,6 +266,10 @@ export function weeklyPlansQueryOptions(
             custom_range_display,
             plan_group_id,
             time_slot_type,
+            week,
+            day,
+            day_type,
+            cycle_day_number,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -271,7 +298,11 @@ export function weeklyPlansQueryOptions(
           custom_title,
           custom_range_display,
           plan_group_id,
-          time_slot_type
+          time_slot_type,
+          week,
+          day,
+          day_type,
+          cycle_day_number
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'weekly')
@@ -347,6 +378,10 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
             status,
             plan_group_id,
             time_slot_type,
+            week,
+            day,
+            day_type,
+            cycle_day_number,
             plan_groups!inner(planner_id)
           `)
           .eq('student_id', studentId)
@@ -375,7 +410,11 @@ export function unfinishedPlansQueryOptions(studentId: string, plannerId?: strin
           custom_title,
           status,
           plan_group_id,
-          time_slot_type
+          time_slot_type,
+          week,
+          day,
+          day_type,
+          cycle_day_number
         `)
         .eq('student_id', studentId)
         .eq('container_type', 'unfinished')

@@ -583,3 +583,126 @@ export async function logPlanCreated(
     actor_type: 'admin',
   });
 }
+
+/**
+ * 플랜 그룹 생성 이벤트 생성
+ */
+export async function logPlanGroupCreated(
+  tenantId: string,
+  studentId: string,
+  planGroupId: string,
+  createData: {
+    name: string;
+    plan_purpose?: string;
+    period_start: string;
+    period_end: string;
+    creation_mode?: string;
+    plan_mode?: string;
+    content_count?: number;
+  },
+  actorId?: string,
+  actorType: 'student' | 'admin' = 'student'
+): Promise<AdminPlanResponse<PlanEvent>> {
+  return createPlanEvent({
+    tenant_id: tenantId,
+    student_id: studentId,
+    plan_group_id: planGroupId,
+    event_type: 'plan_group_created',
+    event_category: 'plan_group',
+    payload: createData,
+    actor_id: actorId,
+    actor_type: actorType,
+  });
+}
+
+/**
+ * 빠른 플랜 생성 이벤트 생성
+ */
+export async function logQuickPlanCreated(
+  tenantId: string,
+  studentId: string,
+  planId: string,
+  planGroupId: string,
+  createData: {
+    title: string;
+    plan_date: string;
+    content_type: string;
+    is_free_learning?: boolean;
+    container_type?: string;
+  },
+  actorId?: string,
+  actorType: 'student' | 'admin' = 'student'
+): Promise<AdminPlanResponse<PlanEvent>> {
+  return createPlanEvent({
+    tenant_id: tenantId,
+    student_id: studentId,
+    student_plan_id: planId,
+    plan_group_id: planGroupId,
+    event_type: 'quick_plan_created',
+    event_category: 'plan_item',
+    payload: createData,
+    actor_id: actorId,
+    actor_type: actorType,
+  });
+}
+
+/**
+ * 위저드 기반 플랜 일괄 생성 이벤트 생성
+ */
+export async function logPlansBatchCreated(
+  tenantId: string,
+  studentId: string,
+  planGroupId: string,
+  createData: {
+    total_plans: number;
+    period_start: string;
+    period_end: string;
+    creation_mode: string;
+    content_titles?: string[];
+    plan_ids?: string[];
+  },
+  actorId?: string,
+  actorType: 'student' | 'admin' = 'student'
+): Promise<AdminPlanResponse<PlanEvent>> {
+  return createPlanEvent({
+    tenant_id: tenantId,
+    student_id: studentId,
+    plan_group_id: planGroupId,
+    event_type: 'plans_batch_created',
+    event_category: 'plan_group',
+    payload: createData,
+    actor_id: actorId,
+    actor_type: actorType,
+  });
+}
+
+/**
+ * AI 플랜 생성 이벤트 생성
+ */
+export async function logAIPlansGenerated(
+  tenantId: string,
+  studentId: string,
+  planGroupId: string,
+  createData: {
+    total_plans: number;
+    period_start: string;
+    period_end: string;
+    model_tier: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    estimated_cost_usd?: number;
+    plan_ids?: string[];
+  },
+  actorId?: string
+): Promise<AdminPlanResponse<PlanEvent>> {
+  return createPlanEvent({
+    tenant_id: tenantId,
+    student_id: studentId,
+    plan_group_id: planGroupId,
+    event_type: 'ai_plans_generated',
+    event_category: 'plan_group',
+    payload: createData,
+    actor_id: actorId,
+    actor_type: 'student',
+  });
+}

@@ -45,6 +45,11 @@ export type CalendarPlan = Pick<
   | "container_type"
   | "sequence"
   | "time_slot_type"
+  // 1730 Timetable 필드
+  | "week"
+  | "day"
+  | "day_type"
+  | "cycle_day_number"
 >;
 
 /**

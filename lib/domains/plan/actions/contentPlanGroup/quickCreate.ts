@@ -6,8 +6,8 @@
  * 빠른 플랜 생성 관련 서버 액션
  */
 
-import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { ContentPlanGroupResult, GeneratedPlan } from "@/lib/types/plan";
@@ -26,6 +26,7 @@ import {
 import { getAvailableStudyDates, getReviewDates, distributeDailyAmounts } from "./helpers";
 import { getContentPlanGroupCount } from "./queries";
 import { logActionError, logActionSuccess, logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
+import { logQuickPlanCreated, logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
 import { selectPlanGroupForPlanner, createPlanGroupForPlanner } from "@/lib/domains/admin-plan/utils/planGroupSelector";
 
 // ============================================
@@ -507,10 +508,34 @@ export async function quickCreateFromContent(
     }
 
     // 7. 캐시 재검증
-    revalidatePath("/plan");
-    revalidatePath("/today");
+    revalidatePlanCache({ groupId: planGroup.id, studentId: user.userId });
 
     const studyDaysCount = studyDates.length;
+    const totalPlansCount = studyDaysCount + reviewDays;
+
+    // 8. 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    logPlansBatchCreated(
+      tenantId,
+      user.userId,
+      planGroup.id,
+      {
+        total_plans: totalPlansCount,
+        period_start: input.schedule.startDate,
+        period_end: studyDates[studyDates.length - 1].toISOString().split("T")[0],
+        creation_mode: "content_based",
+        content_titles: [input.content.name],
+        plan_ids: plans.map((p) => p.id),
+      },
+      user.userId,
+      "student"
+    ).catch((err) => {
+      logActionError(
+        { domain: "plan", action: "quickCreateFromContent" },
+        err,
+        { groupId: planGroup.id, step: "event_logging" }
+      );
+    });
+
     return {
       success: true,
       planGroup: {
@@ -520,7 +545,7 @@ export async function quickCreateFromContent(
       },
       plans,
       summary: {
-        totalPlans: studyDaysCount + reviewDays,
+        totalPlans: totalPlansCount,
         studyDays: studyDaysCount,
         reviewDays,
         dailyAmount: Math.ceil(totalAmount / studyDaysCount),
@@ -702,9 +727,32 @@ export async function createQuickPlan(
       };
     }
 
-    revalidatePath("/today");
-    revalidatePath("/plan");
-    revalidatePath("/plan/calendar");
+    revalidatePlanCache({ groupId: planGroup.id, studentId: user.userId });
+
+    // 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    logQuickPlanCreated(
+      tenantId,
+      user.userId,
+      plan.id,
+      planGroup.id,
+      {
+        title: input.title,
+        plan_date: input.planDate,
+        content_type: isFreeLearning
+          ? (input.freeLearningType ?? "free")
+          : (input.contentType ?? "custom"),
+        is_free_learning: isFreeLearning,
+        container_type: input.containerType ?? "daily",
+      },
+      user.userId,
+      "student"
+    ).catch((err) => {
+      logActionError(
+        { domain: "plan", action: "createQuickPlan" },
+        err,
+        { planId: plan.id, step: "event_logging" }
+      );
+    });
 
     return {
       success: true,
@@ -967,8 +1015,7 @@ export async function createQuickPlanForStudent(
     }
 
     // Admin 페이지 캐시 재검증
-    revalidatePath(`/admin/students/${studentId}/plans`);
-    revalidatePath(`/admin/students/${studentId}`);
+    revalidatePlanCache({ groupId: planGroupId, studentId, includeAdmin: true });
 
     logActionSuccess(
       { domain: "plan", action: "createQuickPlanForStudent" },
@@ -981,6 +1028,31 @@ export async function createQuickPlanForStudent(
         plannerId: input.plannerId,
       }
     );
+
+    // 이벤트 로깅 (비동기, 실패해도 플랜 생성에 영향 없음)
+    logQuickPlanCreated(
+      tenantId,
+      studentId,
+      plan.id,
+      planGroupId,
+      {
+        title: input.title,
+        plan_date: input.planDate,
+        content_type: isFreeLearning
+          ? (input.freeLearningType ?? "free")
+          : (input.contentType ?? "custom"),
+        is_free_learning: isFreeLearning,
+        container_type: input.containerType ?? "daily",
+      },
+      auth.userId,
+      "admin"
+    ).catch((err) => {
+      logActionError(
+        { domain: "plan", action: "createQuickPlanForStudent" },
+        err,
+        { planId: plan.id, step: "event_logging" }
+      );
+    });
 
     return {
       success: true,

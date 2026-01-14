@@ -8,6 +8,7 @@ import { handleQueryError } from "@/lib/data/core/errorHandler";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { logActionDebug, logActionWarn } from "@/lib/logging/actionLogger";
 import type { PlanExclusion, ExclusionType } from "./types";
+import { getSupabaseClient } from "./utils";
 
 /**
  * 플랜 그룹의 제외일 목록 조회
@@ -172,9 +173,10 @@ async function createExclusions(
     exclusion_type: string;
     reason?: string | null;
   }>,
-  planGroupId?: string | null
+  planGroupId?: string | null,
+  useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseClient(useAdminClient);
 
   if (exclusions.length === 0) {
     return { success: true };
@@ -216,6 +218,7 @@ async function createExclusions(
       handleQueryError(exclusionsError as PostgrestError | null, {
         context: "[data/planGroups] createExclusions - checkExclusions",
       });
+      return { success: false, error: "기존 제외일 조회에 실패했습니다." };
     }
 
     // 현재 플랜 그룹에 이미 있는 제외일 (날짜+유형 조합)
@@ -240,8 +243,15 @@ async function createExclusions(
       `plan_group_id.is.null,plan_group_id.neq.${planGroupId}`
     );
 
-    const { data: timeManagementExclusions } =
+    const { data: timeManagementExclusions, error: timeManagementError } =
       await timeManagementExclusionsQuery;
+
+    if (timeManagementError) {
+      handleQueryError(timeManagementError as PostgrestError | null, {
+        context: "[data/planGroups] createExclusions - checkTimeManagement",
+      });
+      return { success: false, error: "시간 관리 영역 제외일 조회에 실패했습니다." };
+    }
 
     // 시간 관리 영역의 제외일을 키로 매핑
     const timeManagementMap = new Map(
@@ -396,6 +406,7 @@ async function createExclusions(
     handleQueryError(existingError as PostgrestError | null, {
       context: "[data/planGroups] createExclusions - checkExisting",
     });
+    return { success: false, error: "기존 제외일 조회에 실패했습니다." };
   }
 
   // 기존 제외일 키 (날짜+유형 조합)
@@ -469,10 +480,11 @@ export async function createPlanExclusions(
     exclusion_date: string;
     exclusion_type: string;
     reason?: string | null;
-  }>
+  }>,
+  useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   // 플랜 그룹에서 student_id 조회
-  const supabase = await createSupabaseServerClient();
+  const supabase = await getSupabaseClient(useAdminClient);
   const { data: group } = await supabase
     .from("plan_groups")
     .select("student_id")
@@ -484,11 +496,13 @@ export async function createPlanExclusions(
   }
 
   // 전역 관리: plan_group_id = NULL로 저장
-  return createStudentExclusions(group.student_id, tenantId, exclusions);
+  return createStudentExclusions(group.student_id, tenantId, exclusions, useAdminClient);
 }
 
 /**
  * 학생의 시간 관리 영역에 제외일 생성 (plan_group_id = NULL)
+ *
+ * @param useAdminClient - 관리자 클라이언트 사용 여부 (RLS 우회)
  */
 export async function createStudentExclusions(
   studentId: string,
@@ -497,8 +511,9 @@ export async function createStudentExclusions(
     exclusion_date: string;
     exclusion_type: string;
     reason?: string | null;
-  }>
+  }>,
+  useAdminClient: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   // 통합 함수 호출 (plan_group_id = null)
-  return createExclusions(studentId, tenantId, exclusions, null);
+  return createExclusions(studentId, tenantId, exclusions, null, useAdminClient);
 }
