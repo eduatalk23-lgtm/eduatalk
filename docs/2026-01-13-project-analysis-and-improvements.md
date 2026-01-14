@@ -1030,6 +1030,7 @@ if (isValidStudent(data)) {
 **주요 문제**:
 
 1. **ARIA 레이블 부족**:
+
    ```tsx
    // ❌ 나쁜 예: aria-label 없음
    <button onClick={handleClick}>
@@ -1179,6 +1180,7 @@ try {
 **컴포넌트 통합 전략**:
 
 1. **Atomic Design 패턴 적용**:
+
    ```
    components/
    ├── atoms/           # 기본 UI 요소 (Button, Input, Badge)
@@ -1263,14 +1265,9 @@ try {
 // ✅ 표준 Dialog 컴포넌트 사용
 import { Dialog } from "@/components/ui/Dialog";
 
-<Dialog
-  open={isOpen}
-  onClose={onClose}
-  title="제목"
-  description="설명"
->
+<Dialog open={isOpen} onClose={onClose} title="제목" description="설명">
   {/* 내용 */}
-</Dialog>
+</Dialog>;
 
 // ✅ 모달 테마 가이드라인
 // - blue: 조회/기본 액션
@@ -1355,9 +1352,7 @@ import { Dialog } from "@/components/ui/Dialog";
   style={{ "--progress": `${progress}%` } as React.CSSProperties}
 >
   {/* 또는 Tailwind arbitrary values */}
-  <div className={`w-[${progress}%]`}>
-    {/* ... */}
-  </div>
+  <div className={`w-[${progress}%]`}>{/* ... */}</div>
 </div>
 ```
 
@@ -1368,7 +1363,7 @@ import { Dialog } from "@/components/ui/Dialog";
 #### 문제점
 
 1. **색상 시스템 불일치**:
-   - 하드코딩된 색상 클래스 사용 (gray-*, indigo-* 등)
+   - 하드코딩된 색상 클래스 사용 (gray-_, indigo-_ 등)
    - 디자인 시스템 토큰 미사용
 
 2. **타이포그래피 불일치**:
