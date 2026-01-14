@@ -255,3 +255,113 @@ export const STALE_TIMES = {
   /** 정적 데이터: 30분 */
   STATIC: 30 * 60 * 1000,
 } as const;
+
+// ============================================
+// 서버 액션 → 클라이언트 캐시 무효화 힌트
+// ============================================
+
+/**
+ * 무효화 힌트 프리셋 타입
+ *
+ * 서버 액션에서 반환하여 클라이언트에서 자동 무효화할 수 있습니다.
+ */
+export type InvalidationPresetName =
+  | "allPlans"
+  | "studentPlans"
+  | "allAttendance"
+  | "planGroup"
+  | "planSchedule";
+
+/**
+ * 서버 액션에서 반환할 무효화 힌트
+ */
+export interface InvalidationHint {
+  /** 프리셋 이름 */
+  preset: InvalidationPresetName;
+  /** 프리셋에 전달할 파라미터 */
+  params?: {
+    studentId?: string;
+    groupId?: string;
+  };
+}
+
+/**
+ * 플랜 생성 결과에 포함할 무효화 힌트 빌더
+ *
+ * @example
+ * ```typescript
+ * // 서버 액션에서 사용
+ * return {
+ *   success: true,
+ *   planId: createdPlan.id,
+ *   ...buildPlanCreationHints({ studentId, groupId }),
+ * };
+ * ```
+ */
+export function buildPlanCreationHints(params: {
+  studentId?: string;
+  groupId?: string;
+}): { invalidationHints: InvalidationHint[] } {
+  const hints: InvalidationHint[] = [];
+
+  if (params.studentId) {
+    hints.push({
+      preset: "studentPlans",
+      params: { studentId: params.studentId },
+    });
+  }
+
+  if (params.groupId) {
+    hints.push({
+      preset: "planGroup",
+      params: { groupId: params.groupId },
+    });
+    hints.push({
+      preset: "planSchedule",
+      params: { groupId: params.groupId },
+    });
+  }
+
+  return { invalidationHints: hints };
+}
+
+/**
+ * 무효화 힌트로부터 쿼리 키 배열 생성
+ *
+ * 클라이언트에서 서버 액션 결과를 받아 자동으로 캐시 무효화할 때 사용
+ */
+export function getQueryKeysFromHints(
+  hints: InvalidationHint[]
+): Array<{ queryKey: readonly unknown[] }> {
+  const keys: Array<{ queryKey: readonly unknown[] }> = [];
+
+  for (const hint of hints) {
+    switch (hint.preset) {
+      case "allPlans":
+        keys.push(...invalidationPresets.allPlans());
+        break;
+      case "studentPlans":
+        if (hint.params?.studentId) {
+          keys.push(...invalidationPresets.studentPlans(hint.params.studentId));
+        }
+        break;
+      case "allAttendance":
+        keys.push(...invalidationPresets.allAttendance());
+        break;
+      case "planGroup":
+        if (hint.params?.groupId) {
+          keys.push({ queryKey: queryKeys.planGroups.detail(hint.params.groupId) });
+          keys.push({ queryKey: ["plansExist", hint.params.groupId] });
+        }
+        break;
+      case "planSchedule":
+        if (hint.params?.groupId) {
+          keys.push({ queryKey: ["planSchedule", hint.params.groupId] });
+          keys.push({ queryKey: ["contentScheduleOverview", hint.params.groupId] });
+        }
+        break;
+    }
+  }
+
+  return keys;
+}
