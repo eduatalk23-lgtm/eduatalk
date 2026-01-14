@@ -13,6 +13,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 import { revalidatePath } from "next/cache";
 
 import { createMessage, estimateCost, type GroundingMetadata } from "@/lib/domains/plan/llm/client";
@@ -178,17 +179,11 @@ async function loadStudentData(
 
   // 디버깅을 위한 상세 로깅
   if (error) {
-    console.error(`[loadStudentData] 학생 조회 실패 - studentId: ${studentId}`, {
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      hint: error.hint,
-      tenantId: tenantId || "not provided",
-    });
+    logActionError("loadStudentData", `학생 조회 실패 - studentId: ${studentId}, error: ${error.message}, code: ${error.code}, tenantId: ${tenantId || "not provided"}`);
   }
 
   if (!student && !error) {
-    console.warn(`[loadStudentData] 학생 데이터 없음 - studentId: ${studentId}, tenantId: ${tenantId || "not provided"}`);
+    logActionWarn("loadStudentData", `학생 데이터 없음 - studentId: ${studentId}, tenantId: ${tenantId || "not provided"}`);
   }
 
   return student;
@@ -270,7 +265,7 @@ async function loadContents(
     })),
   ];
 
-  console.log(`[loadContents] 조회 결과 - books: ${booksResult.data?.length || 0}, lectures: ${lecturesResult.data?.length || 0}`);
+  logActionDebug("loadContents", `조회 결과 - books: ${booksResult.data?.length || 0}, lectures: ${lecturesResult.data?.length || 0}`);
   return contents;
 }
 
@@ -341,7 +336,7 @@ export async function generatePlanForStudent(
   try {
     // 1. 학생 데이터 로드 (tenantId를 전달하여 정확한 tenant 컨텍스트에서 조회)
     currentStep = "load_student";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - studentId: ${studentId}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - studentId: ${studentId}`);
 
     const student = await loadStudentData(supabase, studentId, tenantId);
     if (!student) {
@@ -369,7 +364,7 @@ export async function generatePlanForStudent(
 
     // 3. 관련 데이터 로드
     currentStep = "load_data";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
     const [scores, contents, timeSlots, learningStats] = await Promise.all([
       loadScores(supabase, studentId),
@@ -378,7 +373,7 @@ export async function generatePlanForStudent(
       loadLearningStats(supabase, studentId),
     ]);
 
-    console.log(`[Batch AI Plan] 데이터 로드 완료 - scores: ${scores.length}, contents: ${contents.length}, timeSlots: ${timeSlots.length}`);
+    logActionDebug("generatePlanForStudent", `데이터 로드 완료 - scores: ${scores.length}, contents: ${contents.length}, timeSlots: ${timeSlots.length}`);
 
     if (contents.length === 0) {
       return {
@@ -392,7 +387,7 @@ export async function generatePlanForStudent(
 
     // 4. LLM 요청 빌드
     currentStep = "build_request";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
     const llmRequest = buildLLMRequest({
       student: {
@@ -450,7 +445,7 @@ export async function generatePlanForStudent(
 
     // 6. LLM 호출 (fast 모델 사용)
     currentStep = "llm_call";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}, enableWebSearch: ${settings.enableWebSearch}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}, enableWebSearch: ${settings.enableWebSearch}`);
 
     const modelTier = settings.modelTier || "fast";
     const userPrompt = buildUserPrompt(llmRequest);
@@ -471,7 +466,7 @@ export async function generatePlanForStudent(
       grounding: groundingConfig,
     });
 
-    console.log(`[Batch AI Plan] LLM 호출 완료 - ${studentName}, contentLength: ${result.content.length}`);
+    logActionDebug("generatePlanForStudent", `LLM 호출 완료 - ${studentName}, contentLength: ${result.content.length}`);
 
     // 6-1. 웹 검색 결과 처리
     currentStep = "process_web_search";
@@ -486,8 +481,9 @@ export async function generatePlanForStudent(
       | undefined;
 
     if (result.groundingMetadata && result.groundingMetadata.webResults.length > 0) {
-      console.log(
-        `[Batch AI Plan] 웹 검색 결과 (${student.name}): ${result.groundingMetadata.webResults.length}건`
+      logActionDebug(
+        "generatePlanForStudent",
+        `웹 검색 결과 (${student.name}): ${result.groundingMetadata.webResults.length}건`
       );
 
       webSearchResults = {
@@ -511,15 +507,16 @@ export async function generatePlanForStudent(
             const saveResult = await webContentService.saveToDatabase(webContents, tenantId);
             webSearchResults.savedCount = saveResult.savedCount;
 
-            console.log(
-              `[Batch AI Plan] 웹 콘텐츠 저장 (${student.name}): ${saveResult.savedCount}건`
+            logActionDebug(
+              "generatePlanForStudent",
+              `웹 콘텐츠 저장 (${student.name}): ${saveResult.savedCount}건`
             );
 
             // 부분 실패 로깅 (성공은 했지만 일부 에러가 있는 경우)
             if (saveResult.errors.length > 0) {
-              console.warn(
-                `[Batch AI Plan] 웹 콘텐츠 저장 경고 (${student.name}):`,
-                saveResult.errors
+              logActionWarn(
+                "generatePlanForStudent",
+                `웹 콘텐츠 저장 경고 (${student.name}): ${saveResult.errors.join(", ")}`
               );
               webSearchResults.saveWarnings = saveResult.errors;
             }
@@ -529,26 +526,26 @@ export async function generatePlanForStudent(
           const errorMessage = webSaveError instanceof Error
             ? webSaveError.message
             : "Unknown error";
-          console.error(
-            `[Batch AI Plan] 웹 콘텐츠 저장 실패 (${student.name}):`,
-            webSaveError
+          logActionError(
+            "generatePlanForStudent",
+            `웹 콘텐츠 저장 실패 (${student.name}): ${errorMessage}`
           );
           webSearchResults.saveError = errorMessage;
         }
       }
     } else if (settings.enableWebSearch) {
       // 웹 검색이 활성화되었지만 결과가 없는 경우 로깅
-      console.log(`[Batch AI Plan] 웹 검색 활성화되었으나 결과 없음 - ${student.name}`);
+      logActionDebug("generatePlanForStudent", `웹 검색 활성화되었으나 결과 없음 - ${student.name}`);
     }
 
     // 7. 응답 파싱
     currentStep = "parse_response";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
     const parsed = parseLLMResponse(result.content, result.modelId, result.usage);
 
     if (!parsed.success || !parsed.response) {
-      console.error(`[Batch AI Plan] 응답 파싱 실패 - ${studentName}:`, parsed.error);
+      logActionError("generatePlanForStudent", `응답 파싱 실패 - ${studentName}: ${parsed.error || "unknown"}`);
       return {
         studentId,
         studentName: student.name,
@@ -560,7 +557,7 @@ export async function generatePlanForStudent(
 
     // 8. 플랜 그룹 원자적 생성
     currentStep = "create_plan_group";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}`);
 
     const groupName = planGroupNameTemplate
       .replace("{startDate}", settings.startDate)
@@ -599,7 +596,7 @@ export async function generatePlanForStudent(
     );
 
     if (!groupResult.success || !groupResult.group_id) {
-      console.error(`[Batch AI Plan] 플랜 그룹 생성 실패 - ${studentName}:`, groupResult.error);
+      logActionError("generatePlanForStudent", `플랜 그룹 생성 실패 - ${studentName}: ${groupResult.error || "unknown"}`);
       return {
         studentId,
         studentName: student.name,
@@ -613,7 +610,7 @@ export async function generatePlanForStudent(
 
     // 9. 플랜 원자적 저장
     currentStep = "save_plans";
-    console.log(`[Batch AI Plan] 단계: ${currentStep} - ${studentName}, planGroupId: ${planGroupId}`);
+    logActionDebug("generatePlanForStudent", `단계: ${currentStep} - ${studentName}, planGroupId: ${planGroupId}`);
 
     const allPlans: GeneratedPlanItem[] = [];
     for (const matrix of parsed.response.weeklyMatrices) {
@@ -622,7 +619,7 @@ export async function generatePlanForStudent(
       }
     }
 
-    console.log(`[Batch AI Plan] 플랜 변환 중 - ${studentName}, 총 ${allPlans.length}개 플랜`);
+    logActionDebug("generatePlanForStudent", `플랜 변환 중 - ${studentName}, 총 ${allPlans.length}개 플랜`);
 
     // LLM 응답을 AtomicPlanPayload로 변환
     const atomicPlans = batchPlanItemsToAtomicPayloads(
@@ -641,7 +638,7 @@ export async function generatePlanForStudent(
 
     if (!plansResult.success) {
       // 플랜 저장 실패 시 생성된 그룹 삭제 시도
-      console.error(`[Batch AI Plan] 플랜 저장 실패 - ${studentName}, 그룹 롤백 시도: ${planGroupId}`, plansResult.error);
+      logActionError("generatePlanForStudent", `플랜 저장 실패 - ${studentName}, 그룹 롤백 시도: ${planGroupId}: ${plansResult.error || "unknown"}`);
       return {
         studentId,
         studentName: student.name,
@@ -672,7 +669,7 @@ export async function generatePlanForStudent(
       webSearchResults,
     };
   } catch (error) {
-    console.error(`[Batch AI Plan] 학생 ${studentId} 오류 (단계: ${currentStep}):`, error);
+    logActionError("generatePlanForStudent", `학생 ${studentId} 오류 (단계: ${currentStep}): ${error instanceof Error ? error.message : "unknown"}`);
     return {
       studentId,
       studentName,
@@ -896,7 +893,7 @@ export async function getStudentsContentsForBatch(
 
     // flexible_contents가 비어있으면 테넌트의 기본 컨텐츠에서 가져오기
     if (contentIds.length === 0 && student.tenant_id) {
-      console.log(`[getStudentsContentsForBatch] ${student.name}: flexible_contents 없음, master_books에서 기본 컨텐츠 조회`);
+      logActionDebug("getStudentsContentsForBatch", `${student.name}: flexible_contents 없음, master_books에서 기본 컨텐츠 조회`);
 
       // 테넌트의 활성 master_books에서 최근 10개 가져오기
       const { data: defaultBooks } = await supabase
@@ -908,7 +905,7 @@ export async function getStudentsContentsForBatch(
         .limit(10);
 
       contentIds = (defaultBooks || []).map((b) => b.id);
-      console.log(`[getStudentsContentsForBatch] ${student.name}: 기본 컨텐츠 ${contentIds.length}개 로드`);
+      logActionDebug("getStudentsContentsForBatch", `${student.name}: 기본 컨텐츠 ${contentIds.length}개 로드`);
     }
 
     result.set(student.id, {

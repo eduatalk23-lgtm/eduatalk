@@ -11,6 +11,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { logAIPlansGenerated } from "@/lib/domains/admin-plan/actions/planEvent";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { logActionDebug, logActionWarn, logActionError as logSimpleError } from "@/lib/utils/serverActionLogger";
 
 import { createMessage, getModelConfig, estimateCost, type GroundingMetadata, type WebSearchResult } from "../client";
 import { SYSTEM_PROMPT, buildUserPrompt, estimatePromptTokens } from "../prompts/planGeneration";
@@ -482,7 +483,7 @@ export async function generatePlanWithAI(
 
     // 5. 토큰 추정 및 비용 확인
     const tokenEstimate = estimatePromptTokens(llmRequest);
-    console.log(`[AI Plan] 예상 입력 토큰: ${tokenEstimate.totalTokens}`);
+    logActionDebug("generatePlanWithAI", `예상 입력 토큰: ${tokenEstimate.totalTokens}`);
 
     // 6. LLM 호출
     const modelTier = input.modelTier || "standard";
@@ -515,8 +516,9 @@ export async function generatePlanWithAI(
       | undefined;
 
     if (result.groundingMetadata && result.groundingMetadata.webResults.length > 0) {
-      console.log(
-        `[AI Plan] 웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
+      logActionDebug(
+        "generatePlanWithAI",
+        `웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
       );
 
       webSearchResults = {
@@ -541,12 +543,13 @@ export async function generatePlanWithAI(
           const saveResult = await webContentService.saveToDatabase(webContents, tenantId);
           webSearchResults.savedCount = saveResult.savedCount;
 
-          console.log(
-            `[AI Plan] 웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
+          logActionDebug(
+            "generatePlanWithAI",
+            `웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
           );
 
           if (saveResult.errors.length > 0) {
-            console.warn("[AI Plan] 웹 콘텐츠 저장 오류:", saveResult.errors);
+            logActionWarn("generatePlanWithAI", `웹 콘텐츠 저장 오류: ${saveResult.errors.join(", ")}`);
           }
         }
       }
@@ -604,15 +607,13 @@ export async function generatePlanWithAI(
 
     // 검증 결과 로깅
     if (validationResult.errors.length > 0) {
-      console.warn(`[AI Plan] 검증 에러 ${validationResult.errors.length}건:`,
-        validationResult.errors.slice(0, 5).map(e => e.message));
+      logActionWarn("generatePlanWithAI", `검증 에러 ${validationResult.errors.length}건: ${validationResult.errors.slice(0, 5).map(e => e.message).join(", ")}`);
     }
     if (validationResult.warnings.length > 0) {
-      console.log(`[AI Plan] 검증 경고 ${validationResult.warnings.length}건`);
+      logActionDebug("generatePlanWithAI", `검증 경고 ${validationResult.warnings.length}건`);
     }
     if (dependencyValidationResult.violations.length > 0) {
-      console.log(`[AI Plan] 의존성 경고 ${dependencyValidationResult.violations.length}건:`,
-        dependencyValidationResult.violations.slice(0, 3).map(v => v.message));
+      logActionDebug("generatePlanWithAI", `의존성 경고 ${dependencyValidationResult.violations.length}건: ${dependencyValidationResult.violations.slice(0, 3).map(v => v.message).join(", ")}`);
     }
 
     // 10. 플랜 그룹 생성 또는 사용
@@ -687,7 +688,7 @@ export async function generatePlanWithAI(
       },
     };
   } catch (error) {
-    console.error("[AI Plan] 생성 오류:", error);
+    logSimpleError("generatePlanWithAI", `생성 오류: ${error instanceof Error ? error.message : "unknown"}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "플랜 생성 중 오류가 발생했습니다.",
@@ -911,7 +912,7 @@ export async function previewPlanWithAI(
       },
     };
   } catch (error) {
-    console.error("[AI Plan Preview] 오류:", error);
+    logSimpleError("previewPlanWithAI", `오류: ${error instanceof Error ? error.message : "unknown"}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "미리보기 생성 중 오류가 발생했습니다.",

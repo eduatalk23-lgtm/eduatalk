@@ -17,6 +17,7 @@ import {
   type GroundingConfig,
   type GroundingMetadata,
 } from "./base";
+import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // 모델 설정
@@ -106,7 +107,7 @@ class GeminiRateLimiter {
     const waitTime = this.getWaitTime();
 
     if (waitTime > 0) {
-      console.log(`[GeminiRateLimiter] ${waitTime}ms 대기 중...`);
+      logActionDebug("GeminiRateLimiter", `${waitTime}ms 대기 중...`);
       await this.delay(waitTime);
     }
 
@@ -384,16 +385,11 @@ export class GeminiProvider extends BaseLLMProvider {
     // Gemini 2.0 모델 감지
     const isGemini2 = modelId?.includes("gemini-2.0");
 
-    console.log("[Gemini] buildGroundingTools:", {
-      modelId,
-      isGemini2,
-      groundingMode: grounding.mode,
-      enabled: grounding.enabled,
-    });
+    logActionDebug("GeminiProvider.buildGroundingTools", `modelId=${modelId}, isGemini2=${isGemini2}, mode=${grounding.mode}, enabled=${grounding.enabled}`);
 
     // Gemini 2.0은 googleSearch만 지원 (동적/항상 모드 무관)
     if (isGemini2) {
-      console.log("[Gemini] Using googleSearch for Gemini 2.0");
+      logActionDebug("GeminiProvider.buildGroundingTools", "Using googleSearch for Gemini 2.0");
       return [{ googleSearch: {} }];
     }
 
@@ -464,12 +460,7 @@ export class GeminiProvider extends BaseLLMProvider {
     const model = this.getModel(config);
     const maxRetries = 3;
 
-    console.log("[Gemini] createMessage 시작:", {
-      modelId: config.modelId,
-      tier: options.modelTier,
-      groundingEnabled: options.grounding?.enabled,
-      groundingMode: options.grounding?.mode,
-    });
+    logActionDebug("GeminiProvider.createMessage", `시작 - modelId=${config.modelId}, tier=${options.modelTier}, grounding=${options.grounding?.enabled}, mode=${options.grounding?.mode}`);
 
     const formattedMessages = this.formatMessages(options.system, options.messages);
 
@@ -480,11 +471,7 @@ export class GeminiProvider extends BaseLLMProvider {
     // Grounding tools 빌드 (modelId 전달)
     const tools = this.buildGroundingTools(options.grounding, config.modelId);
 
-    console.log("[Gemini] Chat 설정:", {
-      historyLength: history.length,
-      toolsCount: tools.length,
-      tools: JSON.stringify(tools),
-    });
+    logActionDebug("GeminiProvider.createMessage", `Chat 설정 - historyLength=${history.length}, toolsCount=${tools.length}`);
 
     // Chat 세션 시작 (Grounding tools 포함)
     const chat = model.startChat({
@@ -502,7 +489,7 @@ export class GeminiProvider extends BaseLLMProvider {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         if (attempt > 0) {
-          console.log(`[Gemini] 재시도 ${attempt}/${maxRetries}`);
+          logActionDebug("GeminiProvider.createMessage", `재시도 ${attempt}/${maxRetries}`);
         }
 
         // Rate Limiter를 통해 요청 간격 제어
@@ -515,14 +502,7 @@ export class GeminiProvider extends BaseLLMProvider {
         // 응답 구조 진단 로깅
         if (options.grounding?.enabled) {
           const candidate = response.candidates?.[0];
-          console.log("[Gemini] 응답 구조:", {
-            hasCandidate: !!candidate,
-            finishReason: candidate?.finishReason,
-            hasGroundingMetadata: !!candidate?.groundingMetadata,
-            groundingMetadataKeys: candidate?.groundingMetadata
-              ? Object.keys(candidate.groundingMetadata)
-              : [],
-          });
+          logActionDebug("GeminiProvider.createMessage", `응답 구조 - hasCandidate=${!!candidate}, finishReason=${candidate?.finishReason}, hasGroundingMetadata=${!!candidate?.groundingMetadata}`);
         }
 
         // Grounding 메타데이터 추출
@@ -531,11 +511,7 @@ export class GeminiProvider extends BaseLLMProvider {
           : undefined;
 
         if (options.grounding?.enabled) {
-          console.log("[Gemini] Grounding 결과:", {
-            hasMetadata: !!groundingMetadata,
-            searchQueries: groundingMetadata?.searchQueries?.length ?? 0,
-            webResults: groundingMetadata?.webResults?.length ?? 0,
-          });
+          logActionDebug("GeminiProvider.createMessage", `Grounding 결과 - hasMetadata=${!!groundingMetadata}, searchQueries=${groundingMetadata?.searchQueries?.length ?? 0}, webResults=${groundingMetadata?.webResults?.length ?? 0}`);
         }
 
         // 토큰 사용량 추정 (Gemini API는 정확한 토큰 수를 제공하지 않을 수 있음)
@@ -561,10 +537,7 @@ export class GeminiProvider extends BaseLLMProvider {
         // Rate Limit 에러인 경우 재시도
         if (this.isRateLimitError(error) && attempt < maxRetries) {
           const delay = this.extractRetryDelay(error, attempt);
-          console.warn(
-            `[Gemini] Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`,
-            { error: lastError.message }
-          );
+          logActionWarn("GeminiProvider.createMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
@@ -586,11 +559,7 @@ export class GeminiProvider extends BaseLLMProvider {
     const model = this.getModel(config);
     const maxRetries = 3;
 
-    console.log("[Gemini] streamMessage 시작:", {
-      modelId: config.modelId,
-      tier: options.modelTier,
-      groundingEnabled: options.grounding?.enabled,
-    });
+    logActionDebug("GeminiProvider.streamMessage", `시작 - modelId=${config.modelId}, tier=${options.modelTier}, grounding=${options.grounding?.enabled}`);
 
     const formattedMessages = this.formatMessages(options.system, options.messages);
 
@@ -611,7 +580,7 @@ export class GeminiProvider extends BaseLLMProvider {
 
       try {
         if (attempt > 0) {
-          console.log(`[Gemini] streamMessage 재시도 ${attempt}/${maxRetries}`);
+          logActionDebug("GeminiProvider.streamMessage", `재시도 ${attempt}/${maxRetries}`);
         }
 
         // Chat 세션 시작 (Grounding tools 포함)
@@ -677,10 +646,7 @@ export class GeminiProvider extends BaseLLMProvider {
         // Rate Limit 에러인 경우 재시도
         if (this.isRateLimitError(error) && attempt < maxRetries) {
           const delay = this.extractRetryDelay(error, attempt);
-          console.warn(
-            `[Gemini] streamMessage Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries})`,
-            { error: lastError.message }
-          );
+          logActionWarn("GeminiProvider.streamMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
