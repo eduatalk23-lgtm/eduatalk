@@ -28,6 +28,7 @@ import { getContentPlanGroupCount } from "./queries";
 import { logActionError, logActionSuccess, logActionWarn, logActionDebug } from "@/lib/logging/actionLogger";
 import { logQuickPlanCreated, logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
 import { selectPlanGroupForPlanner, createPlanGroupForPlanner } from "@/lib/domains/admin-plan/utils/planGroupSelector";
+import { buildPlanCreationHints } from "@/lib/query/keys";
 
 // ============================================
 // Rollback Helper Functions
@@ -552,6 +553,7 @@ export async function quickCreateFromContent(
         estimatedEndDate: studyDates[studyDates.length - 1].toISOString().split("T")[0],
         totalRange: totalAmount,
       },
+      ...buildPlanCreationHints({ studentId: user.userId, groupId: planGroup.id }),
     };
   } catch (error) {
     logActionError(
@@ -759,6 +761,7 @@ export async function createQuickPlan(
       planGroupId: planGroup.id,
       planId: plan.id,
       flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
+      ...buildPlanCreationHints({ studentId: user.userId, groupId: planGroup.id }),
     };
   } catch (error) {
     logActionError(
@@ -1060,6 +1063,7 @@ export async function createQuickPlanForStudent(
       planId: plan.id,
       flexibleContentId: isFreeLearning ? resolvedContentId : undefined,
       studentId,
+      ...buildPlanCreationHints({ studentId, groupId: planGroupId }),
     };
   } catch (error) {
     logActionError(

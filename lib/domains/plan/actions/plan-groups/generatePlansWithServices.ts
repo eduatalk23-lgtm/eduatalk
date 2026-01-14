@@ -44,6 +44,7 @@ import type { ContentSlot } from "@/lib/types/content-selection";
 import { revalidatePlanCache } from "@/lib/domains/plan/utils/cacheInvalidation";
 import { logPlansBatchCreated } from "@/lib/domains/admin-plan/actions/planEvent";
 import { logActionError } from "@/lib/logging/actionLogger";
+import { buildPlanCreationHints } from "@/lib/query/keys";
 
 // 서비스 임포트 (lib/plan/shared로 통합됨)
 import {
@@ -806,6 +807,8 @@ async function _generatePlansWithServices(
     // dock에 배치된 플랜 정보 (Phase 2: 시간 충돌 방지)
     dockedPlans: dockedPlansInfo.length > 0 ? dockedPlansInfo : undefined,
     dockedCount: dockedPlansInfo.length,
+    // React Query 캐시 무효화 힌트
+    ...buildPlanCreationHints({ studentId, groupId }),
   };
 }
 

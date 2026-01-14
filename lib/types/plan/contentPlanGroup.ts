@@ -13,6 +13,7 @@ import type {
   TimeSettings,
   NonStudyTimeBlock,
 } from './domain';
+import type { InvalidationHint } from '@/lib/query/keys';
 
 // ============================================================
 // 기본 타입
@@ -203,6 +204,8 @@ export interface ContentPlanGroupResult {
   summary?: ContentPlanGroupSummary;
   /** 에러 메시지 */
   error?: string;
+  /** React Query 캐시 무효화 힌트 (클라이언트에서 자동 처리) */
+  invalidationHints?: InvalidationHint[];
 }
 
 /**

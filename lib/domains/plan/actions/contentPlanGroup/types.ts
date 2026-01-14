@@ -5,6 +5,7 @@
  */
 
 import type { StudyType } from "@/lib/types/plan";
+import type { InvalidationHint } from "@/lib/query/keys";
 
 // ============================================
 // Constants
@@ -71,6 +72,8 @@ export type CreateQuickPlanResult = {
   planGroupId?: string;
   flexibleContentId?: string;
   error?: string;
+  /** React Query 캐시 무효화 힌트 (클라이언트에서 자동 처리) */
+  invalidationHints?: InvalidationHint[];
 };
 
 export type AddContentToCalendarOnlyInput = {

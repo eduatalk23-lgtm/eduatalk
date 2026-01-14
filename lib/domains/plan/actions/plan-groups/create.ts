@@ -17,6 +17,7 @@ import { PlanValidator } from "@/lib/validation/planValidator";
 import { PlanGroupCreationData } from "@/lib/types/plan";
 import { normalizePlanPurpose, findExistingDraftPlanGroup } from "./utils";
 import { buildSchedulerOptions } from "@/lib/domains/plan/utils/schedulerOptionsBuilder";
+import { buildPlanCreationHints } from "@/lib/query/keys";
 import { updatePlanGroupDraftAction } from "./update";
 import { validateAllocations } from "@/lib/utils/subjectAllocation";
 import { buildAllocationFromSlots } from "@/lib/plan/virtualSchedulePreview";
@@ -352,7 +353,7 @@ async function _createPlanGroup(
       // 기존 캠프 플랜 그룹이 있으면 업데이트
       await updatePlanGroupDraftAction(existingCampGroup.id, data);
       revalidatePlanCache({ groupId: existingCampGroup.id, studentId });
-      return { groupId: existingCampGroup.id };
+      return { groupId: existingCampGroup.id, ...buildPlanCreationHints({ studentId, groupId: existingCampGroup.id }) };
     }
   }
 
@@ -376,7 +377,7 @@ async function _createPlanGroup(
     });
     await updatePlanGroupDraftAction(existingGroup.id, data);
     revalidatePlanCache({ groupId: existingGroup.id, studentId });
-    return { groupId: existingGroup.id };
+    return { groupId: existingGroup.id, ...buildPlanCreationHints({ studentId, groupId: existingGroup.id }) };
   }
 
   // 플랜 기간 중복 검증 (학생 자가 생성 시에만)
@@ -520,7 +521,7 @@ async function _createPlanGroup(
       if (retryExistingGroup) {
         await updatePlanGroupDraftAction(retryExistingGroup.id, data);
         revalidatePlanCache({ groupId: retryExistingGroup.id, studentId });
-        return { groupId: retryExistingGroup.id };
+        return { groupId: retryExistingGroup.id, ...buildPlanCreationHints({ studentId, groupId: retryExistingGroup.id }) };
       }
     }
 
@@ -558,7 +559,7 @@ async function _createPlanGroup(
   });
 
   revalidatePlanCache({ groupId, studentId });
-  return { groupId };
+  return { groupId, ...buildPlanCreationHints({ studentId, groupId }) };
 }
 
 /**
