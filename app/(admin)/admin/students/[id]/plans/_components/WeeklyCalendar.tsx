@@ -8,6 +8,8 @@ import { buildDayTypesFromDailySchedule, type DayType } from '@/lib/date/calenda
 import { formatDateString } from '@/lib/date/calendarUtils';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
+import type { TimeSlot } from '@/lib/types/plan-generation';
+import { MiniTimelineBar } from './MiniTimelineBar';
 
 interface WeeklyCalendarProps {
   studentId: string;
@@ -22,6 +24,10 @@ interface WeeklyCalendarProps {
     exclusionType: string;
     reason?: string | null;
   }>;
+  /** 날짜별 시간대 타임슬롯 (학습시간, 점심시간, 학원일정 등) */
+  dateTimeSlots?: Record<string, TimeSlot[]>;
+  /** 타임라인 클릭 시 상세 모달 열기 */
+  onTimelineClick?: (date: string) => void;
 }
 
 interface DaySummary {
@@ -46,6 +52,8 @@ export function WeeklyCalendar({
   plannerId,
   dailySchedules,
   exclusions,
+  dateTimeSlots,
+  onTimelineClick,
 }: WeeklyCalendarProps) {
   const [weekDays, setWeekDays] = useState<DaySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -278,6 +286,18 @@ export function WeeklyCalendar({
                 {/* 오늘 표시 */}
                 {day.isToday && (
                   <span className="text-[10px] text-blue-500 font-medium">오늘</span>
+                )}
+
+                {/* 타임라인 바 */}
+                {dateTimeSlots?.[day.date] && dateTimeSlots[day.date].length > 0 && (
+                  <MiniTimelineBar
+                    timeSlots={dateTimeSlots[day.date]}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTimelineClick?.(day.date);
+                    }}
+                    className="mt-1 w-full"
+                  />
                 )}
               </button>
             </DroppableDateCell>

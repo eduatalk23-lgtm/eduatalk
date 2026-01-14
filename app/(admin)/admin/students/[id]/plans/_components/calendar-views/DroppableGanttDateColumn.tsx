@@ -65,15 +65,15 @@ function DroppableGanttDateColumnComponent({
     <div
       ref={setNodeRef}
       className={cn(
-        "absolute top-0 bottom-0 transition-colors",
+        "absolute top-0 bottom-0 transition-all duration-200",
         // 제외일 배경
         isExclusion && "bg-gray-100 opacity-50",
-        // 드래그 중 드롭 가능 표시
-        showDropIndicator && canDrop && "bg-blue-50/30",
-        isOver && canDrop && "bg-blue-100/50 ring-2 ring-inset ring-blue-400",
-        // 드롭 불가 표시
-        showInvalidDrop && "bg-red-50/30",
-        isOver && !canDrop && "bg-red-100/50 ring-2 ring-inset ring-red-400"
+        // 드래그 중 드롭 가능 표시 - 그라데이션 추가
+        showDropIndicator && canDrop && "bg-gradient-to-b from-blue-100/40 to-transparent",
+        isOver && canDrop && "bg-blue-100/60 ring-2 ring-inset ring-blue-400 shadow-inner",
+        // 드롭 불가 표시 - 그라데이션 추가
+        showInvalidDrop && "bg-gradient-to-b from-red-100/40 to-transparent",
+        isOver && !canDrop && "bg-red-100/60 ring-2 ring-inset ring-red-400"
       )}
       style={{
         left: dayOffset * DAY_WIDTH,

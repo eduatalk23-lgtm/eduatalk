@@ -5,6 +5,7 @@ import { DailyDock } from "../DailyDock";
 import { WeeklyDock } from "../WeeklyDock";
 import { WeeklyCalendar } from "../WeeklyCalendar";
 import { PlanGroupSummaryCard } from "../PlanGroupSummaryCard";
+import { DayTimelineModal } from "../DayTimelineModal";
 import { useAdminPlan } from "../context/AdminPlanContext";
 
 interface PlannerTabProps {
@@ -33,6 +34,10 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     contentTypeFilter,
     plannerDailySchedules,
     plannerExclusions,
+    plannerCalculatedSchedule,
+    plannerDateTimeSlots,
+    dayTimelineModalDate,
+    setDayTimelineModalDate,
     handleRefresh,
     handleOpenRedistribute,
     handleOpenEdit,
@@ -41,6 +46,11 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
     handleOpenCopy,
     handleOpenStatusChange,
   } = useAdminPlan();
+
+  // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
+  const effectiveDailySchedules = plannerCalculatedSchedule
+    ? [plannerCalculatedSchedule]
+    : plannerDailySchedules;
 
   return (
     <div className="space-y-4">
@@ -66,8 +76,18 @@ export function PlannerTab({ tab: _tab }: PlannerTabProps) {
         selectedDate={selectedDate}
         onDateSelect={handleDateChange}
         plannerId={selectedPlannerId}
-        dailySchedules={plannerDailySchedules}
+        dailySchedules={effectiveDailySchedules}
         exclusions={plannerExclusions}
+        dateTimeSlots={plannerDateTimeSlots}
+        onTimelineClick={setDayTimelineModalDate}
+      />
+
+      {/* 일별 타임라인 상세 모달 */}
+      <DayTimelineModal
+        isOpen={!!dayTimelineModalDate}
+        onClose={() => setDayTimelineModalDate(null)}
+        date={dayTimelineModalDate ?? ""}
+        timeSlots={plannerDateTimeSlots?.[dayTimelineModalDate ?? ""] ?? []}
       />
 
       {/* 플랜 그룹 요약 카드 */}

@@ -23,6 +23,7 @@ import {
 import { useModalSetters } from "../hooks/useModalSetters";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
 import type { PlanStatus } from "@/lib/types/plan";
+import type { TimeSlot } from "@/lib/types/plan-generation";
 
 // 콘텐츠 유형 필터 타입
 export type ContentTypeFilter = "all" | "book" | "lecture" | "custom";
@@ -197,6 +198,14 @@ export interface AdminPlanContextValue {
   // 플래너 데이터
   plannerDailySchedules?: DailyScheduleInfo[][];
   plannerExclusions?: PlannerExclusion[];
+  /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
+  plannerCalculatedSchedule?: DailyScheduleInfo[];
+  /** 플래너 레벨에서 계산된 시간대별 타임슬롯 (날짜별 학습시간, 점심, 학원 등) */
+  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
+
+  // 타임라인 모달 상태
+  dayTimelineModalDate: string | null;
+  setDayTimelineModalDate: (date: string | null) => void;
 
   // Toast
   toast: ReturnType<typeof useToast>;
@@ -219,6 +228,10 @@ interface AdminPlanProviderProps {
   selectedPlannerId?: string;
   plannerDailySchedules?: DailyScheduleInfo[][];
   plannerExclusions?: PlannerExclusion[];
+  /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
+  plannerCalculatedSchedule?: DailyScheduleInfo[];
+  /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
+  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
 }
 
 export function AdminPlanProvider({
@@ -232,6 +245,8 @@ export function AdminPlanProvider({
   selectedPlannerId,
   plannerDailySchedules,
   plannerExclusions,
+  plannerCalculatedSchedule,
+  plannerDateTimeSlots,
 }: AdminPlanProviderProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -250,6 +265,9 @@ export function AdminPlanProvider({
 
   // 모달 상태 관리 (useReducer 패턴)
   const [modals, dispatchModal] = useReducer(modalReducer, initialModalState);
+
+  // 타임라인 모달 상태
+  const [dayTimelineModalDate, setDayTimelineModalDate] = useState<string | null>(null);
 
   // 모달 열기/닫기 헬퍼
   const openModal = useCallback((type: ModalType) => {
@@ -533,6 +551,12 @@ export function AdminPlanProvider({
       // 플래너 데이터
       plannerDailySchedules,
       plannerExclusions,
+      plannerCalculatedSchedule,
+      plannerDateTimeSlots,
+
+      // 타임라인 모달
+      dayTimelineModalDate,
+      setDayTimelineModalDate,
 
       // Toast
       toast,
@@ -585,6 +609,9 @@ export function AdminPlanProvider({
       batchOperationMode,
       plannerDailySchedules,
       plannerExclusions,
+      plannerCalculatedSchedule,
+      plannerDateTimeSlots,
+      dayTimelineModalDate,
       toast,
       canCreatePlans,
     ]

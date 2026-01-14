@@ -39,6 +39,8 @@ export default function AdminMonthView({
   plansByDate,
   exclusionsByDate,
   dailySchedulesByDate,
+  dateTimeSlots,
+  onTimelineClick,
   onPlanClick,
   onContextMenu: onContextMenuProp,
   onExclusionToggle,
@@ -182,6 +184,8 @@ export default function AdminMonthView({
               status={status}
               stats={stats}
               plans={plans}
+              timeSlots={dateTimeSlots?.[dateStr]}
+              onTimelineClick={() => onTimelineClick?.(dateStr)}
               onDateClick={handleDateClick}
               onPlanClick={onPlanClick}
               onContextMenu={handleContextMenu}

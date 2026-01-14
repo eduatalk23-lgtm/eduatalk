@@ -106,15 +106,23 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
   return (
     <div className={cn("border rounded-lg bg-white", disabled && "opacity-50")}>
       {/* 헤더 (클릭 가능) */}
-      <button
-        type="button"
-        onClick={() => !compact && setExpanded(!expanded)}
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        onClick={() => !disabled && !compact && setExpanded(!expanded)}
+        onKeyDown={(e) => {
+          if (!disabled && !compact && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            setExpanded(!expanded);
+          }
+        }}
         className={cn(
           "w-full flex items-center justify-between gap-3 p-3 text-left",
-          !compact && "hover:bg-gray-50",
-          compact && "cursor-default"
+          !compact && "hover:bg-gray-50 cursor-pointer",
+          compact && "cursor-default",
+          disabled && "cursor-not-allowed"
         )}
-        disabled={disabled}
+        aria-disabled={disabled}
       >
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-lg flex-shrink-0">{typeInfo.emoji}</span>
@@ -154,7 +162,7 @@ function BlockItem({ block, index, onChange, onDelete, disabled, compact }: Bloc
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
-      </button>
+      </div>
 
       {/* 상세 설정 (확장 시) */}
       {expanded && !compact && (

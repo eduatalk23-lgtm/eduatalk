@@ -8,9 +8,11 @@
  * - 원래 날짜 → 대상 날짜 표시
  * - 예상 소요 시간
  * - 드롭 가능/불가능 상태 피드백
+ * - 서버 저장 중 로딩 상태
  */
 
-import { Calendar, Clock, ArrowRight, Ban, Check } from "lucide-react";
+import { motion } from "framer-motion";
+import { Calendar, Clock, ArrowRight, Ban, Check, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 import type {
@@ -25,6 +27,8 @@ interface DragOverlayContentProps {
   overTarget: DroppableTargetData | null;
   /** 드롭 가능 여부 체크 함수 */
   canDropOnDate: (date: string) => boolean;
+  /** 서버 저장 중 여부 */
+  isPending?: boolean;
 }
 
 // 콘텐츠 타입별 아이콘
@@ -49,6 +53,7 @@ export default function DragOverlayContent({
   plan,
   overTarget,
   canDropOnDate,
+  isPending = false,
 }: DragOverlayContentProps) {
   // 드롭 상태 계산
   const isOverValidTarget = overTarget && canDropOnDate(overTarget.date);
@@ -59,10 +64,12 @@ export default function DragOverlayContent({
   const showTargetDate = overTarget && !isSameDate;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: -10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
       className={cn(
         "bg-white rounded-lg shadow-xl border-2 min-w-[180px] max-w-[240px]",
-        "transform transition-colors duration-150",
         // 드롭 상태에 따른 테두리 색상
         isOverValidTarget && "border-green-500 bg-green-50/50",
         isOverInvalidTarget && "border-red-500 bg-red-50/50",
@@ -91,13 +98,18 @@ export default function DragOverlayContent({
           </span>
           {showTargetDate && (
             <>
-              <ArrowRight
-                className={cn(
-                  "w-3.5 h-3.5 flex-shrink-0",
-                  isOverValidTarget && "text-green-500",
-                  isOverInvalidTarget && "text-red-500"
-                )}
-              />
+              <motion.div
+                animate={isOverValidTarget ? { x: [0, 2, 0] } : {}}
+                transition={{ duration: 0.3, repeat: Infinity }}
+              >
+                <ArrowRight
+                  className={cn(
+                    "w-3.5 h-3.5 flex-shrink-0",
+                    isOverValidTarget && "text-green-500",
+                    isOverInvalidTarget && "text-red-500"
+                  )}
+                />
+              </motion.div>
               <span
                 className={cn(
                   "font-medium",
@@ -121,30 +133,37 @@ export default function DragOverlayContent({
       </div>
 
       {/* 푸터 - 드롭 상태 메시지 */}
-      <div
+      <motion.div
+        layout
         className={cn(
           "px-3 py-1.5 text-xs rounded-b-lg",
-          isOverValidTarget && "bg-green-100 text-green-700",
-          isOverInvalidTarget && "bg-red-100 text-red-700",
-          !overTarget && "bg-gray-50 text-gray-500"
+          isPending && "bg-blue-100 text-blue-700",
+          !isPending && isOverValidTarget && "bg-green-100 text-green-700",
+          !isPending && isOverInvalidTarget && "bg-red-100 text-red-700",
+          !isPending && !overTarget && "bg-gray-50 text-gray-500"
         )}
       >
         <div className="flex items-center gap-1.5">
-          {isOverValidTarget && (
+          {isPending ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>저장 중...</span>
+            </>
+          ) : isOverValidTarget ? (
             <>
               <Check className="w-3.5 h-3.5" />
               <span>여기에 놓아 이동</span>
             </>
-          )}
-          {isOverInvalidTarget && (
+          ) : isOverInvalidTarget ? (
             <>
               <Ban className="w-3.5 h-3.5" />
               <span>제외일 - 이동 불가</span>
             </>
+          ) : (
+            <span>날짜 위로 드래그하세요</span>
           )}
-          {!overTarget && <span>날짜 위로 드래그하세요</span>}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

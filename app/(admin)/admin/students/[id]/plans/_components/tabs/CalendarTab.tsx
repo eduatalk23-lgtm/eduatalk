@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useAdminPlan } from "../context/AdminPlanContext";
+import { DayTimelineModal } from "../DayTimelineModal";
 
 // 캘린더 뷰 동적 임포트
 const AdminCalendarView = dynamic(
@@ -36,8 +37,17 @@ export function CalendarTab(_props: CalendarTabProps) {
     handleDateChange,
     plannerExclusions,
     plannerDailySchedules,
+    plannerCalculatedSchedule,
+    plannerDateTimeSlots,
+    dayTimelineModalDate,
+    setDayTimelineModalDate,
     handleRefresh,
   } = useAdminPlan();
+
+  // 플래너 레벨 스케줄 우선 사용 (플랜 그룹 없어도 주차/일차 표시)
+  const effectiveDailySchedules = plannerCalculatedSchedule
+    ? [plannerCalculatedSchedule]
+    : plannerDailySchedules;
 
   // 플래너가 선택되지 않은 경우
   if (!selectedPlannerId) {
@@ -63,8 +73,18 @@ export function CalendarTab(_props: CalendarTabProps) {
         selectedDate={selectedDate}
         onDateChange={handleDateChange}
         plannerExclusions={plannerExclusions ?? []}
-        plannerDailySchedules={plannerDailySchedules ?? []}
+        plannerDailySchedules={effectiveDailySchedules ?? []}
+        dateTimeSlots={plannerDateTimeSlots}
+        onTimelineClick={setDayTimelineModalDate}
         onRefresh={handleRefresh}
+      />
+
+      {/* 일별 타임라인 상세 모달 */}
+      <DayTimelineModal
+        isOpen={!!dayTimelineModalDate}
+        onClose={() => setDayTimelineModalDate(null)}
+        date={dayTimelineModalDate ?? ""}
+        timeSlots={plannerDateTimeSlots?.[dayTimelineModalDate ?? ""] ?? []}
       />
     </div>
   );

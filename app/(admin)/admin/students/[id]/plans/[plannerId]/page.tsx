@@ -6,7 +6,9 @@ import { AdminPlanManagement } from '../_components/AdminPlanManagement';
 import { AdminPlanManagementSkeleton } from '../_components/AdminPlanManagementSkeleton';
 import { PlannerHeader } from '../_components/PlannerHeader';
 import { getTodayInTimezone } from '@/lib/utils/dateUtils';
+import { generateScheduleForPlanner } from '@/lib/domains/admin-plan/actions/planCreation/scheduleGenerator';
 import type { DailyScheduleInfo } from '@/lib/types/plan';
+import type { TimeSlot } from '@/lib/types/plan-generation';
 
 interface Props {
   params: Promise<{ id: string; plannerId: string }>;
@@ -55,7 +57,29 @@ export default async function PlannerPlanManagementPage({
 
   const targetDate = date ?? getTodayInTimezone();
 
-  // 4. 해당 플래너의 플랜 그룹 조회 (전체 목록 + daily_schedule)
+  // 4. 플래너 기반 스케줄 계산 (플랜 그룹 없이도 주차/일차 정보 표시용)
+  let plannerCalculatedSchedule: DailyScheduleInfo[] | undefined;
+  let plannerDateTimeSlots: Record<string, TimeSlot[]> | undefined;
+  if (planner.periodStart && planner.periodEnd) {
+    const scheduleResult = await generateScheduleForPlanner(
+      plannerId,
+      planner.periodStart,
+      planner.periodEnd
+    );
+    if (scheduleResult.success) {
+      plannerCalculatedSchedule = scheduleResult.dailySchedule.map((d) => ({
+        date: d.date,
+        day_type: d.day_type as DailyScheduleInfo['day_type'],
+        study_hours: 0, // 계산된 스케줄에서는 기본값 사용
+        week_number: d.week_number ?? undefined,
+        cycle_day_number: d.cycle_day_number ?? undefined,
+      }));
+      // Map을 Object로 변환 (Server→Client 직렬화)
+      plannerDateTimeSlots = Object.fromEntries(scheduleResult.dateTimeSlots);
+    }
+  }
+
+  // 5. 해당 플래너의 플랜 그룹 조회 (전체 목록 + daily_schedule)
   const supabase = await createSupabaseServerClient();
   const { data: plannerGroups } = await supabase
     .from('plan_groups')
@@ -112,6 +136,8 @@ export default async function PlannerPlanManagementPage({
           autoOpenWizard={openWizard === 'true'}
           plannerDailySchedules={plannerDailySchedules}
           plannerExclusions={plannerExclusions}
+          plannerCalculatedSchedule={plannerCalculatedSchedule}
+          plannerDateTimeSlots={plannerDateTimeSlots}
         />
       </Suspense>
     </div>

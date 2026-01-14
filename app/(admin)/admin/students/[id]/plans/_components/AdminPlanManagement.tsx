@@ -41,6 +41,7 @@ import {
 } from "./dynamicModals";
 import { getTodayInTimezone } from "@/lib/utils/dateUtils";
 import type { DailyScheduleInfo } from "@/lib/types/plan";
+import type { TimeSlot } from "@/lib/types/plan-generation";
 
 // Context & Tabs
 import { AdminPlanProvider, useAdminPlan } from "./context/AdminPlanContext";
@@ -81,6 +82,10 @@ interface AdminPlanManagementProps {
     exclusionType: string;
     reason?: string | null;
   }>;
+  /** 플래너 레벨에서 계산된 스케줄 (플랜 그룹 없이도 주차/일차 표시용) */
+  plannerCalculatedSchedule?: DailyScheduleInfo[];
+  /** 플래너 레벨에서 계산된 시간대별 타임슬롯 */
+  plannerDateTimeSlots?: Record<string, TimeSlot[]>;
 }
 
 export function AdminPlanManagement(props: AdminPlanManagementProps) {
@@ -95,6 +100,8 @@ export function AdminPlanManagement(props: AdminPlanManagementProps) {
       selectedPlannerId={props.selectedPlannerId}
       plannerDailySchedules={props.plannerDailySchedules}
       plannerExclusions={props.plannerExclusions}
+      plannerCalculatedSchedule={props.plannerCalculatedSchedule}
+      plannerDateTimeSlots={props.plannerDateTimeSlots}
     >
       <AdminPlanManagementContent
         autoOpenWizard={props.autoOpenWizard}

@@ -12,15 +12,18 @@ import {
   CheckCircle2,
   PlayCircle,
   Trash2,
-  Edit3,
   Loader2,
   ArrowRightLeft,
   AlertTriangle,
+  SkipForward,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/ToastProvider";
+import {
+  updateStudentPlan,
+  deleteStudentPlan,
+} from "@/lib/domains/plan/actions/core";
 import type { PlanWithContent } from "../_types/plan";
-import { formatDateString } from "@/lib/date/calendarUtils";
 
 type PlanDetailModalProps = {
   open: boolean;
@@ -122,10 +125,18 @@ export function PlanDetailModal({
   const handleStatusChange = (newStatus: string) => {
     startTransition(async () => {
       try {
-        // TODO: Implement status change API
-        showToast(`상태가 "${STATUS_CONFIG[newStatus as keyof typeof STATUS_CONFIG]?.label || newStatus}"(으)로 변경되었습니다.`, "success");
-        router.refresh();
-        onPlanUpdated?.();
+        const result = await updateStudentPlan(plan.id, { status: newStatus });
+
+        if (result.success) {
+          showToast(
+            `상태가 "${STATUS_CONFIG[newStatus as keyof typeof STATUS_CONFIG]?.label || newStatus}"(으)로 변경되었습니다.`,
+            "success"
+          );
+          router.refresh();
+          onPlanUpdated?.();
+        } else {
+          showToast(result.error || "상태 변경에 실패했습니다.", "error");
+        }
       } catch (error) {
         showToast("상태 변경 중 오류가 발생했습니다.", "error");
       }
@@ -136,11 +147,16 @@ export function PlanDetailModal({
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        // TODO: Implement delete API
-        showToast("플랜이 삭제되었습니다.", "success");
-        handleClose();
-        router.refresh();
-        onPlanUpdated?.();
+        const result = await deleteStudentPlan(plan.id);
+
+        if (result.success) {
+          showToast("플랜이 삭제되었습니다.", "success");
+          handleClose();
+          router.refresh();
+          onPlanUpdated?.();
+        } else {
+          showToast(result.error || "플랜 삭제에 실패했습니다.", "error");
+        }
       } catch (error) {
         showToast("플랜 삭제 중 오류가 발생했습니다.", "error");
       }
@@ -188,8 +204,8 @@ export function PlanDetailModal({
 
         {/* 본문 */}
         <div className="p-6">
-          {/* 상태 배지 */}
-          <div className="flex items-center gap-2 mb-4">
+          {/* 상태 배지 및 빠른 상태 변경 */}
+          <div className="flex items-center justify-between gap-2 mb-4">
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium",
@@ -200,6 +216,43 @@ export function PlanDetailModal({
               <StatusIcon className="h-4 w-4" />
               {statusConfig.label}
             </span>
+
+            {/* 빠른 상태 변경 버튼 */}
+            <div className="flex items-center gap-1">
+              {statusKey !== "completed" && (
+                <button
+                  onClick={() => handleStatusChange("completed")}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                  title="완료로 표시"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  완료
+                </button>
+              )}
+              {statusKey !== "skipped" && statusKey !== "completed" && (
+                <button
+                  onClick={() => handleStatusChange("skipped")}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-yellow-600 hover:bg-yellow-50 disabled:opacity-50 dark:text-yellow-400 dark:hover:bg-yellow-900/20"
+                  title="건너뛰기"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                  건너뜀
+                </button>
+              )}
+              {(statusKey === "completed" || statusKey === "skipped") && (
+                <button
+                  onClick={() => handleStatusChange("scheduled")}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+                  title="예정으로 되돌리기"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  되돌리기
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 정보 그리드 */}

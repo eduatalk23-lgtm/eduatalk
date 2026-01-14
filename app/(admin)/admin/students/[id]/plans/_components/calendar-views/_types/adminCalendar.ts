@@ -3,6 +3,7 @@
  */
 
 import type { DailyScheduleInfo, PlanExclusion, Plan } from "@/lib/types/plan/domain";
+import type { TimeSlot } from "@/lib/types/plan-generation";
 
 // ============================================
 // 뷰 모드 타입
@@ -229,6 +230,10 @@ export type AdminCalendarViewProps = {
     reason?: string | null;
   }>;
   plannerDailySchedules: DailyScheduleInfo[][];
+  /** 날짜별 시간대 타임슬롯 (학습시간, 점심시간, 학원일정 등) */
+  dateTimeSlots?: Record<string, TimeSlot[]>;
+  /** 타임라인 클릭 시 상세 모달 열기 */
+  onTimelineClick?: (date: string) => void;
   onRefresh: () => void;
 };
 
@@ -246,6 +251,10 @@ export type AdminMonthViewProps = {
   plansByDate: PlansByDate;
   exclusionsByDate: ExclusionsByDate;
   dailySchedulesByDate: DailySchedulesByDate;
+  /** 날짜별 시간대 타임슬롯 */
+  dateTimeSlots?: Record<string, TimeSlot[]>;
+  /** 타임라인 클릭 콜백 */
+  onTimelineClick?: (date: string) => void;
   onPlanClick: (planId: string) => void;
   onPlanEdit: (planId: string) => void;
   onPlanDelete: (planId: string) => void;
@@ -273,6 +282,10 @@ export type AdminGanttViewProps = {
   exclusionsByDate: ExclusionsByDate;
   /** 날짜별 일일 스케줄 정보 (주기 정보 포함) */
   dailySchedulesByDate?: DailySchedulesByDate;
+  /** 날짜별 시간대 타임슬롯 */
+  dateTimeSlots?: Record<string, TimeSlot[]>;
+  /** 타임라인 클릭 콜백 */
+  onTimelineClick?: (date: string) => void;
   onPlanClick: (planId: string) => void;
   onRefresh: () => void;
 };

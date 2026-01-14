@@ -10,22 +10,29 @@
 import { memo, useCallback } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/cn";
 import { useAdminCalendarDrag } from "./_context/AdminCalendarDragContext";
 import DraggableAdminPlanCard from "./DraggableAdminPlanCard";
+import { MiniTimelineBar } from "../MiniTimelineBar";
 import type {
   CalendarPlan,
   DayCellStatus,
   DayCellStats,
   DroppableTargetData,
 } from "./_types/adminCalendar";
+import type { TimeSlot } from "@/lib/types/plan-generation";
 
 interface DroppableAdminDayCellProps {
   date: Date;
   status: DayCellStatus;
   stats: DayCellStats;
   plans: CalendarPlan[];
+  /** 시간대 타임슬롯 (학습시간, 점심시간, 학원일정 등) */
+  timeSlots?: TimeSlot[];
+  /** 타임라인 클릭 핸들러 */
+  onTimelineClick?: () => void;
   /** 날짜 클릭 핸들러 - dateStr(yyyy-MM-dd)을 인자로 받음 */
   onDateClick: (dateStr: string) => void;
   /** 플랜 클릭 핸들러 */
@@ -129,6 +136,8 @@ function DroppableAdminDayCellComponent({
   status,
   stats,
   plans,
+  timeSlots,
+  onTimelineClick,
   onDateClick,
   onPlanClick,
   onContextMenu,
@@ -147,7 +156,7 @@ function DroppableAdminDayCellComponent({
 
   const { isDragging, canDropOnDate } = useAdminCalendarDrag();
 
-  const { setNodeRef, isOver, active } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `day-${dateStr}`,
     data: dropData,
     disabled: status.isExclusion,
@@ -176,14 +185,14 @@ function DroppableAdminDayCellComponent({
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       className={cn(
-        "bg-white p-2 min-h-[100px] cursor-pointer transition-colors",
+        "relative bg-white p-2 min-h-[100px] cursor-pointer transition-colors",
         "hover:bg-gray-50",
         !status.isCurrentMonth && "bg-gray-50",
         status.isSelected && "ring-2 ring-blue-500 ring-inset",
         status.isExclusion && "bg-gray-100",
-        // 드롭 관련 스타일
-        showDropIndicator && canDrop && "ring-2 ring-dashed ring-blue-300",
-        isOver && canDrop && "bg-blue-50 ring-2 ring-blue-500",
+        // 드롭 관련 스타일 - 펄스 애니메이션 추가
+        showDropIndicator && canDrop && "ring-2 ring-dashed ring-blue-300 animate-pulse",
+        isOver && canDrop && "bg-blue-50 ring-2 ring-blue-500 animate-none",
         showInvalidDrop && "bg-red-50 cursor-not-allowed",
         isOver && !canDrop && "bg-red-100"
       )}
@@ -229,12 +238,26 @@ function DroppableAdminDayCellComponent({
         ) : null}
       </div>
 
-      {/* 드래그 중 드롭 불가 표시 */}
-      {showInvalidDrop && (
-        <div className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded">
-          <span className="text-xs text-red-500 font-medium">제외일</span>
-        </div>
-      )}
+      {/* 드래그 중 드롭 불가 표시 - shake 애니메이션 */}
+      <AnimatePresence>
+        {showInvalidDrop && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: 1,
+              x: [0, -3, 3, -3, 3, 0],
+            }}
+            exit={{ opacity: 0 }}
+            transition={{
+              opacity: { duration: 0.15 },
+              x: { duration: 0.4, repeat: Infinity, repeatDelay: 0.3 }
+            }}
+            className="absolute inset-0 flex items-center justify-center bg-red-50/80 rounded z-10"
+          >
+            <span className="text-xs text-red-500 font-medium">제외일</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 플랜 요약 */}
       {stats.totalPlans > 0 && !status.isExclusion && (
@@ -269,6 +292,18 @@ function DroppableAdminDayCellComponent({
                 />
               )}
             </div>
+          )}
+
+          {/* 타임라인 바 (학습시간, 학원일정 등) */}
+          {timeSlots && timeSlots.length > 0 && (
+            <MiniTimelineBar
+              timeSlots={timeSlots}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTimelineClick?.();
+              }}
+              className="mt-0.5"
+            />
           )}
 
           {/* 플랜 카운트 */}

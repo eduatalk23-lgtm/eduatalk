@@ -253,6 +253,7 @@ export function AdminCalendarDragProvider({
               plan={activePlan}
               overTarget={overTarget}
               canDropOnDate={canDropOnDate}
+              isPending={isPending}
             />
           )}
         </DragOverlay>

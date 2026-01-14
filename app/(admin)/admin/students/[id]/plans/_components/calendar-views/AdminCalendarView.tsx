@@ -78,6 +78,8 @@ export default function AdminCalendarView({
   onDateChange,
   plannerExclusions,
   plannerDailySchedules,
+  dateTimeSlots,
+  onTimelineClick,
   onRefresh,
 }: AdminCalendarViewProps) {
   // 뷰 모드 상태
@@ -523,6 +525,8 @@ export default function AdminCalendarView({
               plansByDate={plansByDate}
               exclusionsByDate={exclusionsByDate}
               dailySchedulesByDate={dailySchedulesByDate}
+              dateTimeSlots={dateTimeSlots}
+              onTimelineClick={onTimelineClick}
               onPlanClick={handlePlanClick}
               onPlanEdit={handlePlanEdit}
               onPlanDelete={handlePlanDelete}
@@ -543,6 +547,8 @@ export default function AdminCalendarView({
               rows={ganttRows}
               exclusionsByDate={exclusionsByDate}
               dailySchedulesByDate={dailySchedulesByDate}
+              dateTimeSlots={dateTimeSlots}
+              onTimelineClick={onTimelineClick}
               onPlanClick={handlePlanClick}
               onRefresh={handleRefreshAll}
             />

@@ -47,6 +47,7 @@ export interface ScheduleGenerationResult {
     date: string;
     day_type: string;
     week_number: number | null;
+    cycle_day_number: number | null;
   }>;
 }
 
@@ -166,6 +167,7 @@ export async function generateScheduleForPlanner(
     date: daily.date,
     day_type: daily.day_type || '학습일',
     week_number: daily.week_number || null,
+    cycle_day_number: daily.cycle_day_number || null,
   }));
 
   return {
@@ -324,6 +326,7 @@ export async function generateScheduleForPlanGroup(
     date: daily.date,
     day_type: daily.day_type || '학습일',
     week_number: daily.week_number || null,
+    cycle_day_number: daily.cycle_day_number || null,
   }));
 
   return {

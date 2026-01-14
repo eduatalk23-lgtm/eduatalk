@@ -20,6 +20,7 @@ import { ko } from "date-fns/locale";
 import { cn } from "@/lib/cn";
 import DraggableGanttPlanBar from "./DraggableGanttPlanBar";
 import DroppableGanttDateColumn from "./DroppableGanttDateColumn";
+import { MiniTimelineBar } from "../MiniTimelineBar";
 import type { AdminGanttViewProps, CalendarPlan } from "./_types/adminCalendar";
 
 // 날짜 셀 너비 (px)
@@ -31,6 +32,8 @@ export default function AdminGanttView({
   rows,
   exclusionsByDate,
   dailySchedulesByDate,
+  dateTimeSlots,
+  onTimelineClick,
   onPlanClick,
 }: AdminGanttViewProps) {
   // 날짜 범위 내 모든 날짜
@@ -120,6 +123,17 @@ export default function AdminGanttView({
                     <span className="text-[8px] px-0.5 bg-purple-100 text-purple-600 rounded font-medium">
                       R
                     </span>
+                  )}
+                  {/* 타임라인 바 (학습시간, 학원일정 등) */}
+                  {dateTimeSlots?.[dateStr] && dateTimeSlots[dateStr].length > 0 && (
+                    <MiniTimelineBar
+                      timeSlots={dateTimeSlots[dateStr]}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTimelineClick?.(dateStr);
+                      }}
+                      className="mt-0.5 w-[36px]"
+                    />
                   )}
                 </div>
               );
