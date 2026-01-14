@@ -10,6 +10,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import type {
   SchoolType,
   SchoolTypeKor,
@@ -84,7 +85,7 @@ export async function getRegions(): Promise<Region[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 지역 조회 실패", error);
+    logActionError("data/schools.getRegions", error.message);
     return [];
   }
 
@@ -106,7 +107,7 @@ export async function getRegionsByParent(parentId: string): Promise<Region[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 하위 지역 조회 실패", error);
+    logActionError("data/schools.getRegionsByParent", error.message);
     return [];
   }
 
@@ -128,7 +129,7 @@ export async function getRegionsByLevel(level: 1 | 2 | 3): Promise<Region[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 레벨별 지역 조회 실패", error);
+    logActionError("data/schools.getRegionsByLevel", error.message);
     return [];
   }
 
@@ -255,7 +256,7 @@ export async function getAllSchools(options?: GetSchoolsOptions): Promise<AllSch
 
     return results;
   } catch (error) {
-    console.error("[data/schools] 통합 학교 조회 실패", error);
+    logActionError("data/schools.getAllSchools", error instanceof Error ? error.message : String(error));
     return [];
   }
 }
@@ -505,7 +506,7 @@ export async function searchAllSchools(options: SearchSchoolsOptions): Promise<S
 
     return results;
   } catch (error) {
-    console.error("[data/schools] 학교 검색 실패", error);
+    logActionError("data/schools.searchAllSchools", error instanceof Error ? error.message : String(error));
     return [];
   }
 }
@@ -594,7 +595,7 @@ export async function getSchoolByUnifiedId(unifiedId: string): Promise<AllSchool
 
     return null;
   } catch (error) {
-    console.error("[data/schools] 통합 학교 조회 실패", error);
+    logActionError("data/schools.getSchoolByUnifiedId", error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -633,7 +634,7 @@ export async function getSchoolInfoList(options?: {
   const { data, error } = await query.order("school_name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 중·고등학교 조회 실패", error);
+    logActionError("data/schools.getSchoolInfoList", error.message);
     return [];
   }
 
@@ -653,7 +654,7 @@ export async function getSchoolInfoById(id: number): Promise<SchoolInfo | null> 
     .maybeSingle();
 
   if (error) {
-    console.error("[data/schools] 중·고등학교 조회 실패", error);
+    logActionError("data/schools.getSchoolInfoById", error.message);
     return null;
   }
 
@@ -685,7 +686,7 @@ export async function searchSchoolInfo(
     .order("school_name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 중·고등학교 검색 실패", error);
+    logActionError("data/schools.searchSchoolInfo", error.message);
     return [];
   }
 
@@ -723,7 +724,7 @@ export async function getUniversities(options?: {
   const { data, error } = await query.order("name_kor", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 대학교 조회 실패", error);
+    logActionError("data/schools.getUniversities", error.message);
     return [];
   }
 
@@ -763,7 +764,7 @@ export async function getUniversityCampuses(options?: {
   const { data, error } = await query.order("campus_name", { ascending: true });
 
   if (error) {
-    console.error("[data/schools] 대학교 캠퍼스 조회 실패", error);
+    logActionError("data/schools.getUniversityCampuses", error.message);
     return [];
   }
 
@@ -786,7 +787,7 @@ export async function getUniversityCampusById(id: number): Promise<UniversityWit
     .maybeSingle();
 
   if (error) {
-    console.error("[data/schools] 대학교 캠퍼스 조회 실패", error);
+    logActionError("data/schools.getUniversityCampusById", error.message);
     return null;
   }
 

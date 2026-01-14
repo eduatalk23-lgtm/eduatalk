@@ -2,6 +2,7 @@
 
 import type { SupabaseServerClient } from "@/lib/data/core/types";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
  * 콘텐츠 타입 정의
@@ -62,21 +63,14 @@ export async function fetchContentTotal(
 ): Promise<number | null> {
   // Calendar-First: content_id가 null 또는 빈 문자열인 경우 (자유 학습)
   if (!contentId) {
-    console.warn("[contentTotal] content_id가 없음 (자유 학습)", {
-      contentType,
-      studentId,
-    });
+    logActionWarn("contentTotal", `content_id가 없음 (자유 학습) - type:${contentType}`);
     return null;
   }
 
   // UUID 형식 검증 (빈 문자열 및 잘못된 형식 방지)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(contentId)) {
-    console.warn("[contentTotal] 유효하지 않은 content_id 형식", {
-      contentType,
-      contentId,
-      studentId,
-    });
+    logActionWarn("contentTotal", `유효하지 않은 content_id 형식 - type:${contentType}, id:${contentId}`);
     return null;
   }
 
@@ -95,21 +89,12 @@ export async function fetchContentTotal(
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성)
       if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        console.warn("[contentTotal] books.student_id 컬럼이 없어 fallback 처리", {
-          contentId,
-          studentId,
-          errorCode: error?.code,
-        });
+        logActionWarn("contentTotal", `books.student_id 컬럼이 없어 fallback 처리 - code:${error?.code}`);
         ({ data, error } = await selectBook().maybeSingle<BookRow>());
       }
 
       if (error) {
-        console.error("[contentTotal] 책 총량 조회 실패", {
-          contentId,
-          studentId,
-          error: error.message,
-          code: error.code,
-        });
+        logActionError("contentTotal", `책 총량 조회 실패 - ${error.message} (code:${error.code})`);
         throw error;
       }
 
@@ -130,21 +115,12 @@ export async function fetchContentTotal(
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성)
       if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        console.warn("[contentTotal] lectures.student_id 컬럼이 없어 fallback 처리", {
-          contentId,
-          studentId,
-          errorCode: error?.code,
-        });
+        logActionWarn("contentTotal", `lectures.student_id 컬럼이 없어 fallback 처리 - code:${error?.code}`);
         ({ data, error } = await selectLecture().maybeSingle<LectureRow>());
       }
 
       if (error) {
-        console.error("[contentTotal] 강의 총량 조회 실패", {
-          contentId,
-          studentId,
-          error: error.message,
-          code: error.code,
-        });
+        logActionError("contentTotal", `강의 총량 조회 실패 - ${error.message} (code:${error.code})`);
         throw error;
       }
 
@@ -162,13 +138,7 @@ export async function fetchContentTotal(
           .maybeSingle<MasterLectureRow>();
 
         if (masterError) {
-          console.error("[contentTotal] 마스터 강의 총량 조회 실패", {
-            contentId,
-            studentId,
-            masterLectureId: data.master_lecture_id,
-            error: masterError.message,
-            code: masterError.code,
-          });
+          logActionError("contentTotal", `마스터 강의 총량 조회 실패 - ${masterError.message} (code:${masterError.code})`);
           // 마스터 강의 조회 실패는 치명적이지 않으므로 null 반환
           return null;
         }
@@ -181,12 +151,7 @@ export async function fetchContentTotal(
       }
 
       // duration도 없고 master_lecture_id도 없거나 master_lectures에서도 조회 실패
-      console.warn("[contentTotal] 강의 총량을 찾을 수 없음", {
-        contentId,
-        studentId,
-        hasDuration: data?.duration != null,
-        masterLectureId: data?.master_lecture_id,
-      });
+      logActionWarn("contentTotal", `강의 총량을 찾을 수 없음 - id:${contentId}, hasDuration:${data?.duration != null}`);
       return null;
     }
 
@@ -205,40 +170,22 @@ export async function fetchContentTotal(
 
       // student_id 컬럼이 없는 경우 fallback (하위 호환성, 이론적으로 발생하지 않지만 방어적 코딩)
       if (ErrorCodeCheckers.isColumnNotFound(error)) {
-        console.warn("[contentTotal] student_custom_contents.student_id 컬럼이 없어 fallback 처리", {
-          contentId,
-          studentId,
-          errorCode: error?.code,
-        });
+        logActionWarn("contentTotal", `student_custom_contents.student_id 컬럼이 없어 fallback 처리 - code:${error?.code}`);
         ({ data, error } = await selectCustom().maybeSingle<CustomRow>());
       }
 
       if (error) {
-        console.error("[contentTotal] 커스텀 콘텐츠 총량 조회 실패", {
-          contentId,
-          studentId,
-          error: error.message,
-          code: error.code,
-        });
+        logActionError("contentTotal", `커스텀 콘텐츠 총량 조회 실패 - ${error.message} (code:${error.code})`);
         throw error;
       }
 
       return data?.total_page_or_time ?? null;
     }
 
-    console.warn("[contentTotal] 알 수 없는 콘텐츠 타입", {
-      contentType,
-      contentId,
-      studentId,
-    });
+    logActionWarn("contentTotal", `알 수 없는 콘텐츠 타입 - type:${contentType}, id:${contentId}`);
     return null;
   } catch (error) {
-    console.error("[contentTotal] 콘텐츠 총량 조회 중 예외 발생", {
-      contentType,
-      contentId,
-      studentId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logActionError("contentTotal", `콘텐츠 총량 조회 중 예외 발생 - type:${contentType}, ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }

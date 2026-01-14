@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
  * 에러 객체에서 안전한 정보만 추출 (민감 정보 제외)
@@ -40,7 +41,7 @@ async function hashSessionToken(token: string): Promise<string> {
     return `hashed:${hash}`;
   } catch (error) {
     // crypto 모듈을 사용할 수 없는 경우 마스킹 사용 (fallback)
-    console.warn("[session] 해싱 실패, 마스킹 사용:", sanitizeError(error));
+    logActionWarn("session.hashSessionToken", `해싱 실패, 마스킹 사용: ${sanitizeError(error).message}`);
     // 토큰의 앞 8자리 + "..." + 뒤 8자리 형태로 마스킹
     if (token.length <= 16) {
       return `masked:${"*".repeat(token.length)}`;
@@ -175,10 +176,10 @@ export async function saveUserSession(
     });
 
     if (error) {
-      console.error("[session] 세션 저장 실패:", sanitizeError(error));
+      logActionError("session.saveUserSession", `세션 저장 실패: ${sanitizeError(error).message}`);
     }
   } catch (error) {
-    console.error("[session] 세션 저장 예외:", sanitizeError(error));
+    logActionError("session.saveUserSession", `세션 저장 예외: ${sanitizeError(error).message}`);
   }
 }
 
@@ -213,14 +214,14 @@ export async function getUserSessions(): Promise<UserSession[]> {
           sessionError.name === "AuthSessionMissingError";
 
         if (!isSessionMissing) {
-          console.warn("[session] getSession 실패:", sanitizeError(sessionError));
+          logActionWarn("session.getUserSessions", `getSession 실패: ${sanitizeError(sessionError).message}`);
         }
       } else {
         session = currentSession;
       }
     } catch (error) {
       // getSession 실패 시 조용히 처리
-      console.warn("[session] getSession 예외:", sanitizeError(error));
+      logActionWarn("session.getUserSessions", `getSession 예외: ${sanitizeError(error).message}`);
     }
 
     // 현재 세션 조회
@@ -231,7 +232,7 @@ export async function getUserSessions(): Promise<UserSession[]> {
       .order("last_active_at", { ascending: false });
 
     if (fetchError) {
-      console.error("[session] 세션 조회 실패:", sanitizeError(fetchError));
+      logActionError("session.getUserSessions", `세션 조회 실패: ${sanitizeError(fetchError).message}`);
       return [];
     }
 
@@ -277,19 +278,19 @@ export async function getUserSessions(): Promise<UserSession[]> {
           .single();
 
         if (insertError) {
-          console.error("[session] 현재 세션 자동 등록 실패:", sanitizeError(insertError));
+          logActionError("session.getUserSessions", `현재 세션 자동 등록 실패: ${sanitizeError(insertError).message}`);
         } else if (newSession) {
           // 새로 등록된 세션을 목록에 추가
           sessions.unshift(newSession as UserSession);
         }
       } catch (error) {
-        console.error("[session] 현재 세션 자동 등록 예외:", sanitizeError(error));
+        logActionError("session.getUserSessions", `현재 세션 자동 등록 예외: ${sanitizeError(error).message}`);
       }
     }
 
     return sessions;
   } catch (error) {
-    console.error("[session] 세션 조회 예외:", sanitizeError(error));
+    logActionError("session.getUserSessions", `세션 조회 예외: ${sanitizeError(error).message}`);
     return [];
   }
 }
@@ -327,7 +328,7 @@ export async function revokeSession(sessionId: string): Promise<{
     if (session.is_current_session) {
       const { error: signOutError } = await supabase.auth.signOut();
       if (signOutError) {
-        console.error("[session] 현재 세션 로그아웃 실패:", sanitizeError(signOutError));
+        logActionError("session.revokeSession", `현재 세션 로그아웃 실패: ${sanitizeError(signOutError).message}`);
       }
     }
 
@@ -344,7 +345,7 @@ export async function revokeSession(sessionId: string): Promise<{
 
     return { success: true };
   } catch (error) {
-    console.error("[session] 세션 삭제 예외:", sanitizeError(error));
+    logActionError("session.revokeSession", `세션 삭제 예외: ${sanitizeError(error).message}`);
     return {
       success: false,
       error:
@@ -385,7 +386,7 @@ export async function revokeAllOtherSessions(): Promise<{
 
     return { success: true, revokedCount: data?.length || 0 };
   } catch (error) {
-    console.error("[session] 세션 일괄 삭제 예외:", sanitizeError(error));
+    logActionError("session.revokeAllOtherSessions", `세션 일괄 삭제 예외: ${sanitizeError(error).message}`);
     return {
       success: false,
       error:
@@ -414,6 +415,6 @@ export async function updateLastActive(): Promise<void> {
       .eq("is_current_session", true);
   } catch (error) {
     // 조용히 실패 (선택적 기능)
-    console.error("[session] 활동 시간 업데이트 실패:", sanitizeError(error));
+    logActionError("session.updateLastActive", `활동 시간 업데이트 실패: ${sanitizeError(error).message}`);
   }
 }

@@ -12,6 +12,7 @@ import {
   type OfflineAction,
   type OfflineActionType,
 } from "./storage";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 import {
   isOnline,
   addNetworkStatusListener,
@@ -94,7 +95,7 @@ export async function enqueueAction(
   // 온라인이면 즉시 처리 시도
   if (isOnline()) {
     // 비동기로 처리 (await하지 않음)
-    processQueue().catch(console.error);
+    processQueue().catch((err) => logActionError("OfflineQueue.enqueueAction", err instanceof Error ? err.message : String(err)));
   }
 
   return action.id;
@@ -118,7 +119,7 @@ function calculateRetryDelay(retryCount: number): number {
 async function processAction(action: OfflineAction): Promise<boolean> {
   const executor = actionExecutors.get(action.type);
   if (!executor) {
-    console.error(`[OfflineQueue] 알 수 없는 액션 타입: ${action.type}`);
+    logActionError("OfflineQueue.processAction", `알 수 없는 액션 타입: ${action.type}`);
     await deleteOfflineAction(action.id);
     return true; // 처리 완료로 간주 (실행기가 없으면 삭제)
   }
@@ -128,14 +129,14 @@ async function processAction(action: OfflineAction): Promise<boolean> {
 
     if (result.success) {
       await deleteOfflineAction(action.id);
-      console.log(`[OfflineQueue] 액션 처리 성공: ${action.type} (${action.planId})`);
+      logActionDebug("OfflineQueue.processAction", `액션 처리 성공: ${action.type} (${action.planId})`);
       return true;
     }
 
     // 실패했지만 네트워크 오류가 아닌 경우 (비즈니스 로직 오류)
     // 재시도하지 않고 삭제
     if (!isNetworkError(new Error(result.error))) {
-      console.warn(`[OfflineQueue] 비즈니스 오류로 액션 삭제: ${result.error}`);
+      logActionWarn("OfflineQueue.processAction", `비즈니스 오류로 액션 삭제: ${result.error}`);
       await deleteOfflineAction(action.id);
       return true;
     }
@@ -144,12 +145,12 @@ async function processAction(action: OfflineAction): Promise<boolean> {
     return false;
   } catch (error) {
     if (isNetworkError(error)) {
-      console.warn(`[OfflineQueue] 네트워크 오류, 재시도 예정: ${action.type}`);
+      logActionWarn("OfflineQueue.processAction", `네트워크 오류, 재시도 예정: ${action.type}`);
       return false;
     }
 
     // 알 수 없는 오류 - 삭제
-    console.error(`[OfflineQueue] 알 수 없는 오류로 액션 삭제:`, error);
+    logActionError("OfflineQueue.processAction", `알 수 없는 오류로 액션 삭제: ${error instanceof Error ? error.message : String(error)}`);
     await deleteOfflineAction(action.id);
     return true;
   }
@@ -184,20 +185,20 @@ export async function processQueue(): Promise<void> {
         return;
       }
 
-      console.log(`[OfflineQueue] ${actions.length}개의 대기 중인 액션 처리 시작`);
+      logActionDebug("OfflineQueue.processQueue", `${actions.length}개의 대기 중인 액션 처리 시작`);
 
       // 같은 플랜에 대한 액션은 순서대로 처리
       // 다른 플랜의 액션은 병렬 처리 가능하지만, 단순화를 위해 순차 처리
       for (const action of actions) {
         // 오프라인이 되면 중단
         if (!isOnline()) {
-          console.log("[OfflineQueue] 오프라인 전환으로 처리 중단");
+          logActionDebug("OfflineQueue.processQueue", "오프라인 전환으로 처리 중단");
           break;
         }
 
         // 재시도 횟수 초과 확인
         if (action.retryCount >= MAX_RETRY_COUNT) {
-          console.warn(`[OfflineQueue] 최대 재시도 횟수 초과, 액션 삭제: ${action.type}`);
+          logActionWarn("OfflineQueue.processQueue", `최대 재시도 횟수 초과, 액션 삭제: ${action.type}`);
           await deleteOfflineAction(action.id);
           continue;
         }
@@ -229,7 +230,7 @@ export async function processQueue(): Promise<void> {
         await notifyQueueStatus();
       }
     } catch (error) {
-      console.error("[OfflineQueue] 큐 처리 중 오류:", error);
+      logActionError("OfflineQueue.processQueue", `큐 처리 중 오류: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       isProcessing = false;
       processingPromise = null;
@@ -246,14 +247,14 @@ export async function processQueue(): Promise<void> {
 export function initQueueProcessor(): () => void {
   const unsubscribe = addNetworkStatusListener((online) => {
     if (online) {
-      console.log("[OfflineQueue] 온라인 복귀, 큐 처리 시작");
-      processQueue().catch(console.error);
+      logActionDebug("OfflineQueue.initQueueProcessor", "온라인 복귀, 큐 처리 시작");
+      processQueue().catch((err) => logActionError("OfflineQueue.initQueueProcessor", err instanceof Error ? err.message : String(err)));
     }
   });
 
   // 초기 로드 시 처리
   if (isOnline()) {
-    processQueue().catch(console.error);
+    processQueue().catch((err) => logActionError("OfflineQueue.initQueueProcessor", err instanceof Error ? err.message : String(err)));
   }
 
   return unsubscribe;

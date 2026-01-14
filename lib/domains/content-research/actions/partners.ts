@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // Types
@@ -94,13 +95,13 @@ export async function getPartners(): Promise<{
       .order("display_name");
 
     if (error) {
-      console.error("[getPartners] Error:", error);
+      logActionError("getPartners", error.message);
       return { success: false, error: error.message };
     }
 
     return { success: true, partners: data as ContentPartner[] };
   } catch (error) {
-    console.error("[getPartners] Error:", error);
+    logActionError("getPartners", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "조회 중 오류 발생",
@@ -126,13 +127,13 @@ export async function getPartner(partnerId: string): Promise<{
       .single();
 
     if (error) {
-      console.error("[getPartner] Error:", error);
+      logActionError("getPartner", error.message);
       return { success: false, error: error.message };
     }
 
     return { success: true, partner: data as ContentPartner };
   } catch (error) {
-    console.error("[getPartner] Error:", error);
+    logActionError("getPartner", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "조회 중 오류 발생",
@@ -168,14 +169,14 @@ export async function createPartner(input: CreatePartnerInput): Promise<{
       .single();
 
     if (error) {
-      console.error("[createPartner] Error:", error);
+      logActionError("createPartner", error.message);
       return { success: false, error: error.message };
     }
 
     revalidatePath("/admin/content-management/partners");
     return { success: true, partner: data as ContentPartner };
   } catch (error) {
-    console.error("[createPartner] Error:", error);
+    logActionError("createPartner", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "생성 중 오류 발생",
@@ -205,7 +206,7 @@ export async function updatePartner(
       .single();
 
     if (error) {
-      console.error("[updatePartner] Error:", error);
+      logActionError("updatePartner", error.message);
       return { success: false, error: error.message };
     }
 
@@ -213,7 +214,7 @@ export async function updatePartner(
     revalidatePath(`/admin/content-management/partners/${partnerId}`);
     return { success: true, partner: data as ContentPartner };
   } catch (error) {
-    console.error("[updatePartner] Error:", error);
+    logActionError("updatePartner", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "수정 중 오류 발생",
@@ -237,14 +238,14 @@ export async function deletePartner(partnerId: string): Promise<{
       .eq("id", partnerId);
 
     if (error) {
-      console.error("[deletePartner] Error:", error);
+      logActionError("deletePartner", error.message);
       return { success: false, error: error.message };
     }
 
     revalidatePath("/admin/content-management/partners");
     return { success: true };
   } catch (error) {
-    console.error("[deletePartner] Error:", error);
+    logActionError("deletePartner", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "삭제 중 오류 발생",
@@ -271,13 +272,13 @@ export async function getPartnerSyncLogs(partnerId: string): Promise<{
       .limit(20);
 
     if (error) {
-      console.error("[getPartnerSyncLogs] Error:", error);
+      logActionError("getPartnerSyncLogs", error.message);
       return { success: false, error: error.message };
     }
 
     return { success: true, logs: data as PartnerSyncLog[] };
   } catch (error) {
-    console.error("[getPartnerSyncLogs] Error:", error);
+    logActionError("getPartnerSyncLogs", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "조회 중 오류 발생",
@@ -321,7 +322,7 @@ export async function togglePartnerActive(partnerId: string): Promise<{
     revalidatePath("/admin/content-management/partners");
     return { success: true, is_active: newStatus };
   } catch (error) {
-    console.error("[togglePartnerActive] Error:", error);
+    logActionError("togglePartnerActive", error instanceof Error ? error.message : String(error));
     return {
       success: false,
       error: error instanceof Error ? error.message : "상태 변경 중 오류 발생",
