@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { textPrimaryVar, textSecondaryVar, textTertiaryVar } from "@/lib/utils/darkMode";
+import { ChevronLeft } from "lucide-react";
 
 type PageHeaderProps = {
   title: string;
@@ -49,19 +50,7 @@ export function PageHeader({
             "hover:text-[rgb(var(--color-primary-600))] dark:hover:text-[rgb(var(--color-primary-400))]"
           )}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
+          <ChevronLeft className="w-4 h-4" />
           {backLabel}
         </Link>
       )}
