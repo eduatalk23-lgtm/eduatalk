@@ -13,6 +13,7 @@ import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import { getTenantContext } from "@/lib/tenant/getTenantContext";
 import { AppError, ErrorCode, withErrorHandling } from "@/lib/errors";
+import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 import type { TimeRange } from "@/lib/scheduler/calculateAvailableDates";
 
 // ============================================
@@ -317,7 +318,7 @@ async function _setPlannerAcademySchedulesInternal(
   );
 
   if (error) {
-    console.error("[_createPlanner] 학원일정 저장 실패:", error);
+    logActionError("planners._createPlanner", `학원일정 저장 실패: ${error.message}`);
     // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
   }
 }
@@ -346,7 +347,7 @@ async function _setPlannerExclusionsInternal(
   );
 
   if (error) {
-    console.error("[_createPlanner] 제외일 저장 실패:", error);
+    logActionError("planners._createPlanner", `제외일 저장 실패: ${error.message}`);
     // 플래너는 이미 생성되었으므로 에러를 던지지 않고 로깅만 함
   }
 }
@@ -545,7 +546,7 @@ async function _updatePlanner(
         .is("deleted_at", null);
 
       if (syncError) {
-        console.warn("[_updatePlanner] 플랜 그룹 동기화 실패:", syncError);
+        logActionWarn("planners._updatePlanner", `플랜 그룹 동기화 실패: ${syncError.message}`);
         // 플래너는 이미 업데이트되었으므로 경고만 로깅
       }
     }

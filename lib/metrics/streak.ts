@@ -5,6 +5,7 @@ import {
   getEndOfDayUTC,
   formatDateInTimezone,
 } from "@/lib/utils/dateUtils";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
  * 연속 학습일 계산
@@ -77,7 +78,7 @@ export async function calculateStreak(
 
     return streak;
   } catch (error) {
-    console.error("[metrics/streak] 연속 학습일 계산 실패", error);
+    logActionError("metrics.calculateStreak", `연속 학습일 계산 실패: ${error instanceof Error ? error.message : String(error)}`);
     return 0;
   }
 }

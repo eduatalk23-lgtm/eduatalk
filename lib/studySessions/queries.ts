@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -48,13 +49,13 @@ export async function getActiveSession(
     }
 
     if (error) {
-      console.error("[studySessions] 활성 세션 조회 실패", error);
+      logActionError("studySessions.getActiveSession", `활성 세션 조회 실패: ${error.message}`);
       return null;
     }
 
     return (data as StudySession | null) ?? null;
   } catch (error) {
-    console.error("[studySessions] 활성 세션 조회 실패", error);
+    logActionError("studySessions.getActiveSession", `활성 세션 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -95,13 +96,13 @@ export async function getTodaySessionsForPlan(
     }
 
     if (error) {
-      console.error("[studySessions] 플랜 세션 조회 실패", error);
+      logActionError("studySessions.getTodaySessionsForPlan", `플랜 세션 조회 실패: ${error.message}`);
       return [];
     }
 
     return (data as StudySession[] | null) ?? [];
   } catch (error) {
-    console.error("[studySessions] 플랜 세션 조회 실패", error);
+    logActionError("studySessions.getTodaySessionsForPlan", `플랜 세션 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 }
@@ -140,13 +141,13 @@ export async function getSessionsByDateRange(
     }
 
     if (error) {
-      console.error("[studySessions] 날짜 범위 세션 조회 실패", error);
+      logActionError("studySessions.getSessionsByDateRange", `날짜 범위 세션 조회 실패: ${error.message}`);
       return [];
     }
 
     return (data as StudySession[] | null) ?? [];
   } catch (error) {
-    console.error("[studySessions] 날짜 범위 세션 조회 실패", error);
+    logActionError("studySessions.getSessionsByDateRange", `날짜 범위 세션 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   }
 }

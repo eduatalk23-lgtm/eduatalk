@@ -7,6 +7,7 @@
  */
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   pythonMLClient,
   type ScorePredictionResponse,
@@ -38,7 +39,7 @@ export async function predictScore(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Score prediction error:", error);
+    logActionError("predictions.predictScore", `성적 예측 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "예측에 실패했습니다.",
@@ -67,7 +68,7 @@ export async function predictWorkload(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Workload prediction error:", error);
+    logActionError("predictions.predictWorkload", `학습량 예측 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "예측에 실패했습니다.",
@@ -92,7 +93,7 @@ export async function getPredictableSubjects(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Get predictable subjects error:", error);
+    logActionError("predictions.getPredictableSubjects", `예측 가능 과목 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "과목 조회에 실패했습니다.",
@@ -127,7 +128,7 @@ export async function getContentRecommendations(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Content recommendation error:", error);
+    logActionError("predictions.getContentRecommendations", `콘텐츠 추천 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천 조회에 실패했습니다.",
@@ -152,7 +153,7 @@ export async function getWeakSubjects(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Get weak subjects error:", error);
+    logActionError("predictions.getWeakSubjects", `취약 과목 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "취약 과목 조회에 실패했습니다.",
@@ -177,7 +178,7 @@ export async function getComprehensiveReport(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error("Comprehensive report error:", error);
+    logActionError("predictions.getComprehensiveReport", `종합 리포트 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "리포트 조회에 실패했습니다.",

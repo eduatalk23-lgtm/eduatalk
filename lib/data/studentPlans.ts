@@ -4,6 +4,7 @@ import {
   createTypedSingleQuery,
   createTypedConditionalQuery,
 } from "@/lib/data/core/typedQueryBuilder";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 import { handleQueryError } from "@/lib/data/core/errorHandler";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { Database } from "@/lib/supabase/database.types";
@@ -208,9 +209,9 @@ export async function getPlansForStudent(
       (id) => id && typeof id === "string" && id.trim().length > 0
     );
     if (validGroupIds.length === 0) {
-      console.warn(
-        "[data/studentPlans] 유효한 planGroupIds가 없습니다:",
-        filters.planGroupIds
+      logActionWarn(
+        "studentPlans.getPlansForStudent",
+        `유효한 planGroupIds가 없습니다: ${JSON.stringify(filters.planGroupIds)}`
       );
       return [];
     }
@@ -300,8 +301,9 @@ export async function getPlansForStudent(
   // data가 비어있고 planGroupIds가 있는 경우에만 추가 처리
   if (data && data.length === 0 && (filters.planGroupIds?.length ?? 0) > 0) {
     // planGroupIds 필터링이 문제일 수 있으므로, 애플리케이션 레벨에서 폴백 시도
-    console.warn(
-      "[data/studentPlans] planGroupIds 필터링 결과가 비어있음, 전체 조회로 폴백"
+    logActionWarn(
+      "studentPlans.getPlansForStudent",
+      "planGroupIds 필터링 결과가 비어있음, 전체 조회로 폴백"
     );
 
     // planGroupIds 없이 다시 시도
@@ -339,7 +341,7 @@ export async function getPlansForStudent(
       );
       return filtered;
     } catch (fallbackError) {
-      console.error("[data/studentPlans] 폴백 조회도 실패:", fallbackError);
+      logActionError("studentPlans.getPlansForStudent", `폴백 조회도 실패: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
     }
   }
 
@@ -600,11 +602,9 @@ export async function updatePlan(
     FORBIDDEN_UPDATE_FIELDS.includes(key as ForbiddenPlanUpdateFields)
   );
   if (forbiddenUsed.length > 0) {
-    console.warn(
-      `[data/studentPlans] 구조적 필드 업데이트 시도: ${forbiddenUsed.join(
-        ", "
-      )}. ` +
-        `이 필드들은 플랜그룹 레벨에서 처리해야 합니다. updatePlanSafe() 사용을 권장합니다.`
+    logActionWarn(
+      "studentPlans.updatePlan",
+      `구조적 필드 업데이트 시도: ${forbiddenUsed.join(", ")}. 이 필드들은 플랜그룹 레벨에서 처리해야 합니다. updatePlanSafe() 사용을 권장합니다.`
     );
   }
 
@@ -812,7 +812,7 @@ export async function getAdHocPlanById(
   const { data, error } = await query.maybeSingle();
 
   if (error) {
-    console.error("[data/studentPlans] getAdHocPlanById 오류:", error);
+    logActionError("studentPlans.getAdHocPlanById", `오류: ${error.message}`);
     return null;
   }
 
@@ -868,7 +868,7 @@ export async function getAdHocPlansForCalendar(
     .order("plan_date", { ascending: true });
 
   if (error) {
-    console.error("[data/studentPlans] getAdHocPlansForCalendar 오류:", error);
+    logActionError("studentPlans.getAdHocPlansForCalendar", `오류: ${error.message}`);
     return [];
   }
 
@@ -931,7 +931,7 @@ export async function getAdHocPlansByPlanGroup(
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("[data/studentPlans] getAdHocPlansByPlanGroup 오류:", error);
+    logActionError("studentPlans.getAdHocPlansByPlanGroup", `오류: ${error.message}`);
     return [];
   }
 

@@ -2,6 +2,8 @@
  * Metrics 모듈 공통 유틸리티 함수
  */
 
+import { logActionError } from "@/lib/utils/serverActionLogger";
+
 /**
  * Date 객체를 YYYY-MM-DD 형식의 문자열로 변환
  * 
@@ -103,7 +105,7 @@ export function handleMetricsError<T>(
     error instanceof Error ? error.message : String(error);
   const errorCode = error instanceof Error ? error.name : "UnknownError";
   
-  console.error(`${context} 실패`, error);
+  logActionError("metrics.handleMetricsError", `${context} 실패: ${errorMessage}`);
 
   return {
     success: false,

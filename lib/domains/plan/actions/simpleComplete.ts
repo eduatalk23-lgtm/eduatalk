@@ -10,6 +10,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { revalidatePath } from "next/cache";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import { parseStudentPermissions } from "@/lib/types/plan/completion";
 
 // ============================================
@@ -112,7 +113,7 @@ export async function simpleCompletePlan(
       .eq("id", planId);
 
     if (updateError) {
-      console.error("Simple complete error:", updateError);
+      logActionError("simpleComplete.simpleCompletePlan", `업데이트 실패: ${updateError.message}`);
       return { success: false, error: "Failed to complete" };
     }
 
@@ -125,7 +126,7 @@ export async function simpleCompletePlan(
 
     return { success: true, completedAt: now };
   } catch (error) {
-    console.error("Simple complete error:", error);
+    logActionError("simpleComplete.simpleCompletePlan", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -167,7 +168,7 @@ export async function undoSimpleComplete(
 
     return { success: true };
   } catch (error) {
-    console.error("Undo simple complete error:", error);
+    logActionError("simpleComplete.undoSimpleComplete", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -238,7 +239,7 @@ export async function simpleCompleteAdHocPlan(
       .eq("id", planId);
 
     if (updateError) {
-      console.error("Simple complete ad-hoc error:", updateError);
+      logActionError("simpleComplete.simpleCompleteAdHocPlan", `업데이트 실패: ${updateError.message}`);
       return { success: false, error: "Failed to complete" };
     }
 
@@ -246,7 +247,7 @@ export async function simpleCompleteAdHocPlan(
 
     return { success: true, completedAt: now };
   } catch (error) {
-    console.error("Simple complete ad-hoc error:", error);
+    logActionError("simpleComplete.simpleCompleteAdHocPlan", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -287,7 +288,7 @@ export async function undoSimpleCompleteAdHoc(
 
     return { success: true };
   } catch (error) {
-    console.error("Undo simple complete ad-hoc error:", error);
+    logActionError("simpleComplete.undoSimpleCompleteAdHoc", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, error: "Unexpected error" };
   }
 }
@@ -357,7 +358,7 @@ export async function batchSimpleComplete(
 
     return { success: true, completedCount: count || 0 };
   } catch (error) {
-    console.error("Batch simple complete error:", error);
+    logActionError("simpleComplete.batchSimpleComplete", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, completedCount: 0, error: "Unexpected error" };
   }
 }

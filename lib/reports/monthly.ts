@@ -4,6 +4,7 @@ import { getSubjectFromContent } from "@/lib/studySessions/summary";
 import { getInternalScores, getMockScores } from "@/lib/data/studentScores";
 import { getSubjectGroupById } from "@/lib/data/subjects";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -142,7 +143,7 @@ async function getPlanInfo(
 
     return data as { content_type: string | null; content_id: string | null } | null;
   } catch (error) {
-    console.error("[reports/monthly] 플랜 정보 조회 실패", error);
+    logActionError("reports.getPlanInfo", `플랜 정보 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -268,7 +269,7 @@ export async function getMonthlyStudyTime(
       bySubject,
     };
   } catch (error) {
-    console.error("[reports/monthly] 학습시간 조회 실패", error);
+    logActionError("reports.getMonthlyStudyTime", `학습시간 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       totalMinutes: 0,
       totalHours: 0,
@@ -370,7 +371,7 @@ export async function getMonthlyPlanSummary(
       byWeek,
     };
   } catch (error) {
-    console.error("[reports/monthly] 플랜 요약 조회 실패", error);
+    logActionError("reports.getMonthlyPlanSummary", `플랜 요약 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       totalPlans: 0,
       completedPlans: 0,
@@ -472,7 +473,7 @@ export async function getMonthlyGoalSummary(
       goals: goalsWithProgress.slice(0, 10), // 최대 10개
     };
   } catch (error) {
-    console.error("[reports/monthly] 목표 요약 조회 실패", error);
+    logActionError("reports.getMonthlyGoalSummary", `목표 요약 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       totalGoals: 0,
       activeGoals: 0,
@@ -501,7 +502,7 @@ export async function getMonthlyWeakSubjectTrend(
       .maybeSingle();
 
     if (!student || !student.tenant_id) {
-      console.error("[reports/monthly] 학생 정보 또는 tenant_id를 찾을 수 없습니다.");
+      logActionError("reports.getMonthlyWeakSubjectTrend", "학생 정보 또는 tenant_id를 찾을 수 없습니다.");
       return { subjects: [] };
     }
 
@@ -658,7 +659,7 @@ export async function getMonthlyWeakSubjectTrend(
 
     return { subjects };
   } catch (error) {
-    console.error("[reports/monthly] 취약 과목 트렌드 조회 실패", error);
+    logActionError("reports.getMonthlyWeakSubjectTrend", `취약 과목 트렌드 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return { subjects: [] };
   }
 }
@@ -781,7 +782,7 @@ export async function getMonthlyContentProgress(
 
     return { progressList };
   } catch (error) {
-    console.error("[reports/monthly] 콘텐츠 진행률 조회 실패", error);
+    logActionError("reports.getMonthlyContentProgress", `콘텐츠 진행률 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return { progressList: [] };
   }
 }
@@ -832,7 +833,7 @@ export async function getMonthlyHistory(
       })),
     };
   } catch (error) {
-    console.error("[reports/monthly] 히스토리 조회 실패", error);
+    logActionError("reports.getMonthlyHistory", `히스토리 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return { events: [] };
   }
 }
@@ -924,7 +925,7 @@ export async function getMonthlyReportData(
       studyTimeBySubject: studyTime.bySubject,
     };
   } catch (error) {
-    console.error("[reports/monthly] 리포트 데이터 조회 실패", error);
+    logActionError("reports.getMonthlyReportData", `리포트 데이터 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }
 }

@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CampTemplate, CampPlanConfig } from "@/lib/domains/camp/types";
 import type { PlanGroup } from "@/lib/types/plan";
 import type { WizardData } from "@/app/(student)/plan/new-group/_components/PlanGroupWizard";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 // CampPlanConfig 타입은 lib/domains/camp/types.ts에서 export
 export type { CampPlanConfig };
@@ -47,7 +48,7 @@ export function parseTemplateData(
       const parsed = JSON.parse(templateDataRaw);
       return parsed as CampTemplateData;
     } catch (parseError) {
-      console.error("[campAdapter] template_data 파싱 에러:", parseError);
+      logActionError("campAdapter.parseTemplateData", `template_data 파싱 에러: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
       return null;
     }
   }
@@ -77,7 +78,7 @@ export function parseSchedulerOptions(
       const parsed = JSON.parse(schedulerOptionsRaw);
       return parsed as CampSchedulerOptions;
     } catch (parseError) {
-      console.error("[campAdapter] scheduler_options 파싱 에러:", parseError);
+      logActionError("campAdapter.parseSchedulerOptions", `scheduler_options 파싱 에러: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
       return null;
     }
   }
@@ -183,19 +184,12 @@ export async function fetchCampTemplateBlocks(
     .maybeSingle();
 
   if (blockSetError) {
-    console.error("[campAdapter] 테넌트 블록 세트 조회 에러:", {
-      error: blockSetError,
-      block_set_id: blockSetId,
-      tenant_id: tenantId,
-    });
+    logActionError("campAdapter.fetchCampTemplateBlocks", `테넌트 블록 세트 조회 에러 - block_set_id:${blockSetId}, tenant_id:${tenantId}, ${blockSetError.message}`);
     return result;
   }
 
   if (!blockSetData) {
-    console.warn("[campAdapter] 블록 세트를 찾을 수 없습니다:", {
-      block_set_id: blockSetId,
-      tenant_id: tenantId,
-    });
+    logActionWarn("campAdapter.fetchCampTemplateBlocks", `블록 세트를 찾을 수 없습니다 - block_set_id:${blockSetId}, tenant_id:${tenantId}`);
     return result;
   }
 
@@ -211,10 +205,7 @@ export async function fetchCampTemplateBlocks(
     .order("start_time", { ascending: true });
 
   if (blocksError) {
-    console.error("[campAdapter] 템플릿 블록 조회 에러:", {
-      error: blocksError,
-      block_set_id: blockSetData.id,
-    });
+    logActionError("campAdapter.fetchCampTemplateBlocks", `템플릿 블록 조회 에러 - block_set_id:${blockSetData.id}, ${blocksError.message}`);
     return result;
   }
 
@@ -225,15 +216,9 @@ export async function fetchCampTemplateBlocks(
       start_time: b.start_time,
       end_time: b.end_time,
     }));
-    console.log("[campAdapter] 템플릿 블록 조회 성공:", {
-      count: result.blocks.length,
-      block_set_id: blockSetData.id,
-    });
+    logActionDebug("campAdapter.fetchCampTemplateBlocks", `템플릿 블록 조회 성공 - count:${result.blocks.length}, block_set_id:${blockSetData.id}`);
   } else {
-    console.warn("[campAdapter] 템플릿 블록이 없음:", {
-      block_set_id: blockSetData.id,
-      block_set_name: blockSetData.name,
-    });
+    logActionWarn("campAdapter.fetchCampTemplateBlocks", `템플릿 블록이 없음 - block_set_id:${blockSetData.id}, name:${blockSetData.name}`);
   }
 
   return result;
@@ -284,13 +269,8 @@ export async function parseCampConfiguration(
     );
 
     if (!blockSetId) {
-      console.warn("[campAdapter] block_set_id를 찾을 수 없음:", {
-        template_id: group.camp_template_id,
-        template_data_has_block_set_id: !!templateData?.block_set_id,
-        scheduler_options_has_template_block_set_id: !!parseSchedulerOptions(
-          group.scheduler_options
-        )?.template_block_set_id,
-      });
+      const hasTemplateBlockSetId = !!parseSchedulerOptions(group.scheduler_options)?.template_block_set_id;
+      logActionWarn("campAdapter.parseCampConfiguration", `block_set_id를 찾을 수 없음 - template_id:${group.camp_template_id}, template_data_has_block_set_id:${!!templateData?.block_set_id}, scheduler_options_has_template_block_set_id:${hasTemplateBlockSetId}`);
       return {
         ...defaultConfig,
         isLegacy: !!templateData?.block_set_id, // 레거시 데이터가 있으면 true
@@ -309,7 +289,7 @@ export async function parseCampConfiguration(
       isLegacy: false, // 연결 테이블이나 scheduler_options에서 찾았으면 레거시 아님
     };
   } catch (error) {
-    console.error("[campAdapter] 캠프 설정 파싱 중 에러:", error);
+    logActionError("campAdapter.parseCampConfiguration", `캠프 설정 파싱 중 에러: ${error instanceof Error ? error.message : String(error)}`);
     return defaultConfig;
   }
 }

@@ -10,6 +10,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import type { PlannerValidationResult, ValidatedPlanner } from "./types";
 
 /**
@@ -75,11 +76,7 @@ export async function validatePlanner(
     .single();
 
   if (error || !planner) {
-    console.error("[validatePlanner] 플래너 조회 실패:", {
-      plannerId,
-      tenantId,
-      error: error?.message,
-    });
+    logActionError("validatePlanner.validatePlanner", `플래너 조회 실패 - plannerId: ${plannerId}, tenantId: ${tenantId}, error: ${error?.message ?? "not found"}`);
     return {
       success: false,
       error: "플래너를 찾을 수 없습니다. 먼저 플래너를 선택해주세요.",
@@ -88,11 +85,7 @@ export async function validatePlanner(
 
   // 테넌트 격리 확인
   if (planner.tenant_id !== tenantId) {
-    console.error("[validatePlanner] 테넌트 불일치:", {
-      plannerId,
-      plannerTenantId: planner.tenant_id,
-      requestTenantId: tenantId,
-    });
+    logActionError("validatePlanner.validatePlanner", `테넌트 불일치 - plannerId: ${plannerId}, plannerTenantId: ${planner.tenant_id}, requestTenantId: ${tenantId}`);
     return {
       success: false,
       error: "해당 플래너에 접근 권한이 없습니다.",

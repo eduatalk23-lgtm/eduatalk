@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { safeQueryArray, safeQuerySingle } from "@/lib/supabase/safeQuery";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import { TIMER_ERRORS } from "@/lib/domains/today/errors";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -154,7 +155,7 @@ export async function getActiveSessionsForPlans(
   const safePlanIds = planIds.slice(0, MAX_IN_CLAUSE_SIZE);
 
   if (planIds.length > MAX_IN_CLAUSE_SIZE) {
-    console.warn(`[data/studentSessions] planIds truncated from ${planIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
+    logActionWarn("studentSessions.getActiveSessionsForPlans", `planIds truncated from ${planIds.length} to ${MAX_IN_CLAUSE_SIZE}`);
   }
 
   let query = supabase
@@ -274,11 +275,7 @@ export async function createSession(
           ? TIMER_ERRORS.TIMER_ALREADY_RUNNING_OTHER_PLAN
           : TIMER_ERRORS.TIMER_ALREADY_RUNNING_SAME_PLAN;
 
-        console.warn("[data/studentSessions] 중복 활성 세션 시도 (DB 제약 발동):", {
-          studentId: session.student_id,
-          planId: session.plan_id,
-          constraint: isStudentConstraint ? "per_student" : "per_plan",
-        });
+        logActionWarn("studentSessions.createSession", `중복 활성 세션 시도 (DB 제약 발동) - constraint:${isStudentConstraint ? "per_student" : "per_plan"}`);
         return {
           success: false,
           error: errorMessage,
@@ -297,23 +294,20 @@ export async function createSession(
           .single();
 
         if (fallbackResult.error) {
-          console.error("[data/studentSessions] 세션 생성 fallback 실패:", fallbackResult.error);
+          logActionError("studentSessions.createSession", `세션 생성 fallback 실패: ${fallbackResult.error.message}`);
           return { success: false, error: TIMER_ERRORS.SESSION_CREATE_FAILED };
         }
 
         return { success: true, sessionId: fallbackResult.data.id };
       }
 
-      console.error("[data/studentSessions] 세션 생성 실패:", {
-        code: error.code,
-        message: error.message,
-      });
+      logActionError("studentSessions.createSession", `세션 생성 실패 - code:${error.code}, ${error.message}`);
       return { success: false, error: TIMER_ERRORS.SESSION_CREATE_FAILED };
     }
 
     return { success: true, sessionId: data.id };
   } catch (err) {
-    console.error("[data/studentSessions] 세션 생성 예외:", err);
+    logActionError("studentSessions.createSession", `세션 생성 예외: ${err instanceof Error ? err.message : String(err)}`);
     return {
       success: false,
       error: err instanceof Error ? err.message : TIMER_ERRORS.SESSION_CREATE_FAILED,
@@ -377,18 +371,18 @@ export async function endSession(
         .maybeSingle();
 
       if (fallbackResult.error) {
-        console.error("[data/studentSessions] 세션 종료 실패", fallbackResult.error);
+        logActionError("studentSessions.endSession", `세션 종료 fallback 실패: ${fallbackResult.error.message}`);
         return { success: false, error: fallbackResult.error.message };
       }
     } else if (result.error) {
-      console.error("[data/studentSessions] 세션 종료 실패", result.error);
+      logActionError("studentSessions.endSession", `세션 종료 실패: ${result.error.message}`);
       return { success: false, error: result.error.message };
     }
 
     return { success: true, durationSeconds: actualDurationSeconds };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/studentSessions] 세션 종료 예외", error);
+    logActionError("studentSessions.endSession", `세션 종료 예외: ${errorMessage}`);
     return { success: false, error: errorMessage };
   }
 }
@@ -420,18 +414,18 @@ export async function deleteSession(
         .maybeSingle();
 
       if (fallbackResult.error && fallbackResult.error.code !== "PGRST116") {
-        console.error("[data/studentSessions] 세션 삭제 실패", fallbackResult.error);
+        logActionError("studentSessions.deleteSession", `세션 삭제 fallback 실패: ${fallbackResult.error.message}`);
         return { success: false, error: fallbackResult.error.message };
       }
     } else if (result.error && result.error.code !== "PGRST116") {
-      console.error("[data/studentSessions] 세션 삭제 실패", result.error);
+      logActionError("studentSessions.deleteSession", `세션 삭제 실패: ${result.error.message}`);
       return { success: false, error: result.error.message };
     }
 
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[data/studentSessions] 세션 삭제 예외", error);
+    logActionError("studentSessions.deleteSession", `세션 삭제 예외: ${errorMessage}`);
     return { success: false, error: errorMessage };
   }
 }

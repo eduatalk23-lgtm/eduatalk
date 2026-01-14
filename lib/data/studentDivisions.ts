@@ -5,6 +5,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseClientForRLSBypass } from "@/lib/supabase/clientSelector";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
  * 학생 구분 항목 타입
@@ -32,7 +33,7 @@ export async function getStudentDivisions(): Promise<StudentDivisionItem[]> {
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 항목 조회 실패", error);
+    logActionError("studentDivisions.getStudentDivisions", `학생 구분 항목 조회 실패: ${error.message}`);
     throw new Error(`학생 구분 항목 조회 실패: ${error.message}`);
   }
 
@@ -54,7 +55,7 @@ export async function getActiveStudentDivisions(): Promise<StudentDivisionItem[]
     .order("name", { ascending: true });
 
   if (error) {
-    console.error("[studentDivisions] 활성 학생 구분 항목 조회 실패", error);
+    logActionError("studentDivisions.getActiveStudentDivisions", `활성 학생 구분 항목 조회 실패: ${error.message}`);
     throw new Error(`활성 학생 구분 항목 조회 실패: ${error.message}`);
   }
 
@@ -77,7 +78,7 @@ export async function getStudentDivisionById(
     .maybeSingle();
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 항목 조회 실패", error);
+    logActionError("studentDivisions.getStudentDivisionById", `학생 구분 항목 조회 실패: ${error.message}`);
     throw new Error(`학생 구분 항목 조회 실패: ${error.message}`);
   }
 
@@ -101,7 +102,7 @@ export async function createStudentDivision(
     .single();
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 항목 생성 실패", error);
+    logActionError("studentDivisions.createStudentDivision", `학생 구분 항목 생성 실패: ${error.message}`);
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -139,7 +140,7 @@ export async function updateStudentDivision(
     .single();
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 항목 수정 실패", error);
+    logActionError("studentDivisions.updateStudentDivision", `학생 구분 항목 수정 실패: ${error.message}`);
 
     // 중복 키 에러 처리
     if (error.code === "23505") {
@@ -179,7 +180,7 @@ export async function checkDivisionInUse(
     .eq("division", division.name);
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 사용 여부 확인 실패", error);
+    logActionError("studentDivisions.checkDivisionInUse", `학생 구분 사용 여부 확인 실패: ${error.message}`);
     throw new Error(`학생 구분 사용 여부 확인 실패: ${error.message}`);
   }
 
@@ -207,7 +208,7 @@ export async function deleteStudentDivision(id: string): Promise<void> {
     .eq("id", id);
 
   if (error) {
-    console.error("[studentDivisions] 학생 구분 항목 삭제 실패", error);
+    logActionError("studentDivisions.deleteStudentDivision", `학생 구분 항목 삭제 실패: ${error.message}`);
     throw new Error(`학생 구분 항목 삭제 실패: ${error.message}`);
   }
 }

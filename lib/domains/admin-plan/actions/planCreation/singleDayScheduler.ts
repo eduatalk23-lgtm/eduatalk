@@ -9,6 +9,7 @@
 
 import { generateScheduleForPlanner } from './scheduleGenerator';
 import { getExistingPlansForStudent, groupExistingPlansByDate } from './existingPlansQuery';
+import { logActionError } from '@/lib/utils/serverActionLogger';
 import {
   adjustDateTimeSlotsWithExistingPlans,
   timeToMinutes,
@@ -125,7 +126,7 @@ export async function findAvailableTimeSlot(
       endTime: minutesToTime(actualEndMinutes),
     };
   } catch (error) {
-    console.error('[singleDayScheduler] Error finding available time slot:', error);
+    logActionError('singleDayScheduler.findAvailableTimeSlot', `시간 슬롯 검색 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : '시간 슬롯 검색 중 오류 발생',
@@ -233,7 +234,7 @@ export async function getAvailableMinutesForDate(
       return total + duration;
     }, 0);
   } catch (error) {
-    console.error('[singleDayScheduler] Error getting available minutes:', error);
+    logActionError('singleDayScheduler.getAvailableMinutesForDay', `가용 시간 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return 0;
   }
 }

@@ -11,6 +11,7 @@ import {
   extractTenantId,
   type SignupRole,
 } from "@/lib/types/auth";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 export type UserRole =
   | "student"
@@ -56,13 +57,7 @@ async function fetchAdminRole(
   }
 
   if (adminError && adminError.code !== "PGRST116") {
-    const errorDetails = {
-      code: adminError.code,
-      message: adminError.message,
-      details: adminError.details,
-      hint: adminError.hint,
-    };
-    console.error("[auth] admin_users 조회 실패", errorDetails);
+    logActionError("auth.fetchAdminRole", `admin_users 조회 실패 - code:${adminError.code}, ${adminError.message}`);
   }
 
   if (!admin) {
@@ -71,17 +66,13 @@ async function fetchAdminRole(
 
   // 개발 환경에서만 로깅
   if (process.env.NODE_ENV === "development") {
-    console.log("[getCurrentUserRole] admin_users 조회 결과:", {
-      id: admin.id,
-      role: admin.role,
-      tenant_id: (admin as { tenant_id?: string | null })?.tenant_id,
-    });
+    logActionDebug("auth.fetchAdminRole", `admin_users 조회 결과 - id:${admin.id}, role:${admin.role}, tenant_id:${(admin as { tenant_id?: string | null })?.tenant_id}`);
   }
 
   // superadmin인 경우 tenant_id는 null이어야 함
   if (admin.role === "superadmin") {
     if (process.env.NODE_ENV === "development") {
-      console.log("[getCurrentUserRole] superadmin으로 인식");
+      logActionDebug("auth.fetchAdminRole", "superadmin으로 인식");
     }
     return {
       role: "superadmin",
@@ -90,7 +81,7 @@ async function fetchAdminRole(
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.log("[getCurrentUserRole] admin/consultant로 인식:", admin.role);
+    logActionDebug("auth.fetchAdminRole", `admin/consultant로 인식: ${admin.role}`);
   }
 
   return {
@@ -124,13 +115,7 @@ async function fetchParentRole(
   }
 
   if (parentError && parentError.code !== "PGRST116") {
-    const errorDetails = {
-      code: parentError.code,
-      message: parentError.message,
-      details: parentError.details,
-      hint: parentError.hint,
-    };
-    console.error("[auth] parent_users 조회 실패", errorDetails);
+    logActionError("auth.fetchParentRole", `parent_users 조회 실패 - code:${parentError.code}, ${parentError.message}`);
   }
 
   if (!parent) {
@@ -165,13 +150,7 @@ async function fetchStudentRole(
   }
 
   if (studentError && studentError.code !== "PGRST116") {
-    const errorDetails = {
-      code: studentError.code,
-      message: studentError.message,
-      details: studentError.details,
-      hint: studentError.hint,
-    };
-    console.error("[auth] students 조회 실패", errorDetails);
+    logActionError("auth.fetchStudentRole", `students 조회 실패 - code:${studentError.code}, ${studentError.message}`);
   }
 
   if (!student) {
@@ -235,10 +214,7 @@ export async function getCurrentUserRole(
           if (authError) {
             // Rate limit 에러 처리
             if (isRateLimitError(authError)) {
-              console.warn("[auth] Rate limit 도달, 잠시 후 재시도합니다.", {
-                status: authError.status,
-                code: authError.code,
-              });
+              logActionWarn("auth.getCurrentUserRole", `Rate limit 도달, 잠시 후 재시도합니다 - status:${authError.status}, code:${authError.code}`);
               return { userId: null, role: null, tenantId: null };
             }
 
@@ -306,11 +282,7 @@ export async function getCurrentUserRole(
     // 모든 테이블 조회 실패 시 user_metadata의 signup_role 확인 (fallback)
     if (signupRole === "student" || signupRole === "parent") {
       if (process.env.NODE_ENV === "development") {
-        console.log("[auth] 테이블 레코드 없음, signup_role fallback 사용", {
-          userId: user.id,
-          signupRole,
-          tenantIdFromMetadata,
-        });
+        logActionDebug("auth.getCurrentUserRole", `테이블 레코드 없음, signup_role fallback 사용 - userId:${user.id}, signupRole:${signupRole}, tenantId:${tenantIdFromMetadata}`);
       }
       return {
         userId: user.id,
@@ -323,21 +295,9 @@ export async function getCurrentUserRole(
     // 어떤 테이블에도 없고 signup_role도 없으면 null 반환
     // 프로덕션에서는 민감 정보(email) 로깅 제외
     if (process.env.NODE_ENV === "development") {
-      console.warn("[auth] 사용자 역할을 찾을 수 없음", {
-        userId: user.id,
-        email: user.email,
-        adminFound: !!adminRole,
-        parentFound: !!parentRole,
-        studentFound: !!studentRole,
-        signupRole,
-      });
+      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음 - userId:${user.id}, email:${user.email}, adminFound:${!!adminRole}, parentFound:${!!parentRole}, studentFound:${!!studentRole}, signupRole:${signupRole}`);
     } else {
-      console.warn("[auth] 사용자 역할을 찾을 수 없음", {
-        adminFound: !!adminRole,
-        parentFound: !!parentRole,
-        studentFound: !!studentRole,
-        signupRole,
-      });
+      logActionWarn("auth.getCurrentUserRole", `사용자 역할을 찾을 수 없음 - adminFound:${!!adminRole}, parentFound:${!!parentRole}, studentFound:${!!studentRole}, signupRole:${signupRole}`);
     }
     return { userId: user.id, role: null, tenantId: null };
   } catch (error) {

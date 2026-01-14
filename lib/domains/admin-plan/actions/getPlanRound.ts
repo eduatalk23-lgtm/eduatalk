@@ -10,6 +10,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveAuthContext, isAdminContext } from "@/lib/auth/strategies";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 export interface GetPlanRoundInput {
   studentId: string;
@@ -70,7 +71,7 @@ export async function getPlanRoundAction(
       .is("plan_groups.deleted_at", null);
 
     if (error) {
-      console.error("[getPlanRoundAction] 조회 실패:", error);
+      logActionError("getPlanRound.getPlanRoundAction", `조회 실패: ${error.message}`);
       return { round: 1, error: error.message };
     }
 
@@ -79,7 +80,7 @@ export async function getPlanRoundAction(
 
     return { round };
   } catch (err) {
-    console.error("[getPlanRoundAction] 오류:", err);
+    logActionError("getPlanRound.getPlanRoundAction", `오류: ${err instanceof Error ? err.message : String(err)}`);
     return { round: 1, error: "회차 계산 중 오류가 발생했습니다." };
   }
 }
@@ -132,7 +133,7 @@ export async function getBatchPlanRoundsAction(
       .is("plan_groups.deleted_at", null);
 
     if (error) {
-      console.error("[getBatchPlanRoundsAction] 조회 실패:", error);
+      logActionError("getPlanRound.getBatchPlanRoundsAction", `조회 실패: ${error.message}`);
       contents.forEach((c) => roundMap.set(c.contentId, 1));
       return roundMap;
     }
@@ -152,7 +153,7 @@ export async function getBatchPlanRoundsAction(
 
     return roundMap;
   } catch (err) {
-    console.error("[getBatchPlanRoundsAction] 오류:", err);
+    logActionError("getPlanRound.getBatchPlanRoundsAction", `오류: ${err instanceof Error ? err.message : String(err)}`);
     contents.forEach((c) => roundMap.set(c.contentId, 1));
     return roundMap;
   }

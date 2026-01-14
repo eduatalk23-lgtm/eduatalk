@@ -11,6 +11,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 import {
   llmOptimizationCache,
   createCacheKey,
@@ -478,7 +479,7 @@ export async function analyzePlanEfficiency(
   // 캐시 확인 (1일 TTL)
   const cachedData = await getCachedOptimization(input.studentId, analysisDays);
   if (cachedData) {
-    console.log("[Plan Optimization] 캐시 히트");
+    logActionDebug("optimizePlan.analyzePlanEfficiency", "캐시 히트");
     return { success: true, data: cachedData };
   }
 
@@ -529,7 +530,7 @@ export async function analyzePlanEfficiency(
 
     // 6. 토큰 추정 로깅
     const tokenEstimate = estimatePlanOptimizationTokens(llmRequest);
-    console.log(`[Plan Optimization] 예상 토큰: ${tokenEstimate.totalTokens}`);
+    logActionDebug("optimizePlan.analyzePlanEfficiency", `예상 토큰: ${tokenEstimate.totalTokens}`);
 
     // 7. LLM 호출 (기본: fast 모델)
     const modelTier = input.modelTier || "fast";
@@ -545,9 +546,9 @@ export async function analyzePlanEfficiency(
     const parsed = extractJSON<PlanOptimizationResponse>(result.content);
 
     if (!parsed || typeof parsed.efficiencyScore !== "number") {
-      console.error(
-        "[Plan Optimization] 파싱 실패:",
-        result.content.substring(0, 500)
+      logActionError(
+        "optimizePlan.analyzePlanEfficiency",
+        `파싱 실패: ${result.content.substring(0, 500)}`
       );
       return { success: false, error: "분석 결과 파싱에 실패했습니다." };
     }
@@ -574,14 +575,14 @@ export async function analyzePlanEfficiency(
 
     // 10. 캐시 저장 (1일 TTL)
     await cacheOptimization(input.studentId, analysisDays, resultData);
-    console.log("[Plan Optimization] 결과 캐시 저장 완료");
+    logActionDebug("optimizePlan.analyzePlanEfficiency", "결과 캐시 저장 완료");
 
     return {
       success: true,
       data: resultData,
     };
   } catch (error) {
-    console.error("[Plan Optimization] 오류:", error);
+    logActionError("optimizePlan.analyzePlanEfficiency", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error:

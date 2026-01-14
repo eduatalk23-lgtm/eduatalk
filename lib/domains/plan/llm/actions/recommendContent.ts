@@ -11,6 +11,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 import {
   llmRecommendationCache,
   createCacheKey,
@@ -422,7 +423,7 @@ export async function recommendContentWithAI(
     input.focusArea
   );
   if (cachedData) {
-    console.log("[AI Content Rec] 캐시 히트");
+    logActionDebug("recommendContent", "캐시 히트");
     return { success: true, data: cachedData };
   }
 
@@ -467,7 +468,7 @@ export async function recommendContentWithAI(
 
     // 5. 토큰 추정 로깅
     const tokenEstimate = estimateContentRecommendationTokens(llmRequest);
-    console.log(`[AI Content Rec] 예상 토큰: ${tokenEstimate.totalTokens}`);
+    logActionDebug("recommendContent", `예상 토큰: ${tokenEstimate.totalTokens}`);
 
     // 6. LLM 호출 (기본: fast 모델 - 비용 효율적)
     const modelTier = input.modelTier || "fast";
@@ -499,8 +500,9 @@ export async function recommendContentWithAI(
       | undefined;
 
     if (result.groundingMetadata && result.groundingMetadata.webResults.length > 0) {
-      console.log(
-        `[AI Content Rec] 웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
+      logActionDebug(
+        "recommendContent",
+        `웹 검색 결과: ${result.groundingMetadata.webResults.length}건, 검색어: ${result.groundingMetadata.searchQueries.join(", ")}`
       );
 
       webSearchResults = {
@@ -531,8 +533,9 @@ export async function recommendContentWithAI(
             const saveResult = await webContentService.saveToDatabase(webContents, studentData.tenant_id);
             webSearchResults.savedCount = saveResult.savedCount;
 
-            console.log(
-              `[AI Content Rec] 웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
+            logActionDebug(
+              "recommendContent",
+              `웹 콘텐츠 저장: ${saveResult.savedCount}건 저장, ${saveResult.duplicateCount}건 중복`
             );
           }
         }
@@ -543,7 +546,7 @@ export async function recommendContentWithAI(
     const parsed = extractJSON<ContentRecommendationResponse>(result.content);
 
     if (!parsed || !parsed.recommendations) {
-      console.error("[AI Content Rec] 파싱 실패:", result.content.substring(0, 500));
+      logActionError("recommendContent", `파싱 실패: ${result.content.substring(0, 500)}`);
       return { success: false, error: "추천 결과 파싱에 실패했습니다." };
     }
 
@@ -582,14 +585,14 @@ export async function recommendContentWithAI(
 
     // 11. 캐시 저장 (1일 TTL)
     await cacheRecommendations(input.studentId, input.focusArea, resultData);
-    console.log("[AI Content Rec] 결과 캐시 저장 완료");
+    logActionDebug("recommendContent", "결과 캐시 저장 완료");
 
     return {
       success: true,
       data: resultData,
     };
   } catch (error) {
-    console.error("[AI Content Rec] 오류:", error);
+    logActionError("recommendContent", `오류: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "추천 생성 중 오류가 발생했습니다.",

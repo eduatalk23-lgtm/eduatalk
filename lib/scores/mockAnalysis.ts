@@ -11,6 +11,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extractJoinResult } from "@/lib/supabase/queryHelpers";
+import { logActionDebug, logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 type SupabaseServerClient = Awaited<
   ReturnType<typeof createSupabaseServerClient>
@@ -172,7 +173,7 @@ export async function getMockAnalysis(
     .maybeSingle();
 
   if (latestError) {
-    console.error("[scores/mockAnalysis] 최근 시험 조회 실패", latestError);
+    logActionError("mockAnalysis.getMockAnalysis", `최근 시험 조회 실패: ${latestError.message}`);
   }
 
   if (!latestExam || !latestExam.exam_date) {
@@ -219,10 +220,7 @@ export async function getMockAnalysis(
   const { data: mockScores, error: mockScoresError } = await query;
 
   if (mockScoresError) {
-    console.error(
-      "[scores/mockAnalysis] 모의고사 성적 조회 실패",
-      mockScoresError
-    );
+    logActionError("mockAnalysis.getMockAnalysis", `모의고사 성적 조회 실패: ${mockScoresError.message}`);
     return {
       recentExam: {
         examDate: examDate || "",
@@ -235,20 +233,7 @@ export async function getMockAnalysis(
   }
 
   if (!mockScores || mockScores.length === 0) {
-    console.warn("[scores/mockAnalysis] 모의고사 성적 데이터가 없습니다");
-    return {
-      recentExam: {
-        examDate: examDate || "",
-        examTitle,
-      },
-      avgPercentile: null,
-      totalStdScore: null,
-      best3GradeSum: null,
-    };
-  }
-
-  if (!mockScores || mockScores.length === 0) {
-    console.warn("[scores/mockAnalysis] 모의고사 성적 데이터가 없습니다");
+    logActionWarn("mockAnalysis.getMockAnalysis", "모의고사 성적 데이터가 없습니다");
     return {
       recentExam: {
         examDate: examDate || "",
@@ -297,10 +282,7 @@ export async function getMockAnalysis(
     })
     .filter((row) => row.subject_group_name !== ""); // subject_group_name이 없는 경우 제외
 
-  console.log(
-    "[scores/mockAnalysis] 변환된 rows:",
-    JSON.stringify(rows, null, 2)
-  );
+  logActionDebug("mockAnalysis.getMockAnalysis", `변환된 rows: ${JSON.stringify(rows)}`);
 
   // subject_groups 테이블에서 교과군 목록 조회 (동적 처리)
   const adminClient = createSupabaseAdminClient();
@@ -321,10 +303,7 @@ export async function getMockAnalysis(
   // 통계 계산 (동적 교과군 매핑 전달)
   const stats = calculateMockStats(rows, subjectGroupMap);
 
-  console.log(
-    "[scores/mockAnalysis] 계산된 통계:",
-    JSON.stringify(stats, null, 2)
-  );
+  logActionDebug("mockAnalysis.getMockAnalysis", `계산된 통계: ${JSON.stringify(stats)}`);
 
   return {
     recentExam: {

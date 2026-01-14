@@ -4,6 +4,7 @@ import type { SupabaseServerClient } from "./core/types";
 import { createTypedConditionalQuery } from "./core/typedQueryBuilder";
 import { ErrorCodeCheckers } from "@/lib/constants/errorCodes";
 import type { StudentDivision } from "@/lib/constants/students";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 export type Student = {
   id: string;
@@ -188,7 +189,7 @@ export async function upsertStudent(
       .maybeSingle();
 
     if (tenantError) {
-      console.error("[data/students] Default Tenant 조회 실패", tenantError);
+      logActionError("students.upsertStudent", `Default Tenant 조회 실패: ${tenantError.message}`);
       return {
         success: false,
         error: "기본 기관 정보를 조회할 수 없습니다.",
@@ -196,7 +197,7 @@ export async function upsertStudent(
     }
 
     if (!defaultTenant) {
-      console.error("[data/students] Default Tenant가 존재하지 않습니다.");
+      logActionError("students.upsertStudent", "Default Tenant가 존재하지 않습니다.");
       return {
         success: false,
         error:
@@ -242,7 +243,7 @@ export async function upsertStudent(
           schoolType = school.school_type;
         }
       } catch (error) {
-        console.error("[data/students] school_type 조회 실패:", error);
+        logActionError("students.upsertStudent", `school_type 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
@@ -299,15 +300,15 @@ export async function upsertStudent(
       .upsert(payload, { onConflict: "id" });
     
     if (retryResult.error) {
-      console.error("[data/students] 학생 정보 저장 실패", retryResult.error);
+      logActionError("students.upsertStudent", `학생 정보 저장 실패: ${retryResult.error.message}`);
       return { success: false, error: retryResult.error.message };
     }
-    
+
     if (errorMessage.includes("school_type") || errorMessage.includes("division")) {
-      console.warn("[data/students] 선택적 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
+      logActionWarn("students.upsertStudent", "선택적 컬럼이 없습니다. 마이그레이션을 실행해주세요.");
     }
   } else if (error) {
-    console.error("[data/students] 학생 정보 저장 실패", error);
+    logActionError("students.upsertStudent", `학생 정보 저장 실패: ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -396,12 +397,7 @@ export async function updateStudentDivision(
     .eq("id", studentId);
 
   if (error) {
-    console.error("[data/students] 학생 구분 업데이트 실패", {
-      studentId,
-      division,
-      error: error.message,
-      code: error.code,
-    });
+    logActionError("students.updateStudentDivision", `학생 구분 업데이트 실패 - studentId:${studentId}, division:${division}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -436,11 +432,7 @@ export async function getStudentsByDivision(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/students] 구분별 학생 목록 조회 실패", {
-      division,
-      error: error.message,
-      code: error.code,
-    });
+    logActionError("students.getStudentsByDivision", `구분별 학생 목록 조회 실패 - division:${division}, ${error.message}`);
     return [];
   }
 
@@ -475,7 +467,7 @@ export async function getStudentDivisionStats(): Promise<Array<{
     .select("division");
 
   if (error) {
-    console.error("[data/students] 구분별 통계 조회 실패", error);
+    logActionError("students.getStudentDivisionStats", `구분별 통계 조회 실패: ${error.message}`);
     return [];
   }
 
@@ -557,11 +549,7 @@ export async function batchUpdateStudentDivision(
       .in("id", batch);
 
     if (updateError) {
-      console.error("[data/students] 일괄 구분 업데이트 실패", {
-        batchSize: batch.length,
-        error: updateError.message,
-        code: updateError.code,
-      });
+      logActionError("students.batchUpdateStudentDivision", `일괄 구분 업데이트 실패 - batchSize:${batch.length}, ${updateError.message}`);
 
       // 배치 전체 실패로 처리
       batch.forEach((studentId) => {

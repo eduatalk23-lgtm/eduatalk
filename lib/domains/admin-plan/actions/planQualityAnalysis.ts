@@ -11,6 +11,7 @@
  */
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import type {
   PlanQualityMetrics,
   PlanQualityDashboardData,
@@ -531,7 +532,7 @@ export async function analyzePlanQuality(
       data: dashboardData,
     };
   } catch (error) {
-    console.error("Plan quality analysis error:", error);
+    logActionError("planQualityAnalysis.analyzePlanQuality", `품질 분석 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error:
@@ -596,7 +597,7 @@ export async function analyzeStudentPlanQuality(
       data: results,
     };
   } catch (error) {
-    console.error("Student plan quality analysis error:", error);
+    logActionError("planQualityAnalysis.analyzeStudentPlanQuality", `학생 플랜 품질 분석 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error:

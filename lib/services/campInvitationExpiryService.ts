@@ -5,6 +5,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sendInAppNotification } from "./inAppNotificationService";
 import { sendCampReminderNotification } from "./campNotificationService";
+import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 
 /**
  * 만료된 초대를 찾아 상태를 'expired'로 변경
@@ -28,10 +29,7 @@ export async function processExpiredInvitations(): Promise<{
       .lt("expires_at", now);
 
     if (selectError) {
-      console.error(
-        "[campInvitationExpiryService] 만료된 초대 조회 실패:",
-        selectError
-      );
+      logActionError("campInvitationExpiryService.processExpiredInvitations", `만료된 초대 조회 실패: ${selectError.message}`);
       return {
         success: false,
         count: 0,
@@ -56,10 +54,7 @@ export async function processExpiredInvitations(): Promise<{
       .in("id", expiredIds);
 
     if (updateError) {
-      console.error(
-        "[campInvitationExpiryService] 만료 상태 업데이트 실패:",
-        updateError
-      );
+      logActionError("campInvitationExpiryService.processExpiredInvitations", `만료 상태 업데이트 실패: ${updateError.message}`);
       return {
         success: false,
         count: 0,
@@ -79,16 +74,11 @@ export async function processExpiredInvitations(): Promise<{
           templateId: invitation.camp_template_id,
         }
       ).catch((err) => {
-        console.error(
-          `[campInvitationExpiryService] 초대 ${invitation.id} 알림 발송 실패:`,
-          err
-        );
+        logActionError("campInvitationExpiryService.processExpiredInvitations", `초대 ${invitation.id} 알림 발송 실패: ${err instanceof Error ? err.message : String(err)}`);
       });
     });
 
-    console.log(
-      `[campInvitationExpiryService] ${expiredInvitations.length}개의 초대를 만료 처리했습니다.`
-    );
+    logActionDebug("campInvitationExpiryService.processExpiredInvitations", `${expiredInvitations.length}개의 초대를 만료 처리했습니다.`);
 
     return {
       success: true,
@@ -97,10 +87,7 @@ export async function processExpiredInvitations(): Promise<{
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[campInvitationExpiryService] 만료 처리 중 예외 발생:",
-      errorMessage
-    );
+    logActionError("campInvitationExpiryService.processExpiredInvitations", `만료 처리 중 예외 발생: ${errorMessage}`);
     return {
       success: false,
       count: 0,
@@ -134,10 +121,7 @@ export async function sendExpiryReminderNotifications(): Promise<{
       .lt("expires_at", tomorrow.toISOString());
 
     if (selectError) {
-      console.error(
-        "[campInvitationExpiryService] 만료 예정 초대 조회 실패:",
-        selectError
-      );
+      logActionError("campInvitationExpiryService.sendExpiryReminderNotifications", `만료 예정 초대 조회 실패: ${selectError.message}`);
       return {
         success: false,
         count: 0,
@@ -163,9 +147,7 @@ export async function sendExpiryReminderNotifications(): Promise<{
       (result) => result.status === "fulfilled"
     ).length;
 
-    console.log(
-      `[campInvitationExpiryService] ${successCount}/${expiringInvitations.length}개의 만료 예정 알림을 발송했습니다.`
-    );
+    logActionDebug("campInvitationExpiryService.sendExpiryReminderNotifications", `${successCount}/${expiringInvitations.length}개의 만료 예정 알림을 발송했습니다.`);
 
     return {
       success: true,
@@ -174,10 +156,7 @@ export async function sendExpiryReminderNotifications(): Promise<{
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[campInvitationExpiryService] 만료 예정 알림 발송 중 예외 발생:",
-      errorMessage
-    );
+    logActionError("campInvitationExpiryService.sendExpiryReminderNotifications", `만료 예정 알림 발송 중 예외 발생: ${errorMessage}`);
     return {
       success: false,
       count: 0,
@@ -217,10 +196,7 @@ export async function getExpiringInvitations(days: number = 1): Promise<{
       .order("expires_at", { ascending: true });
 
     if (error) {
-      console.error(
-        "[campInvitationExpiryService] 만료 예정 초대 조회 실패:",
-        error
-      );
+      logActionError("campInvitationExpiryService.getExpiringInvitations", `만료 예정 초대 조회 실패: ${error.message}`);
       return {
         success: false,
         invitations: [],
@@ -240,10 +216,7 @@ export async function getExpiringInvitations(days: number = 1): Promise<{
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : String(error);
-    console.error(
-      "[campInvitationExpiryService] 만료 예정 초대 조회 중 예외 발생:",
-      errorMessage
-    );
+    logActionError("campInvitationExpiryService.getExpiringInvitations", `만료 예정 초대 조회 중 예외 발생: ${errorMessage}`);
     return {
       success: false,
       invitations: [],

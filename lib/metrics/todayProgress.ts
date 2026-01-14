@@ -2,6 +2,7 @@ import { getPlansForStudent } from "@/lib/data/studentPlans";
 import type { Plan } from "@/lib/data/studentPlans";
 import { getSessionsInRange } from "@/lib/data/studentSessions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   calculatePlanStudySeconds,
   buildActiveSessionMap,
@@ -133,7 +134,7 @@ export async function calculateTodayProgress(
       achievementScore,
     };
   } catch (error) {
-    console.error("[metrics/todayProgress] 오늘 진행률 계산 실패", error);
+    logActionError("metrics.getTodayProgress", `오늘 진행률 계산 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       todayStudyMinutes: 0,
       planCompletedCount: 0,

@@ -19,6 +19,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { ModelTier, ModelConfig } from "./types";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   getProvider,
   getDefaultProvider,
@@ -332,7 +333,7 @@ export function extractJSON<T>(content: string): T | null {
 
     return null;
   } catch (error) {
-    console.error("JSON 파싱 실패:", error);
+    logActionError("llm.extractJSON", `JSON 파싱 실패: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }

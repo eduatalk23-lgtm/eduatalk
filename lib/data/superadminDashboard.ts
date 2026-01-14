@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 export type TenantStatistics = {
   total: number;
@@ -64,7 +65,7 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
       .or("status.eq.active,status.is.null");
 
     if (activeError) {
-      console.error("[superadminDashboard] 활성 기관 수 조회 실패:", activeError);
+      logActionError("superadminDashboard.getTenantStatistics", `활성 기관 수 조회 실패: ${activeError.message}`);
     } else {
       active = activeCount || 0;
     }
@@ -76,7 +77,7 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
       .eq("status", "inactive");
 
     if (inactiveError) {
-      console.error("[superadminDashboard] 비활성 기관 수 조회 실패:", inactiveError);
+      logActionError("superadminDashboard.getTenantStatistics", `비활성 기관 수 조회 실패: ${inactiveError.message}`);
     } else {
       inactive = inactiveCount || 0;
     }
@@ -88,7 +89,7 @@ export async function getTenantStatistics(): Promise<TenantStatistics> {
       .eq("status", "suspended");
 
     if (suspendedError) {
-      console.error("[superadminDashboard] 정지된 기관 수 조회 실패:", suspendedError);
+      logActionError("superadminDashboard.getTenantStatistics", `정지된 기관 수 조회 실패: ${suspendedError.message}`);
     } else {
       suspended = suspendedCount || 0;
     }
@@ -115,9 +116,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
   const supabase = adminClient || (await createSupabaseServerClient());
 
   if (!adminClient) {
-    console.warn(
-      "[superadminDashboard] Admin Client를 사용할 수 없어 서버 클라이언트로 조회합니다. RLS 정책으로 인해 일부 데이터가 누락될 수 있습니다."
-    );
+    logActionWarn("superadminDashboard.getUserStatistics", "Admin Client를 사용할 수 없어 서버 클라이언트로 조회. RLS로 인해 일부 데이터 누락 가능");
   }
 
   try {
@@ -127,7 +126,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       .select("*", { count: "exact", head: true });
 
     if (studentsError) {
-      console.error("[superadminDashboard] 학생 수 조회 실패:", studentsError);
+      logActionError("superadminDashboard.getUserStatistics", `학생 수 조회 실패: ${studentsError.message}`);
     }
 
     // 학부모 수 (모든 테넌트의 학부모)
@@ -136,7 +135,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       .select("*", { count: "exact", head: true });
 
     if (parentsError) {
-      console.error("[superadminDashboard] 학부모 수 조회 실패:", parentsError);
+      logActionError("superadminDashboard.getUserStatistics", `학부모 수 조회 실패: ${parentsError.message}`);
     }
 
     // 관리자 수 (admin)
@@ -146,7 +145,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       .eq("role", "admin");
 
     if (adminsError) {
-      console.error("[superadminDashboard] 관리자 수 조회 실패:", adminsError);
+      logActionError("superadminDashboard.getUserStatistics", `관리자 수 조회 실패: ${adminsError.message}`);
     }
 
     // 컨설턴트 수
@@ -156,7 +155,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       .eq("role", "consultant");
 
     if (consultantsError) {
-      console.error("[superadminDashboard] 컨설턴트 수 조회 실패:", consultantsError);
+      logActionError("superadminDashboard.getUserStatistics", `컨설턴트 수 조회 실패: ${consultantsError.message}`);
     }
 
     // Super Admin 수
@@ -166,7 +165,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       .eq("role", "superadmin");
 
     if (superadminsError) {
-      console.error("[superadminDashboard] Super Admin 수 조회 실패:", superadminsError);
+      logActionError("superadminDashboard.getUserStatistics", `Super Admin 수 조회 실패: ${superadminsError.message}`);
     }
 
     return {
@@ -178,7 +177,7 @@ export async function getUserStatistics(): Promise<UserStatistics> {
       total: (students || 0) + (parents || 0) + (admins || 0) + (consultants || 0) + (superadmins || 0),
     };
   } catch (error) {
-    console.error("[superadminDashboard] 사용자 통계 조회 중 오류:", error);
+    logActionError("superadminDashboard.getUserStatistics", `사용자 통계 조회 중 오류: ${error instanceof Error ? error.message : String(error)}`);
     return {
       students: 0,
       parents: 0,
@@ -203,7 +202,7 @@ export async function getRecentTenants(limit: number = 10): Promise<RecentTenant
     .limit(limit);
 
   if (error) {
-    console.error("[superadminDashboard] 최근 기관 조회 실패:", error);
+    logActionError("superadminDashboard.getRecentTenants", `최근 기관 조회 실패: ${error.message}`);
     return [];
   }
 

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 export type TenantContext = {
   tenantId: string | null;
@@ -55,7 +56,7 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
     }
 
     if (adminError && adminError.code !== "PGRST116" && adminError.code !== "42703") {
-      console.error("[tenant] admin_users 조회 실패", adminError);
+      logActionError("tenant.getTenantContext", `admin_users 조회 실패: ${adminError.message}`);
     }
 
     // Super Admin인 경우
@@ -107,7 +108,7 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
     }
 
     if (studentError && studentError.code !== "PGRST116") {
-      console.error("[tenant] students 조회 실패", studentError);
+      logActionError("tenant.getTenantContext", `students 조회 실패: ${studentError.message}`);
     }
 
     if (student) {
@@ -121,7 +122,7 @@ export const getTenantContext = cache(async (): Promise<TenantContext | null> =>
     // 어떤 테이블에도 없으면 null 반환
     return null;
   } catch (error) {
-    console.error("[tenant] getTenantContext 실패", error);
+    logActionError("tenant.getTenantContext", `실패: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 });

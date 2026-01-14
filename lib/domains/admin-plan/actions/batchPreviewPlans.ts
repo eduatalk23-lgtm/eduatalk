@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
+import { logActionDebug, logActionError } from "@/lib/utils/serverActionLogger";
 import { revalidatePath } from "next/cache";
 
 import { createMessage, estimateCost } from "@/lib/domains/plan/llm/client";
@@ -77,12 +78,7 @@ async function loadStudentData(
 
   // 디버깅을 위한 상세 로깅
   if (error) {
-    console.error(`[batchPreviewPlans/loadStudentData] 학생 조회 실패 - studentId: ${studentId}`, {
-      error: error.message,
-      code: error.code,
-      details: error.details,
-      tenantId: tenantId || "not provided",
-    });
+    logActionError("batchPreviewPlans.loadStudentData", `학생 조회 실패 - studentId: ${studentId}, error: ${error.message}, code: ${error.code}, tenantId: ${tenantId || "not provided"}`);
   }
 
   return data;
@@ -144,7 +140,7 @@ async function loadContents(
     })),
   ];
 
-  console.log(`[loadContents] Preview - books: ${booksResult.data?.length || 0}, lectures: ${lecturesResult.data?.length || 0}`);
+  logActionDebug("batchPreviewPlans.loadContents", `Preview - books: ${booksResult.data?.length || 0}, lectures: ${lecturesResult.data?.length || 0}`);
   return contents;
 }
 
@@ -575,12 +571,10 @@ async function generatePreviewForStudent(
           if (contents.length > 0) {
             const saveResult = await webSearchService.saveToDatabase(contents, tenantId);
             webSearchResults.savedCount = saveResult.savedCount;
-            console.log(
-              `[Batch Preview] 학생 ${studentId}: 웹 검색 결과 ${saveResult.savedCount}개 저장 완료`
-            );
+            logActionDebug("batchPreviewPlans.generatePreviewForStudent", `학생 ${studentId}: 웹 검색 결과 ${saveResult.savedCount}개 저장 완료`);
           }
         } catch (saveError) {
-          console.error(`[Batch Preview] 웹 검색 결과 저장 오류:`, saveError);
+          logActionError("batchPreviewPlans.generatePreviewForStudent", `웹 검색 결과 저장 오류: ${saveError instanceof Error ? saveError.message : String(saveError)}`);
           // 저장 실패해도 플랜 생성은 계속 진행
         }
       }
@@ -610,7 +604,7 @@ async function generatePreviewForStudent(
       webSearchResults,
     };
   } catch (error) {
-    console.error(`[Batch Preview] 학생 ${studentId} 오류:`, error);
+    logActionError("batchPreviewPlans.generatePreviewForStudent", `학생 ${studentId} 오류: ${error instanceof Error ? error.message : String(error)}`);
     return {
       studentId,
       studentName: "Unknown",

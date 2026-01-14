@@ -11,6 +11,7 @@
 
 import { format, parseISO, differenceInDays, isBefore, isAfter, addDays, isValid } from "date-fns";
 import type { Plan } from "@/lib/types/plan";
+import { logActionWarn, logActionError } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // 타입 정의
@@ -308,10 +309,7 @@ function calculateCompletionDate(
     const end = parseISO(endDate);
 
     if (!isValidDate(start) || !isValidDate(end)) {
-      console.warn("[calculateCompletionDate] 유효하지 않은 날짜:", {
-        startDate,
-        endDate,
-      });
+      logActionWarn("calculateCompletionDate", `유효하지 않은 날짜 - start:${startDate}, end:${endDate}`);
       return null;
     }
 
@@ -319,11 +317,7 @@ function calculateCompletionDate(
 
     // totalDays가 유효하지 않거나 음수인 경우
     if (totalDays <= 0 || !isFinite(totalDays)) {
-      console.warn("[calculateCompletionDate] 유효하지 않은 날짜 범위:", {
-        startDate,
-        endDate,
-        totalDays,
-      });
+      logActionWarn("calculateCompletionDate", `유효하지 않은 날짜 범위 - totalDays:${totalDays}`);
       return null;
     }
 
@@ -348,10 +342,7 @@ function calculateCompletionDate(
     const clampedRemainingDays = Math.min(Math.max(0, remainingDays), 365);
 
     if (!isFinite(clampedRemainingDays)) {
-      console.warn("[calculateCompletionDate] 유효하지 않은 remainingDays:", {
-        remainingDays,
-        clampedRemainingDays,
-      });
+      logActionWarn("calculateCompletionDate", `유효하지 않은 remainingDays - ${remainingDays}`);
       return null;
     }
 
@@ -360,15 +351,13 @@ function calculateCompletionDate(
     const expectedDate = addDays(today, clampedRemainingDays);
 
     if (!isValidDate(expectedDate)) {
-      console.warn("[calculateCompletionDate] 계산된 날짜가 유효하지 않음:", {
-        expectedDate,
-      });
+      logActionWarn("calculateCompletionDate", "계산된 날짜가 유효하지 않음");
       return null;
     }
 
     return format(expectedDate, "yyyy-MM-dd");
   } catch (error) {
-    console.error("[calculateCompletionDate] 예상치 못한 오류:", error);
+    logActionError("calculateCompletionDate", error instanceof Error ? error.message : String(error));
     return null;
   }
 }
@@ -389,10 +378,7 @@ export function analyzeDelay(
   const parsedEndDate = parseISO(endDate);
   
   if (!isValidDate(parsedStartDate) || !isValidDate(parsedEndDate)) {
-    console.warn("[analyzeDelay] 유효하지 않은 날짜:", {
-      startDate,
-      endDate,
-    });
+    logActionWarn("analyzeDelay", `유효하지 않은 날짜 - start:${startDate}, end:${endDate}`);
     // 유효하지 않은 날짜인 경우 기본값 반환
     return {
       severity: "none",
@@ -418,7 +404,7 @@ export function analyzeDelay(
   const parsedToday = parseISO(today);
   
   if (!isValidDate(parsedToday)) {
-    console.warn("[analyzeDelay] 유효하지 않은 현재 날짜:", today);
+    logActionWarn("analyzeDelay", `유효하지 않은 현재 날짜 - ${today}`);
     // 유효하지 않은 현재 날짜인 경우 오늘 날짜 사용
     const todayDate = new Date();
     const todayStr = format(todayDate, "yyyy-MM-dd");
@@ -465,11 +451,7 @@ export function analyzeDelay(
   const totalDaysRange = differenceInDays(parsedEndDate, parsedStartDate);
   
   if (totalDaysRange <= 0 || !isFinite(totalDaysRange)) {
-    console.warn("[analyzeDelay] 유효하지 않은 날짜 범위:", {
-      startDate,
-      endDate,
-      totalDaysRange,
-    });
+    logActionWarn("analyzeDelay", `유효하지 않은 날짜 범위 - totalDaysRange:${totalDaysRange}`);
     // 유효하지 않은 날짜 범위인 경우 기본값 반환
     return {
       severity: "none",
@@ -524,19 +506,13 @@ export function analyzeDelay(
         if (isValidDate(actualDate)) {
           actualCompletionDate = format(actualDate, "yyyy-MM-dd");
         } else {
-          console.warn("[analyzeDelay] 계산된 actualCompletionDate가 유효하지 않음:", {
-            expectedCompletionDate,
-            delayDays,
-            actualDate,
-          });
+          logActionWarn("analyzeDelay", `계산된 actualCompletionDate가 유효하지 않음 - delayDays:${delayDays}`);
         }
       } else {
-        console.warn("[analyzeDelay] expectedCompletionDate 파싱 실패:", {
-          expectedCompletionDate,
-        });
+        logActionWarn("analyzeDelay", `expectedCompletionDate 파싱 실패 - ${expectedCompletionDate}`);
       }
     } catch (error) {
-      console.error("[analyzeDelay] actualCompletionDate 계산 중 오류:", error);
+      logActionError("analyzeDelay", `actualCompletionDate 계산 중 오류 - ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

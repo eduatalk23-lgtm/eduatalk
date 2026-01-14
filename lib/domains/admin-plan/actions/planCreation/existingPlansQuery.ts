@@ -8,6 +8,7 @@
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { logActionError } from '@/lib/utils/serverActionLogger';
 
 /**
  * 기존 플랜 시간 정보 타입
@@ -57,7 +58,7 @@ export async function getExistingPlansForPlanGroup(
     .order('start_time', { ascending: true });
 
   if (error) {
-    console.error('[existingPlansQuery] Error fetching existing plans:', error);
+    logActionError('existingPlansQuery.getExistingPlansForGroup', `기존 플랜 조회 실패: ${error.message}`);
     return [];
   }
 
@@ -100,7 +101,7 @@ export async function getExistingPlansForStudent(
     .order('start_time', { ascending: true });
 
   if (error) {
-    console.error('[existingPlansQuery] Error fetching existing plans:', error);
+    logActionError('existingPlansQuery.getExistingPlansForGroup', `기존 플랜 조회 실패: ${error.message}`);
     return [];
   }
 
@@ -179,7 +180,7 @@ export async function getExistingPlansForDateRange(
     .order('start_time', { ascending: true });
 
   if (error) {
-    console.error('[existingPlansQuery] Error fetching existing plans for timeline:', error);
+    logActionError('existingPlansQuery.getExistingPlansForTimeline', `타임라인 플랜 조회 실패: ${error.message}`);
     return [];
   }
 

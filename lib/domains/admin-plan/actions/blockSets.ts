@@ -10,6 +10,7 @@
 
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 import {
   createBlockSet,
   getBlockSetCount,
@@ -40,13 +41,13 @@ export async function getBlockSetsForStudent(
 ): Promise<BlockSetWithBlocks[]> {
   const user = await getCurrentUser();
   if (!user) {
-    console.error("[admin-plan/blockSets] 로그인 필요");
+    logActionError("blockSets.getBlockSetsForStudent", "로그인 필요");
     return [];
   }
 
   // Admin 권한 검증
   if (user.role !== "admin" && user.role !== "consultant") {
-    console.error("[admin-plan/blockSets] 권한 없음:", user.role);
+    logActionError("blockSets.getBlockSetsForStudent", `권한 없음: ${user.role}`);
     return [];
   }
 
@@ -71,12 +72,12 @@ export async function getBlockSetsForStudent(
   const { data: allBlocks, error: blocksError } = blocksResult;
 
   if (setsError) {
-    console.error("[admin-plan/blockSets] 블록 세트 조회 실패:", setsError);
+    logActionError("blockSets.getBlockSetsForStudent", `블록 세트 조회 실패: ${setsError.message}`);
     return [];
   }
 
   if (blocksError) {
-    console.error("[admin-plan/blockSets] 블록 조회 실패:", blocksError);
+    logActionWarn("blockSets.getBlockSetsForStudent", `블록 조회 실패: ${blocksError.message}`);
     // 블록 조회 실패 시 빈 블록 배열로 처리
   }
 
@@ -201,7 +202,7 @@ export async function createBlockSetForStudent(
     .maybeSingle();
 
   if (studentError || !student) {
-    console.error("[admin-plan/blockSets] 학생 조회 실패:", studentError);
+    logActionError("blockSets.createBlockSetForStudent", `학생 조회 실패: ${studentError?.message ?? "not found"}`);
     return { success: false, error: "학생을 찾을 수 없습니다." };
   }
 
@@ -253,7 +254,7 @@ export async function createBlockSetForStudent(
     .insert(blockInserts);
 
   if (blocksError) {
-    console.error("[admin-plan/blockSets] 블록 생성 실패:", blocksError);
+    logActionWarn("blockSets.createBlockSetForStudent", `블록 생성 실패: ${blocksError.message}`);
     // 블록셋은 이미 생성되었으므로 성공으로 처리하되 경고 로그
     // 사용자가 나중에 블록을 추가할 수 있음
   }

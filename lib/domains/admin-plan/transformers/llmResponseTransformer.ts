@@ -17,6 +17,7 @@ import type {
   ContentType,
 } from "@/lib/types/plan-generation";
 import { timeToMinutes } from "@/lib/utils/time";
+import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 /**
  * 변환된 플랜 페이로드 타입
@@ -172,19 +173,13 @@ export function transformLLMResponseToPlans(
 
   // context 누락 경고 로깅
   if (!context) {
-    console.warn(
-      "[llmResponseTransformer] TransformContext가 제공되지 않았습니다. fallback 값이 사용됩니다."
-    );
+    logActionWarn("llmResponseTransformer.transformLLMResponseToPlans", "TransformContext가 제공되지 않았습니다. fallback 값이 사용됩니다.");
   } else {
     if (context.contentTypeMap.size === 0) {
-      console.warn(
-        "[llmResponseTransformer] contentTypeMap이 비어 있습니다. 모든 콘텐츠가 'book'으로 처리됩니다."
-      );
+      logActionWarn("llmResponseTransformer.transformLLMResponseToPlans", "contentTypeMap이 비어 있습니다. 모든 콘텐츠가 'book'으로 처리됩니다.");
     }
     if (context.blockSets.length === 0) {
-      console.warn(
-        "[llmResponseTransformer] blockSets가 비어 있습니다. block_index가 순차적으로 할당됩니다."
-      );
+      logActionWarn("llmResponseTransformer.transformLLMResponseToPlans", "blockSets가 비어 있습니다. block_index가 순차적으로 할당됩니다.");
     }
   }
 

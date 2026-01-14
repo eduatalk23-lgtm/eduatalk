@@ -1,5 +1,6 @@
 import type { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSessionsByDateRange } from "@/lib/studySessions/queries";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   getStartOfDayUTC,
   getEndOfDayUTC,
@@ -135,7 +136,7 @@ export async function getStudyTime(
       },
     };
   } catch (error) {
-    console.error("[metrics/getStudyTime] 학습시간 조회 실패", error);
+    logActionError("metrics.getStudyTimeMetrics", `학습시간 조회 실패: ${error instanceof Error ? error.message : String(error)}`);
     return {
       success: false,
       error: error instanceof Error ? error.message : "학습시간 조회 실패",

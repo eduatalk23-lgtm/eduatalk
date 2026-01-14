@@ -6,6 +6,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PlanGroupItem, PlanGroupItemInput } from "@/lib/types/plan";
+import { logActionError } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // CRUD 함수
@@ -35,11 +36,7 @@ export async function getPlanGroupItems(
   const { data, error } = await query;
 
   if (error) {
-    console.error("[data/planGroupItems] 조회 실패", {
-      planGroupId,
-      tenantId,
-      error,
-    });
+    logActionError("planGroupItems.getPlanGroupItems", `조회 실패 - planGroupId:${planGroupId}, tenantId:${tenantId}, ${error.message}`);
     return [];
   }
 
@@ -69,11 +66,7 @@ export async function getPlanGroupItemById(
   const { data, error } = await query.maybeSingle();
 
   if (error && error.code !== "PGRST116") {
-    console.error("[data/planGroupItems] 단일 조회 실패", {
-      itemId,
-      tenantId,
-      error,
-    });
+    logActionError("planGroupItems.getPlanGroupItemById", `단일 조회 실패 - itemId:${itemId}, tenantId:${tenantId}, ${error.message}`);
     return null;
   }
 
@@ -114,11 +107,7 @@ export async function createPlanGroupItem(
     .single();
 
   if (error) {
-    console.error("[data/planGroupItems] 생성 실패", {
-      planGroupId,
-      tenantId,
-      error,
-    });
+    logActionError("planGroupItems.createPlanGroupItem", `생성 실패 - planGroupId:${planGroupId}, tenantId:${tenantId}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -162,12 +151,7 @@ export async function createPlanGroupItems(
     .select("id");
 
   if (error) {
-    console.error("[data/planGroupItems] 일괄 생성 실패", {
-      planGroupId,
-      tenantId,
-      count: inputs.length,
-      error,
-    });
+    logActionError("planGroupItems.createPlanGroupItems", `일괄 생성 실패 - planGroupId:${planGroupId}, tenantId:${tenantId}, count:${inputs.length}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -215,11 +199,7 @@ export async function updatePlanGroupItem(
     .eq("id", itemId);
 
   if (error) {
-    console.error("[data/planGroupItems] 업데이트 실패", {
-      itemId,
-      updates: Object.keys(payload),
-      error,
-    });
+    logActionError("planGroupItems.updatePlanGroupItem", `업데이트 실패 - itemId:${itemId}, fields:${Object.keys(payload).join(",")}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -240,10 +220,7 @@ export async function deletePlanGroupItem(
     .eq("id", itemId);
 
   if (error) {
-    console.error("[data/planGroupItems] 삭제 실패", {
-      itemId,
-      error,
-    });
+    logActionError("planGroupItems.deletePlanGroupItem", `삭제 실패 - itemId:${itemId}, ${error.message}`);
     return { success: false, error: error.message };
   }
 
@@ -270,10 +247,7 @@ export async function deletePlanGroupItemsByGroupId(
     .eq("plan_group_id", planGroupId);
 
   if (error) {
-    console.error("[data/planGroupItems] 그룹별 삭제 실패", {
-      planGroupId,
-      error,
-    });
+    logActionError("planGroupItems.deletePlanGroupItemsByGroupId", `그룹별 삭제 실패 - planGroupId:${planGroupId}, ${error.message}`);
     return { success: false, error: error.message };
   }
 

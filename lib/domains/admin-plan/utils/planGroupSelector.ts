@@ -10,6 +10,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
+import { logActionError, logActionWarn } from "@/lib/utils/serverActionLogger";
 import type { PlanGroupSelectorResult, PlanGroupInfo } from "../actions/planCreation/types";
 import {
   inheritPlannerConfigFromRaw,
@@ -70,7 +71,7 @@ export async function selectPlanGroupForPlanner(
     });
 
     if (error) {
-      console.error("[selectPlanGroupForPlanner] 조회 실패:", error);
+      logActionError("planGroupSelector.selectPlanGroupForPlanner", `조회 실패: ${error.message}`);
       return {
         status: "error",
         message: error.message,
@@ -109,7 +110,7 @@ export async function selectPlanGroupForPlanner(
       planGroups: data.map(mapToPlanGroupInfo),
     };
   } catch (err) {
-    console.error("[selectPlanGroupForPlanner] 예외 발생:", err);
+    logActionError("planGroupSelector.selectPlanGroupForPlanner", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
     return {
       status: "error",
       message: err instanceof Error ? err.message : "알 수 없는 오류",
@@ -218,7 +219,7 @@ export async function createPlanGroupForPlanner(input: {
       .single();
 
     if (insertError || !planGroup) {
-      console.error("[createPlanGroupForPlanner] 생성 실패:", insertError);
+      logActionError("planGroupSelector.createPlanGroupForPlanner", `생성 실패: ${insertError?.message ?? "unknown"}`);
       return {
         success: false,
         error: insertError?.message ?? "Plan Group 생성에 실패했습니다.",
@@ -244,7 +245,7 @@ export async function createPlanGroupForPlanner(input: {
         .insert(exclusionsToInsert);
 
       if (exclusionError) {
-        console.warn("[createPlanGroupForPlanner] 제외일 상속 실패:", exclusionError);
+        logActionWarn("planGroupSelector.createPlanGroupForPlanner", `제외일 상속 실패: ${exclusionError.message}`);
         // 플랜 그룹은 이미 생성되었으므로 경고만 로깅
       }
     }
@@ -270,7 +271,7 @@ export async function createPlanGroupForPlanner(input: {
         .insert(schedulesToInsert);
 
       if (scheduleError) {
-        console.warn("[createPlanGroupForPlanner] 학원일정 상속 실패:", scheduleError);
+        logActionWarn("planGroupSelector.createPlanGroupForPlanner", `학원일정 상속 실패: ${scheduleError.message}`);
         // 플랜 그룹은 이미 생성되었으므로 경고만 로깅
       }
     }
@@ -280,7 +281,7 @@ export async function createPlanGroupForPlanner(input: {
       planGroupId: planGroupId,
     };
   } catch (err) {
-    console.error("[createPlanGroupForPlanner] 예외 발생:", err);
+    logActionError("planGroupSelector.createPlanGroupForPlanner", `예외 발생: ${err instanceof Error ? err.message : String(err)}`);
     return {
       success: false,
       error: err instanceof Error ? err.message : "알 수 없는 오류",

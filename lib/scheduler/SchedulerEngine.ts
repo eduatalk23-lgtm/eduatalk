@@ -39,6 +39,7 @@ import {
 } from "@/lib/errors/planGenerationErrors";
 import { timeToMinutes, minutesToTime } from "@/lib/utils/time";
 import { calculateContentDuration } from "@/lib/plan/contentDuration";
+import { logActionWarn } from "@/lib/utils/serverActionLogger";
 
 /**
  * 기존 플랜 정보 (시간 충돌 방지용)
@@ -221,11 +222,7 @@ export class SchedulerEngine {
       subjectAllocations
     );
     if (!validation.valid) {
-      console.warn("[SchedulerEngine] 전략과목/취약과목 설정 검증 실패:", {
-        errors: validation.errors,
-        subjectAllocations,
-        contentAllocations,
-      });
+      logActionWarn("SchedulerEngine.allocateContentDates", `전략과목/취약과목 설정 검증 실패: ${validation.errors?.join(", ")}`);
     }
 
     this.contentAllocationMap = new Map();
@@ -277,14 +274,7 @@ export class SchedulerEngine {
           reason,
         });
 
-        console.warn("[SchedulerEngine] 학습일 배정 실패:", {
-          content_id: content.content_id,
-          content_type: content.content_type,
-          subject_type: allocation.subject_type,
-          weekly_days: allocation.weekly_days,
-          message:
-            "학습일이 배정되지 않았습니다. 이 콘텐츠는 플랜이 생성되지 않습니다.",
-        });
+        logActionWarn("SchedulerEngine.allocateContentDates", `학습일 배정 실패 - content_id:${content.content_id}, type:${content.content_type}, subject_type:${allocation.subject_type}, weekly_days:${allocation.weekly_days}`);
         if (this.contentAllocationMap) {
           this.contentAllocationMap.set(content.content_id, []);
         }
@@ -292,11 +282,7 @@ export class SchedulerEngine {
       }
 
       if (validAllocatedDates.length !== allocatedDates.length) {
-        console.warn("[SchedulerEngine] 일부 날짜가 학습일이 아님, 필터링:", {
-          content_id: content.content_id,
-          originalCount: allocatedDates.length,
-          validCount: validAllocatedDates.length,
-        });
+        logActionWarn("SchedulerEngine.allocateContentDates", `일부 날짜가 학습일이 아님, 필터링 - content_id:${content.content_id}, originalCount:${allocatedDates.length}, validCount:${validAllocatedDates.length}`);
       }
 
       if (this.contentAllocationMap) {
@@ -767,10 +753,7 @@ export class SchedulerEngine {
     contents.forEach((content) => {
       const allocatedDates = allocationMap.get(content.content_id) || [];
       if (allocatedDates.length === 0) {
-        console.warn("[SchedulerEngine] 학습 범위 분할 스킵 (학습일 없음):", {
-          content_id: content.content_id,
-          content_type: content.content_type,
-        });
+        logActionWarn("SchedulerEngine.divideContentRanges", `학습 범위 분할 스킵 (학습일 없음) - content_id:${content.content_id}, type:${content.content_type}`);
         return;
       }
 
@@ -964,10 +947,7 @@ export class SchedulerEngine {
     sortedContents.forEach((content) => {
       const contentRangeMap = rangeMap.get(content.content_id);
       if (!contentRangeMap) {
-        console.warn("[SchedulerEngine] 콘텐츠에 rangeMap이 없음:", {
-          content_id: content.content_id,
-          content_type: content.content_type,
-        });
+        logActionWarn("SchedulerEngine.generateStudyDayPlans", `콘텐츠에 rangeMap이 없음 - content_id:${content.content_id}, type:${content.content_type}`);
         return;
       }
 
@@ -997,19 +977,7 @@ export class SchedulerEngine {
 
       // 디버깅: 날짜 불일치 감지 및 조정 로그
       if (unmatchedDates.length > 0) {
-        const adjustmentLog: Record<string, string> = {};
-        adjustedDates.forEach((adjusted, original) => {
-          adjustmentLog[original] = adjusted;
-        });
-        
-        console.warn("[SchedulerEngine] rangeMap 날짜가 studyDaysList에 없어 자동 조정:", {
-          content_id: content.content_id,
-          rangeMapDates,
-          unmatchedDates,
-          adjustedDates: adjustmentLog,
-          studyDaysListSample: studyDaysList.slice(0, 5),
-          studyDaysListLength: studyDaysList.length,
-        });
+        logActionWarn("SchedulerEngine.generateStudyDayPlans", `rangeMap 날짜가 studyDaysList에 없어 자동 조정 - content_id:${content.content_id}, unmatchedCount:${unmatchedDates.length}, studyDaysCount:${studyDaysList.length}`);
       }
     });
 
@@ -1022,16 +990,10 @@ export class SchedulerEngine {
         });
       });
 
-      console.warn("[SchedulerEngine] 학습일 플랜이 생성되지 않음:", {
-        studyDaysList,
-        studyDaysListLength: studyDaysList.length,
-        totalContentsCount: sortedContents.length,
-        contentsWithRangeMap: Array.from(rangeMap.keys()).length,
-        allRangeMapDates: Array.from(allRangeMapDates),
-        rangeMapDatesNotInStudyDays: Array.from(allRangeMapDates).filter(
-          (date) => !studyDaysList.includes(date)
-        ),
-      });
+      const rangeMapDatesNotInStudyDays = Array.from(allRangeMapDates).filter(
+        (date) => !studyDaysList.includes(date)
+      );
+      logActionWarn("SchedulerEngine.generateStudyDayPlans", `학습일 플랜이 생성되지 않음 - studyDaysCount:${studyDaysList.length}, contentsCount:${sortedContents.length}, rangeMapCount:${rangeMap.size}, unmatchedDates:${rangeMapDatesNotInStudyDays.length}`);
     }
 
     studyPlansByDate.forEach((datePlans, date) => {
@@ -1423,13 +1385,7 @@ export class SchedulerEngine {
       reviewDaysList.length > 0 &&
       (!hasStudyPlans || studyPlansCount === 0)
     ) {
-      console.warn(
-        "[SchedulerEngine] 복습일 플랜 생성 불가 (학습일 플랜 없음):",
-        {
-          reviewDaysList,
-          studyPlansCount,
-        }
-      );
+      logActionWarn("SchedulerEngine.generateReviewDayPlans", `복습일 플랜 생성 불가 (학습일 플랜 없음) - reviewDaysCount:${reviewDaysList.length}, studyPlansCount:${studyPlansCount}`);
       return plans;
     }
 
@@ -1477,13 +1433,7 @@ export class SchedulerEngine {
       );
 
       if (reviewContents.length === 0) {
-        console.warn(
-          "[SchedulerEngine] 복습일 플랜 생성 스킵 (복습 콘텐츠 없음):",
-          {
-            reviewDay,
-            weekContentRangesCount: weekContentRanges.size,
-          }
-        );
+        logActionWarn("SchedulerEngine.generateReviewDayPlans", `복습일 플랜 생성 스킵 (복습 콘텐츠 없음) - reviewDay:${reviewDay}, weekContentRangesCount:${weekContentRanges.size}`);
         return;
       }
 
