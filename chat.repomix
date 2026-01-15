@@ -1,0 +1,274 @@
+# Chat Domain - Repomix Analysis
+
+## Domain Overview
+
+The Chat domain implements a real-time messaging system with support for:
+- Direct (1:1) and group chat rooms
+- Real-time message delivery via Supabase Realtime
+- Message reactions (emoji)
+- Typing indicators and online presence
+- Message search, edit, and read receipts
+- User blocking and message reporting (App Store requirements)
+
+## Architecture
+
+### Layer Structure
+```
+UI Components (components/chat/)
+    ↓
+Server Actions (lib/domains/chat/actions/)
+    ↓
+Service Layer (lib/domains/chat/service.ts)
+    ↓
+Repository Layer (lib/domains/chat/repository.ts)
+    ↓
+Database (Supabase)
+```
+
+### Real-time Layer
+```
+React Hooks (lib/realtime/)
+    ↓
+Supabase Realtime (Postgres Changes + Presence)
+```
+
+## File Structure
+
+### Domain Core (`lib/domains/chat/`)
+
+#### `types.ts` (394 lines)
+- Core type definitions
+- Enums: `ChatRoomType`, `ChatUserType`, `ChatMemberRole`, `ChatMessageType`, `ReportReason`, `ReportStatus`
+- Entity types: `ChatRoom`, `ChatMessage`, `ChatRoomMember`, `ChatBlock`, `ChatReport`
+- Composite types: `ChatMessageWithSender`, `ChatRoomWithDetails`, `ChatRoomListItem`
+- API types: `CreateChatRoomRequest`, `SendMessageRequest`, `GetMessagesOptions`
+- Reaction types: `MessageReaction`, `ReactionSummary`, `ReactionEmoji`
+
+#### `repository.ts` (1078 lines)
+Data access layer with N+1 query optimization:
+- **Rooms**: `findRoomById`, `findRoomsByUser`, `findDirectRoom`, `insertRoom`, `updateRoom`
+- **Members**: `findMembersByRoom`, `findMembersByRoomIds` (batch), `findMember`, `insertMember`, `updateMember`, `markAsRead`
+- **Messages**: `findMessagesByRoom`, `findLastMessagesByRoomIds` (batch), `insertMessage`, `deleteMessage`, `updateMessageContent`, `searchMessagesByRoom`
+- **Senders**: `findSendersByIds` (batch - student/admin split)
+- **Unread**: `countUnreadByRoomIds` (batch), `countUnreadMessages`
+- **Read Status**: `findMessagesWithReadCounts` (read receipts)
+- **Blocks**: `findBlocksByUser`, `isBlocked`, `insertBlock`, `deleteBlock`
+- **Reports**: `insertReport`, `findPendingReports`, `findAllReports`, `updateReport`, `findReportById`
+- **Reactions**: `insertReaction`, `deleteReaction`, `hasReaction`, `findReactionsByMessageIds` (batch)
+
+#### `service.ts` (1041 lines)
+Business logic layer:
+- **Rooms**: `createOrGetRoom`, `getRoomList` (with N+1 optimization), `getRoomDetail`
+- **Messages**: `sendMessage`, `getMessages` (with block filtering), `deleteMessage`, `editMessage` (5min limit), `searchMessages`, `getMessagesWithReadStatus` (read receipts + reactions)
+- **Members**: `inviteMembers`, `leaveRoom`
+- **Safety**: `blockUser`, `unblockUser`, `reportMessage`
+- **Reactions**: `toggleReaction`
+
+Key optimizations:
+- Batch queries to reduce N+1 (101 queries → 5 queries for room list)
+- Block filtering at service layer
+- Sender info batch loading
+
+#### `actions/` (Server Actions)
+- `rooms.ts`: `createChatRoomAction`, `getChatRoomsAction`, `getChatRoomDetailAction`, `leaveChatRoomAction`, `startDirectChatAction`
+- `messages.ts`: `sendMessageAction`, `getMessagesAction`, `deleteMessageAction`, `markAsReadAction`, `editMessageAction`, `searchMessagesAction`, `getMessagesWithReadStatusAction`
+- `members.ts`: `inviteMembersAction`
+- `safety.ts`: `blockUserAction`, `unblockUserAction`, `getBlockedUsersAction`, `reportMessageAction`, `getPendingReportsAction`, `resolveReportAction`
+- `reactions.ts`: `toggleReactionAction`
+
+### UI Components (`components/chat/`)
+
+#### Atoms
+- `MessageBubble.tsx`: Message display with sender info, reactions, read receipts, edit indicator
+- `UnreadBadge.tsx`: Unread message count badge
+- `OnlineStatus.tsx`: Online status indicator (green dot for 1:1, count for groups)
+- `TypingIndicator.tsx`: "○○님이 입력 중..." display
+- `ReactionPicker.tsx`: Emoji picker (👍 ❤️ 😂 🔥 😮)
+- `ReactionPills.tsx`: Reaction summary pills with counts
+
+#### Molecules
+- `ChatInput.tsx`: Message input with auto-resize, IME support, Enter/Shift+Enter handling
+- `ChatRoomCard.tsx`: Chat room list item with last message, unread count
+- `MessageSearch.tsx`: In-room message search UI
+
+#### Organisms
+- `ChatList.tsx`: Chat room list with real-time updates
+- `ChatRoom.tsx`: Full chat room view with messages, input, search, reactions, presence
+
+### Real-time Hooks (`lib/realtime/`)
+
+#### `useChatRealtime.ts` (256 lines)
+Supabase Realtime postgres_changes subscription:
+- New message INSERT → invalidate queries + callback
+- Message UPDATE (deletion) → invalidate + callback
+- Reaction INSERT/DELETE → invalidate messages
+- Room list updates (membership changes)
+
+#### `useChatPresence.ts` (154 lines)
+Supabase Presence API:
+- Online status tracking
+- Typing indicator (2s auto-clear timeout)
+- Presence sync/join/leave events
+
+### Pages
+
+#### Student (`app/(student)/chat/`)
+- `page.tsx`: Chat list page
+- `[roomId]/page.tsx`: Chat room page
+- `_components/ChatListPage.tsx`: List page component
+- `_components/ChatRoomPage.tsx`: Room page component
+- `_components/CreateChatModal.tsx`: Create chat modal
+
+#### Admin (`app/(admin)/admin/chat/`)
+- `page.tsx`: Admin chat list page
+- `[roomId]/page.tsx`: Admin chat room page
+- `_components/AdminChatListPage.tsx`: Admin list component
+- `_components/AdminChatRoomPage.tsx`: Admin room component
+- `_components/AdminCreateChatModal.tsx`: Admin create modal
+- `reports/page.tsx`: Report management page
+- `reports/_components/`: Report list, filter, detail modal, table
+
+## Database Schema
+
+### Tables
+1. **chat_rooms**: Room metadata (type, name, tenant_id, created_by)
+2. **chat_room_members**: Membership with roles, last_read_at, left_at
+3. **chat_messages**: Messages with soft delete, content (max 1000 chars)
+4. **chat_message_reactions**: Message reactions (emoji + user)
+5. **chat_blocks**: User blocking (App Store requirement)
+6. **chat_reports**: Message/user reporting (App Store requirement)
+
+### Indexes
+- `chat_messages_content_trgm_idx`: pg_trgm trigram index for search
+- RLS policies for tenant isolation and member access
+
+### Migrations
+- `20260115000000_create_chat_tables.sql`: Initial schema
+- `20260115000001_fix_chat_rls.sql`: RLS policy fixes
+- `20260116000000_add_chat_message_search_index.sql`: Search index
+- `20260116100000_add_chat_reactions.sql`: Reactions table
+
+## Key Features
+
+### 1. Real-time Messaging
+- Supabase Realtime postgres_changes for instant message delivery
+- Optimistic updates in UI for immediate feedback
+- Query invalidation for cache consistency
+
+### 2. Message Reactions
+- 5 emoji options: 👍 ❤️ 😂 🔥 😮
+- Toggle reactions (add/remove)
+- Batch loading to prevent N+1 queries
+- Real-time updates via Realtime
+
+### 3. Typing Indicators & Presence
+- Supabase Presence API (ephemeral, no DB)
+- 2-second auto-clear timeout
+- Online status per room
+- Automatic cleanup on disconnect
+
+### 4. Message Search
+- pg_trgm trigram index for fast text search
+- In-room search only (member access required)
+- Results include sender info
+
+### 5. Message Editing
+- 5-minute edit window
+- "(수정됨)" indicator
+- Only own messages, not system messages
+- Soft delete check
+
+### 6. Read Receipts
+- `last_read_at` per member per room
+- Unread count calculation (batch optimized)
+- Read count display for own messages (KakaoTalk style "1")
+
+### 7. Safety Features (App Store)
+- User blocking: Hide blocked user messages
+- Message reporting: 5 reasons (spam, harassment, inappropriate, hate_speech, other)
+- Admin report management: Status tracking, resolution notes
+
+## Performance Optimizations
+
+### N+1 Query Prevention
+1. **Room List**: Batch load members, last messages, unread counts, sender info
+   - Before: 101 queries (1 room + 20 members + 20 messages + 20 senders + 20 unread)
+   - After: 5 queries (rooms, members batch, messages batch, senders batch, unread batch)
+
+2. **Message List**: Batch load senders and reactions
+   - Before: 51 queries (50 messages + 50 senders)
+   - After: 4 queries (messages, senders batch, reactions batch, blocks)
+
+3. **Sender Info**: Split student/admin queries, batch profile images
+
+### Caching Strategy
+- React Query with 10s staleTime for messages
+- Query invalidation on Realtime events
+- Optimistic updates for immediate UI feedback
+
+## Dependencies
+
+### Internal
+- `@/lib/supabase/server`: Server client for data access
+- `@/lib/supabase/client`: Browser client for Realtime
+- `@/lib/supabase/admin`: Admin client (RLS bypass for member queries)
+- `@/lib/auth/getCurrentUserRole`: User authentication
+- `@tanstack/react-query`: Client-side state management
+
+### External
+- `@supabase/supabase-js`: Supabase client
+- `@supabase/ssr`: SSR support
+- `lucide-react`: Icons
+
+## Testing
+
+### Test Files
+- `__tests__/components/chat/ChatInput.test.tsx`: Input component tests
+- `__tests__/lib/domains/chat/service.test.ts`: Service layer tests
+
+## Known Issues / TODOs
+
+1. Admin user name retrieval: Currently hardcoded as "관리자" (line 84 in service.ts)
+2. Profile image support: Student profiles have images, admin profiles don't
+3. Message length: Fixed at 1000 chars (configurable via constant)
+
+## Usage Examples
+
+### Create Direct Chat
+```typescript
+const result = await createChatRoomAction({
+  type: "direct",
+  memberIds: ["student-id"],
+  memberTypes: ["student"],
+});
+```
+
+### Send Message
+```typescript
+const result = await sendMessageAction(roomId, "Hello!");
+```
+
+### Subscribe to Real-time
+```typescript
+useChatRealtime({
+  roomId: "room-123",
+  userId: "user-456",
+  onNewMessage: (msg) => console.log("New message:", msg),
+});
+```
+
+### Use Presence
+```typescript
+const { onlineUsers, typingUsers, setTyping } = useChatPresence({
+  roomId: "room-123",
+  userId: "user-456",
+  userName: "John",
+});
+```
+
+## Related Domains
+
+- **auth**: User authentication and role management
+- **student**: Student profile data for chat users
+- **tenant**: Multi-tenant isolation
+
