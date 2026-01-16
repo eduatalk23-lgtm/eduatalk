@@ -7,15 +7,7 @@
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
-import type { ChatActionResult, ChatUserType, ReactionEmoji } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
+import { getUserType, type ChatActionResult, type ReactionEmoji } from "../types";
 
 /**
  * 메시지 리액션 토글

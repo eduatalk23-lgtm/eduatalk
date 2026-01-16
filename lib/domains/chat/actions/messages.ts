@@ -7,24 +7,19 @@
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
-import type {
-  ChatMessage,
-  ChatMessageWithSender,
-  ChatUserType,
-  ChatActionResult,
-  PaginatedResult,
-  GetMessagesOptions,
-  SearchMessagesResult,
-  MessagesWithReadStatusResult,
+import * as repository from "../repository";
+import {
+  getUserType,
+  type ChatMessage,
+  type ChatMessageWithSender,
+  type ChatUserType,
+  type ChatUser,
+  type ChatActionResult,
+  type PaginatedResult,
+  type GetMessagesOptions,
+  type SearchMessagesResult,
+  type MessagesWithReadStatusResult,
 } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
 
 /**
  * 메시지 전송
@@ -244,6 +239,125 @@ export async function getMessagesWithReadStatusAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "메시지 조회 실패",
+    };
+  }
+}
+
+/**
+ * 발신자 정보 조회 (실시간 이벤트에서 sender 정보 보강용)
+ *
+ * @param senderId 발신자 ID
+ * @param senderType 발신자 타입 (student | admin)
+ */
+export async function getSenderInfoAction(
+  senderId: string,
+  senderType: ChatUserType
+): Promise<ChatActionResult<ChatUser>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const senderInfo = await repository.findSenderById(senderId, senderType);
+
+    if (!senderInfo) {
+      return { success: false, error: "발신자 정보를 찾을 수 없습니다." };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: senderInfo.id,
+        type: senderType,
+        name: senderInfo.name,
+        profileImageUrl: senderInfo.profileImageUrl,
+      },
+    };
+  } catch (error) {
+    console.error("[getSenderInfoAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "발신자 정보 조회 실패",
+    };
+  }
+}
+
+/**
+ * 특정 시점 이후의 메시지 조회 (점진적 동기화용)
+ *
+ * 재연결 시 마지막 동기화 시점 이후의 메시지만 가져옵니다.
+ * 전체 캐시 무효화 대신 효율적인 동기화를 지원합니다.
+ *
+ * @param roomId 채팅방 ID
+ * @param since ISO 8601 타임스탬프 (이 시점 이후 메시지만 조회)
+ * @param limit 최대 조회 개수 (기본: 100)
+ */
+export async function getMessagesSinceAction(
+  roomId: string,
+  since: string,
+  limit: number = 100
+): Promise<ChatActionResult<ChatMessageWithSender[]>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    // 권한 확인: 채팅방 멤버인지
+    const member = await repository.findMember(roomId, userId, userType);
+    if (!member) {
+      return { success: false, error: "채팅방에 접근 권한이 없습니다." };
+    }
+
+    // 메시지 조회
+    const messages = await repository.findMessagesSince(roomId, since, limit);
+
+    if (messages.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // 발신자 정보 배치 조회
+    const senderKeys = messages.map((m) => ({
+      id: m.sender_id,
+      type: m.sender_type,
+    }));
+    const senderMap = await repository.findSendersByIds(senderKeys);
+
+    // 메시지에 발신자 정보 추가
+    const messagesWithSender: ChatMessageWithSender[] = messages.map((m) => {
+      const senderKey = `${m.sender_id}_${m.sender_type}`;
+      const senderInfo = senderMap.get(senderKey);
+
+      return {
+        ...m,
+        sender: senderInfo
+          ? {
+              id: senderInfo.id,
+              type: m.sender_type,
+              name: senderInfo.name,
+              profileImageUrl: senderInfo.profileImageUrl,
+            }
+          : {
+              id: m.sender_id,
+              type: m.sender_type,
+              name: "알 수 없음",
+            },
+        reactions: [],
+        replyTarget: null,
+      };
+    });
+
+    return { success: true, data: messagesWithSender };
+  } catch (error) {
+    console.error("[getMessagesSinceAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "메시지 동기화 실패",
     };
   }
 }

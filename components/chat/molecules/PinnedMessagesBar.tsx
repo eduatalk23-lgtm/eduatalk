@@ -40,18 +40,20 @@ function PinnedMessagesBarComponent({
   if (!isExpanded && pinnedMessages.length === 1) {
     const pinned = pinnedMessages[0];
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
+      <div className="flex items-center gap-1 px-3 py-1 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
         <Pin className="w-4 h-4 text-primary flex-shrink-0" />
         <button
           type="button"
           onClick={() => onMessageClick(pinned.message_id)}
-          className="flex-1 text-left text-sm truncate hover:text-primary transition-colors"
+          className="flex-1 min-h-[44px] flex items-center text-left text-sm truncate hover:text-primary transition-colors px-2"
         >
-          <span className="font-medium text-primary">
-            {pinned.message.senderName}:
-          </span>{" "}
-          <span className="text-text-secondary">
-            {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+          <span>
+            <span className="font-medium text-primary">
+              {pinned.message.senderName}:
+            </span>{" "}
+            <span className="text-text-secondary">
+              {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+            </span>
           </span>
         </button>
         {canUnpin && onUnpin && (
@@ -61,10 +63,10 @@ function PinnedMessagesBarComponent({
               e.stopPropagation();
               onUnpin(pinned.message_id);
             }}
-            className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+            className="w-11 h-11 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg transition-colors flex-shrink-0"
             aria-label="고정 해제"
           >
-            <X className="w-3 h-3 text-text-tertiary hover:text-error" />
+            <X className="w-4 h-4 text-text-tertiary hover:text-error" />
           </button>
         )}
       </div>
@@ -75,18 +77,20 @@ function PinnedMessagesBarComponent({
   if (!isExpanded && pinnedMessages.length > 1) {
     const pinned = pinnedMessages[currentIndex];
     return (
-      <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
+      <div className="flex items-center gap-1 px-3 py-1 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
         <Pin className="w-4 h-4 text-primary flex-shrink-0" />
         <button
           type="button"
           onClick={() => onMessageClick(pinned.message_id)}
-          className="flex-1 text-left text-sm truncate hover:text-primary transition-colors"
+          className="flex-1 min-h-[44px] flex items-center text-left text-sm truncate hover:text-primary transition-colors px-2"
         >
-          <span className="font-medium text-primary">
-            {pinned.message.senderName}:
-          </span>{" "}
-          <span className="text-text-secondary">
-            {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+          <span>
+            <span className="font-medium text-primary">
+              {pinned.message.senderName}:
+            </span>{" "}
+            <span className="text-text-secondary">
+              {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+            </span>
           </span>
         </button>
         <span className="text-xs text-text-tertiary">
@@ -95,15 +99,15 @@ function PinnedMessagesBarComponent({
         <button
           type="button"
           onClick={() => setCurrentIndex((i) => (i + 1) % pinnedMessages.length)}
-          className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+          className="w-11 h-11 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg transition-colors flex-shrink-0"
           aria-label="다음 고정 메시지"
         >
-          <ChevronDown className="w-4 h-4 text-text-tertiary" />
+          <ChevronDown className="w-5 h-5 text-text-tertiary" />
         </button>
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="text-xs text-primary hover:underline"
+          className="min-h-[44px] px-3 flex items-center text-xs text-primary hover:underline flex-shrink-0"
         >
           전체 보기
         </button>
@@ -114,7 +118,7 @@ function PinnedMessagesBarComponent({
   // 확장 모드 (전체 목록)
   return (
     <div className="bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
-      <div className="flex items-center justify-between px-4 py-2">
+      <div className="flex items-center justify-between px-3 py-1">
         <div className="flex items-center gap-2">
           <Pin className="w-4 h-4 text-primary" />
           <span className="text-sm font-medium text-primary">
@@ -124,31 +128,33 @@ function PinnedMessagesBarComponent({
         <button
           type="button"
           onClick={() => setIsExpanded(false)}
-          className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+          className="w-11 h-11 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
           aria-label="접기"
         >
-          <ChevronUp className="w-4 h-4 text-text-tertiary" />
+          <ChevronUp className="w-5 h-5 text-text-tertiary" />
         </button>
       </div>
-      <div className="max-h-40 overflow-y-auto">
+      <div className="max-h-48 overflow-y-auto">
         {pinnedMessages.map((pinned) => (
           <div
             key={pinned.id}
             className={cn(
-              "flex items-center gap-2 px-4 py-2",
-              "hover:bg-primary-100/50 dark:hover:bg-primary-900/40 transition-colors cursor-pointer"
+              "flex items-center gap-1 px-3",
+              "hover:bg-primary-100/50 dark:hover:bg-primary-900/40 transition-colors"
             )}
           >
             <button
               type="button"
               onClick={() => onMessageClick(pinned.message_id)}
-              className="flex-1 text-left text-sm truncate"
+              className="flex-1 min-h-[44px] flex items-center text-left text-sm truncate px-2"
             >
-              <span className="font-medium text-primary">
-                {pinned.message.senderName}:
-              </span>{" "}
-              <span className="text-text-secondary">
-                {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+              <span>
+                <span className="font-medium text-primary">
+                  {pinned.message.senderName}:
+                </span>{" "}
+                <span className="text-text-secondary">
+                  {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+                </span>
               </span>
             </button>
             {canUnpin && onUnpin && (
@@ -158,10 +164,10 @@ function PinnedMessagesBarComponent({
                   e.stopPropagation();
                   onUnpin(pinned.message_id);
                 }}
-                className="p-1 hover:bg-primary-200 dark:hover:bg-primary-800 rounded transition-colors"
+                className="w-11 h-11 flex items-center justify-center hover:bg-primary-200 dark:hover:bg-primary-800 rounded-lg transition-colors flex-shrink-0"
                 aria-label="고정 해제"
               >
-                <X className="w-3 h-3 text-text-tertiary hover:text-error" />
+                <X className="w-4 h-4 text-text-tertiary hover:text-error" />
               </button>
             )}
           </div>

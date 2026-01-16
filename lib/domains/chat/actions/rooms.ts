@@ -7,23 +7,16 @@
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
-import type {
-  ChatRoom,
-  ChatRoomListItem,
-  ChatRoomMemberWithUser,
-  ChatUserType,
-  ChatActionResult,
-  CreateChatRoomRequest,
-  AnnouncementInfo,
+import {
+  getUserType,
+  type ChatRoom,
+  type ChatRoomListItem,
+  type ChatRoomMemberWithUser,
+  type ChatUserType,
+  type ChatActionResult,
+  type CreateChatRoomRequest,
+  type AnnouncementInfo,
 } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
 
 /**
  * 채팅방 생성 (1:1 또는 그룹)

@@ -8,23 +8,16 @@
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
 import * as chatRepository from "../repository";
-import type {
-  ChatUserType,
-  ChatActionResult,
-  ChatBlock,
-  ChatReport,
-  ChatReportWithDetails,
-  ReportReason,
-  GetReportsFilter,
+import {
+  getUserType,
+  type ChatUserType,
+  type ChatActionResult,
+  type ChatBlock,
+  type ChatReport,
+  type ChatReportWithDetails,
+  type ReportReason,
+  type GetReportsFilter,
 } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
 
 /**
  * 관리자 역할 확인

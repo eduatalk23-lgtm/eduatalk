@@ -41,8 +41,8 @@ function ReactionPickerComponent({
       ref={containerRef}
       className={cn(
         "absolute z-50",
-        "flex items-center gap-1 p-1.5",
-        "bg-bg-primary rounded-lg shadow-lg",
+        "flex items-center gap-2 p-2",
+        "bg-bg-primary rounded-xl shadow-lg",
         "border border-border",
         "animate-in fade-in-0 zoom-in-95 duration-150",
         className
@@ -56,8 +56,8 @@ function ReactionPickerComponent({
           type="button"
           onClick={() => handleSelect(emoji)}
           className={cn(
-            "w-8 h-8 flex items-center justify-center",
-            "rounded-md text-lg",
+            "w-11 h-11 flex items-center justify-center",
+            "rounded-full text-xl",
             "hover:bg-bg-secondary hover:scale-110",
             "active:scale-95",
             "transition-all duration-100"

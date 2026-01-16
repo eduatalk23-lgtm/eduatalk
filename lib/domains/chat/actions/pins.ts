@@ -7,19 +7,11 @@
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
-import type {
-  ChatActionResult,
-  ChatUserType,
-  PinnedMessageWithContent,
+import {
+  getUserType,
+  type ChatActionResult,
+  type PinnedMessageWithContent,
 } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
 
 /**
  * 메시지 고정

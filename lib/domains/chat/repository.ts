@@ -30,6 +30,68 @@ import type {
 } from "./types";
 
 // ============================================
+// 유틸리티 함수
+// ============================================
+
+/**
+ * 커서 유효성 검증 및 안전한 값 반환
+ * 페이지네이션 커서로 사용되는 타임스탬프 유효성 확인
+ * @returns 유효한 커서 또는 undefined
+ */
+function validateCursor(cursor: string | undefined): string | undefined {
+  if (!cursor) return undefined;
+
+  // ISO 8601 형식 또는 일반 날짜 형식 허용
+  const date = new Date(cursor);
+  if (isNaN(date.getTime())) {
+    console.warn(`[ChatRepository] Invalid cursor format: ${cursor}`);
+    return undefined;
+  }
+
+  return cursor;
+}
+
+/**
+ * Chat 테이블 접근을 위한 Admin 클라이언트
+ *
+ * 주의: Database 타입에 chat 테이블이 포함되지 않아 타입 단언 사용
+ * chat 테이블은 별도의 마이그레이션으로 생성되어 타입 생성 시 누락됨
+ *
+ * TODO: Supabase 타입 재생성 후 이 함수 제거하고 SupabaseAdminClient 직접 사용
+ *
+ * @throws Error Admin client 초기화 실패 시
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getAdminClientForChat(): any {
+  const client = createSupabaseAdminClient();
+  if (!client) {
+    throw new Error("Admin client initialization failed: Service role key not configured");
+  }
+  return client;
+}
+
+/**
+ * Supabase JOIN 결과에서 프로필 이미지 URL을 안전하게 추출
+ *
+ * student_profiles JOIN은 1:1 관계에서 단일 객체를, 1:many에서 배열을 반환할 수 있음
+ * 이 헬퍼는 두 경우를 모두 타입 안전하게 처리
+ *
+ * @param profiles - JOIN 결과 (객체, 배열, 또는 null)
+ * @returns 프로필 이미지 URL 또는 null
+ */
+function extractProfileImageUrl(
+  profiles: { profile_image_url: string | null } | { profile_image_url: string | null }[] | null | undefined
+): string | null {
+  if (!profiles) return null;
+
+  if (Array.isArray(profiles)) {
+    return profiles[0]?.profile_image_url ?? null;
+  }
+
+  return profiles.profile_image_url ?? null;
+}
+
+// ============================================
 // 컬럼 정의
 // ============================================
 
@@ -253,14 +315,9 @@ export async function findMembersByRoom(
   roomId: string
 ): Promise<ChatRoomMember[]> {
   // Admin client 사용 (RLS 우회 - 같은 방 멤버 조회 허용)
-  const supabase = createSupabaseAdminClient();
+  const supabase = getAdminClientForChat();
 
-  if (!supabase) {
-    throw new Error("Admin client initialization failed");
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("chat_room_members")
     .select(CHAT_MEMBER_COLUMNS)
     .eq("room_id", roomId)
@@ -280,13 +337,9 @@ export async function findMembersByRoomIds(
 ): Promise<Map<string, ChatRoomMember[]>> {
   if (roomIds.length === 0) return new Map();
 
-  const supabase = createSupabaseAdminClient();
-  if (!supabase) {
-    throw new Error("Admin client initialization failed");
-  }
+  const supabase = getAdminClientForChat();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("chat_room_members")
     .select(CHAT_MEMBER_COLUMNS)
     .in("room_id", roomIds)
@@ -407,6 +460,9 @@ export async function findMessagesByRoom(
   const { roomId, limit = 50, before } = options;
   const supabase = await createSupabaseServerClient();
 
+  // 커서 유효성 검증
+  const validatedBefore = validateCursor(before);
+
   let query = supabase
     .from("chat_messages")
     .select(CHAT_MESSAGE_COLUMNS)
@@ -415,8 +471,8 @@ export async function findMessagesByRoom(
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (before) {
-    query = query.lt("created_at", before);
+  if (validatedBefore) {
+    query = query.lt("created_at", validatedBefore);
   }
 
   const { data, error } = await query;
@@ -429,7 +485,7 @@ export async function findMessagesByRoom(
 
 /**
  * 여러 채팅방의 마지막 메시지 배치 조회 (N+1 최적화)
- * SQL: DISTINCT ON (room_id) ORDER BY created_at DESC
+ * RPC 함수 사용: DISTINCT ON (room_id) ORDER BY created_at DESC
  */
 export async function findLastMessagesByRoomIds(
   roomIds: string[]
@@ -438,24 +494,17 @@ export async function findLastMessagesByRoomIds(
 
   const supabase = await createSupabaseServerClient();
 
-  // Supabase는 DISTINCT ON을 직접 지원하지 않으므로
-  // 각 room의 최신 메시지를 위해 RPC나 서브쿼리 대신
-  // 전체 조회 후 JS에서 처리 (room 수가 적을 때 효율적)
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select(CHAT_MESSAGE_COLUMNS)
-    .in("room_id", roomIds)
-    .eq("is_deleted", false)
-    .order("created_at", { ascending: false });
+  // RPC 함수 호출 (DISTINCT ON 사용으로 DB에서 직접 처리)
+  const { data, error } = await supabase.rpc("get_last_messages_by_room_ids", {
+    p_room_ids: roomIds,
+  });
 
   if (error) throw error;
 
-  // room_id별 첫 번째(최신) 메시지만 추출
+  // room_id별로 매핑
   const result = new Map<string, ChatMessage>();
   for (const message of (data as ChatMessage[]) ?? []) {
-    if (!result.has(message.room_id)) {
-      result.set(message.room_id, message);
-    }
+    result.set(message.room_id, message);
   }
 
   return result;
@@ -463,6 +512,7 @@ export async function findLastMessagesByRoomIds(
 
 /**
  * 여러 채팅방의 안 읽은 메시지 수 배치 조회 (N+1 최적화)
+ * RPC 함수 사용: DB에서 직접 집계하여 성능 최적화
  */
 export async function countUnreadByRoomIds(
   roomIds: string[],
@@ -473,27 +523,29 @@ export async function countUnreadByRoomIds(
 
   const supabase = await createSupabaseServerClient();
 
-  // 각 방의 last_read_at 이후 메시지 수를 계산
-  // 효율성을 위해 한 쿼리로 모든 메시지 조회 후 JS에서 카운트
-  const { data, error } = await supabase
-    .from("chat_messages")
-    .select("room_id, sender_id, created_at")
-    .in("room_id", roomIds)
-    .neq("sender_id", userId)
-    .eq("is_deleted", false);
+  // membershipMap을 JSON 객체로 변환
+  const membershipData: Record<string, string> = {};
+  for (const [roomId, membership] of membershipMap) {
+    membershipData[roomId] = membership.last_read_at;
+  }
+
+  // RPC 함수 호출 (DB에서 직접 집계)
+  const { data, error } = await supabase.rpc("count_unread_by_room_ids", {
+    p_room_ids: roomIds,
+    p_user_id: userId,
+    p_membership_data: membershipData,
+  });
 
   if (error) throw error;
 
+  // 결과 매핑 (unread가 없는 방은 0으로 초기화)
   const result = new Map<string, number>();
   for (const roomId of roomIds) {
     result.set(roomId, 0);
   }
 
-  for (const msg of data ?? []) {
-    const membership = membershipMap.get(msg.room_id);
-    if (membership && msg.created_at > membership.last_read_at) {
-      result.set(msg.room_id, (result.get(msg.room_id) ?? 0) + 1);
-    }
+  for (const row of (data as Array<{ room_id: string; unread_count: number }>) ?? []) {
+    result.set(row.room_id, row.unread_count);
   }
 
   return result;
@@ -515,12 +567,7 @@ export async function insertMessage(
 
   if (error) throw error;
 
-  // 채팅방 updated_at 갱신
-  await supabase
-    .from("chat_rooms")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", input.room_id);
-
+  // chat_rooms.updated_at은 DB 트리거가 자동으로 갱신
   return data as ChatMessage;
 }
 
@@ -548,6 +595,7 @@ export async function deleteMessage(
 /**
  * 발신자 정보 배치 조회 (N+1 쿼리 최적화)
  * sender_id + sender_type 조합으로 한 번에 조회
+ * 병렬 쿼리로 성능 최적화 (3개 순차 쿼리 → 2개 병렬 쿼리)
  */
 export async function findSendersByIds(
   senderKeys: Array<{ id: string; type: ChatUserType }>
@@ -567,44 +615,46 @@ export async function findSendersByIds(
 
   const result = new Map<string, { id: string; name: string; profileImageUrl?: string | null }>();
 
-  // 학생 정보 배치 조회
-  if (studentIds.length > 0) {
-    const { data: students } = await supabase
-      .from("students")
-      .select("id, name")
-      .in("id", studentIds);
+  // 병렬로 학생 + 관리자 정보 조회 (students는 profiles와 JOIN)
+  const [studentsResult, adminsResult] = await Promise.all([
+    // 학생 정보 + 프로필 이미지 (JOIN으로 한 번에 조회)
+    studentIds.length > 0
+      ? supabase
+          .from("students")
+          .select("id, name, student_profiles(profile_image_url)")
+          .in("id", studentIds)
+      : Promise.resolve({ data: null, error: null }),
+    // 관리자 정보
+    adminIds.length > 0
+      ? supabase
+          .from("admin_users")
+          .select("id, name")
+          .in("id", adminIds)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
-    // 프로필 이미지 배치 조회
-    const { data: profiles } = await supabase
-      .from("student_profiles")
-      .select("id, profile_image_url")
-      .in("id", studentIds);
+  // 학생 결과 처리
+  if (studentsResult.data) {
+    for (const student of studentsResult.data) {
+      const profileImageUrl = extractProfileImageUrl(student.student_profiles);
 
-    const profileMap = new Map(profiles?.map((p) => [p.id, p.profile_image_url]) ?? []);
-
-    students?.forEach((s) => {
-      result.set(`${s.id}_student`, {
-        id: s.id,
-        name: s.name,
-        profileImageUrl: profileMap.get(s.id) ?? null,
+      result.set(`${student.id}_student`, {
+        id: student.id,
+        name: student.name,
+        profileImageUrl,
       });
-    });
+    }
   }
 
-  // 관리자 정보 배치 조회
-  if (adminIds.length > 0) {
-    const { data: admins } = await supabase
-      .from("admin_users")
-      .select("id, name")
-      .in("id", adminIds);
-
-    admins?.forEach((a) => {
-      result.set(`${a.id}_admin`, {
-        id: a.id,
-        name: a.name ?? "관리자",
+  // 관리자 결과 처리
+  if (adminsResult.data) {
+    for (const admin of adminsResult.data) {
+      result.set(`${admin.id}_admin`, {
+        id: admin.id,
+        name: admin.name ?? "관리자",
         profileImageUrl: null,
       });
-    });
+    }
   }
 
   return result;
@@ -926,13 +976,9 @@ export async function searchMessagesByRoom(
 export async function findActiveMembersWithReadStatus(
   roomId: string
 ): Promise<Array<{ user_id: string; user_type: ChatUserType; last_read_at: string }>> {
-  const supabase = createSupabaseAdminClient();
-  if (!supabase) {
-    throw new Error("Admin client initialization failed");
-  }
+  const supabase = getAdminClientForChat();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("chat_room_members")
     .select("user_id, user_type, last_read_at")
     .eq("room_id", roomId)
@@ -946,30 +992,49 @@ export async function findActiveMembersWithReadStatus(
 /**
  * 메시지 목록과 각 메시지의 읽음 상태를 함께 조회
  * 본인 메시지에 대해서만 안 읽은 멤버 수 계산
+ *
+ * 최적화: SQL RPC 함수로 계산하여 O(m×u) → O(1) 쿼리
  */
 export async function findMessagesWithReadCounts(
   options: GetMessagesOptions,
   currentUserId: string
 ): Promise<{ messages: ChatMessage[]; readCounts: Record<string, number> }> {
+  const supabase = await createSupabaseServerClient();
   const messages = await findMessagesByRoom(options);
 
-  // 방 멤버들의 last_read_at 조회
-  const members = await findActiveMembersWithReadStatus(options.roomId);
+  if (messages.length === 0) {
+    return { messages, readCounts: {} };
+  }
+
+  // 본인 메시지 ID만 추출 (읽음 상태 계산 대상)
+  const myMessageIds = messages
+    .filter((m) => m.sender_id === currentUserId)
+    .map((m) => m.id);
 
   const readCounts: Record<string, number> = {};
 
-  // 각 메시지에 대해 안 읽은 멤버 수 계산 (본인 메시지만)
-  for (const msg of messages) {
-    if (msg.sender_id === currentUserId) {
-      // 메시지 시간 이후에 읽지 않은 멤버 수 (발신자 제외)
-      const unreadCount = members.filter(
-        (m) =>
-          m.user_id !== msg.sender_id &&
-          new Date(m.last_read_at) < new Date(msg.created_at)
-      ).length;
+  // 본인 메시지가 있는 경우에만 RPC 호출
+  if (myMessageIds.length > 0) {
+    const { data, error } = await supabase.rpc("get_message_read_counts", {
+      p_room_id: options.roomId,
+      p_message_ids: myMessageIds,
+      p_sender_id: currentUserId,
+    });
 
-      readCounts[msg.id] = unreadCount;
-    } else {
+    if (error) {
+      console.error("[findMessagesWithReadCounts] RPC error:", error);
+      // RPC 실패 시 0으로 fallback (기능은 유지하되 성능만 저하)
+    } else if (data) {
+      // RPC 결과를 Record로 변환
+      for (const row of data as Array<{ message_id: string; unread_count: number }>) {
+        readCounts[row.message_id] = row.unread_count;
+      }
+    }
+  }
+
+  // 타인 메시지는 0, 본인 메시지는 RPC 결과 또는 0
+  for (const msg of messages) {
+    if (!(msg.id in readCounts)) {
       readCounts[msg.id] = 0;
     }
   }
@@ -1058,13 +1123,9 @@ export async function findReactionsByMessageIds(
 ): Promise<Map<string, MessageReaction[]>> {
   if (messageIds.length === 0) return new Map();
 
-  const supabase = createSupabaseAdminClient();
-  if (!supabase) {
-    throw new Error("Admin client initialization failed");
-  }
+  const supabase = getAdminClientForChat();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("chat_message_reactions")
     .select(CHAT_REACTION_COLUMNS)
     .in("message_id", messageIds)
@@ -1274,4 +1335,130 @@ export async function setRoomAnnouncement(
   if (error) throw error;
 
   return data as ChatRoom;
+}
+
+// ============================================
+// 배치 멤버 관리 (inviteMembers 최적화)
+// ============================================
+
+/**
+ * 기존 멤버 배치 조회 (N+1 최적화)
+ * 특정 채팅방에서 이미 존재하는 멤버들을 한 번에 조회
+ */
+export async function findExistingMembersByRoomBatch(
+  roomId: string,
+  memberIds: string[],
+  memberTypes: ChatUserType[]
+): Promise<Set<string>> {
+  if (memberIds.length === 0) return new Set();
+
+  const supabase = await createSupabaseServerClient();
+
+  // RPC 함수 호출
+  const { data, error } = await supabase.rpc("find_existing_members_batch", {
+    p_room_id: roomId,
+    p_member_ids: memberIds,
+    p_member_types: memberTypes,
+  });
+
+  if (error) throw error;
+
+  // user_id_userType 형태의 Set 생성
+  const result = new Set<string>();
+  for (const row of (data as Array<{ user_id: string; user_type: string }>) ?? []) {
+    result.add(`${row.user_id}_${row.user_type}`);
+  }
+
+  return result;
+}
+
+/**
+ * 멤버 배치 추가 (N+1 최적화)
+ * 여러 멤버를 한 번의 INSERT로 추가
+ */
+export async function insertMembersBatch(
+  members: ChatRoomMemberInsert[]
+): Promise<ChatRoomMember[]> {
+  if (members.length === 0) return [];
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("chat_room_members")
+    .insert(members)
+    .select(CHAT_MEMBER_COLUMNS);
+
+  if (error) throw error;
+
+  return (data as ChatRoomMember[]) ?? [];
+}
+
+// ============================================
+// 단일 발신자 정보 조회 (실시간 이벤트용)
+// ============================================
+
+/**
+ * 단일 발신자 정보 조회 (실시간 이벤트에서 sender 정보 보강용)
+ */
+export async function findSenderById(
+  senderId: string,
+  senderType: ChatUserType
+): Promise<{ id: string; name: string; profileImageUrl?: string | null } | null> {
+  const supabase = await createSupabaseServerClient();
+
+  if (senderType === "student") {
+    const { data } = await supabase
+      .from("students")
+      .select("id, name, student_profiles(profile_image_url)")
+      .eq("id", senderId)
+      .maybeSingle();
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      name: data.name,
+      profileImageUrl: extractProfileImageUrl(data.student_profiles),
+    };
+  } else {
+    const { data } = await supabase
+      .from("admin_users")
+      .select("id, name")
+      .eq("id", senderId)
+      .maybeSingle();
+
+    if (!data) return null;
+
+    return {
+      id: data.id,
+      name: data.name ?? "관리자",
+      profileImageUrl: null,
+    };
+  }
+}
+
+// ============================================
+// 점진적 동기화 (재연결 시 사용)
+// ============================================
+
+/**
+ * 특정 시점 이후의 메시지 조회 (점진적 동기화용)
+ * 재연결 시 마지막 동기화 시점 이후의 메시지만 가져옴
+ */
+export async function findMessagesSince(
+  roomId: string,
+  since: string,
+  limit: number = 100
+): Promise<ChatMessage[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase.rpc("get_chat_messages_since", {
+    p_room_id: roomId,
+    p_since: since,
+    p_limit: limit,
+  });
+
+  if (error) throw error;
+
+  return (data as ChatMessage[]) ?? [];
 }

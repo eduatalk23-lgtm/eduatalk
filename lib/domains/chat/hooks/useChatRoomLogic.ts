@@ -13,7 +13,6 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
-  type InfiniteData,
 } from "@tanstack/react-query";
 import {
   getMessagesWithReadStatusAction,
@@ -41,29 +40,22 @@ import {
   type ChatMessageWithGrouping,
   type ChatRoomMemberWithUser,
   type PresenceUser,
-  type ChatMessageWithSender,
-  type MessagesWithReadStatusResult,
   type ChatUser,
 } from "@/lib/domains/chat/types";
+import {
+  type InfiniteMessagesCache,
+  type CacheMessage,
+  addMessageToFirstPage,
+  replaceMessageInFirstPage,
+  updateMessageInCache,
+  removeMessageFromCache,
+  updateFirstPage,
+  findMessageInCache,
+} from "@/lib/domains/chat/cacheTypes";
 import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
-import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
+import { useThrottledCallback } from "@/lib/hooks/useThrottle";
 import { operationTracker } from "../operationTracker";
-
-// ============================================
-// 타입 정의
-// ============================================
-
-// InfiniteQuery 캐시 타입 (낙관적 업데이트용)
-type CacheMessage = ChatMessageWithSender & {
-  status?: "sending" | "sent" | "error";
-};
-
-type MessagesPage = Omit<MessagesWithReadStatusResult, "messages"> & {
-  messages: CacheMessage[];
-};
-
-type InfiniteMessagesCache = InfiniteData<MessagesPage, string | undefined>;
 
 export interface UseChatRoomLogicOptions {
   roomId: string;
@@ -341,37 +333,28 @@ export function useChatRoomLogic({
 
       // Operation Tracker에 전송 시작 등록 (Race Condition 방지)
       operationTracker.startSend(tempId, content);
-      const optimisticMessage = {
+      const now = new Date().toISOString();
+      const optimisticMessage: CacheMessage = {
         id: tempId,
         content,
         sender_id: userId,
         sender_type: "student" as const,
         message_type: "text" as const,
-        created_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
         room_id: roomId,
         is_deleted: false,
         reply_to_id: replyToId ?? null,
         replyTarget: replyTarget,
         sender: { name: "나", type: "student" as const, id: userId },
+        reactions: [],
         status: "sending" as const,
       };
 
-      queryClient.setQueryData(
+      queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (old: any) => {
-          if (!old?.pages?.length) return old;
-
-          // 첫 번째 페이지(최신)에 메시지 추가
-          const firstPage = old.pages[0];
-          return {
-            ...old,
-            pages: [
-              { ...firstPage, messages: [...firstPage.messages, optimisticMessage] },
-              ...old.pages.slice(1),
-            ],
-          };
-        }
+        (old) => addMessageToFirstPage(old, optimisticMessage)
       );
 
       // 답장 상태 초기화
@@ -389,32 +372,9 @@ export function useChatRoomLogic({
       if (tempId && data) {
         // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
         operationTracker.completeSend(tempId, data.id);
-        queryClient.setQueryData(
+        queryClient.setQueryData<InfiniteMessagesCache>(
           ["chat-messages", roomId],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (old: any) => {
-            if (!old?.pages?.length) return old;
-            return {
-              ...old,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              pages: old.pages.map((page: any) => ({
-                ...page,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                messages: page.messages.map((m: any) =>
-                  m.id === tempId
-                    ? {
-                        ...m,
-                        ...data,
-                        status: "sent" as const,
-                        // sender 정보는 낙관적 업데이트에서 이미 설정됨
-                        sender: m.sender,
-                        replyTarget: m.replyTarget,
-                      }
-                    : m
-                ),
-              })),
-            };
-          }
+          (old) => replaceMessageInFirstPage(old, tempId, data)
         );
       }
     },
@@ -424,23 +384,10 @@ export function useChatRoomLogic({
       if (tempId) {
         // Operation Tracker에 전송 실패 등록
         operationTracker.failSend(tempId);
-        queryClient.setQueryData(
+        queryClient.setQueryData<InfiniteMessagesCache>(
           ["chat-messages", roomId],
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (old: any) => {
-            if (!old?.pages?.length) return old;
-            return {
-              ...old,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              pages: old.pages.map((page: any) => ({
-                ...page,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                messages: page.messages.map((m: any) =>
-                  m.id === tempId ? { ...m, status: "error" } : m
-                ),
-              })),
-            };
-          }
+          (old) =>
+            updateMessageInCache(old, tempId, (m) => ({ ...m, status: "error" }))
         );
       }
 
@@ -736,10 +683,16 @@ export function useChatRoomLogic({
     },
   });
 
-  // 읽음 처리 Debounce (500ms) - 무제한 DB 쓰기 방지
-  const debouncedMarkAsRead = useDebouncedCallback(() => {
-    markAsReadMutation.mutate();
-  }, 500);
+  // 읽음 처리 Throttle (3초) - 서버 부하 방지
+  // leading: true - 첫 호출 즉시 실행
+  // trailing: true - 마지막 호출도 실행 (최신 상태 반영)
+  const throttledMarkAsRead = useThrottledCallback(
+    () => {
+      markAsReadMutation.mutate();
+    },
+    3000, // 3초마다 최대 1회
+    { leading: true, trailing: true }
+  );
 
   // ============================================
   // Realtime
@@ -764,9 +717,9 @@ export function useChatRoomLogic({
       if (isAtBottomRef.current) {
         onNewMessageArrived?.();
       }
-      // 읽음 처리 (Debounce 적용)
-      debouncedMarkAsRead();
-    }, [onNewMessageArrived, debouncedMarkAsRead]),
+      // 읽음 처리 (Throttle 적용 - 3초마다 최대 1회)
+      throttledMarkAsRead();
+    }, [onNewMessageArrived, throttledMarkAsRead]),
   });
 
   // 현재 사용자 이름 (Presence용)
@@ -833,31 +786,19 @@ export function useChatRoomLogic({
     [announcementMutation]
   );
 
+  // 외부에서 호출되는 markAsRead도 throttle 적용
   const markAsRead = useCallback(() => {
-    markAsReadMutation.mutate();
-  }, [markAsReadMutation]);
+    throttledMarkAsRead();
+  }, [throttledMarkAsRead]);
 
   // 메시지 재전송 핸들러
   const retryMessage = useCallback(
     (message: ChatMessageWithGrouping) => {
       // 1. status를 sending으로 변경
-      queryClient.setQueryData(
+      queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (old: any) => {
-          if (!old?.pages?.length) return old;
-          return {
-            ...old,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              messages: page.messages.map((m: any) =>
-                m.id === message.id ? { ...m, status: "sending" } : m
-              ),
-            })),
-          };
-        }
+        (old) =>
+          updateMessageInCache(old, message.id, (m) => ({ ...m, status: "sending" }))
       );
 
       // 2. 재전송 (기존 메시지 제거 후 새 메시지 추가)
@@ -867,42 +808,20 @@ export function useChatRoomLogic({
         {
           onSuccess: () => {
             // 기존 실패 메시지 제거 (새 메시지가 낙관적 업데이트로 추가됨)
-            queryClient.setQueryData(
+            queryClient.setQueryData<InfiniteMessagesCache>(
               ["chat-messages", roomId],
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (old: any) => {
-                if (!old?.pages?.length) return old;
-                return {
-                  ...old,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  pages: old.pages.map((page: any) => ({
-                    ...page,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    messages: page.messages.filter((m: any) => m.id !== message.id),
-                  })),
-                };
-              }
+              (old) => removeMessageFromCache(old, message.id)
             );
           },
           onError: () => {
             // 다시 error 상태로
-            queryClient.setQueryData(
+            queryClient.setQueryData<InfiniteMessagesCache>(
               ["chat-messages", roomId],
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (old: any) => {
-                if (!old?.pages?.length) return old;
-                return {
-                  ...old,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  pages: old.pages.map((page: any) => ({
-                    ...page,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    messages: page.messages.map((m: any) =>
-                      m.id === message.id ? { ...m, status: "error" } : m
-                    ),
-                  })),
-                };
-              }
+              (old) =>
+                updateMessageInCache(old, message.id, (m) => ({
+                  ...m,
+                  status: "error",
+                }))
             );
           },
         }
@@ -914,21 +833,9 @@ export function useChatRoomLogic({
   // 전송 실패 메시지 삭제 핸들러
   const removeFailedMessage = useCallback(
     (messageId: string) => {
-      queryClient.setQueryData(
+      queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (old: any) => {
-          if (!old?.pages?.length) return old;
-          return {
-            ...old,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            pages: old.pages.map((page: any) => ({
-              ...page,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              messages: page.messages.filter((m: any) => m.id !== messageId),
-            })),
-          };
-        }
+        (old) => removeMessageFromCache(old, messageId)
       );
     },
     [roomId, queryClient]

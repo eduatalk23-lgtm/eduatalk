@@ -34,7 +34,7 @@ function ReactionPillsComponent({
   }
 
   return (
-    <div className={cn("flex flex-wrap items-center gap-1", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
       {reactions.map((reaction) => (
         <button
           key={reaction.emoji}
@@ -42,7 +42,8 @@ function ReactionPillsComponent({
           onClick={() => onToggle(reaction.emoji)}
           disabled={disabled}
           className={cn(
-            "inline-flex items-center gap-1 px-2 py-0.5 rounded-full",
+            // 최소 터치 타겟 44px 보장 (min-h-[44px])
+            "inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full",
             "text-sm transition-colors",
             "hover:bg-bg-tertiary active:scale-95",
             "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -54,10 +55,10 @@ function ReactionPillsComponent({
             reaction.hasReacted ? ", 내 리액션" : ""
           }`}
         >
-          <span className="text-sm leading-none">{reaction.emoji}</span>
+          <span className="text-base leading-none">{reaction.emoji}</span>
           <span
             className={cn(
-              "text-xs font-medium",
+              "text-sm font-medium",
               reaction.hasReacted ? "text-primary" : "text-text-secondary"
             )}
           >

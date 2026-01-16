@@ -7,15 +7,7 @@
 
 import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
 import * as chatService from "../service";
-import type { ChatUserType, ChatActionResult } from "../types";
-
-/**
- * 현재 사용자의 userType 결정
- */
-function getUserType(role: string | null): ChatUserType {
-  if (role === "admin" || role === "consultant") return "admin";
-  return "student";
-}
+import { getUserType, type ChatUserType, type ChatActionResult } from "../types";
 
 /**
  * 그룹 채팅방에 멤버 초대

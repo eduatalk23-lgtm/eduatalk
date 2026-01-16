@@ -495,3 +495,17 @@ export interface SetAnnouncementInput {
   roomId: string;
   content: string | null; // null이면 공지 삭제
 }
+
+// ============================================
+// 유틸리티 함수
+// ============================================
+
+/**
+ * 역할 문자열을 ChatUserType으로 변환
+ * @param role 사용자 역할 (admin, consultant, student 등)
+ * @returns ChatUserType (admin 또는 student)
+ */
+export function getUserType(role: string | null): ChatUserType {
+  if (role === "admin" || role === "consultant") return "admin";
+  return "student";
+}

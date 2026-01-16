@@ -348,11 +348,7 @@ export async function sendMessage(
       return { success: false, error: "메시지 내용을 입력해주세요" };
     }
 
-    // 멤버십 확인
-    const membership = await repository.findMember(roomId, senderId, senderType);
-    if (!membership) {
-      return { success: false, error: "채팅방에 참여하지 않았습니다" };
-    }
+    // 멤버십은 RLS INSERT 정책이 DB 레벨에서 검증 (별도 조회 불필요)
 
     // 답장 대상 메시지 검증 (있는 경우)
     if (replyToId) {
@@ -378,6 +374,10 @@ export async function sendMessage(
     return { success: true, data: message };
   } catch (error) {
     console.error("[ChatService] sendMessage error:", error);
+    // RLS 위반 시 친절한 에러 메시지 반환
+    if (error instanceof Error && error.message.includes("row-level security")) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : "메시지 전송 실패",
@@ -507,6 +507,7 @@ export async function markRoomAsRead(
 
 /**
  * 그룹 채팅방에 멤버 초대
+ * 배치 쿼리로 N+1 최적화 (N개 순차 쿼리 → 2개 배치 쿼리)
  */
 export async function inviteMembers(
   roomId: string,
@@ -536,16 +537,26 @@ export async function inviteMembers(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // 멤버 추가
+    // 배치로 기존 멤버 조회 (N+1 → 1 쿼리)
+    const existingMembers = await repository.findExistingMembersByRoomBatch(
+      roomId,
+      memberIds,
+      memberTypes
+    );
+
+    // 새로 추가할 멤버들 필터링
+    const newMembers: Array<{
+      room_id: string;
+      user_id: string;
+      user_type: ChatUserType;
+      role: "member";
+      last_read_at: string;
+    }> = [];
+
     for (let i = 0; i < memberIds.length; i++) {
-      // 이미 멤버인지 확인
-      const existing = await repository.findMember(
-        roomId,
-        memberIds[i],
-        memberTypes[i]
-      );
-      if (!existing) {
-        await repository.insertMember({
+      const key = `${memberIds[i]}_${memberTypes[i]}`;
+      if (!existingMembers.has(key)) {
+        newMembers.push({
           room_id: roomId,
           user_id: memberIds[i],
           user_type: memberTypes[i],
@@ -554,6 +565,11 @@ export async function inviteMembers(
           last_read_at: "1970-01-01T00:00:00Z",
         });
       }
+    }
+
+    // 배치로 멤버 추가 (N+1 → 1 쿼리)
+    if (newMembers.length > 0) {
+      await repository.insertMembersBatch(newMembers);
     }
 
     // 시스템 메시지 추가

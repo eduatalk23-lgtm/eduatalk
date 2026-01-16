@@ -7,10 +7,10 @@
  * 리액션 추가, 복사, 답장, 편집, 삭제, 신고 등의 액션을 제공합니다.
  */
 
-import { memo, useEffect } from "react";
+import { memo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
-import { useClickOutside, useEscapeKey } from "@/lib/accessibility/hooks";
+import { useFocusTrap, useEscapeKey } from "@/lib/accessibility/hooks";
 import { REACTION_EMOJIS, type ReactionEmoji } from "@/lib/domains/chat/types";
 import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff } from "lucide-react";
 
@@ -65,8 +65,11 @@ function MessageContextMenuComponent({
   onTogglePin,
   onToggleReaction,
 }: MessageContextMenuProps) {
-  // 외부 클릭 시 닫기
-  const sheetRef = useClickOutside<HTMLDivElement>(onClose, isOpen);
+  // 포커스 트랩 (열릴 때 첫 요소 포커스, 닫힐 때 이전 포커스 복원)
+  const { containerRef } = useFocusTrap(isOpen);
+
+  // 배경 클릭 감지용 ref
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
   useEscapeKey(onClose, isOpen);
@@ -81,6 +84,13 @@ function MessageContextMenuComponent({
     }
   }, [isOpen]);
 
+  // 배경(딤) 클릭 시 닫기
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === backdropRef.current) {
+      onClose();
+    }
+  };
+
   if (!isOpen || !context) return null;
 
   const handleReactionClick = (emoji: ReactionEmoji) => {
@@ -89,8 +99,10 @@ function MessageContextMenuComponent({
 
   const menuContent = (
     <>
-      {/* 딤 배경 */}
+      {/* 딤 배경 - 클릭 시 닫기 */}
       <div
+        ref={backdropRef}
+        onClick={handleBackdropClick}
         className={cn(
           "fixed inset-0 z-40 bg-black/50",
           "animate-in fade-in-0 duration-200"
@@ -98,9 +110,9 @@ function MessageContextMenuComponent({
         aria-hidden="true"
       />
 
-      {/* 하단 시트 */}
+      {/* 하단 시트 - 포커스 트랩 적용 */}
       <div
-        ref={sheetRef}
+        ref={containerRef}
         className={cn(
           "fixed inset-x-0 bottom-0 z-50",
           "bg-bg-primary rounded-t-2xl",

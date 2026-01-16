@@ -7,14 +7,24 @@
  * 비즈니스 로직은 useChatRoomLogic 훅으로 분리되어 있습니다.
  */
 
-import { memo, useRef, useCallback, useState, useMemo } from "react";
+import { memo, useRef, useCallback, useMemo, useReducer, useEffect, useState } from "react";
 import { useChatRoomLogic } from "@/lib/domains/chat/hooks";
+import { useChatConnectionStatus } from "@/lib/hooks/useChatConnectionStatus";
 import type { ReactionEmoji, ReplyTargetInfo } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
-import { MessageBubble } from "../atoms/MessageBubble";
+import { MessageBubble, type MessageAction, type MessageData } from "../atoms/MessageBubble";
+import type { MessageDeliveryStatus } from "../atoms/MessageStatusIndicator";
 import { DateDivider } from "../atoms/DateDivider";
 import { TypingIndicator } from "../atoms/TypingIndicator";
 import { OnlineStatus } from "../atoms/OnlineStatus";
+import { ConnectionStatusIndicator } from "../atoms/ConnectionStatusIndicator";
+import { MessageSkeleton } from "../atoms/MessageSkeleton";
+import {
+  ScreenReaderAnnouncer,
+  formatNewMessageAnnouncement,
+  formatTypingAnnouncement,
+  formatConnectionAnnouncement,
+} from "../atoms/ScreenReaderAnnouncer";
 import { ChatInput } from "../molecules/ChatInput";
 import { MessageSearch } from "../molecules/MessageSearch";
 import { PinnedMessagesBar } from "../molecules/PinnedMessagesBar";
@@ -24,8 +34,141 @@ import { MessageContextMenu, type MessageMenuContext } from "../molecules/Messag
 import { ChatRoomInfo } from "./ChatRoomInfo";
 import { EditMessageDialog } from "../molecules/EditMessageDialog";
 import { ConfirmDialog } from "@/components/ui/Dialog";
-import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown } from "lucide-react";
+import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown, MessageSquareOff, RefreshCw } from "lucide-react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { RetryableErrorBoundary, type ErrorFallbackProps } from "@/components/errors/RetryableErrorBoundary";
+
+// ============================================
+// UI 상태 타입 및 Reducer
+// ============================================
+
+interface ChatRoomUIState {
+  // 스크롤 상태
+  isAtBottom: boolean;
+  hasNewMessages: boolean;
+  firstItemIndex: number;
+  // 모달/패널 상태
+  isSearchMode: boolean;
+  isAnnouncementDialogOpen: boolean;
+  isMenuOpen: boolean;
+  isInfoOpen: boolean;
+  // 작업 대상
+  menuContext: MessageMenuContext | null;
+  deleteTarget: string | null;
+  editingMessage: { id: string; content: string } | null;
+}
+
+type ChatRoomUIAction =
+  | { type: "SET_AT_BOTTOM"; value: boolean }
+  | { type: "SET_HAS_NEW_MESSAGES"; value: boolean }
+  | { type: "SET_FIRST_ITEM_INDEX"; value: number }
+  | { type: "DECREMENT_FIRST_ITEM_INDEX"; by: number }
+  | { type: "SET_SEARCH_MODE"; value: boolean }
+  | { type: "SET_ANNOUNCEMENT_DIALOG"; value: boolean }
+  | { type: "SET_MENU_OPEN"; value: boolean }
+  | { type: "SET_INFO_OPEN"; value: boolean }
+  | { type: "SET_MENU_CONTEXT"; context: MessageMenuContext | null }
+  | { type: "SET_DELETE_TARGET"; id: string | null }
+  | { type: "SET_EDITING_MESSAGE"; message: { id: string; content: string } | null }
+  | { type: "OPEN_CONTEXT_MENU"; context: MessageMenuContext }
+  | { type: "CLOSE_MENU" };
+
+const initialUIState: ChatRoomUIState = {
+  isAtBottom: true,
+  hasNewMessages: false,
+  firstItemIndex: 10000,
+  isSearchMode: false,
+  isAnnouncementDialogOpen: false,
+  isMenuOpen: false,
+  isInfoOpen: false,
+  menuContext: null,
+  deleteTarget: null,
+  editingMessage: null,
+};
+
+function uiReducer(state: ChatRoomUIState, action: ChatRoomUIAction): ChatRoomUIState {
+  switch (action.type) {
+    case "SET_AT_BOTTOM":
+      return {
+        ...state,
+        isAtBottom: action.value,
+        // 맨 아래로 스크롤하면 새 메시지 표시 해제
+        hasNewMessages: action.value ? false : state.hasNewMessages,
+      };
+    case "SET_HAS_NEW_MESSAGES":
+      return { ...state, hasNewMessages: action.value };
+    case "SET_FIRST_ITEM_INDEX":
+      return { ...state, firstItemIndex: action.value };
+    case "DECREMENT_FIRST_ITEM_INDEX":
+      return { ...state, firstItemIndex: state.firstItemIndex - action.by };
+    case "SET_SEARCH_MODE":
+      return { ...state, isSearchMode: action.value };
+    case "SET_ANNOUNCEMENT_DIALOG":
+      return { ...state, isAnnouncementDialogOpen: action.value };
+    case "SET_MENU_OPEN":
+      return { ...state, isMenuOpen: action.value };
+    case "SET_INFO_OPEN":
+      return { ...state, isInfoOpen: action.value };
+    case "SET_MENU_CONTEXT":
+      return { ...state, menuContext: action.context };
+    case "SET_DELETE_TARGET":
+      return { ...state, deleteTarget: action.id };
+    case "SET_EDITING_MESSAGE":
+      return { ...state, editingMessage: action.message };
+    case "OPEN_CONTEXT_MENU":
+      return { ...state, menuContext: action.context, isMenuOpen: true };
+    case "CLOSE_MENU":
+      return { ...state, isMenuOpen: false };
+    default:
+      return state;
+  }
+}
+
+// ============================================
+// 채팅 에러 Fallback 컴포넌트
+// ============================================
+
+function ChatErrorFallback({ error, errorType, resetError, isRetrying }: ErrorFallbackProps) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full bg-bg-primary p-6 text-center">
+      <MessageSquareOff className="w-12 h-12 text-text-tertiary mb-4" />
+      <h3 className="text-lg font-semibold text-text-primary mb-2">
+        {errorType === "network" ? "연결이 끊어졌습니다" : "채팅을 불러올 수 없습니다"}
+      </h3>
+      <p className="text-sm text-text-secondary mb-6 max-w-xs">
+        {errorType === "network"
+          ? "인터넷 연결을 확인해주세요. 연결이 복구되면 자동으로 다시 시도합니다."
+          : "일시적인 문제가 발생했습니다. 다시 시도해주세요."}
+      </p>
+      <button
+        type="button"
+        onClick={resetError}
+        disabled={isRetrying}
+        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 transition-colors"
+      >
+        {isRetrying ? (
+          <>
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span>재연결 중...</span>
+          </>
+        ) : (
+          <>
+            <RefreshCw className="w-4 h-4" />
+            <span>다시 시도</span>
+          </>
+        )}
+      </button>
+      {process.env.NODE_ENV === "development" && error && (
+        <details className="mt-4 text-left w-full max-w-md">
+          <summary className="text-xs text-text-tertiary cursor-pointer">개발자 정보</summary>
+          <pre className="mt-2 p-2 bg-secondary-100 dark:bg-secondary-800 rounded text-xs overflow-auto max-h-32">
+            {error.toString()}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
 
 interface ChatRoomProps {
   /** 채팅방 ID */
@@ -44,23 +187,35 @@ function ChatRoomComponent({
   onBack,
 }: ChatRoomProps) {
   // ============================================
-  // UI 상태
+  // UI 상태 (useReducer로 통합)
   // ============================================
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [isAtBottom, setIsAtBottom] = useState(true);
-  const [isSearchMode, setIsSearchMode] = useState(false);
-  const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
-  const [firstItemIndex, setFirstItemIndex] = useState(10000);
-  const [hasNewMessages, setHasNewMessages] = useState(false);
-  const [menuContext, setMenuContext] = useState<MessageMenuContext | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isInfoOpen, setIsInfoOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [editingMessage, setEditingMessage] = useState<{
-    id: string;
-    content: string;
-  } | null>(null);
+  const [uiState, dispatch] = useReducer(uiReducer, initialUIState);
+
+  // 상태 구조 분해
+  const {
+    isAtBottom,
+    hasNewMessages,
+    firstItemIndex,
+    isSearchMode,
+    isAnnouncementDialogOpen,
+    isMenuOpen,
+    isInfoOpen,
+    menuContext,
+    deleteTarget,
+    editingMessage,
+  } = uiState;
+
+  // Stale closure 방지: isAtBottom의 최신 값을 ref로 추적
+  const isAtBottomRef = useRef(isAtBottom);
+  useEffect(() => {
+    isAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
+
+  // 스크린 리더 알림 상태
+  const [srAnnouncement, setSrAnnouncement] = useState<string | null>(null);
+  const prevConnectionStatusRef = useRef<string | null>(null);
 
   // ============================================
   // 스크롤 핸들러
@@ -73,10 +228,7 @@ function ChatRoomComponent({
   }, []);
 
   const handleAtBottomChange = useCallback((atBottom: boolean) => {
-    setIsAtBottom(atBottom);
-    if (atBottom) {
-      setHasNewMessages(false);
-    }
+    dispatch({ type: "SET_AT_BOTTOM", value: atBottom });
   }, []);
 
   // ============================================
@@ -95,30 +247,79 @@ function ChatRoomComponent({
     userId,
     isAtBottom,
     onNewMessageArrived: useCallback(() => {
-      if (isAtBottom) {
+      // isAtBottomRef를 사용하여 stale closure 방지
+      if (isAtBottomRef.current) {
         scrollToBottom();
       } else {
-        setHasNewMessages(true);
+        dispatch({ type: "SET_HAS_NEW_MESSAGES", value: true });
       }
-    }, [isAtBottom, scrollToBottom]),
+    }, [scrollToBottom]),
   });
 
   const { room, messages, pinnedMessages, announcement, readCounts, onlineUsers, typingUsers } = data;
   const { canPin, canSetAnnouncement } = permissions;
+
+  // ============================================
+  // 연결 상태
+  // ============================================
+  const {
+    status: connectionStatus,
+    pendingCount,
+    retryCount,
+    maxRetries,
+    nextRetryIn,
+    reconnect,
+  } = useChatConnectionStatus(roomId);
   const { sendMessage, toggleReaction, togglePin, setAnnouncement, setTyping, retryMessage, removeFailedMessage } = actions;
   const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } = status;
   const { replyTarget, setReplyTarget } = replyTargetState;
   const { canEditMessage, isMessageEdited } = utils;
 
   // ============================================
+  // 스크린 리더 알림
+  // ============================================
+
+  // 연결 상태 변경 알림
+  useEffect(() => {
+    if (prevConnectionStatusRef.current !== null && prevConnectionStatusRef.current !== connectionStatus) {
+      setSrAnnouncement(formatConnectionAnnouncement(connectionStatus));
+    }
+    prevConnectionStatusRef.current = connectionStatus;
+  }, [connectionStatus]);
+
+  // 타이핑 상태 알림 (debounce 적용)
+  const typingAnnouncementRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (typingAnnouncementRef.current) {
+      clearTimeout(typingAnnouncementRef.current);
+    }
+
+    if (typingUsers.length > 0) {
+      // 1초 후에 타이핑 알림 (빠른 타이핑 시작/종료 무시)
+      typingAnnouncementRef.current = setTimeout(() => {
+        const announcement = formatTypingAnnouncement(typingUsers);
+        if (announcement) {
+          setSrAnnouncement(announcement);
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (typingAnnouncementRef.current) {
+        clearTimeout(typingAnnouncementRef.current);
+      }
+    };
+  }, [typingUsers]);
+
+  // ============================================
   // 사이드바 핸들러
   // ============================================
   const handleInfoOpen = useCallback(() => {
-    setIsInfoOpen(true);
+    dispatch({ type: "SET_INFO_OPEN", value: true });
   }, []);
 
   const handleInfoClose = useCallback(() => {
-    setIsInfoOpen(false);
+    dispatch({ type: "SET_INFO_OPEN", value: false });
   }, []);
 
   // ============================================
@@ -126,8 +327,10 @@ function ChatRoomComponent({
   // ============================================
   const handleStartReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage().then(() => {
-        setFirstItemIndex((prev) => prev - 50);
+      void fetchNextPage().then(() => {
+        // 페이지당 메시지 수 (50)로 인덱스 조정
+        // Virtuoso가 스크롤 위치를 자동 보정하므로 정확하지 않아도 됨
+        dispatch({ type: "DECREMENT_FIRST_ITEM_INDEX", by: 50 });
       });
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -136,7 +339,7 @@ function ChatRoomComponent({
   // 메시지 스크롤
   // ============================================
   const scrollToMessage = useCallback((messageId: string) => {
-    setIsSearchMode(false);
+    dispatch({ type: "SET_SEARCH_MODE", value: false });
     const index = messages.findIndex((m) => m.id === messageId);
     if (index !== -1) {
       virtuosoRef.current?.scrollToIndex({
@@ -167,25 +370,25 @@ function ChatRoomComponent({
   }, [setReplyTarget]);
 
   const handleEdit = useCallback((messageId: string, currentContent: string) => {
-    setEditingMessage({ id: messageId, content: currentContent });
+    dispatch({ type: "SET_EDITING_MESSAGE", message: { id: messageId, content: currentContent } });
   }, []);
 
   const handleDelete = useCallback((messageId: string) => {
-    setDeleteTarget(messageId);
+    dispatch({ type: "SET_DELETE_TARGET", id: messageId });
   }, []);
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteTarget) {
       actions.deleteMessage(deleteTarget);
     }
-    setDeleteTarget(null);
+    dispatch({ type: "SET_DELETE_TARGET", id: null });
   }, [deleteTarget, actions]);
 
   const handleEditSave = useCallback((newContent: string) => {
     if (editingMessage) {
       actions.editMessage(editingMessage.id, newContent);
     }
-    setEditingMessage(null);
+    dispatch({ type: "SET_EDITING_MESSAGE", message: null });
   }, [editingMessage, actions]);
 
   // ============================================
@@ -193,22 +396,24 @@ function ChatRoomComponent({
   // ============================================
   const handleMessageLongPress = useCallback((message: (typeof messages)[number]) => {
     const isOwn = message.sender_id === userId;
-    setMenuContext({
-      messageId: message.id,
-      content: message.content,
-      isOwn,
-      canEdit: isOwn && canEditMessage(message.created_at),
-      canPin: canPin && message.message_type !== "system",
-      isPinned: pinnedMessageIds.has(message.id),
+    dispatch({
+      type: "OPEN_CONTEXT_MENU",
+      context: {
+        messageId: message.id,
+        content: message.content,
+        isOwn,
+        canEdit: isOwn && canEditMessage(message.created_at),
+        canPin: canPin && message.message_type !== "system",
+        isPinned: pinnedMessageIds.has(message.id),
+      },
     });
-    setIsMenuOpen(true);
   }, [userId, canEditMessage, canPin, pinnedMessageIds]);
 
   const handleCopy = useCallback(async () => {
     if (menuContext) {
       await navigator.clipboard.writeText(menuContext.content);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext]);
 
   const handleMenuReply = useCallback(() => {
@@ -216,35 +421,35 @@ function ChatRoomComponent({
       const message = messages.find((m) => m.id === menuContext.messageId);
       if (message) handleReply(message);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, messages, handleReply]);
 
   const handleMenuEdit = useCallback(() => {
     if (menuContext?.canEdit) {
       handleEdit(menuContext.messageId, menuContext.content);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, handleEdit]);
 
   const handleMenuDelete = useCallback(() => {
     if (menuContext?.isOwn) {
       handleDelete(menuContext.messageId);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, handleDelete]);
 
   const handleMenuTogglePin = useCallback(() => {
     if (menuContext?.canPin) {
       togglePin(menuContext.messageId, menuContext.isPinned);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, togglePin]);
 
   const handleMenuReaction = useCallback((emoji: ReactionEmoji) => {
     if (menuContext) {
       toggleReaction(menuContext.messageId, emoji);
     }
-    setIsMenuOpen(false);
+    dispatch({ type: "CLOSE_MENU" });
   }, [menuContext, toggleReaction]);
 
   // ============================================
@@ -255,11 +460,91 @@ function ChatRoomComponent({
     else messageRefs.current.delete(messageId);
   }, []);
 
+  // 메시지 액션 핸들러 생성
+  const createMessageActionHandler = useCallback(
+    (message: (typeof messages)[number]) =>
+      (action: MessageAction) => {
+        const messageReplyTarget = (message as { replyTarget?: ReplyTargetInfo | null }).replyTarget;
+
+        switch (action.type) {
+          case "toggleReaction":
+            toggleReaction(message.id, action.emoji);
+            break;
+          case "reply":
+            handleReply(message);
+            break;
+          case "replyTargetClick":
+            if (messageReplyTarget?.id) {
+              scrollToMessage(messageReplyTarget.id);
+            }
+            break;
+          case "edit":
+            handleEdit(message.id, message.content);
+            break;
+          case "delete":
+            handleDelete(message.id);
+            break;
+          case "report":
+            // 신고 기능 (추후 구현 시 추가)
+            break;
+          case "togglePin":
+            togglePin(message.id, pinnedMessageIds.has(message.id));
+            break;
+          case "longPress":
+            handleMessageLongPress(message);
+            break;
+          case "retry":
+            retryMessage(message);
+            break;
+          case "removeFailed":
+            removeFailedMessage(message.id);
+            break;
+        }
+      },
+    [
+      toggleReaction,
+      handleReply,
+      scrollToMessage,
+      handleEdit,
+      handleDelete,
+      togglePin,
+      pinnedMessageIds,
+      handleMessageLongPress,
+      retryMessage,
+      removeFailedMessage,
+    ]
+  );
+
   const renderMessage = useCallback((_index: number, message: (typeof messages)[number]) => {
     const isOwn = message.sender_id === userId;
     const messageReplyTarget = (message as { replyTarget?: ReplyTargetInfo | null }).replyTarget;
-    const messageStatus = (message as { status?: string }).status;
+    const messageStatus = (message as { status?: MessageDeliveryStatus }).status;
     const { grouping } = message;
+
+    // 상태 결정: 전송 중이면 sending, 에러면 error, 그 외에는 sent
+    // Note: delivered와 read는 서버에서 추적이 필요하므로 추후 구현
+    const derivedStatus: MessageDeliveryStatus | undefined = isOwn
+      ? messageStatus ?? (message.id.startsWith("temp-") ? "sending" : "sent")
+      : undefined;
+
+    // 메시지 데이터 구성
+    const messageData: MessageData = {
+      content: message.is_deleted ? "" : message.content,
+      createdAt: message.created_at,
+      isOwn,
+      senderName: message.sender?.name,
+      isSystem: message.message_type === "system",
+      isDeleted: message.is_deleted,
+      isEdited: isMessageEdited(message),
+      unreadCount: isOwn ? readCounts[message.id] : undefined,
+      reactions: (message as { reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }> }).reactions ?? [],
+      replyTarget: messageReplyTarget,
+      isPinned: pinnedMessageIds.has(message.id),
+      status: derivedStatus,
+      // 레거시 호환성 (deprecated - 추후 제거)
+      isError: messageStatus === "error",
+      isRetrying: messageStatus === "sending" && message.id.startsWith("temp-"),
+    };
 
     return (
       <div
@@ -272,32 +557,17 @@ function ChatRoomComponent({
 
         <div className={cn("px-4", grouping.isGrouped ? "py-0.5" : "py-1.5")}>
           <MessageBubble
-            content={message.content}
-            isOwn={isOwn}
-            senderName={message.sender?.name}
-            createdAt={message.created_at}
-            isSystem={message.message_type === "system"}
-            isEdited={isMessageEdited(message)}
-            unreadCount={isOwn ? readCounts[message.id] : undefined}
-            canEdit={isOwn && canEditMessage(message.created_at)}
-            reactions={(message as { reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }> }).reactions ?? []}
-            replyTarget={messageReplyTarget}
-            isPinned={pinnedMessageIds.has(message.id)}
-            canPin={canPin && message.message_type !== "system"}
-            showName={grouping.showName}
-            showTime={grouping.showTime}
-            isGrouped={grouping.isGrouped}
-            isError={messageStatus === "error"}
-            isRetrying={messageStatus === "sending" && message.id.startsWith("temp-")}
-            onRetry={messageStatus === "error" ? () => retryMessage(message) : undefined}
-            onRemoveFailed={messageStatus === "error" ? () => removeFailedMessage(message.id) : undefined}
-            onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
-            onReply={message.message_type !== "system" ? () => handleReply(message) : undefined}
-            onReplyTargetClick={messageReplyTarget ? () => scrollToMessage(messageReplyTarget.id) : undefined}
-            onTogglePin={() => togglePin(message.id, pinnedMessageIds.has(message.id))}
-            onEdit={() => handleEdit(message.id, message.content)}
-            onDelete={() => handleDelete(message.id)}
-            onLongPress={() => handleMessageLongPress(message)}
+            message={messageData}
+            displayOptions={{
+              showName: grouping.showName,
+              showTime: grouping.showTime,
+              isGrouped: grouping.isGrouped,
+            }}
+            permissions={{
+              canEdit: isOwn && canEditMessage(message.created_at),
+              canPin: canPin && message.message_type !== "system",
+            }}
+            onAction={createMessageActionHandler(message)}
           />
         </div>
       </div>
@@ -310,15 +580,7 @@ function ChatRoomComponent({
     canEditMessage,
     isMessageEdited,
     getRefCallback,
-    retryMessage,
-    removeFailedMessage,
-    toggleReaction,
-    handleReply,
-    scrollToMessage,
-    togglePin,
-    handleEdit,
-    handleDelete,
-    handleMessageLongPress,
+    createMessageActionHandler,
   ]);
 
   const computeItemKey = useCallback((_index: number, message: (typeof messages)[number]) => message.id, []);
@@ -343,8 +605,20 @@ function ChatRoomComponent({
   // 렌더링
   // ============================================
   return (
-    <div className="relative flex flex-col h-full bg-bg-primary">
-      {/* 헤더 */}
+    <RetryableErrorBoundary
+      fallback={ChatErrorFallback}
+      autoRetryOnReconnect
+      showHomeLink={false}
+    >
+      {/* 스크린 리더 알림 영역 */}
+      <ScreenReaderAnnouncer message={srAnnouncement} politeness="polite" />
+
+      <div
+        className="relative flex flex-col h-full bg-bg-primary"
+        role="region"
+        aria-label={`${roomName} 채팅방`}
+      >
+        {/* 헤더 */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-bg-primary">
         {onBack && (
           <button
@@ -374,9 +648,19 @@ function ChatRoomComponent({
           )}
         </div>
 
+        {/* 연결 상태 표시 */}
+        <ConnectionStatusIndicator
+          status={connectionStatus}
+          pendingCount={pendingCount}
+          retryCount={retryCount}
+          maxRetries={maxRetries}
+          nextRetryIn={nextRetryIn}
+          onReconnect={reconnect}
+        />
+
         <button
           type="button"
-          onClick={() => setIsSearchMode(true)}
+          onClick={() => dispatch({ type: "SET_SEARCH_MODE", value: true })}
           className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
         >
           <Search className="w-5 h-5 text-text-secondary" />
@@ -385,7 +669,7 @@ function ChatRoomComponent({
         {canSetAnnouncement && (
           <button
             type="button"
-            onClick={() => setIsAnnouncementDialogOpen(true)}
+            onClick={() => dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: true })}
             className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
             aria-label="공지 설정"
           >
@@ -408,7 +692,7 @@ function ChatRoomComponent({
         <AnnouncementBanner
           announcement={announcement}
           canEdit={canSetAnnouncement}
-          onEdit={() => setIsAnnouncementDialogOpen(true)}
+          onEdit={() => dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: true })}
           onDelete={() => {
             if (confirm("공지를 삭제하시겠습니까?")) {
               setAnnouncement(null);
@@ -434,7 +718,7 @@ function ChatRoomComponent({
         <div className="absolute inset-0 z-10">
           <MessageSearch
             roomId={roomId}
-            onClose={() => setIsSearchMode(false)}
+            onClose={() => dispatch({ type: "SET_SEARCH_MODE", value: false })}
             onSelectMessage={scrollToMessage}
           />
         </div>
@@ -442,8 +726,8 @@ function ChatRoomComponent({
 
       {/* 메시지 목록 */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+        <div className="flex-1 overflow-y-auto">
+          <MessageSkeleton count={5} />
         </div>
       ) : error ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -452,7 +736,11 @@ function ChatRoomComponent({
           </p>
         </div>
       ) : messages.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-1">
+        <div
+          className="flex-1 flex flex-col items-center justify-center text-center gap-1"
+          role="log"
+          aria-label="메시지 목록"
+        >
           <p className="text-text-secondary text-sm">
             아직 메시지가 없습니다
           </p>
@@ -461,33 +749,41 @@ function ChatRoomComponent({
           </p>
         </div>
       ) : (
-        <Virtuoso
-          ref={virtuosoRef}
-          className="flex-1"
-          data={messages}
-          firstItemIndex={firstItemIndex}
-          initialTopMostItemIndex={messages.length - 1}
-          followOutput="smooth"
-          atBottomStateChange={handleAtBottomChange}
-          startReached={handleStartReached}
-          computeItemKey={computeItemKey}
-          increaseViewportBy={{ top: 200, bottom: 200 }}
-          scrollSeekConfiguration={{
-            enter: (velocity) => Math.abs(velocity) > 800,
-            exit: (velocity) => Math.abs(velocity) < 100,
-          }}
-          components={{
-            Header: () => (
-              isFetchingNextPage ? (
-                <div className="flex justify-center py-2">
-                  <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
-                </div>
-              ) : null
-            ),
-            ScrollSeekPlaceholder,
-          }}
-          itemContent={renderMessage}
-        />
+        <div
+          className="flex-1 flex flex-col"
+          role="log"
+          aria-label="메시지 목록"
+          aria-live="polite"
+          aria-relevant="additions"
+        >
+          <Virtuoso
+            ref={virtuosoRef}
+            className="flex-1"
+            data={messages}
+            firstItemIndex={firstItemIndex}
+            initialTopMostItemIndex={messages.length - 1}
+            followOutput="smooth"
+            atBottomStateChange={handleAtBottomChange}
+            startReached={handleStartReached}
+            computeItemKey={computeItemKey}
+            increaseViewportBy={{ top: 200, bottom: 200 }}
+            scrollSeekConfiguration={{
+              enter: (velocity) => Math.abs(velocity) > 800,
+              exit: (velocity) => Math.abs(velocity) < 100,
+            }}
+            components={{
+              Header: () => (
+                isFetchingNextPage ? (
+                  <div className="flex justify-center py-2" aria-label="이전 메시지 로딩 중">
+                    <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" aria-hidden="true" />
+                  </div>
+                ) : null
+              ),
+              ScrollSeekPlaceholder,
+            }}
+            itemContent={renderMessage}
+          />
+        </div>
       )}
 
       {/* 맨 아래로 스크롤 버튼 */}
@@ -536,11 +832,11 @@ function ChatRoomComponent({
       {/* 공지 설정 다이얼로그 */}
       <AnnouncementDialog
         open={isAnnouncementDialogOpen}
-        onOpenChange={setIsAnnouncementDialogOpen}
+        onOpenChange={(open) => dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: open })}
         currentContent={announcement?.content}
         onSave={(content) => {
           setAnnouncement(content);
-          setIsAnnouncementDialogOpen(false);
+          dispatch({ type: "SET_ANNOUNCEMENT_DIALOG", value: false });
         }}
         isSaving={false}
       />
@@ -548,7 +844,7 @@ function ChatRoomComponent({
       {/* 메시지 컨텍스트 메뉴 */}
       <MessageContextMenu
         isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
+        onClose={() => dispatch({ type: "CLOSE_MENU" })}
         context={menuContext}
         onCopy={handleCopy}
         onReply={handleMenuReply}
@@ -569,28 +865,29 @@ function ChatRoomComponent({
         isLoading={!room}
       />
 
-      {/* 메시지 삭제 확인 */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-        title="메시지 삭제"
-        description="이 메시지를 삭제하시겠습니까?"
-        confirmLabel="삭제"
-        cancelLabel="취소"
-        onConfirm={handleDeleteConfirm}
-        variant="destructive"
-        isLoading={status.isDeleting}
-      />
+        {/* 메시지 삭제 확인 */}
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => !open && dispatch({ type: "SET_DELETE_TARGET", id: null })}
+          title="메시지 삭제"
+          description="이 메시지를 삭제하시겠습니까?"
+          confirmLabel="삭제"
+          cancelLabel="취소"
+          onConfirm={handleDeleteConfirm}
+          variant="destructive"
+          isLoading={status.isDeleting}
+        />
 
-      {/* 메시지 수정 */}
-      <EditMessageDialog
-        open={!!editingMessage}
-        onOpenChange={(open) => !open && setEditingMessage(null)}
-        currentContent={editingMessage?.content ?? ""}
-        onSave={handleEditSave}
-        isSaving={status.isEditing}
-      />
-    </div>
+        {/* 메시지 수정 */}
+        <EditMessageDialog
+          open={!!editingMessage}
+          onOpenChange={(open) => !open && dispatch({ type: "SET_EDITING_MESSAGE", message: null })}
+          currentContent={editingMessage?.content ?? ""}
+          onSave={handleEditSave}
+          isSaving={status.isEditing}
+        />
+      </div>
+    </RetryableErrorBoundary>
   );
 }
 
