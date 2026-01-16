@@ -45,16 +45,20 @@ The content is organized as follows:
     index.ts
     members.ts
     messages.ts
+    pins.ts
     reactions.ts
     rooms.ts
     safety.ts
   index.ts
+  messageGrouping.ts
   repository.ts
   service.ts
   types.ts
 
 [chat]/
   atoms/
+    AnnouncementBanner.tsx
+    DateDivider.tsx
     MessageBubble.tsx
     OnlineStatus.tsx
     ReactionPicker.tsx
@@ -62,12 +66,16 @@ The content is organized as follows:
     TypingIndicator.tsx
     UnreadBadge.tsx
   molecules/
+    AnnouncementDialog.tsx
     ChatInput.tsx
     ChatRoomCard.tsx
+    MessageContextMenu.tsx
     MessageSearch.tsx
+    PinnedMessagesBar.tsx
   organisms/
     ChatList.tsx
     ChatRoom.tsx
+    ChatRoomInfo.tsx
   index.ts
 
 [chat]/
@@ -125,6 +133,9 @@ export {
   getChatRoomDetailAction,
   leaveChatRoomAction,
   startDirectChatAction,
+  setAnnouncementAction,
+  getAnnouncementAction,
+  canSetAnnouncementAction,
 } from "./rooms";
 
 // Message Actions
@@ -153,6 +164,14 @@ export {
 
 // Reaction Actions
 export { toggleReactionAction } from "./reactions";
+
+// Pin Actions
+export {
+  pinMessageAction,
+  unpinMessageAction,
+  getPinnedMessagesAction,
+  canPinMessagesAction,
+} from "./pins";
 </file>
 
 <file path="actions/members.ts">
@@ -262,11 +281,13 @@ function getUserType(role: string | null): ChatUserType {
  *
  * @param roomId 채팅방 ID
  * @param content 메시지 내용 (최대 1000자)
+ * @param replyToId 답장 대상 메시지 ID (선택)
  * @returns 전송된 메시지
  */
 export async function sendMessageAction(
   roomId: string,
-  content: string
+  content: string,
+  replyToId?: string | null
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
     const { userId, role } = await getCurrentUserRole();
@@ -280,6 +301,7 @@ export async function sendMessageAction(
     return await chatService.sendMessage(userId, userType, {
       roomId,
       content,
+      replyToId,
     });
   } catch (error) {
     console.error("[sendMessageAction] Error:", error);
@@ -477,6 +499,150 @@ export async function getMessagesWithReadStatusAction(
 }
 </file>
 
+<file path="actions/pins.ts">
+"use server";
+
+/**
+ * Chat Pin Server Actions
+ * 메시지 고정/해제 기능
+ */
+
+import { getCurrentUserRole } from "@/lib/auth/getCurrentUserRole";
+import * as chatService from "../service";
+import type {
+  ChatActionResult,
+  ChatUserType,
+  PinnedMessageWithContent,
+} from "../types";
+
+/**
+ * 현재 사용자의 userType 결정
+ */
+function getUserType(role: string | null): ChatUserType {
+  if (role === "admin" || role === "consultant") return "admin";
+  return "student";
+}
+
+/**
+ * 메시지 고정
+ *
+ * @param roomId 채팅방 ID
+ * @param messageId 고정할 메시지 ID
+ */
+export async function pinMessageAction(
+  roomId: string,
+  messageId: string
+): Promise<ChatActionResult<void>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.pinMessage(userId, userType, {
+      roomId,
+      messageId,
+    });
+  } catch (error) {
+    console.error("[pinMessageAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "메시지 고정 실패",
+    };
+  }
+}
+
+/**
+ * 메시지 고정 해제
+ *
+ * @param roomId 채팅방 ID
+ * @param messageId 고정 해제할 메시지 ID
+ */
+export async function unpinMessageAction(
+  roomId: string,
+  messageId: string
+): Promise<ChatActionResult<void>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.unpinMessage(userId, userType, {
+      roomId,
+      messageId,
+    });
+  } catch (error) {
+    console.error("[unpinMessageAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "메시지 고정 해제 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방의 고정 메시지 목록 조회
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function getPinnedMessagesAction(
+  roomId: string
+): Promise<ChatActionResult<PinnedMessageWithContent[]>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.getPinnedMessages(userId, userType, roomId);
+  } catch (error) {
+    console.error("[getPinnedMessagesAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "고정 메시지 조회 실패",
+    };
+  }
+}
+
+/**
+ * 사용자가 고정 권한을 가지고 있는지 확인
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function canPinMessagesAction(
+  roomId: string
+): Promise<ChatActionResult<{ canPin: boolean }>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+    const canPin = await chatService.canUserPinMessages(userId, userType, roomId);
+
+    return { success: true, data: { canPin } };
+  } catch (error) {
+    console.error("[canPinMessagesAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "권한 확인 실패",
+    };
+  }
+}
+</file>
+
 <file path="actions/reactions.ts">
 "use server";
 
@@ -549,6 +715,7 @@ import type {
   ChatUserType,
   ChatActionResult,
   CreateChatRoomRequest,
+  AnnouncementInfo,
 } from "../types";
 
 /**
@@ -707,6 +874,97 @@ export async function startDirectChatAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "채팅 시작 실패",
+    };
+  }
+}
+
+// ============================================
+// 공지 Actions
+// ============================================
+
+/**
+ * 채팅방 공지 설정
+ *
+ * @param roomId 채팅방 ID
+ * @param content 공지 내용 (null이면 공지 삭제)
+ */
+export async function setAnnouncementAction(
+  roomId: string,
+  content: string | null
+): Promise<ChatActionResult<ChatRoom>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.setAnnouncement(userId, userType, {
+      roomId,
+      content,
+    });
+  } catch (error) {
+    console.error("[setAnnouncementAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "공지 설정 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방 공지 조회
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function getAnnouncementAction(
+  roomId: string
+): Promise<ChatActionResult<AnnouncementInfo | null>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+
+    return await chatService.getAnnouncement(userId, userType, roomId);
+  } catch (error) {
+    console.error("[getAnnouncementAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "공지 조회 실패",
+    };
+  }
+}
+
+/**
+ * 사용자가 공지 설정 권한을 가지고 있는지 확인
+ *
+ * @param roomId 채팅방 ID
+ */
+export async function canSetAnnouncementAction(
+  roomId: string
+): Promise<ChatActionResult<{ canSet: boolean }>> {
+  try {
+    const { userId, role } = await getCurrentUserRole();
+
+    if (!userId || !role) {
+      return { success: false, error: "인증이 필요합니다." };
+    }
+
+    const userType = getUserType(role);
+    const canSet = await chatService.canUserSetAnnouncement(userId, userType, roomId);
+
+    return { success: true, data: { canSet } };
+  } catch (error) {
+    console.error("[canSetAnnouncementAction] Error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "권한 확인 실패",
     };
   }
 }
@@ -1304,6 +1562,130 @@ export {
 export * as chatRepository from "./repository";
 </file>
 
+<file path="messageGrouping.ts">
+/**
+ * 메시지 그룹핑 유틸리티
+ *
+ * 연속된 메시지를 그룹핑하고 날짜 구분선을 처리합니다.
+ */
+
+import { isSameDay, differenceInSeconds, format } from "date-fns";
+import { ko } from "date-fns/locale";
+import type {
+  ChatMessageWithSender,
+  ChatMessageWithGrouping,
+  MessageGroupingInfo,
+} from "./types";
+
+/** 그룹핑 시간 임계값 (초) - 1분 */
+const GROUPING_THRESHOLD_SECONDS = 60;
+
+/**
+ * 두 메시지가 같은 날인지 확인
+ */
+export function isSameMessageDay(date1: string, date2: string): boolean {
+  return isSameDay(new Date(date1), new Date(date2));
+}
+
+/**
+ * 두 메시지가 그룹핑 시간 임계값 내에 있는지 확인
+ */
+export function isWithinGroupingThreshold(
+  date1: string,
+  date2: string
+): boolean {
+  const diff = Math.abs(
+    differenceInSeconds(new Date(date1), new Date(date2))
+  );
+  return diff <= GROUPING_THRESHOLD_SECONDS;
+}
+
+/**
+ * 날짜 구분선용 포맷 (예: "2024년 1월 15일 월요일")
+ */
+export function formatDateDivider(dateStr: string): string {
+  return format(new Date(dateStr), "yyyy년 M월 d일 EEEE", { locale: ko });
+}
+
+/**
+ * 메시지 시간 포맷 (예: "오후 3:45")
+ */
+export function formatMessageTime(dateStr: string): string {
+  return format(new Date(dateStr), "a h:mm", { locale: ko });
+}
+
+/**
+ * 메시지 배열에 그룹핑 정보를 추가
+ *
+ * 그룹핑 규칙:
+ * - 같은 발신자 + 1분 이내 = 그룹핑
+ * - 시스템 메시지 = 그룹핑 중단
+ * - 답장 메시지 = 그룹핑 중단
+ * - 날짜 변경 = 그룹핑 중단 + 날짜 구분선
+ *
+ * @param messages 메시지 배열 (시간순 정렬됨)
+ * @returns 그룹핑 정보가 포함된 메시지 배열
+ */
+export function processMessagesWithGrouping(
+  messages: ChatMessageWithSender[]
+): ChatMessageWithGrouping[] {
+  if (messages.length === 0) return [];
+
+  const result: ChatMessageWithGrouping[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    const current = messages[i];
+    const prev = i > 0 ? messages[i - 1] : null;
+    const next = i < messages.length - 1 ? messages[i + 1] : null;
+
+    // 이전 메시지와 날짜가 다른지 확인
+    const showDateDivider =
+      !prev || !isSameMessageDay(prev.created_at, current.created_at);
+    const dateDividerText = showDateDivider
+      ? formatDateDivider(current.created_at)
+      : undefined;
+
+    // 현재 메시지가 이전 메시지와 그룹핑될 수 있는지 확인
+    const canGroupWithPrev =
+      prev &&
+      !showDateDivider && // 날짜 변경 시 그룹핑 안 함
+      current.message_type !== "system" &&
+      prev.message_type !== "system" &&
+      current.sender_id === prev.sender_id &&
+      isWithinGroupingThreshold(prev.created_at, current.created_at) &&
+      !current.reply_to_id; // 답장 메시지는 그룹핑 안 함
+
+    // 다음 메시지가 현재 메시지와 그룹핑될 수 있는지 확인
+    const nextIsGrouped =
+      next &&
+      isSameMessageDay(current.created_at, next.created_at) &&
+      next.message_type !== "system" &&
+      current.message_type !== "system" &&
+      current.sender_id === next.sender_id &&
+      isWithinGroupingThreshold(current.created_at, next.created_at) &&
+      !next.reply_to_id;
+
+    const grouping: MessageGroupingInfo = {
+      // 그룹 첫 메시지에만 이름 표시 (이전과 그룹핑 안 됨)
+      showName: !canGroupWithPrev,
+      // 그룹 마지막 메시지에만 시간 표시 (다음과 그룹핑 안 됨)
+      showTime: !nextIsGrouped,
+      // 이전 메시지와 그룹핑됨 (간격 축소용)
+      isGrouped: !!canGroupWithPrev,
+      showDateDivider,
+      dateDividerText,
+    };
+
+    result.push({
+      ...current,
+      grouping,
+    });
+  }
+
+  return result;
+}
+</file>
+
 <file path="repository.ts">
 /**
  * Chat 도메인 Repository
@@ -1332,6 +1714,8 @@ import type {
   SearchMessagesOptions,
   MessageReaction,
   ReactionEmoji,
+  PinnedMessage,
+  PinnedMessageInsert,
 } from "./types";
 
 // ============================================
@@ -1346,6 +1730,10 @@ const CHAT_ROOM_COLUMNS = `
   created_by,
   created_by_type,
   is_active,
+  announcement,
+  announcement_by,
+  announcement_by_type,
+  announcement_at,
   created_at,
   updated_at
 ` as const;
@@ -1370,6 +1758,7 @@ const CHAT_MESSAGE_COLUMNS = `
   sender_type,
   message_type,
   content,
+  reply_to_id,
   is_deleted,
   deleted_at,
   created_at,
@@ -2382,6 +2771,199 @@ export async function findReactionsByMessageIds(
 
   return result;
 }
+
+// ============================================
+// 답장 원본 메시지 Repository
+// ============================================
+
+/**
+ * 답장 원본 메시지 배치 조회 (N+1 최적화)
+ * 여러 메시지의 원본 메시지를 한 번에 조회
+ */
+export async function findReplyTargetsByIds(
+  replyToIds: string[]
+): Promise<Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>> {
+  if (replyToIds.length === 0) return new Map();
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("id, content, sender_id, sender_type, is_deleted")
+    .in("id", replyToIds);
+
+  if (error) throw error;
+
+  const result = new Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>();
+  for (const msg of (data ?? []) as Array<{ id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>) {
+    result.set(msg.id, msg);
+  }
+  return result;
+}
+
+// ============================================
+// 고정 메시지 Repository
+// ============================================
+
+const PINNED_MESSAGE_COLUMNS = `
+  id,
+  room_id,
+  message_id,
+  pinned_by,
+  pinned_by_type,
+  pin_order,
+  created_at
+` as const;
+
+/**
+ * 채팅방의 고정 메시지 목록 조회 (pin_order 순)
+ */
+export async function findPinnedMessagesByRoom(
+  roomId: string
+): Promise<PinnedMessage[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("chat_pinned_messages")
+    .select(PINNED_MESSAGE_COLUMNS)
+    .eq("room_id", roomId)
+    .order("pin_order", { ascending: true });
+
+  if (error) throw error;
+
+  return (data as PinnedMessage[]) ?? [];
+}
+
+/**
+ * 고정 메시지 추가
+ */
+export async function insertPinnedMessage(
+  input: PinnedMessageInsert
+): Promise<PinnedMessage> {
+  const supabase = await createSupabaseServerClient();
+
+  // 현재 채팅방의 최대 pin_order 조회
+  const { data: existing } = await supabase
+    .from("chat_pinned_messages")
+    .select("pin_order")
+    .eq("room_id", input.room_id)
+    .order("pin_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextOrder = existing ? existing.pin_order + 1 : 0;
+
+  const { data, error } = await supabase
+    .from("chat_pinned_messages")
+    .insert({
+      ...input,
+      pin_order: input.pin_order ?? nextOrder,
+    })
+    .select(PINNED_MESSAGE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+
+  return data as PinnedMessage;
+}
+
+/**
+ * 고정 메시지 삭제
+ */
+export async function deletePinnedMessage(
+  roomId: string,
+  messageId: string
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+
+  const { error } = await supabase
+    .from("chat_pinned_messages")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("message_id", messageId);
+
+  if (error) throw error;
+}
+
+/**
+ * 메시지가 고정되어 있는지 확인
+ */
+export async function isPinnedMessage(
+  roomId: string,
+  messageId: string
+): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
+    .from("chat_pinned_messages")
+    .select("id")
+    .eq("room_id", roomId)
+    .eq("message_id", messageId)
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") throw error;
+
+  return !!data;
+}
+
+/**
+ * 채팅방의 고정 메시지 개수 조회
+ */
+export async function countPinnedMessages(
+  roomId: string
+): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+
+  const { count, error } = await supabase
+    .from("chat_pinned_messages")
+    .select("*", { count: "exact", head: true })
+    .eq("room_id", roomId);
+
+  if (error) throw error;
+
+  return count ?? 0;
+}
+
+// ============================================
+// 공지 Repository
+// ============================================
+
+/**
+ * 채팅방 공지 설정
+ * content가 null이면 공지 삭제
+ */
+export async function setRoomAnnouncement(
+  roomId: string,
+  userId: string | null,
+  userType: ChatUserType | null,
+  content: string | null
+): Promise<ChatRoom> {
+  const supabase = await createSupabaseServerClient();
+
+  const updateData: ChatRoomUpdate = content
+    ? {
+        announcement: content,
+        announcement_by: userId,
+        announcement_by_type: userType,
+        announcement_at: new Date().toISOString(),
+      }
+    : {
+        announcement: null,
+        announcement_by: null,
+        announcement_by_type: null,
+        announcement_at: null,
+      };
+
+  const { data, error } = await supabase
+    .from("chat_rooms")
+    .update(updateData)
+    .eq("id", roomId)
+    .select(CHAT_ROOM_COLUMNS)
+    .single();
+
+  if (error) throw error;
+
+  return data as ChatRoom;
+}
 </file>
 
 <file path="service.ts">
@@ -2412,6 +2994,10 @@ import type {
   ReactionToggleInput,
   ReactionSummary,
   MessageReaction,
+  PinMessageInput,
+  PinnedMessageWithContent,
+  AnnouncementInfo,
+  SetAnnouncementInput,
 } from "./types";
 
 // 최대 메시지 길이
@@ -2716,7 +3302,7 @@ export async function sendMessage(
   request: SendMessageRequest
 ): Promise<ChatActionResult<ChatMessage>> {
   try {
-    const { roomId, content, messageType = "text" } = request;
+    const { roomId, content, messageType = "text", replyToId } = request;
 
     // 메시지 길이 검증
     if (content.length > MAX_MESSAGE_LENGTH) {
@@ -2737,6 +3323,17 @@ export async function sendMessage(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
+    // 답장 대상 메시지 검증 (있는 경우)
+    if (replyToId) {
+      const targetMessage = await repository.findMessageById(replyToId);
+      if (!targetMessage) {
+        return { success: false, error: "답장 대상 메시지를 찾을 수 없습니다" };
+      }
+      if (targetMessage.room_id !== roomId) {
+        return { success: false, error: "같은 채팅방의 메시지에만 답장할 수 있습니다" };
+      }
+    }
+
     // 메시지 생성
     const message = await repository.insertMessage({
       room_id: roomId,
@@ -2744,6 +3341,7 @@ export async function sendMessage(
       sender_type: senderType,
       message_type: messageType,
       content: content.trim(),
+      reply_to_id: replyToId ?? null,
     });
 
     return { success: true, data: message };
@@ -3266,10 +3864,11 @@ function convertReactionsToSummaries(
 }
 
 /**
- * 메시지 목록 조회 (읽음 상태 + 리액션 포함)
+ * 메시지 목록 조회 (읽음 상태 + 리액션 + 답장 원본 포함)
  * - 본인 메시지에 대해서만 안 읽은 멤버 수 계산
  * - 차단한 사용자 메시지 필터링
  * - 각 메시지의 리액션 요약 포함
+ * - 답장 메시지의 원본 정보 포함
  */
 export async function getMessagesWithReadStatus(
   userId: string,
@@ -3304,20 +3903,48 @@ export async function getMessagesWithReadStatus(
       filteredReadCounts[msg.id] = readCounts[msg.id] ?? 0;
     }
 
-    // 메시지 ID 목록으로 리액션 배치 조회
+    // 메시지 ID 목록 + 답장 원본 ID 수집
     const messageIds = filteredMessages.map((m) => m.id);
-    const [senderMap, reactionsMap] = await Promise.all([
+    const replyToIds = filteredMessages
+      .map((m) => m.reply_to_id)
+      .filter((id): id is string => id !== null);
+
+    // 병렬로 발신자 + 리액션 + 답장 원본 조회
+    const [senderMap, reactionsMap, replyTargetsMap] = await Promise.all([
       repository.findSendersByIds(
         filteredMessages.map((m) => ({ id: m.sender_id, type: m.sender_type }))
       ),
       repository.findReactionsByMessageIds(messageIds),
+      repository.findReplyTargetsByIds(replyToIds),
     ]);
 
-    // 메시지에 발신자 정보 + 리액션 매핑
-    const messagesWithSenderAndReactions = filteredMessages.map((message) => {
+    // 답장 원본 발신자 정보도 배치 조회
+    const replyTargetSenderKeys = Array.from(replyTargetsMap.values()).map((t) => ({
+      id: t.sender_id,
+      type: t.sender_type,
+    }));
+    const replyTargetSenderMap = await repository.findSendersByIds(replyTargetSenderKeys);
+
+    // 메시지에 발신자 정보 + 리액션 + 답장 원본 매핑
+    const messagesWithAll = filteredMessages.map((message) => {
       const key = `${message.sender_id}_${message.sender_type}`;
       const senderInfo = senderMap.get(key);
       const messageReactions = reactionsMap.get(message.id) ?? [];
+
+      // 답장 원본 정보 매핑
+      let replyTarget: { id: string; content: string; senderName: string; isDeleted: boolean } | null = null;
+      if (message.reply_to_id) {
+        const target = replyTargetsMap.get(message.reply_to_id);
+        if (target) {
+          const targetSenderInfo = replyTargetSenderMap.get(`${target.sender_id}_${target.sender_type}`);
+          replyTarget = {
+            id: target.id,
+            content: target.is_deleted ? "삭제된 메시지입니다" : target.content,
+            senderName: targetSenderInfo?.name ?? "알 수 없음",
+            isDeleted: target.is_deleted,
+          };
+        }
+      }
 
       return {
         ...message,
@@ -3334,13 +3961,14 @@ export async function getMessagesWithReadStatus(
               name: "알 수 없음",
             },
         reactions: convertReactionsToSummaries(messageReactions, userId, userType),
+        replyTarget,
       };
     });
 
     return {
       success: true,
       data: {
-        messages: messagesWithSenderAndReactions,
+        messages: messagesWithAll,
         readCounts: filteredReadCounts,
         hasMore: messages.length === limit,
       },
@@ -3425,6 +4053,350 @@ export async function toggleReaction(
     };
   }
 }
+
+// ============================================
+// 고정 메시지 서비스
+// ============================================
+
+/** 최대 고정 메시지 개수 */
+const MAX_PINNED_MESSAGES = 5;
+
+/**
+ * 메시지 고정
+ * - 채팅방 멤버만 고정 가능
+ * - owner/admin 역할만 고정 가능
+ * - 삭제된 메시지는 고정 불가
+ * - 최대 5개까지만 고정 가능
+ */
+export async function pinMessage(
+  userId: string,
+  userType: ChatUserType,
+  input: PinMessageInput
+): Promise<ChatActionResult<void>> {
+  try {
+    const { roomId, messageId } = input;
+
+    // 1. 메시지 조회
+    const message = await repository.findMessageById(messageId);
+    if (!message) {
+      return { success: false, error: "메시지를 찾을 수 없습니다" };
+    }
+
+    // 2. 같은 채팅방 메시지인지 확인
+    if (message.room_id !== roomId) {
+      return { success: false, error: "해당 채팅방의 메시지가 아닙니다" };
+    }
+
+    // 3. 삭제된 메시지인지 확인
+    if (message.is_deleted) {
+      return { success: false, error: "삭제된 메시지는 고정할 수 없습니다" };
+    }
+
+    // 4. 채팅방 멤버십 및 역할 확인
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      return { success: false, error: "메시지를 고정할 권한이 없습니다" };
+    }
+
+    // 5. 이미 고정된 메시지인지 확인
+    const alreadyPinned = await repository.isPinnedMessage(roomId, messageId);
+    if (alreadyPinned) {
+      return { success: false, error: "이미 고정된 메시지입니다" };
+    }
+
+    // 6. 최대 고정 개수 확인
+    const pinnedCount = await repository.countPinnedMessages(roomId);
+    if (pinnedCount >= MAX_PINNED_MESSAGES) {
+      return {
+        success: false,
+        error: `최대 ${MAX_PINNED_MESSAGES}개까지만 고정할 수 있습니다`,
+      };
+    }
+
+    // 7. 고정 메시지 추가
+    await repository.insertPinnedMessage({
+      room_id: roomId,
+      message_id: messageId,
+      pinned_by: userId,
+      pinned_by_type: userType,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("[ChatService] pinMessage error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "메시지 고정 실패",
+    };
+  }
+}
+
+/**
+ * 메시지 고정 해제
+ * - 채팅방 멤버만 해제 가능
+ * - owner/admin 역할만 해제 가능
+ */
+export async function unpinMessage(
+  userId: string,
+  userType: ChatUserType,
+  input: PinMessageInput
+): Promise<ChatActionResult<void>> {
+  try {
+    const { roomId, messageId } = input;
+
+    // 1. 채팅방 멤버십 및 역할 확인
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      return { success: false, error: "메시지 고정을 해제할 권한이 없습니다" };
+    }
+
+    // 2. 고정된 메시지인지 확인
+    const isPinned = await repository.isPinnedMessage(roomId, messageId);
+    if (!isPinned) {
+      return { success: false, error: "고정되지 않은 메시지입니다" };
+    }
+
+    // 3. 고정 해제
+    await repository.deletePinnedMessage(roomId, messageId);
+
+    return { success: true };
+  } catch (error) {
+    console.error("[ChatService] unpinMessage error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "메시지 고정 해제 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방의 고정 메시지 목록 조회
+ * - 채팅방 멤버만 조회 가능
+ * - 메시지 내용 + 발신자 이름 포함
+ */
+export async function getPinnedMessages(
+  userId: string,
+  userType: ChatUserType,
+  roomId: string
+): Promise<ChatActionResult<PinnedMessageWithContent[]>> {
+  try {
+    // 1. 채팅방 멤버십 확인
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    // 2. 고정 메시지 목록 조회
+    const pinnedMessages = await repository.findPinnedMessagesByRoom(roomId);
+    if (pinnedMessages.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    // 3. 메시지 내용 배치 조회
+    const messageIds = pinnedMessages.map((p) => p.message_id);
+    const messagesMap = await repository.findReplyTargetsByIds(messageIds);
+
+    // 4. 발신자 정보 배치 조회
+    const senderKeys = Array.from(messagesMap.values()).map((m) => ({
+      id: m.sender_id,
+      type: m.sender_type,
+    }));
+    const senderMap = await repository.findSendersByIds(senderKeys);
+
+    // 5. 결과 조합
+    const result: PinnedMessageWithContent[] = pinnedMessages.map((pinned) => {
+      const msg = messagesMap.get(pinned.message_id);
+      const senderInfo = msg
+        ? senderMap.get(`${msg.sender_id}_${msg.sender_type}`)
+        : null;
+
+      return {
+        ...pinned,
+        message: {
+          content: msg?.is_deleted ? "삭제된 메시지입니다" : (msg?.content ?? ""),
+          senderName: senderInfo?.name ?? "알 수 없음",
+          isDeleted: msg?.is_deleted ?? true,
+        },
+      };
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("[ChatService] getPinnedMessages error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "고정 메시지 조회 실패",
+    };
+  }
+}
+
+/**
+ * 메시지 고정 여부 확인 (단일 메시지)
+ */
+export async function checkMessagePinned(
+  roomId: string,
+  messageId: string
+): Promise<boolean> {
+  try {
+    return await repository.isPinnedMessage(roomId, messageId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 사용자가 고정 권한을 가지고 있는지 확인
+ */
+export async function canUserPinMessages(
+  userId: string,
+  userType: ChatUserType,
+  roomId: string
+): Promise<boolean> {
+  try {
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) return false;
+    return membership.role === "owner" || membership.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
+// ============================================
+// 공지 서비스
+// ============================================
+
+/**
+ * 채팅방 공지 설정/삭제
+ * - 채팅방 멤버만 설정 가능
+ * - owner/admin 역할만 설정 가능
+ * - content가 null이면 공지 삭제
+ */
+export async function setAnnouncement(
+  userId: string,
+  userType: ChatUserType,
+  input: SetAnnouncementInput
+): Promise<ChatActionResult<ChatRoom>> {
+  try {
+    const { roomId, content } = input;
+
+    // 1. 채팅방 존재 확인
+    const room = await repository.findRoomById(roomId);
+    if (!room) {
+      return { success: false, error: "채팅방을 찾을 수 없습니다" };
+    }
+
+    // 2. 채팅방 멤버십 및 역할 확인
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    if (membership.role !== "owner" && membership.role !== "admin") {
+      return { success: false, error: "공지를 설정할 권한이 없습니다" };
+    }
+
+    // 3. 공지 내용 검증 (설정하는 경우)
+    if (content !== null) {
+      const trimmedContent = content.trim();
+      if (!trimmedContent) {
+        return { success: false, error: "공지 내용을 입력해주세요" };
+      }
+      if (trimmedContent.length > 500) {
+        return { success: false, error: "공지는 500자를 초과할 수 없습니다" };
+      }
+    }
+
+    // 4. 공지 설정/삭제 실행
+    const updatedRoom = await repository.setRoomAnnouncement(
+      roomId,
+      content !== null ? userId : null,
+      content !== null ? userType : null,
+      content !== null ? content.trim() : null
+    );
+
+    return { success: true, data: updatedRoom };
+  } catch (error) {
+    console.error("[ChatService] setAnnouncement error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "공지 설정 실패",
+    };
+  }
+}
+
+/**
+ * 채팅방 공지 조회
+ * - 채팅방 멤버만 조회 가능
+ * - 공지가 없으면 null 반환
+ */
+export async function getAnnouncement(
+  userId: string,
+  userType: ChatUserType,
+  roomId: string
+): Promise<ChatActionResult<AnnouncementInfo | null>> {
+  try {
+    // 1. 채팅방 존재 확인
+    const room = await repository.findRoomById(roomId);
+    if (!room) {
+      return { success: false, error: "채팅방을 찾을 수 없습니다" };
+    }
+
+    // 2. 채팅방 멤버십 확인
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) {
+      return { success: false, error: "채팅방에 참여하지 않았습니다" };
+    }
+
+    // 3. 공지가 없으면 null 반환
+    if (!room.announcement || !room.announcement_by || !room.announcement_by_type) {
+      return { success: true, data: null };
+    }
+
+    // 4. 공지 작성자 정보 조회
+    const authorInfo = await getUserInfo(room.announcement_by, room.announcement_by_type);
+
+    return {
+      success: true,
+      data: {
+        content: room.announcement,
+        authorName: authorInfo?.name ?? "알 수 없음",
+        authorType: room.announcement_by_type,
+        createdAt: room.announcement_at ?? new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("[ChatService] getAnnouncement error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "공지 조회 실패",
+    };
+  }
+}
+
+/**
+ * 사용자가 공지 설정 권한을 가지고 있는지 확인
+ */
+export async function canUserSetAnnouncement(
+  userId: string,
+  userType: ChatUserType,
+  roomId: string
+): Promise<boolean> {
+  try {
+    const membership = await repository.findMember(roomId, userId, userType);
+    if (!membership) return false;
+    return membership.role === "owner" || membership.role === "admin";
+  } catch {
+    return false;
+  }
+}
 </file>
 
 <file path="types.ts">
@@ -3450,6 +4422,9 @@ export type ChatMemberRole = "owner" | "admin" | "member";
 
 /** 메시지 유형 */
 export type ChatMessageType = "text" | "system";
+
+/** 메시지 전송 상태 (클라이언트 전용) */
+export type MessageStatus = "sending" | "sent" | "error";
 
 /** 신고 사유 */
 export type ReportReason =
@@ -3518,6 +4493,14 @@ export interface ChatRoom {
   created_by: string;
   created_by_type: ChatUserType;
   is_active: boolean;
+  /** 채팅방 공지 내용 */
+  announcement: string | null;
+  /** 공지 작성자 ID */
+  announcement_by: string | null;
+  /** 공지 작성자 유형 */
+  announcement_by_type: ChatUserType | null;
+  /** 공지 작성 시간 */
+  announcement_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -3536,6 +4519,10 @@ export interface ChatRoomInsert {
 export interface ChatRoomUpdate {
   name?: string | null;
   is_active?: boolean;
+  announcement?: string | null;
+  announcement_by?: string | null;
+  announcement_by_type?: ChatUserType | null;
+  announcement_at?: string | null;
 }
 
 // ============================================
@@ -3586,6 +4573,7 @@ export interface ChatMessage {
   sender_type: ChatUserType;
   message_type: ChatMessageType;
   content: string;
+  reply_to_id: string | null;
   is_deleted: boolean;
   deleted_at: string | null;
   created_at: string;
@@ -3599,6 +4587,7 @@ export interface ChatMessageInsert {
   sender_type: ChatUserType;
   message_type?: ChatMessageType;
   content: string;
+  reply_to_id?: string | null;
 }
 
 /** 메시지 수정 입력 타입 */
@@ -3704,11 +4693,40 @@ export interface ChatUser {
   profileImageUrl?: string | null;
 }
 
+/** 답장 원본 메시지 정보 (UI용) */
+export interface ReplyTargetInfo {
+  id: string;
+  content: string;
+  senderName: string;
+  isDeleted: boolean;
+}
+
 /** 메시지 + 발신자 정보 */
 export interface ChatMessageWithSender extends ChatMessage {
   sender: ChatUser;
   /** 메시지 리액션 요약 (옵션) */
   reactions?: ReactionSummary[];
+  /** 답장 원본 메시지 정보 (옵션) */
+  replyTarget?: ReplyTargetInfo | null;
+}
+
+/** 메시지 그룹핑 정보 (UI 렌더링용) */
+export interface MessageGroupingInfo {
+  /** 발신자 이름 표시 여부 (그룹 첫 메시지만 true) */
+  showName: boolean;
+  /** 시간 표시 여부 (그룹 마지막 메시지만 true) */
+  showTime: boolean;
+  /** 그룹의 일부인지 여부 (간격 축소용) */
+  isGrouped: boolean;
+  /** 날짜 구분선 표시 여부 */
+  showDateDivider: boolean;
+  /** 날짜 구분선 텍스트 (예: "2024년 1월 15일 월요일") */
+  dateDividerText?: string;
+}
+
+/** 그룹핑 정보가 포함된 메시지 */
+export interface ChatMessageWithGrouping extends ChatMessageWithSender {
+  grouping: MessageGroupingInfo;
 }
 
 /** 채팅방 + 추가 정보 (목록 표시용) */
@@ -3758,6 +4776,7 @@ export interface SendMessageRequest {
   roomId: string;
   content: string;
   messageType?: ChatMessageType;
+  replyToId?: string | null;
 }
 
 /** 메시지 목록 조회 옵션 */
@@ -3821,6 +4840,223 @@ export interface MessagesWithReadStatusResult {
   readCounts: Record<string, number>;
   hasMore: boolean;
 }
+
+// ============================================
+// 고정 메시지 타입
+// ============================================
+
+/** 고정 메시지 기본 타입 */
+export interface PinnedMessage {
+  id: string;
+  room_id: string;
+  message_id: string;
+  pinned_by: string;
+  pinned_by_type: ChatUserType;
+  pin_order: number;
+  created_at: string;
+}
+
+/** 고정 메시지 + 내용 (UI 표시용) */
+export interface PinnedMessageWithContent extends PinnedMessage {
+  message: {
+    content: string;
+    senderName: string;
+    isDeleted: boolean;
+  };
+}
+
+/** 고정 메시지 입력 타입 */
+export interface PinMessageInput {
+  roomId: string;
+  messageId: string;
+}
+
+/** 고정 메시지 삽입 타입 (Repository용) */
+export interface PinnedMessageInsert {
+  room_id: string;
+  message_id: string;
+  pinned_by: string;
+  pinned_by_type: ChatUserType;
+  pin_order?: number;
+}
+
+// ============================================
+// 공지 타입
+// ============================================
+
+/** 공지 정보 (UI 표시용) */
+export interface AnnouncementInfo {
+  content: string;
+  authorName: string;
+  authorType: ChatUserType;
+  createdAt: string;
+}
+
+/** 공지 설정 입력 타입 */
+export interface SetAnnouncementInput {
+  roomId: string;
+  content: string | null; // null이면 공지 삭제
+}
+</file>
+
+<file path="atoms/AnnouncementBanner.tsx">
+"use client";
+
+/**
+ * AnnouncementBanner - 채팅방 공지 배너
+ *
+ * 채팅방 상단에 공지를 표시합니다.
+ * 클릭하면 전체 공지를 볼 수 있고, 권한이 있으면 편집/삭제 가능.
+ */
+
+import { memo, useState } from "react";
+import { cn } from "@/lib/cn";
+import { Megaphone, X, ChevronDown, ChevronUp, Edit2 } from "lucide-react";
+import type { AnnouncementInfo } from "@/lib/domains/chat/types";
+
+interface AnnouncementBannerProps {
+  /** 공지 정보 */
+  announcement: AnnouncementInfo;
+  /** 공지 설정/삭제 권한 여부 */
+  canEdit: boolean;
+  /** 공지 편집 버튼 클릭 */
+  onEdit?: () => void;
+  /** 공지 삭제 버튼 클릭 */
+  onDelete?: () => void;
+}
+
+function AnnouncementBannerComponent({
+  announcement,
+  canEdit,
+  onEdit,
+  onDelete,
+}: AnnouncementBannerProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // 공지 내용이 길면 축약 표시
+  const isLongContent = announcement.content.length > 100;
+  const displayContent = isExpanded
+    ? announcement.content
+    : announcement.content.slice(0, 100) + (isLongContent ? "..." : "");
+
+  return (
+    <div className="bg-warning-50 dark:bg-warning-900/20 border-b border-warning-200 dark:border-warning-900/30">
+      <div className="flex items-start gap-2 px-4 py-2">
+        <Megaphone className="w-4 h-4 text-warning-600 dark:text-warning-400 flex-shrink-0 mt-0.5" />
+
+        <div className="flex-1 min-w-0">
+          {/* 공지 내용 */}
+          <div
+            className={cn(
+              "text-sm text-text-primary whitespace-pre-wrap break-words",
+              !isExpanded && isLongContent && "cursor-pointer"
+            )}
+            onClick={() => isLongContent && setIsExpanded(!isExpanded)}
+          >
+            {displayContent}
+          </div>
+
+          {/* 작성자 + 시간 */}
+          <div className="flex items-center gap-2 mt-1 text-xs text-text-tertiary">
+            <span>{announcement.authorName}</span>
+            <span>·</span>
+            <span>
+              {new Date(announcement.createdAt).toLocaleDateString("ko-KR", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        </div>
+
+        {/* 액션 버튼들 */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* 펼침/접기 버튼 (긴 내용일 때만) */}
+          {isLongContent && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1 hover:bg-warning-100 dark:hover:bg-warning-900/30 rounded transition-colors"
+              aria-label={isExpanded ? "접기" : "펼치기"}
+            >
+              {isExpanded ? (
+                <ChevronUp className="w-4 h-4 text-text-tertiary" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-text-tertiary" />
+              )}
+            </button>
+          )}
+
+          {/* 편집 버튼 (권한 있을 때) */}
+          {canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="p-1 hover:bg-warning-100 dark:hover:bg-warning-900/30 rounded transition-colors"
+              aria-label="공지 편집"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-text-tertiary hover:text-primary" />
+            </button>
+          )}
+
+          {/* 삭제 버튼 (권한 있을 때) */}
+          {canEdit && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="p-1 hover:bg-warning-100 dark:hover:bg-warning-900/30 rounded transition-colors"
+              aria-label="공지 삭제"
+            >
+              <X className="w-3.5 h-3.5 text-text-tertiary hover:text-error" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const AnnouncementBanner = memo(AnnouncementBannerComponent);
+</file>
+
+<file path="atoms/DateDivider.tsx">
+"use client";
+
+/**
+ * DateDivider - 날짜 구분선 컴포넌트
+ *
+ * 채팅 메시지 목록에서 날짜가 바뀌는 지점에 표시됩니다.
+ */
+
+import { memo } from "react";
+
+interface DateDividerProps {
+  /** 포맷된 날짜 텍스트 (예: "2024년 1월 15일 월요일") */
+  date: string;
+}
+
+function DateDividerComponent({ date }: DateDividerProps) {
+  return (
+    <div className="flex items-center justify-center py-4">
+      <div className="flex items-center gap-3 w-full max-w-md">
+        {/* 왼쪽 선 */}
+        <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+
+        {/* 날짜 텍스트 */}
+        <span className="text-xs text-text-tertiary font-medium px-2 whitespace-nowrap">
+          {date}
+        </span>
+
+        {/* 오른쪽 선 */}
+        <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+      </div>
+    </div>
+  );
+}
+
+export const DateDivider = memo(DateDividerComponent);
 </file>
 
 <file path="atoms/MessageBubble.tsx">
@@ -3835,11 +5071,13 @@ export interface MessagesWithReadStatusResult {
 
 import { memo, useState } from "react";
 import { cn } from "@/lib/cn";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { ko } from "date-fns/locale";
-import type { ReactionSummary, ReactionEmoji } from "@/lib/domains/chat/types";
+import { AlertCircle, Loader2 } from "lucide-react";
+import type { ReactionSummary, ReactionEmoji, ReplyTargetInfo } from "@/lib/domains/chat/types";
 import { ReactionPills } from "./ReactionPills";
 import { ReactionPicker } from "./ReactionPicker";
+import { useLongPress } from "@/lib/hooks/useLongPress";
 
 interface MessageBubbleProps {
   /** 메시지 내용 */
@@ -3860,16 +5098,40 @@ interface MessageBubbleProps {
   canEdit?: boolean;
   /** 리액션 요약 목록 */
   reactions?: ReactionSummary[];
+  /** 답장 원본 메시지 정보 */
+  replyTarget?: ReplyTargetInfo | null;
+  /** 고정된 메시지 여부 */
+  isPinned?: boolean;
+  /** 고정 권한 여부 */
+  canPin?: boolean;
+  /** 발신자 이름 표시 여부 (그룹핑용, 기본값: true) */
+  showName?: boolean;
+  /** 시간 표시 여부 (그룹핑용, 기본값: true) */
+  showTime?: boolean;
+  /** 그룹핑된 메시지 여부 (간격 축소용) */
+  isGrouped?: boolean;
   /** 리액션 토글 콜백 */
   onToggleReaction?: (emoji: ReactionEmoji) => void;
+  /** 답장 클릭 콜백 */
+  onReply?: () => void;
+  /** 답장 원본 클릭 콜백 (해당 메시지로 스크롤) */
+  onReplyTargetClick?: () => void;
   /** 편집 클릭 콜백 */
   onEdit?: () => void;
   /** 삭제 클릭 콜백 */
   onDelete?: () => void;
   /** 신고 클릭 콜백 (타인 메시지) */
   onReport?: () => void;
+  /** 고정/해제 클릭 콜백 */
+  onTogglePin?: () => void;
   /** 클릭 시 콜백 (길게 눌러 신고 등) */
   onLongPress?: () => void;
+  /** 전송 실패 상태 */
+  isError?: boolean;
+  /** 재전송 중 상태 */
+  isRetrying?: boolean;
+  /** 재전송 콜백 */
+  onRetry?: () => void;
 }
 
 function MessageBubbleComponent({
@@ -3882,13 +5144,31 @@ function MessageBubbleComponent({
   unreadCount,
   canEdit = false,
   reactions = [],
+  replyTarget,
+  isPinned = false,
+  canPin = false,
+  showName = true,
+  showTime = true,
+  isGrouped = false,
   onToggleReaction,
+  onReply,
+  onReplyTargetClick,
   onEdit,
   onDelete,
   onReport,
+  onTogglePin,
   onLongPress,
+  isError = false,
+  isRetrying = false,
+  onRetry,
 }: MessageBubbleProps) {
   const [showPicker, setShowPicker] = useState(false);
+
+  // Long press 핸들러 (모바일 터치 + 데스크톱 우클릭)
+  const longPressHandlers = useLongPress({
+    onLongPress: () => onLongPress?.(),
+    disabled: isSystem,
+  });
 
   // 시스템 메시지 (입장/퇴장 등)
   if (isSystem) {
@@ -3901,11 +5181,8 @@ function MessageBubbleComponent({
     );
   }
 
-  // 시간 포맷
-  const timeAgo = formatDistanceToNow(new Date(createdAt), {
-    addSuffix: true,
-    locale: ko,
-  });
+  // 시간 포맷 (절대 시간: "오후 3:45")
+  const formattedTime = format(new Date(createdAt), "a h:mm", { locale: ko });
 
   const handleReactionSelect = (emoji: ReactionEmoji) => {
     onToggleReaction?.(emoji);
@@ -3914,33 +5191,77 @@ function MessageBubbleComponent({
 
   return (
     <div
+      {...longPressHandlers}
       className={cn(
         "group flex flex-col gap-1 max-w-[80%]",
         isOwn ? "items-end ml-auto" : "items-start mr-auto"
       )}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        onLongPress?.();
-      }}
     >
-      {/* 발신자 이름 (타인 메시지만) */}
-      {!isOwn && senderName && (
+      {/* 발신자 이름 (타인 메시지, 그룹핑 시 첫 메시지만) */}
+      {!isOwn && showName && senderName && (
         <span className="text-xs text-text-secondary pl-1">{senderName}</span>
       )}
 
       {/* 메시지 버블 + 리액션 영역 */}
       <div className="relative flex flex-col gap-1">
+        {/* 답장 원본 메시지 표시 */}
+        {replyTarget && (
+          <button
+            type="button"
+            onClick={onReplyTargetClick}
+            className={cn(
+              "px-3 py-1.5 rounded-t-lg text-xs text-left cursor-pointer",
+              "bg-secondary-50 dark:bg-secondary-900/50",
+              "border-l-2 border-primary",
+              "hover:bg-secondary-100 dark:hover:bg-secondary-900 transition-colors"
+            )}
+          >
+            <p className="font-medium text-primary">{replyTarget.senderName}</p>
+            <p className="text-text-secondary truncate max-w-[200px]">
+              {replyTarget.isDeleted ? "삭제된 메시지" : replyTarget.content}
+            </p>
+          </button>
+        )}
+
         {/* 메시지 버블 */}
         <div
           className={cn(
             "px-4 py-2 rounded-2xl break-words whitespace-pre-wrap",
             isOwn
               ? "bg-primary-500 text-white rounded-br-sm"
-              : "bg-secondary-100 dark:bg-secondary-800 text-text-primary rounded-bl-sm"
+              : "bg-secondary-100 dark:bg-secondary-800 text-text-primary rounded-bl-sm",
+            replyTarget && "rounded-t-none",
+            isError && "opacity-60"
           )}
         >
           {content}
         </div>
+
+        {/* 전송 실패 표시 (본인 메시지 + 에러 상태) */}
+        {isOwn && isError && (
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={isRetrying}
+            className={cn(
+              "flex items-center gap-1 text-xs text-error",
+              "hover:underline transition-opacity",
+              isRetrying && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {isRetrying ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>재전송 중...</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-3 h-3" />
+                <span>전송 실패 - 다시 시도</span>
+              </>
+            )}
+          </button>
+        )}
 
         {/* 리액션 표시 */}
         {reactions.length > 0 && (
@@ -3990,21 +5311,23 @@ function MessageBubbleComponent({
         )}
       </div>
 
-      {/* 하단 정보 (시간, 수정됨, 읽음 수) */}
-      <div
-        className={cn(
-          "flex items-center gap-2 text-xs text-text-tertiary",
-          isOwn ? "flex-row-reverse" : "flex-row"
-        )}
-      >
-        <span>{timeAgo}</span>
-        {isEdited && (
-          <span className="text-text-tertiary">(수정됨)</span>
-        )}
-        {isOwn && unreadCount !== undefined && unreadCount > 0 && (
-          <span className="text-primary font-medium">{unreadCount}</span>
-        )}
-      </div>
+      {/* 하단 정보 (시간, 수정됨, 읽음 수) - 그룹핑 시 마지막 메시지만 표시 */}
+      {showTime && (
+        <div
+          className={cn(
+            "flex items-center gap-2 text-xs text-text-tertiary",
+            isOwn ? "flex-row-reverse" : "flex-row"
+          )}
+        >
+          <span>{formattedTime}</span>
+          {isEdited && (
+            <span className="text-text-tertiary">(수정됨)</span>
+          )}
+          {isOwn && unreadCount !== undefined && unreadCount > 0 && (
+            <span className="text-primary font-medium">{unreadCount}</span>
+          )}
+        </div>
+      )}
 
       {/* 액션 메뉴 (마우스 호버 시 표시) */}
       <div
@@ -4013,6 +5336,29 @@ function MessageBubbleComponent({
           isOwn ? "flex-row-reverse" : "flex-row"
         )}
       >
+        {onReply && (
+          <button
+            type="button"
+            onClick={onReply}
+            className="text-xs text-text-tertiary hover:text-primary px-1"
+          >
+            답장
+          </button>
+        )}
+        {canPin && onTogglePin && (
+          <button
+            type="button"
+            onClick={onTogglePin}
+            className={cn(
+              "text-xs px-1",
+              isPinned
+                ? "text-primary hover:text-text-tertiary"
+                : "text-text-tertiary hover:text-primary"
+            )}
+          >
+            {isPinned ? "고정 해제" : "고정"}
+          </button>
+        )}
         {isOwn && canEdit && onEdit && (
           <button
             type="button"
@@ -4331,18 +5677,129 @@ function UnreadBadgeComponent({
 export const UnreadBadge = memo(UnreadBadgeComponent);
 </file>
 
+<file path="molecules/AnnouncementDialog.tsx">
+"use client";
+
+/**
+ * AnnouncementDialog - 채팅방 공지 설정 다이얼로그
+ *
+ * 공지 작성/편집을 위한 모달 다이얼로그입니다.
+ */
+
+import { memo, useState, useEffect } from "react";
+import { Dialog } from "@/components/ui/Dialog";
+import Button from "@/components/atoms/Button";
+
+interface AnnouncementDialogProps {
+  /** 다이얼로그 열림 여부 */
+  open: boolean;
+  /** 다이얼로그 닫기 */
+  onOpenChange: (open: boolean) => void;
+  /** 현재 공지 내용 (편집 시) */
+  currentContent?: string | null;
+  /** 저장 콜백 */
+  onSave: (content: string) => void;
+  /** 저장 중 여부 */
+  isSaving?: boolean;
+}
+
+function AnnouncementDialogComponent({
+  open,
+  onOpenChange,
+  currentContent,
+  onSave,
+  isSaving = false,
+}: AnnouncementDialogProps) {
+  const [content, setContent] = useState(currentContent ?? "");
+
+  // 다이얼로그가 열릴 때 현재 공지 내용으로 초기화
+  useEffect(() => {
+    if (open) {
+      setContent(currentContent ?? "");
+    }
+  }, [open, currentContent]);
+
+  const handleSave = () => {
+    const trimmedContent = content.trim();
+    if (trimmedContent) {
+      onSave(trimmedContent);
+    }
+  };
+
+  const isValidContent = content.trim().length > 0 && content.trim().length <= 500;
+  const characterCount = content.length;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={currentContent ? "공지 편집" : "공지 설정"}
+      size="md"
+    >
+      <div className="space-y-4">
+        {/* 입력 영역 */}
+        <div>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="채팅방 공지를 입력하세요..."
+            className="w-full h-32 p-3 text-sm border border-border rounded-lg resize-none
+              focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+              bg-background text-text-primary placeholder:text-text-tertiary"
+            maxLength={500}
+            disabled={isSaving}
+          />
+          <div className="flex justify-end mt-1">
+            <span
+              className={`text-xs ${
+                characterCount > 500 ? "text-error" : "text-text-tertiary"
+              }`}
+            >
+              {characterCount}/500
+            </span>
+          </div>
+        </div>
+
+        {/* 버튼 영역 */}
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
+            취소
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleSave}
+            disabled={!isValidContent || isSaving}
+          >
+            {isSaving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+export const AnnouncementDialog = memo(AnnouncementDialogComponent);
+</file>
+
 <file path="molecules/ChatInput.tsx">
 "use client";
 
 /**
  * ChatInput - 메시지 입력 컴포넌트
  *
- * 텍스트 입력 + 전송 버튼
+ * 텍스트 입력 + 전송 버튼 + 답장 표시
  */
 
 import { memo, useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "@/lib/cn";
-import { Send } from "lucide-react";
+import { Send, X } from "lucide-react";
+import type { ReplyTargetInfo } from "@/lib/domains/chat/types";
 
 interface ChatInputProps {
   /** 메시지 전송 핸들러 */
@@ -4357,6 +5814,10 @@ interface ChatInputProps {
   maxLength?: number;
   /** 타이핑 상태 변경 핸들러 */
   onTypingChange?: (isTyping: boolean) => void;
+  /** 답장 대상 메시지 정보 */
+  replyTarget?: ReplyTargetInfo | null;
+  /** 답장 취소 핸들러 */
+  onCancelReply?: () => void;
 }
 
 function ChatInputComponent({
@@ -4366,6 +5827,8 @@ function ChatInputComponent({
   placeholder = "메시지를 입력하세요...",
   maxLength = 1000,
   onTypingChange,
+  replyTarget,
+  onCancelReply,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isComposing, setIsComposing] = useState(false);
@@ -4417,59 +5880,84 @@ function ChatInputComponent({
   const canSend = value.trim().length > 0 && !isSending && !disabled;
 
   return (
-    <div className="flex items-end gap-2 p-3 bg-bg-primary border-t border-border">
-      {/* 텍스트 입력 */}
-      <div className="flex-1 relative">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => {
-            const newValue = e.target.value.slice(0, maxLength);
-            setValue(newValue);
-            onTypingChange?.(newValue.length > 0);
-          }}
-          onKeyDown={handleKeyDown}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={1}
-          className={cn(
-            "w-full resize-none rounded-2xl px-4 py-2.5 text-sm",
-            "bg-bg-secondary text-text-primary placeholder:text-text-tertiary",
-            "border border-transparent focus:border-primary focus:outline-none",
-            "transition-colors",
-            disabled && "opacity-50 cursor-not-allowed"
+    <div className="flex flex-col bg-bg-primary border-t border-border">
+      {/* 답장 대상 표시 */}
+      {replyTarget && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary border-b border-border">
+          <div className="w-1 h-8 bg-primary rounded-full flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-primary font-medium">{replyTarget.senderName}에게 답장</p>
+            <p className="text-xs text-text-secondary truncate">
+              {replyTarget.isDeleted ? "삭제된 메시지" : replyTarget.content}
+            </p>
+          </div>
+          {onCancelReply && (
+            <button
+              type="button"
+              onClick={onCancelReply}
+              className="p-1 hover:bg-bg-tertiary rounded-full transition-colors"
+              aria-label="답장 취소"
+            >
+              <X className="w-4 h-4 text-text-tertiary" />
+            </button>
           )}
-        />
-        {/* 글자 수 표시 (임계치 근처) */}
-        {value.length > maxLength * 0.8 && (
-          <span
-            className={cn(
-              "absolute right-3 bottom-1 text-[10px]",
-              value.length >= maxLength ? "text-error" : "text-text-tertiary"
-            )}
-          >
-            {value.length}/{maxLength}
-          </span>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* 전송 버튼 */}
-      <button
-        type="button"
-        onClick={handleSubmit}
-        disabled={!canSend}
-        className={cn(
-          "flex items-center justify-center w-10 h-10 rounded-full",
-          "transition-colors",
-          canSend
-            ? "bg-primary text-white hover:bg-primary-hover"
-            : "bg-bg-tertiary text-text-tertiary cursor-not-allowed"
-        )}
-      >
-        <Send className="w-5 h-5" />
-      </button>
+      <div className="flex items-end gap-2 p-3">
+        {/* 텍스트 입력 */}
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => {
+              const newValue = e.target.value.slice(0, maxLength);
+              setValue(newValue);
+              onTypingChange?.(newValue.length > 0);
+            }}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            placeholder={placeholder}
+            disabled={disabled}
+            rows={1}
+            className={cn(
+              "w-full resize-none rounded-2xl px-4 py-2.5 text-sm",
+              "bg-bg-secondary text-text-primary placeholder:text-text-tertiary",
+              "border border-transparent focus:border-primary focus:outline-none",
+              "transition-colors",
+              disabled && "opacity-50 cursor-not-allowed"
+            )}
+          />
+          {/* 글자 수 표시 (임계치 근처) */}
+          {value.length > maxLength * 0.8 && (
+            <span
+              className={cn(
+                "absolute right-3 bottom-1 text-[10px]",
+                value.length >= maxLength ? "text-error" : "text-text-tertiary"
+              )}
+            >
+              {value.length}/{maxLength}
+            </span>
+          )}
+        </div>
+
+        {/* 전송 버튼 */}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!canSend}
+          className={cn(
+            "flex items-center justify-center w-10 h-10 rounded-full",
+            "transition-colors",
+            canSend
+              ? "bg-primary text-white hover:bg-primary-hover"
+              : "bg-bg-tertiary text-text-tertiary cursor-not-allowed"
+          )}
+        >
+          <Send className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -4587,6 +6075,284 @@ function ChatRoomCardComponent({
 }
 
 export const ChatRoomCard = memo(ChatRoomCardComponent);
+</file>
+
+<file path="molecules/MessageContextMenu.tsx">
+"use client";
+
+/**
+ * MessageContextMenu - 메시지 컨텍스트 메뉴
+ *
+ * 메시지를 길게 누르거나 우클릭 시 나타나는 하단 시트 메뉴입니다.
+ * 리액션 추가, 복사, 답장, 편집, 삭제, 신고 등의 액션을 제공합니다.
+ */
+
+import { memo, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { cn } from "@/lib/cn";
+import { useClickOutside, useEscapeKey } from "@/lib/accessibility/hooks";
+import { REACTION_EMOJIS, type ReactionEmoji } from "@/lib/domains/chat/types";
+import { Copy, Reply, Edit2, Trash2, Flag, Pin, PinOff } from "lucide-react";
+
+/** 메시지 메뉴 컨텍스트 정보 */
+export interface MessageMenuContext {
+  /** 메시지 ID */
+  messageId: string;
+  /** 메시지 내용 */
+  content: string;
+  /** 본인 메시지 여부 */
+  isOwn: boolean;
+  /** 편집 가능 여부 */
+  canEdit: boolean;
+  /** 고정 권한 여부 */
+  canPin: boolean;
+  /** 현재 고정 상태 */
+  isPinned: boolean;
+}
+
+interface MessageContextMenuProps {
+  /** 메뉴 열림 상태 */
+  isOpen: boolean;
+  /** 메뉴 닫기 콜백 */
+  onClose: () => void;
+  /** 메시지 컨텍스트 정보 */
+  context: MessageMenuContext | null;
+  /** 복사 클릭 콜백 */
+  onCopy: () => void;
+  /** 답장 클릭 콜백 */
+  onReply: () => void;
+  /** 편집 클릭 콜백 (본인 메시지 + 편집 가능 시) */
+  onEdit?: () => void;
+  /** 삭제 클릭 콜백 (본인 메시지) */
+  onDelete?: () => void;
+  /** 신고 클릭 콜백 (타인 메시지) */
+  onReport?: () => void;
+  /** 고정/해제 클릭 콜백 (고정 권한 있을 때) */
+  onTogglePin?: () => void;
+  /** 리액션 토글 콜백 */
+  onToggleReaction: (emoji: ReactionEmoji) => void;
+}
+
+function MessageContextMenuComponent({
+  isOpen,
+  onClose,
+  context,
+  onCopy,
+  onReply,
+  onEdit,
+  onDelete,
+  onReport,
+  onTogglePin,
+  onToggleReaction,
+}: MessageContextMenuProps) {
+  // 외부 클릭 시 닫기
+  const sheetRef = useClickOutside<HTMLDivElement>(onClose, isOpen);
+
+  // ESC 키로 닫기
+  useEscapeKey(onClose, isOpen);
+
+  // 메뉴 열렸을 때 body 스크롤 방지
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !context) return null;
+
+  const handleReactionClick = (emoji: ReactionEmoji) => {
+    onToggleReaction(emoji);
+  };
+
+  const menuContent = (
+    <>
+      {/* 딤 배경 */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50",
+          "animate-in fade-in-0 duration-200"
+        )}
+        aria-hidden="true"
+      />
+
+      {/* 하단 시트 */}
+      <div
+        ref={sheetRef}
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-50",
+          "bg-bg-primary rounded-t-2xl",
+          "animate-in slide-in-from-bottom duration-200",
+          "pb-safe max-h-[80vh] overflow-y-auto"
+        )}
+        role="dialog"
+        aria-modal="true"
+        aria-label="메시지 메뉴"
+      >
+        {/* 드래그 핸들 바 */}
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-10 h-1 bg-secondary-300 dark:bg-secondary-600 rounded-full" />
+        </div>
+
+        {/* 빠른 리액션 바 */}
+        <div className="flex justify-center gap-2 px-4 py-3">
+          {REACTION_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => handleReactionClick(emoji)}
+              className={cn(
+                "w-11 h-11 flex items-center justify-center",
+                "rounded-full text-2xl",
+                "bg-secondary-100 dark:bg-secondary-800",
+                "hover:bg-secondary-200 dark:hover:bg-secondary-700",
+                "active:scale-95",
+                "transition-all duration-100"
+              )}
+              aria-label={`${emoji} 리액션 추가`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+
+        {/* 구분선 */}
+        <div className="px-4">
+          <div className="h-px bg-border" />
+        </div>
+
+        {/* 액션 목록 */}
+        <div className="py-2">
+          {/* 복사 - 항상 표시 */}
+          <button
+            type="button"
+            onClick={onCopy}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3",
+              "hover:bg-bg-secondary active:bg-bg-tertiary",
+              "transition-colors text-text-primary"
+            )}
+          >
+            <Copy className="w-5 h-5 text-text-secondary" />
+            <span>복사</span>
+          </button>
+
+          {/* 답장 - 항상 표시 */}
+          <button
+            type="button"
+            onClick={onReply}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3",
+              "hover:bg-bg-secondary active:bg-bg-tertiary",
+              "transition-colors text-text-primary"
+            )}
+          >
+            <Reply className="w-5 h-5 text-text-secondary" />
+            <span>답장</span>
+          </button>
+
+          {/* 편집 - 본인 메시지 + 편집 가능 시 */}
+          {context.isOwn && context.canEdit && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3",
+                "hover:bg-bg-secondary active:bg-bg-tertiary",
+                "transition-colors text-text-primary"
+              )}
+            >
+              <Edit2 className="w-5 h-5 text-text-secondary" />
+              <span>편집</span>
+            </button>
+          )}
+
+          {/* 고정/해제 - 고정 권한 있을 때 */}
+          {context.canPin && onTogglePin && (
+            <button
+              type="button"
+              onClick={onTogglePin}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3",
+                "hover:bg-bg-secondary active:bg-bg-tertiary",
+                "transition-colors text-text-primary"
+              )}
+            >
+              {context.isPinned ? (
+                <>
+                  <PinOff className="w-5 h-5 text-text-secondary" />
+                  <span>고정 해제</span>
+                </>
+              ) : (
+                <>
+                  <Pin className="w-5 h-5 text-text-secondary" />
+                  <span>고정</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* 삭제 - 본인 메시지 (위험 스타일) */}
+          {context.isOwn && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3",
+                "hover:bg-bg-secondary active:bg-bg-tertiary",
+                "transition-colors text-error"
+              )}
+            >
+              <Trash2 className="w-5 h-5" />
+              <span>삭제</span>
+            </button>
+          )}
+
+          {/* 신고 - 타인 메시지 (위험 스타일) */}
+          {!context.isOwn && onReport && (
+            <button
+              type="button"
+              onClick={onReport}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3",
+                "hover:bg-bg-secondary active:bg-bg-tertiary",
+                "transition-colors text-error"
+              )}
+            >
+              <Flag className="w-5 h-5" />
+              <span>신고</span>
+            </button>
+          )}
+        </div>
+
+        {/* 취소 버튼 */}
+        <div className="px-4 pb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              "w-full py-3 rounded-xl",
+              "bg-secondary-100 dark:bg-secondary-800",
+              "hover:bg-secondary-200 dark:hover:bg-secondary-700",
+              "text-text-primary font-medium",
+              "transition-colors"
+            )}
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  // Portal로 body에 직접 렌더링
+  if (typeof window === "undefined") return null;
+  return createPortal(menuContent, document.body);
+}
+
+export const MessageContextMenu = memo(MessageContextMenuComponent);
 </file>
 
 <file path="molecules/MessageSearch.tsx">
@@ -4795,6 +6561,183 @@ function SearchResultItem({
 }
 </file>
 
+<file path="molecules/PinnedMessagesBar.tsx">
+"use client";
+
+/**
+ * PinnedMessagesBar - 고정 메시지 바
+ *
+ * 채팅방 상단에 고정된 메시지 목록을 표시합니다.
+ * 클릭 시 해당 메시지로 스크롤, 관리자는 고정 해제 가능.
+ */
+
+import { memo, useState } from "react";
+import { cn } from "@/lib/cn";
+import { Pin, ChevronDown, ChevronUp, X } from "lucide-react";
+import type { PinnedMessageWithContent } from "@/lib/domains/chat/types";
+
+interface PinnedMessagesBarProps {
+  /** 고정된 메시지 목록 */
+  pinnedMessages: PinnedMessageWithContent[];
+  /** 고정 해제 권한 여부 */
+  canUnpin: boolean;
+  /** 메시지 클릭 시 스크롤 */
+  onMessageClick: (messageId: string) => void;
+  /** 고정 해제 콜백 */
+  onUnpin?: (messageId: string) => void;
+}
+
+function PinnedMessagesBarComponent({
+  pinnedMessages,
+  canUnpin,
+  onMessageClick,
+  onUnpin,
+}: PinnedMessagesBarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (pinnedMessages.length === 0) {
+    return null;
+  }
+
+  // 단일 메시지 모드 (펼침 버튼 표시)
+  if (!isExpanded && pinnedMessages.length === 1) {
+    const pinned = pinnedMessages[0];
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
+        <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+        <button
+          type="button"
+          onClick={() => onMessageClick(pinned.message_id)}
+          className="flex-1 text-left text-sm truncate hover:text-primary transition-colors"
+        >
+          <span className="font-medium text-primary">
+            {pinned.message.senderName}:
+          </span>{" "}
+          <span className="text-text-secondary">
+            {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+          </span>
+        </button>
+        {canUnpin && onUnpin && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnpin(pinned.message_id);
+            }}
+            className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+            aria-label="고정 해제"
+          >
+            <X className="w-3 h-3 text-text-tertiary hover:text-error" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // 축소 모드 (여러 개 - 캐러셀 형태)
+  if (!isExpanded && pinnedMessages.length > 1) {
+    const pinned = pinnedMessages[currentIndex];
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
+        <Pin className="w-4 h-4 text-primary flex-shrink-0" />
+        <button
+          type="button"
+          onClick={() => onMessageClick(pinned.message_id)}
+          className="flex-1 text-left text-sm truncate hover:text-primary transition-colors"
+        >
+          <span className="font-medium text-primary">
+            {pinned.message.senderName}:
+          </span>{" "}
+          <span className="text-text-secondary">
+            {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+          </span>
+        </button>
+        <span className="text-xs text-text-tertiary">
+          {currentIndex + 1}/{pinnedMessages.length}
+        </span>
+        <button
+          type="button"
+          onClick={() => setCurrentIndex((i) => (i + 1) % pinnedMessages.length)}
+          className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+          aria-label="다음 고정 메시지"
+        >
+          <ChevronDown className="w-4 h-4 text-text-tertiary" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="text-xs text-primary hover:underline"
+        >
+          전체 보기
+        </button>
+      </div>
+    );
+  }
+
+  // 확장 모드 (전체 목록)
+  return (
+    <div className="bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-900/30">
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Pin className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium text-primary">
+            고정된 메시지 ({pinnedMessages.length})
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsExpanded(false)}
+          className="p-1 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded transition-colors"
+          aria-label="접기"
+        >
+          <ChevronUp className="w-4 h-4 text-text-tertiary" />
+        </button>
+      </div>
+      <div className="max-h-40 overflow-y-auto">
+        {pinnedMessages.map((pinned) => (
+          <div
+            key={pinned.id}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2",
+              "hover:bg-primary-100/50 dark:hover:bg-primary-900/40 transition-colors cursor-pointer"
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => onMessageClick(pinned.message_id)}
+              className="flex-1 text-left text-sm truncate"
+            >
+              <span className="font-medium text-primary">
+                {pinned.message.senderName}:
+              </span>{" "}
+              <span className="text-text-secondary">
+                {pinned.message.isDeleted ? "삭제된 메시지" : pinned.message.content}
+              </span>
+            </button>
+            {canUnpin && onUnpin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnpin(pinned.message_id);
+                }}
+                className="p-1 hover:bg-primary-200 dark:hover:bg-primary-800 rounded transition-colors"
+                aria-label="고정 해제"
+              >
+                <X className="w-3 h-3 text-text-tertiary hover:text-error" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export const PinnedMessagesBar = memo(PinnedMessagesBarComponent);
+</file>
+
 <file path="organisms/ChatList.tsx">
 "use client";
 
@@ -4937,8 +6880,8 @@ export const ChatList = memo(ChatListComponent);
  * 메시지 목록 + 입력창을 포함합니다.
  */
 
-import { memo, useEffect, useRef, useCallback, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { memo, useEffect, useRef, useCallback, useState, useMemo } from "react";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMessagesWithReadStatusAction,
   sendMessageAction,
@@ -4947,16 +6890,32 @@ import {
   editMessageAction,
   deleteMessageAction,
   toggleReactionAction,
+  getPinnedMessagesAction,
+  pinMessageAction,
+  unpinMessageAction,
+  canPinMessagesAction,
+  getAnnouncementAction,
+  setAnnouncementAction,
+  canSetAnnouncementAction,
 } from "@/lib/domains/chat/actions";
-import { isMessageEdited, type ReactionEmoji } from "@/lib/domains/chat/types";
+import { isMessageEdited, type ReactionEmoji, type ReplyTargetInfo, type PinnedMessageWithContent, type AnnouncementInfo } from "@/lib/domains/chat/types";
+import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
+import { cn } from "@/lib/cn";
 import { MessageBubble } from "../atoms/MessageBubble";
+import { DateDivider } from "../atoms/DateDivider";
 import { TypingIndicator } from "../atoms/TypingIndicator";
 import { OnlineStatus } from "../atoms/OnlineStatus";
 import { ChatInput } from "../molecules/ChatInput";
 import { MessageSearch } from "../molecules/MessageSearch";
-import { Loader2, ArrowLeft, MoreVertical, Search } from "lucide-react";
+import { PinnedMessagesBar } from "../molecules/PinnedMessagesBar";
+import { AnnouncementBanner } from "../atoms/AnnouncementBanner";
+import { AnnouncementDialog } from "../molecules/AnnouncementDialog";
+import { MessageContextMenu, type MessageMenuContext } from "../molecules/MessageContextMenu";
+import { ChatRoomInfo } from "./ChatRoomInfo";
+import { Loader2, ArrowLeft, MoreVertical, Search, Megaphone, ChevronDown } from "lucide-react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 interface ChatRoomProps {
   /** 채팅방 ID */
@@ -4976,25 +6935,41 @@ function ChatRoomComponent({
   onMenuClick,
 }: ChatRoomProps) {
   const queryClient = useQueryClient();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [isSearchMode, setIsSearchMode] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ReplyTargetInfo | null>(null);
+  const [isAnnouncementDialogOpen, setIsAnnouncementDialogOpen] = useState(false);
+  const [firstItemIndex, setFirstItemIndex] = useState(10000); // 역방향 스크롤용
+  const [hasNewMessages, setHasNewMessages] = useState(false); // 새 메시지 배지용
+  const [menuContext, setMenuContext] = useState<MessageMenuContext | null>(null); // 컨텍스트 메뉴
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // 컨텍스트 메뉴 열림 상태
+  const [isInfoOpen, setIsInfoOpen] = useState(false); // 채팅방 정보 사이드바
 
-  // 스크롤 맨 아래로 (선언을 먼저!)
+  // 스크롤 맨 아래로 (Virtuoso 방식)
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    virtuosoRef.current?.scrollToIndex({
+      index: "LAST",
+      behavior: "smooth",
+    });
   }, []);
 
-  // 스크롤 위치 감지
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
+  // 스크롤 위치 변경 핸들러 (배지 초기화 포함)
+  const handleAtBottomChange = useCallback((atBottom: boolean) => {
+    setIsAtBottom(atBottom);
+    if (atBottom) {
+      setHasNewMessages(false); // 맨 아래 도달 시 배지 초기화
+    }
+  }, []);
 
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isBottom = scrollHeight - scrollTop - clientHeight < 50;
-    setIsAtBottom(isBottom);
+  // 채팅방 정보 사이드바 열기/닫기
+  const handleInfoOpen = useCallback(() => {
+    setIsInfoOpen(true);
+  }, []);
+
+  const handleInfoClose = useCallback(() => {
+    setIsInfoOpen(false);
   }, []);
 
   // 채팅방 정보 조회
@@ -5007,49 +6982,129 @@ function ChatRoomComponent({
     },
   });
 
-  // 메시지 목록 조회 (읽음 상태 포함)
+  // 고정 메시지 목록 조회
+  const { data: pinnedMessages = [] } = useQuery({
+    queryKey: ["chat-pinned", roomId],
+    queryFn: async () => {
+      const result = await getPinnedMessagesAction(roomId);
+      if (!result.success) return [];
+      return result.data ?? [];
+    },
+  });
+
+  // 고정 권한 확인
+  const { data: canPinData } = useQuery({
+    queryKey: ["chat-can-pin", roomId],
+    queryFn: async () => {
+      const result = await canPinMessagesAction(roomId);
+      if (!result.success) return { canPin: false };
+      return result.data ?? { canPin: false };
+    },
+  });
+
+  const canPin = canPinData?.canPin ?? false;
+
+  // 공지 조회
+  const { data: announcementData } = useQuery({
+    queryKey: ["chat-announcement", roomId],
+    queryFn: async () => {
+      const result = await getAnnouncementAction(roomId);
+      if (!result.success) return null;
+      return result.data;
+    },
+  });
+
+  // 공지 설정 권한 확인
+  const { data: canSetAnnouncementData } = useQuery({
+    queryKey: ["chat-can-set-announcement", roomId],
+    queryFn: async () => {
+      const result = await canSetAnnouncementAction(roomId);
+      if (!result.success) return { canSet: false };
+      return result.data ?? { canSet: false };
+    },
+  });
+
+  const canSetAnnouncement = canSetAnnouncementData?.canSet ?? false;
+
+  // 고정된 메시지 ID Set (빠른 조회용) - useMemo로 안정적인 참조 제공
+  const pinnedMessageIds = useMemo(
+    () => new Set(pinnedMessages.map((p: PinnedMessageWithContent) => p.message_id)),
+    [pinnedMessages]
+  );
+
+  // 메시지 목록 조회 (읽음 상태 포함, 무한 스크롤)
   const {
     data: messagesData,
     isLoading,
     error,
-  } = useQuery({
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["chat-messages", roomId],
-    queryFn: async () => {
-      const result = await getMessagesWithReadStatusAction(roomId, { limit: 50 });
+    queryFn: async ({ pageParam }) => {
+      const result = await getMessagesWithReadStatusAction(roomId, {
+        limit: 50,
+        before: pageParam,
+      });
       if (!result.success) throw new Error(result.error);
       return result.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.hasMore || !lastPage?.messages?.length) return undefined;
+      return lastPage.messages[0].id; // 가장 오래된 메시지 ID
     },
     staleTime: 10 * 1000, // 10초
   });
 
-  // 메시지 전송 (Optimistic Updates 적용 - 즉각적인 UI 반영)
+  // 모든 페이지의 메시지를 시간순 정렬로 병합
+  const allMessages = useMemo(() => {
+    if (!messagesData?.pages) return [];
+
+    // 과거 → 현재 순서로 병합 (pages는 역순으로 쌓임)
+    return messagesData.pages
+      .slice()
+      .reverse()
+      .flatMap((page) => page?.messages ?? []);
+  }, [messagesData?.pages]);
+
+  // 메시지에 그룹핑 정보 추가 (날짜 구분선, 이름/시간 표시 여부)
+  const messagesWithGrouping = useMemo(() => {
+    return processMessagesWithGrouping(allMessages);
+  }, [allMessages]);
+
+  // readCounts 병합
+  const allReadCounts = useMemo(() => {
+    if (!messagesData?.pages) return {};
+
+    return messagesData.pages.reduce((acc, page) => ({
+      ...acc,
+      ...(page?.readCounts ?? {}),
+    }), {} as Record<string, number>);
+  }, [messagesData?.pages]);
+
+  // 메시지 전송 (Optimistic Updates 적용 - 즉각적인 UI 반영, InfiniteQuery 구조)
   const sendMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const result = await sendMessageAction(roomId, content);
+    mutationFn: async ({ content, replyToId }: { content: string; replyToId?: string | null }) => {
+      const result = await sendMessageAction(roomId, content, replyToId);
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    onMutate: async (content) => {
+    onMutate: async ({ content, replyToId }) => {
       // 1. 진행 중인 쿼리 취소 (낙관적 업데이트와 충돌 방지)
       await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
 
       // 2. 이전 데이터 스냅샷 저장 (롤백용)
-      const previousMessages = queryClient.getQueryData<{
-        data: Array<{
-          id: string;
-          content: string;
-          sender_id: string;
-          sender_type: string;
-          message_type: string;
-          created_at: string;
-          sender?: { name?: string };
-        }>;
-        hasMore: boolean;
-      }>(["chat-messages", roomId]);
+      const previousMessages = queryClient.getQueryData(["chat-messages", roomId]);
 
-      // 3. 낙관적 업데이트 (즉시 UI 반영)
+      // 이전 답장 상태 저장 (복원용)
+      const previousReplyTarget = replyTarget;
+
+      // 3. 낙관적 업데이트 (즉시 UI 반영) - InfiniteQuery 구조
+      const tempId = `temp-${Date.now()}`; // tempId 별도 저장
       const optimisticMessage = {
-        id: `temp-${Date.now()}`, // 임시 ID
+        id: tempId,
         content,
         sender_id: userId,
         sender_type: "student" as const,
@@ -5057,31 +7112,72 @@ function ChatRoomComponent({
         created_at: new Date().toISOString(),
         room_id: roomId,
         is_deleted: false,
+        reply_to_id: replyToId ?? null,
+        replyTarget: replyTarget,
         sender: { name: "나", type: "student" as const, id: userId },
+        status: "sending" as const, // 전송 중 상태
       };
 
       queryClient.setQueryData(
         ["chat-messages", roomId],
-        (old: typeof previousMessages) => ({
-          ...old,
-          data: [...(old?.data ?? []), optimisticMessage],
-        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (old: any) => {
+          if (!old?.pages?.length) return old;
+
+          // 첫 번째 페이지(최신)에 메시지 추가
+          const firstPage = old.pages[0];
+          return {
+            ...old,
+            pages: [
+              { ...firstPage, messages: [...firstPage.messages, optimisticMessage] },
+              ...old.pages.slice(1),
+            ],
+          };
+        }
       );
+
+      // 답장 상태 초기화
+      setReplyTarget(null);
 
       // 4. 즉시 스크롤
       setTimeout(scrollToBottom, 0);
 
-      return { previousMessages };
+      return { previousMessages, previousReplyTarget, tempId }; // tempId 반환
     },
-    onError: (_err, _content, context) => {
-      // 5. 실패 시 이전 데이터로 롤백
-      if (context?.previousMessages) {
-        queryClient.setQueryData(["chat-messages", roomId], context.previousMessages);
+    onError: (_err, _variables, context) => {
+      // 5. 실패 시 롤백 대신 status를 error로 변경
+      const tempId = context?.tempId;
+      if (tempId) {
+        queryClient.setQueryData(
+          ["chat-messages", roomId],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (old: any) => {
+            if (!old?.pages?.length) return old;
+            return {
+              ...old,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                messages: page.messages.map((m: any) =>
+                  m.id === tempId ? { ...m, status: "error" } : m
+                ),
+              })),
+            };
+          }
+        );
+      }
+
+      // 답장 상태 복원
+      if (context?.previousReplyTarget) {
+        setReplyTarget(context.previousReplyTarget);
       }
     },
-    onSettled: () => {
-      // 6. 성공/실패 후 서버 데이터와 동기화
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+    onSettled: (_data, error) => {
+      // 6. 성공 시에만 서버 데이터와 동기화 (실패 시 에러 메시지 유지)
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+      }
     },
   });
 
@@ -5120,6 +7216,35 @@ function ChatRoomComponent({
     },
   });
 
+  // 메시지 고정/해제
+  const pinMutation = useMutation({
+    mutationFn: async ({ messageId, isPinned }: { messageId: string; isPinned: boolean }) => {
+      if (isPinned) {
+        const result = await unpinMessageAction(roomId, messageId);
+        if (!result.success) throw new Error(result.error);
+      } else {
+        const result = await pinMessageAction(roomId, messageId);
+        if (!result.success) throw new Error(result.error);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-pinned", roomId] });
+    },
+  });
+
+  // 공지 설정/삭제
+  const announcementMutation = useMutation({
+    mutationFn: async (content: string | null) => {
+      const result = await setAnnouncementAction(roomId, content);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chat-announcement", roomId] });
+      setIsAnnouncementDialogOpen(false);
+    },
+  });
+
   // 읽음 처리
   const markAsReadMutation = useMutation({
     mutationFn: async () => {
@@ -5144,6 +7269,9 @@ function ChatRoomComponent({
       // 스크롤이 맨 아래에 있으면 자동 스크롤
       if (isAtBottom) {
         scrollToBottom();
+      } else {
+        // 스크롤 올린 상태에서 새 메시지 도착 시 배지 표시
+        setHasNewMessages(true);
       }
       // 읽음 처리 (Debounce 적용)
       debouncedMarkAsRead();
@@ -5162,40 +7290,297 @@ function ChatRoomComponent({
     enabled: !!roomData,
   });
 
-  // 입장 시 읽음 처리 + 스크롤
+  // 입장 시 읽음 처리 (Virtuoso가 initialTopMostItemIndex로 스크롤 자동 처리)
   useEffect(() => {
-    markAsReadMutation.mutate(); // 입장 시에는 즉시 실행
-    scrollToBottom();
+    markAsReadMutation.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  // 메시지 로드 완료 시 스크롤
-  useEffect(() => {
-    if (messagesData?.messages && messagesData.messages.length > 0) {
-      scrollToBottom();
+  // 맨 위 도달 시 과거 메시지 로드 (Virtuoso startReached)
+  const handleStartReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage().then(() => {
+        // 로드된 메시지 수만큼 firstItemIndex 감소
+        const newMessages = messagesData?.pages?.at(-1)?.messages?.length ?? 0;
+        setFirstItemIndex((prev) => prev - newMessages);
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesData?.messages?.length]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, messagesData]);
 
-  // 메시지로 스크롤 (검색 결과 클릭 시)
+  // 메시지로 스크롤 (검색 결과 클릭 시, Virtuoso 방식)
   const scrollToMessage = useCallback((messageId: string) => {
     setIsSearchMode(false);
-    setTimeout(() => {
-      const element = messageRefs.current.get(messageId);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "center" });
-        // 하이라이트 효과
-        element.classList.add("bg-warning/20");
-        setTimeout(() => element.classList.remove("bg-warning/20"), 2000);
-      }
-    }, 100);
-  }, []);
+    const index = messagesWithGrouping.findIndex((m) => m.id === messageId);
+    if (index !== -1) {
+      virtuosoRef.current?.scrollToIndex({
+        index: firstItemIndex + index,
+        behavior: "smooth",
+        align: "center",
+      });
+      // 하이라이트 효과
+      setTimeout(() => {
+        const element = messageRefs.current.get(messageId);
+        if (element) {
+          element.classList.add("bg-warning/20");
+          setTimeout(() => element.classList.remove("bg-warning/20"), 2000);
+        }
+      }, 300);
+    }
+  }, [messagesWithGrouping, firstItemIndex]);
 
   // 편집 가능 여부 확인 (5분 이내)
   const canEditMessage = useCallback((createdAt: string) => {
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     return new Date(createdAt).getTime() > fiveMinutesAgo;
   }, []);
+
+  // 답장 모드 시작
+  const handleReply = useCallback((message: { id: string; content: string; sender?: { name: string } | null; is_deleted?: boolean }) => {
+    setReplyTarget({
+      id: message.id,
+      content: message.content,
+      senderName: message.sender?.name ?? "알 수 없음",
+      isDeleted: message.is_deleted ?? false,
+    });
+  }, []);
+
+  // 안정화된 콜백 핸들러들 (MessageBubble 재렌더링 방지)
+  const handleToggleReaction = useCallback((messageId: string, emoji: ReactionEmoji) => {
+    reactionMutation.mutate({ messageId, emoji });
+  }, [reactionMutation]);
+
+  const handleTogglePin = useCallback((messageId: string, isPinned: boolean) => {
+    pinMutation.mutate({ messageId, isPinned });
+  }, [pinMutation]);
+
+  const handleEdit = useCallback((messageId: string, currentContent: string) => {
+    const newContent = prompt("메시지 수정:", currentContent);
+    if (newContent && newContent !== currentContent) {
+      editMutation.mutate({ messageId, content: newContent });
+    }
+  }, [editMutation]);
+
+  const handleDelete = useCallback((messageId: string) => {
+    if (confirm("메시지를 삭제하시겠습니까?")) {
+      deleteMutation.mutate(messageId);
+    }
+  }, [deleteMutation]);
+
+  // 메시지 재전송 핸들러
+  const handleRetry = useCallback((message: (typeof messagesWithGrouping)[number]) => {
+    // 1. status를 sending으로 변경
+    queryClient.setQueryData(
+      ["chat-messages", roomId],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (old: any) => {
+        if (!old?.pages?.length) return old;
+        return {
+          ...old,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            messages: page.messages.map((m: any) =>
+              m.id === message.id ? { ...m, status: "sending" } : m
+            ),
+          })),
+        };
+      }
+    );
+
+    // 2. 재전송 (기존 메시지 제거 후 새 메시지 추가)
+    const replyToId = (message as { reply_to_id?: string | null }).reply_to_id;
+    sendMutation.mutate(
+      { content: message.content, replyToId },
+      {
+        onSuccess: () => {
+          // 기존 실패 메시지 제거 (새 메시지가 낙관적 업데이트로 추가됨)
+          queryClient.setQueryData(
+            ["chat-messages", roomId],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (old: any) => {
+              if (!old?.pages?.length) return old;
+              return {
+                ...old,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                pages: old.pages.map((page: any) => ({
+                  ...page,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  messages: page.messages.filter((m: any) => m.id !== message.id),
+                })),
+              };
+            }
+          );
+        },
+        onError: () => {
+          // 다시 error 상태로
+          queryClient.setQueryData(
+            ["chat-messages", roomId],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (old: any) => {
+              if (!old?.pages?.length) return old;
+              return {
+                ...old,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                pages: old.pages.map((page: any) => ({
+                  ...page,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  messages: page.messages.map((m: any) =>
+                    m.id === message.id ? { ...m, status: "error" } : m
+                  ),
+                })),
+              };
+            }
+          );
+        },
+      }
+    );
+  }, [roomId, queryClient, sendMutation]);
+
+  // 메시지 Long Press 핸들러 (컨텍스트 메뉴 열기)
+  const handleMessageLongPress = useCallback((message: (typeof messagesWithGrouping)[number]) => {
+    const isOwn = message.sender_id === userId;
+    setMenuContext({
+      messageId: message.id,
+      content: message.content,
+      isOwn,
+      canEdit: isOwn && canEditMessage(message.created_at),
+      canPin: canPin && message.message_type !== "system",
+      isPinned: pinnedMessageIds.has(message.id),
+    });
+    setIsMenuOpen(true);
+  }, [userId, canEditMessage, canPin, pinnedMessageIds]);
+
+  // 메시지 복사 핸들러
+  const handleCopy = useCallback(async () => {
+    if (menuContext) {
+      await navigator.clipboard.writeText(menuContext.content);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext]);
+
+  // 메뉴에서 답장 핸들러
+  const handleMenuReply = useCallback(() => {
+    if (menuContext) {
+      const message = allMessages.find((m) => m.id === menuContext.messageId);
+      if (message) handleReply(message);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext, allMessages, handleReply]);
+
+  // 메뉴에서 편집 핸들러
+  const handleMenuEdit = useCallback(() => {
+    if (menuContext?.canEdit) {
+      handleEdit(menuContext.messageId, menuContext.content);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext, handleEdit]);
+
+  // 메뉴에서 삭제 핸들러
+  const handleMenuDelete = useCallback(() => {
+    if (menuContext?.isOwn) {
+      handleDelete(menuContext.messageId);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext, handleDelete]);
+
+  // 메뉴에서 고정/해제 핸들러
+  const handleMenuTogglePin = useCallback(() => {
+    if (menuContext?.canPin) {
+      handleTogglePin(menuContext.messageId, menuContext.isPinned);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext, handleTogglePin]);
+
+  // 메뉴에서 리액션 토글 핸들러
+  const handleMenuReaction = useCallback((emoji: ReactionEmoji) => {
+    if (menuContext) {
+      handleToggleReaction(menuContext.messageId, emoji);
+    }
+    setIsMenuOpen(false);
+  }, [menuContext, handleToggleReaction]);
+
+  // ref 콜백 생성 (안정적인 참조)
+  const getRefCallback = useCallback((messageId: string) => (el: HTMLDivElement | null) => {
+    if (el) messageRefs.current.set(messageId, el);
+    else messageRefs.current.delete(messageId);
+  }, []);
+
+  // 메시지 렌더링 함수 (메모이제이션으로 불필요한 재렌더링 방지)
+  const renderMessage = useCallback((_index: number, message: (typeof messagesWithGrouping)[number]) => {
+    const isOwn = message.sender_id === userId;
+    const messageReplyTarget = (message as { replyTarget?: ReplyTargetInfo | null }).replyTarget;
+    const messageStatus = (message as { status?: string }).status;
+    const { grouping } = message;
+
+    return (
+      <div
+        ref={getRefCallback(message.id)}
+        className="transition-colors duration-300"
+      >
+        {/* 날짜 구분선 */}
+        {grouping.showDateDivider && grouping.dateDividerText && (
+          <DateDivider date={grouping.dateDividerText} />
+        )}
+
+        {/* 메시지 (그룹핑 시 간격 축소) */}
+        <div className={cn("px-4", grouping.isGrouped ? "py-0.5" : "py-1.5")}>
+          <MessageBubble
+            content={message.content}
+            isOwn={isOwn}
+            senderName={message.sender?.name}
+            createdAt={message.created_at}
+            isSystem={message.message_type === "system"}
+            isEdited={isMessageEdited(message)}
+            unreadCount={isOwn ? allReadCounts[message.id] : undefined}
+            canEdit={isOwn && canEditMessage(message.created_at)}
+            reactions={(message as { reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }> }).reactions ?? []}
+            replyTarget={messageReplyTarget}
+            isPinned={pinnedMessageIds.has(message.id)}
+            canPin={canPin && message.message_type !== "system"}
+            showName={grouping.showName}
+            showTime={grouping.showTime}
+            isGrouped={grouping.isGrouped}
+            isError={messageStatus === "error"}
+            isRetrying={messageStatus === "sending" && message.id.startsWith("temp-")}
+            onRetry={messageStatus === "error" ? () => handleRetry(message) : undefined}
+            onToggleReaction={(emoji) => handleToggleReaction(message.id, emoji)}
+            onReply={message.message_type !== "system" ? () => handleReply(message) : undefined}
+            onReplyTargetClick={messageReplyTarget ? () => scrollToMessage(messageReplyTarget.id) : undefined}
+            onTogglePin={() => handleTogglePin(message.id, pinnedMessageIds.has(message.id))}
+            onEdit={() => handleEdit(message.id, message.content)}
+            onDelete={() => handleDelete(message.id)}
+            onLongPress={() => handleMessageLongPress(message)}
+          />
+        </div>
+      </div>
+    );
+  }, [
+    userId,
+    allReadCounts,
+    pinnedMessageIds,
+    canPin,
+    canEditMessage,
+    getRefCallback,
+    handleRetry,
+    handleToggleReaction,
+    handleReply,
+    scrollToMessage,
+    handleTogglePin,
+    handleEdit,
+    handleDelete,
+    handleMessageLongPress,
+  ]);
+
+  // 메시지 키 생성 (안정적인 아이템 식별)
+  const computeItemKey = useCallback((_index: number, message: (typeof messagesWithGrouping)[number]) => message.id, []);
+
+  // 빠른 스크롤 시 플레이스홀더 (성능 최적화)
+  const ScrollSeekPlaceholder = useCallback(({ height }: { height: number }) => (
+    <div style={{ height }} className="px-4 py-1.5">
+      <div className="bg-bg-secondary rounded-2xl animate-pulse" style={{ height: Math.max(height - 12, 40) }} />
+    </div>
+  ), []);
 
   // 방 이름 결정
   const roomName = roomData?.room
@@ -5204,8 +7589,7 @@ function ChatRoomComponent({
       : roomData.room.name ?? `그룹 (${roomData.members.length}명)`
     : "채팅";
 
-  const messages = messagesData?.messages ?? [];
-  const readCounts = messagesData?.readCounts ?? {};
+  // allMessages, messagesWithGrouping, allReadCounts는 위에서 useMemo로 계산됨
 
   return (
     <div className="relative flex flex-col h-full bg-bg-primary">
@@ -5248,16 +7632,53 @@ function ChatRoomComponent({
           <Search className="w-5 h-5 text-text-secondary" />
         </button>
 
-        {onMenuClick && (
+        {/* 공지 설정 버튼 (권한 있을 때만) */}
+        {canSetAnnouncement && (
           <button
             type="button"
-            onClick={onMenuClick}
+            onClick={() => setIsAnnouncementDialogOpen(true)}
             className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
+            aria-label="공지 설정"
           >
-            <MoreVertical className="w-5 h-5 text-text-secondary" />
+            <Megaphone className="w-5 h-5 text-text-secondary" />
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={handleInfoOpen}
+          className="p-2 rounded-lg hover:bg-bg-secondary transition-colors"
+          aria-label="채팅방 정보"
+        >
+          <MoreVertical className="w-5 h-5 text-text-secondary" />
+        </button>
       </div>
+
+      {/* 공지 배너 */}
+      {announcementData && (
+        <AnnouncementBanner
+          announcement={announcementData}
+          canEdit={canSetAnnouncement}
+          onEdit={() => setIsAnnouncementDialogOpen(true)}
+          onDelete={() => {
+            if (confirm("공지를 삭제하시겠습니까?")) {
+              announcementMutation.mutate(null);
+            }
+          }}
+        />
+      )}
+
+      {/* 고정 메시지 바 */}
+      {pinnedMessages.length > 0 && (
+        <PinnedMessagesBar
+          pinnedMessages={pinnedMessages}
+          canUnpin={canPin}
+          onMessageClick={scrollToMessage}
+          onUnpin={(messageId) => {
+            pinMutation.mutate({ messageId, isPinned: true });
+          }}
+        />
+      )}
 
       {/* 검색 모드 */}
       {isSearchMode && (
@@ -5270,75 +7691,91 @@ function ChatRoomComponent({
         </div>
       )}
 
-      {/* 메시지 목록 */}
-      <div
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-4"
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <p className="text-text-secondary text-sm">
-              메시지를 불러오지 못했습니다
-            </p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center gap-1">
-            <p className="text-text-secondary text-sm">
-              아직 메시지가 없습니다
-            </p>
-            <p className="text-text-tertiary text-xs">
-              첫 메시지를 보내보세요!
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {messages.map((message) => {
-              const isOwn = message.sender_id === userId;
-              return (
-                <div
-                  key={message.id}
-                  ref={(el) => {
-                    if (el) messageRefs.current.set(message.id, el);
-                    else messageRefs.current.delete(message.id);
-                  }}
-                  className="transition-colors duration-300"
-                >
-                  <MessageBubble
-                    content={message.content}
-                    isOwn={isOwn}
-                    senderName={message.sender?.name}
-                    createdAt={message.created_at}
-                    isSystem={message.message_type === "system"}
-                    isEdited={isMessageEdited(message)}
-                    unreadCount={isOwn ? readCounts[message.id] : undefined}
-                    canEdit={isOwn && canEditMessage(message.created_at)}
-                    reactions={(message as { reactions?: Array<{ emoji: ReactionEmoji; count: number; hasReacted: boolean }> }).reactions ?? []}
-                    onToggleReaction={(emoji) => {
-                      reactionMutation.mutate({ messageId: message.id, emoji });
-                    }}
-                    onEdit={() => {
-                      const newContent = prompt("메시지 수정:", message.content);
-                      if (newContent && newContent !== message.content) {
-                        editMutation.mutate({ messageId: message.id, content: newContent });
-                      }
-                    }}
-                    onDelete={() => {
-                      if (confirm("메시지를 삭제하시겠습니까?")) {
-                        deleteMutation.mutate(message.id);
-                      }
-                    }}
-                  />
+      {/* 메시지 목록 - Virtuoso로 가상화 */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-text-tertiary" />
+        </div>
+      ) : error ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <p className="text-text-secondary text-sm">
+            메시지를 불러오지 못했습니다
+          </p>
+        </div>
+      ) : messagesWithGrouping.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-1">
+          <p className="text-text-secondary text-sm">
+            아직 메시지가 없습니다
+          </p>
+          <p className="text-text-tertiary text-xs">
+            첫 메시지를 보내보세요!
+          </p>
+        </div>
+      ) : (
+        <Virtuoso
+          ref={virtuosoRef}
+          className="flex-1"
+          data={messagesWithGrouping}
+          firstItemIndex={firstItemIndex}
+          initialTopMostItemIndex={messagesWithGrouping.length - 1}
+          followOutput="smooth"
+          atBottomStateChange={handleAtBottomChange}
+          startReached={handleStartReached}
+          // 성능 최적화: 안정적인 키 생성
+          computeItemKey={computeItemKey}
+          // 성능 최적화: viewport 확장으로 스크롤 끊김 방지
+          increaseViewportBy={{ top: 200, bottom: 200 }}
+          // 성능 최적화: 빠른 스크롤 시 플레이스홀더 표시
+          scrollSeekConfiguration={{
+            enter: (velocity) => Math.abs(velocity) > 800,
+            exit: (velocity) => Math.abs(velocity) < 100,
+          }}
+          components={{
+            Header: () => (
+              isFetchingNextPage ? (
+                <div className="flex justify-center py-2">
+                  <Loader2 className="w-5 h-5 animate-spin text-text-tertiary" />
                 </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
-          </div>
+              ) : null
+            ),
+            ScrollSeekPlaceholder,
+          }}
+          // 메모이제이션된 렌더링 함수 사용
+          itemContent={renderMessage}
+        />
+      )}
+
+      {/* 맨 아래로 스크롤 버튼 */}
+      <div
+        className={cn(
+          "absolute bottom-28 right-4 z-10",
+          "transition-all duration-300 ease-out",
+          isAtBottom
+            ? "opacity-0 translate-y-4 pointer-events-none"
+            : "opacity-100 translate-y-0"
         )}
+      >
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          className={cn(
+            "relative flex items-center justify-center",
+            "w-10 h-10 rounded-full",
+            "bg-bg-primary border border-border shadow-lg",
+            "hover:bg-bg-secondary transition-colors duration-200",
+            "hover:scale-105 active:scale-95"
+          )}
+          aria-label="맨 아래로 스크롤"
+        >
+          <ChevronDown className="w-5 h-5 text-text-secondary" />
+
+          {/* 새 메시지 배지 */}
+          {hasNewMessages && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[10px] font-medium text-white bg-primary rounded-full">
+              N
+            </span>
+          )}
+        </button>
       </div>
 
       {/* 타이핑 인디케이터 */}
@@ -5346,15 +7783,259 @@ function ChatRoomComponent({
 
       {/* 입력창 */}
       <ChatInput
-        onSend={(content) => sendMutation.mutate(content)}
-        isSending={sendMutation.isPending}
+        onSend={(content) => sendMutation.mutate({ content, replyToId: replyTarget?.id })}
         onTypingChange={setTyping}
+        replyTarget={replyTarget}
+        onCancelReply={() => setReplyTarget(null)}
+      />
+
+      {/* 공지 설정 다이얼로그 */}
+      <AnnouncementDialog
+        open={isAnnouncementDialogOpen}
+        onOpenChange={setIsAnnouncementDialogOpen}
+        currentContent={announcementData?.content}
+        onSave={(content) => announcementMutation.mutate(content)}
+        isSaving={announcementMutation.isPending}
+      />
+
+      {/* 메시지 컨텍스트 메뉴 */}
+      <MessageContextMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        context={menuContext}
+        onCopy={handleCopy}
+        onReply={handleMenuReply}
+        onEdit={menuContext?.canEdit ? handleMenuEdit : undefined}
+        onDelete={menuContext?.isOwn ? handleMenuDelete : undefined}
+        onTogglePin={menuContext?.canPin ? handleMenuTogglePin : undefined}
+        onToggleReaction={handleMenuReaction}
+      />
+
+      {/* 채팅방 정보 사이드바 */}
+      <ChatRoomInfo
+        isOpen={isInfoOpen}
+        onClose={handleInfoClose}
+        roomId={roomId}
+        userId={userId}
+        room={roomData?.room}
+        members={roomData?.members}
+        isLoading={!roomData}
       />
     </div>
   );
 }
 
 export const ChatRoom = memo(ChatRoomComponent);
+</file>
+
+<file path="organisms/ChatRoomInfo.tsx">
+"use client";
+
+/**
+ * ChatRoomInfo - 채팅방 정보 사이드바
+ *
+ * 채팅방 참여자 목록, 초대, 나가기 기능을 제공합니다.
+ */
+
+import { memo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { SlideOverPanel } from "@/components/layouts/SlideOver";
+import { Avatar } from "@/components/atoms/Avatar";
+import { Skeleton } from "@/components/atoms/Skeleton";
+import { leaveChatRoomAction } from "@/lib/domains/chat/actions";
+import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole } from "@/lib/domains/chat/types";
+import { cn } from "@/lib/cn";
+import { UserPlus, LogOut, Crown, Shield } from "lucide-react";
+import { useToast } from "@/components/ui/ToastProvider";
+
+interface ChatRoomInfoProps {
+  /** 사이드바 열림 상태 */
+  isOpen: boolean;
+  /** 닫기 핸들러 */
+  onClose: () => void;
+  /** 채팅방 ID */
+  roomId: string;
+  /** 현재 사용자 ID */
+  userId: string;
+  /** 채팅방 정보 */
+  room?: ChatRoom;
+  /** 멤버 목록 */
+  members?: ChatRoomMemberWithUser[];
+  /** 로딩 상태 */
+  isLoading?: boolean;
+}
+
+/** 역할별 배지 텍스트 */
+const roleBadges: Record<ChatMemberRole, { text: string; icon: typeof Crown }> = {
+  owner: { text: "방장", icon: Crown },
+  admin: { text: "관리자", icon: Shield },
+  member: { text: "", icon: Crown },
+};
+
+function ChatRoomInfoComponent({
+  isOpen,
+  onClose,
+  roomId,
+  userId,
+  room,
+  members,
+  isLoading = false,
+}: ChatRoomInfoProps) {
+  const router = useRouter();
+  const { showSuccess, showError, showInfo } = useToast();
+
+  // 활성 멤버만 필터링 (left_at === null)
+  const activeMembers = members?.filter((m) => m.left_at === null) ?? [];
+  const memberCount = activeMembers.length;
+
+  // 채팅방 나가기 핸들러
+  const handleLeaveRoom = useCallback(async () => {
+    const confirmed = window.confirm("채팅방을 나가시겠습니까?");
+    if (!confirmed) return;
+
+    const result = await leaveChatRoomAction(roomId);
+    if (result.success) {
+      onClose();
+      showSuccess("채팅방을 나갔습니다.");
+      router.push("/chat");
+    } else {
+      showError(result.error ?? "채팅방 나가기 실패");
+    }
+  }, [roomId, onClose, router, showSuccess, showError]);
+
+  // 초대 버튼 핸들러 (MVP: 토스트만)
+  const handleInvite = useCallback(() => {
+    showInfo("초대 기능은 준비 중입니다.");
+  }, [showInfo]);
+
+  // 사이드바 Footer
+  const footer = (
+    <button
+      type="button"
+      onClick={handleLeaveRoom}
+      className={cn(
+        "flex items-center justify-center gap-2 w-full",
+        "py-3 rounded-lg",
+        "text-red-600 dark:text-red-400",
+        "hover:bg-red-50 dark:hover:bg-red-950/30",
+        "transition-colors"
+      )}
+    >
+      <LogOut className="w-5 h-5" />
+      <span className="font-medium">채팅방 나가기</span>
+    </button>
+  );
+
+  return (
+    <SlideOverPanel
+      isOpen={isOpen}
+      onClose={onClose}
+      id="chat-room-info"
+      title="채팅방 정보"
+      size="sm"
+      footer={footer}
+    >
+      {/* 로딩 상태 */}
+      {isLoading ? (
+        <div className="space-y-4">
+          {/* 섹션 헤더 스켈레톤 */}
+          <Skeleton variant="text" className="h-5 w-24" />
+
+          {/* 멤버 스켈레톤 */}
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-3 py-2">
+                <Skeleton variant="circular" width={40} height={40} />
+                <Skeleton variant="text" className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* 참여자 섹션 */}
+          <section>
+            <h3 className="text-sm font-medium text-text-secondary mb-3">
+              참여자 ({memberCount}명)
+            </h3>
+
+            <ul className="space-y-1">
+              {activeMembers.map((member) => {
+                const isMe = member.user_id === userId;
+                const roleInfo = roleBadges[member.role];
+
+                return (
+                  <li
+                    key={member.id}
+                    className={cn(
+                      "flex items-center gap-3 py-2 px-2 rounded-lg",
+                      "hover:bg-bg-secondary transition-colors"
+                    )}
+                  >
+                    <Avatar
+                      src={member.user.profileImageUrl}
+                      name={member.user.name}
+                      size="md"
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-text-primary truncate">
+                          {member.user.name}
+                        </span>
+
+                        {/* 나 배지 */}
+                        {isMe && (
+                          <span className="text-xs text-text-tertiary">(나)</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 역할 배지 */}
+                    {member.role !== "member" && (
+                      <div
+                        className={cn(
+                          "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
+                          member.role === "owner"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                        )}
+                      >
+                        <roleInfo.icon className="w-3 h-3" />
+                        <span>{roleInfo.text}</span>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          {/* 초대 버튼 (그룹채팅만) */}
+          {room?.type === "group" && (
+            <button
+              type="button"
+              onClick={handleInvite}
+              className={cn(
+                "flex items-center justify-center gap-2 w-full",
+                "py-3 rounded-lg border border-border",
+                "text-text-secondary",
+                "hover:bg-bg-secondary hover:text-text-primary",
+                "transition-colors"
+              )}
+            >
+              <UserPlus className="w-5 h-5" />
+              <span className="font-medium">초대하기</span>
+            </button>
+          )}
+        </div>
+      )}
+    </SlideOverPanel>
+  );
+}
+
+export const ChatRoomInfo = memo(ChatRoomInfoComponent);
+export default ChatRoomInfo;
 </file>
 
 <file path="index.ts">
@@ -7338,7 +10019,7 @@ export function useChatPresence({
  */
 
 import { useEffect, useRef, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
@@ -7353,6 +10034,21 @@ interface ChatMessagePayload {
   is_deleted: boolean;
   created_at: string;
 }
+
+// 단일 페이지 캐시 데이터 타입
+interface MessagesPage {
+  messages: Array<ChatMessagePayload & {
+    sender?: { name?: string; type?: string; id?: string };
+    reply_to_id?: string | null;
+    replyTarget?: unknown;
+    reactions?: unknown[];
+  }>;
+  readCounts: Record<string, number>;
+  hasMore: boolean;
+}
+
+// InfiniteQuery 캐시 타입
+type InfiniteMessagesCache = InfiniteData<MessagesPage, string | undefined>;
 
 type UseChatRealtimeOptions = {
   /** 채팅방 ID */
@@ -7413,6 +10109,24 @@ export function useChatRealtime({
     });
   }, [queryClient]);
 
+  const invalidatePinnedMessages = useCallback(() => {
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "chat-pinned" &&
+        query.queryKey[1] === roomId,
+    });
+  }, [queryClient, roomId]);
+
+  const invalidateAnnouncement = useCallback(() => {
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "chat-announcement" &&
+        query.queryKey[1] === roomId,
+    });
+  }, [queryClient, roomId]);
+
   useEffect(() => {
     if (!enabled || !roomId || !userId) {
       return;
@@ -7435,8 +10149,51 @@ export function useChatRealtime({
           console.log("[ChatRealtime] New message:", payload.new);
           const newMessage = payload.new as ChatMessagePayload | undefined;
 
-          // 메시지 쿼리 무효화
-          invalidateMessages();
+          // setQueryData로 캐시에 직접 추가 (서버 재요청 없음) - InfiniteQuery 구조
+          queryClient.setQueryData(
+            ["chat-messages", roomId],
+            (old: InfiniteMessagesCache | undefined) => {
+              if (!old?.pages?.length || !newMessage) return old;
+
+              // 첫 번째 페이지(최신 메시지들)에서 중복 체크 및 추가
+              const firstPage = old.pages[0];
+              const existingIndex = firstPage.messages.findIndex(
+                (m) => m.id === newMessage.id ||
+                       (m.id.startsWith("temp-") && m.content === newMessage.content && m.sender_id === newMessage.sender_id)
+              );
+
+              if (existingIndex !== -1) {
+                // 임시 ID를 실제 ID로 교체 (status 필드 제거)
+                const updatedMessages = [...firstPage.messages];
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { status: _status, ...existingMessage } = updatedMessages[existingIndex] as typeof updatedMessages[number] & { status?: string };
+                updatedMessages[existingIndex] = {
+                  ...existingMessage,
+                  ...newMessage,
+                  sender: firstPage.messages[existingIndex].sender, // 기존 sender 정보 유지
+                };
+                return {
+                  ...old,
+                  pages: [{ ...firstPage, messages: updatedMessages }, ...old.pages.slice(1)],
+                };
+              }
+
+              // 새 메시지를 첫 번째 페이지 끝에 추가
+              return {
+                ...old,
+                pages: [
+                  {
+                    ...firstPage,
+                    messages: [...firstPage.messages, {
+                      ...newMessage,
+                      sender: { name: "알 수 없음", type: newMessage.sender_type, id: newMessage.sender_id },
+                    }],
+                  },
+                  ...old.pages.slice(1),
+                ],
+              };
+            }
+          );
 
           // 채팅방 목록도 무효화 (마지막 메시지 업데이트)
           invalidateRoomList();
@@ -7447,7 +10204,7 @@ export function useChatRealtime({
           }
         }
       )
-      // 메시지 UPDATE (삭제 등)
+      // 메시지 UPDATE (삭제/수정 등)
       .on(
         "postgres_changes",
         {
@@ -7460,7 +10217,26 @@ export function useChatRealtime({
           console.log("[ChatRealtime] Message updated:", payload.new);
           const updatedMessage = payload.new as ChatMessagePayload | undefined;
 
-          invalidateMessages();
+          // setQueryData로 해당 메시지만 업데이트 (서버 재요청 없음) - InfiniteQuery 구조
+          queryClient.setQueryData(
+            ["chat-messages", roomId],
+            (old: InfiniteMessagesCache | undefined) => {
+              if (!old?.pages?.length || !updatedMessage) return old;
+
+              // 모든 페이지에서 해당 메시지 찾아서 업데이트
+              return {
+                ...old,
+                pages: old.pages.map((page) => ({
+                  ...page,
+                  messages: page.messages.map((m) =>
+                    m.id === updatedMessage.id
+                      ? { ...m, ...updatedMessage }
+                      : m
+                  ),
+                })),
+              };
+            }
+          );
 
           // 삭제된 경우 콜백 호출
           if (updatedMessage?.is_deleted && updatedMessage.id) {
@@ -7494,6 +10270,47 @@ export function useChatRealtime({
           invalidateMessages();
         }
       )
+      // 고정 메시지 INSERT
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_pinned_messages",
+          filter: `room_id=eq.${roomId}`,
+        },
+        () => {
+          console.log("[ChatRealtime] Message pinned");
+          invalidatePinnedMessages();
+        }
+      )
+      // 고정 메시지 DELETE
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "chat_pinned_messages",
+        },
+        () => {
+          console.log("[ChatRealtime] Message unpinned");
+          invalidatePinnedMessages();
+        }
+      )
+      // 채팅방 UPDATE (공지 변경)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_rooms",
+          filter: `id=eq.${roomId}`,
+        },
+        () => {
+          console.log("[ChatRealtime] Room updated (announcement)");
+          invalidateAnnouncement();
+        }
+      )
       .subscribe((status) => {
         console.log(`[ChatRealtime] Room ${roomId} subscription:`, status);
       });
@@ -7502,7 +10319,7 @@ export function useChatRealtime({
       console.log(`[ChatRealtime] Unsubscribing from room ${roomId}`);
       supabase.removeChannel(channel);
     };
-  }, [roomId, userId, enabled, invalidateMessages, invalidateRoomList]);
+  }, [roomId, userId, enabled, invalidateMessages, invalidateRoomList, invalidatePinnedMessages, invalidateAnnouncement]);
 }
 
 // ============================================
