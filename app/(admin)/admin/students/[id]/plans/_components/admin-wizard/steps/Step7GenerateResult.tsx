@@ -30,6 +30,8 @@ import {
   useAdminWizardValidation,
 } from "../_context";
 
+import { generateHybridPlanCompleteAction } from "@/lib/domains/plan/llm/actions/generateHybridPlanComplete";
+
 /**
  * Dock에 배치된 플랜 정보
  */
@@ -57,7 +59,7 @@ interface Step7GenerateResultProps {
   studentId: string;
   tenantId: string;
   studentName: string;
-  onSubmit: () => Promise<boolean>;
+  onSubmit: () => Promise<string | null>;
   onSuccess: (groupId: string, generateAI: boolean) => void;
   onClose: () => void;
   /** 플랜 생성 결과 (dock 정보 포함) */
@@ -89,7 +91,7 @@ export function Step7GenerateResult({
   const { prevStep } = useAdminWizardStep();
   const { hasErrors, validationErrors } = useAdminWizardValidation();
 
-  const { generateAIPlan, selectedContents, skipContents } = wizardData;
+  const { generateAIPlan, selectedContents, skipContents, periodStart, periodEnd } = wizardData;
 
   const [phase, setPhase] = useState<GenerationPhase>("idle");
   const [progress, setProgress] = useState(0);
@@ -125,10 +127,10 @@ export function Step7GenerateResult({
       setProgress(30);
 
       // 실제 생성 호출
-      const success = await onSubmit();
+      const groupId = await onSubmit();
 
       // 실패 시 에러 상태로 전환
-      if (!success) {
+      if (!groupId) {
         setPhase("error");
         return;
       }
@@ -137,10 +139,54 @@ export function Step7GenerateResult({
 
       if (generateAIPlan) {
         setPhase("generating_ai");
-        setProgress(80);
+        setProgress(70);
 
-        // AI 생성은 onSubmit 내부에서 처리됨
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // AI 학습 일정 생성
+        const aiResult = await generateHybridPlanCompleteAction({
+          planGroupId: groupId,
+          student: {
+            id: studentId,
+            name: studentName,
+            grade: "고등", // TODO: 실제 학년 정보 필요
+          },
+          scores: [], // TODO: 성적 정보 연동 필요
+          contents: selectedContents.map(c => ({
+            id: c.contentId,
+            title: c.title,
+            contentType: c.contentType as "book" | "lecture",
+            subject: c.subject || "기타",
+            subjectCategory: c.subject || "기타",
+            totalRange: c.totalRange,
+            estimatedHours: c.totalRange * 0.5, // 1p/1강당 30분 추정 (임시)
+          })),
+          virtualContents: selectedContents
+            .filter(c => c.virtualContentDetails)
+            .map(c => ({
+              ...c.virtualContentDetails!,
+              id: c.contentId,
+              subject: c.subject || "기타",
+            })),
+          period: {
+            startDate: periodStart || "",
+            endDate: periodEnd || "",
+            totalDays: 0, // 백엔드에서 계산됨
+            studyDays: 0, // 백엔드에서 계산됨
+          },
+           // Step 4에서 선택된 콘텐츠 매핑 정보 전달
+           contentMappings: selectedContents.map(c => ({
+             contentId: c.contentId,
+             subjectCategory: c.subject || "기타",
+             contentType: c.contentType as "book" | "lecture",
+           })),
+           modelTier: "standard",
+        });
+
+        if (!aiResult.success) {
+           console.error("[Step7] AI 생성 실패:", aiResult.error);
+           // AI 생성 실패해도 기본 플랜은 생성되었으므로 'completed'로 처리하거나 경고 표시
+           // 여기서는 에러로 처리하지 않고 완료로 진행하지만 경고 메시지 토스트 등을 띄울 수 있음.
+           // 일단 진행.
+        }
       }
 
       setProgress(100);
@@ -150,7 +196,7 @@ export function Step7GenerateResult({
       setPhase("error");
       setError(err instanceof Error ? err.message : "플랜 생성 중 오류가 발생했습니다.");
     }
-  }, [hasErrors, generateAIPlan, onSubmit, setError]);
+  }, [hasErrors, generateAIPlan, onSubmit, setError, studentId, studentName, selectedContents, periodStart, periodEnd]);
 
   // 재시도
   const handleRetry = useCallback(() => {

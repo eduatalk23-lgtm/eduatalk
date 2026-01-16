@@ -1,4 +1,4 @@
-export const revalidate = 300; // 5분마다 재검증
+export const revalidate = 300;
 
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";

@@ -402,10 +402,10 @@ function WizardInner({
   // 제출 핸들러
   // ============================================
 
-  const handleSubmit = useCallback(async (): Promise<boolean> => {
+  const handleSubmit = useCallback(async (): Promise<string | null> => {
     if (hasErrors) {
       setError("입력 값에 오류가 있습니다. 이전 단계를 확인해주세요.");
-      return false;
+      return null;
     }
 
     // 플래너 유효성 검증 (플래너가 선택된 경우)
@@ -414,7 +414,7 @@ function WizardInner({
       const plannerValidation = await validatePlanner(effectivePlannerId, tenantId);
       if (!plannerValidation.success) {
         setError(plannerValidation.error || "선택한 플래너가 유효하지 않습니다. 플래너를 다시 선택해주세요.");
-        return false;
+        return null;
       }
     }
 
@@ -442,14 +442,14 @@ function WizardInner({
         // 플랜 그룹 학습 유형 설정
         studyType,
         strategyDaysPerWeek,
+        generateAIPlan,
       } = wizardData;
 
       // content_allocations 생성
-      // 우선순위: 콘텐츠 개별 설정(c.subjectType) > 그룹 레벨(studyType) > 기본값(weakness)
       const contentAllocations = skipContents
         ? []
         : selectedContents
-            .filter((c) => c.contentId) // 유효한 콘텐츠만 포함
+            .filter((c) => c.contentId)
             .map((c) => {
               const effectiveSubjectType = c.subjectType ?? studyType ?? "weakness";
               const effectiveWeeklyDays = c.weeklyDays ?? (effectiveSubjectType === "strategy" ? strategyDaysPerWeek : undefined);
@@ -466,13 +466,6 @@ function WizardInner({
         ...schedulerOptions,
         content_allocations: contentAllocations.length > 0 ? contentAllocations : undefined,
       };
-
-      // 디버그: 콘텐츠 데이터 확인
-      console.log("[AdminWizard] handleSubmit 콘텐츠 데이터", {
-        skipContents,
-        selectedContentsCount: selectedContents.length,
-        selectedContents: selectedContents.map(c => ({ id: c.contentId, type: c.contentType })),
-      });
 
       // 공통 데이터 (제외일, 학원일정)
       const exclusionsData = exclusions.map((e) => ({
@@ -491,10 +484,11 @@ function WizardInner({
         subject: s.subject || undefined,
       }));
 
-      // 콘텐츠가 없거나 건너뛰기인 경우: 단일 그룹 생성
-      if (skipContents || selectedContents.length === 0) {
+      // 콘텐츠가 없거나, 건너뛰기이거나, AI 플랜 생성인 경우: 단일 그룹 생성
+      // AI 플랜의 경우 모든 콘텐츠를 하나의 그룹에 포함시켜 최적화함
+      if (skipContents || selectedContents.length === 0 || generateAIPlan) {
         const planGroupData: PlanGroupCreationData = {
-          name: name || null,
+          name: name || `Draft-${new Date().toISOString().split("T")[0]}`,
           plan_purpose: (planPurpose as "내신대비" | "모의고사" | "수능" | "") || "내신대비",
           scheduler_type: schedulerType === "custom" ? "1730_timetable" : (schedulerType || "1730_timetable"),
           period_start: periodStart,
@@ -502,14 +496,24 @@ function WizardInner({
           block_set_id: blockSetId || null,
           planner_id: plannerId || null,
           scheduler_options: enhancedSchedulerOptions,
-          contents: [],
+          contents: skipContents
+            ? []
+            : selectedContents.map((c, index) => ({
+                content_type: c.contentType as "book" | "lecture",
+                content_id: c.contentId,
+                master_content_id: null,
+                start_range: c.startRange,
+                end_range: c.endRange,
+                start_detail_id: null,
+                end_detail_id: null,
+                display_order: index,
+              })),
           exclusions: exclusionsData,
           academy_schedules: academySchedulesData,
           study_hours: studyHours || null,
           self_study_hours: selfStudyHours || null,
           lunch_time: lunchTime || null,
           non_study_time_blocks: nonStudyTimeBlocks || undefined,
-          // 플랜 그룹 학습 유형 설정
           study_type: studyType || null,
           strategy_days_per_week: strategyDaysPerWeek || null,
         };
@@ -528,7 +532,7 @@ function WizardInner({
           if ("success" in result && result.success === false) {
             setError(result.error?.message || "플랜 그룹 생성에 실패했습니다.");
             setSubmitting(false);
-            return false;
+            return null;
           }
 
           groupId = (result as { groupId: string }).groupId;
@@ -536,11 +540,13 @@ function WizardInner({
 
         setCreatedGroupId(groupId);
         setSubmitting(false);
+        // AI 생성은 Step7 컴포넌트에서 groupId를 받아 수행하므로 여기서는 onSuccess 호출을 보류하거나
+        // Step7 내부 로직에 맡김
         onSuccess(groupId, wizardData.generateAIPlan);
-        return true;
+        return groupId;
       }
 
-      // 콘텐츠별로 별도 플랜 그룹 생성
+      // 수동 모드: 콘텐츠별로 별도 플랜 그룹 생성 (기존 로직 유지)
       console.log("[AdminWizard] 콘텐츠별 플랜 그룹 생성 시작", {
         contentsCount: selectedContents.length,
       });
@@ -549,8 +555,6 @@ function WizardInner({
       let firstError: string | null = null;
 
       for (const content of selectedContents) {
-        // 각 콘텐츠별 content_allocations
-        // 우선순위: 콘텐츠 개별 설정 > 그룹 레벨 studyType > 기본값(weakness)
         const effectiveSingleSubjectType = content.subjectType ?? studyType ?? "weakness";
         const effectiveSingleWeeklyDays = content.weeklyDays ?? (effectiveSingleSubjectType === "strategy" ? strategyDaysPerWeek : undefined);
 
@@ -566,7 +570,6 @@ function WizardInner({
           content_allocations: singleContentAllocation,
         };
 
-        // 그룹 이름: customGroupName > generatedGroupName > title
         const groupName = content.customGroupName || content.generatedGroupName || content.title;
 
         const singleGroupData: PlanGroupCreationData = {
@@ -594,16 +597,9 @@ function WizardInner({
           self_study_hours: selfStudyHours || null,
           lunch_time: lunchTime || null,
           non_study_time_blocks: nonStudyTimeBlocks || undefined,
-          // 플랜 그룹 학습 유형 설정
           study_type: studyType || null,
           strategy_days_per_week: strategyDaysPerWeek || null,
         };
-
-        console.log("[AdminWizard] 플랜 그룹 생성:", {
-          name: groupName,
-          contentId: content.contentId,
-          contentTitle: content.title,
-        });
 
         try {
           const result = await createPlanGroupAction(singleGroupData, {
@@ -629,39 +625,23 @@ function WizardInner({
         }
       }
 
-      // 결과 확인
       if (createdGroupIds.length === 0) {
         setError(firstError || "플랜 그룹 생성에 실패했습니다.");
         setSubmitting(false);
-        return false;
-      }
-
-      // 일부 실패 경고
-      if (createdGroupIds.length < selectedContents.length) {
-        console.warn("[AdminWizard] 일부 플랜 그룹 생성 실패:", {
-          total: selectedContents.length,
-          created: createdGroupIds.length,
-        });
+        return null;
       }
 
       // 첫 번째 그룹 ID를 대표로 사용
       const primaryGroupId = createdGroupIds[0];
-
-      console.log("[AdminWizard] 플랜 그룹 생성 완료:", {
-        createdCount: createdGroupIds.length,
-        primaryGroupId,
-        allGroupIds: createdGroupIds,
-      });
-
       setCreatedGroupId(primaryGroupId);
       setSubmitting(false);
       onSuccess(primaryGroupId, wizardData.generateAIPlan);
-      return true;
+      return primaryGroupId;
     } catch (err) {
       console.error("[AdminWizard] 생성 실패:", err);
       setError(err instanceof Error ? err.message : "플랜 그룹 생성 중 오류가 발생했습니다.");
       setSubmitting(false);
-      return false;
+      return null;
     }
   }, [
     hasErrors,

@@ -32,6 +32,9 @@ import {
   Package,
   X,
   ListChecks,
+  Search,
+  Globe,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
@@ -47,11 +50,12 @@ import {
 import type { SelectedContent, SubjectType } from "../_context/types";
 import { SUBJECT_TYPE_OPTIONS } from "@/lib/domains/admin-plan/types";
 import { MasterContentSearchModal } from "./_components/MasterContentSearchModal";
+import { WebSearchPanel } from "./_components/WebSearchPanel";
 
 /**
  * 탭 타입 정의
  */
-type ContentTab = "student" | "master" | "summary";
+type ContentTab = "student" | "master" | "search" | "summary";
 
 /**
  * Step4ContentSelection Props
@@ -515,6 +519,23 @@ export function Step4ContentSelection({
 
         <button
           type="button"
+          onClick={() => setActiveTab("search")}
+          className={cn(
+            "flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+            activeTab === "search"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+          )}
+        >
+          <Globe className="h-4 w-4" />
+          AI 웹 검색
+          <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
+            Beta
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("master")}
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
@@ -800,15 +821,18 @@ export function Step4ContentSelection({
               마스터 콘텐츠 검색
             </button>
           </div>
-          {/* 안내 메시지 */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-            <p className="font-medium">마스터 콘텐츠란?</p>
-            <ul className="mt-1 list-inside list-disc space-y-1 text-blue-700">
-              <li>학원에서 관리하는 공유 콘텐츠 라이브러리입니다.</li>
-              <li>교재, 강의 등 다양한 학습 콘텐츠를 검색할 수 있습니다.</li>
-              <li>선택한 콘텐츠는 학생의 콘텐츠로 자동 추가됩니다.</li>
-            </ul>
-          </div>
+        </div>
+      )}
+
+      {/* AI 웹 검색 탭 */}
+      {activeTab === "search" && (
+        <div className="space-y-4">
+           {/* WebSearchPanel will be imported and used here */}
+           <WebSearchPanel 
+             studentId={studentId} 
+             onSelect={handleMasterContentSelect} // Reusing master select logic for now as it handles SelectedContent
+             disabled={selectedContents.length >= 9 || skipContents}
+           />
         </div>
       )}
 

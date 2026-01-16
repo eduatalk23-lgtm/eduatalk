@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Check } from "lucide-react";
 import { ContentSelectStep } from "@/app/(student)/plan/group/[id]/reschedule/_components/ContentSelectStep";
 import { AdjustmentStep } from "@/app/(student)/plan/group/[id]/reschedule/_components/AdjustmentStep";
@@ -16,6 +16,9 @@ import type { PlanGroup, PlanContent } from "@/lib/types/plan";
 import type { AdjustmentInput } from "@/lib/reschedule/scheduleEngine";
 import type { ReschedulePreviewResult } from "@/lib/domains/plan";
 import { ProgressBar } from "@/components/atoms/ProgressBar";
+import { calculateAvailableDates, type TimeSlot, type AcademySchedule, type CalculateOptions } from "@/lib/scheduler/calculateAvailableDates";
+import { generatePlanWithAI } from "@/lib/domains/plan/llm/actions/generatePlan";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type AdminRescheduleWizardProps = {
   groupId: string;
@@ -30,6 +33,8 @@ type AdminRescheduleWizardProps = {
     plan_date?: string;
   }>;
   initialDateRange?: { from: string; to: string } | null;
+  timeSlots: any[]; // DB TimeSlot type mismatch with calculateAvailableDates TimeSlot, using any for now or need adapter
+  academySchedules: any[]; 
 };
 
 type WizardStep = 1 | 2 | 3;
@@ -46,7 +51,10 @@ export function AdminRescheduleWizard({
   contents,
   existingPlans,
   initialDateRange,
+  timeSlots,
+  academySchedules,
 }: AdminRescheduleWizardProps) {
+  const toast = useToast();
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
   const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(
     new Set()
@@ -61,6 +69,113 @@ export function AdminRescheduleWizard({
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(
     new Set()
   );
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // AI 자동 채우기 핸들러
+  const handleAIAutoFill = useCallback(async (currentAdjustments: AdjustmentInput[], targetRange: { from: string, to: string }) => {
+    setIsGenerating(true);
+    try {
+      // 1. 가용 슬롯 계산
+      const availableSlots = getAvailableSlotsForRange(
+        targetRange.from,
+        targetRange.to,
+        timeSlots,
+        academySchedules
+      );
+
+      if (availableSlots.length === 0) {
+        toast.showError("선택한 기간에 학습 가능한 시간(가용 슬롯)이 없습니다.");
+        return;
+      }
+
+      // 2. AI 플랜 생성 요청
+      const result = await generatePlanWithAI({
+        contentIds: Array.from(selectedContentIds),
+        startDate: targetRange.from,
+        endDate: targetRange.to,
+        dailyStudyMinutes: 0, // Schedule mode ignores this constraint usually
+        planningMode: "schedule",
+        availableSlots,
+        planGroupId: groupId,
+        studentId: group.student_id,
+        enableWebSearch: false, // Optional
+      });
+      
+      if (!result.success || !result.data) {
+        throw new Error(result.error || "플랜 생성 실패");
+      }
+      
+      // 3. 결과 변환 (GeneratedPlanItem[] -> AdjustmentInput[])
+      const allPlans = result.data.weeklyMatrices.flatMap(w => w.days.flatMap(d => d.plans));
+      const plansByContent = new Map<string, { start: number, end: number, contentId: string }>();
+
+      // 각 콘텐츠별 최소 시작/최대 종료 페이지(범위) 계산
+      allPlans.forEach(plan => {
+        if (plan.rangeStart !== undefined && plan.rangeEnd !== undefined) {
+          const existing = plansByContent.get(plan.contentId);
+          if (existing) {
+            existing.start = Math.min(existing.start, plan.rangeStart);
+            existing.end = Math.max(existing.end, plan.rangeEnd);
+          } else {
+            plansByContent.set(plan.contentId, {
+              start: plan.rangeStart,
+              end: plan.rangeEnd,
+              contentId: plan.contentId
+            });
+          }
+        }
+      });
+
+      // 기존 조정값과 병합하여 새로운 조정값 생성
+      const newAdjustments: AdjustmentInput[] = [];
+      const contentIdSet = new Set(selectedContentIds);
+
+      // AI가 생성한 범위 적용
+      plansByContent.forEach((range, contentId) => {
+        if (!contentIdSet.has(contentId)) return;
+
+        const content = contents.find(c => (c.id || c.content_id) === contentId);
+        if (!content) return;
+
+        // 기존 조정값 확인 (이미 입력된 값이 있을 수 있음)
+        const existingAdj = currentAdjustments.find(a => a.plan_content_id === contentId);
+        
+        const before = existingAdj?.before || {
+            content_id: content.content_id,
+            content_type: content.content_type,
+            range: { start: content.start_range, end: content.end_range }
+        };
+
+        newAdjustments.push({
+          plan_content_id: contentId,
+          change_type: "range", // 범위 변경으로 처리
+          before,
+          after: {
+            ...before,
+            range: { start: range.start, end: range.end }
+          }
+        });
+      });
+
+      // AI 결과에 없는 선택된 콘텐츠는 기존 조정값 유지하거나 제외?
+      // 여기서는 AI가 제안한 것만 업데이트하고, 나머지는 유지하는 전략
+      currentAdjustments.forEach(adj => {
+        if (!plansByContent.has(adj.plan_content_id)) {
+          newAdjustments.push(adj);
+        }
+      });
+
+      toast.showSuccess(`AI가 ${plansByContent.size}개 콘텐츠의 일정을 제안했습니다.`);
+      return newAdjustments;
+
+    } catch (e) {
+      console.error(e);
+      toast.showError(e instanceof Error ? e.message : "AI 배정 중 오류가 발생했습니다.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [selectedContentIds, groupId, group.student_id, timeSlots, academySchedules, contents, toast]);
+
 
   const handleStep1Complete = (
     contentIds: Set<string>,
@@ -223,6 +338,8 @@ export function AdminRescheduleWizard({
               ...p,
               plan_date: p.plan_date || "",
             }))}
+            onAutoFill={(range) => handleAIAutoFill(adjustments, range)}
+            isGenerating={isGenerating}
           />
         )}
         {currentStep === 3 && (
@@ -250,3 +367,102 @@ export function AdminRescheduleWizard({
   );
 }
 
+// ============================================
+// Helper: 가용 시간 슬롯 계산
+// ============================================
+
+function getAvailableSlotsForRange(
+  startDateStr: string,
+  endDateStr: string,
+  timeSlots: any[], // Generic TimeSlot
+  academySchedules: any[] // Academy Schedule
+): { date: string; startTime: string; endTime: string }[] {
+  const result: { date: string; startTime: string; endTime: string }[] = [];
+  const start = new Date(startDateStr);
+  const end = new Date(endDateStr);
+  
+  // 날짜 순회
+  const current = new Date(start);
+  while (current <= end) {
+    const dateStr = current.toISOString().split("T")[0];
+    const dayOfWeek = current.getDay(); // 0(Sun) - 6(Sat)
+
+    // 해당 요일의 학원 일정
+    const dayAcademies = academySchedules.filter(a => a.day_of_week === dayOfWeek);
+
+    // 기본 타임 슬롯 (순서대로)
+    // AcademySchedule과 겹치는 부분 제거 로직 (Simplified)
+    // 1. 타임 슬롯 각각에 대해, 학원 시간과 겹치는지 확인
+    // 2. 겹치지 않는 부분만 남김
+    // 복잡성을 줄이기 위해, "타임 슬롯 단위"로 학원이 있으면 통째로 제외하거나,
+    // 정밀하게 자르는 로직 필요. 여기서는 정밀하게 자르기보다 "Available Slot" 리스트 생성.
+    
+    // 단순화: 타임 슬롯을 Base로 하고, 학원 시간을 뺀다.
+    // 타임 슬롯이 정의되어 있지 않으면 09:00 - 22:00 통으로 가정?
+    // 보통 time_slots 테이블이 있으면 그것을 사용.
+    
+    const baseSlots = timeSlots.length > 0 
+      ? timeSlots.map(s => ({ start: s.start_time.slice(0,5), end: s.end_time.slice(0,5) }))
+      : [{ start: "10:00", end: "22:00" }]; // Fallback
+
+     // 시간(HH:mm)을 분(minutes)으로 변환
+    const toMin = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    
+    // 분(minutes)을 시간(HH:mm)으로 변환
+    const toTime = (min: number) => {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    let availableMinutes: { start: number, end: number }[] = baseSlots.map(s => ({
+        start: toMin(s.start),
+        end: toMin(s.end)
+    }));
+
+    // 학원 시간 빼기
+    dayAcademies.forEach(academy => {
+      const acadStart = toMin(academy.start_time);
+      const acadEnd = toMin(academy.end_time);
+      
+      const nextSlots: { start: number, end: number }[] = [];
+      
+      availableMinutes.forEach(slot => {
+        // 겹치지 않음
+        if (slot.end <= acadStart || slot.start >= acadEnd) {
+          nextSlots.push(slot);
+        } else {
+            // 겹침 -> 잘라내기
+            // 앞부분
+            if (slot.start < acadStart) {
+                nextSlots.push({ start: slot.start, end: acadStart });
+            }
+            // 뒷부분
+            if (slot.end > acadEnd) {
+                nextSlots.push({ start: acadEnd, end: slot.end });
+            }
+        }
+      });
+      availableMinutes = nextSlots;
+    });
+
+    // 결과를 포맷팅해서 추가
+    availableMinutes.forEach(slot => {
+        // 최소 30분 이상만
+        if (slot.end - slot.start >= 30) {
+            result.push({
+                date: dateStr,
+                startTime: toTime(slot.start),
+                endTime: toTime(slot.end)
+            });
+        }
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}

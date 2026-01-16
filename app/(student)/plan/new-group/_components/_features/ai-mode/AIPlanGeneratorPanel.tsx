@@ -310,10 +310,11 @@ export function AIPlanGeneratorPanel({
     onComplete: (response) => {
       setResult({
         success: true,
-        data: {
-          response,
-          cost: streamingCost || { inputTokens: 0, outputTokens: 0, estimatedUSD: 0 },
-        },
+        data: response,
+        metadata: {
+            ...response.meta,
+            estimatedCost: streamingCost?.estimatedUSD || 0
+        }
       });
       setPhase("preview");
     },
@@ -401,7 +402,7 @@ export function AIPlanGeneratorPanel({
   // 적용
   const handleApply = () => {
     if (result?.success && result.data) {
-      onGenerated?.(result.data.response);
+      onGenerated?.(result.data);
     }
   };
 
@@ -520,38 +521,38 @@ export function AIPlanGeneratorPanel({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                 <div className={cn("text-2xl font-bold text-blue-600 dark:text-blue-400")}>
-                  {result.data.response.totalPlans}
+                  {result.data.totalPlans}
                 </div>
                 <div className={cn("text-sm", textMuted)}>총 플랜 수</div>
               </div>
               <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
                 <div className={cn("text-2xl font-bold text-green-600 dark:text-green-400")}>
-                  {result.data.response.weeklyMatrices.length}
+                  {result.data.weeklyMatrices.length}
                 </div>
                 <div className={cn("text-sm", textMuted)}>주</div>
               </div>
               <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
                 <div className={cn("text-2xl font-bold text-purple-600 dark:text-purple-400")}>
-                  {Math.round(result.data.response.meta.confidence * 100)}%
+                  {Math.round(result.data.meta.confidence * 100)}%
                 </div>
                 <div className={cn("text-sm", textMuted)}>신뢰도</div>
               </div>
               <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
                 <div className={cn("text-2xl font-bold", textPrimary)}>
-                  ${result.data.cost.estimatedUSD.toFixed(4)}
+                  ${(result.metadata?.estimatedCost || 0).toFixed(4)}
                 </div>
                 <div className={cn("text-sm", textMuted)}>비용</div>
               </div>
             </div>
 
             {/* 추천 사항 */}
-            {result.data.response.recommendations.studyTips.length > 0 && (
+            {result.data.recommendations.studyTips.length > 0 && (
               <div className="p-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
                 <h5 className={cn("font-medium mb-2 text-blue-700 dark:text-blue-300")}>
                   💡 학습 팁
                 </h5>
                 <ul className="space-y-1">
-                  {result.data.response.recommendations.studyTips.map((tip, idx) => (
+                  {result.data.recommendations.studyTips.map((tip: string, idx: number) => (
                     <li key={idx} className={cn("text-sm", textSecondary)}>
                       • {tip}
                     </li>
@@ -561,13 +562,13 @@ export function AIPlanGeneratorPanel({
             )}
 
             {/* 경고 */}
-            {result.data.response.recommendations.warnings.length > 0 && (
+            {result.data.recommendations.warnings.length > 0 && (
               <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
                 <h5 className={cn("font-medium mb-2 text-amber-700 dark:text-amber-300")}>
                   ⚠️ 주의사항
                 </h5>
                 <ul className="space-y-1">
-                  {result.data.response.recommendations.warnings.map((warn, idx) => (
+                  {result.data.recommendations.warnings.map((warn: string, idx: number) => (
                     <li key={idx} className={cn("text-sm", textSecondary)}>
                       • {warn}
                     </li>
@@ -587,7 +588,7 @@ export function AIPlanGeneratorPanel({
             {/* 주간 요약 */}
             <div className="space-y-2">
               <h5 className={cn("font-medium", textPrimary)}>주간 계획 요약</h5>
-              {result.data.response.weeklyMatrices.map((week) => (
+              {result.data.weeklyMatrices.map((week) => (
                 <div
                   key={week.weekNumber}
                   className="p-3 rounded-lg border border-gray-200 dark:border-gray-700"
@@ -602,7 +603,7 @@ export function AIPlanGeneratorPanel({
                       </span>
                     </div>
                     <span className={cn("text-sm", textSecondary)}>
-                      {week.days.reduce((sum, d) => sum + d.plans.length, 0)}개 플랜
+                      {week.days.reduce((sum: number, d: any) => sum + d.plans.length, 0)}개 플랜
                     </span>
                   </div>
                   {week.weeklySummary && (

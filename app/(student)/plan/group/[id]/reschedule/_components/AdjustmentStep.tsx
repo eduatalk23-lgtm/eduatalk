@@ -41,6 +41,11 @@ type AdjustmentStepProps = {
     status: string | null;
     is_active: boolean | null;
   }>;
+  onAutoFill?: (range: {
+    from: string;
+    to: string;
+  }) => Promise<AdjustmentInput[] | undefined>;
+  isGenerating?: boolean;
 };
 
 export function AdjustmentStep({
@@ -52,8 +57,11 @@ export function AdjustmentStep({
   studentId,
   groupPeriodEnd,
   existingPlans = [],
+  onAutoFill,
+  isGenerating = false,
 }: AdjustmentStepProps) {
   const toast = useToast();
+  // ... (keep existing state setup)
   const today = getTodayDateString();
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -68,6 +76,8 @@ export function AdjustmentStep({
     });
     return map;
   });
+  
+  // ... (keep existing state)
   const [batchMode, setBatchMode] = useState(false);
   const [replaceModalOpen, setReplaceModalOpen] = useState(false);
   const [replacingContentId, setReplacingContentId] = useState<string | null>(
@@ -114,6 +124,58 @@ export function AdjustmentStep({
     });
     setRangeInputs(newMap);
   }, [selectedContents, localAdjustments]);
+
+  // Handle Auto Fill Click
+  const handleAutoFillClick = async () => {
+    if (!onAutoFill) return;
+    
+    try {
+      const result = await onAutoFill({ from: tomorrowStr, to: groupPeriodEnd });
+      if (result && result.length > 0) {
+        const newMap = new Map(localAdjustments);
+        result.forEach(adj => {
+             newMap.set(adj.plan_content_id, adj);
+        });
+        setLocalAdjustments(newMap);
+        
+        // Update range inputs visually
+        const newRangeInputs = new Map(rangeInputs);
+        result.forEach(adj => {
+             const range = adj.after.range;
+             newRangeInputs.set(adj.plan_content_id, {
+                 start: String(range.start),
+                 end: String(range.end)
+             });
+        });
+        setRangeInputs(newRangeInputs);
+      }
+    } catch (error) {
+      console.error(error);
+      // Toast already shown in parent via catch
+    }
+  };
+
+  // ... (handleRangeChange removed, as it exists below)
+  
+  // ... (keep other handlers: handleRangeInputChange, handleRangeBlur, etc. UNCHANGED - I will simplify replacement to avoid re-writing them all if possible, but replace_file_content needs contiguous block. Use start/end lines carefully)
+  
+  // Actually, I can replace the PROP definitions and the BUTTON separately using multi_replace_file_content or careful block selection.
+  // But wait, the previous tool showed me lines 1-100 and it ended with `selectedContents`.
+  // The button is way down in the return statement.
+  
+  // I'll make TWO replacement chunks.
+  // 1. Props (lines 45-60)
+  // 2. Button onClick (lines ~430)
+  
+  // Wait, I need to define `handleAutoFillClick` inside the component body too.
+  
+  // I will use `replace_file_content` for the Props and Component Start, including `handleAutoFillClick`.
+  // And `replace_file_content` for the Button.
+  // Wait, I can't use `replace_file_content` twice in one turn on same file?
+  // Docs say: "Do NOT make multiple parallel calls... for the same file."
+  // Use `multi_replace_file_content`!
+
+
 
   const handleRangeChange = useCallback(
     (contentId: string, field: "start" | "end", value: number) => {
@@ -432,11 +494,62 @@ export function AdjustmentStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-bold text-gray-900">상세 조정</h2>
-        <p className="text-sm text-gray-600">
-          선택한 콘텐츠의 범위를 수정하거나 콘텐츠를 교체할 수 있습니다.
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold text-gray-900">상세 조정</h2>
+          <p className="text-sm text-gray-600">
+            선택한 콘텐츠의 범위를 수정하거나 콘텐츠를 교체할 수 있습니다.
+          </p>
+        </div>
+        {onAutoFill && (
+          <button
+            onClick={handleAutoFillClick}
+            disabled={isGenerating}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+              isGenerating
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            {isGenerating ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                <span>AI 배정 중...</span>
+              </>
+            ) : (
+              <>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>AI 자동 채우기</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* 일괄 조정 모드 안내 배너 */}

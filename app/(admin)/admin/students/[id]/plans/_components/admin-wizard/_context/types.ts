@@ -25,6 +25,10 @@ export type ContentType = "book" | "lecture" | "custom";
 // 콘텐츠 관련 타입
 // ============================================
 
+import { type VirtualContentItem } from "@/lib/domains/plan/llm/actions/searchContent";
+
+// ... existing code ...
+
 /**
  * 선택된 콘텐츠
  */
@@ -41,6 +45,8 @@ export interface SelectedContent {
   displayOrder?: number;
   /** 전략 과목 주간 배정일 (2, 3, 4). 전략 과목인 경우에만 유효 */
   weeklyDays?: 2 | 3 | 4 | null;
+  /** 가상 콘텐츠 상세 정보 (AI 검색 결과). DB 저장 전 임시 보관용 */
+  virtualContentDetails?: VirtualContentItem;
 
   // 플랜 이름 자동 생성 관련 필드
   /** 자동 생성된 플랜 그룹 이름 (예: "[수학] 수학의 정석 p.100-200") */

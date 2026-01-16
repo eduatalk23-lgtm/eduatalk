@@ -8,7 +8,7 @@ type SupabaseServerClient = Awaited<
 type HistoryRow = {
   id: string;
   event_type?: string | null;
-  detail?: any;
+  detail?: Record<string, unknown> | null;
   created_at?: string | null;
 };
 

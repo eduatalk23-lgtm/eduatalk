@@ -66,6 +66,23 @@ export default async function AdminReschedulePage({
     .eq("plan_group_id", groupId)
     .eq("student_id", group.student_id);
 
+  // 타임 슬롯 및 학원 일정 조회 (AI 스케줄링용)
+  const [{ data: timeSlots }, { data: academySchedules }] = await Promise.all([
+    supabase
+      .from("time_slots")
+      .select("id, name, start_time, end_time, slot_type")
+      .eq("tenant_id", tenantContext?.tenantId || "")
+      .eq("is_active", true)
+      .order("slot_order", { ascending: true }),
+    supabase
+      .from("academy_schedules")
+      .select("id, day_of_week, start_time, end_time, academy_name, travel_time")
+      .eq("student_id", group.student_id)
+      .eq("tenant_id", tenantContext?.tenantId || "")
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true }),
+  ]);
+
   // URL 쿼리 파라미터에서 날짜 범위 파싱
   let initialDateRange: { from: string; to: string } | null = null;
   if (searchParamsData.from && searchParamsData.to) {
@@ -127,6 +144,8 @@ export default async function AdminReschedulePage({
           contents={contents}
           existingPlans={existingPlans || []}
           initialDateRange={initialDateRange}
+          timeSlots={timeSlots || []}
+          academySchedules={academySchedules || []}
         />
       </div>
     </div>

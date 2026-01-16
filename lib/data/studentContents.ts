@@ -297,6 +297,7 @@ export async function createLecture(
     difficulty_level?: string | null;
     difficulty_level_id?: string | null;
     duration?: number | null;
+    total_episodes?: number | null;
     linked_book_id?: string | null;
     notes?: string | null;
   }
@@ -321,6 +322,7 @@ export async function createLecture(
     difficulty_level: lecture.difficulty_level || null, // 하위 호환성 유지
     difficulty_level_id: difficultyLevelId || null,
     duration: lecture.duration || null,
+    total_episodes: lecture.total_episodes || null,
     linked_book_id: lecture.linked_book_id || null,
     notes: lecture.notes || null,
   };
