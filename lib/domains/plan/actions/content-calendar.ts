@@ -76,7 +76,7 @@ export async function addContentToTimezone(
     const displayOrder = (count ?? 0) + 1;
 
     // 새 콘텐츠 생성 (필요한 경우)
-    let contentId = input.content_id;
+    const contentId = input.content_id;
     let masterContentId = input.master_content_id;
 
     if (input.new_content && !contentId) {

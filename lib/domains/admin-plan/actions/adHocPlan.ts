@@ -646,7 +646,7 @@ export async function expandAdHocRecurrence(
 
     const dates: string[] = [];
     const interval = recurrenceRule.interval || 1;
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
     let count = 0;
     const maxCount = recurrenceRule.count || 100;
 

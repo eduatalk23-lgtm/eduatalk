@@ -528,7 +528,7 @@ async function redistributeVolumeFromDeleted(
   }
 
   // 다른 콘텐츠에 분배하는 전략
-  let query = supabase
+  const query = supabase
     .from("plan_contents")
     .select("id, content_id, start_range, end_range")
     .eq("plan_group_id", planGroupId)

@@ -522,7 +522,7 @@ export async function getTodayPlans(
   let plans = plansResult;
 
   // ad_hoc_plans 결과
-  let adHocPlans: AdHocPlan[] = adHocPlansResult;
+  const adHocPlans: AdHocPlan[] = adHocPlansResult;
 
   let displayDate = targetDate;
   // isToday는 이미 위에서 계산됨

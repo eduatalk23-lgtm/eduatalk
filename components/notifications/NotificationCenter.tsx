@@ -1,136 +1,130 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Bell, X, Check } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/ToastProvider";
-import type { Notification } from "@/lib/services/inAppNotificationService";
+import { useNotificationRealtime } from "@/lib/realtime/useNotificationRealtime";
+import {
+  fetchNotificationsAction,
+  markAsReadAction,
+  markAllAsReadAction,
+  deleteNotificationAction,
+} from "@/lib/domains/notification/actions";
+import {
+  mapPayloadToNotification,
+  type Notification,
+} from "@/lib/notifications/mapPayloadToNotification";
 
 type NotificationCenterProps = {
   userId: string;
 };
 
 export function NotificationCenter({ userId }: NotificationCenterProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const toast = useToast();
+  const queryClient = useQueryClient();
 
-  // 알림 조회
-  const fetchNotifications = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/notifications");
-      if (!response.ok) {
-        throw new Error("알림 조회에 실패했습니다.");
+  // React Query로 초기 데이터 로드
+  const {
+    data: notifications = [],
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["notifications", userId],
+    queryFn: async () => {
+      const result = await fetchNotificationsAction();
+      if (!result.success) {
+        throw new Error(result.error ?? "알림 조회에 실패했습니다.");
       }
-      const data = await response.json();
-      setNotifications(data.notifications || []);
-    } catch (error) {
-      console.error("[NotificationCenter] 알림 조회 실패:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      return result.data?.notifications ?? [];
+    },
+    enabled: !!userId,
+    staleTime: 30_000, // 30초 동안 캐시 유지
+  });
 
-  // SSE 연결 설정
-  useEffect(() => {
-    if (!userId) return;
+  // Supabase Realtime 구독
+  useNotificationRealtime({
+    userId,
+    enabled: !!userId,
+    showBrowserNotification: true,
+    onNewNotification: (payload) => {
+      const notification = mapPayloadToNotification(payload);
+      queryClient.setQueryData<Notification[]>(
+        ["notifications", userId],
+        (old) => [notification, ...(old ?? [])]
+      );
+      toast.showInfo(`새 알림: ${notification.title}`);
+    },
+    onNotificationUpdate: (payload) => {
+      const notification = mapPayloadToNotification(payload);
+      queryClient.setQueryData<Notification[]>(
+        ["notifications", userId],
+        (old) =>
+          (old ?? []).map((n) =>
+            n.id === notification.id ? notification : n
+          )
+      );
+    },
+    onNotificationDelete: (payload) => {
+      queryClient.setQueryData<Notification[]>(
+        ["notifications", userId],
+        (old) => (old ?? []).filter((n) => n.id !== payload.id)
+      );
+    },
+  });
 
-    const eventSource = new EventSource("/api/notifications/stream");
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "initial" || data.type === "update") {
-          setNotifications(data.notifications || []);
-          
-          // 새 알림이 있으면 토스트 표시
-          if (data.type === "update" && data.notifications.length > 0) {
-            const unreadCount = data.notifications.filter(
-              (n: Notification) => !n.read
-            ).length;
-            if (unreadCount > 0) {
-              toast.showInfo(`새 알림 ${unreadCount}개가 도착했습니다.`);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("[NotificationCenter] SSE 메시지 파싱 실패:", error);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error("[NotificationCenter] SSE 연결 오류:", error);
-      eventSource.close();
-      // 재연결 시도
-      setTimeout(() => {
-        if (userId) {
-          fetchNotifications();
-        }
-      }, 5000);
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [userId, toast, fetchNotifications]);
-
-  // 초기 로드
-  useEffect(() => {
-    if (userId) {
-      fetchNotifications();
-    }
-  }, [userId, fetchNotifications]);
-
-  // 알림 읽음 처리
+  // 알림 읽음 처리 (Optimistic Update)
   const markAsRead = async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("알림 읽음 처리에 실패했습니다.");
-      }
-      setNotifications((prev) =>
-        prev.map((n) =>
+    // Optimistic update
+    queryClient.setQueryData<Notification[]>(
+      ["notifications", userId],
+      (old) =>
+        (old ?? []).map((n) =>
           n.id === notificationId ? { ...n, read: true } : n
         )
-      );
-    } catch (error) {
-      console.error("[NotificationCenter] 알림 읽음 처리 실패:", error);
-      toast.showError("알림 읽음 처리에 실패했습니다.");
+    );
+
+    const result = await markAsReadAction(notificationId);
+    if (!result.success) {
+      refetch(); // Rollback on error
+      toast.showError(result.error ?? "알림 읽음 처리에 실패했습니다.");
     }
   };
 
-  // 모든 알림 읽음 처리
+  // 모든 알림 읽음 처리 (Optimistic Update)
   const markAllAsRead = async () => {
-    try {
-      const response = await fetch("/api/notifications/read-all", {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("전체 알림 읽음 처리에 실패했습니다.");
-      }
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch (error) {
-      console.error("[NotificationCenter] 전체 알림 읽음 처리 실패:", error);
-      toast.showError("전체 알림 읽음 처리에 실패했습니다.");
+    // Optimistic update
+    queryClient.setQueryData<Notification[]>(
+      ["notifications", userId],
+      (old) => (old ?? []).map((n) => ({ ...n, read: true }))
+    );
+
+    const result = await markAllAsReadAction();
+    if (!result.success) {
+      refetch(); // Rollback on error
+      toast.showError(result.error ?? "전체 알림 읽음 처리에 실패했습니다.");
     }
   };
 
-  // 알림 삭제
-  const deleteNotification = async (notificationId: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        throw new Error("알림 삭제에 실패했습니다.");
-      }
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-    } catch (error) {
-      console.error("[NotificationCenter] 알림 삭제 실패:", error);
-      toast.showError("알림 삭제에 실패했습니다.");
+  // 알림 삭제 (Optimistic Update)
+  const handleDeleteNotification = async (notificationId: string) => {
+    // Optimistic update - 삭제 전 백업
+    const previousData = queryClient.getQueryData<Notification[]>([
+      "notifications",
+      userId,
+    ]);
+
+    queryClient.setQueryData<Notification[]>(
+      ["notifications", userId],
+      (old) => (old ?? []).filter((n) => n.id !== notificationId)
+    );
+
+    const result = await deleteNotificationAction(notificationId);
+    if (!result.success) {
+      // Rollback on error
+      queryClient.setQueryData(["notifications", userId], previousData);
+      toast.showError(result.error ?? "알림 삭제에 실패했습니다.");
     }
   };
 
@@ -226,7 +220,9 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
                           )}
                           <button
                             type="button"
-                            onClick={() => deleteNotification(notification.id)}
+                            onClick={() =>
+                              handleDeleteNotification(notification.id)
+                            }
                             className="p-1 text-gray-400 hover:text-red-600"
                             title="삭제"
                           >
@@ -245,4 +241,3 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
     </div>
   );
 }
-

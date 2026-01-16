@@ -174,7 +174,7 @@ function generateSpacedRepetitionSchedule(
     const interval = SPACED_REPETITION_INTERVALS[intervalIndex];
 
     // 복습 일자 계산 (최적 요일을 고려)
-    let recommendedDate = new Date(today);
+    const recommendedDate = new Date(today);
     recommendedDate.setDate(today.getDate() + interval);
 
     // 최적 요일이 있으면 가장 가까운 해당 요일로 조정

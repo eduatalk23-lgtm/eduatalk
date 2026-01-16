@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import Button from "@/components/atoms/Button";
@@ -10,6 +10,7 @@ import {
   textPrimaryVar,
   textSecondaryVar,
 } from "@/lib/utils/darkMode";
+import { trapFocus, focusFirst } from "@/lib/accessibility";
 
 export type DialogSize =
   | "sm"
@@ -49,12 +50,9 @@ export function Dialog({
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const titleId = title
-    ? `dialog-title-${Math.random().toString(36).substr(2, 9)}`
-    : undefined;
-  const descriptionId = description
-    ? `dialog-description-${Math.random().toString(36).substr(2, 9)}`
-    : undefined;
+  const uniqueId = useId();
+  const titleId = title ? `dialog-title-${uniqueId}` : undefined;
+  const descriptionId = description ? `dialog-desc-${uniqueId}` : undefined;
 
   useEffect(() => {
     setMounted(true);
@@ -91,25 +89,24 @@ export function Dialog({
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
 
-    // 포커스 트랩: 모달 내부에 포커스가 없을 때만 첫 번째 포커스 가능한 요소로 이동
+    // 포커스 트랩 설정: Tab 키로 포커스가 다이얼로그 외부로 나가지 않도록 함
     const dialogElement = dialogRef.current;
+    let cleanupTrap: (() => void) | undefined;
+
     if (dialogElement) {
-      const activeElement = document.activeElement;
-      // 현재 포커스가 모달 내부에 있지 않을 때만 포커스 이동
-      if (!dialogElement.contains(activeElement)) {
-        const firstFocusable = dialogElement.querySelector(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        ) as HTMLElement;
-        // 짧은 지연 후 포커스 이동 (모달 렌더링 완료 대기)
-        setTimeout(() => {
-          firstFocusable?.focus();
-        }, 0);
-      }
+      // 첫 번째 포커스 가능한 요소로 포커스 이동
+      setTimeout(() => {
+        focusFirst(dialogElement);
+      }, 0);
+
+      // 포커스 트랩 활성화
+      cleanupTrap = trapFocus(dialogElement);
     }
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
+      cleanupTrap?.();
     };
   }, [open, onOpenChange]);
 

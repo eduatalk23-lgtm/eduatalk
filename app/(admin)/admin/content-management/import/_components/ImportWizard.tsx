@@ -118,7 +118,7 @@ export function ImportWizard() {
       prev.map((row) => {
         if (!row.aiSuggestions) return row;
 
-        let newAppliedData = { ...row.appliedData };
+        const newAppliedData = { ...row.appliedData };
         for (const [field, value] of Object.entries(row.aiSuggestions)) {
           if (newAppliedData[field] === undefined || newAppliedData[field] === null || newAppliedData[field] === "") {
             newAppliedData[field] = value;

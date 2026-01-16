@@ -26,7 +26,7 @@ const MAX_RETRY_DELAY_MS = 30000;
 
 type ActionExecutor = (action: OfflineAction) => Promise<{ success: boolean; error?: string }>;
 
-let actionExecutors: Map<OfflineActionType, ActionExecutor> = new Map();
+const actionExecutors: Map<OfflineActionType, ActionExecutor> = new Map();
 let isProcessing = false;
 let processingPromise: Promise<void> | null = null;
 

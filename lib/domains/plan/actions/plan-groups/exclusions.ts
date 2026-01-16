@@ -372,7 +372,7 @@ function expandRecurringPattern(
     return results;
   }
 
-  let currentDate = new Date(effectiveStart);
+  const currentDate = new Date(effectiveStart);
   const patternStartDate = new Date(startDate);
   let weekCounter = 0;
   let lastWeekNumber = -1;

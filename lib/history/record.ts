@@ -72,7 +72,7 @@ export async function recordHistory(
         // fallback: tenant_id 컬럼이 없는 경우 (이전 DB 스키마 호환)
         const { tenant_id: _tenantId, ...fallbackPayload } = payload;
         void _tenantId;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         ({ error } = await supabase
           .from("student_history")
           .insert(fallbackPayload as any));
@@ -98,7 +98,7 @@ export async function recordHistory(
       // fallback: tenant_id 컬럼이 없는 경우 (이전 DB 스키마 호환)
       const { tenant_id: _tenantId, ...fallbackPayload } = payload;
       void _tenantId;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       ({ error } = await adminClient
         .from("student_history")
         .insert(fallbackPayload as any));

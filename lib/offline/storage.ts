@@ -14,7 +14,8 @@ export type OfflineActionType =
   | "START_PLAN"
   | "PAUSE_PLAN"
   | "RESUME_PLAN"
-  | "COMPLETE_PLAN";
+  | "COMPLETE_PLAN"
+  | "SEND_CHAT_MESSAGE";
 
 export type OfflineAction = {
   /** 고유 ID (UUID) */

@@ -384,7 +384,7 @@ export class GeminiProvider extends BaseLLMProvider {
    * @param modelId - 모델 ID (버전 감지용)
    * @returns Gemini API tools 배열
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private buildGroundingTools(
     grounding?: GroundingConfig,
     modelId?: string
@@ -457,7 +457,7 @@ export class GeminiProvider extends BaseLLMProvider {
     // 인용 정보 추출
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const citations = (groundingMeta.groundingSupports || []).flatMap((support: any) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       (support.groundingChunkIndices || []).map((index: number, _i: number) => ({
         startIndex: support.segment?.startIndex || 0,
         endIndex: support.segment?.endIndex || 0,

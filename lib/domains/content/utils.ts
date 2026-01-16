@@ -44,7 +44,7 @@ export function parseNaturalInput(input: string): Partial<FreeLearningItemInput>
   }
 
   // 시간과 페이지 정보를 제외한 나머지를 제목으로
-  let title = input
+  const title = input
     .replace(/(\d+)\s*(분|시간)/g, '')
     .replace(/(?:p)?(\d+)\s*[-~]\s*(\d+)\s*(?:쪽|페이지|p)?/gi, '')
     .replace(/(?:p)?(\d+)\s*(?:쪽|페이지|p)/gi, '')
