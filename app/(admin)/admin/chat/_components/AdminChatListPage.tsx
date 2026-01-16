@@ -11,9 +11,10 @@ import { AdminCreateChatModal } from "./AdminCreateChatModal";
 
 interface AdminChatListPageProps {
   userId: string;
+  basePath: string;
 }
 
-export function AdminChatListPage({ userId }: AdminChatListPageProps) {
+export function AdminChatListPage({ userId, basePath }: AdminChatListPageProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // 채팅방 목록 실시간 구독
@@ -25,7 +26,7 @@ export function AdminChatListPage({ userId }: AdminChatListPageProps) {
   return (
     <div className="h-full">
       <ChatList
-        basePath="/admin/chat"
+        basePath={basePath}
         onNewChat={() => setIsCreateModalOpen(true)}
       />
 

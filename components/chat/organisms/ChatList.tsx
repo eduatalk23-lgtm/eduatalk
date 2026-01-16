@@ -9,7 +9,7 @@
 import { memo, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { getChatRoomsAction } from "@/lib/domains/chat/actions";
+import { chatRoomsQueryOptions } from "@/lib/query-options/chatRooms";
 import { ChatRoomCard } from "../molecules/ChatRoomCard";
 import { MessageSquarePlus, Loader2, Search, X, SearchX } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -34,18 +34,8 @@ function ChatListComponent({
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 채팅방 목록 조회
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["chat-rooms"],
-    queryFn: async () => {
-      const result = await getChatRoomsAction();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      return result.data;
-    },
-    staleTime: 30 * 1000, // 30초
-  });
+  // 채팅방 목록 조회 (SSR 프리패칭과 동일한 쿼리 옵션 사용)
+  const { data, isLoading, error } = useQuery(chatRoomsQueryOptions());
 
   const handleRoomClick = (roomId: string) => {
     if (onRoomClick) {
