@@ -70,6 +70,7 @@ next-env.d.ts
 # repomix analysis files
 repomix-output.xml
 repomix-phase*.xml
+repomix.config.ts
 .aider*
 
 # Python
