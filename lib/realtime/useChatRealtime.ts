@@ -39,6 +39,10 @@ interface ChatMessagePayload {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** 비정규화된 발신자 이름 스냅샷 */
+  sender_name: string;
+  /** 비정규화된 발신자 프로필 URL 스냅샷 */
+  sender_profile_url: string | null;
 }
 
 // 리액션 Payload 타입
@@ -634,6 +638,9 @@ export function useChatRealtime({
                 sender: tempSender,
                 reactions: [],
                 replyTarget: null,
+                // 비정규화 필드 (Realtime 이벤트에서는 message에 포함됨, 없으면 fallback)
+                sender_name: newMessage.sender_name ?? tempSender.name,
+                sender_profile_url: newMessage.sender_profile_url ?? tempSender.profileImageUrl ?? null,
               };
 
               return {
@@ -949,6 +956,24 @@ export function useChatRealtime({
         () => {
           console.log("[ChatRealtime] Room updated (announcement)");
           invalidateAnnouncement();
+        }
+      )
+      // 채팅방 멤버 UPDATE (멤버 나가기 등)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "chat_room_members",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const member = payload.new as { left_at: string | null; user_id: string } | undefined;
+          if (member?.left_at !== null) {
+            console.log("[ChatRealtime] Member left room:", member?.user_id);
+            // 멤버 목록 캐시 무효화 (남은 멤버들의 UI 갱신)
+            queryClient.invalidateQueries({ queryKey: ["chat-room", roomId] });
+          }
         }
       )
       .subscribe((status) => {

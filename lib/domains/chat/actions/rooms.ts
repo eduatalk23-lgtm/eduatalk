@@ -89,7 +89,7 @@ export async function getChatRoomsAction(
  */
 export async function getChatRoomDetailAction(
   roomId: string
-): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[] }>> {
+): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean }>> {
   try {
     const { userId, role } = await getCurrentUserRole();
 

@@ -159,10 +159,17 @@ function MessageBubbleComponent({
   // 시스템 메시지 (입장/퇴장 등)
   if (isSystem) {
     return (
-      <div className="flex justify-center py-2">
-        <span className="text-xs text-text-tertiary bg-secondary-100 dark:bg-secondary-800 px-3 py-1 rounded-full">
-          {content}
-        </span>
+      <div className="flex items-center justify-center py-3">
+        <div className="flex items-center gap-3 w-full max-w-sm">
+          {/* 왼쪽 선 */}
+          <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+          {/* 시스템 메시지 텍스트 */}
+          <span className="text-xs text-text-tertiary px-2 whitespace-nowrap">
+            {content}
+          </span>
+          {/* 오른쪽 선 */}
+          <div className="flex-1 h-px bg-secondary-200 dark:bg-secondary-700" />
+        </div>
       </div>
     );
   }

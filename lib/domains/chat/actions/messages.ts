@@ -235,10 +235,20 @@ export async function getMessagesWithReadStatusAction(
       before: options.before,
     });
   } catch (error) {
-    console.error("[getMessagesWithReadStatusAction] Error:", error);
+    // Supabase 에러는 일반 객체이므로 별도 처리
+    const errorMessage = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? "메시지 조회 실패";
+
+    console.error("[getMessagesWithReadStatusAction] Error:", {
+      message: errorMessage,
+      code: (error as { code?: string })?.code,
+      raw: JSON.stringify(error),
+    });
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : "메시지 조회 실패",
+      error: errorMessage,
     };
   }
 }

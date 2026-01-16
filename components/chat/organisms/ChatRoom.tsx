@@ -179,12 +179,15 @@ interface ChatRoomProps {
   onBack?: () => void;
   /** 메뉴 버튼 클릭 핸들러 */
   onMenuClick?: () => void;
+  /** 채팅 목록 경로 (기본값: /chat) - 나가기 시 이동 */
+  basePath?: string;
 }
 
 function ChatRoomComponent({
   roomId,
   userId,
   onBack,
+  basePath = "/chat",
 }: ChatRoomProps) {
   // ============================================
   // UI 상태 (useReducer로 통합)
@@ -256,7 +259,7 @@ function ChatRoomComponent({
     }, [scrollToBottom]),
   });
 
-  const { room, messages, pinnedMessages, announcement, readCounts, onlineUsers, typingUsers } = data;
+  const { room, messages, pinnedMessages, announcement, readCounts, onlineUsers, typingUsers, otherMemberLeft } = data;
   const { canPin, canSetAnnouncement } = permissions;
 
   // ============================================
@@ -271,7 +274,7 @@ function ChatRoomComponent({
     reconnect,
   } = useChatConnectionStatus(roomId);
   const { sendMessage, toggleReaction, togglePin, setAnnouncement, setTyping, retryMessage, removeFailedMessage } = actions;
-  const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } = status;
+  const { isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } = status;
   const { replyTarget, setReplyTarget } = replyTargetState;
   const { canEditMessage, isMessageEdited } = utils;
 
@@ -730,10 +733,21 @@ function ChatRoomComponent({
           <MessageSkeleton count={5} />
         </div>
       ) : error ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 p-4">
+          <MessageSquareOff className="w-10 h-10 text-text-tertiary" />
           <p className="text-text-secondary text-sm">
             메시지를 불러오지 못했습니다
           </p>
+          <p className="text-text-tertiary text-xs max-w-xs">
+            {error instanceof Error ? error.message : "네트워크 연결을 확인해주세요"}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
+          >
+            다시 시도
+          </button>
         </div>
       ) : messages.length === 0 ? (
         <div
@@ -821,6 +835,15 @@ function ChatRoomComponent({
       {/* 타이핑 인디케이터 */}
       <TypingIndicator users={typingUsers} />
 
+      {/* 1:1 채팅 상대방 퇴장 안내 */}
+      {otherMemberLeft && (
+        <div className="flex justify-center px-4 py-2 bg-secondary-50 dark:bg-secondary-900/50 border-t border-secondary-200 dark:border-secondary-700">
+          <span className="text-xs text-text-tertiary">
+            상대방이 대화방을 나갔습니다. 메시지를 보내면 다시 초대됩니다.
+          </span>
+        </div>
+      )}
+
       {/* 입력창 */}
       <ChatInput
         onSend={(content) => sendMessage(content, replyTarget?.id)}
@@ -863,6 +886,7 @@ function ChatRoomComponent({
         room={room}
         members={data.members}
         isLoading={!room}
+        basePath={basePath}
       />
 
         {/* 메시지 삭제 확인 */}

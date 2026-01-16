@@ -135,8 +135,10 @@ const CHAT_MESSAGE_COLUMNS = `
   is_deleted,
   deleted_at,
   created_at,
-  updated_at
-` as const;
+  updated_at,
+  sender_name,
+  sender_profile_url
+` as const;;;
 
 const CHAT_REACTION_COLUMNS = `
   id,
@@ -263,6 +265,70 @@ export async function findDirectRoom(
 }
 
 /**
+ * 두 사용자 간의 1:1 채팅방 찾기 (나간 멤버 포함)
+ * Auto-rejoin 기능을 위해 left_at과 관계없이 방을 찾음
+ */
+export async function findDirectRoomIncludingLeft(
+  user1Id: string,
+  user1Type: ChatUserType,
+  user2Id: string,
+  user2Type: ChatUserType
+): Promise<{ room: ChatRoom; user1Left: boolean; user2Left: boolean } | null> {
+  const supabase = getAdminClientForChat();
+
+  // user1이 속한 모든 방 조회 (left_at 무시)
+  const { data: user1Rooms, error: error1 } = await supabase
+    .from("chat_room_members")
+    .select("room_id, left_at")
+    .eq("user_id", user1Id)
+    .eq("user_type", user1Type);
+
+  if (error1) throw error1;
+  if (!user1Rooms || user1Rooms.length === 0) return null;
+
+  const roomIds = user1Rooms.map((r: { room_id: string }) => r.room_id);
+
+  // direct 타입 방 찾기
+  const { data: directRooms, error: error2 } = await supabase
+    .from("chat_rooms")
+    .select(CHAT_ROOM_COLUMNS)
+    .in("id", roomIds)
+    .eq("type", "direct")
+    .eq("is_active", true);
+
+  if (error2) throw error2;
+  if (!directRooms || directRooms.length === 0) return null;
+
+  // user2도 속한 방 찾기
+  for (const room of directRooms as ChatRoom[]) {
+    const { data: user2Member, error: error3 } = await supabase
+      .from("chat_room_members")
+      .select("id, left_at")
+      .eq("room_id", room.id)
+      .eq("user_id", user2Id)
+      .eq("user_type", user2Type)
+      .maybeSingle();
+
+    if (error3 && error3.code !== "PGRST116") throw error3;
+
+    if (user2Member) {
+      // user1의 left_at 상태 확인
+      const user1RoomData = user1Rooms.find(
+        (r: { room_id: string }) => r.room_id === room.id
+      );
+
+      return {
+        room,
+        user1Left: user1RoomData?.left_at !== null,
+        user2Left: user2Member.left_at !== null,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * 채팅방 생성
  */
 export async function insertRoom(
@@ -381,6 +447,58 @@ export async function findMember(
   if (error && error.code !== "PGRST116") throw error;
 
   return data as ChatRoomMember | null;
+}
+
+/**
+ * 특정 멤버 조회 (나간 멤버 포함)
+ * Auto-rejoin 기능을 위해 left_at과 관계없이 멤버를 조회
+ */
+export async function findMemberIncludingLeft(
+  roomId: string,
+  userId: string,
+  userType: ChatUserType
+): Promise<ChatRoomMember | null> {
+  const supabase = getAdminClientForChat();
+
+  const { data, error } = await supabase
+    .from("chat_room_members")
+    .select(CHAT_MEMBER_COLUMNS)
+    .eq("room_id", roomId)
+    .eq("user_id", userId)
+    .eq("user_type", userType)
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") throw error;
+
+  return data as ChatRoomMember | null;
+}
+
+/**
+ * 1:1 채팅방에서 상대방 멤버 조회 (나간 멤버 포함)
+ * Admin Client 사용으로 RLS 우회
+ */
+export async function findOtherMemberInDirectRoom(
+  roomId: string,
+  currentUserId: string,
+  currentUserType: ChatUserType
+): Promise<ChatRoomMember | null> {
+  const supabase = getAdminClientForChat();
+
+  // 해당 방의 모든 멤버 조회 (left_at 필터 없음)
+  const { data, error } = await supabase
+    .from("chat_room_members")
+    .select(CHAT_MEMBER_COLUMNS)
+    .eq("room_id", roomId);
+
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+
+  // 현재 사용자가 아닌 다른 멤버 찾기
+  const otherMember = (data as ChatRoomMember[]).find(
+    (m) => !(m.user_id === currentUserId && m.user_type === currentUserType)
+  );
+
+  return otherMember ?? null;
 }
 
 /**
@@ -1151,22 +1269,23 @@ export async function findReactionsByMessageIds(
 /**
  * 답장 원본 메시지 배치 조회 (N+1 최적화)
  * 여러 메시지의 원본 메시지를 한 번에 조회
+ * sender_name 스냅샷 포함으로 추가 쿼리 불필요
  */
 export async function findReplyTargetsByIds(
   replyToIds: string[]
-): Promise<Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>> {
+): Promise<Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>> {
   if (replyToIds.length === 0) return new Map();
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("chat_messages")
-    .select("id, content, sender_id, sender_type, is_deleted")
+    .select("id, content, sender_id, sender_type, is_deleted, sender_name")
     .in("id", replyToIds);
 
   if (error) throw error;
 
-  const result = new Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>();
-  for (const msg of (data ?? []) as Array<{ id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean }>) {
+  const result = new Map<string, { id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>();
+  for (const msg of (data ?? []) as Array<{ id: string; content: string; sender_id: string; sender_type: ChatUserType; is_deleted: boolean; sender_name: string }>) {
     result.set(msg.id, msg);
   }
   return result;
@@ -1461,4 +1580,43 @@ export async function findMessagesSince(
   if (error) throw error;
 
   return (data as ChatMessage[]) ?? [];
+}
+
+// ============================================
+// 발신자 정보 조회 (메시지 삽입용)
+// ============================================
+
+/**
+ * 메시지 삽입용 발신자 정보 조회
+ * 비정규화 스냅샷 저장을 위해 발신자 이름과 프로필 URL을 조회
+ */
+export async function getSenderInfoForInsert(
+  senderId: string,
+  senderType: ChatUserType
+): Promise<{ name: string; profileImageUrl: string | null }> {
+  const supabase = await createSupabaseServerClient();
+
+  if (senderType === "student") {
+    const { data } = await supabase
+      .from("students")
+      .select("name, student_profiles(profile_image_url)")
+      .eq("id", senderId)
+      .maybeSingle();
+
+    return {
+      name: data?.name ?? "알 수 없음",
+      profileImageUrl: extractProfileImageUrl(data?.student_profiles),
+    };
+  } else {
+    const { data } = await supabase
+      .from("admin_users")
+      .select("name")
+      .eq("id", senderId)
+      .maybeSingle();
+
+    return {
+      name: data?.name ?? "관리자",
+      profileImageUrl: null,
+    };
+  }
 }

@@ -4,15 +4,18 @@
  * ChatRoomCard - 채팅방 목록 카드
  *
  * 채팅방 목록에서 각 방을 표시합니다.
+ * hover 시 메시지 프리패칭으로 진입 속도 향상
  */
 
-import { memo } from "react";
+import { memo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Avatar } from "@/components/atoms/Avatar";
 import { UnreadBadge } from "../atoms/UnreadBadge";
 import { Users } from "lucide-react";
+import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import type { ChatRoomListItem } from "@/lib/domains/chat/types";
 
 interface ChatRoomCardProps {
@@ -29,6 +32,20 @@ function ChatRoomCardComponent({
   onClick,
   isSelected = false,
 }: ChatRoomCardProps) {
+  const queryClient = useQueryClient();
+
+  // Hover 시 메시지 프리패칭 (캐시에 없을 때만)
+  const handleMouseEnter = useCallback(() => {
+    const queryKey = ["chat-messages", room.id];
+    const existingData = queryClient.getQueryData(queryKey);
+
+    // 이미 캐시에 데이터가 있으면 스킵
+    if (existingData) return;
+
+    // 백그라운드에서 프리패칭 (에러 무시)
+    void queryClient.prefetchInfiniteQuery(chatMessagesQueryOptions(room.id));
+  }, [queryClient, room.id]);
+
   // 표시할 이름 결정
   const displayName =
     room.type === "direct"
@@ -47,6 +64,7 @@ function ChatRoomCardComponent({
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={handleMouseEnter}
       className={cn(
         "w-full flex items-center gap-3 p-3 rounded-xl",
         "transition-colors text-left",

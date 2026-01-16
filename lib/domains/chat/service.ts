@@ -91,6 +91,34 @@ async function getUserInfo(
   }
 }
 
+/**
+ * 나간 멤버를 다시 채팅방에 참여시킴 (Auto-rejoin 헬퍼)
+ * 1. left_at을 null로 업데이트
+ * 2. 시스템 메시지 추가
+ */
+async function rejoinMember(
+  roomId: string,
+  userId: string,
+  userType: ChatUserType
+): Promise<void> {
+  // 1. left_at을 null로 업데이트하여 재참여 처리
+  await repository.updateMember(roomId, userId, userType, {
+    left_at: null,
+  });
+
+  // 2. 시스템 메시지 추가
+  const userInfo = await getUserInfo(userId, userType);
+  await repository.insertMessage({
+    room_id: roomId,
+    sender_id: userId,
+    sender_type: userType,
+    message_type: "system",
+    content: `${userInfo?.name ?? "사용자"}님이 다시 채팅방에 참여했습니다`,
+    sender_name: userInfo?.name ?? "사용자",
+    sender_profile_url: userInfo?.profileImageUrl ?? null,
+  });
+}
+
 // ============================================
 // 채팅방 서비스
 // ============================================
@@ -107,17 +135,24 @@ export async function createOrGetRoom(
   try {
     const { type, name, memberIds, memberTypes } = request;
 
-    // 1:1 채팅인 경우 기존 방 확인
+    // 1:1 채팅인 경우 기존 방 확인 (나간 방 포함 - Auto-rejoin)
     if (type === "direct" && memberIds.length === 1) {
-      const existingRoom = await repository.findDirectRoom(
+      const existingRoomResult = await repository.findDirectRoomIncludingLeft(
         creatorId,
         creatorType,
         memberIds[0],
         memberTypes[0]
       );
 
-      if (existingRoom) {
-        return { success: true, data: existingRoom };
+      if (existingRoomResult) {
+        const { room, user1Left } = existingRoomResult;
+
+        // 요청자(creator)가 나간 상태면 자동 재참여
+        if (user1Left) {
+          await rejoinMember(room.id, creatorId, creatorType);
+        }
+
+        return { success: true, data: room };
       }
     }
 
@@ -282,7 +317,7 @@ export async function getRoomDetail(
   roomId: string,
   userId: string,
   userType: ChatUserType
-): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[] }>> {
+): Promise<ChatActionResult<{ room: ChatRoom; members: ChatRoomMemberWithUser[]; otherMemberLeft: boolean }>> {
   try {
     // 방 정보 조회
     const room = await repository.findRoomById(roomId);
@@ -310,7 +345,18 @@ export async function getRoomDetail(
       }))
     );
 
-    return { success: true, data: { room, members: membersWithUser } };
+    // 1:1 채팅에서 상대방 퇴장 상태 확인
+    let otherMemberLeft = false;
+    if (room.type === "direct") {
+      const otherMember = await repository.findOtherMemberInDirectRoom(
+        roomId,
+        userId,
+        userType
+      );
+      otherMemberLeft = otherMember?.left_at !== null && otherMember?.left_at !== undefined;
+    }
+
+    return { success: true, data: { room, members: membersWithUser, otherMemberLeft } };
   } catch (error) {
     console.error("[ChatService] getRoomDetail error:", error);
     return {
@@ -348,7 +394,24 @@ export async function sendMessage(
       return { success: false, error: "메시지 내용을 입력해주세요" };
     }
 
-    // 멤버십은 RLS INSERT 정책이 DB 레벨에서 검증 (별도 조회 불필요)
+    // 방 정보 조회 (Auto-rejoin 로직을 위해)
+    const room = await repository.findRoomById(roomId);
+    if (!room) {
+      return { success: false, error: "채팅방을 찾을 수 없습니다" };
+    }
+
+    // 1:1 채팅방인 경우 상대방 자동 재참여 처리
+    if (room.type === "direct") {
+      const otherMember = await repository.findOtherMemberInDirectRoom(
+        roomId,
+        senderId,
+        senderType
+      );
+
+      if (otherMember && otherMember.left_at !== null) {
+        await rejoinMember(roomId, otherMember.user_id, otherMember.user_type);
+      }
+    }
 
     // 답장 대상 메시지 검증 (있는 경우)
     if (replyToId) {
@@ -361,7 +424,10 @@ export async function sendMessage(
       }
     }
 
-    // 메시지 생성
+    // 발신자 정보 조회 (비정규화 스냅샷용)
+    const senderInfo = await repository.getSenderInfoForInsert(senderId, senderType);
+
+    // 메시지 생성 (발신자 스냅샷 포함)
     const message = await repository.insertMessage({
       room_id: roomId,
       sender_id: senderId,
@@ -369,6 +435,8 @@ export async function sendMessage(
       message_type: messageType,
       content: content.trim(),
       reply_to_id: replyToId ?? null,
+      sender_name: senderInfo.name,
+      sender_profile_url: senderInfo.profileImageUrl,
     });
 
     return { success: true, data: message };
@@ -387,7 +455,7 @@ export async function sendMessage(
 
 /**
  * 메시지 목록 조회 (발신자 정보 포함)
- * 배치 쿼리로 N+1 문제 해결 (51쿼리 → 4쿼리)
+ * 비정규화된 스냅샷 사용으로 N+1 문제 완전 해결 (4쿼리 → 3쿼리)
  */
 export async function getMessages(
   userId: string,
@@ -416,34 +484,16 @@ export async function getMessages(
       (m) => !blockedIds.has(`${m.sender_id}_${m.sender_type}`)
     );
 
-    // 발신자 정보 배치 조회 (1-2 쿼리로 모든 발신자 정보 가져옴)
-    const senderKeys = filteredMessages.map((m) => ({
-      id: m.sender_id,
-      type: m.sender_type,
+    // 비정규화된 스냅샷 데이터를 sender 필드에 직접 매핑 (별도 조회 불필요)
+    const messagesWithSender: ChatMessageWithSender[] = filteredMessages.map((message) => ({
+      ...message,
+      sender: {
+        id: message.sender_id,
+        type: message.sender_type,
+        name: message.sender_name,
+        profileImageUrl: message.sender_profile_url,
+      },
     }));
-    const senderMap = await repository.findSendersByIds(senderKeys);
-
-    // 메시지에 발신자 정보 매핑
-    const messagesWithSender: ChatMessageWithSender[] = filteredMessages.map((message) => {
-      const key = `${message.sender_id}_${message.sender_type}`;
-      const senderInfo = senderMap.get(key);
-
-      return {
-        ...message,
-        sender: senderInfo
-          ? {
-              id: senderInfo.id,
-              type: message.sender_type,
-              name: senderInfo.name,
-              profileImageUrl: senderInfo.profileImageUrl,
-            }
-          : {
-              id: message.sender_id,
-              type: message.sender_type,
-              name: "알 수 없음",
-            },
-      };
-    });
 
     return {
       success: true,
@@ -470,10 +520,31 @@ export async function deleteMessage(
   userId: string
 ): Promise<ChatActionResult<void>> {
   try {
+    // 1. 메시지 존재 여부 확인
+    const message = await repository.findMessageById(messageId);
+    if (!message) {
+      return { success: false, error: "메시지를 찾을 수 없습니다" };
+    }
+
+    // 2. 본인 메시지인지 확인
+    if (message.sender_id !== userId) {
+      return { success: false, error: "본인의 메시지만 삭제할 수 있습니다" };
+    }
+
+    // 3. 이미 삭제된 메시지인지 확인
+    if (message.is_deleted) {
+      return { success: false, error: "이미 삭제된 메시지입니다" };
+    }
+
+    // 4. 삭제 실행
     await repository.deleteMessage(messageId, userId);
     return { success: true };
   } catch (error) {
     console.error("[ChatService] deleteMessage error:", error);
+    // RLS 에러 처리
+    if (error instanceof Error && error.message.includes("row-level security")) {
+      return { success: false, error: "메시지 삭제 권한이 없습니다" };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : "메시지 삭제 실패",
@@ -572,7 +643,7 @@ export async function inviteMembers(
       await repository.insertMembersBatch(newMembers);
     }
 
-    // 시스템 메시지 추가
+    // 시스템 메시지 추가 (발신자 스냅샷 포함)
     const inviterInfo = await getUserInfo(inviterId, inviterType);
     await repository.insertMessage({
       room_id: roomId,
@@ -580,6 +651,8 @@ export async function inviteMembers(
       sender_type: inviterType,
       message_type: "system",
       content: `${inviterInfo?.name ?? "사용자"}님이 새 멤버를 초대했습니다`,
+      sender_name: inviterInfo?.name ?? "사용자",
+      sender_profile_url: inviterInfo?.profileImageUrl ?? null,
     });
 
     return { success: true };
@@ -607,24 +680,35 @@ export async function leaveRoom(
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
 
-    // left_at 설정
+    // 핵심 작업: left_at 설정
     await repository.updateMember(roomId, userId, userType, {
       left_at: new Date().toISOString(),
     });
 
-    // 시스템 메시지
-    const userInfo = await getUserInfo(userId, userType);
-    await repository.insertMessage({
-      room_id: roomId,
-      sender_id: userId,
-      sender_type: userType,
-      message_type: "system",
-      content: `${userInfo?.name ?? "사용자"}님이 채팅방을 나갔습니다`,
-    });
+    // 부가 작업: 시스템 메시지 (실패해도 나가기는 성공으로 처리)
+    try {
+      const userInfo = await getUserInfo(userId, userType);
+      await repository.insertMessage({
+        room_id: roomId,
+        sender_id: userId,
+        sender_type: userType,
+        message_type: "system",
+        content: `${userInfo?.name ?? "사용자"}님이 채팅방을 나갔습니다`,
+        sender_name: userInfo?.name ?? "사용자",
+        sender_profile_url: userInfo?.profileImageUrl ?? null,
+      });
+    } catch (msgError) {
+      console.warn("[ChatService] System message failed on leave:", msgError);
+      // 나가기 자체는 성공으로 처리
+    }
 
     return { success: true };
   } catch (error) {
     console.error("[ChatService] leaveRoom error:", error);
+    // RLS 에러 처리
+    if (error instanceof Error && error.message.includes("row-level security")) {
+      return { success: false, error: "채팅방 접근 권한이 없습니다" };
+    }
     return {
       success: false,
       error: error instanceof Error ? error.message : "채팅방 나가기 실패",
@@ -803,7 +887,7 @@ export async function editMessage(
 /**
  * 메시지 검색
  * - 채팅방 멤버만 검색 가능
- * - 발신자 정보 포함
+ * - 비정규화된 스냅샷으로 발신자 정보 포함
  */
 export async function searchMessages(
   userId: string,
@@ -827,34 +911,16 @@ export async function searchMessages(
     // 검색 실행
     const { messages, total } = await repository.searchMessagesByRoom(options);
 
-    // 발신자 정보 배치 조회
-    const senderKeys = messages.map((m) => ({
-      id: m.sender_id,
-      type: m.sender_type,
+    // 비정규화된 스냅샷 데이터를 sender 필드에 직접 매핑 (별도 조회 불필요)
+    const messagesWithSender: ChatMessageWithSender[] = messages.map((message) => ({
+      ...message,
+      sender: {
+        id: message.sender_id,
+        type: message.sender_type,
+        name: message.sender_name,
+        profileImageUrl: message.sender_profile_url,
+      },
     }));
-    const senderMap = await repository.findSendersByIds(senderKeys);
-
-    // 메시지에 발신자 정보 매핑
-    const messagesWithSender: ChatMessageWithSender[] = messages.map((message) => {
-      const key = `${message.sender_id}_${message.sender_type}`;
-      const senderInfo = senderMap.get(key);
-
-      return {
-        ...message,
-        sender: senderInfo
-          ? {
-              id: senderInfo.id,
-              type: message.sender_type,
-              name: senderInfo.name,
-              profileImageUrl: senderInfo.profileImageUrl,
-            }
-          : {
-              id: message.sender_id,
-              type: message.sender_type,
-              name: "알 수 없음",
-            },
-      };
-    });
 
     return {
       success: true,
@@ -916,6 +982,7 @@ function convertReactionsToSummaries(
  * - 차단한 사용자 메시지 필터링
  * - 각 메시지의 리액션 요약 포함
  * - 답장 메시지의 원본 정보 포함
+ * - 비정규화된 스냅샷 사용으로 발신자 조회 최적화
  */
 export async function getMessagesWithReadStatus(
   userId: string,
@@ -925,8 +992,32 @@ export async function getMessagesWithReadStatus(
   try {
     const { roomId, limit = 50 } = options;
 
+    // 개발 환경에서 디버깅 로그
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ChatService] getMessagesWithReadStatus called:", {
+        userId,
+        userType,
+        roomId,
+        limit,
+        before: options.before,
+      });
+    }
+
     // 멤버십 확인
     const membership = await repository.findMember(roomId, userId, userType);
+
+    // 개발 환경에서 멤버십 결과 로그
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ChatService] Membership check result:", {
+        roomId,
+        userId,
+        userType,
+        found: !!membership,
+        membershipId: membership?.id,
+        leftAt: membership?.left_at,
+      });
+    }
+
     if (!membership) {
       return { success: false, error: "채팅방에 참여하지 않았습니다" };
     }
@@ -956,38 +1047,25 @@ export async function getMessagesWithReadStatus(
       .map((m) => m.reply_to_id)
       .filter((id): id is string => id !== null);
 
-    // 병렬로 발신자 + 리액션 + 답장 원본 조회
-    const [senderMap, reactionsMap, replyTargetsMap] = await Promise.all([
-      repository.findSendersByIds(
-        filteredMessages.map((m) => ({ id: m.sender_id, type: m.sender_type }))
-      ),
+    // 병렬로 리액션 + 답장 원본 조회 (발신자 조회는 비정규화로 불필요)
+    const [reactionsMap, replyTargetsMap] = await Promise.all([
       repository.findReactionsByMessageIds(messageIds),
       repository.findReplyTargetsByIds(replyToIds),
     ]);
 
-    // 답장 원본 발신자 정보도 배치 조회
-    const replyTargetSenderKeys = Array.from(replyTargetsMap.values()).map((t) => ({
-      id: t.sender_id,
-      type: t.sender_type,
-    }));
-    const replyTargetSenderMap = await repository.findSendersByIds(replyTargetSenderKeys);
-
-    // 메시지에 발신자 정보 + 리액션 + 답장 원본 매핑
+    // 메시지에 발신자 정보(스냅샷) + 리액션 + 답장 원본 매핑
     const messagesWithAll = filteredMessages.map((message) => {
-      const key = `${message.sender_id}_${message.sender_type}`;
-      const senderInfo = senderMap.get(key);
       const messageReactions = reactionsMap.get(message.id) ?? [];
 
-      // 답장 원본 정보 매핑
+      // 답장 원본 정보 매핑 (원본 메시지의 스냅샷 데이터 사용)
       let replyTarget: { id: string; content: string; senderName: string; isDeleted: boolean } | null = null;
       if (message.reply_to_id) {
         const target = replyTargetsMap.get(message.reply_to_id);
         if (target) {
-          const targetSenderInfo = replyTargetSenderMap.get(`${target.sender_id}_${target.sender_type}`);
           replyTarget = {
             id: target.id,
             content: target.is_deleted ? "삭제된 메시지입니다" : target.content,
-            senderName: targetSenderInfo?.name ?? "알 수 없음",
+            senderName: target.sender_name ?? "알 수 없음",
             isDeleted: target.is_deleted,
           };
         }
@@ -995,18 +1073,13 @@ export async function getMessagesWithReadStatus(
 
       return {
         ...message,
-        sender: senderInfo
-          ? {
-              id: senderInfo.id,
-              type: message.sender_type,
-              name: senderInfo.name,
-              profileImageUrl: senderInfo.profileImageUrl,
-            }
-          : {
-              id: message.sender_id,
-              type: message.sender_type,
-              name: "알 수 없음",
-            },
+        // 비정규화된 스냅샷 데이터 직접 사용
+        sender: {
+          id: message.sender_id,
+          type: message.sender_type,
+          name: message.sender_name,
+          profileImageUrl: message.sender_profile_url,
+        },
         reactions: convertReactionsToSummaries(messageReactions, userId, userType),
         replyTarget,
       };
@@ -1021,10 +1094,23 @@ export async function getMessagesWithReadStatus(
       },
     };
   } catch (error) {
-    console.error("[ChatService] getMessagesWithReadStatus error:", error);
+    // Supabase 에러는 { code, message, details, hint } 형태의 객체
+    // Error 인스턴스가 아니므로 별도 처리 필요
+    const errorMessage = error instanceof Error
+      ? error.message
+      : (error as { message?: string })?.message ?? "메시지 조회 실패";
+
+    console.error("[ChatService] getMessagesWithReadStatus error:", {
+      message: errorMessage,
+      code: (error as { code?: string })?.code,
+      details: (error as { details?: string })?.details,
+      hint: (error as { hint?: string })?.hint,
+      raw: JSON.stringify(error),
+    });
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : "메시지 조회 실패",
+      error: errorMessage,
     };
   }
 }

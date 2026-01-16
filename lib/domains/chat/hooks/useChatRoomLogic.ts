@@ -14,8 +14,9 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/ToastProvider";
+import { chatMessagesQueryOptions } from "@/lib/query-options/chatMessages";
 import {
-  getMessagesWithReadStatusAction,
   sendMessageAction,
   markAsReadAction,
   getChatRoomDetailAction,
@@ -74,6 +75,7 @@ export interface UseChatRoomLogicReturn {
     onlineUsers: PresenceUser[];
     typingUsers: PresenceUser[];
     members: ChatRoomMemberWithUser[];
+    otherMemberLeft: boolean;
   };
   permissions: {
     canPin: boolean;
@@ -100,6 +102,7 @@ export interface UseChatRoomLogicReturn {
     hasNextPage: boolean;
     isFetchingNextPage: boolean;
     fetchNextPage: () => Promise<unknown>;
+    refetch: () => Promise<unknown>;
   };
   pinnedMessageIds: Set<string>;
   replyTargetState: {
@@ -123,6 +126,7 @@ export function useChatRoomLogic({
   onNewMessageArrived,
 }: UseChatRoomLogicOptions): UseChatRoomLogicReturn {
   const queryClient = useQueryClient();
+  const { showError } = useToast();
   const [replyTarget, setReplyTarget] = useState<ReplyTargetInfo | null>(null);
 
   // isAtBottom을 ref로 추적하여 콜백에서 항상 최신 값 사용
@@ -196,6 +200,7 @@ export function useChatRoomLogic({
   );
 
   // 메시지 목록 조회 (읽음 상태 포함, 무한 스크롤)
+  // SSR 프리패칭과 동일한 쿼리 옵션 사용
   const {
     data: messagesData,
     isLoading,
@@ -203,23 +208,8 @@ export function useChatRoomLogic({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["chat-messages", roomId],
-    queryFn: async ({ pageParam }) => {
-      const result = await getMessagesWithReadStatusAction(roomId, {
-        limit: 50,
-        before: pageParam,
-      });
-      if (!result.success) throw new Error(result.error);
-      return result.data;
-    },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => {
-      if (!lastPage?.hasMore || !lastPage?.messages?.length) return undefined;
-      return lastPage.messages[0].id; // 가장 오래된 메시지 ID
-    },
-    staleTime: 30 * 1000, // 30초 (Realtime이 업데이트 담당)
-  });
+    refetch,
+  } = useInfiniteQuery(chatMessagesQueryOptions(roomId));
 
   // ============================================
   // Data Transformations
@@ -350,6 +340,9 @@ export function useChatRoomLogic({
         sender: { name: "나", type: "student" as const, id: userId },
         reactions: [],
         status: "sending" as const,
+        // 비정규화 필드 (낙관적 업데이트용)
+        sender_name: "나",
+        sender_profile_url: null,
       };
 
       queryClient.setQueryData<InfiniteMessagesCache>(
@@ -509,6 +502,8 @@ export function useChatRoomLogic({
           context.previousMessages
         );
       }
+      // 사용자에게 에러 알림
+      showError("메시지 삭제에 실패했습니다. 다시 시도해주세요.");
     },
     // onSuccess 제거: Realtime이 동기화 담당
   });
@@ -658,6 +653,10 @@ export function useChatRoomLogic({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-pinned", roomId] });
     },
+    onError: (error) => {
+      showError("메시지 고정에 실패했습니다.");
+      console.error("[ChatRoom] Pin error:", error);
+    },
   });
 
   // 공지 설정/삭제
@@ -669,6 +668,10 @@ export function useChatRoomLogic({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-announcement", roomId] });
+    },
+    onError: (error) => {
+      showError("공지 설정에 실패했습니다.");
+      console.error("[ChatRoom] Announcement error:", error);
     },
   });
 
@@ -865,6 +868,7 @@ export function useChatRoomLogic({
       onlineUsers,
       typingUsers,
       members: roomData?.members ?? [],
+      otherMemberLeft: roomData?.otherMemberLeft ?? false,
     },
     permissions: {
       canPin,
@@ -891,6 +895,7 @@ export function useChatRoomLogic({
       hasNextPage: hasNextPage ?? false,
       isFetchingNextPage,
       fetchNextPage,
+      refetch,
     },
     pinnedMessageIds,
     replyTargetState: {

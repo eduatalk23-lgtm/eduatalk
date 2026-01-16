@@ -8,13 +8,14 @@
 
 import { memo, useCallback, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { SlideOverPanel } from "@/components/layouts/SlideOver";
 import { Avatar } from "@/components/atoms/Avatar";
 import { Skeleton } from "@/components/atoms/Skeleton";
 import { leaveChatRoomAction } from "@/lib/domains/chat/actions";
 import type { ChatRoom, ChatRoomMemberWithUser, ChatMemberRole } from "@/lib/domains/chat/types";
 import { cn } from "@/lib/cn";
-import { UserPlus, LogOut, Crown, Shield } from "lucide-react";
+import { UserPlus, LogOut, Crown, Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 import { InviteMemberModal } from "./InviteMemberModal";
 
@@ -33,6 +34,8 @@ interface ChatRoomInfoProps {
   members?: ChatRoomMemberWithUser[];
   /** 로딩 상태 */
   isLoading?: boolean;
+  /** 채팅 목록 경로 (기본값: /chat) */
+  basePath?: string;
 }
 
 /** 역할별 배지 텍스트 */
@@ -50,12 +53,16 @@ function ChatRoomInfoComponent({
   room,
   members,
   isLoading = false,
+  basePath = "/chat",
 }: ChatRoomInfoProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { showSuccess, showError } = useToast();
 
   // 초대 모달 상태
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  // 나가기 로딩 상태 (중복 클릭 방지)
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // 활성 멤버만 필터링 (left_at === null)
   const activeMembers = members?.filter((m) => m.left_at === null) ?? [];
@@ -72,15 +79,30 @@ function ChatRoomInfoComponent({
     const confirmed = window.confirm("채팅방을 나가시겠습니까?");
     if (!confirmed) return;
 
-    const result = await leaveChatRoomAction(roomId);
-    if (result.success) {
-      onClose();
-      showSuccess("채팅방을 나갔습니다.");
-      router.push("/chat");
-    } else {
-      showError(result.error ?? "채팅방 나가기 실패");
+    setIsLeaving(true);
+    try {
+      const result = await leaveChatRoomAction(roomId);
+      if (result.success) {
+        // 캐시 정리 (백그라운드에서 진행)
+        queryClient.invalidateQueries({ queryKey: ["chat-rooms"] });
+        queryClient.removeQueries({ queryKey: ["chat-messages", roomId] });
+        queryClient.removeQueries({ queryKey: ["chat-room", roomId] });
+
+        // 성공 메시지 표시
+        showSuccess("채팅방을 나갔습니다.");
+
+        // 채팅 목록으로 이동 (replace로 뒤로가기 방지)
+        // onClose() 호출 제거 - 페이지가 이동하므로 불필요
+        router.replace(basePath);
+      } else {
+        showError(result.error ?? "채팅방 나가기 실패");
+        setIsLeaving(false);
+      }
+    } catch {
+      showError("채팅방 나가기 중 오류가 발생했습니다.");
+      setIsLeaving(false);
     }
-  }, [roomId, onClose, router, showSuccess, showError]);
+  }, [roomId, basePath, router, showSuccess, showError, queryClient]);
 
   // 초대 버튼 핸들러
   const handleInvite = useCallback(() => {
@@ -92,16 +114,22 @@ function ChatRoomInfoComponent({
     <button
       type="button"
       onClick={handleLeaveRoom}
+      disabled={isLeaving}
       className={cn(
         "flex items-center justify-center gap-2 w-full",
         "py-3 rounded-lg",
         "text-red-600 dark:text-red-400",
         "hover:bg-red-50 dark:hover:bg-red-950/30",
-        "transition-colors"
+        "transition-colors",
+        isLeaving && "opacity-50 cursor-not-allowed"
       )}
     >
-      <LogOut className="w-5 h-5" />
-      <span className="font-medium">채팅방 나가기</span>
+      {isLeaving ? (
+        <Loader2 className="w-5 h-5 animate-spin" />
+      ) : (
+        <LogOut className="w-5 h-5" />
+      )}
+      <span className="font-medium">{isLeaving ? "나가는 중..." : "채팅방 나가기"}</span>
     </button>
   );
 

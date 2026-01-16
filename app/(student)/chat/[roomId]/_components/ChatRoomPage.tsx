@@ -26,6 +26,7 @@ export function ChatRoomPage({ roomId, userId, basePath }: ChatRoomPageProps) {
         roomId={roomId}
         userId={userId}
         onBack={handleBack}
+        basePath={basePath}
       />
     </div>
   );

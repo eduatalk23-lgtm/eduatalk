@@ -176,6 +176,10 @@ export interface ChatMessage {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
+  /** 비정규화된 발신자 이름 스냅샷 */
+  sender_name: string;
+  /** 비정규화된 발신자 프로필 URL 스냅샷 */
+  sender_profile_url: string | null;
 }
 
 /** 메시지 생성 입력 타입 */
@@ -186,6 +190,10 @@ export interface ChatMessageInsert {
   message_type?: ChatMessageType;
   content: string;
   reply_to_id?: string | null;
+  /** 삽입 시 필수: 발신자 이름 스냅샷 */
+  sender_name: string;
+  /** 삽입 시 선택: 발신자 프로필 URL 스냅샷 */
+  sender_profile_url?: string | null;
 }
 
 /** 메시지 수정 입력 타입 */
