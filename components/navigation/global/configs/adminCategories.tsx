@@ -136,6 +136,19 @@ export const adminCategories: NavigationCategory[] = [
     ],
   },
   {
+    id: "admin-chat",
+    label: "채팅",
+    icon: <MessageSquare className="w-4 h-4" />,
+    items: [
+      {
+        id: "admin-chat-list",
+        label: "채팅",
+        href: "/admin/chat",
+        icon: <MessageSquare className="w-4 h-4" />,
+      },
+    ],
+  },
+  {
     id: "admin-communication",
     label: "SMS 관리",
     icon: <Smartphone className="w-4 h-4" />,
