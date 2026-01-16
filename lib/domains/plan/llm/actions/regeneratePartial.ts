@@ -5,10 +5,8 @@
  */
 
 "use server";
-
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth/getCurrentUser";
-import { getModelConfig, createMessage, estimateCost } from "../client";
+import { createMessage, estimateCost } from "../client";
 import {
   PARTIAL_REGENERATION_SYSTEM_PROMPT,
   buildPartialRegenerationPrompt,
@@ -16,7 +14,6 @@ import {
 } from "../prompts/partialRegeneration";
 import type {
   GeneratedPlanItem,
-  LLMPlanGenerationResponse,
   ModelTier,
 } from "../types";
 

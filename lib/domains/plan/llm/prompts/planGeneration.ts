@@ -308,6 +308,71 @@ export const SYSTEM_PROMPT = `당신은 한국의 대학 입시를 준비하는 
 - **contentType**: "book" | "lecture" | "custom" (콘텐츠 유형 - 콘텐츠 목록에서 확인)
 - **blockIndex**: 0, 1, 2... (해당 시간에 맞는 블록 인덱스 - 블록 정보 참조)
 - **subjectType**: "strategy" | "weakness" | null (과목 할당 정보 참조)
+\`\`\`
+`;
+
+export const SCHEDULE_SYSTEM_PROMPT = `당신은 학생의 학습 스케줄을 빈틈없이 채워넣는 '정밀 배정 알고리즘'입니다.
+주어진 "사용 가능한 시간 슬롯(availableSlots)"에 맞춰 학습 콘텐츠를 물리적으로 배치하는 것이 유일한 목표입니다.
+
+## 핵심 규칙 (Hard Constraints)
+
+1. **슬롯 외 배치 절대 금지**: 제공된 "availableSlots" 이외의 시간에는 절대로 플랜을 배치해서는 안 됩니다.
+2. **슬롯 꽉 채우기**: 각 슬롯의 시작부터 종료까지 빈 시간 없이 학습 콘텐츠로 채우세요.
+3. **콘텐츠 분할**: 콘텐츠의 예상 소요 시간이 슬롯보다 길면, 슬롯 길이에 맞춰 자르고 남은 부분은 다음 슬롯에 배치하세요.
+4. **유연성 배제**: 예비 시간이나 쉬는 시간을 임의로 만들지 마십시오. 주어진 슬롯은 이미 쉬는 시간이 제외된 "순공 시간"입니다.
+
+## 출력 형식
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 순수 JSON만 출력합니다.
+
+\`\`\`json
+{
+  "weeklyMatrices": [
+    {
+      "weekNumber": 1,
+      "weekStart": "YYYY-MM-DD",
+      "weekEnd": "YYYY-MM-DD",
+      "days": [
+        {
+          "date": "YYYY-MM-DD",
+          "dayOfWeek": 0,
+          "totalMinutes": 120,
+          "plans": [
+            {
+              "date": "YYYY-MM-DD",
+              "dayOfWeek": 0,
+              "startTime": "09:00",
+              "endTime": "09:50",
+              "contentId": "content-1",
+              "contentTitle": "수학 교재",
+              "contentType": "book",
+              "subject": "수학",
+              "subjectCategory": "수학1",
+              "rangeStart": 10,
+              "rangeEnd": 15,
+              "rangeDisplay": "p.10-15",
+              "estimatedMinutes": 50,
+              "isReview": false,
+              "priority": "high"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "totalPlans": 1,
+  "recommendations": {
+    "studyTips": [],
+    "warnings": []
+  }
+}
+\`\`\`
+
+## 배치 알고리즘 원칙
+
+1. **우선순위**: priority가 높은 콘텐츠부터 순서대로 빈 슬롯에 채워 넣습니다.
+2. **순차 배정**: 슬롯은 날짜/시간 순으로 채웁니다. (월요일 오전 -> 월요일 오후 -> 화요일...)
+3. **자투리 활용**: 10분, 20분 단위의 작은 슬롯에도 암기나 복습 등 짧은 호흡의 콘텐츠를 적극 배치하세요.
 `;
 
 
@@ -667,6 +732,32 @@ ${phaseGuide}
 }
 
 /**
+ * 사용 가능한 시간 슬롯 포맷 (Schedule 모드)
+ */
+function formatAvailableSlots(slots: { date: string; startTime: string; endTime: string }[]): string {
+  if (slots.length === 0) return "";
+
+  // 날짜별 그룹화
+  const slotsByDate = new Map<string, string[]>();
+  for (const slot of slots) {
+    const daySlots = slotsByDate.get(slot.date) || [];
+    daySlots.push(`${slot.startTime}-${slot.endTime}`);
+    slotsByDate.set(slot.date, daySlots);
+  }
+
+  const lines: string[] = [];
+  for (const [date, timeRanges] of slotsByDate) {
+    lines.push(`- ${date}: ${timeRanges.join(", ")}`);
+  }
+
+  return `
+## 🟢 사용 가능한 시간 슬롯 (Available Slots - CRITICAL)
+**AI는 반드시 아래 슬롯에만 플랜을 배치해야 합니다.** (Hard Constraint)
+${lines.join("\n")}
+`.trim();
+}
+
+/**
  * 사용자 프롬프트 생성
  */
 export function buildUserPrompt(request: LLMPlanGenerationRequest | ExtendedLLMPlanGenerationRequest): string {
@@ -695,6 +786,7 @@ export function buildUserPrompt(request: LLMPlanGenerationRequest | ExtendedLLMP
     hasAcademySchedules ? formatAcademySchedules(extRequest.academySchedules!) : "",
     hasBlocks ? formatBlocks(extRequest.blocks!) : "",
     hasAllocations ? formatSubjectAllocations(extRequest.subjectAllocations!) : "",
+    request.availableSlots ? formatAvailableSlots(request.availableSlots) : "",
   ].filter(Boolean);
 
   let prompt = sections.join("\n\n");

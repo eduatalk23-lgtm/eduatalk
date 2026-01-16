@@ -15,6 +15,7 @@ import {
   type CostInfo,
   type ProviderStatus,
 } from "./base";
+import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // 모델 설정
@@ -150,11 +151,80 @@ export class OpenAIProvider extends BaseLLMProvider {
   }
 
   /**
+   * Rate Limit 에러 감지
+   *
+   * OpenAI API에서 발생하는 429 Too Many Requests 에러를 감지합니다.
+   *
+   * @param error - 감지할 에러 객체
+   * @returns Rate Limit 에러인 경우 true
+   */
+  private isRateLimitError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const errorMessage = error.message.toLowerCase();
+
+    // 429 에러 코드 감지
+    if (errorMessage.includes("429")) {
+      return true;
+    }
+
+    // Rate limit 관련 키워드 감지
+    if (errorMessage.includes("rate limit")) {
+      return true;
+    }
+
+    // Too many requests 감지
+    if (errorMessage.includes("too many requests")) {
+      return true;
+    }
+
+    // OpenAI 특정 에러 타입 감지
+    if (error instanceof OpenAI.RateLimitError) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Rate Limit 에러에서 재시도 지연 시간 추출
+   *
+   * @param error - 에러 객체
+   * @param attempt - 현재 시도 횟수
+   * @returns 대기 시간 (밀리초)
+   */
+  private extractRetryDelay(error: unknown, attempt: number): number {
+    const baseDelay = 1000; // 1초 기본 대기
+    const maxDelay = 60000; // 최대 60초
+
+    // 지수 백오프: 1초, 2초, 4초, ...
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+
+    // OpenAI RateLimitError에서 retry-after 헤더 추출 시도
+    if (error instanceof OpenAI.RateLimitError) {
+      const retryAfter = error.headers?.get?.("retry-after");
+      if (retryAfter) {
+        const seconds = parseInt(retryAfter, 10);
+        if (!isNaN(seconds)) {
+          return Math.min(seconds * 1000, maxDelay);
+        }
+      }
+    }
+
+    // 지터 추가 (0-500ms)로 thundering herd 방지
+    const jitter = Math.random() * 500;
+    return exponentialDelay + jitter;
+  }
+
+  /**
    * 메시지 생성 (비스트리밍)
    */
   async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult> {
     const client = this.getClient();
     const config = this.getModelConfig(options.modelTier || "standard");
+    const maxRetries = 3;
 
     // OpenAI 메시지 형식으로 변환
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -165,26 +235,49 @@ export class OpenAIProvider extends BaseLLMProvider {
       })),
     ];
 
-    const response = await client.chat.completions.create({
-      model: config.modelId,
-      max_tokens: options.maxTokens || config.maxTokens,
-      temperature: options.temperature ?? config.temperature,
-      messages,
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          logActionDebug("OpenAIProvider.createMessage", `재시도 ${attempt}/${maxRetries}`);
+        }
 
-    const choice = response.choices[0];
-    const content = choice?.message?.content || "";
+        const response = await client.chat.completions.create({
+          model: config.modelId,
+          max_tokens: options.maxTokens || config.maxTokens,
+          temperature: options.temperature ?? config.temperature,
+          messages,
+        });
 
-    return {
-      content,
-      stopReason: choice?.finish_reason || null,
-      usage: {
-        inputTokens: response.usage?.prompt_tokens || 0,
-        outputTokens: response.usage?.completion_tokens || 0,
-      },
-      modelId: config.modelId,
-      provider: "openai",
-    };
+        const choice = response.choices[0];
+        const content = choice?.message?.content || "";
+
+        return {
+          content,
+          stopReason: choice?.finish_reason || null,
+          usage: {
+            inputTokens: response.usage?.prompt_tokens || 0,
+            outputTokens: response.usage?.completion_tokens || 0,
+          },
+          modelId: config.modelId,
+          provider: "openai",
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          logActionWarn("OpenAIProvider.createMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        throw lastError;
+      }
+    }
+
+    throw lastError || new Error("[OpenAI] 알 수 없는 에러");
   }
 
   /**
@@ -193,6 +286,7 @@ export class OpenAIProvider extends BaseLLMProvider {
   async streamMessage(options: StreamMessageOptions): Promise<CreateMessageResult> {
     const client = this.getClient();
     const config = this.getModelConfig(options.modelTier || "standard");
+    const maxRetries = 3;
 
     // OpenAI 메시지 형식으로 변환
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -203,59 +297,79 @@ export class OpenAIProvider extends BaseLLMProvider {
       })),
     ];
 
-    let fullContent = "";
-    let stopReason: string | null = null;
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let fullContent = "";
+      let stopReason: string | null = null;
 
-    try {
-      const stream = await client.chat.completions.create({
-        model: config.modelId,
-        max_tokens: options.maxTokens || config.maxTokens,
-        temperature: options.temperature ?? config.temperature,
-        messages,
-        stream: true,
-        stream_options: { include_usage: true },
-      });
-
-      let inputTokens = 0;
-      let outputTokens = 0;
-
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta;
-        if (delta?.content) {
-          fullContent += delta.content;
-          options.onText?.(delta.content);
+      try {
+        if (attempt > 0) {
+          logActionDebug("OpenAIProvider.streamMessage", `재시도 ${attempt}/${maxRetries}`);
         }
 
-        // finish_reason 캡처
-        if (chunk.choices[0]?.finish_reason) {
-          stopReason = chunk.choices[0].finish_reason;
+        const stream = await client.chat.completions.create({
+          model: config.modelId,
+          max_tokens: options.maxTokens || config.maxTokens,
+          temperature: options.temperature ?? config.temperature,
+          messages,
+          stream: true,
+          stream_options: { include_usage: true },
+        });
+
+        let inputTokens = 0;
+        let outputTokens = 0;
+
+        for await (const chunk of stream) {
+          const delta = chunk.choices[0]?.delta;
+          if (delta?.content) {
+            fullContent += delta.content;
+            options.onText?.(delta.content);
+          }
+
+          // finish_reason 캡처
+          if (chunk.choices[0]?.finish_reason) {
+            stopReason = chunk.choices[0].finish_reason;
+          }
+
+          // 사용량 정보 캡처 (스트림 마지막에 전송됨)
+          if (chunk.usage) {
+            inputTokens = chunk.usage.prompt_tokens;
+            outputTokens = chunk.usage.completion_tokens;
+          }
         }
 
-        // 사용량 정보 캡처 (스트림 마지막에 전송됨)
-        if (chunk.usage) {
-          inputTokens = chunk.usage.prompt_tokens;
-          outputTokens = chunk.usage.completion_tokens;
+        const result: CreateMessageResult = {
+          content: fullContent,
+          stopReason,
+          usage: {
+            inputTokens,
+            outputTokens,
+          },
+          modelId: config.modelId,
+          provider: "openai",
+        };
+
+        options.onComplete?.(result);
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          logActionWarn("OpenAIProvider.streamMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
         }
+
+        options.onError?.(lastError);
+        throw lastError;
       }
-
-      const result: CreateMessageResult = {
-        content: fullContent,
-        stopReason,
-        usage: {
-          inputTokens,
-          outputTokens,
-        },
-        modelId: config.modelId,
-        provider: "openai",
-      };
-
-      options.onComplete?.(result);
-      return result;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      options.onError?.(err);
-      throw err;
     }
+
+    const finalError = lastError || new Error("[OpenAI] streamMessage 알 수 없는 에러");
+    options.onError?.(finalError);
+    throw finalError;
   }
 }
 

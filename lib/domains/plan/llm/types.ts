@@ -132,6 +132,23 @@ export interface LLMPlanGenerationRequest {
   settings: PlanGenerationSettings;
   timeSlots?: TimeSlotInfo[];
   additionalInstructions?: string;
+  
+  /** 
+   * 플랜 생성 모드 
+   * - strategy: 전략 모드 (기존, 유연한 제약)
+   * - schedule: 배정 모드 (엄격한 시간 제약)
+   */
+  planningMode?: "strategy" | "schedule";
+  
+  /**
+   * 사용 가능한 시간 슬롯 (Schedule 모드일 때 필수)
+   * AI는 이 슬롯들에만 학습을 배정해야 함
+   */
+  availableSlots?: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
 // ============================================
@@ -206,6 +223,24 @@ export interface Recommendations {
   warnings: string[];
   suggestedAdjustments?: string[];
   focusAreas?: string[];
+}
+
+export type ContentType = "book" | "lecture" | "video" | "custom";
+
+/**
+ * 플랜 생성 결과
+ */
+export interface GeneratePlanResult {
+  success: boolean;
+  data?: LLMPlanGenerationResponse;
+  error?: string;
+  metadata?: GenerationMetadata & { estimatedCost?: number };
+  webSearchResults?: {
+    searchQueries: string[];
+    resultsCount: number;
+    savedCount?: number;
+    results: any[]; // WebSearchResult imported locally or any
+  };
 }
 
 /**

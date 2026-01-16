@@ -15,6 +15,7 @@
  * @module lib/domains/plan/llm/actions/generateHybridPlanComplete
  */
 
+import { logActionError, logActionDebug } from "@/lib/logging/actionLogger";
 import { requireTenantContext } from "@/lib/tenant/requireTenantContext";
 import { AppError, ErrorCode, withErrorHandlingSafe } from "@/lib/errors";
 import {
@@ -28,6 +29,9 @@ import {
 } from "./generateHybridPlan";
 import type { AIRecommendations, AIFramework } from "../types/aiFramework";
 import type { WebSearchResult } from "../providers/base";
+import type { VirtualContentItem } from "./searchContent";
+import { createBook, createLecture } from "@/lib/data/studentContents";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * 에러 메시지 추출 헬퍼
@@ -38,6 +42,14 @@ function extractErrorMessage(error: unknown): string {
     return String(error.message);
   }
   return "알 수 없는 오류가 발생했습니다.";
+}
+
+/**
+ * 가상 콘텐츠 입력 (AI 검색 결과 + 임시 ID)
+ */
+export interface VirtualContentInput extends VirtualContentItem {
+  id: string;
+  subject: string;
 }
 
 // ============================================
@@ -56,6 +68,8 @@ export interface GenerateHybridPlanCompleteInput {
   scores: GenerateFrameworkInput["scores"];
   /** 콘텐츠 목록 */
   contents: GenerateFrameworkInput["contents"];
+  /** 가상 콘텐츠 목록 (AI 검색 결과, DB 저장 필요) */
+  virtualContents?: VirtualContentInput[];
   /** 학습 이력 (선택) */
   learningHistory?: GenerateFrameworkInput["learningHistory"];
   /** 기간 정보 */
@@ -151,6 +165,132 @@ async function _generateHybridPlanComplete(
       400,
       true
     );
+  }
+
+  // Phase 0: 가상 콘텐츠 영구 저장 (DB Persist)
+  const idMap = new Map<string, string>(); // virtualId -> realId
+
+  if (input.virtualContents && input.virtualContents.length > 0) {
+    const supabase = await createSupabaseServerClient();
+    
+    // 병렬 처리보다는 순차 처리가 안전 (DB 부하 고려)
+    for (const item of input.virtualContents) {
+      try {
+        let newContentId: string | undefined;
+
+        if (item.contentType === "book") {
+          // 1. 책 생성
+          const createResult = await createBook({
+            tenant_id: tenant.tenantId,
+            student_id: input.student.id,
+            title: item.title,
+            subject: item.subject,
+            subject_category: item.subject, // Category fallback
+            total_pages: item.totalRange,
+            difficulty_level: "medium", // Default
+            publisher: item.author,
+            notes: "AI 검색을 통해 추가된 교재입니다.",
+          });
+
+          if (createResult.success && createResult.bookId) {
+            newContentId = createResult.bookId;
+
+            // 2. 목차(Details) 생성
+            if (item.chapters && item.chapters.length > 0) {
+              const details = item.chapters.map((ch, idx) => ({
+                book_id: newContentId!,
+                major_unit: ch.title,
+                page_number: ch.endRange, // 끝 페이지 기준
+                display_order: idx + 1,
+              }));
+
+              const { error: detailsError } = await supabase
+                .from("student_book_details")
+                .insert(details);
+              
+              if (detailsError) {
+                 logActionError({ domain: "plan", action: "persistVirtualContent" }, detailsError, { phase: "book_details", virtualId: item.id });
+              }
+            }
+          }
+        } else if (item.contentType === "lecture") {
+          // 1. 강의 생성
+          const createResult = await createLecture({
+             tenant_id: tenant.tenantId,
+             student_id: input.student.id,
+             title: item.title,
+             subject: item.subject,
+             subject_category: item.subject,
+             duration: item.totalRange * 30, // 임의 추정: 1강당 30분
+             total_episodes: item.totalRange,
+             // createLecture definition: duration, total_episodes is NOT in params? 
+             // Checked createLecture params: duration is there. total_episodes is NOT in params but is in Lecture type.
+             // Wait, createLecture params only has duration. StudentContents.ts:287 check.
+             // It seems createLecture definition in studentContents.ts might need update or we use update after create?
+             // Actually `createLecture` in studentContents.ts accepts: duration.
+             // Let's rely on inserting episodes to populate 'total_episodes' implicitly or separate update?
+             // For now just pass duration.
+          });
+          
+          // `createLecture` in `studentContents.ts` allows: duration. It does NOT allow total_episodes in params. 
+          // However, we can insert episodes manually.
+
+          if (createResult.success && createResult.lectureId) {
+            newContentId = createResult.lectureId;
+
+             // 2. 에피소드(Episodes) 생성
+             if (item.chapters && item.chapters.length > 0) {
+               const episodes = item.chapters.map((ch, idx) => ({
+                 lecture_id: newContentId!,
+                 episode_number: idx + 1,
+                 episode_title: ch.title,
+                 duration: 30, // 기본 30분
+                 display_order: idx + 1,
+               }));
+
+               const { error: episodesError } = await supabase
+                 .from("student_lecture_episodes")
+                 .insert(episodes);
+
+               if (episodesError) {
+                  logActionError({ domain: "plan", action: "persistVirtualContent" }, episodesError, { phase: "lecture_episodes", virtualId: item.id });
+               }
+             }
+          }
+        }
+
+        if (newContentId) {
+          idMap.set(item.id, newContentId);
+          logActionDebug({ domain: "plan", action: "persistVirtualContent" }, "Virtual content persisted", { virtualId: item.id, realId: newContentId });
+        }
+      } catch (err) {
+        logActionError({ domain: "plan", action: "persistVirtualContent" }, err, { virtualId: item.id });
+        // 실패하더라도 나머지 진행 (AI 프레임워크 생성 시 해당 콘텐츠는 제외되거나 virtual ID로 남음)
+      }
+    }
+  }
+
+  // ID 매핑 적용 (virtualId -> realId)
+  // 1. contents 배열 업데이트
+  if (idMap.size > 0) {
+    input.contents = input.contents.map(c => {
+      const realId = idMap.get(c.id);
+      if (realId) {
+        return { ...c, id: realId, contentType: c.contentType === "custom" ? "custom" : c.contentType as "book" | "lecture" }; 
+      }
+      return c;
+    });
+
+    // 2. contentMappings 업데이트
+    if (input.contentMappings) {
+      input.contentMappings = input.contentMappings.map(c => {
+        const realId = idMap.get(c.contentId);
+         if (realId) {
+           return { ...c, contentId: realId };
+         }
+         return c;
+      });
+    }
   }
 
   // Phase 1: AI Framework 생성

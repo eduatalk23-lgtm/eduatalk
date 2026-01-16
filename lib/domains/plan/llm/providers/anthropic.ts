@@ -15,6 +15,7 @@ import {
   type CostInfo,
   type ProviderStatus,
 } from "./base";
+import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 
 // ============================================
 // 모델 설정
@@ -150,34 +151,126 @@ export class AnthropicProvider extends BaseLLMProvider {
   }
 
   /**
+   * Rate Limit 에러 감지
+   *
+   * Anthropic API에서 발생하는 429 Too Many Requests 에러를 감지합니다.
+   *
+   * @param error - 감지할 에러 객체
+   * @returns Rate Limit 에러인 경우 true
+   */
+  private isRateLimitError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const errorMessage = error.message.toLowerCase();
+
+    // 429 에러 코드 감지
+    if (errorMessage.includes("429")) {
+      return true;
+    }
+
+    // Rate limit 관련 키워드 감지
+    if (errorMessage.includes("rate limit")) {
+      return true;
+    }
+
+    // Too many requests 감지
+    if (errorMessage.includes("too many requests")) {
+      return true;
+    }
+
+    // Anthropic 특정 에러 타입 감지
+    if (error instanceof Anthropic.RateLimitError) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Rate Limit 에러에서 재시도 지연 시간 추출
+   *
+   * @param error - 에러 객체
+   * @param attempt - 현재 시도 횟수
+   * @returns 대기 시간 (밀리초)
+   */
+  private extractRetryDelay(error: unknown, attempt: number): number {
+    const baseDelay = 1000; // 1초 기본 대기
+    const maxDelay = 60000; // 최대 60초
+
+    // 지수 백오프: 1초, 2초, 4초, ...
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+
+    // Anthropic RateLimitError에서 retry-after 헤더 추출 시도
+    if (error instanceof Anthropic.RateLimitError) {
+      const retryAfter = error.headers?.get?.("retry-after");
+      if (retryAfter) {
+        const seconds = parseInt(retryAfter, 10);
+        if (!isNaN(seconds)) {
+          return Math.min(seconds * 1000, maxDelay);
+        }
+      }
+    }
+
+    // 지터 추가 (0-500ms)로 thundering herd 방지
+    const jitter = Math.random() * 500;
+    return exponentialDelay + jitter;
+  }
+
+  /**
    * 메시지 생성 (비스트리밍)
    */
   async createMessage(options: CreateMessageOptions): Promise<CreateMessageResult> {
     const client = this.getClient();
     const config = this.getModelConfig(options.modelTier || "standard");
+    const maxRetries = 3;
 
-    const response = await client.messages.create({
-      model: config.modelId,
-      max_tokens: options.maxTokens || config.maxTokens,
-      temperature: options.temperature ?? config.temperature,
-      system: options.system,
-      messages: options.messages,
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          logActionDebug("AnthropicProvider.createMessage", `재시도 ${attempt}/${maxRetries}`);
+        }
 
-    // 텍스트 블록 추출
-    const textContent = response.content.find((block) => block.type === "text");
-    const content = textContent?.type === "text" ? textContent.text : "";
+        const response = await client.messages.create({
+          model: config.modelId,
+          max_tokens: options.maxTokens || config.maxTokens,
+          temperature: options.temperature ?? config.temperature,
+          system: options.system,
+          messages: options.messages,
+        });
 
-    return {
-      content,
-      stopReason: response.stop_reason,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
-      modelId: config.modelId,
-      provider: "anthropic",
-    };
+        // 텍스트 블록 추출
+        const textContent = response.content.find((block) => block.type === "text");
+        const content = textContent?.type === "text" ? textContent.text : "";
+
+        return {
+          content,
+          stopReason: response.stop_reason,
+          usage: {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+          },
+          modelId: config.modelId,
+          provider: "anthropic",
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          logActionWarn("AnthropicProvider.createMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        throw lastError;
+      }
+    }
+
+    throw lastError || new Error("[Anthropic] 알 수 없는 에러");
   }
 
   /**
@@ -186,57 +279,78 @@ export class AnthropicProvider extends BaseLLMProvider {
   async streamMessage(options: StreamMessageOptions): Promise<CreateMessageResult> {
     const client = this.getClient();
     const config = this.getModelConfig(options.modelTier || "standard");
+    const maxRetries = 3;
 
-    let fullContent = "";
-    let inputTokens = 0;
-    let outputTokens = 0;
-    let stopReason: string | null = null;
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let fullContent = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let stopReason: string | null = null;
 
-    try {
-      const stream = await client.messages.stream({
-        model: config.modelId,
-        max_tokens: options.maxTokens || config.maxTokens,
-        temperature: options.temperature ?? config.temperature,
-        system: options.system,
-        messages: options.messages,
-      });
-
-      for await (const event of stream) {
-        if (event.type === "content_block_delta") {
-          const delta = event.delta;
-          if ("text" in delta) {
-            fullContent += delta.text;
-            options.onText?.(delta.text);
-          }
-        } else if (event.type === "message_delta") {
-          stopReason = event.delta.stop_reason || null;
-        } else if (event.type === "message_start") {
-          inputTokens = event.message.usage.input_tokens;
+      try {
+        if (attempt > 0) {
+          logActionDebug("AnthropicProvider.streamMessage", `재시도 ${attempt}/${maxRetries}`);
         }
+
+        const stream = await client.messages.stream({
+          model: config.modelId,
+          max_tokens: options.maxTokens || config.maxTokens,
+          temperature: options.temperature ?? config.temperature,
+          system: options.system,
+          messages: options.messages,
+        });
+
+        for await (const event of stream) {
+          if (event.type === "content_block_delta") {
+            const delta = event.delta;
+            if ("text" in delta) {
+              fullContent += delta.text;
+              options.onText?.(delta.text);
+            }
+          } else if (event.type === "message_delta") {
+            stopReason = event.delta.stop_reason || null;
+          } else if (event.type === "message_start") {
+            inputTokens = event.message.usage.input_tokens;
+          }
+        }
+
+        // 최종 메시지 가져오기
+        const finalMessage = await stream.finalMessage();
+        outputTokens = finalMessage.usage.output_tokens;
+
+        const result: CreateMessageResult = {
+          content: fullContent,
+          stopReason,
+          usage: {
+            inputTokens,
+            outputTokens,
+          },
+          modelId: config.modelId,
+          provider: "anthropic",
+        };
+
+        options.onComplete?.(result);
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Rate Limit 에러인 경우 재시도
+        if (this.isRateLimitError(error) && attempt < maxRetries) {
+          const delay = this.extractRetryDelay(error, attempt);
+          logActionWarn("AnthropicProvider.streamMessage", `Rate limit 에러 발생. ${delay}ms 후 재시도 (${attempt + 1}/${maxRetries}): ${lastError.message}`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        options.onError?.(lastError);
+        throw lastError;
       }
-
-      // 최종 메시지 가져오기
-      const finalMessage = await stream.finalMessage();
-      outputTokens = finalMessage.usage.output_tokens;
-
-      const result: CreateMessageResult = {
-        content: fullContent,
-        stopReason,
-        usage: {
-          inputTokens,
-          outputTokens,
-        },
-        modelId: config.modelId,
-        provider: "anthropic",
-      };
-
-      options.onComplete?.(result);
-      return result;
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      options.onError?.(err);
-      throw err;
     }
+
+    const finalError = lastError || new Error("[Anthropic] streamMessage 알 수 없는 에러");
+    options.onError?.(finalError);
+    throw finalError;
   }
 }
 

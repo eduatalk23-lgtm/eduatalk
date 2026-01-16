@@ -59,6 +59,8 @@ export interface StreamPlanInput {
   reviewRatio?: number;
   additionalInstructions?: string;
   modelTier?: ModelTier;
+  /** 플랜 생성 모드 (strategy: 전략, schedule: 배정) */
+  planningMode?: "strategy" | "schedule";
   /** 웹 검색 활성화 (Gemini Grounding) */
   enableWebSearch?: boolean;
   /** 웹 검색 설정 */
@@ -250,12 +252,17 @@ export async function* streamPlanGeneration(
     };
 
     // 스트리밍 생성
-    const modelConfig = getModelConfig(input.modelTier || "standard");
-    let fullContent = "";
+    const _modelConfig = getModelConfig(input.modelTier || "standard");
+    let _fullContent = "";
     let lastProgress = 30;
 
     // 웹 검색 설정 구성
-    const groundingConfig = input.enableWebSearch
+    // Schedule 모드에서는 기본적으로 웹 검색 비활성화 (속도/비용 최적화)
+    const shouldEnableWebSearch = input.planningMode === 'schedule'
+      ? (input.enableWebSearch === true) // Schedule 모드: 명시적 true만 허용
+      : input.enableWebSearch; // Strategy 모드: 기존 동작 유지
+
+    const groundingConfig = shouldEnableWebSearch
       ? {
           enabled: true,
           mode: input.webSearchConfig?.mode || ("dynamic" as const),
@@ -269,7 +276,7 @@ export async function* streamPlanGeneration(
       modelTier: input.modelTier || "standard",
       grounding: groundingConfig,
       onText: (text) => {
-        fullContent += text;
+        _fullContent += text;
         // 진행률 업데이트 (30% ~ 80%)
         const newProgress = Math.min(80, lastProgress + text.length / 100);
         if (newProgress > lastProgress + 5) {

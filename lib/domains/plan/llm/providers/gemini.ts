@@ -26,43 +26,43 @@ import { logActionDebug, logActionWarn } from "@/lib/utils/serverActionLogger";
 const GEMINI_MODEL_CONFIGS: Record<ModelTier, ModelConfig> = {
   fast: {
     tier: "fast",
-    modelId: "gemini-2.0-flash",
+    modelId: "gemini-flash-latest",
     maxTokens: 4096,
     temperature: 0.3,
     provider: "gemini",
   },
   standard: {
     tier: "standard",
-    modelId: "gemini-2.0-flash",
+    modelId: "gemini-flash-latest",
     maxTokens: 8192,
     temperature: 0.5,
     provider: "gemini",
   },
   advanced: {
     tier: "advanced",
-    modelId: "gemini-1.5-pro-latest",
+    modelId: "gemini-pro-latest",
     maxTokens: 16384,
     temperature: 0.7,
     provider: "gemini",
   },
 };
 
-// 가격 정보 (2024년 기준, USD per 1M tokens)
+// 가격 정보 (2025년 기준, USD per 1M tokens)
 const GEMINI_PRICING: Record<ModelTier, CostInfo> = {
   fast: {
-    // Gemini 1.5 Flash
-    inputCostPer1M: 0.075,
-    outputCostPer1M: 0.3,
+    // Gemini 2.0 Flash
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.4,
     currency: "USD",
   },
   standard: {
-    // Gemini 1.5 Pro
-    inputCostPer1M: 1.25,
-    outputCostPer1M: 5.0,
+    // Gemini 2.0 Flash
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.4,
     currency: "USD",
   },
   advanced: {
-    // Gemini 1.5 Pro (same as standard)
+    // Gemini 1.5 Pro
     inputCostPer1M: 1.25,
     outputCostPer1M: 5.0,
     currency: "USD",
@@ -378,18 +378,36 @@ export class GeminiProvider extends BaseLLMProvider {
    * @param modelId - 모델 ID (버전 감지용)
    * @returns Gemini API tools 배열
    */
+  /**
+   * Grounding tools 빌드
+   * @param grounding - Grounding 설정
+   * @param modelId - 모델 ID (버전 감지용)
+   * @returns Gemini API tools 배열
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private buildGroundingTools(grounding?: GroundingConfig, modelId?: string): any[] {
+  private buildGroundingTools(
+    grounding?: GroundingConfig,
+    modelId?: string
+  ): Array<Record<string, unknown>> {
     if (!grounding?.enabled) return [];
 
-    // Gemini 2.0 모델 감지
-    const isGemini2 = modelId?.includes("gemini-2.0");
+    // Gemini 2.0 모델 및 최신 모델(latest) 감지
+    const useGoogleSearch = 
+      modelId?.includes("gemini-2.0") || 
+      modelId?.includes("latest") ||
+      modelId?.includes("gemini-2.5");
 
-    logActionDebug("GeminiProvider.buildGroundingTools", `modelId=${modelId}, isGemini2=${isGemini2}, mode=${grounding.mode}, enabled=${grounding.enabled}`);
+    logActionDebug(
+      "GeminiProvider.buildGroundingTools",
+      `modelId=${modelId}, useGoogleSearch=${useGoogleSearch}, mode=${grounding.mode}, enabled=${grounding.enabled}`
+    );
 
-    // Gemini 2.0은 googleSearch만 지원 (동적/항상 모드 무관)
-    if (isGemini2) {
-      logActionDebug("GeminiProvider.buildGroundingTools", "Using googleSearch for Gemini 2.0");
+    // Gemini 2.0 및 최신 모델은 googleSearch만 지원 (동적/항상 모드 무관)
+    if (useGoogleSearch) {
+      logActionDebug(
+        "GeminiProvider.buildGroundingTools",
+        `Using googleSearch for ${modelId}`
+      );
       return [{ googleSearch: {} }];
     }
 
@@ -417,6 +435,8 @@ export class GeminiProvider extends BaseLLMProvider {
    * @param response - Gemini API 응답
    * @returns GroundingMetadata 또는 undefined
    */
+  // sdk 타입을 직접 가져다 쓰거나, 구체적인 타입을 정의하는 것이 좋음
+  // 여기서는 구조적 타이핑을 위해 Record<string, unknown> 사용 후 타입 가드 또는 캐스팅
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private extractGroundingMetadata(response: any): GroundingMetadata | undefined {
     const groundingMeta = response.candidates?.[0]?.groundingMetadata;

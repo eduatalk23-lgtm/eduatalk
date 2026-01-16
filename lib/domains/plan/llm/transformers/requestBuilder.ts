@@ -285,6 +285,12 @@ export interface BuildRequestOptions {
     reviewRatio?: number;
   };
   additionalInstructions?: string;
+  planningMode?: "strategy" | "schedule";
+  availableSlots?: Array<{
+    date: string;
+    startTime: string;
+    endTime: string;
+  }>;
   // Phase 2: 추가 컨텍스트 정보
   blocks?: DBBlock[];
   academySchedules?: DBAcademySchedule[];
@@ -371,6 +377,8 @@ export function buildLLMRequest(
     settings,
     timeSlots,
     additionalInstructions: options.additionalInstructions,
+    planningMode: options.planningMode || "strategy",
+    availableSlots: options.availableSlots,
   };
 }
 
@@ -538,6 +546,13 @@ export function validateRequest(
   }
   if (request.settings.dailyStudyMinutes > 720) {
     errors.push("일일 학습 시간은 12시간을 초과할 수 없습니다.");
+  }
+
+  // Schedule 모드 검사
+  if (request.planningMode === "schedule") {
+    if (!request.availableSlots || request.availableSlots.length === 0) {
+      errors.push("Schedule 모드에서는 사용 가능한 시간 슬롯(availableSlots)이 필수입니다.");
+    }
   }
 
   return {

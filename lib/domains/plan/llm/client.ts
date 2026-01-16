@@ -22,10 +22,6 @@ import type { ModelTier, ModelConfig } from "./types";
 import { logActionError } from "@/lib/utils/serverActionLogger";
 import {
   getProvider,
-  getDefaultProvider,
-  type LLMProvider,
-  type ProviderType,
-  type CreateMessageOptions as ProviderCreateMessageOptions,
   type CreateMessageResult as ProviderCreateMessageResult,
   type GroundingConfig,
   type GroundingMetadata,
