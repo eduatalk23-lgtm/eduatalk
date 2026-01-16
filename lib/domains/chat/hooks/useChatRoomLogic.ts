@@ -7,12 +7,13 @@
  * 테스트 용이성과 재사용성을 높입니다.
  */
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import {
   useInfiniteQuery,
   useQuery,
   useMutation,
   useQueryClient,
+  type InfiniteData,
 } from "@tanstack/react-query";
 import {
   getMessagesWithReadStatusAction,
@@ -40,6 +41,9 @@ import {
   type ChatMessageWithGrouping,
   type ChatRoomMemberWithUser,
   type PresenceUser,
+  type ChatMessageWithSender,
+  type MessagesWithReadStatusResult,
+  type ChatUser,
 } from "@/lib/domains/chat/types";
 import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
@@ -48,6 +52,17 @@ import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
 // ============================================
 // 타입 정의
 // ============================================
+
+// InfiniteQuery 캐시 타입 (낙관적 업데이트용)
+type CacheMessage = ChatMessageWithSender & {
+  status?: "sending" | "sent" | "error";
+};
+
+type MessagesPage = Omit<MessagesWithReadStatusResult, "messages"> & {
+  messages: CacheMessage[];
+};
+
+type InfiniteMessagesCache = InfiniteData<MessagesPage, string | undefined>;
 
 export interface UseChatRoomLogicOptions {
   roomId: string;
@@ -116,6 +131,12 @@ export function useChatRoomLogic({
 }: UseChatRoomLogicOptions): UseChatRoomLogicReturn {
   const queryClient = useQueryClient();
   const [replyTarget, setReplyTarget] = useState<ReplyTargetInfo | null>(null);
+
+  // isAtBottom을 ref로 추적하여 콜백에서 항상 최신 값 사용
+  const isAtBottomRef = useRef(isAtBottom);
+  useEffect(() => {
+    isAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
 
   // ============================================
   // Queries
@@ -204,7 +225,7 @@ export function useChatRoomLogic({
       if (!lastPage?.hasMore || !lastPage?.messages?.length) return undefined;
       return lastPage.messages[0].id; // 가장 오래된 메시지 ID
     },
-    staleTime: 10 * 1000, // 10초
+    staleTime: 30 * 1000, // 30초 (Realtime이 업데이트 담당)
   });
 
   // ============================================
@@ -310,8 +331,42 @@ export function useChatRoomLogic({
 
       return { previousMessages, previousReplyTarget, tempId };
     },
+    onSuccess: (data, _variables, context) => {
+      // 5. 성공 시 temp 메시지를 실제 메시지로 교체 (invalidate 대신 직접 업데이트)
+      // 이렇게 하면 실시간 이벤트와의 경쟁 조건을 피할 수 있음
+      const tempId = context?.tempId;
+      if (tempId && data) {
+        queryClient.setQueryData(
+          ["chat-messages", roomId],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (old: any) => {
+            if (!old?.pages?.length) return old;
+            return {
+              ...old,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              pages: old.pages.map((page: any) => ({
+                ...page,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                messages: page.messages.map((m: any) =>
+                  m.id === tempId
+                    ? {
+                        ...m,
+                        ...data,
+                        status: "sent" as const,
+                        // sender 정보는 낙관적 업데이트에서 이미 설정됨
+                        sender: m.sender,
+                        replyTarget: m.replyTarget,
+                      }
+                    : m
+                ),
+              })),
+            };
+          }
+        );
+      }
+    },
     onError: (_err, _variables, context) => {
-      // 5. 실패 시 롤백 대신 status를 error로 변경
+      // 6. 실패 시 롤백 대신 status를 error로 변경
       const tempId = context?.tempId;
       if (tempId) {
         queryClient.setQueryData(
@@ -339,15 +394,11 @@ export function useChatRoomLogic({
         setReplyTarget(context.previousReplyTarget);
       }
     },
-    onSettled: (_data, error) => {
-      // 6. 성공 시에만 서버 데이터와 동기화 (실패 시 에러 메시지 유지)
-      if (!error) {
-        queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
-      }
-    },
+    // onSettled 제거: invalidateQueries가 실시간 이벤트와 경쟁하여 새로고침 문제 발생
+    // 대신 onSuccess에서 setQueryData로 직접 업데이트
   });
 
-  // 메시지 편집
+  // 메시지 편집 (낙관적 업데이트)
   const editMutation = useMutation({
     mutationFn: async ({
       messageId,
@@ -360,23 +411,107 @@ export function useChatRoomLogic({
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+    onMutate: async ({ messageId, content }) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+
+      // 이전 데이터 스냅샷 저장 (롤백용)
+      const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
+        "chat-messages",
+        roomId,
+      ]);
+
+      // 낙관적 업데이트
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) =>
+                m.id === messageId
+                  ? {
+                      ...m,
+                      content,
+                      updated_at: new Date().toISOString(),
+                    }
+                  : m
+              ),
+            })),
+          };
+        }
+      );
+
+      return { previousMessages };
     },
+    onError: (_err, _variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ["chat-messages", roomId],
+          context.previousMessages
+        );
+      }
+    },
+    // onSuccess 제거: Realtime이 동기화 담당
   });
 
-  // 메시지 삭제
+  // 메시지 삭제 (낙관적 업데이트)
   const deleteMutation = useMutation({
     mutationFn: async (messageId: string) => {
       const result = await deleteMessageAction(messageId);
       if (!result.success) throw new Error(result.error);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+    onMutate: async (messageId) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+
+      // 이전 데이터 스냅샷 저장 (롤백용)
+      const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
+        "chat-messages",
+        roomId,
+      ]);
+
+      // 낙관적 업데이트 (is_deleted=true 설정)
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) =>
+                m.id === messageId
+                  ? {
+                      ...m,
+                      is_deleted: true,
+                      deleted_at: new Date().toISOString(),
+                    }
+                  : m
+              ),
+            })),
+          };
+        }
+      );
+
+      return { previousMessages };
     },
+    onError: (_err, _variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ["chat-messages", roomId],
+          context.previousMessages
+        );
+      }
+    },
+    // onSuccess 제거: Realtime이 동기화 담당
   });
 
-  // 리액션 토글
+  // 리액션 토글 (낙관적 업데이트)
   const reactionMutation = useMutation({
     mutationFn: async ({
       messageId,
@@ -389,9 +524,92 @@ export function useChatRoomLogic({
       if (!result.success) throw new Error(result.error);
       return result.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["chat-messages", roomId] });
+    onMutate: async ({ messageId, emoji }) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({ queryKey: ["chat-messages", roomId] });
+
+      // 이전 데이터 스냅샷 저장 (롤백용)
+      const previousMessages = queryClient.getQueryData<InfiniteMessagesCache>([
+        "chat-messages",
+        roomId,
+      ]);
+
+      // 낙관적 업데이트
+      queryClient.setQueryData<InfiniteMessagesCache>(
+        ["chat-messages", roomId],
+        (old) => {
+          if (!old?.pages?.length) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              messages: page.messages.map((m) => {
+                if (m.id !== messageId) return m;
+
+                const existingReactions = m.reactions ?? [];
+                const existingIdx = existingReactions.findIndex(
+                  (r) => r.emoji === emoji
+                );
+
+                if (existingIdx >= 0) {
+                  const reaction = existingReactions[existingIdx];
+                  if (reaction.hasReacted) {
+                    // 이미 리액션함 → 리액션 취소
+                    const newCount = reaction.count - 1;
+                    if (newCount <= 0) {
+                      // 카운트가 0이면 제거
+                      const updated = existingReactions.filter(
+                        (_, i) => i !== existingIdx
+                      );
+                      return { ...m, reactions: updated };
+                    } else {
+                      // 카운트 감소
+                      const updated = [...existingReactions];
+                      updated[existingIdx] = {
+                        ...reaction,
+                        count: newCount,
+                        hasReacted: false,
+                      };
+                      return { ...m, reactions: updated };
+                    }
+                  } else {
+                    // 리액션 안함 → 리액션 추가
+                    const updated = [...existingReactions];
+                    updated[existingIdx] = {
+                      ...reaction,
+                      count: reaction.count + 1,
+                      hasReacted: true,
+                    };
+                    return { ...m, reactions: updated };
+                  }
+                } else {
+                  // 새 이모지 추가
+                  return {
+                    ...m,
+                    reactions: [
+                      ...existingReactions,
+                      { emoji, count: 1, hasReacted: true },
+                    ],
+                  };
+                }
+              }),
+            })),
+          };
+        }
+      );
+
+      return { previousMessages };
     },
+    onError: (_err, _variables, context) => {
+      // 에러 시 롤백
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ["chat-messages", roomId],
+          context.previousMessages
+        );
+      }
+    },
+    // onSuccess 제거: Realtime이 동기화 담당
   });
 
   // 메시지 고정/해제
@@ -448,18 +666,28 @@ export function useChatRoomLogic({
   // Realtime
   // ============================================
 
+  // sender 캐시 구성 (roomData.members에서)
+  const senderCache = useMemo(() => {
+    const cache = new Map<string, ChatUser>();
+    roomData?.members?.forEach((member) => {
+      cache.set(`${member.user_id}_${member.user.type}`, member.user);
+    });
+    return cache;
+  }, [roomData?.members]);
+
   // 실시간 구독
   useChatRealtime({
     roomId,
     userId,
+    senderCache,
     onNewMessage: useCallback(() => {
-      // 스크롤이 맨 아래에 있으면 자동 스크롤
-      if (isAtBottom) {
+      // 스크롤이 맨 아래에 있으면 자동 스크롤 (ref 사용으로 항상 최신 값)
+      if (isAtBottomRef.current) {
         onNewMessageArrived?.();
       }
       // 읽음 처리 (Debounce 적용)
       debouncedMarkAsRead();
-    }, [isAtBottom, onNewMessageArrived, debouncedMarkAsRead]),
+    }, [onNewMessageArrived, debouncedMarkAsRead]),
   });
 
   // 현재 사용자 이름 (Presence용)

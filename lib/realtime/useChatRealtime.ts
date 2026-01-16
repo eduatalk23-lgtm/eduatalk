@@ -18,6 +18,7 @@ import type {
   ChatUser,
   MessagesWithReadStatusResult,
 } from "@/lib/domains/chat/types";
+import { getSenderInfoAction } from "@/lib/domains/chat/actions";
 
 // Supabase Realtime Payload 타입 (DB 컬럼과 1:1 매핑)
 interface ChatMessagePayload {
@@ -32,6 +33,16 @@ interface ChatMessagePayload {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+}
+
+// 리액션 Payload 타입
+interface ChatReactionPayload {
+  id: string;
+  message_id: string;
+  user_id: string;
+  user_type: ChatUserType;
+  emoji: string;
+  created_at: string;
 }
 
 // 캐시 메시지 타입 (낙관적 업데이트 status 포함)
@@ -54,6 +65,8 @@ type UseChatRealtimeOptions = {
   userId: string;
   /** 구독 활성화 여부 */
   enabled?: boolean;
+  /** 발신자 정보 캐시 (roomData.members에서 구성) */
+  senderCache?: Map<string, ChatUser>;
   /** 새 메시지 수신 콜백 */
   onNewMessage?: (message: ChatMessagePayload) => void;
   /** 메시지 삭제 콜백 */
@@ -78,6 +91,7 @@ export function useChatRealtime({
   roomId,
   userId,
   enabled = true,
+  senderCache,
   onNewMessage,
   onMessageDeleted,
 }: UseChatRealtimeOptions) {
@@ -88,6 +102,69 @@ export function useChatRealtime({
   useEffect(() => {
     callbacksRef.current = { onNewMessage, onMessageDeleted };
   }, [onNewMessage, onMessageDeleted]);
+
+  // 발신자 정보 캐시 (세션 내 재사용)
+  const senderCacheRef = useRef(new Map<string, ChatUser>());
+
+  // 외부 senderCache가 변경되면 ref 업데이트
+  useEffect(() => {
+    if (senderCache) {
+      senderCache.forEach((user, key) => {
+        senderCacheRef.current.set(key, user);
+      });
+    }
+  }, [senderCache]);
+
+  // 기존 메시지에서 발신자 조회 함수
+  const findSenderFromExistingMessages = useCallback(
+    (senderId: string): ChatUser | null => {
+      const cache = queryClient.getQueryData<InfiniteMessagesCache>([
+        "chat-messages",
+        roomId,
+      ]);
+      if (!cache?.pages) return null;
+
+      for (const page of cache.pages) {
+        for (const msg of page.messages) {
+          if (
+            msg.sender_id === senderId &&
+            msg.sender?.name &&
+            msg.sender.name !== "로딩 중..."
+          ) {
+            return msg.sender;
+          }
+        }
+      }
+      return null;
+    },
+    [queryClient, roomId]
+  );
+
+  // 발신자 정보 조회 (캐시 우선)
+  const fetchSenderInfo = useCallback(
+    async (senderId: string, senderType: ChatUserType): Promise<ChatUser> => {
+      const cacheKey = `${senderId}_${senderType}`;
+
+      // 캐시 확인
+      const cached = senderCacheRef.current.get(cacheKey);
+      if (cached) return cached;
+
+      // 서버에서 조회
+      const result = await getSenderInfoAction(senderId, senderType);
+      if (result.success && result.data) {
+        senderCacheRef.current.set(cacheKey, result.data);
+        return result.data;
+      }
+
+      // 기본값 반환
+      return {
+        id: senderId,
+        type: senderType,
+        name: "알 수 없음",
+      };
+    },
+    []
+  );
 
   // 쿼리 무효화 함수
   const invalidateMessages = useCallback(() => {
@@ -181,16 +258,24 @@ export function useChatRealtime({
                 };
               }
 
-              // 타인의 새 메시지 추가
-              const defaultSender: ChatUser = {
-                id: newMessage.sender_id,
-                type: newMessage.sender_type,
-                name: "알 수 없음",
-              };
+              // 타인의 새 메시지 추가 (기존 캐시에서 sender 정보 조회 우선)
+              const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+              const existingSender = findSenderFromExistingMessages(
+                newMessage.sender_id
+              );
+              const senderFromCache = senderCacheRef.current.get(cacheKey);
+
+              const tempSender: ChatUser =
+                existingSender ??
+                senderFromCache ?? {
+                  id: newMessage.sender_id,
+                  type: newMessage.sender_type,
+                  name: "로딩 중...",
+                };
 
               const newCacheMessage: CacheMessage = {
                 ...newMessage,
-                sender: defaultSender,
+                sender: tempSender,
                 reactions: [],
                 replyTarget: null,
               };
@@ -207,6 +292,40 @@ export function useChatRealtime({
               };
             }
           );
+
+          // 타인 메시지인 경우 sender 정보가 없을 때만 비동기로 보강
+          if (newMessage?.sender_id && newMessage.sender_id !== userId) {
+            const cacheKey = `${newMessage.sender_id}_${newMessage.sender_type}`;
+            const hasSenderInfo =
+              findSenderFromExistingMessages(newMessage.sender_id) ??
+              senderCacheRef.current.get(cacheKey);
+
+            // sender 정보가 없을 때만 서버에서 조회
+            if (!hasSenderInfo) {
+              fetchSenderInfo(newMessage.sender_id, newMessage.sender_type).then(
+                (senderInfo) => {
+                // sender 정보로 캐시 업데이트
+                  queryClient.setQueryData<InfiniteMessagesCache>(
+                    ["chat-messages", roomId],
+                    (old) => {
+                      if (!old?.pages?.length) return old;
+                      return {
+                        ...old,
+                        pages: old.pages.map((page) => ({
+                          ...page,
+                          messages: page.messages.map((m) =>
+                            m.id === newMessage.id
+                              ? { ...m, sender: senderInfo }
+                              : m
+                          ),
+                        })),
+                      };
+                    }
+                  );
+                }
+              );
+            }
+          }
 
           // 채팅방 목록도 무효화 (마지막 메시지 업데이트)
           invalidateRoomList();
@@ -263,7 +382,7 @@ export function useChatRealtime({
           }
         }
       )
-      // 리액션 INSERT
+      // 리액션 INSERT (타겟 캐시 업데이트, 낙관적 업데이트 중복 방지)
       .on(
         "postgres_changes",
         {
@@ -271,12 +390,71 @@ export function useChatRealtime({
           schema: "public",
           table: "chat_message_reactions",
         },
-        () => {
-          console.log("[ChatRealtime] Reaction added");
-          invalidateMessages();
+        (payload: RealtimePostgresChangesPayload<ChatReactionPayload>) => {
+          const reaction = payload.new as ChatReactionPayload | undefined;
+          console.log("[ChatRealtime] Reaction added:", reaction?.message_id);
+
+          if (reaction?.message_id) {
+            // 해당 메시지에만 리액션 추가 (전체 무효화 대신)
+            queryClient.setQueryData<InfiniteMessagesCache>(
+              ["chat-messages", roomId],
+              (old) => {
+                if (!old?.pages?.length) return old;
+                return {
+                  ...old,
+                  pages: old.pages.map((page) => ({
+                    ...page,
+                    messages: page.messages.map((m) => {
+                      if (m.id !== reaction.message_id) return m;
+
+                      // 기존 리액션에서 같은 이모지 찾기
+                      const existingReactions = m.reactions ?? [];
+                      const existingIdx = existingReactions.findIndex(
+                        (r) => r.emoji === reaction.emoji
+                      );
+
+                      if (existingIdx >= 0) {
+                        // 현재 사용자의 리액션이고 이미 낙관적 업데이트로 처리됨
+                        if (
+                          reaction.user_id === userId &&
+                          existingReactions[existingIdx].hasReacted
+                        ) {
+                          return m; // 스킵
+                        }
+
+                        // 기존 이모지 카운트 증가
+                        const updated = [...existingReactions];
+                        updated[existingIdx] = {
+                          ...updated[existingIdx],
+                          count: updated[existingIdx].count + 1,
+                          hasReacted:
+                            updated[existingIdx].hasReacted ||
+                            reaction.user_id === userId,
+                        };
+                        return { ...m, reactions: updated };
+                      } else {
+                        // 새 이모지 추가
+                        return {
+                          ...m,
+                          reactions: [
+                            ...existingReactions,
+                            {
+                              emoji: reaction.emoji as "👍" | "❤️" | "😂" | "🔥" | "😮",
+                              count: 1,
+                              hasReacted: reaction.user_id === userId,
+                            },
+                          ],
+                        };
+                      }
+                    }),
+                  })),
+                };
+              }
+            );
+          }
         }
       )
-      // 리액션 DELETE
+      // 리액션 DELETE (타겟 캐시 업데이트, 낙관적 업데이트 중복 방지)
       .on(
         "postgres_changes",
         {
@@ -284,9 +462,63 @@ export function useChatRealtime({
           schema: "public",
           table: "chat_message_reactions",
         },
-        () => {
-          console.log("[ChatRealtime] Reaction removed");
-          invalidateMessages();
+        (payload: RealtimePostgresChangesPayload<ChatReactionPayload>) => {
+          const reaction = payload.old as ChatReactionPayload | undefined;
+          console.log("[ChatRealtime] Reaction removed:", reaction?.message_id);
+
+          if (reaction?.message_id) {
+            // 해당 메시지에서만 리액션 제거 (전체 무효화 대신)
+            queryClient.setQueryData<InfiniteMessagesCache>(
+              ["chat-messages", roomId],
+              (old) => {
+                if (!old?.pages?.length) return old;
+                return {
+                  ...old,
+                  pages: old.pages.map((page) => ({
+                    ...page,
+                    messages: page.messages.map((m) => {
+                      if (m.id !== reaction.message_id) return m;
+
+                      const existingReactions = m.reactions ?? [];
+                      const existingIdx = existingReactions.findIndex(
+                        (r) => r.emoji === reaction.emoji
+                      );
+
+                      if (existingIdx >= 0) {
+                        // 현재 사용자의 리액션 취소이고 이미 낙관적 업데이트로 처리됨
+                        if (
+                          reaction.user_id === userId &&
+                          !existingReactions[existingIdx].hasReacted
+                        ) {
+                          return m; // 스킵
+                        }
+
+                        const updated = [...existingReactions];
+                        const newCount = updated[existingIdx].count - 1;
+
+                        if (newCount <= 0) {
+                          // 카운트가 0이면 제거
+                          updated.splice(existingIdx, 1);
+                        } else {
+                          // 카운트 감소
+                          updated[existingIdx] = {
+                            ...updated[existingIdx],
+                            count: newCount,
+                            hasReacted:
+                              reaction.user_id === userId
+                                ? false
+                                : updated[existingIdx].hasReacted,
+                          };
+                        }
+                        return { ...m, reactions: updated };
+                      }
+                      return m;
+                    }),
+                  })),
+                };
+              }
+            );
+          }
         }
       )
       // 고정 메시지 INSERT
@@ -352,7 +584,7 @@ export function useChatRealtime({
       console.log(`[ChatRealtime] Unsubscribing from room ${roomId}`);
       supabase.removeChannel(channel);
     };
-  }, [roomId, userId, enabled, invalidateMessages, invalidateRoomList, invalidatePinnedMessages, invalidateAnnouncement]);
+  }, [roomId, userId, enabled, queryClient, invalidateMessages, invalidateRoomList, invalidatePinnedMessages, invalidateAnnouncement, fetchSenderInfo, findSenderFromExistingMessages]);
 }
 
 // ============================================
