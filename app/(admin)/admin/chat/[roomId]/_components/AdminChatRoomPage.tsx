@@ -10,13 +10,14 @@ import { ChatRoom } from "@/components/chat";
 interface AdminChatRoomPageProps {
   roomId: string;
   userId: string;
+  basePath: string;
 }
 
-export function AdminChatRoomPage({ roomId, userId }: AdminChatRoomPageProps) {
+export function AdminChatRoomPage({ roomId, userId, basePath }: AdminChatRoomPageProps) {
   const router = useRouter();
 
   const handleBack = () => {
-    router.push("/admin/chat");
+    router.push(basePath);
   };
 
   return (
@@ -25,6 +26,7 @@ export function AdminChatRoomPage({ roomId, userId }: AdminChatRoomPageProps) {
         roomId={roomId}
         userId={userId}
         onBack={handleBack}
+        basePath={basePath}
       />
     </div>
   );
