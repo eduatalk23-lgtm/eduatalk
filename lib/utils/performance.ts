@@ -6,7 +6,7 @@
  * 디바운스 함수
  * 연속된 호출을 지연시켜 마지막 호출만 실행
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -29,7 +29,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * 쓰로틀 함수
  * 일정 시간 간격으로만 함수 실행
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -99,7 +99,10 @@ export function calculateVirtualScrollHeight(
 /**
  * 메모이제이션 헬퍼 (간단한 버전)
  */
-export function memoize<T extends (...args: any[]) => any>(
+/**
+ * 메모이제이션 헬퍼 (간단한 버전)
+ */
+export function memoize<T extends (...args: unknown[]) => ReturnType<T>>(
   fn: T,
   getKey?: (...args: Parameters<T>) => string
 ): T {
@@ -108,7 +111,7 @@ export function memoize<T extends (...args: any[]) => any>(
   return ((...args: Parameters<T>) => {
     const key = getKey ? getKey(...args) : JSON.stringify(args);
     if (cache.has(key)) {
-      return cache.get(key);
+      return cache.get(key) as ReturnType<T>;
     }
     const result = fn(...args);
     cache.set(key, result);

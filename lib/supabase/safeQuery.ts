@@ -19,7 +19,7 @@ export type SupabaseQueryResult<T> = {
 /**
  * 쿼리 옵션
  */
-export type SafeQueryOptions = {
+export type SafeQueryOptions<T = unknown> = {
   /**
    * 컨텍스트 이름 (에러 로깅용)
    */
@@ -32,10 +32,8 @@ export type SafeQueryOptions = {
   
   /**
    * 에러 발생 시 기본값
-   * Note: 제네릭 함수에서 반환 타입과 호환되어야 하므로 any 사용
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaultValue?: any;
+  defaultValue?: T;
 };
 
 /**
@@ -51,12 +49,12 @@ export type SafeQueryOptions = {
 export async function safeQueryArray<T>(
   queryFn: () => Promise<SupabaseQueryResult<T[]>>,
   fallbackQueryFn?: () => Promise<SupabaseQueryResult<T[]>>,
-  options: SafeQueryOptions = {}
+  options: SafeQueryOptions<T[]> = {}
 ): Promise<T[]> {
   const {
     context = "[safeQuery]",
     retryOnColumnError = true,
-    defaultValue = [],
+    defaultValue = [] as unknown as T[],
   } = options;
 
   try {
@@ -141,7 +139,7 @@ export async function safeQueryArray<T>(
 export async function safeQuerySingle<T>(
   queryFn: () => Promise<SupabaseQueryResult<T>>,
   fallbackQueryFn?: () => Promise<SupabaseQueryResult<T>>,
-  options: SafeQueryOptions = {}
+  options: SafeQueryOptions<T | null> = {}
 ): Promise<T | null> {
   const {
     context = "[safeQuery]",
@@ -231,7 +229,7 @@ export async function safeQuerySingle<T>(
 export async function safeQueryMaybeSingle<T>(
   queryFn: () => Promise<SupabaseQueryResult<T>>,
   fallbackQueryFn?: () => Promise<SupabaseQueryResult<T>>,
-  options: SafeQueryOptions = {}
+  options: SafeQueryOptions<T | null> = {}
 ): Promise<T | null> {
   return safeQuerySingle(queryFn, fallbackQueryFn, options);
 }

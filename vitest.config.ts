@@ -7,6 +7,7 @@ export default defineConfig({
     globals: true,
     include: ['lib/**/*.test.{ts,tsx}', 'app/**/*.test.{ts,tsx}', '__tests__/**/*.test.{ts,tsx}'],
     exclude: ['node_modules', '.next'],
+    setupFiles: ['./vitest.setup.ts'],
     deps: {
       // 특정 모듈을 실제로 로드하지 않고 모킹만 사용
       inline: [

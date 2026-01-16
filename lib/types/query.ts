@@ -21,7 +21,7 @@ import { queryOptions } from "@tanstack/react-query";
  * };
  * ```
  */
-export type QueryKeyFactory<T extends Record<string, (...args: any[]) => QueryKey>> = T;
+export type QueryKeyFactory<T extends Record<string, (...args: unknown[]) => QueryKey>> = T;
 
 /**
  * queryOptions를 re-export하여 편의성 향상

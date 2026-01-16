@@ -38,7 +38,7 @@ const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
  * 각 역할이 접근할 수 있는 경로의 prefix를 정의
  */
 const ROLE_ALLOWED_PATHS: Record<string, string[]> = {
-  student: ["/dashboard", "/today", "/plan", "/scores", "/contents", "/blocks", "/settings", "/report", "/reports", "/analysis", "/camp", "/attendance"],
+  student: ["/dashboard", "/today", "/plan", "/scores", "/contents", "/blocks", "/settings", "/report", "/reports", "/analysis", "/camp", "/attendance", "/chat", "/habits"],
   admin: ["/admin"],
   consultant: ["/admin"],
   parent: ["/parent"],
