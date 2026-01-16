@@ -4,6 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTransition } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/Dialog";
 import { useToast } from "@/components/ui/ToastProvider";
+import Input from "@/components/atoms/Input";
+import Button from "@/components/atoms/Button";
+import Select from "@/components/atoms/Select";
+import Label from "@/components/atoms/Label";
 
 type SearchModalProps<T> = {
   isOpen: boolean;
@@ -141,19 +145,19 @@ export function SearchModal<T extends { id: string }>({
         <div className="flex flex-col gap-4">
           {/* 검색 입력 */}
           <div className="flex flex-col gap-2">
-            <label
+            <Label
               htmlFor="search-input"
-              className="block text-body-2-bold text-[var(--text-secondary)]"
+              className="text-text-secondary"
             >
               {searchLabel}
-            </label>
-            <input
+            </Label>
+            <Input
               id="search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-4 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+              inputSize="md"
             />
             {searchQuery.length > 0 && searchQuery.length < 2 && (
               <p className="text-body-2 text-[var(--text-tertiary)]">
@@ -165,25 +169,25 @@ export function SearchModal<T extends { id: string }>({
           {/* 관계 선택 */}
           {relationOptions && onRelationChange && selectedRelation && (
             <div className="flex flex-col gap-2">
-              <label
+              <Label
                 htmlFor="relation-select"
-                className="block text-body-2-bold text-[var(--text-secondary)]"
+                className="text-text-secondary"
               >
                 관계
-              </label>
-              <select
+              </Label>
+              <Select
                 id="relation-select"
                 value={selectedRelation}
                 onChange={(e) => onRelationChange(e.target.value)}
                 disabled={isPending}
-                className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-4 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))]"
+                selectSize="md"
               >
                 {relationOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 
@@ -213,13 +217,14 @@ export function SearchModal<T extends { id: string }>({
         </div>
       </DialogContent>
       <DialogFooter>
-        <button
+        <Button
           onClick={onClose}
           disabled={isPending}
-          className="rounded-lg border border-[rgb(var(--color-secondary-300))] bg-white dark:bg-secondary-900 px-4 py-2 text-body-2 font-medium text-[var(--text-secondary)] transition-base hover:bg-[rgb(var(--color-secondary-50))] disabled:opacity-50"
+          variant="outline"
+          size="md"
         >
           닫기
-        </button>
+        </Button>
       </DialogFooter>
     </Dialog>
   );

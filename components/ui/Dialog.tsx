@@ -123,7 +123,7 @@ export function Dialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in-0 duration-200"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
@@ -156,10 +156,10 @@ export function Dialog({
             onClick={() => onOpenChange(false)}
             className={cn(
               "absolute right-4 top-4 rounded-lg p-1 transition-base",
-              "text-[var(--text-secondary)]",
+              "text-text-secondary",
               "hover:bg-[rgb(var(--color-secondary-50))] dark:hover:bg-[rgb(var(--color-secondary-800))]",
-              "hover:text-[var(--text-primary)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--color-secondary-500))] dark:focus-visible:ring-[rgb(var(--color-secondary-400))] focus-visible:ring-offset-2"
+              "hover:text-text-primary",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2"
             )}
             aria-label="닫기"
           >

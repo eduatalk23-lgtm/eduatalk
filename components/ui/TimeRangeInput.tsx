@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Input from "@/components/atoms/Input";
+import Button from "@/components/atoms/Button";
 
 type TimeRange = {
   start: string;
@@ -32,7 +34,8 @@ export function TimeRangeInput({
   const end = value?.end || defaultEnd;
   const isUsingDefault = start === defaultStart && end === defaultEnd;
 
-  const handleStartChange = (newStart: string) => {
+  const handleStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newStart = e.target.value;
     if (newStart >= end) {
       // 시작 시간이 종료 시간보다 크거나 같으면 경고
       return;
@@ -40,7 +43,8 @@ export function TimeRangeInput({
     onChange({ start: newStart, end });
   };
 
-  const handleEndChange = (newEnd: string) => {
+  const handleEndChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEnd = e.target.value;
     if (newEnd <= start) {
       // 종료 시간이 시작 시간보다 작거나 같으면 경고
       return;
@@ -64,21 +68,21 @@ export function TimeRangeInput({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <input
+          <Input
             type="time"
             value={start}
-            onChange={(e) => handleStartChange(e.target.value)}
+            onChange={handleStartChange}
             disabled={disabled}
-            className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-primary focus:border-[var(--text-primary)] focus:outline-none disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-tertiary)]"
+            inputSize="md"
           />
         </div>
         <div>
-          <input
+          <Input
             type="time"
             value={end}
-            onChange={(e) => handleEndChange(e.target.value)}
+            onChange={handleEndChange}
             disabled={disabled}
-            className="w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-primary focus:border-[var(--text-primary)] focus:outline-none disabled:cursor-not-allowed disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-tertiary)]"
+            inputSize="md"
           />
         </div>
       </div>
@@ -87,14 +91,15 @@ export function TimeRangeInput({
           기본값: {defaultStart} ~ {defaultEnd}
         </div>
         {!isUsingDefault && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleReset}
             disabled={disabled}
-            className="text-body-2 text-text-primary hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-text-primary hover:text-text-primary"
           >
             기본값으로 되돌리기
-          </button>
+          </Button>
         )}
       </div>
     </div>

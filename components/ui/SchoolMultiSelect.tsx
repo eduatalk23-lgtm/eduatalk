@@ -4,6 +4,8 @@ import { memo } from "react";
 import { cn } from "@/lib/cn";
 import { useSchoolMultiSelectLogic } from "./hooks/useSchoolMultiSelectLogic";
 import type { School } from "@/lib/domains/school";
+import Input from "@/components/atoms/Input";
+import Button from "@/components/atoms/Button";
 
 type SchoolMultiSelectProps = {
   value?: string[]; // 선택된 학교 ID 배열
@@ -129,12 +131,13 @@ function SchoolMultiSelectComponent({
                 <span className="text-body-2-bold text-text-primary">{school.name}</span>
                 {/* 삭제 버튼 */}
                 {!disabled && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleRemove(school.id || "")}
+                    variant="ghost"
+                    size="xs"
                     className={cn(
-                      "ml-auto shrink-0 rounded-full p-1 transition-colors",
-                      "hover:bg-white/60 focus:outline-none focus:ring-2 focus:ring-offset-1",
+                      "ml-auto shrink-0 rounded-full p-1",
                       styles.icon
                     )}
                     aria-label={`${school.name} 제거`}
@@ -150,7 +153,7 @@ function SchoolMultiSelectComponent({
                     >
                       <path d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                  </button>
+                  </Button>
                 )}
               </div>
             );
@@ -158,10 +161,16 @@ function SchoolMultiSelectComponent({
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div 
+        className="flex gap-2"
+        role="combobox"
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-controls="school-listbox"
+      >
         {/* 검색 입력 필드 */}
         <div className="relative flex-1">
-          <input
+          <Input
             type="text"
             value=""
             readOnly
@@ -171,17 +180,19 @@ function SchoolMultiSelectComponent({
                 : `최대 ${maxCount}개까지 선택 가능합니다`
             }
             disabled={disabled || !canAddMore}
+            inputSize="md"
             className={cn(
-              "w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] cursor-default",
-              "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]",
+              "bg-[rgb(var(--color-secondary-50))] cursor-default",
               !canAddMore && "text-[var(--text-tertiary)]"
             )}
           />
           {selectedSchools.length > 0 && !disabled && (
-            <button
+            <Button
               type="button"
               onClick={handleClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              variant="ghost"
+              size="xs"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 h-auto"
             >
               <svg
                 className="h-4 w-4"
@@ -194,19 +205,17 @@ function SchoolMultiSelectComponent({
               >
                 <path d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           )}
         </div>
         {/* 검색 버튼 */}
-        <button
+        <Button
           type="button"
           onClick={handleSearchClick}
           disabled={disabled || !canAddMore}
-          className={cn(
-            "flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-[var(--text-secondary)] transition-base",
-            "hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200",
-            "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed"
-          )}
+          variant="outline"
+          size="md"
+          className="px-3"
         >
           <svg
             className="h-4 w-4"
@@ -219,27 +228,31 @@ function SchoolMultiSelectComponent({
           >
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-        </button>
+        </Button>
       </div>
 
       {/* 검색 드롭다운 메뉴 */}
       {isOpen && !disabled && isSearchMode && canAddMore && (
-        <div className="absolute z-50 top-1 w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]">
+        <div 
+          className="absolute z-50 top-1 w-full rounded-lg border border-[rgb(var(--color-secondary-200))] bg-white dark:bg-secondary-900 shadow-[var(--elevation-8)]"
+          role="listbox"
+          id="school-listbox"
+        >
           {/* 검색 입력 필드 */}
           <div className="border-b border-[rgb(var(--color-secondary-200))] p-3">
             <div className="flex gap-2">
-              <input
+              <Input
                 ref={searchInputRef}
                 type="text"
                 value={searchQuery}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   if (disabled) return;
                   setSearchQuery(e.target.value);
                 }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder="대학교명을 입력하세요"
                 disabled={disabled}
-                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200 disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]"
+                inputSize="md"
               />
               {loading && (
                 <div className="flex items-center justify-center px-3">
@@ -264,10 +277,12 @@ function SchoolMultiSelectComponent({
                   </svg>
                 </div>
               )}
-              <button
+              <Button
                 type="button"
                 onClick={handleClose}
-                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-secondary transition-base hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200"
+                variant="outline"
+                size="sm"
+                className="px-3"
               >
                 <svg
                   className="h-4 w-4"
@@ -280,7 +295,7 @@ function SchoolMultiSelectComponent({
                 >
                   <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
           {/* 검색 결과 */}
@@ -317,6 +332,8 @@ function SchoolMultiSelectComponent({
                     className={cn(
                       "cursor-pointer px-4 py-2 text-body-2 hover:bg-indigo-50"
                     )}
+                    role="option"
+                    aria-selected={false}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex-1">

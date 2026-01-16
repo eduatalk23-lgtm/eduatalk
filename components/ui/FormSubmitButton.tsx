@@ -1,10 +1,9 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { cn } from "@/lib/cn";
+import Button, { ButtonProps } from "@/components/atoms/Button";
 
-export interface FormSubmitButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface FormSubmitButtonProps extends Omit<ButtonProps, "isLoading"> {
   pendingText?: string;
   defaultText: string;
 }
@@ -12,24 +11,20 @@ export interface FormSubmitButtonProps
 export default function FormSubmitButton({
   pendingText,
   defaultText,
-  className,
   disabled,
   ...props
 }: FormSubmitButtonProps) {
   const { pending } = useFormStatus();
 
   return (
-    <button
+    <Button
       type="submit"
-      disabled={pending || disabled}
-      className={cn(
-        "rounded bg-black px-4 py-2 text-white disabled:opacity-50",
-        className
-      )}
+      disabled={disabled || pending}
+      isLoading={pending}
       {...props}
     >
       {pending ? pendingText || "처리 중..." : defaultText}
-    </button>
+    </Button>
   );
 }
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Download, Share2 } from "lucide-react";
 import { useInstallPrompt } from "@/lib/hooks/useInstallPrompt";
 import { cn } from "@/lib/cn";
+import Button from "@/components/atoms/Button";
 
 interface InstallPromptProps {
   className?: string;
@@ -42,7 +43,7 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-secondary-900 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-800))] shadow-[var(--elevation-8)]",
+        "fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-secondary-900 border-t border-secondary-200 dark:border-secondary-800 shadow-[var(--elevation-8)]",
         "animate-in slide-in-from-bottom duration-300",
         className
       )}
@@ -69,25 +70,28 @@ export default function InstallPrompt({ className }: InstallPromptProps) {
 
           <div className="flex items-center gap-2">
             {!isIOS && (
-              <button
+              <Button
                 onClick={handleInstall}
-                className="px-4 py-2 bg-info-600 hover:bg-info-700 text-white text-body-2 font-medium rounded-lg transition-base"
+                variant="primary"
+                size="sm"
               >
                 설치
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               onClick={handleDismiss}
-              className="p-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] dark:hover:text-[var(--text-secondary)] transition-base"
+              variant="ghost"
+              size="xs"
               aria-label="닫기"
+              className="p-2"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
         {isIOS && (
-          <div className="flex flex-col gap-3 pt-3 border-t border-[rgb(var(--color-secondary-200))] dark:border-[rgb(var(--color-secondary-800))]">
+          <div className="flex flex-col gap-3 pt-3 border-t border-secondary-200 dark:border-secondary-800">
             <div className="flex items-start gap-2 text-body-2 text-text-secondary">
               <Share2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex flex-col gap-1">

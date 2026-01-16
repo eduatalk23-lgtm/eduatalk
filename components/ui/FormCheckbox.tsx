@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { cn } from "@/lib/cn";
+import Checkbox from "@/components/atoms/Checkbox";
 
 export interface FormCheckboxProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -29,15 +30,10 @@ const FormCheckbox = memo(function FormCheckbox({
           props.disabled && "cursor-not-allowed opacity-50"
         )}
       >
-        <input
+        <Checkbox
           id={inputId}
-          type="checkbox"
-          className={cn(
-            "mt-0.5 h-4 w-4 rounded border-[rgb(var(--color-secondary-300))] dark:border-[rgb(var(--color-secondary-600))] text-primary-600 focus:ring-primary-600 dark:bg-[rgb(var(--color-secondary-700))]",
-            error && "border-error-500",
-            className
-          )}
-          aria-invalid={error ? "true" : undefined}
+          hasError={!!error}
+          className={className}
           aria-describedby={describedBy}
           {...props}
         />

@@ -16,6 +16,8 @@ import {
   searchSchools,
   type School,
 } from "@/lib/domains/school";
+import Input from "@/components/atoms/Input";
+import Button from "@/components/atoms/Button";
 
 type SchoolSelectProps = {
   value?: string;
@@ -213,24 +215,26 @@ export default function SchoolSelect({
       <div className="flex gap-2">
         {/* 선택된 학교명 표시 */}
         <div className="relative flex-1">
-          <input
+          <Input
             ref={inputRef}
             type="text"
             value={selectedSchool ? selectedSchool.name : value || ""}
             readOnly
             placeholder={placeholder}
             disabled={disabled}
+            inputSize="md"
             className={cn(
-              "w-full rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 bg-[rgb(var(--color-secondary-50))] text-[var(--text-primary)] cursor-default",
-              "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)]",
+              "bg-[rgb(var(--color-secondary-50))] cursor-default",
               !selectedSchool && !value && "text-[var(--text-tertiary)]"
             )}
           />
           {selectedSchool && !disabled && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={handleClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 h-auto text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
               <svg
                 className="h-4 w-4"
@@ -243,19 +247,16 @@ export default function SchoolSelect({
               >
                 <path d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           )}
         </div>
         {/* 검색 버튼 */}
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={handleSearchClick}
           disabled={disabled}
-          className={cn(
-            "flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-[var(--text-secondary)] transition-base",
-            "hover:bg-[rgb(var(--color-secondary-50))] focus:outline-none focus:ring-2 focus:ring-primary-200",
-            "disabled:bg-[rgb(var(--color-secondary-100))] disabled:text-[var(--text-disabled)] disabled:cursor-not-allowed"
-          )}
+          className="px-3"
         >
           <svg
             className="h-4 w-4"
@@ -268,7 +269,7 @@ export default function SchoolSelect({
           >
             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-        </button>
+        </Button>
       </div>
 
       {/* 검색 드롭다운 */}
@@ -277,16 +278,20 @@ export default function SchoolSelect({
           {/* 검색 입력 */}
           <div className="border-b border-[rgb(var(--color-secondary-200))] p-3">
             <div className="flex gap-2">
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="학교명을 입력하세요"
-                disabled={disabled}
-                className="flex-1 rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-              />
+              <div className="flex-1 relative">
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setSearchQuery(e.target.value)
+                  }
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="학교명을 입력하세요"
+                  disabled={disabled}
+                  inputSize="md"
+                />
+              </div>
               {loading && (
                 <div className="flex items-center justify-center px-3">
                   <svg
@@ -310,15 +315,17 @@ export default function SchoolSelect({
                   </svg>
                 </div>
               )}
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   setIsOpen(false);
                   setIsSearchMode(false);
                   setSearchQuery("");
                   setSchools([]);
                 }}
-                className="flex items-center justify-center rounded-lg border border-[rgb(var(--color-secondary-300))] px-3 py-2 text-body-2 text-text-secondary hover:bg-[rgb(var(--color-secondary-50))]"
+                className="px-3"
               >
                 <svg
                   className="h-4 w-4"
@@ -331,7 +338,7 @@ export default function SchoolSelect({
                 >
                   <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
           {/* 검색 결과 */}
@@ -357,7 +364,9 @@ export default function SchoolSelect({
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                   />
                 </svg>
-                <span className="text-body-2 text-text-tertiary">검색 중...</span>
+                <span className="text-body-2 text-text-tertiary">
+                  검색 중...
+                </span>
               </div>
             ) : schools.length > 0 ? (
               <ul className="py-1">
@@ -372,7 +381,9 @@ export default function SchoolSelect({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
-                        <div className="text-body-2-bold text-text-primary">{school.name}</div>
+                        <div className="text-body-2-bold text-text-primary">
+                          {school.name}
+                        </div>
                         {school.region && (
                           <div className="text-body-2 text-text-tertiary">
                             {school.region}
