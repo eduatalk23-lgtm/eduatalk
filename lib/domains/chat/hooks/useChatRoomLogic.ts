@@ -48,6 +48,7 @@ import {
 import { processMessagesWithGrouping } from "@/lib/domains/chat/messageGrouping";
 import { useChatRealtime, useChatPresence } from "@/lib/realtime";
 import { useDebouncedCallback } from "@/lib/hooks/useDebounce";
+import { operationTracker } from "../operationTracker";
 
 // ============================================
 // 타입 정의
@@ -232,11 +233,22 @@ export function useChatRoomLogic({
   // Data Transformations
   // ============================================
 
-  // 모든 페이지의 메시지를 시간순 정렬로 병합
-  const allMessages = useMemo(() => {
-    if (!messagesData?.pages) return [];
+  // 페이지 수 추적 (readCounts 증분 업데이트용)
+  const pagesLengthRef = useRef(0);
+  const cachedReadCountsRef = useRef<Record<string, number>>({});
 
-    // 과거 → 현재 순서로 병합 (pages는 역순으로 쌓임)
+  // 모든 페이지의 메시지를 시간순 정렬로 병합
+  // Note: 이전에는 증분 병합 최적화를 사용했으나, Realtime으로 첫 페이지에
+  // 메시지가 추가될 때 캐시된 결과를 반환하여 UI가 업데이트되지 않는 버그가 있었음.
+  // 메시지 목록이 수백 개가 아니라면 전체 재계산의 성능 영향은 미미함.
+  const allMessages = useMemo(() => {
+    if (!messagesData?.pages) {
+      return [];
+    }
+
+    // 항상 전체 재계산 (Realtime 업데이트 반영 보장)
+    // pages는 [newest, ..., oldest] 순서이므로 역순으로 평탄화하여
+    // [oldest, ..., newest] 시간순 정렬
     return messagesData.pages
       .slice()
       .reverse()
@@ -248,17 +260,53 @@ export function useChatRoomLogic({
     return processMessagesWithGrouping(allMessages);
   }, [allMessages]);
 
-  // readCounts 병합
+  // readCounts 병합 (증분 최적화)
+  // Note: readCounts는 Realtime으로 변경되지 않고 페이지 로드 시에만 변경되므로
+  // 증분 업데이트 캐싱이 안전함
   const allReadCounts = useMemo(() => {
-    if (!messagesData?.pages) return {};
+    if (!messagesData?.pages) {
+      cachedReadCountsRef.current = {};
+      pagesLengthRef.current = 0;
+      return {};
+    }
 
-    return messagesData.pages.reduce(
+    const pages = messagesData.pages;
+    const currentLength = pages.length;
+    const prevLength = pagesLengthRef.current;
+
+    // 첫 로드 또는 리셋
+    if (prevLength === 0 || currentLength < prevLength) {
+      const result = pages.reduce(
+        (acc, page) => ({
+          ...acc,
+          ...(page?.readCounts ?? {}),
+        }),
+        {} as Record<string, number>
+      );
+      cachedReadCountsRef.current = result;
+      pagesLengthRef.current = currentLength;
+      return result;
+    }
+
+    // 페이지 수 동일하면 캐시 반환
+    if (currentLength === prevLength) {
+      return cachedReadCountsRef.current;
+    }
+
+    // 새 페이지의 readCounts만 병합
+    const newPages = pages.slice(prevLength);
+    const newReadCounts = newPages.reduce(
       (acc, page) => ({
         ...acc,
         ...(page?.readCounts ?? {}),
       }),
       {} as Record<string, number>
     );
+
+    const result = { ...cachedReadCountsRef.current, ...newReadCounts };
+    cachedReadCountsRef.current = result;
+    pagesLengthRef.current = currentLength;
+    return result;
   }, [messagesData?.pages]);
 
   // ============================================
@@ -290,6 +338,9 @@ export function useChatRoomLogic({
 
       // 3. 낙관적 업데이트 (즉시 UI 반영) - InfiniteQuery 구조
       const tempId = `temp-${Date.now()}`;
+
+      // Operation Tracker에 전송 시작 등록 (Race Condition 방지)
+      operationTracker.startSend(tempId, content);
       const optimisticMessage = {
         id: tempId,
         content,
@@ -336,6 +387,8 @@ export function useChatRoomLogic({
       // 이렇게 하면 실시간 이벤트와의 경쟁 조건을 피할 수 있음
       const tempId = context?.tempId;
       if (tempId && data) {
+        // Operation Tracker에 전송 완료 등록 (tempId → realId 매핑)
+        operationTracker.completeSend(tempId, data.id);
         queryClient.setQueryData(
           ["chat-messages", roomId],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -369,6 +422,8 @@ export function useChatRoomLogic({
       // 6. 실패 시 롤백 대신 status를 error로 변경
       const tempId = context?.tempId;
       if (tempId) {
+        // Operation Tracker에 전송 실패 등록
+        operationTracker.failSend(tempId);
         queryClient.setQueryData(
           ["chat-messages", roomId],
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -534,6 +589,24 @@ export function useChatRoomLogic({
         roomId,
       ]);
 
+      // 현재 리액션 상태 확인 (추가인지 제거인지)
+      let isAdd = true;
+      if (previousMessages?.pages) {
+        for (const page of previousMessages.pages) {
+          const msg = page.messages.find((m) => m.id === messageId);
+          if (msg?.reactions) {
+            const reaction = msg.reactions.find((r) => r.emoji === emoji);
+            if (reaction?.hasReacted) {
+              isAdd = false;
+            }
+            break;
+          }
+        }
+      }
+
+      // Operation Tracker에 리액션 시작 등록 (Race Condition 방지)
+      operationTracker.startReaction(messageId, emoji, isAdd);
+
       // 낙관적 업데이트
       queryClient.setQueryData<InfiniteMessagesCache>(
         ["chat-messages", roomId],
@@ -600,7 +673,14 @@ export function useChatRoomLogic({
 
       return { previousMessages };
     },
-    onError: (_err, _variables, context) => {
+    onSuccess: (_data, variables) => {
+      // Operation Tracker에 리액션 완료 등록
+      operationTracker.completeReaction(variables.messageId, variables.emoji);
+    },
+    onError: (_err, variables, context) => {
+      // Operation Tracker에 리액션 완료 등록 (실패해도 pending 상태 해제)
+      operationTracker.completeReaction(variables.messageId, variables.emoji);
+
       // 에러 시 롤백
       if (context?.previousMessages) {
         queryClient.setQueryData(
@@ -609,7 +689,6 @@ export function useChatRoomLogic({
         );
       }
     },
-    // onSuccess 제거: Realtime이 동기화 담당
   });
 
   // 메시지 고정/해제
