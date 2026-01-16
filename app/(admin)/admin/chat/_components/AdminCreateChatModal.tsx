@@ -24,6 +24,7 @@ import { cn } from "@/lib/cn";
 interface AdminCreateChatModalProps {
   isOpen: boolean;
   onClose: () => void;
+  basePath: string;
 }
 
 interface Student {
@@ -39,6 +40,7 @@ const CHAT_TABS: Tab[] = [
 export function AdminCreateChatModal({
   isOpen,
   onClose,
+  basePath,
 }: AdminCreateChatModalProps) {
   const router = useRouter();
 
@@ -120,7 +122,7 @@ export function AdminCreateChatModal({
     },
     onSuccess: (room) => {
       handleClose();
-      router.push(`/admin/chat/${room?.id}`);
+      router.push(`${basePath}/${room?.id}`);
     },
   });
 
