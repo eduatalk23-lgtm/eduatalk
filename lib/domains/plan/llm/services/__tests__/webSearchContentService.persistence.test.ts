@@ -409,6 +409,9 @@ describe("WebSearchContentService.findExistingWebContent", () => {
     vi.clearAllMocks();
     setupQueryChain();
 
+    // 캐시 초기화 (캐시 히트로 인한 mock 미호출 방지)
+    service.clearCache();
+
     // 기본: 빈 결과
     mockLimit.mockResolvedValue({ data: [], error: null });
   });
