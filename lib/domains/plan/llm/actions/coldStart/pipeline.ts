@@ -70,6 +70,7 @@ import { parseSearchResults } from "./parseResults";
 import { rankAndFilterResults } from "./rankResults";
 import { saveRecommendationsToMasterContent } from "./persistence";
 import { MetricsBuilder, logRecommendationError } from "../../metrics";
+import { getWebSearchContentService } from "../../services";
 
 /**
  * 파이프라인 옵션
@@ -251,6 +252,15 @@ export async function runColdStartPipeline(
       savedIds: saveResult.savedItems.map((i) => i.id),
       errors: saveResult.errors,
     };
+
+    // 새로 저장된 콘텐츠가 있으면 캐시 무효화
+    if (persistence.newlySaved > 0) {
+      const webContentService = getWebSearchContentService();
+      webContentService.invalidateCache(
+        tenantId ?? null,
+        validatedInput.subjectCategory
+      );
+    }
   }
 
   // ────────────────────────────────────────────────────────────────────

@@ -126,6 +126,42 @@ export interface ExistingContentItem {
 }
 
 // ============================================
+// 캐시 설정
+// ============================================
+
+/** 캐시 TTL (5분) */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** 최대 캐시 엔트리 수 */
+const MAX_CACHE_ENTRIES = 100;
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+/**
+ * 쿼리 옵션에서 캐시 키 생성
+ */
+function buildCacheKey(
+  tenantId: string | null,
+  options?: FindExistingContentOptions
+): string {
+  const parts = [
+    `t:${tenantId ?? "null"}`,
+    `sc:${options?.subjectCategory ?? ""}`,
+    `s:${options?.subject ?? ""}`,
+    `d:${options?.difficulty ?? ""}`,
+    `ct:${options?.contentType ?? "all"}`,
+    `hs:${options?.hasStructure ?? false}`,
+    `src:${options?.source ?? ""}`,
+    `isc:${options?.includeSharedCatalog ?? false}`,
+    `l:${options?.limit ?? 20}`,
+  ];
+  return parts.join("|");
+}
+
+// ============================================
 // WebSearchContentService 클래스
 // ============================================
 
@@ -133,6 +169,7 @@ export interface ExistingContentItem {
  * 웹 검색 콘텐츠 서비스
  *
  * Gemini Grounding 결과를 콘텐츠 형식으로 변환하고 DB에 저장합니다.
+ * 인메모리 캐시를 사용하여 동일 조건의 반복 쿼리를 최적화합니다.
  *
  * @example
  * ```typescript
@@ -145,6 +182,74 @@ export interface ExistingContentItem {
  * ```
  */
 export class WebSearchContentService {
+  /** 인메모리 캐시 */
+  private cache = new Map<string, CacheEntry<ExistingContentItem[]>>();
+
+  /** 캐시 통계 */
+  private cacheStats = { hits: 0, misses: 0 };
+
+  /**
+   * 캐시 통계 조회
+   */
+  getCacheStats(): { hits: number; misses: number; size: number } {
+    return { ...this.cacheStats, size: this.cache.size };
+  }
+
+  /**
+   * 캐시 초기화
+   */
+  clearCache(): void {
+    this.cache.clear();
+    this.cacheStats = { hits: 0, misses: 0 };
+  }
+
+  /**
+   * 특정 조건의 캐시 무효화
+   */
+  invalidateCache(tenantId: string | null, subjectCategory?: string): void {
+    const keysToDelete: string[] = [];
+    const cacheKeys = Array.from(this.cache.keys());
+    for (const key of cacheKeys) {
+      if (
+        key.includes(`t:${tenantId ?? "null"}`) &&
+        (!subjectCategory || key.includes(`sc:${subjectCategory}`))
+      ) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach((key) => this.cache.delete(key));
+  }
+
+  /**
+   * 캐시에서 조회 (TTL 체크 포함)
+   */
+  private getFromCache(key: string): ExistingContentItem[] | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    // TTL 체크
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    this.cacheStats.hits++;
+    return entry.data;
+  }
+
+  /**
+   * 캐시에 저장 (최대 엔트리 수 제한)
+   */
+  private setToCache(key: string, data: ExistingContentItem[]): void {
+    // 최대 엔트리 수 초과 시 가장 오래된 항목 삭제
+    if (this.cache.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+
+    this.cache.set(key, { data, timestamp: Date.now() });
+    this.cacheStats.misses++;
+  }
   /**
    * Grounding 메타데이터를 콘텐츠 형식으로 변환
    *
@@ -384,6 +489,13 @@ export class WebSearchContentService {
     tenantId: string | null,
     options?: FindExistingContentOptions
   ): Promise<ExistingContentItem[]> {
+    // 캐시 키 생성 및 캐시 확인
+    const cacheKey = buildCacheKey(tenantId, options);
+    const cached = this.getFromCache(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const supabase = await createSupabaseAdminClient();
     if (!supabase) {
       return [];
@@ -391,24 +503,31 @@ export class WebSearchContentService {
 
     const limit = options?.limit ?? 20;
     const contentType = options?.contentType ?? "all";
-    const results: ExistingContentItem[] = [];
 
-    // 교재 조회 (book 또는 all)
+    // 병렬 쿼리 실행으로 성능 최적화
+    const queryPromises: Promise<ExistingContentItem[]>[] = [];
+
     if (contentType === "book" || contentType === "all") {
-      const bookResults = await this.queryBooks(supabase, tenantId, options);
-      results.push(...bookResults);
+      queryPromises.push(this.queryBooks(supabase, tenantId, options));
     }
 
-    // 강의 조회 (lecture 또는 all)
     if (contentType === "lecture" || contentType === "all") {
-      const lectureResults = await this.queryLectures(supabase, tenantId, options);
-      results.push(...lectureResults);
+      queryPromises.push(this.queryLectures(supabase, tenantId, options));
     }
+
+    // 병렬 실행 후 결과 병합
+    const queryResults = await Promise.all(queryPromises);
+    const results = queryResults.flat();
 
     // 생성일 기준 정렬 후 limit 적용
-    return results
+    const sortedResults = results
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limit);
+
+    // 캐시에 저장
+    this.setToCache(cacheKey, sortedResults);
+
+    return sortedResults;
   }
 
   /**
